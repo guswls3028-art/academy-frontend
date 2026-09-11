@@ -117,6 +117,13 @@ const FIXED_ERROR_TYPES = new Set([
   "IntegrityError", "KeyError", "OperationalError", "PermissionError", "RuntimeError", "TimeoutError",
   "TypeError", "ValueError",
 ]);
+const FIXED_FAILURE_STAGES = new Set([
+  "bootstrap", "identity", "inspect_database", "inspect_residue", "setup_database", "setup_readback",
+  "cleanup_identity", "cleanup_absent_readback", "cleanup_r2", "cleanup_database", "cleanup_readback", "unknown",
+]);
+const FIXED_RESIDUE_FIELDS = [
+  "activity_audits", "outstanding_tokens", "listeners", "processes", "r2_objects",
+];
 const PREFLIGHT_STAGES = ["process", "bundle", "governance", "iam", "document", "host", "ssm"];
 const PREFLIGHT_CHECKS = PREFLIGHT_STAGES.slice(1);
 
@@ -484,16 +491,39 @@ export function observeFixedOperationResult(action, result) {
     try { payload = JSON.parse(jsonLines[0]); }
     catch (error) { parseError = error; }
   }
-  const errorType = typeof payload?.error_type === "string" && payload.error_type.length > 0
-    ? (FIXED_ERROR_TYPES.has(payload.error_type) ? payload.error_type : "OtherError") : null;
+  const failure = (() => {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)
+      || Object.keys(payload).sort().join(",") !== "error_type,failure_stage,residue,status,tenant_id"
+      || payload.status !== "DEVELOPMENT_QA_FAILED"
+      || typeof payload.error_type !== "string" || payload.error_type.length === 0
+      || !FIXED_FAILURE_STAGES.has(payload.failure_stage)
+      || !Number.isSafeInteger(payload.tenant_id) || payload.tenant_id < 0
+      || !payload.residue || typeof payload.residue !== "object" || Array.isArray(payload.residue)
+      || Object.keys(payload.residue).sort().join(",") !== [...FIXED_RESIDUE_FIELDS].sort().join(",")
+      || FIXED_RESIDUE_FIELDS.some((key) => !Number.isSafeInteger(payload.residue[key]) || payload.residue[key] < 0)) {
+      return null;
+    }
+    return {
+      failureStage: payload.failure_stage,
+      tenantId: payload.tenant_id,
+      residue: Object.fromEntries(FIXED_RESIDUE_FIELDS.map((key) => [key, payload.residue[key]])),
+      errorType: FIXED_ERROR_TYPES.has(payload.error_type) ? payload.error_type : "OtherError",
+    };
+  })();
+  const payloadStatus = payload?.status === "DEVELOPMENT_QA_FAILED"
+    ? (failure ? payload.status : null)
+    : (FIXED_STATUSES.has(payload?.status) ? payload.status : null);
   return {
     observation: {
       action: FIXED_ACTIONS.has(action) ? action : null,
       exitCode: Number.isInteger(result?.code) && result.code >= -1 && result.code <= 255 ? result.code : null,
       jsonLineCount: jsonLines.length,
       sessionIdObserved: /Starting session with SessionId:\s*[A-Za-z0-9_.:-]+/.test(stdout),
-      payloadStatus: FIXED_STATUSES.has(payload?.status) ? payload.status : null,
-      errorType,
+      payloadStatus,
+      errorType: failure?.errorType ?? null,
+      failureStage: failure?.failureStage ?? null,
+      tenantId: failure?.tenantId ?? null,
+      residue: failure?.residue ?? null,
     },
     payload,
     parseError,
@@ -511,7 +541,7 @@ export function inspectMatchObservation(payload, manifest) {
 
 export function assertLongVideoSetup(payload) {
   assert.equal(payload?.status, "YMATH_REALUSE_SCENARIO_READY");
-  assert.ok(Number.isInteger(payload?.tenant_id) && payload.tenant_id > 0);
+  assert.ok(Number.isSafeInteger(payload?.tenant_id) && payload.tenant_id > 0);
   assert.ok(Array.isArray(payload.student_ids) && payload.student_ids.length === 2
     && payload.student_ids.every((id) => Number.isInteger(id) && id > 0));
   assert.ok(Array.isArray(payload.session_ids) && payload.session_ids.length === 2
@@ -615,7 +645,7 @@ export function assertReleaseSummary(report, expected = FLOW_COUNTS) {
 export function assertCleanup(payload, tenantCode, tenantId) {
   assert.equal(payload.tenant_code, tenantCode, "Wrong cleanup tenant");
   assert.equal(payload.tenant_id, tenantId, "Wrong cleanup tenant id");
-  assert.ok(Number.isInteger(tenantId) && tenantId > 0, "Cleanup tenant id must be a positive integer");
+  assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0, "Cleanup tenant id must be a positive integer");
   assert.ok(["YMATH_REALUSE_SCENARIO_DESTROYED", "YMATH_REALUSE_SCENARIO_ABSENT"].includes(payload.status));
   assert.deepEqual(payload.remaining, { tenants: 0, users: 0 }, "Cleanup residue must be numeric zero");
 }
@@ -625,7 +655,7 @@ export function fixedOperationParameters(common, action, tenantId) {
   const hasTenantId = tenantId !== undefined;
   if (action === "Setup") assert.equal(hasTenantId, false, "Setup must not receive TenantId");
   if (action === "Cleanup") assert.equal(hasTenantId, true, "Cleanup requires the exact Setup TenantId");
-  if (hasTenantId) assert.ok(Number.isInteger(tenantId) && tenantId > 0, "TenantId must be a positive integer");
+  if (hasTenantId) assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0, "TenantId must be a positive integer");
   return hasTenantId
     ? { ...common, Action: [action], TenantId: [String(tenantId)] }
     : { ...common, Action: [action] };
@@ -637,6 +667,7 @@ export function assertPostCleanupInspect(payload, tenantCode, tenantId, manifest
     tenantIdMatches: payload?.tenant_id === tenantId,
     tenantRemainingZero: payload?.remaining?.tenants === 0,
     userRemainingZero: payload?.remaining?.users === 0,
+    r2ScopeProven: payload?.r2_scope_proven === true,
     r2ObjectsZero: payload?.residue?.r2_objects === 0,
     processesZero: payload?.residue?.processes === 0,
     listenersZero: payload?.residue?.listeners === 0,
@@ -644,7 +675,7 @@ export function assertPostCleanupInspect(payload, tenantCode, tenantId, manifest
     digestMatches: payload?.digest === manifest.images["academy-api"].digest,
   };
   assert.equal(payload?.tenant_code, tenantCode, "Wrong post-cleanup Inspect tenant");
-  assert.ok(Number.isInteger(tenantId) && tenantId > 0, "Inspect tenant id must be a positive integer");
+  assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0, "Inspect tenant id must be a positive integer");
   assert.ok(Object.values(observation).every(Boolean), "Post-cleanup Inspect must prove exact identity and zero runtime residue");
   return observation;
 }
@@ -946,7 +977,7 @@ export async function run() {
     const result = await process.done;
     const observed = observeFixedOperationResult(action, result);
     if (action === "Setup" && observed.payload?.tenant_code === tenant
-      && Number.isInteger(observed.payload?.tenant_id) && observed.payload.tenant_id > 0) {
+      && Number.isSafeInteger(observed.payload?.tenant_id) && observed.payload.tenant_id > 0) {
       scenarioTenantId = observed.payload.tenant_id;
     }
     if (action === "Cleanup") cleanupObservation = observed.observation;
@@ -1012,7 +1043,7 @@ export async function run() {
     assert.equal(inspected.digest, manifest.images["academy-api"].digest);
     setupAttempted = true;
     scenario = await operation("Setup");
-    assert.ok(Number.isInteger(scenario.tenant_id) && scenario.tenant_id > 0, "Setup tenant_id must be a positive integer");
+    assert.ok(Number.isSafeInteger(scenario.tenant_id) && scenario.tenant_id > 0, "Setup tenant_id must be a positive integer");
     assert.equal(scenarioTenantId, scenario.tenant_id, "Setup tenant id capture drift");
     const longVideo = assertLongVideoSetup(scenario);
     const tunnel = session(PORT_DOCUMENT);
@@ -1055,7 +1086,7 @@ export async function run() {
     if (tests) { tests.stop(); await tests.done; }
     if (interrupted) failures.push("development run interrupted; promotion forbidden");
     if (setupAttempted) {
-      if (!Number.isInteger(scenarioTenantId) || scenarioTenantId < 1) {
+      if (!Number.isSafeInteger(scenarioTenantId) || scenarioTenantId < 1) {
         failures.push("development cleanup refused without exact Setup tenant id");
       } else {
         try {

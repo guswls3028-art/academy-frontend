@@ -4,7 +4,7 @@ import test from "node:test";
 import { stripTypeScriptTypes } from "node:module";
 import http from "node:http";
 import { chromium } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 import * as runner from "../run-development-release-canary.mjs";
@@ -254,9 +254,11 @@ test("fixed-document operation failures expose only allowlisted PII-free observa
       JSON.stringify({
         status: "DEVELOPMENT_QA_FAILED",
         error_type: "AssertionError",
-        message: "student-name token-secret capability-secret password-secret",
+        failure_stage: "inspect_residue",
+        tenant_id: 72,
+        residue: { activity_audits: 1, outstanding_tokens: 2, listeners: 3, processes: 4, r2_objects: 5 },
       }),
-      "raw-output-secret",
+      "raw-output-secret student-name token-secret capability-secret password-secret",
     ].join("\n"),
   });
 
@@ -267,6 +269,9 @@ test("fixed-document operation failures expose only allowlisted PII-free observa
     sessionIdObserved: true,
     payloadStatus: "DEVELOPMENT_QA_FAILED",
     errorType: "AssertionError",
+    failureStage: "inspect_residue",
+    tenantId: 72,
+    residue: { activity_audits: 1, outstanding_tokens: 2, listeners: 3, processes: 4, r2_objects: 5 },
   });
   const published = JSON.stringify(result.observation);
   for (const forbidden of [sessionId, "student-name", "token-secret", "capability-secret", "password-secret", "raw-output-secret"]) {
@@ -283,6 +288,9 @@ test("fixed-document operation observation preserves malformed and multiple JSON
     sessionIdObserved: false,
     payloadStatus: null,
     errorType: null,
+    failureStage: null,
+    tenantId: null,
+    residue: null,
   });
   assert.ok(malformed.parseError);
   assert.equal(malformed.payload, null);
@@ -307,9 +315,61 @@ test("fixed-document operation observation rejects unreviewed values", () => {
     jsonLineCount: 1,
     sessionIdObserved: false,
     payloadStatus: null,
-    errorType: "OtherError",
+    errorType: null,
+    failureStage: null,
+    tenantId: null,
+    residue: null,
   });
   assert.doesNotMatch(JSON.stringify(result.observation), /DeleteEverything|student-name|SecretProviderError/);
+});
+
+test("Cleanup and post-cleanup Inspect failures retain only exact safe stage, tenant id, and numeric residue", () => {
+  const residue = { activity_audits: 0, outstanding_tokens: 1, listeners: 0, processes: 0, r2_objects: 2 };
+  const payload = {
+    status: "DEVELOPMENT_QA_FAILED", error_type: "AssertionError",
+    failure_stage: "cleanup_r2", tenant_id: 72, residue,
+  };
+  for (const action of ["Cleanup", "Inspect"]) {
+    const observed = runner.observeFixedOperationResult(action, { code: 1, stdout: JSON.stringify(payload) });
+    assert.deepEqual(observed.observation, {
+      action, exitCode: 1, jsonLineCount: 1, sessionIdObserved: false,
+      payloadStatus: "DEVELOPMENT_QA_FAILED", errorType: "AssertionError",
+      failureStage: "cleanup_r2", tenantId: 72, residue,
+    });
+    if (action === "Cleanup") assert.throws(() => assertCleanup(observed.payload, "qa-safe", 72));
+    else assert.throws(() => runner.assertPostCleanupInspect(observed.payload, "qa-safe", 72, {
+      releaseImageTag: "release", images: { "academy-api": { digest: "sha256:digest" } },
+    }));
+    assert.equal(observed.observation.failureStage, "cleanup_r2", "throwing assertion must not erase diagnostics");
+  }
+  const preIdentityFailure = runner.observeFixedOperationResult("Inspect", { code: 1, stdout: JSON.stringify({
+    ...payload, error_type: "PrivateProviderError", failure_stage: "bootstrap", tenant_id: 0,
+  }) }).observation;
+  assert.equal(preIdentityFailure.tenantId, 0, "pre-identity failures preserve the exact zero tenant id");
+  assert.equal(preIdentityFailure.errorType, "OtherError", "unreviewed error classes are generalized");
+  assert.doesNotMatch(JSON.stringify(preIdentityFailure), /PrivateProviderError/);
+
+  for (const invalid of [
+    { ...payload, failure_stage: "private-provider-stage" },
+    { ...payload, tenant_id: -1 },
+    { ...payload, tenant_id: Number.MAX_SAFE_INTEGER + 1 },
+    { ...payload, residue: { ...residue, r2_objects: "2" } },
+    { ...payload, residue: Object.fromEntries(Object.entries(residue).filter(([key]) => key !== "r2_objects")) },
+    { ...payload, residue: { ...residue, private_count: 1 } },
+    { ...payload, provider_error: "student-name token-secret" },
+  ]) {
+    const observation = runner.observeFixedOperationResult("Cleanup", { code: 1, stdout: JSON.stringify(invalid) }).observation;
+    assert.equal(observation.payloadStatus, null);
+    assert.equal(observation.errorType, null);
+    assert.equal(observation.failureStage, null);
+    assert.equal(observation.tenantId, null);
+    assert.equal(observation.residue, null);
+    assert.doesNotMatch(JSON.stringify(observation), /private-provider|student-name|token-secret/);
+  }
+
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.ok(source.indexOf("cleanupObservation = observed.observation") < source.indexOf("assert.equal(result.code"));
+  assert.match(source, /postCleanupInspectOperationObservation, postCleanupInspectObservation/);
 });
 
 test("Inspect match evidence records booleans without publishing compared values", () => {
@@ -354,11 +414,12 @@ test("fixed SSM sessions keep stdin open until delayed JSON readback closes the 
   const [closedResult, openResult] = await Promise.all([closedInput.done, keptOpen.done]);
   assert.deepEqual(runner.observeFixedOperationResult("Inspect", closedResult).observation, {
     action: "Inspect", exitCode: 0, jsonLineCount: 0, sessionIdObserved: true,
-    payloadStatus: null, errorType: null,
+    payloadStatus: null, errorType: null, failureStage: null, tenantId: null, residue: null,
   });
   assert.deepEqual(runner.observeFixedOperationResult("Inspect", openResult).observation, {
     action: "Inspect", exitCode: 0, jsonLineCount: 1, sessionIdObserved: true,
     payloadStatus: "DEVELOPMENT_QA_IDENTITY_PASS", errorType: null,
+    failureStage: null, tenantId: null, residue: null,
   });
   const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
   assert.match(source,
@@ -658,7 +719,7 @@ test("cleanup and post-cleanup Inspect bind the exact Setup tenant id and requir
   assert.deepEqual(runner.fixedOperationParameters(common, "Inspect", tenantId), {
     ...common, Action: ["Inspect"], TenantId: ["91"],
   });
-  for (const invalid of [0, -1, 1.5, "91", null]) {
+  for (const invalid of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, "91", null]) {
     assert.throws(() => runner.fixedOperationParameters(common, "Cleanup", invalid));
   }
   assert.throws(() => runner.fixedOperationParameters(common, "Setup", tenantId));
@@ -669,17 +730,21 @@ test("cleanup and post-cleanup Inspect bind the exact Setup tenant id and requir
   const valid = {
     status: "DEVELOPMENT_QA_IDENTITY_PASS", tenant_code: tenant, tenant_id: tenantId,
     release_id: manifest.releaseImageTag, digest: manifest.images["academy-api"].digest,
+    r2_scope_proven: true,
     remaining: { tenants: 0, users: 0 },
     residue: { activity_audits: 0, outstanding_tokens: 0, r2_objects: 0, processes: 0, listeners: 0 },
   };
   assert.deepEqual(runner.assertPostCleanupInspect(valid, tenant, tenantId, manifest), {
     statusMatches: true, tenantIdMatches: true, tenantRemainingZero: true, userRemainingZero: true,
-    r2ObjectsZero: true, processesZero: true, listenersZero: true, releaseMatches: true, digestMatches: true,
+    r2ScopeProven: true, r2ObjectsZero: true, processesZero: true, listenersZero: true,
+    releaseMatches: true, digestMatches: true,
   });
   for (const invalid of [
     { ...valid, tenant_id: tenantId + 1 },
     { ...valid, remaining: { ...valid.remaining, tenants: 1 } },
     { ...valid, remaining: { ...valid.remaining, users: 1 } },
+    { ...valid, r2_scope_proven: false },
+    Object.fromEntries(Object.entries(valid).filter(([key]) => key !== "r2_scope_proven")),
     { ...valid, residue: { ...valid.residue, r2_objects: 1 } },
     { ...valid, residue: { ...valid.residue, processes: 1 } },
     { ...valid, residue: { ...valid.residue, listeners: 1 } },
@@ -689,6 +754,23 @@ test("cleanup and post-cleanup Inspect bind the exact Setup tenant id and requir
   assert.match(runnerSource, /postCleanupInspectObservation/);
   assert.match(runnerSource, /operation\("Cleanup",\s*scenarioTenantId\)/);
   assert.match(runnerSource, /operation\("Inspect",\s*scenarioTenantId,\s*"post-cleanup"\)/);
+});
+
+test("strict browser fixture emits safe route diagnostics before an unrecovered transport fails the test", { timeout: 30_000 }, () => {
+  const result = spawnSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
+    "release-transport-diagnostic.fixture.ts", "--config=scripts/tests/fixtures/playwright.release-transport-diagnostic.config.ts"], {
+    cwd: fileURLToPath(new URL("../../", import.meta.url)), encoding: "utf8", timeout: 25_000,
+    env: { ...process.env,
+      E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
+      E2E_API_URL: "http://127.0.0.1:1", E2E_BASE_URL: "http://localhost:4173",
+      E2E_TENANT_CODE: "qa-ymath-realuse-fixture-transport",
+    },
+  });
+  const output = `${result.stdout || ""}\n${result.stderr || ""}`;
+  assert.notEqual(result.status, 0, "unrecovered route transport must fail closed");
+  assert.match(output, /Release API boundary failed: Release request rejected \[fetch-transport\]/);
+  assert.match(output, /"requestTransportDiagnostics":\[\{"method":"GET","pathTemplate":"\/api\/v1\/core\/tenant\/by-host\/","requestKind":"read","stage":"initial","transportCode":"transport"\},\{"method":"GET","pathTemplate":"\/api\/v1\/core\/tenant\/by-host\/","requestKind":"read","stage":"retry","transportCode":"transport"\}\]/);
+  assert.doesNotMatch(output, /fixture-secret-query|fixture-secret-header/);
 });
 
 test("owned SSM cleanup accepts only exact terminalized history with zero active sessions", () => {
@@ -781,6 +863,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
   assert.doesNotThrow(() => runner.assertLongVideoSetup(setup));
   for (const invalid of [
     { ...setup, tenant_id: 0 },
+    { ...setup, tenant_id: Number.MAX_SAFE_INTEGER + 1 },
     { ...setup, student_ids: [101] },
     { ...setup, session_ids: [201] },
     { ...setup, session_ids: [201, 202, 203] },
