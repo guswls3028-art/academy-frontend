@@ -185,6 +185,13 @@ exact tenant 경계를 그대로 적용한다.
 응답 또는 실패까지 drain한 뒤 경계 결함을 검사하고 context를 닫는다. 따라서 종료와
 겹친 정상 요청은 브라우저가 중간 폐기하지 않으며, drain 중 발생한 upstream/CORS 오류는
 그대로 실패한다. 종료 차단 이후 새로 시작된 background 요청만 transport 전에 abort한다.
+drain에서 허용 경로의 transport 실패를 발견한 경우에는 method/path template/read·mutation/
+initial·retry/고정 transport code만 담은 진단을 먼저 stdout에 남긴 뒤 같은 경계 assertion으로
+테스트를 실패시킨다. assertion이 진단 출력을 건너뛰거나 진단이 실패를 완화하는 것은 허용하지 않는다.
+경계 assertion의 실패 문구도 allowlist된 path template만 사용하고, 동적 식별자는 `:id`로
+치환한다. allowlist 밖 경로는 method와 고정 실패 code만 남기고 경로 전체를 생략한다.
+같은 규칙은 browser route뿐 아니라 direct APIRequestContext의 사전 mutation 거부에도
+적용하며, 거부된 요청은 실제 network transport에 도달하지 않아야 한다.
 실사용 실패 증거에는 Playwright 원문 대신 통과·실패 수, 고정된 flow 파일명,
 allowlist된 경계 단계 코드만 남긴다. browser route의 안전한 조회 재시도 횟수도
 숫자로만 남긴다. URL query, header, token, 계정명과 원문 오류는 artifact에 기록하지
@@ -303,11 +310,20 @@ Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 30분을
 폐쇄하고 cleanup 0이 증명되기 전에는 운영 승격하지 않는다.
 
 고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup만 사용하고 임의 shell 입력,
-기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup의
-실패/응답 유실도 동일 256-bit run capability로 exact tenant cleanup/readback을 시도한다.
+기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup이 실패해도
+exact `DEVELOPMENT_QA_FAILED` safe schema에서 positive tenant ID가 검증되면 동일 256-bit run
+capability로 cleanup/readback을 시도한다. 실패 schema에는 tenant code를 허용하지 않는다.
+응답 유실로 exact ID를 얻지 못하면 다른 ID를 추측하지 않고 cleanup 미증명으로 실패한다.
 서버는 생성 transaction에 기록한 tenant ID/code와 capability digest를 cleanup 요청과
 결합한다. 이름 정규식이나 runner run 문자열만으로 destroy 권한을 주지 않는다.
 missing/duplicate/foreign owner는 destroy 전 거부하며, 이미 부재하면 0 readback만 한다.
+초기 Inspect와 Setup에는 `TenantId`를 보내지 않는다. Setup이 반환한 exact positive integer
+`tenant_id`만 메모리에 보존해 Cleanup과 그 직후 고정 Inspect에 `TenantId`로 전달하고,
+두 응답의 `tenant_id` echo가 같아야 한다. Cleanup 성공 여부와 무관하게 post-cleanup
+Inspect를 별도로 실행하며, exact tenant/users/R2 object/QA process/listener가 모두 숫자 0인
+데 더해 backend가 exact TenantId로 R2 범위를 증명한 `r2_scope_proven=true`인 경우에만
+`postCleanupInspectObservation`을 통과시킨다. 이 readback이 없거나 하나라도
+남아 있으면 promotion은 실패한다.
 상세 감사 행 보존과 capability 신뢰 경계는 backend 상시 개발 런타임 문서가 소유한다.
 결과는 test 수/상태, release/image/artifact identity, cleanup 수와 실패 분류를
 `test-results/development-release.json`으로 남긴다. runner는 첫 preflight assertion보다
@@ -319,7 +335,12 @@ bundle/governance/IAM/document/host/SSM의 boolean만 기록한다. 정상 진�
 경로·ARN·role/principal/session ID·raw output/error·secret·tenant capability·password·PII는
 envelope에 넣지 않는다. 고정 document operation은
 allowlist된 action/exit code/JSON line 수/session ID 관측 여부/status/error type만
-기록하고, Inspect identity 검사는 status/잔여 0/release/digest 일치 여부를 네 개의
+기록한다. 단, exact `DEVELOPMENT_QA_FAILED` schema가 status/error_type/failure_stage/
+tenant_id/residue 다섯 필드와 일치할 때 Cleanup 및 post-cleanup Inspect 진단에는 allowlist된
+failure stage, 0 이상의 safe integer tenant ID, `activity_audits`/`outstanding_tokens`/
+`listeners`/`processes`/`r2_objects`의 정확한 다섯 숫자만 추가한다. 필드가 빠지거나 더 있거나
+값이 범위를 벗어나면 실패 payload 전체를 진단으로 채택하지 않으며 tenant code/capability/
+provider 오류 원문은 기록하지 않는다. Inspect identity 검사는 status/잔여 0/release/digest 일치 여부를 네 개의
 boolean으로만 기록한다. raw output·오류 message·session ID·token·capability·password·
 사용자 정보는 증거에 기록하지 않는다. raw Playwright JSON은 메모리에서 검증하고 개발
 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
@@ -347,7 +368,8 @@ filename을 정규화한 모든 변경 파일이 byte-equal이면 제품 의미�
 간주하지 않고 차이를 열거한 뒤 중단한다.
 operation exit/JSON/status와 Inspect 네 비교의 PII-free 관측은 기존 exit 0, 단일 JSON,
 허용 status, exact identity assertion을 대체하거나 완화하지 않는다. primary 작업 실패 후
-Cleanup 결과는 별도 `cleanupObservation`에 exit/status/error type만 남기며 기존 primary
+Cleanup 결과는 별도 `cleanupObservation`에 exit/status/error type과 위 exact safe failure
+진단만 남기며 기존 primary
 operation 관측을 덮어쓰지 않는다. Playwright 실패는 고정 endpoint 또는 검토된 동적
 endpoint shape allowlist와 일치한 API 경로 템플릿, HTTP method/status와 allowlist boundary
 code만 `failureDiagnostics`에 남긴다. query 값, 응답 본문, 사용자명, token과 원문
@@ -355,6 +377,11 @@ capability는 evidence나 stdout에 넣지 않는다. 알 수 없는 shape는 �
 ULID, tenant slug와 object key를 일반 치환 문자열로 남기지 않는다. query도 허용된 키
 이름만 남기고 값은 모두 버린다. 이 진단은
 실패를 성공으로 바꾸거나 cleanup0 및 positive journey 조건을 완화하지 않는다.
+직접 `APIRequestContext` 호출의 Promise가 전송 계층에서 거부되면 GET/HEAD만 500ms 뒤
+정확히 한 번 재시도한다. POST/PUT/PATCH/DELETE는 재전송하지 않는다. 각 전송 실패는
+allowlist된 path template이 있을 때만 method, read/mutation, initial/retry stage와
+`context-disposed|timeout|transport` 코드로 남기며 URL/query 값, raw 오류, 사용자 식별자는
+버린다. 두 번째 GET/HEAD 실패와 최초 mutation 실패는 일반화된 오류로 실패 폐쇄한다.
 
 로컬 child 제한은 QA operation 240초, tunnel 25분, tests 20분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도

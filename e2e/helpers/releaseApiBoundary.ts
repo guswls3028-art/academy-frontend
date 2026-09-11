@@ -175,12 +175,68 @@ export function assertReleaseRequestSafe(
   }
   if (!read && !authentication) {
     // No payload, query string, token or recipient is included in diagnostics.
-    throw new Error(`Production release business mutation refused: ${verb} ${target.pathname}`);
+    const pathTemplate = safeRequestTransportPathTemplate(target.toString());
+    throw new Error(`Production release business mutation refused: ${verb}${pathTemplate ? ` ${pathTemplate}` : ""}`);
   }
   return authentication ? "authentication" : "read";
 }
 
 export type ObservationCounts = { attempted: number; accepted: number };
+export type RequestTransportCounts = { readFetchRetries: number };
+export type RequestTransportDiagnostic = {
+  method: "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE";
+  pathTemplate: string;
+  requestKind: "read" | "mutation";
+  stage: "initial" | "retry";
+  transportCode: "context-disposed" | "timeout" | "transport";
+};
+
+const SAFE_REQUEST_TRANSPORT_STATIC_PATHS = new Set([
+  "/api/v1/core/tenant/by-host/",
+  "/api/v1/media/playback/end/",
+  "/api/v1/media/playback/renew/",
+  "/api/v1/storage/inventory/",
+  "/api/v1/storage/inventory/upload/",
+  "/api/v1/student/video/me/",
+  "/api/v1/students/me/activity/",
+  "/api/v1/students/me/activity/homework-open/",
+  "/api/v1/token/",
+  "/api/v1/token/refresh/",
+  "/clinic/participants/",
+  "/clinic/sessions/",
+  "/lectures/lectures/",
+  "/students/bulk_delete/",
+  "/students/bulk_permanent_delete/",
+]);
+const SAFE_REQUEST_TRANSPORT_PATH_SHAPES: Array<[RegExp, string]> = [
+  [/^\/api\/v1\/student\/video\/sessions\/[1-9][0-9]*\/videos\/$/, "/api/v1/student/video/sessions/:id/videos/"],
+  [/^\/api\/v1\/student\/video\/videos\/[1-9][0-9]*\/progress\/$/, "/api/v1/student/video/videos/:id/progress/"],
+  [/^\/api\/v1\/storage\/inventory\/files\/[1-9][0-9]*\/$/, "/api/v1/storage/inventory/files/:id/"],
+  [/^\/api\/v1\/storage\/inventory\/folders\/[1-9][0-9]*\/$/, "/api/v1/storage/inventory/folders/:id/"],
+  [/^\/storage\/inventory\/files\/[1-9][0-9]*\/$/, "/storage/inventory/files/:id/"],
+  [/^\/storage\/inventory\/folders\/[1-9][0-9]*\/$/, "/storage/inventory/folders/:id/"],
+  [/^\/clinic\/participants\/[1-9][0-9]*\/$/, "/clinic/participants/:id/"],
+  [/^\/clinic\/sessions\/[1-9][0-9]*\/$/, "/clinic/sessions/:id/"],
+  [/^\/lectures\/lectures\/[1-9][0-9]*\/$/, "/lectures/lectures/:id/"],
+  [/^\/lectures\/sessions\/[1-9][0-9]*\/$/, "/lectures/sessions/:id/"],
+];
+
+function safeRequestTransportPathTemplate(rawUrl: string): string | null {
+  let target: URL;
+  try { target = new URL(rawUrl); } catch { return null; }
+  if (SAFE_REQUEST_TRANSPORT_STATIC_PATHS.has(target.pathname)) return target.pathname;
+  return SAFE_REQUEST_TRANSPORT_PATH_SHAPES.find(([pattern]) => pattern.test(target.pathname))?.[1] ?? null;
+}
+
+function safeRequestTransportCode(error: unknown): RequestTransportDiagnostic["transportCode"] {
+  const message = error instanceof Error ? error.message.toLowerCase() : "";
+  if (message.includes("request context disposed") || message.includes("target page, context or browser has been closed")) {
+    return "context-disposed";
+  }
+  if (message.includes("timeout") || message.includes("timed out")) return "timeout";
+  return "transport";
+}
+
 const guardedRequests = new WeakSet<APIRequestContext>();
 export function installReleaseRequestGuard(
   request: APIRequestContext,
@@ -188,6 +244,8 @@ export function installReleaseRequestGuard(
   observations: ObservationCounts = { attempted: 0, accepted: 0 },
   authentication: ObservationCounts = { attempted: 0, accepted: 0 },
   onViolation: () => void = () => {},
+  transport: RequestTransportCounts = { readFetchRetries: 0 },
+  onTransportDiagnostic: (diagnostic: RequestTransportDiagnostic) => void = () => {},
 ): APIRequestContext {
   if (guardedRequests.has(request)) return request;
   guardedRequests.add(request);
@@ -199,9 +257,9 @@ export function installReleaseRequestGuard(
       return assertReleaseRequestSafe(boundary, typeof url === "string" ? url : url.url(), method, tenant, options?.data);
     } catch (error) { onViolation(); throw error; }
   }
+  const counterFor = (kind: string) => kind === "observation" ? observations : kind === "authentication" ? authentication : null;
   const count = async (kind: string, response: ReturnType<APIRequestContext["fetch"]>) => {
-    const counter = kind === "observation" ? observations : kind === "authentication" ? authentication : null;
-    if (counter) counter.attempted += 1;
+    const counter = counterFor(kind);
     const result = await response;
     if (result.status() >= 300 && result.status() < 400) {
       onViolation();
@@ -211,15 +269,54 @@ export function installReleaseRequestGuard(
     return result;
   };
   const originalFetch = request.fetch.bind(request);
-  request.fetch = ((url: string | Request, options?: Options) => {
-    const kind = check(url, options?.method || (typeof url === "string" ? "GET" : url.method()), options);
-    return count(kind, originalFetch(url, { ...options, maxRedirects: 0 }));
-  }) as APIRequestContext["fetch"];
+  const send = (url: string | Request, method: string, options?: Options) => {
+    const verb = method.toUpperCase();
+    const kind = check(url, verb, options);
+    const counter = counterFor(kind);
+    if (counter) counter.attempted += 1;
+    const rawUrl = typeof url === "string" ? new URL(url, boundary.webOrigin).toString() : url.url();
+    const pathTemplate = safeRequestTransportPathTemplate(rawUrl);
+    const retryableRead = verb === "GET" || verb === "HEAD";
+    const diagnosticMethod = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"].includes(verb)
+      ? verb as RequestTransportDiagnostic["method"] : null;
+    const requestKind: RequestTransportDiagnostic["requestKind"] = retryableRead ? "read" : "mutation";
+    return (async () => {
+      const attempt = async (stage: RequestTransportDiagnostic["stage"]) => {
+        try {
+          return { response: await originalFetch(url, { ...options, method: verb, maxRedirects: 0 }) };
+        } catch (error) {
+          if (pathTemplate && diagnosticMethod) onTransportDiagnostic({
+            method: diagnosticMethod,
+            pathTemplate,
+            requestKind,
+            stage,
+            transportCode: safeRequestTransportCode(error),
+          });
+          return { error };
+        }
+      };
+      let result = await attempt("initial");
+      if (result.error) {
+        if (retryableRead) {
+          transport.readFetchRetries += 1;
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          result = await attempt("retry");
+        }
+        if (result.error) {
+          onViolation();
+          throw new Error("Release APIRequestContext transport rejected");
+        }
+      }
+      return count(kind, Promise.resolve(result.response!));
+    })();
+  };
+  request.fetch = ((url: string | Request, options?: Options) => send(
+    url,
+    options?.method || (typeof url === "string" ? "GET" : url.method()),
+    options,
+  )) as APIRequestContext["fetch"];
   for (const verb of ["get", "head", "post", "put", "patch", "delete"] as const) {
-    request[verb] = ((url: string, options?: Options) => {
-      const kind = check(url, verb.toUpperCase(), options);
-      return count(kind, originalFetch(url, { ...options, method: verb.toUpperCase(), maxRedirects: 0 }));
-    }) as APIRequestContext[typeof verb];
+    request[verb] = ((url: string, options?: Options) => send(url, verb.toUpperCase(), options)) as APIRequestContext[typeof verb];
   }
   return request;
 }
@@ -242,16 +339,31 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
     suppressedCloudflareBeacons: 0,
   };
   const defects: string[] = [];
+  const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
   const activeRoutes = new Set<Promise<void>>();
   let closing = false;
   installReleaseRequestGuard(context.request, boundary, observations, authentication,
-    () => defects.push("APIRequestContext release boundary violation"));
+    () => defects.push("APIRequestContext release boundary violation"), transport,
+    (diagnostic) => requestTransportDiagnostics.push(diagnostic));
+  const recordRouteTransport = (request: Request, upstream: string,
+    stage: RequestTransportDiagnostic["stage"], error: unknown) => {
+    const method = request.method().toUpperCase();
+    if (!["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"].includes(method)) return;
+    const pathTemplate = safeRequestTransportPathTemplate(upstream);
+    if (!pathTemplate) return;
+    requestTransportDiagnostics.push({
+      method: method as RequestTransportDiagnostic["method"],
+      pathTemplate,
+      requestKind: method === "GET" || method === "HEAD" ? "read" : "mutation",
+      stage,
+      transportCode: safeRequestTransportCode(error),
+    });
+  };
   const handleRoute = async (route: Parameters<Parameters<BrowserContext["route"]>[1]>[0]) => {
     const request = route.request();
     const reject = async (code: string) => {
-      let pathname = "/";
-      try { pathname = new URL(request.url()).pathname; } catch { /* keep the inert path */ }
-      defects.push(`Release request rejected [${code}] ${request.method().toUpperCase()} ${pathname}`);
+      const pathTemplate = safeRequestTransportPathTemplate(request.url());
+      defects.push(`Release request rejected [${code}] ${request.method().toUpperCase()}${pathTemplate ? ` ${pathTemplate}` : ""}`);
       try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
     };
     try {
@@ -302,6 +414,7 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
         try {
           response = await route.fetch({ url: upstream, headers, maxRedirects: 0 });
         } catch (error) {
+          recordRouteTransport(request, upstream, "initial", error);
           const code = releaseRequestFailureCode(error);
           const safeRead = ["GET", "HEAD", "OPTIONS"].includes(request.method().toUpperCase());
           if (!safeRead || code === "context-disposed") {
@@ -313,6 +426,7 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
           try {
             response = await route.fetch({ url: upstream, headers, maxRedirects: 0 });
           } catch (retryError) {
+            recordRouteTransport(request, upstream, "retry", retryError);
             const retryCode = releaseRequestFailureCode(retryError);
             await reject(retryCode === "context-disposed" ? retryCode : "fetch-transport");
             return;
@@ -354,6 +468,7 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
     observations,
     authentication,
     transport,
+    requestTransportDiagnostics,
     async beginClose() {
       closing = true;
       await Promise.allSettled([...activeRoutes]);

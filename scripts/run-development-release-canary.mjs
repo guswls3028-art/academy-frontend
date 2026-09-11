@@ -78,6 +78,10 @@ const SAFE_FAILURE_ENDPOINT_SHAPES = [
   [/^\/lectures\/lectures\/[1-9][0-9]*\/$/, "/lectures/lectures/:id/"],
   [/^\/lectures\/sessions\/[1-9][0-9]*\/$/, "/lectures/sessions/:id/"],
 ];
+const SAFE_REQUEST_TRANSPORT_TEMPLATES = new Set([
+  ...SAFE_FAILURE_STATIC_ENDPOINTS,
+  ...SAFE_FAILURE_ENDPOINT_SHAPES.map(([, template]) => template),
+]);
 const SAFE_FAILURE_QUERY_KEYS = new Set([
   "access_check", "enrollment", "enrollment_id", "filter", "ids", "include_support",
   "limit", "page", "page_size", "q", "scope", "status", "student_ps",
@@ -113,6 +117,13 @@ const FIXED_ERROR_TYPES = new Set([
   "IntegrityError", "KeyError", "OperationalError", "PermissionError", "RuntimeError", "TimeoutError",
   "TypeError", "ValueError",
 ]);
+const FIXED_FAILURE_STAGES = new Set([
+  "bootstrap", "identity", "inspect_database", "inspect_residue", "setup_database", "setup_readback",
+  "cleanup_identity", "cleanup_absent_readback", "cleanup_r2", "cleanup_database", "cleanup_readback", "unknown",
+]);
+const FIXED_RESIDUE_FIELDS = [
+  "activity_audits", "outstanding_tokens", "listeners", "processes", "r2_objects",
+];
 const PREFLIGHT_STAGES = ["process", "bundle", "governance", "iam", "document", "host", "ssm"];
 const PREFLIGHT_CHECKS = PREFLIGHT_STAGES.slice(1);
 
@@ -121,7 +132,9 @@ function initialPreflightEvidence(frontendSha) {
     frontendSha: /^[a-f0-9]{40}$/.test(frontendSha || "") ? frontendSha : null,
     backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
     tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
-    operationObservation: null, cleanupObservation: null, inspectObservation: null, realUseObservation: null,
+    operationObservation: null, cleanupObservation: null, inspectObservation: null,
+    postCleanupInspectOperationObservation: null, postCleanupInspectObservation: null,
+    realUseObservation: null,
     realUseProcessObservation: null,
     videoRuntimeObservation: null,
     preflightStage: "process",
@@ -271,6 +284,20 @@ function observeFailureDiagnostics(messages) {
     || a.queryKeys.join(",").localeCompare(b.queryKeys.join(",")) || Number(a.status) - Number(b.status));
 }
 
+function observeRequestTransportDiagnostic(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)
+    || Object.keys(payload).sort().join(",") !== "method,pathTemplate,requestKind,stage,transportCode"
+    || !["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"].includes(payload.method)
+    || !SAFE_REQUEST_TRANSPORT_TEMPLATES.has(payload.pathTemplate)
+    || !["read", "mutation"].includes(payload.requestKind)
+    || !["initial", "retry"].includes(payload.stage)
+    || !["context-disposed", "timeout", "transport"].includes(payload.transportCode)
+    || ((payload.method === "GET" || payload.method === "HEAD") !== (payload.requestKind === "read"))
+    || (payload.requestKind === "mutation" && payload.stage !== "initial")) return null;
+  return Object.fromEntries(["method", "pathTemplate", "requestKind", "stage", "transportCode"]
+    .map((key) => [key, payload[key]]));
+}
+
 export function observeReleaseTestResult(stdout) {
   const observation = {
     reportStatus: "unparsed",
@@ -278,6 +305,7 @@ export function observeReleaseTestResult(stdout) {
     failedFiles: [], failureLocations: [], boundaryCodes: [], failureDiagnostics: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
+    requestTransportDiagnostics: [],
     longVideo: null, longVideoFailure: null, longVideoErrorCodes: [], longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
   };
@@ -302,6 +330,7 @@ export function observeReleaseTestResult(stdout) {
   const longVideoFailureEvidence = [];
   const longVideoResults = [];
   const longVideoMessages = [];
+  const requestTransportDiagnostics = new Map();
   const collectErrors = (errors) => {
     for (const error of Array.isArray(errors) ? errors : []) {
       if (typeof error?.message === "string") messages.push(error.message);
@@ -377,6 +406,11 @@ export function observeReleaseTestResult(stdout) {
                     transportEvidenceCounts[key] += 1;
                   }
                 }
+                for (const diagnostic of Array.isArray(payload?.requestTransportDiagnostics)
+                  ? payload.requestTransportDiagnostics : []) {
+                  const observed = observeRequestTransportDiagnostic(diagnostic);
+                  if (observed) requestTransportDiagnostics.set(JSON.stringify(observed), observed);
+                }
               }
               const longVideo = observeLongVideoBrowserEvidence(payload?.longVideoRealUse);
               if (longVideo) longVideoEvidence.push(longVideo);
@@ -413,6 +447,9 @@ export function observeReleaseTestResult(stdout) {
   for (const key of transportKeys) {
     observation[key] = transportEvidenceCounts[key] > 0 ? transportTotals[key] : null;
   }
+  observation.requestTransportDiagnostics = [...requestTransportDiagnostics.values()]
+    .sort((a, b) => a.method.localeCompare(b.method) || a.pathTemplate.localeCompare(b.pathTemplate)
+      || a.stage.localeCompare(b.stage) || a.transportCode.localeCompare(b.transportCode));
   observation.longVideo = longVideoEvidence.length === 1 ? longVideoEvidence[0] : null;
   observation.longVideoFailure = longVideoFailureEvidence.length === 1 ? longVideoFailureEvidence[0] : null;
   observation.longVideoResult = longVideoResults.length === 1 ? longVideoResults[0] : null;
@@ -454,20 +491,57 @@ export function observeFixedOperationResult(action, result) {
     try { payload = JSON.parse(jsonLines[0]); }
     catch (error) { parseError = error; }
   }
-  const errorType = typeof payload?.error_type === "string" && payload.error_type.length > 0
-    ? (FIXED_ERROR_TYPES.has(payload.error_type) ? payload.error_type : "OtherError") : null;
+  const failure = (() => {
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)
+      || Object.keys(payload).sort().join(",") !== "error_type,failure_stage,residue,status,tenant_id"
+      || payload.status !== "DEVELOPMENT_QA_FAILED"
+      || typeof payload.error_type !== "string" || payload.error_type.length === 0
+      || !FIXED_FAILURE_STAGES.has(payload.failure_stage)
+      || !Number.isSafeInteger(payload.tenant_id) || payload.tenant_id < 0
+      || !payload.residue || typeof payload.residue !== "object" || Array.isArray(payload.residue)
+      || Object.keys(payload.residue).sort().join(",") !== [...FIXED_RESIDUE_FIELDS].sort().join(",")
+      || FIXED_RESIDUE_FIELDS.some((key) => !Number.isSafeInteger(payload.residue[key]) || payload.residue[key] < 0)) {
+      return null;
+    }
+    return {
+      failureStage: payload.failure_stage,
+      tenantId: payload.tenant_id,
+      residue: Object.fromEntries(FIXED_RESIDUE_FIELDS.map((key) => [key, payload.residue[key]])),
+      errorType: FIXED_ERROR_TYPES.has(payload.error_type) ? payload.error_type : "OtherError",
+    };
+  })();
+  const payloadStatus = payload?.status === "DEVELOPMENT_QA_FAILED"
+    ? (failure ? payload.status : null)
+    : (FIXED_STATUSES.has(payload?.status) ? payload.status : null);
   return {
     observation: {
       action: FIXED_ACTIONS.has(action) ? action : null,
       exitCode: Number.isInteger(result?.code) && result.code >= -1 && result.code <= 255 ? result.code : null,
       jsonLineCount: jsonLines.length,
       sessionIdObserved: /Starting session with SessionId:\s*[A-Za-z0-9_.:-]+/.test(stdout),
-      payloadStatus: FIXED_STATUSES.has(payload?.status) ? payload.status : null,
-      errorType,
+      payloadStatus,
+      errorType: failure?.errorType ?? null,
+      failureStage: failure?.failureStage ?? null,
+      tenantId: failure?.tenantId ?? null,
+      residue: failure?.residue ?? null,
     },
     payload,
     parseError,
   };
+}
+
+export function setupTenantIdFromOperation(action, observed, tenantCode) {
+  if (action !== "Setup") return null;
+  const failedTenantId = observed?.observation?.tenantId;
+  if (observed?.observation?.payloadStatus === "DEVELOPMENT_QA_FAILED"
+    && Number.isSafeInteger(failedTenantId) && failedTenantId > 0) {
+    return failedTenantId;
+  }
+  const successfulTenantId = observed?.payload?.tenant_id;
+  return observed?.payload?.status === "YMATH_REALUSE_SCENARIO_READY"
+    && observed.payload.tenant_code === tenantCode
+    && Number.isSafeInteger(successfulTenantId) && successfulTenantId > 0
+    ? successfulTenantId : null;
 }
 
 export function inspectMatchObservation(payload, manifest) {
@@ -481,7 +555,7 @@ export function inspectMatchObservation(payload, manifest) {
 
 export function assertLongVideoSetup(payload) {
   assert.equal(payload?.status, "YMATH_REALUSE_SCENARIO_READY");
-  assert.ok(Number.isInteger(payload?.tenant_id) && payload.tenant_id > 0);
+  assert.ok(Number.isSafeInteger(payload?.tenant_id) && payload.tenant_id > 0);
   assert.ok(Array.isArray(payload.student_ids) && payload.student_ids.length === 2
     && payload.student_ids.every((id) => Number.isInteger(id) && id > 0));
   assert.ok(Array.isArray(payload.session_ids) && payload.session_ids.length === 2
@@ -582,10 +656,42 @@ export function assertReleaseSummary(report, expected = FLOW_COUNTS) {
   return counts;
 }
 
-export function assertCleanup(payload, tenantCode) {
+export function assertCleanup(payload, tenantCode, tenantId) {
   assert.equal(payload.tenant_code, tenantCode, "Wrong cleanup tenant");
+  assert.equal(payload.tenant_id, tenantId, "Wrong cleanup tenant id");
+  assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0, "Cleanup tenant id must be a positive integer");
   assert.ok(["YMATH_REALUSE_SCENARIO_DESTROYED", "YMATH_REALUSE_SCENARIO_ABSENT"].includes(payload.status));
   assert.deepEqual(payload.remaining, { tenants: 0, users: 0 }, "Cleanup residue must be numeric zero");
+}
+
+export function fixedOperationParameters(common, action, tenantId) {
+  assert.ok(FIXED_ACTIONS.has(action), "Unsupported fixed development action");
+  const hasTenantId = tenantId !== undefined;
+  if (action === "Setup") assert.equal(hasTenantId, false, "Setup must not receive TenantId");
+  if (action === "Cleanup") assert.equal(hasTenantId, true, "Cleanup requires the exact Setup TenantId");
+  if (hasTenantId) assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0, "TenantId must be a positive integer");
+  return hasTenantId
+    ? { ...common, Action: [action], TenantId: [String(tenantId)] }
+    : { ...common, Action: [action] };
+}
+
+export function assertPostCleanupInspect(payload, tenantCode, tenantId, manifest) {
+  const observation = {
+    statusMatches: payload?.status === "DEVELOPMENT_QA_IDENTITY_PASS",
+    tenantIdMatches: payload?.tenant_id === tenantId,
+    tenantRemainingZero: payload?.remaining?.tenants === 0,
+    userRemainingZero: payload?.remaining?.users === 0,
+    r2ScopeProven: payload?.r2_scope_proven === true,
+    r2ObjectsZero: payload?.residue?.r2_objects === 0,
+    processesZero: payload?.residue?.processes === 0,
+    listenersZero: payload?.residue?.listeners === 0,
+    releaseMatches: payload?.release_id === manifest.releaseImageTag,
+    digestMatches: payload?.digest === manifest.images["academy-api"].digest,
+  };
+  assert.equal(payload?.tenant_code, tenantCode, "Wrong post-cleanup Inspect tenant");
+  assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0, "Inspect tenant id must be a positive integer");
+  assert.ok(Object.values(observation).every(Boolean), "Post-cleanup Inspect must prove exact identity and zero runtime residue");
+  return observation;
 }
 
 export function isOwnedSessionTerminal(active, history, sessionId, target) {
@@ -861,6 +967,9 @@ export async function run() {
   let operationObservation = null;
   let cleanupObservation = null;
   let inspectObservation = null;
+  let postCleanupInspectOperationObservation = null;
+  let postCleanupInspectObservation = null;
+  let scenarioTenantId = null;
   let primaryFailed = false;
   function session(name, parameters = {}) {
     const current = aws(["ssm", "get-document", "--name", name, "--document-format", "JSON"]);
@@ -877,11 +986,14 @@ export async function run() {
     assert.ok(match[1].startsWith("academy-fe-qa-"), "Unexpected session ownership");
     sessions.add(match[1]);
   }
-  async function operation(action) {
-    const process = session(QA_DOCUMENT, { ...common, Action: [action] });
+  async function operation(action, tenantId, observationTarget = "operation") {
+    const process = session(QA_DOCUMENT, fixedOperationParameters(common, action, tenantId));
     const result = await process.done;
     const observed = observeFixedOperationResult(action, result);
+    const capturedSetupTenantId = setupTenantIdFromOperation(action, observed, tenant);
+    if (capturedSetupTenantId !== null) scenarioTenantId = capturedSetupTenantId;
     if (action === "Cleanup") cleanupObservation = observed.observation;
+    else if (observationTarget === "post-cleanup") postCleanupInspectOperationObservation = observed.observation;
     else operationObservation = observed.observation;
     remember(process);
     if (action !== "Cleanup") assert.equal(interrupted, false, "Development run interrupted");
@@ -919,7 +1031,9 @@ export async function run() {
       instanceId, tenantCode: tenant, artifactSha256: fingerprint, cases: counts || null,
       documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
       cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
-      operationObservation, cleanupObservation, inspectObservation, realUseObservation: realUseObservation || null,
+      operationObservation, cleanupObservation, inspectObservation,
+      postCleanupInspectOperationObservation, postCleanupInspectObservation,
+      realUseObservation: realUseObservation || null,
       realUseProcessObservation: realUseProcessObservation || null,
       videoRuntimeObservation: videoRuntimeObservation || null,
       terminalOutcome, passed, failures: errors });
@@ -941,6 +1055,8 @@ export async function run() {
     assert.equal(inspected.digest, manifest.images["academy-api"].digest);
     setupAttempted = true;
     scenario = await operation("Setup");
+    assert.ok(Number.isSafeInteger(scenario.tenant_id) && scenario.tenant_id > 0, "Setup tenant_id must be a positive integer");
+    assert.equal(scenarioTenantId, scenario.tenant_id, "Setup tenant id capture drift");
     const longVideo = assertLongVideoSetup(scenario);
     const tunnel = session(PORT_DOCUMENT);
     await waitPort(18000, () => interrupted);
@@ -982,8 +1098,18 @@ export async function run() {
     if (tests) { tests.stop(); await tests.done; }
     if (interrupted) failures.push("development run interrupted; promotion forbidden");
     if (setupAttempted) {
-      try { cleanup = await operation("Cleanup"); assertCleanup(cleanup, tenant); }
-      catch { failures.push("development cleanup failed or zero residue not proven"); }
+      if (!Number.isSafeInteger(scenarioTenantId) || scenarioTenantId < 1) {
+        failures.push("development cleanup refused without exact Setup tenant id");
+      } else {
+        try {
+          cleanup = await operation("Cleanup", scenarioTenantId);
+          assertCleanup(cleanup, tenant, scenarioTenantId);
+        } catch { failures.push("development cleanup failed or zero residue not proven"); }
+        try {
+          const postCleanup = await operation("Inspect", scenarioTenantId, "post-cleanup");
+          postCleanupInspectObservation = assertPostCleanupInspect(postCleanup, tenant, scenarioTenantId, manifest);
+        } catch { failures.push("development post-cleanup Inspect failed or runtime residue not proven zero"); }
+      }
     }
     for (const process of processes) {
       try { remember(process); } catch { failures.push("session ownership readback failed"); }
@@ -1016,7 +1142,8 @@ export async function run() {
     process.off("SIGINT", interrupt);
     process.off("SIGTERM", interrupt);
     const passed = failures.length === 0 && Boolean(counts) && Boolean(cleanup)
-      && Boolean(realUseObservation?.longVideo) && Boolean(videoRuntimeObservation);
+      && Boolean(postCleanupInspectObservation) && Boolean(realUseObservation?.longVideo)
+      && Boolean(videoRuntimeObservation);
     const resultEvidence = writeEvidence(passed, failures, passed ? "passed" : "qa_failed");
     assert.equal(resultEvidence.passed, true, "Development release gate failed; see PII-free evidence");
   }

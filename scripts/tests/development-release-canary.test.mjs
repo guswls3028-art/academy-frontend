@@ -4,7 +4,7 @@ import test from "node:test";
 import { stripTypeScriptTypes } from "node:module";
 import http from "node:http";
 import { chromium } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 import * as runner from "../run-development-release-canary.mjs";
@@ -226,6 +226,8 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     operationObservation: null,
     cleanupObservation: null,
     inspectObservation: null,
+    postCleanupInspectOperationObservation: null,
+    postCleanupInspectObservation: null,
     realUseObservation: null,
     realUseProcessObservation: null,
     videoRuntimeObservation: null,
@@ -252,9 +254,11 @@ test("fixed-document operation failures expose only allowlisted PII-free observa
       JSON.stringify({
         status: "DEVELOPMENT_QA_FAILED",
         error_type: "AssertionError",
-        message: "student-name token-secret capability-secret password-secret",
+        failure_stage: "inspect_residue",
+        tenant_id: 72,
+        residue: { activity_audits: 1, outstanding_tokens: 2, listeners: 3, processes: 4, r2_objects: 5 },
       }),
-      "raw-output-secret",
+      "raw-output-secret student-name token-secret capability-secret password-secret",
     ].join("\n"),
   });
 
@@ -265,6 +269,9 @@ test("fixed-document operation failures expose only allowlisted PII-free observa
     sessionIdObserved: true,
     payloadStatus: "DEVELOPMENT_QA_FAILED",
     errorType: "AssertionError",
+    failureStage: "inspect_residue",
+    tenantId: 72,
+    residue: { activity_audits: 1, outstanding_tokens: 2, listeners: 3, processes: 4, r2_objects: 5 },
   });
   const published = JSON.stringify(result.observation);
   for (const forbidden of [sessionId, "student-name", "token-secret", "capability-secret", "password-secret", "raw-output-secret"]) {
@@ -281,6 +288,9 @@ test("fixed-document operation observation preserves malformed and multiple JSON
     sessionIdObserved: false,
     payloadStatus: null,
     errorType: null,
+    failureStage: null,
+    tenantId: null,
+    residue: null,
   });
   assert.ok(malformed.parseError);
   assert.equal(malformed.payload, null);
@@ -305,9 +315,90 @@ test("fixed-document operation observation rejects unreviewed values", () => {
     jsonLineCount: 1,
     sessionIdObserved: false,
     payloadStatus: null,
-    errorType: "OtherError",
+    errorType: null,
+    failureStage: null,
+    tenantId: null,
+    residue: null,
   });
   assert.doesNotMatch(JSON.stringify(result.observation), /DeleteEverything|student-name|SecretProviderError/);
+});
+
+test("Cleanup and post-cleanup Inspect failures retain only exact safe stage, tenant id, and numeric residue", () => {
+  const residue = { activity_audits: 0, outstanding_tokens: 1, listeners: 0, processes: 0, r2_objects: 2 };
+  const payload = {
+    status: "DEVELOPMENT_QA_FAILED", error_type: "AssertionError",
+    failure_stage: "cleanup_r2", tenant_id: 72, residue,
+  };
+  for (const action of ["Cleanup", "Inspect"]) {
+    const observed = runner.observeFixedOperationResult(action, { code: 1, stdout: JSON.stringify(payload) });
+    assert.deepEqual(observed.observation, {
+      action, exitCode: 1, jsonLineCount: 1, sessionIdObserved: false,
+      payloadStatus: "DEVELOPMENT_QA_FAILED", errorType: "AssertionError",
+      failureStage: "cleanup_r2", tenantId: 72, residue,
+    });
+    if (action === "Cleanup") assert.throws(() => assertCleanup(observed.payload, "qa-safe", 72));
+    else assert.throws(() => runner.assertPostCleanupInspect(observed.payload, "qa-safe", 72, {
+      releaseImageTag: "release", images: { "academy-api": { digest: "sha256:digest" } },
+    }));
+    assert.equal(observed.observation.failureStage, "cleanup_r2", "throwing assertion must not erase diagnostics");
+  }
+  const preIdentityFailure = runner.observeFixedOperationResult("Inspect", { code: 1, stdout: JSON.stringify({
+    ...payload, error_type: "PrivateProviderError", failure_stage: "bootstrap", tenant_id: 0,
+  }) }).observation;
+  assert.equal(preIdentityFailure.tenantId, 0, "pre-identity failures preserve the exact zero tenant id");
+  assert.equal(preIdentityFailure.errorType, "OtherError", "unreviewed error classes are generalized");
+  assert.doesNotMatch(JSON.stringify(preIdentityFailure), /PrivateProviderError/);
+
+  for (const invalid of [
+    { ...payload, failure_stage: "private-provider-stage" },
+    { ...payload, tenant_id: -1 },
+    { ...payload, tenant_id: Number.MAX_SAFE_INTEGER + 1 },
+    { ...payload, residue: { ...residue, r2_objects: "2" } },
+    { ...payload, residue: Object.fromEntries(Object.entries(residue).filter(([key]) => key !== "r2_objects")) },
+    { ...payload, residue: { ...residue, private_count: 1 } },
+    { ...payload, provider_error: "student-name token-secret" },
+  ]) {
+    const observation = runner.observeFixedOperationResult("Cleanup", { code: 1, stdout: JSON.stringify(invalid) }).observation;
+    assert.equal(observation.payloadStatus, null);
+    assert.equal(observation.errorType, null);
+    assert.equal(observation.failureStage, null);
+    assert.equal(observation.tenantId, null);
+    assert.equal(observation.residue, null);
+    assert.doesNotMatch(JSON.stringify(observation), /private-provider|student-name|token-secret/);
+  }
+
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.ok(source.indexOf("cleanupObservation = observed.observation") < source.indexOf("assert.equal(result.code"));
+  assert.match(source, /postCleanupInspectOperationObservation, postCleanupInspectObservation/);
+});
+
+test("failed Setup captures only an exact positive safe-schema tenant id for final cleanup", () => {
+  const residue = { activity_audits: 0, outstanding_tokens: 0, listeners: 0, processes: 0, r2_objects: 0 };
+  const validFailure = runner.observeFixedOperationResult("Setup", { code: 1, stdout: JSON.stringify({
+    status: "DEVELOPMENT_QA_FAILED", error_type: "AssertionError",
+    failure_stage: "setup_readback", tenant_id: 73, residue,
+  }) });
+  assert.equal(runner.setupTenantIdFromOperation("Setup", validFailure, "qa-safe"), 73);
+  const validSuccess = runner.observeFixedOperationResult("Setup", { code: 0, stdout: JSON.stringify({
+    status: "YMATH_REALUSE_SCENARIO_READY", tenant_code: "qa-safe", tenant_id: 74,
+  }) });
+  assert.equal(runner.setupTenantIdFromOperation("Setup", validSuccess, "qa-safe"), 74);
+
+  for (const [action, payload] of [
+    ["Setup", { ...validFailure.payload, tenant_id: 0 }],
+    ["Setup", { ...validFailure.payload, tenant_id: -1 }],
+    ["Setup", { ...validFailure.payload, tenant_code: "qa-safe" }],
+    ["Cleanup", validFailure.payload],
+    ["Inspect", validFailure.payload],
+  ]) {
+    const observed = runner.observeFixedOperationResult(action, { code: 1, stdout: JSON.stringify(payload) });
+    assert.equal(runner.setupTenantIdFromOperation(action, observed, "qa-safe"), null);
+  }
+
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.ok(source.indexOf("scenarioTenantId = capturedSetupTenantId") < source.indexOf("assert.equal(result.code"));
+  assert.match(source, /operation\("Cleanup",\s*scenarioTenantId\)/);
+  assert.match(source, /operation\("Inspect",\s*scenarioTenantId,\s*"post-cleanup"\)/);
 });
 
 test("Inspect match evidence records booleans without publishing compared values", () => {
@@ -352,11 +443,12 @@ test("fixed SSM sessions keep stdin open until delayed JSON readback closes the 
   const [closedResult, openResult] = await Promise.all([closedInput.done, keptOpen.done]);
   assert.deepEqual(runner.observeFixedOperationResult("Inspect", closedResult).observation, {
     action: "Inspect", exitCode: 0, jsonLineCount: 0, sessionIdObserved: true,
-    payloadStatus: null, errorType: null,
+    payloadStatus: null, errorType: null, failureStage: null, tenantId: null, residue: null,
   });
   assert.deepEqual(runner.observeFixedOperationResult("Inspect", openResult).observation, {
     action: "Inspect", exitCode: 0, jsonLineCount: 1, sessionIdObserved: true,
     payloadStatus: "DEVELOPMENT_QA_IDENTITY_PASS", errorType: null,
+    failureStage: null, tenantId: null, residue: null,
   });
   const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
   assert.match(source,
@@ -533,7 +625,13 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     stdout: [{ text: `${JSON.stringify({ releaseApiMode: "development", transport: {
       readFetchRetries: 1, suppressedAnalyticsBatches: 2,
       suppressedAnalyticsEvents: 3, suppressedCloudflareBeacons: 4,
-    }, ignored: "safe" })}\n` }],
+    }, requestTransportDiagnostics: [{
+      method: "GET", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "read",
+      stage: "initial", transportCode: "timeout",
+    }, {
+      method: "GET", pathTemplate: "/api/v1/parents/by-login/secret/", requestKind: "read",
+      stage: "retry", transportCode: "transport",
+    }], ignored: "safe" })}\n` }],
   };
   report.errors.push({ message: "Release request rejected [cors] C:/secret/path" });
   report.stats.unexpected = 1;
@@ -574,6 +672,13 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     suppressedAnalyticsBatches: 2,
     suppressedAnalyticsEvents: 3,
     suppressedCloudflareBeacons: 4,
+    requestTransportDiagnostics: [{
+      method: "GET",
+      pathTemplate: "/api/v1/core/tenant/by-host/",
+      requestKind: "read",
+      stage: "initial",
+      transportCode: "timeout",
+    }],
     longVideo: null,
     longVideoFailure: null,
     longVideoErrorCodes: [],
@@ -591,6 +696,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     failedFiles: [], failureLocations: [], boundaryCodes: [], failureDiagnostics: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
+    requestTransportDiagnostics: [],
     longVideo: null,
     longVideoFailure: null,
     longVideoErrorCodes: [],
@@ -616,12 +722,99 @@ test("all nineteen real-use cases are mandatory; missing, skip, failure, retry a
 
 test("cleanup requires the exact owned tenant and numeric zero tenant/user residue", () => {
   const tenant = "qa-ymath-realuse-fe-123-1-abcdef123456";
-  const valid = { tenant_code: tenant, status: "YMATH_REALUSE_SCENARIO_DESTROYED", remaining: { tenants: 0, users: 0 } };
-  assert.doesNotThrow(() => assertCleanup(valid, tenant));
+  const tenantId = 91;
+  const valid = { tenant_code: tenant, tenant_id: tenantId, status: "YMATH_REALUSE_SCENARIO_DESTROYED", remaining: { tenants: 0, users: 0 } };
+  assert.doesNotThrow(() => assertCleanup(valid, tenant, tenantId));
   for (const invalid of [{ ...valid, tenant_code: `${tenant}-foreign` }, { ...valid, remaining: { tenants: 0, users: 1 } },
-    { ...valid, remaining: { tenants: "0", users: 0 } }, { ...valid, status: "YMATH_REALUSE_SCENARIO_READY" }]) {
-    assert.throws(() => assertCleanup(invalid, tenant));
+    { ...valid, tenant_id: tenantId + 1 }, { ...valid, remaining: { tenants: "0", users: 0 } },
+    { ...valid, status: "YMATH_REALUSE_SCENARIO_READY" }]) {
+    assert.throws(() => assertCleanup(invalid, tenant, tenantId));
   }
+});
+
+test("cleanup and post-cleanup Inspect bind the exact Setup tenant id and require full zero residue", () => {
+  const tenant = "qa-ymath-realuse-fe-123-1-abcdef123456";
+  const tenantId = 91;
+  const common = {
+    TenantCode: [tenant], OwnershipCapability: ["a".repeat(64)],
+    ReleaseId: [`sha-${"b".repeat(40)}-run-123-1`], ApiDigest: [`sha256:${"c".repeat(64)}`],
+    SyntheticLongVideo: ["true"],
+  };
+  assert.deepEqual(runner.fixedOperationParameters(common, "Inspect"), { ...common, Action: ["Inspect"] });
+  assert.deepEqual(runner.fixedOperationParameters(common, "Setup"), { ...common, Action: ["Setup"] });
+  assert.deepEqual(runner.fixedOperationParameters(common, "Cleanup", tenantId), {
+    ...common, Action: ["Cleanup"], TenantId: ["91"],
+  });
+  assert.deepEqual(runner.fixedOperationParameters(common, "Inspect", tenantId), {
+    ...common, Action: ["Inspect"], TenantId: ["91"],
+  });
+  for (const invalid of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, "91", null]) {
+    assert.throws(() => runner.fixedOperationParameters(common, "Cleanup", invalid));
+  }
+  assert.throws(() => runner.fixedOperationParameters(common, "Setup", tenantId));
+
+  const manifest = {
+    releaseImageTag: common.ReleaseId[0], images: { "academy-api": { digest: common.ApiDigest[0] } },
+  };
+  const valid = {
+    status: "DEVELOPMENT_QA_IDENTITY_PASS", tenant_code: tenant, tenant_id: tenantId,
+    release_id: manifest.releaseImageTag, digest: manifest.images["academy-api"].digest,
+    r2_scope_proven: true,
+    remaining: { tenants: 0, users: 0 },
+    residue: { activity_audits: 0, outstanding_tokens: 0, r2_objects: 0, processes: 0, listeners: 0 },
+  };
+  assert.deepEqual(runner.assertPostCleanupInspect(valid, tenant, tenantId, manifest), {
+    statusMatches: true, tenantIdMatches: true, tenantRemainingZero: true, userRemainingZero: true,
+    r2ScopeProven: true, r2ObjectsZero: true, processesZero: true, listenersZero: true,
+    releaseMatches: true, digestMatches: true,
+  });
+  for (const invalid of [
+    { ...valid, tenant_id: tenantId + 1 },
+    { ...valid, remaining: { ...valid.remaining, tenants: 1 } },
+    { ...valid, remaining: { ...valid.remaining, users: 1 } },
+    { ...valid, r2_scope_proven: false },
+    Object.fromEntries(Object.entries(valid).filter(([key]) => key !== "r2_scope_proven")),
+    { ...valid, residue: { ...valid.residue, r2_objects: 1 } },
+    { ...valid, residue: { ...valid.residue, processes: 1 } },
+    { ...valid, residue: { ...valid.residue, listeners: 1 } },
+  ]) assert.throws(() => runner.assertPostCleanupInspect(invalid, tenant, tenantId, manifest));
+
+  const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.match(runnerSource, /postCleanupInspectObservation/);
+  assert.match(runnerSource, /operation\("Cleanup",\s*scenarioTenantId\)/);
+  assert.match(runnerSource, /operation\("Inspect",\s*scenarioTenantId,\s*"post-cleanup"\)/);
+});
+
+test("strict browser fixture emits safe route diagnostics before an unrecovered transport fails the test", { timeout: 30_000 }, () => {
+  const result = spawnSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
+    "release-transport-diagnostic.fixture.ts", "--grep=unrecovered route transport",
+    "--config=scripts/tests/fixtures/playwright.release-transport-diagnostic.config.ts"], {
+    cwd: fileURLToPath(new URL("../../", import.meta.url)), encoding: "utf8", timeout: 25_000,
+    env: { ...process.env,
+      E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
+      E2E_API_URL: "http://127.0.0.1:1", E2E_BASE_URL: "http://localhost:4173",
+      E2E_TENANT_CODE: "qa-ymath-realuse-fixture-transport",
+    },
+  });
+  const output = `${result.stdout || ""}\n${result.stderr || ""}`;
+  assert.notEqual(result.status, 0, "unrecovered route transport must fail closed");
+  assert.match(output, /Release API boundary failed: Release request rejected \[fetch-transport\] GET \/api\/v1\/student\/video\/sessions\/:id\/videos\/; Release request rejected \[fetch-transport\] GET/);
+  assert.match(output, /"requestTransportDiagnostics":\[\{"method":"GET","pathTemplate":"\/api\/v1\/student\/video\/sessions\/:id\/videos\/","requestKind":"read","stage":"initial","transportCode":"transport"\},\{"method":"GET","pathTemplate":"\/api\/v1\/student\/video\/sessions\/:id\/videos\/","requestKind":"read","stage":"retry","transportCode":"transport"\}\]/);
+  assert.doesNotMatch(output, /987654321|secret-student-name-839201|fixture-secret-query|fixture-secret-header/);
+});
+
+test("direct APIRequestContext mutation refusal stays path-safe and never reaches network", { timeout: 30_000 }, () => {
+  const result = spawnSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
+    "release-transport-diagnostic.fixture.ts", "--grep=direct APIRequestContext mutations",
+    "--config=scripts/tests/fixtures/playwright.release-transport-diagnostic.config.ts"], {
+    cwd: fileURLToPath(new URL("../../", import.meta.url)), encoding: "utf8", timeout: 25_000,
+    env: { ...process.env, E2E_RELEASE_API_MODE: "", E2E_ALLOW_PRODUCTION_WRITES: "", E2E_STRICT: "" },
+  });
+  const output = `${result.stdout || ""}\n${result.stderr || ""}`;
+  assert.notEqual(result.status, 0, "direct business mutations must fail closed");
+  assert.match(output, /\{"networkCalls":0,"violations":2\}/);
+  assert.match(output, /Direct APIRequestContext fail-closed: Production release business mutation refused: POST \/api\/v1\/student\/video\/videos\/:id\/progress\/; Production release business mutation refused: PUT/);
+  assert.doesNotMatch(output, /987654321|secret-student-name-839201|fixture-direct-secret-query|fixture-direct-secret-header/);
 });
 
 test("owned SSM cleanup accepts only exact terminalized history with zero active sessions", () => {
@@ -714,6 +907,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
   assert.doesNotThrow(() => runner.assertLongVideoSetup(setup));
   for (const invalid of [
     { ...setup, tenant_id: 0 },
+    { ...setup, tenant_id: Number.MAX_SAFE_INTEGER + 1 },
     { ...setup, student_ids: [101] },
     { ...setup, session_ids: [201] },
     { ...setup, session_ids: [201, 202, 203] },
@@ -1223,6 +1417,71 @@ test("APIRequestContext mutation methods are rejected before network and redirec
   assert.throws(() => request.get("https://external.example/healthz", { headers: { authorization: "Bearer unit" } }), /escaped/);
 });
 
+test("APIRequestContext retries one transport rejection only for GET/HEAD and records safe diagnostics", async () => {
+  const install = (failures, diagnostics, transport, onViolation = () => {}) => {
+    const attempts = [];
+    const request = Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async (url, options = {}) => {
+      const method = verb === "fetch" ? String(options.method || "GET").toUpperCase() : verb.toUpperCase();
+      attempts.push({ method, url });
+      const key = `${method} ${new URL(url).pathname}`;
+      if ((failures.get(key) || 0) > 0) {
+        failures.set(key, failures.get(key) - 1);
+        throw new Error(`socket failed for student-secret at ${url}`);
+      }
+      return { status: () => 200, ok: () => true };
+    }]));
+    installReleaseRequestGuard(request, development, undefined, undefined, onViolation, transport,
+      (diagnostic) => diagnostics.push(diagnostic));
+    return { request, attempts };
+  };
+
+  const diagnostics = [];
+  const transport = { readFetchRetries: 0 };
+  let violations = 0;
+  const failures = new Map([
+    ["GET /api/v1/core/tenant/by-host/", 1],
+    ["HEAD /api/v1/core/tenant/by-host/", 2],
+    ["POST /api/v1/token/", 1],
+    ["PUT /api/v1/core/tenant/by-host/", 1],
+    ["PATCH /api/v1/core/tenant/by-host/", 1],
+    ["DELETE /api/v1/core/tenant/by-host/", 1],
+    ["GET /api/v1/parents/by-login/student-secret/", 2],
+  ]);
+  const { request, attempts } = install(failures, diagnostics, transport, () => { violations += 1; });
+  const headers = { "x-tenant-code": development.tenantCode };
+
+  await request.get(`${development.apiOrigin}/api/v1/core/tenant/by-host/`, { headers });
+  await assert.rejects(() => request.head(`${development.apiOrigin}/api/v1/core/tenant/by-host/`, { headers }),
+    /Release APIRequestContext transport rejected/);
+  await assert.rejects(() => request.post(`${development.apiOrigin}/api/v1/token/`, { headers }),
+    /Release APIRequestContext transport rejected/);
+  for (const method of ["put", "patch", "delete"]) {
+    await assert.rejects(() => request[method](`${development.apiOrigin}/api/v1/core/tenant/by-host/`, { headers }),
+      /Release APIRequestContext transport rejected/);
+  }
+  await assert.rejects(() => request.get(`${development.apiOrigin}/api/v1/parents/by-login/student-secret/`, { headers }),
+    /Release APIRequestContext transport rejected/);
+
+  assert.equal(attempts.filter(({ method }) => method === "GET").length, 4);
+  assert.equal(attempts.filter(({ method }) => method === "HEAD").length, 2);
+  assert.equal(attempts.filter(({ method }) => method === "POST").length, 1, "mutation transport is never replayed");
+  for (const method of ["PUT", "PATCH", "DELETE"]) {
+    assert.equal(attempts.filter((attempt) => attempt.method === method).length, 1, `${method} transport is never replayed`);
+  }
+  assert.equal(transport.readFetchRetries, 3, "each GET/HEAD call gets at most one retry");
+  assert.equal(violations, 6, "only unrecovered transports fail the boundary");
+  assert.deepEqual(diagnostics, [
+    { method: "GET", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "read", stage: "initial", transportCode: "transport" },
+    { method: "HEAD", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "read", stage: "initial", transportCode: "transport" },
+    { method: "HEAD", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "read", stage: "retry", transportCode: "transport" },
+    { method: "POST", pathTemplate: "/api/v1/token/", requestKind: "mutation", stage: "initial", transportCode: "transport" },
+    { method: "PUT", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "mutation", stage: "initial", transportCode: "transport" },
+    { method: "PATCH", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "mutation", stage: "initial", transportCode: "transport" },
+    { method: "DELETE", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "mutation", stage: "initial", transportCode: "transport" },
+  ]);
+  assert.doesNotMatch(JSON.stringify(diagnostics), /student-secret|parents\/by-login/);
+});
+
 test("only the reviewed dashboard observation schema is permitted", () => {
   const url = "https://api.hakwonplus.com/api/v1/students/me/activity/";
   const valid = { screen_id: "student.dashboard.home", device_class: "desktop" };
@@ -1289,7 +1548,9 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
   }) };
   const makeRoute = (method, fetch, fulfill = async () => {}) => ({
     request: () => ({
-      url: () => "https://api.hakwonplus.com/api/v1/core/program/",
+      url: () => method === "POST"
+        ? "https://api.hakwonplus.com/api/v1/students/me/activity/"
+        : "https://api.hakwonplus.com/api/v1/core/tenant/by-host/",
       method: () => method,
       postDataJSON: () => undefined,
       headerValue: async () => development.tenantCode,
@@ -1317,6 +1578,10 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
     suppressedAnalyticsEvents: 0,
     suppressedCloudflareBeacons: 0,
   });
+  assert.deepEqual(safeRead.guard.requestTransportDiagnostics, [{
+    method: "GET", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "read",
+    stage: "initial", transportCode: "transport",
+  }]);
   assert.doesNotThrow(() => safeRead.guard.assertClean());
 
   const mutation = await install();
@@ -1326,6 +1591,10 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
     throw new Error("unit mutation fetch interruption");
   }));
   assert.equal(mutationAttempts, 1, "mutations must never be replayed");
+  assert.deepEqual(mutation.guard.requestTransportDiagnostics, [{
+    method: "POST", pathTemplate: "/api/v1/students/me/activity/", requestKind: "mutation",
+    stage: "initial", transportCode: "transport",
+  }]);
   assert.throws(() => mutation.guard.assertClean(), /Release request rejected \[fetch-transport\]/);
 
   const delivery = await install();
