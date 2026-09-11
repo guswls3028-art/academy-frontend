@@ -102,7 +102,7 @@ export async function recordStudentScreenView(
     await api.post(
       "/students/me/activity/",
       { screen_id: screenId, device_class: currentDeviceClass() },
-      { timeout: 4_000 },
+      { timeout: 10_000 },
     );
   } catch {
     // Activity evidence must never block the student's screen.
