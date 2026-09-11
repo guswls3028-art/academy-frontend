@@ -40,13 +40,18 @@ export function useClinicBookingPolicy({
     sourceSession?.booking_max_stay_minutes ?? 240,
   );
   const multiSlotTouchedRef = useRef(false);
+  const bookingPolicyTouchedRef = useRef(false);
 
   useEffect(() => {
-    if (sourceSession || multiSlotTouchedRef.current || !settings) return;
-    setAllowMultiSlotBookingState(settings.multi_slot_booking_default === true);
-    setBookingMode(settings.booking_mode);
-    setBookingIntervalMinutes(settings.booking_interval_minutes);
-    setBookingMaxStayMinutes(settings.booking_max_stay_minutes);
+    if (sourceSession || !settings) return;
+    if (!multiSlotTouchedRef.current) {
+      setAllowMultiSlotBookingState(settings.multi_slot_booking_default === true);
+    }
+    if (!bookingPolicyTouchedRef.current) {
+      setBookingMode(settings.booking_mode);
+      setBookingIntervalMinutes(settings.booking_interval_minutes);
+      setBookingMaxStayMinutes(settings.booking_max_stay_minutes);
+    }
   }, [settings, sourceSession]);
 
   useEffect(() => {
@@ -77,11 +82,20 @@ export function useClinicBookingPolicy({
       setAllowMultiSlotBookingState(value);
     },
     bookingMode,
-    setBookingMode,
+    setBookingMode: (value: "fixed_slot" | "time_range") => {
+      bookingPolicyTouchedRef.current = true;
+      setBookingMode(value);
+    },
     bookingIntervalMinutes,
-    setBookingIntervalMinutes,
+    setBookingIntervalMinutes: (value: 30 | 60) => {
+      bookingPolicyTouchedRef.current = true;
+      setBookingIntervalMinutes(value);
+    },
     bookingMaxStayMinutes,
-    setBookingMaxStayMinutes,
+    setBookingMaxStayMinutes: (value: number) => {
+      bookingPolicyTouchedRef.current = true;
+      setBookingMaxStayMinutes(value);
+    },
     saveDefaultPolicy: () => saveDefaultPolicyMutation.mutate(),
     savingDefaultPolicy: saveDefaultPolicyMutation.isPending,
   };

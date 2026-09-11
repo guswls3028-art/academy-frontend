@@ -3,6 +3,23 @@
 선생님이 모바일 워크스페이스에서 클리닉 세션을 만들고 학생의 예약·등원·결석·
 하원·완료를 관리하는 도메인입니다.
 
+## 새 클리닉의 개설 방식 선택
+
+**클리닉 만들기**를 열면 날짜나 정원보다 먼저 두 선택지만 보여 줍니다.
+
+- **한 타임 예약 · 시간지정 클리닉**은 17:00–18:00처럼 정해진 한 타임을
+  학생이 그대로 예약하는 기존 방식입니다.
+- **등원·하원 선택 · 자유지정 클리닉**은 15:00–22:00처럼 운영 범위를 열고
+  학생이 16:00–19:00처럼 실제 체류 시간을 고르는 방식입니다.
+
+tenant 기본은 **학원 기본** 배지로 추천하지만 교사가 직접 카드를 눌러야 상세
+입력으로 넘어갑니다. 상세 화면에는 선택한 방식과 **방식 다시 선택**을 유지합니다.
+자유지정을 고르면 여러 고정 시간대 허용과 학생 희망 시간은 자동으로 꺼집니다.
+만들기 시트는 1100px 이상에서 sidebar 오른쪽 작업 영역 안에만 놓이고, 390px에서는
+전체 화면 폭을 사용하며 두 카드·제목·시간 입력이 가로로 넘치지 않아야 합니다.
+학생이 자유지정 시간을 예약하면 참가자 목록에 `예약 16:00–19:00`처럼 실제
+시작·종료를 표시해 선생님이 등원·하원 확인 기준으로 바로 볼 수 있어야 합니다.
+
 ## 세션별 같은 날 예약 정책
 
 **클리닉 만들기** 시트는 `GET /clinic/settings/`의
@@ -51,10 +68,15 @@
 - API와 타입: `src/app_teacher/domains/clinic/api.ts`
 - 다중 시간·학생 선택: `components/AddParticipantSheet.tsx`
 - 세션 생성 정책·참가자 화면: `pages/ClinicPage.tsx`
+- 공용 개설 방식 카드: `src/shared/ui/clinic/ClinicBookingModeChoice.tsx`
 - 원자 요청·새로고침·390px 가로 넘침 회귀:
   `e2e/teacher/clinic-multi-slot-booking.mock.spec.ts`
 - 시간 범위·희망 시간 상호배타 생성 회귀:
   `e2e/teacher/clinic-multi-slot-booking.mock.spec.ts`
+- 첫 선택·시트 경계·자유지정 생성 회귀:
+  `e2e/clinic/clinic-booking-modes-visual.mock.spec.ts`
+- 선생님 개설 → 학생 구간 예약 → 새로고침 → 선생님 확인과 잔여 0 실사용:
+  `e2e/student/clinic-multi-slot-realuse.spec.ts`
 
 학생 신청 화면 계약은 `src/app_student/domains/clinic/README.md`, 서버 원자성·
 권한·실패 계약은 백엔드 `docs/domain/clinic-booking.md`가 소유합니다.

@@ -39,6 +39,11 @@ import ClinicParticipantActionDialog, {
   type ClinicParticipantActionPayload,
 } from "@admin/domains/clinic/components/ClinicParticipantActionDialog";
 import type { TeacherClinicParticipant } from "../api";
+import {
+  ClinicBookingModeChoice,
+  ClinicBookingModeSummary,
+  type ClinicBookingMode,
+} from "@/shared/ui/clinic/ClinicBookingModeChoice";
 
 function durationMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(":").map(Number);
@@ -410,6 +415,11 @@ function ParticipantList({
                     희망 {p.preferred_start_time.slice(0, 5)}–{p.preferred_end_time.slice(0, 5)}
                   </span>
                 )}
+                {p.booking_start_time && p.booking_end_time && (
+                  <span className="text-[11px] font-semibold" style={{ color: "var(--tc-primary)" }}>
+                    예약 {p.booking_start_time.slice(0, 5)}–{p.booking_end_time.slice(0, 5)}
+                  </span>
+                )}
                 {p.student_request_memo && (
                   <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
                     {p.student_request_memo}
@@ -601,7 +611,9 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
   const [bookingMode, setBookingMode] = useState<"fixed_slot" | "time_range">("fixed_slot");
   const [bookingIntervalMinutes, setBookingIntervalMinutes] = useState<30 | 60>(60);
   const [bookingMaxStayMinutes, setBookingMaxStayMinutes] = useState(240);
+  const [bookingModeChosen, setBookingModeChosen] = useState(false);
   const multiSlotTouchedRef = useRef(false);
+  const bookingPolicyTouchedRef = useRef(false);
 
   const settingsQ = useQuery({
     queryKey: teacherClinicQueryKeys.settings,
@@ -613,13 +625,19 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
   useEffect(() => {
     if (!open) {
       multiSlotTouchedRef.current = false;
+      bookingPolicyTouchedRef.current = false;
+      setBookingModeChosen(false);
       return;
     }
-    if (!settingsQ.data || multiSlotTouchedRef.current) return;
-    setAllowMultiSlotBooking(settingsQ.data.multi_slot_booking_default === true);
-    setBookingMode(settingsQ.data.booking_mode === "time_range" ? "time_range" : "fixed_slot");
-    setBookingIntervalMinutes(settingsQ.data.booking_interval_minutes === 30 ? 30 : 60);
-    setBookingMaxStayMinutes(settingsQ.data.booking_max_stay_minutes || 240);
+    if (!settingsQ.data) return;
+    if (!multiSlotTouchedRef.current) {
+      setAllowMultiSlotBooking(settingsQ.data.multi_slot_booking_default === true);
+    }
+    if (!bookingPolicyTouchedRef.current) {
+      setBookingMode(settingsQ.data.booking_mode === "time_range" ? "time_range" : "fixed_slot");
+      setBookingIntervalMinutes(settingsQ.data.booking_interval_minutes === 30 ? 30 : 60);
+      setBookingMaxStayMinutes(settingsQ.data.booking_max_stay_minutes || 240);
+    }
   }, [open, settingsQ.data]);
 
   useEffect(() => {
@@ -628,6 +646,16 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
       setAllowTimePreference(false);
     }
   }, [bookingMode]);
+
+  const chooseBookingMode = (mode: ClinicBookingMode) => {
+    bookingPolicyTouchedRef.current = true;
+    setBookingMode(mode);
+    if (mode === "time_range") {
+      setAllowMultiSlotBooking(false);
+      setAllowTimePreference(false);
+    }
+    setBookingModeChosen(true);
+  };
 
   // 정규형 클리닉일 때만 CLINIC type section 목록 조회
   const sectionsQ = useQuery<Section[]>({
@@ -679,7 +707,18 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
 
   return (
     <BottomSheet open={open} onClose={onClose} title="클리닉 만들기">
-      <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
+      {!bookingModeChosen ? (
+        <div style={{ padding: "var(--tc-space-3) 0" }}>
+          <ClinicBookingModeChoice
+            recommendedMode={settingsQ.data?.booking_mode === "time_range" ? "time_range" : "fixed_slot"}
+            onSelect={chooseBookingMode}
+          />
+        </div>
+      ) : <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
+        <ClinicBookingModeSummary
+          mode={bookingMode}
+          onChange={() => setBookingModeChosen(false)}
+        />
         <Fld label="클리닉 이름 (선택)" value={title} onChange={setTitle} placeholder="예: 오후 클리닉" />
         {showSectionPicker && (
           <div>
@@ -713,21 +752,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
             종료 시간은 시작 시간 이후여야 합니다.
           </div>
         )}
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>예약 방식</label>
-            <select
-              aria-label="예약 방식"
-              value={bookingMode}
-              onChange={(event) => setBookingMode(event.target.value === "time_range" ? "time_range" : "fixed_slot")}
-              className="w-full text-sm"
-              style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }}
-            >
-              <option value="fixed_slot">고정 시간대</option>
-              <option value="time_range">시간 범위</option>
-            </select>
-          </div>
-          {bookingMode === "time_range" && (
+        {bookingMode === "time_range" && <div className="flex gap-2">
             <>
               <div className="flex-1">
                 <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>예약 간격</label>
@@ -746,8 +771,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
                 <Fld label="최대 체류(분)" value={String(bookingMaxStayMinutes)} onChange={(value) => setBookingMaxStayMinutes(Number(value))} type="number" />
               </div>
             </>
-          )}
-        </div>
+        </div>}
         {bookingMode === "time_range" && (
           <div
             className="text-[11px]"
@@ -823,7 +847,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "#fff" : "var(--tc-text-muted)" }}>
           {mutation.isPending ? "생성 중..." : "생성"}
         </button>
-      </div>
+      </div>}
     </BottomSheet>
   );
 }
@@ -834,7 +858,7 @@ function Fld({ label, value, onChange, placeholder, type = "text" }: {
   return (
     <div className="flex-1">
       <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      <input type={type} aria-label={label.replace(/\s*\*$/, "")} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         className="w-full text-sm"
         style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
     </div>

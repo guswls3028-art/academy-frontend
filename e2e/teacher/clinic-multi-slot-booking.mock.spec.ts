@@ -90,6 +90,8 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       status: "booked",
       preferred_start_time: "17:15:00",
       preferred_end_time: "17:45:00",
+      booking_start_time: "17:00:00",
+      booking_end_time: "18:00:00",
       student_request_memo: "오답 정리 뒤 참여",
     }]],
     [702, []],
@@ -188,6 +190,7 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await expect(firstSessionButton).toBeVisible({ timeout: 30_000 });
   await firstSessionButton.click();
   await expect(page.getByText("희망 17:15–17:45")).toBeVisible();
+  await expect(page.getByText("예약 17:00–18:00")).toBeVisible();
   await expect(page.getByText("오답 정리 뒤 참여")).toBeVisible();
   await page.getByRole("button", { name: "학생 추가" }).click();
 
@@ -254,16 +257,20 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
 
   await page.getByRole("button", { name: "클리닉 만들기" }).click();
   const createSheet = page.getByRole("dialog", { name: "클리닉 만들기" });
-  const multiSlotToggle = createSheet.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
-  const timePreferenceToggle = createSheet.getByRole("checkbox", { name: /학생 희망 시간 받기/ });
-  const bookingMode = createSheet.getByLabel("예약 방식");
+  await createSheet.getByRole("button", { name: /시간지정 클리닉/ }).click();
+  let multiSlotToggle = createSheet.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
+  let timePreferenceToggle = createSheet.getByRole("checkbox", { name: /학생 희망 시간 받기/ });
   await expect(multiSlotToggle).not.toBeChecked();
   await expect(timePreferenceToggle).not.toBeChecked();
   await timePreferenceToggle.check();
-  await bookingMode.selectOption("time_range");
+  await createSheet.getByRole("button", { name: "방식 다시 선택" }).click();
+  await createSheet.getByRole("button", { name: /자유지정 클리닉/ }).click();
   await expect(createSheet.getByText("학생이 예약 가능한 실제 시작·종료 시간을 직접 선택합니다.")).toBeVisible();
   await expect(timePreferenceToggle).toHaveCount(0);
-  await bookingMode.selectOption("fixed_slot");
+  await createSheet.getByRole("button", { name: "방식 다시 선택" }).click();
+  await createSheet.getByRole("button", { name: /시간지정 클리닉/ }).click();
+  multiSlotToggle = createSheet.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
+  timePreferenceToggle = createSheet.getByRole("checkbox", { name: /학생 희망 시간 받기/ });
   await expect(timePreferenceToggle).not.toBeChecked();
   await multiSlotToggle.check();
   await timePreferenceToggle.check();

@@ -19,6 +19,7 @@ type ClinicTimePolicyFieldsProps = {
   onAllowTimePreferenceChange: (value: boolean) => void;
   allowMultiSlotBooking: boolean;
   onAllowMultiSlotBookingChange: (value: boolean) => void;
+  showBookingModeSelector?: boolean;
 };
 
 export default function ClinicTimePolicyFields({
@@ -37,6 +38,7 @@ export default function ClinicTimePolicyFields({
   onAllowTimePreferenceChange,
   allowMultiSlotBooking,
   onAllowMultiSlotBookingChange,
+  showBookingModeSelector = true,
 }: ClinicTimePolicyFieldsProps) {
   return (
     <div className="clinic-create__field">
@@ -51,8 +53,8 @@ export default function ClinicTimePolicyFields({
           endPlaceholder="종료"
         />
       </div>
-      <div className="clinic-create__row">
-        <div className="clinic-create__field clinic-create__field--grow">
+      {(showBookingModeSelector || bookingMode === "time_range") && <div className="clinic-create__row">
+        {showBookingModeSelector && <div className="clinic-create__field clinic-create__field--grow">
           <label className="clinic-create__label">예약 방식</label>
           <Select
             aria-label="예약 방식"
@@ -64,7 +66,7 @@ export default function ClinicTimePolicyFields({
             ]}
             className="clinic-create__select-full"
           />
-        </div>
+        </div>}
         {bookingMode === "time_range" && (
           <>
             <div className="clinic-create__field">
@@ -94,7 +96,7 @@ export default function ClinicTimePolicyFields({
             </div>
           </>
         )}
-      </div>
+      </div>}
       {canSaveDefault && (
         <Button
           size="sm"
@@ -106,14 +108,14 @@ export default function ClinicTimePolicyFields({
           새 일정 기본값으로 저장
         </Button>
       )}
-      <label className="clinic-create__time-preference">
+      {bookingMode === "fixed_slot" && <label className="clinic-create__time-preference">
         <input
           type="checkbox"
           checked={allowTimePreference}
           onChange={(event) => onAllowTimePreferenceChange(event.target.checked)}
         />
         <span><strong>학생 희망 시간 받기</strong><small>학생이 이 일정 안에서 원하는 시작·종료 시간을 요청할 수 있습니다. 최종 시간은 교직원이 배정합니다.</small></span>
-      </label>
+      </label>}
       {bookingMode === "fixed_slot" && (
         <label className="clinic-create__time-preference">
           <input

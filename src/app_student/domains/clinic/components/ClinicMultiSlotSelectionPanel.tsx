@@ -34,6 +34,14 @@ function timeToMinutes(value: string | undefined): number | null {
   return hours * 60 + minutes;
 }
 
+function elapsedMinutes(startTime: string, endTime: string): number {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  if (start == null || end == null) return 0;
+  if (end === 0 && start > 0) return 24 * 60 - start;
+  return Math.max(end - start, 0);
+}
+
 function selectedTimeSummary(selectedSessions: Pick<ClinicSession, "start_time" | "end_time">[]): {
   range: string;
   duration: string;
@@ -51,7 +59,9 @@ function selectedTimeSummary(selectedSessions: Pick<ClinicSession, "start_time" 
   const totalMinutes = selectedSessions.reduce((total, session) => {
     const start = timeToMinutes(session.start_time);
     const end = timeToMinutes(session.end_time);
-    return start == null || end == null ? total : total + Math.max(end - start, 0);
+    return start == null || end == null
+      ? total
+      : total + elapsedMinutes(session.start_time, session.end_time ?? session.start_time);
   }, 0);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
@@ -64,10 +74,7 @@ function selectedTimeSummary(selectedSessions: Pick<ClinicSession, "start_time" 
 }
 
 function timeRangeDuration(startTime: string, endTime: string): string {
-  const start = timeToMinutes(startTime);
-  const end = timeToMinutes(endTime);
-  if (start == null || end == null) return "";
-  const minutes = Math.max(end - start, 0);
+  const minutes = elapsedMinutes(startTime, endTime);
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return hours > 0
@@ -104,20 +111,26 @@ export default function ClinicMultiSlotSelectionPanel({
       ? selectedTimeSummary([{ start_time: bookingStart, end_time: bookingEnd }])
       : null
     : sessionSummary;
-  const availableStartSlots = availability?.slots.filter((slot) => slot.remaining_capacity > 0) ?? [];
-  const bookingStartMinutes = timeToMinutes(bookingStart);
-  const availableEndSlots = availability?.slots.filter((slot) => {
-    const slotStart = timeToMinutes(slot.start_time);
-    const slotEnd = timeToMinutes(slot.end_time);
-    if (bookingStartMinutes == null || slotStart == null || slotEnd == null || slotStart < bookingStartMinutes) return false;
-    if (slotEnd - bookingStartMinutes > (availability?.max_stay_minutes ?? 0)) return false;
-    return (availability?.slots ?? [])
-      .filter((candidate) => {
-        const candidateStart = timeToMinutes(candidate.start_time);
-        return candidateStart != null && candidateStart >= bookingStartMinutes && candidateStart < slotEnd;
-      })
-      .every((candidate) => candidate.remaining_capacity > 0);
-  }) ?? [];
+  const allSlots = availability?.slots ?? [];
+  const availableStartSlots = allSlots.filter((slot) => slot.remaining_capacity > 0);
+  const bookingStartIndex = allSlots.findIndex((slot) => slot.start_time === bookingStart);
+  const intervalMinutes = availability?.interval_minutes ?? 60;
+  const maxStayMinutes = availability?.max_stay_minutes ?? 0;
+  const availableEndSlots = bookingStartIndex < 0 ? [] : allSlots.filter((_slot, index) => (
+    index >= bookingStartIndex
+    && (index - bookingStartIndex + 1) * intervalMinutes <= maxStayMinutes
+    && allSlots.slice(bookingStartIndex, index + 1)
+      .every((candidate) => candidate.remaining_capacity > 0)
+  ));
+  const bookingEndIndex = bookingStartIndex < 0
+    ? -1
+    : allSlots.findIndex((slot, index) => index >= bookingStartIndex && slot.end_time === bookingEnd);
+  const selectedRailStyle = bookingStartIndex >= 0 && bookingEndIndex >= bookingStartIndex
+    ? {
+        left: `${(bookingStartIndex / allSlots.length) * 100}%`,
+        width: `${((bookingEndIndex - bookingStartIndex + 1) / allSlots.length) * 100}%`,
+      }
+    : undefined;
   const hasAvailabilitySlots = (availability?.slots.length ?? 0) > 0;
   const timeRangeUnavailable = !availabilityPending
     && !availabilityError
@@ -167,6 +180,32 @@ export default function ClinicMultiSlotSelectionPanel({
             </div>
           ) : (
             <>
+              <div
+                className={timeStyles.timeRail}
+                role="img"
+                aria-label={bookingStart && bookingEnd
+                  ? `운영 시간 ${availability?.window.start_time}부터 ${availability?.window.end_time}, 선택 ${bookingStart}부터 ${bookingEnd}`
+                  : `운영 시간 ${availability?.window.start_time}부터 ${availability?.window.end_time}`}
+              >
+                <div className={timeStyles.timeRailLabels} aria-hidden>
+                  <span>{availability?.window.start_time}</span>
+                  <strong>{bookingStart && bookingEnd ? `${bookingStart}–${bookingEnd}` : "시작·종료를 선택하세요"}</strong>
+                  <span>{availability?.window.end_time}</span>
+                </div>
+                <div className={timeStyles.timeRailTrack} aria-hidden>
+                  {selectedRailStyle && (
+                    <span
+                      className={timeStyles.timeRailSelection}
+                      data-testid="clinic-time-range-selection"
+                      style={selectedRailStyle}
+                    />
+                  )}
+                  {allSlots.map((slot) => (
+                    <i key={slot.start_time} className={slot.remaining_capacity > 0 ? "" : timeStyles.timeRailClosed} />
+                  ))}
+                </div>
+                <small aria-hidden>선택한 구간이 파란 막대로 이어져 표시됩니다.</small>
+              </div>
               <fieldset className={timeStyles.timeStep}>
                 <legend><span>1</span> 시작 시간</legend>
                 <div className={timeStyles.timeSlotGrid}>

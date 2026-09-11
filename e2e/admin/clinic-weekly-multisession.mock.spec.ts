@@ -582,6 +582,7 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   const dialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
   await expect(dialog.getByRole("heading", { name: "클리닉 만들기" })).toBeVisible();
   await expect(dialog).toContainText("현재 3개 시간대가 있습니다.");
+  await dialog.getByRole("button", { name: /시간지정 클리닉/ }).click();
   await expect(dialog.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ })).not.toBeChecked();
 });
 
