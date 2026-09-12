@@ -472,6 +472,75 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
   assert.doesNotMatch(JSON.stringify(snapshots), /not-a-reviewed-sha|secret-path/);
 });
 
+function runtimeEvidenceFixture(untilInitialWriteOnly) {
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("  const ownerParameters =");
+  const end = untilInitialWriteOnly ? source.indexOf('  process.on("SIGINT", interrupt);', start)
+    : source.indexOf('\n}\n\nif (process.argv[1]', start);
+  assert.ok(start > 0 && end > start, "execute the unchanged post-preflight run body");
+  const snapshots = [];
+  const portChecks = [];
+  const signals = [];
+  let externalCalls = 0;
+  const forbidden = () => { externalCalls++; assert.fail("runtime evidence test attempted external work"); };
+  const deps = {
+    assert, evidence: { preflightStage: "complete", passed: false },
+    manifest: { releaseImageTag: "unit-release", images: { "academy-api": { digest: "unit-digest" } } },
+    revision: "b".repeat(40), instanceId: "unit-instance", tenant: "qa-unit-primary", crossTenant: "qa-unit-cross",
+    capability: "private-primary-capability", crossCapability: "private-cross-capability",
+    bundle: "unit-bundle", fingerprint: "c".repeat(64), expectedDocuments: new Map([["unit-document", "unit-content"]]),
+    sha: (value) => { assert.equal(value, "unit-content"); return "d".repeat(64); },
+    process: { env: { GITHUB_SHA: "a".repeat(40) }, on: (name) => signals.push(`on:${name}`), off: (name) => signals.push(`off:${name}`) },
+    persistEvidence: (value) => snapshots.push(JSON.parse(JSON.stringify(value))),
+    artifactFingerprint: (value) => { assert.equal(value, "unit-bundle"); return "c".repeat(64); },
+    assertFreePort: async (port) => { portChecks.push(port); throw new Error("private-controlled-pre-Setup-failure"); },
+    aws: forbidden, ownedProcess: forbidden, serveArtifact: forbidden,
+  };
+  const tail = untilInitialWriteOnly
+    ? "return { writeEvidence, setCrossObservation(value) { crossPostCleanupInspectObservation = value; } };" : "";
+  const execute = new Function(...Object.keys(deps), `"use strict"; return async () => {\n${source.slice(start, end)}\n${tail}\n};`)(...Object.values(deps));
+  return { execute, snapshots, portChecks, signals, externalCalls: () => externalCalls };
+}
+
+test("initial runtime evidence executes with null cross cleanup and retains later observation", async () => {
+  const fixture = runtimeEvidenceFixture(true);
+  const state = await fixture.execute();
+  assert.equal(fixture.snapshots.length, 1);
+  const initial = fixture.snapshots[0];
+  assert.equal(initial.crossPostCleanupInspectObservation, null);
+  assert.equal(initial.crossTenantCleanup, null);
+  assert.equal(initial.postCleanupInspectObservation, null);
+  assert.equal(initial.cases, null);
+  assert.equal(initial.passed, false);
+  assert.equal(initial.terminalOutcome, "qa_running");
+  assert.deepEqual(initial.failures, ["development attempt unfinished; cleanup not proven"]);
+  const observed = { tenantIdMatches: true, tenantRemainingZero: true, userRemainingZero: true };
+  state.setCrossObservation(observed);
+  state.writeEvidence(false);
+  assert.deepEqual(fixture.snapshots[1].crossPostCleanupInspectObservation, observed);
+  assert.equal(fixture.snapshots[1].passed, false);
+  assert.equal(fixture.externalCalls(), 0);
+  assert.deepEqual(fixture.signals, []);
+  assert.doesNotMatch(JSON.stringify(fixture.snapshots), /private-/);
+});
+
+test("runtime evidence survives a controlled pre-Setup failure through the actual finally body", async () => {
+  const fixture = runtimeEvidenceFixture(false);
+  await assert.rejects(fixture.execute(), /Development release gate failed; see PII-free evidence/);
+  assert.equal(fixture.snapshots.length, 2, "initial runtime and terminal failure must both persist");
+  assert.deepEqual(fixture.portChecks, [18000]);
+  assert.equal(fixture.externalCalls(), 0, "no AWS, Setup, process, or server call is permitted");
+  assert.deepEqual(fixture.signals, ["on:SIGINT", "on:SIGTERM", "off:SIGINT", "off:SIGTERM"]);
+  const terminal = fixture.snapshots[1];
+  assert.equal(terminal.terminalOutcome, "qa_failed");
+  assert.equal(terminal.passed, false);
+  for (const key of ["cleanup", "crossTenantCleanup", "postCleanupInspectObservation", "crossPostCleanupInspectObservation", "realUseObservation"]) {
+    assert.equal(terminal[key], null, `${key} must not invent completion before Setup`);
+  }
+  assert.deepEqual(terminal.failures, ["development identity/setup/real-use failed"]);
+  assert.doesNotMatch(JSON.stringify(fixture.snapshots), /private-/);
+});
+
 test("fixed-document operation failures expose only allowlisted PII-free observations", () => {
   assert.equal(typeof runner.observeFixedOperationResult, "function");
   const sessionId = "session-secret-123";
