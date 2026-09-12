@@ -33,6 +33,7 @@ type InventoryState = {
 
 type StorageHarness = {
   moveRequests: MoveBody[];
+  deleteRequests: Array<{ scope: string | null; studentPs: string | null; type: string; id: string; recursive: boolean }>;
   unexpectedMutations: string[];
   inventoryReads: Array<{ scope: string | null; studentPs: string | null }>;
   studentWriteHeaders: string[];
@@ -114,13 +115,19 @@ async function installStorageMocks(
     inventoryInitiallyAvailable?: boolean;
     holdFirstMoveConflict?: boolean;
     holdFirstMoveReply?: boolean;
+    deleteReply?: "success" | "partial";
+    deleteTarget?: "file" | "folder";
+    withSiblingInventory?: boolean;
   } = {},
 ): Promise<StorageHarness> {
   const role = options.role ?? "owner";
   const moveReplies = [...(options.moveReplies ?? [])];
   const adminInventory = createInventory("관리자", options.includeTarget ?? true);
   const studentInventory = createInventory("학생", options.includeTarget ?? true);
+  const siblingInventory = createInventory("다른 학생", options.includeTarget ?? true);
+  if (options.deleteTarget === "folder") adminInventory.files[0].folderId = "101";
   const moveRequests: MoveBody[] = [];
+  const deleteRequests: StorageHarness["deleteRequests"] = [];
   const unexpectedMutations: string[] = [];
   const inventoryReads: Array<{ scope: string | null; studentPs: string | null }> = [];
   const studentWriteHeaders: string[] = [];
@@ -200,14 +207,16 @@ async function installStorageMocks(
     }
     if (path === "/students/" && method === "GET") {
       return json(route, {
-        count: 1,
+        count: options.withSiblingInventory ? 2 : 1,
         page_size: 50,
         results: [{
           id: 901,
           name: "학생 사용자",
           ps_number: "PS-001",
           is_active: true,
-        }],
+        }, ...(options.withSiblingInventory ? [{
+          id: 902, name: "다른 학생 사용자", ps_number: "PS-002", is_active: true,
+        }] : [])],
       });
     }
     if (path === "/storage/inventory/" && method === "GET") {
@@ -220,6 +229,10 @@ async function installStorageMocks(
       }
       if (!inventoryAvailable) {
         return json(route, { detail: "temporary_inventory_failure" }, 503);
+      }
+      if (scope === "student" && options.withSiblingInventory) {
+        if (studentPs === "PS-002") return json(route, siblingInventory);
+        expect(studentPs).toBe("PS-001");
       }
       return json(route, scope === "student" ? studentInventory : adminInventory);
     }
@@ -285,6 +298,33 @@ async function installStorageMocks(
       studentInventory.files.push(uploaded);
       return json(route, uploaded);
     }
+    if (options.deleteReply && method === "DELETE" && (
+      path === "/storage/inventory/files/301/" || path === "/storage/inventory/folders/101/"
+    )) {
+      const scope = url.searchParams.get("scope");
+      const studentPs = url.searchParams.get("student_ps");
+      expect(["admin", "student"]).toContain(scope);
+      expect(studentPs).toBe(scope === "student" ? "PS-001" : null);
+      const folder = path.includes("/folders/");
+      const recursive = url.searchParams.get("recursive") === "true";
+      const inventory = scope === "student" ? studentInventory : adminInventory;
+      deleteRequests.push({ scope, studentPs, type: folder ? "folder" : "file", id: folder ? "101" : "301", recursive });
+      if (folder) {
+        expect(recursive).toBe(true);
+        inventory.folders = inventory.folders.filter((item) => !["101", "102"].includes(item.id));
+        inventory.files = inventory.files.filter((item) => !["101", "102"].includes(item.folderId ?? ""));
+      } else {
+        inventory.files = inventory.files.filter((item) => item.id !== "301");
+      }
+      const deleted = folder ? { folders: 2, files: 1, matchup_docs: 0, r2_objects: 0 } : true;
+      if (options.deleteReply === "partial") return json(route, {
+        ok: false, deleted, code: "inventory_storage_cleanup_pending",
+        detail: "목록에서 삭제되었습니다. 원본 파일 정리는 재시도 대기 중입니다. 새로고침으로 목록을 확인해 주세요.",
+        storage_cleanup: { pending: 0, failed: 1, cleaned: 0 },
+      }, 502);
+      if (folder) return json(route, { ok: true, deleted: { ...deleted as object, r2_objects: 1 } });
+      return route.fulfill({ status: 204 });
+    }
     if (!["GET", "HEAD"].includes(method)) {
       unexpectedMutations.push(`${method} ${path}`);
       return json(route, { detail: "unexpected mutation" }, 500);
@@ -294,6 +334,7 @@ async function installStorageMocks(
 
   return {
     moveRequests,
+    deleteRequests,
     unexpectedMutations,
     inventoryReads,
     studentWriteHeaders,
@@ -1086,3 +1127,178 @@ test.describe("저장소 데스크톱 drag 계약", () => {
     await expectNoDocumentOverflow(page);
   });
 });
+
+for (const width of [1366, 390]) {
+  test.describe(`inventory deletion ${width}px @inventory-delete-durability`, () => {
+    test.use({ viewport: { width, height: 900 }, serviceWorkers: "block" });
+    for (const scope of ["admin", "student"] as const) {
+      for (const [entry, reply] of [["menu", "success"], ["menu", "partial"], ["toolbar", "success"], ["toolbar", "partial"]] as const) {
+        test(`${scope} file ${entry} ${reply}: visible result and authoritative reload`, async ({ page }, testInfo) => {
+          const harness = await installStorageMocks(page, { role: "owner", deleteReply: reply });
+          const route = scope === "admin" ? "/workspace/storage/files" : "/workspace/storage/students/PS-001";
+          const label = `파일 ${scope === "admin" ? "관리자" : "학생"} 모바일 파일.pdf 선택`;
+          await page.goto(`${BASE}${route}`, { waitUntil: "domcontentloaded" });
+          const file = page.getByRole("button", { name: label, exact: true });
+          await expect(file).toBeVisible();
+          await file.click();
+          if (entry === "menu") {
+            // Existing menu route; do not mistake this unusual deselection step
+            // for the ordinary toolbar deletion journey covered separately.
+            await page.getByRole("button", { name: "선택 해제", exact: true }).click();
+            await page.getByRole("button", { name: "삭제하기", exact: true }).click();
+          } else {
+            await page.getByRole("button", { name: "삭제", exact: true }).click();
+          }
+          const readsBefore = harness.inventoryReads.length;
+          const response = page.waitForResponse((item) => item.request().method() === "DELETE" && new URL(item.url()).pathname.endsWith("/files/301/"));
+          await page.getByRole("alertdialog", { name: entry === "menu" ? "파일 삭제" : "선택 항목 삭제" }).getByRole("button", { name: "삭제", exact: true }).click();
+          expect((await response).status()).toBe(reply === "partial" ? 502 : 204);
+          if (reply === "partial") {
+            const notice = page.locator(".ant-message-notice").filter({ hasText: "목록에서 삭제되었습니다. 원본 파일 정리는 재시도 대기 중입니다." });
+            await expect(notice).toBeVisible();
+            await notice.screenshot({ path: testInfo.outputPath("partial-notice.png"), animations: "disabled" });
+          }
+          await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBefore);
+          await expect(file).toHaveCount(0);
+          await expect(page.getByRole("button", { name: "삭제하기", exact: true })).toHaveCount(0);
+          await expectNoDocumentOverflow(page);
+          await page.screenshot({ path: testInfo.outputPath("delete-result.png"), fullPage: true });
+          await page.reload({ waitUntil: "domcontentloaded" });
+          await expect(page.getByRole("button", { name: "추가", exact: true })).toBeEnabled();
+          await expect(file).toHaveCount(0);
+          expect(harness.deleteRequests).toEqual([{ scope, studentPs: scope === "student" ? "PS-001" : null, type: "file", id: "301", recursive: false }]);
+          expect(harness.unexpectedMutations).toEqual([]);
+        });
+      }
+    }
+    for (const reply of ["success", "partial"] as const) {
+      test(`recursive folder ${reply}: visible result and authoritative reload`, async ({ page }, testInfo) => {
+        const harness = await installStorageMocks(page, { role: "owner", deleteReply: reply, deleteTarget: "folder" });
+        await page.goto(`${BASE}/workspace/storage/files`, { waitUntil: "domcontentloaded" });
+        const folder = page.getByRole("button", { name: "폴더 관리자 원본 폴더 선택", exact: true });
+        await expect(folder).toBeVisible();
+        if (reply === "partial") {
+          const treeFolder = page.locator("aside").getByTitle("관리자 원본 폴더", { exact: true });
+          await treeFolder.click();
+          await expect(page.getByRole("button", { name: "파일 관리자 모바일 파일.pdf 선택" })).toBeVisible();
+          const treeDelete = treeFolder.locator("..").getByRole("button", { name: "하위 포함 삭제", exact: true });
+          await treeDelete.focus();
+          await treeDelete.press("Enter");
+        } else {
+          await folder.press("Space");
+          await page.getByRole("button", { name: "삭제", exact: true }).click();
+        }
+        const readsBefore = harness.inventoryReads.length;
+        const response = page.waitForResponse((item) => item.request().method() === "DELETE" && new URL(item.url()).pathname.endsWith("/folders/101/"));
+        await page.getByRole("alertdialog", { name: reply === "partial" ? "하위 포함 폴더 영구 삭제" : "하위 포함 영구 삭제" }).getByRole("button", { name: "전부 삭제", exact: true }).click();
+        expect((await response).status()).toBe(reply === "partial" ? 502 : 200);
+        if (reply === "partial") {
+          const notice = page.locator(".ant-message-notice").filter({ hasText: "목록에서 삭제되었습니다. 원본 파일 정리는 재시도 대기 중입니다." });
+          await expect(notice).toBeVisible();
+          await notice.screenshot({ path: testInfo.outputPath("partial-notice.png"), animations: "disabled" });
+        }
+        else await expect(page.locator(".ant-message-notice").filter({ hasText: "폴더 1개 삭제 완료" })).toBeVisible();
+        await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBefore);
+        await expect(folder).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "폴더 관리자 이동 대상 선택", exact: true })).toBeVisible();
+        await expectNoDocumentOverflow(page);
+        await page.screenshot({ path: testInfo.outputPath("delete-result.png"), fullPage: true });
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(page.getByRole("button", { name: "추가", exact: true })).toBeEnabled();
+        await expect(folder).toHaveCount(0);
+        expect(harness.deleteRequests).toEqual([{ scope: "admin", studentPs: null, type: "folder", id: "101", recursive: true }]);
+        expect(harness.unexpectedMutations).toEqual([]);
+      });
+    }
+  });
+}
+
+for (const width of [390, 768, 1366]) {
+  test.describe(`student inventory ${width}px @inventory-responsive`, () => {
+    test.use({ viewport: { width, height: 900 }, serviceWorkers: "block" });
+    for (const reply of ["success", "partial"] as const) {
+      test(`${reply}: readable context, keyboard tree, scoped toolbar delete and reload`, async ({ page }, testInfo) => {
+        const harness = await installStorageMocks(page, { role: "owner", deleteReply: reply, withSiblingInventory: true });
+        await page.goto(`${BASE}/workspace/storage/students/PS-001`, { waitUntil: "domcontentloaded" });
+        const selectedStudent = page.getByRole("button", { name: "학생 사용자 PS-001", exact: true });
+        const treeFolder = page.locator("aside").getByTitle("학생 원본 폴더", { exact: true });
+        await expect(selectedStudent).toBeVisible();
+        await expect(treeFolder).toBeVisible();
+        await page.getByPlaceholder("이름 검색", { exact: true }).focus();
+        await page.keyboard.press("Tab");
+        await expect(selectedStudent).toBeFocused();
+        // Visible text width is essential: overflow0 alone passed when the tree
+        // label was reduced to one or two characters in the old three columns.
+        for (const label of [selectedStudent.getByText("학생 사용자", { exact: true }), treeFolder.getByText("학생 원본 폴더", { exact: true })]) {
+          expect(await label.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+        }
+        const selectedBox = await selectedStudent.boundingBox();
+        const studentPanelBox = await selectedStudent.locator("..").locator("..").boundingBox();
+        const treeBox = await treeFolder.boundingBox();
+        expect(selectedBox).not.toBeNull();
+        expect(studentPanelBox).not.toBeNull();
+        expect(treeBox).not.toBeNull();
+        if (width <= 1023) {
+          expect(treeBox!.width).toBeGreaterThan(250);
+          expect(treeBox!.y).toBeGreaterThan(studentPanelBox!.y + studentPanelBox!.height);
+        } else {
+          expect(treeBox!.x).toBeGreaterThan(selectedBox!.x + selectedBox!.width);
+        }
+        await page.screenshot({ path: testInfo.outputPath("readable-context.png"), fullPage: true });
+        await treeFolder.focus();
+        await expect(treeFolder).toBeFocused();
+        await page.keyboard.press("Enter");
+        const breadcrumb = page.getByRole("navigation", { name: "경로", exact: true });
+        await expect(breadcrumb.getByRole("button", { name: "학생 원본 폴더", exact: true })).toBeVisible();
+        const childFolder = page.getByRole("button", { name: "폴더 학생 하위 폴더 선택", exact: true });
+        await expect(childFolder).toBeVisible();
+        await page.screenshot({ path: testInfo.outputPath("selected-folder.png"), fullPage: true });
+        const rootFolder = page.locator("aside").getByRole("button", { name: "내 저장소 3", exact: true });
+        await rootFolder.focus();
+        await page.keyboard.press("Space");
+        const file = page.getByRole("button", { name: "파일 학생 모바일 파일.pdf 선택", exact: true });
+        await expect(file).toBeVisible();
+        await file.focus();
+        await page.keyboard.press("Space");
+        await expect(file).toHaveAttribute("aria-pressed", "true");
+        const toolbarDelete = page.getByRole("button", { name: "삭제", exact: true });
+        await toolbarDelete.focus();
+        await page.keyboard.press("Enter");
+        const confirmation = page.getByRole("alertdialog", { name: "선택 항목 삭제", exact: true });
+        await expect(confirmation).toBeVisible();
+        await expect(confirmation).toContainText("파일 1개");
+        await expect(confirmation).toHaveCSS("opacity", "1");
+        await page.screenshot({ path: testInfo.outputPath("delete-confirmation.png"), fullPage: true });
+        const readsBefore = harness.inventoryReads.length;
+        await confirmation.getByRole("button", { name: "삭제", exact: true }).press("Enter");
+        if (reply === "partial") {
+          const notice = page.locator(".ant-message-notice").filter({ hasText: "목록에서 삭제되었습니다. 원본 파일 정리는 재시도 대기 중입니다." });
+          await expect(notice).toBeVisible();
+          await notice.screenshot({ path: testInfo.outputPath("partial-notice.png"), animations: "disabled" });
+        }
+        await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBefore);
+        await expect(file).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "삭제하기", exact: true })).toHaveCount(0);
+        await page.screenshot({ path: testInfo.outputPath("deleted-result.png"), fullPage: true });
+        const sibling = page.getByRole("button", { name: "다른 학생 사용자 PS-002", exact: true });
+        await sibling.focus();
+        await page.keyboard.press("Enter");
+        await expect(page).toHaveURL(/\/storage\/students\/PS-002$/);
+        await expect(page.getByRole("button", { name: "파일 다른 학생 모바일 파일.pdf 선택", exact: true })).toBeVisible();
+        await expect(file).toHaveCount(0);
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(page.getByRole("button", { name: "파일 다른 학생 모바일 파일.pdf 선택", exact: true })).toBeVisible();
+        await selectedStudent.click();
+        await expect(page).toHaveURL(/\/storage\/students\/PS-001$/);
+        await expect(file).toHaveCount(0);
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(page.getByRole("button", { name: "추가", exact: true })).toBeEnabled();
+        await expect(file).toHaveCount(0);
+        expect(harness.deleteRequests).toEqual([{ scope: "student", studentPs: "PS-001", type: "file", id: "301", recursive: false }]);
+        expect(harness.inventoryReads).toContainEqual({ scope: "student", studentPs: "PS-002" });
+        expect(harness.unexpectedMutations).toEqual([]);
+        await expectNoDocumentOverflow(page);
+      });
+    }
+  });
+}
