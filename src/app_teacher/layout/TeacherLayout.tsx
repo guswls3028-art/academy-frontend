@@ -4,6 +4,8 @@
  */
 import { useState, useCallback, useMemo, Suspense } from "react";
 import { Outlet } from "react-router";
+import { App as AntdApp } from "antd";
+import { FeedbackBridge } from "@/shared/ui/feedback";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
@@ -65,6 +67,8 @@ export default function TeacherLayout() {
     : null;
 
   return (
+    <AntdApp component={false}>
+      <FeedbackBridge />
     <div
       data-app="teacher"
       data-teacher-tenant={tenantCode || undefined}
@@ -112,5 +116,6 @@ export default function TeacherLayout() {
         <AsyncStatusBar hideWhenEmpty />
       </div>
     </div>
+    </AntdApp>
   );
 }

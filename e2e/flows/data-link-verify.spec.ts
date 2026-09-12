@@ -120,11 +120,8 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     await S.goto(`${BASE}/student/community`);
     await S.waitForLoadState("load");
     await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    const qnaTab2 = S.locator("button, [role='tab']").filter({ hasText: /QnA/ }).first();
-    if (await qnaTab2.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await qnaTab2.click();
-      await S.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
-    }
+    await S.getByRole("button", { name: "내 질문과 답변", exact: true }).click();
+    await S.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     const myQ = S.locator(`text=연결검증`).first();
     if (await myQ.isVisible({ timeout: 5000 }).catch(() => false)) {
       await myQ.click();

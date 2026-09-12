@@ -14,6 +14,62 @@ test("release-aware browser worker fixture outlives the 690-second playback proo
   assert.match(source, /scope:\s*["']worker["'][^}\]]*timeout:\s*20\s*\*\s*60_000/s);
 });
 
+test("release-aware browser fixture emits evidence once before close and teardown assertions", async () => {
+  const source = readFileSync(new URL("../../e2e/fixtures/strictTest.ts", import.meta.url), "utf8");
+  const fixtureSource = stripTypeScriptTypes(source)
+    .replace(/^import .+;\r?$/gm, "")
+    .replace("export const test =", "const test =")
+    .replace(/^export \{ expect \};\r?$/m, "");
+  const createFixture = new Function("base", "expect", "installAccountNotificationGuard", "attachStrictBrowserGuards",
+    "installReleaseContextGuard", "releaseBoundaryFromEnv", `${fixtureSource}\nreturn test;`);
+  const previousStrict = process.env.E2E_STRICT;
+  process.env.E2E_STRICT = "strict";
+  try {
+    for (const explicitClose of [false, true]) {
+      for (const failed of [false, true]) {
+        const evidence = [];
+        let closed = 0;
+        let assertions = 0;
+        const failure = new Error("Release API boundary failed: retained transport defect");
+        const boundaryGuard = {
+          authentication: { attempted: 0, accepted: 0 }, observations: { attempted: 0, accepted: 0 },
+          transport: { readFetchRetries: 0 },
+          requestTransportDiagnostics: [{ method: "POST", pathTemplate: "/api/v1/students/me/activity/",
+            requestKind: "mutation", stage: "initial", transportCode: "transport" }],
+          beginClose: async () => {},
+          assertClean() {
+            assertions += 1;
+            assert.equal(evidence.length, 1, "diagnostics must be emitted before any failing assertion");
+            if (failed) throw failure;
+          },
+        };
+        const options = createFixture({ extend: (value) => value }, assert, () => {}, () => {},
+          async () => boundaryGuard, () => ({ mode: "development" }));
+        const originalNewContext = async () => ({ request: {}, on() {}, close: async () => { closed += 1; } });
+        const browser = { newContext: originalNewContext };
+        const previousLog = console.log;
+        console.log = (line) => evidence.push(JSON.parse(line));
+        try {
+          const running = options.browser[0]({ browser }, async (provided) => {
+            const context = await provided.newContext();
+            if (explicitClose) await context.close();
+          });
+          if (failed) await assert.rejects(running, (error) => error === failure);
+          else await running;
+        } finally { console.log = previousLog; }
+        assert.equal(evidence.length, 1, "explicit close followed by worker teardown must not duplicate counters");
+        assert.deepEqual(evidence[0].requestTransportDiagnostics, boundaryGuard.requestTransportDiagnostics);
+        assert.equal(evidence[0].releaseApiMode, "development");
+        assert.equal(closed, explicitClose ? 1 : 0);
+        assert.equal(assertions, explicitClose && !failed ? 2 : 1);
+      }
+    }
+  } finally {
+    if (previousStrict === undefined) delete process.env.E2E_STRICT;
+    else process.env.E2E_STRICT = previousStrict;
+  }
+});
+
 test("student-parent real-use creation follows mandatory account notice policy", () => {
   const source = readFileSync(new URL("../../e2e/helpers/qaStudentParentScenario.ts", import.meta.url), "utf8");
   assert.match(source, /initial_password:\s*QA_STUDENT_PASSWORD/);
@@ -1531,6 +1587,113 @@ test("same-artifact proxy preserves the real response and never sends credential
     assert.deepEqual(calls.slice(before).map((call) => call.operation), ["upstream", "abort"]);
   }
   assert.throws(() => guard.assertClean(), /Release API boundary failed/);
+});
+
+test("same BrowserContext reuses one release guard and one diagnostic stream", async () => {
+  const handlers = [];
+  const context = {
+    on() {},
+    route: async (_pattern, callback) => { handlers.push(callback); },
+    request: Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async () => {}])),
+  };
+
+  const first = await installReleaseContextGuard(context, development);
+  const second = await installReleaseContextGuard(context, development);
+
+  assert.strictEqual(second, first, "fixture and scenario helper must share the same context guard");
+  assert.equal(handlers.length, 1, "a BrowserContext must have exactly one release route boundary");
+
+  let mutationAttempts = 0;
+  await handlers[0]({
+    request: () => ({
+      url: () => "https://api.hakwonplus.com/api/v1/students/me/activity/",
+      method: () => "POST",
+      postDataJSON: () => ({ screen_id: "student.dashboard.home", device_class: "desktop" }),
+      headerValue: async () => development.tenantCode,
+      allHeaders: async () => ({ origin: development.webOrigin, "x-tenant-code": development.tenantCode }),
+    }),
+    fetch: async () => {
+      mutationAttempts += 1;
+      throw new Error("unit mutation fetch interruption");
+    },
+    fulfill: async () => {},
+    abort: async () => {},
+    continue: async () => {},
+  });
+
+  assert.equal(mutationAttempts, 1, "mutation transport is never replayed");
+  assert.deepEqual(first.requestTransportDiagnostics, [{
+    method: "POST", pathTemplate: "/api/v1/students/me/activity/", requestKind: "mutation",
+    stage: "initial", transportCode: "transport",
+  }]);
+  assert.strictEqual(second.requestTransportDiagnostics, first.requestTransportDiagnostics);
+  assert.throws(() => first.assertClean(), /Release request rejected \[fetch-transport\]/);
+  assert.throws(() => second.assertClean(), /Release request rejected \[fetch-transport\]/);
+});
+
+test("same BrowserContext refuses a different release boundary without reinstalling", async () => {
+  const handlers = [];
+  const context = {
+    on() {},
+    route: async (_pattern, callback) => { handlers.push(callback); },
+    request: Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async () => {}])),
+  };
+  const originalBoundary = { ...development };
+  const first = await installReleaseContextGuard(context, originalBoundary);
+  for (const changed of [
+    { mode: "readonly" },
+    { apiOrigin: "http://127.0.0.1:18001" },
+    { webOrigin: "http://localhost:4174" },
+    { tenantCode: "qa-ymath-realuse-foreign-unit" },
+  ]) {
+    await assert.rejects(installReleaseContextGuard(context, { ...development, ...changed }), /Release context boundary mismatch/);
+  }
+  originalBoundary.tenantCode = "qa-ymath-realuse-mutated-unit";
+  await assert.rejects(installReleaseContextGuard(context, originalBoundary), /Release context boundary mismatch/);
+  assert.strictEqual(await installReleaseContextGuard(context, { ...development }), first);
+  assert.equal(handlers.length, 1);
+});
+
+test("concurrent BrowserContext guard installation waits for one completed route registration", async () => {
+  let completeRegistration;
+  let registrations = 0;
+  const registered = new Promise((resolve) => { completeRegistration = resolve; });
+  const context = {
+    on() {},
+    route: async () => { registrations += 1; await registered; },
+    request: Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async () => {}])),
+  };
+  let secondReady = false;
+  const first = installReleaseContextGuard(context, development);
+  const second = installReleaseContextGuard(context, { ...development }).then((guard) => { secondReady = true; return guard; });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(secondReady, false, "no caller may use a context before its route boundary is installed");
+  await assert.rejects(installReleaseContextGuard(context, { ...development, mode: "readonly" }), /Release context boundary mismatch/);
+  completeRegistration();
+  assert.strictEqual(await first, await second);
+  assert.equal(registrations, 1);
+});
+
+test("failed BrowserContext route installation rejects every caller without leaving a reusable guard", async () => {
+  let failRegistration;
+  let registrations = 0;
+  const registered = new Promise((_resolve, reject) => { failRegistration = reject; });
+  const context = {
+    on() {},
+    route: async () => { registrations += 1; await registered; },
+    request: Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async () => {}])),
+  };
+  const first = installReleaseContextGuard(context, development);
+  const second = installReleaseContextGuard(context, { ...development });
+  const results = Promise.allSettled([first, second]);
+  const failure = new Error("unit route registration failed");
+  failRegistration(failure);
+  assert.deepEqual(await results, [
+    { status: "rejected", reason: failure },
+    { status: "rejected", reason: failure },
+  ]);
+  await assert.rejects(installReleaseContextGuard(context, development), (error) => error === failure);
+  assert.equal(registrations, 1, "a partially wrapped failed context must be discarded instead of reinstalled");
 });
 
 test("same-artifact proxy retries only safe read fetch transport and identifies the failing stage", async () => {

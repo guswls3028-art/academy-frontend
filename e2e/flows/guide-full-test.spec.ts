@@ -233,14 +233,9 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
   test("S08 학생 QnA 질문 등록", async () => {
     await gotoAndSettle(S, `${BASE}/student/community`, { settleMs: 1500 });
 
-    const qnaTab = S.locator("button, [role='tab']").filter({ hasText: /QnA/ }).first();
-    if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await qnaTab.click();
-      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    }
-    await S.screenshot({ path: "test-results/guide/S08a-qna-tab.png", fullPage: true });
+    await S.screenshot({ path: "test-results/guide/S08a-qna-entry.png", fullPage: true });
 
-    const writeBtn = S.locator("button, a").filter({ hasText: /질문/ }).first();
+    const writeBtn = S.getByRole("button", { name: "질문하기", exact: true });
     if (await writeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await writeBtn.click();
 
@@ -329,11 +324,8 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
   test("S16 학생 답변 확인", async () => {
     await gotoAndSettle(S, `${BASE}/student/community`, { settleMs: 1500 });
 
-    const qnaTab = S.locator("button, [role='tab']").filter({ hasText: /QnA/ }).first();
-    if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await qnaTab.click();
-      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    }
+    await S.getByRole("button", { name: "내 질문과 답변", exact: true }).click();
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     const myQ = S.locator("text=가이드 테스트").first();
     if (await myQ.isVisible({ timeout: 5000 }).catch(() => false)) {

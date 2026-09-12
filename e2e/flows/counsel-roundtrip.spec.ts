@@ -122,10 +122,10 @@ test.describe.serial("상담 왕복: 학생→관리자→학생", () => {
   test("5. 학생이 상담 상세에서 답변을 확인한다", async () => {
     await gotoAndSettle(studentPage, `${BASE}/student/community`, { timeout: 20_000 });
 
-    // 상담 탭 클릭
-    const counselTab = studentPage.locator("button").filter({ hasText: /^상담$/ }).first();
-    await counselTab.waitFor({ state: "visible", timeout: 10000 });
-    await counselTab.click();
+    // 커뮤니티 첫 화면에서 상담으로 진입
+    const counselEntry = studentPage.getByRole("button", { name: "상담", exact: true });
+    await counselEntry.waitFor({ state: "visible", timeout: 10000 });
+    await counselEntry.click();
 
     const myCounsel = studentPage.locator(`text=${C_TITLE}`).first();
     await expect(myCounsel).toBeVisible({ timeout: 15000 });

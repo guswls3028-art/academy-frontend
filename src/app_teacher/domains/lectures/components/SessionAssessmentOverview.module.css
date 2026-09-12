@@ -1,0 +1,52 @@
+.workspace { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.viewSwitch { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--tc-surface-soft); }
+.viewSwitch button { flex: 1; min-height: 44px; padding: 8px 12px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--tc-text-secondary); font-size: 14px; font-weight: 600; cursor: pointer; }
+.viewSwitch button[aria-pressed="true"] { background: var(--tc-surface); border-color: var(--tc-border); color: var(--tc-primary); }
+.viewSwitch button:hover, .examOption:hover { background: var(--tc-primary-bg); }
+.workspace button:focus-visible, .overview a:focus-visible, .tableScroll:focus-visible { outline: 2px solid var(--tc-primary); outline-offset: 2px; }
+.examSelector { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px; }
+.examOption { min-width: 0; min-height: 44px; padding: 10px 12px; border-radius: 10px; text-align: left; font-size: 13px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; cursor: pointer; }
+.overview { min-width: 0; }
+.summary { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.summary h2 { margin: 0; color: var(--tc-text); font-size: 15px; font-weight: 700; }
+.summary span, .hint { color: var(--tc-text-secondary); font-size: 12px; line-height: 1.6; }
+.hint { margin: 4px 0 12px; }
+.tableScroll { max-width: 100%; max-height: 65dvh; overflow: auto; border: 1px solid var(--tc-border); border-radius: 12px; background: var(--tc-surface); }
+.table { width: 100%; border-collapse: separate; border-spacing: 0; color: var(--tc-text); font-size: 13px; }
+.table th, .table td { padding: 12px 16px; border-bottom: 1px solid var(--tc-border); border-right: 1px solid var(--tc-border); vertical-align: top; text-align: left; }
+.table tr > :last-child { border-right: 0; }
+.table tbody tr:last-child > * { border-bottom: 0; }
+.table thead th { position: sticky; top: 0; z-index: 2; min-width: 200px; background: var(--tc-surface-soft); font-weight: 500; }
+.table .studentHeading, .table .studentName { position: sticky; left: 0; z-index: 1; min-width: 150px; max-width: 200px; overflow-wrap: anywhere; }
+.table .studentName { background: var(--tc-surface); font-weight: 600; }
+.table .studentHeading { z-index: 3; }
+.rowNumber { display: block; margin-bottom: 3px; color: var(--tc-text-muted); font-size: 11px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.assessmentTitle { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.kind { color: var(--tc-text-muted); font-size: 11px; font-weight: 500; }
+.assessmentTitle a { display: flex; align-items: center; min-height: 44px; color: var(--tc-text); font-size: 13px; font-weight: 600; line-height: 1.55; overflow-wrap: anywhere; text-decoration: none; }
+.assessmentTitle a:hover { color: var(--tc-primary); text-decoration: underline; }
+.criteria { color: var(--tc-text-secondary); font-size: 11px; line-height: 1.6; }
+.mobileTitle { display: none; }
+.result { display: flex; flex-direction: column; gap: 3px; }
+.score { color: var(--tc-text); font-size: 15px; line-height: 1.5; font-weight: 700; font-variant-numeric: tabular-nums; }
+.status, .review { font-size: 11px; line-height: 1.6; color: var(--tc-text-secondary); }
+.status[data-tone="success"] { color: var(--color-success-text, var(--tc-text)); }
+.status[data-tone="danger"], .review { color: var(--color-danger-text, var(--tc-text)); }
+
+@media (max-width: 639px) {
+  .scrollHint { display: none; }
+  .tableScroll { max-height: none; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+  .table, .table tbody { display: block; }
+  .table thead { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .table thead a { visibility: hidden; }
+  .table tbody tr { display: block; margin-bottom: 12px; border: 1px solid var(--tc-border); border-radius: 12px; background: var(--tc-surface); overflow: hidden; }
+  .table tbody tr:last-child { margin-bottom: 0; }
+  .table .studentName { position: static; display: flex; align-items: baseline; gap: 8px; min-width: 0; max-width: none; padding: 12px 14px; background: var(--tc-surface-soft); font-size: 14px; }
+  .rowNumber { margin: 0; }
+  .table tbody tr > * { border-right: 0; }
+  .table tbody tr:last-child > * { border-bottom: 1px solid var(--tc-border); }
+  .table tbody tr > :last-child { border-bottom: 0; }
+  .table td { display: grid; grid-template-columns: minmax(0, 1fr) minmax(78px, auto); gap: 12px; padding: 12px 14px; }
+  .mobileTitle { display: block; min-width: 0; }
+  .result { align-items: flex-end; justify-content: center; max-width: 120px; text-align: right; }
+}

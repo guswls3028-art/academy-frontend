@@ -1418,6 +1418,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           const rowChecked = selectedSet.has(row.enrollment_id);
           const { reason: clinicReason } = getClinicReason(row);
           const isEvenRow = rowIndex % 2 === 1;
+          const correctionPending = row.correction_pending_count != null
+            ? row.correction_pending_count > 0
+            : (row.exams ?? []).some(({ block }) => block.correction_status === "PENDING")
+              || (row.homeworks ?? []).some(({ block }) => block.correction_status === "PENDING");
 
           return (
             <Fragment key={row.enrollment_id}>
@@ -1460,26 +1464,29 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 >
                   {/* 아바타 + 이름 + 강의딱지 SSOT.
                       lectures: 단일 강의 → [{...}] 배열로 어댑트 (백엔드 row.lecture_* SSOT 그대로). */}
-                  <StudentNameWithLectureChip
-                    name={row.student_name ?? ""}
-                    profilePhotoUrl={row.profile_photo_url ?? undefined}
-                    avatarSize={28}
-                    lectures={
-                      row.lecture_title
-                        ? [{
-                            lectureName: row.lecture_title,
-                            color: row.lecture_color ?? undefined,
-                            chipLabel: row.lecture_chip_label ?? undefined,
-                          }]
-                        : null
-                    }
-                    clinicHighlight={
-                      row.name_highlight_followup_required
-                      ?? row.name_highlight_clinic_target
-                      ?? false
-                    }
-                    examNotSubmittedCount={row.exam_not_submitted_count}
-                  />
+                  <div className="flex flex-col items-start gap-1">
+                    <StudentNameWithLectureChip
+                      name={row.student_name ?? ""}
+                      profilePhotoUrl={row.profile_photo_url ?? undefined}
+                      avatarSize={28}
+                      lectures={
+                        row.lecture_title
+                          ? [{
+                              lectureName: row.lecture_title,
+                              color: row.lecture_color ?? undefined,
+                              chipLabel: row.lecture_chip_label ?? undefined,
+                            }]
+                          : null
+                      }
+                      clinicHighlight={row.name_highlight_clinic_target ?? false}
+                      examNotSubmittedCount={row.exam_not_submitted_count}
+                    />
+                    {correctionPending && (
+                      <Badge tone="neutral" size="sm" ariaLabel="오답 미완료">
+                        오답 미완료
+                      </Badge>
+                    )}
+                  </div>
                 </td>
 
                 <td className="text-center align-middle" data-col-type="attendance">

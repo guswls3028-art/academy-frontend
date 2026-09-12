@@ -24,6 +24,8 @@ type ScoreRouteOptions = {
   examAssignedRows?: boolean[];
   rowClinicRequired?: boolean[];
   rowNameHighlightClinicTarget?: boolean[];
+  rowNameHighlightFollowupRequired?: boolean[];
+  includeCorrectionPendingCounts?: boolean;
   activeEditors?: Array<{
     client_id: string;
     editor_user_id: number;
@@ -287,6 +289,12 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             }] : [],
             clinic_required: options.rowClinicRequired?.[index] ?? (score == null ? false : score < 60),
             name_highlight_clinic_target: options.rowNameHighlightClinicTarget?.[index] ?? false,
+            ...(options.rowNameHighlightFollowupRequired ? {
+              name_highlight_followup_required: options.rowNameHighlightFollowupRequired[index],
+            } : {}),
+            ...(options.includeCorrectionPendingCounts ? {
+              correction_pending_count: currentCorrectionStatuses[index] === "PENDING" ? 1 : 0,
+            } : {}),
             progress_completed: false,
             updated_at: "2026-07-25T12:00:00+09:00",
           })),
@@ -642,6 +650,20 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
 
     // Workspace chrome loads these counters/lists independently of the score route.
     // Keep this route-mock test self-contained instead of waiting on a local API proxy.
+    if (path === "/api/v1/core/tenant-info/" && method === "GET") {
+      await route.fulfill({
+        json: {
+          name: "학원플러스",
+          phone: "",
+          headquarters_phone: "",
+          academies: [{ name: "학원플러스", phone: "" }],
+          pass_label: "합격",
+          fail_label: "불합격",
+        },
+      });
+      return;
+    }
+
     if (path.endsWith("/api/v1/clinic/participants/") && method === "GET") {
       await route.fulfill({ json: { count: 0, results: [] } });
       return;
@@ -1519,6 +1541,114 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       return bounds.left >= 0 && bounds.right <= window.innerWidth && element.scrollWidth <= element.clientWidth;
     })).toBe(true);
   });
+
+  for (const viewport of [
+    { width: 1366, height: 900, includeCorrectionPendingCounts: true },
+    { width: 768, height: 1024, includeCorrectionPendingCounts: false },
+    { width: 390, height: 844, includeCorrectionPendingCounts: true },
+  ]) {
+    test(`@clinic-followup-meaning ${viewport.width}px 이름의 클리닉 표시와 오답 미완료를 구분하고 완료 후 reload에도 유지한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await openScores(page, {
+        initialScores: [90, 55, 100, 90],
+        initialCorrectionStatuses: ["PENDING", "COMPLETED", "NOT_REQUIRED", "COMPLETED"],
+        includeHomework: true,
+        homeworkAssignedRows: [true, true, true, true],
+        initialHomeworkScores: [100, 100, 100, 100],
+        rowClinicRequired: [false, true, false, false],
+        rowNameHighlightClinicTarget: [false, true, false, false],
+        rowNameHighlightFollowupRequired: [true, false, false, false],
+        includeCorrectionPendingCounts: viewport.includeCorrectionPendingCounts,
+        scoreSummaryColumnDefault: "exam_wrong",
+        assessmentStatusDisplay: "wrong_completion",
+      }, 90_000);
+
+      const rowFor = (index: number) => page.locator("tbody tr").filter({ hasText: `자동저장학생${index}` });
+      const nameCellFor = (index: number) => rowFor(index).locator('td[data-col-type="name"]');
+      const firstNameCell = nameCellFor(1);
+      await expect(firstNameCell.getByText("자동저장학생1", { exact: true })).toBeVisible({ timeout: 30_000 });
+      await expect(rowFor(1).getByRole("cell", { name: "90/100", exact: true })).toHaveAttribute("data-pass-status", "pass");
+      await expect(firstNameCell.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
+      await expect(firstNameCell.getByText("오답 미완료", { exact: true })).toBeVisible();
+      // A real clinic flag stays yellow even when the separate follow-up flag is false.
+      await expect(nameCellFor(2).locator(".ds-student-name--clinic-highlight")).toHaveCount(1);
+      for (const index of [2, 3, 4]) {
+        await expect(nameCellFor(index).getByText("오답 미완료", { exact: true })).toHaveCount(0);
+      }
+      for (const index of [3, 4]) {
+        await expect(nameCellFor(index).locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
+      }
+      await expect(firstNameCell.getByText("오답 미완료", { exact: true })).toHaveClass(/ds-badge--neutral/);
+      await expect(firstNameCell.getByText("오답 미완료", { exact: true })).toHaveAttribute("aria-label", "오답 미완료");
+      await firstNameCell.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`followup-table-${viewport.width}.png`), fullPage: true });
+
+      for (const index of [1, 2, 3, 4]) {
+        await nameCellFor(index).getByText(`자동저장학생${index}`, { exact: true }).click();
+        const drawer = page.getByRole("complementary", { name: `자동저장학생${index} 학생 상세` });
+        await expect(drawer).toBeVisible();
+        const header = drawer.locator(".student-scores-drawer__header-info");
+        await expect(header.locator(".ds-student-name--clinic-highlight")).toHaveCount(index === 2 ? 1 : 0);
+        const pendingBadge = header.getByText("오답 미완료", { exact: true });
+        if (index === 1) {
+          await expect(pendingBadge).toBeVisible();
+          await expect.poll(() => pendingBadge.evaluate((element) => {
+            const bounds = element.getBoundingClientRect();
+            return bounds.left >= 0 && bounds.right <= window.innerWidth;
+          })).toBe(true);
+        } else {
+          await expect(pendingBadge).toHaveCount(0);
+        }
+        await expect.poll(() => drawer.evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          return bounds.left >= 0 && bounds.right <= window.innerWidth
+            && element.scrollWidth <= element.clientWidth;
+        })).toBe(true);
+        if (index <= 2) {
+          await page.screenshot({ path: testInfo.outputPath(`followup-${index === 1 ? "pending" : "clinic"}-drawer-${viewport.width}.png`) });
+        }
+        await page.keyboard.press("Escape");
+        await expect(drawer).not.toBeVisible();
+      }
+
+      await firstNameCell.getByText("자동저장학생1", { exact: true }).click();
+      const drawer = page.getByRole("complementary", { name: "자동저장학생1 학생 상세" });
+      await drawer.getByRole("button", {
+        name: "오답 미완료; 눌러서 오답 완료로 변경",
+      }).click();
+      await expect.poll(() => correctionPatches.length).toBe(1);
+      expect(correctionPatches[0]).toEqual({
+        enrollment_id: 9201,
+        source_type: "exam",
+        source_id: 9101,
+        completed: true,
+        note: "현장 보완 확인 완료",
+        expected_updated_at: null,
+      });
+      await expect(drawer.locator(".student-scores-drawer__verdict-value")).toHaveText("오답 완료");
+      await expect(drawer.locator(".student-scores-drawer__header-info").getByText("오답 미완료", { exact: true })).toHaveCount(0);
+      await expect(firstNameCell.getByText("오답 미완료", { exact: true })).toHaveCount(0);
+      expect(currentScores).toEqual([90, 55, 100, 90]);
+      expect(currentHomeworkScores).toEqual([100, 100, 100, 100]);
+      expect(scorePatches).toEqual([]);
+      expect(homeworkPatches).toEqual([]);
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(firstNameCell.getByText("자동저장학생1", { exact: true })).toBeVisible({ timeout: 30_000 });
+      await expect(firstNameCell.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
+      await expect(firstNameCell.getByText("오답 미완료", { exact: true })).toHaveCount(0);
+      await expect(nameCellFor(2).locator(".ds-student-name--clinic-highlight")).toHaveCount(1);
+      await expect(rowFor(1).getByRole("cell", { name: "90/100", exact: true })).toHaveAttribute("data-pass-status", "pass");
+      await firstNameCell.getByText("자동저장학생1", { exact: true }).click();
+      await expect(drawer.locator(".student-scores-drawer__verdict-value")).toHaveText("오답 완료");
+      await expect(drawer.locator(".student-scores-drawer__header-info").getByText("오답 미완료", { exact: true })).toHaveCount(0);
+      await expect(drawer.getByRole("button", {
+        name: "오답 완료; 눌러서 오답 미완료로 변경",
+      })).toHaveAttribute("aria-pressed", "true");
+      expect(correctionPatches).toHaveLength(1);
+      await page.screenshot({ path: testInfo.outputPath(`followup-completed-reload-${viewport.width}.png`) });
+    });
+  }
 
   test("미배정 시험·과제는 셀과 상단에서 드러나고 누락 전부 배정으로 복구된다", async ({ page }, testInfo) => {
     await openScores(page, { includeHomework: true });

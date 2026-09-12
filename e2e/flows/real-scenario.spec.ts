@@ -220,14 +220,8 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
     await studentPage.goto(`${BASE}/student/community`);
     await studentPage.waitForLoadState("networkidle");
 
-    // QnA 탭 클릭 — 탭 전환 + 데이터 로딩 대기
-    const qnaTab = studentPage.locator("button").filter({ hasText: "QnA" }).first();
-    await qnaTab.waitFor({ state: "visible", timeout: 8000 });
-    await qnaTab.click();
-    await studentPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-
-    // 질문하기 버튼 (프로필 로딩 완료 후 렌더링됨)
-    const writeBtn = studentPage.locator("button").filter({ hasText: "질문하기" }).first();
+    // 커뮤니티 첫 화면의 질문하기로 바로 진입
+    const writeBtn = studentPage.getByRole("button", { name: "질문하기", exact: true });
     await writeBtn.waitFor({ state: "visible", timeout: 10000 });
     await writeBtn.click();
 
@@ -322,11 +316,8 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
     await studentPage.goto(`${BASE}/student/community`);
     await studentPage.waitForLoadState("load");
 
-    const qnaTab = studentPage.locator("button, [role='tab']").filter({ hasText: /QnA|질문/ }).first();
-    if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await qnaTab.click();
-      await studentPage.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
-    }
+    await studentPage.getByRole("button", { name: "내 질문과 답변", exact: true }).click();
+    await studentPage.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // 내 질문 찾기
     const myQ = studentPage.locator("text=도함수 질문, text=수학 3장").first();

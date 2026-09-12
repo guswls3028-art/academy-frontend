@@ -110,8 +110,12 @@ async function installStudentApi(
 
 async function openForm(page: Page, tab: "QnA" | "상담") {
   await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: tab, exact: true }).click();
-  await page.getByRole("button", { name: tab === "QnA" ? "질문하기" : "상담 신청하기", exact: true }).click();
+  if (tab === "QnA") {
+    await page.getByRole("button", { name: "질문하기", exact: true }).click();
+  } else {
+    await page.getByRole("button", { name: "상담", exact: true }).click();
+    await page.getByRole("button", { name: "상담 신청하기", exact: true }).click();
+  }
   await expect(page.locator(".ProseMirror")).toBeVisible();
 }
 
@@ -392,7 +396,10 @@ test.describe("학생 커뮤니티 durable draft", () => {
     await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
     expect(harness.writeHeaders).toEqual([]);
     await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김하늘" }).click();
-    await openForm(page, "QnA");
+    const parentQuestionLink = page.getByRole("region", { name: "학부모 주요 확인" }).getByRole("link", { name: /^질문하기/ });
+    await expect(parentQuestionLink).toBeVisible();
+    await parentQuestionLink.click();
+    await expect(page.locator(".ProseMirror")).toBeVisible();
     await expect(page.getByText("학부모 계정은 질문 작성이 제한됩니다")).toHaveCount(0);
     await page.getByPlaceholder("질문 제목").fill("하늘이 질문");
     await page.locator(".ProseMirror").fill("학부모가 선택 자녀로 보냅니다.");
@@ -409,7 +416,7 @@ test.describe("학생 커뮤니티 durable draft", () => {
 
     await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김바다" }).click();
     await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "QnA", exact: true }).click();
+    await page.getByRole("button", { name: /^내 질문과 답변/ }).click();
     await expect(page.getByText("하늘이 질문", { exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "질문하기", exact: true }).click();
     await expect(page.getByPlaceholder("질문 제목")).toHaveValue("");
