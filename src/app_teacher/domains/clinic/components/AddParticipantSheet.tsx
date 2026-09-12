@@ -115,10 +115,11 @@ export default function AddParticipantSheet({
     setBookingEnd("");
   }, [open, sessionId]);
 
-  const { data } = useQuery({
+  const studentsQ = useQuery({
     queryKey: teacherClinicQueryKeys.addStudents(search),
     queryFn: () => fetchStudents({ search: search || undefined, page_size: 100 }),
     enabled: open,
+    retry: 0,
   });
   const availabilityQ = useQuery({
     queryKey: teacherClinicQueryKeys.availability(sessionId),
@@ -127,7 +128,7 @@ export default function AddParticipantSheet({
     retry: 0,
   });
 
-  const students = (data?.data ?? []).filter(
+  const students = (studentsQ.data?.data ?? []).filter(
     (s) => !alreadyParticipantStudentIds.includes(s.id),
   );
 
@@ -256,7 +257,37 @@ export default function AddParticipantSheet({
 
         {/* Student list */}
         <div style={{ maxHeight: 320, overflowY: "auto" }}>
-          {students.length === 0 ? (
+          {studentsQ.isLoading ? (
+            <div
+              role="status"
+              className="text-sm text-center py-4"
+              style={{ color: "var(--tc-text-muted)" }}
+            >
+              학생 목록을 불러오는 중...
+            </div>
+          ) : studentsQ.isError ? (
+            <div
+              role="alert"
+              className="flex flex-col items-center gap-2 text-sm text-center py-4"
+              style={{ color: "var(--tc-text-muted)" }}
+            >
+              <span>학생 목록을 불러오지 못했습니다</span>
+              <button
+                type="button"
+                onClick={() => void studentsQ.refetch()}
+                className={`text-xs font-bold cursor-pointer ${styles.retryButton}`}
+                style={{
+                  padding: "7px 12px",
+                  border: "1px solid var(--tc-border-strong)",
+                  borderRadius: "var(--tc-radius-sm)",
+                  background: "var(--tc-surface)",
+                  color: "var(--tc-text)",
+                }}
+              >
+                다시 시도
+              </button>
+            </div>
+          ) : students.length === 0 ? (
             <div className="text-sm text-center py-4" style={{ color: "var(--tc-text-muted)" }}>
               {search ? "검색 결과 없음" : "추가 가능한 학생이 없습니다"}
             </div>

@@ -8,7 +8,8 @@
 }
 
 .studentRow:focus-visible,
-.timeButton:focus-visible {
+.timeButton:focus-visible,
+.retryButton:focus-visible {
   border-radius: var(--tc-radius-sm);
   outline: 3px solid color-mix(in srgb, var(--tc-primary) 36%, transparent);
   outline-offset: 2px;
