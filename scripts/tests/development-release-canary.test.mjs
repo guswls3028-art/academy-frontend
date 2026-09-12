@@ -1833,14 +1833,14 @@ test("cross-tenant denial probe reaches only an existing sibling qa tenant with 
   });
   globalThis.fetch = async (...args) => {
     calls.push(args);
-    return new Response(null, { status: 403 });
+    return new Response(null, { status: 401 });
   };
   try {
     assert.equal(await probeDevelopmentCrossTenantDenial({
       accessToken: "unit-token",
       participantId: 71,
       targetTenantCode: "qa-ymath-realuse-fe-123-1-sibling000001",
-    }), 403);
+    }), 401);
     assert.equal(String(calls[0][0]), "http://127.0.0.1:18000/api/v1/clinic/participants/71/");
     assert.equal(calls[0][1].method, "GET");
     assert.equal(calls[0][1].redirect, "manual");

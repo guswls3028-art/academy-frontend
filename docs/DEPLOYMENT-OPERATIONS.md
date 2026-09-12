@@ -469,6 +469,12 @@ closing 여부, 활성 route 수와 고정된 native 오류·브라우저 분류
 허용한다. native 분류가 `other`이면 하위 전송 원인을 확정할 수 없고, recovered
 조회나 재시도 수만으로 해당 요청이 최종 실패 원인이라고 판단하지 않는다.
 
+클리닉 cross-tenant probe는 다른 QA 학원으로 기존 JWT를 보내므로 인증 단계의
+정확한 HTTP 401을 기대한다. 현재 `TokenVersionJWTAuthentication`의 tenant binding이
+participant 권한 검사보다 먼저 `tenant_mismatch`로 거부한다. 같은 학원 안의
+형제 학생 404 및 정상 관리자 예약·재조회 검증은 별개로 유지한다. 여러 거부 status를
+허용해 차이를 숨기지 않으며 운영 데이터로 이 격리 검증을 실행하지 않는다.
+
 실제 `/api/v1/clinic/...` 정적 경로와 검토된 동적 `:id` 템플릿 및 `OPTIONS`도
 browser/direct-request 진단과 공식 parser에서 같은 allowlist로 보존한다. 이는
 OPTIONS 재시도 정책을 바꾸지 않는다: browser route는 기존 GET/HEAD/OPTIONS,
