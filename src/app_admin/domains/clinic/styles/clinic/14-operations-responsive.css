@@ -148,6 +148,29 @@
     padding-inline: 10px;
   }
 
+  .clinic-console__assignment-handoff {
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .clinic-console__assignment-summary {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .clinic-console__assignment-options {
+    grid-template-columns: 1fr;
+  }
+
+  .clinic-console__assignment-option {
+    width: 100%;
+    max-width: none;
+  }
+
+  .clinic-console__assignment-option-context {
+    flex: 1;
+  }
+
   .clinic-ops__header {
     padding: 12px;
   }

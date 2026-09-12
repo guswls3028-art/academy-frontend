@@ -2,6 +2,7 @@
 // 클리닉 API — 기존 admin clinic API 재사용
 import api from "@/shared/api/axios";
 import { listFromApiResponse } from "@/shared/api/response";
+import type { ClinicBookingAvailability } from "@/shared/ui/clinic/ClinicActualTimePicker";
 
 export type TeacherClinicSession = {
   id: number;
@@ -51,6 +52,8 @@ export type TeacherClinicParticipant = {
   lecture_chip_label?: string | null;
   preferred_start_time?: string | null;
   preferred_end_time?: string | null;
+  booking_start_time?: string | null;
+  booking_end_time?: string | null;
   student_request_memo?: string | null;
 };
 
@@ -177,8 +180,15 @@ export async function createClinicParticipant(payload: {
 export async function createClinicParticipantsBulk(payload: {
   session_ids: number[];
   student_ids: number[];
+  booking_start_time?: string;
+  booking_end_time?: string;
 }): Promise<{ count: number; participants: TeacherClinicParticipant[] }> {
   const res = await api.post("/clinic/participants/bulk-create/", payload);
+  return res.data;
+}
+
+export async function fetchClinicAvailability(sessionId: number): Promise<ClinicBookingAvailability> {
+  const res = await api.get<ClinicBookingAvailability>(`/clinic/sessions/${sessionId}/availability/`);
   return res.data;
 }
 

@@ -27,7 +27,9 @@ const EXPECTED_TEACHER_ROLE = (process.env.E2E_CLINIC_MULTI_SLOT_EXPECT_TEACHER_
 const STUDENT_USER = process.env.E2E_CLINIC_MULTI_SLOT_STUDENT || "ymath-qa-student-01";
 const SECOND_STUDENT_NAME = process.env.E2E_CLINIC_MULTI_SLOT_SECOND_STUDENT || "검증학생 02";
 const MARKER = `[multi-slot-${Date.now()}]`;
-const CLINIC_DATE = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+const CLINIC_DATE = kstYmd(1);
+const RANGE_DATE = kstYmd(2);
+const RANGE_TITLE = `${MARKER} 자유지정 15-22`;
 
 type Tokens = { access: string; refresh: string };
 type ApiResult<T> = { status: number; body: T };
@@ -45,6 +47,11 @@ function isLoopback(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function kstYmd(offsetDays: number): string {
+  const date = new Date(Date.now() + offsetDays * 86_400_000);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(date);
 }
 
 function assertIsolatedRuntime(): void {
@@ -183,7 +190,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   }
   const sessions = await safe<unknown>(
     "GET",
-    `/clinic/sessions/?date_from=${CLINIC_DATE}&date_to=${CLINIC_DATE}`,
+    `/clinic/sessions/?date_from=${CLINIC_DATE}&date_to=${RANGE_DATE}`,
   );
   if (sessions.status !== 200) {
     failures.push(`read back clinic sessions -> ${sessions.status}`);
@@ -241,6 +248,64 @@ test.describe.serial("[real-use] 클리닉 여러 시간대 예약", () => {
       created.sessionIds.push(Number(session.id));
     }
 
+    const creatorContext = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+    const creatorPage = await creatorContext.newPage();
+    installAccountNotificationGuard(creatorPage.request);
+    const strictCreator = attachStrictBrowserGuards(creatorPage);
+    try {
+      await seedBrowser(creatorPage, teacher);
+      await gotoAndSettle(creatorPage, `${BASE}/workspace/mobile/clinic`, { timeout: 30_000 });
+      await acknowledgeFirstLoginGuideIfVisible(creatorPage);
+      await creatorPage.getByRole("button", { name: "클리닉 만들기" }).click();
+      const createDialog = creatorPage.getByRole("dialog", { name: "클리닉 만들기" });
+      const chooser = createDialog.getByRole("group", { name: "클리닉 예약 방식" });
+      await expect(chooser.getByRole("button", { name: /시간지정 클리닉/ })).toBeVisible();
+      await expect(chooser.getByRole("button", { name: /자유지정 클리닉/ })).toBeVisible();
+      await chooser.getByRole("button", { name: /자유지정 클리닉/ }).click();
+      await expect(createDialog).toContainText("선택한 방식 · 자유지정 클리닉");
+      await createDialog.getByLabel("클리닉 이름 (선택)").fill(RANGE_TITLE);
+      await createDialog.getByLabel("날짜").fill(RANGE_DATE);
+      await createDialog.getByLabel("시작").fill("15:00");
+      await createDialog.getByLabel("종료").fill("22:00");
+      await createDialog.getByLabel("예약 간격").selectOption("60");
+      await createDialog.getByLabel("최대 체류(분)").fill("600");
+      await createDialog.getByLabel("장소").fill(`${MARKER} 자유실`);
+      await expect(createDialog.getByText("같은 날 여러 시간대 예약")).toHaveCount(0);
+      expect(await creatorPage.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      await creatorPage.screenshot({ path: "test-results/clinic-time-range-realuse-create-1100.png", fullPage: true });
+
+      const createResponse = creatorPage.waitForResponse((response) => (
+        response.request().method() === "POST"
+        && new URL(response.url()).pathname.endsWith("/api/v1/clinic/sessions/")
+      ));
+      await createDialog.getByRole("button", { name: "생성", exact: true }).click();
+      const response = await createResponse;
+      expect(response.status()).toBe(201);
+      const rangeSession = await response.json() as SessionRow & {
+        start_time?: string;
+        duration_minutes?: number;
+        booking_mode?: string;
+        booking_interval_minutes?: number;
+        booking_max_stay_minutes?: number;
+        allow_multi_slot_booking?: boolean;
+      };
+      expect(rangeSession).toMatchObject({
+        title: RANGE_TITLE,
+        start_time: "15:00:00",
+        duration_minutes: 420,
+        booking_mode: "time_range",
+        booking_interval_minutes: 60,
+        booking_max_stay_minutes: 600,
+        allow_multi_slot_booking: false,
+      });
+      sessions.push(rangeSession);
+      created.sessionIds.push(Number(rangeSession.id));
+      await expect(creatorPage.getByText("클리닉이 만들어졌습니다.")).toBeVisible();
+      strictCreator.assertZeroDefects();
+    } finally {
+      await creatorContext.close();
+    }
+
     await seedBrowser(page, student);
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAndSettle(page, `${BASE}/student/clinic`, { timeout: 30_000 });
@@ -288,6 +353,46 @@ test.describe.serial("[real-use] 클리닉 여러 시간대 예약", () => {
     );
     expect(offAttempt.status, JSON.stringify(offAttempt.body)).toBe(409);
 
+    await page.getByRole("tab", { name: "예약하기", exact: true }).click();
+    await page.getByTestId(`clinic-calendar-day-${RANGE_DATE}`).click();
+    const [rangeYear, rangeMonth, rangeDay] = RANGE_DATE.split("-").map(Number);
+    const rangeWeekday = ["일", "월", "화", "수", "목", "금", "토"][
+      new Date(rangeYear, rangeMonth - 1, rangeDay).getDay()
+    ];
+    const rangeDateRegion = page.getByRole("region", {
+      name: `${rangeYear}년 ${rangeMonth}월 ${rangeDay}일 ${rangeWeekday}요일`,
+    });
+    await rangeDateRegion.getByRole("button", { name: RANGE_TITLE }).click();
+    const rangeSelection = page.getByRole("region", { name: "선택한 클리닉 시간" });
+    await rangeSelection.getByRole("button", { name: /16:00 시작/ }).click();
+    await rangeSelection.getByRole("button", { name: /19:00 종료/ }).click();
+    await expect(rangeSelection.locator("strong").first()).toHaveText("16:00–19:00");
+    await expect(rangeSelection.getByRole("img", {
+      name: "운영 시간 15:00부터 22:00, 선택 16:00부터 19:00",
+    })).toBeVisible();
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/clinic-time-range-realuse-student-390.png", fullPage: true });
+    await rangeSelection.getByLabel("학원에 전할 내용 (선택)").fill("실사용 자유지정 16시부터 19시");
+    await rangeSelection.getByRole("button", { name: "이 일정 예약하기" }).click();
+    await expect(page.getByRole("status")).toContainText(/예약이 확정되었습니다|예약 신청이 접수되었습니다/);
+
+    await page.getByRole("tab", { name: /내 일정/ }).click();
+    const rangeBooking = page.locator("article").filter({ hasText: RANGE_TITLE });
+    await expect(rangeBooking).toContainText("이용 16:00–19:00");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: /내 일정/ }).click();
+    await expect(page.locator("article").filter({ hasText: RANGE_TITLE })).toContainText("이용 16:00–19:00");
+
+    const rangeParticipant = (await participantsFor(request, sessions[3].id))
+      .find((row) => row.student_name === "검증학생 01") as ParticipantRow & {
+        booking_start_time?: string;
+        booking_end_time?: string;
+      };
+    expect(rangeParticipant).toMatchObject({
+      booking_start_time: "16:00:00",
+      booking_end_time: "19:00:00",
+    });
+
     const studentsBody = await expectApi<unknown>(
       request,
       "GET",
@@ -318,12 +423,24 @@ test.describe.serial("[real-use] 클리닉 여러 시간대 예약", () => {
       await seedBrowser(teacherPage, teacher);
       await gotoAndSettle(teacherPage, `${BASE}/workspace/mobile/clinic`, { timeout: 30_000 });
       await acknowledgeFirstLoginGuideIfVisible(teacherPage);
+      const teacherDates = teacherPage.locator('input[type="date"]');
+      await teacherDates.nth(1).fill(CLINIC_DATE);
+      await teacherDates.nth(0).fill(CLINIC_DATE);
       await teacherPage.getByRole("button", { name: `${MARKER} 17시` }).click();
       await waitForRenderSettled(teacherPage, { timeout: 20_000 });
       await expect(teacherPage.getByText("검증학생 01", { exact: true })).toBeVisible();
       await expect(teacherPage.getByText(SECOND_STUDENT_NAME, { exact: true })).toBeVisible();
       expect(await teacherPage.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       await teacherPage.screenshot({ path: "test-results/clinic-multi-slot-realuse-teacher-1100.png", fullPage: true });
+
+      await teacherDates.nth(1).fill(RANGE_DATE);
+      await teacherDates.nth(0).fill(RANGE_DATE);
+      await teacherPage.getByRole("button", { name: RANGE_TITLE }).click();
+      await waitForRenderSettled(teacherPage, { timeout: 20_000 });
+      await expect(teacherPage.getByText("검증학생 01", { exact: true })).toBeVisible();
+      await expect(teacherPage.getByText("예약 16:00–19:00", { exact: true })).toBeVisible();
+      expect(await teacherPage.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      await teacherPage.screenshot({ path: "test-results/clinic-time-range-realuse-teacher-1100.png", fullPage: true });
       strictTeacher.assertZeroDefects();
     } finally {
       await teacherContext.close();

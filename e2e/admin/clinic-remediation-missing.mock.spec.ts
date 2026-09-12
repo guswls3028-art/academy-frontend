@@ -394,6 +394,7 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
     });
   }
   await expect(clinicForm).toBeVisible();
+  await clinicForm.getByRole("button", { name: /시간지정 클리닉/ }).click();
   await expect.poll(() => clinicForm.locator(".clinic-create__form").evaluate((element) => ({
     overflowY: getComputedStyle(element).overflowY,
     canScroll: element.scrollHeight > element.clientHeight,
