@@ -230,6 +230,12 @@ export interface MessageLogItem {
   id: number;
   sent_at: string;
   success: boolean;
+  status?: "processing" | "sending" | "sent" | "retryable_failed" | "failed" | "ambiguous" | string;
+  provider_evidence?: boolean;
+  provider_message_reference?: string;
+  provider_delivery_status?: "unavailable" | "provider_accepted" | "delivered" | "failed";
+  provider_delivery_checked_at?: string | null;
+  provider_delivery_failure_reason?: string;
   amount_deducted: string;
   recipient_summary?: string;
   template_summary?: string;
@@ -242,6 +248,12 @@ export async function fetchMessageLog(page = 1, pageSize = 20): Promise<{ result
   const res = await api.get("/messaging/log/", { params: { page, page_size: pageSize } });
   const results = listFromApiResponse<MessageLogItem>(res.data);
   return { results, count: countFromApiResponse(res.data, results.length) };
+}
+
+/** Read the existing record's provider status; never resend or requeue it. */
+export async function fetchMessageLogDetail(id: number): Promise<MessageLogItem> {
+  const res = await api.get<MessageLogItem>(`/messaging/log/${id}/`, { params: { verify_provider: true } });
+  return res.data;
 }
 
 /* ─── Messaging Info & Templates ─── */
