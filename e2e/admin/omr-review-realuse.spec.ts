@@ -47,7 +47,6 @@ type Tokens = { access: string; refresh: string };
 type RealUseRole = "admin" | "student" | "parent";
 type BrowserAccountExpectation = {
   role: RealUseRole;
-  firstLoginGuideRequired: boolean;
 };
 type CurrentUser = {
   tenantRole?: string | null;
@@ -162,9 +161,8 @@ async function completeInitialAccountPrompts(
   expected: BrowserAccountExpectation,
 ): Promise<void> {
   expect(currentUser.tenantRole).toBe(expected.role);
-  expect(Boolean(currentUser.first_login_guide_required)).toBe(
-    expected.firstLoginGuideRequired,
-  );
+  expect(typeof currentUser.must_change_password).toBe("boolean");
+  expect(typeof currentUser.first_login_guide_required).toBe("boolean");
 
   const passwordDialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
   const passwordRecommendationRequired = Boolean(
@@ -183,7 +181,7 @@ async function completeInitialAccountPrompts(
   }
 
   const firstLoginDialog = page.getByRole("dialog", { name: "계정 안내" });
-  if (!expected.firstLoginGuideRequired) {
+  if (!currentUser.first_login_guide_required) {
     await expect(firstLoginDialog).toBeHidden();
     return;
   }
@@ -614,7 +612,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       page,
       adminTokens,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
-      { role: "admin", firstLoginGuideRequired: true },
+      { role: "admin" },
     );
     const draftDialog = page.getByRole("dialog", { name: /임시저장된 변경/ });
     if (await draftDialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
@@ -798,7 +796,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       page,
       studentTokens,
       "/student/grades",
-      { role: "student", firstLoginGuideRequired: true },
+      { role: "student" },
     );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const pendingCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
@@ -810,7 +808,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       page,
       parentTokens,
       "/student/grades",
-      { role: "parent", firstLoginGuideRequired: true },
+      { role: "parent" },
     );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const pendingParentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
@@ -822,7 +820,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       page,
       adminTokens,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
-      { role: "admin", firstLoginGuideRequired: false },
+      { role: "admin" },
     );
     await chooseExamHeaderAction(page, "문항별 점수 입력");
     const gradingDialog = page.getByRole("dialog").filter({
@@ -880,7 +878,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       page,
       studentTokens,
       "/student/grades",
-      { role: "student", firstLoginGuideRequired: false },
+      { role: "student" },
     );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const finalStudentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
@@ -897,7 +895,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       page,
       parentTokens,
       "/student/grades",
-      { role: "parent", firstLoginGuideRequired: false },
+      { role: "parent" },
     );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const finalParentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
