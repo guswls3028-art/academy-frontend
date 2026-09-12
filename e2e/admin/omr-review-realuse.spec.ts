@@ -255,16 +255,16 @@ async function loginBrowserAsRealUser(
       envelopeGeneration: envelope?.generation ?? null,
       hasAccess: typeof envelope?.access === "string" && envelope.access.length > 0,
       hasRefresh: typeof envelope?.refresh === "string" && envelope.refresh.length > 0,
-      legacyAccess: localStorage.getItem("access"),
-      legacyRefresh: localStorage.getItem("refresh"),
+      hasLegacyAccess: localStorage.getItem("access") !== null,
+      hasLegacyRefresh: localStorage.getItem("refresh") !== null,
     };
   });
   expect(activeSession.generation).toBeTruthy();
   expect(activeSession.envelopeGeneration).toBe(activeSession.generation);
   expect(activeSession.hasAccess).toBe(true);
   expect(activeSession.hasRefresh).toBe(true);
-  expect(activeSession.legacyAccess).toBeNull();
-  expect(activeSession.legacyRefresh).toBeNull();
+  expect(activeSession.hasLegacyAccess).toBe(false);
+  expect(activeSession.hasLegacyRefresh).toBe(false);
   if (previousGeneration) expect(activeSession.generation).not.toBe(previousGeneration);
 
   await gotoAndSettle(page, `${BASE}${landingPath}`, { timeout: 45_000 });

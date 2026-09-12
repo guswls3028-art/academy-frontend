@@ -135,8 +135,8 @@ async function readTokenSessionMetadata(page: Page) {
       envelopeGeneration: envelope?.generation ?? null,
       hasAccess: typeof envelope?.access === "string" && envelope.access.length > 0,
       hasRefresh: typeof envelope?.refresh === "string" && envelope.refresh.length > 0,
-      legacyAccess: localStorage.getItem("access"),
-      legacyRefresh: localStorage.getItem("refresh"),
+      hasLegacyAccess: localStorage.getItem("access") !== null,
+      hasLegacyRefresh: localStorage.getItem("refresh") !== null,
     };
   });
 }
@@ -176,8 +176,8 @@ async function loginAccountThroughForm(
   expect(session.envelopeGeneration).toBe(session.generation);
   expect(session.hasAccess).toBe(true);
   expect(session.hasRefresh).toBe(true);
-  expect(session.legacyAccess).toBeNull();
-  expect(session.legacyRefresh).toBeNull();
+  expect(session.hasLegacyAccess).toBe(false);
+  expect(session.hasLegacyRefresh).toBe(false);
   if (previousGeneration) expect(session.generation).not.toBe(previousGeneration);
 
   const landingPath = account.role === "admin" ? "/workspace/guide" : "/student/guide";
