@@ -31,7 +31,7 @@ import {
   isStudentSupportWindow,
 } from "@/shared/auth/supportPreviewSession";
 
-type RetryConfig = AxiosRequestConfig & {
+type RetryConfig = ApiRequestConfig & {
   _retry?: boolean;
   _asyncId?: string;
   _transientRetryCount?: number;
@@ -39,7 +39,14 @@ type RetryConfig = AxiosRequestConfig & {
 };
 
 /** AllowAny 엔드포인트(예: /core/program/) 호출 시 만료 토큰 401 방지 */
-export type ApiRequestConfig = AxiosRequestConfig & { skipAuth?: boolean };
+export type ApiRequestConfig = AxiosRequestConfig & { skipAuth?: boolean; playbackUnload?: true };
+
+/** Capture the request generation before axios schedules its interceptor chain. */
+export function createPlaybackUnloadConfig(): ApiRequestConfig {
+  const config: RetryConfig = { playbackUnload: true };
+  if (!isStudentSupportWindow()) config._authGeneration = readAuthTokenEnvelopeSafely()?.generation ?? null;
+  return config;
+}
 
 type RefreshResponse = { access: string; refresh?: string };
 type AuthAccessResult = {
@@ -286,14 +293,16 @@ async function refreshAccessToken(): Promise<AuthAccessResult | null> {
  */
 const EXPIRY_BUFFER_SEC = 30;
 
-function isTokenExpiredOrSoon(token: string): boolean {
+function isTokenExpiredOrSoon(token: string, bufferSeconds = EXPIRY_BUFFER_SEC): boolean {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return true;
     const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
     const exp = payload?.exp;
     if (typeof exp !== "number") return true;
-    return Date.now() / 1000 >= exp - EXPIRY_BUFFER_SEC;
+    // Unload cannot refresh a malformed expiry; leave ordinary refresh criteria unchanged.
+    if (bufferSeconds === 0 && !Number.isFinite(exp)) return true;
+    return Date.now() / 1000 >= exp - bufferSeconds;
   } catch {
     return true; // 파싱 실패 → 만료로 취급
   }
@@ -366,12 +375,26 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(async (config) => {
   const cfg = config;
   const retryCfg = cfg as RetryConfig;
+  const unloading = retryCfg.playbackUnload === true;
+  if (retryCfg.playbackUnload !== undefined) {
+    if (!unloading || String(cfg.method).toLowerCase() !== "post"
+      || cfg.url !== "/media/playback/end/" || cfg.params != null
+      || cfg.baseURL !== `${API_BASE}/api/v1` || shouldSkipAuth(cfg.url, cfg)) {
+      throw new axios.CanceledError("Invalid playback unload request.");
+    }
+    cfg.adapter = "fetch";
+    cfg.fetchOptions = { ...cfg.fetchOptions, keepalive: true };
+    cfg.withCredentials = false;
+  }
 
   // Attach Authorization if access exists (JWT)
   // skipAuth: true → 로그인 전 /core/program/ 등 AllowAny 엔드포인트용 (만료 토큰 시 401 방지)
   if (!shouldSkipAuth(cfg.url, cfg)) {
     if (isStudentSupportWindow()) {
       const supportAccess = getStudentSupportAccessToken();
+      if (unloading && (!supportAccess || isTokenExpiredOrSoon(supportAccess, 0))) {
+        throw new axios.CanceledError("Playback unload requires a current access token.");
+      }
       if (supportAccess) setRequestHeader(cfg, "Authorization", `Bearer ${supportAccess}`);
     } else {
       try {
@@ -388,7 +411,14 @@ api.interceptors.request.use(async (config) => {
         }
 
         // 선제적 토큰 리프레시: 만료 임박 시 요청 전에 갱신하여 401 방지
-        const auth = await ensureFreshToken();
+        if (unloading && (!current || isTokenExpiredOrSoon(current.access, 0))) {
+          throw new axios.CanceledError("Playback unload requires a current access token.");
+        }
+        // A departing document cannot await refresh/network/Web Locks. Keep all normal
+        // requests on the existing proactive-refresh path; unload uses only valid access.
+        const auth = unloading
+          ? { ...current!, sessionChanged: false, reusedRotation: false }
+          : await ensureFreshToken();
         if (auth?.sessionChanged || (auth && auth.generation !== retryCfg._authGeneration)) {
           throw new axios.CanceledError("Authentication session changed.");
         }
@@ -580,6 +610,13 @@ api.interceptors.response.use(
           getApiErrorMessage(err)
         );
     };
+
+    // Preserve rejection and generation fencing without a refresh/replay or logout
+    // from a document that is already leaving. No other API request uses this path.
+    if (original.playbackUnload) {
+      completeAsyncError();
+      throw err;
+    }
 
     if (status === 402) {
       // Subscription expired — broadcast to UI

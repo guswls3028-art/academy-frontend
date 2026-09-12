@@ -1,6 +1,7 @@
 import studentApi from "@student/shared/api/student.api";
 import { extractYouTubeVideoId } from "@/shared/media/video/youtube";
 import { clamp, getEpochSec } from "../design/utils";
+import { PlaybackSessionEnd } from "./playbackSessionEnd";
 import type {
   ControllerOptions,
   ControllerState,
@@ -138,36 +139,6 @@ async function postRefresh(token: string) {
   await studentApi.post(`/media/playback/refresh/`, { token });
 }
 
-async function postEnd(token: string) {
-  if (token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/media/playback/end/`, { token });
-  } catch {
-    ignoreBestEffortError();
-  }
-}
-
-function postFinalEventsThenEnd(
-  token: string,
-  events: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }>,
-  videoId: number,
-  enrollmentId: number | null,
-) {
-  let endStarted = false;
-  const end = () => {
-    if (endStarted) return;
-    endStarted = true;
-    void postEnd(token).catch(ignoreBestEffortError);
-  };
-  const timer = window.setTimeout(end, 1_000);
-  void postEvents(token, events, videoId, enrollmentId)
-    .catch(ignoreBestEffortError)
-    .finally(() => {
-      window.clearTimeout(timer);
-      end();
-    });
-}
-
 async function postEvents(
   token: string,
   events: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }>,
@@ -195,6 +166,7 @@ export class StudentYoutubeController {
   private opts: YoutubeControllerOptions;
   private policy: Policy;
   private tokenRef: string;
+  private readonly playbackEnd: PlaybackSessionEnd;
   private maxWatchedRef = 0;
   private lastSavedPosition = -1;
   private eventQueue: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }> = [];
@@ -220,6 +192,7 @@ export class StudentYoutubeController {
     this.opts = opts;
     this.policy = normalizePolicy(opts.policy);
     this.tokenRef = opts.token;
+    this.playbackEnd = new PlaybackSessionEnd(() => this.policy.monitoring_enabled ? this.tokenRef : null);
   }
 
   private guard(cb: () => void) {
@@ -593,6 +566,7 @@ export class StudentYoutubeController {
   }
 
   private startDocListeners() {
+    this.playbackEnd.listen();
     const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     const onVis = () => {
       if (this.disposed) return;
@@ -620,7 +594,7 @@ export class StudentYoutubeController {
   }
 
   private queueEvent(type: EventType, payload?: Record<string, unknown>) {
-    if (this.disposed) return;
+    if (this.disposed || this.playbackEnd.started) return;
     const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     if (!monitoringEnabled) return;
     const violationEvents: EventType[] = ["SEEK_ATTEMPT", "SPEED_CHANGE_ATTEMPT"];
@@ -631,7 +605,7 @@ export class StudentYoutubeController {
   }
 
   private flushEvents = async () => {
-    if (this.disposed) return;
+    if (this.disposed || this.playbackEnd.started) return;
     const token = this.tokenRef;
     if (!token) return;
     const batch = this.eventQueue.splice(0, this.eventQueue.length);
@@ -668,7 +642,6 @@ export class StudentYoutubeController {
     if (this.disposed) return;
     this.flushProgress(true);
 
-    const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     const token = this.tokenRef;
     const batch = this.eventQueue.splice(0, this.eventQueue.length);
 
@@ -693,8 +666,6 @@ export class StudentYoutubeController {
       this.mount = null;
     }
 
-    if (monitoringEnabled && token) {
-      postFinalEventsThenEnd(token, batch, this.opts.videoId, this.opts.enrollmentId);
-    }
+    this.playbackEnd.finish(() => postEvents(token, batch, this.opts.videoId, this.opts.enrollmentId));
   }
 }
