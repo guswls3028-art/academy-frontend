@@ -9,6 +9,7 @@ import { FolderOpen, FilePlus, FolderPlus, X, Download, Trash2, Pencil, Sparkles
 import StorageFileThumbnail from "./StorageFileThumbnail";
 import { Button, CloseButton, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { useConfirm } from "@/shared/ui/confirm";
 import {
   fetchInventoryList,
@@ -406,27 +407,33 @@ export default function MyStorageExplorer() {
       if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
 
       setIsDeleting(true);
+      let deletedMatchup = stats.matchupCount;
       try {
         const res = await deleteFolder(SCOPE, folderId, undefined, { recursive: true });
-        qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
         if (res && "deleted" in res) {
+          deletedMatchup = Math.max(deletedMatchup, res.deleted.matchup_docs);
           feedback.success(
             `"${name}" 삭제 완료 — 폴더 ${res.deleted.folders} · 파일 ${res.deleted.files}` +
               (res.deleted.matchup_docs > 0 ? ` · 매치업 ${res.deleted.matchup_docs}건` : ""),
           );
-          // 매치업 cascade 영향 시 매치업 캐시도 갱신
-          if (res.deleted.matchup_docs > 0) {
-            qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
-          }
         }
         // 삭제된 폴더가 현재 진입 중이면 부모로 이동
         if (currentFolderId === folderId) {
           setCurrentFolderId(null);
         }
+        setFileActionTarget(null);
         clearSelection();
       } catch (e) {
-        feedback.error((e as Error).message || "폴더 삭제 실패");
+        feedback.error(getApiErrorMessage(e, "폴더 삭제 실패"));
       } finally {
+        await qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
+        const refreshed = qc.getQueryState<{ folders: InventoryFolder[] }>(storageQueryKeys.storageInventory(SCOPE));
+        if (currentFolderId && refreshed?.status === "success" && refreshed.error == null && refreshed.data &&
+            !refreshed.data.folders.some((folder) => folder.id === currentFolderId)) {
+          setCurrentFolderId(null);
+          setFileActionTarget(null);
+        }
+        if (deletedMatchup > 0) qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
         setIsDeleting(false);
       }
     },
@@ -505,7 +512,7 @@ export default function MyStorageExplorer() {
         }
       } catch (e) {
         errorCount++;
-        feedback.error((e as Error).message);
+        feedback.error(getApiErrorMessage(e, "폴더 삭제 실패"));
       }
     }
     if (!inventoryBecameStale) {
@@ -519,18 +526,19 @@ export default function MyStorageExplorer() {
           await deleteFile(SCOPE, id);
         } catch (e) {
           errorCount++;
-          feedback.error((e as Error).message);
+          feedback.error(getApiErrorMessage(e, "파일 삭제 실패"));
         }
       }
     }
     qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
-    if (totalMatchup > 0 || selectedMatchupFiles.length > 0) {
+    if (totalMatchup > 0 || descMatchup > 0 || selectedMatchupFiles.length > 0) {
       qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
     }
     if (inventoryBecameStale) {
       setIsDeleting(false);
       return;
     }
+    setFileActionTarget(null);
     clearSelection();
     setIsDeleting(false);
     if (errorCount === 0) {
@@ -1167,10 +1175,11 @@ export default function MyStorageExplorer() {
                   if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
                   try {
                     await deleteFile(SCOPE, target.id);
+                  } catch (e) {
+                    feedback.error(getApiErrorMessage(e, "파일 삭제 실패"));
+                  } finally {
                     qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
                     if (target.matchup) qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
-                  } catch (e) {
-                    feedback.error((e as Error).message);
                   }
                 }}
               >

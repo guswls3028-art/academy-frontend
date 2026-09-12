@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2, Pencil, MoveRight } from "lucide-react";
 import { Button, CloseButton, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { useConfirm } from "@/shared/ui/confirm";
 import {
   fetchInventoryList,
@@ -318,7 +319,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
         inventoryBecameStale = true;
         break;
       }
-      try { await deleteFolder(SCOPE, id, studentPs); } catch (e) { errorCount++; feedback.error((e as Error).message); }
+      try { await deleteFolder(SCOPE, id, studentPs); } catch (e) { errorCount++; feedback.error(getApiErrorMessage(e, "폴더 삭제 실패")); }
     }
     if (!inventoryBecameStale) {
       for (const id of selectedFileIds) {
@@ -327,7 +328,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
           inventoryBecameStale = true;
           break;
         }
-        try { await deleteFile(SCOPE, id, studentPs); } catch (e) { errorCount++; feedback.error((e as Error).message); }
+        try { await deleteFile(SCOPE, id, studentPs); } catch (e) { errorCount++; feedback.error(getApiErrorMessage(e, "파일 삭제 실패")); }
       }
     }
     qc.invalidateQueries({ queryKey: QK });
@@ -335,6 +336,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
       setIsDeleting(false);
       return;
     }
+    setFileActionTarget(null);
     clearSelection();
     setIsDeleting(false);
     if (errorCount === 0) feedback.success(`${parts.join(", ")} 삭제 완료`);
@@ -630,7 +632,13 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
                 const ok = await confirm({ title: "파일 삭제", message: "정말 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                 const currentInventory = inventoryGuardRef.current;
                 if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
-                try { await deleteFile(SCOPE, id, studentPs); qc.invalidateQueries({ queryKey: QK }); } catch (e) { feedback.error((e as Error).message); }
+                try {
+                  await deleteFile(SCOPE, id, studentPs);
+                } catch (e) {
+                  feedback.error(getApiErrorMessage(e, "파일 삭제 실패"));
+                } finally {
+                  qc.invalidateQueries({ queryKey: QK });
+                }
               }}>
                 <Trash2 size={18} className={styles.dangerIcon} />삭제하기
               </button>
