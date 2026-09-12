@@ -31,7 +31,7 @@ export function StaffWorkspaceTabs({ staffId, year, month }: Props) {
   };
 
   return (
-    <div className="ds-tabs ds-tabs--flat" role="tablist" aria-orientation="horizontal">
+    <div className="ds-tabs ds-tabs--flat staff-workspace-tabs" role="tablist" aria-orientation="horizontal">
       {TABS.map((tab) => {
         const isActive =
           pathname === tab.path || pathname.startsWith(tab.path + "/");
