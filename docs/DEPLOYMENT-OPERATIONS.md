@@ -507,6 +507,12 @@ OMR cleanup의 실제 실패 지점은 remove/verify-absent/archive-action/verif
 원문을 거부한다. 각 종류는 128개로 제한하며 거부/초과는 별도 failure observation
 counter로 남긴다. 진단을 거부하거나 수집하지 못해도 원 테스트의 실패는 그대로다.
 
+OMR 실사용 검증은 최초 화면 작업 전에 실제 `/core/me/`의 역할과 안내 상태를
+확인한다. 필요한 계정 안내는 정상 확인 버튼으로 완료하고 POST 200 및 재접속 후
+완료 상태를 검증한다. 다른 병렬 흐름이 먼저 안내를 완료할 수 있으므로 첫 진입을
+항상 미완료로 가정하지 않는다. 이 동선은 안내 UI를 숨기거나 상태를 직접 변경하지
+않으며, 기존 업로드·검토·점수 저장·학생/학부모 재조회 조건을 그대로 유지한다.
+
 실제 `/api/v1/clinic/...` 정적 경로와 검토된 동적 `:id` 템플릿 및 `OPTIONS`도
 browser/direct-request 진단과 공식 parser에서 같은 allowlist로 보존한다. 이는
 OPTIONS 재시도 정책을 바꾸지 않는다: browser route는 기존 GET/HEAD/OPTIONS,
