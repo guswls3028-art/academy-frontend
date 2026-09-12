@@ -39,6 +39,11 @@ const LONG_VIDEO_CHECKPOINT_STAGES = [
   "reload-bootstrap", "reload-playlist", "reload-metadata", "reload-progress", "completed",
 ];
 const SYNTHETIC_LONG_VIDEO_PATH = "qa-fixtures/video-long/master.m3u8";
+const VIDEO_RUNTIME_FIELDS = [
+  "videos", "video_accesses", "proctored_video_accesses", "video_progresses",
+  "playback_sessions", "active_playback_sessions", "playback_events", "player_errors",
+  "violated_events",
+];
 const SYNTHETIC_LONG_VIDEO_INIT_GZIP = "H4sIAAAAAAACCpVRP0sDMRx913YqikUqOnSoUMFBj95Zby516eCqILjES2pDE++4pEHdHQRHv4EO+i0cHJz8AG5ujo5u1UsV04qCj8u9/Mj7/QdQ6+mTlKtkEyggZ66SSKatACiWZZIYAEKaPsUEii+WPPt9w5tUTdtt/IkCUJjVGRkA2NcDm7P4R/T/5a0DmLdmg1GtANSYUPqHh715Z5JykntJOt37uIude0vrfSqyrxfDKXOVu5yypEuOqGC5xmtKftQDUDXSBnXLbNDxW41mrOeUMjPMRP3z/qr0gfjQXiutqKO5JCYOfh1SHfPoAvZYxcI2MXEU+mHoB82gLvjBcRi1HI+l0QiAT0y85XXuyqNnLB527spPK28XpXa+E/u7uj+/8VDqP849AKikRKWf+fNTUdoO+QsVpVXs2FWl1elUpRWl48SxV6Vhx3kHOrMMJ74LMqQ6X9aeZJZzLLuLkZRnJE2F67TGx9tv3OoksYMn1tkG3yamF4V+5AfNjXcsVg90JgMAAA==";
 const SYNTHETIC_LONG_VIDEO_MEDIA_GZIP = "H4sIAAAAAAACCu2ZQYscRRiGv5mQBUMQkURymMMHiWIg01vdOzusAwUbQzAXiSDkpp2aqurtYru7eqpr3ZmclrCHHLwFPIyXIPgbPAmLN3+BBnIwF9GLQq4RIzWbrUXw4E0iXx/mebum662HnkMXPQBwqfOLtu5UCQAQWHdmDgCjzqh5D1ZHD2Ab/uHoAbx/FZ4CHKxOB4e1tQUAvFEXpTq9ZlB5J8L4wIfxPmyddvZ3eseLXPCF8r2/1Q9G3u01AGs9gDOHAIPPw/X94y/PvZxHJBKJRCLx1eOb9DwnEolEIpGe50QikUgkEul5TiQSif+Ob39dK+EB+h+vnX3x4vaTm79++/PjW998ce1HfHz5t9/n2XiEQ5TWaUzHm+g2smwD2WiLySnDId5KsvFo/cOPbn4wHOH1OzdQWqUlDvGGbReVLjxmjG0MM5Zt4hBL79vJ+vr+/n7ymVHaVqJJrNtZD6skpa8rHKJtvbFNN0EppkJyhk4XPEWlp5WVu5xN2IShaES16HQ4w1pzZQR2e9Nac4Ztt+Bp+Myd4mnC2IQljGFt5lrloSvMyJ1odjRPxyhLZ2uR15qn6J2uKtNxhlvzLSU9ZyhnNWeotFD3bKN5ll5LUyxE5/O22zUtT08KZm1ui6LTYZIvnRaq4ylW1u6KUguVn451lZH6dIBh41ZLSFMLHzRM47WrhNSKM5xWe04scmnrVqyEbNN5J0yjVW4a70S4pnCi1qFqX5ud0rec4a5emMbzbPMk5rVpwupSN1ruharV9HBLnO7KcKMll67AeuqdDndSuoJnGwnDWVids2TMcNaGmhXFnI/fw1nbed3yEZo2d8Iby9NkxFDMOFv9y31ePzicvPMuvNb//odPAWDt+hIvfHV0nLYvnqS7MR3E9Cimo5h+eutl+hJiwpi2Y7ob00FMj2I6iin2LWPfMvYtY98y9i1j3zL2LWMf+ZEf+ZEf+ZEf+ZHf/8nvdf3gfu/ele8O4M8/Hsa93EXay5Ef+ZEf+ZEf+ZEf+b0ae7nDs788PAdnnj+7/cmc9nLkR37kR37kR37kR370Xo5+K/IjP/Ijv//a7y/rfhtCdUIAAA==";
 const RELEASE_BOUNDARY_CODES = new Set([
@@ -149,6 +154,7 @@ function initialPreflightEvidence(frontendSha) {
     realUseObservation: null,
     realUseProcessObservation: null,
     videoRuntimeObservation: null,
+    postPlaybackInspectObservation: null,
     preflightStage: "process",
     preflightChecks: Object.fromEntries(PREFLIGHT_CHECKS.map((name) => [name, false])),
     terminalOutcome: "preflight_running", passed: false,
@@ -633,18 +639,13 @@ export function assertLongVideoSetup(payload) {
   assert.equal(fixture?.duration_seconds, 900);
   assert.equal(fixture?.hls_path, SYNTHETIC_LONG_VIDEO_PATH);
   assert.equal(fixture?.video_accesses, 2);
-  assert.ok(Number.isInteger(fixture?.video_id) && fixture.video_id > 0);
+  assert.ok(Number.isSafeInteger(fixture?.video_id) && fixture.video_id > 0);
   return fixture;
 }
 
 export function observeLongVideoRuntime(state) {
-  const keys = [
-    "videos", "video_accesses", "proctored_video_accesses", "video_progresses",
-    "playback_sessions", "active_playback_sessions", "playback_events", "player_errors",
-    "violated_events",
-  ];
   assert.ok(state && typeof state === "object" && !Array.isArray(state));
-  assert.ok(keys.every((key) => Number.isInteger(state[key]) && state[key] >= 0 && state[key] <= 1_000_000));
+  assert.ok(VIDEO_RUNTIME_FIELDS.every((key) => Number.isInteger(state[key]) && state[key] >= 0 && state[key] <= 1_000_000));
   assert.equal(state.videos, 1);
   assert.equal(state.video_accesses, 2);
   assert.equal(state.proctored_video_accesses, 2);
@@ -664,6 +665,32 @@ export function observeLongVideoRuntime(state) {
     playerErrorCount: state.player_errors,
     violatedEventCount: state.violated_events,
   };
+}
+
+export function observePostPlaybackInspect(payload, tenantId, videoId, manifest) {
+  const numericState = (state) => {
+    if (!state || typeof state !== "object" || Array.isArray(state)
+      || Object.keys(state).sort().join(",") !== [...VIDEO_RUNTIME_FIELDS].sort().join(",")
+      || VIDEO_RUNTIME_FIELDS.some((key) => !Number.isSafeInteger(state[key]) || state[key] < 0 || state[key] > 1_000_000)) return null;
+    return Object.fromEntries(VIDEO_RUNTIME_FIELDS.map((key) => [key, state[key]]));
+  };
+  return {
+    ...inspectMatchObservation(payload, manifest),
+    tenantIdMatches: Number.isSafeInteger(tenantId) && tenantId > 0 && payload?.tenant_id === tenantId,
+    videoIdMatches: Number.isSafeInteger(videoId) && videoId > 0 && payload?.synthetic_video_id === videoId,
+    aggregateVideoState: numericState(payload?.video_state),
+    syntheticVideoState: numericState(payload?.synthetic_video_state),
+  };
+}
+
+export function assertPostPlaybackInspect(observation) {
+  assert.deepEqual({ statusMatches: observation?.statusMatches, remainingZero: observation?.remainingZero,
+    releaseMatches: observation?.releaseMatches, digestMatches: observation?.digestMatches }, {
+    statusMatches: true, remainingZero: false, releaseMatches: true, digestMatches: true,
+  });
+  assert.equal(observation?.tenantIdMatches, true, "Post-playback Inspect must match the exact Setup tenant");
+  assert.equal(observation?.videoIdMatches, true, "Post-playback Inspect must match the exact Setup video");
+  return observeLongVideoRuntime(observation.syntheticVideoState);
 }
 
 const SYNTHETIC_LONG_VIDEO_ASSETS = new Map([
@@ -732,15 +759,21 @@ export function assertCleanup(payload, tenantCode, tenantId) {
   assert.deepEqual(payload.remaining, { tenants: 0, users: 0 }, "Cleanup residue must be numeric zero");
 }
 
-export function fixedOperationParameters(common, action, tenantId) {
+export function fixedOperationParameters(common, action, tenantId, videoId) {
   assert.ok(FIXED_ACTIONS.has(action), "Unsupported fixed development action");
   const hasTenantId = tenantId !== undefined;
   if (action === "Setup") assert.equal(hasTenantId, false, "Setup must not receive TenantId");
   if (action === "Cleanup") assert.equal(hasTenantId, true, "Cleanup requires the exact Setup TenantId");
   if (hasTenantId) assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0, "TenantId must be a positive integer");
-  return hasTenantId
-    ? { ...common, Action: [action], TenantId: [String(tenantId)] }
-    : { ...common, Action: [action] };
+  const hasVideoId = videoId !== undefined;
+  if (hasVideoId) {
+    assert.equal(action, "Inspect", "VideoId is only permitted for post-playback Inspect");
+    assert.equal(hasTenantId, true, "VideoId requires the exact Setup TenantId");
+    assert.deepEqual(common.SyntheticLongVideo, ["true"], "VideoId requires the synthetic long-video fixture");
+    assert.ok(Number.isSafeInteger(videoId) && videoId > 0, "VideoId must be a positive integer");
+  }
+  return { ...common, Action: [action], ...(hasTenantId ? { TenantId: [String(tenantId)] } : {}),
+    ...(hasVideoId ? { VideoId: [String(videoId)] } : {}) };
 }
 
 export function assertPostCleanupInspect(payload, tenantCode, tenantId, manifest) {
@@ -1037,6 +1070,7 @@ export async function run() {
   let inspectObservation = null;
   let postCleanupInspectOperationObservation = null;
   let postCleanupInspectObservation = null;
+  let postPlaybackInspectObservation = null;
   let scenarioTenantId = null;
   let primaryFailed = false;
   function session(name, parameters = {}) {
@@ -1054,8 +1088,8 @@ export async function run() {
     assert.ok(match[1].startsWith("academy-fe-qa-"), "Unexpected session ownership");
     sessions.add(match[1]);
   }
-  async function operation(action, tenantId, observationTarget = "operation") {
-    const process = session(QA_DOCUMENT, fixedOperationParameters(common, action, tenantId));
+  async function operation(action, tenantId, observationTarget = "operation", videoId) {
+    const process = session(QA_DOCUMENT, fixedOperationParameters(common, action, tenantId, videoId));
     const result = await process.done;
     const observed = observeFixedOperationResult(action, result);
     const capturedSetupTenantId = setupTenantIdFromOperation(action, observed, tenant);
@@ -1063,6 +1097,11 @@ export async function run() {
     if (action === "Cleanup") cleanupObservation = observed.observation;
     else if (observationTarget === "post-cleanup") postCleanupInspectOperationObservation = observed.observation;
     else operationObservation = observed.observation;
+    if (observationTarget === "post-playback") {
+      postPlaybackInspectObservation = observePostPlaybackInspect(observed.payload,
+        scenario?.tenant_id, scenario?.synthetic_long_video?.video_id, manifest);
+      writeEvidence(false, ["development attempt unfinished; cleanup not proven"]);
+    }
     remember(process);
     if (action !== "Cleanup") assert.equal(interrupted, false, "Development run interrupted");
     assert.equal(result.code, 0, `Fixed development ${action} command failed`);
@@ -1104,6 +1143,7 @@ export async function run() {
       realUseObservation: realUseObservation || null,
       realUseProcessObservation: realUseProcessObservation || null,
       videoRuntimeObservation: videoRuntimeObservation || null,
+      postPlaybackInspectObservation,
       terminalOutcome, passed, failures: errors });
     persistEvidence(evidence);
     return evidence;
@@ -1154,11 +1194,8 @@ export async function run() {
     assert.equal(result.code, 0, "Required development real-use failed (raw credential-bearing report is not published)");
     counts = assertReleaseSummary(JSON.parse(result.stdout));
     assert.ok(realUseObservation.longVideo, "Long-video browser evidence missing or invalid");
-    const postPlayback = await operation("Inspect");
-    assert.deepEqual(inspectMatchObservation(postPlayback, manifest), {
-      statusMatches: true, remainingZero: false, releaseMatches: true, digestMatches: true,
-    });
-    videoRuntimeObservation = observeLongVideoRuntime(postPlayback.video_state);
+    await operation("Inspect", scenario.tenant_id, "post-playback", longVideo.video_id);
+    videoRuntimeObservation = assertPostPlaybackInspect(postPlaybackInspectObservation);
   } catch { primaryFailed = true; failures.push("development identity/setup/real-use failed"); }
   finally {
     finalizing = true;
