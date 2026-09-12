@@ -13,6 +13,7 @@ import {
   fetchSessionExams,
   fetchExamResults,
   updateResult,
+  updateSubjectiveResult,
   type TeacherExamResultRow,
 } from "../api";
 import {
@@ -201,12 +202,22 @@ function ScoreEntryList({
 }) {
   const qc = useQueryClient();
   const wrongCompletionOnly = useWrongCompletionDisplay();
-  const { data: rawResults, isLoading: resultsLoading } = useQuery({
+  const {
+    data: rawResults,
+    isLoading: resultsLoading,
+    isError: resultsError,
+    refetch: refetchResults,
+  } = useQuery({
     queryKey: teacherScoresQueryKeys.examResults(examId),
     queryFn: () => fetchExamResults(examId),
     enabled: Number.isFinite(examId),
   });
-  const { data: scoreSheet, isLoading: scoreSheetLoading } = useQuery({
+  const {
+    data: scoreSheet,
+    isLoading: scoreSheetLoading,
+    isError: scoreSheetError,
+    refetch: refetchScoreSheet,
+  } = useQuery({
     queryKey: scoresQueryKeys.sessionScores(sessionId),
     queryFn: () => fetchSessionScores(sessionId),
     enabled: Number.isFinite(sessionId),
@@ -282,14 +293,17 @@ function ScoreEntryList({
   }, [examId, results]);
 
   const updateMut = useMutation({
-    mutationFn: ({ enrollmentId, score, maxScore }: { enrollmentId: number; score: number; maxScore: number }) =>
-      updateResult(sessionId, examId, enrollmentId, { score, maxScore }),
+    mutationFn: ({ enrollmentId, score, maxScore, subjectiveOnly }: { enrollmentId: number; score: number; maxScore: number; subjectiveOnly: boolean }) =>
+      subjectiveOnly
+        ? updateSubjectiveResult(sessionId, examId, enrollmentId, score)
+        : updateResult(sessionId, examId, enrollmentId, { score, maxScore }),
     // 옵티미스틱 업데이트 — refetch 사이클(invalidate 후 서버 응답까지 ~300-500ms) 동안
     // 행이 옛 값으로 잠깐 표시되는 racing 차단. onError에서 롤백.
     onMutate: async (variables) => {
       const qk = teacherScoresQueryKeys.examResults(examId);
       await qc.cancelQueries({ queryKey: qk });
       const previous = qc.getQueryData<TeacherExamResultRow[]>(qk);
+      if (variables.subjectiveOnly) return { previous };
       qc.setQueryData<TeacherExamResultRow[]>(qk, (prev) => {
         const rows = Array.isArray(prev) ? prev : [];
         let matched = false;
@@ -324,7 +338,7 @@ function ScoreEntryList({
       });
       return { previous };
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       setLocalScores((prev) => {
         const next = new Map(prev);
         next.delete(variables.enrollmentId);
@@ -343,7 +357,15 @@ function ScoreEntryList({
       void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       const student = results?.find((r) => getExamResultEnrollmentId(r) === variables.enrollmentId);
       const name = student?.student_name ?? "";
-      feedback.success(name ? `${name} 점수가 저장되었습니다.` : "점수가 저장되었습니다.");
+      if (data.saved && !data.projection_ready) {
+        feedback.warning(
+          name
+            ? `${name} 점수는 저장됐지만, 남은 서술형 채점이 필요합니다.`
+            : "점수는 저장됐지만, 남은 서술형 채점이 필요합니다.",
+        );
+      } else {
+        feedback.success(name ? `${name} 점수가 저장되었습니다.` : "점수가 저장되었습니다.");
+      }
     },
     onError: (e, _vars, ctx?: { previous?: TeacherExamResultRow[] }) => {
       qc.setQueryData(teacherScoresQueryKeys.examResults(examId), ctx?.previous);
@@ -416,7 +438,7 @@ function ScoreEntryList({
   });
 
   const handleSubmit = useCallback(
-    (enrollmentId: number, maxScore: number) => {
+    (enrollmentId: number, maxScore: number, subjectiveOnly: boolean) => {
       const val = localScores.get(enrollmentId);
       if (val == null || val === "") return;
       if (!allowedEnrollmentIds.has(enrollmentId)) {
@@ -435,7 +457,7 @@ function ScoreEntryList({
       const submitKey = `${enrollmentId}:${num}`;
       if (pendingSubmitKeys.current.has(submitKey)) return;
       pendingSubmitKeys.current.add(submitKey);
-      updateMut.mutate({ enrollmentId, score: num, maxScore });
+      updateMut.mutate({ enrollmentId, score: num, maxScore, subjectiveOnly });
     },
     [allowedEnrollmentIds, localScores, updateMut],
   );
@@ -460,6 +482,11 @@ function ScoreEntryList({
     for (const r of results) {
       const enrollmentId = getExamResultEnrollmentId(r);
       if (enrollmentId == null) continue;
+      const block = correctionByEnrollment.get(enrollmentId);
+      if (
+        r.grading_status === "subjective_pending"
+        || block?.grading_status === "subjective_pending"
+      ) continue;
       const draft = localScores.get(enrollmentId);
       const final = getExamResultScore(r);
       let sc: number | null = null;
@@ -475,7 +502,7 @@ function ScoreEntryList({
     const avg = entered > 0 ? scores.reduce((a, b) => a + b, 0) / entered : null;
     const passRate = entered > 0 && examPassScore != null ? Math.round((passed / entered) * 100) : null;
     return { entered, total, avg, passRate };
-  }, [results, localScores, examPassScore]);
+  }, [correctionByEnrollment, results, localScores, examPassScore]);
   const reviewCounts = useMemo(() => {
     const counts = { all: results.length, pending: 0, resolved: 0, waiting: 0 };
     for (const row of results) {
@@ -503,6 +530,23 @@ function ScoreEntryList({
 
   // 첫 진입 skeleton — 시험 칩만 보이고 행이 비는 시각 공백 해소
   if (resultsLoading || rosterLoading || scoreSheetLoading) return <ScoreEntrySkeleton />;
+  if (resultsError || scoreSheetError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="성적 정보를 불러오지 못했습니다"
+        description="빈 점수표로 처리하지 않았습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요."
+        actions={(
+          <EmptyActionButton onClick={() => {
+            void Promise.all([refetchResults(), refetchScoreSheet()]);
+          }}>
+            다시 시도
+          </EmptyActionButton>
+        )}
+      />
+    );
+  }
   if (!results?.length)
     return (
       <EmptyState
@@ -587,9 +631,19 @@ function ScoreEntryList({
       {visibleResults.map((r) => {
         const enrollmentId = getExamResultEnrollmentId(r);
         if (enrollmentId == null) return null;
-        const existing = getExamResultScore(r);
+        const scoreBlock = correctionByEnrollment.get(enrollmentId);
+        const subjectivePending = (
+          r.grading_status === "subjective_pending"
+          || scoreBlock?.grading_status === "subjective_pending"
+        );
+        const activeExamMeta = scoreSheet?.meta.exams.find((exam) => exam.exam_id === examId);
+        const existing = subjectivePending
+          ? scoreBlock?.subjective_score ?? null
+          : getExamResultScore(r);
         const display = localScores.get(enrollmentId) ?? (existing != null ? String(existing) : "");
-        const maxScore = getExamResultMaxScore(r, examMaxScore ?? 100);
+        const maxScore = subjectivePending
+          ? Number(activeExamMeta?.subjective_max_score ?? 0)
+          : getExamResultMaxScore(r, examMaxScore ?? 100);
         const name = r.student_name ?? "이름 없음";
         const draftVal = localScores.get(enrollmentId);
         const draftNum = draftVal != null && draftVal !== "" ? Number(draftVal) : NaN;
@@ -614,8 +668,13 @@ function ScoreEntryList({
               >
                 {name}
               </span>
-              {!wrongCompletionOnly && (
+              {!wrongCompletionOnly && !subjectivePending && (
                 <AchievementBadge passed={r.final_pass ?? r.passed} achievement={r.achievement} />
+              )}
+              {subjectivePending && (
+                <Badge variant="solid" tone="warning" size="xs">
+                  서술형 입력 필요
+                </Badge>
               )}
               <div className="flex items-center gap-1 shrink-0">
                 <input
@@ -626,7 +685,8 @@ function ScoreEntryList({
                   inputMode="decimal"
                   pattern="[0-9]*[.]?[0-9]*"
                   value={display}
-                  placeholder="-"
+                  placeholder={subjectivePending ? "서술" : "-"}
+                  aria-label={`${name} ${subjectivePending ? "서술형" : "합산"} 점수 입력`}
                   onChange={(e) => {
                     const v = e.target.value;
                     setLocalScores((p) => {
@@ -635,11 +695,11 @@ function ScoreEntryList({
                       return next;
                     });
                   }}
-                  onBlur={() => handleSubmit(enrollmentId, maxScore)}
+                  onBlur={() => handleSubmit(enrollmentId, maxScore, subjectivePending)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      handleSubmit(enrollmentId, maxScore);
+                      handleSubmit(enrollmentId, maxScore, subjectivePending);
                       focusNext(enrollmentId);
                     }
                   }}
@@ -657,10 +717,12 @@ function ScoreEntryList({
             <div className={styles.reviewRow}>
               <span>{draftDirty
                 ? `점수를 먼저 저장하면 ${wrongCompletionOnly ? "오답 상태" : "최종 판정"}을 바꿀 수 있습니다.`
-                : wrongCompletionOnly ? "오답 확인 상태" : "원점수 유지 판정"}</span>
+                : subjectivePending
+                  ? `객관식 ${scoreBlock?.objective_score ?? 0}점 저장됨 · 서술형 입력 후 최종 반영`
+                  : wrongCompletionOnly ? "오답 확인 상태" : "원점수 유지 판정"}</span>
               <ReviewStatusControl
                 status={correctionStatus}
-                disabled={draftDirty || reviewSaving}
+                disabled={draftDirty || reviewSaving || subjectivePending}
                 saving={reviewSaving}
                 studentName={name}
                 wrongCompletionOnly={wrongCompletionOnly}

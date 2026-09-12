@@ -769,13 +769,14 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 19, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 20, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
       "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
       "student-clinic-required-cancel-realuse.spec.ts": 1,
       "student-parent-homework-realuse.spec.ts": 1,
       "student-parent-learning-realuse.spec.ts": 1, "student-parent-storage-realuse.spec.ts": 1,
+      "omr-review-realuse.spec.ts": 1,
       "video-playback-renewal.realuse.spec.ts": 1 }).map(([file, count]) => ({
       file, specs: Array.from({ length: count }, () => ({ file, tests: [{ expectedStatus: "passed", status: "expected", results: [{ status: "passed" }] }] })),
     })),
@@ -854,10 +855,10 @@ test("real-use failure observation publishes only allowlisted endpoint templates
   };
   report.errors.push({ message: "Release request rejected [cors] C:/secret/path" });
   report.stats.unexpected = 1;
-  report.stats.expected = 9;
+  report.stats.expected = 10;
   assert.deepEqual(observeReleaseTestResult(JSON.stringify(report)), {
     reportStatus: "parsed",
-    stats: { expected: 9, skipped: 0, unexpected: 1, flaky: 0 },
+    stats: { expected: 10, skipped: 0, unexpected: 1, flaky: 0 },
     failedFiles: ["notice-roundtrip.spec.ts"],
     failureLocations: [{
       specFile: "notice-roundtrip.spec.ts",
@@ -1009,7 +1010,7 @@ test("official context observation sanitizer rejects unsafe fields and bounds co
   assert.equal(bounded.contextObservations[0].unknownPathEventCounts["api-request"], 1);
 });
 
-test("all nineteen real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
+test("all twenty real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
   assert.doesNotThrow(() => assertReleaseSummary(completeFlowReport()));
   const corrupt = [
     (report) => report.suites.pop(),
@@ -1161,7 +1162,7 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers nineteen enabled cases without executing any API test", () => {
+test("development config discovers twenty enabled cases without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
     "--config=playwright.development-release.config.ts", "--list"], {
@@ -1169,7 +1170,8 @@ test("development config discovers nineteen enabled cases without executing any 
       E2E_API_URL: "http://127.0.0.1:18000", E2E_BASE_URL: "http://localhost:4173",
       E2E_TENANT_CODE: "qa-ymath-realuse-fe-123-1-abcdef123456",
       E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
-      E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0" },
+      E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",
+      E2E_STUDENT_PASS: "development-discovery-only" },
   });
   const report = JSON.parse(output);
   let discovered = 0;
@@ -1183,11 +1185,22 @@ test("development config discovers nineteen enabled cases without executing any 
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 19);
+  assert.equal(discovered, 20);
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);
   assert.throws(() => assertReleaseSummary(report));
+});
+
+test("OMR archive cleanup verifies the retained inactive exam before fixed runner cleanup", () => {
+  const source = readFileSync(new URL("../../e2e/admin/omr-review-realuse.spec.ts", import.meta.url), "utf8");
+  assert.match(source, /\/exams\/\$\{created\.examId\}\/\?include_inactive=true/);
+  assert.match(source, /Number\(retained\.body\?\.id\) !== created\.examId/);
+  assert.match(source, /retained\.body\?\.title !== EXAM_TITLE/);
+  assert.match(source, /retained\.body\?\.is_active !== false/);
+  assert.match(source, /fixed SSM Cleanup for the exact Setup tenant/);
+  assert.match(source, /post-cleanup Inspect zero/);
+  assert.doesNotMatch(source, /cleanup_e2e_residue exact-token execution is required/);
 });
 
 test("long-video setup, runtime and PII-free browser evidence fail closed", () => {

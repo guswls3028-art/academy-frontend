@@ -12136,6 +12136,7 @@ export interface components {
             final_pass?: boolean | null;
             /** Format: double */
             final_score: number | null;
+            grading_status?: (components["schemas"]["GradingStatusEnum"] | components["schemas"]["NullEnum"]) | null;
             /** @default false */
             is_provisional: boolean;
             lecture_chip_label?: string | null;
@@ -12355,7 +12356,7 @@ export interface components {
             /** @description 해소 근거: {exam_id, attempt_id, homework_id, score, ...} */
             resolution_evidence?: unknown;
             /**
-             * @description 해소 유형: 시험통과/과제통과/수동해소/면제/원본삭제/시험미응시/레거시
+             * @description 해소 유형: 시험통과/과제통과/수동해소/면제/원본삭제/시험미응시/채점미완료투영철회/레거시
              *
              *     * `EXAM_PASS` - 시험 통과
              *     * `HOMEWORK_PASS` - 과제 통과
@@ -12364,6 +12365,7 @@ export interface components {
              *     * `CARRIED_OVER` - 다음 차수로 이월
              *     * `SOURCE_REMOVED` - 원본 삭제
              *     * `NOT_SUBMITTED` - 시험 미응시 전환
+             *     * `GRADING_RETRACTED` - 채점 미완료 투영 철회
              *     * `BOOKING_LEGACY` - 레거시(예약 기반)
              */
             resolution_type?: (components["schemas"]["ClinicLinkResolutionTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
@@ -12397,7 +12399,7 @@ export interface components {
             /** @description 해소 근거: {exam_id, attempt_id, homework_id, score, ...} */
             resolution_evidence?: unknown;
             /**
-             * @description 해소 유형: 시험통과/과제통과/수동해소/면제/원본삭제/시험미응시/레거시
+             * @description 해소 유형: 시험통과/과제통과/수동해소/면제/원본삭제/시험미응시/채점미완료투영철회/레거시
              *
              *     * `EXAM_PASS` - 시험 통과
              *     * `HOMEWORK_PASS` - 과제 통과
@@ -12406,6 +12408,7 @@ export interface components {
              *     * `CARRIED_OVER` - 다음 차수로 이월
              *     * `SOURCE_REMOVED` - 원본 삭제
              *     * `NOT_SUBMITTED` - 시험 미응시 전환
+             *     * `GRADING_RETRACTED` - 채점 미완료 투영 철회
              *     * `BOOKING_LEGACY` - 레거시(예약 기반)
              */
             resolution_type?: (components["schemas"]["ClinicLinkResolutionTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
@@ -12421,10 +12424,11 @@ export interface components {
          *     * `CARRIED_OVER` - 다음 차수로 이월
          *     * `SOURCE_REMOVED` - 원본 삭제
          *     * `NOT_SUBMITTED` - 시험 미응시 전환
+         *     * `GRADING_RETRACTED` - 채점 미완료 투영 철회
          *     * `BOOKING_LEGACY` - 레거시(예약 기반)
          * @enum {string}
          */
-        ClinicLinkResolutionTypeEnum: "EXAM_PASS" | "HOMEWORK_PASS" | "MANUAL_OVERRIDE" | "WAIVED" | "CARRIED_OVER" | "SOURCE_REMOVED" | "NOT_SUBMITTED" | "BOOKING_LEGACY";
+        ClinicLinkResolutionTypeEnum: "EXAM_PASS" | "HOMEWORK_PASS" | "MANUAL_OVERRIDE" | "WAIVED" | "CARRIED_OVER" | "SOURCE_REMOVED" | "NOT_SUBMITTED" | "GRADING_RETRACTED" | "BOOKING_LEGACY";
         ClinicNotificationRetryRequestRequest: {
             log_id: number;
         };
@@ -13606,6 +13610,11 @@ export interface components {
             errors: string[];
             skipped: number;
         };
+        /**
+         * @description * `subjective_pending` - subjective_pending
+         * @enum {string}
+         */
+        GradingStatusEnum: "subjective_pending";
         /**
          * @description * `account_inactive` - account_inactive
          *     * `password_setup_required` - password_setup_required

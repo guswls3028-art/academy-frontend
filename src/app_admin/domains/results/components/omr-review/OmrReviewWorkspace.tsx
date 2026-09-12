@@ -531,11 +531,19 @@ export default function OmrReviewWorkspace({
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.sessionScores });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.clinicTargets });
-              feedback.success(
-                savedScore != null
-                  ? `저장 + 재채점 완료: ${savedScore}점`
-                  : "저장되었습니다. 다음 검토 대상으로 이동합니다.",
-              );
+              if (result?.projection_ready === false) {
+                feedback.warning(
+                  savedScore != null
+                    ? `객관식 답안 저장 완료: ${savedScore}점 · 서술형 채점 대기`
+                    : "객관식 답안은 저장됐지만, 서술형 채점이 남아 있습니다.",
+                );
+              } else {
+                feedback.success(
+                  savedScore != null
+                    ? `저장 + 재채점 완료: ${savedScore}점`
+                    : "저장되었습니다. 다음 검토 대상으로 이동합니다.",
+                );
+              }
               // 자동 다음 학생 이동 (운영자 가속)
               window.setTimeout(() => navigate(1), 250);
             }}

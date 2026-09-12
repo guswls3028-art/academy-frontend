@@ -4,6 +4,7 @@ import type {
   SessionScoreMeta,
   SessionScoreRow,
 } from "../api/sessionScores";
+import { isSubjectivePendingScoreBlock } from "@/shared/scoring/subjectivePending";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { loadPdfModules } from "@/shared/utils/pdfModules";
 
@@ -270,6 +271,9 @@ export function buildAnonymousBillboardDocument(params: AnonymousBillboardPdfPar
   const entries = filterPresent(params.rows, params.attendanceMap)
     .map((row, sourceIndex) => {
       const examsById = new Map((row.exams ?? []).map((exam) => [exam.exam_id, exam]));
+      if ([...examIds].some((examId) => isSubjectivePendingScoreBlock(examsById.get(examId)?.block))) {
+        return null;
+      }
       let score = 0;
       let hasScoredExam = false;
       for (const examId of examIds) {

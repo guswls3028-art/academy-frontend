@@ -14,7 +14,10 @@ import {
 import { scoresQueryKeys } from "../api/queryKeys";
 import { fetchAttendance, updateAttendance } from "@/shared/api/contracts/attendance";
 
-import ScoresTable, { type ScoresTableHandle } from "../components/ScoresTable";
+import ScoresTable, {
+  type ScoreFlushResult,
+  type ScoresTableHandle,
+} from "../components/ScoresTable";
 import StudentResultDrawer from "@admin/domains/results/components/StudentResultDrawer";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -66,7 +69,7 @@ type Props = {
 
 export type SessionScoresPanelHandle = {
   /** 대기 중인 점수 변경을 실제 성적 API에 반영 */
-  flushPendingChanges: () => Promise<number>;
+  flushPendingChanges: () => Promise<ScoreFlushResult>;
   /** 자동 저장용: 현재 pending 스냅샷 */
   getPendingSnapshot: () => import("../api/scoreDraft").PendingChange[];
   /** 드래프트 복원 시 호출 */
@@ -175,7 +178,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   }, [meta, sessionId, qc]);
 
   useImperativeHandle(ref, () => ({
-    flushPendingChanges: () => tableRef.current?.flushPendingChanges?.() ?? Promise.resolve(0),
+    flushPendingChanges: () => tableRef.current?.flushPendingChanges?.()
+      ?? Promise.resolve({ savedCount: 0, projectionPendingCount: 0 }),
     getPendingSnapshot: () => tableRef.current?.getPendingSnapshot?.() ?? [],
     applyDraftPatch: (changes) => tableRef.current?.applyDraftPatch?.(changes),
     commitActiveCell: () => tableRef.current?.commitActiveCell?.() ?? true,

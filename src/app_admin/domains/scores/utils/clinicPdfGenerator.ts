@@ -6,6 +6,7 @@ import type {
   SessionScoreRow,
   SessionScoreMeta,
 } from "../api/sessionScores";
+import { isSubjectivePendingScoreBlock } from "@/shared/scoring/subjectivePending";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { deriveFinalPass } from "@/shared/scoring/achievement";
 import { loadPdfModules } from "@/shared/utils/pdfModules";
@@ -652,6 +653,7 @@ function isUnresolvedClinicBlock(block: ScoreBlock | null | undefined): boolean 
 
 function hasCompletedScoreSignal(block: ScoreBlock | null | undefined): boolean {
   if (!block) return false;
+  if (isSubjectivePendingScoreBlock(block)) return false;
   const finalPass = deriveFinalPass({
     achievement: block.achievement ?? null,
     is_pass: block.passed ?? null,
@@ -675,6 +677,9 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
   for (const row of filteredRows) {
     const allExams = row.exams ?? [];
     const allHws = row.homeworks ?? [];
+    const clinicReadyExams = allExams.filter(
+      (entry) => !isSubjectivePendingScoreBlock(entry.block),
+    );
     if (isSessionRowProgressCompleted(row)) {
       passed.push(row.student_name);
       continue;
@@ -683,13 +688,14 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
     // 클리닉 대상 판별은 서버의 미해소 ClinicLink가 SSOT다. 점수 블록만 다시
     // 해석하면 미제출 대상이 빠지거나, 링크가 해소된 학생이 다시 포함될 수 있다.
     if (row.clinic_required !== true) {
-      const hasAnyDoneSignal = allExams.some((e) => hasCompletedScoreSignal(e.block))
+      if (clinicReadyExams.length !== allExams.length) continue;
+      const hasAnyDoneSignal = clinicReadyExams.some((e) => hasCompletedScoreSignal(e.block))
         || allHws.some((h) => hasCompletedScoreSignal(h.block));
       if (hasAnyDoneSignal) passed.push(row.student_name);
       continue;
     }
 
-    const linkedExams = allExams.filter((entry) => entry.clinic_link_id != null);
+    const linkedExams = clinicReadyExams.filter((entry) => entry.clinic_link_id != null);
     const linkedHomeworks = allHws.filter((entry) => entry.clinic_link_id != null);
     const hasSourceLinks = linkedExams.length > 0 || linkedHomeworks.length > 0;
     let examFailed = linkedExams.length > 0;
@@ -697,7 +703,7 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
 
     // source metadata가 없던 레거시 자동 링크만 점수 블록으로 보조 분류한다.
     if (!hasSourceLinks) {
-      examFailed = allExams.some((entry) => isUnresolvedClinicBlock(entry.block));
+      examFailed = clinicReadyExams.some((entry) => isUnresolvedClinicBlock(entry.block));
       hwFailed = allHws.some((entry) => isUnresolvedClinicBlock(entry.block));
       if (!examFailed && !hwFailed) {
         // 서버가 현재 대상이라고 확정했으므로 원인 미상 링크도 명단에서 숨기지 않는다.
@@ -714,7 +720,7 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
     if (examFailed) {
       const failedExams = hasSourceLinks
         ? linkedExams
-        : allExams.filter((entry) => isUnresolvedClinicBlock(entry.block));
+        : clinicReadyExams.filter((entry) => isUnresolvedClinicBlock(entry.block));
       almostPassed = failedExams.length > 0 && failedExams.every((e) => {
         const ps = passScoreMap.get(e.exam_id) ?? 70;
         const score = e.block.score;

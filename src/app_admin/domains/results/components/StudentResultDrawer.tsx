@@ -286,6 +286,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 
   const totalScore = detail?.total_score ?? 0;
   const maxScore = detail?.max_score ?? 0;
+  const subjectivePending = detail?.grading_status === "subjective_pending";
 
   return (
     <>
@@ -300,7 +301,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
               <h1 className="srd-modal__title">{examTitle} 답안 상세</h1>
               <span className="srd-modal__student-badge"><StudentNameWithLectureChip name={studentName} enrollmentId={enrollmentId} /></span>
               {(() => {
-                if (!detail || wrongCompletionOnly) return null;
+                if (!detail || wrongCompletionOnly || subjectivePending) return null;
                 const ach = deriveAchievement({
                   achievement: detail.achievement,
                   is_pass: detail.passed,
@@ -331,11 +332,11 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                   variant="solid"
                   size="sm"
                   tone="warning"
-                  title="채점 미확정 — 임시 점수"
+                  title={detail.grading_status === "subjective_pending" ? "객관식 저장 완료 · 서술형 점수 입력 필요" : "채점 미확정 — 임시 점수"}
                   // eslint-disable-next-line no-restricted-syntax
                   style={{ marginLeft: 6 }}
                 >
-                  임시 점수
+                  {detail.grading_status === "subjective_pending" ? "서술형 입력 필요" : "임시 점수"}
                 </Badge>
               )}
             </div>
@@ -350,7 +351,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
           </header>
 
           {/* 보강 합격 안내 배너: 1차 불합격 → 클리닉 해소 */}
-          {!wrongCompletionOnly && detail?.remediated && detail.clinic_retake && (
+          {!wrongCompletionOnly && !subjectivePending && detail?.remediated && detail.clinic_retake && (
             <div
               className="srd-modal__remediated-banner"
               // eslint-disable-next-line no-restricted-syntax
@@ -505,6 +506,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                       essayItems={essayItems}
                       totalScore={totalScore}
                       maxScore={maxScore}
+                      subjectivePending={subjectivePending}
                       qNumMap={qNumMap}
                       correctAnswers={correctAnswersMap}
                       isItemCorrect={isItemCorrect}
@@ -561,11 +563,12 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 /* 읽기 모드 — 2단 (선택형 | 서술형) + 총점 상단         */
 /* ═══════════════════════════════════════════════════ */
 
-function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, qNumMap, correctAnswers, isItemCorrect, onEdit }: {
+function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjectivePending, qNumMap, correctAnswers, isItemCorrect, onEdit }: {
   choiceItems: ExamResultItem[];
   essayItems: ExamResultItem[];
   totalScore: number;
   maxScore: number;
+  subjectivePending: boolean;
   qNumMap: Map<number, number>;
   correctAnswers: Record<string, string>;
   isItemCorrect: (it: ExamResultItem) => boolean;
@@ -573,19 +576,35 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, qNumMa
 }) {
   const pct = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
   const choiceCorrect = choiceItems.filter((it) => it.answer && isItemCorrect(it)).length;
+  const objectiveScore = choiceItems.reduce((sum, item) => sum + item.score, 0);
 
   return (
     <div className="srd-read">
       {/* 총점 요약 바 */}
       <div className="srd-read__score-bar">
         <div className="srd-read__score-main">
-          <span className="srd-read__score-val">{totalScore}</span>
-          <span className="srd-read__score-max">/ {maxScore}점</span>
-          <span className="srd-read__score-pct">({pct}%)</span>
+          {subjectivePending ? (
+            <>
+              <span className="srd-read__score-val">객관 {objectiveScore}점</span>
+              <Badge variant="solid" size="sm" tone="warning">서술형 입력 필요</Badge>
+            </>
+          ) : (
+            <>
+              <span className="srd-read__score-val">{totalScore}</span>
+              <span className="srd-read__score-max">/ {maxScore}점</span>
+              <span className="srd-read__score-pct">({pct}%)</span>
+            </>
+          )}
         </div>
         <div className="srd-read__score-detail">
           {choiceItems.length > 0 && <span>선택 {choiceCorrect}/{choiceItems.length}</span>}
-          {essayItems.length > 0 && <span>서술 {essayItems.reduce((s, it) => s + it.score, 0)}/{essayItems.reduce((s, it) => s + it.max_score, 0)}</span>}
+          {essayItems.length > 0 && (
+            <span>
+              {subjectivePending
+                ? "서술형 입력 필요"
+                : `서술 ${essayItems.reduce((s, it) => s + it.score, 0)}/${essayItems.reduce((s, it) => s + it.max_score, 0)}`}
+            </span>
+          )}
         </div>
       </div>
 

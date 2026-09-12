@@ -22,7 +22,7 @@
    `CLOUDFLARE_PREVIEW_API_TOKEN`으로 Cloudflare Pages preview에 direct
    upload한다. preview revision, Functions bundle, 핵심 route와 lazy asset을
    검증한다.
-3. `main` push에서는 동일 `deploy-bundle`의 개발 real-use 19개와 exact tenant/user
+3. `main` push에서는 동일 `deploy-bundle`의 개발 real-use 20개와 exact tenant/user
    cleanup0을 `development-canary` job에서 먼저 통과한다. 이 job의 success 없이는
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
 4. 기존 운영 deployment id/version과 Pages production
@@ -173,9 +173,16 @@ suite를 연결한다. 다만 새 IAM role/document와 개발 host parameter den
 학생·학부모 2개 대상을 반환하고, 개발 mock outbox/log도 두 대상과 `mock-*` provider
 식별자를 각각 남겨 외부 provider 호출이 없음을 증명한다. 학생 fixture 정리는 영구삭제
 응답의 `deleted` 수와 `storage_cleanup.pending=0`, `failed=0`을 직접 확인한 뒤에만
-성공으로 처리한다.
+성공으로 처리한다. 같은 실행에서 mixed OMR 1개 assertion도 모두 실행한다.
+mixed OMR은 격리 시험·학생을 만들고 실제 PDF 다운로드/마킹/브라우저 업로드, 개발 R2와
+AI queue/worker 인식, 객관식 부분점수 비공개, 서술형 수기 채점, 390px 재접속 유지와 학생
+성적 투영까지 확인한다. 고정 운영 tenant나 mock API만으로 이 assertion을 대체할 수 없다.
 skip, 누락, 잘못된 release/image/tenant, cleanup 실패는 승격 실패다. 정확한 disposable
 `qa-*` tenant/account만 생성하고 종료 시 tenant/user 모두 0을 읽어야 한다.
+OMR 시험 삭제가 보호된 기록 때문에 `archived`를 반환하면 일반 상세의 404를 삭제 성공으로
+간주하지 않는다. `include_inactive=true`로 exact exam id/title과 `is_active=false`를 확인하고,
+보존된 exam/session/lecture id는 Setup tenant id와 함께 고정 SSM `Cleanup`에 인계한다.
+그 뒤 `Inspect`에서 tenant/user/R2/runtime 잔여가 모두 0이어야만 정리가 완료된다.
 운영에는 revision/assets/login/tenant availability, 실제 조회-only assessment,
 strict browser 및 기존 exact-baseline rollback 검증이 남는다. 기존 운영 계정만
 인증하며 테스트 학생/공지/질문/클리닉 등 업무 데이터를 만들지 않는다.
@@ -382,7 +389,7 @@ identity/scope 및 runtime assertion보다 먼저 기존 `persistEvidence` 경�
 exact scope/echo, aggregate 추가 영상, malformed/raw 값 거부와 실패 전 저장을 검증한다.
 기존 공식 `development-release-canary.test.mjs` 진입점이 이 회귀를 import하므로
 별도 workflow나 수동 실행에만 의존하지 않는다.
-관측의 유무는 19개 실사용, 690초 재생 또는 cleanup0 조건을 대체하지 않는다.
+관측의 유무는 현재 OMR 통합 후보의 20개 실사용, 690초 재생 또는 cleanup0 조건을 대체하지 않는다.
 
 장시간 재생 실패는 추가로 설정 timeout, test/result 상태, result 수, 실행 시간, 오류 수와
 실패한 response 관측 종류(`bootstrap`, `access`, `session-list`, `renewal`, `progress`, `other`) 및
@@ -510,7 +517,7 @@ GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사
 목록 복귀 요청이 동시에 몰리지 않도록 마지막 reload·진도 복원·종료 증명만 직렬화한다.
 다른 자녀/tenant 접근 거부는 backend 계약과 함께 검증한다. 실제 메시지 provider는
 호출하지 않고 개발용 durable outbox 접수·재시도 상태만 확인한다.
-실제 frontend IAM role/document 적용과 19 PASS/0 SKIP/cleanup0 증거가 모두 있어야
+실제 frontend IAM role/document 적용과 20 PASS/0 SKIP/cleanup0 증거가 모두 있어야
 이 전환 HOLD를 해제할 수 있다.
 
 ## 4. 공급망과 변경 관리

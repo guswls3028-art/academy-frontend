@@ -93,13 +93,15 @@ async function installRoutes(page: Page) {
             attempt_count: 1,
             clinic_link_id: null,
             block: {
-              score: null,
+              score: exam.exam_id === MIXED_EXAM_ID ? 80 : null,
               max_score: 100,
               passed: null,
               clinic_required: false,
               is_locked: false,
-              objective_score: null,
+              objective_score: exam.exam_id === MIXED_EXAM_ID ? 80 : null,
               subjective_score: null,
+              is_provisional: exam.exam_id === MIXED_EXAM_ID,
+              grading_status: exam.exam_id === MIXED_EXAM_ID ? "subjective_pending" : null,
               correction_status: "NOT_REQUIRED",
               meta: {},
             },
@@ -176,6 +178,97 @@ async function installRoutes(page: Page) {
         }],
       });
     }
+    if (
+      path.endsWith(`/results/admin/exams/${MIXED_EXAM_ID}/enrollments/9911/`)
+      && method === "GET"
+    ) {
+      return fulfill({
+        target_type: "exam",
+        target_id: MIXED_EXAM_ID,
+        enrollment_id: 9911,
+        attempt_id: 10011,
+        total_score: 80,
+        max_score: 100,
+        submitted_at: "2026-09-01T12:00:00+09:00",
+        items: [
+          {
+            question_id: 10001,
+            question_number: 1,
+            question_kind: "choice",
+            answer: "1",
+            correct_answer: "1",
+            is_correct: true,
+            score: 80,
+            max_score: 80,
+            is_editable: false,
+          },
+          {
+            question_id: 10002,
+            question_number: 2,
+            question_kind: "essay",
+            answer: "",
+            correct_answer: "해설참조",
+            is_correct: false,
+            score: 0,
+            max_score: 20,
+            is_editable: true,
+          },
+        ],
+        questions: [
+          { question_id: 10001, number: 1, max_score: 80, kind: "choice" },
+          { question_id: 10002, number: 2, max_score: 20, kind: "essay" },
+        ],
+        score_shape: {
+          total_questions: 2,
+          choice_count: 1,
+          essay_count: 1,
+          objective_max_score: 80,
+          subjective_max_score: 20,
+          total_max_score: 100,
+        },
+        submission_id: 10021,
+        submission_status: "answers_ready",
+        edit_state: { can_edit: true, lock_reason: null },
+        passed: true,
+        remediated: true,
+        final_pass: true,
+        achievement: "PASS",
+        clinic_retake: {
+          score: 100,
+          pass_score: 90,
+          resolution_type: "MANUAL_OVERRIDE",
+        },
+        is_provisional: true,
+        grading_status: "subjective_pending",
+        meta_status: null,
+      });
+    }
+    if (path.endsWith("/results/admin/attempt-history/") && method === "GET") {
+      return fulfill({
+        source_type: "exam",
+        source_id: MIXED_EXAM_ID,
+        source_title: "중대부고 2회차 혼합형",
+        pass_score: 90,
+        max_score: 100,
+        attempts: [{
+          attempt_index: 1,
+          score: 80,
+          max_score: 100,
+          pass_score: 90,
+          passed: null,
+          at: "2026-09-01T12:00:00+09:00",
+          source: "grade",
+        }],
+        clinic_link_id: null,
+        resolved: null,
+      });
+    }
+    if (path.endsWith(`/exams/${MIXED_EXAM_ID}/questions/`) && method === "GET") {
+      return fulfill([
+        { id: 10001, number: 1, score: 80, kind: "choice" },
+        { id: 10002, number: 2, score: 20, kind: "essay" },
+      ]);
+    }
     if (path.endsWith("/lectures/attendance/") && method === "GET") {
       return fulfill({ count: 1, results: [{ id: 9921, enrollment_id: 9911, status: "PRESENT" }] });
     }
@@ -243,7 +336,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     const unexpectedMutations = await openScores(page);
 
     const omrButton = page.getByRole("button", { name: "OMR 스캔 등록" });
-    const subjectiveButton = page.getByRole("button", { name: "서술형 점수 입력" });
+    const subjectiveButton = page.getByRole("button", { name: "서술형 점수 입력", exact: true });
     await expect(subjectiveButton).toBeVisible();
 
     await omrButton.click();
@@ -280,7 +373,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
 
     for (const button of [
       page.getByRole("button", { name: "OMR 스캔 등록" }),
-      page.getByRole("button", { name: "서술형 점수 입력" }),
+      page.getByRole("button", { name: "서술형 점수 입력", exact: true }),
     ]) {
       const box = await button.boundingBox();
       expect(box?.height).toBeGreaterThanOrEqual(44);
@@ -288,13 +381,79 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390);
     }
 
-    await page.getByRole("button", { name: "서술형 점수 입력" }).click();
+    await page.getByRole("button", { name: "서술형 점수 입력", exact: true }).click();
     const picker = page.getByRole("listbox", { name: "직접 채점 시험 선택" });
     await expect(picker).toBeVisible();
     await expect.poll(() => page.evaluate(() => ({
       body: document.body.scrollWidth - document.body.clientWidth,
       document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     }))).toEqual({ body: 0, document: 0 });
+    expect(unexpectedMutations).toEqual([]);
+  });
+
+  test("객관식만 판독된 혼합형은 최종점수 대신 서술형 입력 동선을 바로 제공한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const unexpectedMutations = await openScores(page);
+
+    const banner = page.getByTestId("subjective-pending-banner");
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText("1명의 서술형 점수 입력이 필요합니다");
+    await expect(banner).toContainText("학생 공개·석차·클리닉 반영은 보류 중입니다");
+    await expect(page.getByText("객관 80", { exact: true })).toBeVisible();
+    await expect(page.getByText("서술형 입력", { exact: true })).toBeVisible();
+
+    await page.getByRole("checkbox", { name: "테스트 학생 선택" }).check();
+    const scoreAlimtalkButton = page.getByRole("button", { name: "수업결과 알림톡 발송" });
+    await expect(scoreAlimtalkButton).toBeDisabled();
+    await expect(scoreAlimtalkButton).toHaveAttribute(
+      "title",
+      "서술형 점수 입력을 완료한 뒤 알림톡을 발송할 수 있습니다.",
+    );
+
+    await banner.getByRole("button", { name: "중대부고 2회차 혼합형 서술형 점수 입력" }).click();
+
+    const gradingDialog = page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 혼합 채점" });
+    await expect(gradingDialog).toBeVisible();
+    await expect(gradingDialog.getByText("직접 문항 입력 중", { exact: true })).toBeVisible();
+    expect(unexpectedMutations).toEqual([]);
+  });
+
+  test("서술형 입력 셀은 채점창만 열고 학생 드로어까지 함께 열지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const unexpectedMutations = await openScores(page);
+
+    await page.locator(`[data-score-cell="exam:9911:${MIXED_EXAM_ID}:total:"]`).click();
+
+    await expect(
+      page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 혼합 채점" }),
+    ).toBeVisible();
+    await expect(page.locator(".student-scores-drawer")).toHaveCount(0);
+    expect(unexpectedMutations).toEqual([]);
+  });
+
+  test("서술형 미완료 답안 상세는 객관 점수만 표시하고 최종 PASS를 숨긴다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const unexpectedMutations = await openScores(page);
+
+    await page.getByText("테스트 학생", { exact: true }).first().click();
+    const studentDrawer = page.locator(".student-scores-drawer");
+    await expect(studentDrawer).toBeVisible();
+    await studentDrawer
+      .locator(".student-scores-drawer__exam-header")
+      .filter({ hasText: "중대부고 2회차 혼합형" })
+      .click();
+    await studentDrawer.getByRole("button", { name: "답안 상세 보기" }).click();
+
+    const answerDialog = page.getByRole("dialog").filter({
+      hasText: "중대부고 2회차 혼합형 답안 상세",
+    });
+    await expect(answerDialog).toBeVisible();
+    await expect(answerDialog.getByText("객관 80점", { exact: true })).toBeVisible();
+    await expect(answerDialog.getByText("서술형 입력 필요", { exact: true }).first()).toBeVisible();
+    await expect(answerDialog.locator(".srd-read__score-max")).toHaveCount(0);
+    await expect(answerDialog.locator(".srd-read__score-pct")).toHaveCount(0);
+    await expect(answerDialog.getByText("보강 합격", { exact: true })).toHaveCount(0);
+    await expect(answerDialog.getByText("PASS", { exact: true })).toHaveCount(0);
     expect(unexpectedMutations).toEqual([]);
   });
 });
