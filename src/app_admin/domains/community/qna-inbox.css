@@ -147,6 +147,16 @@
   font-weight: 800;
 }
 
+.qna-inbox__file-recovery-note {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-surface));
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .qna-inbox__file-list {
   display: grid;
   gap: 8px;

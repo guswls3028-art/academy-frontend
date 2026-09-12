@@ -1,4 +1,5 @@
 import { devices, type Page, type Route } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { expect, test } from "../fixtures/strictTest";
 import { installLocalAuthApiStubs } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle } from "../helpers/wait";
@@ -25,6 +26,7 @@ const IPAD_PROFILE = {
 const IMAGE_DATA_URL = `data:image/svg+xml;base64,${Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200"><rect width="100%" height="100%" fill="#f8f4ea"/><text x="70" y="130" font-size="56">20. 자연선택 문제</text><path d="M120 800 Q300 350 480 800 T840 800" fill="none" stroke="#222" stroke-width="18"/></svg>',
 ).toString("base64")}`;
+const PNG_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -94,6 +96,19 @@ async function installApi(page: Page) {
       size_bytes: 512000,
       content_type: "application/pdf",
       created_at: "2026-08-23T01:21:00Z",
+    }, {
+      id: 81,
+      original_name: "21번-문제.png",
+      size_bytes: 302400,
+      content_type: "image/png",
+      created_at: "2026-08-23T01:22:00Z",
+    }, {
+      id: 82,
+      original_name: "22번-문제.jpg",
+      size_bytes: 294800,
+      content_type: "image/jpeg",
+      created_at: "2026-08-23T01:23:00Z",
+      download_url: `${BASE}/mock/expired-question-image.jpg`,
     }],
     category_label: "개포",
     meta: { matchup_results: [] },
@@ -124,6 +139,12 @@ async function installApi(page: Page) {
         url: `${BASE}/mock/20-number-solution.pdf`,
         original_name: "20번-풀이.pdf",
       });
+    }
+    if (path === `/community/posts/${QUESTION_ID}/attachments/81/download/`) {
+      return json({ url: PNG_DATA_URL, original_name: "21번-문제.png" });
+    }
+    if (path === `/community/posts/${QUESTION_ID}/attachments/82/download/`) {
+      return json({ url: IMAGE_DATA_URL, original_name: "22번-문제.jpg" });
     }
     if (path === `/community/posts/${QUESTION_ID}/replies/`) {
       if (request.method() === "POST") {
@@ -355,6 +376,38 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await presignRequest;
   });
 
+  test("URL이 없거나 만료된 이미지도 숨기지 않고 원본을 다시 요청한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
+
+    await expect(page.getByText("이미지 3장 · 파일 1개", { exact: true })).toBeVisible();
+    await expect(page.getByText("첨부된 문제 사진이 없습니다.")).toHaveCount(0);
+    const missingPreview = page.getByRole("button", { name: "21번-문제.png 원본 다시 요청" });
+    const expiredPreview = page.getByRole("button", { name: "22번-문제.jpg 원본 다시 요청" });
+    await expect(missingPreview).toBeVisible();
+    await expect(expiredPreview).toBeVisible();
+    await expect(page.getByText(/이미지 미리보기를 준비하지 못했습니다/)).toBeVisible();
+    await expiredPreview.scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: "test-results/community-qna-image-recovery-desktop.png",
+      fullPage: true,
+    });
+
+    const presignRequest = page.waitForRequest((request) => (
+      new URL(request.url()).pathname.endsWith(`/community/posts/${QUESTION_ID}/attachments/81/download/`)
+    ));
+    const downloadEvent = page.waitForEvent("download");
+    await missingPreview.click();
+    await presignRequest;
+    const download = await downloadEvent;
+    expect(download.suggestedFilename()).toBe("21번-문제.png");
+    expect(await download.failure()).toBeNull();
+    const downloadPath = await download.path();
+    expect(downloadPath).not.toBeNull();
+    const bytes = await readFile(downloadPath!);
+    expect([...bytes.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+  });
+
   test("390px 자료/답변 전환에서 작성 내용을 보존하고 가로 넘침이 없다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
@@ -392,7 +445,7 @@ test.describe("커뮤니티 QnA 작업대", () => {
     const pdfDownload = page.getByRole("button", { name: "20번-풀이.pdf 다운로드" });
     await pdfDownload.click();
     await expect(pdfDownload).toBeDisabled();
-    await expect(page.locator(".qna-inbox__file-action")).toHaveText("준비 중…");
+    await expect(pdfDownload.locator(".qna-inbox__file-action")).toHaveText("준비 중…");
     releaseDownload();
     await expect(page.getByText("다운로드 URL을 가져오지 못했습니다.")).toBeVisible();
     await expect(pdfDownload).toBeEnabled();
