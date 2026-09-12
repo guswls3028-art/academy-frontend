@@ -339,7 +339,7 @@ test.describe("계정 복구 모달 UI 검증", () => {
       requestCount += 1;
       payload = route.request().postDataJSON() as Record<string, unknown>;
       await requestGate;
-      await route.fulfill({ status: 201, contentType: "application/json", body: "{}" });
+      await route.fulfill({ status: 201, json: { id: 913, status: "pending" } });
     });
     const password = " test1234 ";
     const dialog = await openAndFillSignup(page, { password, confirmation: password });
