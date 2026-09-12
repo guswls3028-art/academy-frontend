@@ -481,7 +481,7 @@ direct APIRequestContext는 기존 GET/HEAD만 한 번 재시도한다. allowlis
 거부 수를 각각 `droppedContextObservationCount`/`rejectedContextObservationCount`로
 기록한다. 추가 필드·허용되지 않은 값·원문 URL/오류·범위 밖 숫자가 있으면 해당
 snapshot 전체를 거부한다. 진단의 누락/부재는 성공 증거가 아니며 기존 strict
-assertion, 19개 필수 실사용 조건, cleanup0 및 승격 판정을 대체하지 않는다.
+assertion, 21개 필수 실사용 조건, cleanup0 및 승격 판정을 대체하지 않는다.
 
 이 경계의 무브라우저 회귀는 `scripts/tests/release-context-observation.test.mjs`와
 `scripts/tests/development-release-canary.test.mjs`의 fixture/공식 failure artifact
@@ -489,7 +489,7 @@ parser 테스트가 소유한다. snapshot 복사·중복/역순 교체·상한�
 두 종료 순서·listener 해제, canonical clinic/OPTIONS, mutation 재전송 0 및 기존
 500ms 조회 재시도 정책을 검증한다. 로컬 선택 테스트는 공식 real-use gate가 아니다.
 
-로컬 child 제한은 QA operation 240초, tunnel 25분, tests 20분이다. timeout은 TERM 후
+로컬 child 제한은 QA operation 240초, tunnel 25분, tests 30분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
 20초 제한이다. SIGINT/SIGTERM은 작업 중 child를 중단하여 finally를 시도하고 무조건
 실패 처리한다. 정리 중 추가 신호는 새 작업을 시작하지 않으며 cleanup 완료를 기다린다.
