@@ -42,7 +42,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   const [form, setForm] = useState<typeof INITIAL_FORM>({ ...INITIAL_FORM, schoolType: slm.defaultSchoolType });
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<"approved" | "pending" | null>(null);
   const [duplicateInfo, setDuplicateInfo] = useState<{ phone: string; name: string } | null>(null);
   const [credentialsSent, setCredentialsSent] = useState(false);
   const [usernameCheck, setUsernameCheck] = useState<{ available: boolean; reason?: string } | null>(null);
@@ -82,7 +82,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     if (!pending && !submissionRef.current) {
       onClose();
       setError("");
-      setSuccess(false);
+      setSuccess(null);
     }
   }, [onClose, pending]);
 
@@ -91,7 +91,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     if (open) {
       setForm({ ...INITIAL_FORM, schoolType: slm.defaultSchoolType });
       setError("");
-      setSuccess(false);
+      setSuccess(null);
       setDuplicateInfo(null);
       setCredentialsSent(false);
       setUsernameCheck(null);
@@ -137,7 +137,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
 
   function handleConfirmSuccess() {
     onClose();
-    setSuccess(false);
+    setSuccess(null);
     setForm(INITIAL_FORM);
   }
 
@@ -183,7 +183,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     submissionRef.current = true;
     setPending(true);
     try {
-      await submitRegistrationRequest({
+      const result = await submitRegistrationRequest({
         name: form.name.trim(),
         username: form.username.trim() || undefined,
         initialPassword: form.initialPassword,
@@ -202,7 +202,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
         originMiddleSchool: form.originMiddleSchool.trim() || undefined,
         memo: form.memo.trim() || undefined,
       });
-      setSuccess(true);
+      setSuccess(result);
     } catch (err: unknown) {
       const res = err && typeof err === "object" && "response" in err
         ? (err as { response?: { data?: Record<string, unknown>; status?: number } }).response
@@ -283,7 +283,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
           </button>
         </div>
         <p className={styles.overlaySubtitle}>
-          필수 정보를 입력하시면 선생님 승인 후 로그인할 수 있습니다.
+          {success ? "가입 신청 결과를 확인해 주세요." : "필수 정보를 입력해 가입을 신청해 주세요."}
         </p>
         {showGuide && (
           <div id="signup-guide-panel" className={styles.signupGuidePanel}>
@@ -291,7 +291,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
             <ul className={styles.signupGuideList}>
               <li>학부모는 등록된 휴대폰 번호로 로그인합니다.</li>
               <li>대표·선생님 계정은 학원에서 받은 아이디를 사용합니다.</li>
-              <li>신청 후 선생님 승인까지 기다려 주세요.</li>
+              <li>신청 결과에 따라 로그인하거나 선생님 승인을 기다려 주세요.</li>
             </ul>
           </div>
         )}
@@ -359,10 +359,14 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
           </div>
         ) : success ? (
           <>
-            <p className={styles.signupStatusSuccess}>신청이 완료되었습니다. 승인 후 로그인해 주세요.</p>
+            <p role="status" className={styles.signupStatusSuccess}>
+              {success === "approved"
+                ? "가입이 완료되었습니다. 지금 로그인할 수 있습니다."
+                : "신청이 완료되었습니다. 승인 후 로그인해 주세요."}
+            </p>
             <div className={`${styles.signupActions} ${styles.signupSuccessActions}`}>
               <button type="button" className={styles.signupBtnSubmit} onClick={handleConfirmSuccess}>
-                확인
+                {success === "approved" ? "로그인하기" : "확인"}
               </button>
             </div>
           </>

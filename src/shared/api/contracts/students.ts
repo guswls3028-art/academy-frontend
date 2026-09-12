@@ -999,7 +999,7 @@ export async function submitRegistrationRequest(form: {
   memo?: string;
   address?: string;
   originMiddleSchool?: string;
-}): Promise<ClientRegistrationRequest> {
+}): Promise<"approved" | "pending"> {
   const payload: components["schemas"]["RegistrationRequestCreateRequest"] = {
     name: String(form.name ?? "").trim(),
     username: String(form.username ?? "").trim() || "",
@@ -1023,7 +1023,14 @@ export async function submitRegistrationRequest(form: {
     payload.phone = normalizePhone(String(form.phone));
   }
   const res = await api.post("/students/registration_requests/", payload, SKIP_AUTH_CONFIG);
-  return mapRegistrationRequest(res.data);
+  const data = asRecord(res.data);
+  // 200 is an approved StudentDetail, while 201 is a pending registration request.
+  // Their IDs belong to different resources; do not map both as a pending request.
+  if (typeof data.id === "number" && Number.isSafeInteger(data.id) && data.id > 0) {
+    if (res.status === 200) return "approved";
+    if (res.status === 201 && data.status === "pending") return "pending";
+  }
+  throw new Error("가입 처리 결과를 확인하지 못했습니다. 다시 신청하기 전에 선생님에게 확인해 주세요.");
 }
 
 /* ===============================
