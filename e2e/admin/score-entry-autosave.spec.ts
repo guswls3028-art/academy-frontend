@@ -650,6 +650,20 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
 
     // Workspace chrome loads these counters/lists independently of the score route.
     // Keep this route-mock test self-contained instead of waiting on a local API proxy.
+    if (path === "/api/v1/core/tenant-info/" && method === "GET") {
+      await route.fulfill({
+        json: {
+          name: "학원플러스",
+          phone: "",
+          headquarters_phone: "",
+          academies: [{ name: "학원플러스", phone: "" }],
+          pass_label: "합격",
+          fail_label: "불합격",
+        },
+      });
+      return;
+    }
+
     if (path.endsWith("/api/v1/clinic/participants/") && method === "GET") {
       await route.fulfill({ json: { count: 0, results: [] } });
       return;
