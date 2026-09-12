@@ -4,6 +4,22 @@
 운영하는 도메인입니다. 같은 날짜의 여러 시간대 예약 가능 여부는 서버의 세션별
 정책을 그대로 편집하며, 프론트가 tenant나 학생별 예외를 추정하지 않습니다.
 
+## 새 일정의 개설 방식 선택
+
+새 일정 만들기는 상세 폼보다 먼저 두 카드만 보여 줍니다.
+
+- **한 타임 예약 · 시간지정 클리닉**: 17:00–18:00처럼 정해진 타임 전체를
+  예약하는 기존 방식입니다.
+- **등원·하원 선택 · 자유지정 클리닉**: 15:00–22:00 운영 범위를 열고 학생이
+  그 안에서 16:00–19:00처럼 실제 시간을 고르는 독서실형 방식입니다.
+
+`GET /clinic/settings/`의 tenant 기본은 **학원 기본** 배지로 추천할 뿐이고,
+사용자가 카드를 직접 골라야 다음 입력으로 이동합니다. 선택 뒤에는 현재 방식을
+짧게 요약하고 **방식 다시 선택**을 제공하므로 실수로 세부 일정을 작성하기 전에
+돌아갈 수 있습니다. 수정·복사는 저장된 방식 snapshot을 그대로 열고 이 단계를
+건너뜁니다. 자유지정은 긴 세션 하나를 예약하므로 여러 고정 시간대 허용과 학생
+희망 시간 옵션을 자동으로 끄고 숨깁니다.
+
 ## 같은 날 여러 시간대 예약
 
 - 새 세션은 `GET /clinic/settings/`의 `multi_slot_booking_default`를 체크박스
@@ -32,6 +48,19 @@
 `학생 추가` 동선을 그대로 보여 주며, 첫 학생을 추가하기 전에 일간 합계 화면으로
 자동 복귀하지 않습니다. 선택한 세션이 tree에서 실제로 사라졌을 때만 선택을 해제합니다.
 
+## 달력에서 학생 관리
+
+`오늘 출석·진행`에서 달력 날짜를 고르면 선택일 전체 운영 화면을 유지하면서 상단
+`배정 학생 관리`에 그날의 세션별 활성 배정 인원을 표시합니다. 각 `학생 관리`는 새
+배정 로직을 만들지 않고 정확한 세션을 선택해 기존 `ClinicTargetSelectModal`과
+`POST /clinic/participants/bulk-create/` 흐름으로 들어갑니다. 취소·거절 이력은 활성
+배정 수에서 제외하되 서버 기록은 보존합니다.
+
+배포 카나리는 desktop의 좌측 달력과 390px의 `일정` overlay에서 실제 날짜를 선택해
+추가·reload GET·`cancelled`·reload를 확인합니다. 같은 학원 다른 학생과 별도 qa tenant의
+접근은 실제 개발 API가 거부해야 하며, 두 disposable tenant의 tenant/user 숫자 0 정리가
+확인되지 않으면 성공으로 판정하지 않습니다.
+
 ## 학생 추가 실패와 재시도
 
 운영 화면의 **학생 추가**는 전체 학생 선택이면 `student_ids`, 미통과 대상자
@@ -46,17 +75,32 @@
 실패한 경우에도 이미 만들어진 세션을 다시 만들도록 유도하지 않고, 실패 사유와
 운영 화면의 **학생 추가** 복구 경로를 안내합니다.
 
+`time_range` 세션에서는 대상자 확정 뒤 학생 앱과 같은 실제 시간 선택기를 한 단계
+더 보여 줍니다. 세션의 운영 시작·종료는 바꾸지 않고 availability 안의 연속 구간만
+`booking_start_time`·`booking_end_time`으로 보냅니다. 여러 명을 한 번에 고르면 모두
+같은 구간을 사용하며 다른 구간은 추가 작업을 나눠야 합니다. 저장된 실제 구간은
+운영 명단에 표시되고 새로고침 뒤에도 서버 응답으로 복원됩니다.
+`time_range` 운영 창은 같은 날 끝나거나 정확히 익일 `00:00`에 끝나야 합니다.
+`23:00–01:00`처럼 자정 이후까지 이어지는 범위는 생성·수정 전에 설명과 함께 차단합니다.
+
 ## 소유 구현과 검증
 
 - 세션 타입·조회·수정: `api/clinicSessions.api.ts`
 - tenant 기본값 조회: `api/clinicSettings.api.ts`
 - 생성·복사·수정 UI: `components/ClinicCreatePanel.tsx`
+- 공용 개설 방식 카드: `src/shared/ui/clinic/ClinicBookingModeChoice.tsx`
 - 저장 전 검토 문구: `components/clinicScheduleConfirmation.ts`
 - 이전 주 복사: `components/PreviousWeekImportModal.tsx`
 - 서버 정책·원자성·동시성: backend `docs/domain/clinic-booking.md`
 - 빈 세션 운영 회귀: `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
+- 달력 학생 관리 실제 API·권한·지속성·cleanup 회귀:
+  `e2e/flows/clinic-roundtrip.spec.ts`
 - 학생 추가 충돌 사유·선택 보존·재시도 회귀:
   `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
+- 시간 범위 공통 구간 payload·명단·reload·desktop/390 회귀:
+  `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
+- 개설 방식 선택·desktop/390px 경계·자유지정 생성 회귀:
+  `e2e/clinic/clinic-booking-modes-visual.mock.spec.ts`
 
 관리자 mock E2E는 기존 clinic weekly spec의 선행 owner merge 뒤 같은 파일에서
 다중 예약 정책을 추가 검증합니다. 현재 기능의 직접 focused 검증은 teacher/student

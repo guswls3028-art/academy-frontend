@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/clinic/api/clinicSessions.api.ts
 import api from "@/shared/api/axios";
 import dayjs from "dayjs";
+import type { ClinicBookingAvailability } from "@/shared/ui/clinic/ClinicActualTimePicker";
 
 export type ClinicSessionTreeNode = {
   id: number;
@@ -216,6 +217,11 @@ export async function fetchClinicSessions(params: {
       booking_interval_minutes: toBookingInterval(row.booking_interval_minutes),
       booking_max_stay_minutes: toNumber(row.booking_max_stay_minutes, 240),
     }));
+}
+
+export async function fetchClinicAvailability(sessionId: number): Promise<ClinicBookingAvailability> {
+  const res = await api.get<ClinicBookingAvailability>(`/clinic/sessions/${sessionId}/availability/`);
+  return res.data;
 }
 
 export type ClinicSessionDetail = {

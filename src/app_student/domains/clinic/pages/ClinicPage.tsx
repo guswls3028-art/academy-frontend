@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { Link } from "react-router";
@@ -27,6 +27,7 @@ import { studentClinicQueryKeys } from "../queryKeys";
 import ClinicBookingCalendar from "../components/ClinicBookingCalendar";
 import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
 import ClinicSelfCancelControl from "../components/ClinicSelfCancelControl";
+import ClinicTimePickerRevealButton from "../components/ClinicTimePickerRevealButton";
 import { resolveClinicSessionSelection } from "../components/clinicSessionSelection";
 import {
   displayTargetText,
@@ -58,6 +59,7 @@ export default function ClinicPage() {
   const [preferredEnd, setPreferredEnd] = useState("");
   const [bookingStart, setBookingStart] = useState("");
   const [bookingEnd, setBookingEnd] = useState("");
+  const pickerHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const {
     data: myRequests = [],
@@ -833,6 +835,9 @@ export default function ClinicPage() {
                             {selectionNotice}
                           </p>
                         )}
+                        {selectedSession?.booking_mode === "time_range" && (
+                          <ClinicTimePickerRevealButton pickerHeadingRef={pickerHeadingRef} />
+                        )}
                         {selectedSessionsInGroup.length > 0 && (
                           <ClinicMultiSlotSelectionPanel
                             selectedSessions={selectedSessionsInGroup}
@@ -855,6 +860,7 @@ export default function ClinicPage() {
                             onBookingEndChange={setBookingEnd}
                             onAvailabilityRetry={() => availabilityQ.refetch()}
                             onSubmit={changingBooking ? submitChange : submitBooking}
+                            pickerHeadingRef={pickerHeadingRef}
                           />
                         )}
                       </div>

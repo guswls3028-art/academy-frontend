@@ -329,6 +329,53 @@ export function developmentUpstream(boundary: ReleaseBoundary, rawUrl: string): 
   return rawUrl;
 }
 
+/**
+ * Execute one read-only negative isolation probe against an existing sibling
+ * qa-* tenant. This intentionally bypasses the browser route guard, whose
+ * normal job is to reject the foreign tenant before network, so the release
+ * canary can prove the real development API denies the same request too.
+ */
+export async function probeDevelopmentCrossTenantDenial({
+  accessToken,
+  participantId,
+  targetTenantCode,
+}: {
+  accessToken: string;
+  participantId: number;
+  targetTenantCode: string;
+}): Promise<number> {
+  const boundary = releaseBoundaryFromEnv(process.env);
+  if (!boundary || boundary.mode !== "development") {
+    throw new Error("Cross-tenant denial probe requires the release development boundary");
+  }
+  if (!/^qa-ymath-realuse-[a-z0-9-]+$/.test(targetTenantCode)
+    || targetTenantCode === boundary.tenantCode) {
+    throw new Error("Cross-tenant denial probe requires a distinct disposable QA tenant");
+  }
+  if (!Number.isInteger(participantId) || participantId < 1 || !accessToken.trim()) {
+    throw new Error("Cross-tenant denial probe requires an exact participant and access token");
+  }
+
+  const target = new URL(`/api/v1/clinic/participants/${participantId}/`, boundary.apiOrigin);
+  if (target.origin !== "http://127.0.0.1:18000") {
+    throw new Error("Cross-tenant denial probe must use the owned loopback development API");
+  }
+  const response = await fetch(target, {
+    method: "GET",
+    redirect: "manual",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "X-Tenant-Code": targetTenantCode,
+    },
+  });
+  const status = response.status;
+  await response.body?.cancel();
+  if (status >= 300 && status < 400) {
+    throw new Error("Cross-tenant denial probe refused an API redirect");
+  }
+  return status;
+}
+
 export async function installReleaseContextGuard(context: BrowserContext, boundary: ReleaseBoundary) {
   const observations = { attempted: 0, accepted: 0 };
   const authentication = { attempted: 0, accepted: 0 };

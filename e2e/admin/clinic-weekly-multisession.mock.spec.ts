@@ -143,6 +143,13 @@ type OperationsState = {
   notificationRetryPayloads?: Array<Record<string, unknown>>;
   participantBulkPayloads?: Array<Record<string, unknown>>;
   participantBulkFailure?: { detail: string; status: number } | null;
+  availabilityBySession?: Record<number, {
+    booking_mode: "fixed_slot" | "time_range";
+    interval_minutes: 30 | 60;
+    max_stay_minutes: number;
+    window: { start_time: string; end_time: string };
+    slots: Array<{ start_time: string; end_time: string; remaining_capacity: number }>;
+  }>;
 };
 
 async function installApi(
@@ -226,6 +233,12 @@ async function installApi(
       return json({ id: sessionId, ...payload });
     }
     if (path === "/clinic/sessions/tree/" && method === "GET") return json(sessionRows);
+    const availabilityMatch = path.match(/^\/clinic\/sessions\/(\d+)\/availability\/$/);
+    if (availabilityMatch && method === "GET") {
+      const sessionId = Number(availabilityMatch[1]);
+      const availability = operationsState?.availabilityBySession?.[sessionId];
+      return availability ? json(availability) : json({ detail: "not found" }, 404);
+    }
     if (path === "/clinic/participants/bulk-create/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       operationsState?.participantBulkPayloads?.push(payload);
@@ -258,6 +271,8 @@ async function installApi(
           status: "booked",
           source: "manual",
           clinic_reason: target?.clinic_reason ?? null,
+          booking_start_time: payload.booking_start_time ?? null,
+          booking_end_time: payload.booking_end_time ?? null,
         };
         operationsState?.participants.push(row);
         return row;
@@ -582,7 +597,50 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   const dialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
   await expect(dialog.getByRole("heading", { name: "클리닉 만들기" })).toBeVisible();
   await expect(dialog).toContainText("현재 3개 시간대가 있습니다.");
+  await dialog.getByRole("button", { name: /시간지정 클리닉/ }).click();
   await expect(dialog.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ })).not.toBeChecked();
+});
+
+test("시간 범위 생성은 일반 익일 종료를 막고 정확한 자정 종료는 허용한다", async ({ page }) => {
+  const state: ScheduleState = { createPayloads: [], updatePayloads: [] };
+  await seed(page);
+  await installApi(page, undefined, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule?create=1&date=${saturday}`, { timeout: 45_000 });
+
+  const dialog = page.getByRole("dialog", { name: "클리닉 만들기" });
+  await dialog.getByRole("button", { name: /자유지정 클리닉/ }).click();
+  await dialog.getByPlaceholder("장소 / 룸").fill("심야 자습실");
+  const timePopover = page.getByRole("dialog", { name: "시간 선택" });
+  await dialog.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
+  await timePopover.getByLabel("분 단위 직접 입력").fill("23:00");
+  await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+  await dialog.getByRole("button", { name: "종료 시간 선택", exact: true }).click();
+  await timePopover.getByLabel("분 단위 직접 입력").fill("01:00");
+  await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+
+  await expect(dialog.getByText("익일 종료는 자정(00:00)까지만 지원합니다. 종료 시간을 같은 날 또는 00:00으로 선택해 주세요.")).toBeVisible();
+  const createButton = dialog.getByRole("button", { name: /클리닉 만들기/ });
+  await expect(createButton).toBeDisabled();
+  expect(state.createPayloads).toHaveLength(0);
+
+  await dialog.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
+  await timePopover.getByLabel("분 단위 직접 입력").fill("18:00");
+  await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+  await dialog.getByRole("button", { name: "종료 시간 선택", exact: true }).click();
+  await timePopover.getByLabel("분 단위 직접 입력").fill("00:00");
+  await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+  await expect(createButton).toBeEnabled();
+  await createButton.click();
+  await page.getByRole("alertdialog", { name: "클리닉 일정 최종 확인" })
+    .getByRole("button", { name: "확인하고 만들기" })
+    .click();
+  await expect.poll(() => state.createPayloads).toHaveLength(1);
+  expect(state.createPayloads[0]).toMatchObject({
+    start_time: "18:00:00",
+    duration_minutes: 360,
+    booking_mode: "time_range",
+  });
 });
 
 test("주간 보드는 0·1·3·8명과 정원 초과를 자르지 않고 한 학생 관리 동선으로 표시한다", async ({ page }) => {
@@ -1116,6 +1174,240 @@ test("운영 화면은 빈 세션 선택을 유지해 첫 학생을 desktop과 3
   await expect(mobileAddButton).toBeVisible();
   await mobileAddButton.click();
   await expect(page.getByRole("dialog", { name: "대상자 선택" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("달력에서 날짜를 고른 뒤 일정별 학생 관리로 추가·해제하고 새로고침 상태를 확인한다", async ({ page }) => {
+  const state: OperationsState = {
+    participants: [],
+    targets: [{
+      enrollment_id: 1202,
+      student_id: 502,
+      student_name: "달력진입 학생",
+      session_title: "과학 2차시",
+      clinic_reason: "homework",
+      reason: "missing",
+      clinic_link_id: 8802,
+      session_id: 3102,
+      source_type: "homework",
+      source_id: 4102,
+      created_at: "2026-08-29T10:00:00+09:00",
+    }],
+    participantBulkPayloads: [],
+    statusPayloads: [],
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/operations?scope=day&date=${saturday}&session=701`,
+    { timeout: 45_000 },
+  );
+
+  const calendar = page.locator(".clinic-operations-shell__sidebar")
+    .getByRole("grid", { name: /클리닉 월간 달력/ });
+  const selectedDate = calendar.getByRole("gridcell", { name: /8월 29일 토요일/ });
+  await selectedDate.click();
+  await expect(page).toHaveURL(new RegExp(`scope=day&date=${saturday}$`));
+
+  const assignmentRegion = page.getByRole("region", { name: "배정 학생 관리" });
+  await expect(assignmentRegion).toContainText("3개 일정 · 배정 0명");
+  const manageButton = assignmentRegion.getByRole("button", {
+    name: "17:00 토요일 5시 클리닉 학생 관리, 0명 배정",
+  });
+  await expect(manageButton).toBeVisible();
+  expect((await manageButton.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(await assignmentRegion.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-calendar-student-manage-1366.png", fullPage: false });
+  await manageButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(new RegExp(`date=${saturday}&session=702$`));
+
+  await page.getByRole("button", { name: "학생 추가하기", exact: true }).click();
+  const targetDialog = page.getByRole("dialog", { name: "대상자 선택" });
+  await targetDialog.getByRole("checkbox", { name: "달력진입 학생 선택" }).check();
+  await targetDialog.getByRole("button", { name: "선택 확정 (1명)" }).click();
+  await expect.poll(() => state.participantBulkPayloads?.[0]).toEqual({
+    session_ids: [702],
+    enrollment_ids: [1202],
+  });
+  await expect(page.locator(".clinic-ops__card").filter({ hasText: "달력진입 학생" })).toBeVisible();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator(".clinic-ops__card").filter({ hasText: "달력진입 학생" })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${BASE}/workspace/clinic/operations?scope=day&date=${saturday}`, {
+    waitUntil: "domcontentloaded",
+  });
+  const mobileAssignmentRegion = page.getByRole("region", { name: "배정 학생 관리" });
+  await expect(mobileAssignmentRegion).toContainText("3개 일정 · 배정 1명");
+  const mobileManageButton = mobileAssignmentRegion.getByRole("button", {
+    name: "17:00 토요일 5시 클리닉 학생 관리, 1명 배정",
+  });
+  await expect(mobileManageButton).toBeVisible();
+  expect((await mobileManageButton.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(await mobileAssignmentRegion.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-calendar-student-manage-390.png", fullPage: false });
+  await mobileManageButton.press("Enter");
+  await page.getByRole("button", { name: "달력진입 학생 학생 작업대 열기" }).click();
+  const workbench = page.getByRole("dialog", { name: "달력진입 학생 클리닉 워크벤치" });
+  await workbench.getByRole("button", { name: "명단에서 빼기", exact: true }).click();
+  const confirmation = page.getByRole("alertdialog", { name: "클리닉 명단에서 빼기" });
+  await confirmation.getByRole("button", { name: "명단에서 빼기", exact: true }).click();
+  await expect.poll(() => state.statusPayloads?.[0]).toEqual({
+    id: 9900,
+    status: "cancelled",
+    send_to: "parent",
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator(".clinic-ops__card").filter({ hasText: "달력진입 학생" })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("시간 범위 클리닉은 관리자 다중 추가에 한 실제 구간을 적용하고 새로고침 뒤 명단에 유지한다", async ({ page }) => {
+  const rangeSession = {
+    ...sessions.find((session) => session.id === 702)!,
+    title: "토요일 자유 운영 클리닉",
+    start_time: "09:00:00",
+    duration_minutes: 480,
+    max_participants: 2,
+    booking_mode: "time_range" as const,
+    booking_interval_minutes: 30 as const,
+    booking_max_stay_minutes: 180,
+  };
+  const state: OperationsState = {
+    participants: [],
+    targets: [
+      {
+        enrollment_id: 1301,
+        student_id: 601,
+        student_name: "공통구간 학생A",
+        clinic_reason: "exam",
+        reason: "score",
+        clinic_link_id: 8901,
+        session_id: 3201,
+        source_type: "exam",
+        source_id: 4201,
+        created_at: "2026-08-29T10:00:00+09:00",
+      },
+      {
+        enrollment_id: 1302,
+        student_id: 602,
+        student_name: "공통구간 학생B",
+        clinic_reason: "homework",
+        reason: "missing",
+        clinic_link_id: 8902,
+        session_id: 3202,
+        source_type: "homework",
+        source_id: 4202,
+        created_at: "2026-08-29T10:00:00+09:00",
+      },
+    ],
+    participantBulkPayloads: [],
+    availabilityBySession: {
+      702: {
+        booking_mode: "time_range",
+        interval_minutes: 30,
+        max_stay_minutes: 180,
+        window: { start_time: "09:00", end_time: "17:00" },
+        slots: [
+          { start_time: "09:00", end_time: "09:30", remaining_capacity: 2 },
+          { start_time: "09:30", end_time: "10:00", remaining_capacity: 2 },
+          { start_time: "10:00", end_time: "10:30", remaining_capacity: 2 },
+          { start_time: "10:30", end_time: "11:00", remaining_capacity: 2 },
+          { start_time: "11:00", end_time: "11:30", remaining_capacity: 2 },
+          { start_time: "11:30", end_time: "12:00", remaining_capacity: 1 },
+        ],
+      },
+    },
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state, {
+    createPayloads: [],
+    updatePayloads: [],
+    sessions: sessions.map((session) => session.id === 702 ? rangeSession : session),
+  });
+  const mobilePage = await page.context().newPage();
+  const mobileState: OperationsState = {
+    ...state,
+    participants: [],
+    targets: state.targets?.map((target) => ({ ...target })) ?? [],
+    participantBulkPayloads: [],
+  };
+  await seed(mobilePage);
+  await installApi(mobilePage, undefined, mobileState, {
+    createPayloads: [],
+    updatePayloads: [],
+    sessions: sessions.map((session) => session.id === 702 ? rangeSession : session),
+  });
+  await mobilePage.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(
+    mobilePage,
+    `${BASE}/workspace/clinic/operations?scope=day&date=${saturday}&session=702`,
+    { timeout: 45_000 },
+  );
+  await mobilePage.getByRole("button", { name: "학생 추가하기", exact: true }).click();
+  const mobileTargets = mobilePage.getByRole("dialog", { name: "대상자 선택" });
+  await mobileTargets.getByRole("checkbox", { name: "공통구간 학생A 선택" }).check();
+  await mobileTargets.getByRole("checkbox", { name: "공통구간 학생B 선택" }).check();
+  await mobileTargets.getByRole("button", { name: "선택 확정 (2명)" }).click();
+  const mobileTimeDialog = mobilePage.getByRole("dialog", { name: "실제 예약 시간 선택" });
+  await expect(mobileTimeDialog).toBeVisible();
+  expect(await mobileTimeDialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await mobileTimeDialog.getByRole("region", { name: "실제 예약 시간" })
+    .evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await expect(mobileTimeDialog.getByRole("button", { name: "10:00 시작, 잔여 2자리" })).toBeVisible();
+  await mobilePage.close();
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/operations?scope=day&date=${saturday}&session=702`,
+    { timeout: 45_000 },
+  );
+
+  const addButton = page.getByRole("button", { name: "학생 추가하기", exact: true });
+  await expect(addButton).toBeVisible({ timeout: 30_000 });
+  await addButton.click();
+  const targetDialog = page.getByRole("dialog", { name: "대상자 선택" });
+  await targetDialog.getByRole("checkbox", { name: "공통구간 학생A 선택" }).check();
+  await targetDialog.getByRole("checkbox", { name: "공통구간 학생B 선택" }).check();
+  await targetDialog.getByRole("button", { name: "선택 확정 (2명)" }).click();
+
+  const timeDialog = page.getByRole("dialog", { name: "실제 예약 시간 선택" });
+  await expect(timeDialog.getByText("09:00–17:00", { exact: true })).toBeVisible();
+  const startTimeButton = timeDialog.getByRole("button", { name: "10:00 시작, 잔여 2자리" });
+  await startTimeButton.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  expect(await startTimeButton.evaluate((element) => ({
+    outlineStyle: getComputedStyle(element).outlineStyle,
+    outlineWidth: getComputedStyle(element).outlineWidth,
+  }))).toEqual({ outlineStyle: "solid", outlineWidth: "3px" });
+  await startTimeButton.click();
+  await expect(timeDialog.getByRole("button", { name: "12:00 종료, 2명 선택에는 구간 잔여가 부족" })).toBeDisabled();
+  await expect(timeDialog).toContainText("2명 선택에는 부족");
+  await timeDialog.getByRole("button", { name: "11:30 종료, 총 1시간 30분" }).click();
+  await expect(timeDialog).toContainText("2명에게 같은 10:00–11:30 구간을 적용합니다.");
+  await timeDialog.getByRole("button", { name: "이 시간으로 2명 추가" }).click();
+
+  await expect.poll(() => state.participantBulkPayloads?.[0]).toEqual({
+    session_ids: [702],
+    enrollment_ids: [1301, 1302],
+    booking_start_time: "10:00",
+    booking_end_time: "11:30",
+  });
+  await expect(page.getByText("예약 10:00–11:30")).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("예약 10:00–11:30")).toHaveCount(2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("예약 10:00–11:30")).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

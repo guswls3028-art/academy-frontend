@@ -155,6 +155,13 @@
   background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
   cursor: pointer;
 }
+
+.clinic-create__time-error {
+  margin: 6px 0 0;
+  color: var(--color-danger);
+  font-size: 12px;
+  font-weight: 700;
+}
 .clinic-create__time-preference input {
   width: 16px;
   height: 16px;

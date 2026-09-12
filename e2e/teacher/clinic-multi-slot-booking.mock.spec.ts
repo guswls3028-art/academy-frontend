@@ -17,6 +17,7 @@ test.use({
 });
 
 test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에 원자적으로 추가한다", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const date = "2026-09-05";
   const sessions = [
     {
@@ -75,6 +76,23 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       is_full: false,
       allow_multi_slot_booking: true,
     },
+    {
+      id: 706,
+      title: "자유 운영 클리닉",
+      date,
+      start_time: "09:00:00",
+      end_time: "17:00:00",
+      duration_minutes: 480,
+      location: "클리닉 2실",
+      participant_count: 0,
+      booked_count: 0,
+      max_participants: 2,
+      is_full: false,
+      allow_multi_slot_booking: false,
+      booking_mode: "time_range",
+      booking_interval_minutes: 30,
+      booking_max_stay_minutes: 180,
+    },
   ];
   const students = [
     { id: 801, name: "김학생", grade: 2, school: "가람중", is_managed: true },
@@ -90,6 +108,8 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       status: "booked",
       preferred_start_time: "17:15:00",
       preferred_end_time: "17:45:00",
+      booking_start_time: "17:00:00",
+      booking_end_time: "18:00:00",
       student_request_memo: "오답 정리 뒤 참여",
     }]],
     [702, []],
@@ -98,6 +118,11 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   ]);
   const bulkPayloads: unknown[] = [];
   const createdSessionPayloads: unknown[] = [];
+  let retrySearchRequests = 0;
+  let releaseStudents: (() => void) | undefined;
+  const studentsGate = new Promise<void>((resolve) => {
+    releaseStudents = resolve;
+  });
   let releaseSettings: (() => void) | undefined;
   const settingsGate = new Promise<void>((resolve) => {
     releaseSettings = resolve;
@@ -152,7 +177,30 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       createdSessionPayloads.push(payload);
       return json({ id: 704, ...payload }, 201);
     }
+    if (path === "/clinic/sessions/706/availability/" && request.method() === "GET") {
+      return json({
+        booking_mode: "time_range",
+        interval_minutes: 30,
+        max_stay_minutes: 180,
+        window: { start_time: "09:00", end_time: "17:00" },
+        slots: [
+          { start_time: "10:00", end_time: "10:30", remaining_capacity: 2 },
+          { start_time: "10:30", end_time: "11:00", remaining_capacity: 2 },
+          { start_time: "11:00", end_time: "11:30", remaining_capacity: 1 },
+        ],
+      });
+    }
     if (path === "/students/" && request.method() === "GET") {
+      if (!url.searchParams.get("search")) await studentsGate;
+      if (url.searchParams.get("search") === "retry") {
+        retrySearchRequests += 1;
+        if (retrySearchRequests <= 3) {
+          return json({ detail: "temporary failure" }, 503);
+        }
+      }
+      if (url.searchParams.get("search") === "missing") {
+        return json({ count: 0, results: [] });
+      }
       return json({ count: students.length, results: students });
     }
     if (path === "/clinic/participants/" && request.method() === "GET") {
@@ -161,7 +209,12 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       return json({ count: rows.length, results: rows });
     }
     if (path === "/clinic/participants/bulk-create/" && request.method() === "POST") {
-      const payload = request.postDataJSON() as { session_ids: number[]; student_ids: number[] };
+      const payload = request.postDataJSON() as {
+        session_ids: number[];
+        student_ids: number[];
+        booking_start_time?: string;
+        booking_end_time?: string;
+      };
       bulkPayloads.push(payload);
       const created = payload.student_ids.flatMap((studentId) => payload.session_ids.map((sessionId) => {
         const student = students.find((item) => item.id === studentId)!;
@@ -171,6 +224,8 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
           student: studentId,
           student_name: student.name,
           status: "booked",
+          booking_start_time: payload.booking_start_time ?? null,
+          booking_end_time: payload.booking_end_time ?? null,
         };
         participants.set(sessionId, [...(participants.get(sessionId) ?? []), row]);
         return row;
@@ -188,10 +243,20 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await expect(firstSessionButton).toBeVisible({ timeout: 30_000 });
   await firstSessionButton.click();
   await expect(page.getByText("희망 17:15–17:45")).toBeVisible();
+  await expect(page.getByText("예약 17:00–18:00")).toBeVisible();
   await expect(page.getByText("오답 정리 뒤 참여")).toBeVisible();
-  await page.getByRole("button", { name: "학생 추가" }).click();
+  const addStudentTrigger = page.getByRole("button", { name: "학생 추가" });
+  await addStudentTrigger.click();
 
   const sheet = page.getByRole("dialog", { name: "학생 추가" });
+  await expect(sheet.getByPlaceholder("학생 이름/전화 검색")).toBeFocused();
+  await expect(sheet.getByText("학생 목록을 불러오는 중...")).toBeVisible();
+  releaseStudents?.();
+  await expect(sheet.getByRole("button", { name: /김학생/ })).toBeVisible();
+  expect(await sheet.evaluate((element) => ({
+    animationName: getComputedStyle(element).animationName,
+    transform: getComputedStyle(element).transform,
+  }))).toEqual({ animationName: "none", transform: "none" });
   const backdrop = sheet.locator("xpath=preceding-sibling::div[1]");
   const mobileSheetBox = await sheet.boundingBox();
   const mobileBackdropBox = await backdrop.boundingBox();
@@ -205,6 +270,23 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await expect(page.getByText("이어진 시간대만 함께 선택할 수 있습니다.")).toBeVisible();
   await sheet.getByRole("button", { name: /18:00–19:00/ }).click();
   await expect(sheet.getByRole("region", { name: "선택한 클리닉 시간" })).toContainText("17:00–19:00");
+  await sheet.getByRole("button", { name: /김학생/ }).click();
+  await sheet.getByPlaceholder("학생 이름/전화 검색").fill("retry");
+  await expect.poll(() => retrySearchRequests).toBe(3);
+  await expect(sheet.getByText("학생 목록을 불러오지 못했습니다")).toBeVisible();
+  await expect(sheet.getByText("추가 가능한 학생이 없습니다")).toHaveCount(0);
+  await expect(sheet.getByRole("button", { name: "1명을 2개 시간대에 추가" })).toBeVisible();
+  await sheet.getByRole("button", { name: "다시 시도" }).click();
+  await expect.poll(() => retrySearchRequests).toBe(4);
+  await expect(sheet.getByRole("button", { name: /김학생/ })).toBeVisible();
+  await expect(sheet.getByRole("region", { name: "선택한 클리닉 시간" })).toContainText("17:00–19:00");
+  await expect(sheet.getByRole("button", { name: "1명을 2개 시간대에 추가" })).toBeVisible();
+  await sheet.getByRole("button", { name: /김학생/ }).click();
+  await sheet.getByPlaceholder("학생 이름/전화 검색").fill("missing");
+  await expect(sheet.getByText("검색 결과 없음")).toBeVisible();
+  await expect(sheet.getByText("학생 목록을 불러오지 못했습니다")).toHaveCount(0);
+  await sheet.getByPlaceholder("학생 이름/전화 검색").fill("");
+  await expect(sheet.getByRole("button", { name: /김학생/ })).toBeVisible();
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.screenshot({ path: "test-results/teacher-clinic-multi-slot-390.png", fullPage: true });
 
@@ -230,8 +312,18 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await page.screenshot({ path: "test-results/teacher-clinic-multi-slot-1100.png", fullPage: true });
 
   await backdrop.click({ position: { x: 12, y: 12 } });
+  await expect(sheet).toBeVisible();
+  const closeButton = sheet.getByRole("button", { name: "닫기" });
+  await closeButton.focus();
+  await page.keyboard.press("Shift+Tab");
+  expect(await sheet.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await expect(closeButton).not.toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(closeButton).toBeFocused();
+  await page.keyboard.press("Escape");
   await expect(sheet).toHaveCount(0);
-  await page.getByRole("button", { name: "학생 추가" }).click();
+  await expect(addStudentTrigger).toBeFocused();
+  await addStudentTrigger.click();
   const reopenedSheet = page.getByRole("dialog", { name: "학생 추가" });
   await reopenedSheet.getByRole("button", { name: /18:00–19:00/ }).click();
 
@@ -252,18 +344,70 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await expect(page.getByText("이학생", { exact: true })).toBeVisible();
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 
+  await page.setViewportSize({ width: 390, height: 844 });
+  const freeTimeSessionButton = page.getByRole("button", { name: /자유 운영 클리닉/ });
+  await expect(freeTimeSessionButton).toContainText("운영 09:00–17:00");
+  await freeTimeSessionButton.click();
+  await page.getByRole("button", { name: "학생 추가" }).click();
+  const rangeSheet = page.getByRole("dialog", { name: "학생 추가" });
+  await expect(rangeSheet.getByRole("heading", { name: "실제 이용 시간 선택" })).toBeVisible();
+  await expect(rangeSheet.getByText("운영 시간", { exact: true }).first()).toBeVisible();
+  await expect(rangeSheet.getByText("추가할 시간대", { exact: true })).toHaveCount(0);
+  await expect(rangeSheet.getByText(/한 타임|개 시간대/)).toHaveCount(0);
+  await rangeSheet.getByRole("button", { name: /김학생/ }).click();
+  await rangeSheet.getByRole("button", { name: /이학생/ }).click();
+  const rangeStartButton = rangeSheet.getByRole("button", { name: "10:00 시작, 잔여 2자리" });
+  await rangeStartButton.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  expect(await rangeStartButton.evaluate((element) => ({
+    outlineStyle: getComputedStyle(element).outlineStyle,
+    outlineWidth: getComputedStyle(element).outlineWidth,
+  }))).toEqual({ outlineStyle: "solid", outlineWidth: "3px" });
+  await rangeStartButton.click();
+  await expect(rangeSheet.getByRole("button", { name: "11:30 종료, 2명 선택에는 구간 잔여가 부족" })).toBeDisabled();
+  await expect(rangeSheet).toContainText("2명 선택에는 부족");
+  await rangeSheet.getByRole("button", { name: "11:00 종료, 총 1시간" }).click();
+  await rangeSheet.getByRole("button", { name: "2명 추가" }).click();
+  await expect.poll(() => bulkPayloads[1]).toEqual({
+    session_ids: [706],
+    student_ids: [801, 802],
+    booking_start_time: "10:00",
+    booking_end_time: "11:00",
+  });
+  await expect(page.getByText("예약 10:00–11:00")).toHaveCount(2);
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await page.getByRole("button", { name: /자유 운영 클리닉/ }).click();
+  await expect(page.getByText("예약 10:00–11:00")).toHaveCount(2);
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+
   await page.getByRole("button", { name: "클리닉 만들기" }).click();
   const createSheet = page.getByRole("dialog", { name: "클리닉 만들기" });
-  const multiSlotToggle = createSheet.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
-  const timePreferenceToggle = createSheet.getByRole("checkbox", { name: /학생 희망 시간 받기/ });
-  const bookingMode = createSheet.getByLabel("예약 방식");
+  await createSheet.getByRole("button", { name: /시간지정 클리닉/ }).click();
+  let multiSlotToggle = createSheet.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
+  let timePreferenceToggle = createSheet.getByRole("checkbox", { name: /학생 희망 시간 받기/ });
   await expect(multiSlotToggle).not.toBeChecked();
   await expect(timePreferenceToggle).not.toBeChecked();
   await timePreferenceToggle.check();
-  await bookingMode.selectOption("time_range");
+  await createSheet.getByRole("button", { name: "방식 다시 선택" }).click();
+  await createSheet.getByRole("button", { name: /자유지정 클리닉/ }).click();
   await expect(createSheet.getByText("학생이 예약 가능한 실제 시작·종료 시간을 직접 선택합니다.")).toBeVisible();
   await expect(timePreferenceToggle).toHaveCount(0);
-  await bookingMode.selectOption("fixed_slot");
+  const timeInputs = createSheet.locator('input[type="time"]');
+  await timeInputs.first().fill("23:00");
+  await timeInputs.nth(1).fill("01:00");
+  await createSheet.getByPlaceholder("예: 3층 자습실").fill("심야 자습실");
+  await expect(createSheet.getByText("익일 종료는 자정(00:00)까지만 지원합니다. 종료 시간을 같은 날 또는 00:00으로 선택해 주세요.")).toBeVisible();
+  await expect(createSheet.getByRole("button", { name: "생성", exact: true })).toBeDisabled();
+  await timeInputs.first().fill("18:00");
+  await timeInputs.nth(1).fill("00:00");
+  await expect(createSheet.getByRole("button", { name: "생성", exact: true })).toBeEnabled();
+  await createSheet.getByRole("button", { name: "방식 다시 선택" }).click();
+  await createSheet.getByRole("button", { name: /시간지정 클리닉/ }).click();
+  multiSlotToggle = createSheet.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
+  timePreferenceToggle = createSheet.getByRole("checkbox", { name: /학생 희망 시간 받기/ });
   await expect(timePreferenceToggle).not.toBeChecked();
   await multiSlotToggle.check();
   await timePreferenceToggle.check();
