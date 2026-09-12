@@ -1,8 +1,8 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/lectures/pages/SessionDetailPage.tsx
 // 차시 상세 — 탭 구조: 학생 + 출석 + 성적 + 시험 + 과제 + 영상 (+ 클리닉 if section_mode)
-import { useState, type ReactNode } from "react";
-import { useParams, useNavigate } from "react-router";
+import { type ReactNode } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
@@ -27,6 +27,10 @@ import { fetchHomeworks } from "@teacher/domains/exams/api";
 import { fetchSessionClinicLinks, type ClinicLinkRow } from "@teacher/domains/clinic/api";
 import { formatSessionLabel } from "@/shared/product/sessions/sessionOrdering";
 import { teacherLectureQueryKeys } from "../queryKeys";
+import { fetchSessionScores } from "@/shared/api/contracts/sessionScores";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import SessionAssessmentOverview from "../components/SessionAssessmentOverview";
+import assessmentStyles from "../components/SessionAssessmentOverview.module.css";
 
 type Tab = "students" | "attendance" | "scores" | "exams" | "homeworks" | "videos" | "clinic";
 
@@ -50,7 +54,15 @@ export default function SessionDetailPage() {
   const sid = Number(sessionId);
   const validSessionId = Number.isInteger(sid) && sid > 0;
   const { sectionMode } = useSectionMode();
-  const [tab, setTab] = useState<Tab>("students");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const tab: Tab = ["students", "attendance", "scores", "exams", "homeworks", "videos", ...(sectionMode ? ["clinic"] : [])].includes(requestedTab ?? "")
+    ? requestedTab as Tab : "students";
+  const setTab = (nextTab: Tab) => setSearchParams((previous) => {
+    const next = new URLSearchParams(previous);
+    next.set("tab", nextTab);
+    return next;
+  }, { replace: true });
 
   const sessionQ = useQuery({
     queryKey: teacherLectureQueryKeys.sessionDetail(sid),
@@ -75,8 +87,26 @@ export default function SessionDetailPage() {
   const examsQ = useQuery({
     queryKey: teacherLectureQueryKeys.sessionExamsDetail(sid),
     queryFn: () => fetchSessionExams(sid),
-    enabled: validSessionId && (tab === "scores" || tab === "exams"),
+    enabled: validSessionId && tab === "exams",
   });
+
+  const scoresQ = useQuery({
+    queryKey: scoresQueryKeys.sessionScores(sid),
+    queryFn: () => fetchSessionScores(sid),
+    enabled: validSessionId && tab === "scores",
+  });
+  const scoreExams = scoresQ.data?.meta.exams.map((exam) => ({ ...exam, id: exam.exam_id })) ?? [];
+  const requestedExam = Number(searchParams.get("exam"));
+  const selectedExam = scoreExams.find((exam) => exam.id === requestedExam)?.id ?? scoreExams[0]?.id ?? null;
+  const examView = searchParams.get("scoresView") === "exams";
+  const setScoreSelection = (view: "all" | "exams", exam = selectedExam) => setSearchParams((previous) => {
+    const next = new URLSearchParams(previous);
+    next.set("tab", "scores");
+    next.set("scoresView", view);
+    if (exam != null) next.set("exam", String(exam));
+    else next.delete("exam");
+    return next;
+  }, { replace: true });
 
   const homeworksQ = useQuery({
     queryKey: teacherLectureQueryKeys.sessionHomeworks(sid),
@@ -164,7 +194,7 @@ export default function SessionDetailPage() {
         <ActionBtn
           label="성적 입력"
           color="var(--tc-primary)"
-          onClick={() => navigate(`/workspace/mobile/scores/${sessionId}`)}
+          onClick={() => navigate(`/workspace/mobile/scores/${sessionId}${tab === "scores" && selectedExam != null ? `?exam=${selectedExam}` : ""}`)}
         />
       </div>
 
@@ -186,6 +216,7 @@ export default function SessionDetailPage() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
+            aria-pressed={tab === t.key}
             className="shrink-0 text-[13px] cursor-pointer"
             style={{
               padding: "12px 14px",
@@ -220,7 +251,19 @@ export default function SessionDetailPage() {
         </QueryBoundary>
       )}
       {tab === "attendance" && <QueryBoundary loading={attendanceQ.isLoading} failed={attendanceQ.isError} onRetry={() => void attendanceQ.refetch()}><AttendanceTab attendances={attendanceQ.data ?? []} lectureInfo={sessionLectureInfo} navigate={navigate} sessionId={sid} /></QueryBoundary>}
-      {tab === "scores" && <QueryBoundary loading={examsQ.isLoading} failed={examsQ.isError} onRetry={() => void examsQ.refetch()}><ScoresTab exams={examsQ.data ?? []} sessionId={sid} lectureInfo={sessionLectureInfo} navigate={navigate} lecturePath={lecturePath} /></QueryBoundary>}
+      {tab === "scores" && (
+        <QueryBoundary loading={scoresQ.isLoading} failed={scoresQ.isError} onRetry={() => void scoresQ.refetch()}>
+          <div className={assessmentStyles.workspace}>
+            <div className={assessmentStyles.viewSwitch} role="group" aria-label="성적 조회 방식">
+              <button type="button" aria-pressed={!examView} onClick={() => setScoreSelection("all")}>종합 조회</button>
+              <button type="button" aria-pressed={examView} onClick={() => setScoreSelection("exams")}>시험별 조회</button>
+            </div>
+            {examView ? (
+              <ScoresTab exams={scoreExams} sessionId={sid} selectedExam={selectedExam} onSelectExam={(exam) => setScoreSelection("exams", exam)} lectureInfo={sessionLectureInfo} navigate={navigate} lecturePath={lecturePath} />
+            ) : scoresQ.data ? <SessionAssessmentOverview scores={scoresQ.data} lecturePath={lecturePath} /> : null}
+          </div>
+        </QueryBoundary>
+      )}
       {tab === "exams" && <QueryBoundary loading={examsQ.isLoading} failed={examsQ.isError} onRetry={() => void examsQ.refetch()}><ExamsTab exams={examsQ.data ?? []} navigate={navigate} lecturePath={lecturePath} /></QueryBoundary>}
       {tab === "homeworks" && <QueryBoundary loading={homeworksQ.isLoading} failed={homeworksQ.isError} onRetry={() => void homeworksQ.refetch()}><HomeworksTab homeworks={homeworksQ.data ?? []} navigate={navigate} lecturePath={lecturePath} /></QueryBoundary>}
       {tab === "videos" && <QueryBoundary loading={videosQ.isLoading} failed={videosQ.isError} onRetry={() => void videosQ.refetch()}><VideosTab videos={videosQ.data ?? []} navigate={navigate} /></QueryBoundary>}
@@ -648,8 +691,9 @@ function ScoresTab({
   lectureInfo,
   navigate,
   lecturePath,
-}: { exams: any[]; sessionId: number; lectureInfo?: LectureInfo; navigate: any; lecturePath: string }) {
-  const [selectedExam, setSelectedExam] = useState<number | null>(null);
+  selectedExam,
+  onSelectExam,
+}: { exams: any[]; sessionId: number; lectureInfo?: LectureInfo; navigate: any; lecturePath: string; selectedExam: number | null; onSelectExam: (exam: number) => void }) {
 
   const resultsQ = useQuery({
     queryKey: teacherLectureQueryKeys.examResultsSession(selectedExam),
@@ -677,12 +721,13 @@ function ScoresTab({
   return (
     <div className="flex flex-col gap-3">
       {/* Exam selector */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className={assessmentStyles.examSelector} aria-label="시험 선택">
         {exams.map((e: any) => (
           <button
             key={e.id}
-            onClick={() => setSelectedExam(e.id)}
-            className="shrink-0 text-[12px] font-semibold px-3 py-1.5 rounded-full cursor-pointer"
+            onClick={() => onSelectExam(e.id)}
+            aria-pressed={selectedExam === e.id}
+            className={assessmentStyles.examOption}
             style={{
               border: selectedExam === e.id ? "2px solid var(--tc-primary)" : "1px solid var(--tc-border)",
               background: selectedExam === e.id ? "var(--tc-primary-bg)" : "var(--tc-surface)",
@@ -695,6 +740,9 @@ function ScoresTab({
       </div>
 
       {/* Results */}
+      {exams.find((exam: any) => exam.id === selectedExam)?.pass_score > 0 && (
+        <p className={assessmentStyles.hint}>통과 기준 {exams.find((exam: any) => exam.id === selectedExam).pass_score}점 · 판정은 저장된 결과를 표시합니다.</p>
+      )}
       {selectedExam == null ? (
         <div className="text-sm text-center py-4" style={{ color: "var(--tc-text-muted)" }}>
           시험을 선택하세요
@@ -746,7 +794,7 @@ function ScoresTab({
               })}
             </div>
             <button
-              onClick={() => navigate(`/workspace/mobile/scores/${sessionId}`)}
+              onClick={() => navigate(`/workspace/mobile/scores/${sessionId}?exam=${selectedExam}`)}
               className="text-[13px] font-semibold py-2.5 rounded-xl cursor-pointer"
               style={{
                 background: "var(--tc-primary)",
@@ -764,7 +812,7 @@ function ScoresTab({
             title="결과가 없습니다"
             description="아직 입력된 점수가 없습니다. 점수 입력 화면에서 학생별 점수를 저장하세요."
             actions={
-              <EmptyActionButton onClick={() => navigate(`/workspace/mobile/scores/${sessionId}`)}>
+              <EmptyActionButton onClick={() => navigate(`/workspace/mobile/scores/${sessionId}?exam=${selectedExam}`)}>
                 점수 입력
               </EmptyActionButton>
             }
