@@ -138,7 +138,12 @@ test.describe.serial("[real-use] 학생/학부모 계정과 복구", () => {
     await page.getByRole("button", { name: "편집", exact: true }).click();
     await expect(page.getByText("학부모 계정 연결을 바꾸려면 학원에 요청해 주세요.")).toBeVisible();
     await expect(page.getByLabel("학부모 전화번호 앞 4자리")).toHaveCount(0);
-    await page.getByRole("button", { name: "취소", exact: true }).click();
+    // The profile editor offers the same cancel action at its header and footer.
+    const cancelProfileEdit = page.getByRole("button", { name: "취소", exact: true });
+    await expect(cancelProfileEdit).toHaveCount(2);
+    await cancelProfileEdit.first().click();
+    await expect(page.getByRole("button", { name: "편집", exact: true })).toBeVisible();
+    await expect(cancelProfileEdit).toHaveCount(0);
     await reloadStudentApp(page);
     await expect(page.getByText(student.name, { exact: true }).first()).toBeVisible();
 
