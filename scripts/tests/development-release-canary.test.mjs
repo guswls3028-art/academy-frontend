@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { EventEmitter } from "node:events";
 import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 import * as runner from "../run-development-release-canary.mjs";
+import "./release-video-scope.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
@@ -448,6 +449,7 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     realUseObservation: null,
     realUseProcessObservation: null,
     videoRuntimeObservation: null,
+    postPlaybackInspectObservation: null,
     preflightStage: "process",
     preflightChecks: { bundle: false, governance: false, iam: false, document: false, host: false, ssm: false },
     terminalOutcome: "preflight_running",
@@ -1217,6 +1219,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     { ...setup, synthetic_long_video: { ...setup.synthetic_long_video, duration_seconds: 899 } },
     { ...setup, synthetic_long_video: { ...setup.synthetic_long_video, hls_path: "foreign/master.m3u8" } },
     { ...setup, synthetic_long_video: { ...setup.synthetic_long_video, video_accesses: 1 } },
+    { ...setup, synthetic_long_video: { ...setup.synthetic_long_video, video_id: Number.MAX_SAFE_INTEGER + 1 } },
   ]) assert.throws(() => runner.assertLongVideoSetup(invalid));
 
   const runtime = {

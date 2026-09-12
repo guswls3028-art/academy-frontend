@@ -318,6 +318,19 @@
   max-width: 560px;
 }
 
+/* Signup keeps a white card even when the surrounding login theme is dark. */
+.overlayCardWide .overlayTitle,
+.overlayCardWide .signupStatusSuccess,
+.overlayCardWide .signupStatusSuccessSpaced {
+  color: inherit;
+}
+
+.overlayCardWide .signupBtnSubmit {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
+    var(--auth-gradient, linear-gradient(135deg, #2563EB, #10B981));
+}
+
 .overlayClose {
   position: absolute;
   top: 14px;
