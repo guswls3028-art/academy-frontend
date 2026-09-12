@@ -136,6 +136,100 @@
   text-align: center;
 }
 
+.qna-inbox__file-section {
+  margin-top: var(--space-3, 12px);
+}
+
+.qna-inbox__file-heading {
+  margin-bottom: 6px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.qna-inbox__file-list {
+  display: grid;
+  gap: 8px;
+}
+
+.qna-inbox__file-card {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: var(--space-3, 12px);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.qna-inbox__file-card:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.qna-inbox__file-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.qna-inbox__file-card:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.qna-inbox__file-ext {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--color-primary) 88%, #1d4ed8);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.qna-inbox__file-info {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.qna-inbox__file-info strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qna-inbox__file-info span {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qna-inbox__file-action {
+  flex: 0 0 auto;
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .qna-inbox__image-viewer {
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider));

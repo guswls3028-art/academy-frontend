@@ -14,6 +14,7 @@ import {
   fetchCommunityQuestions,
   fetchPost,
   deletePost,
+  getAttachmentDownloadUrl,
   fetchPostAuthorContext,
   type PostAttachment,
   type Question,
@@ -25,6 +26,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useOperationalNotificationCounts } from "@/shared/hooks/useOperationalNotificationCounts";
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import type { OperationalNotificationCountsResult } from "@/shared/api/contracts/notifications";
+import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import PostReadView from "../components/PostReadView";
 import PostThreadView from "../components/PostThreadView";
 import PostHistoryTimeline from "../components/PostHistoryTimeline";
@@ -34,6 +36,7 @@ import { adminCommunityQueryKeys } from "../queryKeys";
 import {
   communityAuthorContextQueryKey,
   normalizeStudentName,
+  formatFileSize,
   timeAgo,
   toLectureChips,
 } from "../utils/communityHelpers";
@@ -370,10 +373,13 @@ function ThreadView({
 
   const deletePostMut = useMutation({
     mutationFn: () => deletePost(postId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.questions });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.adminNotificationCounts });
-      feedback.success("질문이 삭제되었습니다.");
+      const cleanupNotice = getCommunityStorageCleanupNotice(result);
+      if (cleanupNotice) feedback.warning(cleanupNotice);
+      else feedback.success("질문이 삭제되었습니다.");
       onDelete();
     },
     onError: (e: unknown) => {
@@ -424,6 +430,10 @@ function ThreadView({
       (attachment.content_type || "").startsWith("image/") && Boolean(attachment.download_url)
     ),
   );
+  const fileAttachments = (post.attachments ?? []).filter(
+    (attachment) => !(attachment.content_type || "").startsWith("image/"),
+  );
+  const attachmentCount = imageAttachments.length + fileAttachments.length;
   const matchupResults = Array.isArray(post.meta?.matchup_results)
     ? post.meta.matchup_results as MatchupResultItem[]
     : [];
@@ -540,7 +550,7 @@ function ThreadView({
           onClick={() => setMobilePane("reference")}
         >
           질문 자료
-          {imageAttachments.length > 0 && <span>{imageAttachments.length}</span>}
+          {attachmentCount > 0 && <span>{attachmentCount}</span>}
         </button>
         <button
           type="button"
@@ -564,7 +574,12 @@ function ThreadView({
               <h2>질문 자료</h2>
             </div>
             <span className="qna-inbox__pane-caption">
-              {imageAttachments.length > 0 ? `첨부 이미지 ${imageAttachments.length}장` : "텍스트 질문"}
+              {attachmentCount > 0
+                ? [
+                    imageAttachments.length > 0 ? `이미지 ${imageAttachments.length}장` : null,
+                    fileAttachments.length > 0 ? `파일 ${fileAttachments.length}개` : null,
+                  ].filter(Boolean).join(" · ")
+                : "텍스트 질문"}
             </span>
           </div>
           <div className="qna-inbox__reference-scroll">
@@ -574,10 +589,14 @@ function ThreadView({
 
             {imageAttachments.length > 0 ? (
               <QnaAttachmentViewer attachments={imageAttachments} />
-            ) : (
+            ) : attachmentCount === 0 ? (
               <div className="qna-inbox__attachment-empty">
                 첨부된 문제 사진이 없습니다. 위 질문 내용을 확인해 주세요.
               </div>
+            ) : null}
+
+            {fileAttachments.length > 0 && (
+              <QnaFileAttachmentList postId={post.id} attachments={fileAttachments} />
             )}
 
             {matchupResults.length > 0 && <QnaMatchupResults results={matchupResults} />}
@@ -626,6 +645,62 @@ function ThreadView({
         </section>
       </div>
     </>
+  );
+}
+
+function QnaFileAttachmentList({
+  postId,
+  attachments,
+}: {
+  postId: number;
+  attachments: PostAttachment[];
+}) {
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  const handleDownload = async (attachment: PostAttachment) => {
+    setDownloadingId(attachment.id);
+    try {
+      const { url } = await getAttachmentDownloadUrl(postId, attachment.id);
+      const { downloadPresignedUrl } = await import("@/shared/utils/safeDownload");
+      downloadPresignedUrl(url, attachment.original_name);
+    } catch {
+      feedback.error("다운로드 URL을 가져오지 못했습니다.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  return (
+    <section className="qna-inbox__file-section" aria-label="질문 첨부파일">
+      <div className="qna-inbox__file-heading">첨부파일 ({attachments.length})</div>
+      <div className="qna-inbox__file-list">
+        {attachments.map((attachment) => {
+          const extension = attachment.original_name.includes(".")
+            ? attachment.original_name.split(".").pop()?.toUpperCase() || "FILE"
+            : "FILE";
+          const downloading = downloadingId === attachment.id;
+          return (
+            <button
+              key={attachment.id}
+              type="button"
+              className="qna-inbox__file-card"
+              aria-label={`${attachment.original_name} 다운로드`}
+              disabled={downloading}
+              onClick={() => void handleDownload(attachment)}
+            >
+              <span className="qna-inbox__file-ext" aria-hidden>
+                {extension.slice(0, 4)}
+              </span>
+              <span className="qna-inbox__file-info">
+                <strong title={attachment.original_name}>{attachment.original_name}</strong>
+                <span>{attachment.content_type || "파일"} · {formatFileSize(attachment.size_bytes)}</span>
+              </span>
+              <span className="qna-inbox__file-action">{downloading ? "준비 중…" : "다운로드"}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

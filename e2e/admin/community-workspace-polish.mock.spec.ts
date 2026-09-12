@@ -2,6 +2,11 @@ import { devices, type Page, type Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { installLocalAuthApiStubs } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle } from "../helpers/wait";
+import {
+  deleteCommunityPost,
+  deleteCommunityPostAttachment,
+  type CommunityHttpClient,
+} from "../../src/shared/api/contracts/community";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const QUESTION_ID = 4332;
@@ -83,6 +88,12 @@ async function installApi(page: Page) {
       content_type: "image/jpeg",
       created_at: "2026-08-23T01:21:00Z",
       download_url: IMAGE_DATA_URL,
+    }, {
+      id: 80,
+      original_name: "20번-풀이.pdf",
+      size_bytes: 512000,
+      content_type: "application/pdf",
+      created_at: "2026-08-23T01:21:00Z",
     }],
     category_label: "개포",
     meta: { matchup_results: [] },
@@ -108,6 +119,12 @@ async function installApi(page: Page) {
         : json({ count: 0, results: [] });
     }
     if (path === `/community/posts/${QUESTION_ID}/`) return json(question());
+    if (path === `/community/posts/${QUESTION_ID}/attachments/80/download/`) {
+      return json({
+        url: `${BASE}/mock/20-number-solution.pdf`,
+        original_name: "20번-풀이.pdf",
+      });
+    }
     if (path === `/community/posts/${QUESTION_ID}/replies/`) {
       if (request.method() === "POST") {
         answered = true;
@@ -145,6 +162,131 @@ async function installApi(page: Page) {
     return json({ count: 0, results: [] });
   });
 }
+
+async function installStudentAttachmentApi(page: Page, parent = false) {
+  const downloadStudentIds: Array<string | undefined> = [];
+  const question = {
+    id: QUESTION_ID,
+    post_type: "qna",
+    title: "20번 풀이 확인",
+    content: "<p>첨부한 풀이 파일을 확인해 주세요.</p>",
+    created_by: 20,
+    created_by_display: "천예지",
+    author_role: parent ? "parent" : "student",
+    created_at: "2026-08-23T01:21:00Z",
+    updated_at: "2026-08-23T01:21:00Z",
+    replies_count: 0,
+    mappings: [],
+    attachments: [{
+      id: 80,
+      original_name: "20번-풀이.pdf",
+      size_bytes: 512000,
+      content_type: "application/pdf",
+      created_at: "2026-08-23T01:21:00Z",
+    }],
+  };
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace(/^\/api\/v1/, "");
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      headers: CORS_HEADERS,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: CORS_HEADERS });
+    if (path === "/core/program/") {
+      return json({ tenantCode: "hakwonplus", display_name: "학원플러스", is_active: true, ui_config: {}, feature_flags: {} });
+    }
+    if (path === "/core/me/") {
+      return json({
+        id: 12,
+        username: parent ? "parent-12" : "student-20",
+        name: parent ? "천보호" : "천예지",
+        is_staff: false,
+        is_superuser: false,
+        tenantRole: parent ? "parent" : "student",
+        linkedStudents: parent ? [{ id: 20, name: "천예지" }] : [],
+      });
+    }
+    if (path === "/student/me/") {
+      return json({
+        id: 20,
+        username: "student-20",
+        name: "천예지",
+        displayName: parent ? "천예지 학생 학부모님" : "천예지",
+        is_student: true,
+        isParentReadOnly: parent,
+      });
+    }
+    if (path === "/student/video/me/") return json({ lectures: [] });
+    if (path === "/community/posts/my-activity/") {
+      return json({ is_student: true, days: 30, post_count: 1, reply_count: 0, received_likes: 0, rank: null, total_active_students: 1, badges: [] });
+    }
+    if (["/community/posts/notices/", "/community/posts/board/", "/community/posts/materials/"].includes(path)) return json([]);
+    if (path === "/community/posts/" && request.method() === "GET") {
+      return json({ count: 1, next: null, previous: null, results: [question] });
+    }
+    if (path === `/community/posts/${QUESTION_ID}/`) return json(question);
+    if (path === `/community/posts/${QUESTION_ID}/replies/`) return json([]);
+    if (path === `/community/posts/${QUESTION_ID}/attachments/80/download/`) {
+      downloadStudentIds.push(request.headers()["x-student-id"]);
+      return json({ url: `${BASE}/mock/20-number-solution.pdf`, original_name: "20번-풀이.pdf" });
+    }
+    return json({ count: 0, next: null, previous: null, results: [] });
+  });
+
+  return { downloadStudentIds };
+}
+
+async function openStudentPdfQuestion(page: Page) {
+  await expect(page.getByText("20번 풀이 확인", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await page.getByText("20번 풀이 확인", { exact: true }).click();
+  return page.getByRole("button", { name: /20번-풀이\.pdf/ });
+}
+
+test("커뮤니티 DELETE는 endpoint별 exact partial payload만 삭제 완료로 분류한다", async () => {
+  const clientFor = (error?: unknown) => ({
+    delete: async () => {
+      if (error) throw error;
+      return { data: undefined };
+    },
+  }) as unknown as CommunityHttpClient;
+  const partial = (deleted: { posts: number; attachments: number; r2_objects: number }) => ({
+    response: {
+      status: 502,
+      data: {
+        code: "community_storage_cleanup_pending",
+        detail: "DB 삭제 뒤 원본 파일 정리가 남았습니다.",
+        deleted,
+        storage_cleanup: { pending: 1, failed: 1, cleaned: 0 },
+      },
+    },
+  });
+
+  await expect(deleteCommunityPost(clientFor(), QUESTION_ID)).resolves.toEqual({ status: "deleted" });
+  await expect(deleteCommunityPost(clientFor(partial({ posts: 1, attachments: 2, r2_objects: 0 })), QUESTION_ID))
+    .resolves.toMatchObject({ status: "deleted_with_storage_cleanup_pending" });
+
+  const invalidPostCounts = partial({ posts: 0, attachments: 2, r2_objects: 0 });
+  await expect(deleteCommunityPost(clientFor(invalidPostCounts), QUESTION_ID)).rejects.toBe(invalidPostCounts);
+
+  await expect(deleteCommunityPostAttachment(
+    clientFor(partial({ posts: 0, attachments: 1, r2_objects: 0 })),
+    QUESTION_ID,
+    80,
+  )).resolves.toMatchObject({ status: "deleted_with_storage_cleanup_pending" });
+
+  const invalidAttachmentCounts = partial({ posts: 0, attachments: 0, r2_objects: 0 });
+  await expect(deleteCommunityPostAttachment(clientFor(invalidAttachmentCounts), QUESTION_ID, 80))
+    .rejects.toBe(invalidAttachmentCounts);
+
+  const ordinaryFailure = { response: { status: 503, data: { detail: "일반 삭제 실패" } } };
+  await expect(deleteCommunityPost(clientFor(ordinaryFailure), QUESTION_ID)).rejects.toBe(ordinaryFailure);
+});
 
 test.describe("커뮤니티 QnA 작업대", () => {
   test.use({ serviceWorkers: "block" });
@@ -197,11 +339,28 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await expect(page.getByRole("tab", { name: "QnA 1" })).toHaveCount(0);
   });
 
+  test("데스크톱 새로고침 뒤 PDF 풀이 파일을 키보드로 다운로드한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator(".qna-inbox__reference-pane")).toBeVisible({ timeout: 60_000 });
+    const pdfDownload = page.getByRole("button", { name: "20번-풀이.pdf 다운로드" });
+    await expect(pdfDownload).toBeVisible();
+    const presignRequest = page.waitForRequest((request) => (
+      new URL(request.url()).pathname.endsWith(`/community/posts/${QUESTION_ID}/attachments/80/download/`)
+    ));
+    await pdfDownload.focus();
+    await page.keyboard.press("Enter");
+    await presignRequest;
+  });
+
   test("390px 자료/답변 전환에서 작성 내용을 보존하고 가로 넘침이 없다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
 
     await expect(page.getByRole("tab", { name: /질문 자료/ })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("button", { name: "20번-풀이.pdf 다운로드" })).toBeVisible();
     await page.getByRole("tab", { name: "답변 작성" }).click();
     const editor = page.locator(".qna-inbox__answer-pane .ProseMirror");
     await editor.fill("작성 중인 답변은 보존됩니다.");
@@ -211,6 +370,95 @@ test.describe("커뮤니티 QnA 작업대", () => {
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
+  });
+
+  test("비이미지 다운로드 실패는 파일을 유지하고 다시 누를 수 있게 복구한다", async ({ page }) => {
+    let releaseDownload!: () => void;
+    const downloadGate = new Promise<void>((resolve) => {
+      releaseDownload = resolve;
+    });
+    await page.route(`**/api/v1/community/posts/${QUESTION_ID}/attachments/80/download/`, async (route) => {
+      await downloadGate;
+      await route.fulfill({
+        status: 503,
+        headers: CORS_HEADERS,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "temporary download failure" }),
+      });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
+
+    const pdfDownload = page.getByRole("button", { name: "20번-풀이.pdf 다운로드" });
+    await pdfDownload.click();
+    await expect(pdfDownload).toBeDisabled();
+    await expect(page.locator(".qna-inbox__file-action")).toHaveText("준비 중…");
+    releaseDownload();
+    await expect(page.getByText("다운로드 URL을 가져오지 못했습니다.")).toBeVisible();
+    await expect(pdfDownload).toBeEnabled();
+    await expect(pdfDownload).toBeVisible();
+  });
+
+  test("학생은 PDF 질문을 새로고침 뒤에도 열고 다운로드한다", async ({ page }) => {
+    await installStudentAttachmentApi(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(page, `${BASE}/student/community?tab=qna`, { timeout: 60_000 });
+
+    await expect(await openStudentPdfQuestion(page)).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const pdfDownload = await openStudentPdfQuestion(page);
+    const presignRequest = page.waitForRequest((request) => (
+      new URL(request.url()).pathname.endsWith(`/community/posts/${QUESTION_ID}/attachments/80/download/`)
+    ));
+    await pdfDownload.click();
+    await presignRequest;
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  });
+
+  test("DB 삭제 완료 뒤 스토리지 정리 대기 응답은 재삭제 없이 상세를 닫고 목록을 갱신한다", async ({ page }) => {
+    let deleteRequests = 0;
+    let listRequests = 0;
+    await page.route("**/api/v1/community/admin/posts/**", async (route) => {
+      listRequests += 1;
+      await route.fallback();
+    });
+    await page.route(`**/api/v1/community/posts/${QUESTION_ID}/`, async (route) => {
+      if (route.request().method() !== "DELETE") return route.fallback();
+      deleteRequests += 1;
+      await route.fulfill({
+        status: 502,
+        headers: CORS_HEADERS,
+        contentType: "application/json",
+        body: JSON.stringify({
+          code: "community_storage_cleanup_pending",
+          detail: "질문은 삭제됐지만 일부 원본 파일 정리가 지연되고 있습니다.",
+          deleted: { posts: 1, attachments: 2, r2_objects: 1 },
+          storage_cleanup: { pending: 1, failed: 0, cleaned: 1 },
+        }),
+      });
+    });
+
+    await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
+    await page.locator(".qna-inbox__thread-actions").getByRole("button", { name: "삭제", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "질문 삭제" }).getByRole("button", { name: "삭제", exact: true }).click();
+
+    await expect(page.getByText(/질문은 삭제됐지만 일부 원본 파일 정리가 지연/)).toBeVisible();
+    await expect(page.getByText(/원본 파일 1개/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "프린트 진화와 자연선택 20번" })).toHaveCount(0);
+    await expect.poll(() => listRequests).toBeGreaterThan(1);
+    expect(deleteRequests).toBe(1);
+  });
+
+  test("학부모는 선택 자녀의 PDF 질문을 새로고침 뒤에도 열고 같은 범위로 다운로드한다", async ({ page }) => {
+    const harness = await installStudentAttachmentApi(page, true);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await gotoAndSettle(page, `${BASE}/student/community?tab=qna`, { timeout: 60_000 });
+
+    await expect(await openStudentPdfQuestion(page)).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const pdfDownload = await openStudentPdfQuestion(page);
+    await pdfDownload.click();
+    await expect.poll(() => harness.downloadStudentIds).toContain("20");
   });
 
   test("데스크톱 공지 이미지를 본문 data URL이 아닌 첨부파일로 저장한다", async ({ page }) => {
