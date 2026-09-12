@@ -1082,6 +1082,7 @@ export async function run() {
   let inspectObservation = null;
   let postCleanupInspectOperationObservation = null;
   let postCleanupInspectObservation = null;
+  let crossPostCleanupInspectObservation = null;
   let postPlaybackInspectObservation = null;
   let scenarioTenantId = null;
   let crossScenarioTenantId = null;
