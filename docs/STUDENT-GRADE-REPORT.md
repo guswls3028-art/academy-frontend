@@ -26,6 +26,27 @@ fail-closed한다. 점수와 답안은 이 빠른 판정에서 변경하지 않�
 학생 상세를 열면 닫기 버튼으로 키보드 포커스를 옮기고, `Escape` 또는 닫기 버튼으로
 오버레이를 닫으면 출결표·학생 목록 등 상세를 열었던 원래 학생 링크나 행으로 포커스를 돌려준다.
 
+차시 성적표의 이름 셀과 우측 학생 성적 상세는 클리닉 대상과 오답 확인 대기를
+서로 다른 표시로 구분한다. 이름의 노란 강조는 서버의
+`name_highlight_clinic_target=true`일 때만 사용한다. 별도 후속 확인 상태인
+`name_highlight_followup_required`를 클리닉 강조로 바꾸지 않는다.
+오답 확인이 남으면 이름 옆에 중립색 **오답 미완료** 배지를 표시한다.
+판정은 서버의 `correction_pending_count`를 읽고, 이 요약 필드가 없는 응답만
+시험·과제 블록의 `correction_status=PENDING`을 확인한다. 점수, 합격 여부,
+예약·출석, `SessionProgress`로 오답 또는 클리닉 상태를 추정하지 않는다.
+
+따라서 합격 기준 80점인 시험에서 90점을 받은 학생은 점수상 통과하면서 오답
+미완료 배지를 가질 수 있다. 만점의 `NOT_REQUIRED` 또는 교사 확인을 마친
+`COMPLETED`만 남으면 이 배지는 없다. 실제 클리닉 강조와 오답 미완료는 동시에
+표시될 수도 있으며 서로를 대신하거나 해제하지 않는다. 소유 판정 정책은
+`backend/docs/domain/exam-grading.md`의 성적 탭 오답 확인 계약을 따른다.
+
+배지는 설명용 텍스트이며 새 동작을 만들지 않는다. 390px·768px·데스크톱에서
+hover 없이 읽을 수 있고 접근성 설명을 제공한다. 이름으로 학생 상세를 여는
+동작과 기존 오답 완료·해제 버튼은 그대로 유지한다. 완료 저장 후 서버 성적을
+다시 읽어 배지를 갱신하고, 새로고침 후에도 저장된 상태를 따른다. 저장 실패나
+조회 실패를 완료로 표시하지 않으며 원점수·과제 점수·판정 정책은 변경하지 않는다.
+
 설정은 학원 전체 공개 정책이므로 같은 테넌트의 `owner`와 `admin`만 변경한다.
 일반 교사·직원, 학생, 학부모는 설정 API에 접근할 수 없다. 한 섹션도 표시하지 않는
 초안은 저장할 수 없으며 이유를 화면에 표시한다.
@@ -134,6 +155,10 @@ YMath의 초기 구성은 `score_trend`, `score_comparison`, `lecture_average`�
 - `e2e/admin/score-entry-autosave.spec.ts`, `e2e/teacher/mobile-score-correction-status.spec.ts`:
   Ymath 교사 성적표와 우측 학생 상세에서 PASS 없이 같은 correction PATCH가
   완료·해제되는지 검증한다.
+- `e2e/admin/score-entry-autosave.spec.ts`의 `@clinic-followup-meaning`은
+  1366px·768px·390px에서 통과 점수의 오답 대기와 실제 클리닉 노랑을 구분하고,
+  만점·완료 상태, 요약 필드 없는 응답, 완료 PATCH와 reload 이후 상태 및 원점수
+  보존을 검증한다.
 - `e2e/student/student-score-trend.spec.ts`, `e2e/student/clinic-booking-ux.mock.spec.ts`:
   Ymath 학생 성적·시험 상세·클리닉 상태 카드의 오답 완료 표현과 데스크톱/390px
   overflow 부재를 검증한다.
