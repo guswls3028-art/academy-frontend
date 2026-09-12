@@ -396,8 +396,9 @@ test.describe("학생 커뮤니티 durable draft", () => {
     await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
     expect(harness.writeHeaders).toEqual([]);
     await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김하늘" }).click();
-    await expect(page.getByRole("button", { name: "질문하기", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "질문하기", exact: true }).click();
+    const parentQuestionLink = page.getByRole("region", { name: "학부모 주요 확인" }).getByRole("link", { name: /^질문하기/ });
+    await expect(parentQuestionLink).toBeVisible();
+    await parentQuestionLink.click();
     await expect(page.locator(".ProseMirror")).toBeVisible();
     await expect(page.getByText("학부모 계정은 질문 작성이 제한됩니다")).toHaveCount(0);
     await page.getByPlaceholder("질문 제목").fill("하늘이 질문");

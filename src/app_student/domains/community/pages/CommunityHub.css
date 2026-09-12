@@ -48,7 +48,7 @@
   word-break: keep-all;
 }
 
-.community-hub__question {
+[data-app="student"] .community-hub__question {
   display: grid;
   width: 100%;
   min-height: 82px;
@@ -144,7 +144,7 @@
   gap: 7px;
 }
 
-.community-hub-entry {
+[data-app="student"] .community-hub-entry {
   display: grid;
   width: 100%;
   min-height: 66px;
@@ -203,7 +203,7 @@
   color: var(--stu-text-muted);
 }
 
-.community-hub-back {
+[data-app="student"] .community-hub-back {
   display: inline-flex;
   width: fit-content;
   min-height: 36px;
@@ -228,7 +228,7 @@
     padding: 15px;
   }
 
-  .community-hub__question {
+  [data-app="student"] .community-hub__question {
     min-height: 78px;
     padding: 13px 14px;
     grid-template-columns: 40px minmax(0, 1fr) 18px;
