@@ -7,7 +7,7 @@
  * 학생/관리자 projection까지 확인한다.
  */
 import { test, expect } from "../fixtures/strictTest";
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext, Page, Response } from "@playwright/test";
 import { PDFDocument, rgb } from "pdf-lib";
 import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
@@ -44,6 +44,16 @@ function requireIsolatedScenario(): void {
 }
 
 type Tokens = { access: string; refresh: string };
+type RealUseRole = "admin" | "student" | "parent";
+type BrowserAccountExpectation = {
+  role: RealUseRole;
+  firstLoginGuideRequired: boolean;
+};
+type CurrentUser = {
+  tenantRole?: string | null;
+  must_change_password?: boolean;
+  first_login_guide_required?: boolean;
+};
 
 type CreatedState = {
   adminAccess?: string;
@@ -136,7 +146,81 @@ async function expectParentApi<TBody = any>(
   return body as TBody;
 }
 
-async function seedBrowser(page: Page, tokens: Tokens, landingPath: string): Promise<void> {
+function matchesApiResponse(response: Response, method: string, pathname: string): boolean {
+  return response.request().method() === method
+    && new URL(response.url()).pathname === `/api/v1${pathname}`;
+}
+
+async function readCurrentUserResponse(response: Response): Promise<CurrentUser> {
+  expect(response.status(), `GET /core/me/ -> ${response.status()}`).toBe(200);
+  return await response.json() as CurrentUser;
+}
+
+async function completeInitialAccountPrompts(
+  page: Page,
+  currentUser: CurrentUser,
+  expected: BrowserAccountExpectation,
+): Promise<void> {
+  expect(currentUser.tenantRole).toBe(expected.role);
+  expect(Boolean(currentUser.first_login_guide_required)).toBe(
+    expected.firstLoginGuideRequired,
+  );
+
+  const passwordDialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
+  const passwordRecommendationRequired = Boolean(
+    currentUser.must_change_password
+      && (expected.role === "student" || expected.role === "parent"),
+  );
+  if (passwordRecommendationRequired) {
+    await expect(passwordDialog).toBeVisible({ timeout: 10_000 });
+    await expect(passwordDialog).toContainText("나중에 변경해도 계속 이용할 수 있습니다");
+    await passwordDialog
+      .getByRole("button", { name: "위험을 이해했고 나중에", exact: true })
+      .click();
+    await expect(passwordDialog).toBeHidden();
+  } else {
+    await expect(passwordDialog).toBeHidden();
+  }
+
+  const firstLoginDialog = page.getByRole("dialog", { name: "계정 안내" });
+  if (!expected.firstLoginGuideRequired) {
+    await expect(firstLoginDialog).toBeHidden();
+    return;
+  }
+
+  await expect(firstLoginDialog).toBeVisible({ timeout: 10_000 });
+  const completionResponsePromise = page.waitForResponse(
+    (response) => matchesApiResponse(response, "POST", "/core/me/first-login-guide/complete/"),
+    { timeout: 30_000 },
+  );
+  await firstLoginDialog.getByRole("button", { name: "확인", exact: true }).click();
+  const completionResponse = await completionResponsePromise;
+  expect(
+    completionResponse.status(),
+    `POST /core/me/first-login-guide/complete/ -> ${completionResponse.status()}`,
+  ).toBe(200);
+  const completionBody = await completionResponse.json() as CurrentUser;
+  expect(completionBody.first_login_guide_required).toBe(false);
+  await expect(firstLoginDialog).toBeHidden();
+
+  const refreshedMeResponsePromise = page.waitForResponse(
+    (response) => matchesApiResponse(response, "GET", "/core/me/"),
+    { timeout: 30_000 },
+  );
+  await gotoAndSettle(page, page.url(), { timeout: 45_000 });
+  const refreshedUser = await readCurrentUserResponse(await refreshedMeResponsePromise);
+  expect(refreshedUser.tenantRole).toBe(expected.role);
+  expect(refreshedUser.first_login_guide_required).toBe(false);
+  await expect(passwordDialog).toBeHidden();
+  await expect(firstLoginDialog).toBeHidden();
+}
+
+async function seedBrowser(
+  page: Page,
+  tokens: Tokens,
+  landingPath: string,
+  expected: BrowserAccountExpectation,
+): Promise<void> {
   const payload = { access: tokens.access, refresh: tokens.refresh, code: CODE };
   await page.goto(`${BASE}/login`, { waitUntil: "commit", timeout: 30_000 });
   await page.evaluate(({ access, refresh, code }) => {
@@ -145,7 +229,13 @@ async function seedBrowser(page: Page, tokens: Tokens, landingPath: string): Pro
     localStorage.setItem("tenant_code", code);
     sessionStorage.setItem("tenantCode", code);
   }, payload);
+  const currentUserResponsePromise = page.waitForResponse(
+    (response) => matchesApiResponse(response, "GET", "/core/me/"),
+    { timeout: 30_000 },
+  );
   await gotoAndSettle(page, `${BASE}${landingPath}`, { timeout: 45_000 });
+  const currentUser = await readCurrentUserResponse(await currentUserResponsePromise);
+  await completeInitialAccountPrompts(page, currentUser, expected);
 }
 
 async function chooseExamHeaderAction(
@@ -524,6 +614,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       page,
       adminTokens,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
+      { role: "admin", firstLoginGuideRequired: true },
     );
     const draftDialog = page.getByRole("dialog", { name: /임시저장된 변경/ });
     if (await draftDialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
@@ -703,14 +794,24 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(pendingExamSummary.pass_count).toBe(0);
     expect(pendingExamSummary.fail_count).toBe(0);
 
-    await seedBrowser(page, studentTokens, "/student/grades");
+    await seedBrowser(
+      page,
+      studentTokens,
+      "/student/grades",
+      { role: "student", firstLoginGuideRequired: true },
+    );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const pendingCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
     await expect(pendingCard).toContainText("채점 진행 중", { timeout: 20_000 });
     await expect(pendingCard).toContainText("서술형 채점 중");
     await expect(pendingCard).not.toContainText(`${EXPECTED_OBJECTIVE_SCORE}/50점`);
 
-    await seedBrowser(page, parentTokens, "/student/grades");
+    await seedBrowser(
+      page,
+      parentTokens,
+      "/student/grades",
+      { role: "parent", firstLoginGuideRequired: true },
+    );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const pendingParentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
     await expect(pendingParentCard).toContainText("채점 진행 중", { timeout: 20_000 });
@@ -721,6 +822,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       page,
       adminTokens,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
+      { role: "admin", firstLoginGuideRequired: false },
     );
     await chooseExamHeaderAction(page, "문항별 점수 입력");
     const gradingDialog = page.getByRole("dialog").filter({
@@ -774,7 +876,12 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(finalParentExam?.grading_status).not.toBe("subjective_pending");
     expect(finalParentExam?.total_score).toBe(EXPECTED_SCORE);
 
-    await seedBrowser(page, studentTokens, "/student/grades");
+    await seedBrowser(
+      page,
+      studentTokens,
+      "/student/grades",
+      { role: "student", firstLoginGuideRequired: false },
+    );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const finalStudentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
     await expect(finalStudentCard).toContainText(`${EXPECTED_SCORE}/50점`, { timeout: 20_000 });
@@ -786,7 +893,12 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       .toContainText(`${EXPECTED_SCORE}/50점`, { timeout: 20_000 });
     await page.screenshot({ path: `e2e/screenshots/omr-review-realuse-student-${TS}.png`, fullPage: true });
 
-    await seedBrowser(page, parentTokens, "/student/grades");
+    await seedBrowser(
+      page,
+      parentTokens,
+      "/student/grades",
+      { role: "parent", firstLoginGuideRequired: false },
+    );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const finalParentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
     await expect(finalParentCard).toContainText(`${EXPECTED_SCORE}/50점`, { timeout: 20_000 });

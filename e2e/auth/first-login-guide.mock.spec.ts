@@ -118,6 +118,54 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test.describe("생애 첫 접속 계정 안내", () => {
+  test("신규 관리자는 계정 안내를 확인한 뒤 보호 화면 작업을 이어간다", async ({ page }, testInfo) => {
+    const tenantCode = "qa-ymath-realuse-admin-first-login";
+    const apiState = await stubAuthenticatedApp(page, { role: "admin", tenantCode });
+
+    await gotoAndSettle(page, `${BASE}/workspace/guide`, { timeout: 20_000 });
+    const backgroundAction = page.getByRole("button", {
+      name: /학원 정보와 공개 고지부터 확인/,
+    });
+    await expect(backgroundAction).toBeVisible();
+    await expect(backgroundAction).toBeEnabled();
+
+    const dialog = page.getByRole("dialog", { name: "계정 안내" });
+    await expect(dialog).toBeVisible();
+    const overlayScreenshot = testInfo.outputPath("admin-first-login-guide-overlay.png");
+    await page.screenshot({ path: overlayScreenshot });
+    await testInfo.attach("admin-first-login-guide-overlay", {
+      path: overlayScreenshot,
+      contentType: "image/png",
+    });
+    expect(apiState.completionCount()).toBe(0);
+    const completionResponse = page.waitForResponse((response) => (
+      response.request().method() === "POST"
+      && response.url().includes("/api/v1/core/me/first-login-guide/complete/")
+    ));
+    await dialog.getByRole("button", { name: "확인", exact: true }).click();
+    expect((await completionResponse).status()).toBe(200);
+    await expect(dialog).toBeHidden();
+    expect(apiState.completionCount()).toBe(1);
+
+    const refreshedMeResponse = page.waitForResponse((response) => (
+      response.request().method() === "GET"
+      && response.url().includes("/api/v1/core/me/")
+      && !response.url().includes("/first-login-guide/")
+    ));
+    await page.reload();
+    const refreshedMe = await (await refreshedMeResponse).json() as {
+      first_login_guide_required?: boolean;
+    };
+    expect(refreshedMe.first_login_guide_required).toBe(false);
+    await expect(dialog).toBeHidden();
+    expect(apiState.completionCount()).toBe(1);
+    await expect(backgroundAction).toBeVisible();
+    await expect(backgroundAction).toBeEnabled();
+    await backgroundAction.click();
+    await expect(page).toHaveURL(/\/workspace\/settings\/organization$/);
+    expect(apiState.completionCount()).toBe(1);
+  });
+
   test("개발 배포 실사용 로그인은 일회성 계정 안내를 확인한 뒤 계속한다", async ({ page }) => {
     const tenantCode = "qa-ymath-realuse-first-login-guide";
     const apiState = await stubAuthenticatedApp(page, { role: "student", tenantCode });
