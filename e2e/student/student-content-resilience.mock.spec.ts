@@ -68,6 +68,7 @@ async function installStudentApi(
     imageDeliveryFailure?: boolean;
     notificationClinic?: "retry-success" | "failure";
     failProfile?: boolean;
+    materialsResponse?: "delayed-error";
   } = {},
 ) {
   let firstImageAttempts = 0;
@@ -80,6 +81,10 @@ async function installStudentApi(
   let allowNotificationClinicRetry: (() => void) | undefined;
   const notificationClinicRetryGate = new Promise<void>((resolve) => {
     allowNotificationClinicRetry = resolve;
+  });
+  let releaseMaterialsFailure: (() => void) | undefined;
+  const materialsFailureGate = new Promise<void>((resolve) => {
+    releaseMaterialsFailure = resolve;
   });
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -435,6 +440,11 @@ async function installStudentApi(
       return;
     }
     if (path.endsWith("/community/posts/notices/") || path.endsWith("/community/posts/board/") || path.endsWith("/community/posts/materials/")) {
+      if (options.materialsResponse === "delayed-error" && path.endsWith("/community/posts/materials/")) {
+        await materialsFailureGate;
+        await route.fulfill({ status: 503, json: { detail: "temporary materials failure" } });
+        return;
+      }
       if (options.imageNotice && path.endsWith("/community/posts/notices/")) {
         await route.fulfill({ json: [imageNotice()] });
         return;
@@ -519,6 +529,7 @@ async function installStudentApi(
     rejectFirstImage: () => rejectFirstImageRequest?.(),
     notificationClinicAttempts: () => notificationClinicAttempts,
     allowNotificationClinicRetry: () => allowNotificationClinicRetry?.(),
+    releaseMaterialsFailure: () => releaseMaterialsFailure?.(),
   };
 }
 
@@ -824,6 +835,92 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await page.setViewportSize({ width: 320, height: 720 });
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
     await assertNoRenderedHtmlLeak(page);
+  });
+
+  test("학생 홈과 메뉴에서 공지·자료실·게시판을 바로 찾고 선택한 탭을 유지한다", async ({ page }, testInfo) => {
+    await installStudentApi(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    await expect(page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "소식·자료" })).toBeVisible();
+    const contentHub = page.getByRole("region", { name: "학원 소식·자료" });
+    await expect(contentHub).toBeVisible();
+    await expect(contentHub.getByRole("link", { name: /공지사항/ })).toHaveAttribute("href", "/student/notices");
+    await expect(contentHub.getByRole("link", { name: /자료실/ })).toHaveAttribute("href", "/student/community?tab=materials");
+    await expect(contentHub.getByRole("link", { name: /게시판/ })).toHaveAttribute("href", "/student/community?tab=board");
+
+    await contentHub.getByRole("link", { name: /자료실/ }).click();
+    await expect(page).toHaveURL(/\/student\/community\?tab=materials$/);
+    await expect(page.getByRole("heading", { name: "소식·자료" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "자료실" })).toHaveAttribute("aria-pressed", "true");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "자료실" })).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByRole("button", { name: "메뉴 열기" }).click();
+    const drawer = page.getByRole("dialog", { name: "메뉴" });
+    await expect(drawer.getByRole("link", { name: "공지사항" })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "자료실" })).toHaveAttribute("href", "/student/community?tab=materials");
+    await expect(drawer.getByRole("link", { name: "게시판" })).toHaveAttribute("href", "/student/community?tab=board");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+    await testInfo.attach("student-content-discovery-mobile-red", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+  });
+
+  test("소식·자료 공유 URL과 키보드 탭 이동은 브라우저 뒤로가기로 복원된다", async ({ page }, testInfo) => {
+    await installStudentApi(page);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await expect(page.getByRole("region", { name: "학원 소식·자료" })).toBeVisible();
+    const desktopHomePath = testInfo.outputPath("student-content-discovery-desktop-home.png");
+    await page.screenshot({ path: desktopHomePath, fullPage: true });
+    await testInfo.attach("student-content-discovery-desktop", {
+      path: desktopHomePath,
+      contentType: "image/png",
+    });
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileHomePath = testInfo.outputPath("student-content-discovery-mobile-home.png");
+    await page.screenshot({ path: mobileHomePath, fullPage: true });
+    await testInfo.attach("student-content-discovery-mobile-home", {
+      path: mobileHomePath,
+      contentType: "image/png",
+    });
+    await page.setViewportSize({ width: 1366, height: 900 });
+
+    await page.goto(`${BASE}/student/community?tab=board`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    const boardTab = page.getByRole("button", { name: "게시판" });
+    await expect(boardTab).toHaveAttribute("aria-pressed", "true");
+    await boardTab.focus();
+    await boardTab.press("ArrowRight");
+    await expect(page).toHaveURL(/\/student\/community\?tab=materials$/);
+    await expect(page.getByRole("button", { name: "자료실" })).toHaveAttribute("aria-pressed", "true");
+
+    await page.goBack({ waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/student\/community\?tab=board$/);
+    await expect(boardTab).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+
+  test("자료실 직접 링크는 390px 로딩과 오류를 빈 목록으로 오인하지 않는다", async ({ page }, testInfo) => {
+    const scenario = await installStudentApi(page, { materialsResponse: "delayed-error" });
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await page.goto(`${BASE}/student/community?tab=materials`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await expect(page.getByRole("button", { name: "자료실" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".community-skeleton-list")).toBeVisible();
+    await testInfo.attach("student-content-discovery-mobile-loading", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+
+    scenario.releaseMaterialsFailure();
+    await expect(page.getByText("자료를 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "다시 시도" })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 
   test("주요 학생 화면은 API 장애에도 빈 화면 대신 다시 시도 동작을 제공한다", async ({ page }) => {
