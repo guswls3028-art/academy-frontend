@@ -1,6 +1,32 @@
 import api from "@/shared/api/axios";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 
+export interface PublicVideoSession {
+  session_id: number;
+  lecture_id: number;
+}
+
+function publicVideoSessionFromResponse(data: unknown): PublicVideoSession {
+  const value = data as Partial<PublicVideoSession> | null;
+  if (!Number.isSafeInteger(value?.session_id) || (value?.session_id ?? 0) <= 0 ||
+      !Number.isSafeInteger(value?.lecture_id) || (value?.lecture_id ?? 0) <= 0) {
+    throw new Error("공개 영상 공간의 준비 결과를 확인하지 못했습니다. 다시 시도해 주세요.");
+  }
+  return value as PublicVideoSession;
+}
+
+/** null means the tenant has no prepared container; request failures reject. */
+export async function fetchPublicSession(): Promise<PublicVideoSession | null> {
+  const { data } = await api.get<unknown>("/media/videos/public-session/");
+  return data === null ? null : publicVideoSessionFromResponse(data);
+}
+
+/** Call only from an explicit upload, YouTube, or folder creation action. */
+export async function preparePublicSession(): Promise<PublicVideoSession> {
+  const { data } = await api.post<unknown>("/media/videos/public-session/");
+  return publicVideoSessionFromResponse(data);
+}
+
 export type VideoStatus =
   | "PENDING"
   | "UPLOADED"

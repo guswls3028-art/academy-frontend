@@ -8,6 +8,8 @@ import {
 } from "@/shared/api/contracts/videos";
 export {
   fetchInProgressVideos,
+  fetchPublicSession,
+  preparePublicSession,
   fetchVideoDetail,
   getRetryErrorMessage,
   retryVideo,
@@ -103,25 +105,6 @@ export async function fetchSessionVideos(
   if (Array.isArray(d)) return d.map(normalizeVideo);
   if (Array.isArray(d?.results)) return d.results.map(normalizeVideo);
   return [];
-}
-
-/** 공개 영상 전용 세션 조회/생성 — 업로드·목록에 사용 (테넌트당 1개). 테넌트 미확인 시 null 반환(전역 에러 없음). */
-export async function fetchPublicSession(): Promise<{
-  session_id: number;
-  lecture_id: number;
-} | null> {
-  try {
-    const res = await api.get<{ session_id: number; lecture_id: number }>(
-      "/media/videos/public-session/"
-    );
-    return res.data;
-  } catch (e: unknown) {
-    const status = (e as { response?: { status?: number } })?.response?.status;
-    if (status === 400 || status === 403) {
-      return null;
-    }
-    throw e;
-  }
 }
 
 export async function fetchVideoStats(
