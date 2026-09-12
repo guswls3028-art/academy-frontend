@@ -106,14 +106,9 @@ test.describe.serial("전체 운영 검증", () => {
   test("11 학생: QnA 질문 등록", async () => {
     await gotoAndSettle(S, `${BASE}/student/community`, { settleMs: 1500 });
 
-    const qnaTab = S.locator("button, [role='tab']").filter({ hasText: /QnA/ }).first();
-    await expect(qnaTab, "학생 커뮤니티에서 QnA 탭이 보여야 함").toBeVisible({ timeout: 10_000 });
-    await qnaTab.click();
-    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    await S.screenshot({ path: "test-results/11a-qna-tab.png" });
-
-    const writeBtn = S.getByRole("button", { name: /질문하기/ });
+    const writeBtn = S.getByRole("button", { name: "질문하기", exact: true });
     await expect(writeBtn, "학생 QnA 질문하기 버튼이 보여야 함").toBeVisible({ timeout: 10_000 });
+    await S.screenshot({ path: "test-results/11a-qna-entry.png" });
     await writeBtn.click();
 
     const title = S.locator('input[placeholder*="제목"]').first();
@@ -238,11 +233,8 @@ test.describe.serial("전체 운영 검증", () => {
   test("25 학생: QnA 답변 확인", async () => {
     await gotoAndSettle(S, `${BASE}/student/community`, { settleMs: 1500 });
 
-    const qnaTab = S.locator("button, [role='tab']").filter({ hasText: /QnA/ }).first();
-    if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await qnaTab.click();
-      await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    }
+    await S.getByRole("button", { name: "내 질문과 답변", exact: true }).click();
+    await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     const myQ = S.locator(`text=${Q_TITLE}`).first();
     if (await myQ.isVisible({ timeout: 5000 }).catch(() => false)) {

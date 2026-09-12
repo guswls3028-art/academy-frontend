@@ -28,14 +28,8 @@ test.describe("불만 방지 시나리오", () => {
     await page.goto(`${BASE}/student/community`);
     await page.waitForLoadState("networkidle");
 
-    // QnA 탭
-    const qnaTab = page.locator("button, [role='tab']").filter({ hasText: /QnA|질문/ }).first();
-    if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await qnaTab.click();
-    }
-
-    // 질문하기
-    const writeBtn = page.locator("button, a").filter({ hasText: /질문|작성/ }).first();
+    // 커뮤니티 첫 화면의 질문하기
+    const writeBtn = page.getByRole("button", { name: "질문하기", exact: true });
     await writeBtn.waitFor({ state: "visible", timeout: 5000 });
     await writeBtn.click();
 

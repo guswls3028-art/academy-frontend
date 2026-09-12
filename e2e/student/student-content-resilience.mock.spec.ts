@@ -612,6 +612,54 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     });
   });
 
+  test("커뮤니티 첫 화면에서 질문·답변·공지·자료·게시판·상담을 바로 찾고 딥링크를 유지한다", async ({ page }) => {
+    await installStudentApi(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    await expect(page.getByRole("heading", { name: "커뮤니티에서 무엇을 할까요?" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "질문하기", exact: true })).toBeVisible();
+    for (const entry of ["내 질문과 답변", "공지", "자료", "게시판", "상담"]) {
+      await expect(page.getByRole("button", { name: new RegExp(`^${entry}`) })).toBeVisible();
+    }
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    const materialsEntry = page.getByRole("button", { name: /^자료/ });
+    await materialsEntry.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/student\/community\?tab=materials$/);
+    await expect(page.getByText("등록된 자료가 없습니다", { exact: true })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "자료실", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByRole("button", { name: "QnA", exact: true }).click();
+    await expect(page).toHaveURL(/\/student\/community\?tab=qna$/);
+    await page.getByRole("button", { name: "질문하기", exact: true }).click();
+    await expect(page.getByPlaceholder("질문 제목")).toBeVisible();
+    await page.getByPlaceholder("질문 제목").fill("뒤로가기로 보존할 질문");
+    await expect(page.locator(".community-draft-status")).toContainText("초안 저장됨");
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/student\/community\?tab=materials$/);
+    await expect(page.getByPlaceholder("질문 제목")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "자료실", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.goForward();
+    await expect(page).toHaveURL(/\/student\/community\?tab=qna$/);
+    await expect(page.getByPlaceholder("질문 제목")).toHaveCount(0);
+    await page.getByRole("button", { name: "질문하기", exact: true }).click();
+    await expect(page.getByPlaceholder("질문 제목")).toHaveValue("뒤로가기로 보존할 질문");
+    await page.getByRole("button", { name: "뒤로", exact: true }).click();
+    await expect(page.getByRole("button", { name: "QnA", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByRole("button", { name: "커뮤니티 처음으로", exact: true }).click();
+    await expect(page).toHaveURL(/\/student\/community$/);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await expect(page.getByRole("heading", { name: "커뮤니티에서 무엇을 할까요?" })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.goto(`${BASE}/student/community?tab=invalid`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "커뮤니티에서 무엇을 할까요?" })).toBeVisible();
+  });
+
   test("영상 홈·차시·재생목록은 다중 이스케이프 HTML을 일반 텍스트로만 표시한다", async ({ page }) => {
     await installStudentApi(page);
     await page.setViewportSize({ width: 1366, height: 900 });
@@ -668,7 +716,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
 
   test("커뮤니티 공지 상세도 이미지 presign 실패를 파일별로 재시도한다", async ({ page }) => {
     const scenario = await installStudentApi(page, { imageNotice: true });
-    await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+    await page.goto(`${BASE}/student/community?tab=notice`, { waitUntil: "domcontentloaded", timeout: 120_000 });
 
     const noticeRow = page.getByText("이미지 공지", { exact: true });
     await expect(noticeRow).toBeVisible({ timeout: 30_000 });
@@ -700,7 +748,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
 
   test("커뮤니티 공지 상세도 presign 성공 뒤 이미지 응답 실패를 파일별로 재시도한다", async ({ page }) => {
     const scenario = await installStudentApi(page, { imageNotice: true, imageDeliveryFailure: true });
-    await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+    await page.goto(`${BASE}/student/community?tab=notice`, { waitUntil: "domcontentloaded", timeout: 120_000 });
 
     const noticeRow = page.getByText("이미지 공지", { exact: true });
     await expect(noticeRow).toBeVisible({ timeout: 30_000 });
@@ -836,7 +884,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       ["/student/exams", "시험을 불러오지 못했습니다"],
       ["/student/grades", "성적을 불러올 수 없습니다."],
       ["/student/notices", "공지를 불러오지 못했습니다."],
-      ["/student/community", "공지사항을 불러오지 못했습니다"],
+      ["/student/community?tab=notice", "공지사항을 불러오지 못했습니다"],
       ["/student/notifications", "알림을 불러오지 못했습니다"],
       ["/student/clinic", "클리닉 정보를 불러오지 못했습니다"],
       ["/student/fees", "청구서를 불러오지 못했습니다"],

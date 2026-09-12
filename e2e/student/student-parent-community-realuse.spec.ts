@@ -44,7 +44,9 @@ async function cleanup(request: Parameters<typeof api>[0]): Promise<void> {
 
 async function openCommunityTab(page: Parameters<typeof gotoAndSettle>[0], tab: "QnA" | "상담") {
   await gotoAndSettle(page, `${QA_BASE}/student/community`, { timeout: 30_000 });
-  await page.getByRole("button", { name: tab, exact: true }).click();
+  const entryName = tab === "QnA" ? /^내 질문과 답변/ : /^상담/;
+  await page.getByRole("button", { name: entryName }).click();
+  await expect(page.getByRole("button", { name: tab, exact: true })).toHaveAttribute("aria-pressed", "true");
 }
 
 test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => {

@@ -3,12 +3,20 @@
  * 학생 커뮤니티 — QnA | 게시판 | 자료실
  */
 import { useState, useEffect, useMemo, useRef } from "react";
+import type { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
-import { IconPlus, IconChevronRight, IconBoard } from "@student/shared/ui/icons/Icons";
+import {
+  IconBell,
+  IconBoard,
+  IconChevronRight,
+  IconFolder,
+  IconNotice,
+  IconPlus,
+} from "@student/shared/ui/icons/Icons";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { richHtmlToPlainText, richHtmlToPreviewText } from "@/shared/utils/richHtml";
@@ -77,6 +85,19 @@ function tabFromPath(pathname: string): Tab | null {
   return null;
 }
 
+function tabFromSearch(search: string): Tab | null {
+  const requested = new URLSearchParams(search).get("tab");
+  return TABS.find(({ key }) => key === requested)?.key ?? null;
+}
+
+function searchForTab(search: string, tab: Tab | null): string {
+  const params = new URLSearchParams(search);
+  if (tab) params.set("tab", tab);
+  else params.delete("tab");
+  const next = params.toString();
+  return next ? `?${next}` : "";
+}
+
 // ─── Shared tab bar ───
 function SegmentedTabs<T extends string>({
   items,
@@ -96,6 +117,7 @@ function SegmentedTabs<T extends string>({
             key={key}
             type="button"
             onClick={() => onChange(key)}
+            aria-pressed={active}
             className={`community-segmented-tabs__button${active ? " community-segmented-tabs__button--active" : ""}`}
           >
             <span>{label}</span>
@@ -109,6 +131,72 @@ function SegmentedTabs<T extends string>({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function CommunityHubEntry({
+  icon,
+  label,
+  description,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="community-hub-entry" aria-label={label} onClick={onClick}>
+      <span className="community-hub-entry__icon" aria-hidden="true">{icon}</span>
+      <span className="community-hub-entry__copy">
+        <span className="community-hub-entry__label">{label}</span>
+        <span className="community-hub-entry__description">{description}</span>
+      </span>
+      <IconChevronRight className="community-hub-entry__chevron" aria-hidden="true" />
+    </button>
+  );
+}
+
+function CommunityHub({
+  onQuestion,
+  onSelect,
+}: {
+  onQuestion: () => void;
+  onSelect: (tab: Tab) => void;
+}) {
+  return (
+    <div className="community-hub">
+      <section className="community-hub__hero" aria-labelledby="community-hub-title">
+        <div className="community-hub__eyebrow">질문과 학원 소식을 한곳에서</div>
+        <h2 id="community-hub-title" className="community-hub__title">커뮤니티에서 무엇을 할까요?</h2>
+        <p className="community-hub__description">선생님께 묻거나, 필요한 공지와 수업 자료를 바로 찾아보세요.</p>
+        <button
+          type="button"
+          className="community-hub__question"
+          aria-label="질문하기"
+          aria-describedby="community-hub-question-description"
+          onClick={onQuestion}
+        >
+          <span className="community-hub__question-icon" aria-hidden="true"><IconPlus /></span>
+          <span className="community-hub__question-copy">
+            <span className="community-hub__question-label">질문하기</span>
+            <span id="community-hub-question-description" className="community-hub__question-description">모르는 문제나 수업 내용을 선생님께 바로 물어보세요.</span>
+          </span>
+          <IconChevronRight className="community-hub__question-chevron" aria-hidden="true" />
+        </button>
+      </section>
+
+      <section className="community-hub__destinations" aria-labelledby="community-hub-destinations-title">
+        <h3 id="community-hub-destinations-title" className="community-hub__section-title">찾는 메뉴로 바로 가기</h3>
+        <div className="community-hub__list">
+          <CommunityHubEntry icon={<IconBell />} label="내 질문과 답변" description="보낸 질문과 선생님 답변 확인" onClick={() => onSelect("qna")} />
+          <CommunityHubEntry icon={<IconNotice />} label="공지" description="학원에서 꼭 전하는 안내" onClick={() => onSelect("notice")} />
+          <CommunityHubEntry icon={<IconFolder />} label="자료실" description="수업 자료와 첨부파일 받기" onClick={() => onSelect("materials")} />
+          <CommunityHubEntry icon={<IconBoard />} label="게시판" description="학원 친구들과 함께 보는 글" onClick={() => onSelect("board")} />
+          <CommunityHubEntry icon={<IconBoard />} label="상담" description="개인 상담을 신청하고 답변 확인" onClick={() => onSelect("counsel")} />
+        </div>
+      </section>
     </div>
   );
 }
@@ -192,8 +280,9 @@ function MyActivitySummary() {
 export default function CommunityPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>(() => tabFromPath(location.pathname) ?? "notice");
+  const [tab, setTab] = useState<Tab | null>(() => tabFromPath(location.pathname) ?? tabFromSearch(location.search));
   const [view, setView] = useState<View>({ kind: "tabs" });
+  const preserveViewOnNextLocationRef = useRef(false);
 
   // 알림에서 질문/상담 상세 직접 진입 + dashboard "새 답변" tab prefill
   useEffect(() => {
@@ -201,27 +290,56 @@ export default function CommunityPage() {
     if (state?.openQuestionId != null) {
       setTab("qna");
       setView({ kind: "qna-detail", id: state.openQuestionId });
-      navigate(location.pathname, { replace: true, state: {} });
+      preserveViewOnNextLocationRef.current = true;
+      navigate({ pathname: "/student/community", search: searchForTab(location.search, "qna") }, { replace: true, state: {} });
     } else if (state?.openQnaForm) {
       setTab("qna");
       setView({ kind: "qna-form" });
-      navigate(location.pathname, { replace: true, state: {} });
+      preserveViewOnNextLocationRef.current = true;
+      navigate({ pathname: "/student/community", search: searchForTab(location.search, "qna") }, { replace: true, state: {} });
     } else if (state?.openCounselId != null) {
       setTab("counsel");
       setView({ kind: "counsel-detail", id: state.openCounselId });
-      navigate(location.pathname, { replace: true, state: {} });
+      preserveViewOnNextLocationRef.current = true;
+      navigate({ pathname: "/student/community", search: searchForTab(location.search, "counsel") }, { replace: true, state: {} });
     } else if (state?.openCounselForm) {
       setTab("counsel");
       setView({ kind: "counsel-form" });
-      navigate(location.pathname, { replace: true, state: {} });
+      preserveViewOnNextLocationRef.current = true;
+      navigate({ pathname: "/student/community", search: searchForTab(location.search, "counsel") }, { replace: true, state: {} });
     } else if (state?.tab) {
       setTab(state.tab);
-      navigate(location.pathname, { replace: true, state: {} });
+      setView({ kind: "tabs" });
+      navigate({ pathname: "/student/community", search: searchForTab(location.search, state.tab) }, { replace: true, state: {} });
     } else {
-      const pathTab = tabFromPath(location.pathname);
-      if (pathTab) setTab(pathTab);
+      const requestedTab = tabFromPath(location.pathname) ?? tabFromSearch(location.search);
+      setTab(requestedTab);
+      if (preserveViewOnNextLocationRef.current) {
+        preserveViewOnNextLocationRef.current = false;
+      } else {
+        setView({ kind: "tabs" });
+      }
     }
-  }, [location.pathname, location.state, navigate]);
+  }, [location.pathname, location.search, location.state, navigate]);
+
+  const selectTab = (nextTab: Tab) => {
+    setTab(nextTab);
+    setView({ kind: "tabs" });
+    navigate({ pathname: "/student/community", search: searchForTab(location.search, nextTab) }, { state: {} });
+  };
+
+  const openQuestionForm = () => {
+    setTab("qna");
+    setView({ kind: "qna-form" });
+    preserveViewOnNextLocationRef.current = true;
+    navigate({ pathname: "/student/community", search: searchForTab(location.search, "qna") }, { state: {} });
+  };
+
+  const openHub = () => {
+    setTab(null);
+    setView({ kind: "tabs" });
+    navigate({ pathname: "/student/community", search: searchForTab(location.search, null) }, { state: {} });
+  };
 
   const back = () => setView({ kind: "tabs" });
 
@@ -237,31 +355,41 @@ export default function CommunityPage() {
   // ─── Tab view ───
   return (
     <StudentPageShell title="커뮤니티">
-      <MyActivitySummary />
-      <SegmentedTabs items={TABS} value={tab} onChange={setTab} />
-      <div className="community-tab-panel">
-        {tab === "notice" && (
-          <NoticeTab onDetail={(id) => setView({ kind: "notice-detail", id })} />
-        )}
-        {tab === "board" && (
-          <BoardTab onDetail={(id) => setView({ kind: "board-detail", id })} />
-        )}
-        {tab === "materials" && (
-          <MaterialsTab onDetail={(id) => setView({ kind: "materials-detail", id })} />
-        )}
-        {tab === "qna" && (
-          <QnaTab
-            onForm={() => setView({ kind: "qna-form" })}
-            onDetail={(id, cached) => setView({ kind: "qna-detail", id, cached })}
-          />
-        )}
-        {tab === "counsel" && (
-          <CounselTab
-            onForm={() => setView({ kind: "counsel-form" })}
-            onDetail={(id, cached) => setView({ kind: "counsel-detail", id, cached })}
-          />
-        )}
-      </div>
+      {tab == null ? (
+        <CommunityHub onQuestion={openQuestionForm} onSelect={selectTab} />
+      ) : (
+        <>
+          <button type="button" className="community-hub-back" onClick={openHub}>
+            <span aria-hidden="true">←</span>
+            커뮤니티 처음으로
+          </button>
+          <MyActivitySummary />
+          <SegmentedTabs items={TABS} value={tab} onChange={selectTab} />
+          <div className="community-tab-panel">
+            {tab === "notice" && (
+              <NoticeTab onDetail={(id) => setView({ kind: "notice-detail", id })} />
+            )}
+            {tab === "board" && (
+              <BoardTab onDetail={(id) => setView({ kind: "board-detail", id })} />
+            )}
+            {tab === "materials" && (
+              <MaterialsTab onDetail={(id) => setView({ kind: "materials-detail", id })} />
+            )}
+            {tab === "qna" && (
+              <QnaTab
+                onForm={() => setView({ kind: "qna-form" })}
+                onDetail={(id, cached) => setView({ kind: "qna-detail", id, cached })}
+              />
+            )}
+            {tab === "counsel" && (
+              <CounselTab
+                onForm={() => setView({ kind: "counsel-form" })}
+                onDetail={(id, cached) => setView({ kind: "counsel-detail", id, cached })}
+              />
+            )}
+          </div>
+        </>
+      )}
     </StudentPageShell>
   );
 }
