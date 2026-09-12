@@ -31,7 +31,8 @@ record why, migration/compatibility behavior, and persisted-state handling.
 - Use `ICON.*`, `ICON_FOR_BUTTON.*`, and `ICON_FOR_BADGE.*` tokens.
 - User-facing copy is plain Korean and does not expose internal IDs or workers.
 - Every async surface needs loading, empty, success, and failure states.
-- Disabled actions explain why.
+- Disabled actions explain a legitimate permission or workflow prerequisite;
+  disabling an ordinary supported action is not a completed bug fix.
 - Check long Korean text and 1100/1366 desktop or 390 mobile as applicable.
 - Browser evidence requires DOM assertions and persisted state, not a
   screenshot alone.
@@ -39,6 +40,23 @@ record why, migration/compatibility behavior, and persisted-state handling.
   they materially clarify state, hierarchy, or navigation. Prefer brief
   opacity/transform transitions, keep scrolling and input responsive, respect
   `prefers-reduced-motion`, and avoid decorative or input-blocking animation.
+
+## Successful use and stabilization
+
+Every generally available feature must retain the authorized user's ordinary
+successful journey. A guard, support notice, swallowed error, or empty-success
+fallback does not restore a broken feature. Only a feature labeled Beta before
+entry may expose a documented incomplete path. Preserve legitimate tenant,
+permission, data, and messaging boundaries while fixing false rejection or the
+failing operation. Keep input on failure and provide a working recovery path.
+
+Trace the CTA through the API, saved state, reload, and consuming screens for
+each affected role. Include desktop and 390px where exposed. Denial-only tests,
+screenshots, and green CI do not prove successful use. Inspect callers and
+compatibility before removing duplicate or wasteful code in assigned cleanup.
+Use `docs/REAL-USE-REVIEW-MANUAL.md` and the backend change-risk contract for
+evidence. Read only relevant skills and repeat passing checks only for changed
+inputs, failures, or unresolved risks.
 
 ## Contract verification
 
@@ -55,6 +73,16 @@ pnpm lint
 pnpm build
 pnpm test:e2e:gate
 ```
+
+Compatible patches have no default 04:00 deployment wait. The release owner
+may promote promptly through existing gates once old/new API and DB versions
+coexist and active playback/editing survives without forced reload or loss.
+Honor explicitly applicable current HOLDs; a historical time window is not a
+permanent policy. Unresolved interruption risk or incompatible changes need a
+separate change window. See `docs/DEPLOYMENT-OPERATIONS.md` for timing and gates.
+Verify affected boundaries and reuse applicable unchanged evidence. Distinguish
+an existing static finding from an interruption introduced or exposed by this
+candidate; do not infer a blanket deployment HOLD from code presence alone.
 
 Production delivery goes through `.github/workflows/quality-gate.yml`.
 PR E2E is login/read-only/mock only. Automatic release QA must not create

@@ -16,6 +16,13 @@
 - 잘못 누르기, 중복 클릭, 뒤로가기, 미입력 제출, 잘못된 파일 업로드 같은 비의도 사용을 흡수하는가.
 - 클리닉, 성적, 영상, 알림톡처럼 backend 상태와 worker/provider가 엮인 흐름은 API/로그/상대 역할 화면까지 반영되는가.
 
+검수는 사용자가 기대한 성공 행동을 먼저 정한다. disabled 버튼, 가드 경고,
+조용한 catch, 실패를 0건으로 바꾸는 fallback, retry/skip으로 녹색이 된 테스트를
+발견하면 권한 있는 사용자의 정상 입력도 완료할 수 있는지 확인한다. 실패와 빈
+상태를 구분하고 입력 보존·오류 표시·재시도 뒤 저장/reload/소비 역할 반영까지
+확인한다. 정상적인 권한·tenant·데이터·발송 경계는 유지한다. 세부 감사와 구조
+정비 기준은 [backend 변경 위험 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/change-risk-and-release-bundle.md)이 소유한다.
+
 ## 2. 현재 근거
 
 | 구분 | 현재 사실 |
@@ -26,27 +33,33 @@
 | 기존 한계 | skip/annotation/early return/API-assisted 흐름은 실사용 완주 증거로 분류하지 않음 |
 | 기존 강점 | `e2e/student/score-report-realuse.spec.ts`는 강의->차시->학생->시험->학생 제출->성적 노출까지 깊게 검증 |
 | PR gate | production-backed 로그인/read-only/route-mock exact allowlist. notice/qna/clinic/password/session-assessment 쓰기는 포함하지 않음 |
-| 배포 후 gate | 격리 Cloudflare preview 검증과 `production` 승인 후 baseline을 잡고, 배포 SHA·필수 lazy asset을 3회 연속 확인한 뒤 bounded notice/qna/clinic/session-assessment를 실행. 실패 시 baseline rollback |
+| 배포 gate | 동일 artifact의 격리 development real-use와 cleanup zero 후 production 승인·반영. 운영에서는 SHA/필수 asset·login·tenant availability·조회-only session-assessment를 확인하고 실패 시 baseline rollback. 기술적 전환 HOLD는 배포 운영 계약을 따름 |
 | 사용자 가이드 | `frontend/docs/USER-GUIDE-ADMIN.md`, `frontend/docs/USER-GUIDE-STUDENT.md` |
 | 도메인 SSOT | 학생 생성/생명주기: `backend/docs/domain/student-creation.md`, `backend/docs/domain/student-lifecycle.md`; OMR: `backend/docs/domain/omr.md`; 메시징: `backend/docs/domain/messaging.md` |
 
 ## 3. 점검 환경
 
-기본은 운영 유사 테스트 테넌트인 Tenant 1 `hakwonplus`를 사용한다.
+생성·수정과 인증 시각 QA의 기본은 상시 격리 development API와 일회용 `qa-*`
+tenant/account다. 운영 테넌트를 테스트 데이터 생성용 기본값으로 삼지 않는다.
+정확한 checkout과 SSM loopback 연결, 자원 격리·외부 메시지 0·삭제 readback은
+[상시 개발 런타임](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/persistent-development-runtime.md)과
+[배포 운영 계약](DEPLOYMENT-OPERATIONS.md)을 따른다.
 
 | 항목 | 기준 |
 |------|------|
-| 프론트 | `.env.e2e`의 `E2E_BASE_URL` |
-| API | `.env.e2e`의 `E2E_API_URL` |
-| 관리자 | `.env.e2e`의 `E2E_ADMIN_USER`, `E2E_ADMIN_PASS` |
-| 학생 | `.env.e2e`의 `E2E_STUDENT_USER`, `E2E_STUDENT_PASS` |
-| 테스트 데이터 태그 | `[E2E-{timestamp}]` |
+| 프론트 | 검증할 exact checkout 또는 배포와 동일 artifact |
+| API | 격리 development API, 운영 API로 fallback 금지 |
+| 계정·tenant | 해당 작업이 생성·소유한 일회용 `qa-*` 시나리오 |
+| 테스트 데이터 | 합성 데이터만 사용; 운영 개인정보·DB·R2 복제 금지 |
+| 종료 조건 | QA tenant/user 0, 소유 자원 cleanup 결과 확인 |
 | 스크린샷/보고서 | `C:\academy\_artifacts\realuse-review\{YYYYMMDD-HHMM}\` |
 | repo 산출물 | 반복 지침은 `frontend/docs`, 일회성 증거는 `_artifacts` |
 
-운영 알림톡 실발송이 필요한 경우 통제 수신번호 `01031217466`로만 1건 발송한다. 다른 운영 번호로 테스트 발송하지 않는다.
+일반 검수는 외부 메시지를 발송하지 않는다. 운영 실발송이 별도로 명시 배정된
+경우에만 메시징 정책의 정확한 대상·승인 템플릿·통제 시나리오를 적용한다.
+과거 문서의 번호나 환경변수가 현재 발송 권한을 대신하지 않는다.
 
-Tenant 1 밖의 고객 제보를 재현할 때는 플랫폼 대리 로그인 API/UI를 사용한다.
+고객 제보의 실제 상태를 읽어야 할 때는 범위가 확인된 플랫폼 대리 로그인 API/UI를 사용한다.
 이 경로는 `impersonation.start` 감사 로그를 남기므로 명시적 opt-in 환경변수로만
 실행하고, 기존 행·파일·시험을 읽는 검증을 우선한다. 테스트 helper가 원래 관리자
 토큰을 `addInitScript`로 주입했다면 대상 토큰도 마지막 초기화 스크립트로 고정해
@@ -58,12 +71,13 @@ spec 전체의 trace, video, screenshot 저장은 비활성화한다.
 
 | 레벨 | 목적 | 사용 시점 | 완료 기준 |
 |------|------|-----------|-----------|
-| L0 빠른 회귀 | PR 로그인/read-only/mock 또는 배포 후 bounded roundtrip | PR/매 배포 | PR `pnpm test:e2e:gate`; 배포는 `e2e-roundtrip`과 rollback 결과까지 통과 |
-| L1 실사용 canary | 운영 핵심 한 바퀴 | 큰 UI/도메인 변경 전후 | 새 데이터 생성, 학생/관리자 반영, cleanup |
+| L0 빠른 회귀 | PR 로그인/read-only/mock와 배포 동일 artifact 개발 canary | PR/매 배포 | PR gate; development 성공/cleanup zero; 운영 조회와 rollback 결과 |
+| L1 실사용 canary | 격리 development 핵심 한 바퀴 | 큰 UI/도메인 변경 전후 | 실제 CTA 생성·저장, 학생/관리자 반영, reload, cleanup zero |
 | L2 상품성 리뷰 | UI/UX, 초심자, 비의도 사용 | 출시 전/큰 화면 개편 후 | 스크린샷과 판정표, P0/P1/P2 이슈 분류 |
-| L3 운영 통합 | worker/provider/실발송/장시간 영상 | 영상, 알림톡, worker, 배포 변경 후 | provider/worker 로그와 실제 수신/재생 증거 |
+| L3 운영 통합 | worker/장시간 영상과 별도 배정된 provider 검증 | 관련 경계 변경 후 | worker 최종 상태·실제 재생; 실발송은 별도 범위·승인 증거 |
 
-GitHub의 `.github/workflows/e2e.yml`을 수동 실행하면 운영 read-only job과
+다음 운영 쓰기 경로는 별도로 명시 배정된 통제 canary에만 적용하며 일반 실사용
+검수나 자동 배포 QA로 실행하지 않는다. GitHub의 `.github/workflows/e2e.yml`을 수동 실행하면 운영 read-only job과
 실제 API가 닫힌 route-mock job을 병렬 실행한다. 요청자가
 `controlled_write_canaries=true`를 명시한 실행만 notice/QnA/clinic/password/
 session-assessment, 가입·계정복구 실발송과 OMR·과제·클리닉 fixture를 통제
@@ -493,10 +507,11 @@ P0/P1은 리뷰 종료 전에 재현 경로와 데이터 ID를 남긴다. P2/P3�
 
 ## 11. 실행 명령
 
-기본 확인:
+검증할 소유 worktree에서 변경한 경계에 필요한 focused 검사와 기존 필수 게이트를
+선택한다. canonical `C:\academy\frontend`나 다른 작업의 서버에서 실행하지 않는다.
+문서만 바꾼 작업에 제품 build/쓰기 E2E를 자동 추가하지 않는다.
 
 ```powershell
-cd C:\academy\frontend
 pnpm typecheck
 pnpm guard:legacy-api
 pnpm lint
@@ -504,21 +519,11 @@ pnpm build
 pnpm test:e2e:gate
 ```
 
-기존 실사용 관련 spec 단독 실행:
-
-```powershell
-cd C:\academy\frontend
-pnpm exec playwright test e2e/admin/session-assessment-realuse.spec.ts --reporter=list
-pnpm exec playwright test e2e/student/score-report-realuse.spec.ts --reporter=list
-pnpm exec playwright test e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-roundtrip.spec.ts e2e/flows/clinic-roundtrip.spec.ts --reporter=list
-```
-
-시각검수용 headed 실행:
-
-```powershell
-cd C:\academy\frontend
-pnpm test:e2e:headed
-```
+실사용 spec을 기본 Playwright config로 직접 실행해 운영 자격증명과 섞지 않는다.
+[E2E 인벤토리](REAL-USE-E2E-INVENTORY.md)의 계층과 현재 `e2e/suites.mjs`에서
+소유 config/runner를 선택한다. 인증 시각 QA는 3절의 격리 development에서 고유
+포트와 `E2E_BASE_URL`을 지정하고, headed 여부와 무관하게 같은 데이터/정리 경계를
+적용한다. 이미 통과한 검사는 새 변경·실패·미해결 위험이 없으면 반복하지 않는다.
 
 ## 12. 자동화 보강 백로그
 
@@ -544,7 +549,8 @@ pnpm test:e2e:headed
 - [ ] 처음 쓰는 사용자 관점의 CTA/빈 상태/오류/되돌아가기 검수를 했다.
 - [ ] desktop/narrow/mobile 중 필요한 viewport 스크린샷을 남겼다.
 - [ ] 생성한 `[E2E-{timestamp}]` 데이터 cleanup 결과를 기록했다.
-- [ ] 운영 roundtrip cleanup은 HTTP 성공을 assertion하며 best-effort/예외 무시 경로가 없다.
+- [ ] 기본 격리 QA의 tenant/user 잔여 0을 readback했다. 별도 배정된 운영
+      roundtrip도 cleanup 성공을 assertion하며 best-effort/예외 무시 경로가 없다.
 - [ ] 알림톡 실발송이 있었다면 통제 번호, provider/log, 수신 여부를 기록했다.
 - [ ] 알림 발송이 목적이 아닌 다중 학생 fixture는 운영에서 실행하지 않고
       전용 메시징 경계를 가진 development/preproduction에서 실행했다.

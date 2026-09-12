@@ -15,7 +15,8 @@ spec 목록과 과거 pass count는 보관하지 않는다. 실행 목록은
 | PR route mock | `test:e2e:gate:mock` | 모든 활성 `*.mock.spec.ts`, tenant/API payload, 저장·reload·오류 상태, 390px 핵심 surface | 실제 API fallback |
 | 수동 전체 gate | `.github/workflows/e2e.yml` | 운영 read-only와 폐쇄 proxy route mock을 병렬 재사용 | 환경이 다른 spec의 혼합 실행 |
 | 통제 쓰기 | `test:e2e:controlled-writes` | 가입·복구·공지·QnA·클리닉·평가·OMR·과제 실제 왕복 | 자동 PR 실행, 재시도 |
-| 배포 후 canary | `quality-gate.yml` `e2e-roundtrip` | exact production revision에서 bounded 쓰기 후 실패 시 baseline rollback | 독립 수동 실행 |
+| 배포 전 개발 canary | `quality-gate.yml` `development-canary` | 동일 deploy-bundle로 격리 development 실제 쓰기와 tenant/user cleanup zero | 운영 business mutation·외부 메시지 |
+| 배포 후 canary | `quality-gate.yml` `e2e-roundtrip` | exact production revision의 login·tenant availability·조회-only 검증, 실패 시 baseline rollback | 운영 business mutation·독립 수동 실행 |
 | 전 메뉴 감사 | `all-menu-button-click-audit.spec.ts` | 역할별 메뉴·조회·닫기·필터의 사람형 클릭, fatal/빈 화면 수집 | 저장·삭제·결제·발송 |
 | 주간 시각 감사 | `design-system-route-audit.spec.ts` | 9개 desktop/390px/public surface, overflow·font·escaped HTML·fatal 상태 | 제품 데이터 mutation |
 
@@ -105,6 +106,9 @@ fatal·빈 화면 검사는 이미 정착된 페이지를 읽으며 같은 `netw
 - production write는 exact controlled phone/fixture, 명시적 allow flag,
   `retries=0`, 종료 cleanup, backend residue 0을 모두 요구한다.
 - 운영 read-only와 shared tenant 감사는 worker 1을 유지한다.
+- 배포 전 development canary는 같은 artifact의 정상 성공과 cleanup zero를
+  생략 없이 증명한다. IAM/SSM 실제 검증의 전환 HOLD는
+  [배포 운영 계약](DEPLOYMENT-OPERATIONS.md)을 따른다.
 - 배포 후 canary 실패는 성공으로 완화하지 않고 저장된 baseline으로 rollback한다.
 - 배포 후 read-only login canary의 자동 product analytics batch와 Cloudflare Insights
   script는 exact schema/host/path/header를 확인한 뒤 로컬에서만 중화한다. 운영 분석
@@ -135,5 +139,7 @@ pnpm test:e2e:gate
 ```
 
 로컬 Playwright는 검증할 checkout의 고유 Vite 포트와 `E2E_BASE_URL`을
-명시한다. 운영 배포 판정은 exact `version.json` SHA, 공식 workflow 결과,
-post-deploy canary와 rollback 상태를 함께 읽는다.
+명시한다. 운영 배포 판정은 같은 artifact의 development 성공/cleanup zero,
+exact `version.json` SHA, 공식 workflow 결과, post-deploy 조회 canary와
+rollback 상태를 함께 읽는다. 기존 계정 로그인과 검토된 dashboard observation의
+쓰기는 업무 데이터 mutation과 별도로 보고하며 전체 DB 쓰기 0으로 표현하지 않는다.
