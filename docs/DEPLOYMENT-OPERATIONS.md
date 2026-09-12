@@ -312,8 +312,19 @@ session, 토큰 교체가 필수다. 최초 master/media 요청은 존재하되 
 count를 유지하면서 `currentTime`이 5초 이상 계속 전진하고 재생 상태·배속·음량도 유지해야
 한다. 이어서 진도 POST 성공값과 reload bootstrap의
 서버 위치 및 복원된 media 위치가 2초 이내인지 확인하고, console/page/request 오류와
-수평 overflow가 모두 0이어야 한다. 화면 이탈 후 사후 Inspect는 두 학생의 진도와 정확한
-4개 재생 session, active session 0, PLAYER_ERROR/violation 0을 숫자로 확인한다.
+수평 overflow가 모두 0이어야 한다. 화면 이탈 후 사후 Inspect는 Setup이 반환한 exact
+`tenant_id`와 `synthetic_long_video.video_id`를 `TenantId`/`VideoId`로 함께 전달한다.
+`VideoId`는 `SyntheticLongVideo=true`인 Inspect에서만 허용하며 frontend는 두 ID가 양의
+safe integer인지 확인한다. Backend는 tenant code/PK와 영상 PK, 삭제되지 않은 합성 fixture의
+정확한 identity를 검증한 뒤 `synthetic_video_id` echo와 해당 영상만의
+`synthetic_video_state`를 반환한다. echo가 Setup ID와 다르거나 scoped state가 없으면
+실패한다. 기존 tenant 전체 `video_state`는 그대로 관측하되 다른 실사용 흐름이 만든
+영상이나 soft-delete 행을 장시간 영상의 성공 조건에 합산하지 않는다. 성공 판정은
+scoped state에만 기존 영상 1개, 접근/PROCTORED 접근/진도 각 2개, 재생 session 정확히
+4개, active session 0, playback event 4개 이상, PLAYER_ERROR/violation 0을 적용한다.
+초기 Inspect/Setup/Cleanup/post-cleanup Inspect는 `VideoId`를 보내지 않아 기본값 0의
+기존 비지정 범위 계약을 유지한다. 서버 query와 fixture identity 규칙은 backend의
+`docs/operations/persistent-development-runtime.md`가 소유한다.
 계정·학습·수강·영상 시나리오 전체를 한 worker에서 순차 실행하므로 Playwright 자식
 프로세스에는 30분을 허용한다. 40분 개발 카나리 job 안에서 결과 JSON 생성과 exact
 Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 30분을 넘기면 기존처럼 실패
@@ -328,8 +339,8 @@ capability로 cleanup/readback을 시도한다. 실패 schema에는 tenant code�
 결합한다. 이름 정규식이나 runner run 문자열만으로 destroy 권한을 주지 않는다.
 missing/duplicate/foreign owner는 destroy 전 거부하며, 이미 부재하면 0 readback만 한다.
 초기 Inspect와 Setup에는 `TenantId`를 보내지 않는다. Setup이 반환한 exact positive integer
-`tenant_id`만 메모리에 보존해 Cleanup과 그 직후 고정 Inspect에 `TenantId`로 전달하고,
-두 응답의 `tenant_id` echo가 같아야 한다. Cleanup 성공 여부와 무관하게 post-cleanup
+`tenant_id`만 메모리에 보존해 post-playback Inspect, Cleanup과 그 직후 고정 Inspect에
+`TenantId`로 전달하고, 각 응답의 `tenant_id` echo가 같아야 한다. Cleanup 성공 여부와 무관하게 post-cleanup
 Inspect를 별도로 실행하며, exact tenant/users/R2 object/QA process/listener가 모두 숫자 0인
 데 더해 backend가 exact TenantId로 R2 범위를 증명한 `r2_scope_proven=true`인 경우에만
 `postCleanupInspectObservation`을 통과시킨다. 이 readback이 없거나 하나라도
@@ -354,6 +365,25 @@ provider 오류 원문은 기록하지 않는다. Inspect identity 검사는 sta
 boolean으로만 기록한다. raw output·오류 message·session ID·token·capability·password·
 사용자 정보는 증거에 기록하지 않는다. raw Playwright JSON은 메모리에서 검증하고 개발
 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
+
+사후 영상 Inspect의 수치 관측은 최상위 `postPlaybackInspectObservation`에 별도로 남긴다.
+`aggregateVideoState`/`syntheticVideoState`는 각각 `videos`, `video_accesses`,
+`proctored_video_accesses`, `video_progresses`, `playback_sessions`,
+`active_playback_sessions`, `playback_events`, `player_errors`, `violated_events`의
+정확한 아홉 필드와 0~1,000,000의 정수만 허용하며, 누락·추가 필드·잘못된 값이 있는
+블록은 전체를 null로 남긴다. 다른 유효한 블록은 보존한다. ID echo는
+`tenantIdMatches`/`videoIdMatches` boolean으로만, status/잔여/release/digest도 기존
+네 비교 boolean으로만 남겨 ID·URL·오류 원문·알 수 없는 필드를 기록하지 않는다.
+이 관측은 operation 응답을 해석한 직후 소유 session, exit code, JSON/status/tenant,
+identity/scope 및 runtime assertion보다 먼저 기존 `persistEvidence` 경로로 저장한다.
+명령이 nonzero여도 유효한 수치는 보존하지만 성공 증거가 되지는 않는다. 기존
+`videoRuntimeObservation`은 scoped state의 모든 assertion을 통과한 뒤에만 채운다.
+이 경계의 무브라우저 회귀는 `scripts/tests/release-video-scope.test.mjs`가 소유하며,
+exact scope/echo, aggregate 추가 영상, malformed/raw 값 거부와 실패 전 저장을 검증한다.
+기존 공식 `development-release-canary.test.mjs` 진입점이 이 회귀를 import하므로
+별도 workflow나 수동 실행에만 의존하지 않는다.
+관측의 유무는 19개 실사용, 690초 재생 또는 cleanup0 조건을 대체하지 않는다.
+
 장시간 재생 실패는 추가로 설정 timeout, test/result 상태, result 수, 실행 시간, 오류 수와
 실패한 response 관측 종류(`bootstrap`, `access`, `session-list`, `renewal`, `progress`, `other`) 및
 고정된 응답 계약 코드만 allowlist로 남긴다. 실패한 필수 실사용 파일은 원문 오류나 사용자
