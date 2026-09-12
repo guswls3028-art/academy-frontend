@@ -184,12 +184,78 @@ export function assertReleaseRequestSafe(
 export type ObservationCounts = { attempted: number; accepted: number };
 export type RequestTransportCounts = { readFetchRetries: number };
 export type RequestTransportDiagnostic = {
-  method: "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE";
+  method: "GET" | "HEAD" | "OPTIONS" | "POST" | "PUT" | "PATCH" | "DELETE";
   pathTemplate: string;
   requestKind: "read" | "mutation";
   stage: "initial" | "retry";
   transportCode: "context-disposed" | "timeout" | "transport";
 };
+
+type NativeTransportCode = "ECONNRESET" | "ECONNREFUSED" | "EPIPE" | "ETIMEDOUT" | "timeout" | "context-disposed" | "other";
+export type ReleaseObservationEvent = {
+  phase: "route-fetch" | "route-fulfill" | "api-request" | "browser-console" | "browser-pageerror"
+    | "page-close" | "page-crash" | "context-close" | "browser-disconnected";
+  stage: "initial" | "retry" | "recovered" | "terminal";
+  method?: RequestTransportDiagnostic["method"] | "other";
+  pathTemplate?: string | null;
+  nativeCode?: NativeTransportCode;
+  category?: "cors" | "chunk" | "network" | "resource" | "runtime" | "other";
+  sourceKind?: "local" | "api" | "vendor" | "unknown";
+};
+
+export function safeNativeTransportCode(error: unknown): NativeTransportCode {
+  const message = error instanceof Error ? error.message : "";
+  const code = isRecord(error) && typeof error.code === "string" ? error.code : "";
+  for (const candidate of ["ECONNRESET", "ECONNREFUSED", "EPIPE", "ETIMEDOUT"] as const) {
+    if (code === candidate || new RegExp(`\\b${candidate}\\b`).test(message)) return candidate;
+  }
+  const legacyCode = safeRequestTransportCode(error);
+  return legacyCode === "transport" ? "other" : legacyCode;
+}
+
+let nextObservationOrdinal = 0;
+
+export function createReleaseContextObservation(contextOrdinal: number | null,
+  state: () => { closing: boolean; activeRouteCount: number } = () => ({ closing: false, activeRouteCount: 0 })) {
+  const startedAt = Date.now();
+  let snapshotSequence = 0;
+  const data = {
+    schema: "release-context-observation/v1" as const,
+    observationOrdinal: ++nextObservationOrdinal,
+    contextOrdinal,
+    events: [] as Array<ReleaseObservationEvent & { elapsedMs: number; closing: boolean; activeRouteCount: number }>,
+    droppedEventCount: 0,
+    droppedRequestTransportDiagnosticCount: 0,
+    unknownPathEventCounts: { "route-fetch": 0, "route-fulfill": 0, "api-request": 0 },
+  };
+  return {
+    data,
+    snapshot() {
+      return {
+        ...data,
+        snapshotSequence: ++snapshotSequence,
+        events: data.events.map((event) => ({ ...event })),
+        unknownPathEventCounts: { ...data.unknownPathEventCounts },
+      };
+    },
+    record(event: ReleaseObservationEvent) {
+      if (event.pathTemplate === null && (event.phase === "route-fetch" || event.phase === "route-fulfill" || event.phase === "api-request")) {
+        data.unknownPathEventCounts[event.phase] += 1;
+      }
+      if (data.events.length >= 128) { data.droppedEventCount += 1; return; }
+      data.events.push({ ...event, elapsedMs: Math.max(0, Date.now() - startedAt), ...state() });
+    },
+    recordTransportDiagnostic(diagnostics: RequestTransportDiagnostic[], diagnostic: RequestTransportDiagnostic) {
+      if (diagnostics.length < 128) diagnostics.push(diagnostic);
+      else data.droppedRequestTransportDiagnosticCount += 1;
+    },
+  };
+}
+
+function safeTransportMethod(method: string): RequestTransportDiagnostic["method"] | "other" {
+  return ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"].includes(method)
+    ? method as RequestTransportDiagnostic["method"] : "other";
+}
 
 export type ReleaseContextGuard = {
   observations: ObservationCounts;
@@ -200,6 +266,7 @@ export type ReleaseContextGuard = {
     suppressedCloudflareBeacons: number;
   };
   requestTransportDiagnostics: RequestTransportDiagnostic[];
+  observation: ReturnType<typeof createReleaseContextObservation>;
   beginClose: () => Promise<void>;
   assertClean: () => void;
 };
@@ -208,8 +275,16 @@ const installedContextGuards = new WeakMap<BrowserContext, {
   boundary: ReleaseBoundary;
   ready: Promise<ReleaseContextGuard>;
 }>();
+let nextContextOrdinal = 0;
 
 const SAFE_REQUEST_TRANSPORT_STATIC_PATHS = new Set([
+  "/api/v1/clinic/idcard/",
+  "/api/v1/clinic/participants/",
+  "/api/v1/clinic/participants/bulk-create/",
+  "/api/v1/clinic/participants/by_session/",
+  "/api/v1/clinic/sessions/",
+  "/api/v1/clinic/sessions/tree/",
+  "/api/v1/clinic/sessions/locations/",
   "/api/v1/core/tenant/by-host/",
   "/api/v1/media/playback/end/",
   "/api/v1/media/playback/renew/",
@@ -227,6 +302,11 @@ const SAFE_REQUEST_TRANSPORT_STATIC_PATHS = new Set([
   "/students/bulk_permanent_delete/",
 ]);
 const SAFE_REQUEST_TRANSPORT_PATH_SHAPES: Array<[RegExp, string]> = [
+  [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/$/, "/api/v1/clinic/participants/:id/"],
+  [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/set_status\/$/, "/api/v1/clinic/participants/:id/set_status/"],
+  [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/change-booking\/$/, "/api/v1/clinic/participants/:id/change-booking/"],
+  [/^\/api\/v1\/clinic\/sessions\/[1-9][0-9]*\/$/, "/api/v1/clinic/sessions/:id/"],
+  [/^\/api\/v1\/clinic\/sessions\/[1-9][0-9]*\/availability\/$/, "/api/v1/clinic/sessions/:id/availability/"],
   [/^\/api\/v1\/student\/video\/sessions\/[1-9][0-9]*\/videos\/$/, "/api/v1/student/video/sessions/:id/videos/"],
   [/^\/api\/v1\/student\/video\/videos\/[1-9][0-9]*\/progress\/$/, "/api/v1/student/video/videos/:id/progress/"],
   [/^\/api\/v1\/storage\/inventory\/files\/[1-9][0-9]*\/$/, "/api/v1/storage/inventory/files/:id/"],
@@ -264,6 +344,7 @@ export function installReleaseRequestGuard(
   onViolation: () => void = () => {},
   transport: RequestTransportCounts = { readFetchRetries: 0 },
   onTransportDiagnostic: (diagnostic: RequestTransportDiagnostic) => void = () => {},
+  onObservation: (event: ReleaseObservationEvent) => void = () => {},
 ): APIRequestContext {
   if (guardedRequests.has(request)) return request;
   guardedRequests.add(request);
@@ -295,15 +376,19 @@ export function installReleaseRequestGuard(
     const rawUrl = typeof url === "string" ? new URL(url, boundary.webOrigin).toString() : url.url();
     const pathTemplate = safeRequestTransportPathTemplate(rawUrl);
     const retryableRead = verb === "GET" || verb === "HEAD";
-    const diagnosticMethod = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"].includes(verb)
-      ? verb as RequestTransportDiagnostic["method"] : null;
-    const requestKind: RequestTransportDiagnostic["requestKind"] = retryableRead ? "read" : "mutation";
+    const diagnosticMethod = safeTransportMethod(verb);
+    const requestKind: RequestTransportDiagnostic["requestKind"] = retryableRead || verb === "OPTIONS" ? "read" : "mutation";
+    const record = (stage: ReleaseObservationEvent["stage"], error?: unknown) => onObservation({
+      phase: "api-request", stage, method: diagnosticMethod, pathTemplate,
+      ...(error === undefined ? {} : { nativeCode: safeNativeTransportCode(error) }),
+    });
     return (async () => {
       const attempt = async (stage: RequestTransportDiagnostic["stage"]) => {
         try {
           return { response: await originalFetch(url, { ...options, method: verb, maxRedirects: 0 }) };
         } catch (error) {
-          if (pathTemplate && diagnosticMethod) onTransportDiagnostic({
+          record(stage, error);
+          if (pathTemplate && diagnosticMethod !== "other") onTransportDiagnostic({
             method: diagnosticMethod,
             pathTemplate,
             requestKind,
@@ -321,9 +406,11 @@ export function installReleaseRequestGuard(
           result = await attempt("retry");
         }
         if (result.error) {
+          record("terminal", result.error);
           onViolation();
           throw new Error("Release APIRequestContext transport rejected");
         }
+        record("recovered");
       }
       return count(kind, Promise.resolve(result.response!));
     })();
@@ -373,19 +460,23 @@ export async function installReleaseContextGuard(
   const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
   const activeRoutes = new Set<Promise<void>>();
   let closing = false;
+  const observation = createReleaseContextObservation(++nextContextOrdinal,
+    () => ({ closing, activeRouteCount: activeRoutes.size }));
   installReleaseRequestGuard(context.request, boundary, observations, authentication,
     () => defects.push("APIRequestContext release boundary violation"), transport,
-    (diagnostic) => requestTransportDiagnostics.push(diagnostic));
+    (diagnostic) => observation.recordTransportDiagnostic(requestTransportDiagnostics, diagnostic), observation.record);
   const recordRouteTransport = (request: Request, upstream: string,
-    stage: RequestTransportDiagnostic["stage"], error: unknown) => {
-    const method = request.method().toUpperCase();
-    if (!["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"].includes(method)) return;
+    stage: ReleaseObservationEvent["stage"], error?: unknown,
+    phase: "route-fetch" | "route-fulfill" = "route-fetch") => {
+    const method = safeTransportMethod(request.method().toUpperCase());
     const pathTemplate = safeRequestTransportPathTemplate(upstream);
-    if (!pathTemplate) return;
-    requestTransportDiagnostics.push({
-      method: method as RequestTransportDiagnostic["method"],
+    observation.record({ phase, stage, method, pathTemplate,
+      ...(error === undefined ? {} : { nativeCode: safeNativeTransportCode(error) }) });
+    if (!pathTemplate || method === "other" || phase !== "route-fetch" || (stage !== "initial" && stage !== "retry")) return;
+    observation.recordTransportDiagnostic(requestTransportDiagnostics, {
+      method,
       pathTemplate,
-      requestKind: method === "GET" || method === "HEAD" ? "read" : "mutation",
+      requestKind: ["GET", "HEAD", "OPTIONS"].includes(method) ? "read" : "mutation",
       stage,
       transportCode: safeRequestTransportCode(error),
     });
@@ -409,7 +500,10 @@ export async function installReleaseContextGuard(
         try {
           await route.fulfill({ status: 200, contentType: "application/javascript; charset=utf-8", body: "" });
           transport.suppressedCloudflareBeacons += 1;
-        } catch { await reject("fulfill-transport"); }
+        } catch (error) {
+          recordRouteTransport(request, upstream, "terminal", error, "route-fulfill");
+          await reject("fulfill-transport");
+        }
         return;
       }
       let data: unknown;
@@ -430,7 +524,10 @@ export async function installReleaseContextGuard(
             body: JSON.stringify({ accepted: 0, ignored: "release_readonly" }) });
           transport.suppressedAnalyticsBatches += 1;
           transport.suppressedAnalyticsEvents += analyticsEvents;
-        } catch { await reject("fulfill-transport"); }
+        } catch (error) {
+          recordRouteTransport(request, upstream, "terminal", error, "route-fulfill");
+          await reject("fulfill-transport");
+        }
         return;
       }
       const kind = assertReleaseRequestSafe(boundary, upstream, request.method(), tenantCode, data);
@@ -449,6 +546,7 @@ export async function installReleaseContextGuard(
           const code = releaseRequestFailureCode(error);
           const safeRead = ["GET", "HEAD", "OPTIONS"].includes(request.method().toUpperCase());
           if (!safeRead || code === "context-disposed") {
+            recordRouteTransport(request, upstream, "terminal", error);
             await reject(code === "context-disposed" ? code : "fetch-transport");
             return;
           }
@@ -456,8 +554,10 @@ export async function installReleaseContextGuard(
           await new Promise((resolve) => setTimeout(resolve, 500));
           try {
             response = await route.fetch({ url: upstream, headers, maxRedirects: 0 });
+            recordRouteTransport(request, upstream, "recovered");
           } catch (retryError) {
             recordRouteTransport(request, upstream, "retry", retryError);
+            recordRouteTransport(request, upstream, "terminal", retryError);
             const retryCode = releaseRequestFailureCode(retryError);
             await reject(retryCode === "context-disposed" ? retryCode : "fetch-transport");
             return;
@@ -473,7 +573,8 @@ export async function installReleaseContextGuard(
         }
         if (counter && (kind === "observation" ? response.status() === 202 : response.ok())) counter.accepted += 1;
         try { await route.fulfill({ response }); }
-        catch {
+        catch (error) {
+          recordRouteTransport(request, upstream, "terminal", error, "route-fulfill");
           await reject("fulfill-transport");
         }
         return;
@@ -490,6 +591,7 @@ export async function installReleaseContextGuard(
     authentication,
     transport,
     requestTransportDiagnostics,
+    observation,
     async beginClose() {
       closing = true;
       await Promise.allSettled([...activeRoutes]);

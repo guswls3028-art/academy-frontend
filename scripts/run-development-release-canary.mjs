@@ -50,6 +50,13 @@ const SAFE_FAILURE_SOURCE_FILES = new Set([
   "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
 ]);
 const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
+  "/api/v1/clinic/idcard/",
+  "/api/v1/clinic/participants/",
+  "/api/v1/clinic/participants/bulk-create/",
+  "/api/v1/clinic/participants/by_session/",
+  "/api/v1/clinic/sessions/",
+  "/api/v1/clinic/sessions/tree/",
+  "/api/v1/clinic/sessions/locations/",
   "/api/v1/core/tenant/by-host/",
   "/api/v1/media/playback/end/",
   "/api/v1/media/playback/renew/",
@@ -67,6 +74,11 @@ const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
   "/students/bulk_permanent_delete/",
 ]);
 const SAFE_FAILURE_ENDPOINT_SHAPES = [
+  [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/$/, "/api/v1/clinic/participants/:id/"],
+  [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/set_status\/$/, "/api/v1/clinic/participants/:id/set_status/"],
+  [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/change-booking\/$/, "/api/v1/clinic/participants/:id/change-booking/"],
+  [/^\/api\/v1\/clinic\/sessions\/[1-9][0-9]*\/$/, "/api/v1/clinic/sessions/:id/"],
+  [/^\/api\/v1\/clinic\/sessions\/[1-9][0-9]*\/availability\/$/, "/api/v1/clinic/sessions/:id/availability/"],
   [/^\/api\/v1\/student\/video\/sessions\/[1-9][0-9]*\/videos\/$/, "/api/v1/student/video/sessions/:id/videos/"],
   [/^\/api\/v1\/student\/video\/videos\/[1-9][0-9]*\/progress\/$/, "/api/v1/student/video/videos/:id/progress/"],
   [/^\/api\/v1\/storage\/inventory\/files\/[1-9][0-9]*\/$/, "/api/v1/storage/inventory/files/:id/"],
@@ -244,7 +256,7 @@ function safePathTemplate(rawPath) {
   let target;
   try { target = new URL(rawPath, "https://release.invalid"); } catch { return null; }
   if (!/^[A-Za-z0-9_./:-]+$/.test(target.pathname)) return null;
-  const pathTemplate = SAFE_FAILURE_STATIC_ENDPOINTS.has(target.pathname)
+  const pathTemplate = SAFE_REQUEST_TRANSPORT_TEMPLATES.has(target.pathname)
     ? target.pathname
     : SAFE_FAILURE_ENDPOINT_SHAPES.find(([pattern]) => pattern.test(target.pathname))?.[1] ?? null;
   if (!pathTemplate) return null;
@@ -287,15 +299,52 @@ function observeFailureDiagnostics(messages) {
 function observeRequestTransportDiagnostic(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)
     || Object.keys(payload).sort().join(",") !== "method,pathTemplate,requestKind,stage,transportCode"
-    || !["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"].includes(payload.method)
+    || !["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"].includes(payload.method)
     || !SAFE_REQUEST_TRANSPORT_TEMPLATES.has(payload.pathTemplate)
     || !["read", "mutation"].includes(payload.requestKind)
     || !["initial", "retry"].includes(payload.stage)
     || !["context-disposed", "timeout", "transport"].includes(payload.transportCode)
-    || ((payload.method === "GET" || payload.method === "HEAD") !== (payload.requestKind === "read"))
+    || (["GET", "HEAD", "OPTIONS"].includes(payload.method) !== (payload.requestKind === "read"))
     || (payload.requestKind === "mutation" && payload.stage !== "initial")) return null;
   return Object.fromEntries(["method", "pathTemplate", "requestKind", "stage", "transportCode"]
     .map((key) => [key, payload[key]]));
+}
+
+function observeReleaseContextSnapshot(payload) {
+  const record = (value) => value && typeof value === "object" && !Array.isArray(value);
+  const count = (value, max = 1_000_000) => Number.isSafeInteger(value) && value >= 0 && value <= max;
+  const keys = ["schema", "observationOrdinal", "contextOrdinal", "snapshotSequence", "events",
+    "droppedEventCount", "droppedRequestTransportDiagnosticCount", "unknownPathEventCounts"];
+  const phases = ["route-fetch", "route-fulfill", "api-request"];
+  if (!record(payload) || Object.keys(payload).sort().join(",") !== [...keys].sort().join(",")
+    || payload.schema !== "release-context-observation/v1"
+    || !count(payload.observationOrdinal) || payload.observationOrdinal < 1
+    || !count(payload.snapshotSequence) || payload.snapshotSequence < 1
+    || (payload.contextOrdinal !== null && (!count(payload.contextOrdinal) || payload.contextOrdinal < 1))
+    || !count(payload.droppedEventCount) || !count(payload.droppedRequestTransportDiagnosticCount)
+    || !record(payload.unknownPathEventCounts)
+    || Object.keys(payload.unknownPathEventCounts).sort().join(",") !== [...phases].sort().join(",")
+    || phases.some((phase) => !count(payload.unknownPathEventCounts[phase]))
+    || !Array.isArray(payload.events) || payload.events.length > 128) return null;
+  const required = ["phase", "stage", "elapsedMs", "closing", "activeRouteCount"];
+  const optional = ["method", "pathTemplate", "nativeCode", "category", "sourceKind"];
+  for (const event of payload.events) {
+    if (!record(event) || required.some((key) => !Object.hasOwn(event, key))
+      || Object.keys(event).some((key) => !required.includes(key) && !optional.includes(key))
+      || ![...phases, "browser-console", "browser-pageerror", "page-close", "page-crash", "context-close", "browser-disconnected"].includes(event.phase)
+      || !["initial", "retry", "recovered", "terminal"].includes(event.stage)
+      || !count(event.elapsedMs, 2 * 60 * 60_000) || !count(event.activeRouteCount) || typeof event.closing !== "boolean"
+      || (Object.hasOwn(event, "method") && !["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE", "other"].includes(event.method))
+      || (Object.hasOwn(event, "pathTemplate") && event.pathTemplate !== null && !SAFE_REQUEST_TRANSPORT_TEMPLATES.has(event.pathTemplate))
+      || (Object.hasOwn(event, "nativeCode") && !["ECONNRESET", "ECONNREFUSED", "EPIPE", "ETIMEDOUT", "timeout", "context-disposed", "other"].includes(event.nativeCode))
+      || (Object.hasOwn(event, "category") && !["cors", "chunk", "network", "resource", "runtime", "other"].includes(event.category))
+      || (Object.hasOwn(event, "sourceKind") && !["local", "api", "vendor", "unknown"].includes(event.sourceKind))) return null;
+    if (phases.includes(event.phase)) {
+      if (!Object.hasOwn(event, "method") || !Object.hasOwn(event, "pathTemplate")) return null;
+    } else if (event.stage !== "terminal") return null;
+  }
+  return { ...Object.fromEntries(keys.map((key) => [key, payload[key]])),
+    events: payload.events.map((event) => ({ ...event })), unknownPathEventCounts: { ...payload.unknownPathEventCounts } };
 }
 
 export function observeReleaseTestResult(stdout) {
@@ -306,6 +355,7 @@ export function observeReleaseTestResult(stdout) {
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     requestTransportDiagnostics: [],
+    contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
     longVideo: null, longVideoFailure: null, longVideoErrorCodes: [], longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
   };
@@ -331,6 +381,7 @@ export function observeReleaseTestResult(stdout) {
   const longVideoResults = [];
   const longVideoMessages = [];
   const requestTransportDiagnostics = new Map();
+  const contextObservations = new Map();
   const collectErrors = (errors) => {
     for (const error of Array.isArray(errors) ? errors : []) {
       if (typeof error?.message === "string") messages.push(error.message);
@@ -398,6 +449,21 @@ export function observeReleaseTestResult(stdout) {
             for (const line of typeof text === "string" ? text.split(/\r?\n/) : []) {
               let payload;
               try { payload = JSON.parse(line); } catch { continue; }
+              if (Object.hasOwn(payload ?? {}, "releaseContextObservation")) {
+                const snapshot = observeReleaseContextSnapshot(payload.releaseContextObservation);
+                const workerIndex = result.workerIndex;
+                if (!snapshot || !Object.hasOwn(FLOW_COUNTS, file)
+                  || !Number.isInteger(workerIndex) || workerIndex < 0 || workerIndex > 1000) {
+                  observation.rejectedContextObservationCount += 1;
+                } else {
+                  const key = `${workerIndex}:${snapshot.observationOrdinal}`;
+                  const previous = contextObservations.get(key);
+                  if (!previous && contextObservations.size >= 128) observation.droppedContextObservationCount += 1;
+                  else if (!previous || snapshot.snapshotSequence > previous.snapshotSequence) {
+                    contextObservations.set(key, { emittingSpecFile: file, workerIndex, ...snapshot });
+                  }
+                }
+              }
               if (["development", "readonly"].includes(payload?.releaseApiMode)) {
                 for (const key of transportKeys) {
                   const value = safeCount(payload?.transport?.[key]);
@@ -450,6 +516,8 @@ export function observeReleaseTestResult(stdout) {
   observation.requestTransportDiagnostics = [...requestTransportDiagnostics.values()]
     .sort((a, b) => a.method.localeCompare(b.method) || a.pathTemplate.localeCompare(b.pathTemplate)
       || a.stage.localeCompare(b.stage) || a.transportCode.localeCompare(b.transportCode));
+  observation.contextObservations = [...contextObservations.values()]
+    .sort((a, b) => a.workerIndex - b.workerIndex || a.observationOrdinal - b.observationOrdinal);
   observation.longVideo = longVideoEvidence.length === 1 ? longVideoEvidence[0] : null;
   observation.longVideoFailure = longVideoFailureEvidence.length === 1 ? longVideoFailureEvidence[0] : null;
   observation.longVideoResult = longVideoResults.length === 1 ? longVideoResults[0] : null;
