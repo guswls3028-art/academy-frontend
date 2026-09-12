@@ -12,6 +12,7 @@ import type { SerialProofGate } from "../helpers/serialProofGate";
 import { installSyntheticVideoPosterBridge } from "../helpers/syntheticVideoPosterBridge";
 import { classifyVideoPlaybackResponse } from "../helpers/videoPlaybackResponseKind";
 import { exerciseFullscreenAudit, runPlaybackExitProbe } from "../helpers/playbackExitProbe";
+import { emitReleaseTestFailure } from "../helpers/releaseApiBoundary";
 
 const MINIMUM_PLAYBACK_SECONDS = 690;
 const MINIMUM_RENEW_SECONDS = 390;
@@ -811,6 +812,7 @@ test("two students play through renewal and persist progress without interruptio
     const failure = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
     if (failure) throw failure.reason;
   } catch (error) {
+    emitReleaseTestFailure(error, "video-primary");
     console.log(JSON.stringify({ longVideoFailure: {
       schema: "student-video-renewal-failure/v1",
       contexts: await Promise.all(runs.map(({ page, state }) => captureFailureContext(page, state))),

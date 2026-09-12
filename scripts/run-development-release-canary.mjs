@@ -65,7 +65,11 @@ const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
   "/api/v1/clinic/sessions/locations/",
   "/api/v1/core/tenant/by-host/",
   "/api/v1/media/playback/end/",
+  "/api/v1/media/playback/events/",
+  "/api/v1/media/playback/heartbeat/",
+  "/api/v1/media/playback/refresh/",
   "/api/v1/media/playback/renew/",
+  "/api/v1/media/playback/start/",
   "/api/v1/storage/inventory/",
   "/api/v1/storage/inventory/upload/",
   "/api/v1/student/video/me/",
@@ -87,6 +91,7 @@ const SAFE_FAILURE_ENDPOINT_SHAPES = [
   [/^\/api\/v1\/clinic\/sessions\/[1-9][0-9]*\/availability\/$/, "/api/v1/clinic/sessions/:id/availability/"],
   [/^\/api\/v1\/student\/video\/sessions\/[1-9][0-9]*\/videos\/$/, "/api/v1/student/video/sessions/:id/videos/"],
   [/^\/api\/v1\/student\/video\/videos\/[1-9][0-9]*\/progress\/$/, "/api/v1/student/video/videos/:id/progress/"],
+  [/^\/api\/v1\/student\/video\/videos\/[1-9][0-9]*\/playback\/$/, "/api/v1/student/video/videos/:id/playback/"],
   [/^\/api\/v1\/storage\/inventory\/files\/[1-9][0-9]*\/$/, "/api/v1/storage/inventory/files/:id/"],
   [/^\/api\/v1\/storage\/inventory\/folders\/[1-9][0-9]*\/$/, "/api/v1/storage/inventory/folders/:id/"],
   [/^\/storage\/inventory\/files\/[1-9][0-9]*\/$/, "/storage/inventory/files/:id/"],
@@ -336,7 +341,9 @@ function observeReleaseContextSnapshot(payload) {
     || phases.some((phase) => !count(payload.unknownPathEventCounts[phase]))
     || !Array.isArray(payload.events) || payload.events.length > 128) return null;
   const required = ["phase", "stage", "elapsedMs", "closing", "activeRouteCount"];
-  const optional = ["method", "pathTemplate", "nativeCode", "category", "sourceKind"];
+  const timingKeys = ["requestOrdinal", "requestStartedElapsedMs", "attemptDurationMs"];
+  const pageKeys = ["pageOrdinal", "startDocumentLoadOrdinal", "endDocumentLoadOrdinal", "startNavigationOrdinal", "endNavigationOrdinal"];
+  const optional = ["method", "pathTemplate", "nativeCode", "nativeKind", "category", "sourceKind", ...timingKeys, ...pageKeys];
   for (const event of payload.events) {
     if (!record(event) || required.some((key) => !Object.hasOwn(event, key))
       || Object.keys(event).some((key) => !required.includes(key) && !optional.includes(key))
@@ -346,6 +353,9 @@ function observeReleaseContextSnapshot(payload) {
       || (Object.hasOwn(event, "method") && !["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE", "other"].includes(event.method))
       || (Object.hasOwn(event, "pathTemplate") && event.pathTemplate !== null && !SAFE_REQUEST_TRANSPORT_TEMPLATES.has(event.pathTemplate))
       || (Object.hasOwn(event, "nativeCode") && !["ECONNRESET", "ECONNREFUSED", "EPIPE", "ETIMEDOUT", "timeout", "context-disposed", "other"].includes(event.nativeCode))
+      || (Object.hasOwn(event, "nativeKind") && !["socket-hang-up", "response-aborted", "decompression", "ECONNRESET", "ECONNREFUSED", "EPIPE", "ETIMEDOUT", "timeout", "context-disposed", "other"].includes(event.nativeKind))
+      || timingKeys.some((key) => Object.hasOwn(event, key) && !count(event[key], 2 * 60 * 60_000))
+      || pageKeys.some((key) => Object.hasOwn(event, key) && event[key] !== null && !count(event[key]))
       || (Object.hasOwn(event, "category") && !["cors", "chunk", "network", "resource", "runtime", "other"].includes(event.category))
       || (Object.hasOwn(event, "sourceKind") && !["local", "api", "vendor", "unknown"].includes(event.sourceKind))) return null;
     if (phases.includes(event.phase)) {
@@ -365,6 +375,8 @@ export function observeReleaseTestResult(stdout) {
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
+    reportedTestErrors: [], testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
+    rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null, longVideoFailure: null, longVideoErrorCodes: [], longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
   };
@@ -391,6 +403,14 @@ export function observeReleaseTestResult(stdout) {
   const longVideoMessages = [];
   const requestTransportDiagnostics = new Map();
   const contextObservations = new Map();
+  const httpStatus = (value) => Number.isInteger(value) && value >= 100 && value <= 599;
+  const exactKeys = (value, keys) => value && typeof value === "object" && !Array.isArray(value)
+    && Object.keys(value).sort().join(",") === [...keys].sort().join(",");
+  const addFailureObservation = (name, value) => {
+    if (observation[name].length < 128) observation[name].push(value);
+    else observation.droppedFailureObservationCount++;
+  };
+  let resultOrdinal = 0;
   const collectErrors = (errors) => {
     for (const error of Array.isArray(errors) ? errors : []) {
       if (typeof error?.message === "string") messages.push(error.message);
@@ -442,12 +462,32 @@ export function observeReleaseTestResult(stdout) {
           });
         }
         for (const result of results) {
+          resultOrdinal++;
           const resultErrors = [
             ...(Array.isArray(result?.errors) ? result.errors : []),
             ...(result?.error ? [result.error] : []),
           ];
           collectErrors(resultErrors);
           if (failed) for (const error of resultErrors) collectFailureLocation(error, file);
+          if (failed && Object.hasOwn(FLOW_COUNTS, file)) {
+            // `error` aliases the first entry of `errors` in Playwright JSON.
+            // Preserve reported order once; an overwritten JS error needs its
+            // explicit source marker, not a fabricated "first assertion".
+            const orderedErrors = Array.isArray(result.errors) && result.errors.length ? result.errors : result.error ? [result.error] : [];
+            for (const [index, error] of orderedErrors.entries()) {
+              const message = typeof error?.message === "string" ? error.message : "";
+              const firstLine = message.replace(/\u001b\[[0-9;]*m/g, "").trim().split(/\r?\n/, 1)[0];
+              const statuses = observeFailureDiagnostics([message]).filter((item) => item.code === "api-status");
+              const kind = statuses.length === 1 ? "http-status"
+                : /Release API boundary failed:|Release request rejected/.test(firstLine) ? "boundary"
+                : /expect\(|Expected values|AssertionError/.test(firstLine) ? "assertion"
+                : /locator\.[a-z]+:.*(?:Timeout|timeout)/.test(firstLine) ? "locator-timeout" : "other";
+              const source = path.basename(String(error?.location?.file || ""));
+              addFailureObservation("reportedTestErrors", { specFile: file, resultOrdinal, errorOrdinal: index + 1,
+                sourceFile: SAFE_FAILURE_SOURCE_FILES.has(source) ? source : null, kind,
+                expectedStatus: null, receivedStatus: statuses.length === 1 ? statuses[0].status : null });
+            }
+          }
           if (file === "video-playback-renewal.realuse.spec.ts") {
             for (const error of resultErrors) {
               if (typeof error?.message === "string") longVideoMessages.push(error.message);
@@ -458,6 +498,34 @@ export function observeReleaseTestResult(stdout) {
             for (const line of typeof text === "string" ? text.split(/\r?\n/) : []) {
               let payload;
               try { payload = JSON.parse(line); } catch { continue; }
+              for (const name of ["releaseTestFailure", "omrCleanupStatus", "crossTenantDenialProbe"]) {
+                if (!Object.hasOwn(payload ?? {}, name)) continue;
+                const value = payload[name];
+                let valid = Object.hasOwn(FLOW_COUNTS, file);
+                let destination;
+                if (name === "releaseTestFailure") {
+                  destination = "testFailureObservations";
+                  valid &&= exactKeys(value, ["schema", "phase", "kind", "expectedStatus", "receivedStatus"])
+                    && value.schema === "release-test-failure/v1" && ["video-primary", "context-check"].includes(value.phase)
+                    && (value.phase !== "video-primary" || file === "video-playback-renewal.realuse.spec.ts")
+                    && ["boundary", "assertion", "locator-timeout", "transport", "other"].includes(value.kind)
+                    && value.expectedStatus === null && value.receivedStatus === null;
+                } else if (name === "omrCleanupStatus") {
+                  destination = "omrCleanupStatuses";
+                  valid &&= file === "omr-review-realuse.spec.ts"
+                    && exactKeys(value, ["schema", "stage", "expectedStatuses", "receivedStatus"])
+                    && value.schema === "release-omr-cleanup-status/v1"
+                    && ["remove", "verify-absent", "archive-action", "verify-archive"].includes(value.stage)
+                    && Array.isArray(value.expectedStatuses) && value.expectedStatuses.length > 0 && value.expectedStatuses.length <= 4
+                    && value.expectedStatuses.every(httpStatus) && (value.receivedStatus === null || httpStatus(value.receivedStatus));
+                } else {
+                  destination = "crossTenantDenialProbes";
+                  valid &&= file === "clinic-roundtrip.spec.ts" && exactKeys(value, ["schema", "status", "errorCode"])
+                    && value.schema === "release-cross-tenant-denial/v1" && httpStatus(value.status) && value.errorCode === null;
+                }
+                if (valid) addFailureObservation(destination, { specFile: file, resultOrdinal, ...value });
+                else observation.rejectedFailureObservationCount++;
+              }
               if (Object.hasOwn(payload ?? {}, "releaseContextObservation")) {
                 const snapshot = observeReleaseContextSnapshot(payload.releaseContextObservation);
                 const workerIndex = result.workerIndex;

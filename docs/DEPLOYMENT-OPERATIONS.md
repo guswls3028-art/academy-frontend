@@ -469,6 +469,38 @@ closing 여부, 활성 route 수와 고정된 native 오류·브라우저 분류
 허용한다. native 분류가 `other`이면 하위 전송 원인을 확정할 수 없고, recovered
 조회나 재시도 수만으로 해당 요청이 최종 실패 원인이라고 판단하지 않는다.
 
+전송 event의 optional `nativeKind`는 Playwright가 전달한 Error의 첫 줄에서만
+고정 signature를 분류한다. `socket-hang-up`, `response-aborted`, `decompression`을
+구분하되 이를 `ECONNRESET` 같은 OS code로 추정 변환하지 않는다. Playwright의
+오류 직렬화는 Node `code`/`cause`를 보존하지 않으므로 기존 `nativeCode:other`가
+서버 원인을 뜻하지 않는다. 원문 message/call log/URL/headers는 저장하지 않는다.
+
+실패 및 recovered route event에만 요청별 ordinal, 컨텍스트 기준 interception 시작 시각,
+해당 전송 시도 시작부터 기록까지의 시간을 숫자로 보존한다(fulfill 실패이면 응답 전달
+구간도 포함). 기존 `elapsedMs`는 컨텍스트 생성
+후 event 시각이며 요청 소요시간이 아니다. page ordinal과 요청 시작/종료 시의
+main-frame navigation request/`DOMContentLoaded` 누적 ordinal은 문서 전환 시점을
+구분하는 관측값이다. `documentLoadOrdinal`은 실제 관측한 DOMContentLoaded 수이지
+문서 identity나 모든 SPA/BFCache 전환의 증명이 아니다. page를 얻지 못하면 null로
+남긴다. v1의 이전 snapshot은 이 optional 필드 없이 계속 읽으며 부재/null을 0 또는
+정상으로 해석하지 않는다. listener는 기존 종료 경계에서 함께 해제한다.
+
+`reportedTestErrors`는 Playwright가 실제 남긴 오류 순서와 allowlist source/kind만
+보존한다. generic matcher의 숫자(점수/ID 포함)를 HTTP status로 추측하지 않는다.
+API method+검토된 path+`returned NNN` 형식의 status만 별도로 보존하며 expected는
+알 수 없으면 null이다. 영상의 기존 catch는 `video-primary` marker를 failure snapshot
+전에 기록하고 원 오류를 다시 throw한다. 기존 finally/close/strict check 순서는
+바꾸지 않으므로 나중의 `context-check` 오류가 원 오류를 대체해도 두 안전 관측이
+남는다. 이것은 누락된 원 오류를 사후 복구하거나 assertion을 완화하는 계약이 아니다.
+
+OMR cleanup의 실제 실패 지점은 remove/verify-absent/archive-action/verify-archive
+단계와 기존 expected HTTP status 목록, received status만 기록한다(응답 없는 전송
+실패는 null). cross-tenant probe는 실제 받은 status와 `errorCode:null`만 기록하고
+본문을 읽지 않고 취소한다. 기존 exact 403 기대를 다른 status로 넓히지 않는다.
+공식 parser는 이 marker의 source spec/schema/enum/status 범위를 검증하고 추가 필드나
+원문을 거부한다. 각 종류는 128개로 제한하며 거부/초과는 별도 failure observation
+counter로 남긴다. 진단을 거부하거나 수집하지 못해도 원 테스트의 실패는 그대로다.
+
 실제 `/api/v1/clinic/...` 정적 경로와 검토된 동적 `:id` 템플릿 및 `OPTIONS`도
 browser/direct-request 진단과 공식 parser에서 같은 allowlist로 보존한다. 이는
 OPTIONS 재시도 정책을 바꾸지 않는다: browser route는 기존 GET/HEAD/OPTIONS,
@@ -482,6 +514,9 @@ direct APIRequestContext는 기존 GET/HEAD만 한 번 재시도한다. allowlis
 기록한다. 추가 필드·허용되지 않은 값·원문 URL/오류·범위 밖 숫자가 있으면 해당
 snapshot 전체를 거부한다. 진단의 누락/부재는 성공 증거가 아니며 기존 strict
 assertion, 21개 필수 실사용 조건, cleanup0 및 승격 판정을 대체하지 않는다.
+영상의 exact playback events/heartbeat/refresh/start/end/renew와
+`/api/v1/student/video/videos/:id/playback/`도 관측 템플릿만 허용한다. 이 목록은
+API 권한, mutation 허용 또는 재시도 정책과 별개다.
 
 이 경계의 무브라우저 회귀는 `scripts/tests/release-context-observation.test.mjs`와
 `scripts/tests/development-release-canary.test.mjs`의 fixture/공식 failure artifact
