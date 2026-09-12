@@ -32,7 +32,17 @@ export const test = base.extend<StrictBrowserOptions>({
       context.on("page", (page) => pages.push(attachStrictBrowserGuards(page, {
         allowNeutralizedCloudflareBeaconIntegrity: boundary.mode === "readonly",
       })));
+      let evidenceEmitted = false;
+      const emitEvidence = () => {
+        if (evidenceEmitted) return;
+        console.log(JSON.stringify({ releaseApiMode: boundary.mode,
+          authentication: boundaryGuard.authentication, observation: boundaryGuard.observations,
+          transport: boundaryGuard.transport,
+          requestTransportDiagnostics: boundaryGuard.requestTransportDiagnostics }));
+        evidenceEmitted = true;
+      };
       const check = () => {
+        emitEvidence();
         boundaryGuard.assertClean();
         for (const guard of pages) guard.assertZeroDefects();
       };
@@ -42,10 +52,6 @@ export const test = base.extend<StrictBrowserOptions>({
       context.close = async (closeOptions) => {
         try {
           await boundaryGuard.beginClose();
-          console.log(JSON.stringify({ releaseApiMode: boundary.mode,
-            authentication: boundaryGuard.authentication, observation: boundaryGuard.observations,
-            transport: boundaryGuard.transport,
-            requestTransportDiagnostics: boundaryGuard.requestTransportDiagnostics }));
           check();
         } finally {
           try { await close(closeOptions); }

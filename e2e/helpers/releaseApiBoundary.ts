@@ -191,6 +191,24 @@ export type RequestTransportDiagnostic = {
   transportCode: "context-disposed" | "timeout" | "transport";
 };
 
+export type ReleaseContextGuard = {
+  observations: ObservationCounts;
+  authentication: ObservationCounts;
+  transport: RequestTransportCounts & {
+    suppressedAnalyticsBatches: number;
+    suppressedAnalyticsEvents: number;
+    suppressedCloudflareBeacons: number;
+  };
+  requestTransportDiagnostics: RequestTransportDiagnostic[];
+  beginClose: () => Promise<void>;
+  assertClean: () => void;
+};
+
+const installedContextGuards = new WeakMap<BrowserContext, {
+  boundary: ReleaseBoundary;
+  ready: Promise<ReleaseContextGuard>;
+}>();
+
 const SAFE_REQUEST_TRANSPORT_STATIC_PATHS = new Set([
   "/api/v1/core/tenant/by-host/",
   "/api/v1/media/playback/end/",
@@ -329,7 +347,20 @@ export function developmentUpstream(boundary: ReleaseBoundary, rawUrl: string): 
   return rawUrl;
 }
 
-export async function installReleaseContextGuard(context: BrowserContext, boundary: ReleaseBoundary) {
+export async function installReleaseContextGuard(
+  context: BrowserContext,
+  boundary: ReleaseBoundary,
+): Promise<ReleaseContextGuard> {
+  const installed = installedContextGuards.get(context);
+  if (installed) {
+    if (installed.boundary.mode !== boundary.mode || installed.boundary.apiOrigin !== boundary.apiOrigin
+      || installed.boundary.webOrigin !== boundary.webOrigin || installed.boundary.tenantCode !== boundary.tenantCode) {
+      throw new Error("Release context boundary mismatch");
+    }
+    return installed.ready;
+  }
+  boundary = { ...boundary };
+
   const observations = { attempted: 0, accepted: 0 };
   const authentication = { attempted: 0, accepted: 0 };
   const transport = {
@@ -454,17 +485,7 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
     }
     await route.continue();
   };
-  await context.route("**/*", async (route) => {
-    if (closing) {
-      try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
-      return;
-    }
-    const handling = handleRoute(route);
-    activeRoutes.add(handling);
-    try { await handling; }
-    finally { activeRoutes.delete(handling); }
-  });
-  return {
+  const guard: ReleaseContextGuard = {
     observations,
     authentication,
     transport,
@@ -477,4 +498,21 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
       if (defects.length) throw new Error(`Release API boundary failed: ${[...new Set(defects)].join("; ")}`);
     },
   };
+  const ready = Promise.resolve().then(async () => {
+    await context.route("**/*", async (route) => {
+      if (closing) {
+        try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
+        return;
+      }
+      const handling = handleRoute(route);
+      activeRoutes.add(handling);
+      try { await handling; }
+      finally { activeRoutes.delete(handling); }
+    });
+    return guard;
+  });
+  // Share registration as well as counters. A failed context must be discarded:
+  // its APIRequestContext is already wrapped with this boundary and diagnostics.
+  installedContextGuards.set(context, { boundary, ready });
+  return ready;
 }
