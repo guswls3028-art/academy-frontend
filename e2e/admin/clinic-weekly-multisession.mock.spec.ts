@@ -3146,12 +3146,18 @@ test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 
   await expect(page.getByRole("alert").filter({ hasText: "클리닉 과제 정보를 불러오지 못했습니다" })).toHaveCount(2);
   await expect(page.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
   const drawerAlert = drawer.getByRole("alert").filter({ hasText: "클리닉 과제 정보를 불러오지 못했습니다" });
+  const workspaceAlert = page.locator(
+    ".clinic-operations-shell__content > div > .clinic-ops__target-query-state--error",
+  )
+    .filter({ hasText: "클리닉 과제 정보를 불러오지 못했습니다" });
   await expect(drawerAlert).toBeVisible();
+  await expect(workspaceAlert).toBeVisible();
   await expect(drawer.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
   await expect(drawer.getByRole("button", { name: "클리닉 완료", exact: true })).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("alert").filter({ hasText: "클리닉 과제 정보를 불러오지 못했습니다" })).toBeVisible();
+  await expect(drawer).toHaveCount(0);
+  await expect(workspaceAlert).toBeVisible();
   await expect(studentCard.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
   await expect(studentCard.getByRole("button", { name: "클리닉 완료", exact: true })).toHaveCount(0);
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
