@@ -6,22 +6,42 @@ import http from "node:http";
 import { chromium } from "@playwright/test";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { EventEmitter } from "node:events";
 import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 import * as runner from "../run-development-release-canary.mjs";
+
+const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
+const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
+const { assertReleaseRequestSafe, releaseBoundaryFromEnv, installReleaseRequestGuard, installReleaseContextGuard } = policyModule;
+const production = releaseBoundaryFromEnv({
+  E2E_RELEASE_API_MODE: "readonly", E2E_ALLOW_PRODUCTION_WRITES: "0",
+  E2E_BASE_URL: "https://hakwonplus.com", E2E_API_URL: "https://api.hakwonplus.com",
+  E2E_TENANT_CODE: "hakwonplus",
+});
+const development = releaseBoundaryFromEnv({
+  E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0",
+  E2E_BASE_URL: "http://localhost:4173", E2E_API_URL: "http://127.0.0.1:18000",
+  E2E_TENANT_CODE: "qa-ymath-realuse-release-unit",
+});
 
 test("release-aware browser worker fixture outlives the 690-second playback proof", () => {
   const source = readFileSync(new URL("../../e2e/fixtures/strictTest.ts", import.meta.url), "utf8");
   assert.match(source, /scope:\s*["']worker["'][^}\]]*timeout:\s*20\s*\*\s*60_000/s);
 });
 
-test("release-aware browser fixture emits evidence once before close and teardown assertions", async () => {
+function releaseFixtureOptions(guard) {
   const source = readFileSync(new URL("../../e2e/fixtures/strictTest.ts", import.meta.url), "utf8");
   const fixtureSource = stripTypeScriptTypes(source)
-    .replace(/^import .+;\r?$/gm, "")
+    .replace(/^import[\s\S]*?;\r?$/gm, "")
     .replace("export const test =", "const test =")
     .replace(/^export \{ expect \};\r?$/m, "");
-  const createFixture = new Function("base", "expect", "installAccountNotificationGuard", "attachStrictBrowserGuards",
-    "installReleaseContextGuard", "releaseBoundaryFromEnv", `${fixtureSource}\nreturn test;`);
+  const dependencies = { ...policyModule, base: { extend: (value) => value }, expect: assert,
+    installAccountNotificationGuard: () => {}, attachStrictBrowserGuards: () => ({ assertZeroDefects() {} }),
+    installReleaseContextGuard: typeof guard === "function" ? guard : async () => guard, releaseBoundaryFromEnv: () => development };
+  return new Function(...Object.keys(dependencies), `${fixtureSource}\nreturn test;`)(...Object.values(dependencies));
+}
+
+test("release-aware browser fixture emits evidence once before close and teardown assertions", async () => {
   const previousStrict = process.env.E2E_STRICT;
   process.env.E2E_STRICT = "strict";
   try {
@@ -36,17 +56,22 @@ test("release-aware browser fixture emits evidence once before close and teardow
           transport: { readFetchRetries: 0 },
           requestTransportDiagnostics: [{ method: "POST", pathTemplate: "/api/v1/students/me/activity/",
             requestKind: "mutation", stage: "initial", transportCode: "transport" }],
+          observation: policyModule.createReleaseContextObservation(1),
           beginClose: async () => {},
           assertClean() {
             assertions += 1;
-            assert.equal(evidence.length, 1, "diagnostics must be emitted before any failing assertion");
+            assert.equal(evidence.filter((line) => line.releaseApiMode).length, 1, "diagnostics must be emitted before any failing assertion");
             if (failed) throw failure;
           },
         };
-        const options = createFixture({ extend: (value) => value }, assert, () => {}, () => {},
-          async () => boundaryGuard, () => ({ mode: "development" }));
-        const originalNewContext = async () => ({ request: {}, on() {}, close: async () => { closed += 1; } });
-        const browser = { newContext: originalNewContext };
+        const options = releaseFixtureOptions(boundaryGuard);
+        const originalNewContext = async () => {
+          const context = new EventEmitter();
+          context.request = {};
+          context.close = async () => { closed += 1; context.emit("close"); };
+          return context;
+        };
+        const browser = Object.assign(new EventEmitter(), { newContext: originalNewContext });
         const previousLog = console.log;
         console.log = (line) => evidence.push(JSON.parse(line));
         try {
@@ -57,12 +82,148 @@ test("release-aware browser fixture emits evidence once before close and teardow
           if (failed) await assert.rejects(running, (error) => error === failure);
           else await running;
         } finally { console.log = previousLog; }
-        assert.equal(evidence.length, 1, "explicit close followed by worker teardown must not duplicate counters");
+        assert.equal(evidence.filter((line) => line.releaseApiMode).length, 1, "explicit close followed by worker teardown must not duplicate counters");
+        const snapshots = evidence.map((line) => line.releaseContextObservation);
+        assert.deepEqual(snapshots.map((item) => item.snapshotSequence), explicitClose ? [1, 2, 3] : [1]);
+        assert.equal(browser.listenerCount("disconnected"), 0, "fixture releases its observation listeners even without explicit close");
         assert.deepEqual(evidence[0].requestTransportDiagnostics, boundaryGuard.requestTransportDiagnostics);
         assert.equal(evidence[0].releaseApiMode, "development");
         assert.equal(closed, explicitClose ? 1 : 0);
         assert.equal(assertions, explicitClose && !failed ? 2 : 1);
       }
+    }
+  } finally {
+    if (previousStrict === undefined) delete process.env.E2E_STRICT;
+    else process.env.E2E_STRICT = previousStrict;
+  }
+});
+
+test("worker teardown emits every context before the first failing assertion", async () => {
+  const previousStrict = process.env.E2E_STRICT;
+  const previousLog = console.log;
+  process.env.E2E_STRICT = "strict";
+  const evidence = [];
+  const assertionCounts = [0, 0];
+  const failure = new Error("first context retained failure");
+  const guards = [0, 1].map((index) => ({
+    observation: policyModule.createReleaseContextObservation(index + 1),
+    authentication: {}, observations: {}, transport: { readFetchRetries: index }, requestTransportDiagnostics: [],
+    beginClose: async () => {},
+    assertClean() { assertionCounts[index]++; if (index === 0) throw failure; },
+  }));
+  guards[1].observation.record({ phase: "route-fetch", stage: "terminal", method: "POST", pathTemplate: null, nativeCode: "EPIPE" });
+  const browser = Object.assign(new EventEmitter(), {
+    newContext: async () => Object.assign(new EventEmitter(), { request: {}, close: async () => {} }),
+  });
+  let index = 0;
+  console.log = (line) => evidence.push(JSON.parse(line));
+  try {
+    await assert.rejects(releaseFixtureOptions(async () => guards[index++]).browser[0]({ browser }, async () => {
+      await browser.newContext(); await browser.newContext();
+    }), (error) => error === failure);
+  } finally {
+    console.log = previousLog;
+    if (previousStrict === undefined) delete process.env.E2E_STRICT;
+    else process.env.E2E_STRICT = previousStrict;
+  }
+  assert.equal(evidence.length, 2, "a later context must not lose evidence when the first check throws");
+  assert.deepEqual(evidence.map((line) => line.releaseContextObservation.contextOrdinal), [1, 2]);
+  assert.equal(evidence[1].releaseContextObservation.events[0].nativeCode, "EPIPE");
+  assert.deepEqual(assertionCounts, [1, 0], "existing fail-fast assertion ordering is unchanged");
+  assert.equal(browser.listenerCount("disconnected"), 0);
+});
+
+test("late route rejection after close and disconnect is retained in the final snapshot", async () => {
+  const previousStrict = process.env.E2E_STRICT;
+  const previousLog = console.log;
+  process.env.E2E_STRICT = "strict";
+  const evidence = [];
+  let handleRoute;
+  let boundaryGuard;
+  let rejectFetch;
+  let fetchStarted;
+  const started = new Promise((resolve) => { fetchStarted = resolve; });
+  const context = Object.assign(new EventEmitter(), {
+    request: { fetch: async () => assert.fail("no direct request is expected") },
+    route: async (_pattern, handler) => { handleRoute = handler; }, close: async () => {},
+  });
+  const browser = Object.assign(new EventEmitter(), { newContext: async () => context });
+  const options = releaseFixtureOptions(async () => {
+    boundaryGuard = await installReleaseContextGuard(context, development);
+    return boundaryGuard;
+  });
+  console.log = (line) => evidence.push(JSON.parse(line));
+  try {
+    await assert.rejects(options.browser[0]({ browser }, async () => {
+      await browser.newContext();
+      const handling = handleRoute({
+        request: () => ({
+          url: () => "https://api.hakwonplus.com/api/v1/clinic/participants/", method: () => "POST",
+          postDataJSON: () => undefined, headerValue: async () => development.tenantCode,
+          allHeaders: async () => ({ origin: development.webOrigin, "x-tenant-code": development.tenantCode }),
+        }),
+        fetch: () => { fetchStarted(); return new Promise((_resolve, reject) => { rejectFetch = reject; }); },
+        abort: async () => {}, fulfill: async () => assert.fail("failed transport cannot fulfill"),
+        continue: async () => assert.fail("API requests cannot escape the proxy"),
+      });
+      await started;
+      context.emit("close"); browser.emit("disconnected");
+      rejectFetch(new Error("route.fetch: Request context disposed."));
+      await handling;
+    }), /Release request rejected \[context-disposed\]/);
+  } finally {
+    console.log = previousLog;
+    if (previousStrict === undefined) delete process.env.E2E_STRICT;
+    else process.env.E2E_STRICT = previousStrict;
+  }
+  assert.equal(boundaryGuard.transport.readFetchRetries, 0);
+  assert.equal(boundaryGuard.observation.data.events.at(-1).stage, "terminal");
+  assert.equal(evidence.filter((line) => line.releaseApiMode).length, 1);
+  assert.deepEqual(evidence.map((line) => line.releaseContextObservation.snapshotSequence), [1, 2, 3]);
+  assert.equal(evidence.at(-1).releaseContextObservation.events.at(-1).phase, "route-fetch");
+  assert.equal(evidence.at(-1).releaseContextObservation.events.at(-1).stage, "terminal");
+  assert.equal(browser.listenerCount("disconnected"), 0);
+});
+
+test("release lifecycle snapshots retain disconnect after context close and detach their listeners", async () => {
+  const previousStrict = process.env.E2E_STRICT;
+  process.env.E2E_STRICT = "strict";
+  try {
+    for (const order of ["disconnect-first", "context-first"]) {
+      const observation = policyModule.createReleaseContextObservation(1);
+      const guard = { observation, authentication: {}, observations: {}, transport: { readFetchRetries: 1 },
+        requestTransportDiagnostics: [], beginClose: async () => {}, assertClean() {} };
+      const context = Object.assign(new EventEmitter(), { request: {}, close: async () => {} });
+      const page = new EventEmitter();
+      const browser = Object.assign(new EventEmitter(), { newContext: async () => context });
+      const evidence = [];
+      const previousLog = console.log;
+      console.log = (line) => evidence.push(JSON.parse(line));
+      try {
+        await releaseFixtureOptions(guard).browser[0]({ browser }, async () => {
+          await browser.newContext(); context.emit("page", page);
+          page.emit("console", { type: () => "error", text: () => "net::ERR_FAILED secret-token",
+            location: () => ({ url: "https://api.hakwonplus.com/api/v1/parents/secret?token=hidden" }) });
+          page.emit("pageerror", new TypeError("secret-name private-url"));
+          page.emit("crash"); page.emit("close");
+          if (order === "context-first") context.emit("close");
+          browser.emit("disconnected");
+          if (order === "disconnect-first") context.emit("close");
+          context.emit("close"); browser.emit("disconnected");
+        });
+      } finally { console.log = previousLog; }
+      const snapshots = evidence.map((line) => line.releaseContextObservation);
+      const final = snapshots.at(-1);
+      for (const phase of ["browser-console", "browser-pageerror", "page-crash", "page-close", "context-close", "browser-disconnected"]) {
+        assert.equal(final.events.filter((event) => event.phase === phase).length, 1, `${order}: ${phase} recorded once`);
+      }
+      assert.deepEqual(final.events.slice(0, 2).map(({ category, sourceKind }) => ({ category, sourceKind })),
+        [{ category: "network", sourceKind: "api" }, { category: "runtime", sourceKind: "unknown" }]);
+      assert.equal(evidence.filter((line) => line.releaseApiMode).length, 1);
+      assert.equal(browser.listenerCount("disconnected"), 0);
+      assert.equal(context.listenerCount("page"), 0);
+      for (const event of ["console", "pageerror", "crash", "close"]) assert.equal(page.listenerCount(event), 0);
+      assert.doesNotMatch(JSON.stringify(evidence), /secret-token|secret-name|private-url|parents\/secret|hidden/);
     }
   } finally {
     if (previousStrict === undefined) delete process.env.E2E_STRICT;
@@ -735,6 +896,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
       stage: "initial",
       transportCode: "timeout",
     }],
+    contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
     longVideo: null,
     longVideoFailure: null,
     longVideoErrorCodes: [],
@@ -753,12 +915,96 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     requestTransportDiagnostics: [],
+    contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
     longVideo: null,
     longVideoFailure: null,
     longVideoErrorCodes: [],
     longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
   });
+});
+
+function contextReport(outputs) {
+  const report = completeFlowReport();
+  const failed = report.suites[0].specs[0].tests[0];
+  failed.status = "unexpected";
+  failed.results[0] = { status: "failed", workerIndex: 0,
+    errors: [{ message: "Release request rejected [fetch-transport] OPTIONS /api/v1/clinic/participants/4321/set_status/?token=secret" },
+      { message: "Release request rejected [fetch-transport] POST /api/v1/clinic/participants/:id/" }],
+    stdout: outputs.map((value) => ({ text: `${JSON.stringify(value)}\n` })) };
+  report.stats.expected -= 1; report.stats.unexpected = 1;
+  return report;
+}
+
+test("official failed artifact retains only the latest bounded context snapshot and clinic OPTIONS diagnostic", () => {
+  const observation = policyModule.createReleaseContextObservation(1);
+  observation.record({ phase: "route-fetch", stage: "initial", method: "OPTIONS",
+    pathTemplate: "/api/v1/clinic/participants/:id/set_status/", nativeCode: "ECONNRESET" });
+  const initial = observation.snapshot();
+  observation.record({ phase: "route-fetch", stage: "recovered", method: "OPTIONS",
+    pathTemplate: "/api/v1/clinic/participants/:id/set_status/" });
+  observation.record({ phase: "context-close", stage: "terminal" });
+  const final = observation.snapshot();
+  const report = contextReport([
+    { releaseApiMode: "development", transport: { readFetchRetries: 1 }, releaseContextObservation: initial,
+      requestTransportDiagnostics: [{ method: "OPTIONS", pathTemplate: "/api/v1/clinic/participants/:id/set_status/",
+        requestKind: "read", stage: "initial", transportCode: "transport" }] },
+    { releaseContextObservation: final }, { releaseContextObservation: initial }, { releaseContextObservation: final },
+  ]);
+  const realUseObservation = observeReleaseTestResult(JSON.stringify(report));
+  const artifact = JSON.parse(JSON.stringify({ realUseObservation, passed: false }));
+  assert.equal(artifact.passed, false);
+  assert.equal(realUseObservation.readFetchRetries, 1, "snapshot replacement never re-adds inherited counters");
+  assert.deepEqual(realUseObservation.contextObservations, [{ emittingSpecFile: "notice-roundtrip.spec.ts", workerIndex: 0, ...final }]);
+  assert.equal(realUseObservation.rejectedContextObservationCount, 0);
+  assert.equal(realUseObservation.droppedContextObservationCount, 0);
+  assert.equal(realUseObservation.requestTransportDiagnostics[0].method, "OPTIONS");
+  assert.equal(realUseObservation.failureDiagnostics[0].pathTemplate, "/api/v1/clinic/participants/:id/set_status/");
+  assert.equal(realUseObservation.failureDiagnostics[1].pathTemplate, "/api/v1/clinic/participants/:id/", "already-redacted guard paths survive the report parser");
+  assert.doesNotMatch(JSON.stringify(artifact), /4321|secret/);
+});
+
+test("cross-file snapshots identify the latest emitting file without claiming origin attribution", () => {
+  const observer = policyModule.createReleaseContextObservation(1);
+  const initial = observer.snapshot();
+  observer.record({ phase: "context-close", stage: "terminal" });
+  const final = observer.snapshot();
+  const report = contextReport([{ releaseContextObservation: initial }]);
+  report.suites.push({ file: "clinic-roundtrip.spec.ts", specs: [{ file: "clinic-roundtrip.spec.ts", tests: [{
+    expectedStatus: "passed", status: "expected", results: [{ status: "passed", workerIndex: 0,
+      stdout: [{ text: JSON.stringify({ releaseContextObservation: final }) }] }],
+  }] }] });
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.deepEqual(observed.contextObservations, [{ emittingSpecFile: "clinic-roundtrip.spec.ts", workerIndex: 0, ...final }]);
+  assert.equal(Object.hasOwn(observed.contextObservations[0], "specFile"), false);
+});
+
+test("official context observation sanitizer rejects unsafe fields and bounds context count", () => {
+  const observer = policyModule.createReleaseContextObservation(null);
+  observer.record({ phase: "api-request", stage: "terminal", method: "POST", pathTemplate: null, nativeCode: "other" });
+  const safe = observer.snapshot();
+  const invalid = [
+    { ...safe, rawError: "secret" },
+    { ...safe, contextOrdinal: "student-name" },
+    { ...safe, events: [{ ...safe.events[0], rawUrl: "https://secret.invalid" }] },
+    { ...safe, events: [{ ...safe.events[0], pathTemplate: "/api/v1/clinic/participants/4321/" }] },
+    { ...safe, events: [{ ...safe.events[0], pathTemplate: "/api/v1/clinic/sessions/?token=secret" }] },
+    { ...safe, events: [{ ...safe.events[0], nativeCode: "raw secret" }] },
+    { ...safe, events: [{ ...safe.events[0], sourceKind: "student-name" }] },
+    { ...safe, events: Array(129).fill(safe.events[0]) },
+    { ...safe, droppedEventCount: -1 },
+    { ...safe, unknownPathEventCounts: { ...safe.unknownPathEventCounts, secret: 1 } },
+  ];
+  const rejected = observeReleaseTestResult(JSON.stringify(contextReport(invalid.map((releaseContextObservation) => ({ releaseContextObservation })))));
+  assert.deepEqual(rejected.contextObservations, []);
+  assert.equal(rejected.rejectedContextObservationCount, invalid.length);
+  assert.doesNotMatch(JSON.stringify(rejected), /student-name|secret\.invalid|raw secret/);
+  const outputs = Array.from({ length: 129 }, (_, index) => ({ releaseContextObservation: { ...safe, observationOrdinal: index + 1 } }));
+  const bounded = observeReleaseTestResult(JSON.stringify(contextReport(outputs)));
+  assert.equal(bounded.contextObservations.length, 128);
+  assert.equal(bounded.droppedContextObservationCount, 1);
+  assert.equal(bounded.contextObservations[0].events[0].pathTemplate, null);
+  assert.equal(bounded.contextObservations[0].unknownPathEventCounts["api-request"], 1);
 });
 
 test("all nineteen real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
@@ -1256,23 +1502,10 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.doesNotMatch(specSource, /state\.mediaLoads\)\.toBeGreaterThanOrEqual\(4\)/);
 });
 
-const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
-const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
-const { assertReleaseRequestSafe, releaseBoundaryFromEnv, installReleaseRequestGuard, installReleaseContextGuard } = policyModule;
 const posterBridgeSource = readFileSync(new URL("../../e2e/helpers/syntheticVideoPosterBridge.ts", import.meta.url), "utf8");
 const { installSyntheticVideoPosterBridge } = await import(
   `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(posterBridgeSource)).toString("base64")}`
 );
-const production = releaseBoundaryFromEnv({
-  E2E_RELEASE_API_MODE: "readonly", E2E_ALLOW_PRODUCTION_WRITES: "0",
-  E2E_BASE_URL: "https://hakwonplus.com", E2E_API_URL: "https://api.hakwonplus.com",
-  E2E_TENANT_CODE: "hakwonplus",
-});
-const development = releaseBoundaryFromEnv({
-  E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0",
-  E2E_BASE_URL: "http://localhost:4173", E2E_API_URL: "http://127.0.0.1:18000",
-  E2E_TENANT_CODE: "qa-ymath-realuse-release-unit",
-});
 
 test("real Chromium bridges only exact response-derived posters and HLS origin", { timeout: 45_000 }, async () => {
   const server = http.createServer((_request, response) => {

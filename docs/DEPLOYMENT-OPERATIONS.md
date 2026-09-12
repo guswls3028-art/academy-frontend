@@ -383,6 +383,59 @@ allowlist된 path template이 있을 때만 method, read/mutation, initial/retry
 `context-disposed|timeout|transport` 코드로 남기며 URL/query 값, raw 오류, 사용자 식별자는
 버린다. 두 번째 GET/HEAD 실패와 최초 mutation 실패는 일반화된 오류로 실패 폐쇄한다.
 
+전송·브라우저 종료 진단은 같은 `observeReleaseTestResult` 정제 단계를 거쳐 공식
+`development-release.json`의 `realUseObservation.contextObservations`에 보존한다.
+`release-context-observation/v1`은 worker 내부의 고유 `observationOrdinal`, 선택적인
+browser `contextOrdinal`, 증가하는 `snapshotSequence`로 한 관측의 교체 snapshot을
+식별한다. assertion 전 snapshot은 실패해도 먼저 남기고, native context 종료나
+browser disconnect가 관측되면 같은 관측의 최신 snapshot으로 교체한다. 정제기는
+worker index와 observation ordinal별 가장 큰 sequence 하나만 보존하므로 이전
+event 배열을 합산하지 않는다. 기존 retry/authentication/observation 집계는 최초
+stdout envelope 한 번에만 기록하고 후속 snapshot에서 다시 더하지 않는다.
+`emittingSpecFile`은 해당 snapshot의 stdout이 포함된 test result 파일이며 관측의
+생성 위치나 실패 원인을 뜻하지 않는다. 같은 worker의 후속 파일에서 최신 snapshot을
+출력하면 이 값도 바뀐다. worker teardown은 모든 context의 안전한 증거를 먼저 출력한
+뒤 기존 순서로 assertion을 실행하며, 첫 assertion 실패 시 중단하는 동작은 유지한다.
+이때 최종 snapshot을 한 번씩 출력하여 앞선 close/disconnect 이후 teardown assertion
+전에 완료된 route 실패도 포함한다. 기존 집계 envelope는 다시 출력하지 않는다.
+
+수집 범위는 Playwright JSON report의 test result에 귀속된 stdout이다. 현재 JSON
+reporter는 실행 중인 test가 없는 정상 worker 종료의 orphan stdout을 보존하지 않으므로,
+그 시점에만 출력된 snapshot은 공식 artifact에 남지 않을 수 있다. 이는 per-test 실패
+진단과 구분되는 알려진 수집 한계이며 worker-only orphan 보존은 아직 해결되지 않았다.
+`dropped*Count=0`은 수집된 payload의 상한 초과가 없다는 뜻이지 전체 worker 관측의
+무누락을 보장하지 않는다. 현재 계약은 별도 reporter·원문 stdout 저장·side channel을
+추가하지 않으며, test 종료 이후의 미관측 사건이나 원래 실사용 실패 원인을 추정하지 않는다.
+
+이벤트는 `route-fetch`, `route-fulfill`, `api-request`의 initial/retry/recovered/terminal
+단계와 console/pageerror, page close/crash, context close, browser disconnected만
+담는다. 종료 event는 한 번씩 기록하며 context close가 disconnect보다 먼저 오는
+경우도 보존한다. 관측 listener는 명시적 context 종료 또는 worker fixture 종료 시
+해제한다. 실제 관측되지 않은 종료를 추정해 기록하지 않는다. 상대 경과 시간,
+closing 여부, 활성 route 수와 고정된 native 오류·브라우저 분류·source kind만
+허용한다. native 분류가 `other`이면 하위 전송 원인을 확정할 수 없고, recovered
+조회나 재시도 수만으로 해당 요청이 최종 실패 원인이라고 판단하지 않는다.
+
+실제 `/api/v1/clinic/...` 정적 경로와 검토된 동적 `:id` 템플릿 및 `OPTIONS`도
+browser/direct-request 진단과 공식 parser에서 같은 allowlist로 보존한다. 이는
+OPTIONS 재시도 정책을 바꾸지 않는다: browser route는 기존 GET/HEAD/OPTIONS,
+direct APIRequestContext는 기존 GET/HEAD만 한 번 재시도한다. allowlist 밖 경로는
+`pathTemplate:null`과 단계별 `unknownPathEventCounts`만 남기며 query·raw path·ID는
+출력하지 않는다. unknown 수는 요청 수가 아니라 initial/recovered 등을 포함한
+**이벤트 수**다. 각 관측의 이벤트와 legacy transport 진단은 128개까지이며 이후
+개수는 `droppedEventCount`/`droppedRequestTransportDiagnosticCount`로 남긴다.
+공식 보고서는 관측 128개까지 보존하고 추가 관측 snapshot 누락 수와 잘못된 schema
+거부 수를 각각 `droppedContextObservationCount`/`rejectedContextObservationCount`로
+기록한다. 추가 필드·허용되지 않은 값·원문 URL/오류·범위 밖 숫자가 있으면 해당
+snapshot 전체를 거부한다. 진단의 누락/부재는 성공 증거가 아니며 기존 strict
+assertion, 19개 필수 실사용 조건, cleanup0 및 승격 판정을 대체하지 않는다.
+
+이 경계의 무브라우저 회귀는 `scripts/tests/release-context-observation.test.mjs`와
+`scripts/tests/development-release-canary.test.mjs`의 fixture/공식 failure artifact
+parser 테스트가 소유한다. snapshot 복사·중복/역순 교체·상한·개인정보 거부,
+두 종료 순서·listener 해제, canonical clinic/OPTIONS, mutation 재전송 0 및 기존
+500ms 조회 재시도 정책을 검증한다. 로컬 선택 테스트는 공식 real-use gate가 아니다.
+
 로컬 child 제한은 QA operation 240초, tunnel 25분, tests 20분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
 20초 제한이다. SIGINT/SIGTERM은 작업 중 child를 중단하여 finally를 시도하고 무조건
