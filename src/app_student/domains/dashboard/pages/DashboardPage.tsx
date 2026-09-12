@@ -557,7 +557,7 @@ export default function DashboardPage() {
             state={{ openQnaForm: true }}
             icon={<IconBoard />}
             label="질문하기"
-            detail="바로 질문"
+            detail="선생님께 바로 질문"
             primary
           />
           <QuickAction
@@ -764,13 +764,20 @@ function ParentDashboardView({
         <div className={styles.sectionLabel}>바로 확인</div>
         <div className={styles.quickGrid}>
           <QuickAction
+            to="/student/qna"
+            state={{ openQnaForm: true }}
+            icon={<IconBoard />}
+            label="질문하기"
+            detail="선생님께 바로 질문"
+            primary
+          />
+          <QuickAction
             to="/student/community"
             state={{ tab: answerTab }}
             icon={<IconBell />}
-            label="답변"
+            label="내 질문·답변"
             detail={countsLoading ? "확인 중" : countsError ? "확인 실패" : "질문·상담 확인"}
             badge={!countsLoading && !countsError ? replyCount : undefined}
-            primary={replyCount > 0}
           />
           <QuickAction
             to="/student/grades"

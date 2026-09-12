@@ -165,8 +165,8 @@ test.describe("Student: Clinic & Community 데이터 검증", () => {
     const appContainer = page.locator("[data-app='student']").first();
     await expect(appContainer).toBeVisible({ timeout: 10_000 });
 
-    // 커뮤니티 탭 UI 존재 (공지/게시판/자료실/QnA/상담 중 하나)
-    const tabLabels = ["QnA", "공지", "게시판", "자료실", "상담"];
+    // 커뮤니티 첫 화면의 목적별 입구가 존재
+    const tabLabels = ["내 질문과 답변", "공지", "게시판", "자료실", "상담"];
     let tabFound = false;
     for (const label of tabLabels) {
       const tab = page.locator("button, [role='tab']").filter({ hasText: label }).first();
@@ -177,16 +177,10 @@ test.describe("Student: Clinic & Community 데이터 검증", () => {
     }
     expect(tabFound).toBeTruthy();
 
-    // QnA 탭 클릭하여 질문 목록 확인
-    const qnaTab = page.locator("button, [role='tab']").filter({ hasText: "QnA" }).first();
-    if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await qnaTab.click();
-      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
-
-      // QnA 목록이 렌더되거나 빈 상태가 표시됨
-      // QnA 목록이 렌더되거나 빈 상태가 표시됨 — 에러가 아닌 어떤 상태든 OK
-      await expect(page.locator("text=Not Found")).not.toBeVisible();
-    }
+    // 내 질문과 답변으로 진입하여 QnA 목록 확인
+    await page.getByRole("button", { name: "내 질문과 답변", exact: true }).click();
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
+    await expect(page.locator("text=Not Found")).not.toBeVisible();
 
     await page.screenshot({ path: "test-results/clinic-community/10-student-community-qna.png" });
   });

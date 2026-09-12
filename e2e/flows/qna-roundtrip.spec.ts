@@ -71,10 +71,11 @@ test.describe.serial("QnA 왕복: 학생→선생→학생", () => {
     // 학생 커뮤니티 페이지로 이동
     await gotoAndSettle(studentPage, `${BASE}/student/community`, { timeout: 20_000 });
 
-    // QnA 탭 클릭
-    const qnaTab = studentPage.locator("button").filter({ hasText: "QnA" }).first();
-    await qnaTab.waitFor({ state: "visible", timeout: 10000 });
-    await qnaTab.click();
+    // 커뮤니티 첫 화면에서 내 질문과 답변으로 진입
+    const qnaEntry = studentPage.getByRole("button", { name: /^내 질문과 답변/ });
+    await qnaEntry.waitFor({ state: "visible", timeout: 10000 });
+    await qnaEntry.click();
+    await expect(studentPage.getByRole("button", { name: "QnA", exact: true })).toHaveAttribute("aria-pressed", "true");
 
     // 내 질문 찾기
     const myQuestion = studentPage.locator(`text=${Q_TITLE}`).first();

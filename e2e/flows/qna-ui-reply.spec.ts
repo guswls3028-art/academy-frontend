@@ -83,14 +83,10 @@ test.describe.serial("QnA UI 답변: 학생질문 -> 선생 UI 답변 -> 학생 
   });
 
   test("3. 학생이 질문 상세에서 답변을 확인한다", async () => {
-    // Navigate student to community page, QnA tab
+    // Navigate student to the community entry screen
     await gotoAndSettle(studentPage, `${BASE}/student/community`, { timeout: 20_000 });
 
-    // Click QnA tab
-    const qnaTab = studentPage.locator("button").filter({ hasText: "QnA" }).first();
-    if (await qnaTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await qnaTab.click();
-    }
+    await studentPage.getByRole("button", { name: "내 질문과 답변", exact: true }).click();
 
     // Find the question in the list
     const myQuestion = studentPage.locator(`text=${Q_TITLE}`).first();
