@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
+import { minutesToHHmm } from "./timeFormat";
 import "@/styles/design-system/components/TimeScrollPopover.css";
 
 const ROW_HEIGHT = 48;
@@ -47,9 +48,7 @@ function slotIndex(hhmm: string): number {
 
 function slotTo24h(idx: number): string {
   const i = ((idx % 48) + 48) % 48;
-  const h = Math.floor(i / 2);
-  const m = (i % 2) * 30;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return minutesToHHmm(i * 30);
 }
 
 /** idx 0-23 = 오전, 24-47 = 오후 */

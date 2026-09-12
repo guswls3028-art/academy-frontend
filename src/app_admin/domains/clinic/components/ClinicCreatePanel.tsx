@@ -31,6 +31,10 @@ import api from "@/shared/api/axios";
 import { createClinicParticipantsBulk } from "../api/clinicParticipants.api";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import {
+  isUnsupportedOvernightClinicRange,
+  UNSUPPORTED_OVERNIGHT_CLINIC_RANGE_MESSAGE,
+} from "@/shared/ui/clinic/clinicTimeRange";
 import { clinicQueryKeys } from "../queryKeys";
 import {
   apiErrorMessage,
@@ -42,8 +46,13 @@ import {
   todayISO,
 } from "./clinicCreatePanel.utils";
 import type { ClinicCreatePanelProps } from "./clinicCreatePanel.types";
-import ClinicTimePolicyFields from "./ClinicTimePolicyFields";
-import { useClinicBookingPolicy } from "../hooks/useClinicBookingPolicy";
+import ClinicTimePolicyFields, {
+  ClinicCreateAssignmentFields,
+} from "./ClinicTimePolicyFields";
+import ClinicCreateSubmitButton from "./ClinicCreateSubmitButton";
+import { useClinicBookingPolicy, useClinicDraftAssignment } from "../hooks/useClinicBookingPolicy";
+import { ClinicBookingModeChoice, ClinicBookingModeSummary }
+  from "@/shared/ui/clinic/ClinicBookingModeChoice";
 
 export default function ClinicCreatePanel({
   date,
@@ -142,7 +151,6 @@ export default function ClinicCreatePanel({
   };
 
   const isEdit = !!editSession;
-
   const [title, setTitle] = useState(sourceSession?.title ?? "");
   const [targetGrade, setTargetGrade] = useState<number | null>(sourceSession?.target_grade ?? null);
   const [targetSchoolType, setTargetSchoolType] = useState<string | null>(sourceSession?.target_school_type ?? null);
@@ -167,6 +175,9 @@ export default function ClinicCreatePanel({
     allowMultiSlotBooking,
     setAllowMultiSlotBooking,
     bookingMode,
+    bookingModeChosen,
+    selectBookingMode,
+    resetBookingModeChoice,
     setBookingMode,
     bookingIntervalMinutes,
     setBookingIntervalMinutes,
@@ -175,7 +186,16 @@ export default function ClinicCreatePanel({
     saveDefaultPolicy,
     savingDefaultPolicy,
   } = useClinicBookingPolicy({ sourceSession, settings: clinicSettingsQ.data });
-
+  const parsedTimeRange = parseTimeRange(timeRange);
+  const hasUnsupportedOvernightRange = bookingMode === "time_range" && isUnsupportedOvernightClinicRange(parsedTimeRange.start, parsedTimeRange.end);
+  const draftAssignment = useClinicDraftAssignment({
+    required: !isEdit && bookingMode === "time_range" && selectedCount > 0,
+    windowStart: parsedTimeRange.start,
+    windowEnd: parsedTimeRange.end,
+    intervalMinutes: bookingIntervalMinutes,
+    maxStayMinutes: bookingMaxStayMinutes,
+    capacity: Math.max(maxParticipants, selectedCount, 1),
+  });
   const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
   const [addLocationInput, setAddLocationInput] = useState("");
@@ -272,6 +292,7 @@ export default function ClinicCreatePanel({
     const duration = durationMinutes(start, end);
     if (duration <= 0)
       return message.error("종료 시간은 시작 시간 이후여야 합니다.");
+    if (hasUnsupportedOvernightRange) return message.warning(UNSUPPORTED_OVERNIGHT_CLINIC_RANGE_MESSAGE);
     if (bookingMode === "time_range" && duration % bookingIntervalMinutes !== 0) {
       return message.warning(`시간 범위 운영 시간은 ${bookingIntervalMinutes}분 단위로 맞춰주세요.`);
     }
@@ -312,7 +333,7 @@ export default function ClinicCreatePanel({
             beforeFilterSummary: previousFilterSummary,
             afterFilterSummary: confirmationFilterSummary,
             beforeAllowTimePreference: editSession.allow_time_preference ?? false,
-            afterAllowTimePreference: allowTimePreference,
+            afterAllowTimePreference: bookingMode === "fixed_slot" && allowTimePreference,
             beforeAllowMultiSlotBooking: editSession.allow_multi_slot_booking ?? false,
             afterAllowMultiSlotBooking: allowMultiSlotBooking,
           }),
@@ -336,7 +357,7 @@ export default function ClinicCreatePanel({
           target_grade: targetGrade,
           target_school_type: targetSchoolType,
           target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
-          allow_time_preference: allowTimePreference,
+          allow_time_preference: bookingMode === "fixed_slot" && allowTimePreference,
           allow_multi_slot_booking: bookingMode === "fixed_slot" && allowMultiSlotBooking,
           booking_mode: bookingMode,
           booking_interval_minutes: bookingIntervalMinutes,
@@ -367,6 +388,9 @@ export default function ClinicCreatePanel({
     const uniqueSelected = Array.from(new Set(selected));
     const cap = Math.max(maxParticipants, uniqueSelected.length);
     if (cap < 1) return message.warning("정원을 1명 이상으로 설정하거나 학생을 선택해주세요.");
+    if (draftAssignment.required && (!draftAssignment.bookingStart || !draftAssignment.bookingEnd)) {
+      return message.warning("배정할 학생의 실제 이용 시작·종료 시간을 선택해 주세요.");
+    }
 
     const scheduledDate = selectedDate.format("YYYY-MM-DD");
     const weekday = ["일", "월", "화", "수", "목", "금", "토"][selectedDate.day()];
@@ -385,7 +409,10 @@ export default function ClinicCreatePanel({
           filterSummary: confirmationFilterSummary,
           selectedCount,
           selectedStudentSummary,
-          allowTimePreference,
+          assignedBookingRange: draftAssignment.required
+            ? `${draftAssignment.bookingStart}–${draftAssignment.bookingEnd}`
+            : undefined,
+          allowTimePreference: bookingMode === "fixed_slot" && allowTimePreference,
           allowMultiSlotBooking,
         }),
         confirmText: "확인하고 만들기",
@@ -409,7 +436,7 @@ export default function ClinicCreatePanel({
         target_school_type: targetSchoolType,
         target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
         memo: memo.trim() || undefined,
-        allow_time_preference: allowTimePreference,
+        allow_time_preference: bookingMode === "fixed_slot" && allowTimePreference,
         allow_multi_slot_booking: bookingMode === "fixed_slot" && allowMultiSlotBooking,
         booking_mode: bookingMode,
         booking_interval_minutes: bookingIntervalMinutes,
@@ -426,6 +453,10 @@ export default function ClinicCreatePanel({
             ...(selection.kind === "enrollment"
               ? { enrollment_ids: uniqueSelected }
               : { student_ids: uniqueSelected }),
+            ...(draftAssignment.required ? {
+              booking_start_time: draftAssignment.bookingStart,
+              booking_end_time: draftAssignment.bookingEnd,
+            } : {}),
           });
           message.success(`클리닉이 만들어졌습니다. (${uniqueSelected.length}명 등록)`);
         } catch (participantError: unknown) {
@@ -592,6 +623,7 @@ export default function ClinicCreatePanel({
 
   const formFields = (
     <>
+      <ClinicBookingModeSummary mode={bookingMode} onChange={sourceSession ? undefined : resetBookingModeChoice} />
       {/* 날짜 */}
       {!hideDatePicker && (
         <div className="clinic-create__field">
@@ -656,6 +688,8 @@ export default function ClinicCreatePanel({
         onAllowTimePreferenceChange={setAllowTimePreference}
         allowMultiSlotBooking={allowMultiSlotBooking}
         onAllowMultiSlotBookingChange={setAllowMultiSlotBooking}
+        timeRangeError={hasUnsupportedOvernightRange ? UNSUPPORTED_OVERNIGHT_CLINIC_RANGE_MESSAGE : undefined}
+        showBookingModeSelector={Boolean(sourceSession)}
       />
       {/* 제목 + 정원 (한 행) */}
       <div className="clinic-create__row">
@@ -861,27 +895,14 @@ export default function ClinicCreatePanel({
         )}
       </div>
 
-      {/* 대상자 선택 */}
-      <div className="clinic-create__field">
-        <label className="clinic-create__label">대상자 선택</label>
-        <div className="clinic-create__target-row">
-          <Button
-            type="button"
-            intent="secondary"
-            size="md"
-            onClick={() => setTargetModalOpen(true)}
-            aria-haspopup="dialog"
-            aria-expanded={targetModalOpen}
-          >
-            대상자 추가
-          </Button>
-          <span className="clinic-create__target-count">
-            {selectedCount > 0
-              ? `${mode === "targets" ? "미통과 대상자" : "전체 학생"} ${selectedCount}명 선택 · 추가 예약 ${Math.max(0, maxParticipants - selectedCount)}명 가능`
-              : "아직 선택 안 됨"}
-          </span>
-        </div>
-      </div>
+      <ClinicCreateAssignmentFields
+        selectionKind={mode}
+        selectedCount={selectedCount}
+        maxParticipants={maxParticipants}
+        onOpenTargets={() => setTargetModalOpen(true)}
+        targetPickerOpen={targetModalOpen}
+        assignment={draftAssignment}
+      />
 
       {/* 메모 */}
       <div className="clinic-create__field">
@@ -900,29 +921,23 @@ export default function ClinicCreatePanel({
 
   /* ── submit button (shared) ── */
   const submitButton = (
-    <Button
-      type="button"
-      intent="primary"
-      size="lg"
+    <ClinicCreateSubmitButton
       loading={createSessionM.isPending || isSaving}
-      onClick={submit}
-      className="w-full"
+      onClick={() => void submit()}
+      isPastDate={isPastDate}
+      isEdit={isEdit}
+      selectedCount={selectedCount}
+      maxParticipants={maxParticipants}
       disabled={
         isSaving ||
         (needsLectureSummary && lecturesQ.isLoading) ||
         isPastDate ||
+        hasUnsupportedOvernightRange ||
+        (draftAssignment.required && (!draftAssignment.bookingStart || !draftAssignment.bookingEnd)) ||
         (showSectionPicker && clinicSectionsQ.isError) ||
         (showFilters && lecturesQ.isError)
       }
-    >
-      {isPastDate
-        ? "지난 날짜입니다"
-        : isEdit
-          ? "클리닉 수정"
-          : selectedCount > 0
-            ? `${selectedCount}명 배정하고 클리닉 만들기`
-            : `클리닉 만들기 (정원 ${maxParticipants}명)`}
-    </Button>
+    />
   );
 
   /* ── target select modal (always rendered) ── */
@@ -942,11 +957,11 @@ export default function ClinicCreatePanel({
     return (
       <div className="clinic-create clinic-create--modal">
         <div className="clinic-create__form">
-          {formFields}
+          {bookingModeChosen
+            ? formFields
+            : <ClinicBookingModeChoice recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode} onSelect={selectBookingMode} />}
         </div>
-        <div className="clinic-create__footer">
-          {submitButton}
-        </div>
+        {bookingModeChosen && <div className="clinic-create__footer">{submitButton}</div>}
         {targetSelectModal}
       </div>
     );
@@ -970,11 +985,11 @@ export default function ClinicCreatePanel({
 
       <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
         <div className="clinic-create__form">
-          {formFields}
+          {bookingModeChosen
+            ? formFields
+            : <ClinicBookingModeChoice recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode} onSelect={selectBookingMode} />}
         </div>
-        <div className="clinic-create__footer">
-          {submitButton}
-        </div>
+        {bookingModeChosen && <div className="clinic-create__footer">{submitButton}</div>}
       </div>
 
       {targetSelectModal}

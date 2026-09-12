@@ -16,3 +16,11 @@ export function hhmmText(value: string | null | undefined, fallback = ""): strin
   const time = value?.slice(0, 5) ?? "";
   return time || fallback;
 }
+
+/** 분 단위 시각을 24시간 "HH:mm"으로 순환 변환한다. 1440분은 다음 날 00:00이다. */
+export function minutesToHHmm(totalMinutes: number): string {
+  const normalizedMinutes = ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hour = Math.floor(normalizedMinutes / 60).toString().padStart(2, "0");
+  const minute = (normalizedMinutes % 60).toString().padStart(2, "0");
+  return `${hour}:${minute}`;
+}
