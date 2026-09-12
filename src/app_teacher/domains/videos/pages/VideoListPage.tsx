@@ -8,11 +8,12 @@ import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Link2, Upload, Trash2, Youtube } from "@teacher/shared/ui/Icons";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
+import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { extractYouTubeVideoId, isYouTubeSource, youtubeThumbnailUrl } from "@/shared/media/video/youtube";
 import CompactVideoThumbnail from "../components/CompactVideoThumbnail";
-import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, fetchPublicSession, createYoutubeVideo } from "../api";
+import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, preparePublicSession, createYoutubeVideo } from "../api";
 import { teacherVideoQueryKeys } from "../queryKeys";
 import { VIDEO_STATUS_LABEL, type VideoStatus } from "@/shared/api/contracts/videos";
 
@@ -102,8 +103,7 @@ export default function VideoListPage() {
       if (!title || !extractYouTubeVideoId(url)) {
         throw new Error("YouTube 링크와 제목을 확인해 주세요.");
       }
-      const pub = await fetchPublicSession();
-      if (!pub) throw new Error("링크를 등록할 기본 영상 세션을 찾을 수 없습니다.");
+      const pub = await preparePublicSession();
       return createYoutubeVideo({
         session: pub.session_id,
         title,
@@ -128,16 +128,15 @@ export default function VideoListPage() {
     if (!file) return;
     setUploading(true);
     try {
-      const pub = await fetchPublicSession();
-      if (!pub) { teacherToast.error("업로드 세션을 찾을 수 없습니다."); return; }
+      const pub = await preparePublicSession();
       const init = await uploadInit({ session: pub.session_id, title: file.name.replace(/\.[^.]+$/, ""), filename: file.name, content_type: file.type || "video/mp4" });
       const put = await fetch(init.upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "video/mp4" } });
       if (!put.ok) throw new Error(`video_upload_put_failed_${put.status}`);
       await uploadComplete(init.id);
       qc.invalidateQueries({ queryKey: teacherVideoQueryKeys.list });
       teacherToast.success("업로드 완료. 처리는 잠시 후 시작됩니다.");
-    } catch {
-      teacherToast.error("업로드에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } catch (error) {
+      teacherToast.error(extractApiError(error, "업로드에 실패했습니다. 잠시 후 다시 시도해주세요."));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -443,26 +442,14 @@ function YoutubeLinkSheet({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center" style={{ background: "rgba(15,23,42,0.42)" }} onClick={onClose}>
+    <BottomSheet open={open} onClose={onClose} title="YouTube 링크 추가">
       <form
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="teacher-youtube-link-title"
         className="w-full"
-        style={{ maxWidth: 520, background: "var(--tc-surface)", borderRadius: "18px 18px 0 0", border: "1px solid var(--tc-border)", padding: 18, boxShadow: "0 -14px 40px rgba(15,23,42,0.2)" }}
-        onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
           if (canSubmit) onSubmit();
         }}
       >
-        <div className="flex items-center gap-2 mb-4">
-          <Youtube size={ICON.sm} />
-          <div id="teacher-youtube-link-title" className="text-[16px] font-bold" style={{ color: "var(--tc-text)" }}>
-            YouTube 링크 추가
-          </div>
-        </div>
-
         <label className="block mb-3">
           <span className="block text-[12px] font-semibold mb-1" style={{ color: "var(--tc-text-muted)" }}>영상 제목</span>
           <input
@@ -525,6 +512,6 @@ function YoutubeLinkSheet({
           </button>
         </div>
       </form>
-    </div>
+    </BottomSheet>
   );
 }

@@ -18,6 +18,7 @@ export type ScoreBlock = {
   final_pass?: boolean | null;
   achievement?: Achievement | null;
   is_provisional?: boolean;
+  grading_status?: "subjective_pending" | null;
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
   correction_completed_at?: string | null;
   correction_note?: string;

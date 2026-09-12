@@ -11,6 +11,7 @@ import type {
   SessionScoreRow,
   SessionScoreMeta,
 } from "@/shared/api/contracts/sessionScores";
+import { isSubjectivePendingScoreBlock } from "@/shared/scoring/subjectivePending";
 import { SCORE_TEMPLATE_SLOT_LIMIT } from "@/shared/scoring/scoreTemplateSlots";
 import { deriveFinalPass } from "@/shared/scoring/achievement";
 import { DEFAULT_GRADES_PRESET_BODY } from "@/shared/messaging/gradeTemplatePreset";
@@ -55,7 +56,10 @@ function missingScoreLabel(
 export function collectUnenteredScoreItems(row: SessionScoreRow): string[] {
   return [
     ...(row.exams ?? [])
-      .filter((exam) => exam.block.score == null && !isExplicitNotSubmitted(exam.block.meta?.status))
+      .filter((exam) => (
+        isSubjectivePendingScoreBlock(exam.block)
+        || (exam.block.score == null && !isExplicitNotSubmitted(exam.block.meta?.status))
+      ))
       .map((exam) => `시험: ${exam.title}`),
     ...(row.homeworks ?? [])
       .filter((homework) => homework.block.score == null && !isExplicitNotSubmitted(homework.block.meta?.status))
@@ -118,6 +122,9 @@ function buildExamDisplayLines(
   passLabel: string,
   failLabel: string,
 ): string[] {
+  if (isSubjectivePendingScoreBlock(exam.block)) {
+    return [`- ${exam.title}: 서술형 입력 필요`];
+  }
   const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
   const max = exam.block.max_score ?? metaExam?.max_score ?? null;
   const finalPass = finalPassForExam(exam);
@@ -194,14 +201,15 @@ function collectStats(row: SessionScoreRow, meta: SessionScoreMeta | null): Summ
     s.examTotal++;
     const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
     const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
-    if (exam.block.score != null) {
+    const subjectivePending = isSubjectivePendingScoreBlock(exam.block);
+    if (exam.block.score != null && !subjectivePending) {
       s.examScored++;
       s.examSumScore += exam.block.score;
       s.examSumMax += max;
       if (finalPassForExam(exam) === true) s.examPassed++;
     }
     const finalPass = finalPassForExam(exam);
-    if (exam.block.score == null && !isExplicitNotSubmitted(exam.block.meta?.status)) {
+    if (subjectivePending || (exam.block.score == null && !isExplicitNotSubmitted(exam.block.meta?.status))) {
       s.pendingItems.push(exam.title);
     } else if (isExplicitNotSubmitted(exam.block.meta?.status) || finalPass === false) {
       s.failedItems.push(exam.title);
@@ -319,6 +327,10 @@ function buildExamDetailCardLines(
   failLabel: string,
 ): string[] {
   const lines: string[] = [];
+  if (isSubjectivePendingScoreBlock(exam.block)) {
+    appendScoreCard(lines, exam.title, "서술형 입력 필요");
+    return lines;
+  }
   const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
   const max = exam.block.max_score ?? metaExam?.max_score ?? null;
   const finalPass = finalPassForExam(exam);
@@ -539,12 +551,15 @@ export function buildScoreVars(
     const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
     const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
     const n = i + 1;
-    vars[`시험${n}`] = exam.block.score != null
+    const subjectivePending = isSubjectivePendingScoreBlock(exam.block);
+    vars[`시험${n}`] = subjectivePending
+      ? "서술형 입력 필요"
+      : exam.block.score != null
       ? String(exam.block.score)
       : missingScoreLabel("exam", exam.block.meta?.status);
     vars[`시험${n}만점`] = String(max);
     vars[`시험${n}명`] = exam.title || "";
-    if (exam.block.score != null) {
+    if (exam.block.score != null && !subjectivePending) {
       examSumScore += exam.block.score;
       examSumMax += max;
     }

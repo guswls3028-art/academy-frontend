@@ -2,7 +2,8 @@ import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 
 import type { ClinicAvailability, ClinicSession } from "../api/clinicBooking.api";
 import styles from "../pages/ClinicPage.module.css";
-import timeStyles from "./ClinicTimeRangePicker.module.css";
+import { ClinicActualTimePicker } from "@/shared/ui/clinic/ClinicActualTimePicker";
+import type { RefObject } from "react";
 
 type Props = {
   selectedSessions: ClinicSession[];
@@ -25,6 +26,7 @@ type Props = {
   onBookingEndChange: (value: string) => void;
   onAvailabilityRetry: () => void;
   onSubmit: () => void;
+  pickerHeadingRef?: RefObject<HTMLHeadingElement | null>;
 };
 
 function timeToMinutes(value: string | undefined): number | null {
@@ -32,6 +34,14 @@ function timeToMinutes(value: string | undefined): number | null {
   const [hours, minutes] = value.slice(0, 5).split(":").map(Number);
   if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
   return hours * 60 + minutes;
+}
+
+function elapsedMinutes(startTime: string, endTime: string): number {
+  const start = timeToMinutes(startTime);
+  const end = timeToMinutes(endTime);
+  if (start == null || end == null) return 0;
+  if (end === 0 && start > 0) return 24 * 60 - start;
+  return Math.max(end - start, 0);
 }
 
 function selectedTimeSummary(selectedSessions: Pick<ClinicSession, "start_time" | "end_time">[]): {
@@ -51,7 +61,9 @@ function selectedTimeSummary(selectedSessions: Pick<ClinicSession, "start_time" 
   const totalMinutes = selectedSessions.reduce((total, session) => {
     const start = timeToMinutes(session.start_time);
     const end = timeToMinutes(session.end_time);
-    return start == null || end == null ? total : total + Math.max(end - start, 0);
+    return start == null || end == null
+      ? total
+      : total + elapsedMinutes(session.start_time, session.end_time ?? session.start_time);
   }, 0);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
@@ -61,18 +73,6 @@ function selectedTimeSummary(selectedSessions: Pick<ClinicSession, "start_time" 
       ? `${hours}시간${minutes > 0 ? ` ${minutes}분` : ""}`
       : `${minutes}분`,
   };
-}
-
-function timeRangeDuration(startTime: string, endTime: string): string {
-  const start = timeToMinutes(startTime);
-  const end = timeToMinutes(endTime);
-  if (start == null || end == null) return "";
-  const minutes = Math.max(end - start, 0);
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return hours > 0
-    ? `${hours}시간${remainder > 0 ? ` ${remainder}분` : ""}`
-    : `${minutes}분`;
 }
 
 export default function ClinicMultiSlotSelectionPanel({
@@ -96,6 +96,7 @@ export default function ClinicMultiSlotSelectionPanel({
   onBookingEndChange,
   onAvailabilityRetry,
   onSubmit,
+  pickerHeadingRef,
 }: Props) {
   const isTimeRange = selectedSessions.length === 1 && selectedSession?.booking_mode === "time_range";
   const sessionSummary = selectedTimeSummary(selectedSessions);
@@ -104,24 +105,6 @@ export default function ClinicMultiSlotSelectionPanel({
       ? selectedTimeSummary([{ start_time: bookingStart, end_time: bookingEnd }])
       : null
     : sessionSummary;
-  const availableStartSlots = availability?.slots.filter((slot) => slot.remaining_capacity > 0) ?? [];
-  const bookingStartMinutes = timeToMinutes(bookingStart);
-  const availableEndSlots = availability?.slots.filter((slot) => {
-    const slotStart = timeToMinutes(slot.start_time);
-    const slotEnd = timeToMinutes(slot.end_time);
-    if (bookingStartMinutes == null || slotStart == null || slotEnd == null || slotStart < bookingStartMinutes) return false;
-    if (slotEnd - bookingStartMinutes > (availability?.max_stay_minutes ?? 0)) return false;
-    return (availability?.slots ?? [])
-      .filter((candidate) => {
-        const candidateStart = timeToMinutes(candidate.start_time);
-        return candidateStart != null && candidateStart >= bookingStartMinutes && candidateStart < slotEnd;
-      })
-      .every((candidate) => candidate.remaining_capacity > 0);
-  }) ?? [];
-  const hasAvailabilitySlots = (availability?.slots.length ?? 0) > 0;
-  const timeRangeUnavailable = !availabilityPending
-    && !availabilityError
-    && availableStartSlots.length === 0;
   return (
     <section className={styles.selectionPanel} aria-label="선택한 클리닉 시간">
       <div className={styles.selectionSummary}>
@@ -141,79 +124,18 @@ export default function ClinicMultiSlotSelectionPanel({
         ))}
       </div>}
       {isTimeRange && (
-        <div className={timeStyles.timePicker}>
-          <div className={timeStyles.operatingInfo}>
-            <span>운영 안내</span>
-            <strong>{sessionSummary.range}</strong>
-            <small>{availabilityPending
-              ? "예약 가능한 시간을 확인하고 있어요"
-              : `${availability?.interval_minutes ?? 60}분 간격 · 최대 ${availability?.max_stay_minutes ?? selectedSession.booking_max_stay_minutes ?? 240}분`}</small>
-          </div>
-          {availabilityPending ? (
-            <div className={timeStyles.availabilityState} role="status">
-              <span className={timeStyles.availabilitySpinner} aria-hidden />
-              예약 가능한 시간을 확인하고 있어요.
-            </div>
-          ) : availabilityError ? (
-            <div className={timeStyles.availabilityState} role="alert">
-              <strong>시간 정보를 불러오지 못했습니다.</strong>
-              <span>네트워크 연결을 확인한 뒤 다시 불러와 주세요.</span>
-              <button type="button" onClick={onAvailabilityRetry}>다시 확인</button>
-            </div>
-          ) : timeRangeUnavailable ? (
-            <div className={timeStyles.availabilityState} role="status">
-              <strong>{hasAvailabilitySlots ? "예약 가능한 시간이 모두 마감되었습니다." : "이 날짜는 예약 가능한 시간이 없습니다."}</strong>
-              <span>{hasAvailabilitySlots ? "다른 날짜를 선택해 주세요." : "휴무일이거나 아직 예약 시간이 열리지 않았습니다."}</span>
-            </div>
-          ) : (
-            <>
-              <fieldset className={timeStyles.timeStep}>
-                <legend><span>1</span> 시작 시간</legend>
-                <div className={timeStyles.timeSlotGrid}>
-                  {availableStartSlots.map((slot) => (
-                    <button
-                      key={slot.start_time}
-                      type="button"
-                      className={bookingStart === slot.start_time ? timeStyles.timeSlotSelected : ""}
-                      aria-pressed={bookingStart === slot.start_time}
-                      aria-label={`${slot.start_time} 시작, 잔여 ${slot.remaining_capacity}자리`}
-                      onClick={() => {
-                        onBookingStartChange(slot.start_time);
-                        onBookingEndChange("");
-                      }}
-                    >
-                      <strong>{slot.start_time}</strong>
-                      <small>잔여 {slot.remaining_capacity}자리</small>
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-              {bookingStart && (
-                <fieldset className={timeStyles.timeStep}>
-                  <legend><span>2</span> 종료 시간</legend>
-                  <div className={timeStyles.timeSlotGrid}>
-                    {availableEndSlots.map((slot) => {
-                      const duration = timeRangeDuration(bookingStart, slot.end_time);
-                      return (
-                        <button
-                          key={slot.end_time}
-                          type="button"
-                          className={bookingEnd === slot.end_time ? timeStyles.timeSlotSelected : ""}
-                          aria-pressed={bookingEnd === slot.end_time}
-                          aria-label={`${slot.end_time} 종료, 총 ${duration}`}
-                          onClick={() => onBookingEndChange(slot.end_time)}
-                        >
-                          <strong>{slot.end_time}</strong>
-                          <small>총 {duration}</small>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </fieldset>
-              )}
-            </>
-          )}
-        </div>
+        <ClinicActualTimePicker
+          availability={availability}
+          loading={availabilityPending}
+          error={availabilityError}
+          bookingStart={bookingStart}
+          bookingEnd={bookingEnd}
+          onBookingStartChange={onBookingStartChange}
+          onBookingEndChange={onBookingEndChange}
+          onRetry={onAvailabilityRetry}
+          tone="student"
+          headingRef={pickerHeadingRef}
+        />
       )}
       {!isTimeRange && selectedSessions.length === 1 && selectedSession?.allow_time_preference && (
         <fieldset className={styles.preferenceFieldset}>

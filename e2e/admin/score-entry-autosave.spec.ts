@@ -26,6 +26,8 @@ type ScoreRouteOptions = {
   rowNameHighlightClinicTarget?: boolean[];
   rowNameHighlightFollowupRequired?: boolean[];
   includeCorrectionPendingCounts?: boolean;
+  scorePatchProjectionReady?: boolean;
+  scoreSheetReadSequence?: Array<"ready" | "pending" | "error">;
   activeEditors?: Array<{
     client_id: string;
     editor_user_id: number;
@@ -130,7 +132,7 @@ let currentHomeworkVersions: Array<string | null> = [null, "2026-08-30T09:00:02+
 let homeworkVersionCounter = 2;
 let activeEditors: NonNullable<ScoreRouteOptions["activeEditors"]> = [];
 let currentExamRetakeScore = 90;
-let currentServerActiveCell: unknown = null;
+  let currentServerActiveCell: unknown = null;
 const serverDraftMutationOrder: string[] = [];
 const presenceConflictCells: unknown[] = [];
 
@@ -181,6 +183,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   currentServerActiveCell = null;
   serverDraftMutationOrder.length = 0;
   presenceConflictCells.length = 0;
+  let scoreSheetReadCount = 0;
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -188,6 +191,15 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
     const method = request.method();
 
     if (/\/api\/v1\/results\/admin\/sessions\/\d+\/scores\/$/.test(path) && method === "GET") {
+      const readState = options.scoreSheetReadSequence?.[
+        Math.min(scoreSheetReadCount, (options.scoreSheetReadSequence?.length ?? 1) - 1)
+      ] ?? "ready";
+      scoreSheetReadCount += 1;
+      if (readState === "error") {
+        await route.fulfill({ status: 500, json: { detail: "temporary score-sheet failure" } });
+        return;
+      }
+      const subjectivePending = readState === "pending";
       await route.fulfill({
         json: {
           meta: {
@@ -236,11 +248,16 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               block: {
                 score,
                 max_score: rowExamMaxScores[index] ?? examMaxScore,
-                passed: score == null
+                passed: subjectivePending && index === 0
+                  ? null
+                  : score == null
                   ? options.nullScoresPassedFalse ? false : null
                   : score >= 60,
-                achievement: score == null && options.nullScoresPassedFalse ? "FAIL" : undefined,
-                clinic_required: score == null ? false : score < 60,
+                achievement: subjectivePending && index === 0
+                  ? undefined
+                  : score == null && options.nullScoresPassedFalse ? "FAIL" : undefined,
+                grading_status: subjectivePending && index === 0 ? "subjective_pending" : null,
+                clinic_required: subjectivePending && index === 0 ? false : score == null ? false : score < 60,
                 is_locked: false,
                 objective_score: score,
                 subjective_score: currentSubjectiveScores[index] ?? null,
@@ -414,6 +431,8 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       await route.fulfill({
         json: {
           ok: true,
+          saved: true,
+          projection_ready: options.scorePatchProjectionReady ?? true,
           exam_id: 9101,
           enrollment_id: enrollmentId,
           total_score: currentScores[rowIndex],
@@ -435,6 +454,8 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       await route.fulfill({
         json: {
           ok: true,
+          saved: true,
+          projection_ready: options.scorePatchProjectionReady ?? true,
           exam_id: 9101,
           enrollment_id: enrollmentId,
           objective_score: currentScores[rowIndex] ?? 0,
@@ -1313,6 +1334,32 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
   });
 
+  test("발송 직전 두 번째 조회가 서술형 대기로 바뀌면 이전 확정값으로 모달을 열지 않는다", async ({ page }) => {
+    await openScores(page, {
+      initialScores: [65, 52],
+      scoreSheetReadSequence: ["ready", "ready", "pending"],
+    });
+
+    await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+
+    await expect(page.getByText(/최신 성적에 서술형 점수 입력이 필요합니다/)).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
+  });
+
+  test("발송 직전 두 번째 조회가 실패하면 이전 성적으로 모달을 열지 않는다", async ({ page }) => {
+    await openScores(page, {
+      initialScores: [65, 52],
+      scoreSheetReadSequence: ["ready", "ready", "error"],
+    });
+
+    await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+
+    await expect(page.getByText(/최신 성적을 다시 확인하지 못했습니다/)).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
+  });
+
   test("성적 알림 모달은 보호자와 학생 수신을 모두 선택할 수 있다", async ({ page }) => {
     const preflightTargets: string[] = [];
     const sendTargets: string[] = [];
@@ -1858,6 +1905,26 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     });
     await expect(completionSelect).toHaveValue("완료");
     await page.screenshot({ path: "test-results/homework-completion/scores-completion-select.png", fullPage: true });
+  });
+
+  test("점수 저장 성공과 남은 서술형 최종 반영을 구분하고 reload에도 값을 유지한다", async ({ page }) => {
+    await openScores(page, { scorePatchProjectionReady: false });
+    await ensureScoreEditing(page);
+    const firstScoreCell = page.locator('[data-score-cell="exam:9201:9101:total:"]');
+
+    await firstScoreCell.getByRole("textbox").fill("77");
+    await page.keyboard.press("Control+s");
+
+    await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(1);
+    await expect(page.getByText(
+      "1건의 점수는 저장됐지만, 남은 서술형 채점이 필요합니다.",
+      { exact: true },
+    )).toBeVisible();
+    expect(scorePatches[0]).toMatchObject({ score: 77, max_score: 100 });
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-score-cell="exam:9201:9101:total:"]')).toContainText("77");
+    expect(scorePatches).toHaveLength(1);
   });
 
   test("수정 중 자동 저장·단축키를 지원하고 완료하면 다시 잠긴다", async ({ page }, testInfo) => {

@@ -2,12 +2,13 @@
 // PATH: src/app_teacher/domains/clinic/components/AddParticipantSheet.tsx
 // 클리닉 세션 참가자 추가 — 학생 검색 + 다중 선택 + 일괄 등록
 // PC ClinicCreatePanel + ClinicTargetSelectModal 의 모바일 단순화 버전 (student 모드만).
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchStudents } from "@teacher/domains/students/api";
 import {
   createClinicParticipantsBulk,
+  fetchClinicAvailability,
   type TeacherClinicSession,
 } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -15,6 +16,8 @@ import { Search, Check } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { teacherClinicQueryKeys } from "../queryKeys";
+import { ClinicActualTimePicker } from "@/shared/ui/clinic/ClinicActualTimePicker";
+import styles from "./AddParticipantSheet.module.css";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -55,9 +58,13 @@ export default function AddParticipantSheet({
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<number[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<number[]>([sessionId]);
+  const [bookingStart, setBookingStart] = useState("");
+  const [bookingEnd, setBookingEnd] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const sessions = useMemo(() => {
     const initial = availableSessions.find((session) => session.id === sessionId);
+    if (initial?.booking_mode === "time_range") return [initial];
     return availableSessions
       .filter((session) => session.date === initial?.date)
       .sort((a, b) => toMinutes(a.start_time) - toMinutes(b.start_time));
@@ -65,6 +72,7 @@ export default function AddParticipantSheet({
 
   const selectedSessions = sessions.filter((session) => selectedSessionIds.includes(session.id));
   const firstSelected = selectedSessions[0];
+  const isTimeRange = firstSelected?.booking_mode === "time_range";
   const lastSelected = selectedSessions[selectedSessions.length - 1];
   const selectedSessionsAllowMultiple = selectedSessions.every(
     (session) => session.allow_multi_slot_booking === true,
@@ -103,15 +111,24 @@ export default function AddParticipantSheet({
     setSelectedSessionIds([sessionId]);
     setSelected([]);
     setSearch("");
+    setBookingStart("");
+    setBookingEnd("");
   }, [open, sessionId]);
 
-  const { data } = useQuery({
+  const studentsQ = useQuery({
     queryKey: teacherClinicQueryKeys.addStudents(search),
     queryFn: () => fetchStudents({ search: search || undefined, page_size: 100 }),
     enabled: open,
+    retry: 0,
+  });
+  const availabilityQ = useQuery({
+    queryKey: teacherClinicQueryKeys.availability(sessionId),
+    queryFn: () => fetchClinicAvailability(sessionId),
+    enabled: open && isTimeRange,
+    retry: 0,
   });
 
-  const students = (data?.data ?? []).filter(
+  const students = (studentsQ.data?.data ?? []).filter(
     (s) => !alreadyParticipantStudentIds.includes(s.id),
   );
 
@@ -119,6 +136,10 @@ export default function AddParticipantSheet({
     mutationFn: () => createClinicParticipantsBulk({
       session_ids: selectedSessionIds,
       student_ids: selected,
+      ...(isTimeRange ? {
+        booking_start_time: bookingStart,
+        booking_end_time: bookingEnd,
+      } : {}),
     }),
     onSuccess: () => {
       selectedSessionIds.forEach((selectedSessionId) => {
@@ -145,7 +166,7 @@ export default function AddParticipantSheet({
   };
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="학생 추가">
+    <BottomSheet open={open} onClose={onClose} title="학생 추가" initialFocusRef={searchInputRef}>
       <div className="flex flex-col gap-2" style={{ padding: "var(--tc-space-2) 0" }}>
         <div
           className="flex flex-col gap-2"
@@ -158,13 +179,13 @@ export default function AddParticipantSheet({
         >
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold" style={{ color: "var(--tc-text)" }}>
-              추가할 시간대
+              {isTimeRange ? "운영 시간" : "추가할 시간대"}
             </span>
-            <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+            {!isTimeRange && <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
               허용된 일정끼리 여러 개 선택
-            </span>
+            </span>}
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          {!isTimeRange && <div className="flex flex-wrap gap-1.5">
             {sessions.map((session) => {
               const checked = selectedSessionIds.includes(session.id);
               const fixed = session.id === sessionId;
@@ -179,7 +200,7 @@ export default function AddParticipantSheet({
                   aria-pressed={checked}
                   disabled={fixed || full || policyBlocked}
                   onClick={() => selectThrough(session)}
-                  className="text-xs font-bold cursor-pointer disabled:cursor-not-allowed"
+                  className={`text-xs font-bold cursor-pointer disabled:cursor-not-allowed ${styles.timeButton}`}
                   style={{
                     padding: "7px 9px",
                     border: checked ? "1px solid var(--tc-primary)" : "1px solid var(--tc-border)",
@@ -194,7 +215,7 @@ export default function AddParticipantSheet({
                 </button>
               );
             })}
-          </div>
+          </div>}
           <section
             role="region"
             aria-label="선택한 클리닉 시간"
@@ -206,23 +227,67 @@ export default function AddParticipantSheet({
             >
               {selectedRange}
             </strong>
-            <span className="text-[11px] font-bold" style={{ color: "var(--tc-primary)" }}>
+            {!isTimeRange && <span className="text-[11px] font-bold" style={{ color: "var(--tc-primary)" }}>
               {selectedSessionIds.length}개 시간대
-            </span>
+            </span>}
           </section>
+          {isTimeRange && (
+            <ClinicActualTimePicker
+              availability={availabilityQ.data}
+              loading={availabilityQ.isLoading}
+              error={availabilityQ.isError}
+              bookingStart={bookingStart}
+              bookingEnd={bookingEnd}
+              onBookingStartChange={setBookingStart}
+              onBookingEndChange={setBookingEnd}
+              onRetry={() => void availabilityQ.refetch()}
+              tone="teacher"
+              selectionCount={selected.length > 0 ? selected.length : undefined}
+            />
+          )}
         </div>
 
         {/* Search */}
-        <div className="flex items-center gap-2" style={{ padding: "0 0 var(--tc-space-2)", borderBottom: "1px solid var(--tc-border-subtle)" }}>
+        <div className={`flex items-center gap-2 ${styles.search}`} style={{ padding: "0 0 var(--tc-space-2)", borderBottom: "1px solid var(--tc-border-subtle)" }}>
           <Search size={ICON.sm} style={{ color: "var(--tc-text-muted)" }} />
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="학생 이름/전화 검색"
+          <input ref={searchInputRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="학생 이름/전화 검색"
             className="flex-1 text-sm"
             style={{ border: "none", background: "transparent", color: "var(--tc-text)", outline: "none" }} />
         </div>
 
         {/* Student list */}
         <div style={{ maxHeight: 320, overflowY: "auto" }}>
-          {students.length === 0 ? (
+          {studentsQ.isLoading ? (
+            <div
+              role="status"
+              className="text-sm text-center py-4"
+              style={{ color: "var(--tc-text-muted)" }}
+            >
+              학생 목록을 불러오는 중...
+            </div>
+          ) : studentsQ.isError ? (
+            <div
+              role="alert"
+              className="flex flex-col items-center gap-2 text-sm text-center py-4"
+              style={{ color: "var(--tc-text-muted)" }}
+            >
+              <span>학생 목록을 불러오지 못했습니다</span>
+              <button
+                type="button"
+                onClick={() => void studentsQ.refetch()}
+                className={`text-xs font-bold cursor-pointer ${styles.retryButton}`}
+                style={{
+                  padding: "7px 12px",
+                  border: "1px solid var(--tc-border-strong)",
+                  borderRadius: "var(--tc-radius-sm)",
+                  background: "var(--tc-surface)",
+                  color: "var(--tc-text)",
+                }}
+              >
+                다시 시도
+              </button>
+            </div>
+          ) : students.length === 0 ? (
             <div className="text-sm text-center py-4" style={{ color: "var(--tc-text-muted)" }}>
               {search ? "검색 결과 없음" : "추가 가능한 학생이 없습니다"}
             </div>
@@ -231,7 +296,7 @@ export default function AddParticipantSheet({
               const checked = selected.includes(s.id);
               return (
                 <button key={s.id} onClick={() => toggle(s.id)}
-                  className="flex items-center gap-2 w-full text-left cursor-pointer"
+                  className={`flex items-center gap-2 w-full text-left cursor-pointer ${styles.studentRow}`}
                   style={{ padding: "8px 4px", background: "none", border: "none", borderBottom: "1px solid var(--tc-border-subtle)" }}>
                   <span className="w-5 h-5 rounded flex items-center justify-center shrink-0"
                     style={{ border: checked ? "none" : "1.5px solid var(--tc-border-strong)", background: checked ? "var(--tc-primary)" : "transparent" }}>
@@ -248,7 +313,7 @@ export default function AddParticipantSheet({
         </div>
 
         {/* Submit */}
-        <button onClick={() => mutation.mutate()} disabled={selected.length === 0 || selectedSessionIds.length === 0 || mutation.isPending}
+        <button onClick={() => mutation.mutate()} disabled={selected.length === 0 || selectedSessionIds.length === 0 || mutation.isPending || (isTimeRange && (!bookingStart || !bookingEnd || availabilityQ.isLoading || availabilityQ.isError))}
           className="w-full text-sm font-bold cursor-pointer mt-1"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: selected.length > 0 ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: selected.length > 0 ? "#fff" : "var(--tc-text-muted)" }}>
           {mutation.isPending

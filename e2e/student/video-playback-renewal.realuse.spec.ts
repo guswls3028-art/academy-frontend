@@ -11,6 +11,7 @@ import { createSerialProofGate } from "../helpers/serialProofGate";
 import type { SerialProofGate } from "../helpers/serialProofGate";
 import { installSyntheticVideoPosterBridge } from "../helpers/syntheticVideoPosterBridge";
 import { classifyVideoPlaybackResponse } from "../helpers/videoPlaybackResponseKind";
+import { exerciseFullscreenAudit, runPlaybackExitProbe } from "../helpers/playbackExitProbe";
 
 const MINIMUM_PLAYBACK_SECONDS = 690;
 const MINIMUM_RENEW_SECONDS = 390;
@@ -750,6 +751,8 @@ async function finishStudent(
     expect(state.pageErrorCount).toBe(0);
     expect(state.requestErrorCount).toBe(0);
 
+    await exerciseFullscreenAudit(page, reloadedBootstrap.playback_token);
+
     const endCount = await page.locator('a[href="/student/video"]').count();
     expect(endCount).toBeGreaterThan(0);
     const homePosterCapturesBeforeExit = state.homePosterCaptureCount;
@@ -844,3 +847,12 @@ test("two students play through renewal and persist progress without interruptio
     horizontalOverflowCount: states.reduce((total, state) => total + state.horizontalOverflowCount, 0),
   } }));
 });
+
+// Diagnostic-only selection: never substitutes for the 690-second release proof above.
+if (process.env.E2E_PLAYBACK_EXIT_PROBE === "1") {
+  test("short playback exit probe preserves both session generations", async ({ browser }) => {
+    test.setTimeout(8 * 60_000);
+    await runPlaybackExitProbe((viewport, viewportName, username, password, tenantCode, tenantId, videoId, hlsPath, baseUrl) =>
+      prepareStudent(browser, viewport, viewportName, username, password, tenantCode, tenantId, videoId, hlsPath, baseUrl));
+  });
+}

@@ -8,6 +8,7 @@ import type Hls from "hls.js";
 import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
 import { resolveStudentVideoPlayUrl } from "../playbackUrl";
+import { PlaybackSessionEnd } from "./playbackSessionEnd";
 
 const ignoreBestEffortError = () => undefined;
 
@@ -71,31 +72,6 @@ async function postHeartbeat(token: string) {
 async function postRefresh(token: string) {
   if (token.startsWith("student-")) return;
   await studentApi.post(`/media/playback/refresh/`, { token });
-}
-
-async function postEnd(token: string) {
-  if (token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/media/playback/end/`, { token });
-  } catch {
-    ignoreBestEffortError();
-  }
-}
-
-function postFinalEventsThenEnd(token: string, events: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }>, videoId: number, enrollmentId: number | null) {
-  let endStarted = false;
-  const end = () => {
-    if (endStarted) return;
-    endStarted = true;
-    void postEnd(token).catch(ignoreBestEffortError);
-  };
-  const timer = window.setTimeout(end, 1_000);
-  void postEvents(token, events, videoId, enrollmentId)
-    .catch(ignoreBestEffortError)
-    .finally(() => {
-      window.clearTimeout(timer);
-      end();
-    });
 }
 
 async function postEvents(
@@ -197,6 +173,7 @@ export class StudentHlsController {
   private videoListeners: Array<{ ev: string; fn: EventListener }> = [];
   private docCleanups: Array<() => void> = [];
   private tokenRef: string;
+  private readonly playbackEnd: PlaybackSessionEnd;
   private initialPositionApplied = false;
   private pendingSourceResume: {
     position: number;
@@ -211,6 +188,7 @@ export class StudentHlsController {
     this.opts = opts;
     this.policy = normalizePolicy(opts.policy);
     this.tokenRef = opts.token;
+    this.playbackEnd = new PlaybackSessionEnd(() => this.policy.monitoring_enabled ? this.tokenRef : null);
   }
 
   private guard(cb: () => void) {
@@ -510,7 +488,7 @@ export class StudentHlsController {
   }
 
   private queueEvent(type: EventType, payload?: Record<string, unknown>) {
-    if (this.disposed) return;
+    if (this.disposed || this.playbackEnd.started) return;
     const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     if (!monitoringEnabled) return;
     const violationEvents: EventType[] = ["SEEK_ATTEMPT", "SPEED_CHANGE_ATTEMPT"];
@@ -522,7 +500,7 @@ export class StudentHlsController {
   }
 
   private flushEvents = async () => {
-    if (this.disposed) return;
+    if (this.disposed || this.playbackEnd.started) return;
     const token = this.tokenRef;
     if (!token) return;
     const batch = this.eventQueue.splice(0, this.eventQueue.length);
@@ -573,6 +551,7 @@ export class StudentHlsController {
   }
 
   private startDocListeners() {
+    this.playbackEnd.listen();
     const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     const onVis = () => {
       if (this.disposed) return;
@@ -958,7 +937,6 @@ export class StudentHlsController {
     if (this.disposed) return;
     this.flushProgress(true);
 
-    const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     const token = this.tokenRef;
     const batch = this.eventQueue.splice(0, this.eventQueue.length);
     this.disposed = true;
@@ -988,9 +966,7 @@ export class StudentHlsController {
       this.hls = null;
     }
 
-    if (monitoringEnabled && token) {
-      postFinalEventsThenEnd(token, batch, this.opts.videoId, this.opts.enrollmentId);
-    }
+    this.playbackEnd.finish(() => postEvents(token, batch, this.opts.videoId, this.opts.enrollmentId));
 
     this.el = null;
   }

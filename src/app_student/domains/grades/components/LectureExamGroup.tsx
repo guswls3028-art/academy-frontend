@@ -23,6 +23,11 @@ function fmtScore(total: number | null, max: number): string {
   return `${total}/${max}점`;
 }
 
+function examScoreLabel(exam: MyExamGradeSummary): string {
+  if (exam.grading_status === "subjective_pending") return "채점 진행 중";
+  return fmtScore(exam.total_score, exam.max_score);
+}
+
 function wrongPreview(numbers?: number[]): string {
   if (!Array.isArray(numbers) || numbers.length === 0) return "";
   const shown = numbers.slice(0, 6).join(", ");
@@ -36,7 +41,10 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
       <LectureGroupHeader label={group.label} count={group.exams.length} avgPct={group.avgPct} />
       <div className={styles.list}>
         {group.exams.map((e) => {
-          const hasQuestionAnalysis = Number(e.total_questions ?? 0) > 0 && e.meta_status !== "NOT_SUBMITTED";
+          const subjectivePending = e.grading_status === "subjective_pending";
+          const hasQuestionAnalysis = Number(e.total_questions ?? 0) > 0
+            && e.meta_status !== "NOT_SUBMITTED"
+            && !subjectivePending;
           const wrongCount = Number(e.wrong_count ?? 0);
           const wrongNumbers = wrongPreview(e.wrong_question_numbers);
           const correction = wrongCompletionOnly
@@ -68,8 +76,11 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                   <div className={styles.title}>{e.title}</div>
                   <div className={`stu-muted ${styles.meta}`}>
                     {e.session_title && `${e.session_title} · `}
-                    {fmtScore(e.total_score, e.max_score)}
+                    {examScoreLabel(e)}
                   </div>
+                  {subjectivePending && (
+                    <Badge size="xs" tone="warning">서술형 채점 중</Badge>
+                  )}
                   {(hasQuestionAnalysis || correction) && (
                     <div
                       className={styles.analysisLine}
@@ -97,7 +108,7 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                   )}
                 </div>
                 <div className={styles.statusBlock}>
-                  {!wrongCompletionOnly && (
+                  {!wrongCompletionOnly && !subjectivePending && (
                     <GradeBadge passed={e.is_pass} achievement={e.achievement} label={labels} />
                   )}
                   <div className={styles.statusMeta}>

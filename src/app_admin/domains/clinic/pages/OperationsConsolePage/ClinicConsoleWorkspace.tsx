@@ -74,6 +74,7 @@ import { useAutoSendConfig } from "@admin/domains/messages/hooks/useAutoSendConf
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
+import ClinicStaffBookingTimeModal from "../../components/ClinicStaffBookingTimeModal";
 import ClinicManualHomeworkCompleteDialog from "../../components/ClinicManualHomeworkCompleteDialog";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
@@ -375,6 +376,8 @@ export default function ClinicConsoleWorkspace({
   const pendingPlanFocusRef = useRef<{ participantId: number; clinicLinkId: number } | null>(null);
   const [studentOverlayId, setStudentOverlayId] = useState<number | null>(null);
   const [addStudentModalOpen, setAddStudentModalOpen] = useState(false);
+  const [pendingAddSelection, setPendingAddSelection] = useState<ClinicTargetSelectResult | null>(null);
+  const addStudentTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   // Per-participant pending tracking for rapid processing
   const [mutatingIds, setMutatingIds] = useState<Set<number>>(new Set());
@@ -1272,6 +1275,58 @@ export default function ClinicConsoleWorkspace({
     }
   }
 
+  function addSelectionIds(result: ClinicTargetSelectResult) {
+    const allIds = result.kind === "enrollment"
+      ? [...result.enrollmentIds]
+      : [...result.studentIds];
+    const existingStudentIds = new Set(rosterParticipants.map((participant) => participant.student));
+    const existingEnrollmentIds = new Set(
+      rosterParticipants
+        .filter((participant) => participant.enrollment_id)
+        .map((participant) => participant.enrollment_id!),
+    );
+    const ids = allIds.filter((selectedId) => result.kind === "student"
+      ? !existingStudentIds.has(selectedId)
+      : !existingEnrollmentIds.has(selectedId));
+    return { allIds, ids, skipped: allIds.length - ids.length };
+  }
+
+  async function submitParticipantSelection(
+    result: ClinicTargetSelectResult,
+    booking?: { start: string; end: string },
+  ): Promise<boolean> {
+    if (!session) return true;
+    const { allIds, ids, skipped } = addSelectionIds(result);
+    if (ids.length === 0) {
+      feedback.info(`선택한 ${allIds.length}명은 이미 등록되어 있습니다.`);
+      return true;
+    }
+    try {
+      await createClinicParticipantsBulk({
+        session_ids: [session.id],
+        ...(result.kind === "enrollment" ? { enrollment_ids: ids } : { student_ids: ids }),
+        ...(booking ? {
+          booking_start_time: booking.start,
+          booking_end_time: booking.end,
+        } : {}),
+      });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree }),
+      ]);
+      feedback.success(skipped > 0
+        ? `${ids.length}명 추가 (${skipped}명은 이미 등록되어 건너뜀)`
+        : `${ids.length}명이 추가되었습니다.`);
+      return true;
+    } catch (error: unknown) {
+      feedback.error(`학생을 추가하지 못했습니다. ${extractApiError(
+        error,
+        "선택을 유지했습니다. 잠시 후 다시 시도해 주세요.",
+      )}`);
+      return false;
+    }
+  }
+
   const filterCounts = {
     all: studentCount,
     requests: progress.approvalPending,
@@ -1389,7 +1444,10 @@ export default function ClinicConsoleWorkspace({
               <button
               type="button"
               className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
-              onClick={() => setAddStudentModalOpen(true)}
+              onClick={(event) => {
+                addStudentTriggerRef.current = event.currentTarget;
+                setAddStudentModalOpen(true);
+              }}
             >
               <UserPlus size={14} aria-hidden />
               학생 추가
@@ -1779,7 +1837,10 @@ export default function ClinicConsoleWorkspace({
             <button
               type="button"
               className="clinic-console__empty-cta"
-              onClick={() => setAddStudentModalOpen(true)}
+              onClick={(event) => {
+                addStudentTriggerRef.current = event.currentTarget;
+                setAddStudentModalOpen(true);
+              }}
             >
               <UserPlus size={14} aria-hidden />
               <span>학생 추가하기</span>
@@ -1919,6 +1980,11 @@ export default function ClinicConsoleWorkspace({
                         </span>
                       ) : getParticipantStatusLabel(p)}
                       </span>
+                      {p.booking_start_time && p.booking_end_time && (
+                        <span className="clinic-ops__booking-time">
+                          예약 {hhmmText(p.booking_start_time, "-")}–{hhmmText(p.booking_end_time, "-")}
+                        </span>
+                      )}
                       {isAggregate && (
                         <div
                           className="clinic-ops__session-context-rail"
@@ -3028,63 +3094,26 @@ export default function ClinicConsoleWorkspace({
         onClose={() => setAddStudentModalOpen(false)}
         initialMode="targets"
         onConfirm={async (result: ClinicTargetSelectResult) => {
-          const allIds =
-            result.kind === "enrollment"
-              ? [...result.enrollmentIds]
-              : [...result.studentIds];
-          if (!session || allIds.length === 0) return true;
-
-          const existingStudentIds = new Set(
-            rosterParticipants.map((p) => p.student)
-          );
-          const existingEnrollmentIds = new Set(
-            rosterParticipants
-              .filter((p) => p.enrollment_id)
-              .map((p) => p.enrollment_id!)
-          );
-          const ids = allIds.filter((selectedId) =>
-            result.kind === "student"
-              ? !existingStudentIds.has(selectedId)
-              : !existingEnrollmentIds.has(selectedId)
-          );
-          const skipped = allIds.length - ids.length;
-
-          if (ids.length === 0) {
-            feedback.info(
-              `선택한 ${allIds.length}명은 이미 등록되어 있습니다.`
-            );
+          if (!session) return true;
+          const { ids } = addSelectionIds(result);
+          if (session.booking_mode === "time_range" && ids.length > 0) {
+            setPendingAddSelection(result);
             return true;
           }
-
-          try {
-            await createClinicParticipantsBulk({
-              session_ids: [session.id],
-              ...(result.kind === "enrollment"
-                ? { enrollment_ids: ids }
-                : { student_ids: ids }),
-            });
-            await Promise.all([
-              qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
-              qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree }),
-            ]);
-            if (skipped > 0) {
-              feedback.success(
-                `${ids.length}명 추가 (${skipped}명은 이미 등록되어 건너뜀)`
-              );
-            } else {
-              feedback.success(`${ids.length}명이 추가되었습니다.`);
-            }
-            return true;
-          } catch (error: unknown) {
-            feedback.error(
-              `학생을 추가하지 못했습니다. ${extractApiError(
-                error,
-                "선택을 유지했습니다. 잠시 후 다시 시도해 주세요.",
-              )}`,
-            );
-            return false;
-          }
+          return submitParticipantSelection(result);
         }}
+      />
+      <ClinicStaffBookingTimeModal
+        open={pendingAddSelection != null}
+        session={session}
+        selectionCount={pendingAddSelection ? addSelectionIds(pendingAddSelection).ids.length : 0}
+        onClose={() => {
+          setPendingAddSelection(null);
+          requestAnimationFrame(() => addStudentTriggerRef.current?.focus());
+        }}
+        onConfirm={async (start, end) => pendingAddSelection
+          ? submitParticipantSelection(pendingAddSelection, { start, end })
+          : false}
       />
       <ClinicManualHomeworkCompleteDialog
         target={completeTarget}

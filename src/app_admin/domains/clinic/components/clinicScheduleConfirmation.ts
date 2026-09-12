@@ -40,6 +40,7 @@ type CreateSummary = {
   location: string;
   selectedCount: number;
   selectedStudentSummary: string;
+  assignedBookingRange?: string;
   allowTimePreference: boolean;
   allowMultiSlotBooking: boolean;
 };
@@ -63,7 +64,9 @@ export function buildClinicCreateConfirmationReview(summary: CreateSummary): Con
       {
         label: "즉시 배정",
         value: summary.selectedCount > 0
-          ? `${summary.selectedStudentSummary} · ${summary.selectedCount}명`
+          ? [summary.selectedStudentSummary, `${summary.selectedCount}명`, summary.assignedBookingRange]
+              .filter(Boolean)
+              .join(" · ")
           : "없음",
       },
     ],

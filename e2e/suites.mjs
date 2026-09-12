@@ -6,6 +6,7 @@ export const productionReadOnlySpecs = [
 ];
 
 export const routeMockSpecs = [
+  "e2e/admin/public-video-preparation.mock.spec.ts",
   "e2e/helpers/api-auth-session.mock.spec.ts",
   "e2e/visual/strict-browser-recovered-cors.mock.spec.ts",
   "e2e/admin/workspace-quick-navigation.mock.spec.ts",
@@ -29,6 +30,7 @@ export const routeMockSpecs = [
   "e2e/admin/clinic-weekly-multisession.mock.spec.ts",
   "e2e/admin/clinic-remediation-missing.mock.spec.ts",
   "e2e/admin/session-clinic-pending.mock.spec.ts",
+  "e2e/clinic/clinic-booking-modes-visual.mock.spec.ts",
   "e2e/admin/lecture-session-scopes.mock.spec.ts",
   "e2e/admin/video-bulk-policy.mock.spec.ts",
   "e2e/admin/lecture-create-responsive.mock.spec.ts",

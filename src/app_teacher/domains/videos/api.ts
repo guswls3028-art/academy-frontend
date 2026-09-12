@@ -2,6 +2,7 @@
 // 영상 API — 기존 admin videos API 재사용
 import api from "@/shared/api/axios";
 import { listFromApiResponse } from "@/shared/api/response";
+export { preparePublicSession } from "@/shared/api/contracts/videos";
 
 export type TeacherVideo = {
   id: number;
@@ -74,16 +75,6 @@ export async function fetchVideoStats(videoId: number): Promise<TeacherVideoStat
 /** 실패한 영상 재시도 */
 export async function retryVideo(videoId: number) {
   await api.post(`/media/videos/${videoId}/retry/`);
-}
-
-/** 공용 세션 (영상 업로드용 기본 세션) */
-export async function fetchPublicSession(): Promise<{ session_id: number; lecture_id: number } | null> {
-  try {
-    const res = await api.get("/media/videos/public-session/");
-    return res.data;
-  } catch {
-    return null;
-  }
 }
 
 /* ─── Video CRUD ─── */

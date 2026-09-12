@@ -9,6 +9,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import useAuth from "@/auth/hooks/useAuth";
 import type { SessionScoresPanelHandle } from "../panels/SessionScoresPanel";
+import type { ScoreFlushResult } from "../components/ScoresTable";
 import {
   getScoreDraft,
   isScoreEditLockedError,
@@ -101,7 +102,7 @@ export function useScoreEditDraft({
   const [restoreChangeCount, setRestoreChangeCount] = useState(0);
   const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
-  const savePromiseRef = useRef<Promise<number> | null>(null);
+  const savePromiseRef = useRef<Promise<ScoreFlushResult> | null>(null);
   const presencePausedRef = useRef(false);
   const lastSaveAttemptAtRef = useRef(0);
   const needsDraftCommitRef = useRef(false);
@@ -146,14 +147,19 @@ export function useScoreEditDraft({
 
   const saveNow = useCallback(async function savePendingScores(
     preservedPanel?: SessionScoresPanelHandle | null,
-  ): Promise<number> {
+  ): Promise<ScoreFlushResult> {
     if (savePromiseRef.current) {
       const inFlight = savePromiseRef.current;
       const queuedPanel = preservedPanel ?? panelRef.current;
       const savedCount = await inFlight;
       if (savePromiseRef.current === inFlight) savePromiseRef.current = null;
       if ((queuedPanel?.getPendingSnapshot?.() ?? []).length > 0) {
-        return savedCount + await savePendingScores(queuedPanel);
+        const queuedResult = await savePendingScores(queuedPanel);
+        return {
+          savedCount: savedCount.savedCount + queuedResult.savedCount,
+          projectionPendingCount:
+            savedCount.projectionPendingCount + queuedResult.projectionPendingCount,
+        };
       }
       return savedCount;
     }
@@ -186,7 +192,7 @@ export function useScoreEditDraft({
         }
       }
       setHasPendingChanges(false);
-      return 0;
+      return { savedCount: 0, projectionPendingCount: 0 };
     }
 
     setDraftStatus("saving");
@@ -203,7 +209,8 @@ export function useScoreEditDraft({
         needsDraftCommitRef.current = true;
         if (draftTimestampKey) setLocalItem(draftTimestampKey, String(Date.now()));
 
-        const savedCount = await panel?.flushPendingChanges?.() ?? 0;
+        const savedCount = await panel?.flushPendingChanges?.()
+          ?? { savedCount: 0, projectionPendingCount: 0 };
         const remaining = panel?.getPendingSnapshot?.() ?? [];
         if (remaining.length === 0) {
           invalidatePresenceReads();
@@ -239,14 +246,21 @@ export function useScoreEditDraft({
     })();
 
     savePromiseRef.current = run;
-    let savedCount = 0;
+    let savedCount = { savedCount: 0, projectionPendingCount: 0 };
     try {
       savedCount = await run;
     } finally {
       if (savePromiseRef.current === run) savePromiseRef.current = null;
     }
     const remaining = panel?.getPendingSnapshot?.() ?? [];
-    if (remaining.length > 0) return savedCount + await savePendingScores(panel);
+    if (remaining.length > 0) {
+      const remainingResult = await savePendingScores(panel);
+      return {
+        savedCount: savedCount.savedCount + remainingResult.savedCount,
+        projectionPendingCount:
+          savedCount.projectionPendingCount + remainingResult.projectionPendingCount,
+      };
+    }
     return savedCount;
   }, [activeCellRef, draftTimestampKey, drainPresenceQueue, invalidatePresenceReads, localDraftKey, panelRef, sessionId, setActiveEditors]);
 

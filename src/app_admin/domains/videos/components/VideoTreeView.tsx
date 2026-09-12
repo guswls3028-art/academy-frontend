@@ -22,6 +22,7 @@ import VideoStatusBadge from "../ui/VideoStatusBadge";
 import {
   fetchSessionVideos,
   fetchPublicSession,
+  preparePublicSession,
   fetchVideoFolders,
   createVideoFolder,
   deleteVideo,
@@ -40,6 +41,7 @@ import {
 } from "@/shared/api/contracts/sessions";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import VideoDetailOverlay from "../pages/VideoDetailOverlay";
 import VideoEditModal from "./features/video-detail/modals/VideoEditModal";
@@ -293,19 +295,38 @@ export default function VideoTreeView() {
     setUploadTargetSessionId(null);
   };
 
-  const handleCreateFolder = useCallback(async () => {
-    if (!newFolderName.trim() || !publicSession) return;
+  const publicSessionMutation = useMutation({
+    mutationFn: preparePublicSession,
+    onSuccess: (session) => {
+      queryClient.setQueryData(adminVideoQueryKeys.publicSession, session);
+    },
+  });
+  const { mutateAsync: preparePublic } = publicSessionMutation;
+
+  const startPublicUpload = async () => {
     try {
+      const session = await preparePublic();
+      setAddChoiceModalOpen(false);
+      openUploadModal(session.session_id);
+    } catch (error) {
+      feedback.error(getApiErrorMessage(error, "공개 영상 공간을 준비하지 못했습니다. 다시 시도해 주세요."));
+    }
+  };
+
+  const handleCreateFolder = useCallback(async () => {
+    if (!newFolderName.trim()) return;
+    try {
+      const session = await preparePublic();
       const parentId =
         selectedPublicFolderId && selectedFolderId !== "public" ? selectedPublicFolderId : null;
-      await createVideoFolder(publicSession.session_id, newFolderName.trim(), parentId);
-      queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.foldersForSession(publicSession.session_id) });
+      await createVideoFolder(session.session_id, newFolderName.trim(), parentId);
+      queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.foldersForSession(session.session_id) });
       setNewFolderName("");
       setNewFolderOpen(false);
     } catch (e) {
-      feedback.error((e as Error).message || "폴더 생성에 실패했습니다.");
+      feedback.error(getApiErrorMessage(e, "폴더 생성에 실패했습니다."));
     }
-  }, [newFolderName, publicSession, selectedPublicFolderId, selectedFolderId, queryClient]);
+  }, [newFolderName, preparePublic, selectedPublicFolderId, selectedFolderId, queryClient]);
 
   const retryVideoMutation = useMutation({
     mutationFn: async (payload: { videoId: number; title?: string }) => {
@@ -434,8 +455,10 @@ export default function VideoTreeView() {
                   onClick={() => {
                     if (isPublicSelection) {
                       void refetchPublicSession();
-                      void refetchPublicFolders();
-                      void refetchPublicVideos();
+                      if (publicSession?.session_id) {
+                        void refetchPublicFolders();
+                        void refetchPublicVideos();
+                      }
                     } else {
                       void refetchSessionVideos();
                     }
@@ -466,10 +489,15 @@ export default function VideoTreeView() {
                       : "아래 버튼으로 이 차시에 영상을 추가하세요."
                   }
                   actions={
-                    isPublicSelection && publicSession ? (
-                      <Button intent="primary" size="sm" onClick={() => openUploadModal(publicSession.session_id)}>
-                        영상 추가
-                      </Button>
+                    isPublicSelection ? (
+                      <>
+                        <Button intent="primary" size="sm" disabled={publicSessionMutation.isPending} onClick={() => void startPublicUpload()}>
+                          영상 추가
+                        </Button>
+                        <Button intent="secondary" size="sm" onClick={() => setNewFolderOpen(true)}>
+                          폴더 생성
+                        </Button>
+                      </>
                     ) : selectedSession ? (
                       <Button intent="primary" size="sm" onClick={() => openUploadModal(selectedSession.session.id)}>
                         영상 추가
@@ -605,7 +633,7 @@ export default function VideoTreeView() {
         />
       )}
 
-      {addChoiceModalOpen && publicSession && (
+      {addChoiceModalOpen && (
         <AdminModal
           open={addChoiceModalOpen}
           onClose={() => setAddChoiceModalOpen(false)}
@@ -616,10 +644,8 @@ export default function VideoTreeView() {
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() => {
-                  setAddChoiceModalOpen(false);
-                  openUploadModal(publicSession.session_id);
-                }}
+                disabled={publicSessionMutation.isPending}
+                onClick={() => void startPublicUpload()}
                 className="w-full flex items-center gap-3 p-4 rounded-lg border border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface-hover)] transition-all text-left"
               >
                 <div className="w-10 h-10 rounded-lg bg-[var(--color-brand-primary)]/10 flex items-center justify-center">
@@ -706,7 +732,7 @@ export default function VideoTreeView() {
               </Button>
             }
             right={
-              <Button intent="primary" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
+              <Button intent="primary" onClick={handleCreateFolder} disabled={!newFolderName.trim() || publicSessionMutation.isPending}>
                 생성
               </Button>
             }

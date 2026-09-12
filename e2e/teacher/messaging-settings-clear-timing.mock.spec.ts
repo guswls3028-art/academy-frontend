@@ -12,7 +12,7 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     serviceWorkers: "block",
   });
 
-  test("빈 발송 시점을 null로 저장하고 재조회에서도 비어 있다", async ({ page }) => {
+  test("빈 발송 시점을 유지하고 중첩 미리보기만 닫는다", async ({ page }) => {
     let minutesBefore: number | null = 30;
     let savedBody: unknown = null;
 
@@ -103,6 +103,35 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     });
 
     await page.getByTitle("설정 편집").click();
-    await expect(page.getByRole("spinbutton", { name: "분 전" })).toHaveValue("");
+    const reopenedTimingInput = page.getByRole("spinbutton", { name: "분 전" });
+    await expect(reopenedTimingInput).toHaveValue("");
+
+    await reopenedTimingInput.fill("45");
+    const previewTrigger = page.getByRole("button", { name: "미리보기" });
+    await previewTrigger.click();
+
+    const previewSheet = page.getByRole("dialog", { name: "템플릿 미리보기" });
+    await expect(previewSheet).toBeVisible();
+    await previewSheet.evaluate((sheet) => {
+      const hiddenAncestor = document.createElement("div");
+      hiddenAncestor.style.display = "none";
+      const hiddenButton = document.createElement("button");
+      hiddenButton.textContent = "숨은 포커스 대상";
+      hiddenAncestor.append(hiddenButton);
+      sheet.append(hiddenAncestor);
+    });
+    const previewCloseButton = previewSheet.getByRole("button", { name: "닫기" });
+    await previewCloseButton.focus();
+    await page.keyboard.press("Tab");
+    await expect(previewCloseButton).toBeFocused();
+    await page.keyboard.press("Escape");
+
+    await expect(previewSheet).toBeHidden();
+    await expect(reopenedTimingInput).toBeVisible();
+    await expect(reopenedTimingInput).toHaveValue("45");
+    await expect(previewTrigger).toBeFocused();
+
+    await page.mouse.click(10, 10);
+    await expect(reopenedTimingInput).toBeHidden();
   });
 });
