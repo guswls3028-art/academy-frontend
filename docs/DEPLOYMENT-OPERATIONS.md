@@ -4,6 +4,16 @@
 **정본:** `.github/workflows/quality-gate.yml`, `.github/workflows/e2e.yml`,
 `package.json`, `scripts/guard-e2e-safety.mjs`
 
+## 배포 시점
+
+호환 가능한 패치는 release owner가 기존 게이트를 통과한 exact 후보를 신속히
+반영하며 새벽 04시 고정 대기를 요구하지 않는다. 시간 정책의 정본은
+[backend 배포 시점과 사용자 연속성](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/deployment-modes.md)이다.
+이미 열린 앱과 구·신 API/DB의 호환, 활성 영상·입력·업로드의 강제 새로고침 없는
+연속성, development-canary/cleanup zero와 승인·rollback 증거를 확인한다.
+아래 3.1의 IAM/SSM 전환 HOLD 같은 기술적 제한은 실제 해제 증거 전까지 유지한다.
+과거 시간 약속이나 자동화 재개 시간만으로 새 배포를 지연하지 않는다.
+
 ## 1. 배포 순서
 
 1. PR에서 Hangul companion, typecheck, API/E2E safety guard, 변경 파일 strict
@@ -112,7 +122,7 @@ PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 
 PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency
 chain으로 직렬 실행한다. 별도 job은 API proxy를 `http://127.0.0.1:9`로 닫고 각
-browser context에 API interception을 설치하는 route-mock 파일만 CI 최대 4 worker로
+browser context에 API interception을 설치하는 route-mock 파일만 CI 최대 3 worker로
 병렬 실행한다. 두 job은 서로 기다리지 않으므로 운영 계정 직렬성은 보존하면서
 route-mock wall time을 줄인다. 수동 workflow도 두 job을 병렬 재사용하며 전 메뉴
 감사는 둘 다 성공한 뒤에만 시작한다. `e2e/suites.mjs`가 운영 read-only,
