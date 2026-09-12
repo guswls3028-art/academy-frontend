@@ -12,7 +12,7 @@ import {
 type Options = {
   sessionId: number;
   panelRef: React.RefObject<SessionScoresPanelHandle | null>;
-  savePromiseRef: React.MutableRefObject<Promise<number> | null>;
+  savePromiseRef: React.MutableRefObject<Promise<unknown> | null>;
   presencePausedRef: React.MutableRefObject<boolean>;
   isActive: boolean;
   activeCell: ScoreActiveCell | null;

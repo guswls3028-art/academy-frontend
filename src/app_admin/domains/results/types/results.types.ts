@@ -142,6 +142,7 @@ export type AdminExamResultRow = {
   achievement?: Achievement | null;
   clinic_retake?: ClinicRetakeInfo | null;
   is_provisional?: boolean;
+  grading_status?: "subjective_pending" | null;
   meta_status?: string | null;
   correction_session_id?: number | null;
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;

@@ -43,6 +43,8 @@ export type MyExamGradeSummary = {
   wrong_question_numbers?: number[];
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
   lecture_active?: boolean;
+  grading_status?: "subjective_pending" | null;
+  is_provisional?: boolean;
 };
 
 export type MyHomeworkGradeSummary = {

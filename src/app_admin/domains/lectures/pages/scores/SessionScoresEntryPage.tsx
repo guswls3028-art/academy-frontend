@@ -392,12 +392,22 @@ export default function SessionScoresEntryPage({
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     setIsSaving(true);
     try {
-      const savedCount = await runTrackedTask(
+      const saveResult = await runTrackedTask(
         "scores.session.save",
         saveScoreDraftNow,
       );
       if (announce) {
-        feedback.success(savedCount > 0 ? `${savedCount}건의 점수를 저장했습니다.` : "모든 점수가 저장되어 있습니다.");
+        if (saveResult.projectionPendingCount > 0) {
+          feedback.warning(
+            `${saveResult.savedCount}건의 점수는 저장됐지만, 남은 서술형 채점이 필요합니다.`,
+          );
+        } else {
+          feedback.success(
+            saveResult.savedCount > 0
+              ? `${saveResult.savedCount}건의 점수를 저장했습니다.`
+              : "모든 점수가 저장되어 있습니다.",
+          );
+        }
       }
       return true;
     } catch (err) {
@@ -526,6 +536,19 @@ export default function SessionScoresEntryPage({
     () => (data?.meta?.exams ?? []).some((exam) => Number(exam.subjective_max_score ?? 0) > 0),
     [data?.meta?.exams],
   );
+  const pendingSubjectiveSummary = useMemo(() => {
+    const examIds = new Set<number>();
+    const enrollmentIds = new Set<number>();
+    for (const row of data?.rows ?? []) {
+      for (const exam of row.exams ?? []) {
+        if (exam.block.grading_status !== "subjective_pending") continue;
+        examIds.add(exam.exam_id);
+        enrollmentIds.add(row.enrollment_id);
+      }
+    }
+    const exams = (data?.meta?.exams ?? []).filter((exam) => examIds.has(exam.exam_id));
+    return { exams, studentCount: enrollmentIds.size };
+  }, [data?.meta?.exams, data?.rows]);
 
   // P1-5: setPresetTotalHw / setPresetSubjectiveHw preset 함수 제거 — 5버튼 segment 단순화로 불필요.
 
@@ -646,9 +669,19 @@ export default function SessionScoresEntryPage({
     draft.recoveryCheckFailed ||
     draft.editLockConflict ||
     draft.hasDraftToRestore;
-  const scoreAlimtalkDisabled = selectedEnrollmentIds.length === 0 || isEditMode || isSaving || recoveryBlocked;
+  const selectedHasSubjectivePending = (data?.rows ?? []).some((row) => (
+    selectedEnrollmentIds.includes(row.enrollment_id)
+    && row.exams.some((exam) => exam.block.grading_status === "subjective_pending")
+  ));
+  const scoreAlimtalkDisabled = selectedEnrollmentIds.length === 0
+    || selectedHasSubjectivePending
+    || isEditMode
+    || isSaving
+    || recoveryBlocked;
   const scoreAlimtalkTitle = selectedEnrollmentIds.length === 0
     ? "학생을 선택하세요."
+    : selectedHasSubjectivePending
+      ? "서술형 점수 입력을 완료한 뒤 알림톡을 발송할 수 있습니다."
     : recoveryBlocked
       ? "이전 입력 복구 여부를 먼저 확인해 주세요."
     : isEditMode
@@ -712,6 +745,16 @@ export default function SessionScoresEntryPage({
       manualGradingMethod,
     });
   };
+
+  const openPendingSubjectiveGrading = (
+    exam: SessionScoreMeta["exams"][number],
+  ) => openExamGrading(
+    exam.exam_id,
+    exam.title,
+    resolveExamGradingMode(exam),
+    exam.manual_grading_method ?? "score",
+    "manual",
+  );
 
   useEffect(() => {
     if (
@@ -784,11 +827,24 @@ export default function SessionScoresEntryPage({
                 feedback.info("점수를 저장하고 잠근 뒤 알림톡을 발송해 주세요.");
                 return;
               }
-              if (!await saveScoresNow()) return;
-              const freshData = (await refetch()).data ?? data;
-              const rows = freshData?.rows ?? [];
-              const selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-              const meta = freshData?.meta ?? null;
+              const initialRefresh = await refetch();
+              if (initialRefresh.isError || !initialRefresh.data) {
+                feedback.error("최신 성적을 다시 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
+                return;
+              }
+              let freshData = initialRefresh.data;
+              let rows = freshData?.rows ?? [];
+              let selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
+              const pendingSubjectiveCount = selectedRows.reduce(
+                (count, row) => count + row.exams.filter(
+                  (exam) => exam.block.grading_status === "subjective_pending",
+                ).length,
+                0,
+              );
+              if (pendingSubjectiveCount > 0) {
+                feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
+                return;
+              }
               const unenteredItemCount = selectedRows.reduce(
                 (count, row) => count + collectUnenteredScoreItems(row).length,
                 0,
@@ -799,6 +855,36 @@ export default function SessionScoresEntryPage({
                 );
                 return;
               }
+              if (!await saveScoresNow()) return;
+              const finalRefresh = await refetch();
+              if (finalRefresh.isError || !finalRefresh.data) {
+                feedback.error("최신 성적을 다시 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
+                return;
+              }
+              freshData = finalRefresh.data;
+              rows = freshData?.rows ?? [];
+              selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
+              const finalPendingSubjectiveCount = selectedRows.reduce(
+                (count, row) => count + row.exams.filter(
+                  (exam) => exam.block.grading_status === "subjective_pending",
+                ).length,
+                0,
+              );
+              if (finalPendingSubjectiveCount > 0) {
+                feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
+                return;
+              }
+              const finalUnenteredItemCount = selectedRows.reduce(
+                (count, row) => count + collectUnenteredScoreItems(row).length,
+                0,
+              );
+              if (finalUnenteredItemCount > 0) {
+                feedback.error(
+                  `최신 성적에 입력되지 않은 시험·과제가 ${finalUnenteredItemCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 다시 시도해 주세요.`,
+                );
+                return;
+              }
+              const meta = freshData?.meta ?? null;
               const activeStudentIds = selectedRows
                 .map((row) => row.student_id)
                 .filter((id): id is number => id != null && Number.isFinite(id));
@@ -918,7 +1004,13 @@ export default function SessionScoresEntryPage({
                   // Match by exam_id/homework_id to ensure column alignment with headers
                   for (const metaExam of metaExams) {
                     const entry = (row.exams ?? []).find((e) => e.exam_id === metaExam.exam_id);
-                    cells.push(entry?.block.score != null ? String(entry.block.score) : "");
+                    cells.push(
+                      entry?.block.grading_status === "subjective_pending"
+                        ? "서술형 입력 필요"
+                        : entry?.block.score != null
+                          ? String(entry.block.score)
+                          : "",
+                    );
                   }
                   for (const metaHw of metaHomeworks) {
                     const entry = (row.homeworks ?? []).find((h) => h.homework_id === metaHw.homework_id);
@@ -1562,6 +1654,39 @@ export default function SessionScoresEntryPage({
           >
             {enrollingAll ? "배정 중…" : "누락 전부 배정"}
           </Button>
+        </section>
+      )}
+
+      {!isLoading && !isError && pendingSubjectiveSummary.studentCount > 0 && (
+        <section
+          className="scores-roster-warning"
+          aria-label="서술형 점수 입력 필요"
+          data-testid="subjective-pending-banner"
+        >
+          <ClipboardCheck size={18} aria-hidden />
+          <div className="min-w-0 flex-1">
+            <div className="scores-roster-warning__title">
+              {pendingSubjectiveSummary.studentCount}명의 서술형 점수 입력이 필요합니다
+            </div>
+            <div className="scores-roster-warning__copy">
+              객관식 점수는 저장됐지만 최종 점수·학생 공개·석차·클리닉 반영은 보류 중입니다.
+            </div>
+          </div>
+          <div className="flex max-w-full flex-wrap justify-end gap-2">
+            {pendingSubjectiveSummary.exams.map((exam) => (
+              <Button
+                key={exam.exam_id}
+                type="button"
+                intent="primary"
+                size="sm"
+                leftIcon={<ClipboardCheck size={ICON_FOR_BUTTON.sm} />}
+                onClick={() => { void openPendingSubjectiveGrading(exam); }}
+                aria-label={`${exam.title} 서술형 점수 입력`}
+              >
+                {pendingSubjectiveSummary.exams.length === 1 ? "서술형 점수 입력" : `${exam.title} 입력`}
+              </Button>
+            ))}
+          </div>
         </section>
       )}
 

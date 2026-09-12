@@ -136,6 +136,7 @@ export type ExamResultDetail = {
   achievement?: Achievement | null;
   clinic_retake?: ClinicRetakeInfo | null;
   is_provisional?: boolean;
+  grading_status?: "subjective_pending" | null;
   meta_status?: string | null;
 };
 

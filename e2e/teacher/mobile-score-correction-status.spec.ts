@@ -18,9 +18,22 @@ function fakeJwt(): string {
   return `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp: now + 3600, tenant_code: "ymath", user_id: 1 })}.sig`;
 }
 
-async function installTeacherApi(page: import("@playwright/test").Page) {
+async function installTeacherApi(
+  page: import("@playwright/test").Page,
+  options: {
+    projectionPendingOnScoreSave?: boolean;
+    failResultsInitially?: boolean;
+    failScoreSheetInitially?: boolean;
+    subjectivePending?: boolean;
+  } = {},
+) {
   let pendingStatus: "PENDING" | "COMPLETED" = "PENDING";
   let correctionPayload: Record<string, unknown> | null = null;
+  let scorePayload: Record<string, unknown> | null = null;
+  let scorePatchCount = 0;
+  let currentScore = 70;
+  let failResults = options.failResultsInitially ?? false;
+  let failScoreSheet = options.failScoreSheetInitially ?? false;
 
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -77,12 +90,13 @@ async function installTeacherApi(page: import("@playwright/test").Page) {
       } });
     }
     if (path.endsWith(`/results/admin/exams/${EXAM_ID}/results/`)) {
+      if (failResults) return route.fulfill({ status: 500, json: { detail: "temporary results failure" } });
       return route.fulfill({ json: {
         count: 3,
         next: null,
         previous: null,
         results: [
-          { enrollment_id: 101, student_name: "김확인", exam_score: 70, exam_max_score: 100, final_score: 70, passed: true, final_pass: true, correction_session_id: SESSION_ID, correction_status: pendingStatus },
+          { enrollment_id: 101, student_name: "김확인", exam_score: currentScore, exam_max_score: 100, final_score: currentScore, passed: options.subjectivePending ? null : true, final_pass: options.subjectivePending ? null : true, grading_status: options.subjectivePending ? "subjective_pending" : null, correction_session_id: SESSION_ID, correction_status: pendingStatus },
           { enrollment_id: 102, student_name: "박완료", exam_score: 80, exam_max_score: 100, final_score: 80, passed: true, final_pass: true, correction_session_id: SESSION_ID, correction_status: "COMPLETED" },
           { enrollment_id: 103, student_name: "이대기", exam_score: null, exam_max_score: 100, final_score: null, passed: null, final_pass: null, correction_session_id: SESSION_ID, correction_status: null },
         ],
@@ -97,16 +111,44 @@ async function installTeacherApi(page: import("@playwright/test").Page) {
         correction_note: "",
       } });
     }
+    if (
+      path.endsWith(`/results/admin/exams/${EXAM_ID}/enrollments/101/score/`)
+      && request.method() === "PATCH"
+    ) {
+      scorePayload = request.postDataJSON() as Record<string, unknown>;
+      scorePatchCount += 1;
+      currentScore = Number(scorePayload.score);
+      return route.fulfill({ json: {
+        ok: !options.projectionPendingOnScoreSave,
+        saved: true,
+        projection_ready: !options.projectionPendingOnScoreSave,
+        grading_status: options.projectionPendingOnScoreSave ? "subjective_pending" : null,
+      } });
+    }
+    if (
+      path.endsWith(`/results/admin/exams/${EXAM_ID}/enrollments/101/subjective/`)
+      && request.method() === "PATCH"
+    ) {
+      scorePayload = request.postDataJSON() as Record<string, unknown>;
+      scorePatchCount += 1;
+      return route.fulfill({ json: {
+        ok: true,
+        saved: true,
+        projection_ready: true,
+        grading_status: null,
+      } });
+    }
     if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/scores/`)) {
+      if (failScoreSheet) return route.fulfill({ status: 500, json: { detail: "temporary score-sheet failure" } });
       return route.fulfill({ json: {
         meta: {
           session_title: "9회차",
           lecture_title: "중3 수학",
-          exams: [{ exam_id: EXAM_ID, title: "주간 테스트", pass_score: 60, max_score: 100, display_order: 1 }],
+          exams: [{ exam_id: EXAM_ID, title: "주간 테스트", pass_score: 60, max_score: 100, objective_max_score: 80, subjective_max_score: 20, display_order: 1 }],
           homeworks: [],
         },
         rows: [
-          { enrollment_id: 101, student_name: "김확인", exams: [{ exam_id: EXAM_ID, title: "주간 테스트", pass_score: 60, block: { score: 70, max_score: 100, passed: true, clinic_required: false, correction_status: pendingStatus } }], homeworks: [], updated_at: "2026-08-18T00:00:00Z" },
+          { enrollment_id: 101, student_name: "김확인", exams: [{ exam_id: EXAM_ID, title: "주간 테스트", pass_score: 60, block: { score: currentScore, max_score: 100, passed: options.subjectivePending ? null : true, grading_status: options.subjectivePending ? "subjective_pending" : null, objective_score: options.subjectivePending ? currentScore : null, subjective_score: null, clinic_required: false, correction_status: pendingStatus } }], homeworks: [], updated_at: "2026-08-18T00:00:00Z" },
           { enrollment_id: 102, student_name: "박완료", exams: [{ exam_id: EXAM_ID, title: "주간 테스트", pass_score: 60, block: { score: 80, max_score: 100, passed: true, clinic_required: false, correction_status: "COMPLETED" } }], homeworks: [], updated_at: "2026-08-18T00:00:00Z" },
           { enrollment_id: 103, student_name: "이대기", exams: [{ exam_id: EXAM_ID, title: "주간 테스트", pass_score: 60, block: { score: null, max_score: null, passed: null, clinic_required: false, correction_status: null } }], homeworks: [], updated_at: "2026-08-18T00:00:00Z" },
         ],
@@ -117,6 +159,12 @@ async function installTeacherApi(page: import("@playwright/test").Page) {
 
   return {
     correctionPayload: () => correctionPayload,
+    scorePayload: () => scorePayload,
+    scorePatchCount: () => scorePatchCount,
+    recoverScoreReads: () => {
+      failResults = false;
+      failScoreSheet = false;
+    },
   };
 }
 
@@ -182,6 +230,61 @@ test.describe("교사 모바일 테스트 오답 상태", () => {
     }), { examId: EXAM_ID });
     expect(JSON.parse(stored.scoped || "{}")["101"]).toBe("88");
     expect(JSON.parse(stored.legacy || "{}")["101"]).toBe("99");
+  });
+
+  test("합산 점수 저장 뒤 최종 투영 대기이면 재전송 없이 서술형 필요를 알린다", async ({ page }) => {
+    const api = await installTeacherApi(page, { projectionPendingOnScoreSave: true });
+    await page.goto(`${BASE}/workspace/mobile/scores/${SESSION_ID}?exam=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
+    const scoreInput = page.getByRole("textbox", { name: "김확인 합산 점수 입력" });
+
+    await scoreInput.fill("77");
+    await scoreInput.blur();
+
+    await expect.poll(api.scorePayload).toMatchObject({ score: 77, max_score: 100 });
+    await expect(page.getByText(
+      "김확인 점수는 저장됐지만, 남은 서술형 채점이 필요합니다.",
+      { exact: true },
+    )).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("textbox", { name: "김확인 합산 점수 입력" })).toHaveValue("77");
+    expect(api.scorePayload()).toMatchObject({ score: 77, max_score: 100 });
+    expect(api.scorePatchCount()).toBe(1);
+  });
+
+  test("시험 결과 500을 빈 학생 행으로 바꾸지 않고 재조회 뒤 정상 입력한다", async ({ page }) => {
+    const api = await installTeacherApi(page, { failResultsInitially: true });
+    await page.goto(`${BASE}/workspace/mobile/scores/${SESSION_ID}?exam=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByText("성적 정보를 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.locator("input[inputmode=decimal]")).toHaveCount(0);
+
+    api.recoverScoreReads();
+    await page.getByRole("button", { name: "다시 시도" }).click();
+    const scoreInput = page.getByRole("textbox", { name: "김확인 합산 점수 입력" });
+    await expect(scoreInput).toHaveValue("70");
+    await scoreInput.fill("75");
+    await scoreInput.blur();
+    await expect.poll(api.scorePayload).toMatchObject({ score: 75, max_score: 100 });
+  });
+
+  test("서술형 메타 500을 0점 만점으로 바꾸지 않고 재조회 뒤 서술형을 저장한다", async ({ page }) => {
+    const api = await installTeacherApi(page, {
+      failScoreSheetInitially: true,
+      subjectivePending: true,
+    });
+    await page.goto(`${BASE}/workspace/mobile/scores/${SESSION_ID}?exam=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByText("성적 정보를 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.locator("input[inputmode=decimal]")).toHaveCount(0);
+
+    api.recoverScoreReads();
+    await page.getByRole("button", { name: "다시 시도" }).click();
+    const subjectiveInput = page.getByRole("textbox", { name: "김확인 서술형 점수 입력" });
+    await expect(subjectiveInput).toHaveValue("");
+    await expect(subjectiveInput.locator("xpath=following-sibling::span")).toHaveText("/ 20");
+    await subjectiveInput.fill("15");
+    await subjectiveInput.blur();
+    await expect.poll(api.scorePayload).toMatchObject({ score: 15 });
   });
 
   test("성적 조회에서 상태를 보고 정확한 차시 수정 화면으로 이동한다", async ({ page }) => {
