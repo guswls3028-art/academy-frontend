@@ -68,8 +68,10 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginThroughUi(page, family.parentPhone, family.parentPassword);
     await selectParentStudentThroughUi(page, primary);
-    await openCommunityTab(page, "QnA");
-    await page.getByRole("button", { name: "질문하기", exact: true }).click();
+    await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
+    await assertNoHorizontalOverflow(page);
+    await page.getByRole("region", { name: "학부모 주요 확인" })
+      .getByRole("link", { name: /^질문하기/ }).click();
     await page.getByPlaceholder("질문 제목").fill(qnaTitle);
     await page.locator(".ProseMirror").fill("선택한 자녀의 학습 질문입니다.");
     const qnaResponsePromise = page.waitForResponse((response) => (
