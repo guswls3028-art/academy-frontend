@@ -104,6 +104,8 @@ type ScheduleState = {
   sessions?: Array<(typeof sessions)[number]>;
   failSessionRead?: boolean;
   sessionReadGate?: Promise<void>;
+  settingsReadGate?: Promise<void>;
+  multiSlotBookingDefault?: boolean;
   createGate?: Promise<void>;
   updateGate?: Promise<void>;
 };
@@ -194,12 +196,16 @@ async function installApi(
     }
     if (path === "/staffs/currently-working/") return json([]);
     if (path === "/clinic/settings/" && method === "GET") {
+      await scheduleState?.settingsReadGate;
       return json({
         colors: ["#ef4444", "#3b82f6", "#22c55e"],
         saved_colors: ["#ef4444", "#3b82f6", "#22c55e"],
         use_daily_random: false,
         auto_approve_booking: true,
-        multi_slot_booking_default: false,
+        multi_slot_booking_default: scheduleState?.multiSlotBookingDefault ?? false,
+        booking_mode: "fixed_slot",
+        booking_interval_minutes: 60,
+        booking_max_stay_minutes: 240,
       });
     }
     if (path === "/clinic/settings/" && method === "PATCH") {
@@ -622,6 +628,61 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   await expect(dialog).toContainText("현재 3개 시간대가 있습니다.");
   await dialog.getByRole("button", { name: /시간지정 클리닉/ }).click();
   await expect(dialog.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ })).not.toBeChecked();
+});
+
+test("자유지정 선택과 대상자 모달 상태는 늦게 도착한 다중예약 기본값에도 보존된다", async ({ page }) => {
+  let releaseSettings!: () => void;
+  const settingsReadGate = new Promise<void>((resolve) => { releaseSettings = resolve; });
+  const state: ScheduleState = {
+    createPayloads: [],
+    updatePayloads: [],
+    settingsReadGate,
+    multiSlotBookingDefault: true,
+  };
+  await seed(page);
+  await installApi(page, undefined, undefined, state);
+  await page.goto(`${BASE}/workspace/clinic/schedule?create=1&date=${saturday}`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  const dialog = page.getByRole("dialog", { name: "클리닉 만들기" });
+  await expect(dialog).toBeVisible({ timeout: 45_000 });
+  await dialog.getByRole("button", { name: /자유지정 클리닉/ }).click();
+
+  const targetButton = dialog.getByRole("button", { name: "대상자 추가" });
+  await expect(targetButton).toHaveAttribute("aria-expanded", "false");
+  await targetButton.click();
+  const targetDialog = page.getByRole("dialog", { name: "대상자 선택" });
+  await expect(targetButton).toHaveAttribute("aria-expanded", "true");
+  await targetDialog.getByRole("button", { name: "취소" }).click();
+  await expect(targetDialog).toBeHidden();
+  await expect(targetButton).toHaveAttribute("aria-expanded", "false");
+
+  const settingsResponse = page.waitForResponse((response) => (
+    new URL(response.url()).pathname.endsWith("/api/v1/clinic/settings/")
+    && response.request().method() === "GET"
+  ));
+  releaseSettings();
+  await settingsResponse;
+
+  await dialog.getByPlaceholder("장소 / 룸").fill("지연 설정 자습실");
+  const timePopover = page.getByRole("dialog", { name: "시간 선택" });
+  await dialog.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
+  await timePopover.getByLabel("분 단위 직접 입력").fill("15:00");
+  await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+  await dialog.getByRole("button", { name: "종료 시간 선택", exact: true }).click();
+  await timePopover.getByLabel("분 단위 직접 입력").fill("22:00");
+  await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+
+  await dialog.getByRole("button", { name: /^클리닉 만들기/ }).click();
+  await page.getByRole("alertdialog", { name: "클리닉 일정 최종 확인" })
+    .getByRole("button", { name: "확인하고 만들기" })
+    .click();
+
+  await expect.poll(() => state.createPayloads[0]).toMatchObject({
+    booking_mode: "time_range",
+    allow_multi_slot_booking: false,
+  });
 });
 
 test("시간 범위 생성은 일반 익일 종료를 막고 정확한 자정 종료는 허용한다", async ({ page }) => {

@@ -1,4 +1,6 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect, useMemo, type ReactNode, type RefObject } from "react";
+
+import { minutesToHHmm } from "@/shared/ui/time/timeFormat";
 
 import styles from "./ClinicActualTimePicker.module.css";
 
@@ -25,11 +27,87 @@ type Props = {
   headingRef?: RefObject<HTMLHeadingElement | null>;
 };
 
+type EmptySessionAvailability = {
+  startTime: string;
+  endTime: string;
+  intervalMinutes: 30 | 60;
+  maxStayMinutes: number;
+  capacity: number;
+};
+
+type EmptySessionProps = Omit<Props, "availability" | "loading" | "error" | "onRetry"> & {
+  session: EmptySessionAvailability;
+  invalidFallback: ReactNode;
+};
+
 function timeToMinutes(value: string | undefined): number | null {
   if (!value) return null;
   const [hours, minutes] = value.slice(0, 5).split(":").map(Number);
   if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
   return hours * 60 + minutes;
+}
+
+function buildEmptyClinicAvailability({
+  startTime,
+  endTime,
+  intervalMinutes,
+  maxStayMinutes,
+  capacity,
+}: {
+  startTime: string;
+  endTime: string;
+  intervalMinutes: 30 | 60;
+  maxStayMinutes: number;
+  capacity: number;
+}): ClinicBookingAvailability | undefined {
+  const startMinutes = timeToMinutes(startTime);
+  const parsedEndMinutes = timeToMinutes(endTime);
+  if (startMinutes == null || parsedEndMinutes == null) return undefined;
+  const endMinutes = parsedEndMinutes === 0 && startMinutes > 0 ? 24 * 60 : parsedEndMinutes;
+  if (endMinutes <= startMinutes || (endMinutes - startMinutes) % intervalMinutes !== 0) {
+    return undefined;
+  }
+
+  return {
+    interval_minutes: intervalMinutes,
+    max_stay_minutes: maxStayMinutes,
+    window: { start_time: startTime, end_time: endTime },
+    slots: Array.from(
+      { length: (endMinutes - startMinutes) / intervalMinutes },
+      (_, index) => {
+        const slotStart = startMinutes + index * intervalMinutes;
+        return {
+          start_time: minutesToHHmm(slotStart),
+          end_time: minutesToHHmm(slotStart + intervalMinutes),
+          remaining_capacity: capacity,
+        };
+      },
+    ),
+  };
+}
+
+export function ClinicEmptySessionTimePicker({
+  session,
+  invalidFallback,
+  ...pickerProps
+}: EmptySessionProps) {
+  const { capacity, endTime, intervalMinutes, maxStayMinutes, startTime } = session;
+  const availability = useMemo(
+    () => buildEmptyClinicAvailability({ capacity, endTime, intervalMinutes, maxStayMinutes, startTime }),
+    [capacity, endTime, intervalMinutes, maxStayMinutes, startTime],
+  );
+
+  if (!availability) return invalidFallback;
+
+  return (
+    <ClinicActualTimePicker
+      {...pickerProps}
+      availability={availability}
+      loading={false}
+      error={false}
+      onRetry={() => undefined}
+    />
+  );
 }
 
 function durationText(startTime: string, endTime: string): string {

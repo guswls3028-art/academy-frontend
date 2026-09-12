@@ -46,56 +46,13 @@ import {
   todayISO,
 } from "./clinicCreatePanel.utils";
 import type { ClinicCreatePanelProps } from "./clinicCreatePanel.types";
-import ClinicTimePolicyFields from "./ClinicTimePolicyFields";
+import ClinicTimePolicyFields, {
+  ClinicCreateAssignmentFields,
+} from "./ClinicTimePolicyFields";
 import ClinicCreateSubmitButton from "./ClinicCreateSubmitButton";
-import { useClinicBookingPolicy } from "../hooks/useClinicBookingPolicy";
-import { ClinicBookingModeChoice, ClinicBookingModeSummary, type ClinicBookingMode }
+import { useClinicBookingPolicy, useClinicDraftAssignment } from "../hooks/useClinicBookingPolicy";
+import { ClinicBookingModeChoice, ClinicBookingModeSummary }
   from "@/shared/ui/clinic/ClinicBookingModeChoice";
-import {
-  ClinicActualTimePicker,
-  type ClinicBookingAvailability,
-} from "@/shared/ui/clinic/ClinicActualTimePicker";
-
-function formatDraftSlotTime(totalMinutes: number): string {
-  if (totalMinutes === 24 * 60) return "00:00";
-  const hour = Math.floor(totalMinutes / 60).toString().padStart(2, "0");
-  const minute = (totalMinutes % 60).toString().padStart(2, "0");
-  return `${hour}:${minute}`;
-}
-
-function buildDraftAvailability(
-  start: string,
-  end: string,
-  intervalMinutes: 30 | 60,
-  maxStayMinutes: number,
-  capacity: number,
-): ClinicBookingAvailability | undefined {
-  const [startHour, startMinute] = start.split(":").map(Number);
-  const [endHour, endMinute] = end.split(":").map(Number);
-  if (![startHour, startMinute, endHour, endMinute].every(Number.isFinite)) return undefined;
-  const startMinutes = startHour * 60 + startMinute;
-  const endMinutes = end === "00:00" ? 24 * 60 : endHour * 60 + endMinute;
-  if (endMinutes <= startMinutes || (endMinutes - startMinutes) % intervalMinutes !== 0) {
-    return undefined;
-  }
-
-  return {
-    interval_minutes: intervalMinutes,
-    max_stay_minutes: maxStayMinutes,
-    window: { start_time: start, end_time: end },
-    slots: Array.from(
-      { length: (endMinutes - startMinutes) / intervalMinutes },
-      (_, index) => {
-        const slotStart = startMinutes + index * intervalMinutes;
-        return {
-          start_time: formatDraftSlotTime(slotStart),
-          end_time: formatDraftSlotTime(slotStart + intervalMinutes),
-          remaining_capacity: capacity,
-        };
-      },
-    ),
-  };
-}
 
 export default function ClinicCreatePanel({
   date,
@@ -194,8 +151,6 @@ export default function ClinicCreatePanel({
   };
 
   const isEdit = !!editSession;
-  const [bookingModeChosen, setBookingModeChosen] = useState(Boolean(sourceSession));
-
   const [title, setTitle] = useState(sourceSession?.title ?? "");
   const [targetGrade, setTargetGrade] = useState<number | null>(sourceSession?.target_grade ?? null);
   const [targetSchoolType, setTargetSchoolType] = useState<string | null>(sourceSession?.target_school_type ?? null);
@@ -214,14 +169,15 @@ export default function ClinicCreatePanel({
   const [room, setRoom] = useState(sourceSession?.location ?? "");
   const [memo, setMemo] = useState("");
   const [maxParticipants, setMaxParticipants] = useState<number>(sourceSession?.max_participants ?? 10);
-  const [assignedBookingStart, setAssignedBookingStart] = useState("");
-  const [assignedBookingEnd, setAssignedBookingEnd] = useState("");
   const {
     allowTimePreference,
     setAllowTimePreference,
     allowMultiSlotBooking,
     setAllowMultiSlotBooking,
     bookingMode,
+    bookingModeChosen,
+    selectBookingMode,
+    resetBookingModeChoice,
     setBookingMode,
     bookingIntervalMinutes,
     setBookingIntervalMinutes,
@@ -231,39 +187,15 @@ export default function ClinicCreatePanel({
     savingDefaultPolicy,
   } = useClinicBookingPolicy({ sourceSession, settings: clinicSettingsQ.data });
   const parsedTimeRange = parseTimeRange(timeRange);
-  const draftAvailability = useMemo(
-    () => buildDraftAvailability(
-      parsedTimeRange.start,
-      parsedTimeRange.end,
-      bookingIntervalMinutes,
-      bookingMaxStayMinutes,
-      Math.max(maxParticipants, selectedCount, 1),
-    ),
-    [
-      bookingIntervalMinutes,
-      bookingMaxStayMinutes,
-      maxParticipants,
-      parsedTimeRange.end,
-      parsedTimeRange.start,
-      selectedCount,
-    ],
-  );
   const hasUnsupportedOvernightRange = bookingMode === "time_range" && isUnsupportedOvernightClinicRange(parsedTimeRange.start, parsedTimeRange.end);
-  const needsAssignedBookingTime = !isEdit && bookingMode === "time_range" && selectedCount > 0;
-
-  useEffect(() => {
-    setAssignedBookingStart("");
-    setAssignedBookingEnd("");
-  }, [bookingIntervalMinutes, bookingMaxStayMinutes, bookingMode, timeRange]);
-  const chooseBookingMode = (mode: ClinicBookingMode) => {
-    setBookingMode(mode);
-    if (mode === "time_range") {
-      setAllowMultiSlotBooking(false);
-      setAllowTimePreference(false);
-    }
-    setBookingModeChosen(true);
-  };
-
+  const draftAssignment = useClinicDraftAssignment({
+    required: !isEdit && bookingMode === "time_range" && selectedCount > 0,
+    windowStart: parsedTimeRange.start,
+    windowEnd: parsedTimeRange.end,
+    intervalMinutes: bookingIntervalMinutes,
+    maxStayMinutes: bookingMaxStayMinutes,
+    capacity: Math.max(maxParticipants, selectedCount, 1),
+  });
   const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
   const [addLocationInput, setAddLocationInput] = useState("");
@@ -456,7 +388,7 @@ export default function ClinicCreatePanel({
     const uniqueSelected = Array.from(new Set(selected));
     const cap = Math.max(maxParticipants, uniqueSelected.length);
     if (cap < 1) return message.warning("정원을 1명 이상으로 설정하거나 학생을 선택해주세요.");
-    if (needsAssignedBookingTime && (!assignedBookingStart || !assignedBookingEnd)) {
+    if (draftAssignment.required && (!draftAssignment.bookingStart || !draftAssignment.bookingEnd)) {
       return message.warning("배정할 학생의 실제 이용 시작·종료 시간을 선택해 주세요.");
     }
 
@@ -477,8 +409,8 @@ export default function ClinicCreatePanel({
           filterSummary: confirmationFilterSummary,
           selectedCount,
           selectedStudentSummary,
-          assignedBookingRange: needsAssignedBookingTime
-            ? `${assignedBookingStart}–${assignedBookingEnd}`
+          assignedBookingRange: draftAssignment.required
+            ? `${draftAssignment.bookingStart}–${draftAssignment.bookingEnd}`
             : undefined,
           allowTimePreference: bookingMode === "fixed_slot" && allowTimePreference,
           allowMultiSlotBooking,
@@ -521,9 +453,9 @@ export default function ClinicCreatePanel({
             ...(selection.kind === "enrollment"
               ? { enrollment_ids: uniqueSelected }
               : { student_ids: uniqueSelected }),
-            ...(needsAssignedBookingTime ? {
-              booking_start_time: assignedBookingStart,
-              booking_end_time: assignedBookingEnd,
+            ...(draftAssignment.required ? {
+              booking_start_time: draftAssignment.bookingStart,
+              booking_end_time: draftAssignment.bookingEnd,
             } : {}),
           });
           message.success(`클리닉이 만들어졌습니다. (${uniqueSelected.length}명 등록)`);
@@ -691,7 +623,7 @@ export default function ClinicCreatePanel({
 
   const formFields = (
     <>
-      <ClinicBookingModeSummary mode={bookingMode} onChange={sourceSession ? undefined : () => setBookingModeChosen(false)} />
+      <ClinicBookingModeSummary mode={bookingMode} onChange={sourceSession ? undefined : resetBookingModeChoice} />
       {/* 날짜 */}
       {!hideDatePicker && (
         <div className="clinic-create__field">
@@ -963,50 +895,14 @@ export default function ClinicCreatePanel({
         )}
       </div>
 
-      {/* 대상자 선택 */}
-      <div className="clinic-create__field">
-        <label className="clinic-create__label">대상자 선택</label>
-        <div className="clinic-create__target-row">
-          <Button
-            type="button"
-            intent="secondary"
-            size="md"
-            onClick={() => setTargetModalOpen(true)}
-            aria-haspopup="dialog"
-            aria-expanded={targetModalOpen}
-          >
-            대상자 추가
-          </Button>
-          <span className="clinic-create__target-count">
-            {selectedCount > 0
-              ? `${mode === "targets" ? "미통과 대상자" : "전체 학생"} ${selectedCount}명 선택 · 추가 예약 ${Math.max(0, maxParticipants - selectedCount)}명 가능`
-              : "아직 선택 안 됨"}
-          </span>
-        </div>
-      </div>
-
-      {needsAssignedBookingTime && (
-        <div className="clinic-create__field">
-          {draftAvailability ? (
-            <ClinicActualTimePicker
-              availability={draftAvailability}
-              loading={false}
-              error={false}
-              bookingStart={assignedBookingStart}
-              bookingEnd={assignedBookingEnd}
-              onBookingStartChange={setAssignedBookingStart}
-              onBookingEndChange={setAssignedBookingEnd}
-              onRetry={() => undefined}
-              tone="admin"
-              selectionCount={selectedCount}
-            />
-          ) : (
-            <div role="status" className="clinic-create__section-empty-hint">
-              운영 시작·종료 시간을 먼저 올바르게 선택하면 배정 시간을 고를 수 있습니다.
-            </div>
-          )}
-        </div>
-      )}
+      <ClinicCreateAssignmentFields
+        selectionKind={mode}
+        selectedCount={selectedCount}
+        maxParticipants={maxParticipants}
+        onOpenTargets={() => setTargetModalOpen(true)}
+        targetPickerOpen={targetModalOpen}
+        assignment={draftAssignment}
+      />
 
       {/* 메모 */}
       <div className="clinic-create__field">
@@ -1037,7 +933,7 @@ export default function ClinicCreatePanel({
         (needsLectureSummary && lecturesQ.isLoading) ||
         isPastDate ||
         hasUnsupportedOvernightRange ||
-        (needsAssignedBookingTime && (!assignedBookingStart || !assignedBookingEnd)) ||
+        (draftAssignment.required && (!draftAssignment.bookingStart || !draftAssignment.bookingEnd)) ||
         (showSectionPicker && clinicSectionsQ.isError) ||
         (showFilters && lecturesQ.isError)
       }
@@ -1063,7 +959,7 @@ export default function ClinicCreatePanel({
         <div className="clinic-create__form">
           {bookingModeChosen
             ? formFields
-            : <ClinicBookingModeChoice recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode} onSelect={chooseBookingMode} />}
+            : <ClinicBookingModeChoice recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode} onSelect={selectBookingMode} />}
         </div>
         {bookingModeChosen && <div className="clinic-create__footer">{submitButton}</div>}
         {targetSelectModal}
@@ -1091,7 +987,7 @@ export default function ClinicCreatePanel({
         <div className="clinic-create__form">
           {bookingModeChosen
             ? formFields
-            : <ClinicBookingModeChoice recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode} onSelect={chooseBookingMode} />}
+            : <ClinicBookingModeChoice recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode} onSelect={selectBookingMode} />}
         </div>
         {bookingModeChosen && <div className="clinic-create__footer">{submitButton}</div>}
       </div>

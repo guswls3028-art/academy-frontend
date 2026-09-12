@@ -2,6 +2,74 @@ import { Input, Select } from "antd";
 
 import { Button } from "@/shared/ui/ds";
 import { TimeRangeInput } from "@/shared/ui/time";
+import { ClinicEmptySessionTimePicker } from "@/shared/ui/clinic/ClinicActualTimePicker";
+
+import type { ClinicDraftAssignment } from "../hooks/useClinicBookingPolicy";
+
+export function ClinicCreateAssignmentFields({
+  selectionKind,
+  selectedCount,
+  maxParticipants,
+  onOpenTargets,
+  targetPickerOpen,
+  assignment,
+}: {
+  selectionKind: "targets" | "students";
+  selectedCount: number;
+  maxParticipants: number;
+  onOpenTargets: () => void;
+  targetPickerOpen: boolean;
+  assignment: ClinicDraftAssignment;
+}) {
+  return (
+    <>
+      <div className="clinic-create__field">
+        <label className="clinic-create__label">대상자 선택</label>
+        <div className="clinic-create__target-row">
+          <Button
+            type="button"
+            intent="secondary"
+            size="md"
+            onClick={onOpenTargets}
+            aria-haspopup="dialog"
+            aria-expanded={targetPickerOpen}
+          >
+            대상자 추가
+          </Button>
+          <span className="clinic-create__target-count">
+            {selectedCount > 0
+              ? `${selectionKind === "targets" ? "미통과 대상자" : "전체 학생"} ${selectedCount}명 선택 · 추가 예약 ${Math.max(0, maxParticipants - selectedCount)}명 가능`
+              : "아직 선택 안 됨"}
+          </span>
+        </div>
+      </div>
+      {assignment.required && (
+        <div className="clinic-create__field">
+          <ClinicEmptySessionTimePicker
+            session={{
+              startTime: assignment.windowStart,
+              endTime: assignment.windowEnd,
+              intervalMinutes: assignment.intervalMinutes,
+              maxStayMinutes: assignment.maxStayMinutes,
+              capacity: assignment.capacity,
+            }}
+            bookingStart={assignment.bookingStart}
+            bookingEnd={assignment.bookingEnd}
+            onBookingStartChange={assignment.setBookingStart}
+            onBookingEndChange={assignment.setBookingEnd}
+            tone="admin"
+            selectionCount={selectedCount}
+            invalidFallback={(
+              <div role="status" className="clinic-create__section-empty-hint">
+                운영 시작·종료 시간을 먼저 올바르게 선택하면 배정 시간을 고를 수 있습니다.
+              </div>
+            )}
+          />
+        </div>
+      )}
+    </>
+  );
+}
 
 type ClinicTimePolicyFieldsProps = {
   timeRange: string;
