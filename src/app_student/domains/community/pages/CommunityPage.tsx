@@ -47,6 +47,7 @@ import {
   type Answer,
 } from "../api/community.api";
 import { studentCommunityQueryKeys } from "../queryKeys";
+import "./CommunityHub.css";
 import "./CommunityPage.css";
 
 // ─── Types ───
