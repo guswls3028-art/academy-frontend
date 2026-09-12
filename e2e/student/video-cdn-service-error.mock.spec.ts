@@ -1302,6 +1302,8 @@ test.describe("student video access races on desktop", () => {
   });
 
   test("같은 영상 재시도의 교차 정책 응답은 오래된 CDN을 열지 않는다", async ({ page }) => {
+    const unexpectedYouTubeRequests = await guardUnmockedYouTubeRequests(page);
+    const youtube = await installYouTubeSdkFixture(page);
     let playbackRequests = 0;
     let accessChecks = 0;
     let staleCdnRequests = 0;
@@ -1495,6 +1497,9 @@ test.describe("student video access races on desktop", () => {
     await currentPlaybackResponse;
     await expect(page.getByRole("heading", { name: "교차 정책 재시도 영상" })).toBeVisible();
     expect(staleCdnRequests).toBe(0);
+    await expect.poll(async () => (await youtube.snapshot()).players.filter((player) => player.ready && !player.destroyed).length).toBe(1);
+    await expect(page.getByText("재생 화면을 준비하고 있어요…")).toHaveCount(0);
+    expect(unexpectedYouTubeRequests, "Route-mock playback must not depend on the live YouTube SDK").toEqual([]);
   });
 
   test("재시도 playback v2가 access v2보다 먼저 와도 한 번에 복구한다", async ({ page }) => {
