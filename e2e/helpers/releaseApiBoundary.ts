@@ -192,6 +192,7 @@ export type RequestTransportDiagnostic = {
 };
 
 type NativeTransportCode = "ECONNRESET" | "ECONNREFUSED" | "EPIPE" | "ETIMEDOUT" | "timeout" | "context-disposed" | "other";
+type NativeTransportKind = "socket-hang-up" | "response-aborted" | "decompression" | NativeTransportCode;
 export type ReleaseObservationEvent = {
   phase: "route-fetch" | "route-fulfill" | "api-request" | "browser-console" | "browser-pageerror"
     | "page-close" | "page-crash" | "context-close" | "browser-disconnected";
@@ -199,6 +200,15 @@ export type ReleaseObservationEvent = {
   method?: RequestTransportDiagnostic["method"] | "other";
   pathTemplate?: string | null;
   nativeCode?: NativeTransportCode;
+  nativeKind?: NativeTransportKind;
+  requestOrdinal?: number;
+  requestStartedElapsedMs?: number;
+  attemptDurationMs?: number;
+  pageOrdinal?: number | null;
+  startDocumentLoadOrdinal?: number | null;
+  endDocumentLoadOrdinal?: number | null;
+  startNavigationOrdinal?: number | null;
+  endNavigationOrdinal?: number | null;
   category?: "cors" | "chunk" | "network" | "resource" | "runtime" | "other";
   sourceKind?: "local" | "api" | "vendor" | "unknown";
 };
@@ -213,11 +223,42 @@ export function safeNativeTransportCode(error: unknown): NativeTransportCode {
   return legacyCode === "transport" ? "other" : legacyCode;
 }
 
+export function safeNativeTransportKind(error: unknown): NativeTransportKind {
+  // Playwright's wire Error preserves message/name, not Node's code/cause.
+  // Classify the first line only: its call log may contain URLs and credentials.
+  const firstLine = error instanceof Error ? error.message.split(/\r?\n/, 1)[0].trim() : "";
+  if (/^(?:[A-Za-z.]+:\s*)?socket hang up$/i.test(firstLine)) return "socket-hang-up";
+  if (/^(?:[A-Za-z.]+:\s*)?aborted$/i.test(firstLine)) return "response-aborted";
+  if (/^(?:[A-Za-z.]+:\s*)?failed to decompress '(?:gzip|x-gzip|br|deflate)' encoding:/i.test(firstLine)) return "decompression";
+  return safeNativeTransportCode(new Error(firstLine));
+}
+
+export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "context-check",
+  emit: (value: unknown) => void = (value) => console.log(JSON.stringify(value))) {
+  const message = error instanceof Error ? error.message.split(/\r?\n/, 1)[0] : "";
+  const kind = /Release API boundary failed:/.test(message) ? "boundary"
+    : /expect\(|Expected values|AssertionError/.test(message) ? "assertion"
+    : /locator\.[a-z]+:.*(?:Timeout|timeout)/.test(message) ? "locator-timeout"
+    : safeNativeTransportKind(error) !== "other" ? "transport" : "other";
+  // A toBe(403) could compare a score or ID. HTTP status is captured only at
+  // an actual response boundary, never guessed from generic matcher values.
+  emit({ releaseTestFailure: { schema: "release-test-failure/v1", phase, kind,
+    expectedStatus: null, receivedStatus: null } });
+}
+
+export function emitOmrCleanupStatus(stage: "remove" | "verify-absent" | "archive-action" | "verify-archive",
+  expectedStatuses: number[], receivedStatus: number,
+  emit: (value: unknown) => void = (value) => console.log(JSON.stringify(value))) {
+  emit({ omrCleanupStatus: { schema: "release-omr-cleanup-status/v1", stage, expectedStatuses: [...expectedStatuses],
+    receivedStatus: Number.isInteger(receivedStatus) && receivedStatus >= 100 && receivedStatus <= 599 ? receivedStatus : null } });
+}
+
 let nextObservationOrdinal = 0;
 
 export function createReleaseContextObservation(contextOrdinal: number | null,
   state: () => { closing: boolean; activeRouteCount: number } = () => ({ closing: false, activeRouteCount: 0 })) {
   const startedAt = Date.now();
+  const pageStates = new WeakMap<object, { pageOrdinal: number; documentLoadOrdinal: number; navigationOrdinal: number }>();
   let snapshotSequence = 0;
   const data = {
     schema: "release-context-observation/v1" as const,
@@ -230,6 +271,14 @@ export function createReleaseContextObservation(contextOrdinal: number | null,
   };
   return {
     data,
+    elapsedMs: () => Math.max(0, Date.now() - startedAt),
+    setPageState(page: object, state: { pageOrdinal: number; documentLoadOrdinal: number; navigationOrdinal: number }) {
+      pageStates.set(page, { ...state });
+    },
+    requestPageState(request: Request) {
+      try { return pageStates.get(request.frame().page()) ?? null; }
+      catch { return null; }
+    },
     snapshot() {
       return {
         ...data,
@@ -287,7 +336,11 @@ const SAFE_REQUEST_TRANSPORT_STATIC_PATHS = new Set([
   "/api/v1/clinic/sessions/locations/",
   "/api/v1/core/tenant/by-host/",
   "/api/v1/media/playback/end/",
+  "/api/v1/media/playback/events/",
+  "/api/v1/media/playback/heartbeat/",
+  "/api/v1/media/playback/refresh/",
   "/api/v1/media/playback/renew/",
+  "/api/v1/media/playback/start/",
   "/api/v1/storage/inventory/",
   "/api/v1/storage/inventory/upload/",
   "/api/v1/student/video/me/",
@@ -309,6 +362,7 @@ const SAFE_REQUEST_TRANSPORT_PATH_SHAPES: Array<[RegExp, string]> = [
   [/^\/api\/v1\/clinic\/sessions\/[1-9][0-9]*\/availability\/$/, "/api/v1/clinic/sessions/:id/availability/"],
   [/^\/api\/v1\/student\/video\/sessions\/[1-9][0-9]*\/videos\/$/, "/api/v1/student/video/sessions/:id/videos/"],
   [/^\/api\/v1\/student\/video\/videos\/[1-9][0-9]*\/progress\/$/, "/api/v1/student/video/videos/:id/progress/"],
+  [/^\/api\/v1\/student\/video\/videos\/[1-9][0-9]*\/playback\/$/, "/api/v1/student/video/videos/:id/playback/"],
   [/^\/api\/v1\/storage\/inventory\/files\/[1-9][0-9]*\/$/, "/api/v1/storage/inventory/files/:id/"],
   [/^\/api\/v1\/storage\/inventory\/folders\/[1-9][0-9]*\/$/, "/api/v1/storage/inventory/folders/:id/"],
   [/^\/storage\/inventory\/files\/[1-9][0-9]*\/$/, "/storage/inventory/files/:id/"],
@@ -380,7 +434,7 @@ export function installReleaseRequestGuard(
     const requestKind: RequestTransportDiagnostic["requestKind"] = retryableRead || verb === "OPTIONS" ? "read" : "mutation";
     const record = (stage: ReleaseObservationEvent["stage"], error?: unknown) => onObservation({
       phase: "api-request", stage, method: diagnosticMethod, pathTemplate,
-      ...(error === undefined ? {} : { nativeCode: safeNativeTransportCode(error) }),
+      ...(error === undefined ? {} : { nativeCode: safeNativeTransportCode(error), nativeKind: safeNativeTransportKind(error) }),
     });
     return (async () => {
       const attempt = async (stage: RequestTransportDiagnostic["stage"]) => {
@@ -474,6 +528,9 @@ export async function probeDevelopmentCrossTenantDenial({
     },
   });
   const status = response.status;
+  console.log(JSON.stringify({ crossTenantDenialProbe: {
+    schema: "release-cross-tenant-denial/v1", status, errorCode: null,
+  } }));
   await response.body?.cancel();
   if (status >= 300 && status < 400) {
     throw new Error("Cross-tenant denial probe refused an API redirect");
@@ -507,18 +564,30 @@ export async function installReleaseContextGuard(
   const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
   const activeRoutes = new Set<Promise<void>>();
   let closing = false;
+  let nextRequestOrdinal = 0;
   const observation = createReleaseContextObservation(++nextContextOrdinal,
     () => ({ closing, activeRouteCount: activeRoutes.size }));
   installReleaseRequestGuard(context.request, boundary, observations, authentication,
     () => defects.push("APIRequestContext release boundary violation"), transport,
     (diagnostic) => observation.recordTransportDiagnostic(requestTransportDiagnostics, diagnostic), observation.record);
+  const requestTimings = new WeakMap<Request, { requestOrdinal: number; requestStartedElapsedMs: number;
+    attemptStartedAt: number; startPage: ReturnType<typeof observation.requestPageState> }>();
   const recordRouteTransport = (request: Request, upstream: string,
     stage: ReleaseObservationEvent["stage"], error?: unknown,
     phase: "route-fetch" | "route-fulfill" = "route-fetch") => {
     const method = safeTransportMethod(request.method().toUpperCase());
     const pathTemplate = safeRequestTransportPathTemplate(upstream);
+    const timing = requestTimings.get(request);
+    const endPage = observation.requestPageState(request);
     observation.record({ phase, stage, method, pathTemplate,
-      ...(error === undefined ? {} : { nativeCode: safeNativeTransportCode(error) }) });
+      ...(timing ? { requestOrdinal: timing.requestOrdinal, requestStartedElapsedMs: timing.requestStartedElapsedMs,
+        attemptDurationMs: Math.max(0, Date.now() - timing.attemptStartedAt),
+        pageOrdinal: timing.startPage?.pageOrdinal ?? null,
+        startDocumentLoadOrdinal: timing.startPage?.documentLoadOrdinal ?? null,
+        endDocumentLoadOrdinal: endPage?.documentLoadOrdinal ?? null,
+        startNavigationOrdinal: timing.startPage?.navigationOrdinal ?? null,
+        endNavigationOrdinal: endPage?.navigationOrdinal ?? null } : {}),
+      ...(error === undefined ? {} : { nativeCode: safeNativeTransportCode(error), nativeKind: safeNativeTransportKind(error) }) });
     if (!pathTemplate || method === "other" || phase !== "route-fetch" || (stage !== "initial" && stage !== "retry")) return;
     observation.recordTransportDiagnostic(requestTransportDiagnostics, {
       method,
@@ -530,6 +599,9 @@ export async function installReleaseContextGuard(
   };
   const handleRoute = async (route: Parameters<Parameters<BrowserContext["route"]>[1]>[0]) => {
     const request = route.request();
+    const timing = { requestOrdinal: ++nextRequestOrdinal, requestStartedElapsedMs: observation.elapsedMs(),
+      attemptStartedAt: Date.now(), startPage: observation.requestPageState(request) };
+    requestTimings.set(request, timing);
     const reject = async (code: string) => {
       const pathTemplate = safeRequestTransportPathTemplate(request.url());
       defects.push(`Release request rejected [${code}] ${request.method().toUpperCase()}${pathTemplate ? ` ${pathTemplate}` : ""}`);
@@ -587,6 +659,7 @@ export async function installReleaseContextGuard(
         // Never follow a redirect carrying QA credentials to another origin.
         let response: Awaited<ReturnType<typeof route.fetch>>;
         try {
+          timing.attemptStartedAt = Date.now();
           response = await route.fetch({ url: upstream, headers, maxRedirects: 0 });
         } catch (error) {
           recordRouteTransport(request, upstream, "initial", error);
@@ -600,6 +673,7 @@ export async function installReleaseContextGuard(
           transport.readFetchRetries += 1;
           await new Promise((resolve) => setTimeout(resolve, 500));
           try {
+            timing.attemptStartedAt = Date.now();
             response = await route.fetch({ url: upstream, headers, maxRedirects: 0 });
             recordRouteTransport(request, upstream, "recovered");
           } catch (retryError) {
