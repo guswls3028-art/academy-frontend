@@ -2,11 +2,11 @@
  * E2E 기본 진입: 모든 테스트에 엄격 브라우저 무결성(콘솔 error·pageerror) 적용.
  * 스펙 파일은 `@playwright/test` 대신 여기서 `test`, `expect` 를 import 할 것.
  */
-import { test as base, expect, type ConsoleMessage, type Page } from "@playwright/test";
+import { test as base, expect, type ConsoleMessage, type Page, type Request } from "@playwright/test";
 import { installAccountNotificationGuard } from "../helpers/accountNotificationSafety";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { createReleaseContextObservation, installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv,
-  safeNativeTransportCode, type ReleaseBoundary, type ReleaseObservationEvent, type RequestTransportDiagnostic } from "../helpers/releaseApiBoundary";
+  safeNativeTransportCode, emitReleaseTestFailure, type ReleaseBoundary, type ReleaseObservationEvent, type RequestTransportDiagnostic } from "../helpers/releaseApiBoundary";
 
 type StrictBrowserOptions = {
   allowRecoveredProductionCors: boolean;
@@ -53,6 +53,17 @@ export const test = base.extend<StrictBrowserOptions>({
       const pages: ReturnType<typeof attachStrictBrowserGuards>[] = [];
       const disposePageObservers: Array<() => void> = [];
       const observePage = (page: Page) => {
+        const pageState = { pageOrdinal: pages.length + 1, documentLoadOrdinal: 0, navigationOrdinal: 0 };
+        const updatePageState = () => boundaryGuard.observation.setPageState(page, pageState);
+        updatePageState();
+        const documentLoaded = () => { pageState.documentLoadOrdinal++; updatePageState(); };
+        const navigation = (request: Request) => {
+          if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+            pageState.navigationOrdinal++; updatePageState();
+          }
+        };
+        page.on("domcontentloaded", documentLoaded);
+        page.on("request", navigation);
         pages.push(attachStrictBrowserGuards(page, {
           allowNeutralizedCloudflareBeaconIntegrity: boundary.mode === "readonly",
         }));
@@ -71,6 +82,7 @@ export const test = base.extend<StrictBrowserOptions>({
         page.once("close", pageClose);
         page.once("crash", pageCrash);
         disposePageObservers.push(() => {
+          page.off("domcontentloaded", documentLoaded); page.off("request", navigation);
           page.off("console", consoleError); page.off("pageerror", pageError);
           page.off("close", pageClose); page.off("crash", pageCrash);
         });
@@ -117,8 +129,13 @@ export const test = base.extend<StrictBrowserOptions>({
       });
       const check = () => {
         emitEvidence();
-        boundaryGuard.assertClean();
-        for (const guard of pages) guard.assertZeroDefects();
+        try {
+          boundaryGuard.assertClean();
+          for (const guard of pages) guard.assertZeroDefects();
+        } catch (error) {
+          emitReleaseTestFailure(error, "context-check");
+          throw error;
+        }
       };
       let explicitlyClosed = false;
       checks.push(() => { if (!explicitlyClosed) check(); });

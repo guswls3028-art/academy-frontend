@@ -31,6 +31,260 @@ const development = releaseBoundaryFromEnv({
   E2E_TENANT_CODE: "qa-ymath-realuse-release-unit",
 });
 
+test("transport truth classifies serialized native messages without inventing a native code", () => {
+  for (const [message, kind] of [["route.fetch: socket hang up", "socket-hang-up"],
+    ["route.fetch: aborted", "response-aborted"], ["route.fetch: failed to decompress 'gzip' encoding: invalid data", "decompression"]]) {
+    const error = new Error(`${message}\nCall log:\nhttps://private.invalid/?token=secret-token`);
+    assert.equal(policyModule.safeNativeTransportKind(error), kind);
+    assert.equal(policyModule.safeNativeTransportCode(error), "other", "message signatures must not fabricate ECONNRESET");
+  }
+  assert.equal(policyModule.safeNativeTransportKind(new Error("private-user socket hang up private-token")), "other");
+  assert.equal(policyModule.safeNativeTransportKind({ message: "socket hang up", code: "private-token" }), "other");
+});
+
+test("transport truth keeps request timing and document counters through the official sanitizer", async () => {
+  let handler;
+  const page = {};
+  const context = { request: { fetch: async () => {} }, route: async (_pattern, callback) => { handler = callback; } };
+  const guard = await installReleaseContextGuard(context, development);
+  guard.observation.setPageState(page, { pageOrdinal: 1, documentLoadOrdinal: 1, navigationOrdinal: 1 });
+  let attempts = 0;
+  const request = {
+    url: () => "https://api.hakwonplus.com/api/v1/media/playback/events/?token=secret-token", method: () => "POST",
+    frame: () => ({ page: () => page }), postDataJSON: () => ({ token: "secret-token" }),
+    headerValue: async () => development.tenantCode,
+    allHeaders: async () => ({ origin: development.webOrigin, authorization: "Bearer secret-token" }),
+  };
+  await handler({ request: () => request, fetch: async () => {
+    attempts++;
+    guard.observation.setPageState(page, { pageOrdinal: 1, documentLoadOrdinal: 2, navigationOrdinal: 2 });
+    throw new Error("route.fetch: socket hang up\nCall log: Bearer secret-token");
+  }, abort: async () => {}, fulfill: async () => assert.fail("no synthetic success"), continue: async () => assert.fail("no escape") });
+  assert.equal(attempts, 1);
+  assert.throws(() => guard.assertClean(), /fetch-transport/);
+  const report = contextReport([{ releaseContextObservation: guard.observation.snapshot() }]);
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  const events = observed.contextObservations[0].events;
+  assert.deepEqual(events.map((event) => event.stage), ["initial", "terminal"]);
+  for (const event of events) {
+    assert.equal(event.pathTemplate, "/api/v1/media/playback/events/");
+    assert.equal(event.nativeKind, "socket-hang-up");
+    assert.equal(event.nativeCode, "other");
+    assert.equal(event.requestOrdinal, 1);
+    assert.equal(event.pageOrdinal, 1);
+    assert.equal(event.startDocumentLoadOrdinal, 1);
+    assert.equal(event.endDocumentLoadOrdinal, 2);
+    assert.equal(event.startNavigationOrdinal, 1);
+    assert.equal(event.endNavigationOrdinal, 2);
+    assert.ok(Number.isSafeInteger(event.requestStartedElapsedMs));
+    assert.ok(Number.isSafeInteger(event.attemptDurationMs));
+  }
+  assert.doesNotMatch(JSON.stringify(observed), /secret-token|Bearer/);
+  assert.throws(() => assertReleaseSummary(report), /./, "diagnostics cannot turn a failed report into PASS");
+});
+
+test("transport truth records the original video failure before an unchanged close failure replaces it", async () => {
+  const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
+  const normalized = source.replaceAll("\r\n", "\n");
+  const start = normalized.indexOf("  try {\n    const outcomes = await Promise.allSettled");
+  assert.ok(start > 0);
+  const body = stripTypeScriptTypes(normalized.slice(start, normalized.indexOf("\n  const states =", start)));
+  const primary = new Error("expect(received).toBe(expected)\nExpected: 403\nReceived: 401\nprivate-user secret-token");
+  const teardown = new Error("Release API boundary failed: retained defect");
+  const logs = [];
+  const run = new Function("runs", "finishStudent", "captureFailureContext", "emitReleaseTestFailure", "console",
+    `return async () => { const videoId = 1, hlsPath = '', runReloadProof = null; ${body} };`)(
+    [{ page: {}, state: {}, context: { close: async () => { throw teardown; } } }],
+    async () => { throw primary; }, async () => ({}),
+    (error, phase) => policyModule.emitReleaseTestFailure(error, phase, (value) => logs.push(value)),
+    { log: () => {} });
+  await assert.rejects(run(), (error) => error === teardown, "existing throw/close ordering is unchanged");
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].releaseTestFailure.phase, "video-primary");
+  assert.equal(logs[0].releaseTestFailure.kind, "assertion");
+  assert.equal(logs[0].releaseTestFailure.expectedStatus, null, "arbitrary matcher numbers are not HTTP status");
+  assert.equal(logs[0].releaseTestFailure.receivedStatus, null);
+  assert.doesNotMatch(JSON.stringify(logs), /private-user|secret-token|403|401/);
+  const observed = observeReleaseTestResult(JSON.stringify(contextReport(logs, "video-playback-renewal.realuse.spec.ts")));
+  assert.equal(observed.testFailureObservations[0].phase, "video-primary");
+});
+
+test("transport truth captures exact cross-tenant status without reading the response body", async () => {
+  const keys = { E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0",
+    E2E_BASE_URL: development.webOrigin, E2E_API_URL: development.apiOrigin, E2E_TENANT_CODE: development.tenantCode };
+  const previous = Object.fromEntries(Object.keys(keys).map((key) => [key, process.env[key]]));
+  const fetch = globalThis.fetch;
+  const log = console.log;
+  const logs = [];
+  let cancelled = 0;
+  Object.assign(process.env, keys);
+  console.log = (line) => logs.push(JSON.parse(line));
+  globalThis.fetch = async () => ({ status: 401, body: { cancel: async () => { cancelled++; } },
+    json: async () => assert.fail("response body is not collected") });
+  try {
+    assert.equal(await probeDevelopmentCrossTenantDenial({ accessToken: "secret-token", participantId: 987654,
+      targetTenantCode: "qa-ymath-realuse-foreign-unit" }), 401, "403 assertion is not broadened or normalized");
+  } finally {
+    globalThis.fetch = fetch; console.log = log;
+    for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+  }
+  assert.equal(cancelled, 1);
+  assert.deepEqual(logs, [{ crossTenantDenialProbe: { schema: "release-cross-tenant-denial/v1", status: 401, errorCode: null } }]);
+  const observed = observeReleaseTestResult(JSON.stringify(contextReport(logs, "clinic-roundtrip.spec.ts")));
+  assert.equal(observed.crossTenantDenialProbes[0].status, 401);
+  assert.doesNotMatch(JSON.stringify(observed), /secret-token|987654|foreign-unit/);
+});
+
+test("transport truth keeps OMR cleanup status at the actual failure without changing cleanup", async () => {
+  const source = readFileSync(new URL("../../e2e/admin/omr-review-realuse.spec.ts", import.meta.url), "utf8");
+  const body = stripTypeScriptTypes(source.slice(source.indexOf("async function cleanup("), source.indexOf("test.describe.serial(")));
+  const logs = [];
+  const calls = [];
+  const created = { adminAccess: "secret-token", submissionIds: [987654], sessionEnrollmentIds: [] };
+  const cleanup = new Function("created", "apiFetch", "console", "emitOmrCleanupStatus", `${body}; return cleanup;`)(created,
+    async (_request, method) => { calls.push(method); return { status: method === "DELETE" ? 502 : 404, body: { detail: "private-user secret-token" } }; },
+    { log: () => {} }, (...args) => policyModule.emitOmrCleanupStatus(...args, (value) => logs.push(value)));
+  await assert.rejects(cleanup({}), /OMR production fixture cleanup failed/);
+  assert.deepEqual(calls, ["DELETE", "GET"], "original removal and readback remain mandatory");
+  assert.equal(logs[0].omrCleanupStatus.stage, "remove");
+  assert.equal(logs[0].omrCleanupStatus.receivedStatus, 502);
+  assert.deepEqual(logs[0].omrCleanupStatus.expectedStatuses, [200, 202, 204, 404]);
+  const observed = observeReleaseTestResult(JSON.stringify(contextReport(logs, "omr-review-realuse.spec.ts")));
+  assert.equal(observed.omrCleanupStatuses[0].receivedStatus, 502);
+  assert.doesNotMatch(JSON.stringify(observed), /private-user|secret-token|987654/);
+});
+
+test("transport truth OMR verification transport keeps the stage and the identical thrown error", async () => {
+  const source = readFileSync(new URL("../../e2e/admin/omr-review-realuse.spec.ts", import.meta.url), "utf8");
+  const body = stripTypeScriptTypes(source.slice(source.indexOf("async function cleanup("), source.indexOf("test.describe.serial(")));
+  const logs = [];
+  const failure = new Error("unit verification transport private-token");
+  const created = { adminAccess: "secret-token", submissionIds: [987654], sessionEnrollmentIds: [] };
+  const cleanup = new Function("created", "apiFetch", "console", "emitOmrCleanupStatus", `${body}; return cleanup;`)(created,
+    async (_request, method) => { if (method === "GET") throw failure; return { status: 204, body: null }; },
+    { log: () => {} }, (...args) => policyModule.emitOmrCleanupStatus(...args, (value) => logs.push(value)));
+  await assert.rejects(cleanup({}), (error) => error === failure);
+  assert.deepEqual(logs, [{ omrCleanupStatus: { schema: "release-omr-cleanup-status/v1", stage: "verify-absent",
+    expectedStatuses: [404], receivedStatus: null } }]);
+});
+
+test("transport truth preserves ordered reported errors but never interprets arbitrary scores as status", () => {
+  const report = contextReport([]);
+  report.suites[0].specs[0].tests[0].results[0].errors = [
+    { message: "expect(received).toBe(expected)\nExpected: 403\nReceived: 401\nsecret-token", location: { file: "C:/private/video-playback-renewal.realuse.spec.ts", line: 750, column: 5 } },
+    { message: "Release API boundary failed: secret-token", location: { file: "C:/private/releaseApiBoundary.ts", line: 647, column: 33 } },
+    { message: "GET /api/v1/clinic/sessions/ returned 502: private-user", location: { file: "C:/private/strictTest.ts", line: 1, column: 1 } },
+  ];
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.deepEqual(observed.reportedTestErrors.map((item) => [item.errorOrdinal, item.kind, item.expectedStatus, item.receivedStatus]),
+    [[1, "assertion", null, null], [2, "boundary", null, null], [3, "http-status", null, 502]]);
+  assert.doesNotMatch(JSON.stringify(observed), /secret-token|private-user|C:\/private|403|401/);
+  assert.throws(() => assertReleaseSummary(report), /./);
+});
+
+test("transport truth rejects unsafe markers and accepts old snapshots without guessing missing counters", () => {
+  const marker = { schema: "release-test-failure/v1", phase: "video-primary", kind: "assertion", expectedStatus: null, receivedStatus: null };
+  const invalid = [
+    { releaseTestFailure: { ...marker, rawError: "secret-token" } },
+    { releaseTestFailure: { ...marker, phase: "private-user" } },
+    { releaseTestFailure: { ...marker, kind: "secret-token" } },
+    { releaseTestFailure: { ...marker, receivedStatus: 401 } },
+    { omrCleanupStatus: { schema: "release-omr-cleanup-status/v1", stage: "remove", expectedStatuses: [200], receivedStatus: "secret-token" } },
+    { crossTenantDenialProbe: { schema: "release-cross-tenant-denial/v1", status: 401, errorCode: "private-user" } },
+  ];
+  const report = contextReport(invalid, "video-playback-renewal.realuse.spec.ts");
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.equal(observed.rejectedFailureObservationCount, invalid.length);
+  assert.deepEqual(observed.testFailureObservations, []);
+  assert.deepEqual(observed.omrCleanupStatuses, []);
+  assert.deepEqual(observed.crossTenantDenialProbes, []);
+  assert.throws(() => assertReleaseSummary(report), /./);
+  assert.doesNotMatch(JSON.stringify(observed), /secret-token|private-user/);
+  for (const payload of invalid) {
+    const file = Object.hasOwn(payload, "omrCleanupStatus") ? "omr-review-realuse.spec.ts"
+      : Object.hasOwn(payload, "crossTenantDenialProbe") ? "clinic-roundtrip.spec.ts" : "video-playback-renewal.realuse.spec.ts";
+    const rejected = observeReleaseTestResult(JSON.stringify(contextReport([payload], file)));
+    assert.equal(rejected.rejectedFailureObservationCount, 1, "the payload itself must be rejected even under its owning spec");
+    assert.doesNotMatch(JSON.stringify(rejected), /secret-token|private-user/);
+  }
+  const bounded = observeReleaseTestResult(JSON.stringify(contextReport(Array.from({ length: 129 }, () => (
+    { releaseTestFailure: { ...marker, phase: "context-check" } }
+  )))));
+  assert.equal(bounded.testFailureObservations.length, 128);
+  assert.equal(bounded.droppedFailureObservationCount, 1);
+  const old = policyModule.createReleaseContextObservation(null);
+  old.record({ phase: "route-fetch", stage: "terminal", method: "POST", pathTemplate: null, nativeCode: "other" });
+  const legacy = observeReleaseTestResult(JSON.stringify(contextReport([{ releaseContextObservation: old.snapshot() }])));
+  assert.equal(Object.hasOwn(legacy.contextObservations[0].events[0], "pageOrdinal"), false);
+  for (const field of ["nativeKind", "attemptDurationMs", "startDocumentLoadOrdinal"]) {
+    const unsafe = old.snapshot();
+    unsafe.events[0][field] = "secret-token";
+    const rejected = observeReleaseTestResult(JSON.stringify(contextReport([{ releaseContextObservation: unsafe }])));
+    assert.equal(rejected.rejectedContextObservationCount, 1);
+    assert.deepEqual(rejected.contextObservations, []);
+    assert.doesNotMatch(JSON.stringify(rejected), /secret-token/);
+  }
+});
+
+test("transport truth page counters observe only main navigation and loaded documents and release listeners", async () => {
+  const previousStrict = process.env.E2E_STRICT;
+  const previousLog = console.log;
+  process.env.E2E_STRICT = "strict";
+  console.log = () => {};
+  const page = new EventEmitter();
+  const frame = { page: () => page };
+  page.mainFrame = () => frame;
+  const request = { frame: () => frame, isNavigationRequest: () => true };
+  const observation = policyModule.createReleaseContextObservation(1);
+  const guard = { observation, authentication: {}, observations: {}, transport: {}, requestTransportDiagnostics: [],
+    beginClose: async () => {}, assertClean: () => {} };
+  const context = Object.assign(new EventEmitter(), { request: {}, close: async () => context.emit("close") });
+  const browser = Object.assign(new EventEmitter(), { newContext: async () => context });
+  try {
+    await releaseFixtureOptions(guard).browser[0]({ browser }, async () => {
+      await browser.newContext(); context.emit("page", page);
+      assert.deepEqual(observation.requestPageState(request), { pageOrdinal: 1, documentLoadOrdinal: 0, navigationOrdinal: 0 });
+      page.emit("request", request); page.emit("domcontentloaded");
+      page.emit("request", { ...request, isNavigationRequest: () => false });
+      page.emit("request", { ...request, frame: () => ({}) });
+      assert.deepEqual(observation.requestPageState(request), { pageOrdinal: 1, documentLoadOrdinal: 1, navigationOrdinal: 1 });
+      page.emit("request", request);
+      assert.equal(observation.requestPageState(request).documentLoadOrdinal, 1, "pending reload is not falsely counted as a loaded document");
+      page.emit("domcontentloaded");
+      assert.deepEqual(observation.requestPageState(request), { pageOrdinal: 1, documentLoadOrdinal: 2, navigationOrdinal: 2 });
+      await context.close();
+    });
+  } finally {
+    console.log = previousLog;
+    if (previousStrict === undefined) delete process.env.E2E_STRICT; else process.env.E2E_STRICT = previousStrict;
+  }
+  assert.equal(page.listenerCount("request"), 0);
+  assert.equal(page.listenerCount("domcontentloaded"), 0);
+  assert.equal(browser.listenerCount("disconnected"), 0);
+  assert.equal(observation.requestPageState({ frame: () => { throw new Error("closed"); } }), null);
+});
+
+test("transport truth exact playback endpoint templates survive without granting a request", async () => {
+  for (const endpoint of ["events", "heartbeat", "refresh", "start", "renew", "end"]) {
+    let handler;
+    const context = { request: { fetch: async () => {} }, route: async (_pattern, callback) => { handler = callback; } };
+    const guard = await installReleaseContextGuard(context, development);
+    let attempts = 0;
+    const url = `https://api.hakwonplus.com/api/v1/media/playback/${endpoint}/?token=secret-token`;
+    await handler({ request: () => ({ url: () => url, method: () => "POST", postDataJSON: () => undefined,
+      headerValue: async () => development.tenantCode, allHeaders: async () => ({ origin: development.webOrigin }) }),
+    fetch: async () => { attempts++; throw new Error("route.fetch: aborted"); }, abort: async () => {},
+    fulfill: async () => assert.fail("no synthetic success"), continue: async () => assert.fail("no escape") });
+    assert.equal(attempts, 1); assert.throws(() => guard.assertClean(), /fetch-transport/);
+    assert.throws(() => assertReleaseRequestSafe(production, url, "POST", production.tenantCode), /mutation refused/);
+    const observed = observeReleaseTestResult(JSON.stringify(contextReport([{ releaseContextObservation: guard.observation.snapshot() }])));
+    assert.equal(observed.contextObservations[0].events[0].pathTemplate, `/api/v1/media/playback/${endpoint}/`);
+    assert.equal(observed.contextObservations[0].events[0].pageOrdinal, null);
+    assert.equal(observed.contextObservations[0].events[0].nativeKind, "response-aborted");
+    assert.doesNotMatch(JSON.stringify(observed), /secret-token/);
+  }
+});
+
 test("release-aware browser worker fixture outlives the 690-second playback proof", () => {
   const source = readFileSync(new URL("../../e2e/fixtures/strictTest.ts", import.meta.url), "utf8");
   assert.match(source, /scope:\s*["']worker["'][^}\]]*timeout:\s*20\s*\*\s*60_000/s);
@@ -90,7 +344,8 @@ test("release-aware browser fixture emits evidence once before close and teardow
           else await running;
         } finally { console.log = previousLog; }
         assert.equal(evidence.filter((line) => line.releaseApiMode).length, 1, "explicit close followed by worker teardown must not duplicate counters");
-        const snapshots = evidence.map((line) => line.releaseContextObservation);
+        const snapshots = evidence.filter((line) => line.releaseContextObservation).map((line) => line.releaseContextObservation);
+        assert.equal(evidence.filter((line) => line.releaseTestFailure?.phase === "context-check").length, failed ? 1 : 0);
         assert.deepEqual(snapshots.map((item) => item.snapshotSequence), explicitClose ? [1, 2, 3] : [1]);
         assert.equal(browser.listenerCount("disconnected"), 0, "fixture releases its observation listeners even without explicit close");
         assert.deepEqual(evidence[0].requestTransportDiagnostics, boundaryGuard.requestTransportDiagnostics);
@@ -133,8 +388,9 @@ test("worker teardown emits every context before the first failing assertion", a
     if (previousStrict === undefined) delete process.env.E2E_STRICT;
     else process.env.E2E_STRICT = previousStrict;
   }
-  assert.equal(evidence.length, 2, "a later context must not lose evidence when the first check throws");
-  assert.deepEqual(evidence.map((line) => line.releaseContextObservation.contextOrdinal), [1, 2]);
+  assert.equal(evidence.length, 3, "both context snapshots and the first check failure are retained");
+  assert.deepEqual(evidence.filter((line) => line.releaseContextObservation).map((line) => line.releaseContextObservation.contextOrdinal), [1, 2]);
+  assert.equal(evidence[2].releaseTestFailure.phase, "context-check");
   assert.equal(evidence[1].releaseContextObservation.events[0].nativeCode, "EPIPE");
   assert.deepEqual(assertionCounts, [1, 0], "existing fail-fast assertion ordering is unchanged");
   assert.equal(browser.listenerCount("disconnected"), 0);
@@ -186,9 +442,11 @@ test("late route rejection after close and disconnect is retained in the final s
   assert.equal(boundaryGuard.transport.readFetchRetries, 0);
   assert.equal(boundaryGuard.observation.data.events.at(-1).stage, "terminal");
   assert.equal(evidence.filter((line) => line.releaseApiMode).length, 1);
-  assert.deepEqual(evidence.map((line) => line.releaseContextObservation.snapshotSequence), [1, 2, 3]);
-  assert.equal(evidence.at(-1).releaseContextObservation.events.at(-1).phase, "route-fetch");
-  assert.equal(evidence.at(-1).releaseContextObservation.events.at(-1).stage, "terminal");
+  const snapshots = evidence.filter((line) => line.releaseContextObservation).map((line) => line.releaseContextObservation);
+  assert.deepEqual(snapshots.map((item) => item.snapshotSequence), [1, 2, 3]);
+  assert.equal(snapshots.at(-1).events.at(-1).phase, "route-fetch");
+  assert.equal(snapshots.at(-1).events.at(-1).stage, "terminal");
+  assert.equal(evidence.at(-1).releaseTestFailure.phase, "context-check");
   assert.equal(browser.listenerCount("disconnected"), 0);
 });
 
@@ -978,6 +1236,14 @@ test("real-use failure observation publishes only allowlisted endpoint templates
       transportCode: "timeout",
     }],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
+    reportedTestErrors: Array.from({ length: 6 }, (_, index) => ({
+      specFile: "notice-roundtrip.spec.ts", resultOrdinal: 1, errorOrdinal: index + 1,
+      sourceFile: index < 2 ? "qaStudentParentScenario.ts" : null,
+      kind: index === 0 ? "boundary" : index === 1 ? "http-status" : "other",
+      expectedStatus: null, receivedStatus: index === 1 ? 409 : null,
+    })),
+    testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
+    rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null,
     longVideoFailure: null,
     longVideoErrorCodes: [],
@@ -997,6 +1263,8 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
+    reportedTestErrors: [], testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
+    rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null,
     longVideoFailure: null,
     longVideoErrorCodes: [],
@@ -1005,8 +1273,9 @@ test("real-use failure observation publishes only allowlisted endpoint templates
   });
 });
 
-function contextReport(outputs) {
+function contextReport(outputs, specFile) {
   const report = completeFlowReport();
+  if (specFile) report.suites[0].specs[0].file = specFile;
   const failed = report.suites[0].specs[0].tests[0];
   failed.status = "unexpected";
   failed.results[0] = { status: "failed", workerIndex: 0,
