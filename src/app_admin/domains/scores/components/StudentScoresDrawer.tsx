@@ -130,6 +130,10 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     [row],
   );
   const clinicRequired = !isSessionRowProgressCompleted(row) && !!row.clinic_required;
+  const correctionPending = row.correction_pending_count != null
+    ? row.correction_pending_count > 0
+    : (row.exams ?? []).some(({ block }) => block.correction_status === "PENDING")
+      || (row.homeworks ?? []).some(({ block }) => block.correction_status === "PENDING");
   const verdict = getSessionScoresTableVerdict(row);
   const attentionCount = attentionSummary.missingTitles.length
     + attentionSummary.reviewTitles.length
@@ -328,15 +332,18 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                       : undefined
                   }
                   chipSize={20}
-                  clinicHighlight={
-                    row.name_highlight_followup_required
-                    ?? row.name_highlight_clinic_target
-                    ?? false
-                  }
+                  clinicHighlight={row.name_highlight_clinic_target ?? false}
                   examNotSubmittedCount={row.exam_not_submitted_count}
                 />
               </StudentDetailLink>
             </h2>
+            {correctionPending && (
+              <div className="mt-1">
+                <Badge tone="neutral" size="sm" ariaLabel="오답 미완료">
+                  오답 미완료
+                </Badge>
+              </div>
+            )}
             <span className="student-scores-drawer__header-meta">
               이름을 누르면 학생 정보 <span aria-hidden>·</span> <kbd>Esc</kbd> 닫기
             </span>
