@@ -165,7 +165,7 @@ export default function ExamDetailPage() {
           <button
             key={sessionId}
             type="button"
-            onClick={() => navigate(`/workspace/mobile/scores/${sessionId}`)}
+            onClick={() => navigate(`/workspace/mobile/scores/${sessionId}?exam=${eid}`)}
             className={`${styles.scoreButton} text-[12px] font-semibold px-3 py-1 rounded cursor-pointer`}
           >
             {sessionIds.length === 1 ? "성적 입력 열기" : `${index + 1}번째 차시 성적 입력`}
