@@ -18,6 +18,8 @@ test.setTimeout(360_000);
 const API = getApiBaseUrl().replace(/\/+$/, "");
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const CODE = process.env.E2E_TENANT_CODE?.trim() || "";
+const ADMIN_USER = process.env.E2E_ADMIN_USER?.trim() || "";
+const ADMIN_PASS = process.env.E2E_ADMIN_PASS?.trim() || "";
 const STUDENT_PASS = process.env.E2E_STUDENT_PASS?.trim() || "";
 const TS = Date.now();
 const TODAY_KST = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
@@ -41,12 +43,17 @@ function requireIsolatedScenario(): void {
   if (!STUDENT_PASS) {
     throw new Error("OMR real-use requires E2E_STUDENT_PASS from the isolated development scenario");
   }
+  if (!ADMIN_USER || !ADMIN_PASS) {
+    throw new Error("OMR real-use requires the configured isolated development admin credentials");
+  }
 }
 
 type Tokens = { access: string; refresh: string };
 type RealUseRole = "admin" | "student" | "parent";
 type BrowserAccountExpectation = {
   role: RealUseRole;
+  username: string;
+  password: string;
 };
 type CurrentUser = {
   tenantRole?: string | null;
@@ -200,40 +207,82 @@ async function completeInitialAccountPrompts(
   const completionBody = await completionResponse.json() as CurrentUser;
   expect(completionBody.first_login_guide_required).toBe(false);
   await expect(firstLoginDialog).toBeHidden();
-
-  const refreshedMeResponsePromise = page.waitForResponse(
-    (response) => matchesApiResponse(response, "GET", "/core/me/"),
-    { timeout: 30_000 },
-  );
-  await gotoAndSettle(page, page.url(), { timeout: 45_000 });
-  const refreshedUser = await readCurrentUserResponse(await refreshedMeResponsePromise);
-  expect(refreshedUser.tenantRole).toBe(expected.role);
-  expect(refreshedUser.first_login_guide_required).toBe(false);
-  await expect(passwordDialog).toBeHidden();
-  await expect(firstLoginDialog).toBeHidden();
 }
 
-async function seedBrowser(
+async function loginBrowserAsRealUser(
   page: Page,
-  tokens: Tokens,
   landingPath: string,
   expected: BrowserAccountExpectation,
 ): Promise<void> {
-  const payload = { access: tokens.access, refresh: tokens.refresh, code: CODE };
-  await page.goto(`${BASE}/login`, { waitUntil: "commit", timeout: 30_000 });
-  await page.evaluate(({ access, refresh, code }) => {
-    localStorage.setItem("access", access);
-    localStorage.setItem("refresh", refresh);
-    localStorage.setItem("tenant_code", code);
-    sessionStorage.setItem("tenantCode", code);
-  }, payload);
-  const currentUserResponsePromise = page.waitForResponse(
-    (response) => matchesApiResponse(response, "GET", "/core/me/"),
+  const hostname = new URL(BASE).hostname.trim().toLowerCase();
+  const requiresTenantPath = hostname === "localhost"
+    || hostname === "127.0.0.1"
+    || hostname.endsWith(".pages.dev")
+    || hostname.endsWith(".trycloudflare.com");
+  const loginPath = requiresTenantPath ? `/login/${encodeURIComponent(CODE)}` : "/login";
+
+  await gotoAndSettle(page, `${BASE}${loginPath}`, { timeout: 45_000 });
+  const previousGeneration = await page.evaluate(() => (
+    localStorage.getItem("academy:auth-active-generation:v1")
+  ));
+  const loginForm = page.getByRole("form", { name: "로그인 폼" });
+  await expect(loginForm).toBeVisible();
+  await page.getByTestId("login-username").fill(expected.username);
+  await page.getByTestId("login-password").fill(expected.password);
+  const loginResponsePromise = page.waitForResponse(
+    (response) => matchesApiResponse(response, "POST", "/token/"),
     { timeout: 30_000 },
   );
-  await gotoAndSettle(page, `${BASE}${landingPath}`, { timeout: 45_000 });
+  const currentUserResponsePromise = page.waitForResponse(
+    (response) => matchesApiResponse(response, "GET", "/core/me/") && response.status() === 200,
+    { timeout: 30_000 },
+  );
+  await page.getByTestId("login-submit").click();
+  const loginResponse = await loginResponsePromise;
+  expect(loginResponse.status(), `POST /token/ -> ${loginResponse.status()}`).toBe(200);
   const currentUser = await readCurrentUserResponse(await currentUserResponsePromise);
+  expect(currentUser.tenantRole).toBe(expected.role);
+
+  const activeSession = await page.evaluate(() => {
+    const generation = localStorage.getItem("academy:auth-active-generation:v1");
+    const raw = generation
+      ? localStorage.getItem(`academy:auth-tokens:v1:${generation}`)
+      : null;
+    let envelope: { access?: unknown; refresh?: unknown; generation?: unknown } | null = null;
+    try { envelope = raw ? JSON.parse(raw) : null; } catch { envelope = null; }
+    return {
+      generation,
+      envelopeGeneration: envelope?.generation ?? null,
+      hasAccess: typeof envelope?.access === "string" && envelope.access.length > 0,
+      hasRefresh: typeof envelope?.refresh === "string" && envelope.refresh.length > 0,
+      legacyAccess: localStorage.getItem("access"),
+      legacyRefresh: localStorage.getItem("refresh"),
+    };
+  });
+  expect(activeSession.generation).toBeTruthy();
+  expect(activeSession.envelopeGeneration).toBe(activeSession.generation);
+  expect(activeSession.hasAccess).toBe(true);
+  expect(activeSession.hasRefresh).toBe(true);
+  expect(activeSession.legacyAccess).toBeNull();
+  expect(activeSession.legacyRefresh).toBeNull();
+  if (previousGeneration) expect(activeSession.generation).not.toBe(previousGeneration);
+
+  await gotoAndSettle(page, `${BASE}${landingPath}`, { timeout: 45_000 });
   await completeInitialAccountPrompts(page, currentUser, expected);
+
+  const reloadedMeResponsePromise = page.waitForResponse(
+    (response) => matchesApiResponse(response, "GET", "/core/me/") && response.status() === 200,
+    { timeout: 30_000 },
+  );
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const reloadedUser = await readCurrentUserResponse(await reloadedMeResponsePromise);
+  expect(reloadedUser.tenantRole).toBe(expected.role);
+  expect(reloadedUser.first_login_guide_required).toBe(false);
+  await expect(page.getByRole("dialog", { name: "비밀번호 변경 권장" })).toBeHidden();
+  await expect(page.getByRole("dialog", { name: "계정 안내" })).toBeHidden();
+  expect(await page.evaluate(() => (
+    localStorage.getItem("academy:auth-active-generation:v1")
+  ))).toBe(activeSession.generation);
 }
 
 async function chooseExamHeaderAction(
@@ -608,11 +657,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       CONTROLLED_PHONE.slice(-8),
     );
 
-    await seedBrowser(
+    await loginBrowserAsRealUser(
       page,
-      adminTokens,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
-      { role: "admin" },
+      { role: "admin", username: ADMIN_USER, password: ADMIN_PASS },
     );
     const draftDialog = page.getByRole("dialog", { name: /임시저장된 변경/ });
     if (await draftDialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
@@ -792,11 +840,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(pendingExamSummary.pass_count).toBe(0);
     expect(pendingExamSummary.fail_count).toBe(0);
 
-    await seedBrowser(
+    await loginBrowserAsRealUser(
       page,
-      studentTokens,
       "/student/grades",
-      { role: "student" },
+      { role: "student", username: STUDENT_USER, password: STUDENT_PASS },
     );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const pendingCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
@@ -804,11 +851,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(pendingCard).toContainText("서술형 채점 중");
     await expect(pendingCard).not.toContainText(`${EXPECTED_OBJECTIVE_SCORE}/50점`);
 
-    await seedBrowser(
+    await loginBrowserAsRealUser(
       page,
-      parentTokens,
       "/student/grades",
-      { role: "parent" },
+      { role: "parent", username: CONTROLLED_PHONE, password: STUDENT_PASS },
     );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const pendingParentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
@@ -816,11 +862,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(pendingParentCard).toContainText("서술형 채점 중");
     await expect(pendingParentCard).not.toContainText(`${EXPECTED_OBJECTIVE_SCORE}/50점`);
 
-    await seedBrowser(
+    await loginBrowserAsRealUser(
       page,
-      adminTokens,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
-      { role: "admin" },
+      { role: "admin", username: ADMIN_USER, password: ADMIN_PASS },
     );
     await chooseExamHeaderAction(page, "문항별 점수 입력");
     const gradingDialog = page.getByRole("dialog").filter({
@@ -874,11 +919,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(finalParentExam?.grading_status).not.toBe("subjective_pending");
     expect(finalParentExam?.total_score).toBe(EXPECTED_SCORE);
 
-    await seedBrowser(
+    await loginBrowserAsRealUser(
       page,
-      studentTokens,
       "/student/grades",
-      { role: "student" },
+      { role: "student", username: STUDENT_USER, password: STUDENT_PASS },
     );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const finalStudentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
@@ -891,11 +935,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       .toContainText(`${EXPECTED_SCORE}/50점`, { timeout: 20_000 });
     await page.screenshot({ path: `e2e/screenshots/omr-review-realuse-student-${TS}.png`, fullPage: true });
 
-    await seedBrowser(
+    await loginBrowserAsRealUser(
       page,
-      parentTokens,
       "/student/grades",
-      { role: "parent" },
+      { role: "parent", username: CONTROLLED_PHONE, password: STUDENT_PASS },
     );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const finalParentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });

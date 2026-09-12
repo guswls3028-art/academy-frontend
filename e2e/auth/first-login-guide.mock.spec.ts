@@ -12,11 +12,218 @@ function isLocalBase(url: string): boolean {
   return hostname === "127.0.0.1" || hostname === "localhost";
 }
 
-function createE2eJwt(): string {
+function createE2eJwt(identity = "first-login"): string {
   const payload = Buffer.from(
-    JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 86400 }),
+    JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 86400, identity }),
   ).toString("base64url");
   return `e30.${payload}.e2e`;
+}
+
+type SwitchAccount = {
+  id: number;
+  username: string;
+  password: string;
+  role: "admin" | "student" | "parent";
+};
+
+const SWITCH_ACCOUNTS: SwitchAccount[] = [
+  { id: 811, username: "omr.admin", password: "Admin-Password", role: "admin" },
+  { id: 812, username: "omr.student", password: "Student-Password", role: "student" },
+  { id: 813, username: "01087654321", password: "Student-Password", role: "parent" },
+];
+
+async function stubAccountSwitchingApp(page: Page, tenantCode: string) {
+  const accountsByUsername = new Map(SWITCH_ACCOUNTS.map((account) => [account.username, account]));
+  const tokensByUsername = new Map(SWITCH_ACCOUNTS.map((account) => [account.username, {
+    access: createE2eJwt(account.username),
+    refresh: `refresh-${account.role}`,
+  }]));
+  const accountsByAccess = new Map(
+    SWITCH_ACCOUNTS.map((account) => [tokensByUsername.get(account.username)!.access, account]),
+  );
+  const guideRequired = new Map(SWITCH_ACCOUNTS.map((account) => [account.username, true]));
+  const loginUsernames: string[] = [];
+
+  const accountForRequest = (authorization: string | undefined) => {
+    const access = String(authorization || "").replace(/^Bearer\s+/i, "");
+    return accountsByAccess.get(access);
+  };
+
+  await page.route("**/api/v1/**", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+  });
+  await page.route("**/api/v1/core/program/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        tenantCode,
+        display_name: "OMR 계정 전환 점검",
+        ui_config: { login_title: "OMR 계정 전환 점검", primary_color: "#2563eb" },
+        feature_flags: {},
+        is_active: true,
+      }),
+    });
+  });
+  await page.route("**/api/v1/token/", async (route) => {
+    const body = route.request().postDataJSON() as {
+      username?: string;
+      password?: string;
+      tenant_code?: string;
+    };
+    const account = accountsByUsername.get(String(body.username || ""));
+    expect(body.tenant_code).toBe(tenantCode);
+    expect(account).toBeDefined();
+    expect(body.password).toBe(account?.password);
+    loginUsernames.push(String(body.username));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(tokensByUsername.get(account!.username)),
+    });
+  });
+  await page.route("**/api/v1/core/me/", async (route) => {
+    const account = accountForRequest(route.request().headers().authorization);
+    if (!account) {
+      await route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: account.id,
+        username: account.username,
+        name: `OMR ${account.role}`,
+        phone: account.role === "parent" ? account.username : null,
+        is_staff: account.role === "admin",
+        is_superuser: false,
+        tenantRole: account.role,
+        linkedStudents: account.role === "parent" ? [{ id: 812, name: "OMR student" }] : null,
+        must_change_password: account.role !== "admin",
+        first_login_guide_required: guideRequired.get(account.username),
+      }),
+    });
+  });
+  await page.route("**/api/v1/core/me/first-login-guide/complete/", async (route) => {
+    const account = accountForRequest(route.request().headers().authorization);
+    expect(account).toBeDefined();
+    guideRequired.set(account!.username, false);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ first_login_guide_required: false }),
+    });
+  });
+
+  return {
+    accountByRole: (role: SwitchAccount["role"]) => SWITCH_ACCOUNTS.find((account) => account.role === role)!,
+    loginUsernames,
+  };
+}
+
+async function readTokenSessionMetadata(page: Page) {
+  return page.evaluate(() => {
+    const generation = localStorage.getItem("academy:auth-active-generation:v1");
+    const raw = generation
+      ? localStorage.getItem(`academy:auth-tokens:v1:${generation}`)
+      : null;
+    let envelope: { access?: unknown; refresh?: unknown; generation?: unknown } | null = null;
+    try { envelope = raw ? JSON.parse(raw) : null; } catch { envelope = null; }
+    return {
+      generation,
+      envelopeGeneration: envelope?.generation ?? null,
+      hasAccess: typeof envelope?.access === "string" && envelope.access.length > 0,
+      hasRefresh: typeof envelope?.refresh === "string" && envelope.refresh.length > 0,
+      legacyAccess: localStorage.getItem("access"),
+      legacyRefresh: localStorage.getItem("refresh"),
+    };
+  });
+}
+
+async function loginAccountThroughForm(
+  page: Page,
+  tenantCode: string,
+  account: SwitchAccount,
+  previousGeneration: string | null,
+): Promise<string> {
+  await gotoAndSettle(page, `${BASE}/login/${tenantCode}`, { timeout: 20_000 });
+  await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
+  await page.getByTestId("login-username").fill(account.username);
+  await page.getByTestId("login-password").fill(account.password);
+  const loginResponsePromise = page.waitForResponse((response) => (
+    response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/v1/token/"
+  ));
+  const meResponsePromise = page.waitForResponse((response) => (
+    response.request().method() === "GET"
+    && new URL(response.url()).pathname === "/api/v1/core/me/"
+    && response.status() === 200
+  ));
+  await page.getByTestId("login-submit").click();
+  expect((await loginResponsePromise).status()).toBe(200);
+  const currentUser = await (await meResponsePromise).json() as {
+    tenantRole?: string;
+    must_change_password?: boolean;
+    first_login_guide_required?: boolean;
+  };
+  expect(currentUser.tenantRole).toBe(account.role);
+  expect(typeof currentUser.must_change_password).toBe("boolean");
+  expect(typeof currentUser.first_login_guide_required).toBe("boolean");
+
+  const session = await readTokenSessionMetadata(page);
+  expect(session.generation).toBeTruthy();
+  expect(session.envelopeGeneration).toBe(session.generation);
+  expect(session.hasAccess).toBe(true);
+  expect(session.hasRefresh).toBe(true);
+  expect(session.legacyAccess).toBeNull();
+  expect(session.legacyRefresh).toBeNull();
+  if (previousGeneration) expect(session.generation).not.toBe(previousGeneration);
+
+  const landingPath = account.role === "admin" ? "/workspace/guide" : "/student/guide";
+  await gotoAndSettle(page, `${BASE}${landingPath}`, { timeout: 20_000 });
+  const passwordDialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
+  if (currentUser.must_change_password) {
+    await expect(passwordDialog).toBeVisible();
+    await passwordDialog
+      .getByRole("button", { name: "위험을 이해했고 나중에", exact: true })
+      .click();
+    await expect(passwordDialog).toBeHidden();
+  } else {
+    await expect(passwordDialog).toBeHidden();
+  }
+
+  const guideDialog = page.getByRole("dialog", { name: "계정 안내" });
+  if (currentUser.first_login_guide_required) {
+    await expect(guideDialog).toBeVisible();
+    const completionResponsePromise = page.waitForResponse((response) => (
+      response.request().method() === "POST"
+      && new URL(response.url()).pathname === "/api/v1/core/me/first-login-guide/complete/"
+    ));
+    await guideDialog.getByRole("button", { name: "확인", exact: true }).click();
+    const completionResponse = await completionResponsePromise;
+    expect(completionResponse.status()).toBe(200);
+    expect((await completionResponse.json()).first_login_guide_required).toBe(false);
+  } else {
+    await expect(guideDialog).toBeHidden();
+  }
+
+  const reloadedMeResponsePromise = page.waitForResponse((response) => (
+    response.request().method() === "GET"
+    && new URL(response.url()).pathname === "/api/v1/core/me/"
+    && response.status() === 200
+  ));
+  await page.reload();
+  const reloadedUser = await (await reloadedMeResponsePromise).json() as {
+    tenantRole?: string;
+    first_login_guide_required?: boolean;
+  };
+  expect(reloadedUser.tenantRole).toBe(account.role);
+  expect(reloadedUser.first_login_guide_required).toBe(false);
+  await expect(passwordDialog).toBeHidden();
+  await expect(guideDialog).toBeHidden();
+  expect((await readTokenSessionMetadata(page)).generation).toBe(session.generation);
+  return String(session.generation);
 }
 
 async function stubAuthenticatedApp(
@@ -118,6 +325,28 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test.describe("생애 첫 접속 계정 안내", () => {
+  test("OMR 실사용 순서의 모든 계정 전환은 로그인 폼으로 새 generation을 만든다", async ({ page }) => {
+    const tenantCode = "qa-ymath-realuse-omr-account-switch";
+    const state = await stubAccountSwitchingApp(page, tenantCode);
+    const roles = ["admin", "student", "parent", "admin", "student", "parent"] as const;
+    const generations: string[] = [];
+    let previousGeneration: string | null = null;
+
+    for (const role of roles) {
+      const account = state.accountByRole(role);
+      previousGeneration = await loginAccountThroughForm(
+        page,
+        tenantCode,
+        account,
+        previousGeneration,
+      );
+      generations.push(previousGeneration);
+    }
+
+    expect(new Set(generations).size).toBe(roles.length);
+    expect(state.loginUsernames).toEqual(roles.map((role) => state.accountByRole(role).username));
+  });
+
   test("신규 관리자는 계정 안내를 확인한 뒤 보호 화면 작업을 이어간다", async ({ page }, testInfo) => {
     const tenantCode = "qa-ymath-realuse-admin-first-login";
     const apiState = await stubAuthenticatedApp(page, { role: "admin", tenantCode });
