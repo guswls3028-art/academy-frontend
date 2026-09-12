@@ -618,10 +618,15 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
     await expect(page.getByRole("heading", { name: "커뮤니티에서 무엇을 할까요?" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "질문하기", exact: true })).toBeVisible();
+    const questionAction = page.getByRole("button", { name: "질문하기", exact: true });
+    await expect(questionAction).toBeVisible();
+    await expect(page.getByText("모르는 문제나 수업 내용을 선생님께 바로 물어보세요.", { exact: true })).toBeVisible();
+    await expect(questionAction).toHaveCSS("padding-top", "13px");
+    expect(await questionAction.evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe("none");
     for (const entry of ["내 질문과 답변", "공지", "자료", "게시판", "상담"]) {
       await expect(page.getByRole("button", { name: new RegExp(`^${entry}`) })).toBeVisible();
     }
+    await expect(page.getByRole("button", { name: /^내 질문과 답변/ })).toHaveCSS("padding-top", "10px");
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
     const materialsEntry = page.getByRole("button", { name: /^자료/ });
@@ -631,6 +636,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await expect(page.getByText("등록된 자료가 없습니다", { exact: true })).toBeVisible();
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("button", { name: "자료실", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "커뮤니티 처음으로", exact: true })).toHaveCSS("border-top-width", "1px");
 
     await page.getByRole("button", { name: "QnA", exact: true }).click();
     await expect(page).toHaveURL(/\/student\/community\?tab=qna$/);
