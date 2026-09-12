@@ -1,10 +1,8 @@
 import api from "@/shared/api/axios";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
+import type { components } from "@/shared/api/generated/schema";
 
-export interface PublicVideoSession {
-  session_id: number;
-  lecture_id: number;
-}
+export type PublicVideoSession = components["schemas"]["PublicVideoSession"];
 
 function publicVideoSessionFromResponse(data: unknown): PublicVideoSession {
   const value = data as Partial<PublicVideoSession> | null;

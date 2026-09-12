@@ -6890,14 +6890,18 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description 테넌트당 공개 영상 전용 시스템 Lecture + Session을 get_or_create 하고
-         *     session_id, lecture_id 를 반환합니다.
-         *     이 세션에 올린 영상은 visibility=PUBLIC으로 설정되어
-         *     프로그램(테넌트)에 등록된 모든 학생이 시청 가능합니다.
+         * @description GET은 기존 ID를 조회하고 미준비 상태는 null을 반환합니다.
+         *     POST는 테넌트당 공개 영상 시스템 Lecture + Session을 준비합니다.
+         *     구형 컨테이너 정규화도 POST에서만 수행합니다.
          */
         get: operations["media_videos_public_session_retrieve"];
         put?: never;
-        post?: never;
+        /**
+         * @description GET은 기존 ID를 조회하고 미준비 상태는 null을 반환합니다.
+         *     POST는 테넌트당 공개 영상 시스템 Lecture + Session을 준비합니다.
+         *     구형 컨테이너 정규화도 POST에서만 수행합니다.
+         */
+        post: operations["media_videos_public_session_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -16566,6 +16570,10 @@ export interface components {
             /** @description 과목(예: 통합과학 / 수학 / 영어) */
             subject?: string;
             title?: string;
+        };
+        PublicVideoSession: {
+            lecture_id: number;
+            session_id: number;
         };
         PublicViewCount: {
             readonly view_count: number;
@@ -30005,8 +30013,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SealedVideo"];
+                    "application/json": components["schemas"]["PublicVideoSession"] | null;
                 };
+            };
+            /** @description Read failed; not an unprepared container. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_videos_public_session_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicVideoSession"];
+                };
+            };
+            /** @description Preparation failed; retry is safe. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
