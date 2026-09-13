@@ -1,5 +1,7 @@
 // PATH: src/app_admin/domains/lectures/queryKeys.ts
 
+import { attendanceQueryKeys } from "@/shared/api/queryKeys/attendance";
+
 export const adminLectureQueryKeys = {
   lectures: ["lectures"] as const,
   lecture: (lectureId: number | null | undefined) => ["lecture", lectureId] as const,
@@ -14,7 +16,7 @@ export const adminLectureQueryKeys = {
   attendanceForSession: (sessionId: number | null | undefined) => ["attendance", sessionId] as const,
   attendanceForPdf: (sessionId: number | null | undefined) => ["attendance-for-pdf", sessionId] as const,
   attendanceMatrix: (lectureId: number | null | undefined) => ["attendance-matrix", lectureId] as const,
-  attendanceEnrolledIds: (sessionId: number | null | undefined) => ["attendance-enrolled-ids", sessionId] as const,
+  attendanceEnrolledIds: attendanceQueryKeys.enrolledIds,
 
   lectureSections: (lectureId: number | null | undefined) => ["lecture-sections", lectureId] as const,
   sectionAssignments: (lectureId: number | null | undefined) => ["section-assignments", lectureId] as const,
