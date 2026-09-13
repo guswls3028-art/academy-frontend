@@ -20,6 +20,7 @@ type MockState = {
   attendanceOrderings: string[];
   attendancePageRequests: number[];
   incompleteAttendancePage: boolean;
+  studentPageRequests: number[];
   attendanceStatuses: Record<number, string>;
   attendanceStatusUpdates: Array<{ id: number; status: string }>;
   secessionPayloads: Array<Record<string, unknown>>;
@@ -38,6 +39,7 @@ type MockOptions = {
   largeLectureEnrollmentRoster?: boolean;
   reregisterSessionStudent?: boolean;
   attendanceRosterSize?: number;
+  paginatedStudents?: boolean;
 };
 
 async function installApi(page: Page, state: MockState, options: MockOptions = {}) {
@@ -218,6 +220,15 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
       return json([]);
     }
     if (path === "/students/") {
+      if (options.paginatedStudents) {
+        const pageNumber = Number(url.searchParams.get("page") || "1");
+        state.studentPageRequests.push(pageNumber);
+        const allStudents = Array.from({ length: 201 }, (_, index) => ({
+          id: 2001 + index, name: `목록학생${String(index + 1).padStart(3, "0")}`,
+          ps_number: `PAGE${index + 1}`, active: true, tags: [], enrollments: [], custom_fields: {},
+        }));
+        return json({ count: allStudents.length, page_size: 100, results: allStudents.slice((pageNumber - 1) * 100, pageNumber * 100) });
+      }
       return json({
         count: 2,
         page_size: 100,
@@ -293,6 +304,7 @@ function createState(overrides: Partial<MockState> = {}): MockState {
     attendanceOrderings: [],
     attendancePageRequests: [],
     incompleteAttendancePage: false,
+    studentPageRequests: [],
     attendanceStatuses: { 501: "UNSET", 502: "ABSENT" },
     attendanceStatusUpdates: [],
     secessionPayloads: [],
@@ -628,6 +640,47 @@ test("수강생 검토 레일과 최근 작업은 1366·1100·390px에서 접근
     await expect(page.getByRole("button", { name: "0명 검토 후 등록" })).toBeVisible();
     await page.getByRole("button", { name: "취소", exact: true }).click();
   }
+});
+
+test("모바일 수강생 페이지 이동은 인원 표기와 겹치지 않고 처음과 끝까지 동작한다", async ({ page }, testInfo) => {
+  const state = createState();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openAttendance(page, state, { paginatedStudents: true });
+  await page.getByRole("button", { name: "수강생 등록" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "차시 수강생 등록", exact: true });
+  const firstPage = dialog.getByRole("button", { name: "첫 페이지", exact: true });
+  const controls = firstPage.locator("..");
+  const summary = controls.locator("..").locator(":scope > div").first().locator("span").first();
+  await expect(dialog.getByRole("checkbox", { name: "목록학생001 선택" })).toBeVisible();
+  await firstPage.scrollIntoViewIfNeeded();
+  await expect.poll(async () => {
+    const countBounds = await summary.boundingBox();
+    const controlBounds = await controls.boundingBox();
+    if (!countBounds || !controlBounds) return false;
+    return countBounds.x + countBounds.width <= controlBounds.x
+      || controlBounds.x + controlBounds.width <= countBounds.x
+      || countBounds.y + countBounds.height <= controlBounds.y
+      || controlBounds.y + controlBounds.height <= countBounds.y;
+  }).toBe(true);
+  for (const label of ["첫 페이지", "이전 페이지", "다음 페이지", "마지막 페이지"]) {
+    const bounds = await dialog.getByRole("button", { name: label, exact: true }).boundingBox();
+    expect(bounds?.width).toBeGreaterThanOrEqual(40);
+    expect(bounds?.height).toBeGreaterThanOrEqual(40);
+  }
+  await dialog.getByRole("button", { name: "마지막 페이지", exact: true }).click();
+  await expect(dialog.getByRole("checkbox", { name: "목록학생201 선택" })).toBeVisible();
+  await expect(controls).toContainText("3 / 3");
+  await expect(dialog.getByRole("button", { name: "0명 검토 후 등록" })).toBeInViewport();
+  await expect.poll(() => dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("reregister-pagination-390.png"), fullPage: true, animations: "disabled" });
+  await firstPage.click();
+  await expect(dialog.getByRole("checkbox", { name: "목록학생001 선택" })).toBeVisible();
+  await dialog.getByRole("button", { name: "다음 페이지", exact: true }).click();
+  await expect(dialog.getByRole("checkbox", { name: "목록학생101 선택" })).toBeVisible();
+  await dialog.getByRole("button", { name: "이전 페이지", exact: true }).click();
+  await expect(dialog.getByRole("checkbox", { name: "목록학생001 선택" })).toBeVisible();
+  expect(state.studentPageRequests).toEqual([1, 3, 1, 2, 1]);
+  expect(state.bulkCreatePayloads).toHaveLength(0);
 });
 
 for (const width of [1366, 390]) {

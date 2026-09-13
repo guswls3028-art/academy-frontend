@@ -1,5 +1,5 @@
 @media (max-width: 639px) {
-  .modal-body:has(> .session-enroll-layout) {
+  .admin-modal.session-enroll-modal .modal-body {
     overflow-y: auto;
   }
 
@@ -16,5 +16,15 @@
 
   .session-enroll-layout .session-enroll-selection {
     width: 100%;
+  }
+
+  .session-enroll-modal .session-enroll-pagination {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .session-enroll-modal .session-enroll-pagination-controls {
+    justify-content: center;
   }
 }

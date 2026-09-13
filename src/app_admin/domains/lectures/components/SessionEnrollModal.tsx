@@ -966,7 +966,7 @@ export default function SessionEnrollModal({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <AdminModal open={true} onClose={() => { void requestClose(); }} type="action" width={840}>
+      <AdminModal open={true} onClose={() => { void requestClose(); }} type="action" width={840} className="session-enroll-modal">
         <ModalHeader
           type="action"
           title="차시 수강생 등록"
@@ -1356,7 +1356,7 @@ export default function SessionEnrollModal({
                     {/* 페이지네이션 */}
                     {(studentsToShow.length > 0 || students.length > 0) && (
                       <div
-                        className="flex items-center justify-between gap-3 py-2.5 px-3 border-t shrink-0 bg-[var(--color-bg-surface)]"
+                        className="flex items-center justify-between gap-3 py-2.5 px-3 border-t shrink-0 bg-[var(--color-bg-surface)] session-enroll-pagination"
                         style={{ borderColor: "var(--color-border-divider)" }}
                       >
                         <div className="flex items-center gap-2 min-w-0">
@@ -1369,7 +1369,7 @@ export default function SessionEnrollModal({
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 session-enroll-pagination-controls">
                           <Button
                             type="button"
                             intent="ghost"
