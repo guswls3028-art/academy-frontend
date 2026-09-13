@@ -270,6 +270,7 @@ export default function SessionAttendancePage({
       if (code === "SECESSION") {
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) });
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceEnrolledIds(sessionId) });
         feedback.success(`${att.name ?? "학생"} 학생이 퇴원 처리되었습니다.`);
       }
       setOpenStatusRowAttId(null);

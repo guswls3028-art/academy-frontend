@@ -12,6 +12,7 @@ import {
   type SessionScoresSummaryColumnMode,
 } from "../api/sessionScores";
 import { scoresQueryKeys } from "../api/queryKeys";
+import { adminLectureQueryKeys } from "@admin/domains/lectures/queryKeys";
 import { fetchAttendance, updateAttendance } from "@/shared/api/contracts/attendance";
 
 import ScoresTable, {
@@ -226,6 +227,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       if (newStatus === "SECESSION") {
         qc.invalidateQueries({ queryKey: scoresQueryKeys.attendanceMatrix(lectureId) });
         qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionEnrollments(sessionId) });
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceEnrolledIds(sessionId) });
         feedback.success("퇴원 처리되었습니다.");
       }
     } catch {

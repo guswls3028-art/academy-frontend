@@ -135,7 +135,7 @@ export async function fetchAttendanceSummary(
   return { total, counts };
 }
 
-/** 세션에 이미 출결 등록된 학생 ID 목록 전체 조회 (수강생 등록 모달에서 중복 제외용, 페이지네이션 전부 수집) */
+/** 퇴원 보관행을 제외한 차시 등록 학생 ID 전체 조회. 불완전한 명단은 반환하지 않는다. */
 export async function fetchAttendanceEnrolledStudentIds(
   sessionId: number
 ): Promise<number[]> {
@@ -143,17 +143,24 @@ export async function fetchAttendanceEnrolledStudentIds(
   let page = 1;
   const pageSize = 500;
   const MAX_PAGES = 100; // 안전 한계: 최대 50,000명
+  let expectedTotal: number | null = null;
+  let collected = 0;
   while (page <= MAX_PAGES) {
     const res = await fetchAttendance(sessionId, { page, page_size: pageSize });
+    expectedTotal ??= res.count;
     const items = res.data ?? [];
     if (items.length === 0) break;
     for (const row of items) {
+      if (row.status === "SECESSION") continue;
       const sid = row?.student_id ?? row?.enrollment?.student_id;
       if (typeof sid === "number" && Number.isFinite(sid)) studentIds.push(sid);
     }
-    const count = res.count ?? 0;
-    if (items.length < pageSize || studentIds.length >= count) break;
+    collected += items.length;
+    if (items.length < pageSize || collected >= res.count) break;
     page += 1;
+  }
+  if (collected !== (expectedTotal ?? 0)) {
+    throw new Error(`수강생 등록 명단을 완성하지 못했습니다. (${collected}/${expectedTotal})`);
   }
   return studentIds;
 }

@@ -1,0 +1,20 @@
+@media (max-width: 639px) {
+  .modal-body:has(> .session-enroll-layout) {
+    overflow-y: auto;
+  }
+
+  .modal-body > .session-enroll-layout {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .session-enroll-layout .session-enroll-roster {
+    flex: 0 0 auto;
+    min-height: 200px;
+    max-height: 360px;
+  }
+
+  .session-enroll-layout .session-enroll-selection {
+    width: 100%;
+  }
+}
