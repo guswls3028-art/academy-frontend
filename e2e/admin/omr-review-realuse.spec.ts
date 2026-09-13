@@ -7,16 +7,19 @@
  * 학생/관리자 projection까지 확인한다.
  */
 import { test, expect } from "../fixtures/strictTest";
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext, Page, Response } from "@playwright/test";
 import { PDFDocument, rgb } from "pdf-lib";
 import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
+import { emitOmrCleanupStatus } from "../helpers/releaseApiBoundary";
 
 test.setTimeout(360_000);
 
 const API = getApiBaseUrl().replace(/\/+$/, "");
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const CODE = process.env.E2E_TENANT_CODE?.trim() || "";
+const ADMIN_USER = process.env.E2E_ADMIN_USER?.trim() || "";
+const ADMIN_PASS = process.env.E2E_ADMIN_PASS?.trim() || "";
 const STUDENT_PASS = process.env.E2E_STUDENT_PASS?.trim() || "";
 const TS = Date.now();
 const TODAY_KST = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
@@ -40,9 +43,23 @@ function requireIsolatedScenario(): void {
   if (!STUDENT_PASS) {
     throw new Error("OMR real-use requires E2E_STUDENT_PASS from the isolated development scenario");
   }
+  if (!ADMIN_USER || !ADMIN_PASS) {
+    throw new Error("OMR real-use requires the configured isolated development admin credentials");
+  }
 }
 
 type Tokens = { access: string; refresh: string };
+type RealUseRole = "admin" | "student" | "parent";
+type BrowserAccountExpectation = {
+  role: RealUseRole;
+  username: string;
+  password: string;
+};
+type CurrentUser = {
+  tenantRole?: string | null;
+  must_change_password?: boolean;
+  first_login_guide_required?: boolean;
+};
 
 type CreatedState = {
   adminAccess?: string;
@@ -135,16 +152,137 @@ async function expectParentApi<TBody = any>(
   return body as TBody;
 }
 
-async function seedBrowser(page: Page, tokens: Tokens, landingPath: string): Promise<void> {
-  const payload = { access: tokens.access, refresh: tokens.refresh, code: CODE };
-  await page.goto(`${BASE}/login`, { waitUntil: "commit", timeout: 30_000 });
-  await page.evaluate(({ access, refresh, code }) => {
-    localStorage.setItem("access", access);
-    localStorage.setItem("refresh", refresh);
-    localStorage.setItem("tenant_code", code);
-    sessionStorage.setItem("tenantCode", code);
-  }, payload);
+function matchesApiResponse(response: Response, method: string, pathname: string): boolean {
+  return response.request().method() === method
+    && new URL(response.url()).pathname === `/api/v1${pathname}`;
+}
+
+async function readCurrentUserResponse(response: Response): Promise<CurrentUser> {
+  expect(response.status(), `GET /core/me/ -> ${response.status()}`).toBe(200);
+  return await response.json() as CurrentUser;
+}
+
+async function completeInitialAccountPrompts(
+  page: Page,
+  currentUser: CurrentUser,
+  expected: BrowserAccountExpectation,
+): Promise<void> {
+  expect(currentUser.tenantRole).toBe(expected.role);
+  expect(typeof currentUser.must_change_password).toBe("boolean");
+  expect(typeof currentUser.first_login_guide_required).toBe("boolean");
+
+  const passwordDialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
+  const passwordRecommendationRequired = Boolean(
+    currentUser.must_change_password
+      && (expected.role === "student" || expected.role === "parent"),
+  );
+  if (passwordRecommendationRequired) {
+    await expect(passwordDialog).toBeVisible({ timeout: 10_000 });
+    await expect(passwordDialog).toContainText("나중에 변경해도 계속 이용할 수 있습니다");
+    await passwordDialog
+      .getByRole("button", { name: "위험을 이해했고 나중에", exact: true })
+      .click();
+    await expect(passwordDialog).toBeHidden();
+  } else {
+    await expect(passwordDialog).toBeHidden();
+  }
+
+  const firstLoginDialog = page.getByRole("dialog", { name: "계정 안내" });
+  if (!currentUser.first_login_guide_required) {
+    await expect(firstLoginDialog).toBeHidden();
+    return;
+  }
+
+  await expect(firstLoginDialog).toBeVisible({ timeout: 10_000 });
+  const completionResponsePromise = page.waitForResponse(
+    (response) => matchesApiResponse(response, "POST", "/core/me/first-login-guide/complete/"),
+    { timeout: 30_000 },
+  );
+  await firstLoginDialog.getByRole("button", { name: "확인", exact: true }).click();
+  const completionResponse = await completionResponsePromise;
+  expect(
+    completionResponse.status(),
+    `POST /core/me/first-login-guide/complete/ -> ${completionResponse.status()}`,
+  ).toBe(200);
+  const completionBody = await completionResponse.json() as CurrentUser;
+  expect(completionBody.first_login_guide_required).toBe(false);
+  await expect(firstLoginDialog).toBeHidden();
+}
+
+async function loginBrowserAsRealUser(
+  page: Page,
+  landingPath: string,
+  expected: BrowserAccountExpectation,
+): Promise<void> {
+  const hostname = new URL(BASE).hostname.trim().toLowerCase();
+  const requiresTenantPath = hostname === "localhost"
+    || hostname === "127.0.0.1"
+    || hostname.endsWith(".pages.dev")
+    || hostname.endsWith(".trycloudflare.com");
+  const loginPath = requiresTenantPath ? `/login/${encodeURIComponent(CODE)}` : "/login";
+
+  await gotoAndSettle(page, `${BASE}${loginPath}`, { timeout: 45_000 });
+  const previousGeneration = await page.evaluate(() => (
+    localStorage.getItem("academy:auth-active-generation:v1")
+  ));
+  const loginForm = page.getByRole("form", { name: "로그인 폼" });
+  await expect(loginForm).toBeVisible();
+  await page.getByTestId("login-username").fill(expected.username);
+  await page.getByTestId("login-password").fill(expected.password);
+  const loginResponsePromise = page.waitForResponse(
+    (response) => matchesApiResponse(response, "POST", "/token/"),
+    { timeout: 30_000 },
+  );
+  const currentUserResponsePromise = page.waitForResponse(
+    (response) => matchesApiResponse(response, "GET", "/core/me/") && response.status() === 200,
+    { timeout: 30_000 },
+  );
+  await page.getByTestId("login-submit").click();
+  const loginResponse = await loginResponsePromise;
+  expect(loginResponse.status(), `POST /token/ -> ${loginResponse.status()}`).toBe(200);
+  const currentUser = await readCurrentUserResponse(await currentUserResponsePromise);
+  expect(currentUser.tenantRole).toBe(expected.role);
+
+  const activeSession = await page.evaluate(() => {
+    const generation = localStorage.getItem("academy:auth-active-generation:v1");
+    const raw = generation
+      ? localStorage.getItem(`academy:auth-tokens:v1:${generation}`)
+      : null;
+    let envelope: { access?: unknown; refresh?: unknown; generation?: unknown } | null = null;
+    try { envelope = raw ? JSON.parse(raw) : null; } catch { envelope = null; }
+    return {
+      generation,
+      envelopeGeneration: envelope?.generation ?? null,
+      hasAccess: typeof envelope?.access === "string" && envelope.access.length > 0,
+      hasRefresh: typeof envelope?.refresh === "string" && envelope.refresh.length > 0,
+      hasLegacyAccess: localStorage.getItem("access") !== null,
+      hasLegacyRefresh: localStorage.getItem("refresh") !== null,
+    };
+  });
+  expect(activeSession.generation).toBeTruthy();
+  expect(activeSession.envelopeGeneration).toBe(activeSession.generation);
+  expect(activeSession.hasAccess).toBe(true);
+  expect(activeSession.hasRefresh).toBe(true);
+  expect(activeSession.hasLegacyAccess).toBe(false);
+  expect(activeSession.hasLegacyRefresh).toBe(false);
+  if (previousGeneration) expect(activeSession.generation).not.toBe(previousGeneration);
+
   await gotoAndSettle(page, `${BASE}${landingPath}`, { timeout: 45_000 });
+  await completeInitialAccountPrompts(page, currentUser, expected);
+
+  const reloadedMeResponsePromise = page.waitForResponse(
+    (response) => matchesApiResponse(response, "GET", "/core/me/") && response.status() === 200,
+    { timeout: 30_000 },
+  );
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const reloadedUser = await readCurrentUserResponse(await reloadedMeResponsePromise);
+  expect(reloadedUser.tenantRole).toBe(expected.role);
+  expect(reloadedUser.first_login_guide_required).toBe(false);
+  await expect(page.getByRole("dialog", { name: "비밀번호 변경 권장" })).toBeHidden();
+  await expect(page.getByRole("dialog", { name: "계정 안내" })).toBeHidden();
+  expect(await page.evaluate(() => (
+    localStorage.getItem("academy:auth-active-generation:v1")
+  ))).toBe(activeSession.generation);
 }
 
 async function chooseExamHeaderAction(
@@ -284,6 +422,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       };
     }
     if (!acceptedStatuses.includes(out.status)) {
+      emitOmrCleanupStatus("remove", acceptedStatuses, out.status);
       failures.push(`${method} ${path} -> ${out.status} ${JSON.stringify(out.body)}`);
     }
     return out;
@@ -316,6 +455,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     if (examDelete.status === 200) {
       const action = (examDelete.body as { action?: unknown } | null)?.action;
       if (action !== "archived") {
+        emitOmrCleanupStatus("archive-action", [200], examDelete.status);
         failures.push(
           `unexpected exam cleanup action -> 200 ${JSON.stringify(examDelete.body)}`,
         );
@@ -344,8 +484,12 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const]
       : []),
   ]) {
-    const verification = await apiFetch(request, "GET", path, token);
+    const verification = await apiFetch(request, "GET", path, token).catch((error) => {
+      emitOmrCleanupStatus("verify-absent", [404], 0);
+      throw error;
+    });
     if (verification.status !== 404) {
+      emitOmrCleanupStatus("verify-absent", [404], verification.status);
       failures.push(`verify ${label} absent -> ${verification.status} ${JSON.stringify(verification.body)}`);
     }
   }
@@ -356,13 +500,17 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       "GET",
       `/exams/${created.examId}/?include_inactive=true`,
       token,
-    );
+    ).catch((error) => {
+      emitOmrCleanupStatus("verify-archive", [200], 0);
+      throw error;
+    });
     if (
       retained.status !== 200
       || Number(retained.body?.id) !== created.examId
       || retained.body?.title !== EXAM_TITLE
       || retained.body?.is_active !== false
     ) {
+      emitOmrCleanupStatus("verify-archive", [200], retained.status);
       failures.push(
         `verify archived E2E exam handoff -> ${retained.status} ${JSON.stringify(retained.body)}`,
       );
@@ -509,10 +657,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       CONTROLLED_PHONE.slice(-8),
     );
 
-    await seedBrowser(
+    await loginBrowserAsRealUser(
       page,
-      adminTokens,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
+      { role: "admin", username: ADMIN_USER, password: ADMIN_PASS },
     );
     const draftDialog = page.getByRole("dialog", { name: /임시저장된 변경/ });
     if (await draftDialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
@@ -692,24 +840,32 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(pendingExamSummary.pass_count).toBe(0);
     expect(pendingExamSummary.fail_count).toBe(0);
 
-    await seedBrowser(page, studentTokens, "/student/grades");
+    await loginBrowserAsRealUser(
+      page,
+      "/student/grades",
+      { role: "student", username: STUDENT_USER, password: STUDENT_PASS },
+    );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const pendingCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
     await expect(pendingCard).toContainText("채점 진행 중", { timeout: 20_000 });
     await expect(pendingCard).toContainText("서술형 채점 중");
     await expect(pendingCard).not.toContainText(`${EXPECTED_OBJECTIVE_SCORE}/50점`);
 
-    await seedBrowser(page, parentTokens, "/student/grades");
+    await loginBrowserAsRealUser(
+      page,
+      "/student/grades",
+      { role: "parent", username: CONTROLLED_PHONE, password: STUDENT_PASS },
+    );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const pendingParentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
     await expect(pendingParentCard).toContainText("채점 진행 중", { timeout: 20_000 });
     await expect(pendingParentCard).toContainText("서술형 채점 중");
     await expect(pendingParentCard).not.toContainText(`${EXPECTED_OBJECTIVE_SCORE}/50점`);
 
-    await seedBrowser(
+    await loginBrowserAsRealUser(
       page,
-      adminTokens,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
+      { role: "admin", username: ADMIN_USER, password: ADMIN_PASS },
     );
     await chooseExamHeaderAction(page, "문항별 점수 입력");
     const gradingDialog = page.getByRole("dialog").filter({
@@ -763,7 +919,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(finalParentExam?.grading_status).not.toBe("subjective_pending");
     expect(finalParentExam?.total_score).toBe(EXPECTED_SCORE);
 
-    await seedBrowser(page, studentTokens, "/student/grades");
+    await loginBrowserAsRealUser(
+      page,
+      "/student/grades",
+      { role: "student", username: STUDENT_USER, password: STUDENT_PASS },
+    );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const finalStudentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
     await expect(finalStudentCard).toContainText(`${EXPECTED_SCORE}/50점`, { timeout: 20_000 });
@@ -775,7 +935,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       .toContainText(`${EXPECTED_SCORE}/50점`, { timeout: 20_000 });
     await page.screenshot({ path: `e2e/screenshots/omr-review-realuse-student-${TS}.png`, fullPage: true });
 
-    await seedBrowser(page, parentTokens, "/student/grades");
+    await loginBrowserAsRealUser(
+      page,
+      "/student/grades",
+      { role: "parent", username: CONTROLLED_PHONE, password: STUDENT_PASS },
+    );
     await waitForRenderSettled(page, { timeout: 20_000 });
     const finalParentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
     await expect(finalParentCard).toContainText(`${EXPECTED_SCORE}/50점`, { timeout: 20_000 });

@@ -205,11 +205,12 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
       { status: "cancelled" },
     );
     expect(siblingMutation.status).toBe(404);
+    // JWT tenant binding rejects the token before participant permissions.
     expect(await probeDevelopmentCrossTenantDenial({
       accessToken: adminAccess,
       participantId: participant.id,
       targetTenantCode: CROSS_TENANT,
-    })).toBe(403);
+    })).toBe(401);
 
     await adminPage.setViewportSize({ width: 390, height: 844 });
     const mobileAssignments = await openDateAggregateFromCalendar(adminPage, sessionDate);
