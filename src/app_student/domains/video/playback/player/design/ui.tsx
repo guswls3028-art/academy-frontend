@@ -224,13 +224,14 @@ export function SpeedButton({
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: PointerEvent) => {
+    const onDown = (e: MouseEvent) => {
       if (btnRef.current?.contains(e.target as Node)) return;
       if (menuRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     };
-    window.addEventListener("pointerdown", onDown);
-    return () => window.removeEventListener("pointerdown", onDown);
+    const eventType = typeof window.PointerEvent === "function" ? "pointerdown" : "mousedown";
+    window.addEventListener(eventType, onDown);
+    return () => window.removeEventListener(eventType, onDown);
   }, [open]);
 
   const handleOpen = () => {
@@ -308,13 +309,14 @@ export function QualityButton({
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: PointerEvent) => {
+    const onDown = (e: MouseEvent) => {
       if (btnRef.current?.contains(e.target as Node)) return;
       if (menuRef.current?.contains(e.target as Node)) return;
       setOpen(false);
     };
-    window.addEventListener("pointerdown", onDown);
-    return () => window.removeEventListener("pointerdown", onDown);
+    const eventType = typeof window.PointerEvent === "function" ? "pointerdown" : "mousedown";
+    window.addEventListener(eventType, onDown);
+    return () => window.removeEventListener(eventType, onDown);
   }, [open]);
 
   const disabled = !qualities || qualities.length <= 1;

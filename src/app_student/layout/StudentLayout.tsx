@@ -97,6 +97,12 @@ function StudentLayoutInner() {
   const [parentSelectionReady, setParentSelectionReady] = useState(false);
   const [selectedParentStudentId, setSelectedParentStudentId] = useState<number | null>(null);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-student-app", "true");
+    return () => root.removeAttribute("data-student-app");
+  }, []);
+
   const clearStudentScopedQueries = useCallback(() => {
     const studentScopePredicate = (query: { queryKey: readonly unknown[] }) =>
       isStudentScopedQueryKey(query.queryKey);

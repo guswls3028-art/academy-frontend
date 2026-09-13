@@ -28,9 +28,9 @@ html {
   text-rendering: optimizeLegibility;
 }
 
-/* Student-app-only: body-level visual styles
-   Scoped via :has() so they only apply when [data-app="student"] is present */
-body:has([data-app="student"]) {
+/* StudentLayout owns this document attribute for its mounted route lifetime.
+   The explicit scope also works in browsers without the :has selector. */
+html[data-student-app="true"] body {
   height: 100%;
   overflow: hidden; /* body 스크롤 차단 — student app only */
   background-color: var(--stu-bg);
@@ -51,7 +51,7 @@ body:has([data-app="student"]) {
   background-position: 0 0, 0 0;
 }
 
-html:has([data-app="student"]) {
+html[data-student-app="true"] {
   height: 100%;
   overflow: hidden;
 }

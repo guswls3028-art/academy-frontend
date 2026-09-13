@@ -4,6 +4,7 @@ import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import { trackProductUsage } from "./client";
 import { recordStudentScreenView } from "@/shared/studentSupport/studentSupport.api";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 import { ProductAnalyticsContext } from "./context";
 import { resolveProductRoute } from "./routeRegistry";
 import type { ProductRoute } from "./types";
@@ -82,7 +83,7 @@ export default function ProductAnalyticsProvider({
       setViewId(null);
       return;
     }
-    const nextViewId = crypto.randomUUID();
+    const nextViewId = createRandomUuid();
     setViewId(nextViewId);
     trackProductUsage({
       event_type: "screen_view",
@@ -212,7 +213,7 @@ export default function ProductAnalyticsProvider({
       trackProductUsage({
         event_type: "cta_click",
         view_id: viewId,
-        interaction_id: crypto.randomUUID(),
+        interaction_id: createRandomUuid(),
         feature_id: destination.featureId,
         screen_id: route.screenId,
         surface: route.surface,

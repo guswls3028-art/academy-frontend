@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { setLocalItem } from "@/shared/utils/safeLocalStorage";
+import { listenMediaQuery } from "@/shared/utils/mediaQueryListener";
 
 import {
   getInitialMode,
@@ -37,8 +38,7 @@ export function StudentThemeProvider({ children }: { children: ReactNode }) {
     if (mode !== "system") return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    return listenMediaQuery(mq, handler);
   }, [mode]);
 
   // 다른 탭에서 변경 시 동기화
