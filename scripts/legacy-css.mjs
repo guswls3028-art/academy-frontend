@@ -162,7 +162,8 @@ export async function createLegacyStylesheets(stylesheets) {
 }
 
 /** Extract SystemJS styles into cached, compatible stylesheets. */
-export function legacyCssPlugin() {
+export function legacyCssPlugin(buildVersion) {
+  if (!buildVersion) throw new Error("Legacy CSS requires the compilation revision");
   const extracted = new Map();
   const transformIdentity = readFileSync(new URL(import.meta.url), "utf8") +
     readFileSync(new URL("../pnpm-lock.yaml", import.meta.url), "utf8");
@@ -182,7 +183,10 @@ export function legacyCssPlugin() {
       const injection = /var __vite_style__ = document\.createElement\('style'\);__vite_style__\.textContent = ("(?:[^"\\]|\\.)*");document\.head\.appendChild\(__vite_style__\);/g;
       const result = code.replace(injection, (_match, literal) => {
         const source = JSON.parse(literal);
-        const hash = createHash("sha256").update(source).update(transformIdentity).digest("hex").slice(0, 12);
+        // Layer specificity is computed across every stylesheet. A change in
+        // another asset can change this file's output, so bind its immutable
+        // URL to the complete release revision, not only its local source.
+        const hash = createHash("sha256").update(buildVersion).update(source).update(transformIdentity).digest("hex").slice(0, 12);
         const fileName = `assets/${chunk.name.replace(/[^a-zA-Z0-9_-]/g, "-")}-${hash}-legacy.css`;
         extracted.set(fileName, source);
         const url = base === "./" || base === ""
