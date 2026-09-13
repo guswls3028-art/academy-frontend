@@ -20,6 +20,7 @@ type MockState = {
   attendanceOrderings: string[];
   attendanceStatuses: Record<number, string>;
   attendanceStatusUpdates: Array<{ id: number; status: string }>;
+  secessionPayloads: Array<Record<string, unknown>>;
   bulkCreatePayloads: number[][];
   lectureEnrollmentPageSizes: string[];
   lectureEnrollmentPages: string[];
@@ -111,6 +112,7 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
     if (attendanceDetailMatch && method === "PATCH") {
       const id = Number(attendanceDetailMatch[1]);
       const payload = request.postDataJSON() as { status?: string };
+      if (payload.status === "SECESSION") state.secessionPayloads.push(request.postDataJSON());
       if (payload.status) {
         state.attendanceStatuses[id] = payload.status;
         state.attendanceStatusUpdates.push({ id, status: payload.status });
@@ -252,6 +254,7 @@ function createState(overrides: Partial<MockState> = {}): MockState {
     attendanceOrderings: [],
     attendanceStatuses: { 501: "UNSET", 502: "ABSENT" },
     attendanceStatusUpdates: [],
+    secessionPayloads: [],
     bulkCreatePayloads: [],
     lectureEnrollmentPageSizes: [],
     lectureEnrollmentPages: [],
@@ -550,3 +553,44 @@ test("수강생 검토 레일과 최근 작업은 1366·1100·390px에서 접근
     await page.getByRole("button", { name: "취소", exact: true }).click();
   }
 });
+
+for (const width of [1366, 390]) {
+  test(`퇴원 선택은 차시만 기본값이며 전체 범위도 명시 전송한다 ${width}`, async ({ page }, testInfo) => {
+    const state = createState();
+    await page.setViewportSize({ width, height: 844 });
+    await openAttendance(page, state);
+    const openSecession = async () => {
+      if (width === 390) {
+        await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
+        await page.locator(".attendance-popover").getByRole("button", { name: "퇴원", exact: true }).click();
+      } else {
+        await page.getByRole("button", { name: "결석학생 퇴원 상태로 변경" }).click();
+      }
+      await expect(page.getByRole("dialog", { name: "퇴원 범위 선택" })).toBeVisible();
+    };
+    await openSecession();
+    const dialog = page.getByRole("dialog", { name: "퇴원 범위 선택" });
+    await expect(dialog.getByRole("radio", { name: /1\. 이 차시만 퇴원/ })).toBeChecked();
+    await dialog.getByRole("button", { name: "취소", exact: true }).click();
+    expect(state.secessionPayloads).toHaveLength(0);
+    await openSecession();
+    await expect.poll(() => dialog.evaluate((el) => {
+      const bounds = el.getBoundingClientRect();
+      return bounds.left >= 0 && bounds.right <= window.innerWidth && el.scrollWidth <= el.clientWidth;
+    })).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`secession-${width}.png`), fullPage: true, animations: "disabled" });
+    await dialog.getByRole("button", { name: "이 차시만 퇴원", exact: true }).click();
+    await expect.poll(() => state.secessionPayloads).toEqual([
+      { status: "SECESSION", confirm_secession: true, secession_scope: "session" },
+    ]);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await openSecession();
+    await expect(dialog.getByRole("radio", { name: /1\. 이 차시만 퇴원/ })).toBeChecked();
+    await dialog.getByRole("radio", { name: /2\. 강의 전체 퇴원/ }).check();
+    await dialog.getByRole("button", { name: "강의 전체 퇴원", exact: true }).click();
+    await expect.poll(() => state.secessionPayloads.at(-1)).toEqual(
+      { status: "SECESSION", confirm_secession: true, secession_scope: "lecture" },
+    );
+    expect(state.attendanceStatuses[501]).toBe("UNSET");
+  });
+}

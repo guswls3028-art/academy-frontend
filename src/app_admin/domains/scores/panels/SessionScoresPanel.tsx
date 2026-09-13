@@ -21,7 +21,7 @@ import ScoresTable, {
 import StudentResultDrawer from "@admin/domains/results/components/StudentResultDrawer";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { useConfirm } from "@/shared/ui/confirm";
+import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm";
 import { reorderSession } from "../api/reorderSession";
 import type { ExamHeaderAction } from "../components/ExamHeaderActionMenu";
 import {
@@ -116,7 +116,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   onActiveCellChange,
   onOpenExamGrading,
 }, ref) {
-  const confirm = useConfirm();
+  const { confirmSecession, secessionDialog } = useSecessionConfirm();
   /**
    * Direct DOM focus/save handle. React callback ref의 null 해제를 무시해 마지막 handle을
    * 보존한다. 탭 이동으로 unmount된 뒤에도 이미 캡처된 autosave가 pending PATCH를
@@ -214,19 +214,12 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const handleAttendanceChange = useCallback(async (enrollmentId: number, newStatus: string) => {
     const attendanceRecordId = attendanceIdMap[enrollmentId];
     if (!attendanceRecordId) return;
-    if (newStatus === "SECESSION") {
-      const secOk = await confirm({
-        title: "확인",
-        message: "퇴원 처리하시겠습니까?\n\n• 수강등록이 비활성화됩니다\n• 시험/과제 응시 대상에서 제외됩니다\n• 기존 데이터(성적·출결)는 보관됩니다",
-        danger: true,
-        confirmText: "확인",
-      });
-      if (!secOk) return;
-    }
+    const secessionScope = newStatus === "SECESSION" ? await confirmSecession() : null;
+    if (newStatus === "SECESSION" && !secessionScope) return;
     try {
       await updateAttendance(
         attendanceRecordId,
-        { status: newStatus, confirm_secession: newStatus === "SECESSION" ? true : undefined },
+        { status: newStatus, confirm_secession: newStatus === "SECESSION" ? true : undefined, secession_scope: secessionScope ?? undefined },
       );
       qc.invalidateQueries({ queryKey: scoresQueryKeys.attendance(sessionId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
@@ -238,7 +231,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     } catch {
       feedback.error("출결 변경에 실패했습니다.");
     }
-  }, [attendanceIdMap, confirm, qc, sessionId, lectureId]);
+  }, [attendanceIdMap, confirmSecession, qc, sessionId, lectureId]);
 
   const rows = useMemo(() => {
     const searchedRows = allRows.filter((row) => (
@@ -486,6 +479,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
   return (
     <div className="flex flex-col gap-4">
+      {secessionDialog}
       <div
         tabIndex={0}
         className="min-w-0 overflow-x-auto outline-none"

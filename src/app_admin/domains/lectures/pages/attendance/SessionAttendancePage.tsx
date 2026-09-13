@@ -40,6 +40,8 @@ import {
   setLocalItem,
 } from "@/shared/utils/safeLocalStorage";
 import { useConfirm } from "@/shared/ui/confirm";
+import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm";
+import type { SecessionScope } from "@/shared/api/contracts/attendance";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
 import { substituteScoreVars, buildScoreVars, buildGenericScoreTemplate, buildScoreDetail } from "@/shared/scoring/scoreReport";
@@ -114,6 +116,7 @@ export default function SessionAttendancePage({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const { confirmSecession, secessionDialog } = useSecessionConfirm();
   const isCompactAttendance = useIsMobile();
   const { user } = useAuth();
   const sortStorageKey = getTenantUserLocalKey("attendance:sort", user?.id);
@@ -227,12 +230,13 @@ export default function SessionAttendancePage({
   });
 
   const updateStatus = useMutation({
-    mutationFn: ({ id, status, confirm_secession }: {
+    mutationFn: ({ id, status, confirm_secession, secession_scope }: {
       id: number;
       status: AttendanceStatus;
       confirm_secession?: boolean;
+      secession_scope?: SecessionScope;
     }) =>
-      updateAttendance(id, { status, confirm_secession }),
+      updateAttendance(id, { status, confirm_secession, secession_scope }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
       if (Number.isFinite(lectureId)) {
@@ -245,21 +249,15 @@ export default function SessionAttendancePage({
 
   async function handleStatusChange(att: AttendanceListItem, code: AttendanceStatus) {
     const active = toAttendanceStatus(att.status) === code;
-    if (active) {
+    if (active && code !== "SECESSION") {
       setOpenStatusRowAttId(null);
       statusRowTriggerRef.current = null;
       return;
     }
     if (pendingStatusIds.has(att.id)) return;
-    if (code === "SECESSION") {
-      const secOk = await confirm({
-        title: "확인",
-        message: `"${att.name ?? "학생"}" 학생을 퇴원 처리하시겠습니까?\n\n• 수강등록이 비활성화됩니다\n• 시험/과제 응시 대상에서 제외됩니다\n• 기존 데이터(성적·출결)는 보관됩니다`,
-        danger: true,
-        confirmText: "확인",
-      });
-      if (!secOk) return;
-    }
+    if (code === "SECESSION") setOpenStatusRowAttId(null);
+    const secessionScope = code === "SECESSION" ? await confirmSecession(att.name ?? "학생") : null;
+    if (code === "SECESSION" && !secessionScope) return;
 
     setPendingStatusIds((current) => new Set(current).add(att.id));
     try {
@@ -267,6 +265,7 @@ export default function SessionAttendancePage({
         id: att.id,
         status: code,
         confirm_secession: code === "SECESSION" ? true : undefined,
+        secession_scope: secessionScope ?? undefined,
       });
       if (code === "SECESSION") {
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
@@ -983,6 +982,7 @@ export default function SessionAttendancePage({
       </div>
 
       {/* 수동 알림 발송 모달 */}
+      {secessionDialog}
       <NotificationPreviewModal
         open={notifModal.open}
         onClose={() => setNotifModal((s) => ({ ...s, open: false }))}

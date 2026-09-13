@@ -162,6 +162,8 @@ export async function fetchAttendanceEnrolledStudentIds(
  * 2️⃣ 출결 단건 수정 (상태 / 메모)
  * PATCH /api/v1/lectures/attendance/{id}/
  * ======================================================= */
+export type SecessionScope = "session" | "lecture";
+
 export async function updateAttendance(
   id: number,
   payload: {
@@ -170,6 +172,7 @@ export async function updateAttendance(
     planned_arrival_date?: string | null;
     planned_arrival_time?: string | null;
     confirm_secession?: boolean;
+    secession_scope?: SecessionScope;
   }
 ) {
   if (payload.status === "SECESSION" && payload.confirm_secession !== true) {
