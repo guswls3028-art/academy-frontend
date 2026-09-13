@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { isApiError } from "@/shared/api/axios";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 import { trackProductUsage } from "./client";
 import { useProductAnalyticsView } from "./context";
 import type { ProductAnalyticsFailure } from "./types";
@@ -25,7 +26,7 @@ export function useTrackedTask() {
       operation: () => Promise<T>,
     ): Promise<T> {
       if (!enabled || !route || !viewId) return operation();
-      const interactionId = crypto.randomUUID();
+      const interactionId = createRandomUuid();
       const common = {
         view_id: viewId,
         interaction_id: interactionId,
