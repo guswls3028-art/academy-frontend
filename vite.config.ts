@@ -61,7 +61,7 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react(),
     tailwindcss(),
-    legacyCssPlugin(),
+    legacyCssPlugin(buildVersion),
     legacy({
       targets: ["ios >= 10.3", "chrome >= 64", "firefox >= 60", "samsung >= 8"],
       modernPolyfills: ["es.array.at", "es.array.find-last", "es.object.has-own", "es.promise.with-resolvers"],

@@ -51,7 +51,7 @@ test("responsive flex direction moves the legacy gap to the vertical axis", asyn
 });
 
 test("Vite legacy injection becomes a cached stylesheet instead of inline modern CSS", async () => {
-  const plugin = legacyCssPlugin();
+  const plugin = legacyCssPlugin("release-a");
   plugin.configResolved({ base: "/" });
   const css = "@layer base{button{padding:12px}}";
   const injected = `var __vite_style__ = document.createElement('style');__vite_style__.textContent = ${JSON.stringify(css)};document.head.appendChild(__vite_style__);console.log('ready');`;
@@ -66,6 +66,18 @@ test("Vite legacy injection becomes a cached stylesheet instead of inline modern
   assert.equal(emitted.length, 1);
   assert.match(emitted[0].source, /button/);
   assert.doesNotMatch(emitted[0].source, /@layer/);
+});
+
+test("a sibling stylesheet's layer change cannot reuse a prior release's CSS URL", async () => {
+  const same = { fileName: "same.css", source: "@layer base{.same{color:red}}" };
+  const before = await createLegacyStylesheets([same, { fileName: "other.css", source: "@layer base{.other{color:red}}" }]);
+  const after = await createLegacyStylesheets([same, { fileName: "other.css", source: "@layer base{#other .specific{color:red}}" }]);
+  assert.notEqual(before.get("same.css"), after.get("same.css"), "global specificity affects unchanged local CSS");
+  const injected = `var __vite_style__ = document.createElement('style');__vite_style__.textContent = ${JSON.stringify(same.source)};document.head.appendChild(__vite_style__);`;
+  const chunk = { name: "same", fileName: "assets/same-legacy.js" };
+  const first = legacyCssPlugin("release-a").renderChunk(injected, chunk).code;
+  const next = legacyCssPlugin("release-b").renderChunk(injected, chunk).code;
+  assert.notEqual(first, next, "new compilation revision must change the immutable URL");
 });
 
 test("YouTube legacy ratio has normal, theater and fullscreen height behavior", async () => {
