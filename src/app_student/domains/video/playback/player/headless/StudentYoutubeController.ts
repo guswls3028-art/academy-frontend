@@ -166,7 +166,7 @@ export class StudentYoutubeController {
   private opts: YoutubeControllerOptions;
   private policy: Policy;
   private tokenRef: string;
-  private readonly playbackEnd: PlaybackSessionEnd;
+  private playbackEnd: PlaybackSessionEnd;
   private maxWatchedRef = 0;
   private lastSavedPosition = -1;
   private eventQueue: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }> = [];
@@ -377,6 +377,23 @@ export class StudentYoutubeController {
     this.tokenRef = token;
   }
 
+  setPolicy(policy: Partial<Policy> | null | undefined) {
+    if (this.disposed) return;
+    const next = normalizePolicy(policy);
+    const monitoringChanged = this.policy.monitoring_enabled !== next.monitoring_enabled;
+    if (this.policy.monitoring_enabled && !next.monitoring_enabled) {
+      this.playbackEnd.finish(() => this.flushEvents());
+      this.playbackEnd = new PlaybackSessionEnd(() => this.policy.monitoring_enabled ? this.tokenRef : null);
+      this.playbackEnd.listen();
+    }
+    this.policy = next;
+    if (monitoringChanged) {
+      this.intervals.forEach(clearInterval);
+      this.intervals = [];
+      this.startIntervals();
+    }
+  }
+
   setQuality() {
     this.showToast("YouTube 영상은 화질을 자동으로 조정합니다.", "info");
   }
@@ -567,7 +584,6 @@ export class StudentYoutubeController {
 
   private startDocListeners() {
     this.playbackEnd.listen();
-    const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     const onVis = () => {
       if (this.disposed) return;
       if (document.hidden) {
@@ -575,7 +591,7 @@ export class StudentYoutubeController {
         this.queueEvent("VISIBILITY_HIDDEN", { hidden: true });
       } else {
         this.queueEvent("VISIBILITY_VISIBLE", { hidden: false });
-        if (monitoringEnabled) {
+        if (this.policy.monitoring_enabled) {
           const token = this.tokenRef;
           if (token) postRefresh(token).catch(ignoreBestEffortError);
         }
