@@ -259,6 +259,41 @@ test.describe("학생 커뮤니티 durable draft", () => {
     await expect.poll(() => readDraft(page, COUNSEL_KEY)).toBeNull();
   });
 
+  test("탭 전환 직후 연 상담 작성 화면을 늦은 주소 반영이 닫지 않는다", async ({ page }, testInfo) => {
+    await installStudentApi(page);
+    await openForm(page, "QnA");
+    await page.getByRole("button", { name: "뒤로", exact: true }).click();
+    // Activate the newly rendered CTA before the router's deferred location render.
+    await page.evaluate(() => {
+      const observer = new MutationObserver(() => {
+        const button = [...document.querySelectorAll("button")].find((element) => (
+          element.textContent?.trim() === "상담 신청하기" && element.getClientRects().length > 0
+        ));
+        if (!button) return;
+        observer.disconnect();
+        button.click();
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+    await page.getByRole("button", { name: "상담", exact: true }).click();
+    await expect(page).toHaveURL(/tab=counsel/);
+    const title = page.getByPlaceholder("예: 진로 상담, 학습 방법 상담");
+    await expect(title).toBeVisible();
+    await title.fill("빠르게 연 상담도 유지");
+    await page.locator(".ProseMirror").fill("주소 반영 뒤에도 작성 화면과 초안을 유지합니다.");
+    await flushPageDraft(page);
+    await expect.poll(() => readDraftTitle(page, COUNSEL_KEY)).toBe("빠르게 연 상담도 유지");
+    for (const width of [390, 1366]) {
+      await page.setViewportSize({ width, height: 844 });
+      await expect(title).toHaveValue("빠르게 연 상담도 유지");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: testInfo.outputPath(`counsel-navigation-${width}.png`), fullPage: true });
+    }
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "상담 신청하기", exact: true }).click();
+    await expect(title).toHaveValue("빠르게 연 상담도 유지");
+  });
+
   test("30일 안의 versioned 초안은 복구한다", async ({ page }) => {
     await installStudentApi(page);
     await page.addInitScript(({ qnaKey }) => {

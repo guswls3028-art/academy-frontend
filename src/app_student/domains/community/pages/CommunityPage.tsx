@@ -324,8 +324,8 @@ export default function CommunityPage() {
   }, [location.pathname, location.search, location.state, navigate]);
 
   const selectTab = (nextTab: Tab) => {
-    setTab(nextTab);
-    setView({ kind: "tabs" });
+    // Let the committed location reveal the next tab. An optimistic tab render
+    // can expose a form CTA before the location effect resets the previous view.
     navigate({ pathname: "/student/community", search: searchForTab(location.search, nextTab) }, { state: {} });
   };
 
