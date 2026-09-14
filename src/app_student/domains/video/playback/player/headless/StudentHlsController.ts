@@ -173,7 +173,7 @@ export class StudentHlsController {
   private videoListeners: Array<{ ev: string; fn: EventListener }> = [];
   private docCleanups: Array<() => void> = [];
   private tokenRef: string;
-  private readonly playbackEnd: PlaybackSessionEnd;
+  private playbackEnd: PlaybackSessionEnd;
   private initialPositionApplied = false;
   private pendingSourceResume: {
     position: number;
@@ -347,6 +347,24 @@ export class StudentHlsController {
   setToken(token: string) {
     this.tokenRef = token;
   }
+
+  setPolicy(policy: Partial<Policy> | null | undefined) {
+    if (this.disposed) return;
+    const next = normalizePolicy(policy);
+    const monitoringChanged = this.policy.monitoring_enabled !== next.monitoring_enabled;
+    if (this.policy.monitoring_enabled && !next.monitoring_enabled) {
+      // finish captures the old token before the caller rotates it; media stays attached.
+      this.playbackEnd.finish(() => this.flushEvents());
+      this.playbackEnd = new PlaybackSessionEnd(() => this.policy.monitoring_enabled ? this.tokenRef : null);
+      this.playbackEnd.listen();
+    }
+    this.policy = next;
+    if (monitoringChanged) {
+      this.intervals.forEach(clearInterval);
+      this.intervals = [];
+      this.startIntervals();
+    }
+  }
   setSource(playUrl: string) {
     if (this.disposed || !playUrl || playUrl === this.opts.playUrl) return;
     const url = resolveStudentVideoPlayUrl(playUrl);
@@ -508,7 +526,7 @@ export class StudentHlsController {
     try {
       await postEvents(token, batch, this.opts.videoId, this.opts.enrollmentId);
     } catch (e: unknown) {
-      if (this.disposed) return;
+      if (this.disposed || token !== this.tokenRef) return;
       const err = e as { response?: { data?: { detail?: string }; status?: number }; message?: string };
       const msg = err?.response?.data?.detail || err?.message || "";
       if (String(msg).includes("session_inactive") || err?.response?.status === 409) {
@@ -552,7 +570,6 @@ export class StudentHlsController {
 
   private startDocListeners() {
     this.playbackEnd.listen();
-    const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     const onVis = () => {
       if (this.disposed) return;
       if (document.hidden) {
@@ -560,7 +577,7 @@ export class StudentHlsController {
         this.queueEvent("VISIBILITY_HIDDEN", { hidden: true });
       } else {
         this.queueEvent("VISIBILITY_VISIBLE", { hidden: false });
-        if (monitoringEnabled) {
+        if (this.policy.monitoring_enabled) {
           const token = this.tokenRef;
           if (token) postRefresh(token).catch(ignoreBestEffortError);
         }
@@ -771,11 +788,6 @@ export class StudentHlsController {
     const el = this.el;
     if (!el) return;
 
-    const allowSeek = !!this.policy.allow_seek && this.policy.seek?.mode !== "blocked";
-    const seekMode = this.policy.seek?.mode || "free";
-    const grace = Math.max(0, Number(this.policy.seek?.grace_seconds ?? 3));
-    const boundedForward = seekMode === "bounded_forward";
-    const budgetedForward = seekMode === "budgeted_forward";
     const maxRate = Math.max(1, Number(this.policy.playback_rate?.max) || 1);
     const speedLocked = this.policy.playback_rate?.ui_control === false || maxRate <= 1.0001;
 
@@ -821,6 +833,8 @@ export class StudentHlsController {
 
     const onRateChange = () => {
       if (this.disposed) return;
+      const maxRate = Math.max(1, Number(this.policy.playback_rate?.max) || 1);
+      const speedLocked = this.policy.playback_rate?.ui_control === false || maxRate <= 1.0001;
       const r = Number(el.playbackRate || 1);
       this.setState({ rate: r });
       if (speedLocked) {
@@ -849,6 +863,11 @@ export class StudentHlsController {
     const onSeeking = () => {
       if (this.disposed) return;
       if (this.seekGuardRef.initialSeekActive) return; // 이어보기 초기 seek 시 가드 우회
+      const allowSeek = !!this.policy.allow_seek && this.policy.seek?.mode !== "blocked";
+      const seekMode = this.policy.seek?.mode || "free";
+      const grace = Math.max(0, Number(this.policy.seek?.grace_seconds ?? 3));
+      const boundedForward = seekMode === "bounded_forward";
+      const budgetedForward = seekMode === "budgeted_forward";
       if (allowSeek && !boundedForward && !budgetedForward) return;
 
       const now = Date.now();

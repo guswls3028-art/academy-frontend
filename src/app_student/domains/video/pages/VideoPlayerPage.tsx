@@ -589,7 +589,13 @@ export default function VideoPlayerPage() {
       policyTransitionScopeRef.current === policyTransitionScopeKey
       && policyTransitionGenerationRef.current === transitionGeneration
     );
-    setPolicyRebootstrapPending(true);
+    // A verified relaxation to review is not a revocation. Keep the stricter
+    // existing player running while obtaining the server's new review policy.
+    const reviewTransition = playbackData?.policy?.access_mode === "PROCTORED_CLASS"
+      && access.access_mode === "FREE_REVIEW"
+      && access.monitoring_enabled === false
+      && Number(playbackData.policy_version) === access.policy_version;
+    setPolicyRebootstrapPending(!reviewTransition);
 
     void refetchPlayback().then((result) => {
       if (!isCurrentTransition()) return;
@@ -606,7 +612,7 @@ export default function VideoPlayerPage() {
       if (!isCurrentTransition()) return;
       setPolicyRebootstrapPending(false);
     });
-  }, [policyTransitionScopeKey, refetchPlayback]);
+  }, [playbackData, policyTransitionScopeKey, refetchPlayback]);
   useEffect(() => {
     const access = currentAccessQuery.data;
     const currentPlayback = playbackData;

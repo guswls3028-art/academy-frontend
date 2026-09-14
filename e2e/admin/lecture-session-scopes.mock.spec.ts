@@ -2,6 +2,7 @@ import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { waitForRenderSettled } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 9951;
@@ -34,10 +35,12 @@ type MockState = {
   createdHomeworkPayloads?: Array<Record<string, unknown>>;
   createdExamPayloads?: Array<Record<string, unknown>>;
   examCreateDelayMs?: number;
+  examCreateResponseGate?: Promise<void>;
   examSessionEnrollmentRows?: Array<Record<string, unknown>>;
   examSessionEnrollmentReads?: number;
   examEnrollmentPuts?: number[][];
   examEnrollmentUpdateDelayMs?: number;
+  examEnrollmentResponseGate?: Promise<void>;
   examPdfExtractDelayMs?: number;
   examPdfExtractRequests?: number;
   examRequestSequence?: string[];
@@ -248,6 +251,7 @@ async function installApi(page: Page, state: MockState) {
       state.examRequestSequence?.push("create");
       state.createdExamPayloads ??= [];
       state.createdExamPayloads.push(payload);
+      await state.examCreateResponseGate;
       if ((state.examCreateDelayMs ?? 0) > 0) {
         await new Promise((resolve) => setTimeout(resolve, state.examCreateDelayMs));
       }
@@ -261,6 +265,7 @@ async function installApi(page: Page, state: MockState) {
       state.examRequestSequence?.push("auto-enroll");
       state.examEnrollmentPuts ??= [];
       state.examEnrollmentPuts.push(payload.enrollment_ids ?? []);
+      await state.examEnrollmentResponseGate;
       if ((state.examEnrollmentUpdateDelayMs ?? 0) > 0) {
         await new Promise((resolve) => setTimeout(resolve, state.examEnrollmentUpdateDelayMs));
       }
@@ -609,7 +614,13 @@ test("한 회차에서 만드는 여러 과제는 커트라인을 행마다 따�
   );
 
   await page.getByRole("button", { name: "과제 추가", exact: true }).first().click();
-  await page.getByText("처음부터 만들기", { exact: true }).click();
+  const createDialog = page.getByRole("dialog", { name: "과제 만들기", exact: true });
+  await expect(createDialog).toBeVisible();
+  await waitForRenderSettled(page);
+  await expect.poll(() => createDialog.evaluate((element) => (
+    element.getAnimations({ subtree: true }).filter((animation) => animation.playState === "running").length
+  ))).toBe(0);
+  await createDialog.getByRole("button", { name: "처음부터 만들기 제목, 만점, 커트라인, 기한 입력", exact: true }).click();
   await expect(page.getByText("1. 과제 제목부터 입력하세요", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "과제 만들기", exact: true })).toBeDisabled();
   await expect(page.getByText("제목을 입력하면 아래 과제 만들기 버튼이 활성화됩니다.", { exact: true })).toBeVisible();
@@ -689,6 +700,10 @@ test("시험 빠른 생성은 잘못된 점수를 기본값으로 바꾸지 않�
 });
 
 test("원본 없이 직접 채점 시험을 만들고 문항별 점수 입력을 선택한다", async ({ page }, testInfo) => {
+  let releaseCreate!: () => void;
+  let releaseEnrollment!: () => void;
+  const createResponseGate = new Promise<void>((resolve) => { releaseCreate = resolve; });
+  const enrollmentResponseGate = new Promise<void>((resolve) => { releaseEnrollment = resolve; });
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
@@ -702,8 +717,8 @@ test("원본 없이 직접 채점 시험을 만들고 문항별 점수 입력을
       student_name: "김민준",
     }],
     examEnrollmentPuts: [],
-    examCreateDelayMs: 500,
-    examEnrollmentUpdateDelayMs: 500,
+    examCreateResponseGate: createResponseGate,
+    examEnrollmentResponseGate: enrollmentResponseGate,
     examPdfExtractRequests: 0,
     examRequestSequence: [],
   };
@@ -754,17 +769,23 @@ test("원본 없이 직접 채점 시험을 만들고 문항별 점수 입력을
     element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
 
-  await expect.poll(() => state.examRequestSequence).toEqual(["create"]);
-  await expect(dialog.getByRole("button", { name: "뒤로" })).toBeDisabled();
-  await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeVisible();
-  await expect.poll(() => state.examRequestSequence).toEqual([
-    "create",
-    "auto-enroll-read",
-    "auto-enroll",
-  ]);
-  await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
+  try {
+    await expect.poll(() => state.examRequestSequence).toEqual(["create"]);
+    await expect(dialog.getByRole("button", { name: "뒤로" })).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+    releaseCreate();
+    await expect.poll(() => state.examRequestSequence).toEqual([
+      "create",
+      "auto-enroll-read",
+      "auto-enroll",
+    ]);
+    await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
+  } finally {
+    releaseCreate();
+    releaseEnrollment();
+  }
 
   await expect.poll(() => state.createdExamPayloads?.length).toBe(1);
   await expect(dialog).toHaveCount(0);

@@ -111,7 +111,15 @@ export default function StudentVideoPlayer({
   const watermarkEnabled = !!policy.watermark?.enabled;
   const monitoringEnabled = policy.monitoring_enabled ?? false;
   const isYoutube = isYouTubeSource(video.source_type || bootstrap.source_type || policy.source?.type);
-  const usesCustomControls = !isYoutube || monitoringEnabled || budgetedForward;
+  const customControlsScope = `${video.id}:${enrollmentId}:${isYoutube}`;
+  const customControlsRef = useRef({ scope: customControlsScope, enabled: false });
+  if (customControlsRef.current.scope !== customControlsScope) {
+    customControlsRef.current = { scope: customControlsScope, enabled: false };
+  }
+  // YouTube's controls=0 is fixed when the SDK is created. Retain our controls
+  // when that same player enters review; otherwise it would have no controls.
+  customControlsRef.current.enabled ||= !isYoutube || monitoringEnabled || budgetedForward;
+  const usesCustomControls = customControlsRef.current.enabled;
 
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const youtubeMountRef = useRef<HTMLDivElement | null>(null);
@@ -170,12 +178,6 @@ export default function StudentVideoPlayer({
     source: isYoutube ? "youtube" : "hls",
     youtubeVideoId: video.youtube_video_id || bootstrap.youtube_video_id || policy.source?.youtube_video_id || null,
     policyVersion: bootstrap.policy_version,
-    accessMode: bootstrap.access_mode,
-    monitoringEnabled,
-    allowSeek: policy.allow_seek,
-    seek: policy.seek,
-    playbackRate: policy.playback_rate,
-    watermark: policy.watermark,
   });
   const controllerConfigRef = useRef({
     videoId: video.id,
@@ -241,11 +243,12 @@ export default function StudentVideoPlayer({
   useEffect(() => {
     const ctrl = controllerRef.current;
     if (!ctrl) return;
+    ctrl.setPolicy(bootstrap.policy);
     ctrl.setToken(bootstrap.token);
     if (ctrl instanceof StudentHlsController) {
       ctrl.setSource(bootstrap.play_url || video.hls_url || "");
     }
-  }, [bootstrap.play_url, bootstrap.token, video.hls_url]);
+  }, [bootstrap.play_url, bootstrap.policy, bootstrap.token, video.hls_url]);
 
   useEffect(() => {
     const wrap = wrapElRef.current;
