@@ -5,12 +5,13 @@ import { createPlaybackUnloadConfig } from "@/shared/api/axios";
 export class PlaybackSessionEnd {
   started = false;
   private timer: number | null = null;
+  private finishingToken: string | null = null;
 
   constructor(private readonly currentToken: () => string | null) {}
 
   private readonly onPageHide = (event: PageTransitionEvent) => {
     // Backgrounding and BFCache persistence are not terminal playback exits.
-    if (!event.persisted) this.end(true);
+    if (!event.persisted) this.end(true, this.finishingToken ?? this.currentToken());
   };
 
   listen(): void {
@@ -41,6 +42,7 @@ export class PlaybackSessionEnd {
       this.removeListener();
       return;
     }
+    this.finishingToken = token;
     // Preserve the existing bounded SPA flush. Keep pagehide attached until the
     // terminal request starts, including a hard navigation during a pending flush.
     this.timer = window.setTimeout(() => this.end(false, token), 1_000);

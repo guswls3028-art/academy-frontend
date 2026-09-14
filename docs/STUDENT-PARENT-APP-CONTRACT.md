@@ -218,7 +218,7 @@ cleanup0을 같은 개발 artifact에서 확인한다. 자료함 삭제 확인�
   재검증한다. 403이면 HLS/YouTube와 `FREE_REVIEW`/`PROCTORED_CLASS` 구분 없이
   플레이어를 즉시 unmount해 재생을 멈추고 서버의 거절 사유를 표시하며 반복
   polling도 멈춘다. 성공 응답의 서버 `access_mode` 또는 `policy_version`이 현재
-  부트스트랩과 다르면 기존 플레이어를 먼저 unmount하고 전체 재생 권한을 다시
+  부트스트랩과 다르면 전체 재생 권한을 다시
   발급받는다. 새 모드·버전이 일치하고 현재 토큰이 있으며, 감시 모드라면 감시 정책과
   세션까지 모두 발급된 경우에만 다시 연다. 따라서 열린 `FREE_REVIEW`가 서버에서
   `PROCTORED_CLASS`로 바뀌어도 감시 없는 플레이어가 남지 않는다. 일시적 네트워크
@@ -234,6 +234,19 @@ cleanup0을 같은 개발 artifact에서 확인한다. 자료함 삭제 확인�
   발생하면 이전 성공이 현재 거절 상태를 지우거나 발급된 URL을 다시 mount하지 않는다.
   허용 상태에서는 30초 주기로 재검증하며, fatal 거절 뒤의 타이머·`visibilitychange`와 영상 화면
   이탈 뒤에는 추가 access-check 요청을 보내지 않는다.
+- 같은 정책 버전에서 서버가 `PROCTORED_CLASS` → `FREE_REVIEW`를 확인한 경우는
+  권한 박탈이 아니다. 새 복습 bootstrap을 기다리는 동안 기존 수업 정책으로 계속
+  재생하고, 확인된 정책·토큰을 같은 HLS/YouTube controller에 반영한다. seek/rate
+  이벤트는 최초 수업 정책을 캡처하지 않고 현재 정책을 적용한다. 기존 감시 세션만
+  그 세션의 토큰으로 마무리하며, 새 복습 재생·다른 탭을 종료하지 않는다.
+  그 밖의 모드 변경·정책 버전 변경은 기존대로 먼저 unmount하여 재발급한다.
+  서버 거절이나 재발급 불일치는 계속 실패로 표시한다. backend의 완료/토큰 경계는
+  [학생 영상 계약](../../backend/docs/domain/student-core.md)이 소유한다.
+  `e2e/student/video-review-transition.mock.spec.ts`는 390/1366px에서 복습 전환 중
+  SDK 유지·재생 지속·일반 진행 바 탐색·이전 세션만 종료를 검사한다.
+  `scripts/tests/playback-review-transition.test.mjs`는 두 controller의 세션 정리와
+  HLS 실제 seeking handler의 정책 갱신을 검사한다. 두 검사는 합성 회귀이며
+  운영 배포·실제 API·물리 휴대폰 재생 성공을 대신하지 않는다.
 - 서버가 발급한 `playback_token`과 만료 시각이 있으면 개별 허용 영상뿐 아니라 기존
   수강 영상도 만료 3분 전에 `POST /media/playback/renew/`로 현재 권한을 갱신한다.
   `visibilitychange`, `pageshow`, 창 focus, 온라인 복귀 때 남은 시간이 3분 이하면
