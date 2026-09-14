@@ -693,7 +693,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(created.submissionIds.length).toBe(1);
 
     const submissionId = created.submissionIds[0];
-    await expect(page.getByText("등록을 시작했습니다. 잠시 후 성적표에 반영됩니다.")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("1건을 접수했습니다. AI 처리 상태는 작업박스에서 계속 확인할 수 있습니다.", { exact: true })).toBeVisible({ timeout: 20_000 });
     await page.getByRole("button", { name: "닫기" }).click();
 
     const reviewDetail = await waitForOmrAnswers(
