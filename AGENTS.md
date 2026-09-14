@@ -1,70 +1,114 @@
 # Academy Frontend — Codex Instructions
 
-This file is self-contained for Codex sessions started at the frontend Git root.
+Self-contained instructions for the frontend Git root.
 
-## Sources and boundaries
+## Sources and context
 
-- Frontend docs entry: `docs/README.md`
-- Backend contracts and policy: `../backend/docs/`
-- Current code, tests, and runtime contracts outrank prose.
-- Preserve tenant, auth, and role boundaries in every API call and route.
-- Do not reconstruct backend-owned business decisions in the client.
-- Preserve pre-existing worktree changes.
+- Frontend owner: `docs/README.md`; backend policy: `../backend/docs/`.
+  Workflows/scripts/settings/migrations/runtime readback outrank code/tests,
+  then SSOT, owning docs, and plans/reports/agent guidance.
+- Read relevant rules/skills once; reopen only changed/missing sections. Use
+  bounded `rg`/targeted reads and concise evidence; keep full logs in artifacts.
+  Reuse unchanged passing checks unless failures/risks remain. Delegate only
+  useful bounded independent work with minimal context; delegation is optional.
 
-## Durable feature records
+## Scope and authority
 
-Every changed user-visible behavior updates its owning current-state document
-in the same task. Put product-wide flows, routing, and operator behavior in
-`docs/`; a feature-local README may own module details only when indexed from
-`docs/README.md`. Backend policy stays in `../backend/docs/` and is linked,
-not duplicated.
+Diagnosis/explanation/review is read-only unless a change is requested. Unless
+local-only/no-deploy/draft/PR-only/read-only, implementation/change/build and
+release/operations/cleanup authorize their full in-scope workflow: commit, push,
+PR, merge, explicitly authorized messaging, deployment, production verification,
+cleanup. No repeated
+permission for these steps.
 
-Record purpose, roles and entry points, interaction flow, permissions and
-states, API/data ownership, loading/empty/error/retry behavior, responsive
-expectations, and focused verification. For removal or replacement, also
-record why, migration/compatibility behavior, and persisted-state handling.
+`모든권한`, `모든권한 있음`, `모든권한o`, and equivalents retain that authority
+until narrowed/revoked; finish the earliest assignment first. Never expand scope,
+guess destructive targets, waive data protection/current HOLDs/gates, override
+higher-priority action-time confirmation, or infer platform approval.
 
-## UI standard
+Explicit deploy/release/production/continue instructions authorize that exact
+run's GitHub `production` review via official authenticated API; verify approval
+before mutation. No protection bypass/other-run approval. Rejection/ineligibility
+is a technical blocker, not a reconfirmation request. Owner:
+`../backend/docs/operations/github-governance.md`.
 
-- Reuse the existing design system and role-app patterns.
-- Use `Badge` from `@/shared/ui/ds`; do not add raw `ds-badge` spans.
-- Use `ICON.*`, `ICON_FOR_BUTTON.*`, and `ICON_FOR_BADGE.*` tokens.
-- User-facing copy is plain Korean and does not expose internal IDs or workers.
-- Every async surface needs loading, empty, success, and failure states.
-- Disabled actions explain a legitimate permission or workflow prerequisite;
-  disabling an ordinary supported action is not a completed bug fix.
-- Check long Korean text and 1100/1366 desktop or 390 mobile as applicable.
-- Browser evidence requires DOM assertions and persisted state, not a
-  screenshot alone.
-- User-visible changes include purposeful motion and interaction polish when
-  they materially clarify state, hierarchy, or navigation. Prefer brief
-  opacity/transform transitions, keep scrolling and input responsive, respect
-  `prefers-reduced-motion`, and avoid decorative or input-blocking animation.
+Docs/agent-config-only changes need publication, required repository CI, and
+applicable syntax/path/contract/diff checks; never skip or bypass required CI.
+No separate application build/deployment or mutating live QA is needed unless
+an executable contract changes.
 
-## Successful use and stabilization
+## Product and UI contract
 
-Every generally available feature must retain the authorized user's ordinary
-successful journey. A guard, support notice, swallowed error, or empty-success
-fallback does not restore a broken feature. Only a feature labeled Beta before
-entry may expose a documented incomplete path. Preserve legitimate tenant,
-permission, data, and messaging boundaries while fixing false rejection or the
-failing operation. Keep input on failure and provide a working recovery path.
+- Preserve tenant/auth/role boundaries in every route/API and user-authored data;
+  do not reconstruct backend-owned business decisions.
+- Reuse design-system/role-app patterns: `Badge` from `@/shared/ui/ds` (no raw
+  `ds-badge`), `ICON.*`, `ICON_FOR_BUTTON.*`, and `ICON_FOR_BADGE.*` tokens.
+  Copy is plain Korean without internal IDs/workers.
+- Async surfaces need loading/empty/success/failure states. Preserve input and
+  working recovery. Disabled actions explain legitimate prerequisites;
+  disabling an ordinary supported action does not fix it.
+- Polish interactions with brief opacity/transform motion when it clarifies
+  state/hierarchy/navigation. Respect `prefers-reduced-motion`, responsive input/
+  scroll, and avoid decorative or blocking animation.
+- Verify long Korean text, keyboard access, desktop 1100/1366 and 390px where
+  exposed. Browser evidence requires DOM assertions and persisted state.
 
-Trace the CTA through the API, saved state, reload, and consuming screens for
-each affected role. Include desktop and 390px where exposed. Denial-only tests,
-screenshots, and green CI do not prove successful use. Inspect callers and
-compatibility before removing duplicate or wasteful code in assigned cleanup.
-Use `docs/REAL-USE-REVIEW-MANUAL.md` and the backend change-risk contract for
-evidence. Read only relevant skills and repeat passing checks only for changed
-inputs, failures, or unresolved risks.
+Prove each affected role's ordinary successful journey: CTA → API → saved state
+→ reload → consuming screens, plus visible failure/recovery. Guards, notices,
+swallowed errors, empty-success fallbacks, screenshots, and green CI alone are
+insufficient. Only Beta labeled before entry permits a documented incomplete
+path. Preserve legitimate tenant/permission/data/messaging boundaries; inspect
+callers/compatibility before removing code. Evidence owners:
+`docs/REAL-USE-REVIEW-MANUAL.md` and
+`../backend/docs/operations/change-risk-and-release-bundle.md`.
 
-## Contract verification
+Every behavior change updates its owner in `docs/` or a module README indexed
+from `docs/README.md`; link backend policy. Record purpose, actors/entry points,
+flow, permissions/states, API/data ownership, loading/empty/error/retry,
+responsiveness, verification. Removal/replacement also records reason,
+migration/compatibility, persisted-state fate. Behavior-preserving internals
+may omit product docs only with a final explanation and supporting verification.
 
-For a changed flow verify request/response and backend ownership, tenant/auth/
-role outcomes, loading/empty/error/repeat states, save/reload persistence,
-consuming screens, keyboard behavior, and relevant viewports.
+## Delivery and isolation
 
-Run focused tests first, then as applicable:
+Keep canonical `C:\academy\frontend` and `C:\academy\backend` on clean `main`.
+Create/inspect an owned current-`origin/main` worktree with
+`C:\academy\backend\scripts\codex\session-worktree.ps1`; never mutate a foreign
+tree. One task owns release; others hand off exact committed SHA/CI. Close only
+clean, merged/patch-equivalent branches; intentional WIP needs a named recovery
+commit. Sync after active tasks/releases finish. Owner:
+`../backend/docs/operations/concurrent-codex-sessions.md`.
+
+Before release read `docs/DEPLOYMENT-OPERATIONS.md`; executable owner:
+`.github/workflows/quality-gate.yml`. Preserve exact current HOLD scope/state
+until its owner's release conditions pass, including technical transition
+gates. Historical holds/unrelated static findings are not blanket holds. No default 04:00 wait
+after old/new API/DB and uninterrupted playback/editing without forced reload.
+Unresolved interruption/incompatibility needs a separate window.
+
+- PR E2E is login/read-only/mock. Automatic release QA must use same-artifact
+  isolated `development-canary`: non-skipped real-use and exact tenant/user
+  cleanup zero before promotion. No production synthetic business rows/old
+  production-writing path. Controlled manual canaries retain their gates.
+- Authenticated visual QA uses the exact checkout, SSM loopback API, disposable
+  `qa-*` tenants/accounts, and cleanup-zero readback per
+  `../backend/docs/operations/persistent-development-runtime.md`. Never copy
+  production personal data, credentials, rows, or storage.
+- Use configured OIDC/API-token secrets and separate Cloudflare preview/
+  production/infrastructure scopes/rollback environment. Assigned manual
+  workflows may use configured account-root/master credentials when needed;
+  never weaken gates or print/copy credentials.
+- Verify exact deployed revision/assets, rollback readiness, and affected journeys.
+  Authentication/dashboard observation writes are separate from business
+  mutation; never report them as total writes zero.
+- After propagation inspect affected live desktop/390px routes for hierarchy,
+  feedback/motion, loading/errors, overflow, and responsiveness. Own discovered
+  defects through correction, relevant checks, redeployment, and verification.
+
+## Verification
+
+Verify the product/UI contract above, request/response, and repeated actions.
+Run focused tests, then applicable gates:
 
 ```powershell
 pnpm typecheck
@@ -74,93 +118,7 @@ pnpm build
 pnpm test:e2e:gate
 ```
 
-Compatible patches have no default 04:00 deployment wait. The release owner
-may promote promptly through existing gates once old/new API and DB versions
-coexist and active playback/editing survives without forced reload or loss.
-Honor explicitly applicable current HOLDs; a historical time window is not a
-permanent policy. Unresolved interruption risk or incompatible changes need a
-separate change window. See `docs/DEPLOYMENT-OPERATIONS.md` for timing and gates.
-Verify affected boundaries and reuse applicable unchanged evidence. Distinguish
-an existing static finding from an interruption introduced or exposed by this
-candidate; do not infer a blanket deployment HOLD from code presence alone.
-
-Production delivery goes through `.github/workflows/quality-gate.yml`.
-PR E2E is login/read-only/mock only. Automatic release QA must not create
-production synthetic business rows; run notice/QnA/clinic roundtrips on the same
-deployment artifact against a verified isolated development runtime and require
-non-skipped assertions plus tenant/user cleanup zero before promotion. Do not run
-the old production-writing post-deploy workflow while this migration is incomplete.
-Existing-account authentication and the reviewed dashboard observation are separate
-from business mutation; report their writes separately, never as total writes zero.
-Explicitly assigned controlled manual canaries retain their separate safety gates.
-Cloudflare uses
-separate preview, production, and infrastructure-scoped API tokens plus
-`preview`, `production`, and `production-rollback` environments. Confirm
-deployed revision, rollback readiness, and the affected user flow. Ordinary
-automation uses
-repository OIDC/API-token secrets. For assigned production work, an already
-configured AWS account-root or Cloudflare master credential may be used by the
-owning manual workflow when the normal least-privilege path is insufficient,
-but its value must never be printed/copied and the quality, direct-deploy,
-production-readback, and real-use gates remain mandatory.
-
-Production verification is a feedback loop, not a report-only checkpoint.
-After the exact revision propagates, inspect the affected live routes on
-desktop and 390px mobile for hierarchy, interaction feedback, motion timing,
-loading/error states, overflow, and perceived responsiveness. If that live
-review exposes a defect, keep ownership, implement the correction, rerun the
-relevant gates, redeploy, and verify again. During an assigned implementation,
-do not ask whether to deploy or continue unless an explicit opt-out or a
-genuine scope/authority blocker applies.
-
-When authenticated visual QA would otherwise create production test users or
-data, use the production-shaped persistent development runtime through its
-loopback SSM tunnel. Run the exact frontend checkout against that isolated API,
-create only a disposable `qa-*` tenant/account scenario, and require its
-tenant/user residue readback to be zero after cleanup. Do not copy production
-personal data, credentials, DB rows, or object storage. The owning procedure is
-`../backend/docs/operations/persistent-development-runtime.md`.
-
-Unless the user explicitly limits the task to local-only, no-deploy,
-draft/PR-only, or read-only work, an assigned implementation, change, or build
-includes its normal in-scope commit, push, PR, merge, messaging, deployment,
-production verification, and residue cleanup. Do not stop merely because
-GitHub publication or production deployment was not requested as a separate
-step; the implementation assignment itself authorizes the owning end-to-end
-workflow. Release, operations, and cleanup assignments carry the same standing
-authority. This authority does not expand the task, resolve an ambiguous
-destructive target, waive user-data protection, bypass a release gate, or make
-an external approval true without platform readback. When the user explicitly
-instructs Codex to deploy, release, apply to production, or continue an in-scope
-rollout, that instruction also authorizes Codex to submit the exact rollout's
-GitHub `production` environment approval through the official authenticated API
-without asking for a second confirmation. The platform must record the approval
-before mutation; never remove or bypass the protection, approve an unrelated
-run, or claim approval from the instruction alone. If GitHub rejects the review
-or no eligible authenticated reviewer is available, preserve the error and
-report the technical blocker without asking the user to repeat the same
-authorization. The shared execution contract is
-`../backend/docs/operations/github-governance.md`.
-
-When the user says `모든권한`, `모든권한 있음`, `모든권한o`, or an equivalent
-phrase, treat it as standing authorization for all otherwise-authorized,
-in-scope actions until the user explicitly narrows or revokes it. Continue the
-earliest unfinished assigned task before ancillary follow-up, and do not ask
-again merely to reconfirm implementation, publication, release continuation,
-optimization, monitoring, verification, or cleanup. This vocabulary does not
-override a higher-priority safety or platform policy that explicitly requires
-an action-time confirmation, nor does it resolve an unknown destructive target
-or supply authorization that the external platform has not recorded.
-
-For concurrent Codex work, keep canonical `C:\academy\frontend` and
-`C:\academy\backend` on clean `main`. Create a uniquely owned worktree from
-current `origin/main` with
-`C:\academy\backend\scripts\codex\session-worktree.ps1 -Action Start`; never share a
-worktree or edit another task's dirty tree. Exactly one task owns release, and
-other tasks stop at an exact committed SHA plus CI evidence. Close only a clean
-branch already merged or fully patch-equivalent to `origin/main`; the script
-refuses dirty, foreign, and uniquely unmerged worktrees. The lifecycle contract
-is `C:\academy\backend\docs\operations\concurrent-codex-sessions.md`.
-
-Finish with `git diff --check` and `git status --short`. Stage explicit files
-only and preserve pre-existing changes.
+Rules/docs work follows workspace `docs-and-rules-sync` and applicable contract
+checks, including `guard:deployment-governance`/`guard:runtime-recovery` for
+deployment/E2E guidance. Start/finish with both repository statuses and finish
+`git diff --check`. Stage explicit files only; preserve other work.
