@@ -16,6 +16,7 @@ import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { useTrackedTask } from "@/shared/productAnalytics";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
+import { createRandomUuid as uuid } from "@/shared/utils/randomUuid";
 import styles from "./SubmitAssignmentPage.module.css";
 
 const ACCEPT = ".jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.avif,.mp4,.m4v,.mov,.webm,image/*,video/*";
@@ -39,16 +40,6 @@ type PendingMedia = {
 function positiveId(value: string | null): number | null {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-function uuid(): string {
-  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 function isSupportedSubmissionFile(file: File): boolean {

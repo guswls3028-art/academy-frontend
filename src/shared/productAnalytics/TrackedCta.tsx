@@ -6,6 +6,7 @@ import {
 } from "react";
 import { trackProductUsage } from "./client";
 import { useProductAnalyticsView } from "./context";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   ctaId: string;
@@ -65,7 +66,7 @@ export default function TrackedCta({
       trackProductUsage({
         event_type: "cta_click",
         view_id: viewId,
-        interaction_id: crypto.randomUUID(),
+        interaction_id: createRandomUuid(),
         feature_id: route.featureId,
         screen_id: route.screenId,
         surface: route.surface,

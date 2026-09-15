@@ -796,6 +796,12 @@ export default function StudentVideoPlayer({
                   onPointerMove={onStagePointerMove}
                   onPointerUp={onStagePointerUp}
                   onPointerCancel={onStagePointerCancel}
+                  onClick={(event) => {
+                    if (typeof window.PointerEvent === "function") return;
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const fraction = (event.clientX - rect.left) / rect.width;
+                    onSingleTap(fraction < 0.35 ? 0 : fraction > 0.65 ? 2 : 1);
+                  }}
                 />
               )}
 

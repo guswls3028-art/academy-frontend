@@ -1,6 +1,9 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
+import legacy from "@vitejs/plugin-legacy";
+import { legacyCssPlugin } from "./scripts/legacy-css.mjs";
+import { legacyModuleSemanticsPlugin } from "./scripts/legacy-module-semantics.mjs";
 import path from "path";
 
 function versionJsonPlugin(buildVersion: string) {
@@ -58,6 +61,13 @@ export default defineConfig(({ mode }) => {
   plugins: [
     react(),
     tailwindcss(),
+    legacyCssPlugin(buildVersion),
+    legacy({
+      targets: ["ios >= 10.3", "chrome >= 64", "firefox >= 60", "samsung >= 8"],
+      modernPolyfills: ["es.array.at", "es.array.find-last", "es.object.has-own", "es.promise.with-resolvers"],
+      additionalLegacyPolyfills: [path.resolve(process.cwd(), "src/shared/browser/legacyPolyfills.ts")],
+    }),
+    legacyModuleSemanticsPlugin(),
     versionJsonPlugin(buildVersion),
   ],
 
@@ -80,7 +90,8 @@ export default defineConfig(({ mode }) => {
   },
 
   build: {
-    target: ["es2020", "chrome92", "edge92", "safari14", "firefox90"],
+    // plugin-legacy owns modern/legacy syntax targets and conditionally loads
+    // the SystemJS bundle on older Safari, Chrome and Samsung Internet.
     rolldownOptions: {
       output: {
         codeSplitting: {
