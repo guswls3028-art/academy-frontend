@@ -70,9 +70,10 @@ type CreatedState = {
   enrollmentId?: number;
   sessionEnrollmentIds: number[];
   submissionIds: number[];
+  scoreEditorClientIds: Set<string>;
 };
 
-const created: CreatedState = { sessionEnrollmentIds: [], submissionIds: [] };
+const created: CreatedState = { sessionEnrollmentIds: [], submissionIds: [], scoreEditorClientIds: new Set() };
 
 function headers(token: string, contentType = "application/json"): Record<string, string> {
   return {
@@ -102,10 +103,11 @@ async function apiFetch<TBody = any>(
   path: string,
   token: string,
   data?: Record<string, unknown>,
+  extraHeaders?: Record<string, string>,
 ): Promise<{ status: number; body: TBody }> {
   const resp = await request.fetch(`${API}/api/v1${path}`, {
     method,
-    headers: headers(token),
+    headers: { ...headers(token), ...extraHeaders },
     ...(data ? { data } : {}),
     timeout: 90_000,
   });
@@ -411,10 +413,11 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     path: string,
     data?: Record<string, unknown>,
     acceptedStatuses: number[] = [200, 202, 204, 404],
+    extraHeaders?: Record<string, string>,
   ) => {
     let out: { status: number; body: unknown };
     try {
-      out = await apiFetch(request, method, path, token, data);
+      out = await apiFetch(request, method, path, token, data, extraHeaders);
     } catch (error) {
       out = {
         status: 0,
@@ -462,6 +465,24 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       } else {
         archivedExamHandoff = true;
       }
+    }
+  }
+  if (created.sessionId) {
+    // A leftover score-draft lease (any client id captured above) blocks
+    // session/lecture delete with 403 ("score edit drafts" /
+    // "sessions with score edit drafts") -- release every one, before the
+    // delete attempts below. A stale/foreign client id or an already-
+    // released draft both return 204 (score_draft_view.py:441-442), so
+    // looping over every captured id is safe. A lock conflict (409) is a
+    // real cleanup defect, not swallowed here -- only 204/404 are accepted.
+    for (const clientId of created.scoreEditorClientIds) {
+      await remove(
+        "POST",
+        `/results/admin/sessions/${created.sessionId}/score-draft/commit/`,
+        { release_lease: true },
+        [204, 404],
+        { "X-Score-Editor-Client": clientId },
+      );
     }
   }
   if (!archivedExamHandoff && created.sessionId) {
@@ -537,6 +558,16 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
 
   test("OMR PDF 업로드 후 운영자 리뷰 저장이 성적과 학생 화면에 반영된다", async ({ page, request }) => {
     requireIsolatedScenario();
+    // resolvedScoreEditorClientId() is a per-document-load module constant
+    // (src/shared/scoring/scoreEditLease.ts), so page.reload() below mints a
+    // second one. A score-draft lease opened under either id must be
+    // released in cleanup(), or it permanently blocks session/lecture
+    // delete (view_dependencies.py's "score edit drafts" guard counts rows,
+    // not lease freshness).
+    page.on("request", (req) => {
+      const clientId = req.headers()["x-score-editor-client"];
+      if (clientId) created.scoreEditorClientIds.add(clientId);
+    });
     const adminTokens = await loginTokenViaRequest(request, "admin");
     created.adminAccess = adminTokens.access;
 
