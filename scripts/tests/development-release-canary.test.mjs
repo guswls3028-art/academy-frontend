@@ -144,17 +144,44 @@ test("transport truth keeps OMR cleanup status at the actual failure without cha
   const logs = [];
   const calls = [];
   const created = { adminAccess: "secret-token", submissionIds: [987654], sessionEnrollmentIds: [] };
-  const cleanup = new Function("created", "apiFetch", "console", "emitOmrCleanupStatus", `${body}; return cleanup;`)(created,
+  const cleanup = new Function("created", "apiFetch", "console", "emitOmrCleanupStatus", "safeLectureSessionDeleteBlocker",
+    `${body}; return cleanup;`)(created,
     async (_request, method) => { calls.push(method); return { status: method === "DELETE" ? 502 : 404, body: { detail: "private-user secret-token" } }; },
-    { log: () => {} }, (...args) => policyModule.emitOmrCleanupStatus(...args, (value) => logs.push(value)));
+    { log: () => {} }, (...args) => policyModule.emitOmrCleanupStatus(...args, (value) => logs.push(value)),
+    policyModule.safeLectureSessionDeleteBlocker);
   await assert.rejects(cleanup({}), /OMR production fixture cleanup failed/);
   assert.deepEqual(calls, ["DELETE", "GET"], "original removal and readback remain mandatory");
   assert.equal(logs[0].omrCleanupStatus.stage, "remove");
   assert.equal(logs[0].omrCleanupStatus.receivedStatus, 502);
   assert.deepEqual(logs[0].omrCleanupStatus.expectedStatuses, [200, 202, 204, 404]);
+  assert.equal(logs[0].omrCleanupStatus.blocker, null, "an unrecognized detail message is not published");
   const observed = observeReleaseTestResult(JSON.stringify(contextReport(logs, "omr-review-realuse.spec.ts")));
   assert.equal(observed.omrCleanupStatuses[0].receivedStatus, 502);
   assert.doesNotMatch(JSON.stringify(observed), /private-user|secret-token|987654/);
+});
+
+test("transport truth publishes only the closed lecture/session delete blocker vocabulary", async () => {
+  const source = readFileSync(new URL("../../e2e/admin/omr-review-realuse.spec.ts", import.meta.url), "utf8");
+  const body = stripTypeScriptTypes(source.slice(source.indexOf("async function cleanup("), source.indexOf("test.describe.serial(")));
+  const logs = [];
+  const calls = [];
+  const created = { adminAccess: "secret-token", submissionIds: [987654], sessionEnrollmentIds: [] };
+  const cleanup = new Function("created", "apiFetch", "console", "emitOmrCleanupStatus", "safeLectureSessionDeleteBlocker",
+    `${body}; return cleanup;`)(created,
+    async (_request, method) => {
+      calls.push(method);
+      if (method === "DELETE" && calls.filter((call) => call === "DELETE").length === 1) {
+        return { status: 403, body: { detail: "This session has exams and cannot be deleted." } };
+      }
+      return { status: 404, body: null };
+    },
+    { log: () => {} }, (...args) => policyModule.emitOmrCleanupStatus(...args, (value) => logs.push(value)),
+    policyModule.safeLectureSessionDeleteBlocker);
+  await assert.rejects(cleanup({}), /OMR production fixture cleanup failed/);
+  assert.equal(logs[0].omrCleanupStatus.receivedStatus, 403);
+  assert.equal(logs[0].omrCleanupStatus.blocker, "exams");
+  const observed = observeReleaseTestResult(JSON.stringify(contextReport(logs, "omr-review-realuse.spec.ts")));
+  assert.equal(observed.omrCleanupStatuses[0].blocker, "exams");
 });
 
 test("transport truth OMR verification transport keeps the stage and the identical thrown error", async () => {
@@ -163,12 +190,14 @@ test("transport truth OMR verification transport keeps the stage and the identic
   const logs = [];
   const failure = new Error("unit verification transport private-token");
   const created = { adminAccess: "secret-token", submissionIds: [987654], sessionEnrollmentIds: [] };
-  const cleanup = new Function("created", "apiFetch", "console", "emitOmrCleanupStatus", `${body}; return cleanup;`)(created,
+  const cleanup = new Function("created", "apiFetch", "console", "emitOmrCleanupStatus", "safeLectureSessionDeleteBlocker",
+    `${body}; return cleanup;`)(created,
     async (_request, method) => { if (method === "GET") throw failure; return { status: 204, body: null }; },
-    { log: () => {} }, (...args) => policyModule.emitOmrCleanupStatus(...args, (value) => logs.push(value)));
+    { log: () => {} }, (...args) => policyModule.emitOmrCleanupStatus(...args, (value) => logs.push(value)),
+    policyModule.safeLectureSessionDeleteBlocker);
   await assert.rejects(cleanup({}), (error) => error === failure);
   assert.deepEqual(logs, [{ omrCleanupStatus: { schema: "release-omr-cleanup-status/v1", stage: "verify-absent",
-    expectedStatuses: [404], receivedStatus: null } }]);
+    expectedStatuses: [404], receivedStatus: null, blocker: null } }]);
 });
 
 test("transport truth preserves ordered reported errors but never interprets arbitrary scores as status", () => {

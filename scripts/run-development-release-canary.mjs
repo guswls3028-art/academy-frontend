@@ -51,6 +51,21 @@ const RELEASE_BOUNDARY_CODES = new Set([
   "api-origin", "context-disposed", "cors", "credentials", "mutation", "observation-schema",
   "origin", "redirect", "tenant", "transport", "fetch-transport", "fulfill-transport",
 ]);
+// Mirrors e2e/helpers/releaseApiBoundary.ts's SESSION_DELETE_BLOCKER_LABELS /
+// LECTURE_ONLY_DELETE_BLOCKER_LABELS (itself mirroring the fixed label
+// vocabulary raised by SessionViewSet.destroy / LectureViewSet.destroy in
+// the backend). Closed set, never user content.
+const OMR_SESSION_DELETE_BLOCKER_LABELS = [
+  "session enrollments", "attendance records", "exams", "homework enrollments",
+  "homework assignments", "homeworks", "homework scores", "session progress",
+  "lecture progress references", "clinic links", "risk logs", "videos",
+  "video folders", "score edit drafts",
+];
+const OMR_DELETE_BLOCKER_LABELS = new Set([
+  ...OMR_SESSION_DELETE_BLOCKER_LABELS,
+  "lecture enrollments", "lecture progress", "clinic sessions", "section assignments",
+  ...OMR_SESSION_DELETE_BLOCKER_LABELS.map((label) => `sessions with ${label}`),
+]);
 const SAFE_FAILURE_SOURCE_FILES = new Set([
   ...Object.keys(FLOW_COUNTS),
   "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
@@ -513,11 +528,12 @@ export function observeReleaseTestResult(stdout) {
                 } else if (name === "omrCleanupStatus") {
                   destination = "omrCleanupStatuses";
                   valid &&= file === "omr-review-realuse.spec.ts"
-                    && exactKeys(value, ["schema", "stage", "expectedStatuses", "receivedStatus"])
+                    && exactKeys(value, ["schema", "stage", "expectedStatuses", "receivedStatus", "blocker"])
                     && value.schema === "release-omr-cleanup-status/v1"
                     && ["remove", "verify-absent", "archive-action", "verify-archive"].includes(value.stage)
                     && Array.isArray(value.expectedStatuses) && value.expectedStatuses.length > 0 && value.expectedStatuses.length <= 4
-                    && value.expectedStatuses.every(httpStatus) && (value.receivedStatus === null || httpStatus(value.receivedStatus));
+                    && value.expectedStatuses.every(httpStatus) && (value.receivedStatus === null || httpStatus(value.receivedStatus))
+                    && (value.blocker === null || (typeof value.blocker === "string" && OMR_DELETE_BLOCKER_LABELS.has(value.blocker)));
                 } else {
                   destination = "crossTenantDenialProbes";
                   valid &&= file === "clinic-roundtrip.spec.ts" && exactKeys(value, ["schema", "status", "errorCode"])
