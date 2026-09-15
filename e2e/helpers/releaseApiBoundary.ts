@@ -182,7 +182,7 @@ export function assertReleaseRequestSafe(
 }
 
 export type ObservationCounts = { attempted: number; accepted: number };
-export type RequestTransportCounts = { readFetchRetries: number };
+export type RequestTransportCounts = { readFetchRetries: number; mutationReplays: number };
 export type RequestTransportDiagnostic = {
   method: "GET" | "HEAD" | "OPTIONS" | "POST" | "PUT" | "PATCH" | "DELETE";
   pathTemplate: string;
@@ -373,6 +373,20 @@ const SAFE_REQUEST_TRANSPORT_PATH_SHAPES: Array<[RegExp, string]> = [
   [/^\/lectures\/sessions\/[1-9][0-9]*\/$/, "/lectures/sessions/:id/"],
 ];
 
+// A stale pooled keep-alive socket over the SSM tunnel fails fast with
+// "socket hang up" before the server sees the request. Replay is permitted
+// only where a duplicate delivery is provably harmless to BOTH the API and
+// this gate's own exact-count assertions.
+const REPLAY_SAFE_MUTATION_TEMPLATES = new Set<string>([
+  "/api/v1/media/playback/events/", // append-only; canary asserts playback_events >= 4 (lower bound)
+  "/api/v1/students/me/activity/", // activity ping; no exact-count assertion
+  // Deliberately excluded: /api/v1/student/video/videos/:id/playback/
+  //   creates a playback session; observeLongVideoRuntime asserts
+  //   playback_sessions === 4 and active_playback_sessions === 0 exactly.
+]);
+const REPLAY_SAFE_MAX_ATTEMPT_MS = 250; // observed stale-socket hang-ups: 7..134ms
+const REPLAY_SAFE_MAX_TOTAL = 3; // a degrading tunnel must still fail the gate
+
 function safeRequestTransportPathTemplate(rawUrl: string): string | null {
   let target: URL;
   try { target = new URL(rawUrl); } catch { return null; }
@@ -396,7 +410,7 @@ export function installReleaseRequestGuard(
   observations: ObservationCounts = { attempted: 0, accepted: 0 },
   authentication: ObservationCounts = { attempted: 0, accepted: 0 },
   onViolation: () => void = () => {},
-  transport: RequestTransportCounts = { readFetchRetries: 0 },
+  transport: RequestTransportCounts = { readFetchRetries: 0, mutationReplays: 0 },
   onTransportDiagnostic: (diagnostic: RequestTransportDiagnostic) => void = () => {},
   onObservation: (event: ReleaseObservationEvent) => void = () => {},
 ): APIRequestContext {
@@ -556,6 +570,7 @@ export async function installReleaseContextGuard(
   const authentication = { attempted: 0, accepted: 0 };
   const transport = {
     readFetchRetries: 0,
+    mutationReplays: 0,
     suppressedAnalyticsBatches: 0,
     suppressedAnalyticsEvents: 0,
     suppressedCloudflareBeacons: 0,
@@ -665,12 +680,22 @@ export async function installReleaseContextGuard(
           recordRouteTransport(request, upstream, "initial", error);
           const code = releaseRequestFailureCode(error);
           const safeRead = ["GET", "HEAD", "OPTIONS"].includes(request.method().toUpperCase());
-          if (!safeRead || code === "context-disposed") {
+          const attemptMs = Date.now() - timing.attemptStartedAt;
+          // Stale pooled socket over the SSM tunnel: same narrow failure mode
+          // GET already recovers from below, extended to two provably replay-safe
+          // mutation endpoints (see REPLAY_SAFE_MUTATION_TEMPLATES above).
+          const replaySafeMutation = !safeRead && code !== "context-disposed"
+            && safeNativeTransportKind(error) === "socket-hang-up"
+            && attemptMs <= REPLAY_SAFE_MAX_ATTEMPT_MS
+            && REPLAY_SAFE_MUTATION_TEMPLATES.has(safeRequestTransportPathTemplate(upstream) ?? "")
+            && transport.mutationReplays < REPLAY_SAFE_MAX_TOTAL;
+          if ((!safeRead && !replaySafeMutation) || code === "context-disposed") {
             recordRouteTransport(request, upstream, "terminal", error);
             await reject(code === "context-disposed" ? code : "fetch-transport");
             return;
           }
-          transport.readFetchRetries += 1;
+          if (replaySafeMutation) transport.mutationReplays += 1;
+          else transport.readFetchRetries += 1;
           await new Promise((resolve) => setTimeout(resolve, 500));
           try {
             timing.attemptStartedAt = Date.now();
