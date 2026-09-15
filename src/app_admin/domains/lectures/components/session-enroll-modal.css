@@ -1,0 +1,30 @@
+@media (max-width: 639px) {
+  .admin-modal.session-enroll-modal .modal-body {
+    overflow-y: auto;
+  }
+
+  .modal-body > .session-enroll-layout {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .session-enroll-layout .session-enroll-roster {
+    flex: 0 0 auto;
+    min-height: 200px;
+    max-height: 360px;
+  }
+
+  .session-enroll-layout .session-enroll-selection {
+    width: 100%;
+  }
+
+  .session-enroll-modal .session-enroll-pagination {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .session-enroll-modal .session-enroll-pagination-controls {
+    justify-content: center;
+  }
+}

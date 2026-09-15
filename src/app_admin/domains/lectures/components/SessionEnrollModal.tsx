@@ -33,6 +33,7 @@ import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { isSupplementSession, sortSessionsByDisplayOrder } from "@/shared/product/sessions/sessionOrdering";
 import { adminLectureQueryKeys } from "../queryKeys";
+import "./session-enroll-modal.css";
 
 const PAGE_SIZE = 100;
 
@@ -350,7 +351,7 @@ export default function SessionEnrollModal({
   }, [keyword]);
 
   // ── Queries ────────────────────────────────────────────────────────────────
-  /** 출결(attendance) 기준 이미 등록된 학생 ID 전체 — 수강생 등록 모달에서 목록/등록 제외용. 엑셀 일괄업로드 멱등은 별도. */
+  /** 퇴원 보관행을 제외한 등록 학생 ID 전체. 엑셀 일괄업로드 멱등은 별도. */
   const {
     data: attendanceEnrolledIds = [],
     isPending: attendanceIdsPending,
@@ -405,7 +406,7 @@ export default function SessionEnrollModal({
     [sessionEnrollments]
   );
 
-  /** 이미 등록된 학생 ID 집합 — 출결(attendance) 목록 전체 기준. 표기/등록 모두에서 제외. */
+  /** 이미 등록된 학생은 표기/등록 모두에서 제외하며 차시 퇴원 학생은 재등록할 수 있다. */
   const alreadyEnrolledStudentIds = useMemo(
     () => new Set(attendanceEnrolledIds.filter((studentId) => Number.isFinite(studentId))),
     [attendanceEnrolledIds]
@@ -965,7 +966,7 @@ export default function SessionEnrollModal({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <AdminModal open={true} onClose={() => { void requestClose(); }} type="action" width={840}>
+      <AdminModal open={true} onClose={() => { void requestClose(); }} type="action" width={840} className="session-enroll-modal">
         <ModalHeader
           type="action"
           title="차시 수강생 등록"
@@ -996,7 +997,7 @@ export default function SessionEnrollModal({
             />
           )}
           <div
-            className="grid gap-4 min-h-0 overflow-hidden ds-split-layout"
+            className="grid gap-4 min-h-0 overflow-hidden ds-split-layout session-enroll-layout"
             style={{
               gridTemplateColumns: "1fr 220px",
               minHeight: 380,
@@ -1145,7 +1146,7 @@ export default function SessionEnrollModal({
                   })()}
 
                   <div
-                    className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0"
+                    className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0 session-enroll-roster"
                     style={{
                       borderColor: "var(--color-border-divider)",
                       background: "var(--color-bg-surface)",
@@ -1355,7 +1356,7 @@ export default function SessionEnrollModal({
                     {/* 페이지네이션 */}
                     {(studentsToShow.length > 0 || students.length > 0) && (
                       <div
-                        className="flex items-center justify-between gap-3 py-2.5 px-3 border-t shrink-0 bg-[var(--color-bg-surface)]"
+                        className="flex items-center justify-between gap-3 py-2.5 px-3 border-t shrink-0 bg-[var(--color-bg-surface)] session-enroll-pagination"
                         style={{ borderColor: "var(--color-border-divider)" }}
                       >
                         <div className="flex items-center gap-2 min-w-0">
@@ -1368,7 +1369,7 @@ export default function SessionEnrollModal({
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 session-enroll-pagination-controls">
                           <Button
                             type="button"
                             intent="ghost"
@@ -1425,7 +1426,7 @@ export default function SessionEnrollModal({
 
             {/* 우측: 불러오기 + 선택 목록 */}
             <div
-              className="flex flex-col gap-4 rounded-xl border p-4 w-[220px] shrink-0 self-stretch min-h-0 overflow-hidden"
+              className="flex flex-col gap-4 rounded-xl border p-4 w-[220px] shrink-0 self-stretch min-h-0 overflow-hidden session-enroll-selection"
               style={{
                 borderColor: "var(--color-border-divider)",
                 background: "var(--color-bg-surface)",

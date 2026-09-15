@@ -273,6 +273,7 @@ function ScoreEntryList({
 
   // row 식별자 = enrollment_id (admin endpoint schema SSOT)
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const initialFocusExamRef = useRef<number | null>(null);
   const pendingSubmitKeys = useRef<Set<string>>(new Set());
   const [localScores, setLocalScores] = useState<Map<number, string>>(() => loadDraft(draftScope, examId));
   const [studentSearch, setStudentSearch] = useState("");
@@ -285,12 +286,21 @@ function ScoreEntryList({
     setReviewFilter("all");
   }, [examId]);
   useEffect(() => {
-    if (!results?.length) return;
+    if (initialFocusExamRef.current === examId || !results?.length
+      || resultsLoading || rosterLoading || scoreSheetLoading || resultsError || scoreSheetError) return;
     const firstEnrollmentId = getExamResultEnrollmentId(results[0]);
     if (firstEnrollmentId == null) return;
-    const t = setTimeout(() => inputRefs.current.get(firstEnrollmentId)?.focus(), 50);
+    const t = setTimeout(() => {
+      const firstInput = inputRefs.current.get(firstEnrollmentId);
+      if (!firstInput?.isConnected) return;
+      initialFocusExamRef.current = examId;
+      // Initial convenience must not steal a choice made while data was loading.
+      const active = document.activeElement;
+      if (active && active !== document.body && active !== document.documentElement) return;
+      firstInput.focus();
+    }, 50);
     return () => clearTimeout(t);
-  }, [examId, results]);
+  }, [examId, results, resultsLoading, rosterLoading, scoreSheetLoading, resultsError, scoreSheetError]);
 
   const updateMut = useMutation({
     mutationFn: ({ enrollmentId, score, maxScore, subjectiveOnly }: { enrollmentId: number; score: number; maxScore: number; subjectiveOnly: boolean }) =>

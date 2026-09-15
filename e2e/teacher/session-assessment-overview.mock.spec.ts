@@ -81,6 +81,7 @@ async function installScenario(page: Page, options: { scenario?: Scenario; failS
   const failedPatches: Array<{ examId: number; enrollmentId: number; score: number; max_score: number }> = [];
   const leaseEvents: string[] = [];
   let leaseClient: string | null = null;
+  let nextResultResponse: Promise<void> | null = null;
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   const token = `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: TENANT, user_id: 9700 })}.sig`;
   await page.addInitScript(({ jwt, tenant }) => {
@@ -160,6 +161,9 @@ async function installScenario(page: Page, options: { scenario?: Scenario; failS
     if (resultsMatch) {
       const examId = Number(resultsMatch[1]);
       resultRequests.push(examId);
+      const responseGate = nextResultResponse;
+      nextResultResponse = null;
+      if (responseGate) await responseGate;
       return list(scores.rows.flatMap((row) => {
         const entry = row.exams.find((exam) => exam.exam_id === examId);
         return entry ? [{
@@ -214,6 +218,11 @@ async function installScenario(page: Page, options: { scenario?: Scenario; failS
     scoreRequests: () => scoreRequests,
     recoverScores: () => { failScores = false; },
     recoverScoreWrite: () => { failScoreWrite = false; },
+    holdNextResultResponse: () => {
+      let release!: () => void;
+      nextResultResponse = new Promise<void>((resolve) => { release = resolve; });
+      return release;
+    },
   };
 }
 
@@ -243,6 +252,90 @@ async function expectUnassigned(cell: Locator) {
   for (const status of ["미채점", "미입력", "최종 통과", "최종 미통과", "선생님 확인 완료", "오답 미완료", "오답 완료", "채점 대기"]) {
     await expect(cell.getByText(status, { exact: true })).toHaveCount(0);
   }
+}
+
+async function openScoreEntryBeforeAutofocus(page: Page) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const api = await installScenario(page);
+  await gotoSession(page, `?tab=scores&scoresView=exams&exam=${EXAM_A}`);
+  await expect(page.getByText("0/100", { exact: true }).first()).toBeVisible();
+  const now = new Date();
+  await page.clock.install({ time: now });
+  await page.clock.pauseAt(now);
+  await mainButton(page, "점수 입력 / 수정").click();
+  const search = page.getByRole("searchbox", { name: "학생 이름 검색", exact: true });
+  // Flush only query/render notifications; keep the initial 50ms focus timer pending.
+  let elapsed = 0;
+  await expect.poll(async () => {
+    await page.clock.runFor(1);
+    elapsed += 1;
+    return search.isVisible();
+  }).toBe(true);
+  expect(elapsed).toBeLessThan(50);
+  const firstScore = page.getByRole("textbox", { name: "가상가람긴이름확인학생 합산 점수 입력", exact: true });
+  await expect(firstScore).toHaveValue("0");
+  await expect(firstScore).not.toBeFocused();
+  return { api, search, firstScore };
+}
+
+test("390px 초기 자동 포커스 대기 중 검색 입력을 시작하면 검색과 첫 점수를 보존한다", async ({ page }) => {
+  const { api, search, firstScore } = await openScoreEntryBeforeAutofocus(page);
+  await search.focus();
+  await page.keyboard.type("가상");
+  await expect(search).toHaveValue("가상");
+  await page.clock.runFor(51);
+  await page.keyboard.type("가람");
+  await expect(search).toBeFocused();
+  await expect(search).toHaveValue("가상가람");
+  await expect(firstScore).toHaveValue("0");
+  expect(api.mutations).toEqual([]);
+});
+
+test("390px 초기 자동 포커스는 사용자가 입력 대상을 선택하지 않았을 때 첫 점수로 이동한다", async ({ page }) => {
+  const { api, firstScore } = await openScoreEntryBeforeAutofocus(page);
+  await page.clock.runFor(51);
+  await expect(firstScore).toBeFocused();
+  await expect(firstScore).toHaveValue("0");
+  expect(api.mutations).toEqual([]);
+});
+
+for (const focusTarget of ["다음 점수", "학생 필터"] as const) {
+  test(`390px 초기 자동 포커스 이후 저장 재조회는 ${focusTarget}의 수동 포커스를 보존한다`, async ({ page }) => {
+    const { api, firstScore } = await openScoreEntryBeforeAutofocus(page);
+    await page.clock.runFor(51);
+    await expect(firstScore).toBeFocused();
+    const releaseResults = api.holdNextResultResponse();
+    const initialResultRequests = api.resultRequests.length;
+    const nextScore = page.getByRole("textbox", { name: "가상나래 합산 점수 입력", exact: true });
+    await firstScore.fill("91");
+    await firstScore.press("Enter");
+    await expect(nextScore).toBeFocused();
+    const manualTarget = focusTarget === "다음 점수"
+      ? nextScore
+      : page.getByRole("group", { name: "테스트 오답 확인 학생 필터", exact: true })
+        .getByRole("button", { name: "전체 17", exact: true });
+    await manualTarget.focus();
+    await expect.poll(async () => {
+      await page.clock.runFor(1);
+      return api.resultRequests.length;
+    }).toBe(initialResultRequests + 1);
+    expect(api.mutations).toEqual([{ examId: EXAM_A, enrollmentId: 9800, score: 91, max_score: 100 }]);
+    // A changed third-row value proves the new response reached the UI.
+    api.scores.rows[2].exams.find((exam) => exam.exam_id === EXAM_A)!.block = block(36);
+    const response = page.waitForResponse((entry) => new URL(entry.url()).pathname === `/api/v1/results/admin/exams/${EXAM_A}/results/`);
+    releaseResults();
+    await response;
+    const thirdScore = page.getByRole("textbox", { name: "가상다온 합산 점수 입력", exact: true });
+    await expect.poll(async () => {
+      await page.clock.runFor(1);
+      return thirdScore.inputValue();
+    }).toBe("36");
+    await page.clock.runFor(51);
+    await expect(manualTarget).toBeFocused();
+    await expect(firstScore).toHaveValue("91");
+    await expect(nextScore).toHaveValue("");
+    expect(api.mutations).toEqual([{ examId: EXAM_A, enrollmentId: 9800, score: 91, max_score: 100 }]);
+  });
 }
 
 async function captureOverview(page: Page, testInfo: TestInfo, width: number) {
