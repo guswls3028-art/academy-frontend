@@ -11,7 +11,7 @@ import type { APIRequestContext, Page, Response } from "@playwright/test";
 import { PDFDocument, rgb } from "pdf-lib";
 import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
-import { emitOmrCleanupStatus } from "../helpers/releaseApiBoundary";
+import { emitOmrCleanupStatus, safeLectureSessionDeleteBlocker } from "../helpers/releaseApiBoundary";
 
 test.setTimeout(360_000);
 
@@ -422,7 +422,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       };
     }
     if (!acceptedStatuses.includes(out.status)) {
-      emitOmrCleanupStatus("remove", acceptedStatuses, out.status);
+      emitOmrCleanupStatus("remove", acceptedStatuses, out.status, safeLectureSessionDeleteBlocker(out.body));
       failures.push(`${method} ${path} -> ${out.status} ${JSON.stringify(out.body)}`);
     }
     return out;
@@ -455,7 +455,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     if (examDelete.status === 200) {
       const action = (examDelete.body as { action?: unknown } | null)?.action;
       if (action !== "archived") {
-        emitOmrCleanupStatus("archive-action", [200], examDelete.status);
+        emitOmrCleanupStatus("archive-action", [200], examDelete.status, null);
         failures.push(
           `unexpected exam cleanup action -> 200 ${JSON.stringify(examDelete.body)}`,
         );
@@ -485,11 +485,11 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       : []),
   ]) {
     const verification = await apiFetch(request, "GET", path, token).catch((error) => {
-      emitOmrCleanupStatus("verify-absent", [404], 0);
+      emitOmrCleanupStatus("verify-absent", [404], 0, null);
       throw error;
     });
     if (verification.status !== 404) {
-      emitOmrCleanupStatus("verify-absent", [404], verification.status);
+      emitOmrCleanupStatus("verify-absent", [404], verification.status, null);
       failures.push(`verify ${label} absent -> ${verification.status} ${JSON.stringify(verification.body)}`);
     }
   }
@@ -501,7 +501,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       `/exams/${created.examId}/?include_inactive=true`,
       token,
     ).catch((error) => {
-      emitOmrCleanupStatus("verify-archive", [200], 0);
+      emitOmrCleanupStatus("verify-archive", [200], 0, null);
       throw error;
     });
     if (
@@ -510,7 +510,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       || retained.body?.title !== EXAM_TITLE
       || retained.body?.is_active !== false
     ) {
-      emitOmrCleanupStatus("verify-archive", [200], retained.status);
+      emitOmrCleanupStatus("verify-archive", [200], retained.status, null);
       failures.push(
         `verify archived E2E exam handoff -> ${retained.status} ${JSON.stringify(retained.body)}`,
       );

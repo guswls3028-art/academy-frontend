@@ -246,11 +246,41 @@ export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | 
     expectedStatus: null, receivedStatus: null } });
 }
 
+// Mirrors the closed label vocabulary raised by SessionViewSet.destroy /
+// LectureViewSet.destroy (apps/domains/lectures/views.py) via
+// first_session_delete_blocker / first_lecture_delete_blocker
+// (apps/support/lectures/view_dependencies.py). These are fixed English
+// nouns describing which referential-integrity guard tripped -- never
+// user content -- so they are safe to publish in evidence.
+const SESSION_DELETE_BLOCKER_LABELS = new Set([
+  "session enrollments", "attendance records", "exams", "homework enrollments",
+  "homework assignments", "homeworks", "homework scores", "session progress",
+  "lecture progress references", "clinic links", "risk logs", "videos",
+  "video folders", "score edit drafts",
+]);
+const LECTURE_ONLY_DELETE_BLOCKER_LABELS = new Set([
+  "lecture enrollments", "lecture progress", "clinic sessions", "section assignments",
+]);
+
+export function safeLectureSessionDeleteBlocker(body: unknown): string | null {
+  const detail = isRecord(body) && typeof body.detail === "string" ? body.detail : "";
+  const match = /^This (?:session|lecture) has (.+) and cannot be deleted\.$/.exec(detail);
+  if (!match) return null;
+  const label = match[1];
+  if (SESSION_DELETE_BLOCKER_LABELS.has(label) || LECTURE_ONLY_DELETE_BLOCKER_LABELS.has(label)) return label;
+  const sessionsWith = /^sessions with (.+)$/.exec(label);
+  if (sessionsWith && SESSION_DELETE_BLOCKER_LABELS.has(sessionsWith[1])) return label;
+  return null;
+}
+
 export function emitOmrCleanupStatus(stage: "remove" | "verify-absent" | "archive-action" | "verify-archive",
-  expectedStatuses: number[], receivedStatus: number,
+  expectedStatuses: number[], receivedStatus: number, blocker: string | null = null,
   emit: (value: unknown) => void = (value) => console.log(JSON.stringify(value))) {
   emit({ omrCleanupStatus: { schema: "release-omr-cleanup-status/v1", stage, expectedStatuses: [...expectedStatuses],
-    receivedStatus: Number.isInteger(receivedStatus) && receivedStatus >= 100 && receivedStatus <= 599 ? receivedStatus : null } });
+    receivedStatus: Number.isInteger(receivedStatus) && receivedStatus >= 100 && receivedStatus <= 599 ? receivedStatus : null,
+    blocker: typeof blocker === "string" && (SESSION_DELETE_BLOCKER_LABELS.has(blocker)
+      || LECTURE_ONLY_DELETE_BLOCKER_LABELS.has(blocker)
+      || SESSION_DELETE_BLOCKER_LABELS.has(/^sessions with (.+)$/.exec(blocker)?.[1] ?? "")) ? blocker : null } });
 }
 
 let nextObservationOrdinal = 0;
