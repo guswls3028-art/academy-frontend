@@ -166,7 +166,7 @@ export const test = base.extend<StrictBrowserOptions>({
   request: async ({ request }, continueWithFixture) => {
     const boundary = releaseBoundaryFromEnv(process.env);
     let violations = 0;
-    const transport = { readFetchRetries: 0 };
+    const transport = { readFetchRetries: 0, mutationReplays: 0 };
     const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
     const observation = createReleaseContextObservation(null);
     if (boundary) installReleaseRequestGuard(request, boundary, undefined, undefined,

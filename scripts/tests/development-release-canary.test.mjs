@@ -60,12 +60,15 @@ test("transport truth keeps request timing and document counters through the off
     guard.observation.setPageState(page, { pageOrdinal: 1, documentLoadOrdinal: 2, navigationOrdinal: 2 });
     throw new Error("route.fetch: socket hang up\nCall log: Bearer secret-token");
   }, abort: async () => {}, fulfill: async () => assert.fail("no synthetic success"), continue: async () => assert.fail("no escape") });
-  assert.equal(attempts, 1);
+  // /api/v1/media/playback/events/ is a replay-safe mutation template (append-only,
+  // canary asserts a lower bound only) — a persistent socket-hang-up still replays
+  // once before failing terminally, same as a safe read.
+  assert.equal(attempts, 2);
   assert.throws(() => guard.assertClean(), /fetch-transport/);
   const report = contextReport([{ releaseContextObservation: guard.observation.snapshot() }]);
   const observed = observeReleaseTestResult(JSON.stringify(report));
   const events = observed.contextObservations[0].events;
-  assert.deepEqual(events.map((event) => event.stage), ["initial", "terminal"]);
+  assert.deepEqual(events.map((event) => event.stage), ["initial", "retry", "terminal"]);
   for (const event of events) {
     assert.equal(event.pathTemplate, "/api/v1/media/playback/events/");
     assert.equal(event.nativeKind, "socket-hang-up");
@@ -1225,6 +1228,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     }],
     runnerErrorCount: 1,
     readFetchRetries: 1,
+    mutationReplays: null,
     suppressedAnalyticsBatches: 2,
     suppressedAnalyticsEvents: 3,
     suppressedCloudflareBeacons: 4,
@@ -1259,7 +1263,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     reportStatus: "unparsed",
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
     failedFiles: [], failureLocations: [], boundaryCodes: [], failureDiagnostics: [], runnerErrorCount: null,
-    readFetchRetries: null, suppressedAnalyticsBatches: null,
+    readFetchRetries: null, mutationReplays: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
@@ -2411,6 +2415,7 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
   assert.equal(fulfillments, 1);
   assert.deepEqual(safeRead.guard.transport, {
     readFetchRetries: 1,
+    mutationReplays: 0,
     suppressedAnalyticsBatches: 0,
     suppressedAnalyticsEvents: 0,
     suppressedCloudflareBeacons: 0,
@@ -2427,12 +2432,73 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
     mutationAttempts += 1;
     throw new Error("unit mutation fetch interruption");
   }));
-  assert.equal(mutationAttempts, 1, "mutations must never be replayed");
+  assert.equal(mutationAttempts, 1, "a non-socket-hang-up mutation failure is never replayed");
   assert.deepEqual(mutation.guard.requestTransportDiagnostics, [{
     method: "POST", pathTemplate: "/api/v1/students/me/activity/", requestKind: "mutation",
     stage: "initial", transportCode: "transport",
   }]);
   assert.throws(() => mutation.guard.assertClean(), /Release request rejected \[fetch-transport\]/);
+
+  const makeRouteAt = (url, method, fetch) => ({
+    request: () => ({
+      url: () => url,
+      method: () => method,
+      postDataJSON: () => undefined,
+      headerValue: async () => development.tenantCode,
+      allHeaders: async () => ({ origin: development.webOrigin, "x-tenant-code": development.tenantCode }),
+    }),
+    fetch,
+    fulfill: async () => {},
+    abort: async () => {},
+    continue: async () => {},
+  });
+
+  // A replay-safe mutation template (append-only endpoint, canary asserts a
+  // lower bound only) recovers from exactly one stale-socket hang-up, same as
+  // a safe read.
+  const replaySafeMutation = await install();
+  let replaySafeAttempts = 0;
+  await replaySafeMutation.handler(makeRouteAt(
+    "https://api.hakwonplus.com/api/v1/media/playback/events/", "POST", async () => {
+      replaySafeAttempts += 1;
+      if (replaySafeAttempts < 2) throw new Error("socket hang up");
+      return response;
+    }));
+  assert.equal(replaySafeAttempts, 2);
+  assert.equal(replaySafeMutation.guard.transport.mutationReplays, 1);
+  assert.doesNotThrow(() => replaySafeMutation.guard.assertClean());
+
+  // The same signature on a non-whitelisted mutation (creates a playback
+  // session; the canary asserts an exact session count) is never replayed.
+  const unsafeMutation = await install();
+  let unsafeAttempts = 0;
+  await unsafeMutation.handler(makeRouteAt(
+    "https://api.hakwonplus.com/api/v1/student/video/videos/123/playback/", "POST", async () => {
+      unsafeAttempts += 1;
+      throw new Error("socket hang up");
+    }));
+  assert.equal(unsafeAttempts, 1, "a non-whitelisted mutation endpoint is never replayed");
+  assert.equal(unsafeMutation.guard.transport.mutationReplays, 0);
+  assert.throws(() => unsafeMutation.guard.assertClean(), /Release request rejected \[fetch-transport\]/);
+
+  // A degrading tunnel still fails the gate: the replay budget is capped
+  // across the whole guard session, not granted per request.
+  const exhausted = await install();
+  for (let i = 0; i < 3; i += 1) {
+    await exhausted.handler(makeRouteAt(
+      "https://api.hakwonplus.com/api/v1/media/playback/events/", "POST", async () => {
+        throw new Error("socket hang up");
+      }));
+  }
+  assert.equal(exhausted.guard.transport.mutationReplays, 3);
+  let fourthAttempts = 0;
+  await exhausted.handler(makeRouteAt(
+    "https://api.hakwonplus.com/api/v1/media/playback/events/", "POST", async () => {
+      fourthAttempts += 1;
+      throw new Error("socket hang up");
+    }));
+  assert.equal(fourthAttempts, 1, "the fourth failure in one session exceeds the replay cap and is terminal");
+  assert.equal(exhausted.guard.transport.mutationReplays, 3, "the cap is not exceeded");
 
   const delivery = await install();
   let deliveryFetches = 0;
@@ -2503,6 +2569,7 @@ test("production browser guard locally neutralizes only exact non-business telem
   assert.equal(exact.operations[0].fulfill.status, 202);
   assert.deepEqual(analytics.guard.transport, {
     readFetchRetries: 0,
+    mutationReplays: 0,
     suppressedAnalyticsBatches: 1,
     suppressedAnalyticsEvents: 1,
     suppressedCloudflareBeacons: 0,
@@ -2555,6 +2622,7 @@ test("production browser guard locally neutralizes only exact non-business telem
   assert.equal(cloudflare.operations[0].fulfill.contentType, "application/javascript; charset=utf-8");
   assert.deepEqual(beacon.guard.transport, {
     readFetchRetries: 0,
+    mutationReplays: 0,
     suppressedAnalyticsBatches: 0,
     suppressedAnalyticsEvents: 0,
     suppressedCloudflareBeacons: 1,

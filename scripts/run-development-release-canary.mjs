@@ -371,7 +371,7 @@ export function observeReleaseTestResult(stdout) {
     reportStatus: "unparsed",
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
     failedFiles: [], failureLocations: [], boundaryCodes: [], failureDiagnostics: [], runnerErrorCount: null,
-    readFetchRetries: null, suppressedAnalyticsBatches: null,
+    readFetchRetries: null, mutationReplays: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
@@ -392,7 +392,7 @@ export function observeReleaseTestResult(stdout) {
   const failureLocations = new Map();
   const messages = [];
   const transportKeys = [
-    "readFetchRetries", "suppressedAnalyticsBatches",
+    "readFetchRetries", "mutationReplays", "suppressedAnalyticsBatches",
     "suppressedAnalyticsEvents", "suppressedCloudflareBeacons",
   ];
   const transportTotals = Object.fromEntries(transportKeys.map((key) => [key, 0]));
