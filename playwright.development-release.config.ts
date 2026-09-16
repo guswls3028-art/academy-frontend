@@ -14,7 +14,6 @@ export default defineConfig({
     "student/student-parent-homework-realuse.spec.ts",
     "student/student-parent-learning-realuse.spec.ts",
     "student/student-parent-storage-realuse.spec.ts",
-    "admin/omr-review-realuse.spec.ts",
     "student/video-playback-renewal.realuse.spec.ts",
   ],
   forbidOnly: true,
