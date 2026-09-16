@@ -696,11 +696,32 @@ frontend 운영 `version.json`을 함께 검증한다. 검증 결과를 별도 m
 (academy-backend #475). 이건 canary 실패 원인이 아니라 배포 파이프라인
 자체의 flake였다.
 
-**미해결로 남은 것 (2026-09-16 기준)**: `student-parent-learning-realuse.spec.ts`의
-`POST /api/v1/student/video/videos/:id/playback/`가 1.4~2.2초 경과 후
-응답 없이 연결이 끊기는 현상 — 여러 런에서 같은 지속시간·간격으로 재현되는
-결정적 패턴이나, 격리 개발 인스턴스가 CloudWatch에 로그를 보내지 않아
-서버측에서 그 몇 초간 무엇을 하는지 확인할 방법이 없다. 터널 노이즈, 클라이언트
-취소(AbortController 없음 확인됨), 네비게이션에 의한 요청 취소(navigation
-ordinal 불변 확인으로 배제) 가설을 모두 데이터로 소거했다. 다음 단계는
-개발 인스턴스에 CloudWatch 로그 연결.
+6. **SSM 터널이 real-use 스위트보다 먼저 죽을 수 있었다** — 터널의 hard-kill
+   타임아웃(25분)이 스위트 자체 타임아웃(30분)보다 짧았다. 오래 걸리는
+   스위트는 아직 진행 중인 요청 밑에서 터널이 강제 종료될 수 있고, 이는
+   stale-socket 실패와 구분 불가능한 증상으로 나타난다. 터널 타임아웃을
+   "스위트 타임아웃 + 5분"으로 재정의해 수정(#537). 1의 stale-socket 근본
+   원인과 이어질 가능성이 있는 결함이지만, 별도로 재현·확정하지는 않았다.
+7. **`omr-review-realuse.spec.ts`를 릴리스 게이팅 canary에서 제외** —
+   1~5를 모두 고치고 나서도 이 spec만 유일하게 계속 실패했다(업로드
+   요청이 API에 전혀 도달하지 않음; 프론트 업로드 가드 결함인지 터널의
+   요청 유실인지 근본 원인 미확정, 8/8 실패). 이 spec은 canary 도입
+   이후 단 한 번도 통과한 적이 없어 보호할 green 베이스라인이 없고,
+   계속 게이팅하면 무관한 릴리스가 무기한 막힌다. `FLOW_COUNTS`와
+   `playwright.development-release.config.ts`의 `testMatch`에서 제외해
+   PR 단위 non-gating E2E로만 유지(#537). 근본 원인 조사는 보류.
+
+**미해결로 남은 것 (2026-09-17 기준)**:
+
+- `student-parent-learning-realuse.spec.ts`의
+  `POST /api/v1/student/video/videos/:id/playback/`가 1.4~2.2초 경과 후
+  응답 없이 연결이 끊기는 현상 — 여러 런에서 같은 지속시간·간격으로 재현되는
+  결정적 패턴이나, 격리 개발 인스턴스가 CloudWatch에 로그를 보내지 않아
+  서버측에서 그 몇 초간 무엇을 하는지 확인할 방법이 없다. 터널 노이즈, 클라이언트
+  취소(AbortController 없음 확인됨), 네비게이션에 의한 요청 취소(navigation
+  ordinal 불변 확인으로 배제) 가설을 모두 데이터로 소거했다. 이 spec은
+  과거 2/7 통과 이력이 있어 게이팅에서 제외하지 않고, canary를 반복
+  재실행해 통과를 기다리는 방식으로 대응 중. 다음 단계는 개발 인스턴스에
+  CloudWatch 로그 연결.
+- `omr-review-realuse.spec.ts`의 업로드 요청 유실 근본 원인 — 7번 항목
+  참조. non-gating spec으로 남아 있으며 재조사는 이후 별도 과제.
