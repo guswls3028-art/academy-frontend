@@ -673,9 +673,34 @@ frontend 운영 `version.json`을 함께 검증한다. 검증 결과를 별도 m
    `apps/infrastructure/storage/r2.py`의 `upload_fileobj_to_r2`가
    `timeout_seconds` 없이 `_get_s3_client()`를 호출해 boto3 기본값(사실상
    무제한)으로 R2에 업로드했다. 제품에도 실사용자 영향이 있는 결함이라
-   backend에서 30초로 경계를 두어 수정(academy-backend #474).
+   backend에서 30초로 경계를 두어 수정(academy-backend #474). 다만
+   `timeout_seconds`는 요청당 경계라, boto3 기본 multipart_threshold(8MB)
+   보다 큰 파일(OMR 캡 10MB)은 여러 요청으로 쪼개져 합산 시간이 여전히
+   90초를 넘을 수 있었다 -- `single_put_max_bytes`로 단일 PUT을 강제해
+   추가 수정(academy-backend #476).
+5. **업로드 성공 후 뜨는 안내 문구가 실제 제품과 달랐다** — spec이 기다리던
+   "등록을 시작했습니다..." 텍스트는 제품 어디에도 렌더링되지 않는 옛 문구였다.
+   `AdminOmrBatchUploadBox.tsx`의 실제 접수 안내 문구로 단언 대상을
+   맞춰 수정(#535). 이 spec은 1~4의 결함들에 가려 canary에서 한 번도
+   끝까지 실행된 적이 없었다.
 
 부수적으로 발견한 별개의 제품 결함(게이트 정체와 직접 관련은 없음): 만료된
 `ScoreEditDraft`가 영구히 강의 삭제를 막는 문제, 그리고 "리소스 사용 중"에
 403(권한 거부로 오인 가능)을 반환하는 문제 — 두 건 모두 이 문서 작성 시점
 기준 별도 후속 과제로만 존재하고 아직 수정되지 않았다.
+
+인프라 측에서도 배포 스크립트 결함 한 건을 발견해 수정했다: 새로 뜬 EC2
+인스턴스가 SSM 커맨드를 받을 수 있는 시점이 cloud-init의 docker 설치
+완료보다 빠를 수 있는데, `scripts/v1/pin-asg-image.ps1`의 재시도 조건이
+"컨테이너 미시작"만 관용하고 "docker CLI 자체 미설치"는 즉시 실패시켰다
+(academy-backend #475). 이건 canary 실패 원인이 아니라 배포 파이프라인
+자체의 flake였다.
+
+**미해결로 남은 것 (2026-09-16 기준)**: `student-parent-learning-realuse.spec.ts`의
+`POST /api/v1/student/video/videos/:id/playback/`가 1.4~2.2초 경과 후
+응답 없이 연결이 끊기는 현상 — 여러 런에서 같은 지속시간·간격으로 재현되는
+결정적 패턴이나, 격리 개발 인스턴스가 CloudWatch에 로그를 보내지 않아
+서버측에서 그 몇 초간 무엇을 하는지 확인할 방법이 없다. 터널 노이즈, 클라이언트
+취소(AbortController 없음 확인됨), 네비게이션에 의한 요청 취소(navigation
+ordinal 불변 확인으로 배제) 가설을 모두 데이터로 소거했다. 다음 단계는
+개발 인스턴스에 CloudWatch 로그 연결.
