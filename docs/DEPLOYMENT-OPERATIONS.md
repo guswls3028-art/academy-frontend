@@ -644,3 +644,38 @@ transaction처럼 취급하지 않는다. 각 저장소의 exact SHA와 공식 r
 fail-closed readback으로 pending approval, backend manifest·Dynamo lock,
 frontend 운영 `version.json`을 함께 검증한다. 검증 결과를 별도 mutable queue나
 릴리스 SSOT로 저장하지 않는다.
+
+## 7. 2026-09-07 ~ 09-16 development-canary 정체 사고 기록
+
+2026-09-07 PR #454(마지막 성공 배포) 이후 09-16까지 main에 머지된 모든 PR이
+`development-canary`에서 실패해 `deploy`가 한 번도 실행되지 않았다. 원인은
+서로 무관한 결함 4건이 같은 게이트에 겹쳐 있었던 것이지, 게이트 자체의
+결함이 아니었다.
+
+1. **SSM 터널 stale-socket, 짧은 mutation 재시도 누락** — `route.fetch`가
+   pooled keep-alive 소켓 재사용 시 `socket hang up`으로 즉시 실패하는데,
+   GET은 기존에 1회 재시도로 복구되던 반면 POST/PUT/PATCH/DELETE는 재시도가
+   전혀 없었다. `e2e/helpers/releaseApiBoundary.ts`의 두 엔드포인트
+   (`/api/v1/media/playback/events/`, `/api/v1/students/me/activity/`)에
+   한해 좁게 재시도를 허용해 해결(#531). 정확한 세션 카운트를 단언하는
+   `/api/v1/student/video/videos/:id/playback/`은 의도적으로 제외했다.
+2. **`video-playback-renewal.realuse.spec.ts`가 09-08 도입 이후 한 번도
+   통과하지 못함** — 별개 버그가 아니라 1의 하류 증상이었다. #531 이후
+   연속 green으로 확인됐다.
+3. **OMR cleanup이 403으로 거부됨** — 역할 권한이 아니라
+   `SessionViewSet.destroy`/`LectureViewSet.destroy`의 참조 무결성 가드였다.
+   `omr-review-realuse.spec.ts`의 서술형 채점 단계가 여는 `ScoreEditDraft`
+   lease(`runWithScoreEditLease`, `src/shared/scoring/scoreEditLease.ts`)를
+   cleanup이 release하지 않아 세션/강의 삭제가 영구히 막혔다. 진단 계측(#532)으로
+   블로커 이름을 안전하게(닫힌 어휘집) evidence에 노출한 뒤 정확한 원인을
+   확인, cleanup에서 lease를 release하도록 수정(#533).
+4. **OMR 업로드가 90초 client timeout을 초과** — academy-backend
+   `apps/infrastructure/storage/r2.py`의 `upload_fileobj_to_r2`가
+   `timeout_seconds` 없이 `_get_s3_client()`를 호출해 boto3 기본값(사실상
+   무제한)으로 R2에 업로드했다. 제품에도 실사용자 영향이 있는 결함이라
+   backend에서 30초로 경계를 두어 수정(academy-backend #474).
+
+부수적으로 발견한 별개의 제품 결함(게이트 정체와 직접 관련은 없음): 만료된
+`ScoreEditDraft`가 영구히 강의 삭제를 막는 문제, 그리고 "리소스 사용 중"에
+403(권한 거부로 오인 가능)을 반환하는 문제 — 두 건 모두 이 문서 작성 시점
+기준 별도 후속 과제로만 존재하고 아직 수정되지 않았다.
