@@ -155,8 +155,13 @@ test("transport truth keeps OMR cleanup status at the actual failure without cha
   assert.equal(logs[0].omrCleanupStatus.receivedStatus, 502);
   assert.deepEqual(logs[0].omrCleanupStatus.expectedStatuses, [200, 202, 204, 404]);
   assert.equal(logs[0].omrCleanupStatus.blocker, null, "an unrecognized detail message is not published");
+  // omr-review-realuse.spec.ts is not a release-gating flow (FLOW_COUNTS has
+  // no entry for it -- see docs/DEPLOYMENT-OPERATIONS.md section 7) and it
+  // never runs in this canary context, so any event still tagged with its
+  // filename is unexpected and must stay rejected, not silently accepted.
   const observed = observeReleaseTestResult(JSON.stringify(contextReport(logs, "omr-review-realuse.spec.ts")));
-  assert.equal(observed.omrCleanupStatuses[0].receivedStatus, 502);
+  assert.deepEqual(observed.omrCleanupStatuses, []);
+  assert.equal(observed.rejectedFailureObservationCount, 1);
   assert.doesNotMatch(JSON.stringify(observed), /private-user|secret-token|987654/);
 });
 
@@ -180,8 +185,13 @@ test("transport truth publishes only the closed lecture/session delete blocker v
   await assert.rejects(cleanup({}), /OMR production fixture cleanup failed/);
   assert.equal(logs[0].omrCleanupStatus.receivedStatus, 403);
   assert.equal(logs[0].omrCleanupStatus.blocker, "exams");
+  // Same de-scope rationale as the test above: the emission side (this
+  // file's own safeLectureSessionDeleteBlocker extraction, asserted above)
+  // still matters and is still exercised; the canary parser correctly
+  // rejects it now that the spec isn't a recognized release flow.
   const observed = observeReleaseTestResult(JSON.stringify(contextReport(logs, "omr-review-realuse.spec.ts")));
-  assert.equal(observed.omrCleanupStatuses[0].blocker, "exams");
+  assert.deepEqual(observed.omrCleanupStatuses, []);
+  assert.equal(observed.rejectedFailureObservationCount, 1);
 });
 
 test("transport truth OMR verification transport keeps the stage and the identical thrown error", async () => {
@@ -1102,9 +1112,20 @@ test("production promotion requires the non-skipped isolated development canary"
 
 test("expanded development real-use suite keeps time to report and clean up", () => {
   const runner = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
-  assert.match(runner, /}, 30 \* 60_000\);/);
-  assert.doesNotMatch(runner, /}, 20 \* 60_000\);/);
+  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 30 \* 60_000;/);
+  assert.doesNotMatch(runner, /REAL_USE_SUITE_TIMEOUT_MS = 20 \* 60_000/);
+  assert.match(runner, /}, REAL_USE_SUITE_TIMEOUT_MS\);/);
   assert.match(job("development-canary"), /timeout-minutes: 40/);
+});
+
+test("the SSM tunnel outlives the real-use suite it serves", () => {
+  // A tunnel killed while tests are still in flight surfaces as
+  // unexplained transport failures indistinguishable from a stale-socket
+  // drop -- this guards the relationship, not just each literal, so the
+  // two can't silently drift apart again in a future edit.
+  const runner = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.match(runner, /const TUNNEL_TIMEOUT_MS = REAL_USE_SUITE_TIMEOUT_MS \+ 5 \* 60_000;/);
+  assert.match(runner, /name === PORT_DOCUMENT \? TUNNEL_TIMEOUT_MS : 240_000/);
 });
 
 test("production canary cannot create temporary business rows", () => {
@@ -1137,14 +1158,13 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 21, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 20, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 4,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
       "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
       "student-clinic-required-cancel-realuse.spec.ts": 1,
       "student-parent-homework-realuse.spec.ts": 1,
       "student-parent-learning-realuse.spec.ts": 1, "student-parent-storage-realuse.spec.ts": 1,
-      "omr-review-realuse.spec.ts": 1,
       "video-playback-renewal.realuse.spec.ts": 1 }).map(([file, count]) => ({
       file, specs: Array.from({ length: count }, () => ({ file, tests: [{ expectedStatus: "passed", status: "expected", results: [{ status: "passed" }] }] })),
     })),
@@ -1567,7 +1587,7 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers twenty-one enabled cases without executing any API test", () => {
+test("development config discovers twenty enabled cases without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
     "--config=playwright.development-release.config.ts", "--list"], {
@@ -1590,7 +1610,7 @@ test("development config discovers twenty-one enabled cases without executing an
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 21);
+  assert.equal(discovered, 20);
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);
