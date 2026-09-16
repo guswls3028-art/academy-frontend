@@ -210,6 +210,107 @@ test("transport truth OMR verification transport keeps the stage and the identic
     expectedStatuses: [404], receivedStatus: null, blocker: null } }]);
 });
 
+function loadAttachStrictBrowserGuards() {
+  const source = readFileSync(new URL("../../e2e/helpers/strictBrowser.ts", import.meta.url), "utf8");
+  const stripped = stripTypeScriptTypes(source);
+  const body = stripped.slice(stripped.indexOf("const DEFAULT_IGNORE"))
+    .replace("export function attachStrictBrowserGuards", "function attachStrictBrowserGuards");
+  const stubExpect = (actual, message) => ({
+    toEqual(expected) {
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(message || "expect failed");
+    },
+  });
+  const stubBaseTest = { info: () => ({ annotations: { push: () => {} } }) };
+  return new Function("expect", "baseTest", `${body}\nreturn attachStrictBrowserGuards;`)(stubExpect, stubBaseTest);
+}
+
+function fakePage(url) {
+  const handlers = {};
+  return {
+    on(event, handler) { (handlers[event] ??= []).push(handler); },
+    url() { return url; },
+    __emit(event, ...args) { for (const handler of handlers[event] || []) handler(...args); },
+  };
+}
+
+test("strict browser guard classifies a recovered-transport console error as net-err/api, never the raw message", () => {
+  const attachStrictBrowserGuards = loadAttachStrictBrowserGuards();
+  const logs = [];
+  const page = fakePage("http://localhost:4173/workspace/clinic/operations");
+  const guard = attachStrictBrowserGuards(page, {
+    apiOrigin: "http://127.0.0.1:18000",
+    emit: (value) => logs.push(value),
+  });
+  page.__emit("console", {
+    type: () => "error",
+    text: () => "Failed to load resource: net::ERR_FAILED",
+    location: () => ({ url: "http://127.0.0.1:18000/api/v1/clinic/participants/?tenant=secret-token&student=private-user" }),
+  });
+  assert.throws(() => guard.assertZeroDefects(), /브라우저 결함/);
+  assert.deepEqual(logs, [{ releaseStrictBrowserDefect: {
+    schema: "strict-browser-defect/v1", category: "net-err", source: "api", count: 1,
+  } }]);
+  assert.doesNotMatch(JSON.stringify(logs), /secret-token|private-user|participants/);
+});
+
+test("strict browser guard classifies a same-origin runtime pageerror as runtime/local and counts duplicates once", () => {
+  const attachStrictBrowserGuards = loadAttachStrictBrowserGuards();
+  const logs = [];
+  const page = fakePage("http://localhost:4173/workspace/clinic/operations");
+  const guard = attachStrictBrowserGuards(page, {
+    apiOrigin: "http://127.0.0.1:18000",
+    emit: (value) => logs.push(value),
+  });
+  page.__emit("pageerror", { message: "TypeError: Cannot read properties of undefined (reading 'secret-token')" });
+  page.__emit("pageerror", { message: "TypeError: another undefined access private-user" });
+  assert.throws(() => guard.assertZeroDefects());
+  assert.deepEqual(logs, [{ releaseStrictBrowserDefect: {
+    schema: "strict-browser-defect/v1", category: "runtime", source: "unknown", count: 2,
+  } }]);
+});
+
+test("strict browser guard report mode still emits classification without failing the test", () => {
+  const previous = process.env.E2E_STRICT;
+  process.env.E2E_STRICT = "report";
+  try {
+    const attachStrictBrowserGuards = loadAttachStrictBrowserGuards();
+    const logs = [];
+    const page = fakePage("http://localhost:4173/");
+    const guard = attachStrictBrowserGuards(page, { emit: (value) => logs.push(value) });
+    page.__emit("console", { type: () => "error", text: () => "net::ERR_CONNECTION_RESET", location: () => null });
+    assert.doesNotThrow(() => guard.assertZeroDefects());
+    assert.deepEqual(logs, [{ releaseStrictBrowserDefect: {
+      schema: "strict-browser-defect/v1", category: "net-err", source: "unknown", count: 1,
+    } }]);
+  } finally {
+    if (previous === undefined) delete process.env.E2E_STRICT; else process.env.E2E_STRICT = previous;
+  }
+});
+
+test("canary collector accepts a strict-browser defect only from a recognized release flow, in its closed vocabulary", () => {
+  const valid = contextReport([{ releaseApiMode: "development",
+    releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "api", count: 2 } }]);
+  const observedValid = observeReleaseTestResult(JSON.stringify(valid));
+  assert.deepEqual(observedValid.strictBrowserDefects, [{
+    specFile: "notice-roundtrip.spec.ts", resultOrdinal: 1,
+    schema: "strict-browser-defect/v1", category: "net-err", source: "api", count: 2,
+  }]);
+  assert.equal(observedValid.rejectedFailureObservationCount, 0);
+
+  const unrecognizedSpec = contextReport([{ releaseApiMode: "development",
+    releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "api", count: 1 } }],
+    "not-a-release-flow.spec.ts");
+  const observedUnrecognized = observeReleaseTestResult(JSON.stringify(unrecognizedSpec));
+  assert.deepEqual(observedUnrecognized.strictBrowserDefects, []);
+  assert.equal(observedUnrecognized.rejectedFailureObservationCount, 1);
+
+  const badCategory = contextReport([{ releaseApiMode: "development",
+    releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "network", source: "api", count: 1 } }]);
+  const observedBadCategory = observeReleaseTestResult(JSON.stringify(badCategory));
+  assert.deepEqual(observedBadCategory.strictBrowserDefects, []);
+  assert.equal(observedBadCategory.rejectedFailureObservationCount, 1);
+});
+
 test("transport truth preserves ordered reported errors but never interprets arbitrary scores as status", () => {
   const report = contextReport([]);
   report.suites[0].specs[0].tests[0].results[0].errors = [
@@ -1296,6 +1397,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
       expectedStatus: null, receivedStatus: index === 1 ? 409 : null,
     })),
     testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
+    strictBrowserDefects: [],
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null,
     longVideoFailure: null,
@@ -1317,6 +1419,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
     reportedTestErrors: [], testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
+    strictBrowserDefects: [],
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null,
     longVideoFailure: null,

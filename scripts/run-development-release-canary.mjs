@@ -404,6 +404,7 @@ export function observeReleaseTestResult(stdout) {
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
     reportedTestErrors: [], testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
+    strictBrowserDefects: [],
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null, longVideoFailure: null, longVideoErrorCodes: [], longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
@@ -526,12 +527,19 @@ export function observeReleaseTestResult(stdout) {
             for (const line of typeof text === "string" ? text.split(/\r?\n/) : []) {
               let payload;
               try { payload = JSON.parse(line); } catch { continue; }
-              for (const name of ["releaseTestFailure", "omrCleanupStatus", "crossTenantDenialProbe"]) {
+              for (const name of ["releaseTestFailure", "omrCleanupStatus", "crossTenantDenialProbe", "releaseStrictBrowserDefect"]) {
                 if (!Object.hasOwn(payload ?? {}, name)) continue;
                 const value = payload[name];
                 let valid = Object.hasOwn(FLOW_COUNTS, file);
                 let destination;
-                if (name === "releaseTestFailure") {
+                if (name === "releaseStrictBrowserDefect") {
+                  destination = "strictBrowserDefects";
+                  valid &&= exactKeys(value, ["schema", "category", "source", "count"])
+                    && value.schema === "strict-browser-defect/v1"
+                    && ["net-err", "cors", "chunk", "resource", "runtime", "other"].includes(value.category)
+                    && ["local", "api", "vendor", "unknown"].includes(value.source)
+                    && Number.isInteger(value.count) && value.count >= 1 && value.count <= 1000;
+                } else if (name === "releaseTestFailure") {
                   destination = "testFailureObservations";
                   valid &&= exactKeys(value, ["schema", "phase", "kind", "expectedStatus", "receivedStatus"])
                     && value.schema === "release-test-failure/v1" && ["video-primary", "context-check"].includes(value.phase)

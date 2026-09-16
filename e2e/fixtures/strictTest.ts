@@ -66,6 +66,7 @@ export const test = base.extend<StrictBrowserOptions>({
         page.on("request", navigation);
         pages.push(attachStrictBrowserGuards(page, {
           allowNeutralizedCloudflareBeaconIntegrity: boundary.mode === "readonly",
+          apiOrigin: boundary.apiOrigin,
         }));
         const consoleError = (message: ConsoleMessage) => {
           if (message.type() !== "error") return;
@@ -183,7 +184,7 @@ export const test = base.extend<StrictBrowserOptions>({
     installAccountNotificationGuard(page.request);
     const boundary = releaseBoundaryFromEnv(process.env);
     const strict = attachStrictBrowserGuards(page, { allowRecoveredProductionCors,
-      allowNeutralizedCloudflareBeaconIntegrity: boundary?.mode === "readonly" });
+      allowNeutralizedCloudflareBeaconIntegrity: boundary?.mode === "readonly", apiOrigin: boundary?.apiOrigin });
     await continueWithFixture(page);
     if (strictBrowserAutoAssert) strict.assertZeroDefects();
   },
