@@ -120,6 +120,7 @@ export function attachStrictBrowserGuards(
     allowNeutralizedCloudflareBeaconIntegrity?: boolean;
     emit?: (value: unknown) => void;
     apiOrigin?: string;
+    recoveredTransportCount?: () => number;
   }
 ): StrictBrowserGuards {
   const mode = resolveMode();
@@ -212,15 +213,17 @@ export function attachStrictBrowserGuards(
       const unresolvedRecoveredCors = recoverableCorsFailures.filter(
         (failure) => !failure.recovered || failure.resourceFailureText === null,
       );
-      const lines = [
-        ...consoleErrors.map((c) => `console.error: ${c.text}`),
-        ...pageErrors.map((p) => `pageerror: ${p}`),
+      const entries = [
+        ...consoleErrors.map((c) => ({ text: c.text, url: c.url, line: `console.error: ${c.text}` })),
+        ...pageErrors.map((p) => ({ text: p, url: null as string | null, line: `pageerror: ${p}` })),
         ...unresolvedRecoveredCors.flatMap((failure) => [
-          `console.error: ${failure.consoleText}`,
-          ...(failure.resourceFailureText ? [`console.error: ${failure.resourceFailureText}`] : []),
+          { text: failure.consoleText, url: failure.url, line: `console.error: ${failure.consoleText}` },
+          ...(failure.resourceFailureText
+            ? [{ text: failure.resourceFailureText, url: failure.url, line: `console.error: ${failure.resourceFailureText}` }]
+            : []),
         ]),
       ];
-      if (lines.length === 0) return;
+      if (entries.length === 0) return;
 
       // PII-free classification of what tripped the gate: a fixed vocabulary
       // (category/source) plus a count, never the raw message. This lets the
@@ -228,22 +231,40 @@ export function attachStrictBrowserGuards(
       // from a genuine app regression without exposing any page content.
       let pageOrigin: string | null = null;
       try { pageOrigin = new URL(page.url()).origin; } catch { /* about:blank etc. */ }
-      const defectCounts = new Map<string, number>();
       const apiOrigin = options?.apiOrigin ?? null;
-      const record = (text: string, url: string | null) => {
-        const key = `${classifyDefectCategory(text)}:${classifyDefectSource(url, pageOrigin, apiOrigin)}`;
+      const classified = entries.map((entry) => ({ ...entry,
+        category: classifyDefectCategory(entry.text), source: classifyDefectSource(entry.url, pageOrigin, apiOrigin) }));
+      const defectCounts = new Map<string, number>();
+      for (const { category, source } of classified) {
+        const key = `${category}:${source}`;
         defectCounts.set(key, (defectCounts.get(key) ?? 0) + 1);
-      };
-      for (const c of consoleErrors) record(c.text, c.url);
-      for (const p of pageErrors) record(p, null);
-      for (const failure of unresolvedRecoveredCors) {
-        record(failure.consoleText, failure.url);
-        if (failure.resourceFailureText) record(failure.resourceFailureText, failure.url);
       }
       for (const [key, count] of defectCounts) {
         const [category, source] = key.split(":") as [DefectCategory, DefectSource];
         emit({ releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category, source, count } });
       }
+
+      // A route-fetch retry that recovers the request still leaves the
+      // browser's own first-attempt net::ERR_* console.error behind -- that
+      // is harness (SSM tunnel) noise, not a product defect: the app already
+      // received a successful response. Absorb up to exactly as many net-err/
+      // api defects as this context itself recovered at the transport level
+      // (never more, so an unrelated regression in the same category still
+      // fails), and publish both the absorbed count and the cap so this
+      // stays auditable.
+      const recoveredTransportCap = Math.max(0, Math.trunc(options?.recoveredTransportCount?.() ?? 0));
+      let suppressedNetErrDefects = 0;
+      const remaining = classified.filter(({ category, source }) => {
+        if (category !== "net-err" || source !== "api" || suppressedNetErrDefects >= recoveredTransportCap) return true;
+        suppressedNetErrDefects += 1;
+        return false;
+      });
+      if (suppressedNetErrDefects > 0 || recoveredTransportCap > 0) {
+        emit({ releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1",
+          suppressedNetErrDefects, recoveredTransportCount: recoveredTransportCap } });
+      }
+      const lines = remaining.map((entry) => entry.line);
+      if (lines.length === 0) return;
 
       const body = lines.join("\n---\n");
       if (mode === "report") {
