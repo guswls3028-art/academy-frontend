@@ -542,11 +542,11 @@ export function observeReleaseTestResult(stdout) {
                     && Number.isInteger(value.count) && value.count >= 1 && value.count <= 1000;
                 } else if (name === "releaseStrictBrowserSuppression") {
                   destination = "strictBrowserSuppressions";
-                  valid &&= exactKeys(value, ["schema", "suppressedNetErrDefects", "recoveredTransportCount"])
+                  const smallCount = (count) => Number.isInteger(count) && count >= 0 && count <= 1000;
+                  valid &&= exactKeys(value, ["schema", "suppressedNetErrDefects", "recoveredTransportCount", "closingAbortCount"])
                     && value.schema === "strict-browser-suppression/v1"
-                    && Number.isInteger(value.suppressedNetErrDefects) && value.suppressedNetErrDefects >= 0 && value.suppressedNetErrDefects <= 1000
-                    && Number.isInteger(value.recoveredTransportCount) && value.recoveredTransportCount >= 0 && value.recoveredTransportCount <= 1000
-                    && value.suppressedNetErrDefects <= value.recoveredTransportCount;
+                    && smallCount(value.suppressedNetErrDefects) && smallCount(value.recoveredTransportCount) && smallCount(value.closingAbortCount)
+                    && value.suppressedNetErrDefects <= value.recoveredTransportCount + value.closingAbortCount;
                 } else if (name === "releaseTestFailure") {
                   destination = "testFailureObservations";
                   valid &&= exactKeys(value, ["schema", "phase", "kind", "expectedStatus", "receivedStatus"])

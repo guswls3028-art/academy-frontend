@@ -68,6 +68,7 @@ export const test = base.extend<StrictBrowserOptions>({
           allowNeutralizedCloudflareBeaconIntegrity: boundary.mode === "readonly",
           apiOrigin: boundary.apiOrigin,
           recoveredTransportCount: () => boundaryGuard.transport.readFetchRetries + boundaryGuard.transport.mutationReplays,
+          closingAbortCount: () => boundaryGuard.transport.closingAborts,
         }));
         const consoleError = (message: ConsoleMessage) => {
           if (message.type() !== "error") return;
@@ -193,7 +194,8 @@ export const test = base.extend<StrictBrowserOptions>({
       allowNeutralizedCloudflareBeaconIntegrity: boundary?.mode === "readonly", apiOrigin: boundary?.apiOrigin,
       recoveredTransportCount: boundaryGuard
         ? () => boundaryGuard.transport.readFetchRetries + boundaryGuard.transport.mutationReplays
-        : undefined });
+        : undefined,
+      closingAbortCount: boundaryGuard ? () => boundaryGuard.transport.closingAborts : undefined });
     await continueWithFixture(page);
     if (strictBrowserAutoAssert) strict.assertZeroDefects();
   },
