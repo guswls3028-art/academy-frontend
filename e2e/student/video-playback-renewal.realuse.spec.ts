@@ -60,6 +60,22 @@ function emitLongVideoCheckpoint(
   } }));
 }
 
+async function emitPagehideListenerSnapshot(
+  page: Page,
+  viewport: "desktop" | "mobile",
+  stage: "playback-running" | "before-reload",
+): Promise<void> {
+  const diag = await page.evaluate(
+    () => (window as unknown as { __pagehideDiag?: { added: number; removed: number } }).__pagehideDiag ?? null,
+  );
+  const added = Number.isInteger(diag?.added) ? diag!.added : null;
+  const removed = Number.isInteger(diag?.removed) ? diag!.removed : null;
+  console.log(JSON.stringify({ longVideoPagehideListener: {
+    schema: "student-video-renewal-pagehide-listener/v1", viewport, stage,
+    added, removed, live: added !== null && removed !== null ? added - removed : null,
+  } }));
+}
+
 type PlaybackPayload = {
   playback_token?: unknown;
   playback_session_id?: unknown;
@@ -525,6 +541,28 @@ async function prepareStudent(
   const page = await context.newPage();
   const state = newObservation(viewportName);
   emitLongVideoCheckpoint(viewportName, "context-created");
+  // Diagnostic only, test-side: is the app's own pagehide listener still
+  // registered at the moment of a hard reload? Runs in every document this
+  // page loads (including after reload, where the counters reset to 0 for
+  // that new document -- read this BEFORE reload, never after), so it must
+  // be self-contained (no closures over outer variables) and must always
+  // delegate to the real implementation. Never shipped to the product bundle.
+  await page.addInitScript(() => {
+    const tracked = window as unknown as { __pagehideDiag?: { added: number; removed: number } };
+    tracked.__pagehideDiag = { added: 0, removed: 0 };
+    const originalAdd = window.addEventListener.bind(window);
+    const originalRemove = window.removeEventListener.bind(window);
+    window.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject,
+      options?: boolean | AddEventListenerOptions) => {
+      if (type === "pagehide") tracked.__pagehideDiag!.added += 1;
+      return originalAdd(type, listener, options);
+    }) as typeof window.addEventListener;
+    window.removeEventListener = ((type: string, listener: EventListenerOrEventListenerObject,
+      options?: boolean | EventListenerOptions) => {
+      if (type === "pagehide") tracked.__pagehideDiag!.removed += 1;
+      return originalRemove(type, listener, options);
+    }) as typeof window.removeEventListener;
+  });
   page.on("console", (message) => { if (message.type() === "error") state.consoleErrorCount += 1; });
   page.on("pageerror", () => { state.pageErrorCount += 1; });
   page.on("requestfailed", (request) => {
@@ -620,6 +658,7 @@ async function prepareStudent(
   }
   await expect.poll(() => video.evaluate((element) => !(element as HTMLVideoElement).paused)).toBe(true);
   emitLongVideoCheckpoint(viewportName, "playback-running");
+  await emitPagehideListenerSnapshot(page, viewportName, "playback-running");
   await video.evaluate((element) => {
     const media = element as HTMLVideoElement;
     media.volume = 0.37;
@@ -722,6 +761,7 @@ async function finishStudent(
     const bootstrapsBeforeReload = state.bootstraps.length;
     const sessionPosterCapturesBeforeReload = state.sessionPosterCaptureCount;
     await page.waitForLoadState("networkidle", { timeout: 10_000 });
+    await emitPagehideListenerSnapshot(page, state.viewport, "before-reload");
     await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
     await expect.poll(() => state.bootstraps.length).toBe(bootstrapsBeforeReload + 1);
     emitLongVideoCheckpoint(state.viewport, "reload-bootstrap");

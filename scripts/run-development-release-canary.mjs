@@ -408,6 +408,10 @@ export function observeReleaseTestResult(stdout) {
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null, longVideoFailure: null, longVideoErrorCodes: [], longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
+    longVideoPagehideListener: {
+      desktop: { "playback-running": null, "before-reload": null },
+      mobile: { "playback-running": null, "before-reload": null },
+    },
   };
   let report;
   try { report = JSON.parse(typeof stdout === "string" ? stdout : ""); }
@@ -615,6 +619,20 @@ export function observeReleaseTestResult(stdout) {
                   > LONG_VIDEO_CHECKPOINT_STAGES.indexOf(current)) {
                   observation.longVideoCheckpoint[checkpoint.viewport] = checkpoint.stage;
                 }
+              }
+              const pagehideListener = payload?.longVideoPagehideListener;
+              const smallCount = (value) => value === null || (Number.isInteger(value) && value >= 0 && value <= 1000);
+              if (pagehideListener && typeof pagehideListener === "object" && !Array.isArray(pagehideListener)
+                && Object.keys(pagehideListener).sort().join(",") === "added,live,removed,schema,stage,viewport"
+                && pagehideListener.schema === "student-video-renewal-pagehide-listener/v1"
+                && ["desktop", "mobile"].includes(pagehideListener.viewport)
+                && ["playback-running", "before-reload"].includes(pagehideListener.stage)
+                && smallCount(pagehideListener.added) && smallCount(pagehideListener.removed)
+                && pagehideListener.live === (pagehideListener.added !== null && pagehideListener.removed !== null
+                  ? pagehideListener.added - pagehideListener.removed : null)) {
+                observation.longVideoPagehideListener[pagehideListener.viewport][pagehideListener.stage] = {
+                  added: pagehideListener.added, removed: pagehideListener.removed, live: pagehideListener.live,
+                };
               }
             }
           }

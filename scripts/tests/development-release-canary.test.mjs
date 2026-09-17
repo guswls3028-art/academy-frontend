@@ -896,7 +896,7 @@ test("long-video proof serializes the reload and exit burst after concurrent pla
   assert.doesNotMatch(source, /function createSerialProofGate/);
   assert.match(source, /const runReloadProof = createSerialProofGate\(\);/);
   assert.match(source, /await runReloadProof\(async \(\) => \{/);
-  assert.match(source, /await page\.waitForLoadState\("networkidle", \{ timeout: 10_000 \}\);\s*await page\.reload/s);
+  assert.match(source, /await page\.waitForLoadState\("networkidle", \{ timeout: 10_000 \}\);\s*await emitPagehideListenerSnapshot\(page, state\.viewport, "before-reload"\);\s*await page\.reload/s);
   assert.match(source, /finishStudent\(page, state, videoId, hlsPath, runReloadProof\)/);
 
   const events = [];
@@ -911,6 +911,34 @@ test("long-video proof serializes the reload and exit burst after concurrent pla
   const outcomes = await Promise.allSettled([first, second]);
   assert.deepEqual(events, ["first-start"]);
   assert.deepEqual(outcomes.map((outcome) => outcome.status), ["rejected", "rejected"]);
+});
+
+test("pagehide diagnostic init script counts only pagehide add/remove calls and always delegates", () => {
+  const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
+  const marker = "await page.addInitScript(() => {";
+  const start = source.indexOf(marker) + marker.length;
+  const end = source.indexOf('\n  });\n  page.on("console"', start);
+  assert.ok(start > marker.length - 1 && end > start, "pagehide diagnostic init script markers not found");
+  const body = stripTypeScriptTypes(source.slice(start, end));
+
+  const calls = [];
+  const fakeWindow = {
+    addEventListener(type) { calls.push(["add", type]); },
+    removeEventListener(type) { calls.push(["remove", type]); },
+  };
+  new Function("window", body)(fakeWindow);
+
+  fakeWindow.addEventListener("pagehide", () => {});
+  fakeWindow.addEventListener("visibilitychange", () => {});
+  fakeWindow.removeEventListener("pagehide", () => {});
+  fakeWindow.removeEventListener("click", () => {});
+  fakeWindow.addEventListener("pagehide", () => {});
+
+  assert.deepEqual(fakeWindow.__pagehideDiag, { added: 2, removed: 1 },
+    "only pagehide add/remove calls are counted, every other event type is ignored");
+  assert.deepEqual(calls, [
+    ["add", "pagehide"], ["add", "visibilitychange"], ["remove", "pagehide"], ["remove", "click"], ["add", "pagehide"],
+  ], "the wrapper must always delegate to the real implementation, for every event type, unchanged");
 });
 
 test("each run has an independent non-published ownership capability", () => {
@@ -1529,6 +1557,10 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     longVideoErrorCodes: [],
     longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
+    longVideoPagehideListener: {
+      desktop: { "playback-running": null, "before-reload": null },
+      mobile: { "playback-running": null, "before-reload": null },
+    },
   });
   const published = JSON.stringify(observeReleaseTestResult(JSON.stringify(report)));
   assert.doesNotMatch(
@@ -1551,6 +1583,10 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     longVideoErrorCodes: [],
     longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
+    longVideoPagehideListener: {
+      desktop: { "playback-running": null, "before-reload": null },
+      mobile: { "playback-running": null, "before-reload": null },
+    },
   });
 });
 
@@ -1928,10 +1964,27 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     schema: "student-video-renewal-checkpoint/v1", viewport: "desktop", stage: "playback-started",
   } })}\n${JSON.stringify({ longVideoCheckpoint: {
     schema: "student-video-renewal-checkpoint/v1", viewport: "mobile", stage: "navigated",
+  } })}\n${JSON.stringify({ longVideoPagehideListener: {
+    schema: "student-video-renewal-pagehide-listener/v1", viewport: "desktop", stage: "playback-running",
+    added: 1, removed: 0, live: 1,
+  } })}\n${JSON.stringify({ longVideoPagehideListener: {
+    schema: "student-video-renewal-pagehide-listener/v1", viewport: "desktop", stage: "before-reload",
+    added: 1, removed: 1, live: 0,
+  } })}\n${JSON.stringify({ longVideoPagehideListener: {
+    schema: "student-video-renewal-pagehide-listener/v1", viewport: "mobile", stage: "playback-running",
+    added: 1, removed: 0, live: 1,
+  } })}\n${JSON.stringify({ longVideoPagehideListener: {
+    // Inconsistent live (should be added-removed = 1, not 0) -- must be rejected, not silently accepted.
+    schema: "student-video-renewal-pagehide-listener/v1", viewport: "mobile", stage: "before-reload",
+    added: 1, removed: 0, live: 0,
   } })}\n` }];
   assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideoCheckpoint, {
     desktop: "playback-started", mobile: "navigated",
   });
+  assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideoPagehideListener, {
+    desktop: { "playback-running": { added: 1, removed: 0, live: 1 }, "before-reload": { added: 1, removed: 1, live: 0 } },
+    mobile: { "playback-running": { added: 1, removed: 0, live: 1 }, "before-reload": null },
+  }, "an inconsistent live value is dropped, not silently accepted -- the rest of the valid payloads still parse");
   assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideo, {
     schemaMatches: true, contextCount: 2, desktopCount: 1, mobileCount: 1,
     minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
