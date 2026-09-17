@@ -75,6 +75,35 @@ function isNeutralizedCloudflareBeaconIntegrity(text: string): boolean {
   return /^Failed to find a valid digest in the 'integrity' attribute for resource 'https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js\/v[a-f0-9]{32,64}' with computed SHA-512 integrity '[A-Za-z0-9+/]{86}=='\. The resource has been blocked\.$/.test(text);
 }
 
+type DefectCategory = "net-err" | "cors" | "chunk" | "resource" | "runtime" | "other";
+type DefectSource = "local" | "api" | "vendor" | "unknown";
+
+// Classifies only into a closed, fixed vocabulary -- never the raw message --
+// so this is safe to publish in release evidence (see emit() below).
+function classifyDefectCategory(text: string): DefectCategory {
+  if (/cors|access-control-allow-origin/i.test(text)) return "cors";
+  if (/importing a module script failed|dynamically imported module|lazy_default_undefined/i.test(text)) return "chunk";
+  if (/net::|failed to fetch|socket hang up|ECONNRESET|ECONNREFUSED|EPIPE|ETIMEDOUT|network error/i.test(text)) return "net-err";
+  if (/failed to load resource/i.test(text)) return "resource";
+  if (/TypeError|ReferenceError|SyntaxError|RangeError/i.test(text)) return "runtime";
+  return "other";
+}
+
+function classifyDefectSource(url: string | null, pageOrigin: string | null, apiOrigin: string | null): DefectSource {
+  if (!url) return "unknown";
+  try {
+    const parsed = new URL(url);
+    if (pageOrigin && parsed.origin === pageOrigin) return "local";
+    // apiOrigin covers both production (https://api.hakwonplus.com) and the
+    // development tunnel (http://127.0.0.1:<port>), which the "api." hostname
+    // prefix alone would miss.
+    if (apiOrigin && parsed.origin === apiOrigin) return "api";
+    if (/^api\./i.test(parsed.hostname)) return "api";
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") return "vendor";
+  } catch { /* unparsable location -- unknown */ }
+  return "unknown";
+}
+
 export type StrictBrowserGuards = {
   /** 누적 콘솔 error·pageerror 가 허용 목록 외 있으면 모드에 따라 실패/경고 */
   assertZeroDefects: () => void;
@@ -89,6 +118,8 @@ export function attachStrictBrowserGuards(
     extraIgnore?: RegExp[];
     allowRecoveredProductionCors?: boolean;
     allowNeutralizedCloudflareBeaconIntegrity?: boolean;
+    emit?: (value: unknown) => void;
+    apiOrigin?: string;
   }
 ): StrictBrowserGuards {
   const mode = resolveMode();
@@ -96,8 +127,9 @@ export function attachStrictBrowserGuards(
     return { assertZeroDefects() { /* noop */ } };
   }
 
+  const emit = options?.emit ?? ((value: unknown) => console.log(JSON.stringify(value)));
   const extra = options?.extraIgnore ?? [];
-  const consoleErrors: string[] = [];
+  const consoleErrors: Array<{ text: string; url: string | null }> = [];
   const pageErrors: string[] = [];
   const recoverableCorsFailures: Array<{
     url: string;
@@ -164,7 +196,9 @@ export function attachStrictBrowserGuards(
     }
     if (options?.allowNeutralizedCloudflareBeaconIntegrity && isNeutralizedCloudflareBeaconIntegrity(text)) return;
     if (allowed(text, extra)) return;
-    consoleErrors.push(text);
+    let url: string | null = null;
+    try { url = msg.location()?.url || null; } catch { /* best-effort only */ }
+    consoleErrors.push({ text, url });
   });
 
   page.on("pageerror", (err) => {
@@ -179,7 +213,7 @@ export function attachStrictBrowserGuards(
         (failure) => !failure.recovered || failure.resourceFailureText === null,
       );
       const lines = [
-        ...consoleErrors.map((c) => `console.error: ${c}`),
+        ...consoleErrors.map((c) => `console.error: ${c.text}`),
         ...pageErrors.map((p) => `pageerror: ${p}`),
         ...unresolvedRecoveredCors.flatMap((failure) => [
           `console.error: ${failure.consoleText}`,
@@ -187,6 +221,29 @@ export function attachStrictBrowserGuards(
         ]),
       ];
       if (lines.length === 0) return;
+
+      // PII-free classification of what tripped the gate: a fixed vocabulary
+      // (category/source) plus a count, never the raw message. This lets the
+      // release canary distinguish e.g. a recovered-transport side effect
+      // from a genuine app regression without exposing any page content.
+      let pageOrigin: string | null = null;
+      try { pageOrigin = new URL(page.url()).origin; } catch { /* about:blank etc. */ }
+      const defectCounts = new Map<string, number>();
+      const apiOrigin = options?.apiOrigin ?? null;
+      const record = (text: string, url: string | null) => {
+        const key = `${classifyDefectCategory(text)}:${classifyDefectSource(url, pageOrigin, apiOrigin)}`;
+        defectCounts.set(key, (defectCounts.get(key) ?? 0) + 1);
+      };
+      for (const c of consoleErrors) record(c.text, c.url);
+      for (const p of pageErrors) record(p, null);
+      for (const failure of unresolvedRecoveredCors) {
+        record(failure.consoleText, failure.url);
+        if (failure.resourceFailureText) record(failure.resourceFailureText, failure.url);
+      }
+      for (const [key, count] of defectCounts) {
+        const [category, source] = key.split(":") as [DefectCategory, DefectSource];
+        emit({ releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category, source, count } });
+      }
 
       const body = lines.join("\n---\n");
       if (mode === "report") {
