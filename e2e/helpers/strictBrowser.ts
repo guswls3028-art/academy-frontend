@@ -121,6 +121,7 @@ export function attachStrictBrowserGuards(
     emit?: (value: unknown) => void;
     apiOrigin?: string;
     recoveredTransportCount?: () => number;
+    closingAbortCount?: () => number;
   }
 ): StrictBrowserGuards {
   const mode = resolveMode();
@@ -244,24 +245,28 @@ export function attachStrictBrowserGuards(
         emit({ releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category, source, count } });
       }
 
-      // A route-fetch retry that recovers the request still leaves the
-      // browser's own first-attempt net::ERR_* console.error behind -- that
-      // is harness (SSM tunnel) noise, not a product defect: the app already
-      // received a successful response. Absorb up to exactly as many net-err/
-      // api defects as this context itself recovered at the transport level
-      // (never more, so an unrelated regression in the same category still
-      // fails), and publish both the absorbed count and the cap so this
-      // stays auditable.
+      // A route-fetch retry that recovers the request, or a context-teardown
+      // abort of a still in-flight one, still leaves the browser's own
+      // net::ERR_* console.error behind -- that is harness (SSM tunnel)
+      // noise, not a product defect: the app either already received a
+      // successful response, or the app was already being torn down.
+      // Absorb up to exactly as many net-err/api defects as this context
+      // itself recovered or aborted at the transport level (never more, so
+      // an unrelated regression in the same category still fails), and
+      // publish the absorbed count and both cap components separately so
+      // this stays auditable.
       const recoveredTransportCap = Math.max(0, Math.trunc(options?.recoveredTransportCount?.() ?? 0));
+      const closingAbortCap = Math.max(0, Math.trunc(options?.closingAbortCount?.() ?? 0));
+      const totalCap = recoveredTransportCap + closingAbortCap;
       let suppressedNetErrDefects = 0;
       const remaining = classified.filter(({ category, source }) => {
-        if (category !== "net-err" || source !== "api" || suppressedNetErrDefects >= recoveredTransportCap) return true;
+        if (category !== "net-err" || source !== "api" || suppressedNetErrDefects >= totalCap) return true;
         suppressedNetErrDefects += 1;
         return false;
       });
-      if (suppressedNetErrDefects > 0 || recoveredTransportCap > 0) {
+      if (suppressedNetErrDefects > 0 || totalCap > 0) {
         emit({ releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1",
-          suppressedNetErrDefects, recoveredTransportCount: recoveredTransportCap } });
+          suppressedNetErrDefects, recoveredTransportCount: recoveredTransportCap, closingAbortCount: closingAbortCap } });
       }
       const lines = remaining.map((entry) => entry.line);
       if (lines.length === 0) return;

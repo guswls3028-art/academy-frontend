@@ -343,6 +343,7 @@ export type ReleaseContextGuard = {
     suppressedAnalyticsBatches: number;
     suppressedAnalyticsEvents: number;
     suppressedCloudflareBeacons: number;
+    closingAborts: number;
   };
   requestTransportDiagnostics: RequestTransportDiagnostic[];
   observation: ReturnType<typeof createReleaseContextObservation>;
@@ -604,6 +605,7 @@ export async function installReleaseContextGuard(
     suppressedAnalyticsBatches: 0,
     suppressedAnalyticsEvents: 0,
     suppressedCloudflareBeacons: 0,
+    closingAborts: 0,
   };
   const defects: string[] = [];
   const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
@@ -779,6 +781,16 @@ export async function installReleaseContextGuard(
   const ready = Promise.resolve().then(async () => {
     await context.route("**/*", async (route) => {
       if (closing) {
+        // Context teardown aborts any still in-flight request. The browser
+        // still logs its own net::ERR_* console.error for that abort (a
+        // net-err/api defect), but this path never touches readFetchRetries/
+        // mutationReplays or recordRouteTransport -- count it here, before
+        // the abort itself, so it is attributed regardless of whether the
+        // abort call succeeds.
+        try {
+          const upstream = developmentUpstream(boundary, route.request().url());
+          if (new URL(upstream).origin === boundary.apiOrigin) transport.closingAborts += 1;
+        } catch { /* best-effort attribution only -- still abort below */ }
         try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
         return;
       }

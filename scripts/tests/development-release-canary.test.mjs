@@ -308,7 +308,7 @@ test("strict browser guard suppresses net-err/api defects up to the harness's ow
   assert.doesNotThrow(() => guard.assertZeroDefects());
   assert.deepEqual(logs, [
     { releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "api", count: 4 } },
-    { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 4, recoveredTransportCount: 4 } },
+    { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 4, recoveredTransportCount: 4, closingAbortCount: 0 } },
   ]);
 });
 
@@ -324,7 +324,24 @@ test("strict browser guard still fails on net-err/api defects beyond the recover
   assert.throws(() => guard.assertZeroDefects(), /브라우저 결함/);
   const suppression = logs.find((entry) => entry.releaseStrictBrowserSuppression);
   assert.deepEqual(suppression, { releaseStrictBrowserSuppression: {
-    schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 2, recoveredTransportCount: 2 } });
+    schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 2, recoveredTransportCount: 2, closingAbortCount: 0 } });
+});
+
+test("strict browser guard extends the cap by closing-teardown aborts, on top of recovered transport", () => {
+  const attachStrictBrowserGuards = loadAttachStrictBrowserGuards();
+  const logs = [];
+  const page = fakePage("http://localhost:4173/");
+  const guard = attachStrictBrowserGuards(page, {
+    apiOrigin: "http://127.0.0.1:18000", emit: (value) => logs.push(value),
+    recoveredTransportCount: () => 3, closingAbortCount: () => 1,
+  });
+  emitNetErrApiConsoleErrors(page, 4);
+  assert.doesNotThrow(() => guard.assertZeroDefects(),
+    "3 recovered + 1 closing-teardown abort covers all 4 observed net-err/api defects");
+  assert.deepEqual(logs, [
+    { releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "api", count: 4 } },
+    { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 4, recoveredTransportCount: 3, closingAbortCount: 1 } },
+  ]);
 });
 
 test("strict browser guard never suppresses a net-err defect from a non-api source", () => {
@@ -340,7 +357,7 @@ test("strict browser guard never suppresses a net-err defect from a non-api sour
   assert.throws(() => guard.assertZeroDefects());
   assert.deepEqual(logs, [
     { releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "vendor", count: 1 } },
-    { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 0, recoveredTransportCount: 10 } },
+    { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 0, recoveredTransportCount: 10, closingAbortCount: 0 } },
   ]);
 });
 
@@ -357,7 +374,7 @@ test("strict browser guard never suppresses a non-net-err defect even with a pos
   assert.throws(() => guard.assertZeroDefects());
   assert.deepEqual(logs, [
     { releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "runtime", source: "api", count: 1 } },
-    { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 0, recoveredTransportCount: 10 } },
+    { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 0, recoveredTransportCount: 10, closingAbortCount: 0 } },
   ]);
 });
 
@@ -399,21 +416,23 @@ test("canary collector accepts a strict-browser defect only from a recognized re
   assert.equal(observedBadCategory.rejectedFailureObservationCount, 1);
 });
 
-test("canary collector accepts a strict-browser suppression only when the audit invariant (suppressed <= cap) holds", () => {
+test("canary collector accepts a strict-browser suppression only when the audit invariant (suppressed <= recovered + closing-abort cap) holds", () => {
   const valid = contextReport([{ releaseApiMode: "development",
-    releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 4, recoveredTransportCount: 4 } }]);
+    releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1",
+      suppressedNetErrDefects: 4, recoveredTransportCount: 3, closingAbortCount: 1 } }]);
   const observedValid = observeReleaseTestResult(JSON.stringify(valid));
   assert.deepEqual(observedValid.strictBrowserSuppressions, [{
     specFile: "notice-roundtrip.spec.ts", resultOrdinal: 1,
-    schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 4, recoveredTransportCount: 4,
+    schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 4, recoveredTransportCount: 3, closingAbortCount: 1,
   }]);
   assert.equal(observedValid.rejectedFailureObservationCount, 0);
 
   const impossible = contextReport([{ releaseApiMode: "development",
-    releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 5, recoveredTransportCount: 4 } }]);
+    releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1",
+      suppressedNetErrDefects: 5, recoveredTransportCount: 3, closingAbortCount: 1 } }]);
   const observedImpossible = observeReleaseTestResult(JSON.stringify(impossible));
   assert.deepEqual(observedImpossible.strictBrowserSuppressions, [],
-    "suppressed count can never exceed the harness's own recovered-transport cap");
+    "suppressed count can never exceed the harness's own recovered-transport + closing-abort cap");
   assert.equal(observedImpossible.rejectedFailureObservationCount, 1);
 });
 
@@ -2677,6 +2696,7 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
     suppressedAnalyticsBatches: 0,
     suppressedAnalyticsEvents: 0,
     suppressedCloudflareBeacons: 0,
+    closingAborts: 0,
   });
   assert.deepEqual(safeRead.guard.requestTransportDiagnostics, [{
     method: "GET", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "read",
@@ -2768,6 +2788,42 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
   assert.throws(() => delivery.guard.assertClean(), /Release request rejected \[fulfill-transport\]/);
 });
 
+test("context teardown counts an aborted in-flight API request as closingAborts, never a web-origin one", async () => {
+  const install = async () => {
+    let handler;
+    const context = {
+      on() {}, route: async (_pattern, callback) => { handler = callback; },
+      request: Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async () => {}])),
+    };
+    return { guard: await installReleaseContextGuard(context, development), handler };
+  };
+  const makeInFlightRoute = (url) => {
+    let aborted = null;
+    return {
+      route: {
+        request: () => ({ url: () => url }),
+        abort: async (reason) => { aborted = reason; },
+        fetch: async () => { throw new Error("must not be called while closing"); },
+        fulfill: async () => { throw new Error("must not be called while closing"); },
+        continue: async () => { throw new Error("must not be called while closing"); },
+      },
+      wasAborted: () => aborted,
+    };
+  };
+
+  const teardown = await install();
+  await teardown.guard.beginClose();
+  const apiRequest = makeInFlightRoute(`${development.apiOrigin}/api/v1/core/tenant/by-host/`);
+  await teardown.handler(apiRequest.route);
+  assert.equal(apiRequest.wasAborted(), "blockedbyclient");
+  assert.equal(teardown.guard.transport.closingAborts, 1);
+
+  const webRequest = makeInFlightRoute(`${development.webOrigin}/favicon.ico`);
+  await teardown.handler(webRequest.route);
+  assert.equal(webRequest.wasAborted(), "blockedbyclient", "a non-API request is still aborted on teardown");
+  assert.equal(teardown.guard.transport.closingAborts, 1, "but only an API-origin abort extends the strict-browser suppression cap");
+});
+
 test("production browser guard locally neutralizes only exact non-business telemetry", async () => {
   const install = async () => {
     let handler;
@@ -2831,6 +2887,7 @@ test("production browser guard locally neutralizes only exact non-business telem
     suppressedAnalyticsBatches: 1,
     suppressedAnalyticsEvents: 1,
     suppressedCloudflareBeacons: 0,
+    closingAborts: 0,
   });
   assert.doesNotThrow(() => analytics.guard.assertClean());
 
@@ -2883,6 +2940,7 @@ test("production browser guard locally neutralizes only exact non-business telem
     mutationReplays: 0,
     suppressedAnalyticsBatches: 0,
     suppressedAnalyticsEvents: 0,
+    closingAborts: 0,
     suppressedCloudflareBeacons: 1,
   });
   assert.doesNotThrow(() => beacon.guard.assertClean());
