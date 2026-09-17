@@ -287,6 +287,94 @@ test("strict browser guard report mode still emits classification without failin
   }
 });
 
+function emitNetErrApiConsoleErrors(page, count) {
+  for (let index = 0; index < count; index++) {
+    page.__emit("console", {
+      type: () => "error", text: () => "Failed to load resource: net::ERR_FAILED",
+      location: () => ({ url: "http://127.0.0.1:18000/api/v1/clinic/participants/" }),
+    });
+  }
+}
+
+test("strict browser guard suppresses net-err/api defects up to the harness's own recovered-transport count", () => {
+  const attachStrictBrowserGuards = loadAttachStrictBrowserGuards();
+  const logs = [];
+  const page = fakePage("http://localhost:4173/");
+  const guard = attachStrictBrowserGuards(page, {
+    apiOrigin: "http://127.0.0.1:18000", emit: (value) => logs.push(value),
+    recoveredTransportCount: () => 4,
+  });
+  emitNetErrApiConsoleErrors(page, 4);
+  assert.doesNotThrow(() => guard.assertZeroDefects());
+  assert.deepEqual(logs, [
+    { releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "api", count: 4 } },
+    { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 4, recoveredTransportCount: 4 } },
+  ]);
+});
+
+test("strict browser guard still fails on net-err/api defects beyond the recovered-transport cap", () => {
+  const attachStrictBrowserGuards = loadAttachStrictBrowserGuards();
+  const logs = [];
+  const page = fakePage("http://localhost:4173/");
+  const guard = attachStrictBrowserGuards(page, {
+    apiOrigin: "http://127.0.0.1:18000", emit: (value) => logs.push(value),
+    recoveredTransportCount: () => 2,
+  });
+  emitNetErrApiConsoleErrors(page, 5);
+  assert.throws(() => guard.assertZeroDefects(), /브라우저 결함/);
+  const suppression = logs.find((entry) => entry.releaseStrictBrowserSuppression);
+  assert.deepEqual(suppression, { releaseStrictBrowserSuppression: {
+    schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 2, recoveredTransportCount: 2 } });
+});
+
+test("strict browser guard never suppresses a net-err defect from a non-api source", () => {
+  const attachStrictBrowserGuards = loadAttachStrictBrowserGuards();
+  const logs = [];
+  const page = fakePage("http://localhost:4173/");
+  const guard = attachStrictBrowserGuards(page, {
+    apiOrigin: "http://127.0.0.1:18000", emit: (value) => logs.push(value),
+    recoveredTransportCount: () => 10,
+  });
+  page.__emit("console", { type: () => "error", text: () => "Failed to load resource: net::ERR_FAILED",
+    location: () => ({ url: "https://static.cloudflareinsights.com/beacon.min.js" }) });
+  assert.throws(() => guard.assertZeroDefects());
+  assert.deepEqual(logs, [
+    { releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "vendor", count: 1 } },
+    { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 0, recoveredTransportCount: 10 } },
+  ]);
+});
+
+test("strict browser guard never suppresses a non-net-err defect even with a positive recovered-transport count", () => {
+  const attachStrictBrowserGuards = loadAttachStrictBrowserGuards();
+  const logs = [];
+  const page = fakePage("http://localhost:4173/");
+  const guard = attachStrictBrowserGuards(page, {
+    apiOrigin: "http://127.0.0.1:18000", emit: (value) => logs.push(value),
+    recoveredTransportCount: () => 10,
+  });
+  page.__emit("console", { type: () => "error", text: () => "TypeError: something undefined",
+    location: () => ({ url: "http://127.0.0.1:18000/api/v1/clinic/participants/" }) });
+  assert.throws(() => guard.assertZeroDefects());
+  assert.deepEqual(logs, [
+    { releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "runtime", source: "api", count: 1 } },
+    { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 0, recoveredTransportCount: 10 } },
+  ]);
+});
+
+test("strict browser guard suppresses nothing when the recovered-transport count is zero", () => {
+  const attachStrictBrowserGuards = loadAttachStrictBrowserGuards();
+  const logs = [];
+  const page = fakePage("http://localhost:4173/");
+  const guard = attachStrictBrowserGuards(page, {
+    apiOrigin: "http://127.0.0.1:18000", emit: (value) => logs.push(value),
+    recoveredTransportCount: () => 0,
+  });
+  emitNetErrApiConsoleErrors(page, 1);
+  assert.throws(() => guard.assertZeroDefects());
+  assert.equal(logs.some((entry) => entry.releaseStrictBrowserSuppression), false,
+    "a zero cap publishes no suppression record -- nothing was absorbed");
+});
+
 test("canary collector accepts a strict-browser defect only from a recognized release flow, in its closed vocabulary", () => {
   const valid = contextReport([{ releaseApiMode: "development",
     releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "api", count: 2 } }]);
@@ -309,6 +397,24 @@ test("canary collector accepts a strict-browser defect only from a recognized re
   const observedBadCategory = observeReleaseTestResult(JSON.stringify(badCategory));
   assert.deepEqual(observedBadCategory.strictBrowserDefects, []);
   assert.equal(observedBadCategory.rejectedFailureObservationCount, 1);
+});
+
+test("canary collector accepts a strict-browser suppression only when the audit invariant (suppressed <= cap) holds", () => {
+  const valid = contextReport([{ releaseApiMode: "development",
+    releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 4, recoveredTransportCount: 4 } }]);
+  const observedValid = observeReleaseTestResult(JSON.stringify(valid));
+  assert.deepEqual(observedValid.strictBrowserSuppressions, [{
+    specFile: "notice-roundtrip.spec.ts", resultOrdinal: 1,
+    schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 4, recoveredTransportCount: 4,
+  }]);
+  assert.equal(observedValid.rejectedFailureObservationCount, 0);
+
+  const impossible = contextReport([{ releaseApiMode: "development",
+    releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 5, recoveredTransportCount: 4 } }]);
+  const observedImpossible = observeReleaseTestResult(JSON.stringify(impossible));
+  assert.deepEqual(observedImpossible.strictBrowserSuppressions, [],
+    "suppressed count can never exceed the harness's own recovered-transport cap");
+  assert.equal(observedImpossible.rejectedFailureObservationCount, 1);
 });
 
 test("transport truth preserves ordered reported errors but never interprets arbitrary scores as status", () => {
@@ -1397,7 +1503,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
       expectedStatus: null, receivedStatus: index === 1 ? 409 : null,
     })),
     testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
-    strictBrowserDefects: [],
+    strictBrowserDefects: [], strictBrowserSuppressions: [],
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null,
     longVideoFailure: null,
@@ -1419,7 +1525,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
     reportedTestErrors: [], testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
-    strictBrowserDefects: [],
+    strictBrowserDefects: [], strictBrowserSuppressions: [],
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null,
     longVideoFailure: null,

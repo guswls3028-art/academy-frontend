@@ -67,6 +67,7 @@ export const test = base.extend<StrictBrowserOptions>({
         pages.push(attachStrictBrowserGuards(page, {
           allowNeutralizedCloudflareBeaconIntegrity: boundary.mode === "readonly",
           apiOrigin: boundary.apiOrigin,
+          recoveredTransportCount: () => boundaryGuard.transport.readFetchRetries + boundaryGuard.transport.mutationReplays,
         }));
         const consoleError = (message: ConsoleMessage) => {
           if (message.type() !== "error") return;
@@ -183,8 +184,16 @@ export const test = base.extend<StrictBrowserOptions>({
   page: async ({ page, allowRecoveredProductionCors, strictBrowserAutoAssert }, continueWithFixture) => {
     installAccountNotificationGuard(page.request);
     const boundary = releaseBoundaryFromEnv(process.env);
+    // The browser fixture's overridden newContext() already installed a
+    // context guard for page.context() (installReleaseContextGuard is
+    // idempotent per context) -- reuse it so the recovered-transport cap
+    // reflects this same context's actual retries, not a fresh zero count.
+    const boundaryGuard = boundary ? await installReleaseContextGuard(page.context(), boundary) : null;
     const strict = attachStrictBrowserGuards(page, { allowRecoveredProductionCors,
-      allowNeutralizedCloudflareBeaconIntegrity: boundary?.mode === "readonly", apiOrigin: boundary?.apiOrigin });
+      allowNeutralizedCloudflareBeaconIntegrity: boundary?.mode === "readonly", apiOrigin: boundary?.apiOrigin,
+      recoveredTransportCount: boundaryGuard
+        ? () => boundaryGuard.transport.readFetchRetries + boundaryGuard.transport.mutationReplays
+        : undefined });
     await continueWithFixture(page);
     if (strictBrowserAutoAssert) strict.assertZeroDefects();
   },
