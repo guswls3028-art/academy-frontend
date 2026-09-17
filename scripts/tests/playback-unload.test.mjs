@@ -164,6 +164,24 @@ for (const kind of ['hls', 'youtube']) {
     await settle(); h.fireTimers(); h.pagehide(false); await settle();
     assert.equal(h.requests.length, 2);
   });
+  test(`${kind}: pagehide during a pending SPA flush ends the token pinned at dispose, not one rotated afterward`, async () => {
+    let release;
+    const h = harness({ respond: (request) => request.path.endsWith('/events/')
+      ? new Promise((resolve) => { release = resolve; }) : { status: 200, body: { ok: true } } });
+    const controller = h.controller(kind);
+    controller.queueFullscreenEvent(true); controller.dispose(); await settle();
+    // A token rotation landing between dispose()'s scheduled flush and the
+    // actual pagehide (e.g. a reload mid-renewal) must not redirect the
+    // terminal end() call to the new session's token.
+    controller.setToken('signed-playback-rotated-after-dispose');
+    h.pagehide(false); await settle();
+    assert.equal(h.requests.length, 2);
+    assert.equal(h.requests[1].path, '/api/v1/media/playback/end/');
+    assert.equal(h.requests[1].body.token, 'signed-playback-a');
+    assert.equal(h.requests[1].keepalive, true);
+    release({ status: 201, body: { stored: 1 } });
+    await settle();
+  });
   test(`${kind}: synthetic client token and unmonitored playback never send a session end`, async () => {
     const h = harness();
     const controller = h.controller(kind, 'student-client-only');
