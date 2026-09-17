@@ -2788,6 +2788,45 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
   assert.throws(() => delivery.guard.assertClean(), /Release request rejected \[fulfill-transport\]/);
 });
 
+test("route-fetch never reuses a pooled connection, and its stale-socket retry delay stays short", async () => {
+  let handler;
+  const context = {
+    on() {}, route: async (_pattern, callback) => { handler = callback; },
+    request: Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async () => {}])),
+  };
+  const guard = await installReleaseContextGuard(context, development);
+  const response = { status: () => 200, ok: () => true, headers: () => ({
+    "access-control-allow-origin": development.webOrigin,
+    "access-control-allow-credentials": "true",
+  }) };
+  const fetchCalls = [];
+  const route = {
+    request: () => ({
+      url: () => "https://api.hakwonplus.com/api/v1/core/tenant/by-host/",
+      method: () => "GET",
+      postDataJSON: () => undefined,
+      headerValue: async () => development.tenantCode,
+      allHeaders: async () => ({ origin: development.webOrigin, "x-tenant-code": development.tenantCode }),
+    }),
+    fetch: async (options) => {
+      fetchCalls.push(options);
+      if (fetchCalls.length < 2) throw new Error("unit loopback fetch interruption");
+      return response;
+    },
+    fulfill: async () => {},
+    abort: async () => {},
+    continue: async () => {},
+  };
+  const startedAt = Date.now();
+  await handler(route);
+  const elapsedMs = Date.now() - startedAt;
+  assert.equal(fetchCalls.length, 2);
+  assert.equal(fetchCalls[0].headers.connection, "close",
+    "every attempt must refuse a pooled connection -- that reuse is the stale-socket root cause");
+  assert.equal(fetchCalls[1].headers.connection, "close");
+  assert.ok(elapsedMs < 300, `stale-socket retry delay must stay short (took ${elapsedMs}ms)`);
+});
+
 test("context teardown counts an aborted in-flight API request as closingAborts, never a web-origin one", async () => {
   const install = async () => {
     let handler;
