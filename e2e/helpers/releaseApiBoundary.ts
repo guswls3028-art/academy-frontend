@@ -702,6 +702,12 @@ export async function installReleaseContextGuard(
       if (new URL(upstream).origin === boundary.apiOrigin) {
         const headers = await request.allHeaders();
         delete headers.host;
+        // The stale-socket failures below are a pooled-keepalive-socket
+        // reuse race over the SSM tunnel: a socket the tunnel already tore
+        // down still looks idle to the HTTP client's connection pool.
+        // Never reusing a pooled connection removes the race at its source,
+        // rather than only recovering from it after the fact.
+        headers.connection = "close";
         // Transport only: unchanged artifact -> real isolated HTTP response.
         // Never follow a redirect carrying QA credentials to another origin.
         let response: Awaited<ReturnType<typeof route.fetch>>;
@@ -728,7 +734,11 @@ export async function installReleaseContextGuard(
           }
           if (replaySafeMutation) transport.mutationReplays += 1;
           else transport.readFetchRetries += 1;
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          // A stale pooled socket resolves as soon as the retry opens a new
+          // connection -- the delay only needs to clear the immediate race,
+          // not wait out anything server-side. A long delay only widens the
+          // client-side window for a second, unrelated failure.
+          await new Promise((resolve) => setTimeout(resolve, 50));
           try {
             timing.attemptStartedAt = Date.now();
             response = await route.fetch({ url: upstream, headers, maxRedirects: 0 });
