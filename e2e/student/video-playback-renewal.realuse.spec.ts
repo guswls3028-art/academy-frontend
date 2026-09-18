@@ -83,6 +83,7 @@ type PlaybackPayload = {
   play_url?: unknown;
   hls_url?: unknown;
   video?: { id?: unknown; session_id?: unknown; last_position?: unknown; thumbnail_url?: unknown };
+  policy?: { access_mode?: unknown; monitoring_enabled?: unknown } | null;
 };
 
 type SessionVideoListPayload = {
@@ -887,6 +888,14 @@ test("two students play through renewal and persist progress without interruptio
     pageErrorCount: states.reduce((total, state) => total + state.pageErrorCount, 0),
     requestErrorCount: states.reduce((total, state) => total + state.requestErrorCount, 0),
     horizontalOverflowCount: states.reduce((total, state) => total + state.horizontalOverflowCount, 0),
+    // Do the nested policy fields on every bootstrap response actually carry
+    // monitoring information -- the input StudentHlsController/YoutubeController
+    // derive `currentToken()`'s monitoring gate from? Counts only, never a value.
+    bootstrapPolicyObservedCount: states.reduce((total, state) => total + state.bootstraps.length, 0),
+    bootstrapPolicyMonitoringTrueCount: states.reduce((total, state) =>
+      total + state.bootstraps.filter((bootstrap) => bootstrap.policy?.monitoring_enabled === true).length, 0),
+    bootstrapPolicyProctoredCount: states.reduce((total, state) =>
+      total + state.bootstraps.filter((bootstrap) => bootstrap.policy?.access_mode === "PROCTORED_CLASS").length, 0),
   } }));
 });
 
