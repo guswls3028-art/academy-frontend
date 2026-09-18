@@ -207,6 +207,7 @@ function observeLongVideoBrowserEvidence(payload) {
     "minimumWallSeconds", "mobile", "pageErrorCount", "posterLoadCount", "progressPersistedCount",
     "renewCount", "requestErrorCount", "sameDomCount", "sameSessionCount", "schema",
     "sourceReloadCount", "tokenRotationCount",
+    "bootstrapPolicyObservedCount", "bootstrapPolicyMonitoringTrueCount", "bootstrapPolicyProctoredCount",
   ];
   if (Object.keys(payload).sort().join(",") !== expectedKeys.sort().join(",")) return null;
   if (payload.schema !== "student-video-renewal/v1") return null;
@@ -222,7 +223,9 @@ function observeLongVideoBrowserEvidence(payload) {
     || payload.sameDomCount !== 2 || payload.sameSessionCount !== 2 || payload.tokenRotationCount !== 2
     || payload.progressPersistedCount !== 2 || payload.maxReloadDriftSeconds > 2
     || payload.consoleErrorCount !== 0 || payload.pageErrorCount !== 0
-    || payload.requestErrorCount !== 0 || payload.horizontalOverflowCount !== 0) return null;
+    || payload.requestErrorCount !== 0 || payload.horizontalOverflowCount !== 0
+    || payload.bootstrapPolicyMonitoringTrueCount > payload.bootstrapPolicyObservedCount
+    || payload.bootstrapPolicyProctoredCount > payload.bootstrapPolicyObservedCount) return null;
   return {
     schemaMatches: true,
     contextCount: payload.contexts,
@@ -247,6 +250,9 @@ function observeLongVideoBrowserEvidence(payload) {
     pageErrorCount: payload.pageErrorCount,
     requestErrorCount: payload.requestErrorCount,
     horizontalOverflowCount: payload.horizontalOverflowCount,
+    bootstrapPolicyObservedCount: payload.bootstrapPolicyObservedCount,
+    bootstrapPolicyMonitoringTrueCount: payload.bootstrapPolicyMonitoringTrueCount,
+    bootstrapPolicyProctoredCount: payload.bootstrapPolicyProctoredCount,
   };
 }
 

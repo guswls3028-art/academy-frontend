@@ -1960,6 +1960,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     progressPersistedCount: 2, maxReloadDriftSeconds: 2,
     consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
     horizontalOverflowCount: 0,
+    bootstrapPolicyObservedCount: 2, bootstrapPolicyMonitoringTrueCount: 2, bootstrapPolicyProctoredCount: 2,
   } })}\n${JSON.stringify({ longVideoCheckpoint: {
     schema: "student-video-renewal-checkpoint/v1", viewport: "desktop", stage: "playback-started",
   } })}\n${JSON.stringify({ longVideoCheckpoint: {
@@ -1996,6 +1997,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     progressPersistedCount: 2, maxReloadDriftSeconds: 2,
     consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
     horizontalOverflowCount: 0,
+    bootstrapPolicyObservedCount: 2, bootstrapPolicyMonitoringTrueCount: 2, bootstrapPolicyProctoredCount: 2,
   });
   longResult.stdout[0].text += `${JSON.stringify({ longVideoFailure: {
     schema: "student-video-renewal-failure/v1",
@@ -2099,6 +2101,39 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
   assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideoCheckpoint, {
     desktop: null, mobile: null,
   });
+});
+
+test("long-video bootstrap policy counters reject a missing field and an impossible count, never silently clamp", () => {
+  const validPayload = {
+    schema: "student-video-renewal/v1", contexts: 2, desktop: 1, mobile: 1,
+    minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
+    bootstrapCount: 2, renewCount: 2, endBeforeRenewCount: 0,
+    initialMasterLoadCount: 2, initialMediaLoadCount: 4, posterLoadCount: 2,
+    minimumRenewalAdvanceSeconds: 5, sourceReloadCount: 0,
+    sameDomCount: 2, sameSessionCount: 2, tokenRotationCount: 2,
+    progressPersistedCount: 2, maxReloadDriftSeconds: 2,
+    consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0, horizontalOverflowCount: 0,
+    bootstrapPolicyObservedCount: 4, bootstrapPolicyMonitoringTrueCount: 2, bootstrapPolicyProctoredCount: 2,
+  };
+  const report = completeFlowReport();
+  const longResult = report.suites.at(-1).specs[0].tests[0].results[0];
+  const withStdout = (payload) => { longResult.stdout = [{ text: `${JSON.stringify({ longVideoRealUse: payload })}\n` }]; };
+
+  withStdout(validPayload);
+  assert.ok(runner.observeReleaseTestResult(JSON.stringify(report)).longVideo);
+
+  const { bootstrapPolicyObservedCount: _omit, ...missingField } = validPayload;
+  withStdout(missingField);
+  assert.equal(runner.observeReleaseTestResult(JSON.stringify(report)).longVideo, null,
+    "an omitted bootstrap-policy counter is rejected, not defaulted");
+
+  withStdout({ ...validPayload, bootstrapPolicyMonitoringTrueCount: 5 });
+  assert.equal(runner.observeReleaseTestResult(JSON.stringify(report)).longVideo, null,
+    "monitoring-true count cannot exceed the observed bootstrap count -- reject, never clamp");
+
+  withStdout({ ...validPayload, bootstrapPolicyProctoredCount: 5 });
+  assert.equal(runner.observeReleaseTestResult(JSON.stringify(report)).longVideo, null,
+    "proctored count cannot exceed the observed bootstrap count -- reject, never clamp");
 });
 
 test("synthetic 900-second HLS fixture decodes and advances in real Chromium", { timeout: 15_000 }, async () => {
