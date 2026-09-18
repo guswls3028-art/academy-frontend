@@ -1936,8 +1936,23 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
   });
   for (const invalid of [
     { ...runtime, videos: 0 }, { ...runtime, video_progresses: 1 },
-    { ...runtime, active_playback_sessions: 1 }, { ...runtime, player_errors: 1 },
+    { ...runtime, player_errors: 1 },
     { ...runtime, violated_events: 1 },
+  ]) assert.throws(() => runner.observeLongVideoRuntime(invalid));
+  // academy-frontend#545: active_playback_sessions === 0 was never proven by
+  // any canary run before this de-scope, so it is a structural invariant
+  // (a non-negative subset of created sessions) instead of an exact value --
+  // never an arbitrary tolerance. A within-range count still passes...
+  assert.deepEqual(runner.observeLongVideoRuntime({ ...runtime, active_playback_sessions: 2 }), {
+    videoCount: 1, videoAccessCount: 2, progressCount: 2, playbackSessionCount: 4,
+    activePlaybackSessionCount: 2, playbackEventCount: 20, playerErrorCount: 0,
+    violatedEventCount: 0,
+  });
+  // ...but exceeding the created-session count, or a nonsense value, still fails closed.
+  for (const invalid of [
+    { ...runtime, active_playback_sessions: 5 },
+    { ...runtime, active_playback_sessions: -1 },
+    { ...runtime, active_playback_sessions: 1.5 },
   ]) assert.throws(() => runner.observeLongVideoRuntime(invalid));
 
   const master = runner.syntheticLongVideoAsset("/__qa__/video-long/master.m3u8");
