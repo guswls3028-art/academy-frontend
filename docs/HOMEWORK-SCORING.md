@@ -145,6 +145,11 @@
 - 회귀 E2E: `e2e/admin/score-entry-autosave.spec.ts`
 - 학생 상세 회귀 E2E: `e2e/admin/student-score-trend.spec.ts`
 - 과제 제출 검수 E2E: `e2e/admin/homework-media-review.mock.spec.ts`
+- 격리 개발 release의 `e2e/student/student-parent-homework-realuse.spec.ts`는 합성 조교를
+  생성하고 `/core/me/`의 `tenantRole=staff`를 확인한다. 조교 모바일 상세를 먼저 연 뒤
+  학생이 제출한 PNG의 자동 발견·실제 미리보기·reload·PC/390px 표시를 검증한다.
+  이 검사의 채점은 관리자 API로 수행하므로 조교의 채점 UI 검증으로 간주하지 않는다.
+  직원 삭제 뒤 남는 합성 User/token/audit는 exact `qa-*` tenant teardown의 cleanup0이 소유한다.
 
 ```powershell
 pnpm typecheck

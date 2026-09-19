@@ -1,5 +1,6 @@
 /**
- * Student homework media submission -> staff grading -> parent projection.
+ * Student homework media submission -> assistant discovery/preview -> API grading
+ * -> parent projection. This does not claim a staff UI grading journey.
  * The browser writes only to the guarded loopback development API.
  */
 import { expect, test } from "../fixtures/strictTest";
@@ -44,6 +45,7 @@ type CreatedState = {
   lectureId?: number;
   sessionId?: number;
   homeworkId?: number;
+  staffId?: number;
   enrollmentId?: number;
   sessionEnrollmentIds: number[];
 };
@@ -104,11 +106,15 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.enrollmentId) await remove("DELETE", `/enrollments/${created.enrollmentId}/`);
   if (created.sessionId) await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
   if (created.lectureId) await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
+  if (created.staffId) await remove("DELETE", `/staffs/${created.staffId}/`);
+  // Staff deletion deactivates membership; the exact qa-* tenant teardown owns
+  // the remaining synthetic User/token/audit cleanup and its zero-residue proof.
   await cleanupQaFamily(request, created.adminAccess, created.family);
   for (const [label, path] of [
     ...(created.homeworkId ? [[`homework ${created.homeworkId}`, `/homeworks/${created.homeworkId}/`] as const] : []),
     ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
     ...(created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
+    ...(created.staffId ? [[`staff ${created.staffId}`, `/staffs/${created.staffId}/`] as const] : []),
   ]) {
     const residue = await api(request, "GET", path, created.adminAccess);
     if (residue.status !== 404) failures.push(`verify ${label} absent -> ${residue.status}`);
@@ -217,7 +223,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await cleanup(request);
   });
 
-  test("390px 학생·학부모 파일 제출, 채점·reload/relogin·desktop을 완료한다", async ({ page, request }) => {
+  test("390px 학생·학부모 파일 제출, 채점·reload/relogin·desktop을 완료한다", async ({ page, request }, testInfo) => {
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
@@ -247,17 +253,34 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       ),
     });
     await expect(page.getByText(uploadName, { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
-    await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
+    const staffUsername = `qa-homework-assistant-${runStamp}`;
+    const staff = await expectApi<{ id: number }>(request, "POST", "/staffs/", admin.access, {
+      name: `QA 숙제 조교 ${runStamp}`,
+      role: "ASSISTANT",
+      username: staffUsername,
+      password: student.password,
+      is_manager: false,
+    }, [201]);
+    created.staffId = Number(staff.id);
+    const staffTokens = await loginApi(request, staffUsername, student.password);
+    const staffIdentity = await expectApi<{ tenantRole: string }>(request, "GET", "/core/me/", staffTokens.access);
+    expect(staffIdentity.tenantRole).toBe("staff");
     const staffContext = await page.context().browser()!.newContext({
       viewport: { width: 390, height: 844 }, serviceWorkers: "block",
     });
     try {
       const staffPage = await staffContext.newPage();
-      await installQaStudentParentBoundary(staffPage, request);
-      await seedBrowserAuth(staffPage, admin);
+      const staffBoundary = await installQaStudentParentBoundary(staffPage, request);
+      const staffBrowser = attachStrictBrowserGuards(staffPage);
+      await seedBrowserAuth(staffPage, staffTokens);
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/homeworks/${created.homeworkId}`, { timeout: 30_000 });
+      await expect(staffPage.getByRole("heading", { name: homeworkTitle, exact: true })).toBeVisible();
       const fileRow = staffPage.locator('[class*="fileRow"]').filter({ hasText: uploadName });
+      await expect(fileRow).toHaveCount(0);
+      await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
+      await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
+      // Keep the assistant detail open: discovery must not depend on navigation
+      // or manual reload after the student's successful submission.
       await expect(fileRow).toBeVisible({ timeout: 30_000 });
       await fileRow.getByRole("button", { name: "미리보기" }).click();
       const preview = staffPage.getByRole("dialog").filter({ hasText: uploadName });
@@ -268,6 +291,19 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(fileRow).toBeVisible();
       await assertNoHorizontalOverflow(staffPage);
+      await testInfo.attach("assistant-homework-submission-390", {
+        body: await staffPage.screenshot({ fullPage: true }),
+        contentType: "image/png",
+      });
+      await staffPage.setViewportSize({ width: 1366, height: 900 });
+      await expect(fileRow).toBeVisible();
+      await assertNoHorizontalOverflow(staffPage);
+      await testInfo.attach("assistant-homework-submission-1366", {
+        body: await staffPage.screenshot({ fullPage: true }),
+        contentType: "image/png",
+      });
+      staffBoundary.assertClean();
+      staffBrowser.assertZeroDefects();
     } finally {
       await staffContext.close();
     }
