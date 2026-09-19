@@ -32,6 +32,9 @@ GET의 JSON `null`만 미준비 상태이다. HTTP/네트워크 오류나 잘못
 동일 산출물 격리 개발 canary의 `student-parent-learning-realuse.spec.ts`는 기존 합성
 영상이 관리자 계정의 교사 목록에도 실제 API로 표시되고 PC/390px에서 reload 뒤 유지되는지
 검증한다. 이는 교사 화면의 조회 검증이며 별도 `staff` 역할 권한이나 영상 처리 검증은 아니다.
+목록의 YouTube 썸네일과 별도 장시간 재생 fixture의 worker 미생성 썸네일은 로컬 이미지
+대역이다. 후자는 실제 API에서 읽은 origin과 exact QA tenant/video 경로의 GET image만
+대체한다. 이 검사는 목록 API/표시·reload를 입증하며 썸네일 CDN 성공을 주장하지 않는다.
 Backend 전체 rolling 완료 후 frontend를 승격하며, 열린 old frontend의 미준비
 tenant까지 자동 복구됐다는 완료 주장을 하지 않는다. 실제 개발환경·학생 재생은
 release 소유자의 후속 실사용 검증에서 확인한다.

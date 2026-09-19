@@ -265,6 +265,32 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
           body: Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"),
         });
       });
+      // The separate long-playback fixture has no worker-produced list thumbnail.
+      // Keep its exact synthetic image local; the list response remains real.
+      const longVideoId = process.env.E2E_LONG_VIDEO_ID ?? "";
+      const longVideoTenantId = process.env.E2E_LONG_VIDEO_TENANT_ID ?? "";
+      expect(longVideoId).toMatch(/^[1-9][0-9]*$/);
+      expect(longVideoTenantId).toMatch(/^[1-9][0-9]*$/);
+      const longVideo = await expectApi<{ thumbnail_url: string | null }>(
+        request, "GET", `/media/videos/${longVideoId}/`, admin.access,
+      );
+      if (longVideo.thumbnail_url) {
+        const thumbnail = new URL(longVideo.thumbnail_url);
+        expect(thumbnail.protocol).toBe("https:");
+        expect(thumbnail.pathname).toBe(`/tenants/${longVideoTenantId}/video/hls/${longVideoId}/thumbnail.jpg`);
+        await teacherPage.route((url) => (
+          // The signature expiry changes between the detail and list responses.
+          url.origin === thumbnail.origin && url.pathname === thumbnail.pathname
+        ), async (route) => {
+          expect(route.request().method()).toBe("GET");
+          expect(route.request().resourceType()).toBe("image");
+          await route.fulfill({
+            status: 200,
+            contentType: "image/gif",
+            body: Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"),
+          });
+        });
+      }
       await seedBrowserAuth(teacherPage, admin);
       for (const width of [390, 1366]) {
         await teacherPage.setViewportSize({ width, height: 900 });
