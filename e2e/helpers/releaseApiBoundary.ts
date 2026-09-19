@@ -810,7 +810,7 @@ export async function installReleaseContextGuard(
       let bodyBytes = 0;
       try {
         const raw = typeof request.postDataBuffer === "function" ? request.postDataBuffer() : null;
-        bodyBytes = raw?.byteLength ?? new TextEncoder().encode(JSON.stringify(data)).byteLength;
+        bodyBytes = raw?.byteLength ?? (data == null ? 0 : new TextEncoder().encode(JSON.stringify(data)).byteLength);
       } catch { bodyBytes = 0; }
       const tenantCode = await request.headerValue("x-tenant-code") || undefined;
       const analyticsEvents = exactReadonlyAnalyticsEventCount(boundary, target, request.method(), tenantCode, data, bodyBytes);

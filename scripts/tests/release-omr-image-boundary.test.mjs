@@ -31,7 +31,8 @@ async function exercise(options = {}) {
   const headers = options.headers ?? { referer: `${boundary.webOrigin}/workspace/private`, accept: "image/*" };
   const request = { url: () => options.url ?? url, method: () => options.method ?? "GET",
     resourceType: () => options.resourceType ?? "image", allHeaders: async () => headers,
-    headerValue: async (name) => headers[name] ?? null, postDataJSON: () => undefined,
+    // Playwright returns null (not undefined) for postDataJSON on bodyless GET.
+    headerValue: async (name) => headers[name] ?? null, postDataJSON: () => null,
     postDataBuffer: () => options.requestBody ?? null };
   const fetched = [];
   const fulfilled = [];
@@ -124,6 +125,7 @@ test("OMR R2 image refuses application credentials and request bodies", async ()
     assertRejected(await exercise({ headers: { [key]: "private-secret" } }));
   }
   assertRejected(await exercise({ requestBody: Buffer.from("private-secret") }));
+  assertRejected(await exercise({ requestBody: Buffer.from("null") }));
 });
 
 test("OMR R2 image refuses redirects, invalid upstream bytes/status and transport errors", async () => {
