@@ -10,6 +10,7 @@ import { EventEmitter } from "node:events";
 import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 import * as runner from "../run-development-release-canary.mjs";
 import "./release-video-scope.test.mjs";
+import "./release-native-keepalive.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
@@ -17,9 +18,17 @@ const {
   assertReleaseRequestSafe,
   releaseBoundaryFromEnv,
   installReleaseRequestGuard,
-  installReleaseContextGuard,
+  installReleaseContextGuard: installReleaseContextGuardUnderTest,
   probeDevelopmentCrossTenantDenial,
 } = policyModule;
+function installReleaseContextGuard(context, boundary) {
+  // Route-only unit doubles do not execute a browser init script. Real contexts
+  // retain their native methods and are covered by release-native-keepalive.
+  context.exposeBinding ??= async () => {};
+  context.addInitScript ??= async () => {};
+  context.on ??= () => {};
+  return installReleaseContextGuardUnderTest(context, boundary);
+}
 const production = releaseBoundaryFromEnv({
   E2E_RELEASE_API_MODE: "readonly", E2E_ALLOW_PRODUCTION_WRITES: "0",
   E2E_BASE_URL: "https://hakwonplus.com", E2E_API_URL: "https://api.hakwonplus.com",

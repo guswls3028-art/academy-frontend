@@ -230,8 +230,22 @@ redirect를 따라가지 않는다. Playwright가 누락된 CORS 헤더를 보�
 외부에 전달한 뒤에야 감지되는 일을 막는다. 이것은 원본 CORS header 검증이며 브라우저의
 native preflight 전체를 별도로 검증했다는 뜻은 아니다. 가짜 응답이나 CORS/error
 무시 규칙으로 통과시키지 않고 기존 strict browser assertion도 유지한다.
+
+Chromium의 `pagehide` native `fetch(keepalive)`는 Playwright route를 우회하며,
+교차 origin preflight도 종료 중 사라질 수 있다. 개발 QA는 init script에서 정확한
+`POST /api/v1/media/playback/end/`의 유효한 QA tenant·Bearer·JSON 요청만 같은 웹 origin의
+`/__qa__/playback-end`로 전송한다. 원본 artifact는 수정하지 않는다. artifact 서버는
+정확한 Origin·두 owned QA tenant·token 단독 payload와 크기/시간 제한을 재검사한 뒤
+고정된 개발 API에 원본 body bytes를 한 번 전달한다. 운영 주소 fallback과 redirect는
+없으며 서버 거부·upstream 오류는 페이지 종료 여부와 무관하게 release 실패로 남는다.
+그 밖의 native keepalive는 transport 전에 차단하며, 브라우저 거부 코드는 token 없는
+per-tab journal과 binding으로 보존해 reload 뒤 앱이 예외를 catch해도 실패를 유지한다.
+proxy의 진행 중 요청은 fixture cleanup 전에 drain한다. 실제 종료 성공은 기존
+post-playback `active_playback_sessions=0` readback으로 별도 증명한다. 회귀는
+`scripts/tests/release-native-keepalive.test.mjs`의 실제 Chromium reload·서버 도착·격리 검사다.
+
 검증을 통과한 `GET`/`HEAD`/`OPTIONS`의 `route.fetch` 자체가 응답 전에 끊긴 경우에만
-같은 URL/header와 `maxRedirects=0`으로 500ms 뒤 정확히 한 번 재시도한다. mutation,
+같은 URL/header와 `maxRedirects=0`으로 50ms 뒤 정확히 한 번 재시도한다. mutation,
 인증/관측 POST, context 폐기, redirect, CORS 불일치, 응답을 받은 뒤의 browser
 `fulfill` 실패는 재시도하지 않는다. 두 번째 조회 fetch 실패도 즉시 fail-closed이며,
 fetch와 fulfill 실패는 서로 다른 allowlist 단계 코드로 남긴다.

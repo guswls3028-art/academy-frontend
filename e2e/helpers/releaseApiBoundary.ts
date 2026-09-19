@@ -533,6 +533,108 @@ export function developmentUpstream(boundary: ReleaseBoundary, rawUrl: string): 
   return rawUrl;
 }
 
+async function installNativeKeepaliveGuard(
+  context: BrowserContext,
+  boundary: ReleaseBoundary,
+  reject: (code: string) => void,
+): Promise<void> {
+  // Chromium sends native keepalive outside context.route, including pagehide.
+  // Report before rejecting: the app may catch the rejection or unload immediately.
+  await context.exposeBinding("__academyReleaseKeepaliveViolation", (_source, code: unknown) => {
+    const allowed = ["origin", "tenant", "mutation", "shape", "transport"];
+    reject(typeof code === "string" && allowed.includes(code) ? code : "shape");
+  });
+  context.on("console", (message) => {
+    const code = /^academy-release-native-keepalive:(origin|tenant|mutation|shape|transport)$/.exec(message.text())?.[1];
+    if (code) reject(code);
+  });
+  await context.addInitScript((boundary: ReleaseBoundary) => {
+    const nativeFetch = window.fetch.bind(window);
+    const NativeRequest = window.Request;
+    const bodies = new WeakMap<InstanceType<typeof NativeRequest>, BodyInit | null | undefined>();
+    // A Request exposes only a stream, which cannot be used to reconstruct a
+    // keepalive request. Retain its original body synchronously when Axios builds
+    // it; never await request.text() in a departing document.
+    window.Request = class extends NativeRequest {
+      constructor(input: RequestInfo | URL, init?: RequestInit) {
+        super(input, init);
+        bodies.set(this, init?.body ?? (input instanceof NativeRequest ? bodies.get(input) : null));
+      }
+      clone(): InstanceType<typeof NativeRequest> {
+        const copy = super.clone();
+        bodies.set(copy, bodies.get(this));
+        return copy;
+      }
+    };
+    const violationKey = "academy:release-native-keepalive-defects";
+    const binding = (window as unknown as {
+      __academyReleaseKeepaliveViolation: (code: string) => Promise<void>;
+    }).__academyReleaseKeepaliveViolation;
+    // The old document can disappear before its binding message is delivered.
+    // This sanitized per-tab journal is synchronously durable across reload;
+    // the next document forwards it before application code runs.
+    let previous: string[] = [];
+    if (location.origin === boundary.webOrigin) try {
+      const stored: unknown = JSON.parse(sessionStorage.getItem(violationKey) ?? "[]");
+      if (!Array.isArray(stored) || stored.length > 5
+        || stored.some((code) => !["origin", "tenant", "mutation", "shape", "transport"].includes(code))) {
+        previous = ["shape"];
+      } else previous = stored;
+    } catch { previous = ["shape"]; }
+    for (const code of previous) void binding(code).catch(() => undefined);
+    const report = (code: string) => {
+      previous = [...new Set([...previous, code])];
+      try { sessionStorage.setItem(violationKey, JSON.stringify(previous)); } catch { /* Binding still reports; network remains refused. */ }
+      // CDP console delivery also survives closing the tab without a next document.
+      console.warn(`academy-release-native-keepalive:${code}`);
+      void binding(code).catch(() => undefined);
+    };
+    const refuse = (code: string): Promise<Response> => {
+      report(code);
+      return Promise.reject(new TypeError("Release native keepalive request refused"));
+    };
+    window.fetch = (input, init) => {
+      const keepalive = init?.keepalive ?? (input instanceof NativeRequest && input.keepalive);
+      if (!keepalive) return nativeFetch(input, init);
+      let request: InstanceType<typeof NativeRequest>;
+      let target: URL;
+      try {
+        request = new NativeRequest(input, init);
+        target = new URL(request.url);
+      } catch { return refuse("shape"); }
+      // No unreviewed native keepalive (including telemetry) may bypass the route
+      // policy. Only this terminal development write has a native transport path.
+      if (location.origin !== boundary.webOrigin
+        || ![boundary.apiOrigin, "https://api.hakwonplus.com"].includes(target.origin)
+        || target.username || target.password) return refuse("origin");
+      if (request.headers.get("x-tenant-code") !== boundary.tenantCode) return refuse("tenant");
+      if (boundary.mode !== "development") return refuse("mutation");
+      if (request.method !== "POST" || target.pathname !== "/api/v1/media/playback/end/"
+        || target.search || target.hash || request.mode !== "cors"
+        || request.credentials !== "omit"
+        || !/^Bearer\s+\S+$/.test(request.headers.get("authorization") ?? "")) return refuse("shape");
+      // Cross-origin native pagehide preflight is lost under Chromium routing.
+      // The owned artifact server forwards only this terminal write to the
+      // verified development API; the browser performs a real same-origin fetch.
+      const upstream = `${boundary.webOrigin}/__qa__/playback-end`;
+      const body = init?.body ?? (input instanceof NativeRequest ? bodies.get(input) : undefined);
+      if (typeof body !== "string") return refuse("shape");
+      // Retain the original JSON bytes, method, auth/tenant headers and native
+      // keepalive flag, including Axios's Request input.
+      // Never follow a redirect with the playback token or authorization header.
+      return nativeFetch(upstream, {
+        method: request.method, headers: request.headers, body, keepalive: true,
+        credentials: request.credentials, mode: request.mode, cache: request.cache,
+        referrer: request.referrer, referrerPolicy: request.referrerPolicy,
+        integrity: request.integrity, signal: request.signal, redirect: "error",
+      }).catch((error: unknown) => {
+        report("transport");
+        throw error;
+      });
+    };
+  }, boundary);
+}
+
 /**
  * Execute one read-only negative isolation probe against an existing sibling
  * qa-* tenant. This intentionally bypasses the browser route guard, whose
@@ -789,6 +891,8 @@ export async function installReleaseContextGuard(
     },
   };
   const ready = Promise.resolve().then(async () => {
+    await installNativeKeepaliveGuard(context, boundary,
+      (code) => defects.push(`Release native keepalive rejected [${code}]`));
     await context.route("**/*", async (route) => {
       if (closing) {
         // Context teardown aborts any still in-flight request. The browser
