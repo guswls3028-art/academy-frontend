@@ -29,6 +29,9 @@ GET의 JSON `null`만 미준비 상태이다. HTTP/네트워크 오류나 잘못
 조회 실패 복구, 교사 목록의 최초 실패·정상 0건·기존 목록 갱신 실패와 재시도,
 준비 실패 후 입력 유지/재시도, 폴더·링크·파일 결과의 reload 표시를
 검증한다. route mock의 저장 상태는 실제 서버 DB/worker/재생 검증이 아니다.
+동일 산출물 격리 개발 canary의 `student-parent-learning-realuse.spec.ts`는 기존 합성
+영상이 관리자 계정의 교사 목록에도 실제 API로 표시되고 PC/390px에서 reload 뒤 유지되는지
+검증한다. 이는 교사 화면의 조회 검증이며 별도 `staff` 역할 권한이나 영상 처리 검증은 아니다.
 Backend 전체 rolling 완료 후 frontend를 승격하며, 열린 old frontend의 미준비
 tenant까지 자동 복구됐다는 완료 주장을 하지 않는다. 실제 개발환경·학생 재생은
 release 소유자의 후속 실사용 검증에서 확인한다.

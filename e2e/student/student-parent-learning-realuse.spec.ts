@@ -20,6 +20,7 @@ import {
   QA_BASE,
   QA_TENANT,
   reloadStudentApp,
+  seedBrowserAuth,
   selectParentStudentThroughUi,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
@@ -232,7 +233,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await cleanup(request);
   });
 
-  test("강의·출결·영상 진행률·자료를 자녀별로 저장/조회하고 reload/relogin한다", async ({ page, request }) => {
+  test("강의·출결·영상 진행률·자료를 자녀별로 저장/조회하고 reload/relogin한다", async ({ page, request }, testInfo) => {
     const boundary = await installQaStudentParentBoundary(page, request);
     const unexpectedYouTubeRequests = await guardUnmockedYouTubeRequests(page);
     await page.route(/https:\/\/(?:i\.ytimg\.com|img\.youtube\.com)\//, async (route) => {
@@ -249,6 +250,47 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     created.family = await createQaFamily(request, admin.access, "learning", 2);
     const [primary, sibling] = created.family.students;
     await seedLearningGraph(request, admin.access, created.family);
+
+    // The same synthetic video must also reach the teacher list through the real
+    // API. Failure/retry injection remains in public-video-preparation.mock.spec.
+    const teacherContext = await page.context().browser()!.newContext({ serviceWorkers: "block" });
+    try {
+      const teacherPage = await teacherContext.newPage();
+      const teacherBoundary = await installQaStudentParentBoundary(teacherPage, request);
+      const teacherBrowser = attachStrictBrowserGuards(teacherPage);
+      await teacherPage.route(/https:\/\/(?:i\.ytimg\.com|img\.youtube\.com)\//, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "image/gif",
+          body: Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"),
+        });
+      });
+      await seedBrowserAuth(teacherPage, admin);
+      for (const width of [390, 1366]) {
+        await teacherPage.setViewportSize({ width, height: 900 });
+        const responsePromise = teacherPage.waitForResponse((response) => (
+          response.request().method() === "GET"
+          && new URL(response.url()).pathname === "/api/v1/media/videos/"
+        ));
+        await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/videos`, { timeout: 30_000 });
+        expect((await responsePromise).status()).toBe(200);
+        const videoButton = teacherPage.getByRole("button", { name: videoTitle, exact: true });
+        await expect(videoButton).toBeVisible();
+        await expect(teacherPage.getByText("등록된 영상이 없습니다", { exact: true })).toHaveCount(0);
+        await expect(teacherPage.getByText(/영상 목록을 (?:새로 )?불러오지 못했습니다/)).toHaveCount(0);
+        await teacherPage.reload({ waitUntil: "domcontentloaded" });
+        await expect(videoButton).toBeVisible();
+        await assertNoHorizontalOverflow(teacherPage);
+        await testInfo.attach(`teacher-video-list-${width}`, {
+          body: await teacherPage.screenshot({ fullPage: true }),
+          contentType: "image/png",
+        });
+      }
+      teacherBoundary.assertClean();
+      teacherBrowser.assertZeroDefects();
+    } finally {
+      await teacherContext.close();
+    }
 
     const primaryTokens = await loginApi(request, primary.ps_number, primary.password);
     await expectApi(request, "POST", `/student/video/videos/${created.videoId}/progress/`, primaryTokens.access, {
