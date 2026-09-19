@@ -10,6 +10,8 @@ const FAILURE = "공개 영상 공간을 준비하지 못했습니다. 다시 �
 async function installApp(page: Page, role: "admin" | "teacher") {
   const state = {
     prepared: false, readFails: false, failNextPrepare: true,
+    videoListFails: false, videoListReads: 0,
+    videoListWait: null as Promise<void> | null,
     prepares: 0, uploads: 0, completes: 0, youtube: 0,
     folders: [] as Array<{ id: number; name: string; session_id: number; parent_id: null; order: number }>,
     videos: [] as Array<Record<string, unknown>>,
@@ -58,7 +60,11 @@ async function installApp(page: Page, role: "admin" | "teacher") {
         return json(folder, 201);
       }
     }
-    if (path === "/media/videos/" && method === "GET") return json(state.videos);
+    if (path === "/media/videos/" && method === "GET") {
+      state.videoListReads += 1;
+      if (state.videoListWait) await state.videoListWait;
+      return state.videoListFails ? json({ detail: "목록 조회 실패" }, 503) : json(state.videos);
+    }
     if (path === "/media/videos/youtube/" && method === "POST") {
       const data = request.postDataJSON();
       expect(state.prepared).toBe(true);
@@ -112,6 +118,88 @@ test.use({ serviceWorkers: "block" });
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "Local route-mock only");
 
 for (const width of [390, 1366]) {
+  test(`teacher list initial failure retries once and survives reload at ${width}px`, async ({ page }, info) => {
+    const state = await installApp(page, "teacher");
+    state.videoListFails = true;
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/videos`, { timeout: 45_000 });
+    const failure = page.getByRole("alert").filter({ hasText: "영상 목록을 불러오지 못했습니다" });
+    await expect(failure).toBeVisible();
+    await expect(page.getByText("등록된 영상이 없습니다", { exact: true })).toBeHidden();
+    await assertViewport(page, width);
+    await page.screenshot({ path: info.outputPath(`teacher-list-error-${width}.png`) });
+    state.videoListFails = false;
+    state.videos.push({ id: 9203, title: "기존 수업 영상", status: "READY", source_type: "s3" });
+    let releaseRead!: () => void;
+    state.videoListWait = new Promise<void>((resolve) => { releaseRead = resolve; });
+    const reads = state.videoListReads;
+    try {
+      await failure.getByRole("button", { name: "다시 시도", exact: true }).click();
+      await expect.poll(() => state.videoListReads).toBe(reads + 1);
+      const retrying = page.getByRole("button", { name: "다시 불러오는 중…", exact: true });
+      await expect(retrying).toBeDisabled();
+      await expect(retrying).toHaveAttribute("aria-busy", "true");
+      await retrying.evaluate((button: HTMLButtonElement) => { button.click(); button.click(); });
+      expect(state.videoListReads).toBe(reads + 1);
+      await expect(page.getByText("등록된 영상이 없습니다", { exact: true })).toBeHidden();
+    } finally { releaseRead(); }
+    await expect(page.getByText("기존 수업 영상", { exact: true })).toBeVisible();
+    await expect(failure).toBeHidden();
+    await page.reload();
+    await expect(page.getByText("기존 수업 영상", { exact: true })).toBeVisible();
+    await assertViewport(page, width);
+    await page.screenshot({ path: info.outputPath(`teacher-list-recovered-${width}.png`) });
+    expect(state.prepares).toBe(0);
+    expect(state.unexpected).toEqual([]);
+  });
+
+  test(`teacher list successful zero alone shows empty at ${width}px`, async ({ page }, info) => {
+    const state = await installApp(page, "teacher");
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/videos`, { timeout: 45_000 });
+    await expect(page.getByText("등록된 영상이 없습니다", { exact: true })).toBeVisible();
+    await expect(page.getByText("영상 목록을 불러오지 못했습니다", { exact: true })).toBeHidden();
+    await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toBeHidden();
+    await assertViewport(page, width);
+    await page.screenshot({ path: info.outputPath(`teacher-list-empty-${width}.png`) });
+    expect(state.prepares).toBe(0);
+    expect(state.unexpected).toEqual([]);
+  });
+
+  test(`teacher list refresh failure keeps cards and recovers new data at ${width}px`, async ({ page }, info) => {
+    const state = await installApp(page, "teacher");
+    state.failNextPrepare = false;
+    state.videos.push({ id: 9203, title: "기존 수업 영상", status: "READY", source_type: "s3" });
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/videos`, { timeout: 45_000 });
+    await expect(page.getByText("기존 수업 영상", { exact: true })).toBeVisible();
+    state.videoListFails = true;
+    await page.getByRole("button", { name: "링크 추가", exact: true }).first().click();
+    const dialog = page.getByRole("dialog", { name: "YouTube 링크 추가" });
+    await dialog.getByLabel("영상 제목").fill("새 수업 영상");
+    await dialog.getByLabel("YouTube URL").fill("https://youtu.be/VnqgmOJaMGc");
+    await dialog.getByRole("button", { name: "링크 추가", exact: true }).click();
+    await expect(dialog).toBeHidden();
+    const failure = page.getByRole("alert").filter({ hasText: "영상 목록을 새로 불러오지 못했습니다" });
+    await expect(failure).toBeVisible();
+    await expect(failure).toContainText("마지막으로 불러온 목록을 표시하고 있습니다");
+    await expect(page.getByText("기존 수업 영상", { exact: true })).toBeVisible();
+    await expect(page.getByText("새 수업 영상", { exact: true })).toBeHidden();
+    await expect(page.getByText("등록된 영상이 없습니다", { exact: true })).toBeHidden();
+    await assertViewport(page, width);
+    await page.screenshot({ path: info.outputPath(`teacher-list-stale-${width}.png`) });
+    state.videoListFails = false;
+    await failure.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(failure).toBeHidden();
+    await expect(page.getByText("새 수업 영상", { exact: true })).toBeVisible();
+    await expect(page.getByText("기존 수업 영상", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByText("새 수업 영상", { exact: true })).toBeVisible();
+    await expect(page.getByText("기존 수업 영상", { exact: true })).toBeVisible();
+    expect(state.youtube).toBe(1);
+    expect(state.unexpected).toEqual([]);
+  });
+
   test(`admin preparation failure preserves folder input and retries successfully at ${width}px`, async ({ page }, info) => {
     const state = await installApp(page, "admin");
     await page.setViewportSize({ width, height: 900 });

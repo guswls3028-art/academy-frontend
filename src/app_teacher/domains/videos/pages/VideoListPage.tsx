@@ -66,6 +66,7 @@ export default function VideoListPage() {
   const confirm = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [retryingList, setRetryingList] = useState(false);
   const [youtubeOpen, setYoutubeOpen] = useState(false);
   const [youtubeTitle, setYoutubeTitle] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -78,11 +79,21 @@ export default function VideoListPage() {
   );
   const [sortKey, setSortKey] = useState<SortKey>("recent");
 
-  const { data: videos, isLoading } = useQuery({
+  const { data: videos, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: teacherVideoQueryKeys.list,
     queryFn: () => fetchVideos(),
     staleTime: 30_000,
   });
+
+  const retryList = async () => {
+    if (isFetching || retryingList) return;
+    setRetryingList(true);
+    try {
+      await refetch({ cancelRefetch: false });
+    } finally {
+      setRetryingList(false);
+    }
+  };
 
   const retryMut = useMutation({
     mutationFn: retryVideo,
@@ -181,7 +192,8 @@ export default function VideoListPage() {
 
   const total = videos?.length ?? 0;
   const filteredCount = visibleVideos.length;
-  const isEmpty = !isLoading && total === 0;
+  const listError = isError || retryingList;
+  const isEmpty = !isLoading && !listError && total === 0;
   const isFilteredEmpty = !isLoading && total > 0 && filteredCount === 0;
 
   return (
@@ -275,7 +287,32 @@ export default function VideoListPage() {
         </>
       )}
 
-      {isLoading ? (
+      {listError && (
+        <div role="alert">
+          <EmptyState
+            scope="panel"
+            tone="error"
+            title={videos === undefined ? "영상 목록을 불러오지 못했습니다" : "영상 목록을 새로 불러오지 못했습니다"}
+            description={videos === undefined
+              ? "잠시 후 다시 시도해 주세요."
+              : "마지막으로 불러온 목록을 표시하고 있습니다. 다시 시도해 최신 목록을 확인해 주세요."}
+            actions={
+              <button
+                type="button"
+                onClick={() => void retryList()}
+                disabled={isFetching || retryingList}
+                aria-busy={isFetching || retryingList}
+                className="min-h-11 rounded-lg px-4 text-sm font-bold cursor-pointer transition-opacity disabled:cursor-wait disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2"
+                style={{ background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}
+              >
+                {isFetching || retryingList ? "다시 불러오는 중…" : "다시 시도"}
+              </button>
+            }
+          />
+        </div>
+      )}
+
+      {listError && videos === undefined ? null : isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : isEmpty ? (
         <EmptyState
