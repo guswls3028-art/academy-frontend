@@ -13,6 +13,10 @@ Self-contained instructions for the frontend Git root.
   useful bounded independent work with minimal context; delegation is optional.
 - For risk-based effort, review delegation, truncated-output recovery or evidence
   reuse, read `../backend/docs/operations/concurrent-codex-sessions.md` → Execution efficiency.
+  If a frontend-only worktree has no sibling backend, read the owner with
+  `git -C C:\academy\backend show origin/main:docs/operations/concurrent-codex-sessions.md`.
+  Refresh that ref if its freshness is not established; do not copy the policy
+  into this repository or overwrite canonical files.
 
 ## Scope and authority
 
