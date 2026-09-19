@@ -710,14 +710,25 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     });
     await expect(page.getByText(`omr-realuse-${TS}.pdf`)).toBeVisible();
 
+    const initializeResponsePromise = page.waitForResponse(
+      (resp) => resp.request().method() === "POST"
+        && new URL(resp.url()).pathname === `/api/v1/submissions/submissions/exams/${created.examId}/omr/batches/`,
+      { timeout: 90_000 },
+    );
     const uploadResponsePromise = page.waitForResponse(
       (resp) =>
         resp.request().method() === "POST" &&
         resp.url().includes(`/submissions/submissions/exams/${created.examId}/omr/batch/`),
       { timeout: 90_000 },
     );
-    await page.getByRole("button", { name: "등록 시작" }).click();
-    const uploadResponse = await uploadResponsePromise;
+    const responses = Promise.all([initializeResponsePromise, uploadResponsePromise]);
+    // Attach both response waits before clicking: batch initialization is a real
+    // prerequisite, not evidence that the subsequent file upload succeeded.
+    const [, [initializeResponse, uploadResponse]] = await Promise.all([
+      page.getByRole("button", { name: "등록 시작" }).click(),
+      responses,
+    ]);
+    expect(initializeResponse.status()).toBe(201);
     expect(uploadResponse.status()).toBe(201);
     const uploadBody = await uploadResponse.json() as { submission_ids?: number[] };
     created.submissionIds = (uploadBody.submission_ids ?? []).map((id) => Number(id));
