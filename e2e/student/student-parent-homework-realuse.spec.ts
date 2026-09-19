@@ -5,6 +5,7 @@
  */
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext } from "@playwright/test";
+import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import {
   api,
   assertNoHorizontalOverflow,
@@ -263,8 +264,9 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     }, [201]);
     created.staffId = Number(staff.id);
     const staffTokens = await loginApi(request, staffUsername, student.password);
-    const staffIdentity = await expectApi<{ tenantRole: string }>(request, "GET", "/core/me/", staffTokens.access);
+    const staffIdentity = await expectApi<{ tenantRole: string; first_login_guide_required: boolean }>(request, "GET", "/core/me/", staffTokens.access);
     expect(staffIdentity.tenantRole).toBe("staff");
+    expect(staffIdentity.first_login_guide_required).toBe(true);
     const staffContext = await page.context().browser()!.newContext({
       viewport: { width: 390, height: 844 }, serviceWorkers: "block",
     });
@@ -275,6 +277,11 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await seedBrowserAuth(staffPage, staffTokens);
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/homeworks/${created.homeworkId}`, { timeout: 30_000 });
       await expect(staffPage.getByRole("heading", { name: homeworkTitle, exact: true })).toBeVisible();
+      // Newly created assistants must complete the real first-login UI before
+      // interacting with the detail rendered underneath its modal.
+      await acknowledgeInitialAccountPromptsIfVisible(staffPage);
+      const acknowledgedIdentity = await expectApi<{ first_login_guide_required: boolean }>(request, "GET", "/core/me/", staffTokens.access);
+      expect(acknowledgedIdentity.first_login_guide_required).toBe(false);
       const fileRow = staffPage.locator('[class*="fileRow"]').filter({ hasText: uploadName });
       await expect(fileRow).toHaveCount(0);
       await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
@@ -290,6 +297,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await preview.getByRole("button", { name: "닫기" }).click();
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(fileRow).toBeVisible();
+      await expect(staffPage.getByRole("dialog", { name: "계정 안내" })).toBeHidden();
       await assertNoHorizontalOverflow(staffPage);
       await testInfo.attach("assistant-homework-submission-390", {
         body: await staffPage.screenshot({ fullPage: true }),
