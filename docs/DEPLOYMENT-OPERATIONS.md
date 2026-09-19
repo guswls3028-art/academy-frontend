@@ -687,91 +687,20 @@ fail-closed readback으로 pending approval, backend manifest·Dynamo lock,
 frontend 운영 `version.json`을 함께 검증한다. 검증 결과를 별도 mutable queue나
 릴리스 SSOT로 저장하지 않는다.
 
-## 7. 2026-09-07 ~ 09-16 development-canary 정체 사고 기록
+## 7. 과거 development-canary 사고 기록의 범위
 
-### 2026-09-19 재개 후보 — 검증 제외 복원, 운영 미반영
+2026-09-07~09-19의 정체 조사와 임시 OMR 제외 기록은 당시 상태를 담은
+**historical-only** 자료다. 상세 원문은 이 파일의 Git 이력에서 확인한다.
+당시의 "운영 미반영", "non-gating", 재실행 대기 또는 통과 수는 현재의
+실행 지시·배포 승인·합격 증거로 재사용하지 않는다.
 
-아래 7번의 OMR 제외와 #546의 종료 후 활성 재생 세션 허용은 이 재개 후보에서
-철회한다. OMR 업로드·검토·성적 투영을 포함한 21개 실사용과 영상 종료 후 활성
-세션 0을 모두 확인해야 한다. 이전 20 PASS 결과는 이 완료 조건을 충족하지 않는다.
-배치 초기화 201과 파일 접수 201을 구분해 검증하며, 확인되지 않은 실패는 정상이나
-빈 결과로 처리하지 않는다. 아래 사고 기록은 당시 상태이며 현재 통과 증거가 아니다.
+현재 OMR은 `playwright.development-release.config.ts`와
+`scripts/run-development-release-canary.mjs`의 필수 개발 canary에 포함된다.
+현재 배포는 위 실행 계약의 동일 artifact 검증·cleanup zero를 모두 충족해야 하며,
+3.1의 IAM/SSM 전환 HOLD와 실제 적용·실사용·정리 증거에 관한 해제 조건은 유지한다.
 
-2026-09-07 PR #454(마지막 성공 배포) 이후 09-16까지 main에 머지된 모든 PR이
-`development-canary`에서 실패해 `deploy`가 한 번도 실행되지 않았다. 원인은
-서로 무관한 결함 4건이 같은 게이트에 겹쳐 있었던 것이지, 게이트 자체의
-결함이 아니었다.
-
-1. **SSM 터널 stale-socket, 짧은 mutation 재시도 누락** — `route.fetch`가
-   pooled keep-alive 소켓 재사용 시 `socket hang up`으로 즉시 실패하는데,
-   GET은 기존에 1회 재시도로 복구되던 반면 POST/PUT/PATCH/DELETE는 재시도가
-   전혀 없었다. `e2e/helpers/releaseApiBoundary.ts`의 두 엔드포인트
-   (`/api/v1/media/playback/events/`, `/api/v1/students/me/activity/`)에
-   한해 좁게 재시도를 허용해 해결(#531). 정확한 세션 카운트를 단언하는
-   `/api/v1/student/video/videos/:id/playback/`은 의도적으로 제외했다.
-2. **`video-playback-renewal.realuse.spec.ts`가 09-08 도입 이후 한 번도
-   통과하지 못함** — 별개 버그가 아니라 1의 하류 증상이었다. #531 이후
-   연속 green으로 확인됐다.
-3. **OMR cleanup이 403으로 거부됨** — 역할 권한이 아니라
-   `SessionViewSet.destroy`/`LectureViewSet.destroy`의 참조 무결성 가드였다.
-   `omr-review-realuse.spec.ts`의 서술형 채점 단계가 여는 `ScoreEditDraft`
-   lease(`runWithScoreEditLease`, `src/shared/scoring/scoreEditLease.ts`)를
-   cleanup이 release하지 않아 세션/강의 삭제가 영구히 막혔다. 진단 계측(#532)으로
-   블로커 이름을 안전하게(닫힌 어휘집) evidence에 노출한 뒤 정확한 원인을
-   확인, cleanup에서 lease를 release하도록 수정(#533).
-4. **OMR 업로드가 90초 client timeout을 초과** — academy-backend
-   `apps/infrastructure/storage/r2.py`의 `upload_fileobj_to_r2`가
-   `timeout_seconds` 없이 `_get_s3_client()`를 호출해 boto3 기본값(사실상
-   무제한)으로 R2에 업로드했다. 제품에도 실사용자 영향이 있는 결함이라
-   backend에서 30초로 경계를 두어 수정(academy-backend #474). 다만
-   `timeout_seconds`는 요청당 경계라, boto3 기본 multipart_threshold(8MB)
-   보다 큰 파일(OMR 캡 10MB)은 여러 요청으로 쪼개져 합산 시간이 여전히
-   90초를 넘을 수 있었다 -- `single_put_max_bytes`로 단일 PUT을 강제해
-   추가 수정(academy-backend #476).
-5. **업로드 성공 후 뜨는 안내 문구가 실제 제품과 달랐다** — spec이 기다리던
-   "등록을 시작했습니다..." 텍스트는 제품 어디에도 렌더링되지 않는 옛 문구였다.
-   `AdminOmrBatchUploadBox.tsx`의 실제 접수 안내 문구로 단언 대상을
-   맞춰 수정(#535). 이 spec은 1~4의 결함들에 가려 canary에서 한 번도
-   끝까지 실행된 적이 없었다.
-
-부수적으로 발견한 별개의 제품 결함(게이트 정체와 직접 관련은 없음): 만료된
-`ScoreEditDraft`가 영구히 강의 삭제를 막는 문제, 그리고 "리소스 사용 중"에
-403(권한 거부로 오인 가능)을 반환하는 문제 — 두 건 모두 이 문서 작성 시점
-기준 별도 후속 과제로만 존재하고 아직 수정되지 않았다.
-
-인프라 측에서도 배포 스크립트 결함 한 건을 발견해 수정했다: 새로 뜬 EC2
-인스턴스가 SSM 커맨드를 받을 수 있는 시점이 cloud-init의 docker 설치
-완료보다 빠를 수 있는데, `scripts/v1/pin-asg-image.ps1`의 재시도 조건이
-"컨테이너 미시작"만 관용하고 "docker CLI 자체 미설치"는 즉시 실패시켰다
-(academy-backend #475). 이건 canary 실패 원인이 아니라 배포 파이프라인
-자체의 flake였다.
-
-6. **SSM 터널이 real-use 스위트보다 먼저 죽을 수 있었다** — 터널의 hard-kill
-   타임아웃(25분)이 스위트 자체 타임아웃(30분)보다 짧았다. 오래 걸리는
-   스위트는 아직 진행 중인 요청 밑에서 터널이 강제 종료될 수 있고, 이는
-   stale-socket 실패와 구분 불가능한 증상으로 나타난다. 터널 타임아웃을
-   "스위트 타임아웃 + 5분"으로 재정의해 수정(#537). 1의 stale-socket 근본
-   원인과 이어질 가능성이 있는 결함이지만, 별도로 재현·확정하지는 않았다.
-7. **`omr-review-realuse.spec.ts`를 릴리스 게이팅 canary에서 제외** —
-   1~5를 모두 고치고 나서도 이 spec만 유일하게 계속 실패했다(업로드
-   요청이 API에 전혀 도달하지 않음; 프론트 업로드 가드 결함인지 터널의
-   요청 유실인지 근본 원인 미확정, 8/8 실패). 이 spec은 canary 도입
-   이후 단 한 번도 통과한 적이 없어 보호할 green 베이스라인이 없고,
-   계속 게이팅하면 무관한 릴리스가 무기한 막힌다. `FLOW_COUNTS`와
-   `playwright.development-release.config.ts`의 `testMatch`에서 제외해
-   PR 단위 non-gating E2E로만 유지(#537). 근본 원인 조사는 보류.
-
-**미해결로 남은 것 (2026-09-17 기준)**:
-
-- `student-parent-learning-realuse.spec.ts`의
-  `POST /api/v1/student/video/videos/:id/playback/`가 1.4~2.2초 경과 후
-  응답 없이 연결이 끊기는 현상 — 여러 런에서 같은 지속시간·간격으로 재현되는
-  결정적 패턴이나, 격리 개발 인스턴스가 CloudWatch에 로그를 보내지 않아
-  서버측에서 그 몇 초간 무엇을 하는지 확인할 방법이 없다. 터널 노이즈, 클라이언트
-  취소(AbortController 없음 확인됨), 네비게이션에 의한 요청 취소(navigation
-  ordinal 불변 확인으로 배제) 가설을 모두 데이터로 소거했다. 이 spec은
-  과거 2/7 통과 이력이 있어 게이팅에서 제외하지 않고, canary를 반복
-  재실행해 통과를 기다리는 방식으로 대응 중. 다음 단계는 개발 인스턴스에
-  CloudWatch 로그 연결.
-- `omr-review-realuse.spec.ts`의 업로드 요청 유실 근본 원인 — 7번 항목
-  참조. non-gating spec으로 남아 있으며 재조사는 이후 별도 과제.
+과거 조사에서 남긴 만료 `ScoreEditDraft`의 삭제 차단, 참조 무결성 차단의
+403 응답, playback/OMR transport 원인 미확정은 해결됐다고 간주하지 않는다.
+이들은 최신 재현이 필요한 역사 발견이며, 후속 우선순위·재현·완료 판정은
+[현재 안정화 실행 계획](https://github.com/guswls3028-art/academy-backend/blob/main/docs/refactor/hardening-plan.md)에서
+추적한다. 과거 증상만으로 현재 장애나 원인을 확정하지 않는다.

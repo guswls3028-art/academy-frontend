@@ -307,6 +307,57 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
     expect(booking.participants.every((row) => row.student === student.id)).toBe(true);
     created.participantIds = booking.participants.map((row) => row.id);
 
+    // Exercise the operations console against the same owned failure and first
+    // booking, then restore it before the existing student cancellation proof.
+    const consoleContext = await page.context().browser()!.newContext({
+      viewport: { width: 390, height: 844 }, serviceWorkers: "block",
+    });
+    try {
+      const consolePage = await consoleContext.newPage();
+      const consoleBoundary = await installQaStudentParentBoundary(consolePage, request);
+      await seedBrowserAuth(consolePage, admin);
+      await gotoAndSettle(consolePage,
+        `${QA_BASE}/workspace/clinic/operations?scope=day&date=${clinicDate}&session=${created.clinicSessionIds[0]}`,
+        { timeout: 30_000 });
+      const examTitle = `${marker} 필수 대상 시험`;
+      const ticket = consolePage.getByRole("button").filter({ hasText: examTitle });
+      await ticket.click();
+      const drawer = consolePage.getByRole("dialog", { name: `${student.name} 클리닉 워크벤치`, exact: true });
+      const responsePromise = consolePage.waitForResponse((response) => (
+        response.request().method() === "POST"
+        && new URL(response.url()).pathname === `/api/v1/progress/clinic-links/${clinicLinkId}/resolve/`
+      ));
+      await drawer.getByRole("button", { name: "수동 통과", exact: true }).click();
+      const response = await responsePromise;
+      expect(response.status()).toBe(200);
+      expect((await response.json()).resolved_at).toBeTruthy();
+      await expect(consolePage.getByText("통과 처리되었습니다.", { exact: true })).toBeVisible();
+      await expect(drawer.getByRole("tab").filter({ hasText: examTitle })).toHaveCount(0);
+      await consolePage.setViewportSize({ width: 1366, height: 900 });
+      const [targetsResponse] = await Promise.all([
+        consolePage.waitForResponse((readback) => (
+          readback.request().method() === "GET"
+          && new URL(readback.url()).pathname === "/api/v1/results/admin/clinic-targets/"
+        )),
+        consolePage.reload({ waitUntil: "domcontentloaded" }),
+      ]);
+      expect(targetsResponse.status()).toBe(200);
+      const savedTargets = await targetsResponse.json() as Array<Record<string, unknown>>;
+      expect(savedTargets.some((row) => Number(row.clinic_link_id) === clinicLinkId)).toBe(false);
+      await expect(consolePage.getByText(student.name, { exact: true }).first()).toBeVisible();
+      await expect(ticket).toHaveCount(0);
+      expect(await expectApi(request, "GET", `/student/results/me/exams/${created.examId}/`, studentTokens.access))
+        .toMatchObject({ total_score: 20, remediated: true, clinic_required: false });
+      await expectApi(request, "POST", `/progress/clinic-links/${clinicLinkId}/unresolve/`, admin.access, {});
+      expect(await expectApi(request, "GET", `/student/results/me/exams/${created.examId}/`, studentTokens.access))
+        .toMatchObject({ total_score: 20, remediated: false, clinic_required: true });
+      await consolePage.reload({ waitUntil: "domcontentloaded" });
+      await expect(ticket).toBeVisible();
+      consoleBoundary.assertClean();
+    } finally {
+      await consoleContext.close();
+    }
+
     const cancelParticipantId = created.participantIds[0];
     const cancelled = await expectApi<Participant & {
       notification: {

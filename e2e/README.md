@@ -1,8 +1,13 @@
 # E2E 테스트
 
 Playwright 테스트의 실행 진입점과 안전 경계다. 배포·권한 정책은
-`docs/DEPLOYMENT-OPERATIONS.md`, 반복 실행할 suite 목록은
-`e2e/suites.mjs`가 소유한다.
+[배포 운영 계약](../docs/DEPLOYMENT-OPERATIONS.md)이 소유한다. PR·수동 gate 목록은
+[`e2e/suites.mjs`](suites.mjs), 자동 개발 canary의 실행 목록은
+[`playwright.development-release.config.ts`](../playwright.development-release.config.ts),
+필수 사례와 합격 판정은
+[`run-development-release-canary.mjs`](../scripts/run-development-release-canary.mjs)가 소유한다.
+개발 canary 회귀를 추가할 때는 해당 config와 runner에 포함되는지 확인한다.
+spec 파일의 존재나 다른 suite 통과만으로 공식 배포 검증에 포함됐다고 판단하지 않는다.
 
 ## 디렉터리
 
@@ -66,15 +71,19 @@ pnpm exec playwright test e2e/admin/example.mock.spec.ts --project=chromium --wo
   예외는 `E2E_STRICT_IMPORT_EXCEPTION` marker가 있는 좁은 allowlist만 허용한다.
 - PR에서는 `E2E_ALLOW_PRODUCTION_WRITES=0`과
   `E2E_ALLOW_REAL_ALIMTALK=0`을 유지한다.
-- 실제 알림톡·계정복구·가입승인·OMR·과제·클리닉 canary는
-  `controlled_write_canaries=true`인 수동 workflow에서만 실행한다.
+- 운영 쓰기·실발송 canary는 `controlled_write_canaries=true`인 수동 workflow의
+  명시적 opt-in과 소유 fixture 경계에서만 실행한다.
+- 자동 main 배포는 동일 artifact로 격리 개발 real-use를 실행한다. OMR·과제·클리닉을
+  포함한 필수 사례와 양쪽 tenant/user cleanup zero를 모두 증명하며, 운영 business
+  mutation과 외부 메시지 발송은 허용하지 않는다. 적용 전환 HOLD는 배포 운영 계약을 따른다.
 - 통제 쓰기는 `playwright.controlled-write.config.ts`가 재시도 0을 강제한다.
   생성 row/object는 exact run token으로 정리하고 backend residue 0 readback까지
   완료한다.
 - 운영 login fixture는 조회 전용이다. 생성·수정·삭제 spec은 소유 fixture를
   만들고 성공/실패 모두 정리한다.
 - shared tenant와 운영 계정을 사용하는 묶음은 worker 1과 직렬 실행을 유지한다.
-  route mock만 격리가 증명되어 최대 4 worker를 사용한다.
+  route mock의 병렬성은 [`playwright.pr-gate.config.ts`](../playwright.pr-gate.config.ts)가
+  소유하며 CI에서는 최대 3 worker를 사용한다.
 
 `pnpm guard:e2e-safety`는 suite 중복·누락 파일·route interception·쓰기
 분리·자격증명 흔적·strict import를 검사한다. 새 `*.mock.spec.ts`는

@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Locator, Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
@@ -27,6 +27,131 @@ async function seed(page: Page) {
     localStorage.setItem("access", jwt);
     localStorage.setItem("refresh", `${jwt}-refresh`);
   }, localJwt());
+}
+
+async function expectFeedbackUnoccluded(message: Locator) {
+  await expect.poll(() => message.evaluate((element: HTMLElement) => {
+    const previous = element.style.getPropertyValue("pointer-events");
+    const priority = element.style.getPropertyPriority("pointer-events");
+    // Informational messages deliberately ignore pointer input. Temporarily
+    // enable hit testing only; keep their paint order and geometry unchanged.
+    element.style.setProperty("pointer-events", "auto", "important");
+    try {
+      const rect = element.getBoundingClientRect();
+      return [0.1, 0.5, 0.9].every((x) => [0.25, 0.5, 0.75].every((y) => {
+        const top = document.elementFromPoint(rect.left + rect.width * x, rect.top + rect.height * y);
+        return top === element || (top !== null && element.contains(top));
+      }));
+    } finally {
+      if (previous) element.style.setProperty("pointer-events", previous, priority);
+      else element.style.removeProperty("pointer-events");
+    }
+  }), { timeout: 1_000, message: "feedback text must paint above the open workbench" }).toBe(true);
+}
+
+for (const width of [390, 1366]) {
+  test(`운영 콘솔 수동 통과는 저장 실패를 복구하고 느린 재조회와 분리된다 ${width}px`, async ({ page }, info) => {
+    await seed(page);
+    const { today, tomorrow } = currentClinicCountDates();
+    const routeData = createClinicCountFreshnessRouteData(today, tomorrow);
+    let rejectSave = true;
+    let resolved = false;
+    let rejectReadback = true;
+    let saves = 0;
+    let releaseSave!: () => void;
+    let releaseReadback!: () => void;
+    const saveGate = new Promise<void>((resolve) => { releaseSave = resolve; });
+    const readbackGate = new Promise<void>((resolve) => { releaseReadback = resolve; });
+    const unexpectedWrites: string[] = [];
+    await page.route("**/api/v1/**", async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname.replace(/^\/api\/v1/, "");
+      const method = request.method();
+      const json = (body: unknown, status = 200) => route.fulfill({ status, json: body });
+      if (method === "OPTIONS") return route.fulfill({ status: 204 });
+      if (path === "/progress/clinic-links/880/resolve/" && method === "POST") {
+        saves += 1;
+        if (rejectSave) return json({ detail: "저장 실패" }, 503);
+        await saveGate;
+        resolved = true;
+        return json({ id: 880, resolved_at: "2026-09-20T00:00:00Z", resolution_type: "MANUAL_OVERRIDE", resolution_evidence: { user_id: 12 } });
+      }
+      if (path === "/results/admin/clinic-targets/" && method === "GET") {
+        if (resolved) {
+          await readbackGate;
+          if (rejectReadback) return json({ detail: "목록 재조회 실패" }, 503);
+        }
+        return json(resolved ? [remediationWorkbenchTargets[1]] : remediationWorkbenchTargets);
+      }
+      if (path === "/clinic/participants/" && method === "GET") {
+        const body = routeData.response(path, method, url.search) as { results: Array<Record<string, unknown>> };
+        return json({ count: 1, next: null, previous: null, results: body.results.map((row) => ({ ...row, student: 310, student_name: "작업대 학생", enrollment_id: 910 })) });
+      }
+      if (method !== "GET") unexpectedWrites.push(`${method} ${path}`);
+      return json(routeData.response(path, method, url.search));
+    });
+    try {
+      await page.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(page, `${BASE}/workspace/clinic/operations`, { timeout: 45_000 });
+      await page.getByRole("button", { name: /작업대 학생 시험 기체 법칙 단원평가/ }).click();
+      const drawer = page.getByRole("dialog", { name: "작업대 학생 클리닉 워크벤치", exact: true });
+      const exam = drawer.getByRole("tab", { name: /기체 법칙 단원평가/ });
+      await drawer.getByRole("tab", { name: /평형의 이동 복습/ }).click();
+      await exam.click();
+      await expect(exam).toHaveAttribute("aria-selected", "true");
+      const pass = drawer.getByRole("button", { name: "수동 통과", exact: true });
+      await pass.click();
+      const saveError = page.getByText("통과 처리에 실패했습니다.", { exact: true });
+      await expect(saveError).toBeVisible();
+      await expectFeedbackUnoccluded(saveError);
+      await page.screenshot({ path: info.outputPath(`console-save-error-${width}.png`) });
+      await info.attach(`feedback-layer-${width}`, {
+        body: Buffer.from(JSON.stringify(await saveError.evaluate((element) => ({
+          messageZIndex: getComputedStyle(element.closest(".ant-message")!).zIndex,
+          drawerZIndex: getComputedStyle(document.querySelector(".clinic-ops__drawer")!).zIndex,
+        })))),
+        contentType: "application/json",
+      });
+      await expect(exam).toBeVisible();
+      await expect(pass).toBeEnabled();
+      expect(resolved).toBe(false);
+      await expect(saveError).toBeHidden({ timeout: 10_000 });
+      rejectSave = false;
+      await pass.click();
+      await expect.poll(() => saves).toBe(2);
+      await expect(pass).toBeDisabled();
+      await pass.evaluate((button: HTMLButtonElement) => button.click());
+      expect(saves).toBe(2);
+      releaseSave();
+      const success = page.getByText("통과 처리되었습니다.", { exact: true });
+      await expect(success).toHaveCount(1);
+      await expectFeedbackUnoccluded(success);
+      await page.screenshot({ path: info.outputPath(`console-slow-readback-${width}.png`) });
+      await expect(exam).toHaveCount(0);
+      await expect(drawer.getByRole("tab", { name: /평형의 이동 복습/ })).toHaveAttribute("aria-selected", "true");
+      await expect(pass).toBeEnabled();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      releaseReadback();
+      await expect(drawer.getByText("클리닉 과제 정보를 불러오지 못했습니다.", { exact: true })).toBeVisible();
+      await expect(saveError).toBeHidden();
+      expect(saves).toBe(2);
+      rejectReadback = false;
+      await drawer.getByRole("button", { name: "다시 시도", exact: true }).click();
+      await expect(drawer.getByRole("tab", { name: /평형의 이동 복습/ })).toBeVisible();
+      await expect(exam).toHaveCount(0);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: /작업대 학생 .*평형의 이동 복습/ }).click();
+      await expect(drawer.getByRole("tab", { name: /평형의 이동 복습/ })).toBeVisible();
+      await expect(exam).toHaveCount(0);
+      await expect(pass).toBeEnabled();
+      await page.screenshot({ path: info.outputPath(`console-reloaded-${width}.png`) });
+      expect(unexpectedWrites).toEqual([]);
+    } finally {
+      releaseSave();
+      releaseReadback();
+    }
+  });
 }
 
 test("통과 저장 응답은 느린 목록 재조회보다 먼저 반영되고 새로고침에도 유지된다", async ({ page }) => {

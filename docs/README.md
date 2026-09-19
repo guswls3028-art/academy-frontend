@@ -53,18 +53,13 @@
 |------|------|
 | E2E 테스트 | `frontend/e2e/` |
 | 스크립트 | `frontend/scripts/` |
-| 배포 | `origin/main` quality gate → `preview` 격리 검증 → `production` 승인 → 운영 baseline·direct deploy → 운영 E2E/자동 rollback |
+| 배포 | [배포 운영 계약](DEPLOYMENT-OPERATIONS.md): 동일 artifact의 개발 canary·cleanup zero, 승인·운영 반영·rollback |
 | 백엔드 문서 | `backend/docs/README.md` |
+| 현재 안정화 실행 계획 | [backend hardening-plan](https://github.com/guswls3028-art/academy-backend/blob/main/docs/refactor/hardening-plan.md): 우선 업무·단계·완료 및 재개 조건 |
 
-GitHub 저장소의 Action 허용 정책은 third-party action을 태그가 아니라 전체
-40자리 commit SHA로 고정한다. `.github/workflows/e2e.yml`과
-`.github/workflows/quality-gate.yml`은 검토 가능한 버전 주석(` # vN`)을
-함께 남기며, 버전을 올릴 때는 공식 action 저장소의 해당 태그 SHA를 다시
-조회해 모든 사용 위치를 같은 값으로 갱신한다.
-
-Cloudflare Pages 배포는 격리 후보와 운영 배포 모두 최대 3회까지 제한적으로
-재시도하며, 실패 사이에 점증 대기한다. 재시도는 일시적인 Cloudflare API
-5xx만 흡수하고, 후보 SHA·라우팅·정적 자산·운영 버전 검증은 그대로 필수다.
+Actions 공급망과 배포 검증은 [배포 운영 계약](DEPLOYMENT-OPERATIONS.md)이
+소유한다. 실행 순서와 Cloudflare 재시도 조건은
+[공식 workflow](../.github/workflows/quality-gate.yml)를 따른다.
 
 ## E2E 테스트 구조
 
