@@ -11,6 +11,7 @@ import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstan
 import * as runner from "../run-development-release-canary.mjs";
 import "./release-video-scope.test.mjs";
 import "./release-native-keepalive.test.mjs";
+import "./release-omr-image-boundary.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);

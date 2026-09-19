@@ -220,6 +220,19 @@ allowlist된 경계 단계 코드만 남긴다. browser route의 안전한 조�
 숫자로만 남긴다. URL query, header, token, 계정명과 원문 오류는 artifact에 기록하지
 않는다.
 
+개발 OMR 스캔 이미지만 별도 최소 경계를 사용한다. runner는 고정 SSM Setup에서 검증한
+양의 `tenant_id`를 `E2E_OMR_R2_TENANT_ID`로 전달한다. 운영 모드에는 이 설정을 허용하지
+않는다. 브라우저 image GET만 정확한 `af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.com`
+origin의 `academy-development-artifacts/tenants/<Setup tenant id>/ai/submissions/<id>/aligned/<UUID>.jpg`
+를 읽는다. SigV4의 `auto/s3/aws4_request` scope, 날짜, 최대 21600초 만료, `host` 단독 서명과
+서명 형식을 검증하고 다른 query, traversal, host/bucket/tenant, method와 앱 인증·쿠키를
+거부한다. 서명 query는 해당 R2 object GET에만 전달하고 기록하지 않는다. 요청은 JPEG Accept
+외의 원본 header를 전달하지 않으며 redirect를 따르지 않는다. 실제 200 JPEG bytes만 돌려주고
+Set-Cookie·Location 등 upstream header는 전달하지 않는다. direct APIRequestContext 경계는
+확장하지 않는다. SSM template은 모든 R2 bucket이 개발 bucket인지와 isolated runtime을 이미
+검증하므로 IAM/SSM 변경은 없다. `release-omr-image-boundary.test.mjs`를 공식 canary 계약
+suite가 실행하며, 실제 이미지 decode와 OMR 흐름·cleanup zero는 별도 실사용 gate로 남는다.
+
 개발 transport는 artifact가 가리키는 정확한 `https://api.hakwonplus.com/api/`만
 SSM의 `http://127.0.0.1:<port>/api/`로 전달한다. 웹 origin은 개발 settings가 실제로
 허용하는 `http://localhost:4173`이다. real upstream status/body/header를 전달하고

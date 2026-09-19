@@ -204,6 +204,7 @@ export default function SessionScoresEntryPage({
   const recoveryPreviousFocusRef = useRef<HTMLElement | null>(null);
   const isEditModeRef = useRef(false);
   const autoEditAttemptedSessionsRef = useRef(new Set<number>());
+  const [autoEditSettledSessions, setAutoEditSettledSessions] = useState<ReadonlySet<number>>(new Set());
   isEditModeRef.current = isEditMode;
   const shouldLoadPrintData = showPrintPreview || showStudentReport || showClinicPreview || showBillboardPreview;
 
@@ -778,6 +779,8 @@ export default function SessionScoresEntryPage({
         return;
       }
       setIsEditMode(true);
+    }).finally(() => {
+      setAutoEditSettledSessions((previous) => new Set(previous).add(sessionIdForDraft));
     });
     return () => {
       cancelled = true;
@@ -1220,6 +1223,10 @@ export default function SessionScoresEntryPage({
       <SessionOmrUploadAction
         exams={omrExamOptions}
         onRefresh={invalidateScores}
+        preparing={draft.isStartingEdit || (
+          isBlankScoreSheet && !isEditMode && !recoveryBlocked
+          && !autoEditSettledSessions.has(sessionIdForDraft)
+        )}
         onPrepareOpen={async () => {
           if (!isEditMode) return true;
           const released = await draft.releaseEditLease();
