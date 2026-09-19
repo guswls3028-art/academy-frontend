@@ -30,12 +30,12 @@ import {
 } from "lucide-react";
 
 import { useClinicTargets } from "../../hooks/useClinicTargets";
+import { useResolveClinicLink } from "../../hooks/useResolveClinicLink";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import type { ClinicTarget } from "../../api/clinicTargets";
 import { patchClinicParticipantStatus, type ClinicParticipant } from "../../api/clinicParticipants.api";
 import ClinicParticipantRequestSummary from "../../components/ClinicParticipantRequestSummary";
 import {
-  resolveClinicLink,
   waiveClinicLink,
   waiveMissingExamTarget,
   carryOverClinicLink,
@@ -324,23 +324,7 @@ function RemediationWorkspace() {
     qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
   ]);
 
-  const resolveMutation = useMutation({
-    mutationFn: ({ id, memo }: { id: number; memo?: string }) => resolveClinicLink(id, memo),
-    onSuccess: async (link) => {
-      await qc.cancelQueries({ queryKey: clinicQueryKeys.targets });
-      qc.setQueriesData<ClinicTarget[]>({ queryKey: clinicQueryKeys.targets }, (rows) =>
-        rows?.map((row) => row.clinic_link_id === link.id ? {
-          ...row,
-          resolved_at: link.resolved_at,
-          resolution_type: link.resolution_type,
-          resolution_evidence: link.resolution_evidence,
-        } : row),
-      );
-      feedback.success("통과 처리되었습니다.");
-      void invalidateAll();
-    },
-    onError: () => feedback.error("통과 처리에 실패했습니다."),
-  });
+  const resolveMutation = useResolveClinicLink();
 
   const homeworkCompleteMutation = useMutation({
     mutationFn: async ({ target, memo }: { target: ClinicTarget; memo: string }) => {

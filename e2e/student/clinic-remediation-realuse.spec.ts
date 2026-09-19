@@ -422,9 +422,14 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
         response.request().method() === "POST" &&
         new URL(response.url()).pathname === `/api/v1/progress/clinic-links/${created.clinicLinkId}/resolve/`,
       { timeout: 45_000 });
+      const passStartedAt = Date.now();
       await staffPage.getByRole("region", { name: `${STUDENT_NAME} · ${EXAM_TITLE} 처리` })
         .getByRole("button", { name: "통과", exact: true }).click();
       const response = await responsePromise;
+      test.info().annotations.push({
+        type: "clinic-manual-pass-action-to-response-ms",
+        description: String(Date.now() - passStartedAt),
+      });
       expect(response.status()).toBe(200);
       expect((await response.json()).resolved_at).toBeTruthy();
       await expect(staffPage.getByText("통과 처리되었습니다.", { exact: true })).toBeVisible();
