@@ -1,7 +1,7 @@
 import { devices, type Page, type Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { installLocalAuthApiStubs } from "../helpers/localAuthApiStubs";
-import { gotoAndSettle } from "../helpers/wait";
+import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const QUESTION_ID = 4332;
@@ -163,6 +163,8 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await expect(page.locator(".qna-inbox__answer-pane")).toBeVisible();
     await expect(page.getByTitle("답변 필요 질문 1건").first()).toBeVisible();
     await expect(page.getByRole("tab", { name: "QnA 1" })).toBeVisible();
+    // WebKit needs the initial font/layout paint before geometry and pointer input.
+    await waitForRenderSettled(page);
 
     const workbenchGeometry = await page.locator(".qna-inbox__workbench").evaluate((workbench) => {
       const reference = workbench.querySelector<HTMLElement>(".qna-inbox__reference-pane")?.getBoundingClientRect();
