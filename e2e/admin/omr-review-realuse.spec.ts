@@ -714,7 +714,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       (resp) => resp.request().method() === "POST"
         && new URL(resp.url()).pathname === `/api/v1/submissions/submissions/exams/${created.examId}/omr/batches/`,
       { timeout: 90_000 },
-    );
+    ).then((response) => {
+      expect(response.status(), "OMR batch initialization must succeed before file admission").toBe(201);
+      return response;
+    });
     const uploadResponsePromise = page.waitForResponse(
       (resp) =>
         resp.request().method() === "POST" &&
