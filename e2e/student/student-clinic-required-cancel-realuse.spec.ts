@@ -14,10 +14,12 @@ import {
   installQaStudentParentBoundary,
   loginAdmin,
   loginApi,
+  QA_BASE,
+  seedBrowserAuth,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
-import { waitForCondition } from "../helpers/wait";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -221,6 +223,56 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
       return clinicTarget !== null;
     }, { timeoutMs: 60_000, intervalMs: 1_000, description: "required ClinicLink target" });
     expect(clinicTarget).toMatchObject({ exam_score: 20, cutline_score: 80 });
+
+    // Restore the same disposable failure before the existing booking/cancel
+    // journey, so manual resolution also runs in the official release suite.
+    const clinicLinkId = Number((clinicTarget as Record<string, unknown> | null)?.clinic_link_id);
+    expect(clinicLinkId).toBeGreaterThan(0);
+    const staffContext = await page.context().browser()!.newContext({
+      viewport: { width: 1366, height: 900 }, serviceWorkers: "block",
+    });
+    try {
+      const staffPage = await staffContext.newPage();
+      const staffBoundary = await installQaStudentParentBoundary(staffPage, request);
+      await seedBrowserAuth(staffPage, admin);
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/clinic/bookings`, { timeout: 30_000 });
+      const examTitle = `${marker} 필수 대상 시험`;
+      const ticket = staffPage.locator(".clinic-hub__item-ticket").filter({ hasText: examTitle });
+      await ticket.click();
+      const responsePromise = staffPage.waitForResponse((response) => (
+        response.request().method() === "POST"
+        && new URL(response.url()).pathname === `/api/v1/progress/clinic-links/${clinicLinkId}/resolve/`
+      ));
+      await staffPage.getByRole("region", { name: `${student.name} · ${examTitle} 처리` })
+        .getByRole("button", { name: "통과", exact: true }).click();
+      const response = await responsePromise;
+      expect(response.status()).toBe(200);
+      expect((await response.json()).resolved_at).toBeTruthy();
+      await expect(staffPage.getByText("통과 처리되었습니다.", { exact: true })).toBeVisible();
+      await expect(ticket).toHaveCount(0);
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(staffPage.getByRole("heading", { name: "전체 미통과 정리", exact: true })).toBeVisible();
+      await expect(ticket).toHaveCount(0);
+      const afterPass = await expectApi<Array<Record<string, unknown>>>(
+        request, "GET", "/results/admin/clinic-targets/", admin.access,
+      );
+      expect(afterPass.some((row) => Number(row.clinic_link_id) === clinicLinkId)).toBe(false);
+      const manualResult = await expectApi(request, "GET", `/student/results/me/exams/${created.examId}/`, studentTokens.access);
+      expect(manualResult).toMatchObject({ total_score: 20, remediated: true, clinic_required: false });
+
+      await expectApi(request, "POST", `/progress/clinic-links/${clinicLinkId}/unresolve/`, admin.access, {});
+      const restoredTargets = await expectApi<Array<Record<string, unknown>>>(
+        request, "GET", "/results/admin/clinic-targets/", admin.access,
+      );
+      expect(restoredTargets).toContainEqual(expect.objectContaining({ clinic_link_id: clinicLinkId, exam_score: 20 }));
+      const restoredResult = await expectApi(request, "GET", `/student/results/me/exams/${created.examId}/`, studentTokens.access);
+      expect(restoredResult).toMatchObject({ total_score: 20, remediated: false, clinic_required: true });
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(ticket).toBeVisible();
+      staffBoundary.assertClean();
+    } finally {
+      await staffContext.close();
+    }
 
     for (const [hour, suffix] of [["17:00:00", "17시"], ["18:00:00", "18시"]] as const) {
       const session = await expectApi<{ id: number }>(request, "POST", "/clinic/sessions/", admin.access, {
