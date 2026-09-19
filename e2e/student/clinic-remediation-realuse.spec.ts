@@ -407,6 +407,48 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     expect(target.cutline_score).toBe(80);
     expect(target.name_highlight_clinic_target).toBe(true);
 
+    // Verify the staff pass journey before booking, then restore this same
+    // synthetic failure so the original reservation/retake chain stays intact.
+    const staffContext = await page.context().browser()!.newContext({
+      viewport: { width: 1366, height: 900 }, serviceWorkers: "block",
+    });
+    try {
+      const staffPage = await staffContext.newPage();
+      await seedStudentBrowser(staffPage, adminTokens);
+      await gotoAndSettle(staffPage, `${BASE}/workspace/clinic/bookings`, { timeout: 30_000 });
+      const ticket = staffPage.locator(".clinic-hub__item-ticket").filter({ hasText: EXAM_TITLE });
+      await ticket.click();
+      const responsePromise = staffPage.waitForResponse((response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === `/api/v1/progress/clinic-links/${created.clinicLinkId}/resolve/`,
+      { timeout: 45_000 });
+      await staffPage.getByRole("region", { name: `${STUDENT_NAME} · ${EXAM_TITLE} 처리` })
+        .getByRole("button", { name: "통과", exact: true }).click();
+      const response = await responsePromise;
+      expect(response.status()).toBe(200);
+      expect((await response.json()).resolved_at).toBeTruthy();
+      await expect(staffPage.getByText("통과 처리되었습니다.", { exact: true })).toBeVisible();
+      await expect(ticket).toHaveCount(0);
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(staffPage.getByRole("heading", { name: "전체 미통과 정리", exact: true })).toBeVisible();
+      await expect(ticket).toHaveCount(0);
+      const afterPass = await expectApi<any[]>(request, "GET", "/results/admin/clinic-targets/", adminTokens.access);
+      expect(afterPass.some((row) => Number(row.clinic_link_id) === created.clinicLinkId)).toBe(false);
+      const manualResult = await waitForResult(request, studentTokens.access, created.examId);
+      expect(manualResult.total_score).toBe(20);
+      expect(manualResult.remediated).toBe(true);
+      expect(manualResult.clinic_required).toBe(false);
+    } finally {
+      await staffContext.close();
+    }
+    await expectApi(request, "POST", `/progress/clinic-links/${created.clinicLinkId}/unresolve/`, adminTokens.access, {});
+    const restoredTarget = await waitForClinicTarget(request, adminTokens.access);
+    expect(Number(restoredTarget.clinic_link_id)).toBe(created.clinicLinkId);
+    const restoredResult = await waitForResult(request, studentTokens.access, created.examId);
+    expect(restoredResult.total_score).toBe(20);
+    expect(restoredResult.remediated).toBe(false);
+    expect(restoredResult.clinic_required).toBe(true);
+
     const idcardBeforeBooking = await expectApi<any>(
       request,
       "GET",

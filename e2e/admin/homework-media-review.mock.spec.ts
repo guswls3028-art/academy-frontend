@@ -232,5 +232,7 @@ test("모바일 선생님 과제 상세에서 완료된 제출 파일을 열고 
   await imageRow.getByRole("button", { name: "미리보기" }).click();
   dialog = page.getByRole("dialog").filter({ hasText: "풀이 앞면.jpg" });
   await expect(dialog.getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath("mobile-homework-preview-1366.png"), fullPage: true });
+  await expect(dialog).not.toHaveClass(/ant-zoom/);
+  await expect(dialog).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("mobile-homework-preview-1366.png"), fullPage: true, animations: "disabled" });
 });
