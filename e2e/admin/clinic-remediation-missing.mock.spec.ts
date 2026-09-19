@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Locator, Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
@@ -27,6 +27,26 @@ async function seed(page: Page) {
     localStorage.setItem("access", jwt);
     localStorage.setItem("refresh", `${jwt}-refresh`);
   }, localJwt());
+}
+
+async function expectFeedbackUnoccluded(message: Locator) {
+  await expect.poll(() => message.evaluate((element: HTMLElement) => {
+    const previous = element.style.getPropertyValue("pointer-events");
+    const priority = element.style.getPropertyPriority("pointer-events");
+    // Informational messages deliberately ignore pointer input. Temporarily
+    // enable hit testing only; keep their paint order and geometry unchanged.
+    element.style.setProperty("pointer-events", "auto", "important");
+    try {
+      const rect = element.getBoundingClientRect();
+      return [0.1, 0.5, 0.9].every((x) => [0.25, 0.5, 0.75].every((y) => {
+        const top = document.elementFromPoint(rect.left + rect.width * x, rect.top + rect.height * y);
+        return top === element || (top !== null && element.contains(top));
+      }));
+    } finally {
+      if (previous) element.style.setProperty("pointer-events", previous, priority);
+      else element.style.removeProperty("pointer-events");
+    }
+  }), { timeout: 1_000, message: "feedback text must paint above the open workbench" }).toBe(true);
 }
 
 for (const width of [390, 1366]) {
@@ -84,10 +104,18 @@ for (const width of [390, 1366]) {
       await pass.click();
       const saveError = page.getByText("통과 처리에 실패했습니다.", { exact: true });
       await expect(saveError).toBeVisible();
+      await expectFeedbackUnoccluded(saveError);
+      await page.screenshot({ path: info.outputPath(`console-save-error-${width}.png`) });
+      await info.attach(`feedback-layer-${width}`, {
+        body: Buffer.from(JSON.stringify(await saveError.evaluate((element) => ({
+          messageZIndex: getComputedStyle(element.closest(".ant-message")!).zIndex,
+          drawerZIndex: getComputedStyle(document.querySelector(".clinic-ops__drawer")!).zIndex,
+        })))),
+        contentType: "application/json",
+      });
       await expect(exam).toBeVisible();
       await expect(pass).toBeEnabled();
       expect(resolved).toBe(false);
-      await page.screenshot({ path: info.outputPath(`console-save-error-${width}.png`) });
       await expect(saveError).toBeHidden({ timeout: 10_000 });
       rejectSave = false;
       await pass.click();
@@ -96,12 +124,14 @@ for (const width of [390, 1366]) {
       await pass.evaluate((button: HTMLButtonElement) => button.click());
       expect(saves).toBe(2);
       releaseSave();
-      await expect(page.getByText("통과 처리되었습니다.", { exact: true })).toHaveCount(1);
+      const success = page.getByText("통과 처리되었습니다.", { exact: true });
+      await expect(success).toHaveCount(1);
+      await expectFeedbackUnoccluded(success);
+      await page.screenshot({ path: info.outputPath(`console-slow-readback-${width}.png`) });
       await expect(exam).toHaveCount(0);
       await expect(drawer.getByRole("tab", { name: /평형의 이동 복습/ })).toHaveAttribute("aria-selected", "true");
       await expect(pass).toBeEnabled();
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-      await page.screenshot({ path: info.outputPath(`console-slow-readback-${width}.png`) });
       releaseReadback();
       await expect(drawer.getByText("클리닉 과제 정보를 불러오지 못했습니다.", { exact: true })).toBeVisible();
       await expect(saveError).toBeHidden();
