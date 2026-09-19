@@ -4,8 +4,14 @@ import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 
 const source = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
-const { createReleaseContextObservation, installReleaseContextGuard, installReleaseRequestGuard, safeNativeTransportCode } =
+const { createReleaseContextObservation, installReleaseContextGuard: installReleaseContextGuardUnderTest, installReleaseRequestGuard, safeNativeTransportCode } =
   await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString("base64")}`);
+function installReleaseContextGuard(context, boundary) {
+  context.exposeBinding ??= async () => {};
+  context.addInitScript ??= async () => {};
+  context.on ??= () => {};
+  return installReleaseContextGuardUnderTest(context, boundary);
+}
 
 const boundary = {
   mode: "development", apiOrigin: "http://127.0.0.1:18486", webOrigin: "http://127.0.0.1:4286",
@@ -158,7 +164,7 @@ test("prefixed clinic paths and OPTIONS remain visible while query strings and I
     assertSafeSerialized({ events: guard.observation.data.events, diagnostics: guard.requestTransportDiagnostics });
     assert.doesNotThrow(() => guard.assertClean());
   }
-  assert.deepEqual(delays, [500, 500, 500, 500, 500]);
+  assert.deepEqual(delays, [50, 50, 50, 50, 50]);
 });
 
 test("unknown route paths keep null diagnostics and counts through terminal read failure", async (t) => {
@@ -166,7 +172,7 @@ test("unknown route paths keep null diagnostics and counts through terminal read
   const { guard, send } = await routeHarness();
   assert.deepEqual(await send("GET", "/api/v1/unknown/sensitive-name/123456789/?token=sensitive-query", 2),
     { fetch: 2, fulfill: 0, abort: 1 });
-  assert.deepEqual(delays, [500]);
+  assert.deepEqual(delays, [50]);
   assert.equal(guard.transport.readFetchRetries, 1);
   assert.deepEqual(guard.requestTransportDiagnostics, []);
   assert.deepEqual(guard.observation.data.events.map(({ stage }) => stage), ["initial", "retry", "terminal"]);

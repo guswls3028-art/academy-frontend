@@ -10,6 +10,7 @@ import { EventEmitter } from "node:events";
 import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 import * as runner from "../run-development-release-canary.mjs";
 import "./release-video-scope.test.mjs";
+import "./release-native-keepalive.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
@@ -17,9 +18,17 @@ const {
   assertReleaseRequestSafe,
   releaseBoundaryFromEnv,
   installReleaseRequestGuard,
-  installReleaseContextGuard,
+  installReleaseContextGuard: installReleaseContextGuardUnderTest,
   probeDevelopmentCrossTenantDenial,
 } = policyModule;
+function installReleaseContextGuard(context, boundary) {
+  // Route-only unit doubles do not execute a browser init script. Real contexts
+  // retain their native methods and are covered by release-native-keepalive.
+  context.exposeBinding ??= async () => {};
+  context.addInitScript ??= async () => {};
+  context.on ??= () => {};
+  return installReleaseContextGuardUnderTest(context, boundary);
+}
 const production = releaseBoundaryFromEnv({
   E2E_RELEASE_API_MODE: "readonly", E2E_ALLOW_PRODUCTION_WRITES: "0",
   E2E_BASE_URL: "https://hakwonplus.com", E2E_API_URL: "https://api.hakwonplus.com",
@@ -155,13 +164,9 @@ test("transport truth keeps OMR cleanup status at the actual failure without cha
   assert.equal(logs[0].omrCleanupStatus.receivedStatus, 502);
   assert.deepEqual(logs[0].omrCleanupStatus.expectedStatuses, [200, 202, 204, 404]);
   assert.equal(logs[0].omrCleanupStatus.blocker, null, "an unrecognized detail message is not published");
-  // omr-review-realuse.spec.ts is not a release-gating flow (FLOW_COUNTS has
-  // no entry for it -- see docs/DEPLOYMENT-OPERATIONS.md section 7) and it
-  // never runs in this canary context, so any event still tagged with its
-  // filename is unexpected and must stay rejected, not silently accepted.
   const observed = observeReleaseTestResult(JSON.stringify(contextReport(logs, "omr-review-realuse.spec.ts")));
-  assert.deepEqual(observed.omrCleanupStatuses, []);
-  assert.equal(observed.rejectedFailureObservationCount, 1);
+  assert.equal(observed.omrCleanupStatuses[0].receivedStatus, 502);
+  assert.equal(observed.rejectedFailureObservationCount, 0);
   assert.doesNotMatch(JSON.stringify(observed), /private-user|secret-token|987654/);
 });
 
@@ -185,13 +190,9 @@ test("transport truth publishes only the closed lecture/session delete blocker v
   await assert.rejects(cleanup({}), /OMR production fixture cleanup failed/);
   assert.equal(logs[0].omrCleanupStatus.receivedStatus, 403);
   assert.equal(logs[0].omrCleanupStatus.blocker, "exams");
-  // Same de-scope rationale as the test above: the emission side (this
-  // file's own safeLectureSessionDeleteBlocker extraction, asserted above)
-  // still matters and is still exercised; the canary parser correctly
-  // rejects it now that the spec isn't a recognized release flow.
   const observed = observeReleaseTestResult(JSON.stringify(contextReport(logs, "omr-review-realuse.spec.ts")));
-  assert.deepEqual(observed.omrCleanupStatuses, []);
-  assert.equal(observed.rejectedFailureObservationCount, 1);
+  assert.equal(observed.omrCleanupStatuses[0].blocker, "exams");
+  assert.equal(observed.rejectedFailureObservationCount, 0);
 });
 
 test("transport truth OMR verification transport keeps the stage and the identical thrown error", async () => {
@@ -1412,13 +1413,14 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 20, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 21, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 4,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
       "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
       "student-clinic-required-cancel-realuse.spec.ts": 1,
       "student-parent-homework-realuse.spec.ts": 1,
       "student-parent-learning-realuse.spec.ts": 1, "student-parent-storage-realuse.spec.ts": 1,
+      "omr-review-realuse.spec.ts": 1,
       "video-playback-renewal.realuse.spec.ts": 1 }).map(([file, count]) => ({
       file, specs: Array.from({ length: count }, () => ({ file, tests: [{ expectedStatus: "passed", status: "expected", results: [{ status: "passed" }] }] })),
     })),
@@ -1851,7 +1853,7 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers twenty enabled cases without executing any API test", () => {
+test("development config discovers twenty-one enabled cases without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
     "--config=playwright.development-release.config.ts", "--list"], {
@@ -1874,7 +1876,7 @@ test("development config discovers twenty enabled cases without executing any AP
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 20);
+  assert.equal(discovered, 21);
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);
@@ -1936,20 +1938,12 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
   });
   for (const invalid of [
     { ...runtime, videos: 0 }, { ...runtime, video_progresses: 1 },
-    { ...runtime, player_errors: 1 },
+    { ...runtime, active_playback_sessions: 1 }, { ...runtime, player_errors: 1 },
     { ...runtime, violated_events: 1 },
   ]) assert.throws(() => runner.observeLongVideoRuntime(invalid));
-  // academy-frontend#545: active_playback_sessions === 0 was never proven by
-  // any canary run before this de-scope, so it is a structural invariant
-  // (a non-negative subset of created sessions) instead of an exact value --
-  // never an arbitrary tolerance. A within-range count still passes...
-  assert.deepEqual(runner.observeLongVideoRuntime({ ...runtime, active_playback_sessions: 2 }), {
-    videoCount: 1, videoAccessCount: 2, progressCount: 2, playbackSessionCount: 4,
-    activePlaybackSessionCount: 2, playbackEventCount: 20, playerErrorCount: 0,
-    violatedEventCount: 0,
-  });
-  // ...but exceeding the created-session count, or a nonsense value, still fails closed.
+  // Exiting both players must close all four pre/post-reload sessions.
   for (const invalid of [
+    { ...runtime, active_playback_sessions: 2 },
     { ...runtime, active_playback_sessions: 5 },
     { ...runtime, active_playback_sessions: -1 },
     { ...runtime, active_playback_sessions: 1.5 },

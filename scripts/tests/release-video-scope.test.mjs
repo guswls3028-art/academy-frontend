@@ -71,10 +71,7 @@ test("missing scope, foreign echo and incomplete runtime remain failures with sa
     { status: "raw-secret" }, { release_id: "raw-secret" }, { digest: "raw-secret" },
     { remaining: { tenants: 0, users: 0 } },
     ...Object.entries({ videos: 2, video_accesses: 3, proctored_video_accesses: 1, video_progresses: 1,
-      // academy-frontend#545: active_playback_sessions is now a structural
-      // invariant (0..playback_sessions), not an exact value -- 5 exceeds
-      // the unchanged playback_sessions:4 here, so this still fails closed.
-      playback_sessions: 3, active_playback_sessions: 5, playback_events: 3, player_errors: 1, violated_events: 1 })
+      playback_sessions: 3, active_playback_sessions: 1, playback_events: 3, player_errors: 1, violated_events: 1 })
       .map(([key, value]) => ({ synthetic_video_state: { ...runtime, [key]: value } })),
   ]) {
     const observation = observe({ ...inspect, ...patch });

@@ -7,6 +7,7 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
+import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH } from "./release-playback-end-proxy.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REGION = "ap-northeast-2";
@@ -36,14 +37,9 @@ const FLOW_COUNTS = {
   "student-parent-homework-realuse.spec.ts": 1,
   "student-parent-learning-realuse.spec.ts": 1,
   "student-parent-storage-realuse.spec.ts": 1,
+  "omr-review-realuse.spec.ts": 1,
   "video-playback-renewal.realuse.spec.ts": 1,
 };
-// omr-review-realuse.spec.ts is intentionally not a release-gating flow: it
-// has never passed in this canary (tracking issue: upload request never
-// reaches the API -- root cause still unconfirmed between a frontend upload
-// guard and tunnel request loss). It still runs as a non-gating PR-level E2E
-// spec (see e2e/suites.mjs); see docs/DEPLOYMENT-OPERATIONS.md section 7 for
-// the three real defects already found and fixed on the way to this one.
 const LONG_VIDEO_CHECKPOINT_STAGES = [
   "context-created", "routes-installed", "authenticated", "navigated",
   "bootstrap-observed", "access-observed", "playlist-observed", "video-mounted",
@@ -791,19 +787,7 @@ export function observeLongVideoRuntime(state) {
   assert.equal(state.proctored_video_accesses, 2);
   assert.equal(state.video_progresses, 2);
   assert.equal(state.playback_sessions, 4);
-  // TODO(academy-frontend#545): a monitored (PROCTORED_CLASS) playback
-  // session is not reliably ended on some paths -- observed count is
-  // currently 2, not 0. Five root-cause hypotheses were checked against
-  // concrete evidence and ruled out (see the issue); this was never proven
-  // to reach 0 in any canary run before this de-scope (the check that would
-  // have proven it never ran, because an earlier defect always failed the
-  // suite first), so there is no green baseline to protect. Keep the
-  // structural invariant that must always hold regardless of root cause --
-  // never widen this into an arbitrary tolerance -- and restore the exact
-  // assertion once the root cause is fixed.
-  assert.ok(Number.isInteger(state.active_playback_sessions)
-    && state.active_playback_sessions >= 0 && state.active_playback_sessions <= state.playback_sessions,
-    "active playback sessions must be a non-negative subset of created sessions");
+  assert.equal(state.active_playback_sessions, 0);
   assert.ok(state.playback_events >= 4);
   assert.equal(state.player_errors, 0);
   assert.equal(state.violated_events, 0);
@@ -1011,10 +995,15 @@ export function artifactFingerprint(directory) {
   return sha(canonical(entries.sort(([a], [b]) => a.localeCompare(b))));
 }
 
-function serveArtifact(directory) {
+function serveArtifact(directory, playbackBoundary) {
+  const playbackProxy = createPlaybackEndProxy(playbackBoundary);
   const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
     ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp" };
   const server = http.createServer((request, response) => {
+    if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH)) {
+      playbackProxy.handle(request, response);
+      return;
+    }
     try {
       assert.ok(["GET", "HEAD"].includes(request.method));
       const route = decodeURIComponent(new URL(request.url, WEB_ORIGIN).pathname);
@@ -1038,6 +1027,7 @@ function serveArtifact(directory) {
       response.end(request.method === "HEAD" ? undefined : fs.readFileSync(file));
     } catch { response.writeHead(404); response.end(); }
   });
+  server.closePlaybackProxy = () => playbackProxy.close();
   return new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(4173, "127.0.0.1", () => resolve(server));
@@ -1362,7 +1352,10 @@ export async function run() {
     const tunnel = session(PORT_DOCUMENT);
     await waitPort(18000, () => interrupted);
     remember(tunnel);
-    server = await serveArtifact(path.join(bundle, "dist"));
+    server = await serveArtifact(path.join(bundle, "dist"), {
+      apiOrigin: API_ORIGIN, webOrigin: WEB_ORIGIN, tenantCodes: [tenant, crossTenant],
+      onFailure: (code) => failures.push(`development native playback proxy failed [${code}]`),
+    });
     const secret = aws(["ssm", "get-parameter", "--name", PASSWORD_PARAMETER, "--with-decryption"]);
     assert.equal(secret.Parameter.Name, PASSWORD_PARAMETER);
     assert.ok(secret.Parameter.Value);
@@ -1388,6 +1381,7 @@ export async function run() {
     assert.equal(result.code, 0, "Required development real-use failed (raw credential-bearing report is not published)");
     counts = assertReleaseSummary(JSON.parse(result.stdout));
     assert.ok(realUseObservation.longVideo, "Long-video browser evidence missing or invalid");
+    await server.closePlaybackProxy();
     await operation("Inspect", scenario.tenant_id, "post-playback", longVideo.video_id);
     videoRuntimeObservation = assertPostPlaybackInspect(postPlaybackInspectObservation);
   } catch { primaryFailed = true; failures.push("development identity/setup/real-use failed"); }
@@ -1395,6 +1389,7 @@ export async function run() {
     finalizing = true;
     // No test process may still mutate the scenario while Cleanup is running.
     if (tests) { tests.stop(); await tests.done; }
+    if (server) await server.closePlaybackProxy();
     if (interrupted) failures.push("development run interrupted; promotion forbidden");
     if (setupAttempted) {
       if (!Number.isSafeInteger(scenarioTenantId) || scenarioTenantId < 1) {
