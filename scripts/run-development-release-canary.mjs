@@ -1367,6 +1367,7 @@ export async function run() {
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
         E2E_CROSS_TENANT_CODE: crossTenant,
         E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_TENANT_ID: String(scenario.tenant_id),
+        E2E_OMR_R2_TENANT_ID: String(scenario.tenant_id),
         E2E_LONG_VIDEO_ID: String(scenario.synthetic_long_video.video_id),
         E2E_LONG_VIDEO_HLS_PATH: longVideo.hls_path,
         E2E_ADMIN_PASS: secret.Parameter.Value, E2E_STUDENT_PASS: secret.Parameter.Value,

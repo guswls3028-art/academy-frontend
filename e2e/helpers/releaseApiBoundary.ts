@@ -5,7 +5,33 @@ export type ReleaseBoundary = {
   apiOrigin: string;
   webOrigin: string;
   tenantCode: string;
+  omrR2TenantId?: number;
 };
+
+const DEVELOPMENT_OMR_R2_ORIGIN = "https://af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.com";
+
+function isExactDevelopmentOmrImage(boundary: ReleaseBoundary, rawUrl: string, method: string): boolean {
+  if (boundary.mode !== "development" || method !== "GET"
+    || !Number.isSafeInteger(boundary.omrR2TenantId) || Number(boundary.omrR2TenantId) < 1) return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    // Compare the raw path too: URL parsing normalizes dot segments before policy checks.
+    || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
+  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/ai/submissions/([1-9][0-9]*)/aligned/([0-9a-f-]+)\\.jpg$`).exec(target.pathname);
+  if (!path || !Number.isSafeInteger(Number(path[1])) || !UUID.test(path[2])) return false;
+  const query = target.searchParams;
+  const keys = ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Date", "X-Amz-Expires", "X-Amz-SignedHeaders", "X-Amz-Signature"];
+  if ([...query.keys()].length !== keys.length || keys.some((key) => query.getAll(key).length !== 1)
+    || query.get("X-Amz-Algorithm") !== "AWS4-HMAC-SHA256" || query.get("X-Amz-SignedHeaders") !== "host"
+    || !/^[0-9a-f]{64}$/.test(query.get("X-Amz-Signature") ?? "")) return false;
+  const date = query.get("X-Amz-Date") ?? "";
+  if (!/^[0-9]{8}T[0-9]{6}Z$/.test(date)) return false;
+  const isoDate = `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T${date.slice(9, 11)}:${date.slice(11, 13)}:${date.slice(13, 15)}.000Z`;
+  if (Number.isNaN(Date.parse(isoDate)) || new Date(isoDate).toISOString() !== isoDate) return false;
+  const credential = /^([A-Za-z0-9]{16,128})\/([0-9]{8})\/auto\/s3\/aws4_request$/.exec(query.get("X-Amz-Credential") ?? "");
+  const expires = query.get("X-Amz-Expires") ?? "";
+  return credential?.[2] === date.slice(0, 8) && /^[1-9][0-9]*$/.test(expires) && Number(expires) <= 21600;
+}
 
 function isExactPublicTenantMetadataRead(boundary: ReleaseBoundary, target: URL, verb: string): boolean {
   return verb === "GET"
@@ -132,7 +158,11 @@ export function releaseBoundaryFromEnv(env: Record<string, string | undefined>):
   } else if (api.origin !== "https://api.hakwonplus.com" || web.origin !== "https://hakwonplus.com" || tenantCode !== "hakwonplus") {
     throw new Error("Production read-only canary requires exact production origins and tenant");
   }
-  return { mode, apiOrigin: api.origin, webOrigin: web.origin, tenantCode };
+  const omrTenant = env.E2E_OMR_R2_TENANT_ID;
+  if (omrTenant !== undefined && (mode !== "development" || !/^[1-9][0-9]*$/.test(omrTenant)
+    || !Number.isSafeInteger(Number(omrTenant)))) throw new Error("Invalid development OMR tenant scope");
+  return { mode, apiOrigin: api.origin, webOrigin: web.origin, tenantCode,
+    ...(omrTenant === undefined ? {} : { omrR2TenantId: Number(omrTenant) }) };
 }
 
 export function assertReleaseRequestSafe(
@@ -692,7 +722,8 @@ export async function installReleaseContextGuard(
   const installed = installedContextGuards.get(context);
   if (installed) {
     if (installed.boundary.mode !== boundary.mode || installed.boundary.apiOrigin !== boundary.apiOrigin
-      || installed.boundary.webOrigin !== boundary.webOrigin || installed.boundary.tenantCode !== boundary.tenantCode) {
+      || installed.boundary.webOrigin !== boundary.webOrigin || installed.boundary.tenantCode !== boundary.tenantCode
+      || installed.boundary.omrR2TenantId !== boundary.omrR2TenantId) {
       throw new Error("Release context boundary mismatch");
     }
     return installed.ready;
@@ -796,6 +827,26 @@ export async function installReleaseContextGuard(
           recordRouteTransport(request, upstream, "terminal", error, "route-fulfill");
           await reject("fulfill-transport");
         }
+        return;
+      }
+      if (isExactDevelopmentOmrImage(boundary, upstream, request.method()) && request.resourceType() === "image") {
+        const headers = await request.allHeaders();
+        if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
+          .some((key) => headers[key])) {
+          await reject("credentials");
+          return;
+        }
+        // Only this signed development object URL is forwarded. Never send app
+        // credentials/referrer or follow redirects; never report the signed URL.
+        const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: "image/jpeg" }, maxRedirects: 0 });
+        if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
+        const body = await response.body();
+        if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== "image/jpeg"
+          || body[0] !== 0xff || body[1] !== 0xd8 || body[2] !== 0xff) {
+          await reject("transport");
+          return;
+        }
+        await route.fulfill({ status: 200, headers: { "content-type": "image/jpeg" }, body });
         return;
       }
       const kind = assertReleaseRequestSafe(boundary, upstream, request.method(), tenantCode, data);
