@@ -1,6 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
@@ -19,13 +20,14 @@ function fakeJwt(): string {
   })}.sig`;
 }
 
-async function installApi(page: Page, submissionStatus = "submitted") {
+async function installApi(page: Page, submissionStatus = "submitted", newAssistant = false) {
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
     "과제 파일 검수 route-mock 검증은 로컬 dev 서버 전용",
   );
   await installTenantOneInitScript(page);
   const token = fakeJwt();
+  let firstLoginGuideRequired = newAssistant;
   await page.addInitScript((jwt) => {
     localStorage.setItem("access", jwt);
     localStorage.setItem("refresh", `${jwt}-refresh`);
@@ -72,7 +74,11 @@ async function installApi(page: Page, submissionStatus = "submitted") {
       return json({ tenantCode: "hakwonplus", isPlatformAdmin: true, display_name: "학원플러스", feature_flags: {}, is_active: true });
     }
     if (path === "/core/me/") {
-      return json({ id: 12, username: "teacher", name: "김선생", is_staff: true, is_superuser: false, tenantRole: "teacher", must_change_password: false });
+      return json({ id: 12, username: "teacher", name: "김선생", is_staff: true, is_superuser: false, tenantRole: newAssistant ? "staff" : "teacher", must_change_password: false, first_login_guide_required: firstLoginGuideRequired });
+    }
+    if (path === "/core/me/first-login-guide/complete/" && request.method() === "POST") {
+      firstLoginGuideRequired = false;
+      return json({ ok: true });
     }
     if (path === `/lectures/lectures/${LECTURE_ID}/`) {
       return json({ id: LECTURE_ID, title: "고1 수학", name: "김선생", subject: "수학", is_active: true });
@@ -213,11 +219,18 @@ test("선생님이 학생별 제출 묶음에서 사진·동영상·오류를 �
   await testInfo.attach("teacher-homework-media-390", { path: mobileScreenshot, contentType: "image/png" });
 });
 
-test("모바일 선생님 과제 상세에서 완료된 제출 파일을 열고 새로고침해도 확인한다", async ({ page }, testInfo) => {
+test("신규 조교가 계정 안내 확인 후 모바일 과제 파일을 열고 새로고침해도 확인한다", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await installApi(page, "done");
+  await installApi(page, "done", true);
   await page.goto(`${BASE}/workspace/mobile/homeworks/${HOMEWORK_ID}`);
   await expect(page.getByRole("heading", { name: "제출 완료 (1)" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "계정 안내" })).toBeVisible();
+  const guideCompleted = page.waitForResponse((response) =>
+    response.request().method() === "POST" &&
+    new URL(response.url()).pathname === "/api/v1/core/me/first-login-guide/complete/",
+  );
+  await acknowledgeInitialAccountPromptsIfVisible(page);
+  expect((await guideCompleted).status()).toBe(200);
   const imageRow = page.locator('[class*="fileRow"]').filter({ hasText: "풀이 앞면.jpg" });
   await imageRow.getByRole("button", { name: "미리보기" }).click();
   let dialog = page.getByRole("dialog").filter({ hasText: "풀이 앞면.jpg" });
@@ -226,6 +239,7 @@ test("모바일 선생님 과제 상세에서 완료된 제출 파일을 열고 
   await expect(page.locator('[class*="fileRow"]').filter({ hasText: "흐린 사진.png" }).getByRole("button", { name: "미리보기" })).toBeDisabled();
   await page.reload();
   await expect(page.getByText("풀이 설명.mp4", { exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "계정 안내" })).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath("mobile-homework-files-390.png"), fullPage: true });
   await page.setViewportSize({ width: 1366, height: 900 });
