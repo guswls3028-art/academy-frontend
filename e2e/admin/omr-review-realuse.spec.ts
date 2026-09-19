@@ -953,6 +953,25 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await gradingDialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
     await expect(page.getByText("1명의 성적을 확정했습니다.")).toBeVisible({ timeout: 30_000 });
 
+    await gotoAndSettle(page,
+      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`,
+      { timeout: 30_000 });
+    await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
+    const recalculateResponse = page.waitForResponse((response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === `/api/v1/exams/${created.examId}/recalculate/`,
+    { timeout: 90_000 });
+    await page.getByRole("alertdialog", { name: "시험 전체 재채점" })
+      .getByRole("button", { name: "재채점 실행", exact: true }).click();
+    const recalculated = await recalculateResponse;
+    expect(recalculated.status()).toBe(200);
+    const recalculation = await recalculated.json() as { graded: number; failed: unknown[] };
+    expect(recalculation.graded).toBeGreaterThan(0);
+    expect(recalculation.failed).toEqual([]);
+    await gotoAndSettle(page,
+      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
+      { timeout: 30_000 });
+
     await page.setViewportSize({ width: 390, height: 844 });
     await page.reload({ waitUntil: "domcontentloaded" });
     await chooseExamHeaderAction(page, "문항별 점수 입력");

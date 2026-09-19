@@ -1,3 +1,5 @@
+import { normalizeMediaFile, type HomeworkSubmissionMediaFile } from "@admin/domains/submissions/api/adminHomeworkSubmissions.api";
+
 export type TeacherExamDetail = {
   id: number;
   title: string;
@@ -56,6 +58,7 @@ export type HomeworkSubmission = {
   parent_phone: string | null;
   submitted_at: string | null;
   status: string | null;
+  files: HomeworkSubmissionMediaFile[];
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -216,8 +219,12 @@ function normalizeHomeworkSubmission(value: unknown): HomeworkSubmission | null 
     student_name: getStudentName(record),
     student_phone: toStringValue(record.student_phone),
     parent_phone: toStringValue(record.parent_phone),
-    submitted_at: toStringValue(record.submitted_at),
+    submitted_at: toStringValue(record.submitted_at) ??
+      (record.status !== "not_submitted" && record.status !== "NOT_SUBMITTED" ? toStringValue(record.created_at) : null),
     status: toStringValue(record.status),
+    files: (Array.isArray(record.files) ? record.files : [])
+      .map(normalizeMediaFile)
+      .filter((file): file is HomeworkSubmissionMediaFile => file != null),
   };
 }
 

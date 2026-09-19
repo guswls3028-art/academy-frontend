@@ -64,3 +64,22 @@
   background: none;
   color: var(--tc-text-secondary);
 }
+
+.files { display: grid; gap: 8px; margin-top: 8px; }
+.fileRow { display: flex; align-items: center; gap: 12px; }
+.fileName { display: grid; gap: 3px; min-width: 0; flex: 1; overflow-wrap: anywhere; font-size: 12px; color: var(--tc-text); }
+.fileName span { color: var(--tc-text-muted); }
+.fileName .dangerText { color: var(--tc-danger); }
+.previewButton {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--tc-border-strong);
+  border-radius: var(--tc-radius-sm);
+  background: var(--tc-surface-soft);
+  color: var(--tc-primary);
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+.previewButton:disabled { opacity: 0.5; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .previewButton { transition: none; } }

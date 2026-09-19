@@ -30,12 +30,12 @@ import {
 } from "lucide-react";
 
 import { useClinicTargets } from "../../hooks/useClinicTargets";
+import { useResolveClinicLink } from "../../hooks/useResolveClinicLink";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import type { ClinicTarget } from "../../api/clinicTargets";
 import { patchClinicParticipantStatus, type ClinicParticipant } from "../../api/clinicParticipants.api";
 import ClinicParticipantRequestSummary from "../../components/ClinicParticipantRequestSummary";
 import {
-  resolveClinicLink,
   waiveClinicLink,
   waiveMissingExamTarget,
   carryOverClinicLink,
@@ -324,14 +324,7 @@ function RemediationWorkspace() {
     qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
   ]);
 
-  const resolveMutation = useMutation({
-    mutationFn: ({ id, memo }: { id: number; memo?: string }) => resolveClinicLink(id, memo),
-    onSuccess: async () => {
-      await invalidateAll();
-      feedback.success("통과 처리되었습니다.");
-    },
-    onError: () => feedback.error("통과 처리에 실패했습니다."),
-  });
+  const resolveMutation = useResolveClinicLink();
 
   const homeworkCompleteMutation = useMutation({
     mutationFn: async ({ target, memo }: { target: ClinicTarget; memo: string }) => {

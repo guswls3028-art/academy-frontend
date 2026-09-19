@@ -25,10 +25,17 @@ export default function ExamBulkActionsPanel({ examId, lectureId, sessionId }: P
 
   const recalculate = useMutation({
     mutationFn: () => recalculateExam(examId),
-    onSuccess: () => {
-      feedback.success("현재 답안 기준으로 재채점을 완료했습니다.");
+    onSuccess: (result) => {
+      if (result.failed.length > 0) {
+        feedback.warning(`${result.graded}건 재채점, ${result.failed.length}건 실패했습니다. 다시 시도해 주세요.`);
+      } else {
+        feedback.success("저장된 정답·배점 기준으로 전체 재채점을 완료했습니다.");
+      }
       qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExam(examId) });
-      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResults(examId) });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamSummary(examId) });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.sessionScoresRoot() });
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.clinicTargetsRoot() });
       qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminSubmissions });
       qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminPendingSubmissions });
     },
@@ -59,35 +66,38 @@ export default function ExamBulkActionsPanel({ examId, lectureId, sessionId }: P
         </Button>
       </div>
 
-      <details className={formStyles.advanced}>
-        <summary>고급 작업</summary>
-        <div className={formStyles.advancedBody}>
-          <div className={formStyles.inlineStatus}>
-            <div>
-              <strong>현재 답안으로 기존 결과 재채점</strong>
-              <p>답안을 수정한 뒤 기존 제출 결과 전체를 다시 계산할 때만 사용합니다.</p>
-            </div>
-            <Button
-              type="button"
-              intent="danger"
-              size="sm"
-              disabled={recalculate.isPending}
-              loading={recalculate.isPending}
-              onClick={async () => {
-                const confirmed = await confirm({
-                  title: "기존 결과를 다시 채점",
-                  message: "현재 문항·답안을 기준으로 이 시험의 기존 제출 결과 전체와 합격·클리닉 판정을 다시 계산합니다.",
-                  confirmText: "재채점 실행",
-                  danger: true,
-                });
-                if (confirmed) recalculate.mutate();
-              }}
-            >
-              {recalculate.isPending ? "재채점 중…" : "재채점 실행"}
-            </Button>
+      <div className={formStyles.advancedBody}>
+        <div className={formStyles.inlineStatus}>
+          <div>
+            <strong>시험 전체 재채점</strong>
+            <p>정답·문항 배점·만점을 먼저 저장한 뒤, 기존 제출 결과 전체를 다시 계산하세요.</p>
           </div>
+          <Button
+            type="button"
+            intent="danger"
+            size="sm"
+            disabled={recalculate.isPending}
+            loading={recalculate.isPending}
+            onClick={async () => {
+              const confirmed = await confirm({
+                title: "시험 전체 재채점",
+                message: "저장된 문항·정답·배점을 기준으로 이 시험의 기존 제출 결과 전체와 합격·클리닉 판정을 다시 계산합니다. 아직 저장하지 않은 변경은 반영되지 않습니다.",
+                confirmText: "재채점 실행",
+                danger: true,
+              });
+              if (confirmed) recalculate.mutate();
+            }}
+          >
+            {recalculate.isPending ? "재채점 중…" : "전체 재채점"}
+          </Button>
         </div>
-      </details>
+        {recalculate.data && (
+          <p role={recalculate.data.failed.length ? "alert" : "status"}>
+            재채점 {recalculate.data.graded}건 · 처리 중·미응시 등 제외 {recalculate.data.skipped}건 · 실패 {recalculate.data.failed.length}건
+            {recalculate.data.failed.length > 0 && " — 실패한 제출은 확인 후 다시 시도해 주세요."}
+          </p>
+        )}
+      </div>
     </section>
   );
 }
