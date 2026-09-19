@@ -60,8 +60,8 @@ import { fetchClinicSessions } from "../../api/clinicSessions.api";
 import type { ClinicTarget } from "../../api/clinicTargets";
 import { getCutlineLabel } from "../BookingsPage/remediationFormatters";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
+import { useResolveClinicLink } from "../../hooks/useResolveClinicLink";
 import {
-  resolveClinicLink,
   waiveClinicLink,
   waiveMissingExamTarget,
   carryOverClinicLink,
@@ -362,6 +362,7 @@ export default function ClinicConsoleWorkspace({
   onChangeNoticeConsumed,
 }: Props) {
   const qc = useQueryClient();
+  const resolveLinkM = useResolveClinicLink();
   const confirm = useConfirm();
   // Drawer stores participant ID only — derive live data from participants prop
   const [drawerParticipantId, setDrawerParticipantId] = useState<number | null>(null);
@@ -2758,14 +2759,9 @@ export default function ClinicConsoleWorkspace({
                                   const linkId = clinicLinkId;
                                   setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
                                   try {
-                                    await resolveClinicLink(linkId, "수동 통과");
-                                    feedback.success("통과 처리되었습니다.");
-                                    await Promise.all([
-                                      qc.invalidateQueries({ queryKey: clinicQueryKeys.targets }),
-                                      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
-                                    ]);
+                                    await resolveLinkM.mutateAsync({ id: linkId, memo: "수동 통과" });
                                   } catch {
-                                    feedback.error("통과 처리에 실패했습니다.");
+                                    // The shared mutation owns save-failure feedback.
                                   } finally {
                                     setRemediatingLinkIds((prev) => { const next = new Set(prev); next.delete(linkId); return next; });
                                   }
