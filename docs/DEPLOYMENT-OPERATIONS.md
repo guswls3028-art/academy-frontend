@@ -220,7 +220,7 @@ allowlist된 경계 단계 코드만 남긴다. browser route의 안전한 조�
 숫자로만 남긴다. URL query, header, token, 계정명과 원문 오류는 artifact에 기록하지
 않는다.
 
-개발 OMR 스캔 이미지만 별도 최소 경계를 사용한다. runner는 고정 SSM Setup에서 검증한
+개발 OMR 스캔 이미지는 별도 최소 경계를 사용한다. runner는 고정 SSM Setup에서 검증한
 양의 `tenant_id`를 `E2E_OMR_R2_TENANT_ID`로 전달한다. 운영 모드에는 이 설정을 허용하지
 않는다. 브라우저 image GET만 정확한 `af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.com`
 origin의 `academy-development-artifacts/tenants/<Setup tenant id>/ai/submissions/<id>/aligned/<UUID>.jpg`
@@ -232,6 +232,21 @@ Set-Cookie·Location 등 upstream header는 전달하지 않는다. direct APIRe
 확장하지 않는다. SSM template은 모든 R2 bucket이 개발 bucket인지와 isolated runtime을 이미
 검증하므로 IAM/SSM 변경은 없다. `release-omr-image-boundary.test.mjs`를 공식 canary 계약
 suite가 실행하며, 실제 이미지 decode와 OMR 흐름·cleanup zero는 별도 실사용 gate로 남는다.
+
+과제 PNG 미리보기는 같은 검증된 Setup tenant와 개발 bucket에서만 읽는다.
+인증·tenant·실제 CORS 검사를 통과한
+`GET /api/v1/submissions/submissions/homework/<id>/media/<media_id>/preview/`의
+200 응답이 `image/png`, `media_kind=image`, 600초 만료를 확인한 경우에만 해당
+browser context에 **정확한 서명 URL**을 등록한다. 경로는
+`tenants/<Setup tenant id>/ai/submissions/<id>/media-<media_id>-<32자리 hex>.png`로
+API의 media ID와 일치해야 하며 SigV4 만료는 최대 600초다. 등록 이전·다른 context·
+다른 URL/query·tenant·bucket은 계속 차단한다. 등록 뒤에도 image GET만 허용하고
+앱 credential/body와 redirect를 거부하며 실제 200 PNG content-type/8-byte signature를
+확인한다. 원본 header는 전달하지 않고 PNG Accept와 실제 body만 사용하며 서명 URL은
+기록하지 않는다.
+이는 격리 실사용의 PNG fixture 검증 범위이며 제품 미리보기 형식을 제한하지 않는다.
+`release-homework-image-boundary.test.mjs`가 등록·거부 경계를 검사하고 기존 공식
+`student-parent-homework-realuse.spec.ts`가 파일 decode와 reload를 검증한다.
 
 개발 transport는 artifact가 가리키는 정확한 `https://api.hakwonplus.com/api/`만
 SSM의 `http://127.0.0.1:<port>/api/`로 전달한다. 웹 origin은 개발 settings가 실제로
