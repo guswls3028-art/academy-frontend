@@ -778,6 +778,12 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     // OMR recognizes objective bubbles only; both written questions are graded
     // separately below, with pending/final student and parent projections checked.
     await expect(page.locator(".orw-q-row")).toHaveCount(objectiveQuestionIds.length, { timeout: 30_000 });
+    const scanImage = page.getByRole("img", { name: "OMR 스캔 원본", exact: true });
+    await expect(scanImage).toBeVisible();
+    await expect.poll(() => scanImage.evaluate((element: HTMLImageElement) => (
+      element.complete && element.naturalWidth > 0 && element.naturalHeight > 0
+    )), { timeout: 30_000 }).toBe(true);
+    await page.screenshot({ path: `e2e/screenshots/omr-review-realuse-scan-${TS}.png`, fullPage: true });
 
     const pickButton = page.getByRole("button", { name: "학생 검색·연결" });
     if (await pickButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
