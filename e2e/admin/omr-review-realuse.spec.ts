@@ -26,7 +26,9 @@ const TODAY_KST = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).f
 
 const LECTURE_TITLE = `[E2E-${TS}] OMR실사용`;
 const SESSION_TITLE = `[E2E-${TS}] OMR 1차시`;
-const EXAM_TITLE = `[E2E-${TS}] OMR 업로드 검토 재채점`;
+// The tenant is disposable; use a normal title so analytics do not exclude the
+// fixture as an E2E-tagged exam and accidentally make pending-score checks vacuous.
+const EXAM_TITLE = `OMR 혼합형 실사용 검증 ${TS}`;
 const STUDENT_NAME = `[E2E-${TS}] OMR학생`;
 const STUDENT_USER = `e2eomr${String(TS).slice(-8)}`;
 const CONTROLLED_PHONE = `010${String(TS).slice(-8)}`;
@@ -701,14 +703,18 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
     await page.getByRole("button", { name: "OMR 스캔 등록" }).click();
-    await expect(page.locator(".admin-omr-upload").getByText("스캔 파일 선택")).toBeVisible({ timeout: 10_000 });
+    const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+    await expect(uploadDialog.locator(".admin-omr-upload").getByText("스캔 파일 선택")).toBeVisible({ timeout: 10_000 });
 
-    await page.locator(".admin-omr-upload input[type='file']").setInputFiles({
+    await uploadDialog.locator(".admin-omr-upload input[type='file']").setInputFiles({
       name: `omr-realuse-${TS}.pdf`,
       mimeType: "application/pdf",
       buffer: markedPdfBuffer,
     });
-    await expect(page.getByText(`omr-realuse-${TS}.pdf`)).toBeVisible();
+    await expect(uploadDialog.getByText(`omr-realuse-${TS}.pdf`)).toBeVisible();
+    await waitForRenderSettled(page);
+    const startUpload = uploadDialog.getByRole("button", { name: "등록 시작", exact: true });
+    await expect(startUpload).toBeEnabled();
 
     const initializeResponsePromise = page.waitForResponse(
       (resp) => resp.request().method() === "POST"
@@ -728,7 +734,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     // Attach both response waits before clicking: batch initialization is a real
     // prerequisite, not evidence that the subsequent file upload succeeded.
     const [, [initializeResponse, uploadResponse]] = await Promise.all([
-      page.getByRole("button", { name: "등록 시작" }).click(),
+      startUpload.click(),
       responses,
     ]);
     expect(initializeResponse.status()).toBe(201);
@@ -741,7 +747,8 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     // AdminOmrBatchUploadBox.tsx's post-upload notice (single file, no
     // duplicates/failures): `${created_count}건을 접수했습니다. ...`.
     await expect(page.getByText("1건을 접수했습니다. AI 처리 상태는 작업박스에서 계속 확인할 수 있습니다.")).toBeVisible({ timeout: 20_000 });
-    await page.getByRole("button", { name: "닫기" }).click();
+    await uploadDialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(uploadDialog).toBeHidden();
 
     const reviewDetail = await waitForOmrAnswers(
       request,
@@ -764,10 +771,13 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       { timeout: 45_000 },
     );
     await page.getByRole("tab", { name: "채점·결과" }).click();
-    await expect(page.getByText("OMR 검토")).toBeVisible({ timeout: 30_000 });
-    await page.getByRole("button", { name: /처리하기|OMR 다시 보기/ }).click();
+    const reviewEntry = page.locator(".omr-entry");
+    await expect(reviewEntry.locator(".omr-entry__title")).toContainText("OMR 검토", { timeout: 30_000 });
+    await reviewEntry.getByRole("button", { name: /처리하기|OMR 다시 보기/ }).click();
     await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator(".orw-q-row")).toHaveCount(questionIdsByNumber.length, { timeout: 30_000 });
+    // OMR recognizes objective bubbles only; both written questions are graded
+    // separately below, with pending/final student and parent projections checked.
+    await expect(page.locator(".orw-q-row")).toHaveCount(objectiveQuestionIds.length, { timeout: 30_000 });
 
     const pickButton = page.getByRole("button", { name: "학생 검색·연결" });
     if (await pickButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
@@ -838,14 +848,15 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(pendingStudentExam?.wrong_question_numbers).toEqual([]);
     expect(pendingGrades.exam_summary?.scored_count).toBe(0);
 
-    const pendingAnalytics = await expectApi<{ summary?: { scored_count?: number; avg_score_pct?: number | null } }>(
+    const pendingAnalytics = await expectApi<{ summary?: { scored_exam_count?: number; avg_score_pct?: number | null }; trends?: unknown[] }>(
       request,
       "GET",
       "/student/grades/analytics/",
       studentTokens.access,
     );
-    expect(pendingAnalytics.summary?.scored_count).toBe(0);
+    expect(pendingAnalytics.summary?.scored_exam_count).toBe(0);
     expect(pendingAnalytics.summary?.avg_score_pct).toBeNull();
+    expect(pendingAnalytics.trends).toEqual([]);
 
     const parentTokens = await loginToken(request, CONTROLLED_PHONE, STUDENT_PASS);
     const pendingParentGrades = await expectParentApi<{
@@ -861,10 +872,12 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(pendingParentGrades.exam_summary?.scored_count).toBe(0);
 
     const pendingParentAnalytics = await expectParentApi<{
-      summary?: { scored_count?: number; avg_score_pct?: number | null };
+      summary?: { scored_exam_count?: number; avg_score_pct?: number | null };
+      trends?: unknown[];
     }>(request, "/student/grades/analytics/", parentTokens.access, created.studentId);
-    expect(pendingParentAnalytics.summary?.scored_count).toBe(0);
+    expect(pendingParentAnalytics.summary?.scored_exam_count).toBe(0);
     expect(pendingParentAnalytics.summary?.avg_score_pct).toBeNull();
+    expect(pendingParentAnalytics.trends).toEqual([]);
 
     const pendingAdminGrades = await expectApi<{ exams?: any[]; exam_summary?: { scored_count?: number } }>(
       request,
@@ -916,7 +929,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     );
     await chooseExamHeaderAction(page, "문항별 점수 입력");
     const gradingDialog = page.getByRole("dialog").filter({
-      hasText: `${EXAM_TITLE} 문항별 점수 입력`,
+      hasText: `${EXAM_TITLE} 혼합 채점`,
     });
     const firstWrittenCell = gradingDialog.getByRole("spinbutton", {
       name: `${STUDENT_NAME} 31번 10점 만점 점수`,
@@ -938,7 +951,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await page.reload({ waitUntil: "domcontentloaded" });
     await chooseExamHeaderAction(page, "문항별 점수 입력");
     const reloadedGradingDialog = page.getByRole("dialog").filter({
-      hasText: `${EXAM_TITLE} 문항별 점수 입력`,
+      hasText: `${EXAM_TITLE} 혼합 채점`,
     });
     await expect(reloadedGradingDialog.getByRole("spinbutton", {
       name: `${STUDENT_NAME} 31번 10점 만점 점수`,
@@ -965,6 +978,22 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     );
     expect(finalParentExam?.grading_status).not.toBe("subjective_pending");
     expect(finalParentExam?.total_score).toBe(EXPECTED_SCORE);
+    type FinalAnalytics = {
+      summary: { scored_exam_count: number; avg_score_pct: number };
+      trends: Array<{ exam_id: number; score_pct: number }>;
+    };
+    const finalStudentAnalytics = await expectApi<FinalAnalytics>(
+      request, "GET", "/student/grades/analytics/", studentTokens.access,
+    );
+    const finalParentAnalytics = await expectParentApi<FinalAnalytics>(
+      request, "/student/grades/analytics/", parentTokens.access, created.studentId,
+    );
+    for (const analytics of [finalStudentAnalytics, finalParentAnalytics]) {
+      expect(analytics.summary.scored_exam_count).toBe(1);
+      expect(analytics.summary.avg_score_pct).toBe(EXPECTED_SCORE / 50 * 100);
+      expect(analytics.trends.map((row) => ({ exam_id: row.exam_id, score_pct: row.score_pct })))
+        .toEqual([{ exam_id: created.examId, score_pct: EXPECTED_SCORE / 50 * 100 }]);
+    }
 
     await loginBrowserAsRealUser(
       page,
