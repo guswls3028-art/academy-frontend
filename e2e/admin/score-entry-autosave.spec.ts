@@ -767,6 +767,135 @@ test("같은 계정의 다른 화면이 선택한 과제 셀을 표시하고 다
   }).toBe(true);
 });
 
+for (const viewportWidth of [1366, 390]) {
+test(`reload의 기존 셀 잠금을 자동 점유하지 않고 준비 후 OMR 파일을 접수한다 (${viewportWidth}px)`, async ({ page }) => {
+  await page.setViewportSize({ width: viewportWidth, height: 900 });
+  const clientIds = new Set<string>();
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith("/score-draft/")) {
+      const clientId = request.headers()["x-score-editor-client"];
+      if (clientId) clientIds.add(clientId);
+    }
+  });
+  await openScores(page, { initialScores: [65] });
+  await expect(page.getByRole("button", { name: "수정", exact: true })).toBeEnabled();
+  await expect.poll(() => clientIds.size).toBe(1);
+  const previousClientId = [...clientIds][0];
+  const lockedCell = { type: "exam" as const, enrollmentId: 9201, examId: 9101, sub: "total" as const };
+  activeEditors = [{
+    client_id: previousClientId, editor_user_id: 12, editor_name: "이전 화면", active_cell: lockedCell,
+  }];
+  currentScores = [null];
+  currentSubjectiveScores = [null];
+  let acquisitionStarted = false;
+  let finishAcquisition!: () => void;
+  const acquisitionGate = new Promise<void>((resolve) => { finishAcquisition = resolve; });
+  const rejectedClaims: unknown[] = [];
+  await page.route("**/api/v1/results/admin/sessions/9002/score-draft/", async (route) => {
+    if (route.request().method() !== "PUT") return route.fallback();
+    const body = route.request().postDataJSON();
+    if (!acquisitionStarted && body.active_cell == null) {
+      acquisitionStarted = true;
+      await acquisitionGate;
+    }
+    if (body.active_cell?.type === lockedCell.type
+      && body.active_cell?.enrollmentId === lockedCell.enrollmentId
+      && body.active_cell?.examId === lockedCell.examId
+      && body.active_cell?.sub === lockedCell.sub) {
+      rejectedClaims.push(body.active_cell);
+      await route.fulfill({ status: 409, json: { code: "SCORE_EDIT_LOCKED" } });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect.poll(() => acquisitionStarted).toBe(true);
+  const openUpload = page.getByRole("button", { name: "OMR 스캔 등록", exact: true });
+  try {
+    await expect(openUpload).toBeDisabled();
+    await expect(openUpload).toHaveAttribute("aria-busy", "true");
+    await expect(openUpload).toHaveAttribute("title", "성적 입력 준비가 끝나면 OMR을 등록할 수 있습니다.");
+  } finally {
+    finishAcquisition();
+  }
+  await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+  await expect(openUpload).toBeEnabled();
+  await expect.poll(() => clientIds.size).toBe(2);
+  await expect(page.locator('[data-score-cell="exam:9201:9101:total:"]'))
+    .toHaveAttribute("data-collaborator-active", "true");
+  await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
+
+  const batchId = "12345678-1234-4234-8234-123456789abc";
+  let uploadCount = 0;
+  let initializeCount = 0;
+  const batch = () => ({
+    id: batchId, exam_id: 9101, session_id: 9002, lecture_id: 9001, total_count: 1,
+    counts: { pending_admission: uploadCount ? 0 : 1, received: uploadCount,
+      duplicate: 0, processing: 0, completed: 0, needs_identification: 0, failed: 0, superseded: 0 },
+    pending_admission_ordinals: uploadCount ? [] : [1], admission_failed_ordinals: [],
+    failed_ordinals: [], duplicate_ordinals: [], terminal: false, overall_status: "receiving",
+    completion_notice_claimed: false, created_at: "2026-09-19T01:00:00Z", updated_at: "2026-09-19T01:00:00Z",
+  });
+  await page.route("**/api/v1/submissions/submissions/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === "POST" && path.endsWith("/exams/9101/omr/batches/")) {
+      initializeCount += 1;
+      await route.fulfill({ status: 201, json: batch() });
+    } else if (route.request().method() === "POST" && path.endsWith("/exams/9101/omr/batch/")) {
+      expect(route.request().postDataBuffer()?.toString("latin1")).toContain("reload-omr.pdf");
+      uploadCount += 1;
+      await route.fulfill({ status: 201, json: { ...batch(), created_count: 1, submission_ids: [9901] } });
+    } else if (path.endsWith(`/omr/batches/${batchId}/`)) {
+      await route.fulfill({ json: batch() });
+    } else if (path.endsWith("/omr/batches/")) {
+      await route.fulfill({ json: { results: initializeCount ? [batch()] : [] } });
+    } else {
+      await route.fallback();
+    }
+  });
+  await openUpload.click();
+  const dialog = page.getByRole("dialog", { name: "OMR 스캔 등록" });
+  await expect(dialog).toBeVisible();
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: "reload-omr.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF"),
+  });
+  await dialog.getByRole("button", { name: "등록 시작", exact: true }).click();
+  await expect(dialog).toContainText("1건을 접수했습니다.");
+  expect(initializeCount).toBe(1);
+  expect(uploadCount).toBe(1);
+  expect(rejectedClaims).toEqual([]);
+  expect(draftPuts.every((put) => put.active_cell == null)).toBe(true);
+  expect(draftCommits.some((commit) => commit.release_lease === true)).toBe(true);
+  expect(activeEditors[0].client_id).toBe(previousClientId);
+  await expect(page.getByText("자동 저장 실패", { exact: true })).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect.poll(async () => (await dialog.boundingBox())?.width ?? Infinity).toBeLessThanOrEqual(viewportWidth);
+  await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+  await expect(dialog).toBeHidden();
+});
+}
+
+test("빈 성적표는 잠긴 첫 셀을 건너뛰어 다음 학생만 자동 선택한다", async ({ page }) => {
+  await openScores(page, {
+    initialScores: [null, null],
+    activeEditors: [{
+      client_id: "other-screen", editor_user_id: 12, editor_name: "이전 화면",
+      active_cell: { type: "exam", enrollmentId: 9201, examId: 9101, sub: "total" },
+    }],
+  });
+  await expect.poll(() => draftPuts.some((put) => (
+    (put.active_cell as { enrollmentId?: number } | null)?.enrollmentId === 9202
+  ))).toBe(true);
+  expect(draftPuts.some((put) => (
+    (put.active_cell as { enrollmentId?: number } | null)?.enrollmentId === 9201
+  ))).toBe(false);
+  const available = page.locator('[data-score-cell="exam:9202:9101:total:"]').getByRole("textbox");
+  await available.fill("73");
+  await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+  await expect.poll(() => currentScores[1]).toBe(73);
+  expect(currentScores[0]).toBeNull();
+});
+
 test("다른 화면이 선택한 서술형 셀만 막고 같은 시험의 다른 학생은 계속 입력한다", async ({ page }) => {
   await openScores(page, {
     includeHomework: true,

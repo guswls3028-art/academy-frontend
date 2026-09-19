@@ -21,6 +21,7 @@ type Props = {
   onRefresh: () => void;
   onPrepareOpen?: () => boolean | Promise<boolean>;
   disabled?: boolean;
+  preparing?: boolean;
 };
 
 type SessionOmrUploadModalProps = {
@@ -78,6 +79,7 @@ export default function SessionOmrUploadAction({
   onRefresh,
   onPrepareOpen,
   disabled = false,
+  preparing = false,
 }: Props) {
   const [selectedExam, setSelectedExam] = useState<SessionOmrUploadTarget | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -124,7 +126,7 @@ export default function SessionOmrUploadAction({
   if (exams.length === 0) return null;
 
   const openUpload = async () => {
-    if (disabled || isPreparing) return;
+    if (disabled || preparing || isPreparing) return;
     if (exams.length === 0) {
       feedback.info("시험을 먼저 추가해주세요.");
       return;
@@ -150,9 +152,12 @@ export default function SessionOmrUploadAction({
           intent="primary"
           size="md"
           className="scores-omr-primary"
-          disabled={disabled || isPreparing}
+          disabled={disabled || preparing || isPreparing}
+          aria-busy={preparing || isPreparing}
           onClick={() => void openUpload()}
-          title={disabled ? "입력 중인 점수를 먼저 저장하거나 복구 여부를 확인해 주세요." : "OMR 스캔 등록"}
+          title={preparing
+            ? "성적 입력 준비가 끝나면 OMR을 등록할 수 있습니다."
+            : disabled ? "입력 중인 점수를 먼저 저장하거나 복구 여부를 확인해 주세요." : "OMR 스캔 등록"}
           leftIcon={<Upload size={ICON_FOR_BUTTON.md} />}
           rightIcon={exams.length > 1 ? <ChevronDown size={ICON_FOR_BUTTON.md} /> : undefined}
           aria-haspopup={exams.length > 1 ? "listbox" : undefined}

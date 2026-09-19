@@ -419,18 +419,17 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
     if (!isEditMode) return;
 
-    // 선택된 enrollment가 사라졌으면 첫 행으로
-    if (selectedEnrollmentId == null) {
-      setSelectedEnrollmentId(rows[0].enrollment_id);
-      return;
-    }
+    // Initial selection belongs to focusFirstAvailable: the first row may be
+    // held by another document, including this tab's pre-reload document.
+    if (selectedEnrollmentId == null) return;
     const exists = rows.some((r) => r.enrollment_id === selectedEnrollmentId);
     if (!exists) {
-      setSelectedEnrollmentId(rows[0].enrollment_id);
+      setSelectedEnrollmentId(null);
+      focusFirstAvailable();
     }
     // colIndex clamp
     setSelectedColIndex((prev) => clampCol(prev));
-  }, [rows, selectedEnrollmentId, isEditMode, clampCol]);
+  }, [rows, selectedEnrollmentId, isEditMode, clampCol, focusFirstAvailable]);
 
   /** Stable object — prevents ScoresTable from seeing a new prop reference every render */
   const selectedCell = useMemo(() => {
