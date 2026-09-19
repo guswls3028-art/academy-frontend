@@ -89,7 +89,7 @@ function normalizeStatus(value: unknown): HomeworkSubmissionStatus {
     : "submitted";
 }
 
-function normalizeMediaFile(raw: unknown): HomeworkSubmissionMediaFile | null {
+export function normalizeMediaFile(raw: unknown): HomeworkSubmissionMediaFile | null {
   const record = asRecord(raw);
   const id = String(record.id ?? "").trim();
   if (!id) return null;

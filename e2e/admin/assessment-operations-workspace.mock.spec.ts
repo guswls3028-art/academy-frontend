@@ -23,6 +23,8 @@ type MockState = {
   examPatchPayloads: Array<Record<string, unknown>>;
   examPatchFailure?: { status: number; body: unknown };
   selectedEnrollmentIds: number[];
+  recalculations?: number;
+  failRecalculation?: boolean;
 };
 
 const session = {
@@ -125,6 +127,11 @@ async function installApi(page: Page, state: MockState) {
       }
       state.exam = { ...state.exam, ...payload, updated_at: "2026-08-03T01:00:00Z" };
       return json(state.exam);
+    }
+    if (path === `/exams/${EXAM_ID}/recalculate/` && method === "POST") {
+      state.recalculations = (state.recalculations ?? 0) + 1;
+      return json({ exam_id: EXAM_ID, total: 2, graded: state.failRecalculation ? 1 : 2, skipped: 0,
+        failed: state.failRecalculation ? [{ submission_id: 601, status: "done", detail: "fixture failure" }] : [] });
     }
     if (path === `/exams/${EXAM_ID}/`) return json(state.exam);
     if (path === `/exams/${EXAM_ID}/questions/`) {
@@ -341,6 +348,21 @@ test("0점 합격 기준을 저장하고 서버 필드 오류를 입력값과 �
   await expect.poll(() => state.examPatchPayloads.length).toBe(1);
   expect(state.examPatchPayloads[0]).toMatchObject({ max_score: 16, pass_score: 0 });
   await expect(page.getByLabel("만점")).toHaveValue("16");
+  await expect(page.getByRole("button", { name: "전체 재채점", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
+  const regradeDialog = page.getByRole("alertdialog", { name: "시험 전체 재채점" });
+  await expect(regradeDialog).toContainText("아직 저장하지 않은 변경은 반영되지 않습니다.");
+  await regradeDialog.getByRole("button", { name: "재채점 실행", exact: true }).click();
+  await expect.poll(() => state.recalculations).toBe(1);
+  await expect(page.getByText("저장된 정답·배점 기준으로 전체 재채점을 완료했습니다.", { exact: true })).toBeVisible();
+  state.failRecalculation = true;
+  await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
+  await regradeDialog.getByRole("button", { name: "재채점 실행", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "재채점 1건" })).toContainText("실패 1건");
+  state.failRecalculation = false;
+  await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
+  await regradeDialog.getByRole("button", { name: "재채점 실행", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "재채점 2건" })).toContainText("실패 0건");
 
   state.examPatchFailure = {
     status: 400,

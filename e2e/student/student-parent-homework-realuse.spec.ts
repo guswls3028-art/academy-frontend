@@ -20,6 +20,7 @@ import {
   QA_BASE,
   QA_TENANT,
   reloadStudentApp,
+  seedBrowserAuth,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
@@ -248,6 +249,28 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await expect(page.getByText(uploadName, { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
     await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
+    const staffContext = await page.context().browser()!.newContext({
+      viewport: { width: 390, height: 844 }, serviceWorkers: "block",
+    });
+    try {
+      const staffPage = await staffContext.newPage();
+      await installQaStudentParentBoundary(staffPage, request);
+      await seedBrowserAuth(staffPage, admin);
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/homeworks/${created.homeworkId}`, { timeout: 30_000 });
+      const fileRow = staffPage.locator('[class*="fileRow"]').filter({ hasText: uploadName });
+      await expect(fileRow).toBeVisible({ timeout: 30_000 });
+      await fileRow.getByRole("button", { name: "미리보기" }).click();
+      const preview = staffPage.getByRole("dialog").filter({ hasText: uploadName });
+      const image = preview.getByRole("img", { name: /과제 제출 미리보기/ });
+      await expect(image).toBeVisible();
+      await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+      await preview.getByRole("button", { name: "닫기" }).click();
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(fileRow).toBeVisible();
+      await assertNoHorizontalOverflow(staffPage);
+    } finally {
+      await staffContext.close();
+    }
     await expectApi<{ files: Array<{ original_filename: string }> }>(
       request,
       "GET",

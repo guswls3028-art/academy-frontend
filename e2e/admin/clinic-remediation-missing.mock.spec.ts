@@ -29,6 +29,42 @@ async function seed(page: Page) {
   }, localJwt());
 }
 
+test("통과 저장 응답은 느린 목록 재조회보다 먼저 반영되고 새로고침에도 유지된다", async ({ page }) => {
+  await seed(page);
+  let resolved = false;
+  let releaseReadback: (() => void) | undefined;
+  const readback = new Promise<void>((resolve) => { releaseReadback = resolve; });
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api\/v1/, "");
+    const json = (body: unknown) => route.fulfill({ json: body });
+    if (path === "/core/program/") return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    if (path === "/core/me/") return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    if (path === "/progress/clinic-links/880/resolve/") {
+      resolved = true;
+      return json({ id: 880, resolved_at: "2026-09-20T00:00:00Z", resolution_type: "MANUAL_OVERRIDE", resolution_evidence: { user_id: 12 } });
+    }
+    if (path === "/results/admin/clinic-targets/") {
+      if (resolved) await readback;
+      return json(resolved ? [remediationWorkbenchTargets[1]] : remediationWorkbenchTargets);
+    }
+    return json({ count: 0, results: [] });
+  });
+  try {
+    await page.goto(`${BASE}/workspace/clinic/bookings`);
+    await page.getByRole("button", { name: /기체 법칙 단원평가.*상세 처리/ }).click();
+    await page.getByRole("region", { name: "작업대 학생 · 기체 법칙 단원평가 처리" }).getByRole("button", { name: "통과", exact: true }).click();
+    await expect(page.getByText("통과 처리되었습니다.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /기체 법칙 단원평가.*상세 처리/ })).toHaveCount(0);
+    await page.getByRole("button", { name: /평형의 이동 복습.*상세 처리/ }).click();
+    await expect(page.getByRole("region", { name: "작업대 학생 · 평형의 이동 복습 처리" }).getByRole("button", { name: "통과", exact: true })).toBeEnabled();
+  } finally {
+    releaseReadback?.();
+  }
+  await page.reload();
+  await expect(page.getByRole("button", { name: /평형의 이동 복습.*상세 처리/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /기체 법칙 단원평가.*상세 처리/ })).toHaveCount(0);
+});
+
 test("전체 미통과는 학생별 항목을 한 줄 레일로 유지하고 같은 화면에서 처리한다", async ({ page }, testInfo) => {
   await seed(page);
   let remediationMutationRequests = 0;

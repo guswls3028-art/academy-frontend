@@ -66,12 +66,20 @@ export async function ensureExamStructure(examId: number): Promise<Exam> {
 
 /**
  * POST /exams/{id}/recalculate/
- * (없으면 no-op)
+ * Completed/ready submissions are recalculated; individual failures remain explicit.
  */
+export type ExamRecalculation = {
+  exam_id: number;
+  total: number;
+  graded: number;
+  skipped: number;
+  failed: Array<{ submission_id: number; status: string; detail: string }>;
+};
+
 export async function recalculateExam(
   examId: number
-) {
-  const res = await api.post(
+): Promise<ExamRecalculation> {
+  const res = await api.post<ExamRecalculation>(
     `/exams/${examId}/recalculate/`
   );
   return res.data;

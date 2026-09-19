@@ -8,6 +8,8 @@ const LECTURE_ID = 8801;
 const SESSION_ID = 8802;
 const HOMEWORK_ID = 8803;
 
+test.use({ serviceWorkers: "block" });
+
 function fakeJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   return `${encode({ alg: "none" })}.${encode({
@@ -17,7 +19,7 @@ function fakeJwt(): string {
   })}.sig`;
 }
 
-async function installApi(page: Page) {
+async function installApi(page: Page, submissionStatus = "submitted") {
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
     "과제 파일 검수 route-mock 검증은 로컬 dev 서버 전용",
@@ -89,7 +91,7 @@ async function installApi(page: Page) {
         student_id: 9903,
         student_name: "김하늘",
         profile_photo_url: null,
-        status: "submitted",
+        status: submissionStatus,
         source: "homework_media",
         file_type: "image/jpeg",
         file_size: 1800,
@@ -209,4 +211,26 @@ test("선생님이 학생별 제출 묶음에서 사진·동영상·오류를 �
   const mobileScreenshot = testInfo.outputPath("teacher-homework-media-390.png");
   await page.screenshot({ path: mobileScreenshot, fullPage: true });
   await testInfo.attach("teacher-homework-media-390", { path: mobileScreenshot, contentType: "image/png" });
+});
+
+test("모바일 선생님 과제 상세에서 완료된 제출 파일을 열고 새로고침해도 확인한다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installApi(page, "done");
+  await page.goto(`${BASE}/workspace/mobile/homeworks/${HOMEWORK_ID}`);
+  await expect(page.getByRole("heading", { name: "제출 완료 (1)" })).toBeVisible();
+  const imageRow = page.locator('[class*="fileRow"]').filter({ hasText: "풀이 앞면.jpg" });
+  await imageRow.getByRole("button", { name: "미리보기" }).click();
+  let dialog = page.getByRole("dialog").filter({ hasText: "풀이 앞면.jpg" });
+  await expect(dialog.getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
+  await dialog.getByRole("button", { name: "닫기" }).click();
+  await expect(page.locator('[class*="fileRow"]').filter({ hasText: "흐린 사진.png" }).getByRole("button", { name: "미리보기" })).toBeDisabled();
+  await page.reload();
+  await expect(page.getByText("풀이 설명.mp4", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: testInfo.outputPath("mobile-homework-files-390.png"), fullPage: true });
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await imageRow.getByRole("button", { name: "미리보기" }).click();
+  dialog = page.getByRole("dialog").filter({ hasText: "풀이 앞면.jpg" });
+  await expect(dialog.getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("mobile-homework-preview-1366.png"), fullPage: true });
 });

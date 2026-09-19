@@ -1,6 +1,6 @@
 // PATH: src/app_teacher/domains/exams/pages/HomeworkDetailPage.tsx
 // 과제 상세 — 제출 현황
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
@@ -14,6 +14,8 @@ import {
 } from "../normalizers";
 import { teacherExamsQueryKeys } from "../queryKeys";
 import styles from "./HomeworkDetailPage.module.css";
+import HomeworkMediaPreviewModal from "@admin/domains/homework/components/HomeworkMediaPreviewModal";
+import type { HomeworkSubmissionMediaFile } from "@admin/domains/submissions/api/adminHomeworkSubmissions.api";
 
 function isSubmittedSubmission(submission: HomeworkSubmission): boolean {
   return submission.submitted_at != null || submission.status === "submitted";
@@ -30,6 +32,7 @@ export default function HomeworkDetailPage() {
   const { homeworkId } = useParams<{ homeworkId: string }>();
   const navigate = useNavigate();
   const hid = Number(homeworkId);
+  const [previewFile, setPreviewFile] = useState<HomeworkSubmissionMediaFile | null>(null);
 
   const homeworkQ = useQuery({
     queryKey: teacherExamsQueryKeys.homework(hid),
@@ -42,6 +45,8 @@ export default function HomeworkDetailPage() {
     queryKey: teacherExamsQueryKeys.homeworkSubmissions(hid),
     queryFn: async () => normalizeHomeworkSubmissions(await fetchHomeworkSubmissions(hid)),
     enabled: Number.isFinite(hid),
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: false,
   });
   const submissions = submissionsQ.data;
 
@@ -100,17 +105,35 @@ export default function HomeworkDetailPage() {
       {submitted.length > 0 && (
         <Section title={`제출 완료 (${submitted.length})`}>
           {submitted.map((s) => (
-            <div key={s.id} className={`${styles.row} flex justify-between items-center py-2`}>
-              <span className={`${styles.title} text-sm`}>
-                {s.student_name}
-              </span>
-              <span className={`${styles.successText} text-xs font-semibold`}>
-                {formatDate(s.submitted_at)}
-              </span>
+            <div key={s.id} className={`${styles.row} py-2`}>
+              <div className="flex justify-between items-center gap-2">
+                <span className={`${styles.title} text-sm`}>
+                  {s.student_name}
+                </span>
+                <span className={`${styles.successText} text-xs font-semibold`}>
+                  {formatDate(s.submitted_at)}
+                </span>
+              </div>
+              <div className={styles.files}>
+                {s.files.map((file) => (
+                  <div key={file.id} className={styles.fileRow}>
+                    <div className={styles.fileName}>
+                      <strong>{file.original_filename}</strong>
+                      <span>{file.removed_at || file.status === "removed" ? "교체됨" : file.status === "failed" ? "업로드 실패" : file.status === "uploading" ? "저장 중" : "검수 가능"}</span>
+                      {file.error_message && <span className={styles.dangerText}>{file.error_message}</span>}
+                    </div>
+                    <button type="button" className={styles.previewButton}
+                      disabled={file.status !== "uploaded" || Boolean(file.removed_at)}
+                      onClick={() => setPreviewFile(file)}>미리보기</button>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </Section>
       )}
+
+      <HomeworkMediaPreviewModal open={previewFile != null} homeworkId={hid} file={previewFile} onClose={() => setPreviewFile(null)} />
 
       {/* Pending */}
       {pending.length > 0 && (
