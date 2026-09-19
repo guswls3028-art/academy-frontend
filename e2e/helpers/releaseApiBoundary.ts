@@ -19,6 +19,10 @@ function isExactDevelopmentOmrImage(boundary: ReleaseBoundary, rawUrl: string, m
     || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
   const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/ai/submissions/([1-9][0-9]*)/aligned/([0-9a-f-]+)\\.jpg$`).exec(target.pathname);
   if (!path || !Number.isSafeInteger(Number(path[1])) || !UUID.test(path[2])) return false;
+  return hasExactHostSignature(target, 21600);
+}
+
+function hasExactHostSignature(target: URL, maxExpires: number): boolean {
   const query = target.searchParams;
   const keys = ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Date", "X-Amz-Expires", "X-Amz-SignedHeaders", "X-Amz-Signature"];
   if ([...query.keys()].length !== keys.length || keys.some((key) => query.getAll(key).length !== 1)
@@ -30,7 +34,17 @@ function isExactDevelopmentOmrImage(boundary: ReleaseBoundary, rawUrl: string, m
   if (Number.isNaN(Date.parse(isoDate)) || new Date(isoDate).toISOString() !== isoDate) return false;
   const credential = /^([A-Za-z0-9]{16,128})\/([0-9]{8})\/auto\/s3\/aws4_request$/.exec(query.get("X-Amz-Credential") ?? "");
   const expires = query.get("X-Amz-Expires") ?? "";
-  return credential?.[2] === date.slice(0, 8) && /^[1-9][0-9]*$/.test(expires) && Number(expires) <= 21600;
+  return credential?.[2] === date.slice(0, 8) && /^[1-9][0-9]*$/.test(expires) && Number(expires) <= maxExpires;
+}
+
+function isExactDevelopmentHomeworkPng(boundary: ReleaseBoundary, rawUrl: string, mediaId: string): boolean {
+  if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
+    || Number(boundary.omrR2TenantId) < 1 || !Number.isSafeInteger(Number(mediaId))) return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
+  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/ai/submissions/([1-9][0-9]*)/media-${mediaId}-[0-9a-f]{32}\\.png$`).exec(target.pathname);
+  return Boolean(path && Number.isSafeInteger(Number(path[1])) && hasExactHostSignature(target, 600));
 }
 
 function isExactPublicTenantMetadataRead(boundary: ReleaseBoundary, target: URL, verb: string): boolean {
@@ -741,6 +755,7 @@ export async function installReleaseContextGuard(
     closingAborts: 0,
   };
   const defects: string[] = [];
+  const homeworkPreviewUrls = new Set<string>();
   const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
   const activeRoutes = new Set<Promise<void>>();
   let closing = false;
@@ -829,7 +844,8 @@ export async function installReleaseContextGuard(
         }
         return;
       }
-      if (isExactDevelopmentOmrImage(boundary, upstream, request.method()) && request.resourceType() === "image") {
+      const homeworkPng = request.method() === "GET" && homeworkPreviewUrls.has(upstream);
+      if ((homeworkPng || isExactDevelopmentOmrImage(boundary, upstream, request.method())) && request.resourceType() === "image") {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
           .some((key) => headers[key])) {
@@ -838,15 +854,17 @@ export async function installReleaseContextGuard(
         }
         // Only this signed development object URL is forwarded. Never send app
         // credentials/referrer or follow redirects; never report the signed URL.
-        const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: "image/jpeg" }, maxRedirects: 0 });
+        const contentType = homeworkPng ? "image/png" : "image/jpeg";
+        const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: contentType }, maxRedirects: 0 });
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
         const body = await response.body();
-        if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== "image/jpeg"
-          || body[0] !== 0xff || body[1] !== 0xd8 || body[2] !== 0xff) {
+        const signature = homeworkPng ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] : [0xff, 0xd8, 0xff];
+        if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== contentType
+          || signature.some((byte, index) => body[index] !== byte)) {
           await reject("transport");
           return;
         }
-        await route.fulfill({ status: 200, headers: { "content-type": "image/jpeg" }, body });
+        await route.fulfill({ status: 200, headers: { "content-type": contentType }, body });
         return;
       }
       const kind = assertReleaseRequestSafe(boundary, upstream, request.method(), tenantCode, data);
@@ -911,6 +929,15 @@ export async function installReleaseContextGuard(
           || response.headers()["access-control-allow-origin"] !== boundary.webOrigin
           || response.headers()["access-control-allow-credentials"] !== "true") {
           throw new Error("Real API CORS boundary mismatch");
+        }
+        const homeworkPreview = /^\/api\/v1\/submissions\/submissions\/homework\/([1-9][0-9]*)\/media\/([1-9][0-9]*)\/preview\/$/.exec(new URL(upstream).pathname);
+        if (boundary.mode === "development" && request.method() === "GET" && homeworkPreview
+          && !new URL(upstream).search && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")) {
+          const preview = await response.json();
+          if (preview?.media_kind === "image" && preview.mime_type === "image/png" && preview.expires_in === 600
+            && typeof preview.url === "string" && isExactDevelopmentHomeworkPng(boundary, preview.url, homeworkPreview[2])) {
+            homeworkPreviewUrls.add(preview.url);
+          }
         }
         if (counter && (kind === "observation" ? response.status() === 202 : response.ok())) counter.accepted += 1;
         try { await route.fulfill({ response }); }
