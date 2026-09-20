@@ -399,6 +399,11 @@ test("데스크톱은 모든 출결 상태를 한 줄에서 저장하고 모바�
   await expect(compactTrigger).toBeVisible();
   await expect(compactTrigger).toHaveText("지각");
   await expect(compactTrigger.locator(".ds-status-badge")).toHaveCount(0);
+  const toolbarLabels = await page.locator(".domain-list-toolbar .ds-button__label").evaluateAll((labels) =>
+    labels.map((label) => ({ text: label.textContent, fits: label.scrollWidth <= label.clientWidth })),
+  );
+  expect(toolbarLabels.length).toBeGreaterThan(5);
+  for (const label of toolbarLabels) expect(label.fits, `${label.text} remains readable`).toBe(true);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await compactTrigger.click();
   await expect(page.locator(".attendance-popover").getByRole("button")).toHaveCount(11);
