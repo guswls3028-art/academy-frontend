@@ -1,0 +1,49 @@
+.alimtalk-template-info {
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.alimtalk-template-info__title {
+  margin: 0 0 6px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.alimtalk-template-info__description {
+  margin: 0 0 12px;
+}
+
+.alimtalk-template-info__label {
+  margin: 0 0 4px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.alimtalk-template-info__values {
+  margin: 0;
+}
+
+.alimtalk-template-info__row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-border-divider);
+  overflow-wrap: anywhere;
+}
+
+.alimtalk-template-info__row:last-child {
+  border-bottom: 0;
+}
+
+.alimtalk-template-info__row dt {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.alimtalk-template-info__row dd {
+  margin: 0;
+}

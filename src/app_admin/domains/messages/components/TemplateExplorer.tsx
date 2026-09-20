@@ -332,7 +332,7 @@ export default function TemplateExplorer() {
         }
       >
         {/* 카드 헤더 */}
-        <div className={panelStyles.contentCardHeader}>
+        <div className={`${panelStyles.contentCardHeader} message-template-card-header`}>
           <div
             style={{
               display: "flex",
@@ -408,13 +408,15 @@ export default function TemplateExplorer() {
                 flexShrink: 0,
               }}
             >
-              <IconAction
-                icon={isDef ? <FiEye size={16} /> : <FiEdit2 size={16} />}
-                label={isDef ? "보기" : "수정"}
-                onClick={() =>
-                  setModalOpen({ template: t, mode: isDef ? "view" : "edit" })
-                }
-              />
+              <Button
+                intent="secondary"
+                size="sm"
+                leftIcon={isDef ? <FiEye size={16} /> : <FiEdit2 size={16} />}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setModalOpen({ template: t, mode: isDef ? "view" : "edit" });
+                }}
+              >{isDef ? "보기" : "수정"}</Button>
               <IconAction
                 icon={<FiCopy size={16} />}
                 label="복제"
@@ -499,7 +501,7 @@ export default function TemplateExplorer() {
     <div className={panelStyles.root}>
       {/* 헤더 */}
       <div className={panelStyles.header}>
-        <div
+        <div className="message-template-list-heading"
           style={{
             display: "flex",
             alignItems: "center",
@@ -514,15 +516,6 @@ export default function TemplateExplorer() {
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <Button
-              intent="secondary"
-              size="sm"
-              onClick={() => provisionMut.mutate()}
-              disabled={provisionMut.isPending}
-              title="시스템이 제공하는 문구 세트를 다시 채웁니다"
-            >
-              {provisionMut.isPending ? "복원 중…" : "제공 문구 복원"}
-            </Button>
-            <Button
               intent="primary"
               size="sm"
               onClick={() => setModalOpen("create")}
@@ -535,6 +528,13 @@ export default function TemplateExplorer() {
         <details className="message-template-help">
           <summary>알림톡 문구 사용 안내</summary>
           <AlimtalkEnvelopeGuide variant="compact" />
+          <div className="message-template-restore">
+            <span>제공 문구가 없거나 기본값이 필요할 때 복원할 수 있습니다.</span>
+            <Button intent="secondary" size="sm" onClick={() => provisionMut.mutate()}
+              disabled={provisionMut.isPending}>
+              {provisionMut.isPending ? "복원 중…" : "제공 문구 복원"}
+            </Button>
+          </div>
         </details>
       </div>
 

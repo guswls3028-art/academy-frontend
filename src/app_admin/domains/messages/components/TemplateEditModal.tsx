@@ -3,11 +3,11 @@
 
 /* eslint-disable no-restricted-syntax -- 템플릿 미리보기 patch 다수, baseline shift fix (2026-05-14) */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useId } from "react";
 import { Input } from "antd";
 import { FiAlertCircle } from "react-icons/fi";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
-import { Button, Tabs } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import {
   getBlocksForCategory,
   getBlockColor,
@@ -49,8 +49,6 @@ export type TemplateEditModalProps = {
   trigger?: string;
 };
 
-type EditorTab = "alimtalk";
-
 export default function TemplateEditModal({
   open,
   onClose,
@@ -67,12 +65,13 @@ export default function TemplateEditModal({
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [activeTab, setActiveTab] = useState<EditorTab>("alimtalk");
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory>(category);
   const alimtalkType = getAlimtalkTemplateType(trigger) ?? getAlimtalkTemplateTypeFromCategory(selectedCategory, name);
   const bodyEditableInEnvelope = isAlimtalkTemplateBodyEditable(alimtalkType);
   const bodyEditorRef = useRef<MessageBodyEditorHandle>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [individualExpanded, setIndividualExpanded] = useState(false);
+  const individualRegionId = useId();
   const blocks = getBlocksForCategory(selectedCategory);
   const isSystem = !!initial?.is_system;
 
@@ -81,9 +80,9 @@ export default function TemplateEditModal({
       setName(initial?.name ?? "");
       setSubject(initial?.subject ?? "");
       setBody(stripInternalAlimtalkMemoToken(initial?.body ?? ""));
-      setActiveTab("alimtalk");
       setSelectedCategory(initial?.category ?? category);
       setConfirmDelete(false);
+      setIndividualExpanded(false);
     }
   }, [open, initial?.id, initial?.name, initial?.subject, initial?.body, initial?.category, category]);
 
@@ -109,10 +108,6 @@ export default function TemplateEditModal({
   const badgeBody = renderPreviewBadges(hideInternalAlimtalkMemoToken(body));
   const badgeSubject = renderPreviewBadges(subject);
   const showSubject = !alimtalkType;
-
-  const editorTabItems: import("@/shared/ui/ds/Tabs").TabItem[] = [
-    { key: "alimtalk", label: "알림톡" },
-  ];
 
   if (!open) return null;
 
@@ -150,21 +145,21 @@ export default function TemplateEditModal({
               <div className="template-editor__preview-title mb-2">
                 양식 미리보기
               </div>
+              {alimtalkType && <p className="message-template-preview-help">
+                {isAcademyError ? <span role="alert">발송 학원명을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => void refetchAcademy()}>다시 확인</Button></span>
+                  : "학생을 선택하면 블록에 실제 정보가 들어갑니다."}
+              </p>}
               <div className="template-preview-kakao" aria-label="카카오톡 알림톡 미리보기">
                 <div className="template-preview-kakao__card">
                   {alimtalkType ? (
                     <>
-                      <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontStyle: "italic" }}>
-                        {isAcademyError ? <span role="alert">발송 학원명을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => void refetchAcademy()}>다시 확인</Button></span>
-                          : "학생을 선택하면 각 블록에 실제 정보가 들어갑니다."}
-                      </div>
                       <div className="template-preview-kakao__header">
                         <span className="template-preview-kakao__header-label">알림톡 도착</span>
                         <span className="template-preview-kakao__header-channel">
                           {TEMPLATE_CATEGORY_LABELS[selectedCategory]}
                         </span>
                       </div>
-                      <div className="template-preview-kakao__body" style={{ lineHeight: 1.7, whiteSpace: "pre-wrap", fontSize: 12 }}>
+                      <div className="template-preview-kakao__body" style={{ lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
                         {renderPreviewWithActualData(
                           renderAlimtalkFullPreview(alimtalkType, hideInternalAlimtalkMemoToken(body, ""), undefined, { 학원명: academyName }),
                           { 학원명: academyName, 학원이름: academyName },
@@ -185,7 +180,7 @@ export default function TemplateEditModal({
                   )}
                 </div>
               </div>
-              <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
+              <p className="message-template-preview-help">
                 저장한 문구는 발송 화면에서 학생별 내용으로 확인할 수 있습니다.
               </p>
             </section>
@@ -206,13 +201,9 @@ export default function TemplateEditModal({
                 기본 문구는 수정할 수 없습니다. 복제하여 사용해 주세요.
               </div>
             )}
-            {/* 메시지/알림톡 탭 */}
-            <div className="modal-tabs-elevated template-editor__tabs template-editor__tabs--top">
-              <Tabs
-                value={activeTab}
-                onChange={(k) => setActiveTab(k as EditorTab)}
-                items={editorTabItems}
-              />
+            <div className="message-template-edit-heading">
+              <span>안내문 작성</span>
+              <span className="message-template-channel">알림톡</span>
             </div>
 
             <div>
@@ -226,10 +217,8 @@ export default function TemplateEditModal({
               />
             </div>
 
-            {/* 제목 영역 고정 높이 */}
-            <div className={`template-editor__subject-slot ${showSubject ? "template-editor__subject-slot--has-subject" : ""}`}>
-              {showSubject ? (
-                <>
+            {showSubject && (
+              <div>
                   <label className="template-editor__editor-title block mb-1">
                     제목 (알림톡)
                   </label>
@@ -240,21 +229,18 @@ export default function TemplateEditModal({
                     disabled={fieldsDisabled}
                     className="template-editor__textarea message-domain-input"
                   />
-                </>
-              ) : (
-                <div className="template-editor__subject-placeholder" aria-hidden />
-              )}
-            </div>
+              </div>
+            )}
 
             {/* 본문 — 2패널: 입력 | 삽입 블록 */}
             <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
               <div className="template-editor__body-input flex-1 min-w-0 flex flex-col">
                 <label className="template-editor__editor-title block mb-1">
-                  {alimtalkType && activeTab === "alimtalk"
+                  {alimtalkType
                     ? bodyEditableInEnvelope
                       ? "안내 문구"
                       : "메모 (이 알림톡에는 표시되지 않음)"
-                    : "본문 (직접 입력 또는 오른쪽 블록 클릭하여 삽입)"}
+                    : "본문"}
                 </label>
                 <MessageBodyEditor
                   key={`${open}:${initial?.id ?? "new"}`}
@@ -262,7 +248,7 @@ export default function TemplateEditModal({
                   placeholder={
                     alimtalkType && !bodyEditableInEnvelope
                       ? "이 알림톡은 정해진 안내문으로 발송됩니다."
-                      : "내용을 입력하세요. 오른쪽에서 필요한 정보를 넣을 수 있습니다."
+                      : "안내문을 작성하고 필요한 정보를 블록으로 넣으세요."
                   }
                   value={body}
                   onChange={setBody}
@@ -272,27 +258,19 @@ export default function TemplateEditModal({
               <div className="template-editor__body-blocks shrink-0 flex flex-col">
                 <div className="template-editor__blocks-title mb-2">정보 넣기</div>
                 <div className="template-editor__block-list flex flex-col content-start overflow-auto p-1">
-                  {alimtalkType && activeTab === "alimtalk" ? (
+                  {alimtalkType ? (
                     <>
-                      <AlimtalkTemplateInfoPanel templateType={alimtalkType} disabled={fieldsDisabled} />
                       {(() => {
                         const autoIds = getAutoFillBlockIds(alimtalkType);
                         const bodyBlocks = bodyEditableInEnvelope
                           ? blocks.filter((b) => !autoIds.has(b.id) && b.id !== "site_link")
                           : [];
                         if (!bodyBlocks.length) return null;
-                        return (
-                          <div style={{ marginTop: 12 }}>
-                            <div style={{
-                              fontSize: 10, fontWeight: 700,
-                              color: "var(--color-text-muted)",
-                              letterSpacing: "0.3px",
-                              marginBottom: 6,
-                            }}>
-                              본문에 넣을 수 있는 정보
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {bodyBlocks.map((block) => {
+                        const individual = (id: string) => /^(exam|hw)_\d+(?:_|$)/.test(id);
+                        const individualBlocks = bodyBlocks.filter((block) => individual(block.id));
+                        const renderBlocks = (items: typeof bodyBlocks) => (
+                          <div className="flex flex-wrap gap-2">
+                              {items.map((block) => {
                                 const bc = getBlockColor(block.id);
                                 return (
                                   <button
@@ -309,10 +287,29 @@ export default function TemplateEditModal({
                                   </button>
                                 );
                               })}
-                            </div>
+                          </div>
+                        );
+                        return (
+                          <div className="message-template-insert-options">
+                            {renderBlocks(bodyBlocks.filter((block) => !individual(block.id)))}
+                            {individualBlocks.length > 0 && (
+                              <div className="message-template-individual-blocks">
+                                <button type="button"
+                                  className="message-template-individual-toggle"
+                                  aria-label="시험·과제별 정보 더 보기"
+                                  aria-expanded={individualExpanded} aria-controls={individualRegionId}
+                                  onClick={() => setIndividualExpanded((expanded) => !expanded)}>
+                                  시험·과제별 정보 더 보기
+                                </button>
+                                <div id={individualRegionId} hidden={!individualExpanded}>
+                                  {renderBlocks(individualBlocks)}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })()}
+                      <AlimtalkTemplateInfoPanel templateType={alimtalkType} disabled={fieldsDisabled} />
                     </>
                   ) : selectedCategory === "grades" ? (
                     <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={fieldsDisabled} currentBody={body} />
