@@ -3,6 +3,8 @@ import { EditorContent, Node, useEditor, type Editor, type JSONContent } from "@
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { closeHistory } from "@tiptap/pm/history";
+import { Slice } from "@tiptap/pm/model";
+import { TextSelection } from "@tiptap/pm/state";
 import { Redo2, Undo2 } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
 import { getTemplateBlock } from "../constants/templateBlocks";
@@ -26,13 +28,14 @@ function messageDocument(text: string): JSONContent {
   };
 }
 
-function insertionContent(text: string): JSONContent[] {
-  return /[\r\n]/.test(text) ? messageDocument(text).content ?? [] : inlineContent(text);
-}
-
 function insertMessageContent(editor: Editor, text: string): void {
-  editor.chain().focus().command(({ tr }) => { closeHistory(tr); return true; })
-    .insertContent(insertionContent(text)).run();
+  editor.chain().focus().command(({ tr, state }) => {
+    closeHistory(tr);
+    // Open paragraph edges keep pasted text joined to the existing prefix/suffix.
+    const content = state.schema.nodeFromJSON(messageDocument(text)).content;
+    tr.replaceSelection(new Slice(content, 1, 1));
+    return true;
+  }).run();
   editor.view.dispatch(closeHistory(editor.state.tr));
 }
 
@@ -88,10 +91,21 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
     onUpdate: ({ editor: current }) => onChange(messageText(current.getJSON())),
     editorProps: {
       attributes: { role: "textbox", "aria-label": "안내문", "aria-multiline": "true", spellcheck: "false" },
-      handlePaste: (_view, event) => {
+      handlePaste: (view, event) => {
         const text = event.clipboardData?.getData("text/plain");
-        if (text == null) return false;
         event.preventDefault();
+        if (!text) return true;
+        // Native selectionchange can arrive after paste (for example, Ctrl+End after undo).
+        const selection = view.dom.ownerDocument.getSelection();
+        if (selection?.anchorNode && selection.focusNode
+          && view.dom.contains(selection.anchorNode) && view.dom.contains(selection.focusNode)) {
+          const anchor = view.posAtDOM(selection.anchorNode, selection.anchorOffset);
+          const head = view.posAtDOM(selection.focusNode, selection.focusOffset);
+          if (anchor !== view.state.selection.anchor || head !== view.state.selection.head) {
+            const next = TextSelection.between(view.state.doc.resolve(anchor), view.state.doc.resolve(head));
+            if (!next.eq(view.state.selection)) view.dispatch(view.state.tr.setSelection(next));
+          }
+        }
         if (currentEditor.current) insertMessageContent(currentEditor.current, text);
         return true;
       },

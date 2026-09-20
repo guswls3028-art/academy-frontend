@@ -33,7 +33,7 @@ export function harness(options = {}) {
     } } },
     '@/shared/api/parentStudentSelection': { getParentStudentId: () => options.parentId ?? null },
     '@/shared/ui/asyncStatus/asyncStatusStore': { asyncStatusStore: { trackRequest: () => 'unit-request', completeTask() {} } },
-    '@/shared/tenant': { getTenantCodeForApiRequest: () => 'unit-tenant' },
+    '@/shared/tenant': { getTenantCodeForApiRequest: () => options.tenant === undefined ? 'unit-tenant' : options.tenant },
     '@/shared/lib/sentryContext': { captureApiError: () => counts.apiError++ },
     '@/shared/utils/safeSessionStorage': { getSessionItem: () => null, removeSessionItem() {}, setSessionItem() {} },
     '@/shared/auth/tokenSession': {
@@ -63,7 +63,8 @@ export function harness(options = {}) {
       target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true,
     }, fileName: file }).outputText;
     vm.runInNewContext(compiled, {
-      exports: module.exports, module, __testEnv: { VITE_API_BASE_URL: 'https://unit.invalid' },
+      exports: module.exports, module, __testEnv: { VITE_API_BASE_URL: 'https://unit.invalid', VITE_APP_VERSION: options.appVersion },
+      ...(options.buildVersion === undefined ? {} : { __BUILD_TIMESTAMP__: options.buildVersion }),
       require(specifier) {
         if (importMocks[specifier]) return importMocks[specifier];
         if (specifier === '@/shared/api/axios') return load('src/shared/api/axios.ts');
@@ -72,6 +73,15 @@ export function harness(options = {}) {
         throw new Error(`Unmocked import: ${specifier}`);
       },
       window, document, console, atob, URL, setInterval: () => 1, clearInterval() {},
+      fetch: (url, init) => {
+        const request = new Request(url, init);
+        const record = { path: new URL(request.url).pathname, headers: request.headers,
+          keepalive: request.keepalive, credentials: request.credentials, redirect: request.redirect,
+          body: JSON.parse(init.body) };
+        requests.push(record);
+        return Promise.resolve(options.respond ? options.respond(record) : { status: 200, body: {} })
+          .then((response) => new Response(JSON.stringify(response.body), { status: response.status }));
+      },
       setTimeout: window.setTimeout, clearTimeout: window.clearTimeout,
     }, { filename: file });
     return module.exports;

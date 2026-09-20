@@ -11,7 +11,9 @@
 }
 
 .ds-segment__btn {
+  --selection-accent: var(--color-brand-primary);
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   min-height: var(--control-sm, 32px);
@@ -20,8 +22,10 @@
 
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
   color: var(--color-text-primary);
-  border: 1px solid var(--color-border-divider);
+  border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);
   cursor: pointer;
   user-select: none;
@@ -31,47 +35,60 @@
     border-color 160ms ease,
     box-shadow 160ms ease;
 
-  background: color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface));
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
-    inset 0 2px 4px rgba(255, 255, 255, 0.04),
-    0 1px 2px rgba(0, 0, 0, 0.03);
+  background: var(--color-bg-surface);
+  box-shadow: none;
+  opacity: 1;
+}
+
+.ds-segment__btn[data-size="sm"] {
+  min-width: 40px;
+  padding-inline: var(--space-2);
+  font-size: 12px;
+}
+
+.ds-segment__btn[data-tone="success"] { --selection-accent: var(--color-success); }
+.ds-segment__btn[data-tone="warning"] { --selection-accent: var(--color-warning); }
+.ds-segment__btn[data-tone="danger"] { --selection-accent: var(--color-danger); }
+.ds-segment__btn[data-tone="complement"] { --selection-accent: var(--color-brand-complement); }
+.ds-segment__btn[data-tone="teal"] { --selection-accent: var(--color-teal); }
+
+.ds-segment__btn[data-tone="danger"],
+.ds-segment__btn[data-tone="complement"] {
+  border-color: color-mix(in srgb, var(--selection-accent) 45%, var(--color-border-default));
 }
 
 .ds-segment__btn:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-border-divider) 16%, var(--color-bg-surface));
-  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+  border-color: color-mix(in srgb, var(--selection-accent) 60%, var(--color-border-default));
 }
 
 .ds-segment__btn[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--color-brand-primary) 28%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, var(--selection-accent) 12%, var(--color-bg-surface));
   color: var(--color-text-primary);
-  border-color: var(--color-brand-primary);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
-    inset 0 2px 4px rgba(255, 255, 255, 0.08),
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+  border-color: var(--selection-accent);
+  box-shadow: none;
 }
 
 .ds-segment__btn[aria-pressed="true"]:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-brand-primary) 35%, var(--scale-Neutral0, #fff));
-  border-color: var(--color-brand-primary);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
-    inset 0 2px 6px rgba(255, 255, 255, 0.1),
-    0 2px 4px rgba(0, 0, 0, 0.06),
-    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--selection-accent) 18%, var(--color-bg-surface));
+  border-color: var(--selection-accent);
 }
 
 .ds-segment__btn:focus-visible {
-  outline: none;
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
-    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .ds-segment__btn:disabled {
-  opacity: 0.5;
+  opacity: 0.65;
   cursor: not-allowed;
+}
+
+@media (max-width: 1023px) {
+  .ds-segment__btn { min-height: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-segment__btn { transition: none; }
 }

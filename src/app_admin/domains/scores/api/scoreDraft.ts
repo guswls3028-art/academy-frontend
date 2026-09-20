@@ -4,15 +4,18 @@
  * 실제 성적 PATCH 전에 복구용 변경 목록을 저장하고, PATCH 완료 뒤 commit으로 비운다.
  */
 
-import api from "@/shared/api/axios";
+import api, { releaseEmptyScoreDraftOnPageExit } from "@/shared/api/axios";
 import {
   scoreEditorRequestHeaders,
+  resolvedScoreEditorClientId,
+  trackScoreDraftWrite,
 } from "@/shared/scoring/scoreEditLease";
 
 export {
   resolvedScoreEditorClientId,
   resolvedScoreEditorRecoveryId,
   scoreEditorRequestHeaders,
+  hasPendingScoreDraftWrite,
 } from "@/shared/scoring/scoreEditLease";
 
 export type PendingChange =
@@ -39,6 +42,7 @@ export type ScoreActiveEditor = {
   editor_user_id: number;
   editor_name: string;
   active_cell: ScoreActiveCell;
+  has_pending_changes?: boolean;
 };
 
 export type ScoreDraftSnapshot = {
@@ -66,14 +70,14 @@ export async function putScoreDraft(
   changes: PendingChange[],
   options?: { acknowledgeStale?: boolean; activeCell?: ScoreActiveCell | null; takeOverSameUser?: boolean },
 ): Promise<ScoreDraftSnapshot> {
-  const res = await api.put(`/results/admin/sessions/${sessionId}/score-draft/`, {
+  const res = await trackScoreDraftWrite(sessionId, async () => api.put(`/results/admin/sessions/${sessionId}/score-draft/`, {
     changes,
     acknowledge_stale: options?.acknowledgeStale ?? false,
     take_over_same_user: options?.takeOverSameUser ?? false,
     active_cell: options?.activeCell ?? null,
   }, {
     headers: await scoreEditorRequestHeaders(),
-  });
+  }));
   const data = res.data as Partial<ScoreDraftSnapshot>;
   return {
     changes: data.changes ?? [],
@@ -85,12 +89,19 @@ export async function putScoreDraft(
 export async function postScoreDraftCommit(
   sessionId: number,
   releaseLease = false,
+  releaseIfEmpty = false,
 ): Promise<void> {
-  await api.post(
+  if (releaseIfEmpty) {
+    if (!releaseLease) throw new Error("Empty-only release requires releasing the lease.");
+    return trackScoreDraftWrite(sessionId, () => releaseEmptyScoreDraftOnPageExit(sessionId, resolvedScoreEditorClientId()));
+  }
+  await trackScoreDraftWrite(sessionId, async () => api.post(
     `/results/admin/sessions/${sessionId}/score-draft/commit/`,
-    { release_lease: releaseLease },
-    { headers: await scoreEditorRequestHeaders() },
-  );
+    { release_lease: releaseLease, ...(releaseIfEmpty ? { release_if_empty: true } : {}) },
+    {
+      headers: await scoreEditorRequestHeaders(),
+    },
+  ));
 }
 
 export function isScoreEditLockedError(error: unknown): boolean {

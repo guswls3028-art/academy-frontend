@@ -23,13 +23,12 @@ import {
   type AttendanceListItem,
 } from "@admin/domains/lectures/api/attendance";
 import api from "@/shared/api/axios";
-import { EmptyState, Button } from "@/shared/ui/ds";
+import { EmptyState, Button, SelectionButton } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, useTableColumnPrefs, ResizableTh } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
-import AttendanceStatusBadge, { type AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
-import { ORDERED_ATTENDANCE_STATUS } from "@/shared/ui/badges/attendanceStatus";
+import { ATTENDANCE_META, ORDERED_ATTENDANCE_STATUS, type AttendanceStatus } from "@/shared/ui/badges/attendanceStatus";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -609,13 +608,7 @@ export default function SessionAttendancePage({
           aria-expanded={statusPopoverOpen}
           aria-label="출결 상태 필터"
         >
-          {statusFilter ? (
-            <span className="inline-flex items-center gap-1.5">
-              <AttendanceStatusBadge status={statusFilter as AttendanceStatus} variant="2ch" />
-            </span>
-          ) : (
-            "상태필터"
-          )}
+          {statusFilter ? ATTENDANCE_META[statusFilter as AttendanceStatus].label : "상태필터"}
         </Button>
       </span>
       {statusPopoverOpen && statusPopoverAnchor &&
@@ -635,30 +628,27 @@ export default function SessionAttendancePage({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <Button
+            <SelectionButton
               type="button"
-              intent={!statusFilter ? "primary" : "secondary"}
+              selected={!statusFilter}
+              label="전체"
               size="sm"
               className="attendance-popover-item"
               onClick={() => { setStatusFilter(""); setStatusPopoverOpen(false); }}
-            >
-              전체
-            </Button>
+            />
             {STATUS_LIST.map((code) => {
               const selected = statusFilter === code;
               return (
-                <button
+                <SelectionButton
                   key={code}
                   type="button"
-                  className="attendance-popover-item cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40"
-                  style={{
-                    opacity: selected ? 1 : 0.85,
-                    boxShadow: selected ? "0 0 0 2px var(--color-primary)" : undefined,
-                  }}
+                  className="attendance-popover-item"
+                  label={ATTENDANCE_META[code].label}
+                  selected={selected}
+                  tone={selected || code === "INACTIVE" || code === "SECESSION" ? ATTENDANCE_META[code].tone : "neutral"}
+                  size="sm"
                   onClick={() => { setStatusFilter(code); setStatusPopoverOpen(false); }}
-                >
-                  <AttendanceStatusBadge status={code} variant="2ch" />
-                </button>
+                />
               );
             })}
           </div>,
@@ -704,23 +694,20 @@ export default function SessionAttendancePage({
             {STATUS_LIST.map((code) => {
               const active = toAttendanceStatus(att.status) === code;
               return (
-                <button
+                <SelectionButton
                   key={code}
                   type="button"
-                  className="attendance-popover-item cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
+                  className="attendance-popover-item"
+                  label={ATTENDANCE_META[code].label}
+                  selected={active}
+                  tone={active || code === "INACTIVE" || code === "SECESSION" ? ATTENDANCE_META[code].tone : "neutral"}
+                  size="sm"
                   data-active={active ? "true" : "false"}
                   data-critical={code === "INACTIVE" || code === "SECESSION" ? "true" : undefined}
                   data-status-code={code.toLowerCase()}
-                  style={{
-                    opacity: active ? 1 : 0.85,
-                    boxShadow: active ? "0 0 0 2px var(--color-primary)" : undefined,
-                  }}
-                  aria-pressed={active}
                   disabled={pendingStatusIds.has(att.id)}
                   onClick={() => void handleStatusChange(att, code)}
-                >
-                  <AttendanceStatusBadge status={code} variant="2ch" selected={active} />
-                </button>
+                />
               );
             })}
           </div>,
@@ -877,6 +864,7 @@ export default function SessionAttendancePage({
                           name={att.name ?? ""}
                           profilePhotoUrl={att.profile_photo_url ?? undefined}
                           avatarSize={24}
+                          density="compact"
                           lectures={
                             att.lecture_title
                               ? [{ lectureName: att.lecture_title, color: att.lecture_color ?? undefined, chipLabel: att.lecture_chip_label ?? undefined }]
@@ -891,7 +879,7 @@ export default function SessionAttendancePage({
                     </td>
                     <td className="text-center align-middle" style={{ width: columnWidths.status ?? col.statusBadge }}>
                       {isCompactAttendance ? (
-                        <button
+                        <Button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -904,12 +892,14 @@ export default function SessionAttendancePage({
                             statusRowTriggerRef.current = e.currentTarget as HTMLElement;
                             setOpenStatusRowAttId(att.id);
                           }}
-                          className="attendance-status-compact-trigger cursor-pointer rounded border-0 p-0 bg-transparent inline-flex align-middle focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
+                          intent="secondary"
+                          size="sm"
+                          className="attendance-status-compact-trigger"
                           aria-label={`${att.name ?? ""} 출결 상태 변경`}
                           aria-expanded={openStatusRowAttId === att.id}
                         >
-                          <AttendanceStatusBadge status={toAttendanceStatus(att.status)} variant="2ch" selected />
-                        </button>
+                          {ATTENDANCE_META[toAttendanceStatus(att.status)].label}
+                        </Button>
                       ) : (
                         <AttendanceStatusInlineRail
                           studentName={att.name ?? "학생"}

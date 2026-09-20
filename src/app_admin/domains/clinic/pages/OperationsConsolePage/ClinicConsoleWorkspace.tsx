@@ -1,3 +1,4 @@
+import { clinicBookingRangeText } from "@/shared/ui/clinic/clinicTimeRange";
 /**
  * PATH: src/features/clinic/pages/OperationsConsolePage/ClinicConsoleWorkspace.tsx
  * 선택한 클리닉 수업의 대상자 관리 — 운영 헤더 + 상태 필터 + 처리 큐 + 상세 드로어
@@ -1983,7 +1984,7 @@ export default function ClinicConsoleWorkspace({
                       </span>
                       {p.booking_start_time && p.booking_end_time && (
                         <span className="clinic-ops__booking-time">
-                          예약 {hhmmText(p.booking_start_time, "-")}–{hhmmText(p.booking_end_time, "-")}
+                          예약 {clinicBookingRangeText(p)}
                         </span>
                       )}
                       {isAggregate && (

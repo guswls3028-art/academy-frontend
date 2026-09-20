@@ -480,6 +480,14 @@ table.ds-table {
   background: linear-gradient(180deg, var(--color-bg-surface) 0%, color-mix(in srgb, var(--color-bg-surface-hover) 72%, var(--color-bg-surface)) 100%);
 }
 
+/* The three frozen columns fill a phone viewport and cover score inputs/actions.
+ * Keep the stored column widths; allow the entire row to scroll on small screens. */
+@media (max-width: 640px) {
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table :is(thead, tbody) :is(th, td):is([data-col-type="select"], [data-col-type="name"], [data-col-type="attendance"]) {
+    position: static !important;
+  }
+}
+
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody tr.ds-scores-table-row--alt td[data-col-type="select"],
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody tr.ds-scores-table-row--alt td[data-col-type="name"],
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody tr.ds-scores-table-row--alt td[data-col-type="attendance"] {

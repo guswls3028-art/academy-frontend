@@ -1,6 +1,7 @@
 import { useRef, useState, type KeyboardEvent } from "react";
 import { ArrowRight, CheckCircle2, MoreHorizontal, ShieldCheck } from "lucide-react";
 
+import { Button } from "@/shared/ui/ds";
 import type { ClinicTarget } from "../../api/clinicTargets";
 import {
   canCompleteManualHomework,
@@ -20,6 +21,7 @@ type Props = {
   item: ClinicTarget;
   onRetake: (score: number, maxScore?: number) => void;
   onResolve: () => void;
+  onUnresolve?: () => void;
   onWaive: () => void;
   onCarryOver: () => void;
   disabled: boolean;
@@ -29,6 +31,7 @@ export default function RetakeTableRow({
   item,
   onRetake,
   onResolve,
+  onUnresolve,
   onWaive,
   onCarryOver,
   disabled,
@@ -120,6 +123,7 @@ export default function RetakeTableRow({
           </div>
         ) : isResolved ? (
           <span className="clinic-hub__resolved-inline">
+            {onUnresolve && <Button intent="secondary" size="sm" disabled={disabled} onClick={onUnresolve}>수동 통과 취소</Button>}
             {item.resolution_type === "EXAM_PASS"
               ? "시험 통과"
               : item.resolution_type === "HOMEWORK_PASS"

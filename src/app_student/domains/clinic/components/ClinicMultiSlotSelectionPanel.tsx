@@ -1,3 +1,4 @@
+import { clinicBookingRangeText } from "@/shared/ui/clinic/clinicTimeRange";
 import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 
 import type { ClinicAvailability, ClinicSession } from "../api/clinicBooking.api";
@@ -40,7 +41,7 @@ function elapsedMinutes(startTime: string, endTime: string): number {
   const start = timeToMinutes(startTime);
   const end = timeToMinutes(endTime);
   if (start == null || end == null) return 0;
-  if (end === 0 && start > 0) return 24 * 60 - start;
+  if (end < start) return 24 * 60 + end - start;
   return Math.max(end - start, 0);
 }
 
@@ -105,6 +106,11 @@ export default function ClinicMultiSlotSelectionPanel({
       ? selectedTimeSummary([{ start_time: bookingStart, end_time: bookingEnd }])
       : null
     : sessionSummary;
+  if (isTimeRange && timeSummary && selectedSession) {
+    const startSlot = availability?.slots.find((slot) => slot.start_time === bookingStart);
+    const endSlot = availability?.slots.find((slot) => slot.end_time === bookingEnd);
+    timeSummary.range = clinicBookingRangeText({ session_date: selectedSession.date, session_start_time: selectedSession.start_time, booking_start_time: bookingStart, booking_end_time: bookingEnd, booking_start_date: startSlot?.start_date, booking_end_date: endSlot?.end_date });
+  }
   return (
     <section className={styles.selectionPanel} aria-label="선택한 클리닉 시간">
       <div className={styles.selectionSummary}>

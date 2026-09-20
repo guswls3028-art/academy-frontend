@@ -12,8 +12,9 @@ import { PDFDocument, rgb } from "pdf-lib";
 import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 import { emitOmrCleanupStatus, safeLectureSessionDeleteBlocker } from "../helpers/releaseApiBoundary";
+import { installQaStudentParentBoundary } from "../helpers/qaStudentParentScenario";
 
-test.setTimeout(360_000);
+test.setTimeout(600_000);
 
 const API = getApiBaseUrl().replace(/\/+$/, "");
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
@@ -51,7 +52,7 @@ function requireIsolatedScenario(): void {
 }
 
 type Tokens = { access: string; refresh: string };
-type RealUseRole = "admin" | "student" | "parent";
+type RealUseRole = "admin" | "staff" | "student" | "parent";
 type BrowserAccountExpectation = {
   role: RealUseRole;
   username: string;
@@ -73,9 +74,12 @@ type CreatedState = {
   sessionEnrollmentIds: number[];
   submissionIds: number[];
   scoreEditorClientIds: Set<string>;
+  staffId?: number;
+  staffAccess?: string;
+  staffScoreEditorClientIds: Set<string>;
 };
 
-const created: CreatedState = { sessionEnrollmentIds: [], submissionIds: [], scoreEditorClientIds: new Set() };
+const created: CreatedState = { sessionEnrollmentIds: [], submissionIds: [], scoreEditorClientIds: new Set(), staffScoreEditorClientIds: new Set() };
 
 function headers(token: string, contentType = "application/json"): Record<string, string> {
   return {
@@ -405,10 +409,198 @@ async function waitForStudentResult(
   throw new Error(`student result not visible: ${JSON.stringify(latest?.body ?? null)}`);
 }
 
+async function verifyChangedAnswerAndMaximum(
+  page: Page,
+  request: APIRequestContext,
+  studentToken: string,
+  parentToken: string,
+): Promise<void> {
+  const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`;
+  for (const changed of [true, false]) {
+    const maximum = changed ? 60 : 50;
+    const expected = changed ? EXPECTED_SCORE - 1 : EXPECTED_SCORE;
+    await page.setViewportSize({ width: changed ? 1366 : 390, height: 900 });
+    await loginBrowserAsRealUser(page, setupPath, { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+    await page.getByRole("spinbutton", { name: "만점", exact: true }).fill(String(maximum));
+    const policySaved = page.waitForResponse((response) => matchesApiResponse(response, "PATCH", `/exams/${created.examId}/`));
+    await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+    expect((await policySaved).status()).toBe(200);
+    await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+    const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+    const firstRow = answerDialog.locator(".answer-key-row--choice").first();
+    for (const choice of ["1", "2"]) {
+      const checkbox = firstRow.getByRole("checkbox", { name: `1번 ${choice}번 선택지`, exact: true });
+      const selected = choice === (changed ? "2" : "1");
+      if (await checkbox.isChecked() !== selected) {
+        await firstRow.locator(".answer-key-omr-label").nth(Number(choice) - 1).click();
+      }
+      if (selected) await expect(checkbox).toBeChecked();
+      else await expect(checkbox).not.toBeChecked();
+    }
+    if (changed) {
+      await firstRow.getByRole("button", { name: "+5", exact: true }).click();
+      await firstRow.getByRole("button", { name: "+5", exact: true }).click();
+    } else {
+      await firstRow.getByRole("button", { name: "점수 초기화", exact: true }).click();
+      await firstRow.getByRole("button", { name: "+1", exact: true }).click();
+    }
+    await expect(firstRow.locator(".answer-key-row__score-val")).toHaveText(`${changed ? 11 : 1}점`);
+    const answerSaved = page.waitForResponse((response) => (
+      response.request().method() === "PUT" && /\/api\/v1\/exams\/answer-keys\/\d+\/$/.test(new URL(response.url()).pathname)
+    ));
+    const saveButton = answerDialog.getByRole("button", { name: `저장 (총 ${maximum}점)`, exact: true });
+    await saveButton.click();
+    expect((await answerSaved).status()).toBe(200);
+    await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+    await expect(saveButton).toBeEnabled();
+    await answerDialog.getByRole("button", { name: "취소", exact: true }).click();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("spinbutton", { name: "만점", exact: true })).toHaveValue(String(maximum));
+
+    await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
+    const recalculated = page.waitForResponse((response) => matchesApiResponse(response, "POST", `/exams/${created.examId}/recalculate/`), { timeout: 90_000 });
+    await page.getByRole("alertdialog", { name: "시험 전체 재채점" }).getByRole("button", { name: "재채점 실행", exact: true }).click();
+    const response = await recalculated;
+    expect(response.status()).toBe(200);
+    const result = await response.json() as { graded: number; failed: unknown[] };
+    expect(result.graded).toBeGreaterThan(0);
+    expect(result.failed).toEqual([]);
+    await expect.poll(async () => (await waitForStudentResult(request, studentToken, created.examId!)).total_score,
+      { timeout: 30_000 }).toBe(expected);
+    const parent = await expectParentApi<{ exams?: any[] }>(request, "/student/grades/", parentToken, created.studentId);
+    expect(parent.exams?.find((row) => Number(row.exam_id) === created.examId)?.total_score).toBe(expected);
+
+    await gotoAndSettle(page, `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
+    await chooseExamHeaderAction(page, "문항별 점수 입력");
+    const grading = page.getByRole("dialog").filter({ hasText: `${EXAM_TITLE} 혼합 채점` });
+    for (const [index, score] of EXPECTED_WRITTEN_SCORES.entries()) {
+      await expect(grading.getByRole("spinbutton", { name: `${STUDENT_NAME} ${31 + index}번 10점 만점 점수` })).toHaveValue(String(score));
+    }
+    await grading.getByRole("button", { name: "닫기", exact: true }).click();
+    for (const account of [
+      { role: "student" as const, username: STUDENT_USER, password: STUDENT_PASS },
+      { role: "parent" as const, username: CONTROLLED_PHONE, password: STUDENT_PASS },
+    ]) {
+      await loginBrowserAsRealUser(page, "/student/grades", account);
+      const card = page.getByRole("link").filter({ hasText: EXAM_TITLE });
+      await expect(card).toContainText(`${expected}/${maximum}점`, { timeout: 30_000 });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(card).toContainText(`${expected}/${maximum}점`, { timeout: 30_000 });
+      await test.info().attach(`regraded-${account.role}-${changed ? 1366 : 390}`, {
+        body: await page.screenshot({ fullPage: true }), contentType: "image/png",
+      });
+    }
+  }
+}
+
+async function verifyStaffSubjectiveRecovery(page: Page, request: APIRequestContext): Promise<void> {
+  const username = `qa-omr-assistant-${TS}`;
+  const staff = await expectApi<{ id: number }>(request, "POST", "/staffs/", created.adminAccess!, {
+    name: `QA OMR 조교 ${TS}`, role: "ASSISTANT", username, password: STUDENT_PASS, is_manager: false,
+  }, [201]);
+  created.staffId = Number(staff.id);
+  const tokens = await loginToken(request, username, STUDENT_PASS);
+  created.staffAccess = tokens.access;
+  const identity = await expectApi<CurrentUser>(request, "GET", "/core/me/", tokens.access);
+  expect(identity.tenantRole).toBe("staff");
+  expect(identity.first_login_guide_required).toBe(true);
+  const scorePath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`;
+  const draftPath = `/results/admin/sessions/${created.sessionId}/score-draft/`;
+  const cellSelector = `[data-score-cell="exam:${created.enrollmentId}:${created.examId}:subjective:"]`;
+  const expectedSubjective = EXPECTED_WRITTEN_SCORES.reduce((sum, score) => sum + score, 0);
+
+  const editSubjective = async (target: Page) => {
+    const options = target.getByRole("button", { name: /표시 옵션/ });
+    if (await options.getAttribute("aria-expanded") === "false") await options.click();
+    await target.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(target.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    const subjective = target.getByRole("group", { name: "시험 점수 입력 방식" })
+      .getByRole("button", { name: "주관식", exact: true });
+    if (await subjective.getAttribute("aria-pressed") !== "true") {
+      await subjective.click();
+      await target.getByRole("button", { name: "주관식 입력", exact: true }).click();
+    }
+  };
+  const saveSubjective = async (target: Page, score: number) => {
+    await target.locator(cellSelector).getByRole("textbox").fill(String(score));
+    const saved = target.waitForResponse((response) => matchesApiResponse(response, "PATCH",
+      `/results/admin/exams/${created.examId}/enrollments/${created.enrollmentId}/subjective/`));
+    await target.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    expect((await saved).status()).toBe(200);
+    await expect(target.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+  };
+
+  for (const width of [1366, 390]) {
+    const contexts = await Promise.all([1, 2].map(() => page.context().browser()!.newContext({
+      viewport: { width, height: 900 }, serviceWorkers: "block",
+    })));
+    const guards: Array<{ assertClean: () => void }> = [];
+    try {
+      const screens = await Promise.all(contexts.map((context) => context.newPage()));
+      for (const screen of screens) {
+        guards.push(await installQaStudentParentBoundary(screen, request));
+        screen.on("request", (req) => {
+          const client = req.headers()["x-score-editor-client"];
+          if (client) created.staffScoreEditorClientIds.add(client);
+        });
+        await loginBrowserAsRealUser(screen, scorePath, { role: "staff", username, password: STUDENT_PASS });
+      }
+      const [first, second] = screens;
+      await editSubjective(first);
+      await saveSubjective(first, expectedSubjective + 1);
+      await editSubjective(first);
+      await first.locator(cellSelector).getByRole("textbox").click();
+      await expect.poll(async () => {
+        const state = await apiFetch<{ active_editors: Array<{ active_cell: { sub?: string; enrollmentId: number }; has_pending_changes: boolean }> }>(
+          request, "GET", draftPath, tokens.access, undefined, { "X-Score-Editor-Client": `qa-observer-${TS}` });
+        expect(state.status).toBe(200);
+        return state.body.active_editors.some((editor) => editor.active_cell.sub === "subjective"
+          && editor.active_cell.enrollmentId === created.enrollmentId && editor.has_pending_changes === false);
+      }, { timeout: 15_000 }).toBe(true);
+      // First document stays open: this proves explicit same-account transfer,
+      // independently of best-effort document-exit delivery.
+      await editSubjective(second);
+      const cell = second.locator(cellSelector);
+      await expect(cell).toContainText("내 다른 화면에서 입력 중", { timeout: 15_000 });
+      await expect(cell.getByRole("textbox")).toHaveCount(0);
+      const claimed = second.waitForResponse((response) => matchesApiResponse(response, "PUT", draftPath)
+        && response.request().postDataJSON()?.take_over_same_user === true);
+      await cell.getByRole("button", { name: "이 화면에서 이어 입력", exact: true }).click();
+      expect((await claimed).status()).toBe(200);
+      await expect(cell.getByRole("textbox")).toBeFocused();
+      await saveSubjective(second, expectedSubjective);
+      await second.reload({ waitUntil: "domcontentloaded" });
+      const options = second.getByRole("button", { name: /표시 옵션/ });
+      if (await options.getAttribute("aria-expanded") === "false") await options.click();
+      await second.getByRole("button", { name: "객관식 + 주관식", exact: true }).click();
+      await expect(cell).toContainText(String(expectedSubjective));
+      const screenshot = await second.screenshot({ fullPage: true });
+      await test.info().attach(`staff-subjective-recovered-${width}`, { body: screenshot, contentType: "image/png" });
+      expect((await expectApi<CurrentUser>(request, "GET", "/core/me/", tokens.access)).first_login_guide_required).toBe(false);
+    } finally {
+      await Promise.all(contexts.map((context) => context.close()));
+      guards.forEach((guard) => guard.assertClean());
+    }
+  }
+}
+
 async function cleanup(request: APIRequestContext): Promise<void> {
   const token = created.adminAccess;
   if (!token) return;
   const failures: string[] = [];
+
+  // Staff leases belong to that actual user, not the administrator cleanup token.
+  if (created.staffAccess && created.sessionId) {
+    for (const clientId of created.staffScoreEditorClientIds) {
+      try {
+        const released = await apiFetch(request, "POST", `/results/admin/sessions/${created.sessionId}/score-draft/commit/`,
+          created.staffAccess, { release_lease: true }, { "X-Score-Editor-Client": clientId });
+        if (![204, 404].includes(released.status)) failures.push(`staff score lease cleanup -> ${released.status}`);
+      } catch {
+        failures.push("staff score lease cleanup transport failed");
+      }
+    }
+  }
 
   const remove = async (
     method: string,
@@ -432,6 +624,8 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     }
     return out;
   };
+
+  if (created.staffId) await remove("DELETE", `/staffs/${created.staffId}/`);
 
   for (const id of created.submissionIds) {
     await remove("DELETE", `/submissions/submissions/${id}/`);
@@ -495,6 +689,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   }
 
   for (const [label, path] of [
+    ...(created.staffId ? [[`staff ${created.staffId}`, `/staffs/${created.staffId}/`] as const] : []),
     ...created.submissionIds.map((id) => [`submission ${id}`, `/submissions/submissions/${id}/`] as const),
     ...(!archivedExamHandoff && created.examId
       ? [[`exam ${created.examId}`, `/exams/${created.examId}/`] as const]
@@ -1051,5 +1246,14 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE }))
       .toContainText(`${EXPECTED_SCORE}/50점`, { timeout: 20_000 });
     await page.screenshot({ path: `e2e/screenshots/omr-review-realuse-parent-${TS}.png`, fullPage: true });
+
+    await verifyChangedAnswerAndMaximum(page, request, studentTokens.access, parentTokens.access);
+    await verifyStaffSubjectiveRecovery(page, request);
+    await expect.poll(async () => (await waitForStudentResult(request, studentTokens.access, created.examId!)).total_score,
+      { timeout: 30_000 }).toBe(EXPECTED_SCORE);
+    const restoredParentGrades = await expectParentApi<{ exams?: any[] }>(request, "/student/grades/", parentTokens.access, created.studentId);
+    expect(restoredParentGrades.exams?.find((row) => Number(row.exam_id) === created.examId)?.total_score).toBe(EXPECTED_SCORE);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText(`${EXPECTED_SCORE}/50점`);
   });
 });

@@ -259,6 +259,41 @@ test.describe("학생 커뮤니티 durable draft", () => {
     await expect.poll(() => readDraft(page, COUNSEL_KEY)).toBeNull();
   });
 
+  for (const form of [
+    { tab: "QnA", button: "질문하기", placeholder: "질문 제목", key: QNA_KEY },
+    { tab: "상담", button: "상담 신청하기", placeholder: "예: 진로 상담, 학습 방법 상담", key: COUNSEL_KEY },
+  ] as const) {
+    test(`${form.tab} 현재 탭 재선택 직후 연 작성 화면과 복구한 초안을 유지한다`, async ({ page }) => {
+      await installStudentApi(page);
+      await openForm(page, form.tab);
+      const title = page.getByPlaceholder(form.placeholder);
+      await title.fill("같은 탭에서 복구할 초안");
+      await page.locator(".ProseMirror").fill("작성 화면을 닫지 않고 복구한 내용을 유지합니다.");
+      await flushPageDraft(page);
+      await expect.poll(() => readDraftTitle(page, form.key)).toBe("같은 탭에서 복구할 초안");
+      for (const width of [1366, 390]) {
+        await page.setViewportSize({ width, height: 844 });
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(page.getByRole("button", { name: form.button, exact: true })).toBeVisible();
+        // Both controls already exist on the selected tab: a quick second click
+        // must not lose the form to a pending navigation for that same tab.
+        await page.evaluate(({ tab, button }) => {
+          const findButton = (label: string) => [...document.querySelectorAll("button")]
+            .find((element) => element.textContent?.trim() === label && element.getClientRects().length > 0)!;
+          findButton(tab).click();
+          findButton(button).click();
+        }, form);
+        await expect(title).toHaveValue("같은 탭에서 복구할 초안");
+        await expect(page.locator(".ProseMirror")).toContainText("작성 화면을 닫지 않고 복구한 내용을 유지합니다.");
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+      }
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: form.button, exact: true }).click();
+      await expect(title).toHaveValue("같은 탭에서 복구할 초안");
+      await expect(page.locator(".ProseMirror")).toContainText("작성 화면을 닫지 않고 복구한 내용을 유지합니다.");
+    });
+  }
+
   test("탭 전환 직후 연 상담 작성 화면을 늦은 주소 반영이 닫지 않는다", async ({ page }, testInfo) => {
     await installStudentApi(page);
     await openForm(page, "QnA");

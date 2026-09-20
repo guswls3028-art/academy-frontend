@@ -8,6 +8,14 @@ tracked metric ceilings in `scripts/refactor-budget-baseline.json` match or
 improve on the measured tree; raising a ceiling requires a documented design
 reason, not merely a failing build.
 
+The existing fetch ceiling remains three. One audited call in the central API
+owner's `releaseEmptyScoreDraftOnPageExit` is excluded because document exit must
+dispatch synchronously without an auth refresh/interceptor queue. The exception
+matches that function, file and exact score-draft commit URL, and exempts at most
+one call. Additional or generic fetch calls still count. Its token, tenant,
+client, empty-only body, no-redirect and failure behavior are checked by
+`scripts/tests/score-draft-unload.test.mjs`; the exception itself has a guard test.
+
 Cross-domain UI reuse enters through the owning domain's `public/` directory.
 Internal `components/`, `overlays/`, `api/`, and implementation paths remain
 counted. The first adoption moved student detail links and overlays to the

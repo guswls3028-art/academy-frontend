@@ -3,7 +3,8 @@
  * isolated qa-* student and parent account graph.
  */
 import { expect, test } from "../fixtures/strictTest";
-import type { APIRequestContext } from "@playwright/test";
+import { createHash } from "node:crypto";
+import type { APIRequestContext, Page } from "@playwright/test";
 import {
   assertNoHorizontalOverflow,
   assertQaStudentParentRuntime,
@@ -16,15 +17,19 @@ import {
   loginThroughUi,
   logoutStudentApp,
   QA_BASE,
+  QA_ADMIN_USER,
+  QA_ADMIN_PASSWORD,
+  QA_STUDENT_PASSWORD,
   QA_TENANT,
   reloadStudentApp,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
+import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
-test.setTimeout(300_000);
+test.setTimeout(480_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
 type AccountNotificationLog = {
@@ -38,6 +43,128 @@ type AccountNotificationLog = {
 
 let family: QaFamily | null = null;
 let adminAccess = "";
+const signupFamilies: QaFamily[] = [];
+const signupRequestIds: number[] = [];
+
+async function verifySignupAndApproval(page: Page, request: APIRequestContext): Promise<void> {
+  const settingsPath = "/students/registration_requests/settings/";
+  const original = await expectApi<{ auto_approve: boolean }>(request, "GET", settingsPath, adminAccess);
+  const adminContext = await page.context().browser()!.newContext({ viewport: { width: 1366, height: 900 } });
+  const adminPage = await adminContext.newPage();
+  const boundary = await installQaStudentParentBoundary(adminPage, request);
+  const browser = attachStrictBrowserGuards(adminPage);
+  try {
+    await gotoAndSettle(adminPage, `${QA_BASE}/login/${QA_TENANT}`);
+    await adminPage.getByTestId("login-username").fill(QA_ADMIN_USER);
+    await adminPage.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
+    await adminPage.getByTestId("login-submit").click();
+    await expect(adminPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+    await acknowledgeInitialAccountPromptsIfVisible(adminPage);
+
+    for (const autoApprove of [false, true]) {
+      await gotoAndSettle(adminPage, `${QA_BASE}/workspace/students/requests`);
+      const toggle = adminPage.getByRole("switch", { name: "자동 승인" });
+      await expect(toggle).toBeEnabled();
+      if ((await toggle.getAttribute("aria-checked") === "true") !== autoApprove) {
+        const saved = adminPage.waitForResponse((response) => (
+          response.request().method() === "PATCH" && response.url().endsWith(settingsPath)
+        ));
+        await toggle.click();
+        expect((await saved).status()).toBe(200);
+      }
+      await adminPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(toggle).toHaveAttribute("aria-checked", String(autoApprove));
+      expect((await expectApi<{ auto_approve: boolean }>(request, "GET", settingsPath, adminAccess)).auto_approve).toBe(autoApprove);
+
+      const scenarioKey = autoApprove ? "signup-auto" : "signup-manual";
+      const hash = createHash("sha256").update(`${QA_TENANT}:${scenarioKey}`).digest("hex");
+      const digits = (offset: number) => String(Number.parseInt(hash.slice(offset, offset + 8), 16) % 100_000_000).padStart(8, "0");
+      const username = `qa-signup-${hash.slice(0, 10)}`;
+      const name = `QA ${scenarioKey} 학생`;
+      const phone = `010${digits(0)}`;
+      const parentPhone = `010${digits(8)}`;
+      await page.setViewportSize({ width: autoApprove ? 1366 : 390, height: 900 });
+      await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`);
+      await page.getByRole("button", { name: "회원가입", exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: "학생 회원가입" });
+      await dialog.locator("#signup-name").fill(name);
+      await dialog.locator("#signup-username").fill(username);
+      await dialog.locator("#signup-pw").fill(QA_STUDENT_PASSWORD);
+      await dialog.locator("#signup-pw-confirm").fill(`${QA_STUDENT_PASSWORD}x`);
+      await dialog.getByRole("group", { name: "성별", exact: true }).getByRole("button", { name: "여", exact: true }).click();
+      for (const [label, number] of [["휴대전화", phone], ["학부모 연락처", parentPhone]]) {
+        await dialog.getByLabel(`${label} 앞 4자리`).fill(number.slice(3, 7));
+        await dialog.getByLabel(`${label} 뒤 4자리`).fill(number.slice(7));
+      }
+      await dialog.locator("#signup-high").fill("QA 격리고등학교");
+      await dialog.locator("#signup-grade").selectOption("1");
+      if (await dialog.locator("#signup-origin").isVisible()) {
+        await dialog.locator("#signup-origin").fill("QA 격리중학교");
+      }
+      await dialog.locator("#signup-address").fill("QA 합성 주소");
+      await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
+      await expect(dialog.getByRole("alert")).toHaveText("비밀번호가 일치하지 않습니다.");
+      await expect(dialog.locator("#signup-name")).toHaveValue(name);
+      await expect(dialog.locator("#signup-username")).toHaveValue(username);
+      await expect(dialog.locator("#signup-address")).toHaveValue("QA 합성 주소");
+      await assertNoHorizontalOverflow(page);
+      await test.info().attach(`signup-validation-${autoApprove ? 1366 : 390}`, {
+        body: await page.screenshot({ fullPage: true }), contentType: "image/png",
+      });
+      await dialog.locator("#signup-pw-confirm").fill(QA_STUDENT_PASSWORD);
+      const submitted = page.waitForResponse((response) => (
+        response.request().method() === "POST" && response.url().endsWith("/students/registration_requests/")
+      ));
+      await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
+      const response = await submitted;
+      expect(response.status()).toBe(autoApprove ? 200 : 201);
+      let student = await response.json() as { id: number; name: string; ps_number: string; parent_phone: string };
+      await expect(dialog.getByRole("status")).toHaveText(autoApprove
+        ? "가입이 완료되었습니다. 지금 로그인할 수 있습니다."
+        : "신청이 완료되었습니다. 승인 후 로그인해 주세요.");
+      if (!autoApprove) {
+        const requestId = student.id;
+        signupRequestIds.push(requestId);
+        await adminPage.reload({ waitUntil: "domcontentloaded" });
+        await adminPage.locator(".students-requests__card").filter({ hasText: name }).click();
+        await adminPage.getByRole("dialog").filter({ hasText: "가입 신청 상세" }).getByRole("button", { name: "승인", exact: true }).click();
+        const approved = adminPage.waitForResponse((result) => (
+          result.request().method() === "POST" && result.url().endsWith(`/registration_requests/${requestId}/approve/`)
+        ));
+        await adminPage.getByRole("alertdialog", { name: "승인 확인" }).getByRole("button", { name: "승인", exact: true }).click();
+        const approvalResponse = await approved;
+        expect(approvalResponse.status()).toBe(200);
+        student = await approvalResponse.json() as typeof student;
+      }
+      signupFamilies.push({ scenarioKey, parentPhone, parentPassword: QA_STUDENT_PASSWORD,
+        students: [{ ...student, password: QA_STUDENT_PASSWORD }] });
+      expect(student.ps_number).toBe(username);
+      expect(student.parent_phone).toBe(parentPhone);
+      await expect(dialog.getByRole("button", { name: autoApprove ? "로그인하기" : "확인", exact: true })).toBeEnabled();
+      await dialog.getByRole("button", { name: autoApprove ? "로그인하기" : "확인", exact: true }).click();
+      await loginThroughUi(page, username, QA_STUDENT_PASSWORD);
+      await gotoAndSettle(page, `${QA_BASE}/student/profile`);
+      await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+      await reloadStudentApp(page);
+      await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+      await assertNoHorizontalOverflow(page);
+      await logoutStudentApp(page);
+      await loginThroughUi(page, parentPhone, QA_STUDENT_PASSWORD);
+      await expect(page.locator(".stu-topbar__name")).toContainText(name);
+      await reloadStudentApp(page);
+      await expect(page.locator(".stu-topbar__name")).toContainText(name);
+      await logoutStudentApp(page);
+    }
+    boundary.assertClean();
+    browser.assertZeroDefects();
+  } finally {
+    try {
+      await expectApi(request, "PATCH", settingsPath, adminAccess, { auto_approve: original.auto_approve });
+    } finally {
+      await adminContext.close();
+    }
+  }
+}
 
 async function waitForAccountReceipt(
   request: APIRequestContext,
@@ -74,6 +201,15 @@ test.describe.serial("[real-use] 학생/학부모 계정과 복구", () => {
   });
 
   test.afterAll(async ({ request }) => {
+    for (const requestId of signupRequestIds) {
+      const row = await expectApi<{ status: string }>(request, "GET", `/students/registration_requests/${requestId}/`, adminAccess);
+      if (row.status === "pending") {
+        await expectApi(request, "POST", `/students/registration_requests/${requestId}/reject/`, adminAccess);
+      }
+    }
+    // Registration history belongs to the exact disposable tenant; the owning
+    // runner removes that tenant graph and verifies zero users/storage residue.
+    for (const signupFamily of signupFamilies) await cleanupQaFamily(request, adminAccess, signupFamily);
     await cleanupQaFamily(request, adminAccess, family);
   });
 
@@ -156,6 +292,8 @@ test.describe.serial("[real-use] 학생/학부모 계정과 복구", () => {
     await gotoAndSettle(page, `${QA_BASE}/student/profile`, { timeout: 30_000 });
     await expect(page.getByText(student.name, { exact: true }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
+    await logoutStudentApp(page);
+    await verifySignupAndApproval(page, request);
     boundary.assertClean();
     browser.assertZeroDefects();
   });

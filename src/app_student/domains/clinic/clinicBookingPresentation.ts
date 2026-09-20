@@ -1,3 +1,4 @@
+import { clinicBookingRangeText } from "@/shared/ui/clinic/clinicTimeRange";
 import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 
 import type { ClinicBookingRequest, ClinicSession } from "./api/clinicBooking.api";
@@ -80,7 +81,7 @@ export function hasValidPreferredRange(
 
 export function preferredRangeText(request: ClinicBookingRequest): string | null {
   if (request.booking_start_time && request.booking_end_time) {
-    return `이용 ${formatTime(request.booking_start_time)}–${formatTime(request.booking_end_time)}`;
+    return `이용 ${clinicBookingRangeText(request)}`;
   }
   if (!request.preferred_start_time || !request.preferred_end_time) return null;
   return `희망 ${formatTime(request.preferred_start_time)}–${formatTime(request.preferred_end_time)}`;

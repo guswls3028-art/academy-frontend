@@ -1,3 +1,4 @@
+import { useClinicClock } from "@/shared/ui/clinic/useClinicClock";
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/clinic/pages/ClinicPage.tsx
 // 클리닉 — 오늘의 세션 + 참가자 관리
@@ -45,8 +46,11 @@ import {
   type ClinicBookingMode,
 } from "@/shared/ui/clinic/ClinicBookingModeChoice";
 import {
-  isUnsupportedOvernightClinicRange,
-  UNSUPPORTED_OVERNIGHT_CLINIC_RANGE_MESSAGE,
+  clinicBookingRangeText,
+  clinicTimeLabel,
+  isOngoingPreviousClinic,
+  isInvalidClinicRange,
+  INVALID_CLINIC_RANGE_MESSAGE,
 } from "@/shared/ui/clinic/clinicTimeRange";
 
 function durationMinutes(start: string, end: string): number {
@@ -65,6 +69,7 @@ function toHHmmss(s: string): string {
 }
 
 export default function ClinicPage() {
+  const now = useClinicClock();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [dateFrom, setDateFrom] = useState(todayISO());
@@ -77,6 +82,14 @@ export default function ClinicPage() {
     queryFn: () => fetchClinicSessions({ date_from: dateFrom, date_to: dateTo }),
     staleTime: 30_000,
   });
+
+  const yesterday = now.subtract(1, "day").format("YYYY-MM-DD");
+  const ongoingQ = useQuery({
+    queryKey: teacherClinicQueryKeys.sessionsRange(yesterday, yesterday),
+    queryFn: () => fetchClinicSessions({ date_from: yesterday, date_to: yesterday }),
+    refetchInterval: 30_000,
+  });
+  const ongoing = (ongoingQ.data ?? []).filter((session) => isOngoingPreviousClinic(session, now));
 
   const deleteMut = useMutation({
     mutationFn: deleteClinicSession,
@@ -127,6 +140,15 @@ export default function ClinicPage() {
         )}
       </div>
 
+      {ongoingQ.isError && <div role="alert">전날 진행 중인 클리닉을 확인하지 못했습니다.
+        <button type="button" disabled={ongoingQ.isFetching} onClick={() => void ongoingQ.refetch()}>다시 확인</button>
+      </div>}
+      {ongoing.map((session) => (
+        <button key={session.id} type="button" className="text-sm p-2 rounded border"
+          onClick={() => { setDateFrom(yesterday); setDateTo(yesterday); setSelectedSession(session.id); }}>
+          전날 시작·진행 중 · {yesterday} {session.start_time?.slice(0, 5)}
+        </button>
+      ))}
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : sessions && sessions.length > 0 ? (
@@ -207,7 +229,7 @@ function SessionCard({
           </div>
           <div className="flex gap-2 text-xs mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
             {session.booking_mode === "time_range" && session.start_time && session.end_time
-              ? <span>운영 {session.start_time.slice(0, 5)}–{session.end_time.slice(0, 5)}</span>
+              ? <span>운영 {session.start_time.slice(0, 5)}–{clinicTimeLabel(session.end_time, session.start_time, session.end_date, session.date)}</span>
               : session.start_time && <span>{session.start_time.slice(0, 5)}</span>}
             {session.location && <span>{session.location}</span>}
             {session.participant_count != null && (
@@ -423,7 +445,7 @@ function ParticipantList({
                 )}
                 {p.booking_start_time && p.booking_end_time && (
                   <span className="text-[11px] font-semibold" style={{ color: "var(--tc-primary)" }}>
-                    예약 {p.booking_start_time.slice(0, 5)}–{p.booking_end_time.slice(0, 5)}
+                    예약 {clinicBookingRangeText({ ...p, session_date: sessionDate, session_start_time: availableSessions.find((candidate) => candidate.id === sessionId)?.start_time })}
                   </span>
                 )}
                 {p.student_request_memo && (
@@ -674,8 +696,8 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
 
   const capacityNum = Number(capacity);
   const duration = startTime && endTime ? durationMinutes(startTime, endTime) : 60;
-  const hasUnsupportedOvernightRange = bookingMode === "time_range"
-    && isUnsupportedOvernightClinicRange(startTime, endTime);
+  const hasInvalidRange = bookingMode === "time_range"
+    && isInvalidClinicRange(startTime, endTime);
   const canSubmit =
     !!date &&
     !!startTime &&
@@ -683,7 +705,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
     capacityNum > 0 &&
     (bookingMode === "fixed_slot" || !!endTime) &&
     (!endTime || duration > 0) &&
-    !hasUnsupportedOvernightRange &&
+    !hasInvalidRange &&
     (bookingMode === "fixed_slot" || (
       duration % bookingIntervalMinutes === 0 &&
       bookingMaxStayMinutes >= bookingIntervalMinutes &&
@@ -762,9 +784,9 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
             종료 시간은 시작 시간 이후여야 합니다.
           </div>
         )}
-        {hasUnsupportedOvernightRange && (
+        {hasInvalidRange && (
           <div className="text-[11px]" role="alert" style={{ color: "var(--tc-danger)" }}>
-            {UNSUPPORTED_OVERNIGHT_CLINIC_RANGE_MESSAGE}
+            {INVALID_CLINIC_RANGE_MESSAGE}
           </div>
         )}
         {bookingMode === "time_range" && <div className="flex gap-2">

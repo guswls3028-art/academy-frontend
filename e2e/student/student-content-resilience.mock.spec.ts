@@ -855,6 +855,8 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
 
   test("학생·학부모 주요 목록은 레거시 HTML 제목과 범위명을 노출하지 않는다", async ({ page }) => {
     test.setTimeout(4 * 60_000);
+    // Keep the fixture's August 10 clinic open while testing title rendering.
+    await page.clock.setFixedTime(new Date("2026-08-10T12:00:00+09:00"));
     await installStudentApi(page, { legacyHtml: true });
     const routes = [
       ["/student/dashboard", "이번 주 안내"],

@@ -22,6 +22,49 @@
   white-space: nowrap;
 }
 
+.ds-scores-collaborator {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+}
+
+.ds-scores-collaborator-help {
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.ds-scores-collaborator .ds-scores-collaborator-label {
+  white-space: normal;
+  word-break: keep-all;
+  text-align: center;
+}
+
+.ds-scores-collaborator button {
+  max-width: 100%;
+  min-height: 44px;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-brand-primary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.ds-scores-collaborator button:disabled { opacity: 0.6; cursor: wait; }
+.ds-scores-collaborator button:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .ds-scores-collaborator button { transition: none; } }
+
 .ds-scores-cell-conflict {
   display: flex;
   width: 100%;

@@ -402,7 +402,9 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await timeInputs.first().fill("23:00");
   await timeInputs.nth(1).fill("01:00");
   await createSheet.getByPlaceholder("예: 3층 자습실").fill("심야 자습실");
-  await expect(createSheet.getByText("익일 종료는 자정(00:00)까지만 지원합니다. 종료 시간을 같은 날 또는 00:00으로 선택해 주세요.")).toBeVisible();
+  await expect(createSheet.getByRole("button", { name: "생성", exact: true })).toBeEnabled();
+  await timeInputs.nth(1).fill("23:00");
+  await expect(createSheet.getByText("시작과 종료는 달라야 합니다. 24시간 미만의 운영 시간을 선택해 주세요.")).toBeVisible();
   await expect(createSheet.getByRole("button", { name: "생성", exact: true })).toBeDisabled();
   await timeInputs.first().fill("18:00");
   await timeInputs.nth(1).fill("00:00");

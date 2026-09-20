@@ -73,8 +73,10 @@ export async function carryOverClinicLink(id: number) {
  * POST /progress/clinic-links/{id}/unresolve/
  * 통과 취소
  */
-export async function unresolveClinicLink(id: number) {
-  const res = await api.post(`/progress/clinic-links/${id}/unresolve/`);
+export async function unresolveClinicLink(id: number, expectedResolvedAt: string) {
+  const res = await api.post(`/progress/clinic-links/${id}/unresolve/`, {
+    expected_resolved_at: expectedResolvedAt,
+  });
   return res.data as ClinicLink;
 }
 

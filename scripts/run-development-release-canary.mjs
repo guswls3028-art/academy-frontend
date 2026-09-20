@@ -7,7 +7,7 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
-import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH } from "./release-playback-end-proxy.mjs";
+import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "./release-playback-end-proxy.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REGION = "ap-northeast-2";
@@ -406,7 +406,7 @@ export function observeReleaseTestResult(stdout) {
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
     reportedTestErrors: [], testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
-    strictBrowserDefects: [], strictBrowserSuppressions: [],
+    strictBrowserDefects: [], strictBrowserSuppressions: [], clinicInteractionTimings: [],
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null, longVideoFailure: null, longVideoErrorCodes: [], longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
@@ -534,12 +534,22 @@ export function observeReleaseTestResult(stdout) {
               let payload;
               try { payload = JSON.parse(line); } catch { continue; }
               for (const name of ["releaseTestFailure", "omrCleanupStatus", "crossTenantDenialProbe",
-                "releaseStrictBrowserDefect", "releaseStrictBrowserSuppression"]) {
+                "releaseStrictBrowserDefect", "releaseStrictBrowserSuppression", "clinicInteractionTiming"]) {
                 if (!Object.hasOwn(payload ?? {}, name)) continue;
                 const value = payload[name];
                 let valid = Object.hasOwn(FLOW_COUNTS, file);
                 let destination;
-                if (name === "releaseStrictBrowserDefect") {
+                if (name === "clinicInteractionTiming") {
+                  destination = "clinicInteractionTimings";
+                  const elapsed = (ms) => Number.isInteger(ms) && ms >= 0 && ms <= 2 * 60 * 60_000;
+                  valid &&= exactKeys(value, ["schema", "action", "viewport", "responseMs", "listVisibleMs"])
+                    && value.schema === "release-clinic-interaction/v1"
+                    && ((value.action === "manual-add" && file === "clinic-roundtrip.spec.ts")
+                      || (value.action === "manual-pass" && file === "student-clinic-required-cancel-realuse.spec.ts"))
+                    && [390, 1366].includes(value.viewport)
+                    && elapsed(value.responseMs) && elapsed(value.listVisibleMs)
+                    && value.listVisibleMs >= value.responseMs;
+                } else if (name === "releaseStrictBrowserDefect") {
                   destination = "strictBrowserDefects";
                   valid &&= exactKeys(value, ["schema", "category", "source", "count"])
                     && value.schema === "strict-browser-defect/v1"
@@ -667,6 +677,11 @@ export function observeReleaseTestResult(stdout) {
     .filter(([, pattern]) => longVideoMessages.some((message) => pattern.test(message)))
     .map(([code]) => code))].sort();
   return observation;
+}
+
+export function assertClinicInteractionTimings(observation) {
+  assert.deepEqual(observation.clinicInteractionTimings.map(({ action }) => action).sort(),
+    ["manual-add", "manual-pass"], "Clinic interaction timing evidence missing or duplicated");
 }
 
 export async function runPreflightStages(stages, persist, frontendSha) {
@@ -1000,7 +1015,7 @@ function serveArtifact(directory, playbackBoundary) {
   const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
     ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp" };
   const server = http.createServer((request, response) => {
-    if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH)) {
+    if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH) || request.url?.startsWith(SCORE_EXIT_PROXY_PATH)) {
       playbackProxy.handle(request, response);
       return;
     }
@@ -1381,6 +1396,7 @@ export async function run() {
     realUseObservation = observeReleaseTestResult(result.stdout);
     assert.equal(result.code, 0, "Required development real-use failed (raw credential-bearing report is not published)");
     counts = assertReleaseSummary(JSON.parse(result.stdout));
+    assertClinicInteractionTimings(realUseObservation);
     assert.ok(realUseObservation.longVideo, "Long-video browser evidence missing or invalid");
     await server.closePlaybackProxy();
     await operation("Inspect", scenario.tenant_id, "post-playback", longVideo.video_id);

@@ -32,8 +32,8 @@ import { createClinicParticipantsBulk } from "../api/clinicParticipants.api";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import {
-  isUnsupportedOvernightClinicRange,
-  UNSUPPORTED_OVERNIGHT_CLINIC_RANGE_MESSAGE,
+  isInvalidClinicRange,
+  INVALID_CLINIC_RANGE_MESSAGE,
 } from "@/shared/ui/clinic/clinicTimeRange";
 import { clinicQueryKeys } from "../queryKeys";
 import {
@@ -187,7 +187,7 @@ export default function ClinicCreatePanel({
     savingDefaultPolicy,
   } = useClinicBookingPolicy({ sourceSession, settings: clinicSettingsQ.data });
   const parsedTimeRange = parseTimeRange(timeRange);
-  const hasUnsupportedOvernightRange = bookingMode === "time_range" && isUnsupportedOvernightClinicRange(parsedTimeRange.start, parsedTimeRange.end);
+  const hasInvalidRange = bookingMode === "time_range" && isInvalidClinicRange(parsedTimeRange.start, parsedTimeRange.end);
   const draftAssignment = useClinicDraftAssignment({
     required: !isEdit && bookingMode === "time_range" && selectedCount > 0,
     windowStart: parsedTimeRange.start,
@@ -292,7 +292,7 @@ export default function ClinicCreatePanel({
     const duration = durationMinutes(start, end);
     if (duration <= 0)
       return message.error("종료 시간은 시작 시간 이후여야 합니다.");
-    if (hasUnsupportedOvernightRange) return message.warning(UNSUPPORTED_OVERNIGHT_CLINIC_RANGE_MESSAGE);
+    if (hasInvalidRange) return message.warning(INVALID_CLINIC_RANGE_MESSAGE);
     if (bookingMode === "time_range" && duration % bookingIntervalMinutes !== 0) {
       return message.warning(`시간 범위 운영 시간은 ${bookingIntervalMinutes}분 단위로 맞춰주세요.`);
     }
@@ -688,7 +688,7 @@ export default function ClinicCreatePanel({
         onAllowTimePreferenceChange={setAllowTimePreference}
         allowMultiSlotBooking={allowMultiSlotBooking}
         onAllowMultiSlotBookingChange={setAllowMultiSlotBooking}
-        timeRangeError={hasUnsupportedOvernightRange ? UNSUPPORTED_OVERNIGHT_CLINIC_RANGE_MESSAGE : undefined}
+        timeRangeError={hasInvalidRange ? INVALID_CLINIC_RANGE_MESSAGE : undefined}
         showBookingModeSelector={Boolean(sourceSession)}
       />
       {/* 제목 + 정원 (한 행) */}
@@ -932,7 +932,7 @@ export default function ClinicCreatePanel({
         isSaving ||
         (needsLectureSummary && lecturesQ.isLoading) ||
         isPastDate ||
-        hasUnsupportedOvernightRange ||
+        hasInvalidRange ||
         (draftAssignment.required && (!draftAssignment.bookingStart || !draftAssignment.bookingEnd)) ||
         (showSectionPicker && clinicSectionsQ.isError) ||
         (showFilters && lecturesQ.isError)

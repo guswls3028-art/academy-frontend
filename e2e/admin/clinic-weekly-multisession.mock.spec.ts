@@ -149,8 +149,8 @@ type OperationsState = {
     booking_mode: "fixed_slot" | "time_range";
     interval_minutes: 30 | 60;
     max_stay_minutes: number;
-    window: { start_time: string; end_time: string };
-    slots: Array<{ start_time: string; end_time: string; remaining_capacity: number }>;
+    window: { start_time: string; end_time: string; start_date?: string; end_date?: string };
+    slots: Array<{ start_time: string; end_time: string; start_date?: string; end_date?: string; remaining_capacity: number }>;
   }>;
 };
 
@@ -256,7 +256,7 @@ async function installApi(
       if (session) Object.assign(session, payload);
       return json({ id: sessionId, ...payload });
     }
-    if (path === "/clinic/sessions/tree/" && method === "GET") return json(sessionRows);
+    if (path === "/clinic/sessions/tree/" && method === "GET") return json(sessionRows.map(({ ...row }) => { delete (row as Record<string, unknown>).end_date; delete (row as Record<string, unknown>).end_time; return row; }));
     const availabilityMatch = path.match(/^\/clinic\/sessions\/(\d+)\/availability\/$/);
     if (availabilityMatch && method === "GET") {
       const sessionId = Number(availabilityMatch[1]);
@@ -298,6 +298,8 @@ async function installApi(
           clinic_reason: target?.clinic_reason ?? null,
           booking_start_time: payload.booking_start_time ?? null,
           booking_end_time: payload.booking_end_time ?? null,
+          booking_start_date: operationsState?.availabilityBySession?.[sessionId]?.slots.find((slot) => slot.start_time === payload.booking_start_time)?.start_date,
+          booking_end_date: operationsState?.availabilityBySession?.[sessionId]?.slots.find((slot) => slot.end_time === payload.booking_end_time)?.end_date,
         };
         operationsState?.participants.push(row);
         return row;
@@ -685,7 +687,7 @@ test("자유지정 선택과 대상자 모달 상태는 늦게 도착한 다중�
   });
 });
 
-test("시간 범위 생성은 일반 익일 종료를 막고 정확한 자정 종료는 허용한다", async ({ page }) => {
+test("시간 범위 생성은 익일 종료를 허용하고 같은 시각만 차단한다", async ({ page }) => {
   const state: ScheduleState = { createPayloads: [], updatePayloads: [] };
   await seed(page);
   await installApi(page, undefined, undefined, state);
@@ -703,8 +705,12 @@ test("시간 범위 생성은 일반 익일 종료를 막고 정확한 자정 �
   await timePopover.getByLabel("분 단위 직접 입력").fill("01:00");
   await timePopover.getByRole("button", { name: "적용", exact: true }).click();
 
-  await expect(dialog.getByText("익일 종료는 자정(00:00)까지만 지원합니다. 종료 시간을 같은 날 또는 00:00으로 선택해 주세요.")).toBeVisible();
   const createButton = dialog.getByRole("button", { name: /클리닉 만들기/ });
+  await expect(createButton).toBeEnabled();
+  await dialog.getByRole("button", { name: "종료 시간 선택", exact: true }).click();
+  await timePopover.getByLabel("분 단위 직접 입력").fill("23:00");
+  await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+  await expect(dialog.getByText("시작과 종료는 달라야 합니다. 24시간 미만의 운영 시간을 선택해 주세요.")).toBeVisible();
   await expect(createButton).toBeDisabled();
   expect(state.createPayloads).toHaveLength(0);
 
@@ -715,14 +721,26 @@ test("시간 범위 생성은 일반 익일 종료를 막고 정확한 자정 �
   await timePopover.getByLabel("분 단위 직접 입력").fill("00:00");
   await timePopover.getByRole("button", { name: "적용", exact: true }).click();
   await expect(createButton).toBeEnabled();
+  await dialog.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
+  await timePopover.getByLabel("분 단위 직접 입력").fill("23:00");
+  await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+  await dialog.getByRole("button", { name: "종료 시간 선택", exact: true }).click();
+  await timePopover.getByLabel("분 단위 직접 입력").fill("01:00");
+  await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+  await dialog.getByRole("combobox", { name: "예약 간격" }).click();
+  await page.locator(".ant-select-dropdown:visible").getByText("30분", { exact: true }).click();
+  await dialog.getByRole("spinbutton", { name: "최대 체류 시간" }).fill("120");
   await createButton.click();
+  await expect(page.getByRole("alertdialog", { name: "클리닉 일정 최종 확인" })).toContainText("23:00–익일 01:00");
   await page.getByRole("alertdialog", { name: "클리닉 일정 최종 확인" })
     .getByRole("button", { name: "확인하고 만들기" })
     .click();
   await expect.poll(() => state.createPayloads).toHaveLength(1);
   expect(state.createPayloads[0]).toMatchObject({
-    start_time: "18:00:00",
-    duration_minutes: 360,
+    start_time: "23:00:00",
+    duration_minutes: 120,
+    booking_interval_minutes: 30,
+    booking_max_stay_minutes: 120,
     booking_mode: "time_range",
   });
 });
@@ -3249,3 +3267,60 @@ test("선생님 모바일 메뉴에서 패스카드 색상 리모컨을 연다",
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.screenshot({ path: "test-results/teacher-clinic-passcard-390.png", fullPage: true });
 });
+
+for (const width of [1366, 390]) {
+  test(`전날 진행 중인 자유지정 클리닉에 학생을 직접 추가하고 실제 날짜를 재조회한다 (${width}px)`, async ({ page }, testInfo) => {
+    const operatingDate = "2026-08-31";
+    const actualDate = "2026-09-01";
+    const rangeSession = { ...sessions[2], date: operatingDate, start_time: "23:00:00", end_time: "01:00:00", end_date: actualDate, duration_minutes: 120, booking_mode: "time_range", booking_interval_minutes: 30, booking_max_stay_minutes: 120 };
+    const state: OperationsState = {
+      participants: [], participantBulkPayloads: [], participantRequestQueries: [],
+      targets: [{ enrollment_id: 1301, student_id: 601, student_name: "심야 학생", clinic_reason: "exam", reason: "score", clinic_link_id: 8901, session_id: 3201, source_type: "exam", source_id: 4201 }],
+      availabilityBySession: { 702: {
+        booking_mode: "time_range", interval_minutes: 30, max_stay_minutes: 120,
+        window: { start_time: "23:00", end_time: "01:00", start_date: operatingDate, end_date: actualDate },
+        slots: [["23:00", "23:30"], ["23:30", "00:00"], ["00:00", "00:30"], ["00:30", "01:00"]].map(([start_time, end_time]) => ({ start_time, end_time, remaining_capacity: 2, start_date: start_time < "23:00" ? actualDate : operatingDate, end_date: end_time < "23:00" ? actualDate : operatingDate })),
+      } },
+    };
+    await seed(page);
+    await page.clock.setFixedTime(new Date("2026-09-01T00:30:00"));
+    await installApi(page, undefined, state, { createPayloads: [], updatePayloads: [], sessions: [rangeSession] });
+    let failPreviousMonth = true;
+    await page.route("**/api/v1/clinic/sessions/tree/?*", (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get("month") === "8" && failPreviousMonth) return route.fulfill({ status: 503, json: { detail: "일시적으로 확인할 수 없습니다." } });
+      return route.fallback();
+    });
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/clinic/operations`, { timeout: 45_000 });
+    const discoveryError = page.getByRole("alert").filter({ hasText: "전날 진행 중인 클리닉을 확인하지 못했습니다." });
+    await expect(discoveryError).toBeVisible();
+    failPreviousMonth = false;
+    await discoveryError.getByRole("button", { name: "다시 확인" }).click();
+    await expect(discoveryError).toHaveCount(0);
+    await page.getByRole("button", { name: "전날 시작·진행 중 · 2026-08-31 23:00" }).click();
+    await expect(page).toHaveURL(/scope=day&date=2026-08-31&session=702/);
+    await page.getByRole("button", { name: "학생 추가하기", exact: true }).click();
+    const targets = page.getByRole("dialog", { name: "대상자 선택" });
+    await targets.getByRole("checkbox", { name: "심야 학생 선택" }).check();
+    await targets.getByRole("button", { name: "선택 확정 (1명)" }).click();
+    const picker = page.getByRole("dialog", { name: "실제 예약 시간 선택" });
+    await picker.getByRole("button", { name: "2026-09-01 00:30 시작, 잔여 2자리" }).click();
+    await picker.getByRole("button", { name: "2026-09-01 01:00 종료, 총 30분" }).click();
+    state.participantBulkFailure = { detail: "선택한 구간의 잔여 정원이 변경되었습니다.", status: 409 };
+    await picker.getByRole("button", { name: "이 시간으로 1명 추가" }).click();
+    await expect(page.getByText(/학생을 추가하지 못했습니다.*선택한 구간의 잔여 정원이 변경되었습니다/).first()).toBeVisible();
+    await expect(picker.getByRole("button", { name: "2026-09-01 00:30 시작, 잔여 2자리" })).toHaveAttribute("aria-pressed", "true");
+    state.participantBulkFailure = null;
+    await page.screenshot({ path: testInfo.outputPath(`overnight-manual-selection-${width}.png`), fullPage: true });
+    await picker.getByRole("button", { name: "이 시간으로 1명 추가" }).click();
+    await expect(picker).toBeHidden();
+    expect(state.participantBulkPayloads?.at(-1)).toEqual({ session_ids: [702], enrollment_ids: [1301], booking_start_time: "00:30", booking_end_time: "01:00" });
+    await expect(page.getByText("예약 2026-09-01 00:30–01:00")).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("예약 2026-09-01 00:30–01:00")).toBeVisible();
+    expect(state.participantRequestQueries?.some((query) => query.includes("session_date_from=2026-08-31"))).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`overnight-manual-booked-${width}.png`), fullPage: true });
+  });
+}
