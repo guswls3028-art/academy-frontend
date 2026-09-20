@@ -143,11 +143,13 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
     <div className="message-body-editor" data-disabled={disabled || undefined}>
       <div className="message-body-editor__toolbar">
         <Button type="button" intent="ghost" size="sm" aria-label="실행 취소" title="실행 취소 (Ctrl+Z / ⌘Z)"
+          leftIcon={<Undo2 size={ICON.sm} />}
           disabled={disabled || !editor?.can().undo()} onMouseDown={(event) => event.preventDefault()}
-          onClick={() => editor?.chain().focus().undo().run()}><Undo2 size={ICON.sm} />실행 취소</Button>
+          onClick={() => editor?.chain().focus().undo().run()}>실행 취소</Button>
         <Button type="button" intent="ghost" size="sm" aria-label="다시 실행" title="다시 실행 (Ctrl+Shift+Z / Ctrl+Y)"
+          leftIcon={<Redo2 size={ICON.sm} />}
           disabled={disabled || !editor?.can().redo()} onMouseDown={(event) => event.preventDefault()}
-          onClick={() => editor?.chain().focus().redo().run()}><Redo2 size={ICON.sm} />다시 실행</Button>
+          onClick={() => editor?.chain().focus().redo().run()}>다시 실행</Button>
         <span className="message-body-editor__hint">블록은 학생별 정보로 바뀝니다</span>
       </div>
       <EditorContent editor={editor} className="message-body-editor__content" />
