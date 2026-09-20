@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { EditorContent, Node, useEditor, type Editor, type JSONContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import { closeHistory } from "@tiptap/pm/history";
 import { Redo2, Undo2 } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
 import { getTemplateBlock } from "../constants/templateBlocks";
@@ -27,6 +28,12 @@ function messageDocument(text: string): JSONContent {
 
 function insertionContent(text: string): JSONContent[] {
   return /[\r\n]/.test(text) ? messageDocument(text).content ?? [] : inlineContent(text);
+}
+
+function insertMessageContent(editor: Editor, text: string): void {
+  editor.chain().focus().command(({ tr }) => { closeHistory(tr); return true; })
+    .insertContent(insertionContent(text)).run();
+  editor.view.dispatch(closeHistory(editor.state.tr));
 }
 
 function messageText(node: JSONContent): string {
@@ -65,6 +72,7 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
 }, ref) => {
   const currentEditor = useRef<Editor | null>(null);
   const editor = useEditor({
+    coreExtensionOptions: { clipboardTextSerializer: { blockSeparator: "\n" } },
     extensions: [
       StarterKit.configure({
         blockquote: false, bold: false, bulletList: false, code: false,
@@ -84,7 +92,7 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
         const text = event.clipboardData?.getData("text/plain");
         if (text == null) return false;
         event.preventDefault();
-        currentEditor.current?.chain().focus().insertContent(insertionContent(text)).run();
+        if (currentEditor.current) insertMessageContent(currentEditor.current, text);
         return true;
       },
       // Prevent rich external drops from changing a plain-text message's format.
@@ -96,7 +104,7 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
         const activeEditor = currentEditor.current;
         const point = activeEditor?.view.posAtCoords({ left: event.clientX, top: event.clientY });
         if (point) activeEditor?.commands.setTextSelection(point.pos);
-        activeEditor?.chain().focus().insertContent(insertionContent(text)).run();
+        if (activeEditor) insertMessageContent(activeEditor, text);
         return true;
       },
     },
@@ -112,7 +120,7 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
   useImperativeHandle(ref, () => ({
     insert(text) {
       if (!editor || disabled) return;
-      editor.chain().focus().insertContent(insertionContent(text)).run();
+      insertMessageContent(editor, text);
     },
     focus: () => { editor?.commands.focus(); },
   }), [editor, disabled]);

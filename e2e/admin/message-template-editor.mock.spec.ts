@@ -2,7 +2,7 @@ import { expect, test, type Page } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
-async function openTemplateEditor(page: Page, openEditor = true) {
+async function openTemplateEditor(page: Page, openEditor = true, initialBody = "한글 안내 #{시험총점}") {
   const baseUrl = getBaseUrl("admin");
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl), "문구 편집 검증은 로컬 route mock 전용");
   await installLocalAuthApiStubs(page);
@@ -18,7 +18,7 @@ async function openTemplateEditor(page: Page, openEditor = true) {
     name: "수업 결과 검증 문구",
     category: "grades",
     subject: "",
-    body: "한글 안내 #{시험총점}",
+    body: initialBody,
     is_system: false,
     is_user_default: false,
     solapi_status: "",
@@ -29,7 +29,9 @@ async function openTemplateEditor(page: Page, openEditor = true) {
   const writes: Record<string, unknown>[] = [];
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    if (path === "/api/v1/messaging/templates/991/" && route.request().method() === "PATCH") {
+    if (path === "/api/v1/core/subscription/") {
+      await route.fulfill({ json: { tenant_name: "실제 발송학원" } });
+    } else if (path === "/api/v1/messaging/templates/991/" && route.request().method() === "PATCH") {
       const payload = route.request().postDataJSON() as Record<string, unknown>;
       writes.push(payload);
       saved = { ...saved, ...payload };
@@ -134,5 +136,71 @@ test.describe("안내문 변수 편집", () => {
     await modal.getByRole("button", { name: "수정", exact: true }).click();
     await expect(modal).toBeHidden();
     expect(writes[0].body).toBe("한글 안내 #{시험총점}한글 안내 #{시험총점}");
+  });
+
+  test("빠른 입력 사이에 넣은 블록은 앞뒤 문장과 따로 실행 취소하고 다시 실행한다", async ({ page }) => {
+    const writes = await openTemplateEditor(page);
+    const modal = page.getByRole("dialog", { name: "문구 수정", exact: true });
+    const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+    await expect(editor).toHaveAttribute("contenteditable", "true");
+    // Keep all edits inside the history grouping window even on a slow CI worker.
+    await page.clock.setFixedTime(new Date());
+    await editor.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.insertText(" 빠른 입력");
+    await modal.getByRole("button", { name: "시험 총점", exact: true }).click();
+    await page.keyboard.insertText(" 뒤 문장");
+    await editor.press("Control+z");
+    await expect(editor).not.toContainText("뒤 문장");
+    await expect(editor).toContainText("빠른 입력");
+    await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(2);
+    await editor.press("Control+z");
+    await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+    await expect(editor).toContainText("빠른 입력");
+    await editor.press("Control+y");
+    await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(2);
+    await editor.press("Control+y");
+    await expect(editor).toContainText("뒤 문장");
+    await modal.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(modal).toBeHidden();
+    expect(writes[0].body).toBe("한글 안내 #{시험총점} 빠른 입력#{시험총점} 뒤 문장");
+  });
+
+  test("여러 줄과 빈 줄을 복사·붙여넣기하고 블록 삭제를 되돌려 원문 그대로 저장한다", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    const original = "첫 줄 #{학생이름3}\n둘째 줄\n\n마지막 #{시험총점}";
+    const writes = await openTemplateEditor(page, true, original);
+    const modal = page.getByRole("dialog", { name: "문구 수정", exact: true });
+    const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+    await editor.click();
+    await editor.press("Control+a");
+    await editor.press("Control+c");
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(original);
+    await page.keyboard.insertText("임시 교체 문장");
+    await editor.press("Control+a");
+    await editor.press("Control+v");
+    await expect(editor.locator('[data-message-variable]')).toHaveCount(2);
+    await editor.press("Control+z");
+    await expect(editor).toHaveText("임시 교체 문장");
+    await editor.press("Control+y");
+    await expect(editor.locator('[data-message-variable]')).toHaveCount(2);
+    await editor.press("Control+End");
+    await editor.press("Backspace");
+    await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(0);
+    await editor.press("Control+z");
+    await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+    await editor.press("Control+a");
+    await editor.press("Control+c");
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(original);
+    await modal.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(modal).toBeHidden();
+    expect(writes[0].body).toBe(original);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(editor.locator('[data-message-variable]')).toHaveCount(2);
+    await editor.click();
+    await editor.press("Control+a");
+    await editor.press("Control+c");
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(original);
   });
 });

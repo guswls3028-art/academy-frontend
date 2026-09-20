@@ -22,7 +22,7 @@ import {
 } from "../constants/alimtalkEnvelope";
 import GradesBlockPanel from "./GradesBlockPanel";
 import MessageBodyEditor, { type MessageBodyEditorHandle } from "./MessageBodyEditor";
-import { useProgram } from "@/shared/program";
+import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
 import AlimtalkTemplateInfoPanel, {
   getAlimtalkTemplateType,
   getAlimtalkTemplateTypeFromCategory,
@@ -63,7 +63,7 @@ export default function TemplateEditModal({
   isDeleting = false,
   trigger,
 }: TemplateEditModalProps) {
-  const { program } = useProgram();
+  const { data: academyName = "", isError: isAcademyError, refetch: refetchAcademy } = useMessageAcademyName(open);
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -155,7 +155,8 @@ export default function TemplateEditModal({
                   {alimtalkType ? (
                     <>
                       <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginBottom: 4, fontStyle: "italic" }}>
-                        학생을 선택하면 각 블록에 실제 정보가 들어갑니다.
+                        {isAcademyError ? <span role="alert">발송 학원명을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => void refetchAcademy()}>다시 확인</Button></span>
+                          : "학생을 선택하면 각 블록에 실제 정보가 들어갑니다."}
                       </div>
                       <div className="template-preview-kakao__header">
                         <span className="template-preview-kakao__header-label">알림톡 도착</span>
@@ -165,8 +166,8 @@ export default function TemplateEditModal({
                       </div>
                       <div className="template-preview-kakao__body" style={{ lineHeight: 1.7, whiteSpace: "pre-wrap", fontSize: 12 }}>
                         {renderPreviewWithActualData(
-                          renderAlimtalkFullPreview(alimtalkType, hideInternalAlimtalkMemoToken(body, ""), undefined, { 학원명: program?.display_name ?? "" }),
-                          { 학원명: program?.display_name ?? "", 학원이름: program?.display_name ?? "" },
+                          renderAlimtalkFullPreview(alimtalkType, hideInternalAlimtalkMemoToken(body, ""), undefined, { 학원명: academyName }),
+                          { 학원명: academyName, 학원이름: academyName },
                         )}
                       </div>
                     </>

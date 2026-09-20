@@ -5,7 +5,7 @@
 /* eslint-disable react-refresh/only-export-components, no-restricted-syntax -- helper 함수 + 컴포넌트 한 파일 SSOT + 안내 패널 inline style (2026-05-14 baseline shift fix) */
 
 import { getBlockColor } from "../constants/templateBlocks";
-import { useProgram } from "@/shared/program";
+import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
 import {
   getAlimtalkTemplateLabel,
   getAlimtalkTemplateType,
@@ -206,7 +206,7 @@ export default function AlimtalkTemplateInfoPanel({
   /** caller 호환 — 본 컴포넌트는 readonly 안내라 비활성 상태 표시 안 함 */
   disabled?: boolean;
 }) {
-  const { program } = useProgram();
+  const { data: academyName } = useMessageAcademyName();
   if (!templateType) return null;
 
   const autoVars = TEMPLATE_AUTO_VARS[templateType] || [];
@@ -267,7 +267,7 @@ export default function AlimtalkTemplateInfoPanel({
             <span style={{ fontWeight: 700, color: v.color, minWidth: 60 }}>{v.label}</span>
             { }
             <span style={{ color: "var(--color-text-muted)", fontSize: 10 }}>
-              {v.label === "학원이름" || v.label === "학원명" ? program?.display_name || "학원 정보" : "자동 입력"}
+              {v.label === "학원이름" || v.label === "학원명" ? academyName || "학원 정보 확인 중" : "자동 입력"}
             </span>
           </div>
         ))}

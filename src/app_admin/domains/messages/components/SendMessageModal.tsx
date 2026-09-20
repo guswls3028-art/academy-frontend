@@ -61,7 +61,7 @@ import {
 import GradesBlockPanel from "./GradesBlockPanel";
 import TemplatePickerModal from "./TemplatePickerModal";
 import MessageBodyEditor, { type MessageBodyEditorHandle } from "./MessageBodyEditor";
-import { useProgram } from "@/shared/program";
+import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
 import {
   getAlimtalkTemplateLabel,
   getAlimtalkTemplateTypeFromCategory,
@@ -293,7 +293,7 @@ export default function SendMessageModal({
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
-  const { program } = useProgram();
+  const { data: academyName = "", isError: isAcademyError, refetch: refetchAcademy } = useMessageAcademyName(open);
 
   // ─── State ───
   const [subject, setSubject] = useState("");
@@ -564,12 +564,12 @@ export default function SendMessageModal({
     const perStudent = recomputePerStudentVarsRef?.current?.(currentBody) ?? alimtalkExtraVarsPerStudent;
     const firstStudent = perStudent?.[studentIds[0]];
     return {
-      학원명: program?.display_name ?? "",
-      학원이름: program?.display_name ?? "",
       ...alimtalkExtraVars,
       ...firstStudent,
+      학원명: academyName,
+      학원이름: academyName,
     };
-  }, [program?.display_name, alimtalkExtraVars, alimtalkExtraVarsPerStudent, recomputePerStudentVarsRef, studentIds]);
+  }, [academyName, alimtalkExtraVars, alimtalkExtraVarsPerStudent, recomputePerStudentVarsRef, studentIds]);
   const previewData = useMemo(() => getPreviewData(body), [getPreviewData, body]);
   const previewBody = renderPreviewWithActualData(previewData._body_subst ?? body, previewData, freeContent);
 
@@ -1207,7 +1207,8 @@ export default function SendMessageModal({
                   return (
                     <div className="template-preview-kakao">
                       <div className="template-preview-kakao__helper">
-                        기본 정보는 자동으로 채워지고, 안내문은 학생별로 표시됩니다
+                        {isAcademyError ? <span role="alert">발송 학원명을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => void refetchAcademy()}>다시 확인</Button></span>
+                          : "기본 정보는 자동으로 채워지고, 안내문은 학생별로 표시됩니다"}
                       </div>
                       <div className="template-preview-kakao__card">
                         <div className="template-preview-kakao__header">

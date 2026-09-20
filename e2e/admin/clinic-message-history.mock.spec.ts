@@ -46,6 +46,7 @@ async function installApi(page: Page, verifyQueries: string[]) {
     if (path === "/core/program/") {
       return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
     }
+    if (path === "/core/subscription/") return json({ tenant_name: "실제 발송학원", is_subscription_active: true });
     if (path === "/core/me/") {
       return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin" });
     }

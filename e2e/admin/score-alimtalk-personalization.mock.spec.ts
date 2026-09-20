@@ -39,6 +39,11 @@ async function installScoreAlimtalkRoutes(
     const path = new URL(request.url()).pathname;
     const method = request.method();
 
+    if (path === "/api/v1/core/subscription/") {
+      await route.fulfill({ json: { tenant_name: "실제 발송학원", is_subscription_active: true } });
+      return;
+    }
+
     if (/\/api\/v1\/results\/admin\/sessions\/9002\/scores\/$/.test(path) && method === "GET") {
       await route.fulfill({
         json: {
@@ -344,7 +349,8 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await expect(preview).toContainText("개인화학생1");
-      await expect(preview).toContainText("실제 검증학원");
+      await expect(preview).toContainText("실제 발송학원");
+      await expect(preview).not.toContainText("실제 검증학원");
       await expect(preview).not.toContainText("학원플러스");
       await expect(preview).toContainText("개인화 검증반");
       await expect(preview).toContainText("개인화 검증 차시");
