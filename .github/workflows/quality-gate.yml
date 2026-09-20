@@ -54,6 +54,23 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --shamefully-hoist
 
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.8"
+          cache: false
+      - name: Build pinned binary-safe SSM port transport
+        run: node scripts/binary-safe-ssm.mjs "${{ runner.temp }}/academy-ssm-binary-safe"
+      - name: Upload verified SSM port transport
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: binary-safe-ssm
+          path: |
+            ${{ runner.temp }}/academy-ssm-binary-safe/bin/
+            ${{ runner.temp }}/academy-ssm-binary-safe/manifest.json
+            ${{ runner.temp }}/academy-ssm-binary-safe/regression.log
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Production dependency audit
         run: pnpm audit --prod
 
@@ -361,6 +378,12 @@ jobs:
           aws --version
           session-manager-plugin --version
           pnpm exec playwright install chromium
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: binary-safe-ssm
+          path: ${{ runner.temp }}/academy-ssm-binary-safe
+      - name: Restore verified transport executable mode
+        run: chmod 0755 "${{ runner.temp }}/academy-ssm-binary-safe/bin/session-manager-plugin"
       - name: Assume frontend development QA role
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
@@ -371,6 +394,8 @@ jobs:
           allowed-account-ids: 809466760795
       - name: Run required real-use and exact cleanup-zero gate
         run: node scripts/run-development-release-canary.mjs
+        env:
+          ACADEMY_SSM_TOOLCHAIN_DIR: ${{ runner.temp }}/academy-ssm-binary-safe
       - name: Upload PII-free development release evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

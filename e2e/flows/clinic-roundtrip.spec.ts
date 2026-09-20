@@ -265,7 +265,7 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
     await createDialog.getByRole("combobox", { name: "예약 간격" }).click();
     await adminPage.locator(".ant-select-dropdown:visible").getByText("30분", { exact: true }).click();
     await createDialog.getByRole("spinbutton", { name: "최대 체류 시간" }).fill("120");
-    await createDialog.getByRole("button", { name: "클리닉 만들기", exact: true }).click();
+    await createDialog.getByRole("button", { name: /^클리닉 만들기 \(정원 \d+명\)$/ }).click();
     await expect(adminPage.getByRole("alertdialog", { name: "클리닉 일정 최종 확인" })).toContainText("23:00–익일 01:00");
     const createResponse = adminPage.waitForResponse((response) => response.request().method() === "POST"
       && new URL(response.url()).pathname.endsWith("/api/v1/clinic/sessions/"));
