@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import { FolderOpen, MonitorSmartphone } from "lucide-react";
 import api from "@/shared/api/axios";
+import { lectureMemoQueryKeys } from "@/shared/api/queryKeys/lectureMemos";
 
 import {
   getStudentDetail,
@@ -256,8 +257,8 @@ export default function StudentsDetailOverlay({
     mutationFn: (memo: string) => createMemo(id, memo),
     onSuccess: () => Promise.all([
       qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentDetail(id) }),
-      ...["attendance", "session-attendance", "session-enrollments"]
-        .map((key) => qc.invalidateQueries({ queryKey: [key] })),
+      ...lectureMemoQueryKeys.rosters
+        .map((queryKey) => qc.invalidateQueries({ queryKey })),
     ]),
     onError: () => { feedback.error("처리에 실패했습니다."); },
   });

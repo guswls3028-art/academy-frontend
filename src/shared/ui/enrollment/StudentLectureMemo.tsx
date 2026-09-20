@@ -9,6 +9,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import useAuth from "@/auth/hooks/useAuth";
 import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
+import { lectureMemoQueryKeys } from "@/shared/api/queryKeys/lectureMemos";
 import styles from "./StudentLectureMemo.module.css";
 
 type Props = {
@@ -73,12 +74,12 @@ function LectureMemoEditor({ enrollmentId, studentName, lectureTitle, studentMem
 
   useEffect(() => {
     let active = true;
-    queryClient.setQueryDefaults(["lecture-memo-draft"], { gcTime: Infinity });
+    queryClient.setQueryDefaults(lectureMemoQueryKeys.drafts, { gcTime: Infinity });
     setLoading(true);
     setError("");
     void fetchLectureMemo(enrollmentId).then((value) => {
       if (!active) return;
-      const recovery = draftScope ? queryClient.getQueryData<{ draft: string; baseline: LectureMemo }>(["lecture-memo-draft", draftScope]) : null;
+      const recovery = draftScope ? queryClient.getQueryData<{ draft: string; baseline: LectureMemo }>(lectureMemoQueryKeys.draft(draftScope)) : null;
       setBaseline(recovery?.baseline ?? value);
       setDraft(recovery?.draft ?? value.lecture_memo);
       setRestored(Boolean(recovery));
@@ -96,7 +97,7 @@ function LectureMemoEditor({ enrollmentId, studentName, lectureTitle, studentMem
       confirmText: "저장하지 않고 닫기",
       cancelText: "계속 편집",
     })) return;
-    if (baseline && draftScope) queryClient.removeQueries({ queryKey: ["lecture-memo-draft", draftScope], exact: true });
+    if (baseline && draftScope) queryClient.removeQueries({ queryKey: lectureMemoQueryKeys.draft(draftScope), exact: true });
     onClose();
   };
 
@@ -117,13 +118,12 @@ function LectureMemoEditor({ enrollmentId, studentName, lectureTitle, studentMem
     try {
       const saved = await saveLectureMemo(enrollmentId, draft, baseline.lecture_memo_updated_at);
       // Every session consumes the enrollment memo, including inactive cached rosters.
-      const roots = ["attendance", "session-attendance", "session-enrollments", "lecture-enrollments"];
-      for (const key of roots) {
-        queryClient.setQueriesData({ queryKey: [key] }, (previous: unknown) => {
+      for (const queryKey of lectureMemoQueryKeys.rosters) {
+        queryClient.setQueriesData({ queryKey }, (previous: unknown) => {
           const updateRows = (rows: unknown[]) => rows.map((row) => {
             if (!row || typeof row !== "object") return row;
             const item = row as Record<string, unknown>;
-            const id = key === "lecture-enrollments" ? item.id : item.enrollment_id ?? item.enrollment;
+            const id = queryKey[0] === "lecture-enrollments" ? item.id : item.enrollment_id ?? item.enrollment;
             return id === saved.id ? { ...item, lecture_memo: saved.lecture_memo, lecture_memo_updated_at: saved.lecture_memo_updated_at } : item;
           });
           if (Array.isArray(previous)) return updateRows(previous);
@@ -134,9 +134,9 @@ function LectureMemoEditor({ enrollmentId, studentName, lectureTitle, studentMem
           return previous;
         });
       }
-      if (draftScope) queryClient.removeQueries({ queryKey: ["lecture-memo-draft", draftScope], exact: true });
-      void Promise.all(roots
-        .map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+      if (draftScope) queryClient.removeQueries({ queryKey: lectureMemoQueryKeys.draft(draftScope), exact: true });
+      void Promise.all(lectureMemoQueryKeys.rosters
+        .map((queryKey) => queryClient.invalidateQueries({ queryKey })));
       feedback.success("강의 메모를 저장했습니다.");
       onClose();
     } catch (cause) {
@@ -169,7 +169,7 @@ function LectureMemoEditor({ enrollmentId, studentName, lectureTitle, studentMem
                 const text = event.target.value;
                 setDraft(text);
                 if (draftScope) {
-                  const key = ["lecture-memo-draft", draftScope];
+                  const key = lectureMemoQueryKeys.draft(draftScope);
                   if (text === baseline.lecture_memo) queryClient.removeQueries({ queryKey: key, exact: true });
                   else queryClient.setQueryData(key, { draft: text, baseline });
                 }
@@ -185,7 +185,7 @@ function LectureMemoEditor({ enrollmentId, studentName, lectureTitle, studentMem
               <p className={styles.latest}>{latest.lecture_memo || "(메모 없음)"}</p>
               <Button type="button" size="sm" onClick={() => {
                 setBaseline(latest); setConflict(false); setLatest(null);
-                if (draftScope) queryClient.setQueryData(["lecture-memo-draft", draftScope], { draft, baseline: latest });
+                if (draftScope) queryClient.setQueryData(lectureMemoQueryKeys.draft(draftScope), { draft, baseline: latest });
               }}>최신 메모 확인 · 계속 편집</Button>
             </>}
             {!latest && !loading && <Button type="button" size="sm" onClick={() => void loadConflict()}>최신 메모 다시 불러오기</Button>}

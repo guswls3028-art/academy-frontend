@@ -34,9 +34,7 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import {
-  getLocalItem,
   getTenantUserLocalKey,
-  removeLocalItem,
   setLocalItem,
 } from "@/shared/utils/safeLocalStorage";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -55,42 +53,11 @@ import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
 import AttendanceStatusInlineRail from "./AttendanceStatusInlineRail";
 import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
+import { DEFAULT_ATTENDANCE_SORT, getStoredAttendanceSort, type AttendanceSort, type AttendanceSortColumn } from "./attendanceSort";
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
 const PAGE_SIZE = 50;
-const DEFAULT_ATTENDANCE_SORT = "name";
-const ATTENDANCE_SORT_VALUES = ["name", "-name", "parent_phone", "-parent_phone", "phone", "-phone"] as const;
-
-type AttendanceSort = typeof ATTENDANCE_SORT_VALUES[number];
-type AttendanceSortColumn = "name" | "parent_phone" | "phone";
-
-function isAttendanceSort(value: string | null): value is AttendanceSort {
-  return ATTENDANCE_SORT_VALUES.includes(value as AttendanceSort);
-}
-
-function getStoredAttendanceSort(
-  storageKey: string | null,
-  previousStorageKey: string | null,
-): AttendanceSort {
-  if (!storageKey || typeof window === "undefined") return DEFAULT_ATTENDANCE_SORT;
-  try {
-    let savedSort = getLocalItem(storageKey);
-    if (!savedSort && previousStorageKey) {
-      savedSort = getLocalItem(previousStorageKey);
-      if (isAttendanceSort(savedSort)) {
-        setLocalItem(storageKey, savedSort);
-        if (getLocalItem(storageKey) === savedSort) removeLocalItem(previousStorageKey);
-      }
-    }
-    const resolvedSort = isAttendanceSort(savedSort) ? savedSort : DEFAULT_ATTENDANCE_SORT;
-    if (savedSort !== resolvedSort) setLocalItem(storageKey, resolvedSort);
-    return resolvedSort;
-  } catch {
-    return DEFAULT_ATTENDANCE_SORT;
-  }
-}
-
 type SessionAttendancePageProps = {
   sessionId: number;
   lectureId?: number;
