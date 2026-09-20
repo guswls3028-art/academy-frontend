@@ -116,7 +116,7 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
     await cleanup(request);
   });
 
-  test("실제 실패 성적부터 학생·학부모 mock 알림 2건까지 봉인한다", async ({ page, request }) => {
+  test("실제 실패 성적부터 학생·학부모 mock 알림 2건까지 봉인한다", async ({ page, request }, testInfo) => {
     const boundary = await installQaStudentParentBoundary(page, request);
     const admin = await loginAdmin(request);
     created.adminAccess = admin.access;
@@ -327,12 +327,15 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
         response.request().method() === "POST"
         && new URL(response.url()).pathname === `/api/v1/progress/clinic-links/${clinicLinkId}/resolve/`
       ));
+      const passActionAt = Date.now();
       await drawer.getByRole("button", { name: "수동 통과", exact: true }).click();
       const response = await responsePromise;
+      const responseMs = Date.now() - passActionAt;
       expect(response.status()).toBe(200);
       expect((await response.json()).resolved_at).toBeTruthy();
       await expect(consolePage.getByText("통과 처리되었습니다.", { exact: true })).toBeVisible();
       await expect(drawer.getByRole("tab").filter({ hasText: examTitle })).toHaveCount(0);
+      await testInfo.attach("clinic-manual-pass-timing", { body: JSON.stringify({ viewport: 390, responseMs, listVisibleMs: Date.now() - passActionAt }), contentType: "application/json" });
       await consolePage.setViewportSize({ width: 1366, height: 900 });
       const [targetsResponse] = await Promise.all([
         consolePage.waitForResponse((readback) => (

@@ -185,8 +185,7 @@ GitHub E2E 성공만으로 운영 정리를 완료했다고 판정하지 않는�
 
 자동화 참고:
 
-- 현재 학생 생성 도메인 검증은 backend unit 중심이다.
-- [PROPOSED] 공개 회원가입 UI->관리자 승인->학생 로그인 E2E를 `frontend/e2e/realuse/signup-approval.spec.ts`로 신설한다.
+- 공식 `e2e/student/student-parent-account-realuse.spec.ts`의 기존 단일 test에 공개 가입 UI의 입력 오류·수정, 수동 승인과 자동 승인, 학생·학부모 로그인 및 reload 검증을 추가했다. disposable qa tenant의 합성 계정만 만들며 기존 복구/프로필 검사와 구분한다. 이 추가 경로는 해당 artifact의 isolated canary 실행 전까지 검증 대기이며, 기존 seeded 계정 로그인 성공으로 신규 가입 성공을 대신하지 않는다.
 
 ### S2. 강의/수강생/차시/보강
 
@@ -243,6 +242,8 @@ GitHub E2E 성공만으로 운영 정리를 완료했다고 판정하지 않는�
     - 상대가 선택한 셀에는 편집자 이름이 표시되고, 표시되지 않은 다른 과제 셀은 계속 입력 가능한지 확인한다.
     - 두 화면에서 시험 합산·객관식·주관식·문항 및 과제의 서로 다른 셀을 동시에 입력할 수 있고, 상대가 선택한 정확한 셀만 `이름 + 입력 중`으로 막히는지 확인한다. 첫 셀 점유 요청을 완료하지 않은 채 다음 셀의 충돌·정상 요청과 `저장하고 잠금`을 차례로 실행한 뒤 첫 요청을 해제해도, 서버의 마지막 mutation이 점유 해제이고 `active_cell`과 draft가 비어 있는지 확인한다. 이후 다른 셀의 협업 상태 갱신이 성공하면 오래된 충돌 안내가 해제되고 저장·잠금을 정상 완료할 수 있어야 한다. 충돌 뒤에도 입력 중 로컬 초안이 유지되고 새로고침 복구가 가능한지 확인한다. 또한 이전 4초 협업 조회를 지연시킨 뒤 새 셀을 선택하거나 저장·잠금한 경우, 늦게 도착한 조회가 최신 `이름 + 입력 중` 표시를 덮거나 닫힌 화면에 이전 표시를 되살리지 않는지 확인한다.
 15. 빈 성적표라도 복구 draft가 있거나 다른 화면이 수정 중이면 자동 입력하지 않는지 확인한다.
+    - 같은 계정의 빈 셀 점유에는 **내 다른 화면에서 입력 중 → 이 화면에서 이어 입력**을 확인한다. 1366px/390px에서 일반 클릭으로 요청 실패 안내·재시도·중복 방지·성공 후 초점 이동·점수 저장·새로고침을 확인하고, 다른 학생의 점수는 보존되어야 한다. 미저장 초안/변경 여부 미제공/다른 직원의 점유에는 가져오기 버튼이 없어야 한다. 문서 종료 시 진행 중 점유 요청·미확정 입력·뒤로가기 캐시에는 해제 요청이 없어야 하며, 실제 새로고침의 유휴 빈 점유에만 `release_if_empty`를 요청한다. 회귀: `e2e/admin/score-entry-autosave.spec.ts`의 동일 계정 점유 및 문서 종료 검사. 이 route-mock은 브라우저 상호작용 증거이며 실제 서버의 동시성·원자성은 백엔드 score-draft 계약 검사로 별도 확인한다.
+    - 공식 `omr-review-realuse.spec.ts`의 기존 단일 test는 관리자 문항별 채점과 별개로 disposable tenant에 ASSISTANT를 생성하고 `/core/me/`의 `tenantRole=staff`를 확인한다. 실제 로그인/최초 계정 안내를 거쳐 두 화면에서 주관식 합계 셀 입력·저장 → 열린 다른 화면의 빈 점유 → 명시적 재개 → 원래 점수 복원·reload를 PC/390px에서 검증하고 학생·학부모 합계가 유지되는지 읽는다. 직원 client별 lease는 직원 token으로 정리하고 Staff를 삭제하며, 남은 합성 User/token은 공식 tenant cleanup0가 확인한다. 테스트 코드 추가만으로 실행 성공을 주장하지 않고 해당 artifact의 공식 canary 결과를 별도 확인한다.
 16. 성적표의 시험명을 눌러 OMR 자동채점 시험은 **OMR 검토**, 직접 채점
     시험은 학생별 문항 채점표가 열리는지 확인한다. 직접 채점표에서
     한/영 입력 상태와 무관한 O/X/오답노트 자동 이동, 기존 `0` 붙여넣기 호환, 방향키 이동,
@@ -348,7 +349,7 @@ GitHub E2E 성공만으로 운영 정리를 완료했다고 판정하지 않는�
 자동화 참고:
 
 - `e2e/flows/homework-scores-inventory-data-flow.spec.ts`는 현재 렌더/구조 검증이 많다.
-- [PROPOSED] UI 기반 과제 생성->학생 파일 제출->관리자 채점->학생 성적 반영 E2E를 신설한다.
+- 공식 `e2e/student/student-parent-homework-realuse.spec.ts`는 합성 과제를 API로 준비한 뒤 학생 파일 제출, 실제 ASSISTANT membership의 직원 로그인·발견·미리보기, 390px 91점과 PC 92점 UI 입력·저장·reload, 학생/학부모 결과를 연결한다. 새 직원 UI 채점 경로는 해당 artifact의 isolated 실행 전까지 검증 대기다. 과제 생성 UI 자체는 이 경로로 검증되지 않으며 아래 보강 백로그에 남긴다.
 
 ### S6. 클리닉 대상 판별/예약/출석/해소
 
@@ -379,6 +380,17 @@ GitHub E2E 성공만으로 운영 정리를 완료했다고 판정하지 않는�
   상시 개발 API에 연결해 desktop 좌측 달력과 390px **일정** overlay의 실제 날짜 선택→일정별 **학생 관리**→
   bulk-create→reload→`cancelled`→reload를 검증한다. 익명, 같은 학원 다른 학생,
   별도 disposable qa tenant의 접근 거부와 양쪽 tenant/user cleanup0도 필수다.
+- 같은 roundtrip test에 관리자 390px `ClinicCreatePanel`의 미래 `23:00–01:00`
+  개설 → 최종 확인 → 실제 API 저장 후 달력 진입·실제 시간
+  선택·직접 등록→PC/390px reload와 서버의 다음 날 booking 날짜 검증을 추가했다.
+  `student-parent-clinic-realuse.spec.ts`는 학생 00:30–01:00 예약→학부모 PC/390px
+  조회·reload·취소까지 기존 단일 test에서 검증한다. 새 코드의 isolated 실행은 아직
+  pending이며 mock 성공을 실제 배포 성공으로 확대하지 않는다.
+- 전날 진행 중 발견/종료 시각 갱신/자격 변경 후 자기 예약 보존은 서버의 고정 now
+  회귀와 PC/390px 날짜 경계 mock 증거다. 공식 실사용은 서버 시각을 바꾸지 않는다.
+- 직접 등록과 수동 통과의 action→HTTP 응답→화면 반영 시간은 각각
+  `clinic-manual-add-timing`, `clinic-manual-pass-timing` JSON 첨부로 관측한다.
+  환경별 관측이며 700행 서버 계측(10,960→3,644ms)과 합치거나 임의 SLA로 쓰지 않는다.
 - `e2e/flows/clinic-ui-create.spec.ts`는 API-assisted라 UI 생성 검증으로는 부족하다.
 - 학생 예약/관리자 승인/학습 요건 해소는 이 배정·취소 사례와 별도 상태 전이이므로
   기존 학생 클리닉 real-use와 함께 유지한다.
@@ -542,10 +554,9 @@ pnpm test:e2e:gate
 
 | 우선순위 | 제안 spec | 목적 |
 |----------|-----------|------|
-| P1 | `e2e/realuse/signup-approval.spec.ts` | 공개 가입 신청->관리자 승인->학생 로그인 |
 | P1 | `e2e/realuse/lecture-session-supplement.spec.ts` | UI 기반 강의/수강생/정규 차시/보강 차시 생성 |
 | P1 | `e2e/realuse/assessment-clinic-chain.spec.ts` | 불합격->클리닉 대상->학생 예약->관리자 승인/출석->해소 |
-| P1 | `e2e/realuse/homework-submission-chain.spec.ts` | 과제 생성->학생 제출->관리자 채점->학생 성적 |
+| P1 | 기존 `e2e/student/student-parent-homework-realuse.spec.ts` 보강 | API fixture 준비를 과제 생성 UI 성공 검증까지 확장 |
 | P2 | `e2e/realuse/video-playback-chain.spec.ts` | READY 영상 노출, 재생, 이어보기, 시청률 반영 |
 | P2 | `e2e/realuse/beginner-misuse.spec.ts` | 빈 입력, 중복 클릭, 뒤로가기, 모바일 키보드 등 |
 | P2 | `e2e/realuse/visual-product-audit.spec.ts` | 주요 화면 viewport별 screenshot + overflow/overlap DOM checks |

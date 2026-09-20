@@ -33,7 +33,7 @@ export function harness(options = {}) {
     } } },
     '@/shared/api/parentStudentSelection': { getParentStudentId: () => options.parentId ?? null },
     '@/shared/ui/asyncStatus/asyncStatusStore': { asyncStatusStore: { trackRequest: () => 'unit-request', completeTask() {} } },
-    '@/shared/tenant': { getTenantCodeForApiRequest: () => 'unit-tenant' },
+    '@/shared/tenant': { getTenantCodeForApiRequest: () => options.tenant === undefined ? 'unit-tenant' : options.tenant },
     '@/shared/lib/sentryContext': { captureApiError: () => counts.apiError++ },
     '@/shared/utils/safeSessionStorage': { getSessionItem: () => null, removeSessionItem() {}, setSessionItem() {} },
     '@/shared/auth/tokenSession': {
@@ -72,6 +72,15 @@ export function harness(options = {}) {
         throw new Error(`Unmocked import: ${specifier}`);
       },
       window, document, console, atob, URL, setInterval: () => 1, clearInterval() {},
+      fetch: (url, init) => {
+        const request = new Request(url, init);
+        const record = { path: new URL(request.url).pathname, headers: request.headers,
+          keepalive: request.keepalive, credentials: request.credentials, redirect: request.redirect,
+          body: JSON.parse(init.body) };
+        requests.push(record);
+        return Promise.resolve(options.respond ? options.respond(record) : { status: 200, body: {} })
+          .then((response) => new Response(JSON.stringify(response.body), { status: response.status }));
+      },
       setTimeout: window.setTimeout, clearTimeout: window.clearTimeout,
     }, { filename: file });
     return module.exports;

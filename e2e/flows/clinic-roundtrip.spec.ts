@@ -67,6 +67,7 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
   let adminPage: Page;
   let studentPage: Page;
   let sessionId: number | null = null;
+  let overnightSessionId: number | null = null;
   let sessionDate = "";
   let adminAccess = "";
 
@@ -248,17 +249,80 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
     }));
     await expect(adminPage.locator(".clinic-ops__card").filter({ hasText: primaryStudent?.name })).toHaveCount(0);
     expect(await adminPage.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+
+    await adminPage.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(adminPage, `${BASE}/workspace/clinic/schedule?create=1&date=${sessionDate}`);
+    const createDialog = adminPage.getByRole("dialog", { name: "클리닉 만들기" });
+    await createDialog.getByRole("button", { name: /자유지정 클리닉/ }).click();
+    await createDialog.getByPlaceholder("예: 수학 보충").fill(`[E2E]심야클리닉_${TS}`);
+    await createDialog.getByPlaceholder("장소 / 룸").fill(`E2E_${TS}`);
+    const timePopover = adminPage.getByRole("dialog", { name: "시간 선택" });
+    for (const [label, time] of [["시작 시간 선택", "23:00"], ["종료 시간 선택", "01:00"]]) {
+      await createDialog.getByRole("button", { name: label, exact: true }).click();
+      await timePopover.getByLabel("분 단위 직접 입력").fill(time);
+      await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+    }
+    await createDialog.getByRole("combobox", { name: "예약 간격" }).click();
+    await adminPage.locator(".ant-select-dropdown:visible").getByText("30분", { exact: true }).click();
+    await createDialog.getByRole("spinbutton", { name: "최대 체류 시간" }).fill("120");
+    await createDialog.getByRole("button", { name: "클리닉 만들기", exact: true }).click();
+    await expect(adminPage.getByRole("alertdialog", { name: "클리닉 일정 최종 확인" })).toContainText("23:00–익일 01:00");
+    const createResponse = adminPage.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname.endsWith("/api/v1/clinic/sessions/"));
+    await adminPage.getByRole("alertdialog", { name: "클리닉 일정 최종 확인" })
+      .getByRole("button", { name: "확인하고 만들기" }).click();
+    const createdResponse = await createResponse;
+    expect(createdResponse.status()).toBe(201);
+    const overnight = await createdResponse.json() as { id: number; end_date: string };
+    overnightSessionId = overnight.id;
+    const actualDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })
+      .format(new Date(`${sessionDate}T12:00:00+09:00`).getTime() + 24 * 60 * 60 * 1000);
+    expect(overnight.end_date).toBe(actualDate);
+    await adminPage.setViewportSize({ width: 390, height: 844 });
+    const overnightAssignments = await openDateAggregateFromCalendar(adminPage, sessionDate);
+    await overnightAssignments.getByRole("button", {
+      name: new RegExp(`23:00 .*심야클리닉_${TS} 학생 관리, 0명 배정`),
+    }).click();
+    await adminPage.getByRole("button", { name: "학생 추가하기", exact: true }).click();
+    const overnightTargets = adminPage.getByRole("dialog", { name: "대상자 선택" });
+    await overnightTargets.getByRole("button", { name: "전체 학생", exact: true }).click();
+    await overnightTargets.getByRole("checkbox", { name: `${primaryStudent?.name} 선택` }).check();
+    await overnightTargets.getByRole("button", { name: "선택 확정 (1명)" }).click();
+    const timePicker = adminPage.getByRole("dialog", { name: "실제 예약 시간 선택" });
+    await timePicker.getByRole("button", { name: new RegExp(`${actualDate} 00:30 시작`) }).click();
+    await timePicker.getByRole("button", { name: `${actualDate} 01:00 종료, 총 30분` }).click();
+    const manualResponse = adminPage.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname.endsWith("/api/v1/clinic/participants/bulk-create/"));
+    const actionAt = Date.now();
+    await timePicker.getByRole("button", { name: "이 시간으로 1명 추가" }).click();
+    const manualResult = await manualResponse;
+    const responseMs = Date.now() - actionAt;
+    expect(manualResult.status()).toBe(201);
+    const manualBody = await manualResult.json() as { participants: Array<Record<string, unknown>> };
+    expect(manualBody.participants).toContainEqual(expect.objectContaining({
+      session: overnight.id, student: primaryStudent?.id, booking_start_date: actualDate, booking_end_date: actualDate,
+    }));
+    await expect(adminPage.getByText(`예약 ${actualDate} 00:30–01:00`)).toBeVisible();
+    await testInfo.attach("clinic-manual-add-timing", { body: JSON.stringify({ viewport: 390, responseMs, listVisibleMs: Date.now() - actionAt }), contentType: "application/json" });
+    for (const width of [390, 1366]) {
+      await adminPage.setViewportSize({ width, height: 900 });
+      await adminPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(adminPage.getByText(`예약 ${actualDate} 00:30–01:00`)).toBeVisible();
+      expect(await adminPage.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+      await testInfo.attach(`overnight-manual-booked-${width}`, { body: await adminPage.screenshot({ fullPage: true }), contentType: "image/png" });
+    }
   });
 
   test.afterAll(async () => {
     const cleanupErrors: unknown[] = [];
     try {
-      if (sessionId && adminPage) {
+      for (const cleanupId of [sessionId, overnightSessionId].filter((id): id is number => id != null)) {
+        if (!adminPage) continue;
         try {
-          const cleanupResp = await apiCall(adminPage, "DELETE", `/clinic/sessions/${sessionId}/`);
+          const cleanupResp = await apiCall(adminPage, "DELETE", `/clinic/sessions/${cleanupId}/`);
           expect(
             [200, 204],
-            `클리닉 E2E cleanup failed for session ${sessionId}: HTTP ${cleanupResp.status}`,
+            `클리닉 E2E cleanup failed for session ${cleanupId}: HTTP ${cleanupResp.status}`,
           ).toContain(cleanupResp.status);
         } catch (error) { cleanupErrors.push(error); }
       }

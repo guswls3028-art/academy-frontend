@@ -3,8 +3,22 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 import url from "node:url";
+import { readFileSync } from "node:fs";
+import { approvedEmptyScoreExitFetchCount } from "../refactor-native-transport.mjs";
 
 const root = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), "../..");
+
+test("only one exact empty score exit fetch in the central owner is approved", () => {
+  const owner = "src/shared/api/axios.ts";
+  const source = readFileSync(path.join(root, owner), "utf8");
+  assert.equal(approvedEmptyScoreExitFetchCount(owner, source), 1);
+  assert.equal(approvedEmptyScoreExitFetchCount("src/feature/api.ts", source), 0);
+  assert.equal(approvedEmptyScoreExitFetchCount(owner, source.replace("function releaseEmptyScoreDraftOnPageExit", "function other")), 0);
+  assert.equal(approvedEmptyScoreExitFetchCount(owner, source.replace("${sessionId}/score-draft/commit/", "${sessionId}/scores/")), 0);
+  // A second exact call is still debt, as is any generic fetch in the same file.
+  assert.equal(approvedEmptyScoreExitFetchCount(owner, source + source), 1);
+  assert.equal(approvedEmptyScoreExitFetchCount(owner, source + "\nfetch(url);"), 1);
+});
 
 function snapshot() {
   const output = execFileSync(

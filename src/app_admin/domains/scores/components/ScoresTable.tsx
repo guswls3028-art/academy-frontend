@@ -15,7 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { SessionScoreRow, SessionScoreMeta, SessionScoresSummaryColumnMode } from "../api/sessionScores";
-import type { PendingChange, ScoreActiveEditor } from "../api/scoreDraft";
+import type { PendingChange, ScoreActiveCell, ScoreActiveEditor } from "../api/scoreDraft";
 import { scoresQueryKeys } from "../api/queryKeys";
 import {
   getHomeworkScoreCellConflict,
@@ -35,6 +35,7 @@ import {
 import type { SessionScoresTableVerdictKind } from "../utils/sessionScoreRowVerdict";
 import { getSessionRowExamReviewSummary } from "@/shared/scoring/sessionScoreRows";
 import ScoreInputCell from "./ScoreInputCell";
+import ScoreCellCollaborator from "./ScoreCellCollaborator";
 import ExamHeaderActionMenu, { type ExamHeaderAction } from "./ExamHeaderActionMenu";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Badge, Button, type BadgeTone } from "@/shared/ui/ds";
@@ -417,6 +418,7 @@ type Props = {
     | { type: "homework"; homeworkId: number }
   )) | null;
   activeEditors?: ScoreActiveEditor[];
+  onClaimOwnCell?: (cell: ScoreActiveCell) => Promise<boolean>;
   onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionIdOrSub?: number | "total" | "objective" | "subjective") => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
@@ -462,6 +464,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   selectedEnrollmentId,
   selectedCell = null,
   activeEditors = [],
+  onClaimOwnCell,
   onSelectCell,
   onSelectRow,
   onReorderColumnSwap,
@@ -549,6 +552,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     return collaborators;
   }, [activeEditors]);
+  const renderCollaborator = (
+    editor: ScoreActiveEditor,
+    row: SessionScoreRow,
+    type: "exam" | "homework",
+    id: number,
+    sub?: number | "total" | "objective" | "subjective",
+  ) => <ScoreCellCollaborator editor={editor} onClaim={isEditMode ? onClaimOwnCell : undefined}
+    onClaimed={() => onSelectCell(row, type, id, sub)} />;
 
   const applyChangeToDom = useCallback((change: PendingChange) => {
     const setCellText = (el: HTMLElement | null | undefined, value: string) => {
@@ -1625,7 +1636,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               }}
                             >
                               {collaborator ? (
-                                <span className="ds-scores-collaborator-label">{collaborator.editor_name} 입력 중</span>
+                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "total")
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -1839,7 +1850,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "objective"); }}
                             >
                               {collaborator ? (
-                                <span className="ds-scores-collaborator-label">{collaborator.editor_name} 입력 중</span>
+                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "objective")
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -1963,7 +1974,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
                             >
                               {collaborator ? (
-                                <span className="ds-scores-collaborator-label">{collaborator.editor_name} 입력 중</span>
+                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "subjective")
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -2083,7 +2094,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 문항을 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
                             >
                               {collaborator ? (
-                                <span className="ds-scores-collaborator-label">{collaborator.editor_name} 입력 중</span>
+                                renderCollaborator(collaborator, row, "exam", ex.exam_id, col.questionId)
                               ) : canEdit ? (
                                 <ScoreInputCell
                                   sessionId={sessionId}
@@ -2222,9 +2233,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       >
                         <span className="inline-flex w-full items-center gap-2 flex-wrap">
                           {collaborator && (
-                            <span className="ds-scores-collaborator-label">
-                              {collaborator.editor_name} 입력 중
-                            </span>
+                            renderCollaborator(collaborator, row, "homework", hw.homework_id)
                           )}
                           {hw.grading_mode === "COMPLETION" ? (
                             canEditScore ? (

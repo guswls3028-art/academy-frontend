@@ -7,7 +7,7 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
-import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH } from "./release-playback-end-proxy.mjs";
+import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "./release-playback-end-proxy.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REGION = "ap-northeast-2";
@@ -1000,7 +1000,7 @@ function serveArtifact(directory, playbackBoundary) {
   const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
     ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp" };
   const server = http.createServer((request, response) => {
-    if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH)) {
+    if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH) || request.url?.startsWith(SCORE_EXIT_PROXY_PATH)) {
       playbackProxy.handle(request, response);
       return;
     }

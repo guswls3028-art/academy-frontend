@@ -266,6 +266,20 @@ Chromium의 `pagehide` native `fetch(keepalive)`는 Playwright route를 우회�
 정확한 Origin·두 owned QA tenant·token 단독 payload와 크기/시간 제한을 재검사한 뒤
 고정된 개발 API에 원본 body bytes를 한 번 전달한다. 운영 주소 fallback과 redirect는
 없으며 서버 거부·upstream 오류는 페이지 종료 여부와 무관하게 release 실패로 남는다.
+성적표 종료는 별도의 `/__qa__/score-exit/{sessionId}` 경로만 허용한다. 차시 ID는 양의
+safe integer이고 tenant는 현재 소유한 disposable QA tenant여야 한다. OMR 검사 중 새로
+만든 차시도 이 범위에 포함되며 tenant/session/user/client 소유권은 실제 백엔드가 검사한다.
+`X-Score-Editor-Client`를 변경 없이 전달하며 JSON은 정확히
+`{"release_lease":true,"release_if_empty":true}`여야 한다. 일반 점수 저장·초안 PUT이나
+다른 테넌트에는 이 전송을 사용할 수 없다. 존재하지 않거나 타 tenant 차시에 대한
+백엔드 거부도 release 실패로 유지한다. 목적지는 해당 차시의 개발
+`score-draft/commit/`으로 고정하고 동일한 Origin/auth/크기/redirect/drain 검사를 적용한다.
+브라우저 종료 전달 자체는 best-effort이며 실제 서버의 빈 초안 판정과 현재 client 확인은
+백엔드 계약이다. 공유 API의 종료 전용 함수는 현재 token/tenant/client를 동기로 검사하고
+정확한 빈 점유 해제 POST를 `fetch` keepalive로 즉시 시작한다. 일반 axios 인터셉터나
+토큰 갱신을 기다리지 않으며 URL·body override, redirect, 재시도는 허용하지 않는다.
+로컬 성적표 회귀는 실제 reload의 HTTP 도착과 진행 요청·미저장 입력·BFCache
+미전송을 검증한다. route-mock 미계수만으로 종료 실패를 단정하지 않는다.
 그 밖의 native keepalive는 transport 전에 차단하며, 브라우저 거부 코드는 token 없는
 per-tab journal과 binding으로 보존해 reload 뒤 앱이 예외를 catch해도 실패를 유지한다.
 proxy의 진행 중 요청은 fixture cleanup 전에 drain한다. 실제 종료 성공은 기존

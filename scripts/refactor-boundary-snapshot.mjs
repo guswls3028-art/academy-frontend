@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
+import { approvedEmptyScoreExitFetchCount } from './refactor-native-transport.mjs';
 
 const ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
@@ -166,7 +167,8 @@ for (const file of srcFiles) {
   if (!DIRECT_AXIOS_ALLOWED_FILES.has(relative)) {
     metrics.direct_axios_calls += countMatches(metricText, /\baxios\s*\./g);
   }
-  metrics.fetch_calls += countMatches(metricText, /\bfetch\s*\(/g);
+  metrics.fetch_calls += countMatches(metricText, /\bfetch\s*\(/g)
+    - approvedEmptyScoreExitFetchCount(relative, metricText);
   metrics.local_storage_refs += countMatches(metricText, /\blocalStorage\b/g);
   metrics.session_storage_refs += countMatches(metricText, /\bsessionStorage\b/g);
   metrics.explicit_any_refs += countMatches(metricText, /\bany\b/g);

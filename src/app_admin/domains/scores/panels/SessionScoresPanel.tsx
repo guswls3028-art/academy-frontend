@@ -57,6 +57,7 @@ type Props = {
   onSelectionChange?: (enrollmentIds: number[]) => void;
   onPendingChange?: () => void;
   activeEditors?: ScoreActiveEditor[];
+  onClaimOwnCell?: (cell: ScoreActiveCell) => Promise<boolean>;
   onActiveCellChange?: (cell: ScoreActiveCell | null) => void;
   onOpenExamGrading?: (
     examId: number,
@@ -113,6 +114,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   onSelectionChange,
   onPendingChange,
   activeEditors = [],
+  onClaimOwnCell,
   onActiveCellChange,
   onOpenExamGrading,
 }, ref) {
@@ -510,6 +512,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           selectedEnrollmentId={selectedEnrollmentId}
           selectedCell={selectedCell}
           activeEditors={activeEditors}
+          onClaimOwnCell={onClaimOwnCell}
           onRequestMoveNext={onRequestMoveNext}
           onRequestMovePrev={onRequestMovePrev}
           onRequestMoveDown={onRequestMoveDown}

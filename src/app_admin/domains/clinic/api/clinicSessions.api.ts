@@ -7,7 +7,9 @@ export type ClinicSessionTreeNode = {
   id: number;
   title?: string;
   date: string; // YYYY-MM-DD
-  start_time: string; // "HH:MM:SS" or "HH:MM"
+  start_time: string;
+  end_time?: string;
+  end_date?: string; // YYYY-MM-DD
   location: string;
   /** 대상 학년 (null = 전체) */
   target_grade?: number | null;
@@ -115,6 +117,8 @@ export async function fetchClinicSessionTree(params: {
       title: row.title == null ? undefined : toStringValue(row.title),
       date: normalizeDate(toStringValue(row.date)),
       start_time: toStringValue(row.start_time),
+      end_time: row.end_time == null ? undefined : toStringValue(row.end_time),
+      end_date: row.end_date == null ? undefined : normalizeDate(toStringValue(row.end_date)),
       location: toStringValue(row.location),
       target_grade: toNullableNumber(row.target_grade),
       duration_minutes: toOptionalNumber(row.duration_minutes),
@@ -197,6 +201,8 @@ export async function fetchClinicSessions(params: {
       title: toStringValue(row.title),
       date: normalizeDate(toStringValue(row.date)),
       start_time: toStringValue(row.start_time),
+      end_time: row.end_time == null ? undefined : toStringValue(row.end_time),
+      end_date: row.end_date == null ? undefined : normalizeDate(toStringValue(row.end_date)),
       duration_minutes: toNumber(row.duration_minutes),
       location: toStringValue(row.location),
       max_participants: toNumber(row.max_participants),
@@ -229,6 +235,8 @@ export type ClinicSessionDetail = {
   title: string;
   date: string;
   start_time: string;
+  end_time?: string;
+  end_date?: string;
   duration_minutes: number;
   location: string;
   max_participants: number;

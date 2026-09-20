@@ -30,6 +30,10 @@ type ClinicParticipant = {
   status: string;
   memo?: string;
   can_self_cancel?: boolean;
+  booking_start_date?: string;
+  booking_end_date?: string;
+  booking_start_time?: string;
+  booking_end_time?: string;
 };
 
 let family: QaFamily | null = null;
@@ -40,6 +44,8 @@ let participantId: number | undefined;
 const runStamp = Date.now();
 const clinicDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })
   .format(new Date(Date.now() + 24 * 60 * 60 * 1000));
+const bookingDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })
+  .format(new Date(`${clinicDate}T12:00:00+09:00`).getTime() + 24 * 60 * 60 * 1000);
 const sessionTitle = `QA 학부모 클리닉 ${runStamp}`;
 const bookingMemo = `qa-* 학생 예약 ${runStamp}`;
 
@@ -106,7 +112,7 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     await cleanup(request);
   });
 
-  test("390px 예약·authoritative participant·학부모 조회·reload/relogin·desktop을 완료한다", async ({ page, request }) => {
+  test("390px 예약·authoritative participant·학부모 조회·reload/relogin·desktop을 완료한다", async ({ page, request }, testInfo) => {
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
@@ -116,8 +122,11 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     const clinicSession = await expectApi<{ id: number }>(request, "POST", "/clinic/sessions/", admin.access, {
       title: sessionTitle,
       date: clinicDate,
-      start_time: "17:00:00",
-      duration_minutes: 60,
+      start_time: "23:00:00",
+      duration_minutes: 120,
+      booking_mode: "time_range",
+      booking_interval_minutes: 30,
+      booking_max_stay_minutes: 120,
       location: "QA 격리 학습실",
       max_participants: 10,
       target_grade: null,
@@ -139,16 +148,26 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
         timeZone: "Asia/Seoul",
       }).format(new Date(`${clinicDate}T12:00:00+09:00`)).replace(/\.$/, ""),
     });
-    await dateRegion.getByRole("button", { name: sessionTitle }).click();
+    await page.getByTestId(`clinic-calendar-day-${clinicDate}`).click();
+    const sessionButton = dateRegion.getByRole("button", { name: sessionTitle });
+    if (await sessionButton.getAttribute("aria-pressed") !== "true") await sessionButton.click();
+    await page.getByRole("button", { name: "아래에서 시간 선택" }).click();
     const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
+    await selection.getByRole("button", { name: new RegExp(`${bookingDate} 00:30 시작`) }).click();
+    await selection.getByRole("button", { name: `${bookingDate} 01:00 종료, 총 30분` }).click();
     await selection.getByLabel("학원에 전할 내용 (선택)").fill(bookingMemo);
     await selection.getByRole("button", { name: "이 일정 예약하기" }).click();
     await expect(page.getByRole("status")).toContainText(/예약(?:이 확정| 신청이 접수)되었습니다/);
 
     const participant = await waitForParticipant(request, student.id);
     expect(participant.student_name).toBe(student.name);
+    expect(participant).toMatchObject({ booking_start_date: bookingDate, booking_end_date: bookingDate });
+    expect(participant.booking_start_time?.slice(0, 5)).toBe("00:30");
+    expect(participant.booking_end_time?.slice(0, 5)).toBe("01:00");
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toContainText(bookingMemo);
+    await expect(page.locator("article").filter({ hasText: sessionTitle })).toContainText(`이용 ${bookingDate} 00:30–01:00`);
+    await testInfo.attach("overnight-student-booked-390", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
     await assertNoHorizontalOverflow(page);
 
     await logoutStudentApp(page);
@@ -166,6 +185,9 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     await page.getByRole("tab", { name: /내 일정/ }).click();
     const parentBookingCard = page.locator("article").filter({ hasText: sessionTitle });
     await expect(parentBookingCard).toBeVisible();
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await expect(parentBookingCard).toContainText(`이용 ${bookingDate} 00:30–01:00`);
+    await testInfo.attach("overnight-parent-booked-1366", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
     const cancelButton = parentBookingCard.getByRole("button", { name: "예약 취소" });
     await expect(cancelButton).toBeEnabled();
     const cancelResponse = page.waitForResponse((response) => (

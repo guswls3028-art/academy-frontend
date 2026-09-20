@@ -12,6 +12,7 @@ import type { SessionScoresPanelHandle } from "../panels/SessionScoresPanel";
 import type { ScoreFlushResult } from "../components/ScoresTable";
 import {
   getScoreDraft,
+  hasPendingScoreDraftWrite,
   isScoreEditLockedError,
   isScoreEditStaleError,
   putScoreDraft,
@@ -107,6 +108,7 @@ export function useScoreEditDraft({
   const lastSaveAttemptAtRef = useRef(0);
   const needsDraftCommitRef = useRef(false);
   const presenceErrorRef = useRef(false);
+  const ownCellClaimPendingRef = useRef(false);
   const onPresenceError = useCallback((message: string, lockConflict: boolean) => {
     presenceErrorRef.current = true;
     if (lockConflict) setEditLockConflict(true);
@@ -525,6 +527,47 @@ export function useScoreEditDraft({
     }
   }, [drainPresenceQueue, invalidatePresenceReads, sessionId]);
 
+  const claimOwnCell = useCallback(async (cell: ScoreActiveCell): Promise<boolean> => {
+    if (!isActive || ownCellClaimPendingRef.current) return false;
+    ownCellClaimPendingRef.current = true;
+    let claimFence: Promise<ScoreFlushResult> | null = null;
+    try {
+      // Preserve the current cell before transferring this one exact empty lease.
+      if (panelRef.current?.commitActiveCell?.() === false) throw new Error("Invalid current score");
+      await saveNow();
+      presencePausedRef.current = true;
+      invalidatePresenceReads();
+      const priorSave = savePromiseRef.current;
+      const request = (async () => {
+        if (priorSave) await priorSave;
+        await drainPresenceQueue();
+        return putScoreDraft(sessionId, [], {
+          activeCell: cell,
+          takeOverSameUser: true,
+        });
+      })();
+      // Other cells remain usable. Their autosave must wait for this empty PUT
+      // including the presence drain, before reading/writing the next snapshot.
+      const completed = { savedCount: 0, projectionPendingCount: 0 };
+      claimFence = request.then(() => completed, () => completed);
+      savePromiseRef.current = claimFence;
+      const data = await request;
+      setActiveEditors(data.active_editors);
+      setEditLockConflict(false);
+      setDraftError(null);
+      if (savePromiseRef.current === claimFence) savePromiseRef.current = null;
+      // A save requested in another cell while claiming may still rerender its
+      // inputs. Finish that queue before the caller focuses the acquired cell.
+      // saveNow retains its own visible error/recovery state if this save fails.
+      await saveNow().catch(() => undefined);
+      return true;
+    } finally {
+      if (savePromiseRef.current === claimFence) savePromiseRef.current = null;
+      presencePausedRef.current = false;
+      ownCellClaimPendingRef.current = false;
+    }
+  }, [drainPresenceQueue, invalidatePresenceReads, isActive, panelRef, saveNow, sessionId, setActiveEditors]);
+
   useEffect(() => {
     if (!isActive) return;
     // beforeunload: 미저장 변경이 있으면 항상 경고 + 긴급 저장 시도
@@ -544,10 +587,28 @@ export function useScoreEditDraft({
     };
     window.addEventListener("beforeunload", handler);
 
+    const releaseEmptyPresence = (event: PageTransitionEvent) => {
+      const panel = panelRef.current;
+      if (
+        event.persisted || !panel || presencePausedRef.current
+        || ownCellClaimPendingRef.current || savePromiseRef.current
+        || presencePromiseRef.current || hasPendingScoreDraftWrite(sessionId)
+        || needsDraftCommitRef.current || panel.hasUncommittedActiveCell?.()
+        || (panel.getPendingSnapshot?.() ?? []).length > 0
+        || readLocalDraft(localDraftKey).length > 0
+      ) return;
+      // pagehide follows the user's actual exit, not a cancelled unload prompt.
+      // The server also checks emptiness atomically; failures recover via TTL or
+      // explicit same-account transfer. Never clear local recovery data here.
+      void postScoreDraftCommit(sessionId, true, true).catch(() => undefined);
+    };
+    window.addEventListener("pagehide", releaseEmptyPresence);
+
     return () => {
       window.removeEventListener("beforeunload", handler);
+      window.removeEventListener("pagehide", releaseEmptyPresence);
     };
-  }, [activeCellRef, isActive, localDraftKey, panelRef, sessionId]);
+  }, [activeCellRef, isActive, localDraftKey, panelRef, presencePromiseRef, sessionId]);
 
   return {
     draftStatus,
@@ -568,6 +629,7 @@ export function useScoreEditDraft({
     restoreDraft,
     discardDraft,
     beginEditing,
+    claimOwnCell,
     releaseEditLease,
     saveNow,
     requestAutosave,

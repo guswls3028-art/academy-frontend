@@ -4,7 +4,7 @@ import http from "node:http";
 import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 import { chromium } from "@playwright/test";
-import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH } from "../release-playback-end-proxy.mjs";
+import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "../release-playback-end-proxy.mjs";
 
 const source = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const { installReleaseContextGuard } = await import(
@@ -45,12 +45,15 @@ async function fixture(run) {
     req.on("data", (chunk) => { body += chunk; });
     req.on("end", () => {
       received.push({ path: req.url, method: req.method, headers: req.headers, body });
+      if (req.url === "/api/v1/results/admin/sessions/9003/score-draft/commit/") {
+        res.writeHead(404); res.end("{}"); return;
+      }
       if (redirect) { res.writeHead(307, { Location: `${sink.origin}/stolen` }); res.end(); }
       else { res.setHeader("Content-Type", "application/json"); res.end("{}"); }
     });
   });
   const web = await server((req, res) => {
-    if (req.url.startsWith(PLAYBACK_END_PROXY_PATH)) { proxy.handle(req, res); return; }
+    if (req.url.startsWith(PLAYBACK_END_PROXY_PATH) || req.url.startsWith(SCORE_EXIT_PROXY_PATH)) { proxy.handle(req, res); return; }
     res.setHeader("Content-Type", "text/html");
     res.end("<!doctype html><title>Native keepalive boundary</title>ready");
   });
@@ -58,7 +61,8 @@ async function fixture(run) {
   // A broken rewrite must never send credentials to the real production host.
   const browser = await chromium.launch({ args: ["--host-resolver-rules=MAP api.hakwonplus.com 127.0.0.1"] });
   const boundary = { mode: "development", apiOrigin: api.origin, webOrigin, tenantCode: "qa-ymath-realuse-native" };
-  proxy = createPlaybackEndProxy({ ...boundary, tenantCodes: [boundary.tenantCode], onFailure: (code) => proxyFailures.push(code) });
+  proxy = createPlaybackEndProxy({ ...boundary, tenantCodes: [boundary.tenantCode],
+    onFailure: (code) => proxyFailures.push(code) });
   try { await run({ browser, boundary, received, escaped, sink, proxyFailures, setRedirect: () => { redirect = true; } }); }
   finally {
     await browser.close();
@@ -73,8 +77,8 @@ async function installExit(page, boundary, options = {}) {
       method: options.method ?? "POST", keepalive: true, credentials: "omit",
       headers: { "content-type": "application/json", authorization: "Bearer fixture-access",
         "x-student-id": "731", "x-client": "academyfront", "x-client-version": "fixture-revision",
-        "x-tenant-code": options.tenant ?? boundary.tenantCode },
-      body: JSON.stringify({ token: "fixture-playback" }),
+        "x-tenant-code": options.tenant ?? boundary.tenantCode, ...(options.headers ?? {}) },
+      body: JSON.stringify(options.body ?? { token: "fixture-playback" }),
     };
     const url = options.url ?? `https://api.hakwonplus.com${endpoint}`;
     const send = () => {
@@ -140,6 +144,87 @@ test("caught native pagehide violations remain defects after reload without any 
       assert.deepEqual(escaped, []);
       await context.close();
     }
+  });
+});
+
+test("real score exit reload forwards exact QA session, document header and empty-only body", async () => {
+  await fixture(async ({ browser, boundary, received, escaped, proxyFailures }) => {
+    const context = await browser.newContext();
+    const guard = await installReleaseContextGuard(context, boundary);
+    const page = await context.newPage();
+    await page.goto(boundary.webOrigin);
+    const body = { release_lease: true, release_if_empty: true };
+    await installExit(page, boundary, { requestInput: true,
+      url: "https://api.hakwonplus.com/api/v1/results/admin/sessions/9002/score-draft/commit/",
+      headers: { "x-score-editor-client": "document-a" }, body });
+    await page.reload();
+    await eventually(() => received.length === 1);
+    assert.equal(received[0].path, "/api/v1/results/admin/sessions/9002/score-draft/commit/");
+    assert.equal(received[0].headers["x-score-editor-client"], "document-a");
+    assert.equal(received[0].headers["x-tenant-code"], boundary.tenantCode);
+    assert.equal(received[0].body, JSON.stringify(body));
+    assert.deepEqual(proxyFailures, []);
+    assert.deepEqual(escaped, []);
+    guard.assertClean();
+    await context.close();
+  });
+});
+
+test("score native boundary refuses ordinary draft path, missing client and dirty or ordinary commits", async () => {
+  await fixture(async ({ browser, boundary, received, escaped }) => {
+    for (const change of [
+      { url: "https://api.hakwonplus.com/api/v1/results/admin/sessions/9002/score-draft/" },
+      { headers: {} }, { body: { release_lease: true } },
+      { body: { release_lease: true, release_if_empty: true, changes: [{ score: 7 }] } },
+    ]) {
+      const context = await browser.newContext();
+      const guard = await installReleaseContextGuard(context, boundary);
+      const page = await context.newPage();
+      await page.goto(boundary.webOrigin);
+      await installExit(page, boundary, { requestInput: true,
+        url: "https://api.hakwonplus.com/api/v1/results/admin/sessions/9002/score-draft/commit/",
+        headers: { "x-score-editor-client": "document-a" }, body: { release_lease: true, release_if_empty: true }, ...change });
+      await page.reload();
+      await eventually(() => { try { guard.assertClean(); return false; } catch { return true; } });
+      assert.throws(() => guard.assertClean(), /native keepalive rejected \[shape\]/);
+      assert.deepEqual(received, []);
+      assert.deepEqual(escaped, []);
+      await context.close();
+    }
+  });
+});
+
+test("score proxy independently rejects foreign tenant and unsafe release body", async () => {
+  await fixture(async ({ boundary, received, proxyFailures }) => {
+    const headers = { origin: boundary.webOrigin, "content-type": "application/json", authorization: "Bearer fixture-access",
+      "x-tenant-code": boundary.tenantCode, "x-score-editor-client": "document-a" };
+    for (const change of [
+      { headers: { ...headers, "x-tenant-code": "qa-ymath-realuse-foreign" } },
+      { headers: { ...headers, "x-score-editor-client": "" } },
+      { body: { release_lease: true } }, { body: { release_lease: true, release_if_empty: true, changes: [] } },
+    ]) {
+      const response = await fetch(`${boundary.webOrigin}${change.path ?? `${SCORE_EXIT_PROXY_PATH}9002`}`, {
+        method: "POST", headers: change.headers ?? headers,
+        body: JSON.stringify(change.body ?? { release_lease: true, release_if_empty: true }),
+      });
+      assert.equal(response.status, 502);
+    }
+    assert.equal(proxyFailures.length, 4);
+    assert.deepEqual(received, []);
+  });
+});
+
+test("score proxy preserves backend denial of a nonexistent or foreign session as release failure", async () => {
+  await fixture(async ({ boundary, received, proxyFailures }) => {
+    const response = await fetch(`${boundary.webOrigin}${SCORE_EXIT_PROXY_PATH}9003`, {
+      method: "POST", headers: { origin: boundary.webOrigin, "content-type": "application/json",
+        authorization: "Bearer fixture-access", "x-tenant-code": boundary.tenantCode, "x-score-editor-client": "document-a" },
+      body: JSON.stringify({ release_lease: true, release_if_empty: true }),
+    });
+    assert.equal(response.status, 502);
+    assert.equal(received.length, 1);
+    assert.equal(received[0].path, "/api/v1/results/admin/sessions/9003/score-draft/commit/");
+    assert.deepEqual(proxyFailures, ["upstream"]);
   });
 });
 

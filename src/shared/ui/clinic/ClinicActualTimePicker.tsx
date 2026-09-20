@@ -2,13 +2,15 @@ import { useEffect, useMemo, type ReactNode, type RefObject } from "react";
 
 import { minutesToHHmm } from "@/shared/ui/time/timeFormat";
 
+import { clinicTimeLabel } from "./clinicTimeRange";
+
 import styles from "./ClinicActualTimePicker.module.css";
 
 export type ClinicBookingAvailability = {
   interval_minutes: 30 | 60;
   max_stay_minutes: number;
-  window: { start_time: string; end_time: string };
-  slots: Array<{ start_time: string; end_time: string; remaining_capacity: number }>;
+  window: { start_time: string; end_time: string; start_date?: string; end_date?: string };
+  slots: Array<{ start_time: string; end_time: string; start_date?: string; end_date?: string; remaining_capacity: number }>;
 };
 
 const EMPTY_SLOTS: ClinicBookingAvailability["slots"] = [];
@@ -63,7 +65,7 @@ function buildEmptyClinicAvailability({
   const startMinutes = timeToMinutes(startTime);
   const parsedEndMinutes = timeToMinutes(endTime);
   if (startMinutes == null || parsedEndMinutes == null) return undefined;
-  const endMinutes = parsedEndMinutes === 0 && startMinutes > 0 ? 24 * 60 : parsedEndMinutes;
+  const endMinutes = parsedEndMinutes < startMinutes ? parsedEndMinutes + 24 * 60 : parsedEndMinutes;
   if (endMinutes <= startMinutes || (endMinutes - startMinutes) % intervalMinutes !== 0) {
     return undefined;
   }
@@ -114,7 +116,7 @@ function durationText(startTime: string, endTime: string): string {
   const start = timeToMinutes(startTime);
   const end = timeToMinutes(endTime);
   if (start == null || end == null) return "";
-  const minutes = end === 0 && start > 0 ? 24 * 60 - start : Math.max(end - start, 0);
+  const minutes = end < start ? 24 * 60 + end - start : Math.max(end - start, 0);
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return hours > 0
@@ -178,8 +180,9 @@ export function ClinicActualTimePicker({
         width: `${((bookingEndIndex - bookingStartIndex + 1) / allSlots.length) * 100}%`,
       }
     : undefined;
+  const timeLabel = (time: string, date?: string) => clinicTimeLabel(time, availability?.window.start_time ?? "", date, availability?.window.start_date);
   const windowText = availability
-    ? `${availability.window.start_time.slice(0, 5)}–${availability.window.end_time.slice(0, 5)}`
+    ? `${availability.window.start_time.slice(0, 5)}–${timeLabel(availability.window.end_time, availability.window.end_date)}`
     : "확인 중";
 
   return (
@@ -223,8 +226,8 @@ export function ClinicActualTimePicker({
           >
             <div className={styles.railLabels} aria-hidden>
               <span>{availability?.window.start_time}</span>
-              <strong>{bookingStart && bookingEnd ? `${bookingStart}–${bookingEnd}` : "시작·종료를 선택하세요"}</strong>
-              <span>{availability?.window.end_time}</span>
+              <strong>{bookingStart && bookingEnd ? `${timeLabel(bookingStart)}–${timeLabel(bookingEnd)}` : "시작·종료를 선택하세요"}</strong>
+              <span>{availability && timeLabel(availability.window.end_time, availability.window.end_date)}</span>
             </div>
             <div className={styles.railTrack} aria-hidden>
               {selectedRailStyle && (
@@ -248,15 +251,15 @@ export function ClinicActualTimePicker({
                     className={bookingStart === slot.start_time ? styles.selected : ""}
                     aria-pressed={bookingStart === slot.start_time}
                     aria-label={hasCapacity
-                      ? `${slot.start_time} 시작, 잔여 ${slot.remaining_capacity}자리`
-                      : `${slot.start_time} 시작, ${requiredCapacity}명 선택에는 잔여 ${slot.remaining_capacity}자리로 부족`}
+                      ? `${timeLabel(slot.start_time, slot.start_date)} 시작, 잔여 ${slot.remaining_capacity}자리`
+                      : `${timeLabel(slot.start_time, slot.start_date)} 시작, ${requiredCapacity}명 선택에는 잔여 ${slot.remaining_capacity}자리로 부족`}
                     disabled={!hasCapacity}
                     onClick={() => {
                       onBookingStartChange(slot.start_time);
                       onBookingEndChange("");
                     }}
                   >
-                    <strong>{slot.start_time}</strong>
+                    <strong>{timeLabel(slot.start_time, slot.start_date)}</strong>
                     <small>{hasCapacity ? `잔여 ${slot.remaining_capacity}자리` : `${requiredCapacity}명 선택에는 부족`}</small>
                   </button>
                 );
@@ -279,12 +282,12 @@ export function ClinicActualTimePicker({
                       className={bookingEnd === slot.end_time ? styles.selected : ""}
                       aria-pressed={bookingEnd === slot.end_time}
                       aria-label={hasCapacity
-                        ? `${slot.end_time} 종료, 총 ${duration}`
-                        : `${slot.end_time} 종료, ${requiredCapacity}명 선택에는 구간 잔여가 부족`}
+                        ? `${timeLabel(slot.end_time, slot.end_date)} 종료, 총 ${duration}`
+                        : `${timeLabel(slot.end_time, slot.end_date)} 종료, ${requiredCapacity}명 선택에는 구간 잔여가 부족`}
                       disabled={!hasCapacity}
                       onClick={() => onBookingEndChange(slot.end_time)}
                     >
-                      <strong>{slot.end_time}</strong>
+                      <strong>{timeLabel(slot.end_time, slot.end_date)}</strong>
                       <small>{hasCapacity ? `총 ${duration}` : `${requiredCapacity}명 선택에는 부족`}</small>
                     </button>
                   );
@@ -296,7 +299,7 @@ export function ClinicActualTimePicker({
       )}
       {selectionCount != null && bookingStart && bookingEnd && (
         <p className={styles.commonRange} role="status">
-          {selectionCount}명에게 같은 {bookingStart}–{bookingEnd} 구간을 적용합니다.
+          {selectionCount}명에게 같은 {timeLabel(bookingStart)}–{timeLabel(bookingEnd)} 구간을 적용합니다.
         </p>
       )}
     </section>

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 
 export const PLAYBACK_END_PROXY_PATH = "/__qa__/playback-end";
+export const SCORE_EXIT_PROXY_PATH = "/__qa__/score-exit/";
 
 /** Same-origin terminal transport only; never a general API proxy. */
 export function createPlaybackEndProxy({ apiOrigin, webOrigin, tenantCodes, onFailure }) {
@@ -24,16 +25,23 @@ export function createPlaybackEndProxy({ apiOrigin, webOrigin, tenantCodes, onFa
     let stage = "request";
     const deadline = setTimeout(() => request.destroy(), 10_000);
     try {
-      assert.ok(!closing && request.method === "POST" && request.url === PLAYBACK_END_PROXY_PATH);
+      const scoreMatch = /^\/__qa__\/score-exit\/([1-9][0-9]*)$/.exec(request.url ?? "");
+      assert.ok(!closing && request.method === "POST" && (request.url === PLAYBACK_END_PROXY_PATH || scoreMatch));
       assert.equal(request.headers.origin, webOrigin);
       assert.equal(request.headers.host, web.host);
       assert.ok(tenants.has(request.headers["x-tenant-code"]));
+      if (scoreMatch) assert.ok(Number.isSafeInteger(Number(scoreMatch[1])));
       assert.match(request.headers.authorization ?? "", /^Bearer\s+\S+$/);
       assert.match(request.headers["content-type"] ?? "", /^application\/json(?:;\s*charset=utf-8)?$/i);
       for (const name of ["authorization", "x-tenant-code", "origin", "content-type"]) {
         assert.equal(request.rawHeaders.filter((value, index) => index % 2 === 0 && value.toLowerCase() === name).length, 1);
       }
       const scopedHeaders = {};
+      if (scoreMatch) {
+        assert.equal(request.rawHeaders.filter((value, index) => index % 2 === 0 && value.toLowerCase() === "x-score-editor-client").length, 1);
+        assert.match(request.headers["x-score-editor-client"] ?? "", /^[a-zA-Z0-9._-]{1,128}$/);
+        scopedHeaders["x-score-editor-client"] = request.headers["x-score-editor-client"];
+      }
       for (const name of ["x-student-id", "x-client", "x-client-version"]) {
         if (request.headers[name] === undefined) continue;
         assert.equal(request.rawHeaders.filter((value, index) => index % 2 === 0 && value.toLowerCase() === name).length, 1);
@@ -52,10 +60,16 @@ export function createPlaybackEndProxy({ apiOrigin, webOrigin, tenantCodes, onFa
       }
       const body = Buffer.concat(chunks);
       const data = JSON.parse(body.toString("utf8"));
-      assert.ok(data && Object.keys(data).join(",") === "token" && typeof data.token === "string" && data.token.length > 0);
+      if (scoreMatch) {
+        assert.ok(data && Object.keys(data).sort().join(",") === "release_if_empty,release_lease"
+          && data.release_if_empty === true && data.release_lease === true);
+      } else assert.ok(data && Object.keys(data).join(",") === "token" && typeof data.token === "string" && data.token.length > 0);
       stage = "upstream";
       await new Promise((resolve, rejectUpstream) => {
-        const upstream = http.request(new URL("/api/v1/media/playback/end/", api), {
+        const upstreamPath = scoreMatch
+          ? `/api/v1/results/admin/sessions/${scoreMatch[1]}/score-draft/commit/`
+          : "/api/v1/media/playback/end/";
+        const upstream = http.request(new URL(upstreamPath, api), {
           method: "POST", signal: AbortSignal.timeout(10_000), headers: {
             ...scopedHeaders,
             authorization: request.headers.authorization, "x-tenant-code": request.headers["x-tenant-code"],

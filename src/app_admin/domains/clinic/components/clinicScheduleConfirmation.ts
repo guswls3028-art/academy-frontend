@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { clinicTimeLabel } from "@/shared/ui/clinic/clinicTimeRange";
 import type { ConfirmReview } from "@/shared/ui/confirm";
 
 export type ClinicSessionUpdateNotice = {
@@ -24,9 +25,8 @@ export function formatClinicScheduleSnapshot(input: {
   const end = dayjs(input.date)
     .hour(hour)
     .minute(minute)
-    .add(input.duration_minutes, "minute")
-    .format("HH:mm");
-  return [input.date, `${start}-${end}`, input.location?.trim()].filter(Boolean).join(" ");
+    .add(input.duration_minutes, "minute");
+  return [input.date, `${start}-${clinicTimeLabel(end.format("HH:mm"), start, end.format("YYYY-MM-DD"), input.date)}`, input.location?.trim()].filter(Boolean).join(" ");
 }
 
 type CreateSummary = {
@@ -55,7 +55,7 @@ export function buildClinicCreateConfirmationReview(summary: CreateSummary): Con
     items: [
       { label: "일정", value: `${summary.dateLabel} (${summary.weekday}요일)` },
       { label: "이름", value: summary.title || "클리닉" },
-      { label: "시간", value: `${summary.start}–${summary.end}`, tone: "accent" },
+      { label: "시간", value: `${summary.start}–${clinicTimeLabel(summary.end, summary.start)}`, tone: "accent" },
       { label: "장소", value: summary.location },
       { label: "정원", value: `${summary.maxParticipants}명` },
       { label: "공개 대상", value: summary.filterSummary || "전체 학생" },
