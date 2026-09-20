@@ -273,6 +273,7 @@ function ScoreEntryList({
 
   // row 식별자 = enrollment_id (admin endpoint schema SSOT)
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const initialFocusAttempted = useRef(false);
   const pendingSubmitKeys = useRef<Set<string>>(new Set());
   const [localScores, setLocalScores] = useState<Map<number, string>>(() => loadDraft(draftScope, examId));
   const [studentSearch, setStudentSearch] = useState("");
@@ -281,16 +282,20 @@ function ScoreEntryList({
   const [justSaved, setJustSaved] = useState<Set<number>>(new Set());
   useEffect(() => { setLocalScores(loadDraft(draftScope, examId)); }, [draftScope, examId]);
   useEffect(() => {
+    initialFocusAttempted.current = false;
     setStudentSearch("");
     setReviewFilter("all");
   }, [examId]);
   useEffect(() => {
-    if (!results?.length) return;
+    if (initialFocusAttempted.current || resultsLoading || rosterLoading || scoreSheetLoading || resultsError || scoreSheetError || !results?.length) return;
     const firstEnrollmentId = getExamResultEnrollmentId(results[0]);
     if (firstEnrollmentId == null) return;
-    const t = setTimeout(() => inputRefs.current.get(firstEnrollmentId)?.focus(), 50);
-    return () => clearTimeout(t);
-  }, [examId, results]);
+    const firstInput = inputRefs.current.get(firstEnrollmentId);
+    if (!firstInput?.isConnected) return;
+    // 검색·다음 학생 입력을 시작한 뒤에는 조회 갱신이 포커스를 가져가지 않는다.
+    initialFocusAttempted.current = true;
+    if (!document.activeElement || document.activeElement === document.body) firstInput.focus();
+  }, [examId, results, resultsLoading, rosterLoading, scoreSheetLoading, resultsError, scoreSheetError]);
 
   const updateMut = useMutation({
     mutationFn: ({ enrollmentId, score, maxScore, subjectiveOnly }: { enrollmentId: number; score: number; maxScore: number; subjectiveOnly: boolean }) =>
