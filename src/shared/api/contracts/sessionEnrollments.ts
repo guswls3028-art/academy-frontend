@@ -1,9 +1,11 @@
 // PATH: src/shared/api/contracts/sessionEnrollments.ts
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 
 export type SessionEnrollmentStatus = "ACTIVE" | "INACTIVE" | "PENDING";
 
-export type SessionEnrollmentRow = {
+export type SessionEnrollmentRow = Partial<Pick<components["schemas"]["SessionEnrollment"],
+  "lecture_memo" | "lecture_memo_updated_at" | "student_memo">> & {
   id: number;
   session: number;
   enrollment: number;
@@ -63,6 +65,9 @@ function normalizeSessionEnrollment(raw: unknown): SessionEnrollmentRow {
     enrollment: asNumber(record.enrollment),
     ...(studentId != null ? { student_id: studentId } : {}),
     student_name: asString(record.student_name),
+    lecture_memo: asString(record.lecture_memo),
+    lecture_memo_updated_at: asString(record.lecture_memo_updated_at),
+    student_memo: asString(record.student_memo),
     enrollment_status: asEnrollmentStatus(record.enrollment_status),
     student_school: asNullableString(record.student_school),
     student_grade: asNullableNumber(record.student_grade),

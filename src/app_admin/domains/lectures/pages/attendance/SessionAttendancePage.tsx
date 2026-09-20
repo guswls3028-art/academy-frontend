@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/lectures/pages/attendance/SessionAttendancePage.tsx
 // Design: students 도메인과 동일 — 검색·필터·컬럼정렬·툴바(수강생 등록만)
-// 메모 제거, 강의 전체 차시 출결을 인라인 매트릭스로 표시
+// 학생 공통 메모와 수강등록 소유 강의 메모를 출결 행 아래에 표시
 //
 // R-11 baseline 임시 file-level disable (2026-05-14): 학원장 limglish 변수 누락 즉시 fix(712656a2)
 // 가 file에 line 추가/수정 → baseline file:line 매칭 깨져 기존 22 errors 새 fail로 분류 → CI 차단.
@@ -54,6 +54,7 @@ import { arrivalOverviewQueryKey } from "@/shared/api/contracts/arrivalOverview"
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
 import AttendanceStatusInlineRail from "./AttendanceStatusInlineRail";
+import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
@@ -810,7 +811,7 @@ export default function SessionAttendancePage({
           </div>
         </section>
       )}
-      <div className="overflow-x-auto w-full">
+      <div className="overflow-x-auto w-full attendance-memo-container">
         {sorted.length === 0 ? (
           <EmptyState
             scope="panel"
@@ -880,8 +881,8 @@ export default function SessionAttendancePage({
                   const studentId = att.student_id ?? att.enrollment?.student_id;
                   const canOpenStudent = Number.isInteger(studentId) && Number(studentId) > 0;
                   return (
+                  <React.Fragment key={att.id}>
                   <tr
-                    key={att.id}
                     className={[
                       selectedSet.has(att.id) ? "ds-row-selected" : "",
                       canOpenStudent ? "cursor-pointer" : "",
@@ -974,6 +975,17 @@ export default function SessionAttendancePage({
                       {formatPhone(att.phone ?? att.student_phone)}
                     </td>
                   </tr>
+                  {att.enrollment_id != null && (
+                    <tr className={selectedSet.has(att.id) ? "ds-row-selected" : ""}>
+                      <td colSpan={attendanceColumnDefs.length}>
+                        <StudentLectureMemo enrollmentId={att.enrollment_id}
+                          studentName={att.name ?? att.student_name ?? "학생"}
+                          lectureTitle={att.lecture_title} lectureMemo={att.lecture_memo}
+                          studentMemo={att.student_memo} />
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                   );
                 })}
               </tbody>

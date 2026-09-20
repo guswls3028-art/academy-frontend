@@ -1,13 +1,17 @@
 // PATH: src/shared/api/contracts/attendance.ts
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 import { pollJobUntilDone, downloadFromUrl } from "@/shared/api/jobExport";
+
+type AttendanceMemoFields = Partial<Pick<components["schemas"]["LectureAttendance"],
+  "lecture_memo" | "lecture_memo_updated_at" | "student_memo">>;
 
 /* =========================================================
  * 1️⃣ 세션 단위 출결 목록 조회 (SessionDetailPage)
  * GET /api/v1/lectures/attendance/?session={id}&page=1&page_size=50
  * 응답: { count, next, previous, results } (DRF 페이지네이션)
  * ======================================================= */
-export type AttendanceRow = {
+export type AttendanceRow = AttendanceMemoFields & {
   id: number;
   status: string;
   memo?: string | null;
@@ -41,9 +45,10 @@ export type AttendanceSummary = {
   counts: Record<string, number>;
 };
 
-export type AttendanceListItem = Record<string, unknown> & {
+export type AttendanceListItem = Record<string, unknown> & AttendanceMemoFields & {
   id: number;
   status: string;
+  enrollment_id?: number | null;
   memo?: string | null;
   planned_arrival_date?: string | null;
   planned_arrival_time?: string | null;

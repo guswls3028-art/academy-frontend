@@ -254,7 +254,11 @@ export default function StudentsDetailOverlay({
 
   const updateMemo = useMutation({
     mutationFn: (memo: string) => createMemo(id, memo),
-    onSuccess: () => qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentDetail(id) }),
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentDetail(id) }),
+      ...["attendance", "session-attendance", "session-enrollments"]
+        .map((key) => qc.invalidateQueries({ queryKey: [key] })),
+    ]),
     onError: () => { feedback.error("처리에 실패했습니다."); },
   });
 
@@ -555,7 +559,7 @@ export default function StudentsDetailOverlay({
                   {/* 메모 */}
                   <div className="ds-overlay-sidebar-section">
                     <div className="ds-overlay-sidebar-section__title">
-                      메모
+                      학생 공통 메모
                       {updateMemo.isPending && (
                         <span className="ds-overlay-memo__status ds-overlay-memo__status--saving">저장 중...</span>
                       )}
@@ -565,8 +569,9 @@ export default function StudentsDetailOverlay({
                     </div>
                     <textarea
                       key={`memo-${student.memo ?? ""}`}
+                      aria-label="학생 공통 메모"
                       className={`ds-textarea w-full ${styles.memoTextarea}`}
-                      rows={3}
+                      rows={4}
                       defaultValue={student.memo ?? ""}
                       placeholder="포커스 해제 시 자동 저장"
                       onBlur={(e) => updateMemo.mutate(e.target.value)}

@@ -1,0 +1,55 @@
+.root {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  max-width: min(100%, calc(100vw - 64px));
+  padding: 4px 0 8px;
+}
+
+.preview {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-primary-bg);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+  transition: background-color 120ms ease;
+}
+
+.preview:hover { background: var(--color-bg-hover); }
+.preview:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }
+.scope { flex: 0 0 auto; font-weight: 700; color: var(--color-primary); white-space: nowrap; }
+.previewText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  min-width: 0;
+}
+.previewText[data-empty="true"], .help, .editHint { color: var(--color-text-secondary); }
+.editHint { flex-shrink: 0; margin-left: auto; white-space: nowrap; }
+.common { background: var(--color-bg-surface); }
+.common .scope { color: var(--color-text-secondary); }
+.editor { display: grid; gap: 10px; min-width: 0; }
+.label, .commonDetail strong { font-size: 13px; font-weight: 700; }
+.textarea { width: 100%; min-height: 144px; resize: vertical; line-height: 1.7; }
+.help { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.commonDetail, .conflict { padding: 12px; border: 1px solid var(--color-border-divider); border-radius: var(--radius-md, 8px); }
+.commonDetail p, .latest { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; font-size: 13px; line-height: 1.7; }
+.conflict { display: grid; gap: 8px; font-size: 13px; }
+.latest { padding: 10px; background: var(--color-bg-surface); max-height: 180px; overflow-y: auto; }
+.error { color: var(--color-danger); font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .preview { min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .preview { transition: none; } }

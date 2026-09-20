@@ -3020,6 +3020,22 @@ export interface paths {
         patch: operations["enrollments_partial_update"];
         trace?: never;
     };
+    "/api/v1/enrollments/{id}/lecture-memo/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["enrollments_lecture_memo_partial_update"];
+        trace?: never;
+    };
     "/api/v1/enrollments/bulk_create/": {
         parameters: {
             query?: never;
@@ -6318,6 +6334,38 @@ export interface paths {
          *     - BLOCKED: 접근 차단
          */
         post: operations["media_playback_start_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/playback/v2/end/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["media_playback_v2_end_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/playback/v2/events/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["media_playback_v2_events_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9780,7 +9828,7 @@ export interface paths {
         /**
          * @description GET /student/video/me/stats/
          *     학생 영상 시청 통계 — 전체 진도율, 완료 영상 수, 강좌별 진도.
-         *     활성 수강 강좌의 READY 영상 전체를 분모로 삼고, VideoProgress는 진도만 보강한다.
+         *     활성 수강의 등록된 차시와 시스템 공개 공간의 READY 영상을 분모로 삼는다.
          */
         get: operations["student_video_me_stats_retrieve"];
         put?: never;
@@ -12317,15 +12365,23 @@ export interface components {
          */
         ClinicAvailabilityResponseBookingModeEnum: "fixed_slot" | "time_range";
         ClinicAvailabilitySlot: {
+            /** Format: date */
+            end_date: string;
             /** Format: time */
             end_time: string;
             remaining_capacity: number;
+            /** Format: date */
+            start_date: string;
             /** Format: time */
             start_time: string;
         };
         ClinicAvailabilityWindow: {
+            /** Format: date */
+            end_date: string;
             /** Format: time */
             end_time: string;
+            /** Format: date */
+            start_date: string;
             /** Format: time */
             start_time: string;
         };
@@ -12429,6 +12485,10 @@ export interface components {
          * @enum {string}
          */
         ClinicLinkResolutionTypeEnum: "EXAM_PASS" | "HOMEWORK_PASS" | "MANUAL_OVERRIDE" | "WAIVED" | "CARRIED_OVER" | "SOURCE_REMOVED" | "NOT_SUBMITTED" | "GRADING_RETRACTED" | "BOOKING_LEGACY";
+        ClinicLinkUnresolveRequest: {
+            /** Format: date-time */
+            expected_resolved_at?: string;
+        };
         ClinicNotificationRetryRequestRequest: {
             log_id: number;
         };
@@ -12499,6 +12559,8 @@ export interface components {
             date: string;
             /** Format: int64 */
             duration_minutes?: number;
+            /** Format: date */
+            readonly end_date: string;
             readonly end_time: string;
             readonly has_auto_targets: string;
             readonly id: number;
@@ -12550,11 +12612,15 @@ export interface components {
          */
         ClinicSessionBookingModeEnum: "fixed_slot" | "time_range";
         ClinicSessionParticipant: {
+            /** Format: date */
+            readonly booking_end_date: string | null;
             /**
              * Format: time
              * @description 시간 범위 방식에서 확정된 실제 예약 종료 시각입니다.
              */
             booking_end_time?: string | null;
+            /** Format: date */
+            readonly booking_start_date: string | null;
             /**
              * Format: time
              * @description 시간 범위 방식에서 확정된 실제 예약 시작 시각입니다.
@@ -13043,6 +13109,9 @@ export interface components {
             readonly enrolled_at: string;
             readonly id: number;
             lecture: number;
+            readonly lecture_memo: string;
+            /** Format: date-time */
+            readonly lecture_memo_updated_at: string;
             status?: components["schemas"]["Status2d4Enum"];
             readonly student: components["schemas"]["StudentShort"];
             readonly tenant: number;
@@ -13068,6 +13137,12 @@ export interface components {
             lecture: number;
             status?: components["schemas"]["Status2d4Enum"];
         };
+        /**
+         * @description * `1` - 1
+         *     * `2` - 2
+         * @enum {integer}
+         */
+        EventProtocolVersionEnum: 1 | 2;
         /**
          * @description * `VISIBILITY_HIDDEN` - 탭 숨김
          *     * `VISIBILITY_VISIBLE` - 탭 노출
@@ -14058,6 +14133,73 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        LectureAttendance: {
+            enrollment_id: number;
+            readonly id: number;
+            /** @default #3b82f6 */
+            readonly lecture_color: string;
+            readonly lecture_memo: string;
+            /** Format: date-time */
+            readonly lecture_memo_updated_at: string;
+            readonly lecture_title: string;
+            memo?: string;
+            readonly name: string;
+            readonly name_highlight_clinic_target: boolean;
+            readonly parent_phone: string;
+            readonly phone: string | null;
+            /**
+             * Format: date
+             * @description 보강 학생의 예정 등원 날짜. 값이 있을 때 등원 예정으로 집계한다.
+             */
+            planned_arrival_date?: string | null;
+            /**
+             * Format: time
+             * @description 보강 학생의 예정 등원 시간. 날짜만 정해진 경우 비워둘 수 있다.
+             */
+            planned_arrival_time?: string | null;
+            readonly profile_photo_url: string | null;
+            session: number;
+            status?: components["schemas"]["LectureAttendanceStatusEnum"];
+            readonly student_id: number;
+            readonly student_memo: string;
+        };
+        LectureAttendanceRequest: {
+            enrollment_id: number;
+            memo?: string;
+            /**
+             * Format: date
+             * @description 보강 학생의 예정 등원 날짜. 값이 있을 때 등원 예정으로 집계한다.
+             */
+            planned_arrival_date?: string | null;
+            /**
+             * Format: time
+             * @description 보강 학생의 예정 등원 시간. 날짜만 정해진 경우 비워둘 수 있다.
+             */
+            planned_arrival_time?: string | null;
+            session: number;
+            status?: components["schemas"]["LectureAttendanceStatusEnum"];
+        };
+        /**
+         * @description * `UNSET` - 미입력
+         *     * `PRESENT` - 출석
+         *     * `LATE` - 지각
+         *     * `ONLINE` - 온라인
+         *     * `SUPPLEMENT` - 보강
+         *     * `EARLY_LEAVE` - 조퇴
+         *     * `ABSENT` - 결석
+         *     * `RUNAWAY` - 출튀
+         *     * `MATERIAL` - 자료
+         *     * `INACTIVE` - 부재
+         *     * `SECESSION` - 탈퇴
+         * @enum {string}
+         */
+        LectureAttendanceStatusEnum: "UNSET" | "PRESENT" | "LATE" | "ONLINE" | "SUPPLEMENT" | "EARLY_LEAVE" | "ABSENT" | "RUNAWAY" | "MATERIAL" | "INACTIVE" | "SECESSION";
+        LectureMemoResult: {
+            readonly id: number;
+            readonly lecture_memo: string;
+            /** Format: date-time */
+            readonly lecture_memo_updated_at: string;
+        };
         LectureProgress: {
             /** Format: int64 */
             completed_sessions?: number;
@@ -14734,6 +14876,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["InvoiceList"][];
+        };
+        PaginatedLectureAttendanceList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["LectureAttendance"][];
         };
         PaginatedLectureProgressList: {
             /** @example 123 */
@@ -15537,6 +15694,25 @@ export interface components {
             status?: string | null;
             teacher_approved?: boolean;
         };
+        PatchedLectureAttendanceRequest: {
+            enrollment_id?: number;
+            memo?: string;
+            /**
+             * Format: date
+             * @description 보강 학생의 예정 등원 날짜. 값이 있을 때 등원 예정으로 집계한다.
+             */
+            planned_arrival_date?: string | null;
+            /**
+             * Format: time
+             * @description 보강 학생의 예정 등원 시간. 날짜만 정해진 경우 비워둘 수 있다.
+             */
+            planned_arrival_time?: string | null;
+            session?: number;
+            status?: components["schemas"]["LectureAttendanceStatusEnum"];
+        };
+        PatchedLectureMemoRequest: {
+            lecture_memo?: string;
+        };
         PatchedLectureRequest: {
             /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
             chip_label?: string;
@@ -16046,6 +16222,8 @@ export interface components {
         };
         PlaybackRenewResponse: {
             access_mode: components["schemas"]["StudentVideoEffectiveAccessMode"];
+            /** @default 1 */
+            event_protocol_version: components["schemas"]["EventProtocolVersionEnum"];
             monitoring_enabled: boolean;
             ok: boolean;
             play_url?: string | null;
@@ -16053,6 +16231,36 @@ export interface components {
             playback_session_id: string | null;
             playback_token: string;
             policy_version: number;
+        };
+        PlaybackV2Acknowledgement: {
+            /** Format: uuid */
+            batch_id: string;
+            duplicate: boolean;
+            event_count: number;
+        };
+        PlaybackV2BatchRequest: {
+            /** Format: uuid */
+            batch_id: string;
+            events: components["schemas"]["PlaybackV2EventRequest"][];
+        };
+        PlaybackV2EndRequestRequest: {
+            batches: components["schemas"]["PlaybackV2BatchRequest"][];
+            token: string;
+        };
+        PlaybackV2EventRequest: {
+            occurred_at?: number;
+            payload?: unknown;
+            type: components["schemas"]["EventTypeEnum"];
+        };
+        PlaybackV2EventsRequestRequest: {
+            batch: components["schemas"]["PlaybackV2BatchRequest"];
+            token: string;
+        };
+        PlaybackV2Response: {
+            acknowledgements: components["schemas"]["PlaybackV2Acknowledgement"][];
+            inserted_count: number;
+            protocol_version: number;
+            session_status: components["schemas"]["SessionStatusEnum"];
         };
         /**
          * @description * `DIRECTOR` - 실장
@@ -17176,9 +17384,13 @@ export interface components {
             enrollment: number;
             readonly enrollment_status: string;
             readonly id: number;
+            readonly lecture_memo: string;
+            /** Format: date-time */
+            readonly lecture_memo_updated_at: string;
             session: number;
             readonly student_grade: number | null;
             readonly student_id: number;
+            readonly student_memo: string;
             readonly student_name: string;
             readonly student_school: string;
             readonly tenant: number;
@@ -17213,6 +17425,14 @@ export interface components {
             /** Format: int64 */
             video_progress_rate?: number;
         };
+        /**
+         * @description * `ACTIVE` - 활성
+         *     * `ENDED` - 종료
+         *     * `REVOKED` - 차단
+         *     * `EXPIRED` - 만료
+         * @enum {string}
+         */
+        SessionStatusEnum: "ACTIVE" | "ENDED" | "REVOKED" | "EXPIRED";
         /**
          * @description * `REGULAR` - 정규
          *     * `SUPPLEMENT` - 보강
@@ -18412,6 +18632,8 @@ export interface components {
         StudentVideoListItemAccessModeEnum: "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
         /** @description 학생 플레이어가 신뢰하는 단일 진실 payload */
         StudentVideoPlayback: {
+            /** @default 1 */
+            event_protocol_version: components["schemas"]["EventProtocolVersionEnum"];
             hls_url?: string | null;
             mp4_url?: string | null;
             play_url?: string | null;
@@ -18425,6 +18647,10 @@ export interface components {
             video: components["schemas"]["StudentVideoListItem"];
         };
         StudentVideoPlaybackOrAccessCheck: components["schemas"]["StudentVideoPlayback"] | components["schemas"]["StudentVideoAccessCheck"];
+        StudentVideoPlaybackRequestRequest: {
+            /** @default 1 */
+            event_protocol_version: components["schemas"]["EventProtocolVersionEnum"];
+        };
         Submission: {
             /** Format: date-time */
             readonly created_at: string;
@@ -23255,6 +23481,35 @@ export interface operations {
             };
         };
     };
+    enrollments_lecture_memo_partial_update: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Expected-Updated-At": string;
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedLectureMemoRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedLectureMemoRequest"];
+                "multipart/form-data": components["schemas"]["PatchedLectureMemoRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LectureMemoResult"];
+                };
+            };
+        };
+    };
     enrollments_bulk_create_create: {
         parameters: {
             query?: never;
@@ -27417,7 +27672,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedAttendanceList"];
+                    "application/json": components["schemas"]["PaginatedLectureAttendanceList"];
                 };
             };
         };
@@ -27431,9 +27686,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27442,7 +27697,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27464,7 +27719,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27481,9 +27736,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27492,7 +27747,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27530,9 +27785,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedAttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedAttendanceRequest"];
-                "multipart/form-data": components["schemas"]["PatchedAttendanceRequest"];
+                "application/json": components["schemas"]["PatchedLectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedLectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["PatchedLectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27541,7 +27796,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27560,7 +27815,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27574,9 +27829,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27585,7 +27840,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27599,9 +27854,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27610,7 +27865,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27624,9 +27879,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27635,7 +27890,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27649,9 +27904,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27660,7 +27915,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27679,7 +27934,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -28959,6 +29214,56 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    media_playback_v2_end_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybackV2EndRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PlaybackV2EndRequestRequest"];
+                "multipart/form-data": components["schemas"]["PlaybackV2EndRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackV2Response"];
+                };
+            };
+        };
+    };
+    media_playback_v2_events_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybackV2EventsRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PlaybackV2EventsRequestRequest"];
+                "multipart/form-data": components["schemas"]["PlaybackV2EventsRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackV2Response"];
+                };
             };
         };
     };
@@ -30813,11 +31118,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": components["schemas"]["ClinicLinkRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ClinicLinkRequest"];
-                "multipart/form-data": components["schemas"]["ClinicLinkRequest"];
+                "application/json": components["schemas"]["ClinicLinkUnresolveRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicLinkUnresolveRequest"];
+                "multipart/form-data": components["schemas"]["ClinicLinkUnresolveRequest"];
             };
         };
         responses: {
@@ -34337,7 +34642,13 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StudentVideoPlaybackRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StudentVideoPlaybackRequestRequest"];
+                "multipart/form-data": components["schemas"]["StudentVideoPlaybackRequestRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {
