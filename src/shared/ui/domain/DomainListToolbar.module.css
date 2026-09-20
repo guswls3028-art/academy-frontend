@@ -67,6 +67,16 @@
   padding-bottom: 2px;
 }
 
+/* Keep action labels intact; wrap their groups before shrinking the buttons. */
+.mobileActionScroller > * {
+  flex-wrap: wrap;
+}
+
+.mobileActionScroller :global(.ds-button),
+.mobileBelowScroller :global(.ds-button) {
+  flex-shrink: 0;
+}
+
 @media (min-width: 1024px) and (max-width: 1180px) {
   .desktopMainRow {
     flex-wrap: wrap;
