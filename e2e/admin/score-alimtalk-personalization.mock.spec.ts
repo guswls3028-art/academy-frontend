@@ -392,11 +392,19 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await studentRecipientCheckbox.uncheck();
     const requestButton = modal.locator(".send-modal__send-btn");
     await expect(requestButton).toBeEnabled();
+    expect(sendPayloads).toHaveLength(0);
     await requestButton.click();
 
     const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
     const preview = page.getByLabel("카카오톡 실제 발송 미리보기");
     await expect(confirm).toBeVisible();
+    expect(sendPayloads).toHaveLength(0);
+    await confirm.getByRole("button", { name: "돌아가기", exact: true }).click();
+    await expect(confirm).toBeHidden();
+    expect(sendPayloads).toHaveLength(0);
+    await requestButton.click();
+    await expect(confirm).toBeVisible();
+    expect(sendPayloads).toHaveLength(0);
     await expect(preview).toContainText("개인화학생1");
     await expect(preview).toContainText("주간 확인");
     await expect(preview).toContainText("70/100");
