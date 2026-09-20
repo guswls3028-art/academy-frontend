@@ -1,4 +1,5 @@
 export const messageQueryKeys = {
+  academyName: (tenantCode: string | undefined) => ["messaging", "academy-name", tenantCode] as const,
   autoSend: ["messaging", "auto-send"] as const,
   info: ["messaging", "info"] as const,
   log: ["messaging", "log"] as const,

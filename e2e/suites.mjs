@@ -53,6 +53,7 @@ export const routeMockSpecs = [
   "e2e/admin/session-attendance-bulk-safety.mock.spec.ts",
   "e2e/admin/score-entry-autosave.spec.ts",
   "e2e/admin/score-alimtalk-personalization.mock.spec.ts",
+  "e2e/admin/message-template-editor.mock.spec.ts",
   "e2e/admin/score-column-mobile-ordering.mock.spec.ts",
   "e2e/admin/ppt-mobile-slide-ordering.mock.spec.ts",
   "e2e/clinic-pdf-download.spec.ts",
