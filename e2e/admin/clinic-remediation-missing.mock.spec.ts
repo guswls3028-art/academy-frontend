@@ -1169,3 +1169,92 @@ test("백그라운드에서 생긴 작업을 탭 복귀 시 즉시 다시 폴링
   await expect.poll(() => progressRequests).toBeGreaterThan(0);
   await expect(page.getByText("학생 일괄 등록 — 신규 등록 1명", { exact: true })).toBeVisible();
 });
+
+
+for (const width of [390, 1366]) {
+  test(`수동 통과 취소는 새로고침 뒤에도 실패·충돌을 복구한다 ${width}px`, async ({ page }, info) => {
+    await seed(page);
+    await page.setViewportSize({ width, height: 900 });
+    const { today, tomorrow } = currentClinicCountDates();
+    const data = createClinicCountFreshnessRouteData(today, tomorrow);
+    const resolvedAt = "2026-09-20T00:00:00.123456Z";
+    let resolved = true;
+    let mode: "failure" | "pending" | "conflict" = "failure";
+    let saves = 0;
+    let release!: () => void;
+    const pending = new Promise<void>((done) => { release = done; });
+    const unexpectedWrites: string[] = [];
+    await page.route("**/api/v1/**", async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname.replace(/^\/api\/v1/, "");
+      const method = request.method();
+      const json = (body: unknown, status = 200) => route.fulfill({ status, json: body });
+      if (method === "OPTIONS") return route.fulfill({ status: 204 });
+      if (path === "/core/me/") return json({ id: 12, username: "staff", name: "직원", is_staff: true, is_superuser: false, tenantRole: "staff", must_change_password: false });
+      if (path === "/progress/clinic-links/880/unresolve/" && method === "POST") {
+        saves += 1;
+        expect(request.postDataJSON()).toEqual({ expected_resolved_at: resolvedAt });
+        if (mode === "failure") return json({ detail: "일시 실패" }, 503);
+        if (mode === "conflict") return json({ detail: "다른 처리" }, 409);
+        await pending;
+        resolved = false;
+        return json({ id: 880, resolved_at: null, resolution_type: null, resolution_evidence: null });
+      }
+      if (path === "/results/admin/clinic-targets/") return json([
+        { ...remediationWorkbenchTargets[0], resolved_at: resolved ? resolvedAt : null,
+          resolution_type: resolved ? "MANUAL_OVERRIDE" : null, resolution_evidence: resolved ? { user_id: 12 } : null },
+        { ...remediationWorkbenchTargets[1], resolved_at: resolvedAt, resolution_type: "HOMEWORK_PASS" },
+        { ...remediationWorkbenchTargets[0], clinic_link_id: 882, source_title: "교사 오답 확인", resolved_at: resolvedAt,
+          resolution_type: "MANUAL_OVERRIDE", resolution_evidence: { assessment_correction_id: 42 } },
+        { ...remediationWorkbenchTargets[0], clinic_link_id: 883, source_title: "과거 처리 근거 확인", resolved_at: resolvedAt,
+          resolution_type: "MANUAL_OVERRIDE", resolution_evidence: "legacy" },
+      ]);
+      if (method !== "GET") unexpectedWrites.push(`${method} ${path}`);
+      return json(data.response(path, method, url.search));
+    });
+    try {
+      await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings?resolved=1`);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("checkbox", { name: "해결 완료 포함" })).toBeChecked();
+      await page.getByRole("button", { name: "점수 일괄입력", exact: true }).click();
+      await expect(page.getByRole("button", { name: "수동 통과 취소", exact: true })).toHaveCount(1);
+      await page.getByRole("button", { name: "학생 작업대", exact: true }).click();
+      const ticket = (title: string) => page.locator(".clinic-hub__item-ticket").filter({ hasText: title });
+      for (const title of ["평형의 이동 복습", "교사 오답 확인", "과거 처리 근거 확인"]) {
+        await ticket(title).click();
+        await expect(page.getByRole("button", { name: "수동 통과 취소", exact: true })).toHaveCount(0);
+      }
+      await ticket("기체 법칙 단원평가").click();
+      await page.getByRole("button", { name: "수동 통과 취소", exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: "수동 통과 취소", exact: true });
+      const confirm = dialog.getByRole("button", { name: "통과 취소하기", exact: true });
+      await confirm.click();
+      await expect(dialog.getByRole("alert")).toContainText("통과 취소에 실패했습니다");
+      await expect(dialog).toContainText("기체 법칙 단원평가");
+      await page.screenshot({ path: info.outputPath(`clinic-undo-error-${width}.png`) });
+      mode = "conflict";
+      await confirm.click();
+      await expect(dialog.getByRole("alert")).toContainText("다른 작업으로 처리 상태가 바뀌었습니다");
+      await expect(confirm).toBeDisabled();
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      await page.getByRole("button", { name: "수동 통과 취소", exact: true }).click();
+      mode = "pending";
+      await confirm.click();
+      await expect(confirm).toBeDisabled();
+      await confirm.evaluate((button: HTMLButtonElement) => { button.click(); button.click(); });
+      expect(saves).toBe(3);
+      release();
+      await expect(dialog).toBeHidden();
+      await expect(page.getByRole("button", { name: "통과", exact: true })).toBeVisible();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("button", { name: "통과", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "수동 통과 취소", exact: true })).toHaveCount(0);
+      await expect(page.getByText("20점 / 기준 80점", { exact: true }).first()).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+      await page.getByRole("button", { name: "통과", exact: true }).scrollIntoViewIfNeeded();
+      await info.attach(`clinic-undo-${width}`, { body: await page.screenshot({ path: info.outputPath(`clinic-undo-${width}.png`), fullPage: true }), contentType: "image/png" });
+      expect(unexpectedWrites).toEqual([]);
+    } finally { release(); }
+  });
+}

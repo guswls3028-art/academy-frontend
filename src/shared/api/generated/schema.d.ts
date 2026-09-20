@@ -6324,6 +6324,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/playback/v2/end/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["media_playback_v2_end_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/playback/v2/events/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["media_playback_v2_events_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/video-permissions/": {
         parameters: {
             query?: never;
@@ -9780,7 +9812,7 @@ export interface paths {
         /**
          * @description GET /student/video/me/stats/
          *     학생 영상 시청 통계 — 전체 진도율, 완료 영상 수, 강좌별 진도.
-         *     활성 수강 강좌의 READY 영상 전체를 분모로 삼고, VideoProgress는 진도만 보강한다.
+         *     활성 수강의 등록된 차시와 시스템 공개 공간의 READY 영상을 분모로 삼는다.
          */
         get: operations["student_video_me_stats_retrieve"];
         put?: never;
@@ -12317,15 +12349,23 @@ export interface components {
          */
         ClinicAvailabilityResponseBookingModeEnum: "fixed_slot" | "time_range";
         ClinicAvailabilitySlot: {
+            /** Format: date */
+            end_date: string;
             /** Format: time */
             end_time: string;
             remaining_capacity: number;
+            /** Format: date */
+            start_date: string;
             /** Format: time */
             start_time: string;
         };
         ClinicAvailabilityWindow: {
+            /** Format: date */
+            end_date: string;
             /** Format: time */
             end_time: string;
+            /** Format: date */
+            start_date: string;
             /** Format: time */
             start_time: string;
         };
@@ -12429,6 +12469,10 @@ export interface components {
          * @enum {string}
          */
         ClinicLinkResolutionTypeEnum: "EXAM_PASS" | "HOMEWORK_PASS" | "MANUAL_OVERRIDE" | "WAIVED" | "CARRIED_OVER" | "SOURCE_REMOVED" | "NOT_SUBMITTED" | "GRADING_RETRACTED" | "BOOKING_LEGACY";
+        ClinicLinkUnresolveRequest: {
+            /** Format: date-time */
+            expected_resolved_at?: string;
+        };
         ClinicNotificationRetryRequestRequest: {
             log_id: number;
         };
@@ -12499,6 +12543,8 @@ export interface components {
             date: string;
             /** Format: int64 */
             duration_minutes?: number;
+            /** Format: date */
+            readonly end_date: string;
             readonly end_time: string;
             readonly has_auto_targets: string;
             readonly id: number;
@@ -12550,11 +12596,15 @@ export interface components {
          */
         ClinicSessionBookingModeEnum: "fixed_slot" | "time_range";
         ClinicSessionParticipant: {
+            /** Format: date */
+            readonly booking_end_date: string | null;
             /**
              * Format: time
              * @description 시간 범위 방식에서 확정된 실제 예약 종료 시각입니다.
              */
             booking_end_time?: string | null;
+            /** Format: date */
+            readonly booking_start_date: string | null;
             /**
              * Format: time
              * @description 시간 범위 방식에서 확정된 실제 예약 시작 시각입니다.
@@ -13068,6 +13118,12 @@ export interface components {
             lecture: number;
             status?: components["schemas"]["Status2d4Enum"];
         };
+        /**
+         * @description * `1` - 1
+         *     * `2` - 2
+         * @enum {integer}
+         */
+        EventProtocolVersionEnum: 1 | 2;
         /**
          * @description * `VISIBILITY_HIDDEN` - 탭 숨김
          *     * `VISIBILITY_VISIBLE` - 탭 노출
@@ -16046,6 +16102,8 @@ export interface components {
         };
         PlaybackRenewResponse: {
             access_mode: components["schemas"]["StudentVideoEffectiveAccessMode"];
+            /** @default 1 */
+            event_protocol_version: components["schemas"]["EventProtocolVersionEnum"];
             monitoring_enabled: boolean;
             ok: boolean;
             play_url?: string | null;
@@ -16053,6 +16111,36 @@ export interface components {
             playback_session_id: string | null;
             playback_token: string;
             policy_version: number;
+        };
+        PlaybackV2Acknowledgement: {
+            /** Format: uuid */
+            batch_id: string;
+            duplicate: boolean;
+            event_count: number;
+        };
+        PlaybackV2BatchRequest: {
+            /** Format: uuid */
+            batch_id: string;
+            events: components["schemas"]["PlaybackV2EventRequest"][];
+        };
+        PlaybackV2EndRequestRequest: {
+            batches: components["schemas"]["PlaybackV2BatchRequest"][];
+            token: string;
+        };
+        PlaybackV2EventRequest: {
+            occurred_at?: number;
+            payload?: unknown;
+            type: components["schemas"]["EventTypeEnum"];
+        };
+        PlaybackV2EventsRequestRequest: {
+            batch: components["schemas"]["PlaybackV2BatchRequest"];
+            token: string;
+        };
+        PlaybackV2Response: {
+            acknowledgements: components["schemas"]["PlaybackV2Acknowledgement"][];
+            inserted_count: number;
+            protocol_version: number;
+            session_status: components["schemas"]["SessionStatusEnum"];
         };
         /**
          * @description * `DIRECTOR` - 실장
@@ -17213,6 +17301,14 @@ export interface components {
             /** Format: int64 */
             video_progress_rate?: number;
         };
+        /**
+         * @description * `ACTIVE` - 활성
+         *     * `ENDED` - 종료
+         *     * `REVOKED` - 차단
+         *     * `EXPIRED` - 만료
+         * @enum {string}
+         */
+        SessionStatusEnum: "ACTIVE" | "ENDED" | "REVOKED" | "EXPIRED";
         /**
          * @description * `REGULAR` - 정규
          *     * `SUPPLEMENT` - 보강
@@ -18412,6 +18508,8 @@ export interface components {
         StudentVideoListItemAccessModeEnum: "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
         /** @description 학생 플레이어가 신뢰하는 단일 진실 payload */
         StudentVideoPlayback: {
+            /** @default 1 */
+            event_protocol_version: components["schemas"]["EventProtocolVersionEnum"];
             hls_url?: string | null;
             mp4_url?: string | null;
             play_url?: string | null;
@@ -18425,6 +18523,10 @@ export interface components {
             video: components["schemas"]["StudentVideoListItem"];
         };
         StudentVideoPlaybackOrAccessCheck: components["schemas"]["StudentVideoPlayback"] | components["schemas"]["StudentVideoAccessCheck"];
+        StudentVideoPlaybackRequestRequest: {
+            /** @default 1 */
+            event_protocol_version: components["schemas"]["EventProtocolVersionEnum"];
+        };
         Submission: {
             /** Format: date-time */
             readonly created_at: string;
@@ -28962,6 +29064,56 @@ export interface operations {
             };
         };
     };
+    media_playback_v2_end_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybackV2EndRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PlaybackV2EndRequestRequest"];
+                "multipart/form-data": components["schemas"]["PlaybackV2EndRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackV2Response"];
+                };
+            };
+        };
+    };
+    media_playback_v2_events_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybackV2EventsRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PlaybackV2EventsRequestRequest"];
+                "multipart/form-data": components["schemas"]["PlaybackV2EventsRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackV2Response"];
+                };
+            };
+        };
+    };
     media_video_permissions_list: {
         parameters: {
             query?: {
@@ -30813,11 +30965,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": components["schemas"]["ClinicLinkRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ClinicLinkRequest"];
-                "multipart/form-data": components["schemas"]["ClinicLinkRequest"];
+                "application/json": components["schemas"]["ClinicLinkUnresolveRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicLinkUnresolveRequest"];
+                "multipart/form-data": components["schemas"]["ClinicLinkUnresolveRequest"];
             };
         };
         responses: {
@@ -34337,7 +34489,13 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StudentVideoPlaybackRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StudentVideoPlaybackRequestRequest"];
+                "multipart/form-data": components["schemas"]["StudentVideoPlaybackRequestRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {

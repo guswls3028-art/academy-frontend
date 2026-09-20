@@ -4,7 +4,7 @@
  * cancels one, and the staff APIs prove both durable mock notification targets.
  */
 import { expect, test } from "../fixtures/strictTest";
-import type { APIRequestContext } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 
 import {
   api,
@@ -19,6 +19,7 @@ import {
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
+import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 test.setTimeout(360_000);
@@ -41,6 +42,7 @@ const todayKst = kstYmd(0);
 const clinicDate = kstYmd(1);
 const created = {
   adminAccess: "",
+  staffId: 0,
   family: null as QaFamily | null,
   lectureId: 0,
   sourceSessionId: 0,
@@ -100,6 +102,11 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       failures.push(`family cleanup -> ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  if (created.staffId) {
+    await remove("DELETE", `/staffs/${created.staffId}/`);
+    const staffReadback = await api(request, "GET", `/staffs/${created.staffId}/`, created.adminAccess);
+    if (staffReadback.status !== 404) failures.push(`staff cleanup readback -> ${staffReadback.status}`);
+  }
   for (const id of [...created.clinicSessionIds].reverse()) await remove("DELETE", `/clinic/sessions/${id}/`);
   if (created.examId && created.sourceSessionId) {
     await remove("DELETE", `/exams/${created.examId}/?session_id=${created.sourceSessionId}`);
@@ -107,6 +114,49 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.sourceSessionId) await remove("DELETE", `/lectures/sessions/${created.sourceSessionId}/`);
   if (created.lectureId) await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
   if (failures.length) throw new Error(`required cancellation cleanup failed: ${failures.join("; ")}`);
+}
+
+async function undoManualPassInUi(staffPage: Page, clinicLinkId: number, examTitle: string) {
+  await gotoAndSettle(staffPage, `${QA_BASE}/workspace/clinic/bookings?resolved=1`, { timeout: 30_000 });
+  await staffPage.reload({ waitUntil: "domcontentloaded" });
+  await expect(staffPage.getByRole("checkbox", { name: "해결 완료 포함" })).toBeChecked();
+  const ticket = staffPage.locator(".clinic-hub__item-ticket").filter({ hasText: examTitle });
+  await ticket.click();
+  await staffPage.getByRole("button", { name: "수동 통과 취소", exact: true }).click();
+  const dialog = staffPage.getByRole("dialog", { name: "수동 통과 취소", exact: true });
+  await expect(dialog).toContainText(examTitle);
+  const responsePromise = staffPage.waitForResponse((response) => response.request().method() === "POST"
+    && new URL(response.url()).pathname === `/api/v1/progress/clinic-links/${clinicLinkId}/unresolve/`);
+  await dialog.getByRole("button", { name: "통과 취소하기", exact: true }).click();
+  const response = await responsePromise;
+  expect(response.status()).toBe(200);
+  expect(response.request().postDataJSON().expected_resolved_at).toEqual(expect.any(String));
+  expect((await response.json()).resolved_at).toBeNull();
+  await expect(dialog).toBeHidden();
+  await expect(staffPage.getByRole("button", { name: "통과", exact: true })).toBeVisible();
+  await staffPage.reload({ waitUntil: "domcontentloaded" });
+  await expect(staffPage.getByRole("button", { name: "통과", exact: true })).toBeVisible();
+  expect(await staffPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+}
+
+async function verifyStudentClinicResult(page: Page, passed: boolean) {
+  await gotoAndSettle(page, `${QA_BASE}/student/exams/${created.examId}/result`, { timeout: 30_000 });
+  await acknowledgeInitialAccountPromptsIfVisible(page);
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "시험 결과", exact: true })).toBeVisible();
+    await expect(page.getByText("20 / 100점", { exact: true })).toBeVisible();
+    // The qa-ymath display separates teacher correction from clinic pass.
+    // Undoing clinic pass must not overwrite that teacher-owned correction state.
+    const correction = page.getByRole("region", { name: "테스트 오답 확인 상태" });
+    await expect(correction).toHaveAttribute("data-status", "pending");
+    await expect(correction.getByText("오답 미완료", { exact: true })).toBeVisible();
+    const clinic = page.getByRole("link", { name: /오답 미완료.*예약하기/ });
+    if (passed) await expect(clinic).toHaveCount(0);
+    else await expect(clinic).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  }
 }
 
 test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소", () => {
@@ -224,6 +274,17 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
     }, { timeoutMs: 60_000, intervalMs: 1_000, description: "required ClinicLink target" });
     expect(clinicTarget).toMatchObject({ exam_score: 20, cutline_score: 80 });
 
+    const staffUsername = `qa-clinic-assistant-${Date.now()}`;
+    const staff = await expectApi<{ id: number }>(request, "POST", "/staffs/", admin.access, {
+      name: "QA 클리닉 조교", role: "ASSISTANT", username: staffUsername,
+      password: student.password, is_manager: false,
+    }, [201]);
+    created.staffId = Number(staff.id);
+    const staffTokens = await loginApi(request, staffUsername, student.password);
+    expect(await expectApi(request, "GET", "/core/me/", staffTokens.access)).toMatchObject({ tenantRole: "staff" });
+    await seedBrowserAuth(page, studentTokens);
+    await verifyStudentClinicResult(page, false);
+
     // Restore the same disposable failure before the existing booking/cancel
     // journey, so manual resolution also runs in the official release suite.
     const clinicLinkId = Number((clinicTarget as Record<string, unknown> | null)?.clinic_link_id);
@@ -234,8 +295,9 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
     try {
       const staffPage = await staffContext.newPage();
       const staffBoundary = await installQaStudentParentBoundary(staffPage, request);
-      await seedBrowserAuth(staffPage, admin);
+      await seedBrowserAuth(staffPage, staffTokens);
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/clinic/bookings`, { timeout: 30_000 });
+      await acknowledgeInitialAccountPromptsIfVisible(staffPage);
       const examTitle = `${marker} 필수 대상 시험`;
       const ticket = staffPage.locator(".clinic-hub__item-ticket").filter({ hasText: examTitle });
       await ticket.click();
@@ -260,7 +322,9 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
       const manualResult = await expectApi(request, "GET", `/student/results/me/exams/${created.examId}/`, studentTokens.access);
       expect(manualResult).toMatchObject({ total_score: 20, remediated: true, clinic_required: false });
 
-      await expectApi(request, "POST", `/progress/clinic-links/${clinicLinkId}/unresolve/`, admin.access, {});
+      await verifyStudentClinicResult(page, true);
+      await undoManualPassInUi(staffPage, clinicLinkId, examTitle);
+      await verifyStudentClinicResult(page, false);
       const restoredTargets = await expectApi<Array<Record<string, unknown>>>(
         request, "GET", "/results/admin/clinic-targets/", admin.access,
       );
@@ -315,7 +379,7 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
     try {
       const consolePage = await consoleContext.newPage();
       const consoleBoundary = await installQaStudentParentBoundary(consolePage, request);
-      await seedBrowserAuth(consolePage, admin);
+      await seedBrowserAuth(consolePage, staffTokens);
       await gotoAndSettle(consolePage,
         `${QA_BASE}/workspace/clinic/operations?scope=day&date=${clinicDate}&session=${created.clinicSessionIds[0]}`,
         { timeout: 30_000 });
@@ -353,10 +417,15 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
       await expect(ticket).toHaveCount(0);
       expect(await expectApi(request, "GET", `/student/results/me/exams/${created.examId}/`, studentTokens.access))
         .toMatchObject({ total_score: 20, remediated: true, clinic_required: false });
-      await expectApi(request, "POST", `/progress/clinic-links/${clinicLinkId}/unresolve/`, admin.access, {});
+      await verifyStudentClinicResult(page, true);
+      await consolePage.setViewportSize({ width: 390, height: 844 });
+      await undoManualPassInUi(consolePage, clinicLinkId, examTitle);
+      await verifyStudentClinicResult(page, false);
       expect(await expectApi(request, "GET", `/student/results/me/exams/${created.examId}/`, studentTokens.access))
         .toMatchObject({ total_score: 20, remediated: false, clinic_required: true });
-      await consolePage.reload({ waitUntil: "domcontentloaded" });
+      await gotoAndSettle(consolePage,
+        `${QA_BASE}/workspace/clinic/operations?scope=day&date=${clinicDate}&session=${created.clinicSessionIds[0]}`,
+        { timeout: 30_000 });
       await expect(ticket).toBeVisible();
       consoleBoundary.assertClean();
     } finally {

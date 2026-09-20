@@ -9,6 +9,7 @@
  * - Tab/Enter로 빠른 이동
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { isAxiosError } from "axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import {
@@ -36,6 +37,7 @@ import type { ClinicTarget } from "../../api/clinicTargets";
 import { patchClinicParticipantStatus, type ClinicParticipant } from "../../api/clinicParticipants.api";
 import ClinicParticipantRequestSummary from "../../components/ClinicParticipantRequestSummary";
 import {
+  unresolveClinicLink,
   waiveClinicLink,
   waiveMissingExamTarget,
   carryOverClinicLink,
@@ -306,6 +308,10 @@ function RemediationWorkspace() {
   const reasonParam = workspaceParams.get("reason");
   const reasonFilter: ReasonFilter = reasonParam === "score" || reasonParam === "confidence" || reasonParam === "missing" ? reasonParam : "all";
   const selectedTargetKey = workspaceParams.get("target");
+  const [undoTarget, setUndoTarget] = useState<ClinicTarget | null>(null);
+  const [undoError, setUndoError] = useState("");
+  const [undoConflict, setUndoConflict] = useState(false);
+  const undoPendingRef = useRef(false);
   const [waiveTarget, setWaiveTarget] = useState<ClinicTarget | null>(null);
   const [waiveMemo, setWaiveMemo] = useState("");
   const [completeTarget, setCompleteTarget] = useState<ClinicTarget | null>(null);
@@ -325,6 +331,43 @@ function RemediationWorkspace() {
   ]);
 
   const resolveMutation = useResolveClinicLink();
+  const undoMutation = useMutation({
+    mutationFn: (target: ClinicTarget) => unresolveClinicLink(target.clinic_link_id!, target.resolved_at!),
+    onSuccess: async (link) => {
+      await qc.cancelQueries({ queryKey: clinicQueryKeys.targets });
+      qc.setQueriesData<ClinicTarget[]>({ queryKey: clinicQueryKeys.targets }, (rows) =>
+        rows?.map((row) => row.clinic_link_id === link.id ? {
+          ...row, resolved_at: link.resolved_at, resolution_type: link.resolution_type,
+          resolution_evidence: link.resolution_evidence,
+        } : row),
+      );
+      setUndoTarget(null);
+      feedback.success("수동 통과를 취소했습니다.");
+      void invalidateAll();
+    },
+    onError: (error) => {
+      const conflict = isAxiosError(error) && error.response?.status === 409;
+      setUndoConflict(conflict);
+      setUndoError(conflict
+        ? "다른 작업으로 처리 상태가 바뀌었습니다. 창을 닫고 새 목록에서 다시 확인해 주세요."
+        : "통과 취소에 실패했습니다. 선택한 항목을 확인한 뒤 다시 시도해 주세요.");
+      if (conflict) void invalidateAll();
+    },
+    onSettled: () => { undoPendingRef.current = false; },
+  });
+  const openUndo = (target: ClinicTarget) => {
+    setUndoError("");
+    setUndoConflict(false);
+    setUndoTarget(target);
+  };
+  const canUndo = (target: ClinicTarget) => {
+    const evidence: unknown = target.resolution_evidence;
+    return !!target.clinic_link_id && !!target.resolved_at
+      && target.resolution_type === "MANUAL_OVERRIDE"
+      && (evidence == null || (typeof evidence === "object" && !Array.isArray(evidence)
+        && !("assessment_correction_id" in evidence)));
+  };
+
 
   const homeworkCompleteMutation = useMutation({
     mutationFn: async ({ target, memo }: { target: ClinicTarget; memo: string }) => {
@@ -393,6 +436,7 @@ function RemediationWorkspace() {
   });
 
   const isMutating =
+    undoMutation.isPending ||
     resolveMutation.isPending ||
     homeworkCompleteMutation.isPending ||
     waiveMutation.isPending ||
@@ -589,6 +633,7 @@ function RemediationWorkspace() {
                   <RetakeTableRow
                     key={`${item.clinic_link_id ?? item.enrollment_id}-${idx}`}
                     item={item}
+                    onUnresolve={canUndo(item) ? () => openUndo(item) : undefined}
                     onRetake={(score, maxScore) => item.clinic_link_id && retakeMutation.mutate({ id: item.clinic_link_id, score, max_score: maxScore })}
                     onResolve={() => {
                       if (!item.clinic_link_id) return;
@@ -673,6 +718,7 @@ function RemediationWorkspace() {
                       </div>
                       <RemediationItemRow
                         item={selectedItem}
+                        onUnresolve={canUndo(selectedItem) ? () => openUndo(selectedItem) : undefined}
                         onRetake={(score, maxScore) => selectedItem.clinic_link_id &&
                           retakeMutation.mutate({ id: selectedItem.clinic_link_id, score, max_score: maxScore })}
                         onResolve={() => {
@@ -696,6 +742,26 @@ function RemediationWorkspace() {
         )}
       </div>
 
+      <AdminModal open={undoTarget != null} onClose={() => {
+        if (!undoPendingRef.current) setUndoTarget(null);
+      }} type="action" width={480} noMinimize closeDisabled={undoMutation.isPending}>
+        <ModalHeader type="action" noIcon title="수동 통과 취소"
+          description="수동으로 통과시킨 항목을 다시 클리닉 대상으로 돌립니다. 원래 점수와 처리 이력은 보존됩니다." />
+        <ModalBody>
+          <p><strong>{undoTarget?.student_name}</strong> · {undoTarget?.source_title || undoTarget?.session_title}</p>
+          {undoError && <p role="alert">{undoError}</p>}
+        </ModalBody>
+        <ModalFooter right={<>
+          <Button intent="secondary" disabled={undoMutation.isPending} onClick={() => setUndoTarget(null)}>닫기</Button>
+          <Button intent="danger" loading={undoMutation.isPending} disabled={undoConflict || undoMutation.isPending}
+            onClick={() => {
+              if (!undoTarget || undoPendingRef.current || undoConflict) return;
+              undoPendingRef.current = true;
+              setUndoError("");
+              undoMutation.mutate(undoTarget);
+            }}>통과 취소하기</Button>
+        </>} />
+      </AdminModal>
       <AdminModal
         open={waiveTarget != null}
         onClose={() => {
@@ -779,6 +845,7 @@ function RemediationItemRow({
   item,
   onRetake,
   onResolve,
+  onUnresolve,
   onWaive,
   onCarryOver,
   disabled,
@@ -786,6 +853,7 @@ function RemediationItemRow({
   item: ClinicTarget;
   onRetake: (score: number, maxScore?: number) => void;
   onResolve: () => void;
+  onUnresolve?: () => void;
   onWaive: () => void;
   onCarryOver: () => void;
   disabled: boolean;
@@ -980,6 +1048,7 @@ function RemediationItemRow({
             </div>
           </>
         )}
+        {onUnresolve && <Button intent="secondary" size="sm" disabled={disabled} onClick={onUnresolve}>수동 통과 취소</Button>}
         {isResolved && (
           <span className="clinic-hub__resolved-label">
             {resolutionLabel(item)}
