@@ -166,6 +166,115 @@ test.describe("안내문 변수 편집", () => {
     expect(writes[0].body).toBe("한글 안내 #{시험총점} 빠른 입력#{시험총점} 뒤 문장");
   });
 
+  for (const clipboard of ["image", "empty"] as const) {
+    test(`${clipboard} 클립보드는 선택 본문과 이전 편집 이력을 보존한다`, async ({ page }) => {
+      const writes = await openTemplateEditor(page);
+      const modal = page.getByRole("dialog", { name: "문구 수정", exact: true });
+      const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+      await editor.click();
+      await editor.press("Control+End");
+      await page.keyboard.insertText(" 추가 입력");
+      await editor.press("Control+a");
+      const unchanged = await editor.evaluate((node, clipboard) => {
+        const html = node.innerHTML;
+        const selection = node.ownerDocument.getSelection()!;
+        const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
+        const clipboardData = new DataTransfer();
+        if (clipboard === "image") {
+          clipboardData.items.add(new File([new Uint8Array([137, 80, 78, 71])], "clipboard.png", { type: "image/png" }));
+        }
+        node.dispatchEvent(new ClipboardEvent("paste", { clipboardData, bubbles: true, cancelable: true }));
+        return {
+          body: node.innerHTML === html,
+          selection: selection.anchorNode === anchorNode && selection.anchorOffset === anchorOffset
+            && selection.focusNode === focusNode && selection.focusOffset === focusOffset,
+        };
+      }, clipboard);
+      expect(unchanged).toEqual({ body: true, selection: true });
+      await editor.press("Control+z");
+      await expect(editor).not.toContainText("추가 입력");
+      await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+      await editor.press("Control+y");
+      await expect(editor).toContainText("추가 입력");
+      await modal.getByRole("button", { name: "수정", exact: true }).click();
+      await expect(modal).toBeHidden();
+      expect(writes[0].body).toBe("한글 안내 #{시험총점} 추가 입력");
+    });
+  }
+
+  test("공백과 줄바꿈만 있는 텍스트도 그대로 붙여넣는다", async ({ page }) => {
+    await openTemplateEditor(page);
+    const modal = page.getByRole("dialog", { name: "문구 수정", exact: true });
+    const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+    await editor.click();
+    await editor.press("Control+a");
+    await editor.evaluate((node) => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData("text/plain", " \n\n ");
+      node.dispatchEvent(new ClipboardEvent("paste", { clipboardData, bubbles: true, cancelable: true }));
+    });
+    await expect.poll(() => editor.evaluate((node) => Array.from(node.querySelectorAll("p"))
+      .map((paragraph) => paragraph.textContent).join("\n"))).toBe(" \n\n ");
+    await editor.press("Control+z");
+    await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+  });
+
+  for (const selection of ["end", "all", "forward", "backward", "atom"] as const) {
+    test(`붙여넣기 직전 ${selection} 선택을 반영하고 실행 취소·재실행 후 저장한다`, async ({ page }) => {
+      const original = "한글 안내 #{시험총점}\n\n끝 줄";
+      const pasted = "새 #{학생이름3}\n\n문장";
+      const expected = selection === "end" ? original + pasted
+        : selection === "all" ? pasted
+        : selection === "atom" ? `한글 안내 ${pasted}\n\n끝 줄`
+        : `한글 ${pasted} #{시험총점}\n\n끝 줄`;
+      const writes = await openTemplateEditor(page, true, original);
+      const modal = page.getByRole("dialog", { name: "문구 수정", exact: true });
+      const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+      await expect(editor).toHaveAttribute("contenteditable", "true");
+      await editor.click();
+      // Undo restores AllSelection. Change only the native selection and paste in the
+      // same browser task, before asynchronous selectionchange can update the editor.
+      await editor.press("Control+a");
+      await page.keyboard.insertText("임시 교체");
+      await editor.press("Control+z");
+      await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+      await editor.evaluate((node, { selection, pasted }) => {
+        const native = node.ownerDocument.getSelection()!;
+        const paragraph = node.querySelector("p")!;
+        if (selection === "end") {
+          native.setBaseAndExtent(node, node.childNodes.length, node, node.childNodes.length);
+        } else if (selection === "all") {
+          native.setBaseAndExtent(node, 0, node, node.childNodes.length);
+        } else if (selection === "atom") {
+          const atom = paragraph.querySelector("[data-message-variable]")!;
+          const index = Array.from(paragraph.childNodes).indexOf(atom);
+          native.setBaseAndExtent(paragraph, index, paragraph, index + 1);
+        } else {
+          const text = paragraph.firstChild!;
+          native.setBaseAndExtent(text, selection === "forward" ? 3 : 5, text, selection === "forward" ? 5 : 3);
+        }
+        const clipboardData = new DataTransfer();
+        clipboardData.setData("text/plain", pasted);
+        node.dispatchEvent(new ClipboardEvent("paste", { clipboardData, bubbles: true, cancelable: true }));
+      }, { selection, pasted });
+      const readBody = () => editor.evaluate((node) => Array.from(node.querySelectorAll("p")).map((paragraph) => {
+        const copy = paragraph.cloneNode(true) as HTMLElement;
+        for (const atom of copy.querySelectorAll("[data-message-variable]")) {
+          atom.replaceWith(`#{${atom.getAttribute("data-message-variable")}}`);
+        }
+        return copy.textContent;
+      }).join("\n"));
+      await expect.poll(readBody).toBe(expected);
+      await editor.press("Control+z");
+      await expect.poll(readBody).toBe(original);
+      await editor.press("Control+y");
+      await expect.poll(readBody).toBe(expected);
+      await modal.getByRole("button", { name: "수정", exact: true }).click();
+      await expect(modal).toBeHidden();
+      expect(writes[0].body).toBe(expected);
+    });
+  }
+
   test("여러 줄과 빈 줄을 복사·붙여넣기하고 블록 삭제를 되돌려 원문 그대로 저장한다", async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     const original = "첫 줄 #{학생이름3}\n둘째 줄\n\n마지막 #{시험총점}";

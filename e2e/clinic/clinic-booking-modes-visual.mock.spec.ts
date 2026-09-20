@@ -24,15 +24,19 @@ async function installApi(
   page: Page,
   role: "admin" | "teacher" | "student",
   createPayloads: Array<Record<string, unknown>> = [],
+  overnight = false,
 ) {
-  const date = dateAfter(4);
+  const date = overnight ? "2026-08-31" : dateAfter(4);
+  const endDate = overnight ? "2026-09-01" : dateAfter(5);
+  let booking: Record<string, unknown> | null = null;
   const timeRangeSession = {
     id: 910,
     title: "림글리쉬 야간 자율 클리닉",
     date,
-    start_time: "18:00:00",
-    end_time: "00:00:00",
-    duration_minutes: 360,
+    start_time: overnight ? "23:00:00" : "18:00:00",
+    end_time: overnight ? "01:00:00" : "00:00:00",
+    end_date: endDate,
+    duration_minutes: overnight ? 120 : 360,
     location: "자율 학습실",
     max_participants: 8,
     participant_count: 0,
@@ -98,7 +102,7 @@ async function installApi(
       },
     });
     if (path === "/clinic/sessions/" && request.method() === "GET") {
-      return json(role === "student" ? [timeRangeSession] : []);
+      return json((role === "student" || overnight) && (url.searchParams.get("date_from") ?? "") <= date ? [timeRangeSession, ...(overnight ? [{ ...timeRangeSession, id: 912, title: "이미 끝난 전날 클리닉", start_time: "20:00:00", end_time: "22:00:00", end_date: date, duration_minutes: 120 }] : [])] : []);
     }
     if (path === "/clinic/sessions/tree/" && request.method() === "GET") return json([]);
     if (path === "/clinic/sessions/" && request.method() === "POST") {
@@ -108,23 +112,25 @@ async function installApi(
     }
     if (path === "/clinic/sessions/910/availability/" && request.method() === "GET") return json({
       booking_mode: "time_range",
-      interval_minutes: 60,
+      interval_minutes: overnight ? 30 : 60,
       max_stay_minutes: 600,
-      window: { start_time: "18:00", end_time: "00:00" },
-      slots: [
+      window: overnight ? { start_time: "23:00", end_time: "01:00", start_date: date, end_date: endDate } : { start_time: "18:00", end_time: "00:00" },
+      slots: (overnight ? [["23:00", "23:30"], ["23:30", "00:00"], ["00:00", "00:30"], ["00:30", "01:00"]] : [
         ["18:00", "19:00"],
         ["19:00", "20:00"],
         ["20:00", "21:00"],
         ["21:00", "22:00"],
         ["22:00", "23:00"],
         ["23:00", "00:00"],
-      ].map(([start_time, end_time]) => ({ start_time, end_time, remaining_capacity: 5 })),
+      ]).map(([start_time, end_time]) => ({ start_time, end_time, remaining_capacity: 5, ...(overnight ? { start_date: start_time < "23:00" ? endDate : date, end_date: end_time < "23:00" ? endDate : date } : {}) })),
     });
     if (path === "/clinic/participants/" && request.method() === "GET") {
-      return json({ count: 0, next: null, previous: null, results: [] });
+      return json({ count: booking ? 1 : 0, next: null, previous: null, results: booking ? [booking] : [] });
     }
     if (path === "/clinic/participants/bulk-create/" && request.method() === "POST") {
-      createPayloads.push(request.postDataJSON() as Record<string, unknown>);
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      createPayloads.push(payload);
+      booking = { id: 1901, session: 910, session_title: timeRangeSession.title, session_date: date, session_start_time: timeRangeSession.start_time, session_location: "자율 학습실", status: "booked", booking_start_time: payload.booking_start_time, booking_end_time: payload.booking_end_time, booking_start_date: String(payload.booking_start_time) < timeRangeSession.start_time.slice(0, 5) ? endDate : date, booking_end_date: String(payload.booking_end_time) < timeRangeSession.start_time.slice(0, 5) ? endDate : date, created_at: "2026-09-01T00:30:00+09:00", can_self_cancel: true };
       return json({ count: 1, participants: [{ id: 1901, status: "booked" }] }, 201);
     }
     if (path === "/clinic/idcard/" && request.method() === "GET") return json({ result: "FAIL" });
@@ -165,13 +171,13 @@ test("선생님은 클리닉 방식부터 고르고 자유지정 운영 시간�
   await chooser.getByRole("button", { name: /자유지정 클리닉/ }).click();
   await expect(sheet).toContainText("선택한 방식 · 자유지정 클리닉");
   await expect(sheet.getByRole("button", { name: "방식 다시 선택" })).toBeVisible();
-  await sheet.locator('input[type="time"]').nth(0).fill("15:00");
-  await sheet.locator('input[type="time"]').nth(1).fill("22:00");
+  await sheet.locator('input[type="time"]').nth(0).fill("23:00");
+  await sheet.locator('input[type="time"]').nth(1).fill("01:00");
   await sheet.getByPlaceholder("예: 3층 자습실").fill("자율 학습실");
   await sheet.getByRole("button", { name: "생성", exact: true }).click();
   await expect.poll(() => payloads).toEqual([expect.objectContaining({
-    start_time: "15:00:00",
-    duration_minutes: 420,
+    start_time: "23:00:00",
+    duration_minutes: 120,
     booking_mode: "time_range",
     booking_interval_minutes: 60,
     booking_max_stay_minutes: 600,
@@ -255,8 +261,8 @@ test("학생은 자정 종료까지 선택한 구간을 연결된 시간 막대�
   expect((pickerHeadingBox?.y ?? 845) + (pickerHeadingBox?.height ?? 0)).toBeLessThanOrEqual(844);
   const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
   await selection.getByRole("button", { name: "21:00 시작, 잔여 5자리" }).click();
-  await selection.getByRole("button", { name: "00:00 종료, 총 3시간" }).click();
-  await expect(selection.locator("strong").first()).toHaveText("21:00–00:00");
+  await selection.getByRole("button", { name: "익일 00:00 종료, 총 3시간" }).click();
+  await expect(selection.locator("strong").first()).toHaveText("21:00–익일 00:00");
   const rail = selection.getByRole("img", {
     name: "운영 시간 18:00부터 00:00, 선택 21:00부터 00:00",
   });
@@ -280,4 +286,65 @@ test("학생은 자정 종료까지 선택한 구간을 연결된 시간 막대�
     booking_start_time: "21:00",
     booking_end_time: "00:00",
   });
+});
+
+for (const width of [1366, 390]) {
+  test(`자정 이후 학생은 전날 진행 중인 클리닉의 실제 날짜로 예약하고 재조회한다 (${width}px)`, async ({ page }, testInfo) => {
+    await page.clock.install({ time: new Date("2026-09-01T00:30:00") });
+    const payloads: Array<Record<string, unknown>> = [];
+    await installApi(page, "student", payloads, true);
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("이미 끝난 전날 클리닉")).toHaveCount(0);
+    await page.getByTestId("clinic-calendar-day-2026-08-31").click();
+    await expect(page.getByText(/전날 시작·진행 중/)).toBeVisible();
+    await page.getByRole("button", { name: "아래에서 시간 선택" }).click();
+    const picker = page.getByRole("region", { name: "선택한 클리닉 시간" });
+    // The existing whole-window policy remains available, including earlier slots.
+    await expect(picker.getByRole("button", { name: "23:00 시작, 잔여 5자리" })).toBeEnabled();
+    await picker.getByRole("button", { name: "2026-09-01 00:30 시작, 잔여 5자리" }).click();
+    await picker.getByRole("button", { name: "2026-09-01 01:00 종료, 총 30분" }).click();
+    await page.screenshot({ path: testInfo.outputPath(`overnight-student-selection-${width}.png`), fullPage: true });
+    await picker.getByRole("button", { name: "이 일정 예약하기" }).click();
+    await expect.poll(() => payloads).toContainEqual({ session_ids: [910], booking_start_time: "00:30", booking_end_time: "01:00" });
+    await page.getByRole("tab", { name: /내 일정/ }).click();
+    await expect(page.getByText("이용 2026-09-01 00:30–01:00")).toBeVisible();
+    // Discovery eligibility may change after booking; saved bookings remain authoritative.
+    await page.route("**/api/v1/clinic/sessions/?*", (route) => route.fulfill({ json: [] }));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: /내 일정/ }).click();
+    await expect(page.getByText("이용 2026-09-01 00:30–01:00")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`overnight-student-booked-${width}.png`), fullPage: true });
+    await page.clock.setSystemTime(new Date("2026-09-01T01:01:00"));
+    await page.clock.fastForward(30_000);
+    await expect(page.getByText("이용 2026-09-01 00:30–01:00")).toHaveCount(0);
+  });
+}
+
+test("교사는 전날 진행 중 조회 실패를 재시도하고 운영일로 이동한다", async ({ page }, testInfo) => {
+  await page.clock.setFixedTime(new Date("2026-09-01T00:30:00"));
+  await installApi(page, "teacher", [], true);
+  let fail = true;
+  await page.route("**/api/v1/clinic/sessions/?*", (route) => {
+    if (new URL(route.request().url()).searchParams.get("date_from") === "2026-08-31" && fail) {
+      return route.fulfill({ status: 503, json: { detail: "일시적으로 확인할 수 없습니다." } });
+    }
+    return route.fallback();
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${BASE}/workspace/mobile/clinic`, { waitUntil: "domcontentloaded" });
+  const error = page.getByRole("alert").filter({ hasText: "전날 진행 중인 클리닉을 확인하지 못했습니다." });
+  await expect(error).toBeVisible();
+  fail = false;
+  await error.getByRole("button", { name: "다시 확인" }).click();
+  for (const width of [390, 1366]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.getByRole("button", { name: "전날 시작·진행 중 · 2026-08-31 23:00" }).click();
+    await expect(page.locator('input[type="date"]').first()).toHaveValue("2026-08-31");
+    await expect(page.getByText("운영 23:00–2026-09-01 01:00")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`overnight-teacher-discovery-${width}.png`), fullPage: true });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.reload({ waitUntil: "domcontentloaded" });
+  }
 });

@@ -72,19 +72,42 @@ Actions 공급망과 배포 검증은 [배포 운영 계약](DEPLOYMENT-OPERATIO
 `/workspace/settings/appearance`이고 선택값은 브라우저에 저장되어 재방문
 시 복원된다.
 
-- 주요 버튼은 테마 브랜드색과 대비 텍스트를 사용한다.
-- 호버는 배경·테두리·그림자 중 하나 이상, 선택 상태는 브랜드 강조와 윤곽으로
-  기본 상태와 구분한다.
-- 키보드 포커스는 버튼과 탭 모두 외곽 링으로 표시하며, 비활성 상태는
-  불투명도와 커서로 함께 표현한다.
+- 주요 작업은 공용 `Button`, 상태·필터 선택은 `SelectionButton`을 사용한다.
+  선택 컨트롤은 하나의 바깥 윤곽 안에 일반 텍스트 라벨을 두며, 라벨을 다시
+  둥근 Badge·색상 면·그림자로 감싸지 않는다. 읽기 전용 상태 표시는 `Badge`가
+  맡고, 선택 버튼 안의 장식으로 재사용하지 않는다.
+- 주요 버튼은 테마 브랜드색과 대비 텍스트를 사용한다. 선택 상태는 바깥
+  테두리와 강조색으로 구분하고 윤곽을 유지한다. 버튼과 선택 컨트롤에 장식용
+  안쪽 그림자를 겹치지 않으며, 호버는 배경·테두리 변화로 드러낸다.
+- 선택하지 않은 활성 라벨도 읽을 수 있는 대비와 불투명도를 유지한다.
+  불투명도 감소와 비활성 커서는 실제 비활성 상태에만 사용한다.
+- 키보드 포커스는 버튼과 탭 모두 외곽 링으로 표시하며 선택 윤곽과 구분한다.
+  짧은 상태 전환 모션은 동작을 돕고 reduced-motion 설정을 존중한다.
+- 한국어 작업·선택 라벨은 한 줄로 유지한다. 공간이 부족하면 버튼 그룹을
+  줄바꿈하거나 명시적인 가로 스크롤 영역으로 제공하며, 글자를 여러 줄로
+  쪼개거나 버튼 안에 또 다른 컨트롤 표면을 넣어 해결하지 않는다.
+  공용 목록 툴바의 모바일 액션 배치는 `DomainListToolbar.module.css`가
+  소유한다. 전역 반응형 CSS에서 이를 `nowrap !important`로 덮지 않는다.
 - 내용이 없는 헤더 위젯은 카드 껍데기를 렌더링하지 않는다.
 - 로그인은 브랜드별 구조적 배경을 유지하되 빈 공간에 단독으로 남는 점 입자는
   표시하지 않는다.
 
 소유 구현은 `src/styles/design-system/colors/themes/index.css`,
+`src/shared/ui/ds/Button.tsx`, `src/shared/ui/ds/SelectionButton.tsx`,
 `src/styles/design-system/patterns/button.css`,
+`src/styles/design-system/patterns/segment-control.css`,
 `src/styles/design-system/ds/tabs.css`, `src/auth/themes/`에 있다. 새 테마도
 기존 테마와 같은 상태·대비 검증을 통과해야 한다.
+
+검증은 `e2e/visual/theme-control-states.spec.ts`의 12개 테마 상태 검사와
+실제 적용 화면의 1100px·1366px·390px 조작 검사를 함께 수행한다. 선택 전후
+라벨 대비, 단일 표면과 바깥 윤곽, 호버·포커스·비활성 구분, 한 줄 라벨과 그룹
+배치를 확인한다. CSS 검사만으로 저장 성공을 판정하지 않으며, 적용 화면에서
+클릭 → 결과 → 새로고침 후 유지 및 실패 안내·재시도를 확인한다. 출결 적용
+범위와 회귀 항목은 [출결 원장 안전 계약](ATTENDANCE-ROSTER-SAFETY.md)이
+소유한다. 아래 명령과 검수 항목은 검증 절차이며 통과 기록을 뜻하지 않는다.
+`.github/workflows/e2e.yml`의 PR gate도 이미 빌드한 preview에서 같은 12개 테마
+검사를 실행하며, 실패하면 병합 검증을 통과하지 못한다.
 
 ```powershell
 pnpm build

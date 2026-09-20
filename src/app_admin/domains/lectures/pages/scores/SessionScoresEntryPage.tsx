@@ -1707,6 +1707,7 @@ export default function SessionScoresEntryPage({
           hasUnsavedChanges={isEditMode || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
           onPendingChange={draft.requestAutosave}
           activeEditors={draft.activeEditors}
+          onClaimOwnCell={draft.claimOwnCell}
           onActiveCellChange={setActiveScoreCell}
           examEditTotal={examEditTotal}
           examEditObjective={false}

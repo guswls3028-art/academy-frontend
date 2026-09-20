@@ -16,6 +16,7 @@ import type { ClinicSessionDetail } from "../../api/clinicSessions.api";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+import OngoingClinicSessions from "./OngoingClinicSessions";
 import ClinicConsoleSidebar from "./ClinicConsoleSidebar";
 import ClinicConsoleWorkspace from "./ClinicConsoleWorkspace";
 import ClinicCreatePanel, { type ClinicSessionUpdateNotice } from "../../components/ClinicCreatePanel";
@@ -427,6 +428,17 @@ export default function ClinicOperationsConsolePage() {
                     )}
                   </button>
                 </div>
+
+                <OngoingClinicSessions onSelect={(date, sessionId) => {
+                  setSelectedDate(date);
+                  setSelectedSessionId(sessionId);
+                  setConsoleScope("day");
+                  const next = new URLSearchParams(sp);
+                  next.set("scope", "day");
+                  next.set("date", date);
+                  next.set("session", String(sessionId));
+                  setSp(next, { replace: true });
+                }} />
 
                 {!participants.listQ.isLoading && !participants.listQ.isError && allRows.length > 0 && (
                   <div

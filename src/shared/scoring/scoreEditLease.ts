@@ -12,6 +12,24 @@ function createScoreEditorClientId(): string {
 // 복사될 수 있으므로 lease owner 식별자로 사용하지 않는다.
 const scoreEditorClientId = createScoreEditorClientId();
 
+// Shared by the score table and grading dialogs in this document. Count before
+// any header/acquire await; exit must not overtake a pending score operation.
+const pendingWrites = new Map<number, number>();
+export function hasPendingScoreDraftWrite(sessionId: number): boolean {
+  return (pendingWrites.get(sessionId) ?? 0) > 0;
+}
+
+export async function trackScoreDraftWrite<T>(sessionId: number, write: () => Promise<T>): Promise<T> {
+  pendingWrites.set(sessionId, (pendingWrites.get(sessionId) ?? 0) + 1);
+  try {
+    return await write();
+  } finally {
+    const remaining = (pendingWrites.get(sessionId) ?? 1) - 1;
+    if (remaining > 0) pendingWrites.set(sessionId, remaining);
+    else pendingWrites.delete(sessionId);
+  }
+}
+
 export async function scoreEditorRequestHeaders() {
   return { "X-Score-Editor-Client": scoreEditorClientId };
 }
@@ -37,31 +55,33 @@ export async function runWithScoreEditLease<T>(
   sessionId: number,
   mutate: (headers: Record<string, string>) => Promise<T>,
 ): Promise<T> {
-  const clientHeaders = await scoreEditorRequestHeaders();
-  await api.put(
-    `/results/admin/sessions/${sessionId}/score-draft/`,
-    { changes: [] },
-    { headers: clientHeaders },
-  );
-  const release = () => api.post(
-    `/results/admin/sessions/${sessionId}/score-draft/commit/`,
-    { release_lease: true },
-    { headers: clientHeaders },
-  );
-  let result: T;
-  try {
-    result = await mutate({
-      ...clientHeaders,
-      "X-Score-Session-Id": String(sessionId),
-    });
-  } catch (error) {
+  return trackScoreDraftWrite(sessionId, async () => {
+    const clientHeaders = await scoreEditorRequestHeaders();
+    await api.put(
+      `/results/admin/sessions/${sessionId}/score-draft/`,
+      { changes: [] },
+      { headers: clientHeaders },
+    );
+    const release = () => api.post(
+      `/results/admin/sessions/${sessionId}/score-draft/commit/`,
+      { release_lease: true },
+      { headers: clientHeaders },
+    );
+    let result: T;
     try {
-      await release();
-    } catch {
-      // 원래 점수 저장 실패를 보존한다. lease는 2분 안에 만료된다.
+      result = await mutate({
+        ...clientHeaders,
+        "X-Score-Session-Id": String(sessionId),
+      });
+    } catch (error) {
+      try {
+        await release();
+      } catch {
+        // 원래 점수 저장 실패를 보존한다. lease는 2분 안에 만료된다.
+      }
+      throw error;
     }
-    throw error;
-  }
-  await release();
-  return result;
+    await release();
+    return result;
+  });
 }

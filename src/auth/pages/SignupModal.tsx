@@ -630,12 +630,12 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
               {slm.showOriginMiddleSchool(form.schoolType) && (
                 <div className={styles.signupInputRow}>
                   <label htmlFor="signup-origin" className={styles.signupInputLabel}>출신중학교 <span className={styles.signupRequired}>*</span></label>
-                  <input id="signup-origin" ref={originMiddleSchoolRef} className={styles.signupInput} placeholder="선택" value={form.originMiddleSchool} onChange={(e) => setForm((f) => ({ ...f, originMiddleSchool: e.target.value }))} />
+                  <input id="signup-origin" ref={originMiddleSchoolRef} className={styles.signupInput} placeholder="출신 중학교명 입력" value={form.originMiddleSchool} onChange={(e) => setForm((f) => ({ ...f, originMiddleSchool: e.target.value }))} />
                 </div>
               )}
               <div className={styles.signupInputRow}>
                 <label htmlFor="signup-address" className={styles.signupInputLabel}>주소 <span className={styles.signupRequired}>*</span></label>
-                <input id="signup-address" ref={addressRef} className={styles.signupInput} placeholder="선택" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+                <input id="signup-address" ref={addressRef} className={styles.signupInput} placeholder="주소 입력" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
               </div>
             </section>
 

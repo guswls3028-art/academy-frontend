@@ -709,6 +709,35 @@ test.describe("직원 운영 계약", () => {
     });
   });
 
+  test("급여판 검색 직후 필터를 눌러도 아직 렌더 중인 검색 URL을 보존한다", async ({ page }) => {
+    await mockStaffApi(page);
+    await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8&payrollSort=amount-desc`, {
+      waitUntil: "domcontentloaded",
+    });
+    const overview = page.getByTestId("staff-payroll-overview");
+    await expect(overview.getByRole("searchbox", { name: "직원 이름 검색" })).toBeVisible();
+    // Deliver both UI events before React can commit the router transition.
+    // This deterministically reproduces a quick filter click on a busy browser.
+    await overview.evaluate((element) => {
+      const search = element.querySelector<HTMLInputElement>('input[type="search"]')!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(search, "김");
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+      const filter = Array.from(element.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.textContent === "확인 필요")!;
+      filter.click();
+    });
+    await expect(page).toHaveURL((url) => (
+      url.searchParams.get("payrollSearch") === "김"
+      && url.searchParams.get("payrollFilter") === "review"
+      && url.searchParams.get("payrollSort") === "amount-desc"
+      && url.searchParams.get("year") === "2026"
+      && url.searchParams.get("month") === "8"
+    ));
+    await expect(overview.getByRole("searchbox", { name: "직원 이름 검색" })).toHaveValue("김");
+    await expect(overview.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overview.getByRole("button", { name: /이퇴사/ })).toHaveCount(0);
+  });
+
   test("급여판 검색·상태 필터와 명시적 복귀가 같은 월과 URL 문맥을 유지한다", async ({ page }) => {
     await mockStaffApi(page, {
       transformPayrollOverview: (overview) => {

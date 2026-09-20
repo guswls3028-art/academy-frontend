@@ -414,14 +414,65 @@ for (const [invalidExam, entryAction] of [["999999", "성적 입력"], ["not-an-
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(mainButton(page, `${EXAM_A_TITLE} (100점)`)).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByText("0/100", { exact: true }).first()).toBeVisible();
+    const clockStart = new Date();
+    await page.clock.install({ time: clockStart });
+    await page.clock.pauseAt(clockStart.getTime() + 1_000);
     await mainButton(page, entryAction).click();
     await expect(page).toHaveURL(new RegExp(`/workspace/mobile/scores/${SESSION_ID}\\?exam=${EXAM_A}$`));
     await expect(page.getByRole("main").getByRole("heading", { name: "성적 입력", exact: true })).toBeVisible();
-    await page.getByRole("searchbox", { name: "학생 이름 검색", exact: true }).fill("가상가람긴이름확인학생");
-    await expect(page.locator("input[inputmode=decimal]")).toHaveValue("0");
+    const search = page.getByRole("searchbox", { name: "학생 이름 검색", exact: true });
+    await expect.poll(async () => {
+      await page.clock.runFor(10);
+      return search.isVisible();
+    }, { intervals: [10] }).toBe(true);
+    const draftsBefore = await page.evaluate(() => Object.entries(sessionStorage).filter(([key]) => key.startsWith("academy:score-entry-draft:")));
+    await search.fill("가상가람");
+    // 검색 직후 지연된 초기 포커스가 실행되어도 검색어를 점수 칸으로 보내면 안 된다.
+    await page.clock.runFor(100);
+    await expect(search).toBeFocused();
+    await page.keyboard.type("긴이름확인학생");
+    await expect(search).toHaveValue("가상가람긴이름확인학생");
+    await expect(page.locator("input[inputmode=decimal]")).toHaveCount(1);
+    await expect(page.getByRole("textbox", { name: "가상가람긴이름확인학생 합산 점수 입력", exact: true })).toHaveValue("0");
+    expect(await page.evaluate(() => Object.entries(sessionStorage).filter(([key]) => key.startsWith("academy:score-entry-draft:")))).toEqual(draftsBefore);
     expect(resultPaths.every((path) => path === validPath)).toBe(true);
     expect(api.resultRequests.every((examId) => examId === EXAM_A)).toBe(true);
     expect(api.mutations).toEqual([]);
+  });
+}
+
+for (const width of [390, 1366]) {
+  test(`${width}px Enter 저장 후 결과 재조회는 다음 학생의 입력 포커스를 유지한다`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const api = await installScenario(page);
+    await gotoSession(page, `?tab=scores&scoresView=exams&exam=${EXAM_A}`);
+    await mainButton(page, "점수 입력 / 수정").click();
+    const first = page.getByRole("textbox", { name: "가상가람긴이름확인학생 합산 점수 입력", exact: true });
+    const second = page.getByRole("textbox", { name: "가상나래 합산 점수 입력", exact: true });
+    await expect(first).toBeFocused();
+    const clockStart = new Date();
+    await page.clock.install({ time: clockStart });
+    await page.clock.pauseAt(clockStart.getTime() + 1_000);
+    await first.fill("5");
+    let refreshed = false;
+    page.on("response", (response) => {
+      if (response.request().method() === "GET"
+        && new URL(response.url()).pathname === `/api/v1/results/admin/exams/${EXAM_A}/results/`) refreshed = true;
+    });
+    await first.press("Enter");
+    await expect.poll(async () => {
+      await page.clock.runFor(10);
+      return refreshed;
+    }, { intervals: [10] }).toBe(true);
+    await page.clock.runFor(100);
+    await expect(second).toBeFocused();
+    await expect(second).toHaveValue("");
+    await expect(first).toHaveValue("5");
+    expect(api.mutations).toEqual([{ examId: EXAM_A, enrollmentId: 9800, score: 5, max_score: 100 }]);
+    await page.clock.resume();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(first).toHaveValue("5");
+    await expect(second).toHaveValue("");
   });
 }
 

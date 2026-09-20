@@ -31,6 +31,10 @@ import {
   isStudentSupportWindow,
 } from "@/shared/auth/supportPreviewSession";
 
+const CLIENT_VERSION = typeof __BUILD_TIMESTAMP__ !== "undefined"
+  ? __BUILD_TIMESTAMP__
+  : String(import.meta.env.VITE_APP_VERSION || "dev");
+
 type RetryConfig = ApiRequestConfig & {
   _retry?: boolean;
   _asyncId?: string;
@@ -46,6 +50,28 @@ export function createPlaybackUnloadConfig(): ApiRequestConfig {
   const config: RetryConfig = { playbackUnload: true };
   if (!isStudentSupportWindow()) config._authGeneration = readAuthTokenEnvelopeSafely()?.generation ?? null;
   return config;
+}
+
+/** Dispatch before pagehide returns: no interceptor, refresh or queued header await.
+ * This accepts no URL/body overrides and can only conditionally clear an empty lease. */
+export async function releaseEmptyScoreDraftOnPageExit(sessionId: number, clientId: string): Promise<void> {
+  const auth = readAuthTokenEnvelopeSafely();
+  const tenant = getTenantCodeForApiRequest();
+  if (!Number.isSafeInteger(sessionId) || sessionId <= 0
+    || !/^[a-zA-Z0-9._-]{1,128}$/.test(clientId) || !tenant
+    || isStudentSupportWindow() || !auth || isTokenExpiredOrSoon(auth.access, 0)) {
+    throw new axios.CanceledError("Invalid empty score lease release.");
+  }
+  const response = await fetch(`${API_BASE}/api/v1/results/admin/sessions/${sessionId}/score-draft/commit/`, {
+    method: "POST", keepalive: true, credentials: "omit", redirect: "error",
+    headers: {
+      "Content-Type": "application/json", Authorization: `Bearer ${auth.access}`,
+      "X-Tenant-Code": tenant, "X-Score-Editor-Client": clientId,
+      "X-Client": "academyfront", "X-Client-Version": CLIENT_VERSION,
+    },
+    body: JSON.stringify({ release_lease: true, release_if_empty: true }),
+  });
+  if (!response.ok) throw new Error("Empty score lease release failed.");
 }
 
 type RefreshResponse = { access: string; refresh?: string };
@@ -377,11 +403,13 @@ api.interceptors.request.use(async (config) => {
   const retryCfg = cfg as RetryConfig;
   const unloading = retryCfg.playbackUnload === true;
   if (retryCfg.playbackUnload !== undefined) {
-    if (!unloading || String(cfg.method).toLowerCase() !== "post"
+    if (retryCfg.playbackUnload !== true || String(cfg.method).toLowerCase() !== "post"
       || cfg.url !== "/media/playback/end/" || cfg.params != null
       || cfg.baseURL !== `${API_BASE}/api/v1` || shouldSkipAuth(cfg.url, cfg)) {
       throw new axios.CanceledError("Invalid playback unload request.");
     }
+  }
+  if (unloading) {
     cfg.adapter = "fetch";
     cfg.fetchOptions = { ...cfg.fetchOptions, keepalive: true };
     cfg.withCredentials = false;
@@ -393,7 +421,7 @@ api.interceptors.request.use(async (config) => {
     if (isStudentSupportWindow()) {
       const supportAccess = getStudentSupportAccessToken();
       if (unloading && (!supportAccess || isTokenExpiredOrSoon(supportAccess, 0))) {
-        throw new axios.CanceledError("Playback unload requires a current access token.");
+        throw new axios.CanceledError("Unload requires a current access token.");
       }
       if (supportAccess) setRequestHeader(cfg, "Authorization", `Bearer ${supportAccess}`);
     } else {
@@ -412,7 +440,7 @@ api.interceptors.request.use(async (config) => {
 
         // 선제적 토큰 리프레시: 만료 임박 시 요청 전에 갱신하여 401 방지
         if (unloading && (!current || isTokenExpiredOrSoon(current.access, 0))) {
-          throw new axios.CanceledError("Playback unload requires a current access token.");
+          throw new axios.CanceledError("Unload requires a current access token.");
         }
         // A departing document cannot await refresh/network/Web Locks. Keep all normal
         // requests on the existing proactive-refresh path; unload uses only valid access.
@@ -432,9 +460,7 @@ api.interceptors.request.use(async (config) => {
 
   // Optional operational headers
   setRequestHeader(cfg, "X-Client", "academyfront");
-  setRequestHeader(cfg, "X-Client-Version", String(
-    import.meta.env.VITE_APP_VERSION || "dev"
-  ));
+  setRequestHeader(cfg, "X-Client-Version", CLIENT_VERSION);
 
   // 테넌트 코드가 있으면 항상 전송 (B 구조: tchul.com → api.hakwonplus.com 에서 필수)
   const tenantCode = getTenantCodeForApiRequest();

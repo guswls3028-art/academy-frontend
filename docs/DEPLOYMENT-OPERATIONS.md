@@ -40,6 +40,7 @@
    baseline으로 보상하고 실제 version 복귀를 확인한다.
 
 열린 앱은 `version.json`에서 새 배포를 감지해도 자동으로 새로고침하지 않는다.
+일반 API 요청과 페이지 종료 시 빈 성적 점유 해제 요청의 `X-Client-Version`은 해당 앱 자산과 함께 빌드된 `version.json.version` 식별자를 전송한다.
 학생 영상 재생, 시험·과제 입력, 교직원 성적·출결·클리닉 편집, 파일 업로드처럼
 중단 시 상태를 잃거나 업무가 끊기는 흐름을 전역으로 보호하며, 현재 화면을 유지한 채
 `새 버전이 준비됐어요` 안내와 사용자가 누르는 `지금 새로고침`만 제공한다.
@@ -266,6 +267,20 @@ Chromium의 `pagehide` native `fetch(keepalive)`는 Playwright route를 우회�
 정확한 Origin·두 owned QA tenant·token 단독 payload와 크기/시간 제한을 재검사한 뒤
 고정된 개발 API에 원본 body bytes를 한 번 전달한다. 운영 주소 fallback과 redirect는
 없으며 서버 거부·upstream 오류는 페이지 종료 여부와 무관하게 release 실패로 남는다.
+성적표 종료는 별도의 `/__qa__/score-exit/{sessionId}` 경로만 허용한다. 차시 ID는 양의
+safe integer이고 tenant는 현재 소유한 disposable QA tenant여야 한다. OMR 검사 중 새로
+만든 차시도 이 범위에 포함되며 tenant/session/user/client 소유권은 실제 백엔드가 검사한다.
+`X-Score-Editor-Client`를 변경 없이 전달하며 JSON은 정확히
+`{"release_lease":true,"release_if_empty":true}`여야 한다. 일반 점수 저장·초안 PUT이나
+다른 테넌트에는 이 전송을 사용할 수 없다. 존재하지 않거나 타 tenant 차시에 대한
+백엔드 거부도 release 실패로 유지한다. 목적지는 해당 차시의 개발
+`score-draft/commit/`으로 고정하고 동일한 Origin/auth/크기/redirect/drain 검사를 적용한다.
+브라우저 종료 전달 자체는 best-effort이며 실제 서버의 빈 초안 판정과 현재 client 확인은
+백엔드 계약이다. 공유 API의 종료 전용 함수는 현재 token/tenant/client를 동기로 검사하고
+정확한 빈 점유 해제 POST를 `fetch` keepalive로 즉시 시작한다. 일반 axios 인터셉터나
+토큰 갱신을 기다리지 않으며 URL·body override, redirect, 재시도는 허용하지 않는다.
+로컬 성적표 회귀는 실제 reload의 HTTP 도착과 진행 요청·미저장 입력·BFCache
+미전송을 검증한다. route-mock 미계수만으로 종료 실패를 단정하지 않는다.
 그 밖의 native keepalive는 transport 전에 차단하며, 브라우저 거부 코드는 token 없는
 per-tab journal과 binding으로 보존해 reload 뒤 앱이 예외를 catch해도 실패를 유지한다.
 proxy의 진행 중 요청은 fixture cleanup 전에 drain한다. 실제 종료 성공은 기존
@@ -420,6 +435,14 @@ provider 오류 원문은 기록하지 않는다. Inspect identity 검사는 sta
 boolean으로만 기록한다. raw output·오류 message·session ID·token·capability·password·
 사용자 정보는 증거에 기록하지 않는다. raw Playwright JSON은 메모리에서 검증하고 개발
 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
+
+클리닉 수동 등록·통과는 클릭부터 API 응답 및 목록 반영까지의 시간을
+`realUseObservation.clinicInteractionTimings`에 보존한다. 해당 실사용 파일별로
+`release-clinic-interaction/v1`의 고정 action, 390/1366 viewport, 0~2시간의 정수
+`responseMs`/`listVisibleMs`만 허용하고 목록 반영 시간이 응답 시간보다 짧으면 거부한다.
+추가 필드·다른 파일의 관측·개인정보·원문 오류는 보존하지 않는다. 두 동작의 관측이
+각 한 건씩 있어야 승격한다. 이 값은 격리 개발 환경의 실사용 표본이며 운영 p95가 아니다.
+원문 Playwright 보고서나 첨부 이미지를 공개 artifact로 올리지 않는다.
 
 사후 영상 Inspect의 수치 관측은 최상위 `postPlaybackInspectObservation`에 별도로 남긴다.
 `aggregateVideoState`/`syntheticVideoState`는 각각 `videos`, `video_accesses`,
@@ -646,6 +669,13 @@ GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사
 - `quality-check`는 lockfile 설치 직후 `pnpm audit --prod`를 차단 게이트로
   실행한다. production dependency advisory가 생기면 preview와 운영 배포로
   진행하지 않으며 audit ignore나 취약 버전 override로 통과시키지 않는다.
+- 2026-09-20 개발 도구 전이 의존성의 최소 수정 버전을 `js-yaml` 4.3.2
+  (GHSA-2883-xcg3-v3hh), `browserslist` 4.28.7 (GHSA-73wf-gq98-2v4g),
+  `baseline-browser-mapping` 2.11.0 (GHSA-w5vr-8v7q-w6rv), `nanoid` 3.3.18
+  (GHSA-2v37-7h3g-55p8)로 고정했다. Browserslist의 요구 범위에 맞춰
+  caniuse-lite/electron-to-chromium/node-releases 데이터도 갱신했다.
+  개발 의존성을 포함한 전체 `pnpm audit` 0건과 lint/API 타입 생성/typecheck/build,
+  실제 bundle 부팅을 검증했다. 이 증거와 위 CI의 production-only audit는 구별한다.
 - workflow 기본 token은 `contents:read`다. 프론트 배포는 GitHub contents
   write 권한을 사용하지 않는다.
 - Cloudflare token 교체는 새 token을 해당 environment에 저장하고 preview,

@@ -3,6 +3,7 @@
 
 :root {
   --color-success: var(--scale-Success500);
+  --color-teal: #14b8a6;
   --color-warning: var(--scale-Warning500);
   --color-error:   var(--scale-Error500);
   --color-info:    var(--scale-Info500);

@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { Link } from "react-router";
 
+import { clinicTimeLabel, isOngoingPreviousClinic, isOngoingPreviousBooking } from "@/shared/ui/clinic/clinicTimeRange";
+import { useClinicClock } from "@/shared/ui/clinic/useClinicClock";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 import { useTrackedTask } from "@/shared/productAnalytics";
@@ -10,7 +12,7 @@ import EmptyState from "@student/layout/EmptyState";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
-import { formatYmd, todayYmd } from "@student/shared/utils/date";
+import { formatYmd } from "@student/shared/utils/date";
 import {
   cancelClinicBookingRequest,
   changeClinicBooking,
@@ -47,6 +49,8 @@ type ClinicTab = "book" | "schedule";
 
 export default function ClinicPage() {
   const queryClient = useQueryClient();
+  const now = useClinicClock();
+  const today = now.format("YYYY-MM-DD");
   const runTrackedTask = useTrackedTask();
   const [activeTab, setActiveTab] = useState<ClinicTab>("book");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -77,14 +81,14 @@ export default function ClinicPage() {
     isError: sessionsError,
     refetch: refetchSessions,
   } = useQuery({
-    queryKey: studentClinicQueryKeys.availableSessions,
+    queryKey: studentClinicQueryKeys.availableSessionsOnDate(today),
     queryFn: () => {
-      const today = todayYmd();
       const from = new Date(`${today}T00:00:00`);
       const to = new Date(from);
       to.setDate(to.getDate() + 60);
+      from.setDate(from.getDate() - 1);
       return fetchAvailableClinicSessions({
-        date_from: today,
+        date_from: `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}-${String(from.getDate()).padStart(2, "0")}`,
         date_to: `${to.getFullYear()}-${String(to.getMonth() + 1).padStart(2, "0")}-${String(to.getDate()).padStart(2, "0")}`,
       });
     },
@@ -121,10 +125,10 @@ export default function ClinicPage() {
       myRequests
         .filter(
           (request) =>
-            request.status === "booked" && request.session_date >= todayYmd(),
+            request.status === "booked" && (request.session_date >= today || isOngoingPreviousBooking(request, now)),
         )
         .sort(sortBookings),
-    [myRequests],
+    [myRequests, now, today],
   );
   const rejectedBookings = useMemo(
     () =>
@@ -142,7 +146,7 @@ export default function ClinicPage() {
 
   const orderedSessions = useMemo(
     () =>
-      [...sessions].sort((left, right) => {
+      sessions.filter((session) => session.date >= today || isOngoingPreviousClinic(session, now)).sort((left, right) => {
         const dateDifference = left.date.localeCompare(right.date);
         if (dateDifference !== 0) return dateDifference;
         const timeDifference = left.start_time.localeCompare(right.start_time);
@@ -153,7 +157,7 @@ export default function ClinicPage() {
         if (recommendedDifference !== 0) return recommendedDifference;
         return left.id - right.id;
       }),
-    [currentTargetLectureIds, sessions],
+    [currentTargetLectureIds, now, sessions, today],
   );
   const sessionGroups = useMemo(() => {
     const groups = new Map<string, ClinicSession[]>();
@@ -768,10 +772,11 @@ export default function ClinicPage() {
                                       : styles.sessionTime}>
                                       {session.booking_mode === "time_range" ? "운영 시간 " : ""}
                                       {formatTime(session.start_time)}
-                                      {session.end_time ? `–${formatTime(session.end_time)}` : ""}
+                                      {session.end_time ? `–${clinicTimeLabel(session.end_time, session.start_time, session.end_date, session.date)}` : ""}
                                     </span>
                                     <span className={styles.sessionTitle}>
                                       {session.title || "클리닉 수업"}
+                                      {isOngoingPreviousClinic(session, now) ? " · 전날 시작·진행 중" : ""}
                                     </span>
                                     <span className={styles.sessionLocation}>
                                       {session.location || "장소 추후 안내"}

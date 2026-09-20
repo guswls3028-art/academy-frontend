@@ -13,6 +13,7 @@ const PARTICIPANT_STATUS_LABEL: Record<string, string> = {
 
 const RESOLUTION_ACTION_LABEL: Record<string, string> = {
   resolve: "해결",
+  resolve_manual: "수동 통과",
   unresolve: "해결 취소",
   carry_over: "다음 차수 이월",
 };

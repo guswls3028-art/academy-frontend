@@ -331,6 +331,68 @@ async function openScores(page: Page) {
 test.describe("OMR와 서술형 점수 입력 진입", () => {
   test.setTimeout(90_000);
 
+  test("30문항 스캔을 열고 첫 객관식 답안을 수정·저장·원복한다", async ({ page }) => {
+    const unexpectedMutations = await openScores(page);
+    const submissionId = 10021;
+    const savedAnswers: string[] = [];
+    let firstAnswer = "1";
+    const scan = "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200"><rect width="900" height="1200" fill="white"/></svg>',
+    );
+    await page.route("**/api/v1/submissions/submissions/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith(`/exams/${MIXED_EXAM_ID}/`)) {
+        return route.fulfill({ json: [{
+          id: submissionId, enrollment_id: 9911, student_name: "테스트 학생",
+          status: "done", source: "omr", score: 30, created_at: "2026-09-01T12:00:00+09:00",
+          has_file: true, manual_review_required: false, manual_review_reasons: [],
+          identifier_status: "matched",
+        }] });
+      }
+      if (path.endsWith(`/${submissionId}/manual-edit/`)) {
+        if (route.request().method() === "POST") {
+          const body = route.request().postDataJSON() as { answers: Array<{ exam_question_id: number; answer: string }> };
+          expect(body.answers).toHaveLength(30);
+          firstAnswer = body.answers.find((answer) => answer.exam_question_id === 10001)!.answer;
+          savedAnswers.push(firstAnswer);
+          return route.fulfill({ json: { graded: true, score: firstAnswer === "1" ? 30 : 29 } });
+        }
+        return route.fulfill({ json: {
+          submission_id: submissionId, submission_status: "done", enrollment_id: 9911,
+          target_type: "exam", target_id: MIXED_EXAM_ID, identifier: {},
+          scan_image_url: scan, scan_image_size: { width: 900, height: 1200 },
+          scan_image_is_aligned: true, meta: {}, duplicate_siblings: [],
+          answers: Array.from({ length: 30 }, (_, index) => ({
+            question_id: 10001 + index, question_no: index + 1,
+            answer: index === 0 ? firstAnswer : "1",
+            omr: { marking: "single", confidence: 1, status: "ok" },
+          })),
+        } });
+      }
+      return route.fallback();
+    });
+
+    await page.getByTestId("subjective-pending-banner")
+      .getByRole("button", { name: "중대부고 2회차 혼합형 서술형 점수 입력" }).click();
+    await page.getByRole("button", { name: "OMR 결과 보정", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "OMR 검토", exact: true })).toBeVisible();
+    await expect(page.locator(".orw-q-row")).toHaveCount(30);
+    const scanImage = page.getByRole("img", { name: "OMR 스캔 원본", exact: true });
+    await expect(scanImage).toBeVisible();
+    await expect.poll(() => scanImage.evaluate((element: HTMLImageElement) => (
+      element.complete && element.naturalWidth > 0 && element.naturalHeight > 0
+    ))).toBe(true);
+    const firstAnswerRow = page.locator(".orw-q-row").first();
+    for (const expected of ["1,2", "1"]) {
+      await firstAnswerRow.getByRole("button", { name: "2", exact: true }).click();
+      await page.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
+      await expect(page.getByRole("button", { name: "변경 사항 없음", exact: true })).toBeDisabled();
+      expect(savedAnswers.at(-1)).toBe(expected);
+    }
+    expect(savedAnswers).toEqual(["1,2", "1"]);
+    expect(unexpectedMutations).toEqual([]);
+  });
+
   test("시험 계약으로 가능한 작업만 자동 노출하고 혼합형은 한 화면에서 이어진다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     const unexpectedMutations = await openScores(page);

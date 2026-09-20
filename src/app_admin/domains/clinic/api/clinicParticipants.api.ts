@@ -45,6 +45,8 @@ export type ClinicParticipant = {
   preferred_end_time?: string | null;
   booking_start_time?: string | null;
   booking_end_time?: string | null;
+  booking_start_date?: string | null;
+  booking_end_date?: string | null;
   recipient_contacts?: Array<{
     role: "student" | "parent";
     name: string;

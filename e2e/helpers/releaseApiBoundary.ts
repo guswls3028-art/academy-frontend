@@ -653,16 +653,26 @@ async function installNativeKeepaliveGuard(
         || target.username || target.password) return refuse("origin");
       if (request.headers.get("x-tenant-code") !== boundary.tenantCode) return refuse("tenant");
       if (boundary.mode !== "development") return refuse("mutation");
-      if (request.method !== "POST" || target.pathname !== "/api/v1/media/playback/end/"
+      const scoreMatch = /^\/api\/v1\/results\/admin\/sessions\/([1-9][0-9]*)\/score-draft\/commit\/$/.exec(target.pathname);
+      const scoreExit = scoreMatch && Number.isSafeInteger(Number(scoreMatch[1]));
+      if (request.method !== "POST" || (target.pathname !== "/api/v1/media/playback/end/" && !scoreExit)
         || target.search || target.hash || request.mode !== "cors"
         || request.credentials !== "omit"
         || !/^Bearer\s+\S+$/.test(request.headers.get("authorization") ?? "")) return refuse("shape");
       // Cross-origin native pagehide preflight is lost under Chromium routing.
       // The owned artifact server forwards only this terminal write to the
       // verified development API; the browser performs a real same-origin fetch.
-      const upstream = `${boundary.webOrigin}/__qa__/playback-end`;
       const body = init?.body ?? (input instanceof NativeRequest ? bodies.get(input) : undefined);
       if (typeof body !== "string") return refuse("shape");
+      if (scoreExit) {
+        try {
+          const data = JSON.parse(body);
+          if (!/^[a-zA-Z0-9._-]{1,128}$/.test(request.headers.get("x-score-editor-client") ?? "")
+            || !data || Object.keys(data).sort().join(",") !== "release_if_empty,release_lease"
+            || data.release_if_empty !== true || data.release_lease !== true) return refuse("shape");
+        } catch { return refuse("shape"); }
+      }
+      const upstream = `${boundary.webOrigin}${scoreExit ? `/__qa__/score-exit/${scoreMatch[1]}` : "/__qa__/playback-end"}`;
       // Retain the original JSON bytes, method, auth/tenant headers and native
       // keepalive flag, including Axios's Request input.
       // Never follow a redirect with the playback token or authorization header.

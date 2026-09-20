@@ -21,7 +21,7 @@ import {
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { extractApiError } from "@/shared/utils/extractApiError";
-import { Tabs } from "@/shared/ui/ds";
+import { Tabs, SelectionButton } from "@/shared/ui/ds";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminSessionQueryKeys } from "../queryKeys";
 import styles from "./SessionBlock.module.css";
@@ -590,22 +590,16 @@ function SessionViewControls({
         <div className={styles.viewModeFilter}>
           <span className={styles.viewModeLabel}>보기 방식</span>
           <div className={`ds-segment ${styles.viewModeSegment}`} role="group" aria-label="수업 보기 방식">
-            <button
-              type="button"
-              className="ds-segment__btn"
-              aria-pressed={viewMode === "ALL"}
+            <SelectionButton
+              selected={viewMode === "ALL"}
+              label="전체 보기"
               onClick={() => onViewModeChange("ALL")}
-            >
-              전체 보기
-            </button>
-            <button
-              type="button"
-              className="ds-segment__btn"
-              aria-pressed={viewMode === "SCOPED"}
+            />
+            <SelectionButton
+              selected={viewMode === "SCOPED"}
+              label="정규·보강 나눠 보기"
               onClick={() => onViewModeChange("SCOPED")}
-            >
-              정규·보강 나눠 보기
-            </button>
+            />
           </div>
         </div>
         <p className={styles.viewModeHelp}>

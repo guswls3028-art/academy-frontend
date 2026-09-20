@@ -11,6 +11,7 @@ export { default as Panel } from "./Panel";
 export { default as EmptyState } from "./EmptyState";
 export { default as KPI } from "./KPI";
 export { default as Button } from "./Button";
+export { default as SelectionButton } from "./SelectionButton";
 export * from "./Tabs";
 
 export { default as ActionBar } from "./components/ActionBar";

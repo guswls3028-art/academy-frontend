@@ -1,3 +1,4 @@
+import type { ClinicBookingAvailability } from "@/shared/ui/clinic/ClinicActualTimePicker";
 // PATH: src/app_student/domains/clinic/api/clinicBooking.api.ts
 // 학생 앱 클리닉 예약 API
 
@@ -16,6 +17,8 @@ type ClinicParticipantRaw = {
   session_title?: string;
   session_date: string;
   session_start_time: string;
+  session_end_time?: string | null;
+  session_duration_minutes?: number | null;
   session_location: string | null;
   status: ClinicBookingStatus | "approved" | "attended" | "no_show";
   student_request_memo?: string;
@@ -23,6 +26,8 @@ type ClinicParticipantRaw = {
   preferred_end_time?: string | null;
   booking_start_time?: string | null;
   booking_end_time?: string | null;
+  booking_start_date?: string | null;
+  booking_end_date?: string | null;
   created_at: string;
   updated_at?: string;
   status_changed_at?: string;
@@ -39,6 +44,8 @@ export type ClinicSession = {
   date: string; // YYYY-MM-DD
   start_time: string; // HH:MM:SS or HH:MM
   end_time?: string;
+  end_date?: string;
+  duration_minutes?: number;
   location: string;
   /** 대상 학년 (null = 전체). 백엔드가 학생 학년에 맞는 세션만 반환 */
   target_grade?: number | null;
@@ -69,6 +76,8 @@ export type ClinicBookingRequest = {
   session_title?: string;
   session_date: string;
   session_start_time: string;
+  session_end_time?: string | null;
+  session_duration_minutes?: number | null;
   session_location: string | null; // ✅ 세션이 없으면 null
   status: ClinicBookingStatus;
   student_request_memo?: string;
@@ -76,6 +85,8 @@ export type ClinicBookingRequest = {
   preferred_end_time?: string | null;
   booking_start_time?: string | null;
   booking_end_time?: string | null;
+  booking_start_date?: string | null;
+  booking_end_date?: string | null;
   created_at: string;
   updated_at?: string;
   status_changed_at?: string;
@@ -190,6 +201,8 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
       session_title: raw.session_title,
       session_date: raw.session_date,
       session_start_time: raw.session_start_time,
+      session_end_time: raw.session_end_time,
+      session_duration_minutes: raw.session_duration_minutes,
       session_location: raw.session_location ?? null, // ✅ 세션이 없으면 null
       status,
       student_request_memo: raw.student_request_memo,
@@ -197,6 +210,8 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
       preferred_end_time: raw.preferred_end_time,
       booking_start_time: raw.booking_start_time,
       booking_end_time: raw.booking_end_time,
+      booking_start_date: raw.booking_start_date,
+      booking_end_date: raw.booking_end_date,
       created_at: raw.created_at,
       updated_at: raw.updated_at,
       status_changed_at: raw.status_changed_at,
@@ -247,6 +262,8 @@ export async function createClinicBookingRequests(data: {
       session_title: participant.session_title,
       session_date: participant.session_date,
       session_start_time: participant.session_start_time,
+      session_end_time: participant.session_end_time,
+      session_duration_minutes: participant.session_duration_minutes,
       session_location: participant.session_location || null,
       status,
       student_request_memo: participant.student_request_memo,
@@ -254,6 +271,8 @@ export async function createClinicBookingRequests(data: {
       preferred_end_time: participant.preferred_end_time,
       booking_start_time: participant.booking_start_time,
       booking_end_time: participant.booking_end_time,
+      booking_start_date: participant.booking_start_date,
+      booking_end_date: participant.booking_end_date,
       created_at: participant.created_at,
       can_self_cancel: participant.can_self_cancel ?? status === "pending",
       self_cancel_reason: participant.self_cancel_reason ?? "예약 신청을 직접 취소할 수 있습니다.",
@@ -316,6 +335,8 @@ export async function changeClinicBooking(
     session_title: res.data.session_title,
     session_date: res.data.session_date,
     session_start_time: res.data.session_start_time,
+    session_end_time: res.data.session_end_time,
+    session_duration_minutes: res.data.session_duration_minutes,
     session_location: res.data.session_location || null,
     status,
     student_request_memo: res.data.student_request_memo,
@@ -323,18 +344,16 @@ export async function changeClinicBooking(
     preferred_end_time: res.data.preferred_end_time,
     booking_start_time: res.data.booking_start_time,
     booking_end_time: res.data.booking_end_time,
+    booking_start_date: res.data.booking_start_date,
+    booking_end_date: res.data.booking_end_date,
     created_at: res.data.created_at,
     can_self_cancel: res.data.can_self_cancel ?? status === "pending",
     self_cancel_reason: res.data.self_cancel_reason ?? "예약 신청을 직접 취소할 수 있습니다.",
   });
 }
 
-export type ClinicAvailability = {
+export type ClinicAvailability = ClinicBookingAvailability & {
   booking_mode: "fixed_slot" | "time_range";
-  interval_minutes: 30 | 60;
-  max_stay_minutes: number;
-  window: { start_time: string; end_time: string };
-  slots: Array<{ start_time: string; end_time: string; remaining_capacity: number }>;
 };
 
 export async function fetchClinicAvailability(sessionId: number): Promise<ClinicAvailability> {

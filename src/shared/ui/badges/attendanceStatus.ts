@@ -1,3 +1,5 @@
+import type { BadgeTone } from "@/shared/ui/ds/components/Badge";
+
 export type AttendanceStatus =
   | "UNSET"
   | "PRESENT"
@@ -29,7 +31,7 @@ export const ORDERED_ATTENDANCE_STATUS: AttendanceStatus[] = [
 /** 출결 상태별 두글자 라벨·한글자(앞글자)·톤 — 색상은 ds-status-badge[data-tone] SSOT */
 export const ATTENDANCE_META: Record<
   AttendanceStatus,
-  { label: string; short: string; tone: string }
+  { label: string; short: string; tone: BadgeTone }
 > = {
   UNSET: { label: "미입력", short: "－", tone: "neutral" },
   PRESENT: { label: "현장", short: "현", tone: "success" },

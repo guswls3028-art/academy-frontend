@@ -239,6 +239,14 @@ jobs:
           E2E_ALLOW_PRODUCTION_WRITES: "0"
         run: pnpm test:e2e:bundle-smoke
 
+      - name: Verify shared control states across all themes
+        env:
+          THEME_AUDIT_BASE_URL: http://127.0.0.1:4173
+          E2E_STRICT: strict
+          E2E_ALLOW_REAL_ALIMTALK: "0"
+          E2E_ALLOW_PRODUCTION_WRITES: "0"
+        run: pnpm exec playwright test e2e/visual/theme-control-states.spec.ts --project=chromium --workers=1 --retries=0 --reporter=github,list
+
       - name: Upload route-mock report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

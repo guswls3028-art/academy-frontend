@@ -141,18 +141,7 @@
     margin-right: 0 !important;
   }
 
-  /* 선택 바: 가로 스크롤 */
-  [data-app="admin"] .domain-list-toolbar .flex.flex-wrap.items-center.gap-2 {
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: var(--space-1);
-    scrollbar-width: none;
-  }
-
-  [data-app="admin"] .domain-list-toolbar .flex.flex-wrap.items-center.gap-2::-webkit-scrollbar {
-    display: none;
-  }
+  /* Action-group wrapping belongs to DomainListToolbar.module.css. */
 }
 
 /* ========================================

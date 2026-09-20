@@ -10,6 +10,7 @@ export type TeacherClinicSession = {
   date?: string | null;
   start_time?: string | null;
   end_time?: string | null;
+  end_date?: string | null;
   duration_minutes?: number | null;
   location?: string | null;
   participant_count?: number | null;
@@ -54,6 +55,8 @@ export type TeacherClinicParticipant = {
   preferred_end_time?: string | null;
   booking_start_time?: string | null;
   booking_end_time?: string | null;
+  booking_start_date?: string | null;
+  booking_end_date?: string | null;
   student_request_memo?: string | null;
 };
 

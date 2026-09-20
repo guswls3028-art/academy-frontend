@@ -117,7 +117,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
 
   const goMonth = (delta: number) => {
     const nextDate = new Date(year, month - 1 + delta);
-    const next = new URLSearchParams(searchParams);
+    const next = new URLSearchParams(window.location.search);
     next.delete("staffId");
     next.set("year", String(nextDate.getFullYear()));
     next.set("month", String(nextDate.getMonth() + 1));
@@ -125,7 +125,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
   };
 
   const openStaff = (staffId: number) => {
-    const next = new URLSearchParams(searchParams);
+    const next = new URLSearchParams(window.location.search);
     next.set("staffId", String(staffId));
     next.set("year", String(year));
     next.set("month", String(month));
@@ -140,21 +140,23 @@ export function StaffPayrollOverview({ year, month }: Props) {
   };
 
   const setFilter = (nextFilter: PayrollFilter) => {
-    const next = new URLSearchParams(searchParams);
+    // BrowserRouter updates history before its transition commits. Merge the
+    // current URL so a quick second action cannot erase the preceding input.
+    const next = new URLSearchParams(window.location.search);
     if (nextFilter === "all") next.delete("payrollFilter");
     else next.set("payrollFilter", nextFilter);
     setSearchParams(next, { replace: true });
   };
 
   const setSearch = (value: string) => {
-    const next = new URLSearchParams(searchParams);
+    const next = new URLSearchParams(window.location.search);
     if (value) next.set("payrollSearch", value);
     else next.delete("payrollSearch");
     setSearchParams(next, { replace: true });
   };
 
   const setSort = (nextSort: PayrollSort) => {
-    const next = new URLSearchParams(searchParams);
+    const next = new URLSearchParams(window.location.search);
     if (nextSort === "default") next.delete("payrollSort");
     else next.set("payrollSort", nextSort);
     setSearchParams(next, { replace: true });

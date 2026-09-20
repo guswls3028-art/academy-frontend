@@ -2,6 +2,8 @@ import { expect, test, type Page } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { realMessagingSkipReason } from "../helpers/safety";
+import { createScoreExitReceiver } from "../helpers/scoreExitReceiver";
+import { writeFile } from "node:fs/promises";
 
 type ScoreRouteOptions = {
   initialScores?: Array<number | null>;
@@ -32,6 +34,7 @@ type ScoreRouteOptions = {
     client_id: string;
     editor_user_id: number;
     editor_name: string;
+    has_pending_changes?: boolean;
     active_cell: { enrollmentId: number } & (
       | { type: "homework"; homeworkId: number }
       | { type: "exam"; examId: number; sub: "total" | "objective" | "subjective" }
@@ -54,8 +57,8 @@ async function openScores(
   page: Page,
   routeOptions: ScoreRouteOptions = {},
   navigationTimeoutMs = 45_000,
+  baseUrl = getBaseUrl("admin"),
 ): Promise<void> {
-  const baseUrl = getBaseUrl("admin");
   const mockOnlyReason = realMessagingSkipReason(baseUrl, "", "0");
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl),
@@ -352,9 +355,14 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
         await route.fulfill({ status: 500, json: { detail: "commit failed once" } });
         return;
       }
+      if (body.release_if_empty === true && currentDraft.length > 0) {
+        await route.fulfill({ status: 204, body: "" });
+        return;
+      }
       currentDraft = [];
       if (body.release_lease === true) {
         currentServerActiveCell = null;
+        activeEditors = activeEditors.filter((editor) => editor.client_id !== request.headers()["x-score-editor-client"]);
         serverDraftMutationOrder.push("release");
       }
       await route.fulfill({ status: 204, body: "" });
@@ -739,7 +747,7 @@ test("같은 계정의 다른 화면이 선택한 과제 셀을 표시하고 다
   const occupiedCell = page.locator('[data-score-cell="homework:9201:9151"]');
   const availableCell = page.locator('[data-score-cell="homework:9202:9151"]');
   await expect(occupiedCell).toHaveAttribute("data-collaborator-active", "true");
-  await expect(occupiedCell).toContainText("박철 입력 중");
+  await expect(occupiedCell).toContainText("내 다른 화면에서 입력 중");
   await expect(occupiedCell).not.toHaveAttribute("data-editable", "true");
   await expect(availableCell).toHaveAttribute("data-editable", "true");
 
@@ -896,6 +904,226 @@ test("빈 성적표는 잠긴 첫 셀을 건너뛰어 다음 학생만 자동 �
   expect(currentScores[0]).toBeNull();
 });
 
+for (const width of [1366, 390]) {
+  test(`내 다른 화면의 서술형 빈 점유는 명시적으로 이어 입력하고 저장한다 (${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openScores(page, {
+      includeHomework: true,
+      initialScores: [65, 70],
+      initialSubjectiveScores: [5, 6],
+      activeEditors: [{
+        client_id: "previous-document", editor_user_id: 12, editor_name: "관리자",
+        has_pending_changes: false,
+        active_cell: { type: "exam", enrollmentId: 9201, examId: 9101, sub: "subjective" },
+      }],
+    });
+    await page.getByRole("button", { name: /표시 옵션/ }).click();
+    await page.getByRole("button", { name: "객관식 + 주관식", exact: true }).click();
+    await ensureScoreEditing(page);
+    await page.getByRole("group", { name: "시험 점수 입력 방식" }).getByRole("button", { name: "주관식", exact: true }).click();
+    await page.getByRole("button", { name: "주관식 입력", exact: true }).click();
+    const ownCell = page.locator('[data-score-cell="exam:9201:9101:subjective:"]');
+    await expect(ownCell).toHaveAttribute("data-collaborator-active", "true");
+    await expect(ownCell.getByRole("textbox")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`self-locked-${width}.png`), fullPage: true });
+    const claim = ownCell.getByRole("button", { name: "이 화면에서 이어 입력", exact: true });
+    await expect(ownCell).toContainText("내 다른 화면에서 입력 중");
+    await expect(claim).toBeVisible();
+    let rejectClaim = true;
+    let claims = 0;
+    let finishClaim!: () => void;
+    const claimGate = new Promise<void>((resolve) => { finishClaim = resolve; });
+    await page.route("**/api/v1/results/admin/sessions/9002/score-draft/", async (route) => {
+      if (route.request().method() !== "PUT") return route.fallback();
+      const body = route.request().postDataJSON();
+      if (!body.take_over_same_user) return route.fallback();
+      claims += 1;
+      expect(body.changes).toEqual([]);
+      expect(body.active_cell).toEqual({ type: "exam", enrollmentId: 9201, examId: 9101, sub: "subjective" });
+      expect(route.request().headers()["x-score-editor-client"]).not.toBe("previous-document");
+      if (rejectClaim) return route.fulfill({ status: 409, json: { code: "SCORE_EDIT_LOCKED" } });
+      await claimGate;
+      activeEditors = activeEditors.filter((editor) => editor.client_id !== "previous-document");
+      return route.fallback();
+    });
+    try {
+      const otherInput = page.locator('[data-score-cell="exam:9202:9101:subjective:"]').getByRole("textbox");
+      await otherInput.fill("8");
+      failNextDraftPut = true;
+      await claim.click();
+      await expect(ownCell.getByRole("alert")).toContainText("이 화면에서 입력을 이어가지 못했습니다");
+      expect(claims).toBe(0);
+      await expect(otherInput).toHaveText("8");
+      expect(currentSubjectiveScores[1]).toBe(6);
+      await otherInput.fill("6");
+      await claim.click();
+      await expect(page.getByText("다른 화면에 저장하지 않은 입력이 있거나 다른 직원이 입력 중입니다. 그 화면에서 저장한 뒤 다시 시도해 주세요.")).toBeVisible();
+      await ownCell.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`self-claim-error-${width}.png`), fullPage: true });
+      await expect(claim).toBeEnabled();
+      expect(claims).toBe(1);
+      await expect(ownCell.getByRole("textbox")).toHaveCount(0);
+      rejectClaim = false;
+      holdNextPresenceDraftPut = true;
+      await otherInput.click();
+      await expect.poll(() => heldPresenceDraftPutStarted).toBe(true);
+      await claim.click();
+      expect(claims).toBe(1);
+      await otherInput.fill("8");
+      await page.keyboard.press("Control+s");
+      expect(currentSubjectiveScores[1]).toBe(6);
+      releaseHeldPresenceDraftPut?.();
+      await expect.poll(() => claims).toBe(2);
+      expect(currentSubjectiveScores[1]).toBe(8);
+      await expect(ownCell.getByRole("button")).toBeDisabled();
+      await ownCell.getByRole("button").evaluate((button: HTMLButtonElement) => button.click());
+      expect(claims).toBe(2);
+      await expect(ownCell.getByRole("textbox")).toHaveCount(0);
+      await otherInput.fill("9");
+      await page.keyboard.press("Control+s");
+      // eslint-disable-next-line no-restricted-syntax -- explicit save must remain queued behind the held empty claim PUT.
+      await page.waitForTimeout(200);
+      expect(currentSubjectiveScores[1]).toBe(8);
+      await expect(otherInput).toHaveText("9");
+      expect(draftPuts.some((put) => (put.changes as Array<{ score?: number }>).some((change) => change.score === 9))).toBe(false);
+      finishClaim();
+      const input = ownCell.getByRole("textbox");
+      await expect(input).toBeVisible();
+      await expect(input).toBeFocused();
+      await input.fill("7");
+      await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await expect.poll(() => currentSubjectiveScores[0]).toBe(7);
+      expect(currentSubjectiveScores[1]).toBe(9);
+      await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: /표시 옵션/ }).click();
+      await page.getByRole("button", { name: "객관식 + 주관식", exact: true }).click();
+      await expect(ownCell).toContainText("7");
+      await page.screenshot({ path: testInfo.outputPath(`self-recovered-${width}.png`), fullPage: true });
+    } finally {
+      releaseHeldPresenceDraftPut?.();
+      finishClaim();
+    }
+  });
+}
+
+for (const width of [1366, 390]) {
+  test(`미저장·구버전·다른 직원 점유는 가져오기를 제공하지 않는다 (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openScores(page, {
+      includeHomework: true,
+      homeworkAssignedRows: [true, true],
+      activeEditors: [
+        { client_id: "own-dirty", editor_user_id: 12, editor_name: "관리자", has_pending_changes: true,
+          active_cell: { type: "exam", enrollmentId: 9201, examId: 9101, sub: "total" } },
+        { client_id: "own-legacy", editor_user_id: 12, editor_name: "관리자",
+          active_cell: { type: "exam", enrollmentId: 9202, examId: 9101, sub: "total" } },
+        { client_id: "other-empty", editor_user_id: 44, editor_name: "조교A", has_pending_changes: false,
+          active_cell: { type: "homework", enrollmentId: 9201, homeworkId: 9151 } },
+      ],
+    });
+    await ensureScoreEditing(page);
+    await expect(page.getByText("다른 화면의 입력을 먼저 저장해 주세요.")).toBeVisible();
+    await expect(page.locator(".ds-scores-cell-collaborator")).toHaveCount(3);
+    await expect(page.locator(".ds-scores-cell-collaborator").getByRole("textbox")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "이 화면에서 이어 입력" })).toHaveCount(0);
+    expect(draftPuts.some((put) => put.take_over_same_user === true)).toBe(false);
+  });
+
+  test(`문서 종료는 진행 요청·미저장 입력을 보존하고 빈 점유만 해제한다 (${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const nativeExits: Record<string, unknown>[] = [];
+    let exitingClient = "";
+    let observedClient = "";
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname.endsWith("/score-draft/") && request.method() === "PUT") {
+        observedClient = request.headers()["x-score-editor-client"] ?? observedClient;
+      }
+    });
+    const receiver = await createScoreExitReceiver(getBaseUrl("admin"), (body) => {
+      nativeExits.push(body);
+      draftCommits.push(body);
+      if (currentDraft.length === 0) {
+        currentServerActiveCell = null;
+        activeEditors = activeEditors.filter((editor) => editor.client_id !== exitingClient);
+      }
+    });
+    try {
+      await openScores(page, { includeHomework: true, homeworkAssignedRows: [true, true], initialHomeworkScores: [10, 20] }, 45_000, receiver.origin);
+      await ensureScoreEditing(page);
+      const input = page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" });
+      const exits = () => draftCommits.filter((commit) => commit.release_if_empty === true);
+      holdNextPresenceDraftPut = true;
+      await input.click();
+      await expect.poll(() => heldPresenceDraftPutStarted).toBe(true);
+      try {
+        await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false })));
+        // eslint-disable-next-line no-restricted-syntax -- bounded absence assertion while the PUT remains held.
+        await page.waitForTimeout(200);
+        expect(exits()).toHaveLength(0);
+      } finally {
+        releaseHeldPresenceDraftPut?.();
+      }
+      await expect.poll(() => currentServerActiveCell?.enrollmentId).toBe(9202);
+      await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true })));
+      await input.fill("21");
+      await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false })));
+      // eslint-disable-next-line no-restricted-syntax -- dirty cell and bfcache exit must not schedule a release.
+      await page.waitForTimeout(200);
+      expect(exits()).toHaveLength(0);
+      await expect(input).toHaveText("21");
+      await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await expect.poll(() => currentHomeworkScores[1]).toBe(21);
+      await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+      await ensureScoreEditing(page);
+      const settledPresence = page.waitForResponse((response) => response.request().method() === "PUT"
+        && new URL(response.url()).pathname === "/api/v1/results/admin/sessions/9002/score-draft/"
+        && response.request().postDataJSON()?.active_cell?.enrollmentId === 9202);
+      await input.click();
+      await (await settledPresence).finished();
+      await expect.poll(() => currentServerActiveCell?.enrollmentId).toBe(9202);
+      exitingClient = observedClient;
+      expect(exitingClient).not.toBe("");
+      activeEditors = [{ client_id: exitingClient, editor_user_id: 12, editor_name: "관리자", has_pending_changes: false,
+        active_cell: { type: "homework", enrollmentId: 9202, homeworkId: 9151 } }];
+      let reclaimed = false;
+      await page.route("**/api/v1/results/admin/sessions/9002/score-draft/", async (route) => {
+        if (route.request().method() === "PUT" && route.request().postDataJSON()?.take_over_same_user) {
+          expect(route.request().postDataJSON()).toMatchObject({ changes: [],
+            active_cell: { type: "homework", enrollmentId: 9202, homeworkId: 9151 } });
+          activeEditors = [];
+          reclaimed = true;
+        }
+        await route.fallback();
+      });
+      // Complete the response and React's presence queue before the actual document exit.
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await page.reload({ waitUntil: "domcontentloaded" });
+      receiver.assertClean();
+      expect(currentHomeworkScores).toEqual([10, 21]);
+      await ensureScoreEditing(page);
+      const restoredCell = page.locator('[data-score-cell="homework:9202:9151"]');
+      const resume = restoredCell.getByRole("button", { name: "이 화면에서 이어 입력", exact: true });
+      await expect(restoredCell.getByRole("textbox").or(resume)).toBeVisible();
+      if (await resume.isVisible()) await resume.click();
+      await expect(restoredCell.getByRole("textbox")).toBeVisible();
+      await restoredCell.getByRole("textbox").fill("22");
+      await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(restoredCell).toContainText("22");
+      expect(currentHomeworkScores).toEqual([10, 22]);
+      const observedPath = testInfo.outputPath("score-exit-observed.json");
+      await writeFile(observedPath, JSON.stringify({ width, nativeHttpReceipts: nativeExits.length, explicitReclaim: reclaimed }));
+      await testInfo.attach("score-exit-observed", { contentType: "application/json", path: observedPath });
+      receiver.assertClean();
+    } finally {
+      await page.close();
+      await receiver.close();
+    }
+  });
+}
+
 test("다른 화면이 선택한 서술형 셀만 막고 같은 시험의 다른 학생은 계속 입력한다", async ({ page }) => {
   await openScores(page, {
     includeHomework: true,
@@ -922,6 +1150,7 @@ test("다른 화면이 선택한 서술형 셀만 막고 같은 시험의 다른
   await expect(occupiedCell).toHaveAttribute("data-collaborator-active", "true");
   await expect(occupiedCell).toContainText("조교A 입력 중");
   await expect(occupiedCell.getByRole("textbox")).toHaveCount(0);
+  await expect(occupiedCell.getByRole("button", { name: "이 화면에서 이어 입력" })).toHaveCount(0);
   await expect(availableCell.getByRole("textbox")).toHaveCount(1);
 
   const subjectiveInput = availableCell.getByRole("textbox");
