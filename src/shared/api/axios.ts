@@ -31,6 +31,10 @@ import {
   isStudentSupportWindow,
 } from "@/shared/auth/supportPreviewSession";
 
+const CLIENT_VERSION = typeof __BUILD_TIMESTAMP__ !== "undefined"
+  ? __BUILD_TIMESTAMP__
+  : String(import.meta.env.VITE_APP_VERSION || "dev");
+
 type RetryConfig = ApiRequestConfig & {
   _retry?: boolean;
   _asyncId?: string;
@@ -63,7 +67,7 @@ export async function releaseEmptyScoreDraftOnPageExit(sessionId: number, client
     headers: {
       "Content-Type": "application/json", Authorization: `Bearer ${auth.access}`,
       "X-Tenant-Code": tenant, "X-Score-Editor-Client": clientId,
-      "X-Client": "academyfront", "X-Client-Version": String(import.meta.env.VITE_APP_VERSION || "dev"),
+      "X-Client": "academyfront", "X-Client-Version": CLIENT_VERSION,
     },
     body: JSON.stringify({ release_lease: true, release_if_empty: true }),
   });
@@ -456,9 +460,7 @@ api.interceptors.request.use(async (config) => {
 
   // Optional operational headers
   setRequestHeader(cfg, "X-Client", "academyfront");
-  setRequestHeader(cfg, "X-Client-Version", String(
-    import.meta.env.VITE_APP_VERSION || "dev"
-  ));
+  setRequestHeader(cfg, "X-Client-Version", CLIENT_VERSION);
 
   // 테넌트 코드가 있으면 항상 전송 (B 구조: tchul.com → api.hakwonplus.com 에서 필수)
   const tenantCode = getTenantCodeForApiRequest();

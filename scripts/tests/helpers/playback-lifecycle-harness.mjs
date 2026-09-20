@@ -63,7 +63,8 @@ export function harness(options = {}) {
       target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true,
     }, fileName: file }).outputText;
     vm.runInNewContext(compiled, {
-      exports: module.exports, module, __testEnv: { VITE_API_BASE_URL: 'https://unit.invalid' },
+      exports: module.exports, module, __testEnv: { VITE_API_BASE_URL: 'https://unit.invalid', VITE_APP_VERSION: options.appVersion },
+      ...(options.buildVersion === undefined ? {} : { __BUILD_TIMESTAMP__: options.buildVersion }),
       require(specifier) {
         if (importMocks[specifier]) return importMocks[specifier];
         if (specifier === '@/shared/api/axios') return load('src/shared/api/axios.ts');

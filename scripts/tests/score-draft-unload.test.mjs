@@ -5,6 +5,15 @@ import { harness, token, settle } from './helpers/playback-lifecycle-harness.mjs
 const release = (h, sessionId = 9002, clientId = 'document-a') =>
   h.exports.releaseEmptyScoreDraftOnPageExit(sessionId, clientId);
 
+test('ordinary and empty score exit requests identify the loaded build instead of a stale app version', async () => {
+  const buildVersion = '0123456789abcdef0123456789abcdef01234567';
+  const h = harness({ buildVersion, appVersion: 'stale-dashboard-version' });
+  await h.api.get('/core/me/');
+  await release(h);
+  assert.deepEqual(h.requests.map((request) => request.headers.get('x-client-version')), [buildVersion, buildVersion]);
+  assert.deepEqual(h.requests.map((request) => request.keepalive), [false, true]);
+});
+
 test('empty score exit dispatches synchronously with exact JWT tenant client and body while refresh is pending', async () => {
   let finish;
   const h = harness({ expiresIn: 20, refresh: () => new Promise((resolve) => { finish = resolve; }) });
