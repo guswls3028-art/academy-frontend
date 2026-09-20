@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { useProgram } from "@/shared/program";
+import { messageQueryKeys } from "../queryKeys";
 
 /** The sender uses Tenant.name, which can differ from the site's branding name. */
 export function useMessageAcademyName(enabled = true) {
   const { program } = useProgram();
   return useQuery({
-    queryKey: ["messaging", "academy-name", program?.tenantCode],
+    queryKey: messageQueryKeys.academyName(program?.tenantCode),
     queryFn: async () => {
       const { data } = await api.get<{ tenant_name: string }>("/core/subscription/");
       if (typeof data.tenant_name !== "string" || !data.tenant_name.trim()) {
