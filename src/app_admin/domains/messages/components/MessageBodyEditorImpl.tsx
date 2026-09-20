@@ -93,8 +93,8 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
       attributes: { role: "textbox", "aria-label": "안내문", "aria-multiline": "true", spellcheck: "false" },
       handlePaste: (view, event) => {
         const text = event.clipboardData?.getData("text/plain");
-        if (text == null) return false;
         event.preventDefault();
+        if (!text) return true;
         // Native selectionchange can arrive after paste (for example, Ctrl+End after undo).
         const selection = view.dom.ownerDocument.getSelection();
         if (selection?.anchorNode && selection.focusNode

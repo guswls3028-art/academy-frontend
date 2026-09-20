@@ -166,6 +166,59 @@ test.describe("안내문 변수 편집", () => {
     expect(writes[0].body).toBe("한글 안내 #{시험총점} 빠른 입력#{시험총점} 뒤 문장");
   });
 
+  for (const clipboard of ["image", "empty"] as const) {
+    test(`${clipboard} 클립보드는 선택 본문과 이전 편집 이력을 보존한다`, async ({ page }) => {
+      const writes = await openTemplateEditor(page);
+      const modal = page.getByRole("dialog", { name: "문구 수정", exact: true });
+      const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+      await editor.click();
+      await editor.press("Control+End");
+      await page.keyboard.insertText(" 추가 입력");
+      await editor.press("Control+a");
+      const unchanged = await editor.evaluate((node, clipboard) => {
+        const html = node.innerHTML;
+        const selection = node.ownerDocument.getSelection()!;
+        const { anchorNode, anchorOffset, focusNode, focusOffset } = selection;
+        const clipboardData = new DataTransfer();
+        if (clipboard === "image") {
+          clipboardData.items.add(new File([new Uint8Array([137, 80, 78, 71])], "clipboard.png", { type: "image/png" }));
+        }
+        node.dispatchEvent(new ClipboardEvent("paste", { clipboardData, bubbles: true, cancelable: true }));
+        return {
+          body: node.innerHTML === html,
+          selection: selection.anchorNode === anchorNode && selection.anchorOffset === anchorOffset
+            && selection.focusNode === focusNode && selection.focusOffset === focusOffset,
+        };
+      }, clipboard);
+      expect(unchanged).toEqual({ body: true, selection: true });
+      await editor.press("Control+z");
+      await expect(editor).not.toContainText("추가 입력");
+      await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+      await editor.press("Control+y");
+      await expect(editor).toContainText("추가 입력");
+      await modal.getByRole("button", { name: "수정", exact: true }).click();
+      await expect(modal).toBeHidden();
+      expect(writes[0].body).toBe("한글 안내 #{시험총점} 추가 입력");
+    });
+  }
+
+  test("공백과 줄바꿈만 있는 텍스트도 그대로 붙여넣는다", async ({ page }) => {
+    await openTemplateEditor(page);
+    const modal = page.getByRole("dialog", { name: "문구 수정", exact: true });
+    const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+    await editor.click();
+    await editor.press("Control+a");
+    await editor.evaluate((node) => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData("text/plain", " \n\n ");
+      node.dispatchEvent(new ClipboardEvent("paste", { clipboardData, bubbles: true, cancelable: true }));
+    });
+    await expect.poll(() => editor.evaluate((node) => Array.from(node.querySelectorAll("p"))
+      .map((paragraph) => paragraph.textContent).join("\n"))).toBe(" \n\n ");
+    await editor.press("Control+z");
+    await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+  });
+
   for (const selection of ["end", "all", "forward", "backward", "atom"] as const) {
     test(`붙여넣기 직전 ${selection} 선택을 반영하고 실행 취소·재실행 후 저장한다`, async ({ page }) => {
       const original = "한글 안내 #{시험총점}\n\n끝 줄";
