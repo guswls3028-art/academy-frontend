@@ -223,6 +223,39 @@ test("관리자 생성 모달의 두 방식은 데스크톱과 모바일에서 �
   await page.screenshot({ path: testInfo.outputPath("admin-mode-choice-390.png"), fullPage: false });
 });
 
+for (const width of [1366, 390]) {
+  test(`관리자는 자정 이후 종료 시간을 확인하고 클리닉을 생성한다 (${width}px)`, async ({ page }) => {
+    const payloads: Array<Record<string, unknown>> = [];
+    await installApi(page, "admin", payloads);
+    await page.setViewportSize({ width, height: 900 });
+    const date = dateAfter(1);
+    await page.goto(`${BASE}/workspace/clinic/schedule?create=1&date=${date}`, { waitUntil: "domcontentloaded" });
+    const dialog = page.getByRole("dialog", { name: "클리닉 만들기" });
+    await dialog.getByRole("button", { name: /자유지정 클리닉/ }).click();
+    await dialog.getByPlaceholder("예: 수학 보충").fill("심야 자율 학습");
+    await dialog.getByPlaceholder("장소 / 룸").fill("자율 학습실");
+    for (const [label, time] of [["시작 시간 선택", "23:00"], ["종료 시간 선택", "01:00"]]) {
+      await dialog.getByRole("button", { name: label, exact: true }).click();
+      const timePicker = page.getByRole("dialog", { name: "시간 선택" });
+      await timePicker.getByLabel("분 단위 직접 입력").fill(time);
+      await timePicker.getByRole("button", { name: "적용", exact: true }).click();
+    }
+    await dialog.getByRole("combobox", { name: "예약 간격" }).click();
+    await page.locator(".ant-select-dropdown:visible").getByText("30분", { exact: true }).click();
+    await dialog.getByRole("spinbutton", { name: "최대 체류 시간" }).fill("120");
+    await dialog.getByRole("button", { name: /^클리닉 만들기 \(정원 \d+명\)$/ }).click();
+    const confirmation = page.getByRole("alertdialog", { name: "클리닉 일정 최종 확인" });
+    await expect(confirmation).toContainText("23:00–익일 01:00");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await confirmation.getByRole("button", { name: "확인하고 만들기" }).click();
+    await expect.poll(() => payloads).toEqual([expect.objectContaining({
+      date, start_time: "23:00:00", duration_minutes: 120, booking_mode: "time_range",
+      booking_interval_minutes: 30, booking_max_stay_minutes: 120,
+    })]);
+    await expect(dialog).toBeHidden();
+  });
+}
+
 test("관리자 운영 화면은 만들기 창을 닫았다 다시 열어도 방식 선택부터 시작한다", async ({ page }) => {
   await installApi(page, "admin");
   await page.setViewportSize({ width: 1100, height: 800 });

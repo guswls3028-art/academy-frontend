@@ -864,7 +864,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       answers: Object.fromEntries(
         questionIdsByNumber.map((id, idx) => [
           String(id),
-          idx < EXPECTED_ANSWERS.length ? EXPECTED_ANSWERS[idx] : "서술형",
+          idx < EXPECTED_ANSWERS.length ? EXPECTED_ANSWERS[idx] : "0",
         ]),
       ),
     });
