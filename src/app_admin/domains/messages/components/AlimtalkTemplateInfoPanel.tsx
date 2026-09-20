@@ -5,6 +5,7 @@
 /* eslint-disable react-refresh/only-export-components, no-restricted-syntax -- helper 함수 + 컴포넌트 한 파일 SSOT + 안내 패널 inline style (2026-05-14 baseline shift fix) */
 
 import { getBlockColor } from "../constants/templateBlocks";
+import { useProgram } from "@/shared/program";
 import {
   getAlimtalkTemplateLabel,
   getAlimtalkTemplateType,
@@ -120,17 +121,17 @@ export function renderAlimtalkFullPreview(
     }
     return "";
   };
-  const academyName = firstValue("학원명") || "학원플러스";
-  const studentName = firstValue("학생이름", "학생이름3") || "홍길동";
-  const studentShortName = firstValue("학생이름2") || studentName.slice(-2);
-  const lectureName = firstValue("강의명") || "수학 심화반";
-  const sessionName = firstValue("차시명") || "3회차";
-  const lectureDate = firstValue("강의날짜", "날짜") || "2026-04-06";
-  const lectureTime = firstValue("강의시간", "시간") || "14:00";
-  const clinicPlace = firstValue("클리닉장소", "장소") || "3층 세미나실";
-  const clinicPreviousSchedule = firstValue("클리닉기존일정") || "4/6(일) 14:00 3층";
-  const clinicChanges = firstValue("클리닉변동사항") || "4/7(월) 15:00으로 변경";
-  const clinicModifier = firstValue("클리닉수정자") || "김선생님";
+  const academyName = firstValue("학원명", "학원이름") || "[학원 이름]";
+  const studentName = firstValue("학생이름", "학생이름3") || "[학생 이름]";
+  const studentShortName = firstValue("학생이름2") || (firstValue("학생이름", "학생이름3") ? studentName.slice(-2) : "[학생 이름]");
+  const lectureName = firstValue("강의명") || "[강의명]";
+  const sessionName = firstValue("차시명") || "[차시명]";
+  const lectureDate = firstValue("클리닉날짜", "강의날짜", "날짜") || "[날짜]";
+  const lectureTime = firstValue("클리닉시간", "강의시간", "시간") || "[시간]";
+  const clinicPlace = firstValue("클리닉장소", "장소") || "[장소]";
+  const clinicPreviousSchedule = firstValue("클리닉기존일정") || "[기존 일정]";
+  const clinicChanges = firstValue("클리닉변동사항") || "[변경 내용]";
+  const clinicModifier = firstValue("클리닉수정자") || "[수정자]";
   if (templateType === "clinic_info") {
     return (
       `${academyName}입니다.\n\n` +
@@ -205,6 +206,7 @@ export default function AlimtalkTemplateInfoPanel({
   /** caller 호환 — 본 컴포넌트는 readonly 안내라 비활성 상태 표시 안 함 */
   disabled?: boolean;
 }) {
+  const { program } = useProgram();
   if (!templateType) return null;
 
   const autoVars = TEMPLATE_AUTO_VARS[templateType] || [];
@@ -264,7 +266,9 @@ export default function AlimtalkTemplateInfoPanel({
             { }
             <span style={{ fontWeight: 700, color: v.color, minWidth: 60 }}>{v.label}</span>
             { }
-            <span style={{ color: "var(--color-text-muted)", fontSize: 10 }}>{v.example}</span>
+            <span style={{ color: "var(--color-text-muted)", fontSize: 10 }}>
+              {v.label === "학원이름" || v.label === "학원명" ? program?.display_name || "학원 정보" : "자동 입력"}
+            </span>
           </div>
         ))}
       </div>

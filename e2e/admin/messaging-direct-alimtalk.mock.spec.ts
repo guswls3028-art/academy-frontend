@@ -160,6 +160,7 @@ async function installMocks(
     }
     if (path === "/students/custom-fields/") return json(route, []);
     if (path === "/messaging/templates/") return json(route, []);
+    if (path === "/messaging/auto-send/") return json(route, []);
     if (path === "/landing/has-published/") return json(route, { has_published: false });
 
     return json(route, { count: 0, next: null, previous: null, results: [] });

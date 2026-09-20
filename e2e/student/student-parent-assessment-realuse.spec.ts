@@ -21,9 +21,11 @@ import {
   QA_TENANT,
   reloadStudentApp,
   selectParentStudentThroughUi,
+  seedBrowserAuth,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
   type QaStudent,
+  type QaTokens,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
@@ -40,6 +42,7 @@ type CreatedState = {
   enrollmentIds: number[];
   sessionEnrollmentIds: number[];
   submissionIds: number[];
+  messageTemplateId?: number;
 };
 
 type ResultBody = {
@@ -105,6 +108,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   for (const id of [...created.submissionIds].reverse()) {
     await remove("DELETE", `/submissions/submissions/${id}/`);
   }
+  if (created.messageTemplateId) {
+    await remove("DELETE", `/messaging/templates/${created.messageTemplateId}/`);
+  }
   if (created.examId && created.sessionId) {
     await remove("DELETE", `/exams/${created.examId}/?session_id=${created.sessionId}`);
   }
@@ -128,6 +134,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       : []),
     ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
     ...(created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
+    ...(created.messageTemplateId ? [[`message template ${created.messageTemplateId}`, `/messaging/templates/${created.messageTemplateId}/`] as const] : []),
   ]) {
     const residue = await api(request, "GET", path, created.adminAccess);
     if (residue.status !== 404) failures.push(`verify ${label} absent -> ${residue.status}`);
@@ -347,7 +354,101 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
+    await verifyScoreMessageTemplate(page, request, admin, primary);
     boundary.assertClean();
     browser.assertZeroDefects();
   });
 });
+
+async function verifyScoreMessageTemplate(
+  parentPage: Page,
+  request: APIRequestContext,
+  admin: QaTokens,
+  student: QaStudent,
+): Promise<void> {
+  const context = await parentPage.context().browser()!.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
+  const page = await context.newPage();
+  const boundary = await installQaStudentParentBoundary(page, request);
+  const guards = attachStrictBrowserGuards(page);
+  const templateName = `qa-message-editor-${runStamp}`;
+  try {
+    await seedBrowserAuth(page, admin);
+    await gotoAndSettle(page, `${QA_BASE}/workspace/message/templates`, { timeout: 30_000 });
+    await page.getByRole("navigation", { name: "문구 카테고리" }).getByRole("button", { name: "성적", exact: true }).click();
+    await page.getByRole("button", { name: "새 문구", exact: true }).click();
+    const creation = page.getByRole("dialog", { name: "문구 추가", exact: true });
+    await creation.getByPlaceholder("예: 출석 안내, 시험 일정 공지").fill(templateName);
+    const body = creation.getByRole("textbox", { name: "안내문" });
+    await body.fill("학생 #{학생이름3} 점수 ");
+    await body.press("Control+End");
+    await creation.getByRole("button", { name: "시험 총점", exact: true }).click();
+    await expect(body.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+    await body.press("Control+z");
+    await expect(body.locator('[data-message-variable="시험총점"]')).toHaveCount(0);
+    await creation.getByRole("button", { name: "다시 실행", exact: true }).click();
+    await expect(body.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+    const creationResponse = page.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname.endsWith("/api/v1/messaging/templates/"));
+    await creation.getByRole("button", { name: "저장", exact: true }).click();
+    const savedResponse = await creationResponse;
+    const saved = await savedResponse.json() as { id: number; body: string };
+    if (Number.isInteger(saved.id) && saved.id > 0) created.messageTemplateId = saved.id;
+    expect(savedResponse.status()).toBe(201);
+    expect(saved.body).toBe("학생 #{학생이름3} 점수 #{시험총점}");
+    await expect(creation).toBeHidden();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("navigation", { name: "문구 카테고리" }).getByRole("button", { name: "성적", exact: true }).click();
+    await page.getByLabel("저장 문구 검색").fill(templateName);
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    const edit = page.getByRole("dialog", { name: "문구 수정", exact: true });
+    const editor = edit.getByRole("textbox", { name: "안내문" });
+    await expect(editor.locator('[data-message-variable="학생이름3"]')).toHaveAttribute("contenteditable", "false");
+    await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await editor.click();
+    await editor.press("Control+End");
+    await page.keyboard.insertText(" 확인 완료");
+    await assertNoHorizontalOverflow(page);
+    await edit.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(edit).toBeHidden();
+    const persisted = await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access);
+    expect(persisted.body).toBe("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
+
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`, { timeout: 30_000 });
+    await page.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
+    const preflightResponse = page.waitForResponse((response) => {
+      if (response.request().method() !== "POST"
+        || !new URL(response.url()).pathname.endsWith("/api/v1/messaging/send/preflight/")) return false;
+      const payload = response.request().postDataJSON() as {
+        template_id?: number;
+        alimtalk_extra_vars_per_student?: Record<string, { _body_subst?: string }>;
+      };
+      return payload.template_id === saved.id
+        && payload.alimtalk_extra_vars_per_student?.[String(student.id)]?._body_subst
+          === `학생 ${student.name} 점수 60 확인 완료`;
+    });
+    await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
+    const send = page.getByRole("dialog", { name: "알림톡 발송" });
+    await send.getByRole("button", { name: /문구 변경|문구 선택/, exact: true }).click();
+    const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
+    await picker.getByRole("button", { name: new RegExp(templateName) }).click();
+    await expect(picker.locator(".template-preview-kakao__body")).toContainText(`학생 ${student.name} 점수 60 확인 완료`);
+    await picker.getByRole("button", { name: "이 문구로 작성하기", exact: true }).click();
+    await expect(picker).toBeHidden();
+    await expect(send.locator(".send-modal__card--preview")).toContainText(student.name);
+    expect((await preflightResponse).status()).toBe(200);
+    await assertNoHorizontalOverflow(page);
+    boundary.assertClean();
+    guards.assertZeroDefects();
+  } finally {
+    await context.close();
+    if (created.messageTemplateId) {
+      const id = created.messageTemplateId;
+      await expectApi(request, "DELETE", `/messaging/templates/${id}/`, admin.access, undefined, [204]);
+      const residue = await api(request, "GET", `/messaging/templates/${id}/`, admin.access);
+      expect(residue.status).toBe(404);
+      created.messageTemplateId = undefined;
+    }
+  }
+}

@@ -4,9 +4,7 @@ import type { TemplateCategory } from "../constants/templateBlocks";
 export function isSystemMessageTemplate(
   template: Pick<MessageTemplateItem, "is_system" | "name">,
 ): boolean {
-  return template.is_system
-    || template.name.startsWith("[HakwonPlus]")
-    || template.name.startsWith("[학원플러스]");
+  return template.is_system;
 }
 
 export function isTemplateVisibleInPicker(

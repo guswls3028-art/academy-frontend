@@ -41,6 +41,11 @@
   height: 100%;
 }
 
+.tpl-picker__provided { display: flex; flex-direction: column; gap: 8px; }
+.tpl-picker__provided summary { cursor: pointer; }
+.tpl-picker__provided > .tpl-picker__card { margin-bottom: 8px; }
+.tpl-picker__preview-context { margin: 0 0 8px; font-size: 12px; line-height: 1.6; color: var(--color-text-secondary); }
+
 /* ── 좌측 ── */
 .tpl-picker__left {
   flex: 1.1;
