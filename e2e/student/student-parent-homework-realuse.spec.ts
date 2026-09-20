@@ -234,6 +234,12 @@ async function gradeHomework(
     await staffPage.getByTestId("login-submit").click();
     await expect(staffPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
     await acknowledgeInitialAccountPromptsIfVisible(staffPage);
+    const clockInChoice = staffPage.getByRole("dialog", {
+      name: "오늘 어떤 방식으로 시작할까요?", exact: true,
+    });
+    await expect(clockInChoice).toBeVisible();
+    await clockInChoice.getByRole("button", { name: /^출근하지 않고 로그인/ }).click();
+    await expect(clockInChoice).toBeHidden();
     for (const [width, value, previousScore] of [[390, 91, null], [1366, 92, 91]] as const) {
       gradingPhase = "navigation";
       await staffPage.setViewportSize({ width, height: 900 });
