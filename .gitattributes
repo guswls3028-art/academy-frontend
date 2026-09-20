@@ -19,6 +19,8 @@
 *.yaml      text eol=lf
 *.sh        text eol=lf
 *.py        text eol=lf
+# Unified diff context includes a leading space, also on empty context lines.
+scripts/ssm-binary-safe/*.patch -whitespace
 *.sql       text eol=lf
 *.toml      text eol=lf
 .env*       text eol=lf
