@@ -4,6 +4,7 @@
  */
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
+import type { SendPreflightResponse } from "../../src/app_admin/domains/messages/api/messages.api";
 import {
   api,
   assertNoHorizontalOverflow,
@@ -396,6 +397,8 @@ async function verifyScoreMessageTemplate(
     expect(savedResponse.status()).toBe(201);
     expect(saved.body).toBe("학생 #{학생이름3} 점수 #{시험총점}");
     await expect(creation).toBeHidden();
+    // Crossing the admin layout breakpoint remounts the page; reopen the saved draft after resizing.
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("navigation", { name: "문구 카테고리" }).getByRole("button", { name: "성적", exact: true }).click();
     await page.getByLabel("저장 문구 검색").fill(templateName);
@@ -404,7 +407,6 @@ async function verifyScoreMessageTemplate(
     const editor = edit.getByRole("textbox", { name: "안내문" });
     await expect(editor.locator('[data-message-variable="학생이름3"]')).toHaveAttribute("contenteditable", "false");
     await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
-    await page.setViewportSize({ width: 390, height: 844 });
     await editor.click();
     await editor.press("Control+End");
     await page.keyboard.insertText(" 확인 완료");
@@ -421,15 +423,19 @@ async function verifyScoreMessageTemplate(
       if (response.request().method() !== "POST"
         || !new URL(response.url()).pathname.endsWith("/api/v1/messaging/send/preflight/")) return false;
       const payload = response.request().postDataJSON() as {
+        send_to?: string;
         template_id?: number;
         alimtalk_extra_vars_per_student?: Record<string, { _body_subst?: string }>;
       };
-      return payload.template_id === saved.id
+      return payload.send_to === "parent" && payload.template_id === saved.id
         && payload.alimtalk_extra_vars_per_student?.[String(student.id)]?._body_subst
           === `학생 ${student.name} 점수 60 확인 완료`;
     });
     await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
     const send = page.getByRole("dialog", { name: "알림톡 발송" });
+    // This family fixture has parent phones only. Verify the normal authorized recipient journey.
+    await send.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+    await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
     await send.getByRole("button", { name: /문구 변경|문구 선택/, exact: true }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
     await picker.getByRole("button", { name: new RegExp(templateName) }).click();
@@ -437,7 +443,21 @@ async function verifyScoreMessageTemplate(
     await picker.getByRole("button", { name: "이 문구로 작성하기", exact: true }).click();
     await expect(picker).toBeHidden();
     await expect(send.locator(".send-modal__card--preview")).toContainText(student.name);
-    expect((await preflightResponse).status()).toBe(200);
+    const checkedResponse = await preflightResponse;
+    expect(checkedResponse.status()).toBe(200);
+    const checked = await checkedResponse.json() as SendPreflightResponse;
+    expect(checked).toMatchObject({
+      ok: true,
+      can_send: true,
+      send_to: "parent",
+      recipient: { selected: 1, resolved: 1, valid_phone: 1, unique_phone: 1, skipped_no_phone: 0, invalid_or_deleted: 0 },
+      template: { ok: true, source: "unified", solapi_status: "APPROVED", template_type: "score" },
+      blockers: [],
+    });
+    expect(checked.preview_recipients).toHaveLength(1);
+    expect(checked.preview_recipients[0]).toMatchObject({ student_id: student.id, excluded: false });
+    expect(checked.preview_recipients[0].full_message_body).toContain(`학생 ${student.name} 점수 60 확인 완료`);
+    await expect(send.locator(".send-modal__send-btn")).toBeEnabled();
     await assertNoHorizontalOverflow(page);
     boundary.assertClean();
     guards.assertZeroDefects();
