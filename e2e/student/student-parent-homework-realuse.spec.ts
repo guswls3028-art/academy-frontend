@@ -234,7 +234,7 @@ async function gradeHomework(
     await staffPage.getByTestId("login-submit").click();
     await expect(staffPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
     await acknowledgeInitialAccountPromptsIfVisible(staffPage);
-    for (const [width, value] of [[390, 91], [1366, 92]]) {
+    for (const [width, value, previousScore] of [[390, 91, null], [1366, 92, 91]] as const) {
       gradingPhase = "navigation";
       await staffPage.setViewportSize({ width, height: 900 });
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
@@ -245,9 +245,13 @@ async function gradeHomework(
       if (await options.getAttribute("aria-expanded") === "false") await options.click();
       gradingPhase = "editing";
       const cell = staffPage.locator(cellSelector);
-      if (!await cell.getByRole("textbox").isVisible()) {
+      if (previousScore !== null) {
+        await expect(cell).toContainText(String(previousScore));
         await staffPage.getByRole("button", { name: "수정", exact: true }).click();
       }
+      // A blank score sheet starts editing asynchronously; wait for its input
+      // instead of choosing a button from an intermediate loading state.
+      await expect(cell.getByRole("textbox")).toBeVisible();
       await cell.getByRole("textbox").fill(String(value));
       gradingPhase = "save";
       const saved = staffPage.waitForResponse((response) => (
