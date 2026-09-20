@@ -439,6 +439,46 @@ test("canary collector accepts a strict-browser suppression only when the audit 
   assert.equal(observedImpossible.rejectedFailureObservationCount, 1);
 });
 
+test("clinic timings preserve both owning flows and require one observation per action", () => {
+  const collect = (action, file) => observeReleaseTestResult(JSON.stringify(contextReport([
+    { clinicInteractionTiming: { schema: "release-clinic-interaction/v1", action, viewport: 390, responseMs: 410, listVisibleMs: 560 } },
+  ], file))).clinicInteractionTimings;
+  const add = collect("manual-add", "clinic-roundtrip.spec.ts");
+  const pass = collect("manual-pass", "student-clinic-required-cancel-realuse.spec.ts");
+  assert.equal(add.length, 1);
+  assert.equal(pass.length, 1);
+  assert.equal(add[0].responseMs, 410);
+  assert.equal(pass[0].listVisibleMs, 560);
+  assert.doesNotThrow(() => runner.assertClinicInteractionTimings({ clinicInteractionTimings: [...add, ...pass] }));
+  for (const incomplete of [[], add, pass, [...add, ...add, ...pass]]) {
+    assert.throws(() => runner.assertClinicInteractionTimings({ clinicInteractionTimings: incomplete }), /missing or duplicated/);
+  }
+});
+
+test("clinic timings reject private fields, wrong owners and invalid elapsed measurements", () => {
+  const marker = { schema: "release-clinic-interaction/v1", action: "manual-add", viewport: 390, responseMs: 400, listVisibleMs: 500 };
+  const invalid = [
+    { ...marker, student: "private-user" }, { ...marker, action: "secret-token" },
+    { ...marker, schema: "private-user" }, { ...marker, viewport: 999 },
+    { ...marker, responseMs: -1 }, { ...marker, responseMs: 0.5 },
+    { ...marker, responseMs: "secret-token" }, { ...marker, responseMs: Infinity },
+    { ...marker, listVisibleMs: 399 }, { ...marker, listVisibleMs: 7_200_001 },
+    { ...marker, listVisibleMs: null },
+  ];
+  for (const [file, values] of [["clinic-roundtrip.spec.ts", invalid],
+    ["student-clinic-required-cancel-realuse.spec.ts", [marker]], ["notice-roundtrip.spec.ts", [marker]]]) {
+    const observed = observeReleaseTestResult(JSON.stringify(contextReport(values.map((value) => ({ clinicInteractionTiming: value })), file)));
+    assert.deepEqual(observed.clinicInteractionTimings, []);
+    assert.equal(observed.rejectedFailureObservationCount, values.length);
+    assert.doesNotMatch(JSON.stringify(observed), /private-user|secret-token/);
+  }
+  const bounded = observeReleaseTestResult(JSON.stringify(contextReport(
+    Array.from({ length: 129 }, () => ({ clinicInteractionTiming: marker })), "clinic-roundtrip.spec.ts")));
+  assert.equal(bounded.clinicInteractionTimings.length, 128);
+  assert.equal(bounded.droppedFailureObservationCount, 1);
+  assert.throws(() => runner.assertClinicInteractionTimings(bounded), /missing or duplicated/);
+});
+
 test("transport truth preserves ordered reported errors but never interprets arbitrary scores as status", () => {
   const report = contextReport([]);
   report.suites[0].specs[0].tests[0].results[0].errors = [
@@ -1504,6 +1544,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
   report.stats.expected = 10;
   assert.deepEqual(observeReleaseTestResult(JSON.stringify(report)), {
     reportStatus: "parsed",
+    clinicInteractionTimings: [],
     stats: { expected: 10, skipped: 0, unexpected: 1, flaky: 0 },
     failedFiles: ["notice-roundtrip.spec.ts"],
     failureLocations: [{
@@ -1573,6 +1614,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
   );
   assert.deepEqual(observeReleaseTestResult("not-json secret-token"), {
     reportStatus: "unparsed",
+    clinicInteractionTimings: [],
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
     failedFiles: [], failureLocations: [], boundaryCodes: [], failureDiagnostics: [], runnerErrorCount: null,
     readFetchRetries: null, mutationReplays: null, suppressedAnalyticsBatches: null,

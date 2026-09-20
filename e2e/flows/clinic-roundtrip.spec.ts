@@ -303,7 +303,9 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
       session: overnight.id, student: primaryStudent?.id, booking_start_date: actualDate, booking_end_date: actualDate,
     }));
     await expect(adminPage.getByText(`예약 ${actualDate} 00:30–01:00`)).toBeVisible();
-    await testInfo.attach("clinic-manual-add-timing", { body: JSON.stringify({ viewport: 390, responseMs, listVisibleMs: Date.now() - actionAt }), contentType: "application/json" });
+    const clinicInteractionTiming = { schema: "release-clinic-interaction/v1", action: "manual-add", viewport: 390, responseMs, listVisibleMs: Date.now() - actionAt };
+    console.log(JSON.stringify({ clinicInteractionTiming }));
+    await testInfo.attach("clinic-manual-add-timing", { body: JSON.stringify(clinicInteractionTiming), contentType: "application/json" });
     for (const width of [390, 1366]) {
       await adminPage.setViewportSize({ width, height: 900 });
       await adminPage.reload({ waitUntil: "domcontentloaded" });

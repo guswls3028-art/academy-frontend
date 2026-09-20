@@ -435,6 +435,14 @@ boolean으로만 기록한다. raw output·오류 message·session ID·token·ca
 사용자 정보는 증거에 기록하지 않는다. raw Playwright JSON은 메모리에서 검증하고 개발
 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
 
+클리닉 수동 등록·통과는 클릭부터 API 응답 및 목록 반영까지의 시간을
+`realUseObservation.clinicInteractionTimings`에 보존한다. 해당 실사용 파일별로
+`release-clinic-interaction/v1`의 고정 action, 390/1366 viewport, 0~2시간의 정수
+`responseMs`/`listVisibleMs`만 허용하고 목록 반영 시간이 응답 시간보다 짧으면 거부한다.
+추가 필드·다른 파일의 관측·개인정보·원문 오류는 보존하지 않는다. 두 동작의 관측이
+각 한 건씩 있어야 승격한다. 이 값은 격리 개발 환경의 실사용 표본이며 운영 p95가 아니다.
+원문 Playwright 보고서나 첨부 이미지를 공개 artifact로 올리지 않는다.
+
 사후 영상 Inspect의 수치 관측은 최상위 `postPlaybackInspectObservation`에 별도로 남긴다.
 `aggregateVideoState`/`syntheticVideoState`는 각각 `videos`, `video_accesses`,
 `proctored_video_accesses`, `video_progresses`, `playback_sessions`,
@@ -660,6 +668,13 @@ GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사
 - `quality-check`는 lockfile 설치 직후 `pnpm audit --prod`를 차단 게이트로
   실행한다. production dependency advisory가 생기면 preview와 운영 배포로
   진행하지 않으며 audit ignore나 취약 버전 override로 통과시키지 않는다.
+- 2026-09-20 개발 도구 전이 의존성의 최소 수정 버전을 `js-yaml` 4.3.2
+  (GHSA-2883-xcg3-v3hh), `browserslist` 4.28.7 (GHSA-73wf-gq98-2v4g),
+  `baseline-browser-mapping` 2.11.0 (GHSA-w5vr-8v7q-w6rv), `nanoid` 3.3.18
+  (GHSA-2v37-7h3g-55p8)로 고정했다. Browserslist의 요구 범위에 맞춰
+  caniuse-lite/electron-to-chromium/node-releases 데이터도 갱신했다.
+  개발 의존성을 포함한 전체 `pnpm audit` 0건과 lint/API 타입 생성/typecheck/build,
+  실제 bundle 부팅을 검증했다. 이 증거와 위 CI의 production-only audit는 구별한다.
 - workflow 기본 token은 `contents:read`다. 프론트 배포는 GitHub contents
   write 권한을 사용하지 않는다.
 - Cloudflare token 교체는 새 token을 해당 environment에 저장하고 preview,

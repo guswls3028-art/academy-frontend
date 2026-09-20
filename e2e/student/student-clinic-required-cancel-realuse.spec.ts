@@ -335,7 +335,9 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
       expect((await response.json()).resolved_at).toBeTruthy();
       await expect(consolePage.getByText("통과 처리되었습니다.", { exact: true })).toBeVisible();
       await expect(drawer.getByRole("tab").filter({ hasText: examTitle })).toHaveCount(0);
-      await testInfo.attach("clinic-manual-pass-timing", { body: JSON.stringify({ viewport: 390, responseMs, listVisibleMs: Date.now() - passActionAt }), contentType: "application/json" });
+      const clinicInteractionTiming = { schema: "release-clinic-interaction/v1", action: "manual-pass", viewport: 390, responseMs, listVisibleMs: Date.now() - passActionAt };
+      console.log(JSON.stringify({ clinicInteractionTiming }));
+      await testInfo.attach("clinic-manual-pass-timing", { body: JSON.stringify(clinicInteractionTiming), contentType: "application/json" });
       await consolePage.setViewportSize({ width: 1366, height: 900 });
       const [targetsResponse] = await Promise.all([
         consolePage.waitForResponse((readback) => (
