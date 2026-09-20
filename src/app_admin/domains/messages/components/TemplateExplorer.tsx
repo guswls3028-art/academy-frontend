@@ -12,13 +12,14 @@ import {
   FiTrash2,
 } from "react-icons/fi";
 import { FilePlus, Shield } from "lucide-react";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import TemplateCategoryTree from "./TemplateCategoryTree";
 import TemplateEditModal from "./TemplateEditModal";
 import { AlimtalkEnvelopeGuide } from "./AlimtalkEnvelopeGuide";
 import {
   fetchMessageTemplates,
+  fetchAutoSendConfigs,
   createMessageTemplate,
   updateMessageTemplate,
   deleteMessageTemplate,
@@ -42,9 +43,9 @@ import { buildDuplicateTemplateName } from "../utils/templateCopyName";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import "../styles/templateEditor.css";
 
-/** 기본 템플릿 식별 — is_system 플래그 또는 이름 접두어 기준 */
+/** 이름과 무관하게 서버가 지정한 시스템 양식만 읽기 전용으로 표시한다. */
 function isDefaultTemplate(t: MessageTemplateItem): boolean {
-  return t.is_system || t.name.startsWith("[HakwonPlus]") || t.name.startsWith("[학원플러스]");
+  return t.is_system;
 }
 
 function AlimtalkReadinessBadge({ template }: { template: MessageTemplateItem }) {
@@ -108,7 +109,7 @@ function DefaultBadge() {
       }}
     >
       <Shield size={10} />
-      기본
+      시스템 제공
     </span>
   );
 }
@@ -214,6 +215,7 @@ export default function TemplateExplorer() {
   const qc = useQueryClient();
   const [activeCategory, setActiveCategory] =
     useState<MessageTemplateCategory>("default");
+  const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState<ModalOpenState>(null);
   const [confirmAction, setConfirmAction] = useState<{
     type: "delete";
@@ -225,6 +227,17 @@ export default function TemplateExplorer() {
     queryFn: () => fetchMessageTemplates(activeCategory),
     staleTime: 30 * 1000,
   });
+  const { data: autoSendConfigs = [], isError: isConnectionError, refetch: refetchConnections } = useQuery({
+    queryKey: messageQueryKeys.autoSend,
+    queryFn: fetchAutoSendConfigs,
+    staleTime: 30_000,
+  });
+  const linkedIds = new Set(autoSendConfigs.map((config) => config.template).filter((id) => id != null));
+  const matchingTemplates = templates.filter((template) => `${template.name}\n${template.body}`.toLowerCase().includes(search.toLowerCase()));
+  const savedTemplates = matchingTemplates.filter((template) => !isDefaultTemplate(template))
+    .sort((a, b) => Number(b.is_user_default) - Number(a.is_user_default));
+  const linkedSystemTemplates = matchingTemplates.filter((template) => isDefaultTemplate(template) && linkedIds.has(template.id));
+  const providedTemplates = matchingTemplates.filter((template) => isDefaultTemplate(template) && !linkedIds.has(template.id));
 
   const createMut = useMutation({
     mutationFn: (payload: MessageTemplatePayload) =>
@@ -368,6 +381,8 @@ export default function TemplateExplorer() {
                   {t.name}
                 </span>
                 {isDef && <DefaultBadge />}
+                {t.is_user_default && <Badge tone="primary" size="xs">발송 기본</Badge>}
+                {linkedIds.has(t.id) && <Badge tone="info" size="xs">자동발송 설정에 연결</Badge>}
                 <AlimtalkReadinessBadge template={t} />
               </div>
               <div
@@ -494,7 +509,7 @@ export default function TemplateExplorer() {
           <div>
             <h2 className={panelStyles.headerTitle}>문구 저장</h2>
             <p className={panelStyles.headerDesc}>
-              알림톡에 넣을 문구를 저장하고 수정합니다.
+              발송에 사용하는 내 양식을 수정합니다. 시스템 제공 문구는 아래에서 따로 확인할 수 있습니다.
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -503,9 +518,9 @@ export default function TemplateExplorer() {
               size="sm"
               onClick={() => provisionMut.mutate()}
               disabled={provisionMut.isPending}
-              title="삭제·변경된 기본 문구를 일괄로 다시 채워 넣습니다"
+              title="시스템이 제공하는 문구 세트를 다시 채웁니다"
             >
-              {provisionMut.isPending ? "복원 중…" : "기본 세트 복원"}
+              {provisionMut.isPending ? "복원 중…" : "제공 문구 복원"}
             </Button>
             <Button
               intent="primary"
@@ -517,7 +532,10 @@ export default function TemplateExplorer() {
             </Button>
           </div>
         </div>
-        <AlimtalkEnvelopeGuide variant="full" />
+        <details className="message-template-help">
+          <summary>알림톡 문구 사용 안내</summary>
+          <AlimtalkEnvelopeGuide variant="compact" />
+        </details>
       </div>
 
       {/* 본문: 좌측 트리 + 우측 카드 */}
@@ -525,7 +543,7 @@ export default function TemplateExplorer() {
         <aside className={panelStyles.tree}>
           <TemplateCategoryTree
             currentCategory={activeCategory}
-            onSelect={setActiveCategory}
+            onSelect={(category) => { setActiveCategory(category); setSearch(""); }}
           />
         </aside>
 
@@ -577,7 +595,28 @@ export default function TemplateExplorer() {
                 {CATEGORY_DESCRIPTIONS[activeCategory]}
               </p>
 
-              {templates.map(renderTemplateCard)}
+              <input className="message-template-search message-domain-input" aria-label="저장 문구 검색" placeholder="문구 이름 또는 내용 검색" value={search} onChange={(event) => setSearch(event.target.value)} />
+              {isConnectionError && (
+                <div role="alert">자동발송 연결 상태를 확인하지 못했습니다.
+                  <Button intent="ghost" size="sm" onClick={() => void refetchConnections()}>다시 확인</Button>
+                </div>
+              )}
+              <h3 className={panelStyles.sectionTitle}>내가 저장한 문구 · {savedTemplates.length}</h3>
+              {savedTemplates.map(renderTemplateCard)}
+              {savedTemplates.length === 0 && <p>저장한 문구가 없습니다. 새 문구를 만들거나 제공 문구를 복제해 사용하세요.</p>}
+              {linkedSystemTemplates.length > 0 && (
+                <section className="message-template-group">
+                  <h3 className={panelStyles.sectionTitle}>자동발송 설정에 연결된 문구</h3>
+                  {linkedSystemTemplates.map(renderTemplateCard)}
+                </section>
+              )}
+              {providedTemplates.length > 0 && (
+                <details className="message-template-group" open={Boolean(search)}>
+                  <summary className={panelStyles.sectionTitle}>시스템 제공 문구 · {providedTemplates.length}</summary>
+                  <p>참고하거나 복제해서 쓰는 문구입니다. 여기에 있다는 이유만으로 발송되지는 않습니다.</p>
+                  {providedTemplates.map(renderTemplateCard)}
+                </details>
+              )}
 
               {/* + 새 문구 추가 버튼 */}
               <button

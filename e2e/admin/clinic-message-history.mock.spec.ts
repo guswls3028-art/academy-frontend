@@ -46,6 +46,7 @@ async function installApi(page: Page, verifyQueries: string[]) {
     if (path === "/core/program/") {
       return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
     }
+    if (path === "/core/subscription/") return json({ tenant_name: "실제 발송학원", is_subscription_active: true });
     if (path === "/core/me/") {
       return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin" });
     }
@@ -199,8 +200,8 @@ test("클리닉 알림 설정은 예약부터 최종 전달까지 상태를 구�
   await expect(editor.getByText("학원이름", { exact: true })).toBeVisible();
   await expect(editor.getByText("학생이름", { exact: true })).toBeVisible();
   await expect(editor.getByText("아래 본문에 안내문만 작성하면 됩니다.", { exact: true })).toBeVisible();
-  await expect(editor.locator("textarea")).toBeEnabled();
-  await expect(editor.locator("textarea")).toHaveValue("준비물을 확인해 주세요.");
+  await expect(editor.getByRole("textbox", { name: "안내문" })).toBeEditable();
+  await expect(editor.getByRole("textbox", { name: "안내문" })).toHaveText("준비물을 확인해 주세요.");
   await expect(editor.getByRole("button", { name: /학원이름|학생이름|클리닉 장소|클리닉 날짜|클리닉 시간/ })).toHaveCount(0);
   await page.keyboard.press("Escape");
 

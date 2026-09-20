@@ -47,6 +47,7 @@ export type TemplatePickerModalProps = {
   selectedTemplateId: number | null;
   selectedPresetId?: string | null;
   alimtalkExtraVars?: Record<string, string>;
+  getPreviewData?: (body: string) => Record<string, string>;
   /** 양식 선택 — 모달은 자동 닫힘 */
   onPick: (t: MessageTemplateItem) => void;
   /** 기본 제공 편지지 선택 — 모달은 자동 닫힘 */
@@ -71,6 +72,7 @@ export default function TemplatePickerModal({
   selectedTemplateId,
   selectedPresetId,
   alimtalkExtraVars,
+  getPreviewData,
   onPick,
   onPickPreset,
   onPickFreeForm,
@@ -169,6 +171,10 @@ export default function TemplatePickerModal({
   const previewSourceBody = hideInternalAlimtalkMemoToken((previewTpl?.body ?? previewPreset?.body) || "");
   const previewSourceCategory = (previewTpl?.category ?? previewPreset?.category ?? blockCategory) as TemplateCategory;
   const previewTemplateName = previewTpl?.name ?? previewPreset?.name ?? "";
+  const previewData = useMemo(
+    () => open && getPreviewData ? getPreviewData(previewSourceBody) : alimtalkExtraVars,
+    [open, getPreviewData, previewSourceBody, alimtalkExtraVars],
+  );
   const previewAlimtalkType = resolveManualAlimtalkTemplateType(
     blockCategory,
     previewSourceCategory,
@@ -176,10 +182,10 @@ export default function TemplatePickerModal({
     alimtalkExtraVars,
   );
   const previewDisplayBody = previewAlimtalkType
-    ? renderAlimtalkFullPreview(previewAlimtalkType, previewSourceBody)
+    ? renderAlimtalkFullPreview(previewAlimtalkType, previewData?._body_subst ?? previewSourceBody, undefined, previewData)
     : previewSourceBody;
   const previewBody = previewTpl || previewPreset
-    ? renderPreviewWithActualData(previewDisplayBody, alimtalkExtraVars)
+    ? renderPreviewWithActualData(previewDisplayBody, previewData)
     : null;
   const previewChannelLabel = getAlimtalkTemplateLabel(previewAlimtalkType);
 
@@ -349,13 +355,6 @@ export default function TemplatePickerModal({
                 </div>
               </button>
 
-              {grouped.presets.length > 0 && (
-                <>
-                  <div className="tpl-picker__group-label">기본 제공 문구 · {grouped.presets.length}</div>
-                  {grouped.presets.map(renderPresetCard)}
-                </>
-              )}
-
               {grouped.my.length > 0 && (
                 <>
                   <div className="tpl-picker__group-label">내 문구 · {grouped.my.length}</div>
@@ -363,11 +362,18 @@ export default function TemplatePickerModal({
                 </>
               )}
 
+              {grouped.presets.length > 0 && (
+                <details className="tpl-picker__provided" open={grouped.my.length === 0 || Boolean(search) || Boolean(previewPreset)}>
+                  <summary className="tpl-picker__group-label">새 양식으로 시작 · {grouped.presets.length}</summary>
+                  {grouped.presets.map(renderPresetCard)}
+                </details>
+              )}
+
               {grouped.sys.length > 0 && (
-                <>
-                  <div className="tpl-picker__group-label">기본 문구 · {grouped.sys.length}</div>
+                <details className="tpl-picker__provided" open={Boolean(search) || Boolean(previewTpl && isSystemTpl(previewTpl))}>
+                  <summary className="tpl-picker__group-label">시스템 제공 문구 · {grouped.sys.length}</summary>
                   {grouped.sys.map(renderCard)}
-                </>
+                </details>
               )}
 
               {totalMatched === 0 && (
@@ -387,6 +393,9 @@ export default function TemplatePickerModal({
             {previewTpl || previewPreset ? (
               <>
                 <div className="tpl-picker__preview-header">
+                  <p className="tpl-picker__preview-context">
+                    {previewData?.학생이름 ? `${previewData.학생이름} 기준 미리보기 · 발송 전에 수신자별 내용을 확인할 수 있습니다` : "양식 미리보기 · 학생별 정보는 발송할 때 채워집니다"}
+                  </p>
                   <div className="tpl-picker__preview-title-row">
                     {previewTpl && isSystemTpl(previewTpl) && <Shield size={ICON.sm} className="tpl-picker__icon-sys" />}
                     {previewPreset && <Tag size={ICON.sm} className="tpl-picker__icon-primary" />}
@@ -429,7 +438,7 @@ export default function TemplatePickerModal({
                     className="tpl-picker__apply-btn"
                   >
                     <Check size={ICON.sm} className="tpl-picker__apply-icon" />
-                    이 문구 적용
+                    이 문구로 작성하기
                   </Button>
                 </div>
               </>

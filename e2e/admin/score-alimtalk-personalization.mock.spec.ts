@@ -32,11 +32,17 @@ async function installScoreAlimtalkRoutes(
   mode: PreflightMode,
   preflightPayloads: SendPayload[],
   sendPayloads: SendPayload[],
+  templates: Record<string, unknown>[] = [],
 ) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     const method = request.method();
+
+    if (path === "/api/v1/core/subscription/") {
+      await route.fulfill({ json: { tenant_name: "실제 발송학원", is_subscription_active: true } });
+      return;
+    }
 
     if (/\/api\/v1\/results\/admin\/sessions\/9002\/scores\/$/.test(path) && method === "GET") {
       await route.fulfill({
@@ -204,7 +210,7 @@ async function installScoreAlimtalkRoutes(
     }
 
     if (path.endsWith("/api/v1/messaging/templates/") && method === "GET") {
-      await route.fulfill({ json: [] });
+      await route.fulfill({ json: templates });
       return;
     }
 
@@ -278,6 +284,8 @@ async function openPersonalizedScores(
   mode: PreflightMode,
   preflightPayloads: SendPayload[],
   sendPayloads: SendPayload[],
+  templates: Record<string, unknown>[] = [],
+  academyName?: string,
 ) {
   const baseUrl = getBaseUrl("admin");
   const mockOnlyReason = realMessagingSkipReason(baseUrl, "", "0");
@@ -291,7 +299,17 @@ async function openPersonalizedScores(
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
   }, createLocalJwt());
-  await installScoreAlimtalkRoutes(page, mode, preflightPayloads, sendPayloads);
+  await installScoreAlimtalkRoutes(page, mode, preflightPayloads, sendPayloads, templates);
+  if (academyName) {
+    await page.route("**/api/v1/core/program/", (route) => route.fulfill({ json: {
+      tenantCode: "hakwonplus",
+      display_name: academyName,
+      isPlatformAdmin: true,
+      is_active: true,
+      feature_flags: {},
+      ui_config: { login_title: academyName },
+    } }));
+  }
   await page.goto(`${baseUrl}/workspace/lectures/9001/sessions/9002/scores`, {
     waitUntil: "domcontentloaded",
     timeout: 90_000,
@@ -309,6 +327,39 @@ async function selectBothStudentsAndOpen(page: Page) {
 test.describe("성적 알림톡 학생별 개인화", () => {
   test.setTimeout(120_000);
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
+
+  test("저장 문구 선택 미리보기에 실제 학생·강의·점수가 표시된다", async ({ page }, testInfo) => {
+    await openPersonalizedScores(page, "success", [], [], [{
+      id: 991,
+      name: "실제 성적 문구",
+      category: "grades",
+      body: "#{학원이름} #{학생이름3} #{강의명} #{차시명}\n점수 #{시험총점}",
+      subject: "",
+      is_system: false,
+      is_user_default: false,
+      solapi_status: "",
+      solapi_template_id: "",
+    }], "실제 검증학원");
+    await selectBothStudentsAndOpen(page);
+    const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+    await modal.getByRole("button", { name: /문구 변경|문구 선택/, exact: true }).click();
+    const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
+    await picker.getByRole("button", { name: /실제 성적 문구/ }).click();
+    const preview = picker.locator(".template-preview-kakao__body");
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(preview).toContainText("개인화학생1");
+      await expect(preview).toContainText("실제 발송학원");
+      await expect(preview).not.toContainText("실제 검증학원");
+      await expect(preview).not.toContainText("학원플러스");
+      await expect(preview).toContainText("개인화 검증반");
+      await expect(preview).toContainText("개인화 검증 차시");
+      await expect(preview).toContainText("점수 70");
+      await expect(preview).not.toContainText("285");
+      await expect.poll(() => picker.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`template-picker-actual-${width}.png`) });
+    }
+  });
 
   test("서로 다른 성적을 미리보고 공유값 없이 보호자 발송을 접수한다", async ({ page }, testInfo) => {
     const preflightPayloads: SendPayload[] = [];

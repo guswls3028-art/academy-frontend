@@ -105,7 +105,7 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     // ── 요약 수치 ──
     { id: "exam_total",     label: "시험 총점",     insertText: "#{시험총점}",   previewValue: "285",       description: "시험 점수 합계" },
     { id: "exam_total_max", label: "시험 총만점",   insertText: "#{시험총만점}", previewValue: "350",       description: "시험 만점 합계" },
-    { id: "hw_completion",  label: "숙제 완성도",   insertText: "#{숙제완성도}", previewValue: "3/3 완료",  description: "완료한 과제 수 / 전체" },
+    { id: "hw_completion",  label: "숙제 완성도",   insertText: "#{숙제완성도}", previewValue: "2/3 완료",  description: "교사 확인 또는 자동 완료된 과제 수 / 전체. 점수 입력만으로 완료되지 않습니다." },
     // ── 시험 개별 (번호별: 이름·점수·만점) ──
     // 시험 개수는 차시마다 다름. 양식에 필요한 만큼 삽입. 미사용 번호는 발송 시 자동 제거.
     ...[1,2,3,4,5].flatMap((n) => [
@@ -281,6 +281,10 @@ const INSERT_TEXT_TO_BLOCK: Record<string, TemplateBlock> = Object.fromEntries(
   ALL_BLOCKS.map((b) => [b.insertText, b]),
 );
 
+export function getTemplateBlock(token: string): TemplateBlock | undefined {
+  return INSERT_TEXT_TO_BLOCK[token];
+}
+
 /**
  * #{variable} 코드를 컬러 배지(React 노드)로 렌더링.
  * 카드 미리보기·모달 미리보기 등에서 raw 코드 대신 사용.
@@ -372,7 +376,7 @@ export function renderPreviewWithActualData(
     }
 
     // extraVars에서 실제 값 제공
-    if (extraVars && varName in extraVars && extraVars[varName]) {
+    if (extraVars && varName in extraVars) {
       return React.createElement("span", { key: i, style: { fontWeight: 700, color: "#059669" } }, extraVars[varName]);
     }
 
@@ -388,7 +392,7 @@ export function renderPreviewWithActualData(
           background: bc.bg, color: bc.color, borderWidth: 1, borderStyle: "solid",
           borderColor: bc.border, whiteSpace: "nowrap" as const, verticalAlign: "middle",
         },
-      }, block.previewValue);
+      }, `${block.label} · 자동 입력`);
     }
 
     // 미제공 변수 — 경고 스타일

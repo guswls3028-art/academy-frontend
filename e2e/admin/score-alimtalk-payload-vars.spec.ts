@@ -8,6 +8,7 @@ import {
   buildScoreDetail,
   buildScoreVars,
   collectUnenteredScoreItems,
+  substituteScoreVars,
 } from "../../src/shared/scoring/scoreReport";
 import { buildAnonymousBillboardDocument } from "../../src/app_admin/domains/scores/utils/anonymousBillboardPdfGenerator";
 import { getClinicStats } from "../../src/app_admin/domains/scores/utils/clinicPdfGenerator";
@@ -121,6 +122,70 @@ test("학생별 치환 본문이 있으면 공유 payload에는 강의와 차시
     강의명: "수학",
     차시명: "4주차",
   });
+});
+
+test("점수가 입력된 합격·불합격 과제도 교사 미완료이면 완료 수에 포함하지 않는다", () => {
+  const row = scoreRow(null);
+  row.exams = [];
+  row.homeworks = [80, 70, 80].map((score, index) => ({
+    homework_id: index + 1,
+    title: `과제 ${index + 1}`,
+    block: {
+      score,
+      max_score: 100,
+      passed: score >= 80,
+      clinic_required: score < 80,
+      correction_status: "PENDING",
+      teacher_resolved: false,
+    },
+  }));
+
+  const vars = buildScoreVars(row, null);
+  expect(vars["숙제완성도"]).toBe("0/3 완료");
+  expect(vars["전체요약"]).toContain("과제: 0/3 완료");
+  const body = substituteScoreVars("숙제완성도: #{숙제완성도}\n#{전체요약}", row, null);
+  const payload = compactGradesPerStudentPayloadVars("#{숙제완성도}", {
+    [row.student_id]: { _body_subst: body },
+  });
+  expect(payload?.[row.student_id]?._body_subst).toContain("숙제완성도: 0/3 완료");
+  expect(body).not.toContain("3/3 완료");
+});
+
+test("과제 완료 수는 교사 완료와 자동 완료만 포함하고 재개방·미확정 상태를 보존한다", () => {
+  const row = scoreRow(null);
+  row.exams = [];
+  row.homeworks = ["COMPLETED", "NOT_REQUIRED", "PENDING", null, undefined].map((status, index) => ({
+    homework_id: index + 1,
+    title: `과제 ${index + 1}`,
+    block: {
+      // 교사 완료는 점수와 독립적이며, 100점도 명시 미완료이면 완료가 아니다.
+      score: index === 0 ? null : 100,
+      max_score: 100,
+      passed: index !== 0,
+      clinic_required: false,
+      correction_status: status as "COMPLETED" | "NOT_REQUIRED" | "PENDING" | null | undefined,
+    },
+  }));
+  expect(buildScoreVars(row, null)["숙제완성도"]).toBe("2/5 완료");
+  expect(buildScoreVars(row, null)["전체요약"]).toContain("과제: 2/5 완료");
+
+  row.homeworks[0].block.correction_status = "PENDING";
+  expect(buildScoreVars(row, null)["숙제완성도"]).toBe("1/5 완료");
+  row.homeworks[0].block.score = 100;
+  row.homeworks[0].block.passed = true;
+  expect(buildScoreVars(row, null)["숙제완성도"]).toBe("1/5 완료");
+});
+
+test("과제 미입력·미제출·과제 없음은 완료로 추정하지 않는다", () => {
+  for (const status of [null, "NOT_SUBMITTED"]) {
+    const row = scoreRow(status);
+    expect(buildScoreVars(row, scoreMeta)["숙제완성도"]).toBe("0/1 완료");
+    expect(buildScoreVars(row, scoreMeta)["전체요약"]).toContain("과제: 0/1 완료");
+  }
+  const row = scoreRow(null);
+  row.homeworks = [];
+  expect(buildScoreVars(row, scoreMeta)["숙제완성도"]).toBe("-");
+  expect(buildScoreVars(row, scoreMeta)["전체요약"]).not.toContain("과제:");
 });
 
 test("미입력 점수는 미제출·불합격·보충 필요로 변환하지 않는다", () => {

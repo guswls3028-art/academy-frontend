@@ -516,7 +516,7 @@ export function generateScoreReport(
  * - #{과제N명} → homeworks[N-1].title
  * - #{시험총점} → 시험 점수 합계
  * - #{시험총만점} → 시험 만점 합계
- * - #{숙제완성도} → 입력된 과제 수/전체 과제 수
+ * - #{숙제완성도} → 교사 확인 또는 자동 완료된 과제 수/전체 과제 수
  */
 export function buildScoreVars(
   row: SessionScoreRow,
@@ -569,6 +569,10 @@ export function buildScoreVars(
 
   // 과제 변수 (번호 기반, 실제 데이터로 덮어쓰기)
   const homeworks = row.homeworks ?? [];
+  // 완료 여부는 서버의 교사 확인/자동 완료 상태를 따른다. 점수 입력·합격과는 별개다.
+  const completedHomeworks = homeworks.filter(({ block }) => (
+    block.correction_status === "COMPLETED" || block.correction_status === "NOT_REQUIRED"
+  )).length;
   for (let i = 0; i < homeworks.length; i++) {
     const hw = homeworks[i];
     const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
@@ -582,9 +586,8 @@ export function buildScoreVars(
   }
 
   // 숙제완성도 (전체 과제 요약)
-  if (row.homeworks && row.homeworks.length > 0) {
-    const completed = row.homeworks.filter((h) => h.block.score != null).length;
-    vars["숙제완성도"] = `${completed}/${row.homeworks.length} 완료`;
+  if (homeworks.length > 0) {
+    vars["숙제완성도"] = `${completedHomeworks}/${homeworks.length} 완료`;
   } else {
     vars["숙제완성도"] = "-";
   }
@@ -633,8 +636,7 @@ export function buildScoreVars(
       lines.push(`시험: ${stats.examPassed}/${stats.examTotal} ${passLabel}${avgPct != null ? ` (평균 ${avgPct}점)` : ""}`);
     }
     if (stats.hwTotal > 0) {
-      const completed = row.homeworks?.filter((h) => h.block.score != null).length ?? 0;
-      lines.push(`과제: ${completed}/${stats.hwTotal} 완료`);
+      lines.push(`과제: ${completedHomeworks}/${stats.hwTotal} 완료`);
     }
     if (stats.pendingItems.length > 0) {
       lines.push("최종: 점수 확인 필요");

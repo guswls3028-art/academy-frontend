@@ -64,6 +64,7 @@ async function installMocks(
         is_active: true,
       });
     }
+    if (path === "/core/subscription/") return json(route, { tenant_name: "실제 발송학원", is_subscription_active: true });
     if (path === "/core/me/") {
       return json(route, {
         id: 12,
@@ -160,6 +161,7 @@ async function installMocks(
     }
     if (path === "/students/custom-fields/") return json(route, []);
     if (path === "/messaging/templates/") return json(route, []);
+    if (path === "/messaging/auto-send/") return json(route, []);
     if (path === "/landing/has-published/") return json(route, { has_published: false });
 
     return json(route, { count: 0, next: null, previous: null, results: [] });

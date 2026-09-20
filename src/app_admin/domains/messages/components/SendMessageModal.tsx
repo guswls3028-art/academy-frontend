@@ -60,6 +60,8 @@ import {
 } from "../constants/templatePresets";
 import GradesBlockPanel from "./GradesBlockPanel";
 import TemplatePickerModal from "./TemplatePickerModal";
+import MessageBodyEditor, { type MessageBodyEditorHandle } from "./MessageBodyEditor";
+import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
 import {
   getAlimtalkTemplateLabel,
   getAlimtalkTemplateTypeFromCategory,
@@ -99,7 +101,7 @@ export type SendMessageModalProps = {
 // ─── Helpers ───
 
 function isSystemTpl(t: MessageTemplateItem): boolean {
-  return t.is_system || t.name.startsWith("[HakwonPlus]") || t.name.startsWith("[학원플러스]");
+  return t.is_system;
 }
 
 function isApprovedTpl(t: MessageTemplateItem): boolean {
@@ -291,6 +293,7 @@ export default function SendMessageModal({
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
+  const { data: academyName = "", isError: isAcademyError, refetch: refetchAcademy } = useMessageAcademyName(open);
 
   // ─── State ───
   const [subject, setSubject] = useState("");
@@ -322,11 +325,8 @@ export default function SendMessageModal({
   const [preflightError, setPreflightError] = useState<string | null>(null);
   const [confirmPreviewStudentId, setConfirmPreviewStudentId] = useState<number | null>(null);
   const [confirmRecipientsExpanded, setConfirmRecipientsExpanded] = useState(false);
-  const bodyWrapRef = useRef<HTMLDivElement>(null);
+  const bodyEditorRef = useRef<MessageBodyEditorHandle>(null);
   const prevOpenRef = useRef(false);
-  const getNativeTextarea = useCallback(
-    () => bodyWrapRef.current?.querySelector("textarea") ?? null, [],
-  );
 
   // ─── Derived ───
   const studentIds = initialStudentIds;
@@ -560,24 +560,21 @@ export default function SendMessageModal({
   // SSOT (2026-05-14): preview는 학원장이 textarea에 친 body 기준 (selectedTemplate.body 무시).
   // 직전 결함: 양식 자동 매칭 시 preview가 DB 원본 template 고정 → 학원장 본문 수정이 preview에 안 보임.
   // 학원장이 친 본문이 곧 발송 본문 → 그대로 preview에 노출되어야 일치.
-  const previewBody = renderPreviewWithActualData(body, alimtalkExtraVars, freeContent);
+  const getPreviewData = useCallback((currentBody: string): Record<string, string> => {
+    const perStudent = recomputePerStudentVarsRef?.current?.(currentBody) ?? alimtalkExtraVarsPerStudent;
+    const firstStudent = perStudent?.[studentIds[0]];
+    return {
+      ...alimtalkExtraVars,
+      ...firstStudent,
+      학원명: academyName,
+      학원이름: academyName,
+    };
+  }, [academyName, alimtalkExtraVars, alimtalkExtraVarsPerStudent, recomputePerStudentVarsRef, studentIds]);
+  const previewData = useMemo(() => getPreviewData(body), [getPreviewData, body]);
+  const previewBody = renderPreviewWithActualData(previewData._body_subst ?? body, previewData, freeContent);
 
-  // 카카오 봉투 미리보기용 letterBody.
-  // 성적 발송은 선생님이 양식 자체를 검수해야 하므로 raw template을 보여주고,
-  // 그 외 단건 알림은 기존처럼 첫 수신자 기준 치환 미리보기를 유지한다.
-  const previewLetterBody = useMemo(() => {
-    if (!body) return "";
-    if (effectiveBlockCategory === "grades") return body;
-    if (!recomputePerStudentVarsRef?.current) return body;
-    try {
-      const perStudent = recomputePerStudentVarsRef.current(body);
-      const firstKey = Object.keys(perStudent)[0];
-      const subst = firstKey ? perStudent[Number(firstKey)]?._body_subst : undefined;
-      return subst || body;
-    } catch {
-      return body;
-    }
-  }, [body, effectiveBlockCategory, recomputePerStudentVarsRef]);
+  // 본문 수정과 양식 선택 모두 첫 수신자의 실제 값으로 다시 미리본다.
+  const previewLetterBody = previewData._body_subst ?? body;
   const previewSubject = subject
     ? renderPreviewWithActualData(subject, alimtalkExtraVars)
     : selectedTemplate
@@ -726,14 +723,8 @@ export default function SendMessageModal({
 
   // ─── Actions ───
   const insertBlock = useCallback((insertText: string) => {
-    const ta = getNativeTextarea();
-    if (!ta) { setBody((prev) => prev + insertText); return; }
-    const start = ta.selectionStart ?? ta.value.length;
-    const end = ta.selectionEnd ?? start;
-    setBody((prev) => prev.slice(0, start) + insertText + prev.slice(end));
-    const newPos = start + insertText.length;
-    requestAnimationFrame(() => { ta.focus(); ta.setSelectionRange(newPos, newPos); });
-  }, [getNativeTextarea]);
+    bodyEditorRef.current?.insert(insertText);
+  }, []);
 
   const selectTemplate = useCallback((t: MessageTemplateItem) => {
     const nextBody = stripInternalAlimtalkMemoToken(t.body ?? "");
@@ -793,6 +784,7 @@ export default function SendMessageModal({
         body,
       });
       setTemplates((prev) => [created, ...prev]);
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
       setSelectedTemplateId(created.id);
       setSelectedPresetId(null);
       setTemplateBodySnapshot(created.body);
@@ -812,6 +804,7 @@ export default function SendMessageModal({
       const updated = await updateMessageTemplate(selectedTemplate.id, { body, subject });
       setTemplates((prev) => prev.map((t) => t.id === updated.id ? updated : t));
       setTemplateBodySnapshot(updated.body);
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
       feedback.success(`"${updated.name}" 문구가 업데이트되었습니다.`);
     } catch {
       feedback.error("문구 업데이트에 실패했습니다.");
@@ -1196,7 +1189,7 @@ export default function SendMessageModal({
                 카카오톡 미리보기
                 {hasRecipients && recipientCount > 1 && (
                   <span className="send-modal__card-sublabel">
-                    {effectiveBlockCategory === "grades" ? " · 학생별 점수 자동 입력" : " · 첫 학생 기준"}
+                    {previewData.학생이름 ? ` · ${previewData.학생이름} 기준` : " · 첫 학생 기준"}
                   </span>
                 )}
               </div>
@@ -1207,18 +1200,15 @@ export default function SendMessageModal({
                   selectedTemplate?.name ?? selectedPreset?.name ?? "",
                   alimtalkExtraVars,
                 );
-                // SSOT (2026-05-14): preview body는 학원장이 textarea에 친 body가 진실.
-                // 직전엔 selectedTemplate.body의 substituted ReactNode[]를 letterBody로 썼는데
-                // (a) renderAlimtalkFullPreview는 raw string body를 받아 자체 렌더, (b) 학원장 수정 반영 안 됨.
-                // 둘 다 해결 위해 body raw string 그대로 전달.
-                // 성적 발송은 callback 결과 대신 raw 양식을 표시해 다수 학생에게 공통 적용될 모양을 검수한다.
+                // 저장 원본 대신 현재 편집한 본문을 학생별 치환한 결과를 사용한다.
                 const letterBody = body && hasSelectedBodySource ? previewLetterBody : "";
                 const channelLabel = getAlimtalkTemplateLabel(alimtalkType);
                 if (alimtalkType) {
                   return (
                     <div className="template-preview-kakao">
                       <div className="template-preview-kakao__helper">
-                        기본 정보는 자동으로 채워지고, 안내문은 학생별로 표시됩니다
+                        {isAcademyError ? <span role="alert">발송 학원명을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => void refetchAcademy()}>다시 확인</Button></span>
+                          : "기본 정보는 자동으로 채워지고, 안내문은 학생별로 표시됩니다"}
                       </div>
                       <div className="template-preview-kakao__card">
                         <div className="template-preview-kakao__header">
@@ -1227,7 +1217,7 @@ export default function SendMessageModal({
                         </div>
                         <div className="template-preview-kakao__body">
                           {letterBody
-                            ? renderAlimtalkFullPreview(alimtalkType, letterBody)
+                            ? renderPreviewWithActualData(renderAlimtalkFullPreview(alimtalkType, letterBody, undefined, previewData), previewData)
                             : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "문구를 선택하세요"}</span>}
                         </div>
                       </div>
@@ -1351,7 +1341,7 @@ export default function SendMessageModal({
                   {bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
                     <>
                       <Button size="sm" intent="secondary" onClick={handleUpdateTemplate} disabled={sending || savingTemplate}>
-                        문구 덮어쓰기
+                        변경 내용 저장
                       </Button>
                       <button
                         type="button"
@@ -1359,7 +1349,7 @@ export default function SendMessageModal({
                         disabled={sending}
                         className="send-modal__save-bar-link"
                       >
-                        다른 이름으로
+                        새 문구로 저장
                       </button>
                     </>
                   ) : (
@@ -1423,7 +1413,7 @@ export default function SendMessageModal({
 
             {/* ── 본문 + 변수 팔레트 ── */}
             <div className="send-modal__editor">
-              <div ref={bodyWrapRef} className="send-modal__editor-body">
+              <div className="send-modal__editor-body">
                 {/* 빈 상태 오버레이 */}
                 {!body && !hasSelectedBodySource && (
                   <div className="send-modal__editor-empty">
@@ -1444,17 +1434,13 @@ export default function SendMessageModal({
                     </button>
                   </div>
                 )}
-                <Input.TextArea
+                <MessageBodyEditor
+                  key={`${open}:${selectedTemplateId ?? selectedPresetId ?? "free"}`}
+                  ref={bodyEditorRef}
                   value={body}
-                  onChange={(e) => { setBody(e.target.value); if (!alimtalkFreeForm && !selectedTemplate && !selectedPreset) setAlimtalkFreeForm(true); }}
+                  onChange={(value) => { setBody(value); if (!alimtalkFreeForm && !selectedTemplate && !selectedPreset) setAlimtalkFreeForm(true); }}
                   disabled={sending}
-                  className="message-domain-input send-modal__editor-textarea"
                   placeholder="학원장님이 학생/학부모에게 전할 안내 메시지를 자유롭게 입력하세요."
-                  // 빈 상태 오버레이가 위에 떠 있을 때 textarea 클릭이 통과되지 않도록 동적 차단.
-                  // eslint-disable-next-line no-restricted-syntax
-                  style={{
-                    pointerEvents: !body && !hasSelectedBodySource ? "none" : undefined,
-                  }}
                 />
               </div>
 
@@ -1707,7 +1693,8 @@ export default function SendMessageModal({
       blockCategory={effectiveBlockCategory}
       selectedTemplateId={selectedTemplateId}
       selectedPresetId={selectedPresetId}
-      alimtalkExtraVars={alimtalkExtraVars}
+      alimtalkExtraVars={previewData}
+      getPreviewData={getPreviewData}
       onPick={selectTemplate}
       onPickPreset={selectPreset}
       onPickFreeForm={selectFreeForm}

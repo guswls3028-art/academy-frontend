@@ -85,9 +85,9 @@ test.describe("알림톡 실사용 검증 — 템플릿 편집 → 발송 → �
     await expect(nameInput, "문구 편집 dialog 안에 이름 input 이 있어야 함").toBeVisible({ timeout: 5000 });
     await nameInput.fill(`[E2E-${TS}] 알림톡 검증`);
 
-    // 본문 입력 — 변수 블록 포함. dialog 가 열렸으면 textarea 는 반드시 있어야.
-    const bodyArea = dialog.locator("textarea:visible").first();
-    await expect(bodyArea, "문구 편집 dialog 안에 본문 textarea 가 있어야 함").toBeVisible({ timeout: 5000 });
+    // 본문 입력 — 변수 블록을 담는 안내문 편집기.
+    const bodyArea = dialog.getByRole("textbox", { name: "안내문" });
+    await expect(bodyArea, "문구 편집 dialog 안에 안내문 편집기가 있어야 함").toBeVisible({ timeout: 5000 });
     await bodyArea.fill(
       "#{학생이름}님, 안녕하세요.\n" +
       "#{학원명}에서 안내드립니다.\n\n" +
