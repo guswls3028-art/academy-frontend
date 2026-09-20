@@ -1,10 +1,10 @@
 /**
- * Student homework media submission -> assistant discovery/preview -> API grading
- * -> parent projection. This does not claim a staff UI grading journey.
+ * Student homework media submission -> assistant discovery/preview and UI grading
+ * -> student/parent projection, reload and login.
  * The browser writes only to the guarded loopback development API.
  */
 import { expect, test } from "../fixtures/strictTest";
-import type { APIRequestContext } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import {
   api,
@@ -175,40 +175,63 @@ async function seedHomework(request: APIRequestContext, adminAccess: string, fam
   );
 }
 
-async function gradeHomework(request: APIRequestContext, adminAccess: string): Promise<void> {
-  const editor = `qa-student-parent-homework-${runStamp}`;
-  const headers = {
-    Authorization: `Bearer ${adminAccess}`,
-    "Content-Type": "application/json",
-    "X-Tenant-Code": QA_TENANT,
-    "X-Score-Editor-Client": editor,
-  };
-  const draft = await request.put(`${QA_API}/api/v1/results/admin/sessions/${created.sessionId}/score-draft/`, {
-    headers,
-    data: { changes: [] },
-    timeout: 60_000,
+async function gradeHomework(
+  page: Page, request: APIRequestContext, username: string, password: string, staffAccess: string,
+): Promise<void> {
+  const context = await page.context().browser()!.newContext({ serviceWorkers: "block" });
+  const staffPage = await context.newPage();
+  const boundary = await installQaStudentParentBoundary(staffPage, request);
+  const browser = attachStrictBrowserGuards(staffPage);
+  const editors = new Set<string>();
+  staffPage.on("request", (outgoing) => {
+    const editor = outgoing.headers()["x-score-editor-client"];
+    if (editor) editors.add(editor);
   });
-  expect(draft.status()).toBe(200);
   try {
-    const score = await request.patch(`${QA_API}/api/v1/homework/scores/quick/`, {
-      headers,
-      data: {
-        session_id: created.sessionId,
-        enrollment_id: created.enrollmentId,
-        homework_id: created.homeworkId,
-        score: 92,
-        max_score: 100,
-      },
-      timeout: 60_000,
-    });
-    expect(score.status()).toBe(200);
-    expect(await score.json()).toMatchObject({ score: 92, passed: true });
+    await gotoAndSettle(staffPage, `${QA_BASE}/login/${QA_TENANT}`);
+    await staffPage.getByTestId("login-username").fill(username);
+    await staffPage.getByTestId("login-password").fill(password);
+    await staffPage.getByTestId("login-submit").click();
+    await expect(staffPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+    await acknowledgeInitialAccountPromptsIfVisible(staffPage);
+    for (const [width, value] of [[390, 91], [1366, 92]]) {
+      await staffPage.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
+      const options = staffPage.getByRole("button", { name: /표시 옵션/ });
+      if (await options.getAttribute("aria-expanded") === "false") await options.click();
+      await staffPage.getByRole("button", { name: "수정", exact: true }).click();
+      const cell = staffPage.locator(`[data-score-cell="homework:${created.enrollmentId}:${created.homeworkId}"]`);
+      await cell.getByRole("textbox").fill(String(value));
+      const saved = staffPage.waitForResponse((response) => (
+        response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
+      ));
+      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      const response = await saved;
+      expect(response.status()).toBe(200);
+      expect(await response.json()).toMatchObject({ score: value, passed: true });
+      await expect(staffPage.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(cell).toContainText(String(value));
+      await assertNoHorizontalOverflow(staffPage);
+      await test.info().attach(`assistant-homework-grading-${width}`, {
+        body: await staffPage.screenshot({ fullPage: true }), contentType: "image/png",
+      });
+    }
+    boundary.assertClean();
+    browser.assertZeroDefects();
   } finally {
-    const commit = await request.post(
-      `${QA_API}/api/v1/results/admin/sessions/${created.sessionId}/score-draft/commit/`,
-      { headers, data: { release_lease: true }, timeout: 60_000 },
-    );
-    expect([200, 204]).toContain(commit.status());
+    try {
+      for (const editor of editors) {
+        const released = await request.post(`${QA_API}/api/v1/results/admin/sessions/${created.sessionId}/score-draft/commit/`, {
+          headers: { Authorization: `Bearer ${staffAccess}`, "X-Tenant-Code": QA_TENANT, "X-Score-Editor-Client": editor },
+          data: { release_lease: true }, timeout: 60_000,
+        });
+        expect([200, 204]).toContain(released.status());
+      }
+    } finally {
+      await context.close();
+    }
   }
 }
 
@@ -364,7 +387,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await expect(page.getByText(parentUploadName, { exact: true })).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
-    await gradeHomework(request, admin.access);
+    await gradeHomework(page, request, staffUsername, student.password, staffTokens.access);
     await waitForHomeworkSummary(request, parentTokens.access, (row) => row.score === 92, student.id);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
