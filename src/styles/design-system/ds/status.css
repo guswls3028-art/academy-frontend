@@ -124,7 +124,7 @@ button.ds-status-badge:disabled {
 
 /** 틸(teal) — 보강 출결 등 별도 구분용 */
 .ds-status-badge[data-tone="teal"] {
-  background: #14b8a6;
+  background: var(--color-teal);
   color: #fff;
 }
 

@@ -26,9 +26,11 @@ type MockState = {
   bulkSetCalls: number;
   bulkUndoTokens: string[];
   failUndo: boolean;
+  failStatusUpdate: boolean;
 };
 
 type MockOptions = {
+  statusUpdateReady?: Promise<void>;
   omitTargetSessionFromList?: boolean;
   previousRosterWithInactive?: boolean;
   currentLectureWithInactive?: boolean;
@@ -109,6 +111,8 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
     }
     const attendanceDetailMatch = path.match(/^\/lectures\/attendance\/(\d+)\/$/);
     if (attendanceDetailMatch && method === "PATCH") {
+      await options.statusUpdateReady;
+      if (state.failStatusUpdate) return json({ detail: "출결을 저장하지 못했습니다." }, 409);
       const id = Number(attendanceDetailMatch[1]);
       const payload = request.postDataJSON() as { status?: string };
       if (payload.status) {
@@ -258,6 +262,7 @@ function createState(overrides: Partial<MockState> = {}): MockState {
     bulkSetCalls: 0,
     bulkUndoTokens: [],
     failUndo: false,
+    failStatusUpdate: false,
     ...overrides,
   };
 }
@@ -348,7 +353,7 @@ test("데스크톱은 모든 출결 상태를 한 줄에서 저장하고 모바�
   const inactivePresent = quickRail.getByRole("button", { name: "결석학생 현장 상태로 변경" });
   const inactiveOnline = quickRail.getByRole("button", { name: "결석학생 영상 상태로 변경" });
   const inactiveBackgrounds = await Promise.all([inactivePresent, inactiveOnline].map((button) => (
-    button.locator(".ds-status-badge").evaluate((node) => getComputedStyle(node).backgroundColor)
+    button.evaluate((node) => getComputedStyle(node).backgroundColor)
   )));
   expect(inactiveBackgrounds[0]).toBe(inactiveBackgrounds[1]);
   await expect(quickRail.getByRole("button", { name: "결석학생 부재 상태로 변경" })).toHaveAttribute("data-critical", "true");
@@ -358,10 +363,22 @@ test("데스크톱은 모든 출결 상태를 한 줄에서 저장하고 모바�
     buttons.map((button) => button.getBoundingClientRect().width),
   );
   expect(Math.max(...optionWidths) - Math.min(...optionWidths)).toBeLessThanOrEqual(1);
-  const badgeWidths = await quickRail.locator(".ds-status-badge").evaluateAll((badges) =>
-    badges.map((badge) => badge.getBoundingClientRect().width),
-  );
-  expect(Math.max(...badgeWidths) - Math.min(...badgeWidths)).toBeLessThanOrEqual(1);
+  const surfaces = await quickRail.getByRole("button").evaluateAll((buttons) => buttons.map((button) => {
+    const style = getComputedStyle(button);
+    const label = document.createRange();
+    label.selectNodeContents(button);
+    return {
+      children: button.childElementCount,
+      opacity: style.opacity,
+      shadow: style.boxShadow,
+      border: parseFloat(style.borderTopWidth),
+      nowrap: style.whiteSpace,
+      fits: label.getBoundingClientRect().width <= button.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) + 0.5,
+    };
+  }));
+  for (const surface of surfaces) {
+    expect(surface).toEqual({ children: 0, opacity: "1", shadow: "none", border: 1, nowrap: "nowrap", fits: true });
+  }
 
   await quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" }).click();
   await expect.poll(() => state.attendanceStatusUpdates).toEqual([{ id: 502, status: "LATE" }]);
@@ -369,15 +386,68 @@ test("데스크톱은 모든 출결 상태를 한 줄에서 저장하고 모바�
   await expect(page.locator('[aria-label^="차시 출결 집계:"]')).toContainText("지각1");
   await page.screenshot({ path: testInfo.outputPath("attendance-inline-status-1366.png"), fullPage: true });
 
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("attendance-inline-status-1100.png"), fullPage: true });
+
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("group", { name: "결석학생 출결 빠른 선택" })).toHaveCount(0);
   const compactTrigger = page.getByRole("button", { name: "결석학생 출결 상태 변경" });
   await expect(compactTrigger).toBeVisible();
+  await expect(compactTrigger).toHaveText("지각");
+  await expect(compactTrigger.locator(".ds-status-badge")).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await compactTrigger.click();
   await expect(page.locator(".attendance-popover").getByRole("button")).toHaveCount(11);
+  await expect(page.locator(".attendance-popover .ds-status-badge")).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("attendance-compact-status-390.png"), fullPage: true });
+  await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
+  await expect(compactTrigger).toHaveText("현장");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(compactTrigger).toHaveText("현장");
+  expect(state.attendanceStatusUpdates).toEqual([{ id: 502, status: "LATE" }, { id: 502, status: "PRESENT" }]);
+
+  await page.getByRole("button", { name: "출결 상태 필터" }).click();
+  const filterMenu = page.locator(".attendance-popover");
+  await expect(filterMenu.locator(".ds-status-badge")).toHaveCount(0);
+  await filterMenu.getByRole("button", { name: "현장", exact: true }).click();
+  await expect(page.getByRole("button", { name: "출결 상태 필터" })).toHaveText("현장");
+  await page.getByRole("button", { name: "출결 상태 필터" }).click();
+  await expect(filterMenu.getByRole("button", { name: "현장", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await filterMenu.getByRole("button", { name: "전체", exact: true }).click();
+  await expect(page.getByRole("button", { name: "출결 상태 필터" })).toHaveText("상태필터");
+});
+
+test("출결 선택 저장 실패는 기존 선택을 보존하고 같은 버튼으로 재시도한다", async ({ page }) => {
+  const state = createState({ failStatusUpdate: true });
+  let releaseStatusUpdate = () => {};
+  const statusUpdateReady = new Promise<void>((resolve) => { releaseStatusUpdate = resolve; });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openAttendance(page, state, { statusUpdateReady });
+  const trigger = page.getByRole("button", { name: "결석학생 출결 상태 변경" });
+  await trigger.click();
+  const menu = page.locator(".attendance-popover");
+  const present = menu.getByRole("button", { name: "현장", exact: true });
+  await present.click();
+  try {
+    await expect(menu.getByRole("button", { disabled: true })).toHaveCount(11);
+    await expect(present).toHaveCSS("opacity", "0.65");
+  } finally {
+    releaseStatusUpdate();
+  }
+  await expect(page.getByText("출석 상태 변경에 실패했습니다. 다시 시도해 주세요.")).toBeVisible();
+  await expect(menu.getByRole("button", { name: "결석", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(present).toBeEnabled();
+  expect(state.attendanceStatusUpdates).toEqual([]);
+  state.failStatusUpdate = false;
+  await present.click();
+  await expect(trigger).toHaveText("현장");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(trigger).toHaveText("현장");
+  expect(state.attendanceStatusUpdates).toEqual([{ id: 502, status: "PRESENT" }]);
 });
 
 test("차시 수강생은 선택 목록에서 undo/redo와 최종 확인 후 미입력으로 등록한다", async ({ page }) => {

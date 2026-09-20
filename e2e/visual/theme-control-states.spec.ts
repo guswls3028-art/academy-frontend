@@ -118,6 +118,11 @@ async function mountAuditSurface(page: Page) {
           border-radius: var(--radius-lg);
           background: var(--color-bg-surface);
         }
+        #theme-control-audit .selection-group { width: 100%; }
+        @media (max-width: 600px) {
+          #theme-control-audit { padding: 16px; }
+          #theme-control-audit .audit-surface { padding: 12px; }
+        }
       </style>
       <section class="audit-surface">
         <button class="ds-button" data-size="md" data-intent="primary" data-testid="primary">주요 작업</button>
@@ -126,6 +131,13 @@ async function mountAuditSurface(page: Page) {
         <button class="ds-button" data-size="md" data-intent="ghost" data-testid="ghost">낮은 강조</button>
         <button class="ds-button" data-size="md" data-intent="danger" data-testid="danger">삭제</button>
         <button class="ds-button" data-size="md" data-intent="secondary" data-testid="disabled" disabled>사용 불가</button>
+        <div class="ds-segment selection-group" role="group" aria-label="출결 선택 상태" data-testid="selection-group">
+          ${["primary", "success", "warning", "danger", "complement", "teal", "neutral"].map((tone) => `
+            <button class="ds-segment__btn" data-size="sm" data-tone="${tone}" aria-pressed="false" data-testid="selection-${tone}">현장 출석</button>
+            <button class="ds-segment__btn" data-size="sm" data-tone="${tone}" aria-pressed="true" data-testid="selection-${tone}-selected">선택한 상태</button>
+          `).join("")}
+          <button class="ds-segment__btn" data-size="md" data-tone="primary" aria-pressed="false" data-testid="selection-disabled" disabled>저장 중</button>
+        </div>
       </section>
       <div class="domain-header__tabs-wrap">
         <div class="ds-tabs ds-tabs--flat" role="tablist">
@@ -176,6 +188,7 @@ test("12개 테마에서 공용 버튼과 탭의 상태가 명확히 구분된�
   const results: Array<Record<string, unknown>> = [];
 
   for (const theme of THEMES) {
+    await page.setViewportSize({ width: 1366, height: 900 });
     await page.evaluate((themeKey) => {
       document.documentElement.setAttribute("data-theme", themeKey);
     }, theme.key);
@@ -222,12 +235,73 @@ test("12개 테마에서 공용 버튼과 탭의 상태가 명확히 구분된�
     expect.soft(disabledDefault.opacity, `${theme.key}: disabled opacity`).toBeLessThan(0.8);
     expect.soft(disabledDefault.cursor, `${theme.key}: disabled cursor`).toBe("not-allowed");
 
+    const selectionContrasts: Record<string, number[]> = {};
+    for (const tone of ["primary", "success", "warning", "danger", "complement", "teal", "neutral"]) {
+      const idle = await readState(page.getByTestId(`selection-${tone}`));
+      const selected = await readState(page.getByTestId(`selection-${tone}-selected`));
+      for (const [name, state] of [["unselected", idle], ["selected", selected]] as const) {
+        const context = `${theme.key}: ${tone} ${name}`;
+        expect.soft(state.opacity, `${context} enabled opacity`).toBe(1);
+        expect.soft(state.contrast, `${context} label contrast`).toBeGreaterThanOrEqual(4.5);
+        expect.soft(state.boxShadow, `${context} single surface`).toBe("none");
+        expect.soft(parseFloat(state.borderBottomWidth), `${context} outer border`).toBeGreaterThanOrEqual(1);
+      }
+      expect.soft(visualSignature(selected), `${theme.key}: ${tone} selected state`).not.toBe(visualSignature(idle));
+      selectionContrasts[tone] = [idle.contrast, selected.contrast];
+    }
+    const selectionDisabled = await readState(page.getByTestId("selection-disabled"));
+    expect.soft(selectionDisabled.opacity, `${theme.key}: selection disabled opacity`).toBeGreaterThanOrEqual(0.5);
+    expect.soft(selectionDisabled.opacity, `${theme.key}: selection disabled distinction`).toBeLessThan(1);
+    expect.soft(selectionDisabled.cursor, `${theme.key}: selection disabled cursor`).toBe("not-allowed");
+    await page.getByTestId("selection-primary").focus();
+    await page.keyboard.press("Tab");
+    const focusedSelection = page.getByTestId("selection-primary-selected");
+    await expect(focusedSelection).toBeFocused();
+    const selectionFocus = await readState(focusedSelection);
+    expect.soft(selectionFocus.outlineStyle, `${theme.key}: selection keyboard focus`).toBe("solid");
+    expect.soft(parseFloat(selectionFocus.outlineWidth), `${theme.key}: selection focus width`).toBeGreaterThanOrEqual(2);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileLayout = await page.getByTestId("selection-group").evaluate((group) => {
+      const groupBox = group.getBoundingClientRect();
+      const buttons = Array.from(group.querySelectorAll("button")).map((button) => {
+        const box = button.getBoundingClientRect();
+        const label = document.createRange();
+        label.selectNodeContents(button);
+        const lines = Array.from(label.getClientRects());
+        return {
+          top: Math.round(box.top),
+          withinGroup: box.left >= groupBox.left - 1 && box.right <= groupBox.right + 1,
+          whiteSpace: getComputedStyle(button).whiteSpace,
+          lineCount: new Set(lines.map((line) => Math.round(line.top))).size,
+          labelFits: lines.every((line) => line.left >= box.left && line.right <= box.right),
+          height: box.height,
+        };
+      });
+      return {
+        buttons,
+        rows: new Set(buttons.map((button) => button.top)).size,
+        bodyOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - window.innerWidth,
+      };
+    });
+    expect.soft(mobileLayout.rows, `${theme.key}: mobile group wraps`).toBeGreaterThan(1);
+    expect.soft(mobileLayout.bodyOverflow, `${theme.key}: mobile body overflow`).toBeLessThanOrEqual(1);
+    for (const button of mobileLayout.buttons) {
+      expect.soft(button.withinGroup, `${theme.key}: mobile button contained`).toBe(true);
+      expect.soft(button.whiteSpace, `${theme.key}: Korean label nowrap`).toBe("nowrap");
+      expect.soft(button.lineCount, `${theme.key}: Korean label single line`).toBe(1);
+      expect.soft(button.labelFits, `${theme.key}: Korean label visible`).toBe(true);
+      expect.soft(button.height, `${theme.key}: mobile selection touch target`).toBeGreaterThanOrEqual(40);
+    }
+
     results.push({
       theme: theme.key,
       primaryContrast: primaryDefault.contrast,
       secondaryContrast: secondaryDefault.contrast,
       pressedContrast: pressedDefault.contrast,
       activeTabContrast: tabActiveState.contrast,
+      selectionContrasts,
+      mobileSelectionRows: mobileLayout.rows,
     });
   }
 

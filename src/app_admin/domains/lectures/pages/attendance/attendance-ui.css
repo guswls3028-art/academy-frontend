@@ -1,11 +1,11 @@
 /* ============================================================================
- * 출결 UI — 상태필터/상태변경 팝오버 등장 애니메이션 + 선택된 출석형태 뱃지
- * PATH: src/features/lectures/pages/attendance/attendance-ui.css
+ * 출결 UI — 공용 선택 컨트롤의 배치와 팝오버 전환
+ * PATH: src/app_admin/domains/lectures/pages/attendance/attendance-ui.css
  * ============================================================================ */
 
 /* ---- 팝오버 등장: scale + opacity (위치 보정은 SSOT useFloatingPosition이 담당) ---- */
 .attendance-popover {
-  animation: attendance-popover-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: attendance-popover-enter 0.16s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   transform-origin: left bottom;
   /* chip 1줄 표시 강제 — 좁은 viewport에서 wrap 방지. viewport 넘으면 가로 스크롤 */
   flex-wrap: nowrap !important;
@@ -16,7 +16,7 @@
 @keyframes attendance-popover-enter {
   from {
     opacity: 0;
-    transform: scale(0.94);
+    transform: scale(0.98);
   }
   to {
     opacity: 1;
@@ -24,63 +24,11 @@
   }
 }
 
-/* 팝오버 내부 버튼/뱃지 가벼운 스태거 (선택) */
-.attendance-popover-item {
-  animation: attendance-popover-item-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  opacity: 0;
-}
+/* Reveal the menu together; item opacity remains owned by the control state. */
+.attendance-popover-item { flex-shrink: 0; }
 
-.attendance-popover-item:nth-child(1) { animation-delay: 0.02s; }
-.attendance-popover-item:nth-child(2) { animation-delay: 0.04s; }
-.attendance-popover-item:nth-child(3) { animation-delay: 0.06s; }
-.attendance-popover-item:nth-child(4) { animation-delay: 0.08s; }
-.attendance-popover-item:nth-child(5) { animation-delay: 0.10s; }
-.attendance-popover-item:nth-child(6) { animation-delay: 0.12s; }
-.attendance-popover-item:nth-child(7) { animation-delay: 0.14s; }
-.attendance-popover-item:nth-child(8) { animation-delay: 0.16s; }
-.attendance-popover-item:nth-child(9) { animation-delay: 0.18s; }
-.attendance-popover-item:nth-child(10) { animation-delay: 0.20s; }
-.attendance-popover-item:nth-child(11) { animation-delay: 0.22s; }
-
-@keyframes attendance-popover-item-enter {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ---- 테이블 셀 내 "선택된 출석형태" 뱃지 — 프리미엄 강조 ---- */
-.attendance-status-badge--selected {
-  position: relative;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.08),
-    0 2px 6px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition: box-shadow 0.2s ease, transform 0.15s ease;
-}
-
-.attendance-status-badge--selected:hover {
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.1),
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-}
-
-/* 클릭 가능한 상태 변경 버튼(테이블 셀) 호버 시 살짝 올라감 */
-button .attendance-status-badge--selected {
-  display: inline-flex;
-}
-
-button:hover .attendance-status-badge--selected {
-  transform: translateY(-1px);
-}
-
-button:active .attendance-status-badge--selected {
-  transform: translateY(0);
+@media (prefers-reduced-motion: reduce) {
+  .attendance-popover { animation: none; }
 }
 
 /* 데스크톱 대량 입력: 한 학생의 모든 상태를 한 줄에 펼쳐 팝오버 왕복을 없앤다. */
@@ -97,98 +45,10 @@ button:active .attendance-status-badge--selected {
   background: var(--color-bg-surface-soft);
 }
 
-.attendance-status-inline__option {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  min-height: 32px;
-  padding: 2px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  cursor: pointer;
-  opacity: 0.62;
-  transition: opacity 140ms ease, background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
-}
-
-/* 미입력(3글자)을 포함해 모든 빠른 선택 버튼의 실제 색상 면적도 같은 크기로 맞춘다. */
-.attendance-status-inline__option .ds-status-badge {
+/* Layout only: shape, states, typography and focus belong to SelectionButton. */
+.attendance-status-inline .attendance-status-inline__option {
   width: 100%;
-  height: 24px;
-  min-width: 0;
   padding-inline: 2px;
-  font-size: 11px;
-}
-
-.attendance-status-inline__option:hover:not(:disabled) {
-  border-color: var(--color-border-divider-strong);
-  background: var(--color-bg-surface);
-  opacity: 1;
-  transform: translateY(-1px);
-}
-
-.attendance-status-inline__option[data-active="true"] {
-  border-color: color-mix(in srgb, var(--color-brand-primary) 52%, var(--color-border-divider));
-  background: var(--color-bg-surface);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 12%);
-  opacity: 1;
-}
-
-/* 대량 입력에서는 현재 선택만 의미색을 쓴다. 나머지는 회색으로 눌러 오입력을 줄인다. */
-.attendance-status-inline__option[data-active="false"] .ds-status-badge {
-  background: color-mix(in srgb, var(--color-border-divider) 26%, var(--color-bg-surface));
-  color: var(--color-text-muted);
-}
-
-/* 부재·퇴원은 운영상 놓치면 안 되는 상태라, 미선택이어도 얇은 경고 윤곽을 남긴다. */
-.attendance-status-inline__option[data-critical="true"][data-active="false"] {
-  opacity: 0.88;
-}
-
-.attendance-status-inline__option[data-status-code="inactive"][data-active="false"] {
-  border-color: color-mix(in srgb, var(--color-brand-complement) 38%, var(--color-border-divider));
-  background: color-mix(in srgb, var(--color-brand-complement) 4%, transparent);
-}
-
-.attendance-status-inline__option[data-status-code="secession"][data-active="false"] {
-  border-color: color-mix(in srgb, var(--color-danger) 42%, var(--color-border-divider));
-  background: color-mix(in srgb, var(--color-danger) 4%, transparent);
-}
-
-/* 모바일 학생별 선택기도 데스크톱과 같은 색 규칙을 쓴다. 상태 필터 팝오버는 제외한다. */
-.attendance-popover--status-picker .attendance-popover-item[data-active="false"] .ds-status-badge {
-  background: color-mix(in srgb, var(--color-border-divider) 26%, var(--color-bg-surface));
-  color: var(--color-text-muted);
-}
-
-.attendance-popover--status-picker .attendance-popover-item[data-critical="true"][data-active="false"] {
-  opacity: 0.94 !important;
-  border: 1px solid color-mix(in srgb, var(--color-brand-complement) 38%, var(--color-border-divider));
-}
-
-.attendance-popover--status-picker .attendance-popover-item[data-status-code="secession"][data-active="false"] {
-  border-color: color-mix(in srgb, var(--color-danger) 42%, var(--color-border-divider));
-}
-
-.attendance-status-inline__option:focus-visible {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 1px;
-  opacity: 1;
-}
-
-.attendance-status-inline__option:disabled {
-  cursor: wait;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .attendance-status-inline__option {
-    transition: none;
-  }
-
-  .attendance-status-inline__option:hover:not(:disabled) {
-    transform: none;
-  }
 }
 
 /* 최근 일괄 출결 작업 — 사용자가 변경 범위와 복구 가능 상태를 즉시 확인한다. */
