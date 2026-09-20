@@ -329,6 +329,18 @@ document 내용 및 host parameter deny를 읽고, unique active 인스턴스의
 profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의 hash와 revision을
 실행 전후 비교한다. 신규 계정 password는 정확한 개발 SecureString 하나만 메모리에서
 사용하며 운영 credential은 development job에 전달하지 않는다.
+개발 API 포트 전달은 [SSM 포트 전달 계약](../scripts/ssm-binary-safe/README.md)의 고정 소스 custom SSM
+plugin을 사용한다. 기존 plugin의 단독 LF→CR 변환이 smux1024/1 분할에서 HTTP
+헤더를 손상시키므로, 해당 변환을 기존 shell 세션에만 제한한다. Go1.26.8·정확한
+upstream commit·패치·회귀검사·OS별 실행 파일 digest를 고정하고, PR/main 필수
+품질 검사에서 Linux 빌드와 실행을 확인한다. 개발 job은 같은 workflow run의
+`binary-safe-ssm` artifact만 내려받아 고정 파일의 실행 mode를 복원한다.
+이후 `ACADEMY_SSM_TOOLCHAIN_DIR`의 manifest와
+실제 파일 hash/custom version이 일치하지 않으면 QA 생성 전에 실패한다. 포트
+세션 자식의 PATH만 바꾸며 Setup/Cleanup 명령 세션과 전역 설치는 유지한다.
+최종 증거의 `binarySafePortTransport`에 고정 provenance를 기록한다. 실패 시
+기존 도구로 자동 fallback하거나 앱 요청 본문·패딩·재시도·timeout을 변경하지 않는다.
+공식 Linux 재빌드·동일 산출물 실사용·정리0이 성공해야 운영 승격할 수 있다.
 개발 배포 실사용의 `loginViaUI`는 새 QA 계정에 표시되는 일회성 `계정 안내`를 정확한
 `확인` 동작으로 완료한 뒤 공지·Q&A·클리닉 흐름을 계속한다. 이 완료 쓰기는
 `qa-ymath-realuse-*` 개발 tenant에서만 허용되며 운영 read-only 실행에는 적용하지 않는다.

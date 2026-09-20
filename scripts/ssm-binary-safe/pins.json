@@ -1,0 +1,13 @@
+{
+  "upstreamRepository": "https://github.com/aws/session-manager-plugin.git",
+  "upstreamCommit": "dcff8da8cdecd53789bd06a193bd2032665dccd8",
+  "upstreamVersion": "1.2.814.0",
+  "version": "1.2.814.10001",
+  "goVersion": "go1.26.8",
+  "patchSha256": "585e402d20542b253a3a2184ba0771cd8352f662ea532dd94c2fb9b96349465b",
+  "regressionSha256": "140ded68ac29b5cf772036bdd8c2a4cc8bdf1ef4d7c985d320a057ed407e2f88",
+  "binarySha256": {
+    "win32": "8c9085a2bfe4116e7c80ce6bbc3bbd33dbf8671c25099ae12f8b16d758f1905f",
+    "linux": "6c62776bc217014d9b0512e8f9fac889dbcbfca8d293afe51f2fc02a0d882975"
+  }
+}
