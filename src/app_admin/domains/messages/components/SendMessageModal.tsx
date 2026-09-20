@@ -1071,7 +1071,7 @@ export default function SendMessageModal({
               )}
             </section>
 
-            <section className="send-modal__card">
+            <section className="send-modal__card send-modal__card--timing">
               <div className="send-modal__card-label">발송 시점</div>
               <div className="send-modal__timing-toggle" role="group" aria-label="발송 시점">
                 <button
