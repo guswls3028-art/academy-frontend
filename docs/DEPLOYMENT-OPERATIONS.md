@@ -613,7 +613,7 @@ parser 테스트가 소유한다. snapshot 복사·중복/역순 교체·상한�
 두 종료 순서·listener 해제, canonical clinic/OPTIONS, mutation 재전송 0 및 기존
 500ms 조회 재시도 정책을 검증한다. 로컬 선택 테스트는 공식 real-use gate가 아니다.
 
-로컬 child 제한은 QA operation 240초, tunnel 25분, tests 30분이다. timeout은 TERM 후
+로컬 child 제한은 QA operation 240초, tunnel 35분, tests 30분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
 20초 제한이다. SIGINT/SIGTERM은 작업 중 child를 중단하여 finally를 시도하고 무조건
 실패 처리한다. 정리 중 추가 신호는 새 작업을 시작하지 않으며 cleanup 완료를 기다린다.
@@ -628,8 +628,10 @@ job timeout은 40분이며 main의 후속 push에 의한 자동 취소는 꺼져
 GitHub 강제 취소의 짧은 grace, SIGKILL, runner/host 소실, IAM·네트워크 상실에서는
 finally 실행·evidence 업로드·tenant cleanup을 보장할 수 없다. 미완료 파일이 있으면
 실패 상태가 유지되고, 파일이 없거나 job이 cancelled/failed여도 deploy success 조건을
-만족하지 못한다. 서버 세션 제한(QA 5분/Port 25분, idle 각 5분)은 tunnel/세션의 수명만
-제한하며 tenant 자동 삭제 장치가 아니다. 그런 잔여는 HOLD 상태에서 exact ownership을
+만족하지 못한다. 서버 Port 세션의 최대 수명은 로컬 tunnel 제한보다 짧아서는 안 된다.
+서버 세션 제한과 실제 적용·종료 증거의 정본은
+[backend 세션 제한](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/persistent-development-runtime.md#세션-제한과-장애-경계)이다.
+세션 수명 제한은 tenant 자동 삭제 장치가 아니다. 그런 잔여는 HOLD 상태에서 exact ownership을
 검토해 별도 복구해야 하고 capability 분실을 이유로 다른 run의 자원을 자동 채택하지 않는다.
 문서의 시간 제한·Linux process-group escalation·실제 AWS 종료 동작은 로컬 Windows
 child 종료 회귀나 IAM simulation만으로 검증됐다고 표현하지 않는다.
