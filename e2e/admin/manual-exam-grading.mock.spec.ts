@@ -99,6 +99,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let hasQuestions = options.hasQuestions ?? true;
   let manualSheetGetCount = 0;
   const postedRows: unknown[] = [];
+  const persistedQuestionScores: Record<string, number> = {};
   const examPatches: unknown[] = [];
   const manualEditGetIds: number[] = [];
   const manualEditBodies: unknown[] = [];
@@ -614,7 +615,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
                 number: index + 1,
                 kind: "essay",
                 answer_type: "written",
-                max_score: 100 / options.sheetSize!.questions,
+                max_score: persistedQuestionScores[String(QUESTION_IDS[0] + index)] ?? 100 / options.sheetSize!.questions,
                 editable: editable && gradingMode !== "choice",
                 entry_method:
                   editable && gradingMode !== "choice"
@@ -699,6 +700,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 
       const body = request.postDataJSON() as {
         apply?: boolean;
+        question_scores?: Record<string, number>;
         rows?: Array<{
           enrollment_id: number;
           attendance?: "present" | "absent";
@@ -714,9 +716,9 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         const errors = (body.rows ?? []).flatMap((row, rowIndex) => {
           if (row.attendance === "absent") return [];
           return Object.entries(row.cells ?? {}).flatMap(([questionId, cell]) => {
-            const maxScore = options.sheetSize
-              ? 100 / options.sheetSize.questions
-              : Number(questionId) === QUESTION_IDS[0] ? 40 : 60;
+            const maxScore = body.question_scores?.[questionId] ?? persistedQuestionScores[questionId]
+              ?? (options.sheetSize ? 100 / options.sheetSize.questions
+                : Number(questionId) === QUESTION_IDS[0] ? 40 : 60);
             return typeof cell.score !== "number" || !Number.isFinite(cell.score)
               || cell.score < 0 || cell.score > maxScore
               ? [{ row: rowIndex + 1, field: `question_${questionId}`, message: `0점부터 ${maxScore}점까지 입력할 수 있습니다.` }]
@@ -743,6 +745,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       }
       if (body.apply === true) {
         applied = true;
+        if (options.validateScoreBounds) Object.assign(persistedQuestionScores, body.question_scores);
         for (const row of body.rows ?? []) {
           const persisted = ensurePersistedRow(row.enrollment_id);
           persisted.isNotSubmitted = row.attendance === "absent";
@@ -2565,6 +2568,49 @@ test.describe("문항별 직접 채점", () => {
       await dialog.getByRole("button", { name: "닫기", exact: true }).click();
       dialog = await openSheet();
       await expect(dialog.locator("input[data-manual-grade-cell]").first()).toHaveValue("0");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
+
+  for (const width of [1366, 390]) {
+    test(`직접 고친 미세 배점을 점수와 함께 저장하고 재조회한다 ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const apiState = await installApi(page, {
+        manualGradingMethod: "score", sheetSize: { students: 1, questions: 6 }, validateScoreBounds: true,
+      });
+      const openSheet = async () => {
+        await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "domcontentloaded" });
+        await chooseExamHeaderAction(page, "문항별 점수 입력");
+        const dialog = page.getByRole("dialog").filter({ hasText: "7월 진단평가 문항별 점수 입력" });
+        await dialog.getByRole("combobox", { name: "채점표 배율 선택" }).selectOption(width === 390 ? "50" : "100");
+        return dialog;
+      };
+      let dialog = await openSheet();
+      await dialog.getByRole("spinbutton", { name: "1번 배점", exact: true }).fill("16.6667");
+      const cells = dialog.locator("input[data-manual-grade-cell]");
+      for (let index = 0; index < 6; index += 1) await cells.nth(index).fill(index === 0 ? "16.6667" : String(100 / 6));
+      await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+      expect(apiState.postedRows.at(-1)).toMatchObject({
+        question_scores: { [QUESTION_IDS[0]]: 16.6667 },
+        expected_question_scores: { [QUESTION_IDS[0]]: 100 / 6 },
+      });
+      await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+      await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+      await expect(dialog.getByText("현재 저장된 성적 기준", { exact: true })).toBeVisible();
+      expect(apiState.postedRows.at(-1)).toMatchObject({
+        apply: true, question_scores: { [QUESTION_IDS[0]]: 16.6667 },
+        expected_question_scores: { [QUESTION_IDS[0]]: 100 / 6 },
+      });
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      dialog = await openSheet();
+      await expect(dialog.getByRole("spinbutton", { name: "1번 배점", exact: true })).toHaveValue("16.6667");
+      await expect(dialog.locator("input[data-manual-grade-cell]").first()).toHaveValue("16.6667");
+      // A numerically identical re-entry must not emit a spurious weight update.
+      await dialog.getByRole("spinbutton", { name: "1번 배점", exact: true }).fill("16.666700");
+      await dialog.locator("input[data-manual-grade-cell]").first().fill("0");
+      await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+      expect(apiState.postedRows.at(-1)).not.toHaveProperty("question_scores");
+      await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     });
   }

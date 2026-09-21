@@ -2821,7 +2821,7 @@ function buildQuestionScoreState(
       };
     }
     questionTotal += score;
-    if (question.editable && Math.abs(score - question.max_score) > 0.001) {
+    if (question.editable && score !== question.max_score) {
       hasChanges = true;
       questionScores[key] = score;
       expectedQuestionScores[key] = question.max_score;

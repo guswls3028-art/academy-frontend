@@ -481,12 +481,14 @@ async function verifyManualScorePrecision(
     await expect(clockIn).toBeHidden();
     for (const width of [1366, 390]) {
       let dialog = await openSheet(width);
+      const expectedMaximum = width === 390 ? 16.6667 : 100 / 6;
       const weights = dialog.getByRole("spinbutton", { name: /^\d+번 배점$/ });
       const cells = dialog.locator("input[data-manual-grade-cell]");
       for (let index = 0; index < 6; index += 1) {
         const maximum = await weights.nth(index).inputValue();
         expect(Number(maximum)).toBe(100 / 6);
-        await cells.nth(index).fill(width === 390 && index === 0 ? "0" : maximum);
+        if (width === 390) await weights.nth(index).fill(String(expectedMaximum));
+        await cells.nth(index).fill(width === 390 && index === 0 ? "0" : String(expectedMaximum));
       }
       await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
       await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
@@ -494,12 +496,20 @@ async function verifyManualScorePrecision(
         && new URL(response.url()).pathname === `/api/v1${manualPath}`
         && response.request().postDataJSON()?.apply === true).then(async (response) => {
         expect(response.status()).toBe(200);
-        const payload = response.request().postDataJSON() as { rows: Array<{ enrollment_id: number; cells: Record<string, { score: number }> }> };
+        const payload = response.request().postDataJSON() as {
+          question_scores?: Record<string, number>;
+          expected_question_scores?: Record<string, number>;
+          rows: Array<{ enrollment_id: number; cells: Record<string, { score: number }> }>;
+        };
         expect(payload.rows).toHaveLength(1);
         expect(payload.rows[0].enrollment_id).toBe(created.primaryEnrollmentId);
         for (const question of questions) {
-          expect(payload.rows[0].cells[String(question.id)].score).toBe(width === 390 && question.number === 1 ? 0 : 100 / 6);
+          expect(payload.rows[0].cells[String(question.id)].score).toBe(width === 390 && question.number === 1 ? 0 : expectedMaximum);
         }
+        if (width === 390) {
+          expect(payload.question_scores).toEqual(Object.fromEntries(questions.map((question) => [String(question.id), 16.6667])));
+          expect(payload.expected_question_scores).toEqual(Object.fromEntries(questions.map((question) => [String(question.id), 100 / 6])));
+        } else expect(payload).not.toHaveProperty("question_scores");
         return await response.json() as { applied: boolean; rows: Array<{ total_score: number }> };
       });
       await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
@@ -513,10 +523,11 @@ async function verifyManualScorePrecision(
       dialog = await openSheet(width);
       for (let index = 0; index < 6; index += 1) {
         await expect(dialog.locator("input[data-manual-grade-cell]").nth(index))
-          .toHaveValue(width === 390 && index === 0 ? "0" : String(100 / 6));
+          .toHaveValue(width === 390 && index === 0 ? "0" : String(expectedMaximum));
+        await expect(dialog.getByRole("spinbutton", { name: /^\d+번 배점$/ }).nth(index)).toHaveValue(String(expectedMaximum));
       }
       const persisted = await expectApi<ManualGradeSheet>(request, "GET", manualPath, staffTokens.access);
-      expect(persisted.questions.map((question) => question.max_score)).toEqual(Array(6).fill(100 / 6));
+      expect(persisted.questions.map((question) => question.max_score)).toEqual(Array(6).fill(expectedMaximum));
       expect((await waitForResult(request, studentTokens.access, exam.id)).total_score).toBe(expectedTotal);
       expect((await waitForResult(request, parentTokens.access, exam.id, student.id)).total_score).toBe(expectedTotal);
       await assertNoHorizontalOverflow(page);
