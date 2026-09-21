@@ -560,13 +560,15 @@ async function verifyStaffSubjectiveRecovery(page: Page, request: APIRequestCont
           const client = req.headers()["x-score-editor-client"];
           if (client) created.staffScoreEditorClientIds.add(client);
         });
-        const [scoresResponse] = await Promise.all([
+        const [scores] = await Promise.all([
           screen.waitForResponse((response) => matchesApiResponse(response, "GET",
-            `/results/admin/sessions/${created.sessionId}/scores/`), { timeout: 45_000 }),
+            `/results/admin/sessions/${created.sessionId}/scores/`), { timeout: 45_000 }).then(async (response) => {
+              expect(response.status()).toBe(200);
+              // Read while this document still owns the response; login also reloads.
+              return await response.json() as { meta?: { exams?: Array<{ exam_id: number }> } };
+            }),
           loginBrowserAsRealUser(screen, scorePath, { role: "staff", username, password: STUDENT_PASS }),
         ]);
-        expect(scoresResponse.status()).toBe(200);
-        const scores = await scoresResponse.json() as { meta?: { exams?: Array<{ exam_id: number }> } };
         expect(scores.meta?.exams?.some((exam) => Number(exam.exam_id) === created.examId)).toBe(true);
         await expect(screen.getByRole("button", { name: /표시 옵션/ })).toBeVisible({ timeout: 30_000 });
       }
