@@ -366,15 +366,20 @@ test.describe("조교 로그인 출근 선택", () => {
       await expect(choice).toBeHidden();
 
       const scoresRequested = page.waitForRequest((request) => new URL(request.url()).pathname === "/api/v1/results/admin/sessions/41/scores/");
-      const scoresResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/results/admin/sessions/41/scores/");
+      const scoresBody = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/results/admin/sessions/41/scores/")
+        .then(async (response) => {
+          expect(response.status()).toBe(200);
+          return await response.json() as { meta: { exams: Array<{ exam_id: number }> } };
+        });
       await page.goto(`${BASE}${scorePath}`, { waitUntil: "domcontentloaded" });
       await scoresRequested;
       const options = page.getByRole("button", { name: /표시 옵션/ });
       await expect(options).toHaveCount(0);
       releaseScores();
-      const response = await scoresResponse;
-      expect(response.status()).toBe(200);
-      expect((await response.json()).meta.exams.some((exam: { exam_id: number }) => exam.exam_id === 71)).toBe(true);
+      await expect(options).toBeVisible();
+      // The login helper reloads before its caller inspects the score metadata.
+      await page.reload({ waitUntil: "domcontentloaded" });
+      expect((await scoresBody).meta.exams.some((exam) => exam.exam_id === 71)).toBe(true);
       await expect(page).toHaveURL(`${BASE}${scorePath}`);
       await options.click();
       await expect(options).toHaveAttribute("aria-expanded", "true");
