@@ -317,6 +317,77 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test.describe("조교 로그인 출근 선택", () => {
+  for (const width of [1366, 390]) {
+    test(`${width}px에서 지연 로그인과 계정 안내를 마친 뒤 성적 화면을 준비한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const calls = await installClockApp(page, "/workspace/profile/attendance");
+      const scorePath = "/workspace/lectures/17/sessions/41/scores";
+      let releaseMe!: () => void;
+      const meGate = new Promise<void>((resolve) => { releaseMe = resolve; });
+      let releaseScores!: () => void;
+      const scoresGate = new Promise<void>((resolve) => { releaseScores = resolve; });
+      let needsGuide = true;
+      await page.route("**/api/v1/**", async (route) => {
+        const path = new URL(route.request().url()).pathname.replace(/^\/api\/v1/, "");
+        const json = (body: unknown) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+        if (path === "/core/me/") {
+          await meGate;
+          return json({ id: 77, username: "assistant77", name: "QA 조교", tenantRole: "staff", is_staff: true,
+            must_change_password: false, first_login_guide_required: needsGuide, linkedStudents: null });
+        }
+        if (path === "/core/me/first-login-guide/complete/") {
+          needsGuide = false;
+          return json({ tenantRole: "staff", must_change_password: false, first_login_guide_required: false });
+        }
+        if (path === "/lectures/sessions/41/") return json({ id: 41, lecture: 17, title: "QA 1차시", order: 1 });
+        if (path === "/lectures/lectures/17/") return json({ id: 17, title: "QA 강의" });
+        if (path === "/results/admin/sessions/41/scores/") {
+          await scoresGate;
+          return json({ session_id: 41, meta: { exams: [{ exam_id: 71, title: "QA OMR", max_score: 50, grading_mode: "mixed", questions: [] }], homeworks: [] }, rows: [] });
+        }
+        return route.fallback();
+      });
+      await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+      await page.getByTestId("login-username").fill("assistant77");
+      await page.getByTestId("login-password").fill("password");
+      const meRequested = page.waitForRequest((request) => new URL(request.url()).pathname === "/api/v1/core/me/");
+      await page.getByTestId("login-submit").click();
+      await meRequested;
+      await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
+      releaseMe();
+      await expect(page).toHaveURL(/\/workspace(?:\/|$)/);
+      const guide = page.getByRole("dialog", { name: "계정 안내", exact: true });
+      await expect(guide).toBeVisible();
+      await guide.getByRole("button", { name: "확인", exact: true }).click();
+      await expect(guide).toBeHidden();
+      const choice = page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?", exact: true });
+      await expect(choice).toBeVisible();
+      await choice.getByRole("button", { name: /^출근하지 않고 로그인/ }).click();
+      await expect(choice).toBeHidden();
+
+      const scoresRequested = page.waitForRequest((request) => new URL(request.url()).pathname === "/api/v1/results/admin/sessions/41/scores/");
+      const scoresResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/results/admin/sessions/41/scores/");
+      await page.goto(`${BASE}${scorePath}`, { waitUntil: "domcontentloaded" });
+      await scoresRequested;
+      const options = page.getByRole("button", { name: /표시 옵션/ });
+      await expect(options).toHaveCount(0);
+      releaseScores();
+      const response = await scoresResponse;
+      expect(response.status()).toBe(200);
+      expect((await response.json()).meta.exams.some((exam: { exam_id: number }) => exam.exam_id === 71)).toBe(true);
+      await expect(page).toHaveURL(`${BASE}${scorePath}`);
+      await options.click();
+      await expect(options).toHaveAttribute("aria-expanded", "true");
+      await expect(choice).toBeHidden();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL(`${BASE}${scorePath}`);
+      await expect(options).toBeVisible();
+      await expect(choice).toBeHidden();
+      expect(calls.startBodies).toHaveLength(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
+
   test("직원의 과거 비밀번호 권장 상태는 출근 선택을 막지 않는다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await installClockApp(
