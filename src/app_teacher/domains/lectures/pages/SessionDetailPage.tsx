@@ -8,6 +8,7 @@ import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import StudentNameWithLectureChip, { type LectureInfo } from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
@@ -586,8 +587,8 @@ function StudentsTab({
           : { label: "미체크", color: "var(--tc-text-muted)" };
 
         return (
+          <div key={e.id}>
           <button
-            key={e.id}
             onClick={() => studentId && navigate(`/workspace/mobile/students/${studentId}`)}
             className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
             style={{
@@ -610,6 +611,9 @@ function StudentsTab({
             </div>
             <StatusBadge label={st.label} color={st.color} />
           </button>
+          <StudentLectureMemo enrollmentId={enrollmentId} studentName={name}
+            lectureTitle={lectureInfo?.lectureName} lectureMemo={e.lecture_memo} studentMemo={e.student_memo} />
+          </div>
         );
       })}
     </div>
@@ -665,8 +669,8 @@ function AttendanceTab({ attendances, lectureInfo, navigate, sessionId }: { atte
           const name = a.student_name ?? a.name ?? "이름 없음";
           const st = STATUS_LABELS[a.status] ?? { label: a.status, color: "var(--tc-text-muted)" };
           return (
+            <div key={a.id}>
             <div
-              key={a.id}
               className="flex justify-between items-center py-2 border-b last:border-b-0"
               style={{ borderColor: "var(--tc-border)" }}
             >
@@ -676,6 +680,9 @@ function AttendanceTab({ attendances, lectureInfo, navigate, sessionId }: { atte
                 chipSize={18}
               />
               <StatusBadge label={st.label} color={st.color} />
+            </div>
+            {a.enrollment_id != null && <StudentLectureMemo enrollmentId={a.enrollment_id} studentName={name}
+              lectureTitle={lectureInfo?.lectureName} lectureMemo={a.lecture_memo} studentMemo={a.student_memo} />}
             </div>
           );
         })}

@@ -3020,6 +3020,22 @@ export interface paths {
         patch: operations["enrollments_partial_update"];
         trace?: never;
     };
+    "/api/v1/enrollments/{id}/lecture-memo/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["enrollments_lecture_memo_partial_update"];
+        trace?: never;
+    };
     "/api/v1/enrollments/bulk_create/": {
         parameters: {
             query?: never;
@@ -13093,6 +13109,9 @@ export interface components {
             readonly enrolled_at: string;
             readonly id: number;
             lecture: number;
+            readonly lecture_memo: string;
+            /** Format: date-time */
+            readonly lecture_memo_updated_at: string;
             status?: components["schemas"]["Status2d4Enum"];
             readonly student: components["schemas"]["StudentShort"];
             readonly tenant: number;
@@ -14114,6 +14133,73 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        LectureAttendance: {
+            enrollment_id: number;
+            readonly id: number;
+            /** @default #3b82f6 */
+            readonly lecture_color: string;
+            readonly lecture_memo: string;
+            /** Format: date-time */
+            readonly lecture_memo_updated_at: string;
+            readonly lecture_title: string;
+            memo?: string;
+            readonly name: string;
+            readonly name_highlight_clinic_target: boolean;
+            readonly parent_phone: string;
+            readonly phone: string | null;
+            /**
+             * Format: date
+             * @description 보강 학생의 예정 등원 날짜. 값이 있을 때 등원 예정으로 집계한다.
+             */
+            planned_arrival_date?: string | null;
+            /**
+             * Format: time
+             * @description 보강 학생의 예정 등원 시간. 날짜만 정해진 경우 비워둘 수 있다.
+             */
+            planned_arrival_time?: string | null;
+            readonly profile_photo_url: string | null;
+            session: number;
+            status?: components["schemas"]["LectureAttendanceStatusEnum"];
+            readonly student_id: number;
+            readonly student_memo: string;
+        };
+        LectureAttendanceRequest: {
+            enrollment_id: number;
+            memo?: string;
+            /**
+             * Format: date
+             * @description 보강 학생의 예정 등원 날짜. 값이 있을 때 등원 예정으로 집계한다.
+             */
+            planned_arrival_date?: string | null;
+            /**
+             * Format: time
+             * @description 보강 학생의 예정 등원 시간. 날짜만 정해진 경우 비워둘 수 있다.
+             */
+            planned_arrival_time?: string | null;
+            session: number;
+            status?: components["schemas"]["LectureAttendanceStatusEnum"];
+        };
+        /**
+         * @description * `UNSET` - 미입력
+         *     * `PRESENT` - 출석
+         *     * `LATE` - 지각
+         *     * `ONLINE` - 온라인
+         *     * `SUPPLEMENT` - 보강
+         *     * `EARLY_LEAVE` - 조퇴
+         *     * `ABSENT` - 결석
+         *     * `RUNAWAY` - 출튀
+         *     * `MATERIAL` - 자료
+         *     * `INACTIVE` - 부재
+         *     * `SECESSION` - 탈퇴
+         * @enum {string}
+         */
+        LectureAttendanceStatusEnum: "UNSET" | "PRESENT" | "LATE" | "ONLINE" | "SUPPLEMENT" | "EARLY_LEAVE" | "ABSENT" | "RUNAWAY" | "MATERIAL" | "INACTIVE" | "SECESSION";
+        LectureMemoResult: {
+            readonly id: number;
+            readonly lecture_memo: string;
+            /** Format: date-time */
+            readonly lecture_memo_updated_at: string;
+        };
         LectureProgress: {
             /** Format: int64 */
             completed_sessions?: number;
@@ -14790,6 +14876,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["InvoiceList"][];
+        };
+        PaginatedLectureAttendanceList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["LectureAttendance"][];
         };
         PaginatedLectureProgressList: {
             /** @example 123 */
@@ -15592,6 +15693,25 @@ export interface components {
             score?: number | null;
             status?: string | null;
             teacher_approved?: boolean;
+        };
+        PatchedLectureAttendanceRequest: {
+            enrollment_id?: number;
+            memo?: string;
+            /**
+             * Format: date
+             * @description 보강 학생의 예정 등원 날짜. 값이 있을 때 등원 예정으로 집계한다.
+             */
+            planned_arrival_date?: string | null;
+            /**
+             * Format: time
+             * @description 보강 학생의 예정 등원 시간. 날짜만 정해진 경우 비워둘 수 있다.
+             */
+            planned_arrival_time?: string | null;
+            session?: number;
+            status?: components["schemas"]["LectureAttendanceStatusEnum"];
+        };
+        PatchedLectureMemoRequest: {
+            lecture_memo?: string;
         };
         PatchedLectureRequest: {
             /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
@@ -17264,9 +17384,13 @@ export interface components {
             enrollment: number;
             readonly enrollment_status: string;
             readonly id: number;
+            readonly lecture_memo: string;
+            /** Format: date-time */
+            readonly lecture_memo_updated_at: string;
             session: number;
             readonly student_grade: number | null;
             readonly student_id: number;
+            readonly student_memo: string;
             readonly student_name: string;
             readonly student_school: string;
             readonly tenant: number;
@@ -23357,6 +23481,35 @@ export interface operations {
             };
         };
     };
+    enrollments_lecture_memo_partial_update: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Expected-Updated-At": string;
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedLectureMemoRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedLectureMemoRequest"];
+                "multipart/form-data": components["schemas"]["PatchedLectureMemoRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LectureMemoResult"];
+                };
+            };
+        };
+    };
     enrollments_bulk_create_create: {
         parameters: {
             query?: never;
@@ -27519,7 +27672,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedAttendanceList"];
+                    "application/json": components["schemas"]["PaginatedLectureAttendanceList"];
                 };
             };
         };
@@ -27533,9 +27686,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27544,7 +27697,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27566,7 +27719,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27583,9 +27736,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27594,7 +27747,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27632,9 +27785,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedAttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedAttendanceRequest"];
-                "multipart/form-data": components["schemas"]["PatchedAttendanceRequest"];
+                "application/json": components["schemas"]["PatchedLectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedLectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["PatchedLectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27643,7 +27796,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27662,7 +27815,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27676,9 +27829,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27687,7 +27840,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27701,9 +27854,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27712,7 +27865,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27726,9 +27879,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27737,7 +27890,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27751,9 +27904,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AttendanceRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["AttendanceRequest"];
-                "multipart/form-data": components["schemas"]["AttendanceRequest"];
+                "application/json": components["schemas"]["LectureAttendanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureAttendanceRequest"];
+                "multipart/form-data": components["schemas"]["LectureAttendanceRequest"];
             };
         };
         responses: {
@@ -27762,7 +27915,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };
@@ -27781,7 +27934,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Attendance"];
+                    "application/json": components["schemas"]["LectureAttendance"];
                 };
             };
         };

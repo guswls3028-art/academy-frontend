@@ -125,3 +125,10 @@
     padding-left: 44px;
   }
 }
+.attendance-memo-container {
+  container-type: inline-size;
+}
+
+.attendance-memo-container [data-student-memos] {
+  max-width: calc(100cqw - 24px);
+}

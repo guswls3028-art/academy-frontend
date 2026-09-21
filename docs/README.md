@@ -24,6 +24,7 @@
 | [ARRIVAL-OPERATIONS.md](ARRIVAL-OPERATIONS.md) | 보강 예정 입력과 클리닉 예약을 합친 대시보드·우상단 알림 운영 계약 |
 | [관리자](../src/app_admin/domains/clinic/README.md) · [선생님](../src/app_teacher/domains/clinic/README.md) · [학생](../src/app_student/domains/clinic/README.md) 클리닉 | 세션별 같은 날 다중 시간대 예약 정책과 역할별 생성·신청·추가 UX 계약 |
 | [LECTURE-SESSION-SCOPES.md](LECTURE-SESSION-SCOPES.md) | 강의 안의 정규 수업·보강 분리 진입, 보강 이름 생성·수정 계약 |
+| [STUDENT-LECTURE-MEMOS.md](STUDENT-LECTURE-MEMOS.md) | 학생 공통 메모와 학생별 강의 메모의 차시 공유·편집·동시 수정·직원 화면 계약 |
 | [REAL-USE-REVIEW-MANUAL.md](REAL-USE-REVIEW-MANUAL.md) | 실제 운영 흐름과 UI/UX 상품성을 함께 점검하는 반복 검수 매뉴얼 |
 | [REAL-USE-E2E-INVENTORY.md](REAL-USE-E2E-INVENTORY.md) | 기존 E2E 자산을 실사용 운영 리뷰 관점으로 분류한 인벤토리 |
 | [DEPLOYMENT-OPERATIONS.md](DEPLOYMENT-OPERATIONS.md) | Cloudflare preview/production/rollback, scoped token, PR 무쓰기 E2E, Actions 공급망, backend/frontend release-bundle readback 계약 |

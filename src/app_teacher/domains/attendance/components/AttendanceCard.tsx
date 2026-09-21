@@ -9,6 +9,7 @@ import {
   type AttendanceStatus,
 } from "../api";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
 import styles from "./AttendanceCard.module.css";
 
 interface Props {
@@ -105,6 +106,10 @@ export default function AttendanceCard({
           {cfg.label}
         </div>
       </div>
+      {record.enrollment_id != null && <StudentLectureMemo
+        enrollmentId={record.enrollment_id} studentName={studentName}
+        lectureTitle={lectureTitle} lectureMemo={record.lecture_memo} studentMemo={record.student_memo}
+      />}
     </div>
   );
 }
