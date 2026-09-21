@@ -1,0 +1,13 @@
+diff --git a/src/datachannel/streaming.go b/src/datachannel/streaming.go
+index 3bc9c2a2..e970aa72 100644
+--- a/src/datachannel/streaming.go
++++ b/src/datachannel/streaming.go
+@@ -282,7 +282,7 @@ func (dataChannel *DataChannel) SendInputDataMessage(
+ 	messageId := uuid.NewV4()
+ 
+ 	// today 'enter' is taken as 'next line' in winpty shell. so hardcoding 'next line' byte to actual 'enter' byte
+-	if bytes.Equal(inputData, []byte{10}) {
++	if dataChannel.sessionType == config.ShellPluginName && bytes.Equal(inputData, []byte{10}) {
+ 		inputData = []byte{13}
+ 	}
+ 

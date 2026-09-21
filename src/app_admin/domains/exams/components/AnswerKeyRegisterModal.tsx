@@ -316,7 +316,13 @@ export default function AnswerKeyRegisterModal({
     enabled: open && Number.isFinite(examId) && structureReady,
   });
 
-  const { data: answerKeyList } = useQuery({
+  const {
+    data: answerKeyList,
+    isSuccess: answerKeyLoaded,
+    isError: answerKeyLoadFailed,
+    isFetching: answerKeyFetching,
+    refetch: refetchAnswerKey,
+  } = useQuery({
     queryKey: adminExamsQueryKeys.answerKey(examId),
     queryFn: async () => {
       try {
@@ -327,7 +333,8 @@ export default function AnswerKeyRegisterModal({
       }
     },
     enabled: open && structureReady && questions.length > 0,
-    retry: (_, error: unknown) => getResponseStatus(error) !== 404,
+    staleTime: 0,
+    retry: (failureCount, error: unknown) => failureCount < 2 && getResponseStatus(error) !== 404,
   });
   /** DRF list는 pagination 시 { results: [] }, 미사용 시 [] — response.data 기준으로 파싱 */
   const answerKey = useMemo(() => {
@@ -349,6 +356,7 @@ export default function AnswerKeyRegisterModal({
   const [questionTypes, setQuestionTypes] = useState<QuestionKind[]>([]);
   const [totalCountInput, setTotalCountInput] = useState<CountDraft>("");
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [answerKeyHydrated, setAnswerKeyHydrated] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   /** 문항별 점수 드래프트 (문항 반영 시 초기값은 question.score) */
   const [scoreDraft, setScoreDraft] = useState<Record<number, number>>({});
@@ -389,6 +397,7 @@ export default function AnswerKeyRegisterModal({
     setQuestionTypes([]);
     setTotalCountInput("");
     setDraft({});
+    setAnswerKeyHydrated(false);
     setScoreDraft({});
     setScoreAdjustmentDraft({ objective: 0, subjective: 0 });
     setExplanationDraft({});
@@ -436,11 +445,13 @@ export default function AnswerKeyRegisterModal({
   const totalScore = questionTotalScore + scoreAdjustmentDraft.objective + scoreAdjustmentDraft.subjective;
 
   useEffect(() => {
-    if (!open) return;
-    if (!answerKey || !answerKey.answers) return;
-    setDraft(normalizeAnswers(answerKey.answers));
-    setScoreAdjustmentDraft(parseScoreAdjustment(answerKey.answers));
-  }, [answerKey, open]);
+    if (!open || !structureReady || !answerKeyLoaded || answerKeyFetching || answerKeyHydrated) return;
+    // Initial loading must not expose a fabricated empty key. Later refetches
+    // must not replace the operator's unsaved answers or score adjustment.
+    setDraft(normalizeAnswers(answerKey?.answers ?? {}));
+    setScoreAdjustmentDraft(parseScoreAdjustment(answerKey?.answers ?? {}));
+    setAnswerKeyHydrated(true);
+  }, [answerKey, answerKeyLoaded, answerKeyFetching, answerKeyHydrated, open, structureReady]);
 
   useEffect(() => {
     if (!open) return;
@@ -902,7 +913,7 @@ export default function AnswerKeyRegisterModal({
       type="action"
       width={MODAL_WIDTH.answerKey}
       onEnterConfirm={
-        activeTab === "answer" && hasQuestions && canEditStructure && !saveBusy && !initMut.isPending
+        activeTab === "answer" && hasQuestions && answerKeyHydrated && canEditStructure && !saveBusy && !initMut.isPending
           ? handleSave
           : undefined
       }
@@ -948,7 +959,19 @@ export default function AnswerKeyRegisterModal({
               시험 구조를 준비하는 중입니다.
             </div>
           )}
-          {structureReady && activeTab === "answer" && (
+          {structureReady && activeTab === "answer" && hasQuestions && !answerKeyHydrated && (
+            <div className="answer-key-empty" role={answerKeyLoadFailed ? "alert" : "status"}>
+              {answerKeyLoadFailed ? (
+                <>
+                  <p>답안을 불러오지 못했습니다. 다시 불러온 뒤 수정해 주세요.</p>
+                  <Button intent="secondary" size="sm" onClick={() => { void refetchAnswerKey(); }}>
+                    답안 다시 불러오기
+                  </Button>
+                </>
+              ) : "답안을 불러오는 중입니다."}
+            </div>
+          )}
+          {structureReady && activeTab === "answer" && (!hasQuestions || answerKeyHydrated) && (
             <>
             {/* 등록된 답안 요약 영역 제거 — 아래 문항 목록에서 동일 정보 제공 */}
             <section className="answer-key-type-map" aria-labelledby="answer-key-type-map-title">
@@ -1427,7 +1450,7 @@ export default function AnswerKeyRegisterModal({
             <Button intent="secondary" onClick={onClose}>
               취소
             </Button>
-            {activeTab === "answer" && hasQuestions && (
+            {activeTab === "answer" && hasQuestions && answerKeyHydrated && (
               <Button
                 intent="primary"
                 onClick={handleSave}
