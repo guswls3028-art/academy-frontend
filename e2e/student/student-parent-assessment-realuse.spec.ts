@@ -285,7 +285,9 @@ async function submitFirstStudentThroughUi(
     expect(submittedExam!.has_result === true || submittedExam!.submission_pending === true).toBe(true);
     const todo = page.locator("[data-guide='dash-todo']");
     await expect(todo.getByRole("heading", { name: /^(오늘 확인할 일이 있어요|오늘은 급한 일이 없어요)$/ })).toBeVisible();
-    await expect(todo.getByText(examTitle, { exact: true })).toHaveCount(0);
+    // A submitted exam may still require a retest or wrong-answer correction.
+    const upcoming = todo.getByRole("link", { name: /^다가오는 시험 / });
+    await expect(upcoming.filter({ hasText: examTitle })).toHaveCount(0);
   };
   for (const width of [390, 1366]) {
     await page.setViewportSize({ width, height: 900 });

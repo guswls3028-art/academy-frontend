@@ -69,6 +69,7 @@ async function installStudentApi(
     notificationClinic?: "retry-success" | "failure";
     failProfile?: boolean;
     pendingSubmittedExam?: boolean;
+    completedFollowupExam?: "retest" | "correction";
   } = {},
 ) {
   let firstImageAttempts = 0;
@@ -110,7 +111,8 @@ async function installStudentApi(
         display_name: options.legacyHtml ? escapedHtml("학원플러스", "strong") : "학원플러스",
         is_active: true,
         ui_config: options.legacyHtml ? { login_title: escapedHtml("학원플러스", "span") } : {},
-        feature_flags: {},
+        feature_flags: options.completedFollowupExam === "correction"
+          ? { assessment_status_display: "wrong_completion" } : {},
       } });
       return;
     }
@@ -199,7 +201,8 @@ async function installStudentApi(
           { title: "아직 제출하지 않은 시험", attempt_count: 0 },
           { title: "제출한 온라인 시험", attempt_count: 1, submission_pending: true },
           { title: "처리가 실패한 시험", attempt_count: 1, submission_pending: false },
-          { title: "채점 완료 시험", attempt_count: 1, has_result: true },
+          { title: "채점 완료 시험", attempt_count: 1, has_result: true,
+            pass_score: options.completedFollowupExam === "retest" ? 70 : 50 },
         ].map((exam, index) => ({
           id: 501 + index,
           open_at: new Date().toISOString(),
@@ -396,6 +399,19 @@ async function installStudentApi(
       return;
     }
     if (path.endsWith("/student/grades/")) {
+      if (options.completedFollowupExam) {
+        const grades = emptyGrades(504);
+        grades.exams[0] = {
+          ...grades.exams[0], title: "채점 완료 시험", total_score: 60,
+          is_pass: options.completedFollowupExam === "correction",
+          achievement: options.completedFollowupExam === "correction" ? "PASS" : "FAIL",
+        };
+        await route.fulfill({ json: {
+          ...grades,
+          exams: grades.exams.map((exam) => ({ ...exam, correction_status: "PENDING" })),
+        } });
+        return;
+      }
       await route.fulfill({ json: options.legacyHtml ? {
         exams: [{
           exam_id: 501,
@@ -582,6 +598,26 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await expect(page.getByText("제출한 온라인 시험", { exact: true })).toBeVisible();
       await expect(page.getByText("응시완료", { exact: true }).first()).toBeVisible();
     });
+  }
+  for (const mode of ["retest", "correction"] as const) {
+    for (const width of [1366, 390]) {
+      test(`제출 후 예정 시험에서 빠져도 ${mode} 할 일은 유지한다 ${width}`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await installStudentApi(page, { pendingSubmittedExam: true, completedFollowupExam: mode });
+        await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+        for (let pass = 0; pass < 2; pass += 1) {
+          const todo = page.locator("[data-guide='dash-todo']");
+          const upcoming = todo.getByRole("link", { name: /^다가오는 시험 / });
+          const followup = todo.getByRole("link", { name: mode === "correction" ? /^오답 미완료 / : /^재시험 필요 / });
+          await expect(todo.getByRole("heading", { name: "오늘 확인할 일이 있어요", exact: true })).toBeVisible();
+          await expect(upcoming).toContainText("아직 제출하지 않은 시험, 처리가 실패한 시험");
+          await expect(followup).toContainText("채점 완료 시험");
+          await expect(upcoming.filter({ hasText: "채점 완료 시험" })).toHaveCount(0);
+          await assertNoRenderedHtmlLeak(page);
+          if (pass === 0) await page.reload({ waitUntil: "domcontentloaded" });
+        }
+      });
+    }
   }
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
