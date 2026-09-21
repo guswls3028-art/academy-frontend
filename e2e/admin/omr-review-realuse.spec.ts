@@ -275,8 +275,21 @@ async function loginBrowserAsRealUser(
   expect(activeSession.hasLegacyRefresh).toBe(false);
   if (previousGeneration) expect(activeSession.generation).not.toBe(previousGeneration);
 
+  if (expected.role === "staff") {
+    // LoginPage sets the staff prompt and navigates after /core/me/ resolves.
+    // Complete that navigation before opening another document.
+    await expect(page).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+    await completeInitialAccountPrompts(page, currentUser, expected);
+    const clockInChoice = page.getByRole("dialog", {
+      name: "오늘 어떤 방식으로 시작할까요?", exact: true,
+    });
+    await expect(clockInChoice).toBeVisible();
+    await clockInChoice.getByRole("button", { name: /^출근하지 않고 로그인/ }).click();
+    await expect(clockInChoice).toBeHidden();
+  }
+
   await gotoAndSettle(page, `${BASE}${landingPath}`, { timeout: 45_000 });
-  await completeInitialAccountPrompts(page, currentUser, expected);
+  if (expected.role !== "staff") await completeInitialAccountPrompts(page, currentUser, expected);
 
   const reloadedMeResponsePromise = page.waitForResponse(
     (response) => matchesApiResponse(response, "GET", "/core/me/") && response.status() === 200,
@@ -288,6 +301,10 @@ async function loginBrowserAsRealUser(
   expect(reloadedUser.first_login_guide_required).toBe(false);
   await expect(page.getByRole("dialog", { name: "비밀번호 변경 권장" })).toBeHidden();
   await expect(page.getByRole("dialog", { name: "계정 안내" })).toBeHidden();
+  if (expected.role === "staff") {
+    await expect(page).toHaveURL(`${BASE}${landingPath}`);
+    await expect(page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?", exact: true })).toBeHidden();
+  }
   expect(await page.evaluate(() => (
     localStorage.getItem("academy:auth-active-generation:v1")
   ))).toBe(activeSession.generation);
@@ -543,7 +560,15 @@ async function verifyStaffSubjectiveRecovery(page: Page, request: APIRequestCont
           const client = req.headers()["x-score-editor-client"];
           if (client) created.staffScoreEditorClientIds.add(client);
         });
-        await loginBrowserAsRealUser(screen, scorePath, { role: "staff", username, password: STUDENT_PASS });
+        const [scoresResponse] = await Promise.all([
+          screen.waitForResponse((response) => matchesApiResponse(response, "GET",
+            `/results/admin/sessions/${created.sessionId}/scores/`), { timeout: 45_000 }),
+          loginBrowserAsRealUser(screen, scorePath, { role: "staff", username, password: STUDENT_PASS }),
+        ]);
+        expect(scoresResponse.status()).toBe(200);
+        const scores = await scoresResponse.json() as { meta?: { exams?: Array<{ exam_id: number }> } };
+        expect(scores.meta?.exams?.some((exam) => Number(exam.exam_id) === created.examId)).toBe(true);
+        await expect(screen.getByRole("button", { name: /표시 옵션/ })).toBeVisible({ timeout: 30_000 });
       }
       const [first, second] = screens;
       await editSubjective(first);
