@@ -2,10 +2,11 @@
 // 통합 알림톡 템플릿 — 자동 채움 변수 안내 + #{내용} 편집 가이드
 // 솔라피 리스트형 템플릿의 하드코딩 구조를 선생님에게 시각적으로 보여줌
 
-/* eslint-disable react-refresh/only-export-components, no-restricted-syntax -- helper 함수 + 컴포넌트 한 파일 SSOT + 안내 패널 inline style (2026-05-14 baseline shift fix) */
+/* eslint-disable react-refresh/only-export-components -- helper 함수 + 컴포넌트 한 파일 SSOT */
 
 import { getBlockColor } from "../constants/templateBlocks";
 import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
+import "./AlimtalkTemplateInfoPanel.css";
 import {
   getAlimtalkTemplateLabel,
   getAlimtalkTemplateType,
@@ -212,86 +213,21 @@ export default function AlimtalkTemplateInfoPanel({
   const autoVars = TEMPLATE_AUTO_VARS[templateType] || [];
   const description = TEMPLATE_TYPE_DESCRIPTIONS[templateType] || "";
   const typeLabel = TEMPLATE_TYPE_LABELS[templateType] || getAlimtalkTemplateLabel(templateType);
-  const bodyEditable = isAlimtalkTemplateBodyEditable(templateType);
-
   return (
-     
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {/* 템플릿 타입 뱃지 */}
-      { }
-      <div style={{
-        display: "inline-flex", alignItems: "center", gap: 6,
-        padding: "5px 12px", borderRadius: 8,
-        background: "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))",
-        border: "1px solid color-mix(in srgb, var(--color-primary) 20%, transparent)",
-        fontSize: 12, fontWeight: 700, color: "var(--color-primary)",
-        alignSelf: "flex-start",
-      }}>
-        알림톡 · {typeLabel}
-      </div>
-
-      {/* 설명 */}
-      { }
-      <p style={{
-        fontSize: 11, lineHeight: 1.5,
-        color: "var(--color-text-muted)",
-        margin: 0,
-      }}>
-        {description}
-      </p>
-
-      {/* 자동 채움 변수 */}
-      { }
-      <div style={{
-        fontSize: 10, fontWeight: 700,
-        color: "var(--color-text-muted)",
-        letterSpacing: "0.3px",
-        marginTop: 4,
-      }}>
-        자동으로 들어가는 정보
-      </div>
-      { }
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <section className="alimtalk-template-info" aria-label={`${typeLabel} 자동 입력 정보`}>
+      <p className="alimtalk-template-info__title">알림톡 · {typeLabel}</p>
+      <p className="alimtalk-template-info__description">{description}</p>
+      <p className="alimtalk-template-info__label">자동으로 들어가는 정보</p>
+      <dl className="alimtalk-template-info__values">
         {autoVars.map((v) => (
-           
-          <div
-            key={v.label}
-            style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "4px 10px", borderRadius: 6,
-              background: v.bg, border: `1px solid ${v.border}`,
-              fontSize: 11,
-            }}
-          >
-            { }
-            <span style={{ fontWeight: 700, color: v.color, minWidth: 60 }}>{v.label}</span>
-            { }
-            <span style={{ color: "var(--color-text-muted)", fontSize: 10 }}>
+          <div key={v.label} className="alimtalk-template-info__row">
+            <dt>{v.label}</dt>
+            <dd>
               {v.label === "학원이름" || v.label === "학원명" ? academyName || "학원 정보 확인 중" : "자동 입력"}
-            </span>
+            </dd>
           </div>
         ))}
-      </div>
-
-      {/* 안내 */}
-      { }
-      <div style={{
-        marginTop: 4, padding: "6px 10px", borderRadius: 6,
-        background: "color-mix(in srgb, var(--color-status-info, #2563eb) 6%, transparent)",
-        border: "1px solid color-mix(in srgb, var(--color-status-info, #2563eb) 15%, transparent)",
-        fontSize: 10, lineHeight: 1.5,
-        color: "var(--color-status-info, #2563eb)",
-      }}>
-        {bodyEditable ? (
-          <>
-            아래 본문에 안내문만 작성하면 됩니다.
-          </>
-        ) : (
-          <>
-            정해진 안내문으로 발송됩니다.
-          </>
-        )}
-      </div>
-    </div>
+      </dl>
+    </section>
   );
 }
