@@ -5,6 +5,9 @@
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
 import type { SendPreflightResponse } from "../../src/app_admin/domains/messages/api/messages.api";
+import type { ManualGradeSheet } from "../../src/app_admin/domains/results/api/manualExamGrading";
+import type { ExamsListResponse } from "../../src/app_student/domains/exams/api/exams.api";
+import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import {
   api,
   assertNoHorizontalOverflow,
@@ -40,6 +43,9 @@ type CreatedState = {
   lectureId?: number;
   sessionId?: number;
   examId?: number;
+  manualExamId?: number;
+  manualStaffId?: number;
+  primaryEnrollmentId?: number;
   enrollmentIds: number[];
   sessionEnrollmentIds: number[];
   submissionIds: number[];
@@ -69,6 +75,7 @@ const todayKst = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).fo
 const lectureTitle = `QA 학부모 평가 ${runStamp}`;
 const sessionTitle = `QA 학부모 평가 1차시 ${runStamp}`;
 const examTitle = `QA 학부모 성적 projection ${runStamp}`;
+const manualExamTitle = `QA 서술형 소수 배점 ${runStamp}`;
 
 async function waitForResult(
   request: APIRequestContext,
@@ -115,6 +122,11 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.examId && created.sessionId) {
     await remove("DELETE", `/exams/${created.examId}/?session_id=${created.sessionId}`);
   }
+  if (created.manualExamId && created.sessionId) {
+    await remove("DELETE", `/exams/${created.manualExamId}/?session_id=${created.sessionId}`);
+  }
+  // Staff deletion deactivates tenant access; the outer owned-tenant cleanup proves User zero.
+  if (created.manualStaffId) await remove("DELETE", `/staffs/${created.manualStaffId}/`);
   for (const id of created.sessionEnrollmentIds) {
     await remove("DELETE", `/enrollments/session-enrollments/${id}/`);
   }
@@ -133,6 +145,10 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     ...(created.examId && created.sessionId
       ? [[`exam ${created.examId}`, `/exams/${created.examId}/?session_id=${created.sessionId}`] as const]
       : []),
+    ...(created.manualExamId && created.sessionId
+      ? [[`manual exam ${created.manualExamId}`, `/exams/${created.manualExamId}/?session_id=${created.sessionId}`] as const]
+      : []),
+    ...(created.manualStaffId ? [[`manual staff ${created.manualStaffId}`, `/staffs/${created.manualStaffId}/`] as const] : []),
     ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
     ...(created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
     ...(created.messageTemplateId ? [[`message template ${created.messageTemplateId}`, `/messaging/templates/${created.messageTemplateId}/`] as const] : []),
@@ -169,7 +185,7 @@ async function seedAssessment(
   });
   created.sessionId = Number(session.id);
 
-  const enrollments = await expectApi<Array<{ id: number }>>(
+  const enrollments = await expectApi<Array<{ id: number; student: { id: number } }>>(
     request,
     "POST",
     "/enrollments/bulk_create/",
@@ -177,6 +193,8 @@ async function seedAssessment(
     { lecture: created.lectureId, students: family.students.map((student) => student.id) },
   );
   created.enrollmentIds = enrollments.map((row) => Number(row.id));
+  created.primaryEnrollmentId = Number(enrollments.find((row) => Number(row.student.id) === family.students[0].id)?.id);
+  expect(created.primaryEnrollmentId).toBeGreaterThan(0);
 
   const sessionEnrollments = await expectApi<Array<{ id: number }>>(
     request,
@@ -195,6 +213,7 @@ async function seedAssessment(
     pass_score: 50,
     max_score: 100,
     answer_visibility: "hidden",
+    open_at: new Date().toISOString(),
   });
   created.examId = Number(exam.id);
 
@@ -230,6 +249,8 @@ async function submitFirstStudentThroughUi(
 ): Promise<number> {
   await page.setViewportSize({ width: 390, height: 844 });
   await loginThroughUi(page, student.ps_number, student.password);
+  await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
+  await expect(page.locator("[data-guide='dash-todo']").getByText(examTitle, { exact: true })).toBeVisible();
   await gotoAndSettle(page, `${QA_BASE}/student/exams/${examId}/submit`, { timeout: 30_000 });
   await expect(page.getByText(examTitle)).toBeVisible();
   for (const [number, answer] of [[1, "1"], [2, "4"], [3, "3"], [4, "4"], [5, "1"]] as const) {
@@ -239,14 +260,41 @@ async function submitFirstStudentThroughUi(
   const submitResponse = page.waitForResponse((response) => (
     response.request().method() === "POST"
     && new URL(response.url()).pathname.endsWith(`/api/v1/student/exams/${examId}/submit/`)
-  ));
+  )).then(async (response) => {
+    expect(response.status()).toBe(201);
+    const id = Number((await response.json() as { submission_id: number }).submission_id);
+    if (Number.isInteger(id) && id > 0) created.submissionIds.push(id);
+    expect(id).toBeGreaterThan(0);
+    return id;
+  });
   await page.getByRole("button", { name: "제출하기" }).click();
   await page.locator("[data-confirm-dialog]").getByRole("button", { name: "제출" }).click();
-  const submitted = await submitResponse;
-  expect(submitted.status()).toBe(201);
-  const submissionId = Number((await submitted.json() as { submission_id: number }).submission_id);
-  expect(submissionId).toBeGreaterThan(0);
+  const submissionId = await submitResponse;
   await page.waitForURL(`**/student/exams/${examId}/result`, { timeout: 45_000 });
+  const expectSubmittedDashboard = async (navigate: () => Promise<unknown>) => {
+    // Consume the browser response before a later reload can discard its body.
+    const exams = page.waitForResponse((response) => response.request().method() === "GET"
+      && new URL(response.url()).pathname === "/api/v1/student/exams/").then(async (response) => {
+      expect(response.status()).toBe(200);
+      return await response.json() as ExamsListResponse;
+    });
+    await navigate();
+    const submittedExam = (await exams).items.find((item) => item.id === examId);
+    expect(submittedExam).toBeDefined();
+    expect(submittedExam!.attempt_count).toBeGreaterThan(0);
+    expect(submittedExam!.has_result === true || submittedExam!.submission_pending === true).toBe(true);
+    const todo = page.locator("[data-guide='dash-todo']");
+    await expect(todo.getByRole("heading", { name: /^(오늘 확인할 일이 있어요|오늘은 급한 일이 없어요)$/ })).toBeVisible();
+    await expect(todo.getByText(examTitle, { exact: true })).toHaveCount(0);
+  };
+  for (const width of [390, 1366]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectSubmittedDashboard(() => gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 }));
+    await expectSubmittedDashboard(() => reloadStudentApp(page));
+    await assertNoHorizontalOverflow(page);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${QA_BASE}/student/exams/${examId}/result`, { timeout: 30_000 });
   await waitForRenderSettled(page, { timeout: 20_000 });
   await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2", "5"]);
   await assertNoHorizontalOverflow(page);
@@ -274,7 +322,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     const [primary, peer] = created.family.students;
     await seedAssessment(request, admin.access, created.family);
 
-    created.submissionIds.push(await submitFirstStudentThroughUi(page, primary, created.examId!));
+    await submitFirstStudentThroughUi(page, primary, created.examId!);
     const primaryTokens = await loginApi(request, primary.ps_number, primary.password);
     const primaryResult = await waitForResult(request, primaryTokens.access, created.examId!);
     expect(primaryResult).toMatchObject({
@@ -295,15 +343,17 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     const parentSubmitResponse = page.waitForResponse((response) => (
       response.request().method() === "POST"
       && new URL(response.url()).pathname.endsWith(`/api/v1/student/exams/${created.examId}/submit/`)
-    ));
+    )).then(async (response) => {
+      expect(response.status()).toBe(201);
+      const id = Number((await response.json() as { submission_id: number }).submission_id);
+      if (Number.isInteger(id) && id > 0) created.submissionIds.push(id);
+      expect(response.request().headers()["x-student-id"]).toBe(String(peer.id));
+      expect(id).toBeGreaterThan(0);
+      return id;
+    });
     await page.getByRole("button", { name: "제출하기" }).click();
     await page.locator("[data-confirm-dialog]").getByRole("button", { name: "제출" }).click();
-    const parentSubmitted = await parentSubmitResponse;
-    expect(parentSubmitted.status()).toBe(201);
-    expect(parentSubmitted.request().headers()["x-student-id"]).toBe(String(peer.id));
-    const parentSubmissionId = Number((await parentSubmitted.json() as { submission_id: number }).submission_id);
-    expect(parentSubmissionId).toBeGreaterThan(0);
-    created.submissionIds.push(parentSubmissionId);
+    const parentSubmissionId = await parentSubmitResponse;
     await page.waitForURL(`**/student/exams/${created.examId}/result`, { timeout: 45_000 });
     await expect(page.getByTestId("wrong-number-chip")).toHaveText(["1", "2", "3", "4"]);
     expect(await waitForResult(request, parentTokens.access, created.examId!, peer.id)).toMatchObject({
@@ -356,10 +406,132 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await verifyScoreMessageTemplate(page, request, admin, primary);
+    await verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens);
     boundary.assertClean();
     browser.assertZeroDefects();
   });
 });
+
+async function verifyManualScorePrecision(
+  parentPage: Page,
+  request: APIRequestContext,
+  admin: QaTokens,
+  student: QaStudent,
+  studentTokens: QaTokens,
+  parentTokens: QaTokens,
+): Promise<void> {
+  const exam = await expectApi<{ id: number }>(request, "POST", "/exams/", admin.access, {
+    title: manualExamTitle, description: "qa-* exact manual score precision",
+    exam_type: "regular", session_id: created.sessionId,
+    grading_mode: "written", manual_grading_method: "score",
+    max_score: 100, pass_score: 50, answer_visibility: "hidden",
+  }, [201]);
+  created.manualExamId = Number(exam.id);
+  const questions = await expectApi<Array<{ id: number; number: number; score: number }>>(
+    request, "POST", `/exams/${exam.id}/questions/init/`, admin.access,
+    { total_questions: 6, question_types: Array(6).fill("essay"), default_score: 100 / 6 },
+  );
+  expect(questions).toHaveLength(6);
+  for (const question of questions) expect(question.score).toBe(100 / 6);
+  await expectApi(request, "PUT", `/exams/${exam.id}/enrollments/?session_id=${created.sessionId}`, admin.access,
+    { enrollment_ids: [created.primaryEnrollmentId] }, [200]);
+
+  const username = `qa-score-assistant-${runStamp}`;
+  const staff = await expectApi<{ id: number }>(request, "POST", "/staffs/", admin.access, {
+    name: `QA 점수 조교 ${runStamp}`, role: "ASSISTANT", username,
+    password: student.password, is_manager: false,
+  }, [201]);
+  created.manualStaffId = Number(staff.id);
+  const staffTokens = await loginApi(request, username, student.password);
+  const identity = await expectApi<{ tenantRole: string }>(request, "GET", "/core/me/", staffTokens.access);
+  expect(identity.tenantRole).toBe("staff");
+  const context = await parentPage.context().browser()!.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
+  const page = await context.newPage();
+  const boundary = await installQaStudentParentBoundary(page, request);
+  const guards = attachStrictBrowserGuards(page);
+  const scoresPath = `/results/admin/sessions/${created.sessionId}/scores/`;
+  const manualPath = `/results/admin/exams/${exam.id}/manual-grading/`;
+  const openSheet = async (width: number) => {
+    await page.setViewportSize({ width, height: 900 });
+    const ready = page.waitForResponse((response) => response.request().method() === "GET"
+      && new URL(response.url()).pathname === `/api/v1${scoresPath}`).then(async (response) => {
+      expect(response.status()).toBe(200);
+      return await response.json() as { meta: { exams: Array<{ exam_id: number }> } };
+    });
+    await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`, { timeout: 30_000 });
+    expect((await ready).meta.exams.some((item) => item.exam_id === exam.id)).toBe(true);
+    await page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }).click();
+    await page.getByRole("menu", { name: `${manualExamTitle} 작업 선택`, exact: true })
+      .getByRole("menuitem", { name: /^문항별 점수 입력/ }).click();
+    const dialog = page.getByRole("dialog").filter({ hasText: `${manualExamTitle} 문항별 점수 입력` });
+    await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(6);
+    await dialog.getByRole("combobox", { name: "채점표 배율 선택" }).selectOption(width === 390 ? "50" : "100");
+    return dialog;
+  };
+  try {
+    await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`, { timeout: 45_000 });
+    await page.getByTestId("login-username").fill(username);
+    await page.getByTestId("login-password").fill(student.password);
+    await page.getByTestId("login-submit").click();
+    await expect(page).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+    await acknowledgeInitialAccountPromptsIfVisible(page);
+    const clockIn = page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?", exact: true });
+    await expect(clockIn).toBeVisible();
+    await clockIn.getByRole("button", { name: /^출근하지 않고 로그인/ }).click();
+    await expect(clockIn).toBeHidden();
+    for (const width of [1366, 390]) {
+      let dialog = await openSheet(width);
+      const weights = dialog.getByRole("spinbutton", { name: /^\d+번 배점$/ });
+      const cells = dialog.locator("input[data-manual-grade-cell]");
+      for (let index = 0; index < 6; index += 1) {
+        const maximum = await weights.nth(index).inputValue();
+        expect(Number(maximum)).toBe(100 / 6);
+        await cells.nth(index).fill(width === 390 && index === 0 ? "0" : maximum);
+      }
+      await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+      await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+      const saved = page.waitForResponse((response) => response.request().method() === "POST"
+        && new URL(response.url()).pathname === `/api/v1${manualPath}`
+        && response.request().postDataJSON()?.apply === true).then(async (response) => {
+        expect(response.status()).toBe(200);
+        const payload = response.request().postDataJSON() as { rows: Array<{ enrollment_id: number; cells: Record<string, { score: number }> }> };
+        expect(payload.rows).toHaveLength(1);
+        expect(payload.rows[0].enrollment_id).toBe(created.primaryEnrollmentId);
+        for (const question of questions) {
+          expect(payload.rows[0].cells[String(question.id)].score).toBe(width === 390 && question.number === 1 ? 0 : 100 / 6);
+        }
+        return await response.json() as { applied: boolean; rows: Array<{ total_score: number }> };
+      });
+      await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+      const result = await saved;
+      // The manual-grading service rounds the sum to two decimal places.
+      const expectedTotal = width === 390 ? 83.33 : 100;
+      expect(result.applied).toBe(true);
+      expect(result.rows[0].total_score).toBe(expectedTotal);
+      await expect(dialog.getByText("현재 저장된 성적 기준", { exact: true })).toBeVisible();
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      dialog = await openSheet(width);
+      for (let index = 0; index < 6; index += 1) {
+        await expect(dialog.locator("input[data-manual-grade-cell]").nth(index))
+          .toHaveValue(width === 390 && index === 0 ? "0" : String(100 / 6));
+      }
+      const persisted = await expectApi<ManualGradeSheet>(request, "GET", manualPath, staffTokens.access);
+      expect(persisted.questions.map((question) => question.max_score)).toEqual(Array(6).fill(100 / 6));
+      expect((await waitForResult(request, studentTokens.access, exam.id)).total_score).toBe(expectedTotal);
+      expect((await waitForResult(request, parentTokens.access, exam.id, student.id)).total_score).toBe(expectedTotal);
+      await assertNoHorizontalOverflow(page);
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+    }
+    await gotoAndSettle(parentPage, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+    const parentCard = parentPage.getByRole("link").filter({ hasText: manualExamTitle }).first();
+    await expect(parentCard).toBeVisible();
+    await expect(parentCard).toContainText(/83\.3/);
+    boundary.assertClean();
+    guards.assertZeroDefects();
+  } finally {
+    await context.close();
+  }
+}
 
 async function verifyScoreMessageTemplate(
   parentPage: Page,

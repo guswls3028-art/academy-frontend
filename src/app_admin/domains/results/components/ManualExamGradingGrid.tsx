@@ -2029,6 +2029,8 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
               <th className={styles.attendanceColumn}>응시</th>
               {visibleQuestions.map((question) => {
                 const key = String(question.question_id);
+                // Exact fractional bounds need enough space to remain readable when zoomed.
+                const scoreInputStyle = { width: `${Math.max(8, (questionScoreDraft[key] ?? "").length + 4)}ch` };
                 const answerType = getQuestionAnswerType(question);
                 const answerTypeClass =
                   answerType === "choice"
@@ -2051,8 +2053,10 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
                         <input
                           type="number"
                           min={0}
-                          step="0.1"
+                          step="any"
                           value={questionScoreDraft[key] ?? ""}
+                          style={scoreInputStyle}
+                          title={`${questionScoreDraft[key] ?? ""}점`}
                           disabled={busy || isOverviewMode}
                           aria-label={`${question.number}번 배점`}
                           onChange={(event) =>
@@ -2579,10 +2583,10 @@ function ScoreCell({
         type="number"
         min={0}
         max={maxScore}
-        step="0.1"
+        step="any"
         value={value ?? ""}
         disabled={disabled}
-        aria-label={`${studentName} ${questionNumber}번 ${formatScore(maxScore)}점 만점 점수`}
+        aria-label={`${studentName} ${questionNumber}번 ${formatScoreInput(maxScore)}점 만점 점수`}
         data-manual-grade-cell
         data-row-index={rowIndex}
         data-column-index={columnIndex}
@@ -2853,5 +2857,6 @@ function formatScore(value: number): string {
 }
 
 function formatScoreInput(value: number): string {
-  return Number(value.toFixed(4)).toString();
+  // Editable bounds must round-trip to the server's score, including repeating decimals.
+  return String(value);
 }

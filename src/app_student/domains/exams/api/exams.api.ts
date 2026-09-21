@@ -16,6 +16,7 @@ export type StudentExam = {
   session_id?: number | null;
   status?: string;
   has_result?: boolean;
+  submission_pending?: boolean;
   attempt_count?: number;
   student_results_published?: boolean;
 };

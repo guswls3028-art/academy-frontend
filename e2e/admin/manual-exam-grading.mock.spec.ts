@@ -77,6 +77,7 @@ type InstallApiOptions = {
   examType?: "regular" | "template";
   gradingMode?: "choice" | "written" | "mixed";
   manualGradingMethod?: "correctness" | "score";
+  validateScoreBounds?: boolean;
   editable?: boolean;
   hasQuestions?: boolean;
   initialStates?: [GradeState, GradeState];
@@ -709,6 +710,24 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         }>;
       };
       postedRows.push(body);
+      if (options.validateScoreBounds && manualGradingMethod === "score") {
+        const errors = (body.rows ?? []).flatMap((row, rowIndex) => {
+          if (row.attendance === "absent") return [];
+          return Object.entries(row.cells ?? {}).flatMap(([questionId, cell]) => {
+            const maxScore = options.sheetSize
+              ? 100 / options.sheetSize.questions
+              : Number(questionId) === QUESTION_IDS[0] ? 40 : 60;
+            return typeof cell.score !== "number" || !Number.isFinite(cell.score)
+              || cell.score < 0 || cell.score > maxScore
+              ? [{ row: rowIndex + 1, field: `question_${questionId}`, message: `0점부터 ${maxScore}점까지 입력할 수 있습니다.` }]
+              : [];
+          });
+        });
+        if (errors.length > 0) {
+          await json({ ok: false, applied: false, errors, rows: [], matched_count: 0 }, body.apply ? 400 : 200);
+          return;
+        }
+      }
       if (body.apply === true && nextManualApplyDelayMs > 0) {
         const delay = nextManualApplyDelayMs;
         nextManualApplyDelayMs = 0;
@@ -2466,6 +2485,89 @@ test.describe("문항별 직접 채점", () => {
     await expect(dialog.getByRole("spinbutton", { name: "1번 배점", exact: true })).toHaveValue("40");
     await expect(dialog.getByRole("spinbutton", { name: "2번 배점", exact: true })).toHaveValue("60");
   });
+
+  for (const width of [1366, 1100, 390]) {
+    test(`서술형 점수의 표시 상한 그대로 입력해 확정하고 재조회한다 ${width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const apiState = await installApi(page, {
+        manualGradingMethod: "score",
+        sheetSize: { students: 1, questions: 6 },
+        validateScoreBounds: true,
+      });
+      const openSheet = async () => {
+        await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "domcontentloaded" });
+        await chooseExamHeaderAction(page, "문항별 점수 입력");
+        const opened = page.getByRole("dialog").filter({ hasText: "7월 진단평가 문항별 점수 입력" });
+        await opened.getByRole("combobox", { name: "채점표 배율 선택" }).selectOption(width === 390 ? "50" : "100");
+        return opened;
+      };
+      let dialog = await openSheet();
+      let cells = dialog.locator("input[data-manual-grade-cell]");
+      await expect(cells).toHaveCount(6);
+      const weights = dialog.getByRole("spinbutton", { name: /^\d+번 배점$/ });
+      for (const scale of ["100", "50"]) {
+        await dialog.getByRole("combobox", { name: "채점표 배율 선택" }).selectOption(scale);
+        const geometry = await weights.evaluateAll((elements) => elements.map((element) => {
+          const input = element as HTMLInputElement;
+          const header = input.closest("th")!;
+          const headRect = header.getBoundingClientRect();
+          const inputRect = input.getBoundingClientRect();
+          const style = getComputedStyle(input);
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d")!;
+          context.font = style.font;
+          const neededWidth = context.measureText(input.value).width
+            + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight) + 18;
+          const bodyCell = header.closest("table")!.tBodies[0].rows[0].cells[header.cellIndex];
+          const bodyRect = bodyCell.getBoundingClientRect();
+          const nextRect = header.nextElementSibling?.getBoundingClientRect();
+          return {
+            textFits: input.clientWidth >= neededWidth,
+            insideHeader: inputRect.left >= headRect.left && inputRect.right <= headRect.right,
+            alignedBody: Math.abs(bodyRect.left - headRect.left) < 1 && Math.abs(bodyRect.right - headRect.right) < 1,
+            noAdjacentOverlap: !nextRect || nextRect.left >= headRect.right - 1,
+          };
+        }));
+        expect(geometry).toEqual(Array(6).fill({ textFits: true, insideHeader: true, alignedBody: true, noAdjacentOverlap: true }));
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      }
+      await weights.first().scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`exact-score-weights-${width}.png`) });
+      for (let index = 0; index < 6; index += 1) {
+        // Read the editable value visible in the weight header, not a hidden max attribute.
+        const displayedMaximum = await weights.nth(index).inputValue();
+        await expect(weights.nth(index)).toHaveAttribute("title", `${displayedMaximum}점`);
+        await cells.nth(index).fill(displayedMaximum);
+      }
+      await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+      await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+      for (const cell of await cells.all()) {
+        await expect(cell).toHaveAttribute("max", String(100 / 6));
+        await expect(cell).toHaveAccessibleName(new RegExp(`${String(100 / 6).replaceAll(".", "\\.")}점 만점 점수$`));
+      }
+      await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+      await expect.poll(() => apiState.applied).toBe(true);
+      await expect(dialog.getByText("현재 저장된 성적 기준", { exact: true })).toBeVisible();
+      const published = apiState.postedRows.at(-1) as { rows: Array<{ cells: Record<string, { score: number }> }> };
+      expect(Object.values(published.rows[0].cells).map((cell) => cell.score)).toEqual(Array(6).fill(100 / 6));
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      dialog = await openSheet();
+      cells = dialog.locator("input[data-manual-grade-cell]");
+      for (const cell of await cells.all()) await expect(cell).toHaveValue(String(100 / 6));
+      await cells.first().fill("17");
+      await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+      await expect(dialog.getByText("확정 전에 수정할 항목이 있습니다.", { exact: true })).toBeVisible();
+      await expect(cells.first()).toHaveValue("17");
+      await cells.first().fill("0");
+      await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+      await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+      await expect(dialog.getByText("현재 저장된 성적 기준", { exact: true })).toBeVisible();
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      dialog = await openSheet();
+      await expect(dialog.locator("input[data-manual-grade-cell]").first()).toHaveValue("0");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
 
   test("점수형 문항도 셀 전체에서 편집하고 방향키로 이동한다", async ({ page }) => {
     const apiState = await installApi(page, { manualGradingMethod: "score" });

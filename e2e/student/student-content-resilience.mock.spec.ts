@@ -68,6 +68,7 @@ async function installStudentApi(
     imageDeliveryFailure?: boolean;
     notificationClinic?: "retry-success" | "failure";
     failProfile?: boolean;
+    pendingSubmittedExam?: boolean;
   } = {},
 ) {
   let firstImageAttempts = 0;
@@ -193,6 +194,25 @@ async function installStudentApi(
       return;
     }
     if (path.endsWith("/student/exams/")) {
+      if (options.pendingSubmittedExam) {
+        await route.fulfill({ json: { items: [
+          { title: "아직 제출하지 않은 시험", attempt_count: 0 },
+          { title: "제출한 온라인 시험", attempt_count: 1, submission_pending: true },
+          { title: "처리가 실패한 시험", attempt_count: 1, submission_pending: false },
+          { title: "채점 완료 시험", attempt_count: 1, has_result: true },
+        ].map((exam, index) => ({
+          id: 501 + index,
+          open_at: new Date().toISOString(),
+          close_at: null,
+          allow_retake: false,
+          max_attempts: 1,
+          pass_score: 60,
+          max_score: 100,
+          has_result: false,
+          ...exam,
+        })) } });
+        return;
+      }
       await route.fulfill({ json: { items: options.legacyHtml ? [{
         id: 501,
         title: escapedHtml("진단 평가", "strong"),
@@ -544,6 +564,25 @@ function imageNotice() {
 
 test.describe("학생·학부모 콘텐츠 안정성", () => {
   test.skip(!IS_LOCAL_BASE, "Local route-mock contract spec.");
+
+  for (const width of [1366, 1100, 390]) {
+    test(`제출한 시험은 채점 전에도 예정 시험 할 일에서 빠진다 ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await installStudentApi(page, { pendingSubmittedExam: true });
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      for (let pass = 0; pass < 2; pass += 1) {
+        const todo = page.locator("[data-guide='dash-todo']");
+        await expect(todo.getByText(/다가오는 시험 2건/)).toBeVisible();
+        await expect(todo.getByText("아직 제출하지 않은 시험, 처리가 실패한 시험", { exact: true })).toBeVisible();
+        await expect(todo.getByText(/제출한 온라인 시험/)).toHaveCount(0);
+        await assertNoRenderedHtmlLeak(page);
+        if (pass === 0) await page.reload({ waitUntil: "domcontentloaded" });
+      }
+      await page.goto(`${BASE}/student/exams`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      await expect(page.getByText("제출한 온라인 시험", { exact: true })).toBeVisible();
+      await expect(page.getByText("응시완료", { exact: true }).first()).toBeVisible();
+    });
+  }
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
   test("여러 번 이스케이프된 공지 HTML을 안전하게 복원하고 붙여넣기 레이아웃을 격리한다", async ({ page }) => {

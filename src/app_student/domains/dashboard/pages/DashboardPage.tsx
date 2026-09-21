@@ -300,7 +300,8 @@ export default function DashboardPage() {
     const items = examsResp?.items ?? [];
     return items
       .map((e) => ({ exam: e, d: daysUntil(e.open_at) }))
-      .filter((x) => x.d != null && x.d >= 0 && x.d <= 7 && !x.exam.has_result)
+      .filter((x) => x.d != null && x.d >= 0 && x.d <= 7
+        && !x.exam.has_result && !x.exam.submission_pending)
       .sort((a, b) => (a.d ?? 0) - (b.d ?? 0));
   }, [examsResp]);
 
