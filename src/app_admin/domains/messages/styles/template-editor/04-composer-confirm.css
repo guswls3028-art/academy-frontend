@@ -507,6 +507,24 @@
     min-width: 0;
   }
 
+  /* Keep recipient controls first, with the composer before long score previews. */
+  .send-modal__left {
+    display: contents;
+  }
+
+  .send-modal__left > .send-modal__card {
+    order: 2;
+  }
+
+  .send-modal__left > .send-modal__card--recipient,
+  .send-modal__left > .send-modal__card--timing {
+    order: 0;
+  }
+
+  .send-modal__right {
+    order: 1;
+  }
+
   .send-modal__card {
     padding: var(--space-3);
   }
@@ -554,7 +572,8 @@
 
   .send-modal__var-palette {
     width: 100%;
-    max-height: 260px;
+    max-height: none;
+    overflow: visible;
   }
 
   .send-modal__var-palette-toggle {

@@ -544,7 +544,7 @@ export default function SendMessageModal({
         if (cancelled) return;
         setPreflightResults([]);
         setPreflightResultKey("");
-        setPreflightError(extractApiError(error, "발송 전 확인에 실패했습니다."));
+        setPreflightError(extractApiError(error, "발송 가능 여부를 확인하지 못했습니다."));
       } finally {
         if (!cancelled) setPreflightLoading(false);
       }
@@ -982,9 +982,9 @@ export default function SendMessageModal({
       return `빠진 정보: ${list} — 본문에서 채워 주세요`;
     }
     if (hasQualityBlockers) return qualityBlockers[0]?.title ?? "문구 확인이 필요합니다";
-    if (preflightChecking) return "발송 전 확인 중입니다";
+    if (preflightChecking) return "발송 가능 여부 확인 중입니다";
     if (preflightError) return preflightError;
-    if (preflightBlockers.length > 0) return preflightBlockers[0]?.detail || preflightBlockers[0]?.title || "발송 전 확인 필요";
+    if (preflightBlockers.length > 0) return preflightBlockers[0]?.detail || preflightBlockers[0]?.title || "발송 조건 확인 필요";
     if (preflightReady && !preflightPreviewReady) return "실제 카카오 미리보기를 준비하지 못했습니다. 잠시 후 다시 시도해 주세요";
     return null;
   })();
@@ -1071,7 +1071,7 @@ export default function SendMessageModal({
               )}
             </section>
 
-            <section className="send-modal__card">
+            <section className="send-modal__card send-modal__card--timing">
               <div className="send-modal__card-label">발송 시점</div>
               <div className="send-modal__timing-toggle" role="group" aria-label="발송 시점">
                 <button
@@ -1134,7 +1134,7 @@ export default function SendMessageModal({
                       : "ok"
               }
             >
-              <div className="send-modal__card-label">발송 전 확인</div>
+              <div className="send-modal__card-label">발송 가능 상태</div>
               {!frontendReady ? (
                 <div className="send-modal__preflight-muted">
                   수신자·본문·예약 시각이 준비되면 자동으로 확인합니다.
@@ -1265,7 +1265,7 @@ export default function SendMessageModal({
                 <div className="send-modal__quality-status">
                   <div className="send-modal__quality-title">
                     <AlertTriangle size={ICON.xs} />
-                    발송 전 확인
+                    확인이 필요한 내용
                   </div>
                   {qualityIssues.map((issue) => (
                     <div key={issue.id} className="send-modal__quality-row" data-severity={issue.severity}>

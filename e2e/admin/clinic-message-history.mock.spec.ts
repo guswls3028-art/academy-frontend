@@ -199,7 +199,8 @@ test("클리닉 알림 설정은 예약부터 최종 전달까지 상태를 구�
   await expect(editor.getByText("자동으로 들어가는 정보", { exact: true })).toBeVisible();
   await expect(editor.getByText("학원이름", { exact: true })).toBeVisible();
   await expect(editor.getByText("학생이름", { exact: true })).toBeVisible();
-  await expect(editor.getByText("아래 본문에 안내문만 작성하면 됩니다.", { exact: true })).toBeVisible();
+  await expect(editor.getByRole("region", { name: "클리닉 안내 자동 입력 정보" }))
+    .toContainText("선생님은 안내문만 작성하면 됩니다.");
   await expect(editor.getByRole("textbox", { name: "안내문" })).toBeEditable();
   await expect(editor.getByRole("textbox", { name: "안내문" })).toHaveText("준비물을 확인해 주세요.");
   await expect(editor.getByRole("button", { name: /학원이름|학생이름|클리닉 장소|클리닉 날짜|클리닉 시간/ })).toHaveCount(0);

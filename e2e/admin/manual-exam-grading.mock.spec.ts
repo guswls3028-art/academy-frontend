@@ -65,6 +65,15 @@ function contrastRatio(foreground: string, background: string): number {
 }
 
 type InstallApiOptions = {
+  answerKeyScenario?: {
+    answers: Record<string, string> | null;
+    score: number;
+    reads: number;
+    writes: Array<Record<string, string>>;
+    methods?: string[];
+    failReads: boolean;
+    readGate?: Promise<void>;
+  };
   examType?: "regular" | "template";
   gradingMode?: "choice" | "written" | "mixed";
   manualGradingMethod?: "correctness" | "score";
@@ -288,7 +297,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       await json({ count: 0, results: [] });
       return;
     }
-    if (path === `/exams/${EXAM_ID}/`) {
+    if (path === `/exams/${EXAM_ID}/` || (options.answerKeyScenario && path === `/exams/${EXAM_ID}/structure/ensure/`)) {
       if (method === "PATCH") {
         const body = request.postDataJSON() as {
           grading_mode?: "choice" | "written" | "mixed";
@@ -312,7 +321,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         max_score: 100,
         grading_mode: gradingMode,
         manual_grading_method: manualGradingMethod,
-        choice_question_count: 0,
+        choice_question_count: options.answerKeyScenario ? 2 : 0,
         segmentation_status: segmentationStatus,
         source_filename: segmentationStatus === "ready" ? "july.pdf" : "",
         display_order: 0,
@@ -536,6 +545,34 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           explanation_missing: false,
         }],
       });
+      return;
+    }
+    if (options.answerKeyScenario && path === `/exams/${EXAM_ID}/omr/defaults/`) {
+      await json({ mc_count: 2, essay_count: 0, question_types: ["choice", "choice"], n_choices: 5, choice_question_numbers: [1, 2], essay_question_numbers: [] });
+      return;
+    }
+    if (options.answerKeyScenario && path === `/exams/${EXAM_ID}/questions/`) {
+      await json(QUESTION_IDS.map((id, index) => ({ id, sheet: 1801, number: index + 1, score: index ? 99 : options.answerKeyScenario!.score, question_kind: "choice" })));
+      return;
+    }
+    if (options.answerKeyScenario && path === `/exams/questions/${QUESTION_IDS[0]}/` && method === "PATCH") {
+      options.answerKeyScenario.score = Number(request.postDataJSON().score);
+      await json({ id: QUESTION_IDS[0], sheet: 1801, number: 1, score: options.answerKeyScenario.score, question_kind: "choice" });
+      return;
+    }
+    if (options.answerKeyScenario && (path === "/exams/answer-keys/" || path === "/exams/answer-keys/1801/")) {
+      const state = options.answerKeyScenario;
+      if (method === "GET") {
+        state.reads += 1;
+        await state.readGate;
+        if (state.failReads) { await json({ detail: "답안을 불러오지 못했습니다." }, 503); return; }
+        await json(state.answers ? [{ id: 1801, exam: EXAM_ID, answers: state.answers }] : []);
+      } else {
+        state.answers = request.postDataJSON().answers;
+        state.writes.push({ ...state.answers });
+        state.methods?.push(method);
+        await json({ id: 1801, exam: EXAM_ID, answers: state.answers }, method === "POST" ? 201 : 200);
+      }
       return;
     }
     if (
@@ -848,6 +885,110 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     postedRows,
   };
 }
+
+test.describe("답안 초기 로드와 입력 보존", () => {
+  test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+  test.use({ serviceWorkers: "block" });
+
+  for (const width of [1366, 390]) {
+    for (const mode of ["deferred", "fast", "retry-empty"] as const) {
+      test(`${mode} · ${width}px에서 정답과 배점 저장·복원`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.route("**/*", (route) => new URL(route.request().url()).origin === BASE ? route.continue() : route.abort());
+        let release: (() => void) | undefined;
+        const state: NonNullable<InstallApiOptions["answerKeyScenario"]> = {
+          answers: mode === "retry-empty" ? null : { "1001": "1", "1002": "2" },
+          score: 1, reads: 0, writes: [], methods: [], failReads: mode === "retry-empty",
+          readGate: mode === "deferred" ? new Promise<void>((resolve) => { release = resolve; }) : undefined,
+        };
+        await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
+        const openAnswers = async () => {
+          await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
+          await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+          return page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+        };
+        await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+        const dialog = await openAnswers();
+        const row = dialog.locator(".answer-key-row--choice").first();
+        const choice = (value: string) => row.getByRole("checkbox", { name: `1번 ${value}번 선택지`, exact: true });
+        if (mode === "deferred") {
+          await expect(dialog.getByRole("status")).toHaveText("답안을 불러오는 중입니다.");
+          await expect(row).toHaveCount(0);
+          release!();
+          state.readGate = undefined;
+        } else if (mode === "retry-empty") {
+          await expect(dialog.getByRole("alert")).toContainText("답안을 불러오지 못했습니다.");
+          // The shared GET transport also has two retries per query attempt.
+          expect(state.reads).toBeLessThanOrEqual(9);
+          await expect(row).toHaveCount(0);
+          state.failReads = false;
+          const retry = dialog.getByRole("button", { name: "답안 다시 불러오기", exact: true });
+          await retry.focus();
+          await retry.press("Enter");
+        }
+        await expect(row).toBeVisible();
+        if (mode !== "retry-empty") await expect(choice("1")).toBeChecked();
+        // Same sequential selection as the official OMR journey, now after real hydration.
+        for (const value of ["1", "2"]) {
+          if (await choice(value).isChecked() !== (value === "2")) await row.locator(".answer-key-omr-label").nth(Number(value) - 1).click();
+        }
+        await expect(choice("1")).not.toBeChecked();
+        await expect(choice("2")).toBeChecked();
+        if (mode === "deferred") {
+          const priorReads = state.reads;
+          state.answers = { "1001": "3", "1002": "2" };
+          await page.evaluate(() => {
+            window.dispatchEvent(new Event("offline"));
+            window.dispatchEvent(new Event("online"));
+          });
+          await expect.poll(() => state.reads).toBeGreaterThan(priorReads);
+          await expect(choice("2")).toBeChecked();
+          await expect(choice("3")).not.toBeChecked();
+        }
+        await row.getByRole("button", { name: "+5", exact: true }).click();
+        await row.getByRole("button", { name: "+5", exact: true }).click();
+        await dialog.getByRole("button", { name: "저장 (총 110점)", exact: true }).click();
+        await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+        expect(state.writes.at(-1)?.["1001"]).toBe("2");
+        expect(state.score).toBe(11);
+        expect(state.methods?.[0]).toBe(mode === "retry-empty" ? "POST" : "PUT");
+        await expect(choice("2")).toBeChecked();
+        expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+        await dialog.getByRole("button", { name: "취소", exact: true }).click();
+        if (mode === "deferred") {
+          state.readGate = new Promise<void>((resolve) => { release = resolve; });
+          state.answers = { "1001": "4", "1002": "2" };
+          await openAnswers();
+          await expect(dialog.getByRole("status")).toHaveText("답안을 불러오는 중입니다.");
+          await expect(row).toHaveCount(0);
+          release!();
+          state.readGate = undefined;
+          await expect(choice("4")).toBeChecked();
+          await expect(choice("2")).not.toBeChecked();
+          await dialog.getByRole("button", { name: "취소", exact: true }).click();
+          state.answers = { "1001": "2", "1002": "2" };
+        }
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await openAnswers();
+        await expect(choice("2")).toBeChecked();
+        await expect(row.locator(".answer-key-row__score-val")).toHaveText("11점");
+        await row.locator(".answer-key-omr-label").nth(1).click();
+        await row.locator(".answer-key-omr-label").nth(0).click();
+        await row.getByRole("button", { name: "점수 초기화", exact: true }).click();
+        await row.getByRole("button", { name: "+1", exact: true }).click();
+        await dialog.getByRole("button", { name: "저장 (총 100점)", exact: true }).click();
+        await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+        expect(state.writes.at(-1)?.["1001"]).toBe("1");
+        expect(state.score).toBe(1);
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await openAnswers();
+        await expect(choice("1")).toBeChecked();
+        await expect(choice("2")).not.toBeChecked();
+        await expect(row.locator(".answer-key-row__score-val")).toHaveText("1점");
+      });
+    }
+  }
+});
 
 test.describe("문항별 직접 채점", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
@@ -1622,6 +1763,9 @@ test.describe("문항별 직접 채점", () => {
     });
     const popup = await popupPromise;
     await expect.poll(() => apiState.previewRequestCount).toBe(1);
+    // The counter increments before the deferred response. Finish that request
+    // before arming a failure for the next logical preview operation.
+    await expect(popup).toHaveURL(`${BASE}/favicon.svg?submission=${DONE_SUBMISSION_ID}`);
     expect(apiState.inventoryPresignCount).toBe(0);
     expect(page.context().pages()).toHaveLength(2);
     await popup.close();
@@ -1636,6 +1780,14 @@ test.describe("문항별 직접 채점", () => {
     await expect.poll(() => apiState.previewRequestCount).toBe(2);
     await expect.poll(() => failedPopup.isClosed()).toBe(true);
     await expect(page.getByRole("status").filter({ hasText: "파일을 열 수 없습니다." })).toHaveCount(1);
+
+    const recoveredPopupPromise = page.waitForEvent("popup");
+    await viewButton.click();
+    const recoveredPopup = await recoveredPopupPromise;
+    await expect(recoveredPopup).toHaveURL(`${BASE}/favicon.svg?submission=${DONE_SUBMISSION_ID}`);
+    expect(apiState.previewRequestCount).toBe(3);
+    await expect(page.getByRole("status").filter({ hasText: "파일을 열 수 없습니다." })).toHaveCount(0);
+    await recoveredPopup.close();
 
     await page.getByRole("button", { name: "식별하기", exact: true }).click();
     const omrDialog = page.getByRole("dialog", { name: "OMR 검토" });

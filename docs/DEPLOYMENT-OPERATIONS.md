@@ -329,6 +329,18 @@ document 내용 및 host parameter deny를 읽고, unique active 인스턴스의
 profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의 hash와 revision을
 실행 전후 비교한다. 신규 계정 password는 정확한 개발 SecureString 하나만 메모리에서
 사용하며 운영 credential은 development job에 전달하지 않는다.
+개발 API 포트 전달은 [SSM 포트 전달 계약](../scripts/ssm-binary-safe/README.md)의 고정 소스 custom SSM
+plugin을 사용한다. 기존 plugin의 단독 LF→CR 변환이 smux1024/1 분할에서 HTTP
+헤더를 손상시키므로, 해당 변환을 기존 shell 세션에만 제한한다. Go1.26.8·정확한
+upstream commit·패치·회귀검사·OS별 실행 파일 digest를 고정하고, PR/main 필수
+품질 검사에서 Linux 빌드와 실행을 확인한다. 개발 job은 같은 workflow run의
+`binary-safe-ssm` artifact만 내려받아 고정 파일의 실행 mode를 복원한다.
+이후 `ACADEMY_SSM_TOOLCHAIN_DIR`의 manifest와
+실제 파일 hash/custom version이 일치하지 않으면 QA 생성 전에 실패한다. 포트
+세션 자식의 PATH만 바꾸며 Setup/Cleanup 명령 세션과 전역 설치는 유지한다.
+최종 증거의 `binarySafePortTransport`에 고정 provenance를 기록한다. 실패 시
+기존 도구로 자동 fallback하거나 앱 요청 본문·패딩·재시도·timeout을 변경하지 않는다.
+공식 Linux 재빌드·동일 산출물 실사용·정리0이 성공해야 운영 승격할 수 있다.
 개발 배포 실사용의 `loginViaUI`는 새 QA 계정에 표시되는 일회성 `계정 안내`를 정확한
 `확인` 동작으로 완료한 뒤 공지·Q&A·클리닉 흐름을 계속한다. 이 완료 쓰기는
 `qa-ymath-realuse-*` 개발 tenant에서만 허용되며 운영 read-only 실행에는 적용하지 않는다.
@@ -601,7 +613,7 @@ parser 테스트가 소유한다. snapshot 복사·중복/역순 교체·상한�
 두 종료 순서·listener 해제, canonical clinic/OPTIONS, mutation 재전송 0 및 기존
 500ms 조회 재시도 정책을 검증한다. 로컬 선택 테스트는 공식 real-use gate가 아니다.
 
-로컬 child 제한은 QA operation 240초, tunnel 25분, tests 30분이다. timeout은 TERM 후
+로컬 child 제한은 QA operation 240초, tunnel 35분, tests 30분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
 20초 제한이다. SIGINT/SIGTERM은 작업 중 child를 중단하여 finally를 시도하고 무조건
 실패 처리한다. 정리 중 추가 신호는 새 작업을 시작하지 않으며 cleanup 완료를 기다린다.
@@ -616,8 +628,10 @@ job timeout은 40분이며 main의 후속 push에 의한 자동 취소는 꺼져
 GitHub 강제 취소의 짧은 grace, SIGKILL, runner/host 소실, IAM·네트워크 상실에서는
 finally 실행·evidence 업로드·tenant cleanup을 보장할 수 없다. 미완료 파일이 있으면
 실패 상태가 유지되고, 파일이 없거나 job이 cancelled/failed여도 deploy success 조건을
-만족하지 못한다. 서버 세션 제한(QA 5분/Port 25분, idle 각 5분)은 tunnel/세션의 수명만
-제한하며 tenant 자동 삭제 장치가 아니다. 그런 잔여는 HOLD 상태에서 exact ownership을
+만족하지 못한다. 서버 Port 세션의 최대 수명은 로컬 tunnel 제한보다 짧아서는 안 된다.
+서버 세션 제한과 실제 적용·종료 증거의 정본은
+[backend 세션 제한](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/persistent-development-runtime.md#세션-제한과-장애-경계)이다.
+세션 수명 제한은 tenant 자동 삭제 장치가 아니다. 그런 잔여는 HOLD 상태에서 exact ownership을
 검토해 별도 복구해야 하고 capability 분실을 이유로 다른 run의 자원을 자동 채택하지 않는다.
 문서의 시간 제한·Linux process-group escalation·실제 AWS 종료 동작은 로컬 Windows
 child 종료 회귀나 IAM simulation만으로 검증됐다고 표현하지 않는다.

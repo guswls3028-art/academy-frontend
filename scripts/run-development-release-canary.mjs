@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "./release-playback-end-proxy.mjs";
+import { binarySafeSsmEnvironment } from "./binary-safe-ssm.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REGION = "ap-northeast-2";
@@ -1158,12 +1159,14 @@ export async function run() {
   let capability;
   let crossTenant;
   let crossCapability;
+  let portTransport;
   const evidence = await runPreflightStages([
     ["process", () => {
       assert.equal(process.env.GITHUB_ACTIONS, "true", "Official CI only; no implicit local synthetic run");
       assert.equal(process.env.GITHUB_EVENT_NAME, "push");
       assert.equal(process.env.GITHUB_REF, "refs/heads/main");
       assert.match(process.env.GITHUB_SHA || "", /^[a-f0-9]{40}$/);
+      portTransport = binarySafeSsmEnvironment(process.env.ACADEMY_SSM_TOOLCHAIN_DIR);
       identity = aws(["sts", "get-caller-identity"]);
       assert.equal(identity.Account, ACCOUNT);
       assert.match(identity.Arn, /:assumed-role\/academy-frontend-development-qa\/academy-fe-qa-[0-9-]+$/);
@@ -1222,6 +1225,7 @@ export async function run() {
       assert.equal(online[0].PingStatus, "Online");
     }],
   ], persistEvidence, process.env.GITHUB_SHA);
+  evidence.binarySafePortTransport = portTransport.manifest;
   const ownerParameters = (ownerTenant, ownerCapability, syntheticLongVideo) => ({
     TenantCode: [ownerTenant], OwnershipCapability: [ownerCapability],
     ReleaseId: [manifest.releaseImageTag], ApiDigest: [manifest.images["academy-api"].digest],
@@ -1246,7 +1250,8 @@ export async function run() {
     assert.equal(canonical(JSON.parse(current.Content)), expectedDocuments.get(name), "Fixed document changed before operation");
     const process = ownedProcess("aws", ["ssm", "start-session", "--region", REGION, "--target", instanceId,
       "--document-name", name, "--parameters", JSON.stringify(parameters)],
-    { stdio: ["pipe", "pipe", "pipe"] }, name === PORT_DOCUMENT ? TUNNEL_TIMEOUT_MS : 240_000);
+    { stdio: ["pipe", "pipe", "pipe"], ...(name === PORT_DOCUMENT ? { env: portTransport.env } : {}) },
+    name === PORT_DOCUMENT ? TUNNEL_TIMEOUT_MS : 240_000);
     processes.push(process);
     return process;
   }

@@ -370,17 +370,41 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await selectBothStudentsAndOpen(page);
 
     const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+    const editor = modal.getByRole("textbox", { name: "안내문" });
+    await expect(editor).toBeVisible();
+    await modal.getByRole("button", { name: "정보 넣기", exact: true }).click();
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect.poll(() => modal.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      if (width === 390) {
+        const previewTop = await modal.locator(".send-modal__card--preview").evaluate((node) => node.getBoundingClientRect().top);
+        expect((await editor.boundingBox())!.y).toBeLessThan(previewTop);
+        const palette = modal.locator(".send-modal__var-palette");
+        await expect(palette).toBeVisible();
+        expect(await palette.evaluate((node) => node.scrollHeight <= node.clientHeight + 1)).toBe(true);
+      }
+      await page.screenshot({ path: testInfo.outputPath(`score-alimtalk-editor-${width}.png`) });
+    }
+    await page.setViewportSize({ width: 1366, height: 900 });
     await expect(modal.getByRole("checkbox", { name: "학부모" })).toBeChecked();
     const studentRecipientCheckbox = modal.getByRole("checkbox", { name: "학생" });
     await expect(studentRecipientCheckbox).toBeChecked();
     await studentRecipientCheckbox.uncheck();
     const requestButton = modal.locator(".send-modal__send-btn");
     await expect(requestButton).toBeEnabled();
+    expect(sendPayloads).toHaveLength(0);
     await requestButton.click();
 
     const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
     const preview = page.getByLabel("카카오톡 실제 발송 미리보기");
     await expect(confirm).toBeVisible();
+    expect(sendPayloads).toHaveLength(0);
+    await confirm.getByRole("button", { name: "돌아가기", exact: true }).click();
+    await expect(confirm).toBeHidden();
+    expect(sendPayloads).toHaveLength(0);
+    await requestButton.click();
+    await expect(confirm).toBeVisible();
+    expect(sendPayloads).toHaveLength(0);
     await expect(preview).toContainText("개인화학생1");
     await expect(preview).toContainText("주간 확인");
     await expect(preview).toContainText("70/100");

@@ -13,6 +13,7 @@ import "./release-video-scope.test.mjs";
 import "./release-native-keepalive.test.mjs";
 import "./release-omr-image-boundary.test.mjs";
 import "./release-homework-image-boundary.test.mjs";
+import "./binary-safe-ssm.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
@@ -1346,7 +1347,7 @@ test("fixed SSM sessions keep stdin open until delayed JSON readback closes the 
   });
   const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
   assert.match(source,
-    /"--parameters", JSON\.stringify\(parameters\)\],\s*\{ stdio: \["pipe", "pipe", "pipe"\] \},/);
+    /"--parameters", JSON\.stringify\(parameters\)\],\s*\{ stdio: \["pipe", "pipe", "pipe"\], \.\.\.\(name === PORT_DOCUMENT \? \{ env: portTransport\.env \} : \{\}\) \},/);
 });
 
 test("a timed-out owned process with held-open stdin is killed and reaped", { timeout: 10_000 }, async () => {
@@ -1442,6 +1443,24 @@ test("development CI never borrows the backend production role or production cre
   assert.match(development, /id-token: write/);
   assert.match(development, /role\/academy-frontend-development-qa/);
   assert.doesNotMatch(development, /academy-gha-ecr-build|secrets\.E2E_|environment: production|AWS_ACCESS_KEY_ID/);
+});
+
+test("binary-safe SSM is built before credentials and used only by the port session", () => {
+  const quality = job("quality-check");
+  const development = job("development-canary");
+  assert.match(quality, /node scripts\/binary-safe-ssm\.mjs/);
+  assert.match(quality, /go-version: "1\.26\.8"/);
+  assert.match(quality, /name: binary-safe-ssm/);
+  assert.doesNotMatch(quality, /aws-actions\/configure-aws-credentials|id-token: write/);
+  const artifact = development.indexOf("name: binary-safe-ssm");
+  assert.ok(artifact >= 0 && artifact < development.indexOf("Assume frontend development QA role"));
+  assert.match(development, /chmod 0755 .*\/bin\/session-manager-plugin/);
+  assert.doesNotMatch(development, /run-id:|repository:|github-token:/);
+  assert.match(development, /ACADEMY_SSM_TOOLCHAIN_DIR:/);
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.match(source, /name === PORT_DOCUMENT \? \{ env: portTransport\.env \} : \{\}/);
+  assert.match(source, /evidence\.binarySafePortTransport = portTransport\.manifest/);
+  assert.ok(source.indexOf("portTransport = binarySafeSsmEnvironment(") < source.indexOf('identity = aws(["sts"'));
 });
 
 test("assessment classification fails if a business write or skip is introduced", () => {

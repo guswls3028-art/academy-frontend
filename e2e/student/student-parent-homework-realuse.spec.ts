@@ -175,6 +175,43 @@ async function seedHomework(request: APIRequestContext, adminAccess: string, fam
   );
 }
 
+type HomeworkGradingPhase = "navigation" | "options" | "editing" | "save" | "reload";
+
+async function emitHomeworkGradingState(page: Page, phase: HomeworkGradingPhase, failed: boolean, cellSelector: string, documentTimeOrigin: number | null) {
+  const state = await page.evaluate(({ selector, initialDocument }) => {
+    const visible = (element: Element | null) => Boolean(element?.getClientRects().length);
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>("button")];
+    const options = buttons.filter((button) => button.textContent?.trim().startsWith("표시 옵션"));
+    const option = options[0] ?? null;
+    const rect = option?.getBoundingClientRect();
+    const hit = rect ? document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) : null;
+    const dialogs = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].filter(visible);
+    const hasDialog = (label: string) => dialogs.some((dialog) => dialog.textContent?.includes(label));
+    const cell = document.querySelector(selector);
+    return {
+      route: /\/sessions\/\d+\/scores\/?$/.test(location.pathname) ? "scores"
+        : location.pathname.includes("/login") ? "login"
+          : location.pathname.includes("/workspace/mobile") ? "mobile" : "other",
+      viewport: window.innerWidth === 390 ? "390" : window.innerWidth === 1366 ? "1366" : "other",
+      documentChanged: initialDocument !== null && performance.timeOrigin !== initialDocument,
+      optionsCount: Math.min(options.length, 2), optionsVisible: visible(option),
+      optionsEnabled: option !== null && !option.disabled,
+      optionsExpanded: option?.getAttribute("aria-expanded") === "true",
+      optionsInsideViewport: Boolean(rect && rect.x >= 0 && rect.y >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight),
+      optionsCenterHitsControl: Boolean(option && hit && (hit === option || option.contains(hit))),
+      dialogVisible: dialogs.length > 0,
+      accountGuideVisible: hasDialog("계정 안내"), passwordRecommendationVisible: hasDialog("비밀번호 변경 권장"),
+      scoreHelpVisible: hasDialog("성적표 보기 안내") || hasDialog("빠른 성적 입력 안내"),
+      recoveryDialogVisible: dialogs.some((dialog) => /복구|이전 입력/.test(dialog.textContent ?? "")),
+      editButtonVisible: buttons.some((button) => button.textContent?.trim() === "수정" && visible(button)),
+      saveAndLockVisible: buttons.some((button) => button.textContent?.trim() === "저장하고 잠금" && visible(button)),
+      targetCellVisible: visible(cell), targetInputVisible: visible(cell?.querySelector("input") ?? null),
+    };
+  }, { selector: cellSelector, initialDocument: documentTimeOrigin }).catch(() => ({ stateUnavailable: true }));
+  // Fixed categories and UI booleans only: no DOM, labels, identities, URLs, or API bodies.
+  console.info(JSON.stringify({ releaseHomeworkGradingState: { schema: "homework-grading-ui/v1", phase, failed, ...state } }));
+}
+
 async function gradeHomework(
   page: Page, request: APIRequestContext, username: string, password: string, staffAccess: string,
 ): Promise<void> {
@@ -183,6 +220,9 @@ async function gradeHomework(
   const boundary = await installQaStudentParentBoundary(staffPage, request);
   const browser = attachStrictBrowserGuards(staffPage);
   const editors = new Set<string>();
+  const cellSelector = `[data-score-cell="homework:${created.enrollmentId}:${created.homeworkId}"]`;
+  let gradingPhase: HomeworkGradingPhase = "navigation";
+  let documentTimeOrigin: number | null = null;
   staffPage.on("request", (outgoing) => {
     const editor = outgoing.headers()["x-score-editor-client"];
     if (editor) editors.add(editor);
@@ -194,14 +234,32 @@ async function gradeHomework(
     await staffPage.getByTestId("login-submit").click();
     await expect(staffPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
     await acknowledgeInitialAccountPromptsIfVisible(staffPage);
-    for (const [width, value] of [[390, 91], [1366, 92]]) {
+    const clockInChoice = staffPage.getByRole("dialog", {
+      name: "오늘 어떤 방식으로 시작할까요?", exact: true,
+    });
+    await expect(clockInChoice).toBeVisible();
+    await clockInChoice.getByRole("button", { name: /^출근하지 않고 로그인/ }).click();
+    await expect(clockInChoice).toBeHidden();
+    for (const [width, value, previousScore] of [[390, 91, null], [1366, 92, 91]] as const) {
+      gradingPhase = "navigation";
       await staffPage.setViewportSize({ width, height: 900 });
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
+      documentTimeOrigin = await staffPage.evaluate(() => performance.timeOrigin);
+      gradingPhase = "options";
+      await emitHomeworkGradingState(staffPage, gradingPhase, false, cellSelector, documentTimeOrigin);
       const options = staffPage.getByRole("button", { name: /표시 옵션/ });
       if (await options.getAttribute("aria-expanded") === "false") await options.click();
-      await staffPage.getByRole("button", { name: "수정", exact: true }).click();
-      const cell = staffPage.locator(`[data-score-cell="homework:${created.enrollmentId}:${created.homeworkId}"]`);
+      gradingPhase = "editing";
+      const cell = staffPage.locator(cellSelector);
+      if (previousScore !== null) {
+        await expect(cell).toContainText(String(previousScore));
+        await staffPage.getByRole("button", { name: "수정", exact: true }).click();
+      }
+      // A blank score sheet starts editing asynchronously; wait for its input
+      // instead of choosing a button from an intermediate loading state.
+      await expect(cell.getByRole("textbox")).toBeVisible();
       await cell.getByRole("textbox").fill(String(value));
+      gradingPhase = "save";
       const saved = staffPage.waitForResponse((response) => (
         response.request().method() === "PATCH"
         && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
@@ -211,6 +269,7 @@ async function gradeHomework(
       expect(response.status()).toBe(200);
       expect(await response.json()).toMatchObject({ score: value, passed: true });
       await expect(staffPage.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+      gradingPhase = "reload";
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(cell).toContainText(String(value));
       await assertNoHorizontalOverflow(staffPage);
@@ -220,6 +279,9 @@ async function gradeHomework(
     }
     boundary.assertClean();
     browser.assertZeroDefects();
+  } catch (error) {
+    await emitHomeworkGradingState(staffPage, gradingPhase, true, cellSelector, documentTimeOrigin);
+    throw error;
   } finally {
     try {
       for (const editor of editors) {
