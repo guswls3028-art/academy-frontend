@@ -15,7 +15,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { teacherCommsQueryKeys } from "../queryKeys";
-import { stripInternalAlimtalkMemoToken } from "@/app_admin/domains/messages/constants/alimtalkEnvelope";
+import { stripInternalAlimtalkMemoToken } from "@/shared/notifications/teacherMemo";
 
 const CATEGORY_LABELS: Record<string, string> = {
   default: "일반 안내",

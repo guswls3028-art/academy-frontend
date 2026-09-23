@@ -23,8 +23,8 @@ import type { ClientStudent } from "@/shared/api/contracts/students";
 import CreateStudentSheet from "../components/CreateStudentSheet";
 import { teacherStudentsQueryKeys } from "../queryKeys";
 import { fetchAllTemplates, preflightMessage, sendMessage, type MessageSendPreflight } from "@teacher/domains/comms/api";
-import { teacherCommsQueryKeys } from "@teacher/domains/comms/queryKeys";
-import { stripInternalAlimtalkMemoToken } from "@/app_admin/domains/messages/constants/alimtalkEnvelope";
+import { teacherMessageTemplatesQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
+import { stripInternalAlimtalkMemoToken } from "@/shared/notifications/teacherMemo";
 import { useConfirm } from "@/shared/ui/confirm";
 import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
 import {
@@ -623,7 +623,7 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
   const requestIdRef = useRef(0);
   const sendRequestRef = useRef(false);
   const { data: templates = [], isLoading: templatesLoading, isError: templatesError, refetch: refetchTemplates } = useQuery({
-    queryKey: teacherCommsQueryKeys.templates,
+    queryKey: teacherMessageTemplatesQueryKey,
     queryFn: fetchAllTemplates,
     enabled: open,
   });
