@@ -394,7 +394,7 @@ export default function TemplatePickerModal({
               <>
                 <div className="tpl-picker__preview-header">
                   <p className="tpl-picker__preview-context">
-                    {previewData?.학생이름 ? `${previewData.학생이름} 기준 미리보기 · 발송 전에 수신자별 내용을 확인할 수 있습니다` : "양식 미리보기 · 학생별 정보는 발송할 때 채워집니다"}
+                    문구 배치 예시 · 실제 수신자별 전체 문구는 발송 화면에서 확인합니다
                   </p>
                   <div className="tpl-picker__preview-title-row">
                     {previewTpl && isSystemTpl(previewTpl) && <Shield size={ICON.sm} className="tpl-picker__icon-sys" />}

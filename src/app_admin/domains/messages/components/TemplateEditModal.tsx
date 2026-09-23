@@ -143,11 +143,11 @@ export default function TemplateEditModal({
 
             <section>
               <div className="template-editor__preview-title mb-2">
-                양식 미리보기
+                문구 배치 예시
               </div>
               {alimtalkType && <p className="message-template-preview-help">
                 {isAcademyError ? <span role="alert">발송 학원명을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => void refetchAcademy()}>다시 확인</Button></span>
-                  : "학생을 선택하면 블록에 실제 정보가 들어갑니다."}
+                  : "이 화면의 이름·날짜 등은 예시입니다. 수신자별 문구는 발송 화면에서 확인하세요."}
               </p>}
               <div className="template-preview-kakao" aria-label="카카오톡 알림톡 미리보기">
                 <div className="template-preview-kakao__card">
@@ -181,7 +181,7 @@ export default function TemplateEditModal({
                 </div>
               </div>
               <p className="message-template-preview-help">
-                저장한 문구는 발송 화면에서 학생별 내용으로 확인할 수 있습니다.
+                저장한 문구는 발송 전 서버 확인을 거쳐 학생별 전체 문구로 표시됩니다.
               </p>
             </section>
           </div>
