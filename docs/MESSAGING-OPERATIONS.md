@@ -2,7 +2,7 @@
 
 ## 문구 관리와 편집
 
-관리자·교직원의 메시지 → 문구 저장(`/workspace/message/templates`)은 테넌트가
+관리자·교직원의 메시지 → 문구 편집(`/workspace/message/templates`)은 테넌트가
 저장한 `GET /messaging/templates/` 문구를 관리한다. 목록은 내 문구를 먼저 보여주고,
 `is_user_default`는 **발송 기본**, 자동발송 설정의 `template` 참조는 **자동발송
 설정에 연결**로 구분한다. 연결 표시는 해당 자동발송의 활성화나 과거 발송 이력을

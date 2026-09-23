@@ -342,7 +342,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     }], "실제 검증학원");
     await selectBothStudentsAndOpen(page);
     const modal = page.getByRole("dialog", { name: "알림톡 발송" });
-    await modal.getByRole("button", { name: /문구 변경|문구 선택/, exact: true }).click();
+    await modal.getByRole("button", { name: /다른 문구 선택|문구 선택/, exact: true }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
     await picker.getByRole("button", { name: /실제 성적 문구/ }).click();
     const preview = picker.locator(".template-preview-kakao__body");

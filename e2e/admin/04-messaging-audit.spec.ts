@@ -23,7 +23,7 @@ test.describe("메시징 비즈니스 계약", () => {
   test("문구 화면은 문구와 승인 알림톡 상태를 구분하고 공급사 동기화를 노출하지 않는다", async ({ page }) => {
     await gotoAndSettle(page, `${BASE}/workspace/message/templates`);
 
-    await expect(page.getByRole("heading", { name: "문구 저장" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "알림톡 문구 만들기·수정" })).toBeVisible();
     await expect(page.getByText(/알림톡에 넣을 문구를 저장하고 수정합니다/)).toBeVisible();
     await expect(page.getByRole("button", { name: /동기화|검수 신청/ })).toHaveCount(0);
     await expect(page.getByText(/SMS|LMS/)).toHaveCount(0);

@@ -184,6 +184,8 @@ test("메시지 화면에서 학생 선택과 알림톡 발송창까지 정확�
   await page.setViewportSize({ width: 390, height: 844 });
 
   await gotoAndSettle(page, `${BASE}/workspace/message/templates`, { timeout: 30_000 });
+  await expect(page.getByRole("tab", { name: "문구 편집" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "알림톡 문구 만들기·수정" })).toBeVisible();
   await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
 
   await expect(page).toHaveURL(/\/workspace\/students\/home\?compose=alimtalk$/);

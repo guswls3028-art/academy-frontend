@@ -1334,7 +1334,7 @@ export default function SendMessageModal({
                 onClick={() => setShowPickerModal(true)}
                 disabled={sending}
               >
-                {hasSelectedBodySource ? "문구 변경" : "문구 선택"}
+                {hasSelectedBodySource ? "다른 문구 선택" : "문구 선택"}
               </Button>
             </div>
 
@@ -1365,11 +1365,11 @@ export default function SendMessageModal({
               <span className="send-modal__editor-label-title">안내문</span>
               {hasRecipients && recipientCount > 1 ? (
                 <span className="send-modal__editor-label-hint">
-                  학생 {recipientCount}명에게 같은 안내문을 보내고, 이름·성적은 학생별로 맞춰 넣습니다
+                  학생 {recipientCount}명에게 같은 안내문을 보냅니다. 여기서 자유롭게 고치고, 이름·성적은 학생별로 맞춰 넣습니다.
                 </span>
               ) : (
                 <span className="send-modal__editor-label-hint">
-                  학원명·학생명·강의명 등 기본 정보는 자동으로 채워집니다. 여기에는 <strong>학원장님 메시지만</strong> 작성하세요.
+                  학원명·학생명·강의명 등은 자동으로 채워집니다. <strong>학원장님 안내문은 여기서 직접 수정</strong>할 수 있습니다.
                 </span>
               )}
             </div>

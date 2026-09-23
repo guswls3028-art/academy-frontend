@@ -9,7 +9,7 @@ import { useMessagingInfo } from "@admin/domains/messages/hooks/useMessagingInfo
 import styles from "./MessageLayout.module.css";
 
 const MESSAGE_TABS: DomainTab[] = [
-  { key: "templates", label: "문구 저장", path: "/workspace/message/templates" },
+  { key: "templates", label: "문구 편집", path: "/workspace/message/templates" },
   { key: "auto-send", label: "자동발송", path: "/workspace/message/auto-send" },
   { key: "log", label: "발송 내역", path: "/workspace/message/log" },
   { key: "settings", label: "설정", path: "/workspace/message/settings" },
