@@ -856,6 +856,36 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await expect(page.getByText("오늘은 급한 일이 없어요", { exact: true }).first()).toBeVisible();
   });
 
+  for (const width of [390, 1366]) {
+    test(`시험 조회가 끝나기 전에는 오늘 할 일을 0건으로 단정하지 않는다 (${width}px)`, async ({ page }) => {
+      await installStudentApi(page);
+      await page.setViewportSize({ width, height: 900 });
+      let releaseExams!: () => void;
+      const examsReady = new Promise<void>((resolve) => { releaseExams = resolve; });
+      let seenExams = 0;
+      await page.route((url) => url.pathname === "/api/v1/student/exams/", async (route) => {
+        seenExams += 1;
+        await examsReady;
+        await route.fallback();
+      });
+
+      try {
+        await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+        await expect.poll(() => seenExams).toBeGreaterThan(0);
+        await expect(page.getByRole("link", { name: "알림", exact: true })).toBeVisible();
+        await expect(page.getByText("할 일을 확인하고 있어요", { exact: true })).toBeVisible();
+        await expect(page.getByText("오늘은 급한 일이 없어요", { exact: true })).toHaveCount(0);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+
+        releaseExams();
+        await expect(page.getByText("오늘은 급한 일이 없어요", { exact: true }).first()).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+      } finally {
+        releaseExams();
+      }
+    });
+  }
+
   test("알림 하위 조회 실패는 탭과 대시보드에서 오류로 남고 0건 문구를 숨긴다", async ({ page }) => {
     await installStudentApi(page, { notificationClinic: "failure" });
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });

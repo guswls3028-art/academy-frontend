@@ -237,7 +237,7 @@ export default function DashboardPage() {
   const countsLoading = notificationCountsQ.isLoading;
   const countsError = notificationCountsQ.isError;
   const todoDataError = dashError || gradesQ.isError || examsQ.isError || countsError;
-  const todoDataPending = countsLoading && !countsError;
+  const todoDataPending = (dashLoading || gradesQ.isLoading || examsQ.isLoading || countsLoading) && !todoDataError;
   const isParent = user?.tenantRole === "parent";
 
   const today = ymdToday();
