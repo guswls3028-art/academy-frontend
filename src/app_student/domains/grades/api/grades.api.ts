@@ -44,6 +44,8 @@ export type MyExamGradeSummary = {
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
   lecture_active?: boolean;
   grading_status?: "subjective_pending" | null;
+  /** Accepted answer exists and grading/publishing is still in progress. */
+  submission_pending?: boolean;
   is_provisional?: boolean;
 };
 
@@ -60,6 +62,8 @@ export type MyHomeworkGradeSummary = {
   teacher_resolved?: boolean;
   /** 최신 재응시 통과/교사 완료로 제출 파일 변경이 잠긴 상태. */
   submission_media_locked?: boolean;
+  /** Required submission, accepted evidence awaiting review, or reviewed. */
+  submission_state?: "needs_submission" | "awaiting_review" | "reviewed";
   retake_count?: number;
   grading_mode?: "SCORE" | "COMPLETION";
   display_order?: number;

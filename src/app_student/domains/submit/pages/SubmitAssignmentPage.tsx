@@ -118,6 +118,7 @@ export default function SubmitAssignmentPage() {
     () => (grades?.homeworks ?? []).filter((homework) => (
       (requestedSessionId == null || Number(homework.session_id) === requestedSessionId)
       && homework.lecture_active !== false
+      && homework.submission_state !== "reviewed"
       && (
         homework.submission_media_locked == null
           ? homework.teacher_resolved !== true && homework.passed !== true
@@ -130,6 +131,7 @@ export default function SubmitAssignmentPage() {
     () => (grades?.exams ?? []).filter((exam) => (
       (requestedSessionId == null || Number(exam.session_id) === requestedSessionId)
       && exam.lecture_active !== false
+      && exam.submission_pending !== true
       && exam.grading_status !== "subjective_pending"
       && exam.achievement !== "REMEDIATED"
       && (exam.is_pass === false || exam.achievement === "FAIL" || exam.achievement === "NOT_SUBMITTED"
@@ -268,7 +270,7 @@ export default function SubmitAssignmentPage() {
       }
       setPendingFiles((current) => current.filter((item) => !succeeded.includes(item.clientFileId)));
       await mediaQ.refetch();
-      qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
+      await qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
       if (failed.length === 0) {
         const title = selected?.title ?? "과제";
         setSelected(null);
@@ -292,7 +294,7 @@ export default function SubmitAssignmentPage() {
     },
     onSuccess: async () => {
       await mediaQ.refetch();
-      qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
+      await qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
       studentToast.success("파일을 제출 목록에서 뺐습니다.");
     },
     onError: (removeError) => setError(apiErrorMessage(removeError, "파일을 변경하지 못했습니다.")),
@@ -421,7 +423,7 @@ export default function SubmitAssignmentPage() {
         {requestedSessionId != null && (
           <div className={styles.scopeNotice} role="status">
             <div><strong>현재 차시의 제출 항목만 표시합니다</strong><span>다른 수업의 파일을 잘못 제출하지 않도록 범위를 고정했습니다.</span></div>
-            <Link to="/student/submit/assignment" className={styles.scopeLink}>전체 미완료 보기</Link>
+            <Link to="/student/submit/assignment" className={styles.scopeLink}>전체 제출 대상 보기</Link>
           </div>
         )}
         {uploadMut.isSuccess && uploadMut.data?.failed.length === 0 && uploadMut.data.reviewLocked !== true && (
@@ -431,12 +433,12 @@ export default function SubmitAssignmentPage() {
         <div data-guide="submit-target">
           <div className={styles.stepLabel}>1. 제출 대상 선택</div>
           {gradesQ.isLoading && <div className={`stu-muted ${styles.loadingText}`}>불러오는 중…</div>}
-          {gradesQ.isError && <EmptyState title="제출 대상을 불러오지 못했습니다." description="미완료 과제·시험이 없는 것으로 표시하지 않았습니다." onRetry={() => void gradesQ.refetch()} />}
+          {gradesQ.isError && <EmptyState title="제출 대상을 불러오지 못했습니다." description="제출 상태를 확인할 수 없습니다." onRetry={() => void gradesQ.refetch()} />}
           {!gradesQ.isLoading && !gradesQ.isError && unfinishedHomeworks.length === 0 && unfinishedExams.length === 0 && <div className={styles.emptyTarget}>{requestedSessionId == null ? "제출할 미완료 과제·시험이 없습니다." : "이 차시에 제출할 미완료 과제·시험이 없습니다."}</div>}
           {!gradesQ.isError && <div className={styles.targetList}>
             {unfinishedHomeworks.map((homework) => (
               <button key={`hw-${homework.homework_id}`} type="button" onClick={() => selectHomework(homework)} disabled={uploadMut.isPending || isPreparingFiles} className={styles.targetItem} data-selected={selected?.id === homework.homework_id}>
-                <span className={styles.targetIcon}><IconClipboard className={styles.targetIconSvg} /></span><span className={styles.targetBadge}>과제</span><span className={styles.targetTitle}>{homework.title}</span>{homework.lecture_title && <span className={`stu-muted ${styles.targetLecture}`}>{homework.lecture_title}</span>}
+                <span className={styles.targetIcon}><IconClipboard className={styles.targetIconSvg} /></span><span className={styles.targetBadge}>{homework.submission_state === "awaiting_review" ? "제출됨 · 파일 수정 가능" : "과제"}</span><span className={styles.targetTitle}>{homework.title}</span>{homework.lecture_title && <span className={`stu-muted ${styles.targetLecture}`}>{homework.lecture_title}</span>}
               </button>
             ))}
             {unfinishedExams.map((exam: MyExamGradeSummary) => (
