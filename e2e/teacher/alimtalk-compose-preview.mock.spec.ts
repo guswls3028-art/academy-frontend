@@ -96,11 +96,11 @@ test("선생님은 저장 문구를 수정하고 서버의 학생별 전체 문�
   await sheet.getByLabel("저장한 문구 불러오기").selectOption("41");
   await expect(sheet.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveValue("저장한 문구");
   await sheet.getByLabel("선생님 안내문 (자유롭게 수정)").fill("이번 주 과제를 확인해 주세요.");
-  await sheet.getByRole("button", { name: "실제 문구 확인하기" }).click();
+  await sheet.getByRole("button", { name: "수신자별 발송 문구 확인" }).click();
   await expect(sheet.getByRole("alert")).toContainText("사전 확인 연결 실패");
   expect(sendPayload).toBeNull();
 
-  await sheet.getByRole("button", { name: "실제 문구 확인하기" }).click();
+  await sheet.getByRole("button", { name: "수신자별 발송 문구 확인" }).click();
   const review = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
   await expect(review).toContainText("김민준 학생님.");
   await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText("이번 주 과제를 확인해 주세요.");
@@ -113,8 +113,8 @@ test("선생님은 저장 문구를 수정하고 서버의 학생별 전체 문�
   await review.getByRole("button", { name: "문구 수정" }).click();
   await expect(page.getByRole("dialog", { name: "2명에게 알림톡" }).getByLabel("선생님 안내문 (자유롭게 수정)"))
     .toHaveValue("이번 주 과제를 확인해 주세요.");
-  await page.getByRole("dialog", { name: "2명에게 알림톡" }).getByRole("button", { name: "실제 문구 확인하기" }).click();
-  await page.getByRole("dialog", { name: "보내기 전 마지막 확인" }).getByRole("button", { name: "발송하기" }).click();
+  await page.getByRole("dialog", { name: "2명에게 알림톡" }).getByRole("button", { name: "수신자별 발송 문구 확인" }).click();
+  await page.getByRole("dialog", { name: "보내기 전 마지막 확인" }).getByRole("button", { name: "학부모 2건 발송하기" }).click();
   await expect.poll(() => sendPayload).toMatchObject({
     student_ids: [910001, 910002],
     send_to: "parent",

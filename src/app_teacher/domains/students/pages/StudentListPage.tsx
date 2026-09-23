@@ -688,7 +688,7 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
     },
     onError: (error) => {
       sendRequestRef.current = false;
-      setSendError(extractApiError(error, "발송 결과를 확인하지 못했습니다."));
+      setSendError(extractApiError(error, "요청 상태를 확인할 수 없습니다."));
       teacherToast.error("발송 결과를 확인하지 못했습니다. 발송 내역에서 상태를 확인해 주세요.");
     },
   });
@@ -721,7 +721,7 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
       checked = await preflightMessage(payload);
     } catch (error) {
       if (requestId === requestIdRef.current && requestKey === draftKeyRef.current) {
-        setCheckError(extractApiError(error, "발송 준비 상태를 확인하지 못했습니다."));
+        setCheckError(`발송 전 확인에 실패했습니다. 아직 발송되지 않았습니다. ${extractApiError(error, "발송 준비 상태를 확인하지 못했습니다.")}`);
       }
       return;
     } finally {
@@ -785,7 +785,7 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
             현재 수신자 정보로 서버가 조립한 문구입니다. 카카오톡 화면 배치는 기기에 따라 다를 수 있습니다.
           </p>
           {sendError && <p role="alert" className="text-xs" style={{ color: "var(--tc-danger)" }}>
-            {sendError} 발송 내역에서 접수 여부를 확인한 뒤 다시 시도해 주세요.
+            발송 요청 결과를 확인하지 못했습니다. 중복 발송을 막기 위해 자동으로 다시 보내지 않습니다. {sendError}
           </p>}
           {sendError && <button type="button" onClick={() => { closeSheet(); navigate("/workspace/mobile/message-log"); }}
             className="text-xs font-semibold underline self-start" style={{ color: "var(--tc-primary)" }}>발송 내역 보기</button>}
@@ -798,7 +798,9 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
               sendMut.mutate(review.payload);
             }} disabled={sendMut.isPending || !!sendError}
               className="flex-1 text-sm font-bold" style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-              {sendMut.isPending ? "접수 중…" : sendTiming === "scheduled" ? "예약 확정" : "발송하기"}
+              {sendMut.isPending ? "접수 중…" : sendTiming === "scheduled"
+                ? `${recipientLabel} ${review.preflight.recipient.valid_phone}건 예약 확정`
+                : `${recipientLabel} ${review.preflight.recipient.valid_phone}건 발송하기`}
             </button>
           </div>
         </div>
@@ -948,7 +950,7 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
         <button onClick={requestSend} disabled={!body.trim() || sendMut.isPending || checking || tooManyRecipients || !!scheduleError}
           className="w-full text-sm font-bold cursor-pointer mt-1"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: body.trim() && !tooManyRecipients && !scheduleError ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: body.trim() && !tooManyRecipients && !scheduleError ? "#fff" : "var(--tc-text-muted)" }}>
-          {checking ? "발송 문구 확인 중…" : "실제 문구 확인하기"}
+          {checking ? "발송 문구 확인 중…" : "수신자별 발송 문구 확인"}
         </button>
       </div>
       )}

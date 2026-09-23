@@ -1184,7 +1184,7 @@ export default function SendMessageModal({
                 )}
               </div>
               <p className="template-preview-kakao__helper">
-                서버가 현재 수신자 정보와 작성 문구로 조립한 내용입니다. 카카오톡 화면 배치는 기기에 따라 다를 수 있습니다.
+                표시된 학생 한 명의 현재 발송 문구입니다. 다른 학생의 내용은 마지막 확인에서 선택해 보세요. 카카오톡 화면 배치는 기기에 따라 다를 수 있습니다.
               </p>
               {inlinePreviewRecipient ? (
                 <KakaoAlimtalkPreview channelLabel={activeAlimtalkLabel}>
