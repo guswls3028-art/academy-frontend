@@ -63,7 +63,6 @@ const MESSAGE_RECIPIENT_OPTIONS: { value: MessageRecipient; label: string }[] = 
 
 const ALIMTALK_TYPE_OPTIONS = [
   { value: "attendance", label: "출결·수업·시험·과제" },
-  { value: "grades", label: "성적 안내" },
   { value: "clinic", label: "클리닉 안내" },
 ] as const;
 
@@ -628,7 +627,13 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
     queryFn: fetchAllTemplates,
     enabled: open,
   });
-  const savedTemplates = templates.filter((template) => !template.is_system);
+  const savedTemplates = templates.filter((template) =>
+    !template.is_system
+    && template.category !== "grades"
+    && template.alimtalk_envelope_type !== "score"
+    && template.alimtalk_envelope_type !== "clinic_change");
+  const hasPersonalizedOnlyTemplates = templates.some((template) =>
+    !template.is_system && (template.category === "grades" || template.alimtalk_envelope_type === "score" || template.alimtalk_envelope_type === "clinic_change"));
   const tooManyRecipients = students.length > 200;
   const recipientLabel = sendTo === "parent" ? "학부모" : "학생";
   const scheduledDate = sendTiming === "scheduled" && scheduledAt ? new Date(scheduledAt) : null;
@@ -826,9 +831,8 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
               setSelectedTemplateId(template?.id ?? null);
               if (template) {
                 setBody(stripInternalAlimtalkMemoToken(template.body));
-                setAlimtalkType(template.alimtalk_envelope_type === "score" || template.category === "grades"
-                  ? "grades" : template.alimtalk_envelope_type?.startsWith("clinic") || template.category === "clinic"
-                    ? "clinic" : "attendance");
+                setAlimtalkType(template.alimtalk_envelope_type === "clinic_info" || template.category === "clinic"
+                  ? "clinic" : "attendance");
               }
               setPreflight(null);
               setCheckError(null);
@@ -841,6 +845,9 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
           {templatesLoading ? <p className="text-[11px] mt-1">저장한 문구를 불러오는 중…</p>
             : templatesError ? <p role="alert" className="text-[11px] mt-1">저장한 문구를 불러오지 못했습니다. <button type="button" onClick={() => void refetchTemplates()} className="underline">다시 시도</button></p>
               : savedTemplates.length === 0 ? <p className="text-[11px] mt-1">저장한 문구가 없습니다. 아래에서 직접 작성할 수 있습니다.</p> : null}
+          {hasPersonalizedOnlyTemplates && <p className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
+            성적·일정 변경용 문구는 학생별 정보가 필요한 전용 발송 화면에서 사용합니다.
+          </p>}
           <button type="button" onClick={() => { closeSheet(); navigate("/workspace/mobile/message-templates"); }}
             className="text-xs font-semibold underline mt-1" style={{ color: "var(--tc-primary)" }}>저장 문구 만들기·수정하기</button>
         </div>

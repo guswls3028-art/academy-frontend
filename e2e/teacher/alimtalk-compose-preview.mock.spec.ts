@@ -35,7 +35,10 @@ async function installMessagingMocks(page: Page, onPreflight: (payload: Record<s
       return route.fulfill({ json: { count: STUDENTS.length, results: STUDENTS } });
     }
     if (path === "/messaging/templates/" && request.method() === "GET") {
-      return route.fulfill({ json: { count: 1, results: [savedTemplate] } });
+      return route.fulfill({ json: { count: 2, results: [
+        savedTemplate,
+        { id: 42, name: "성적용 문구", category: "grades", body: "학생별 성적", is_system: false, alimtalk_envelope_type: "score" },
+      ] } });
     }
     if (path === "/messaging/templates/41/" && request.method() === "PATCH") {
       savedTemplate = { ...savedTemplate, ...request.postDataJSON() };
@@ -88,6 +91,8 @@ test("선생님은 저장 문구를 수정하고 서버의 학생별 전체 문�
   await page.getByRole("button", { name: "알림톡", exact: true }).click();
 
   const sheet = page.getByRole("dialog", { name: "2명에게 알림톡" });
+  await expect(sheet.getByRole("option", { name: "성적용 문구" })).toHaveCount(0);
+  await expect(sheet).toContainText("성적·일정 변경용 문구는 학생별 정보가 필요한 전용 발송 화면에서 사용합니다.");
   await sheet.getByLabel("저장한 문구 불러오기").selectOption("41");
   await expect(sheet.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveValue("저장한 문구");
   await sheet.getByLabel("선생님 안내문 (자유롭게 수정)").fill("이번 주 과제를 확인해 주세요.");
@@ -121,6 +126,7 @@ test("선생님은 저장 문구를 수정하고 서버의 학생별 전체 문�
 
   await page.goto(`${BASE}/workspace/mobile/message-templates`, { waitUntil: "commit" });
   await expect(page.getByRole("heading", { name: "알림톡 문구" })).toBeVisible();
+  await expect(page.getByText("성적용 문구", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "상담 안내 편집" }).click();
   const editSheet = page.getByRole("dialog", { name: "문구 편집" });
   await editSheet.getByLabel("본문 *").fill("다음 주 상담 일정을 확인해 주세요.");
