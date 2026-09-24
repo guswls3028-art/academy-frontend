@@ -201,8 +201,7 @@ function roundScore(value: number): number {
 }
 
 function formatScore(value: number): string {
-  const rounded = roundScore(value);
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return String(Math.round((value + Number.EPSILON) * 100) / 100);
 }
 
 function parseScoreInputDraft(value: ScoreInputDraft): number | null {
@@ -463,13 +462,15 @@ export default function AnswerKeyRegisterModal({
       feedback.error("문항 수와 기본점수를 확인한 뒤 배점을 맞춰 주세요.");
       return;
     }
-    const baseCents = Math.floor(targetCents / count);
-    const remainder = targetCents % count;
+    const unitCents = targetCents % 10 === 0 ? 10 : 1;
+    const targetUnits = targetCents / unitCents;
+    const baseUnits = Math.floor(targetUnits / count);
+    const remainder = targetUnits % count;
     setScoreDraft((current) => ({
       ...current,
       ...Object.fromEntries(sortedQuestions.map((question, index) => [
         question.id,
-        (baseCents + (index < remainder ? 1 : 0)) / 100,
+        ((baseUnits + (index < remainder ? 1 : 0)) * unitCents) / 100,
       ])),
     }));
   };

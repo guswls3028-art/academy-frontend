@@ -46,7 +46,8 @@ type MockState = {
   examRequestSequence?: string[];
   guidedExamFlow?: boolean;
   guidedQuestionsInitialized?: boolean;
-  guidedQuestionScore?: number;
+  guidedQuestionCount?: number;
+  guidedQuestionScores?: Record<number, number>;
   answerKeySaves?: Array<Record<string, unknown>>;
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
   homeworkAssignmentIds?: number[];
@@ -296,19 +297,23 @@ async function installApi(page: Page, state: MockState) {
       };
       if (path === "/exams/9971/" && method === "GET") return json(exam);
       if (path === "/exams/9971/structure/ensure/" && method === "POST") return json(exam);
+      const guidedQuestions = Array.from({ length: state.guidedQuestionCount ?? 1 }, (_, index) => {
+        const id = 99711 + index;
+        return { id, sheet: 9971, number: index + 1, question_kind: "choice", score: state.guidedQuestionScores?.[id] ?? 1 };
+      });
       if (path === "/exams/9971/questions/" && method === "GET") {
-        return json(state.guidedQuestionsInitialized
-          ? [{ id: 99711, sheet: 9971, number: 1, question_kind: "choice", score: state.guidedQuestionScore ?? 1 }]
-          : []);
+        return json(state.guidedQuestionsInitialized ? guidedQuestions : []);
       }
       if (path === "/exams/9971/questions/init/" && method === "POST") {
         state.guidedQuestionsInitialized = true;
-        return json([{ id: 99711, sheet: 9971, number: 1, question_kind: "choice", score: 1 }]);
+        return json(guidedQuestions);
       }
-      if (path === "/exams/questions/99711/" && method === "PATCH") {
+      if (/^\/exams\/questions\/9971\d\/$/.test(path) && method === "PATCH") {
         const payload = request.postDataJSON() as { score: number };
-        state.guidedQuestionScore = payload.score;
-        return json({ id: 99711, sheet: 9971, number: 1, question_kind: "choice", score: payload.score });
+        const id = Number(path.split("/")[3]);
+        state.guidedQuestionScores ??= {};
+        state.guidedQuestionScores[id] = payload.score;
+        return json({ id, sheet: 9971, number: id - 99710, question_kind: "choice", score: payload.score });
       }
       if (path === "/exams/9971/explanations/" && method === "GET") return json([]);
       if (path === "/exams/answer-keys/" && method === "GET") {
@@ -321,11 +326,12 @@ async function installApi(page: Page, state: MockState) {
         return json({ id: 99712, ...payload }, 201);
       }
       if (path === "/exams/9971/omr/defaults/" && method === "GET") {
+        const choiceCount = state.guidedQuestionCount ?? 1;
         return json({
           exam_title: String(created.title), lecture_name: "고1 Hyper 정규반",
-          session_name: "1차시", mc_count: 1, essay_count: 0,
+          session_name: "1차시", mc_count: choiceCount, essay_count: 0,
           include_optional_essay_area: false, can_include_optional_essay_area: true,
-          n_choices: 5, question_types: ["choice"], choice_question_numbers: [1],
+          n_choices: 5, question_types: Array(choiceCount).fill("choice"), choice_question_numbers: Array.from({ length: choiceCount }, (_, index) => index + 1),
           essay_question_numbers: [], logo_url: null,
         });
       }
@@ -892,6 +898,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
     guidedExamFlow: true,
+    guidedQuestionCount: 3,
     createdExamPayloads: [],
     examSessionEnrollmentRows: [],
     answerKeySaves: [],
@@ -909,7 +916,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
 
   const answerDialog = page.getByRole("dialog").filter({ hasText: "2. 답안 등록" });
   await expect(answerDialog).toBeVisible();
-  await answerDialog.getByRole("spinbutton", { name: "전체 문항 수" }).fill("1");
+  await answerDialog.getByRole("spinbutton", { name: "전체 문항 수" }).fill("3");
   await answerDialog.getByRole("button", { name: "유형 저장" }).click();
   await expect.poll(() => state.guidedQuestionsInitialized).toBe(true);
   expect(await answerDialog.locator(".answer-key-omr-label").first().evaluate((element) =>
@@ -918,16 +925,20 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   expect(await answerDialog.locator(".answer-key-row__bubbles").first().evaluate((element) =>
     element.scrollWidth <= element.clientWidth + 1
   )).toBe(true);
-  await answerDialog.locator(".answer-key-row--choice .answer-key-omr-label").nth(1).click();
+  for (const row of await answerDialog.locator(".answer-key-row--choice").all()) {
+    await row.locator(".answer-key-omr-label").nth(1).click();
+  }
   await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
   await answerDialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
   expect(state.answerKeySaves).toHaveLength(0);
   await answerDialog.getByRole("button", { name: "만점에 맞게 균등 배점" }).click();
   await expect(answerDialog.locator(".answer-key-score-guide")).toHaveCount(0);
+  await expect(answerDialog.locator(".answer-key-row--choice .answer-key-row__score-val")).toHaveText(["33.4점", "33.3점", "33.3점"]);
   await answerDialog.getByRole("button", { name: /답안 저장하고 다음/ }).click();
   await expect.poll(() => state.answerKeySaves?.length).toBe(1);
-  await expect.poll(() => state.guidedQuestionScore).toBe(100);
-  expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "2" } });
+  await expect.poll(() => Object.values(state.guidedQuestionScores ?? {}).reduce((sum, score) => sum + score, 0)).toBe(100);
+  expect(state.guidedQuestionScores).toEqual({ 99711: 33.4, 99712: 33.3, 99713: 33.3 });
+  expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "2", "99712": "2", "99713": "2" } });
 
   const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
   await expect(printDialog).toBeVisible();
