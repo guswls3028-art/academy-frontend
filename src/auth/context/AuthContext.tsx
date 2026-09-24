@@ -13,7 +13,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { resetParentStudentIdInMemory } from "@/shared/api/parentStudentSelection";
 import { setSentryUser, clearSentryUser } from "@/shared/lib/sentryContext";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
-import { clearAutoSendDrafts } from "@/app_admin/domains/messages/hooks/useAutoSendDraft";
+import { clearAutoSendDrafts } from "@/app_admin/domains/messages/hooks/autoSendDraftStore";
 import {
   getSessionItem,
   removeSessionItem,
