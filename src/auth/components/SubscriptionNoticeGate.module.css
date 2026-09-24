@@ -1,4 +1,4 @@
-.dialog :global(.ant-modal-content) {
+.dialog :global(.admin-modal__inner) {
   animation: notice-open 160ms ease-out;
 }
 
@@ -42,7 +42,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dialog, .dialog :global(.ant-modal-content) {
+  .dialog, .dialog :global(.admin-modal__inner) {
     animation: none !important;
     transition: none !important;
   }

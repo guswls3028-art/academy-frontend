@@ -37,7 +37,7 @@ async function installApp(page: Page, role: Role, path = "/workspace/settings/pr
 }
 
 async function login(page: Page) {
-  await page.goto(`${BASE}/login/hakwonplus`);
+  await page.goto(`${BASE}/login/hakwonplus`, { waitUntil: "domcontentloaded", timeout: 30_000 });
   await page.getByTestId("login-username").fill("qa.notice");
   await page.getByTestId("login-password").fill("Mock-password");
   await page.getByTestId("login-submit").click();
@@ -139,7 +139,7 @@ test("first-login guide precedes notice; server renewal closes it; reduced motio
   await expect(dialog(page)).toBeHidden();
   await page.getByRole("button", { name: "계정 안내 닫기" }).click();
   await expect(dialog(page)).toBeVisible();
-  expect(await dialog(page).locator(".ant-modal-content").evaluate((element) => getComputedStyle(element).animationName)).toBe("none");
+  expect(await dialog(page).locator(".admin-modal__inner").evaluate((element) => getComputedStyle(element).animationName)).toBe("none");
   state.notice = null;
   await recheckMe(page);
   await expect(dialog(page)).toBeHidden();
