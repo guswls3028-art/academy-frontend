@@ -45,6 +45,7 @@ type MockState = {
   examPdfExtractRequests?: number;
   examRequestSequence?: string[];
   guidedExamFlow?: boolean;
+  guidedQuestionsInitialized?: boolean;
   answerKeySaves?: Array<Record<string, unknown>>;
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
   homeworkAssignmentIds?: number[];
@@ -295,7 +296,13 @@ async function installApi(page: Page, state: MockState) {
       if (path === "/exams/9971/" && method === "GET") return json(exam);
       if (path === "/exams/9971/structure/ensure/" && method === "POST") return json(exam);
       if (path === "/exams/9971/questions/" && method === "GET") {
-        return json([{ id: 99711, sheet: 9971, number: 1, question_kind: "choice", score: 100 }]);
+        return json(state.guidedQuestionsInitialized
+          ? [{ id: 99711, sheet: 9971, number: 1, question_kind: "choice", score: 1 }]
+          : []);
+      }
+      if (path === "/exams/9971/questions/init/" && method === "POST") {
+        state.guidedQuestionsInitialized = true;
+        return json([{ id: 99711, sheet: 9971, number: 1, question_kind: "choice", score: 1 }]);
       }
       if (path === "/exams/9971/explanations/" && method === "GET") return json([]);
       if (path === "/exams/answer-keys/" && method === "GET") {
@@ -896,6 +903,9 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
 
   const answerDialog = page.getByRole("dialog").filter({ hasText: "2. 답안 등록" });
   await expect(answerDialog).toBeVisible();
+  await answerDialog.getByRole("spinbutton", { name: "전체 문항 수" }).fill("1");
+  await answerDialog.getByRole("button", { name: "유형 저장" }).click();
+  await expect.poll(() => state.guidedQuestionsInitialized).toBe(true);
   expect(await answerDialog.locator(".answer-key-omr-label").first().evaluate((element) =>
     (element as HTMLElement).offsetWidth
   )).toBeGreaterThanOrEqual(44);
