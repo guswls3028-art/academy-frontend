@@ -112,6 +112,8 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let failNextManualApply = false;
   let failManualSheetGetAfterPostCount: number | null = null;
   let nextManualApplyDelayMs = 0;
+  let nextManualApplyGate: Promise<void> | null = null;
+  let releaseNextManualApplyGate: (() => void) | null = null;
   const manualSheetGetEvents: Array<{ applied: boolean; failureArmed: boolean }> = [];
   let gradingMode = options.gradingMode ?? "written";
   let manualGradingMethod =
@@ -735,6 +737,11 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         nextManualApplyDelayMs = 0;
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
+      if (body.apply === true && nextManualApplyGate) {
+        const gate = nextManualApplyGate;
+        nextManualApplyGate = null;
+        await gate;
+      }
       if (body.apply === true && failNextManualApply) {
         failNextManualApply = false;
         for (const row of body.rows ?? []) {
@@ -903,6 +910,15 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     delayNextManualApply(delayMs = 700) {
       nextManualApplyDelayMs = delayMs;
     },
+    holdNextManualApply() {
+      nextManualApplyGate = new Promise<void>((resolve) => {
+        releaseNextManualApplyGate = resolve;
+      });
+    },
+    releaseNextManualApply() {
+      releaseNextManualApplyGate?.();
+      releaseNextManualApplyGate = null;
+    },
     examPatches,
     postedRows,
   };
@@ -1063,7 +1079,7 @@ test.describe("문항별 직접 채점", () => {
 
   test("저장 중 새 generation을 보존하고 최신 version으로 직렬 저장한다", async ({ page }) => {
     const apiState = await installApi(page);
-    apiState.delayNextManualApply();
+    apiState.holdNextManualApply();
 
     await page.goto(
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
@@ -1073,14 +1089,19 @@ test.describe("문항별 직접 채점", () => {
     const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
     const cells = studentRow.locator("[data-manual-grade-cell]");
 
-    await cells.nth(0).press("o");
-    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장 중");
-    await cells.nth(1).press("x");
-    await expect.poll(() => page.evaluate(() => {
-      const event = new Event("beforeunload", { cancelable: true });
-      window.dispatchEvent(event);
-      return event.defaultPrevented;
-    })).toBe(true);
+    try {
+      await cells.nth(0).press("o");
+      await expect.poll(() => apiState.postedRows.length).toBe(1);
+      await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장 중");
+      await cells.nth(1).press("x");
+      await expect.poll(() => page.evaluate(() => {
+        const event = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+      })).toBe(true);
+    } finally {
+      apiState.releaseNextManualApply();
+    }
 
     await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
     await expect.poll(() => apiState.postedRows.length).toBe(2);
