@@ -1,4 +1,7 @@
 import { expect, test, type Page, type Route } from "../fixtures/strictTest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { onRequestGet } from "../../functions/[[path]].ts";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:4173").replace(/\/+$/, "");
 const NOTICE_TITLE = "구형 휴대폰에서도 수업 안내를 확인하세요";
@@ -11,6 +14,29 @@ const profiles: Profile[] = [
   { name: "Android Chrome 64 capability", width: 360, height: 640,
     userAgent: "Mozilla/5.0 (Linux; Android 7.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.137 Mobile Safari/537.36" },
 ];
+
+test("Pages CSP allows the built legacy bootstrap scripts", async () => {
+  const html = readFileSync(resolve(process.cwd(), "dist/index.html"), "utf8");
+  expect(html).toContain('id="vite-legacy-entry"');
+  const response = await onRequestGet({
+    request: new Request("https://godmin.kr/student"),
+    env: { ASSETS: { fetch: async () => new Response(html, {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    }) } },
+  } as never);
+  expect(response.status).toBe(200);
+  const nonce = /'nonce-([a-f0-9]{32})'/.exec(response.headers.get("Content-Security-Policy") ?? "")?.[1];
+  expect(nonce).toBeTruthy();
+  const delivered = await response.text();
+  const scripts = [...delivered.matchAll(/<script\b[^>]*>[\s\S]*?<\/script>/gi)].map(([script]) => script);
+  const legacyBootstrap = scripts.filter((script) => /id="vite-legacy-(?:polyfill|entry)"/.test(script));
+  expect(legacyBootstrap.length).toBeGreaterThanOrEqual(2);
+  for (const script of legacyBootstrap) expect(script).toContain(`nonce="${nonce}"`);
+  for (const script of scripts.filter((tag) => !/\bsrc=/.test(tag))) {
+    expect(script).toContain(`nonce="${nonce}"`);
+  }
+});
 
 // This executes the real production SystemJS chunks in a current browser with
 // selected APIs removed. It is neither UA-only testing nor physical-device proof.
