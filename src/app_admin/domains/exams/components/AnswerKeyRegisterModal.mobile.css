@@ -68,6 +68,11 @@
     justify-content: flex-start;
   }
 
+  .answer-key-omr-label {
+    width: 44px;
+    min-width: 44px;
+  }
+
   .answer-key-row__score-ctrl {
     grid-column: 2;
     grid-row: 2;

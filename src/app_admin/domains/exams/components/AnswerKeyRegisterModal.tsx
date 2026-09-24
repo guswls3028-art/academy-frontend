@@ -390,7 +390,8 @@ export default function AnswerKeyRegisterModal({
   const essayInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const resetLocalDraftState = useCallback(() => {
-    setActiveTab("answer");
+    setActiveTab(initialTab);
+    setDownloaded(false);
     setPdfModalOpen(false);
     setChoiceCount("");
     setChoiceCountInput("");
@@ -413,7 +414,7 @@ export default function AnswerKeyRegisterModal({
     setSaveBusy(false);
     choiceBubbleRefs.current = [];
     essayInputRefs.current = [];
-  }, []);
+  }, [initialTab]);
 
   useEffect(() => {
     resetLocalDraftState();

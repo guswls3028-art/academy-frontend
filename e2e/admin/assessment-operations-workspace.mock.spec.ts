@@ -253,6 +253,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await expect(primaryAction).toHaveText("운영 설정 보기");
   await primaryAction.click();
   await expect(page.getByRole("tab", { name: "운영", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.locator("#assessment-policy > details > summary").click();
 
   await gradingGroup.getByRole("button", { name: /^OMR \+ 직접 채점/ }).click();
   await expect(page.getByLabel("앞쪽 선택형 문항 수")).toHaveValue("1");
@@ -297,6 +298,9 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByText("시험 운영 준비", { exact: true })).toBeVisible();
   await expect(page.getByText("시험 운영 설정", { exact: true })).toBeVisible();
+  if (await page.locator("#assessment-policy > details").getAttribute("open") === null) {
+    await page.locator("#assessment-policy > details > summary").click();
+  }
   await expect(page.getByRole("navigation", { name: "시험 업무 흐름" })).toBeVisible();
   await expect.poll(() => page.getByTestId("assessment-primary-action").evaluate(
     (element) => element.getBoundingClientRect().height,
@@ -488,6 +492,9 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
     fullPage: true,
   });
   await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.locator("#assessment-policy > details").getAttribute("open") === null) {
+    await page.locator("#assessment-policy > details > summary").click();
+  }
   await expect(page.getByTestId("assessment-draft-recovery")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
   await recovery.scrollIntoViewIfNeeded();
