@@ -425,8 +425,16 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
 
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
+    const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
+    await waitForHomeworkSummary(
+      request,
+      parentTokens.access,
+      (row) => row.submission_state === "awaiting_review" && row.score === null,
+      student.id,
+    );
     await gotoAndSettle(page, `${QA_BASE}/student/submit/assignment`, { timeout: 30_000 });
     await expect(page.getByText("학부모 계정은 직접 제출할 수 없습니다.")).toHaveCount(0);
+    await expect(page.getByText(homeworkTitle, { exact: true })).toBeVisible({ timeout: 30_000 });
     await page.getByText(homeworkTitle, { exact: true }).click();
     await page.locator("input[type='file']").first().setInputFiles({
       name: parentUploadName,
@@ -439,7 +447,6 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
     await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
 
-    const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
     const parentMediaResponse = await request.get(
       `${QA_API}/api/v1/submissions/submissions/homework/${created.homeworkId}/media/?enrollment_id=${created.enrollmentId}`,
       {
