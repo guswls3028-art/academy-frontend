@@ -55,6 +55,13 @@
   gap: 10px;
 }
 
+.student-score-report-preview__step {
+  color: var(--color-text-secondary, #475569);
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
 .student-score-report-preview__status {
   justify-content: flex-end;
 }
@@ -245,6 +252,13 @@
   font-size: 12px;
 }
 
+.student-score-report-students__hint {
+  margin: 0 12px 8px;
+  color: var(--color-text-secondary, #475569);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .student-score-report-students__list {
   min-height: 0;
   flex: 1;
@@ -293,7 +307,10 @@
 }
 
 .student-score-report-students__row > button {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   width: 100%;
   min-width: 0;
   min-height: 44px;
@@ -304,6 +321,22 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.student-score-report-students__row > button > :first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.student-score-report-students__preview-label {
+  flex: 0 0 auto;
+  color: var(--color-text-muted, #64748b);
+  font-size: 10px;
+}
+
+.student-score-report-students__row.is-previewed .student-score-report-students__preview-label {
+  color: var(--score-report-brand, #14213d);
+  font-weight: 700;
 }
 
 .student-score-report-students__check {
@@ -447,6 +480,7 @@
   .student-score-report-preview__controls {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
   }
 
   .student-score-report-preview__status {

@@ -36,6 +36,9 @@ import "./AnswerKeyRegisterModal.mobile.css";
 type Props = {
   open: boolean;
   onClose: () => void;
+  onSaved?: () => void;
+  initialTab?: "answer" | "image" | "omr";
+  flowStep?: "answer" | "print";
   examId: number;
   structureOwnerId: number;
   /** false면 문항/배점 PATCH 생략(regular 시험에서 403 방지). 정답만 저장됨. */
@@ -255,6 +258,9 @@ function normalizeAnswers(input: Record<string, AnswerKeyValue>) {
 export default function AnswerKeyRegisterModal({
   open,
   onClose,
+  onSaved,
+  initialTab = "answer",
+  flowStep,
   examId,
   structureOwnerId,
   canEditQuestions = true,
@@ -262,7 +268,8 @@ export default function AnswerKeyRegisterModal({
   sessionName = "",
 }: Props) {
   const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">("answer");
+  const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">(initialTab);
+  const [downloaded, setDownloaded] = useState(false);
   const { data: exam } = useAdminExam(examId);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [ensuredExamId, setEnsuredExamId] = useState<number | null>(null);
@@ -782,6 +789,15 @@ export default function AnswerKeyRegisterModal({
       feedback.info("시험 구조가 준비되지 않아 아직 수정할 수 없습니다.");
       return;
     }
+    if (flowStep === "answer") {
+      const missingChoice = choiceQuestions.find((question) =>
+        parseChoiceDraft(draft[String(question.id)] ?? "").size === 0
+      );
+      if (missingChoice) {
+        feedback.error(`${missingChoice.number}번 객관식 정답을 입력한 뒤 저장해 주세요.`);
+        return;
+      }
+    }
     setSaveBusy(true);
     try {
       const shouldPersistQuestionTypes =
@@ -840,6 +856,7 @@ export default function AnswerKeyRegisterModal({
       feedback.success(
         canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
       );
+      onSaved?.();
     } catch (error: unknown) {
       feedback.error(extractApiError(error, "저장 실패"));
     } finally {
@@ -920,7 +937,9 @@ export default function AnswerKeyRegisterModal({
     >
       <ModalHeader
         type="action"
-        title={
+        title={flowStep ? (
+          <strong>{flowStep === "answer" ? "2. 답안 등록" : "3. OMR 답안지 다운로드"}</strong>
+        ) : (
           <div className="answer-key-modal-header-tabs">
             <Tabs
               value={activeTab}
@@ -941,8 +960,12 @@ export default function AnswerKeyRegisterModal({
               시험 자료 업로드
             </Button>
           </div>
-        }
-        description="선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."
+        )}
+        description={flowStep === "answer"
+          ? "문항 유형과 정답을 입력한 뒤 저장하세요. 저장하면 인쇄용 답안지가 열립니다."
+          : flowStep === "print"
+            ? "문항 수와 시험명을 확인하고 인쇄용 OMR 답안지 PDF를 다운로드하세요."
+            : "선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."}
       />
 
       {/* 시험 자료 업로드 통합 모달 — 현재 구조 소유자에 업로드 */}
@@ -1433,22 +1456,27 @@ export default function AnswerKeyRegisterModal({
             <OmrSettingsTab
               examId={examId}
               examTitle={exam?.title || ""}
-              lectureName={lectureName}
-              sessionName={sessionName}
+              lectureName={lectureName || omrDefaults?.lecture_name || ""}
+              sessionName={sessionName || omrDefaults?.session_name || ""}
               choiceCount={choiceQuestions.length}
               essayCount={essayQuestions.length}
               questionTypes={resolvedQuestionTypes}
+              onDownloaded={() => setDownloaded(true)}
             />
           )}
         </div>
       </ModalBody>
 
       <ModalFooter
-        left={null}
+        left={flowStep === "answer"
+          ? <span>저장 후 답안지 다운로드로 이어집니다.</span>
+          : flowStep === "print"
+            ? <span role="status">{downloaded ? "답안지 다운로드 완료" : "PDF를 다운로드한 뒤 설정 화면으로 돌아가세요."}</span>
+            : null}
         right={
           <>
             <Button intent="secondary" onClick={onClose}>
-              취소
+              {flowStep === "answer" ? "나중에 등록" : flowStep === "print" ? "설정 화면으로" : "취소"}
             </Button>
             {activeTab === "answer" && hasQuestions && answerKeyHydrated && (
               <Button
@@ -1457,7 +1485,7 @@ export default function AnswerKeyRegisterModal({
                 disabled={saveBusy || initMut.isPending || !canEditStructure}
                 loading={saveBusy}
               >
-                저장 (총 {formatScore(totalScore)}점)
+                {flowStep === "answer" ? `답안 저장하고 다음 (총 ${formatScore(totalScore)}점)` : `저장 (총 ${formatScore(totalScore)}점)`}
               </Button>
             )}
             {activeTab === "image" && sortedQuestions.length > 0 && (
@@ -1878,6 +1906,7 @@ function OmrSettingsTab({
   choiceCount,
   essayCount,
   questionTypes,
+  onDownloaded,
 }: {
   examId: number;
   examTitle: string;
@@ -1886,6 +1915,7 @@ function OmrSettingsTab({
   choiceCount: number;
   essayCount: number;
   questionTypes: QuestionKind[];
+  onDownloaded?: () => void;
 }) {
   const exceedsOmrLimit = choiceCount > MAX_OMR_MC_COUNT || essayCount > MAX_OMR_ESSAY_COUNT;
   return (
@@ -1905,6 +1935,7 @@ function OmrSettingsTab({
         initialEssayCount={essayCount}
         initialQuestionTypes={questionTypes}
         layout="modal"
+        onDownloaded={onDownloaded}
       />
     </div>
   );

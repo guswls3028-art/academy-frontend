@@ -260,7 +260,7 @@ export default function SessionDetailPage() {
           onSuccess={invalidateSession}
         />
       )}
-      {assessmentRemoteKind == null && (openCreateExam || openCreateHomework) && (
+      {assessmentRemoteKind == null && (
         <SessionAssessmentCreateModals
           lectureId={lecId}
           sessionId={sId}

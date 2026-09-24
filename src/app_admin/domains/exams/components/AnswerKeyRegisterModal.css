@@ -139,7 +139,7 @@
 /* 좌우 2패널 — 부모(.answer-key-panel)의 flex:1로 남은 공간 전부 사용 */
 .answer-key-two-panels {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: var(--space-3);
   align-items: stretch;
   flex: 1;
@@ -467,11 +467,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  min-width: 40px;
-  height: 44px;
+  width: 48px;
+  min-width: 48px;
+  height: 52px;
   cursor: pointer;
   margin: 0;
+}
+
+.answer-key-omr-label .exam-omr-bubble {
+  width: 36px;
+  min-width: 36px;
+  height: 42px;
+  font-size: 15px;
+}
+
+.answer-key-omr-label:focus-within .exam-omr-bubble {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
 }
 
 .answer-key-omr-label .exam-omr-bubble {

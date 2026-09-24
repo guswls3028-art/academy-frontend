@@ -302,7 +302,7 @@ export default function StudentScoreReportModal({
             개인 성적표
           </span>
         )}
-        description="미리볼 학생을 바꾸고, 필요한 학생을 여러 명 선택해 한 PDF로 만들 수 있습니다."
+        description="출력할 학생을 체크하고 분량을 고른 뒤 PDF를 다운로드하세요. 학생 이름을 누르면 미리보기가 바뀝니다."
         noIcon
       />
       <ModalBody>
@@ -322,6 +322,7 @@ export default function StudentScoreReportModal({
                     ))}
                   </select>
                 </label>
+                <span className="student-score-report-preview__step">2. 분량 선택</span>
                 <div className="student-score-report-mode" aria-label="성적표 분량">
                   <button
                     type="button"
@@ -360,7 +361,7 @@ export default function StudentScoreReportModal({
 
             <details className="student-score-report-mobile-selection">
               <summary>
-                <span><ListChecks size={15} aria-hidden /> 출력 학생</span>
+                <span><ListChecks size={15} aria-hidden /> 1. 출력할 학생</span>
                 <strong>{selectedReportRows.length}명 선택</strong>
               </summary>
               <div className="student-score-report-mobile-selection__actions">
@@ -404,7 +405,7 @@ export default function StudentScoreReportModal({
           <aside className="student-score-report-students" aria-label="학생 선택">
             <div className="student-score-report-students__header">
               <div>
-                <strong>출력 학생 선택</strong>
+                <strong>1. 출력할 학생</strong>
                 <span>{selectedReportRows.length}/{reportRows.length}명</span>
               </div>
               <div className="student-score-report-students__nav">
@@ -436,6 +437,7 @@ export default function StudentScoreReportModal({
                 aria-label="성적표 학생 검색"
               />
             </label>
+            <p className="student-score-report-students__hint">체크한 학생만 PDF에 포함됩니다. 이름을 누르면 미리봅니다.</p>
             <div className="student-score-report-students__selection-actions">
               <button type="button" onClick={selectAllReports}>전체 선택</button>
               <button type="button" onClick={clearReportSelection}>선택 해제</button>
@@ -475,6 +477,7 @@ export default function StudentScoreReportModal({
                         maxLectureChips={1}
                         density="compact"
                       />
+                      <span className="student-score-report-students__preview-label">미리보기</span>
                     </button>
                   </div>
                 );
@@ -490,8 +493,8 @@ export default function StudentScoreReportModal({
         left={(
           <span className="student-score-report-modal__footnote">
             {selectedRow
-              ? `${selectedReportRows.length}명 선택 · 미리보기 ${selectedRow.student_name} · ${mode === "detailed" ? `상세 ${reportPageCount}쪽` : "요약 1쪽"}`
-              : "출력할 학생 없음"}
+              ? `${selectedReportRows.length}명 출력 · 미리보기: ${selectedRow.student_name} · ${mode === "detailed" ? `상세 ${reportPageCount}쪽` : "요약 1쪽"}`
+              : "출력할 학생을 선택해 주세요"}
           </span>
         )}
         right={(
@@ -511,8 +514,8 @@ export default function StudentScoreReportModal({
                   ? `${downloadProgress.current}/${downloadProgress.total}명 준비 중…`
                   : "PDF 생성 중…"
                 : selectedReportRows.length > 1
-                  ? `${selectedReportRows.length}명 성적표 PDF`
-                  : "개인 성적표 PDF"}
+                  ? `${selectedReportRows.length}명 성적표 PDF 다운로드`
+                  : "개인 성적표 PDF 다운로드"}
             </Button>
           </>
         )}

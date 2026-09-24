@@ -31,6 +31,7 @@ type OmrSheetBuilderProps = {
   initialQuestionTypes?: Array<"choice" | "essay">;
   countsEditable?: boolean;
   layout?: OmrSheetBuilderLayout;
+  onDownloaded?: () => void;
 };
 
 function clampInt(value: number, min: number, max: number): number {
@@ -54,6 +55,7 @@ export default function OmrSheetBuilder({
   initialQuestionTypes,
   countsEditable = false,
   layout = "page",
+  onDownloaded,
 }: OmrSheetBuilderProps) {
   const [examTitle, setExamTitle] = useState(initialExamTitle || "");
   const [lectureName, setLectureName] = useState(initialLectureName || "");
@@ -187,6 +189,7 @@ export default function OmrSheetBuilder({
     try {
       await downloadOMRPdfForTarget(requestTarget, params(), examTitle || "OMR");
       feedback.success("PDF 다운로드 완료");
+      onDownloaded?.();
     } catch {
       feedback.error("PDF 다운로드 실패");
     } finally {

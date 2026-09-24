@@ -44,6 +44,8 @@ type MockState = {
   examPdfExtractDelayMs?: number;
   examPdfExtractRequests?: number;
   examRequestSequence?: string[];
+  guidedExamFlow?: boolean;
+  answerKeySaves?: Array<Record<string, unknown>>;
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
   homeworkAssignmentIds?: number[];
   homeworkAssignmentPuts?: number[][];
@@ -259,6 +261,68 @@ async function installApi(page: Page, state: MockState) {
         id: 9970 + state.createdExamPayloads.length,
         ...payload,
       }, 201);
+    }
+    if (state.guidedExamFlow && state.createdExamPayloads?.length) {
+      const created = state.createdExamPayloads[0];
+      const exam = {
+        id: 9971,
+        title: created.title,
+        description: "",
+        subject: "수학",
+        exam_type: "regular",
+        session_id: REGULAR_SESSION_ID,
+        max_score: created.max_score,
+        pass_score: created.pass_score,
+        grading_mode: created.grading_mode,
+        manual_grading_method: created.manual_grading_method,
+        choice_question_count: 1,
+        segmentation_status: "none",
+        source_filename: "",
+        structure_owner_id: 9971,
+        can_edit_structure: true,
+        answer_visibility: "hidden",
+        student_results_published: false,
+        allow_retake: false,
+        max_attempts: 1,
+        open_at: null,
+        close_at: null,
+        created_at: "2026-08-02T00:00:00Z",
+        updated_at: "2026-08-02T00:00:00Z",
+      };
+      if (path === "/exams/9971/" && method === "GET") return json(exam);
+      if (path === "/exams/9971/structure/ensure/" && method === "POST") return json(exam);
+      if (path === "/exams/9971/questions/" && method === "GET") {
+        return json([{ id: 99711, sheet: 9971, number: 1, question_kind: "choice", score: 100 }]);
+      }
+      if (path === "/exams/9971/explanations/" && method === "GET") return json([]);
+      if (path === "/exams/answer-keys/" && method === "GET") {
+        return json((state.answerKeySaves ?? []).map((payload, index) => ({ id: 99712 + index, ...payload })));
+      }
+      if (path === "/exams/answer-keys/" && method === "POST") {
+        const payload = request.postDataJSON() as Record<string, unknown>;
+        state.answerKeySaves ??= [];
+        state.answerKeySaves.push(payload);
+        return json({ id: 99712, ...payload }, 201);
+      }
+      if (path === "/exams/9971/omr/defaults/" && method === "GET") {
+        return json({
+          exam_title: String(created.title), lecture_name: "고1 Hyper 정규반",
+          session_name: "1차시", mc_count: 1, essay_count: 0,
+          include_optional_essay_area: false, can_include_optional_essay_area: true,
+          n_choices: 5, question_types: ["choice"], choice_question_numbers: [1],
+          essay_question_numbers: [], logo_url: null,
+        });
+      }
+      if (path === "/exams/9971/omr/preview/" && method === "POST") {
+        return route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><html><body>OMR 미리보기</body></html>" });
+      }
+      if (path === "/exams/9971/omr/pdf/" && method === "POST") {
+        return route.fulfill({
+          status: 200, contentType: "application/pdf",
+          headers: { "content-disposition": "attachment; filename=exam-omr.pdf" },
+          body: Buffer.from("%PDF-1.4\n%%EOF\n"),
+        });
+      }
     }
     if (/^\/exams\/\d+\/enrollments\/$/.test(path) && method === "PUT") {
       const payload = request.postDataJSON() as { enrollment_ids?: number[] };
@@ -802,6 +866,45 @@ test("원본 없이 직접 채점 시험을 만들고 문항별 점수 입력을
     "auto-enroll-read",
     "auto-enroll",
   ]);
+});
+
+test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운로드가 이어진다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    guidedExamFlow: true,
+    createdExamPayloads: [],
+    examSessionEnrollmentRows: [],
+    answerKeySaves: [],
+  };
+  await openLecture(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/scores`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await page.getByRole("button", { name: "시험 추가", exact: true }).first().click();
+  await page.getByText("시험 설정해서 만들기", { exact: true }).click();
+  await page.getByLabel("시험명").fill("고1 OMR 단원평가");
+  await page.getByRole("button", { name: "시험 만들기", exact: true }).click();
+
+  const answerDialog = page.getByRole("dialog").filter({ hasText: "2. 답안 등록" });
+  await expect(answerDialog).toBeVisible();
+  await answerDialog.locator(".answer-key-row--choice .answer-key-omr-label").nth(1).click();
+  await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
+  await answerDialog.getByRole("button", { name: /답안 저장하고 다음/ }).click();
+  await expect.poll(() => state.answerKeySaves?.length).toBe(1);
+  expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "2" } });
+
+  const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
+  await expect(printDialog).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    printDialog.getByRole("button", { name: "이 구성으로 PDF 다운로드" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toContain("OMR");
+  await expect(printDialog.getByText("답안지 다운로드 완료")).toBeVisible();
+  await printDialog.getByRole("button", { name: "설정 화면으로" }).click();
+  await expect(page).toHaveURL(/\/exams\?assessment=exam%3A9971/);
 });
 
 test("원본을 선택하면 생성과 자동 등록 뒤 기존 업로드 순서를 유지한다", async ({ page }, testInfo) => {

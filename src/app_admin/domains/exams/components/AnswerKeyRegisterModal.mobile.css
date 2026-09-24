@@ -64,8 +64,8 @@
   }
 
   .answer-key-row__bubbles {
-    max-width: 252px;
-    justify-content: space-between;
+    max-width: 300px;
+    justify-content: flex-start;
   }
 
   .answer-key-row__score-ctrl {

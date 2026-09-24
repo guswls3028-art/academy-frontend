@@ -534,7 +534,7 @@ test.describe("개인 성적표", () => {
 
     const [download] = await Promise.all([
       page.waitForEvent("download", { timeout: 90_000 }),
-      dialog.getByRole("button", { name: "개인 성적표 PDF" }).click(),
+      dialog.getByRole("button", { name: "개인 성적표 PDF 다운로드" }).click(),
     ]);
     expect(download.suggestedFilename()).toContain("박도윤");
     const outputPath = testInfo.outputPath("student-score-report.pdf");
@@ -548,7 +548,7 @@ test.describe("개인 성적표", () => {
     await dialog.getByRole("checkbox", { name: "김서윤 성적표 출력 선택" }).check();
     const [batchDownload] = await Promise.all([
       page.waitForEvent("download", { timeout: 120_000 }),
-      dialog.getByRole("button", { name: "2명 성적표 PDF" }).click(),
+      dialog.getByRole("button", { name: "2명 성적표 PDF 다운로드" }).click(),
     ]);
     expect(batchDownload.suggestedFilename()).toContain("2명");
     const batchOutputPath = testInfo.outputPath("student-score-report-2-students.pdf");
@@ -608,7 +608,7 @@ test.describe("개인 성적표", () => {
     const secondFrame = page.frameLocator('iframe[title="박도윤 개인 성적표 미리보기"]');
     await expect(secondFrame.locator("h1")).toHaveText("박도윤");
     await expect(secondFrame.locator(".flow-metric").first()).toContainText("64%");
-    await expect(dialog.getByRole("button", { name: "개인 성적표 PDF" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "개인 성적표 PDF 다운로드" })).toBeVisible();
     await page.screenshot({
       path: testInfo.outputPath("individual-score-report-preview-390.png"),
       fullPage: false,
@@ -676,7 +676,7 @@ test.describe("개인 성적표", () => {
 
     const [download] = await Promise.all([
       page.waitForEvent("download", { timeout: 90_000 }),
-      dialog.getByRole("button", { name: "개인 성적표 PDF" }).click(),
+      dialog.getByRole("button", { name: "개인 성적표 PDF 다운로드" }).click(),
     ]);
     const outputPath = testInfo.outputPath("student-score-report-dense.pdf");
     await download.saveAs(outputPath);
