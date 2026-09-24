@@ -487,6 +487,7 @@ test.describe("개인 성적표", () => {
 
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("개인 성적표", { exact: true })).toBeVisible();
+    await expect(dialog.locator(".student-score-report-students")).toHaveCount(0);
     const firstFrame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
     await expect(firstFrame.locator(".student-report-page")).toHaveCount(2);
     await expect(firstFrame.locator("h1")).toHaveText("김서윤");
@@ -509,7 +510,7 @@ test.describe("개인 성적표", () => {
       return url.pathname.endsWith("/results/admin/student-grades/")
         && url.searchParams.get("student_id") === "7002";
     });
-    await dialog.getByRole("button", { name: /박도윤/ }).click();
+    await dialog.getByRole("combobox", { name: "성적표 학생 선택" }).selectOption("9102");
     await secondGradesResponse;
     const secondFrame = page.frameLocator('iframe[title="박도윤 개인 성적표 미리보기"]');
     await expect(secondFrame.locator("h1")).toHaveText("박도윤");
@@ -545,6 +546,7 @@ test.describe("개인 성적표", () => {
     expect(pdf.getPageCount()).toBe(2);
     expect(pdfBytes.byteLength).toBeLessThan(2_000_000);
 
+    await dialog.getByRole("button", { name: "여러 명 출력" }).click();
     await dialog.getByRole("checkbox", { name: "김서윤 성적표 출력 선택" }).check();
     const [batchDownload] = await Promise.all([
       page.waitForEvent("download", { timeout: 120_000 }),
@@ -592,6 +594,10 @@ test.describe("개인 성적표", () => {
     const mobileStudentSelect = dialog.getByRole("combobox", { name: "성적표 학생 선택" });
     await expect(mobileStudentSelect).toBeVisible();
     await expect(dialog.locator(".student-score-report-students")).toBeHidden();
+    await expect(dialog.locator(".student-score-report-mobile-selection")).toHaveCount(0);
+    await dialog.getByRole("button", { name: "여러 명 출력" }).click();
+    await expect(dialog.locator(".student-score-report-mobile-selection")).toBeVisible();
+    await dialog.getByRole("button", { name: "학생 목록 닫기" }).click();
 
     const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
     await expect(frame.locator(".student-report-page")).toHaveCount(2);

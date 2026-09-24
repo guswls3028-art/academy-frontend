@@ -22,12 +22,16 @@
 
 .student-score-report-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--score-report-brand, #14213d) 5%, transparent), transparent 44%),
     var(--color-bg-canvas, #eef2f6);
+}
+
+.student-score-report-workspace.is-student-list-open {
+  grid-template-columns: minmax(0, 1fr) 300px;
 }
 
 .student-score-report-preview {
@@ -102,9 +106,30 @@
   outline-offset: 2px;
 }
 
-.student-score-report-mobile-student,
 .student-score-report-mobile-selection {
   display: none;
+}
+
+.student-score-report-mobile-student {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-text-muted, #64748b);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.student-score-report-mobile-student select {
+  max-width: 180px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--color-border-divider, #dbe2ea);
+  border-radius: 7px;
+  background: var(--color-bg-surface, #fff);
+  color: var(--color-text-primary, #172033);
 }
 
 .student-score-report-brand-state {
@@ -368,7 +393,7 @@
 }
 
 @media (max-width: 1050px) {
-  .student-score-report-workspace {
+  .student-score-report-workspace.is-student-list-open {
     grid-template-columns: minmax(0, 1fr) 250px;
   }
 
@@ -391,7 +416,8 @@
     padding-right: 44px;
   }
 
-  .student-score-report-workspace {
+  .student-score-report-workspace,
+  .student-score-report-workspace.is-student-list-open {
     grid-template-columns: 1fr;
   }
 

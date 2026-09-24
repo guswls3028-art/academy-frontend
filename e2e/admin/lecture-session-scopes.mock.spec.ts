@@ -889,12 +889,20 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
 
   const answerDialog = page.getByRole("dialog").filter({ hasText: "2. 답안 등록" });
   await expect(answerDialog).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await answerDialog.locator(".answer-key-omr-label").first().evaluate((element) =>
+    element.getBoundingClientRect().width
+  )).toBeGreaterThanOrEqual(48);
+  expect(await answerDialog.locator(".answer-key-row__bubbles").first().evaluate((element) =>
+    element.scrollWidth <= element.clientWidth + 1
+  )).toBe(true);
   await answerDialog.locator(".answer-key-row--choice .answer-key-omr-label").nth(1).click();
   await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
   await answerDialog.getByRole("button", { name: /답안 저장하고 다음/ }).click();
   await expect.poll(() => state.answerKeySaves?.length).toBe(1);
   expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "2" } });
 
+  await page.setViewportSize({ width: 1366, height: 900 });
   const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
   await expect(printDialog).toBeVisible();
   const [download] = await Promise.all([
