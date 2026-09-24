@@ -312,6 +312,18 @@
   min-width: 3ch;
 }
 
+@media (max-width: 480px) {
+  .display {
+    font-size: clamp(42px, 14vw, 64px);
+  }
+
+  .display .sep,
+  .display .cs {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
 @keyframes blink {
   50% { opacity: 0.05; }
 }
@@ -793,4 +805,71 @@
 
 .projector .displayFinished {
   color: #ff6b6b !important;
+}
+
+@media (max-width: 480px) {
+  .root {
+    height: auto;
+    min-height: 600px;
+    justify-content: flex-start;
+  }
+
+  .topBar {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    width: 100%;
+    padding: 16px;
+  }
+
+  .brandName {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .modeToggle {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+  }
+
+  .modeBtn {
+    padding: 8px 16px;
+    white-space: nowrap;
+  }
+
+  .topRight {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .projToggle {
+    padding: 6px 10px;
+    white-space: nowrap;
+  }
+
+  .main {
+    gap: 20px;
+    padding: 16px;
+  }
+
+  .controls {
+    gap: 12px;
+  }
+
+  .btnSide,
+  .btnAdd {
+    padding: 12px 18px;
+    white-space: nowrap;
+  }
+
+  .hints {
+    display: none;
+  }
+
+  .projector .topBar {
+    opacity: 1;
+  }
 }
