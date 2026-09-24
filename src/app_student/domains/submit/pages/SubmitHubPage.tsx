@@ -18,7 +18,7 @@ const submitLinks = [
   {
     to: "/student/submit/assignment",
     title: "과제 제출",
-    description: "동영상·사진으로 과제를 제출합니다.",
+    description: "동영상·사진을 제출하고 선생님 확인을 기다립니다.",
     badge: "동영상 / 사진",
     tone: "assignment",
     Icon: IconBoard,
@@ -37,7 +37,7 @@ export default function SubmitHubPage() {
   return (
     <StudentPageShell
       title="제출"
-      description="성적표 또는 과제(동영상·사진)를 제출하면 선생님 인벤토리에 저장됩니다."
+      description="성적표 또는 과제 파일을 제출하면 선생님이 직접 확인합니다."
       descriptionMode="help"
     >
       <div className={styles.stack}>

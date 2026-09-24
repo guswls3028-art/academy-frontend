@@ -8,6 +8,7 @@ export const teacherExamsQueryKeys = {
     ["teacher-exam-enrollment-rows", examId, sessionIds] as const,
   homework: (homeworkId: number) => ["teacher-homework", homeworkId] as const,
   homeworkSubmissions: (homeworkId: number) => ["teacher-homework-submissions", homeworkId] as const,
+  homeworkSubmissionPreview: (homeworkId: number, mediaId: string | null) => ["teacher-homework-submission-preview", homeworkId, mediaId] as const,
   bundles: ["teacher-exam-bundles"] as const,
   bundle: (bundleId?: number) => ["teacher-exam-bundle", bundleId] as const,
   examTemplatesUsage: ["teacher-exam-templates-usage"] as const,
