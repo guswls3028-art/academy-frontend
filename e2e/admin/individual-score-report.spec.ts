@@ -565,13 +565,16 @@ test.describe("개인 성적표", () => {
     expect(await dialog.locator(".student-score-report-preview__scroll").evaluate((element) =>
       element.scrollWidth <= element.clientWidth + 1
     )).toBe(true);
+    expect(await dialog.locator(".student-score-report-data-state").evaluate((element) =>
+      element.getBoundingClientRect().height
+    )).toBeLessThan(30);
     await page.screenshot({
       path: testInfo.outputPath("individual-score-report-preview-1100.png"),
       fullPage: false,
     });
 
     const requestCountBeforeReopen = apiTracker.getStudentGradesRequestCount();
-    await dialog.getByRole("button", { name: "닫기" }).click();
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(dialog).toBeHidden();
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /개인 성적표/ }).click();

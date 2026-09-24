@@ -43,6 +43,7 @@
 
 .student-score-report-preview__toolbar {
   display: flex;
+  flex-wrap: wrap;
   min-height: 52px;
   align-items: center;
   justify-content: space-between;
@@ -57,6 +58,14 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.student-score-report-preview__controls {
+  flex-wrap: wrap;
+}
+
+.student-score-report-preview__status {
+  flex: 0 0 auto;
 }
 
 .student-score-report-preview__step {
@@ -155,6 +164,12 @@
 .student-score-report-data-state {
   color: var(--color-text-muted, #64748b);
   font-size: 12px;
+}
+
+@media (min-width: 761px) {
+  .student-score-report-data-state {
+    white-space: nowrap;
+  }
 }
 
 .student-score-report-preview__scroll {
