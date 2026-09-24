@@ -17,6 +17,14 @@ Self-contained instructions for the frontend Git root.
   `git -C C:\academy\backend show origin/main:docs/operations/concurrent-codex-sessions.md`.
   Refresh that ref if its freshness is not established; do not copy the policy
   into this repository or overwrite canonical files.
+- In this owner's local sessions, use the installed ChatGPT Web bridge for
+  meaningful independent work:
+  `chatgpt-web/pro` at `ultra` is the default subagent. Start one bounded Web
+  task early; use a lower Web model only for genuinely trivial work. Preserve
+  the primary Codex model and Codex ownership of integration, checks, and
+  release. Retry Pro once on capacity errors; do not silently downgrade
+  consequential work. If the bridge is unavailable, continue locally and
+  report that once.
 
 ## Scope and authority
 

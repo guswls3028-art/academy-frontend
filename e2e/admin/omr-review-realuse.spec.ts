@@ -1016,10 +1016,14 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
         .toBeVisible({ timeout: 15_000 });
       await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
       await expect(page.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME, { timeout: 10_000 });
+      await expect(page.getByRole("dialog", { name: "학생 선택" })).toBeHidden();
     }
 
     const firstAnswerRow = page.locator(".orw-q-row").first();
-    await firstAnswerRow.getByRole("button", { name: "2", exact: true }).click();
+    await expect(firstAnswerRow.locator(".orw-q-row__num")).toHaveText("1번");
+    const correctedAnswer = firstAnswerRow.getByRole("button", { name: "2", exact: true });
+    await expect(correctedAnswer).toBeVisible({ timeout: 30_000 });
+    await correctedAnswer.click();
     await expect(page.getByRole("button", { name: "저장 + 재채점" })).toBeEnabled();
 
     const wrongSaveResponsePromise = page.waitForResponse(

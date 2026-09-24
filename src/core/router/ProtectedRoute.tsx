@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app/router/ProtectedRoute.tsx
-import { useState } from "react";
-import { Navigate, Outlet } from "react-router";
+import { lazy, Suspense, useState } from "react";
+import { Navigate, Outlet, useLocation } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import ForcePasswordChangeModal from "@/auth/components/ForcePasswordChangeModal";
@@ -25,8 +25,10 @@ export type Role =
 const ADMIN_ROLES: Role[] = ["owner", "admin", "teacher", "staff"];
 const STUDENT_ROLES: Role[] = ["student", "parent"];
 const PASSWORD_RECOMMENDATION_ROLES: Role[] = ["owner", "student", "parent"];
+const SubscriptionNoticeGate = lazy(() => import("@/auth/components/SubscriptionNoticeGate"));
 
 export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; tenantOnly?: string[] }) {
+  const location = useLocation();
   const {
     user,
     isLoading,
@@ -167,6 +169,10 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
           primaryColor={program.ui_config.primary_color}
           onCompleted={markFirstLoginGuideCompleted}
         />
+      ) : !isStudentSupportSession && location.pathname.startsWith("/workspace") ? (
+        <Suspense fallback={null}>
+          <SubscriptionNoticeGate key={`${program.tenantCode}:${user.id}`} user={user} tenantCode={program.tenantCode} />
+        </Suspense>
       ) : null}
     </>
   );
