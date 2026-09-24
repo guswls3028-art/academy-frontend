@@ -37,7 +37,7 @@ import PostReadView from "../components/PostReadView";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import { stripHtml, formatFileSize } from "../utils/communityHelpers";
-import { createClientRequestKey } from "@/shared/api/contracts/community";
+import { createClientRequestKey, getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import "@admin/domains/community/qna-inbox.css";
 import "@admin/domains/community/notice-tree.css";
 import "@admin/domains/community/board-admin.css";
@@ -384,12 +384,14 @@ function NoticeDetailView({
 
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.noticePosts });
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.boardPosts });
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("notice") });
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
-      feedback.success("공지가 삭제되었습니다.");
+      const cleanupNotice = getCommunityStorageCleanupNotice(result);
+      if (cleanupNotice) feedback.warning(cleanupNotice);
+      else feedback.success("공지가 삭제되었습니다.");
       onDeleted();
     },
     onError: (e: unknown) => {
