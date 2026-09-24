@@ -264,6 +264,9 @@ async function installApi(page: Page, state: MockState) {
     }
     if (state.guidedExamFlow && state.createdExamPayloads?.length) {
       const created = state.createdExamPayloads[0];
+      if (path === `/results/admin/sessions/${REGULAR_SESSION_ID}/exams/` && method === "GET") {
+        return json([{ exam_id: 9971, title: created.title, open_at: null, close_at: null, allow_retake: false, max_attempts: 1 }]);
+      }
       const exam = {
         id: 9971,
         title: created.title,
@@ -894,7 +897,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   const answerDialog = page.getByRole("dialog").filter({ hasText: "2. 답안 등록" });
   await expect(answerDialog).toBeVisible();
   expect(await answerDialog.locator(".answer-key-omr-label").first().evaluate((element) =>
-    element.getBoundingClientRect().width
+    (element as HTMLElement).offsetWidth
   )).toBeGreaterThanOrEqual(44);
   expect(await answerDialog.locator(".answer-key-row__bubbles").first().evaluate((element) =>
     element.scrollWidth <= element.clientWidth + 1
@@ -914,7 +917,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   expect(download.suggestedFilename()).toContain("OMR");
   await expect(printDialog.getByText("답안지 다운로드 완료")).toBeVisible();
   await printDialog.getByRole("button", { name: "설정 화면으로" }).click();
-  await expect(page).toHaveURL(/\/exams\?assessment=exam%3A9971/);
+  await expect(page).toHaveURL(/\/exams\?examId=9971/);
 });
 
 test("원본을 선택하면 생성과 자동 등록 뒤 기존 업로드 순서를 유지한다", async ({ page }, testInfo) => {

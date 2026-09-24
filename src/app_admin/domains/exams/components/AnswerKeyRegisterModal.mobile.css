@@ -66,9 +66,11 @@
   .answer-key-row__bubbles {
     max-width: 300px;
     justify-content: flex-start;
+    gap: 2px;
   }
 
   .answer-key-omr-label {
+    flex: 0 0 44px;
     width: 44px;
     min-width: 44px;
   }
