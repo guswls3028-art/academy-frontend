@@ -46,6 +46,7 @@ type MockState = {
   examRequestSequence?: string[];
   guidedExamFlow?: boolean;
   guidedQuestionsInitialized?: boolean;
+  guidedQuestionScore?: number;
   answerKeySaves?: Array<Record<string, unknown>>;
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
   homeworkAssignmentIds?: number[];
@@ -297,12 +298,17 @@ async function installApi(page: Page, state: MockState) {
       if (path === "/exams/9971/structure/ensure/" && method === "POST") return json(exam);
       if (path === "/exams/9971/questions/" && method === "GET") {
         return json(state.guidedQuestionsInitialized
-          ? [{ id: 99711, sheet: 9971, number: 1, question_kind: "choice", score: 1 }]
+          ? [{ id: 99711, sheet: 9971, number: 1, question_kind: "choice", score: state.guidedQuestionScore ?? 1 }]
           : []);
       }
       if (path === "/exams/9971/questions/init/" && method === "POST") {
         state.guidedQuestionsInitialized = true;
         return json([{ id: 99711, sheet: 9971, number: 1, question_kind: "choice", score: 1 }]);
+      }
+      if (path === "/exams/questions/99711/" && method === "PATCH") {
+        const payload = request.postDataJSON() as { score: number };
+        state.guidedQuestionScore = payload.score;
+        return json({ id: 99711, sheet: 9971, number: 1, question_kind: "choice", score: payload.score });
       }
       if (path === "/exams/9971/explanations/" && method === "GET") return json([]);
       if (path === "/exams/answer-keys/" && method === "GET") {
@@ -914,8 +920,13 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   )).toBe(true);
   await answerDialog.locator(".answer-key-row--choice .answer-key-omr-label").nth(1).click();
   await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
+  await answerDialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
+  expect(state.answerKeySaves).toHaveLength(0);
+  await answerDialog.getByRole("button", { name: "만점에 맞게 균등 배점" }).click();
+  await expect(answerDialog.locator(".answer-key-score-guide")).toHaveCount(0);
   await answerDialog.getByRole("button", { name: /답안 저장하고 다음/ }).click();
   await expect.poll(() => state.answerKeySaves?.length).toBe(1);
+  expect(state.guidedQuestionScore).toBe(100);
   expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "2" } });
 
   const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });

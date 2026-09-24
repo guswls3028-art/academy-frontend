@@ -452,6 +452,27 @@ export default function AnswerKeyRegisterModal({
   const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.objective;
   const essayTotalScore = essayQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.subjective;
   const totalScore = questionTotalScore + scoreAdjustmentDraft.objective + scoreAdjustmentDraft.subjective;
+  const examMaxScore = Number(exam?.max_score);
+  const guidedScoreMismatch = flowStep === "answer" && Number.isFinite(examMaxScore)
+    && examMaxScore > 0 && Math.abs(totalScore - examMaxScore) > 0.01;
+
+  const alignGuidedScores = () => {
+    const count = sortedQuestions.length;
+    const targetCents = Math.round((examMaxScore - scoreAdjustmentDraft.objective - scoreAdjustmentDraft.subjective) * 100);
+    if (count < 1 || targetCents < 0) {
+      feedback.error("문항 수와 기본점수를 확인한 뒤 배점을 맞춰 주세요.");
+      return;
+    }
+    const baseCents = Math.floor(targetCents / count);
+    const remainder = targetCents % count;
+    setScoreDraft((current) => ({
+      ...current,
+      ...Object.fromEntries(sortedQuestions.map((question, index) => [
+        question.id,
+        (baseCents + (index < remainder ? 1 : 0)) / 100,
+      ])),
+    }));
+  };
 
   useEffect(() => {
     if (!open || !structureReady || !answerKeyLoaded || answerKeyFetching || answerKeyHydrated) return;
@@ -799,6 +820,10 @@ export default function AnswerKeyRegisterModal({
         feedback.error(`${missingChoice.number}번 객관식 정답을 입력한 뒤 저장해 주세요.`);
         return;
       }
+      if (guidedScoreMismatch) {
+        feedback.error(`문항 배점 합계 ${formatScore(totalScore)}점을 시험 만점 ${formatScore(examMaxScore)}점과 맞춰 주세요.`);
+        return;
+      }
     }
     setSaveBusy(true);
     try {
@@ -1059,6 +1084,14 @@ export default function AnswerKeyRegisterModal({
                 <span><i className="is-essay" />서술형 {questionTypes.filter((kind) => kind === "essay").length}</span>
               </div>
             </section>
+            {guidedScoreMismatch && sortedQuestions.length > 0 && (
+              <div className="answer-key-score-guide" role="status">
+                <span>문항 배점 합계 {formatScore(totalScore)}점 · 시험 만점 {formatScore(examMaxScore)}점</span>
+                <Button type="button" intent="secondary" size="sm" onClick={alignGuidedScores} disabled={!canEditStructure}>
+                  만점에 맞게 균등 배점
+                </Button>
+              </div>
+            )}
             <div className="answer-key-two-panels">
               {/* 좌측: 선택형 — 문항 수 메뉴 상시 표시 */}
               <div className="answer-key-panel answer-key-panel--choice">

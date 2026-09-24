@@ -136,6 +136,22 @@
 .answer-key-type-map__legend .is-choice { background: var(--color-brand-primary); }
 .answer-key-type-map__legend .is-essay { background: #d97706; }
 
+.answer-key-score-guide {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-warning) 7%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 /* 좌우 2패널 — 부모(.answer-key-panel)의 flex:1로 남은 공간 전부 사용 */
 .answer-key-two-panels {
   display: grid;
