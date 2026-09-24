@@ -39,6 +39,8 @@ type HomeworkSummary = {
   passed: boolean;
   achievement: string;
   submission_state?: "needs_submission" | "awaiting_review" | "reviewed";
+  lecture_active?: boolean;
+  submission_media_locked?: boolean;
 };
 
 type CreatedState = {
@@ -426,13 +428,32 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
     const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
-    await waitForHomeworkSummary(
+    const parentSummary = await waitForHomeworkSummary(
       request,
       parentTokens.access,
       (row) => row.submission_state === "awaiting_review" && row.score === null,
       student.id,
     );
+    expect(parentSummary.lecture_active).toBe(true);
+    expect(parentSummary.submission_media_locked).toBe(false);
+    const browserGradesResponses: Array<import("@playwright/test").Response> = [];
+    page.on("response", (response) => {
+      if (response.request().method() === "GET" && new URL(response.url()).pathname === "/api/v1/student/grades/") {
+        browserGradesResponses.push(response);
+      }
+    });
     await gotoAndSettle(page, `${QA_BASE}/student/submit/assignment`, { timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "과제 제출" })).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => browserGradesResponses.length).toBeGreaterThan(0);
+    const browserGradesResponse = browserGradesResponses.at(-1)!;
+    expect(browserGradesResponse.request().headers()["x-student-id"]).toBe(String(student.id));
+    expect(browserGradesResponse.status()).toBe(200);
+    const browserGrades = await browserGradesResponse.json() as { homeworks?: HomeworkSummary[] };
+    expect(browserGrades.homeworks?.find((row) => row.homework_id === created.homeworkId)).toMatchObject({
+      submission_state: "awaiting_review",
+      lecture_active: true,
+      submission_media_locked: false,
+    });
     await expect(page.getByText("학부모 계정은 직접 제출할 수 없습니다.")).toHaveCount(0);
     await expect(page.getByText(homeworkTitle, { exact: true })).toBeVisible({ timeout: 30_000 });
     await page.getByText(homeworkTitle, { exact: true }).click();
