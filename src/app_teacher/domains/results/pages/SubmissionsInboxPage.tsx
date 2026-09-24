@@ -196,7 +196,7 @@ export default function SubmissionsInboxPage() {
 
   const handleNavigate = (row: PendingSubmissionRow) => {
     if (!isTargetResolved(row)) {
-      feedback.error("원본 시험/과제 정보를 찾을 수 없어 이동할 수 없습니다.");
+      feedback.error("원본 시험 정보를 찾을 수 없어 이동할 수 없습니다.");
       return;
     }
     if (row.target_type === "exam") {
@@ -225,7 +225,7 @@ export default function SubmissionsInboxPage() {
       {/* Header */}
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => navigate(-1)} />
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>제출함</h1>
+        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>시험 답안 제출함</h1>
       </div>
 
       {/* 원본 없음 일괄 폐기 배너 — 2건 이상일 때만 노출. 학원장 노동 압축. */}
@@ -243,7 +243,7 @@ export default function SubmissionsInboxPage() {
               원본 없음 {orphanRows.length}건
             </div>
             <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-              시험·과제가 삭제돼 매칭이 안 되는 답안지입니다. 한 번에 정리할 수 있어요.
+              시험이 삭제돼 매칭이 안 되는 답안지입니다. 한 번에 정리할 수 있어요.
             </div>
           </div>
           <button
@@ -306,7 +306,7 @@ export default function SubmissionsInboxPage() {
           scope="panel"
           tone="empty"
           title={emptyTitle}
-          description={filter === "pending" ? "학생 제출이 들어오면 자동 채점과 확인 대기 항목이 이곳에 쌓입니다." : "다른 상태의 제출을 보려면 대기 중 또는 전체 탭으로 전환하세요."}
+          description={filter === "pending" ? "시험 OMR과 답안 처리 항목이 이곳에 쌓입니다. 숙제 파일은 과제 상세에서 직접 확인합니다." : "다른 상태의 제출을 보려면 대기 중 또는 전체 탭으로 전환하세요."}
           actions={filter === "pending" ? (
             <EmptyActionButton onClick={() => navigate("/workspace/mobile/classes")}>
               차시 확인

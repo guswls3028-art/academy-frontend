@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/messages/components/AutoSendSettingsPanel.tsx
 // 재사용 가능한 자동발송 설정 패널 — Clinic Settings, Community Settings, Staff Settings 등에서 사용
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "antd";
@@ -11,7 +11,6 @@ import {
   fetchAutoSendConfigs,
   fetchMessageTemplates,
   fetchMessageTemplate,
-  updateAutoSendConfigs,
   updateMessageTemplate,
   createMessageTemplate,
   deleteMessageTemplate,
@@ -42,6 +41,7 @@ import {
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { messageQueryKeys } from "../queryKeys";
+import { useAutoSendDraft } from "../hooks/useAutoSendDraft";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import "../styles/templateEditor.css";
 import styles from "./AutoSendSettingsPanel.module.css";
@@ -251,7 +251,7 @@ function TriggerCard({
           <Switch
             checked={channelActive}
             onChange={handleChannelToggle}
-            disabled={operationalDisabled || saving || isUnimplemented || isSystem || !config.effective_template_is_approved}
+            disabled={operationalDisabled || isUnimplemented || isSystem || !config.effective_template_is_approved}
             aria-label={`${AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger} 자동 발송`}
             size="small"
           />
@@ -332,7 +332,7 @@ function TriggerCard({
             <AutoSendTimingControl
               config={config}
               onUpdate={onUpdate}
-              disabled={saving || isUnimplemented}
+              disabled={isUnimplemented}
             />
           </div>
         )}
@@ -352,7 +352,7 @@ function TriggerCard({
                   message_mode: "alimtalk",
                 })
               }
-              disabled={saving || isUnimplemented}
+              disabled={isUnimplemented}
             >
               <option value="alimtalk">알림톡</option>
             </select>
@@ -366,7 +366,6 @@ function TriggerCard({
             size="small"
             checked={config.show_actual_time ?? false}
             onChange={(checked) => onUpdate({ ...config, show_actual_time: checked })}
-            disabled={saving}
             aria-label={`${AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger} 실제 처리 시각 표시`}
           />
           <span className={styles.clinicTimeText}>
@@ -465,25 +464,7 @@ export default function AutoSendSettingsPanel({
   });
 
   // ---- Local state (optimistic updates) ----
-  const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingConfigsRef = useRef<Partial<AutoSendConfigItem>[]>([]);
-  const hasPendingDebouncedSaveRef = useRef(false);
-
-  useEffect(() => {
-    setLocalConfigs(allConfigs);
-  }, [allConfigs]);
-
-  useEffect(() => {
-    return () => {
-      if (!hasPendingDebouncedSaveRef.current) return;
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      hasPendingDebouncedSaveRef.current = false;
-      if (pendingConfigsRef.current.length > 0) {
-        void updateAutoSendConfigs(pendingConfigsRef.current).catch(() => undefined);
-      }
-    };
-  }, []);
+  const { localConfigs, saving, error: saveError, edit: saveConfigs, retry: retrySave } = useAutoSendDraft(allConfigs);
 
   // Filter to only the triggers this panel cares about
   const filteredConfigs = localConfigs.filter((c) =>
@@ -498,26 +479,6 @@ export default function AutoSendSettingsPanel({
   const sectionEnabled = isAllToggleableEnabled(sectionSummary);
 
   // ---- Mutations ----
-  const updateMut = useMutation({
-    mutationFn: updateAutoSendConfigs,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
-      feedback.success("자동발송 설정이 저장되었습니다.");
-    },
-    onError: (err: unknown) => {
-      pendingConfigsRef.current = [];
-      hasPendingDebouncedSaveRef.current = false;
-      setLocalConfigs(allConfigs);
-      void qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
-      const msg =
-        err && typeof err === "object" && "response" in err
-          ? (err as { response?: { data?: { detail?: string } } }).response
-              ?.data?.detail
-          : null;
-      feedback.error(msg || "저장에 실패했습니다.");
-    },
-  });
-
   const [editingTemplate, setEditingTemplate] =
     useState<MessageTemplateItem | null>(null);
   const [editingTrigger, setEditingTrigger] = useState<string | null>(null);
@@ -560,13 +521,7 @@ export default function AutoSendSettingsPanel({
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       if (creatingForTrigger && created?.id) {
-        const next = localConfigs.map((c) =>
-          c.trigger === creatingForTrigger
-            ? { ...c, template: created.id }
-            : c,
-        );
-        setLocalConfigs(next);
-        updateMut.mutate([{ trigger: creatingForTrigger, template: created.id }]);
+        saveConfigs([{ trigger: creatingForTrigger, template: created.id }]);
       }
       setCreatingForTrigger(null);
       feedback.success("보낼 내용이 생성되었습니다.");
@@ -577,42 +532,8 @@ export default function AutoSendSettingsPanel({
   });
 
   // ---- Handlers ----
-  const queuePatch = (patch: Partial<AutoSendConfigItem>) => {
-    if (!patch.trigger) return;
-    const existing = pendingConfigsRef.current.find((c) => c.trigger === patch.trigger);
-    pendingConfigsRef.current = [
-      ...pendingConfigsRef.current.filter((c) => c.trigger !== patch.trigger),
-      { ...existing, ...patch },
-    ];
-  };
-
-  const takeQueuedPatches = () => {
-    const patches = pendingConfigsRef.current;
-    pendingConfigsRef.current = [];
-    return patches;
-  };
-
-  const handleUpdate = (
-    updated: Partial<AutoSendConfigItem>,
-    debounce = false,
-  ) => {
-    const next = localConfigs.map((c) =>
-      c.trigger === updated.trigger ? { ...c, ...updated } : c,
-    );
-    setLocalConfigs(next);
-    queuePatch(updated);
-    if (debounce) {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      hasPendingDebouncedSaveRef.current = true;
-      debounceRef.current = setTimeout(() => {
-        hasPendingDebouncedSaveRef.current = false;
-        updateMut.mutate(takeQueuedPatches());
-      }, 600);
-    } else {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      hasPendingDebouncedSaveRef.current = false;
-      updateMut.mutate(takeQueuedPatches());
-    }
+  const handleUpdate = (updated: Partial<AutoSendConfigItem>, debounce = false) => {
+    saveConfigs([updated], debounce);
   };
 
   const handleSectionToggle = (checked: boolean) => {
@@ -640,8 +561,7 @@ export default function AutoSendSettingsPanel({
       if (c.message_mode !== prev.message_mode) patch.message_mode = c.message_mode;
       return Object.keys(patch).length > 1 ? [patch] : [];
     });
-    setLocalConfigs(next);
-    if (patches.length > 0) updateMut.mutate(patches);
+    if (patches.length > 0) saveConfigs(patches);
   };
 
   const handleEditTemplate = (trigger: string, templateId: number | null) => {
@@ -746,7 +666,7 @@ export default function AutoSendSettingsPanel({
                 checked={sectionEnabled}
                 onChange={handleSectionToggle}
                 disabled={
-                  operationalDisabled || updateMut.isPending || sectionSummary.toggleable === 0
+                  operationalDisabled || sectionSummary.toggleable === 0
                 }
                 aria-label={`${title} 전체 자동 발송`}
                 size="small"
@@ -759,6 +679,11 @@ export default function AutoSendSettingsPanel({
               </span>
             </div>
           </div>
+          {saveError && (
+            <p role="alert" className={styles.saveError}>
+              {saveError} <Button onClick={retrySave}>다시 저장</Button>
+            </p>
+          )}
           <AlimtalkEnvelopeGuide variant="compact" />
         </div>
 
@@ -767,14 +692,14 @@ export default function AutoSendSettingsPanel({
           <div className={panelStyles.contentInner}>
             <AutoSendSummaryStrip
               summary={sectionSummary}
-              saving={updateMut.isPending}
+              saving={saving}
             />
             {filteredConfigs.map((config) => (
               <TriggerCard
                 key={config.trigger}
                 config={config}
                 onUpdate={handleUpdate}
-                saving={updateMut.isPending}
+                saving={saving}
                 operationalDisabled={operationalDisabled}
                 onEditTemplate={handleEditTemplate}
                 channelMode={channelMode}

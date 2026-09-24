@@ -10,7 +10,6 @@ import {
   fetchAutoSendConfigs,
   fetchMessageTemplates,
   fetchMessageTemplate,
-  updateAutoSendConfigs,
   updateMessageTemplate,
   createMessageTemplate,
   provisionDefaultTemplates,
@@ -47,6 +46,7 @@ import {
   type AutoSendSummary,
 } from "../utils/autoSendConfigState";
 import { messageQueryKeys } from "../queryKeys";
+import { useAutoSendDraft } from "../hooks/useAutoSendDraft";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./MessageAutoSendPage.module.css";
 import "../styles/templateEditor.css";
@@ -184,13 +184,11 @@ const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
 function TriggerCard({
   config,
   onUpdate,
-  saving,
   onEditTemplate,
   operationalDisabled,
 }: {
   config: AutoSendConfigItem;
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
-  saving: boolean;
   onEditTemplate?: (trigger: string, templateId: number | null) => void;
   operationalDisabled: boolean;
 }) {
@@ -248,7 +246,7 @@ function TriggerCard({
           <Switch
             checked={isSystem ? deliveryReady : isUnimplemented ? false : config.enabled}
             onChange={(checked) => onUpdate({ ...config, enabled: checked })}
-            disabled={operationalDisabled || saving || isSystem || isDisabled || isUnimplemented || !config.effective_template_is_approved}
+            disabled={operationalDisabled || isSystem || isDisabled || isUnimplemented || !config.effective_template_is_approved}
             aria-label={`${AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger} 자동 발송`}
             size="small"
           />
@@ -350,7 +348,7 @@ function TriggerCard({
                   <AutoSendTimingControl
                     config={config}
                     onUpdate={onUpdate}
-                    disabled={saving || isUnimplemented}
+                    disabled={isUnimplemented}
                   />
                 </div>
               )}
@@ -364,7 +362,7 @@ function TriggerCard({
                   className={`ds-select ${styles.channelSelect}`}
                   value="alimtalk"
                   onChange={() => onUpdate({ ...config, message_mode: "alimtalk" })}
-                  disabled={saving || isUnimplemented}
+                  disabled={isUnimplemented}
                 >
                   <option value="alimtalk">알림톡</option>
                 </select>
@@ -419,27 +417,10 @@ export default function MessageAutoSendPage() {
     staleTime: 30 * 1000,
   });
 
-  const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
+  const { localConfigs, saving, error: saveError, edit: saveConfigs, retry: retrySave } = useAutoSendDraft(configs);
   const globalSummary = getAutoSendSummary(localConfigs);
   const globalEnabled = isAllToggleableEnabled(globalSummary);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingConfigsRef = useRef<Partial<AutoSendConfigItem>[]>([]);
-  const hasPendingDebouncedSaveRef = useRef(false);
   const autoProvisionedRef = useRef(false);
-  useEffect(() => {
-    setLocalConfigs(configs);
-  }, [configs]);
-
-  useEffect(() => {
-    return () => {
-      if (!hasPendingDebouncedSaveRef.current) return;
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      hasPendingDebouncedSaveRef.current = false;
-      if (pendingConfigsRef.current.length > 0) {
-        void updateAutoSendConfigs(pendingConfigsRef.current).catch(() => undefined);
-      }
-    };
-  }, []);
 
   // 기본 템플릿이 없으면 자동 프로비저닝 (1회)
   useEffect(() => {
@@ -451,25 +432,6 @@ export default function MessageAutoSendPage() {
       provisionMut.mutate();
     }
   }, [configs, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const updateMut = useMutation({
-    mutationFn: updateAutoSendConfigs,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
-      feedback.success("자동발송 설정이 저장되었습니다.");
-    },
-    onError: (err: unknown) => {
-      pendingConfigsRef.current = [];
-      hasPendingDebouncedSaveRef.current = false;
-      setLocalConfigs(configs);
-      void qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
-      const msg =
-        err && typeof err === "object" && "response" in err
-          ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
-          : null;
-      feedback.error(msg || "저장에 실패했습니다.");
-    },
-  });
 
   const editTemplateMut = useMutation({
     mutationFn: (payload: MessageTemplatePayload) => {
@@ -492,11 +454,7 @@ export default function MessageAutoSendPage() {
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       if (creatingForTrigger && created?.id) {
-        const next = localConfigs.map((c) =>
-          c.trigger === creatingForTrigger ? { ...c, template: created.id } : c,
-        );
-        setLocalConfigs(next);
-        updateMut.mutate([{ trigger: creatingForTrigger, template: created.id }]);
+        saveConfigs([{ trigger: creatingForTrigger, template: created.id }]);
       }
       setCreatingForTrigger(null);
       feedback.success("보낼 내용이 생성되었습니다.");
@@ -524,39 +482,8 @@ export default function MessageAutoSendPage() {
     },
   });
 
-  const queuePatch = (patch: Partial<AutoSendConfigItem>) => {
-    if (!patch.trigger) return;
-    const existing = pendingConfigsRef.current.find((c) => c.trigger === patch.trigger);
-    pendingConfigsRef.current = [
-      ...pendingConfigsRef.current.filter((c) => c.trigger !== patch.trigger),
-      { ...existing, ...patch },
-    ];
-  };
-
-  const takeQueuedPatches = () => {
-    const patches = pendingConfigsRef.current;
-    pendingConfigsRef.current = [];
-    return patches;
-  };
-
   const handleUpdate = (updated: Partial<AutoSendConfigItem>, debounce = false) => {
-    const next = localConfigs.map((c) =>
-      c.trigger === updated.trigger ? { ...c, ...updated } : c
-    );
-    setLocalConfigs(next);
-    queuePatch(updated);
-    if (debounce) {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      hasPendingDebouncedSaveRef.current = true;
-      debounceRef.current = setTimeout(() => {
-        hasPendingDebouncedSaveRef.current = false;
-        updateMut.mutate(takeQueuedPatches());
-      }, 600);
-    } else {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      hasPendingDebouncedSaveRef.current = false;
-      updateMut.mutate(takeQueuedPatches());
-    }
+    saveConfigs([updated], debounce);
   };
 
   if (isLoading) {
@@ -616,6 +543,11 @@ export default function MessageAutoSendPage() {
             <p className={panelStyles.headerDesc}>
               필요한 알림톡만 켜고, 보낼 시점과 내용을 정하세요.
             </p>
+            {saveError && (
+              <p role="alert" className={styles.saveError}>
+                {saveError} <Button onClick={retrySave}>다시 저장</Button>
+              </p>
+            )}
             {operationalDisabled && (
               <p className={styles.unimplementedHint} role="status">
                 {messagingInfo?.messaging_disabled_reason || "현재 알림톡 발송이 운영 중지되어 있습니다."}
@@ -633,10 +565,9 @@ export default function MessageAutoSendPage() {
                 const patches = next
                   .filter((c, index) => c.enabled !== localConfigs[index]?.enabled)
                   .map((c) => ({ trigger: c.trigger, enabled: c.enabled }));
-                setLocalConfigs(next);
-                if (patches.length > 0) updateMut.mutate(patches);
+                if (patches.length > 0) saveConfigs(patches);
               }}
-              disabled={operationalDisabled || updateMut.isPending || globalSummary.toggleable === 0}
+              disabled={operationalDisabled || globalSummary.toggleable === 0}
               aria-label="전체 자동 발송"
               size="small"
             />
@@ -762,7 +693,7 @@ export default function MessageAutoSendPage() {
                 </p>
                 <AutoSendSummaryStrip
                   summary={getAutoSendSummary(configsInSection)}
-                  saving={updateMut.isPending}
+                  saving={saving}
                   operationalDisabled={operationalDisabled}
                 />
                 {configsInSection.map((config) => (
@@ -770,7 +701,6 @@ export default function MessageAutoSendPage() {
                     key={config.trigger}
                     config={config}
                     onUpdate={handleUpdate}
-                    saving={updateMut.isPending}
                     operationalDisabled={operationalDisabled}
                     onEditTemplate={(trigger, templateId) => {
                       if (!templateId) {

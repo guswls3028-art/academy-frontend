@@ -40,6 +40,11 @@ test("primary app root keeps every automatic destination out of the developer co
       role: null,
       isAuthenticated: false,
     }),
+    resolveRootDestination({
+      tenantCode: "godmin",
+      role: null,
+      isAuthenticated: false,
+    }),
     ...(["owner", "admin", "teacher", "staff"] as const).map((role) =>
       resolveRootDestination({
         tenantCode: "hakwonplus",
@@ -61,6 +66,7 @@ test("primary app root keeps every automatic destination out of the developer co
   expect(destinations).toEqual([
     "/promo",
     "/login",
+    "/landing",
     "/workspace",
     "/workspace",
     "/workspace",
