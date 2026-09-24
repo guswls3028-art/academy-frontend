@@ -457,26 +457,14 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       submission_media_locked: false,
     });
     await expect(page.getByText("학부모 계정은 직접 제출할 수 없습니다.")).toHaveCount(0);
-    try {
-      await expect(page.getByText(homeworkTitle, { exact: true })).toBeVisible({ timeout: 30_000 });
-    } catch (error) {
-      // Fixed UI categories only: the release artifact records source lines,
-      // never page text, account data, request bodies, or credentials.
-      if (await page.getByText("제출 대상을 불러오지 못했습니다.").isVisible()) {
-        throw new Error("Parent homework UI: grades query failed after a valid browser response");
-      }
-      if (await page.getByText("불러오는 중…", { exact: true }).isVisible()) {
-        throw new Error("Parent homework UI: grades query remained loading after a valid browser response");
-      }
-      if (await page.getByText("제출할 미완료 과제·시험이 없습니다.", { exact: true }).isVisible()) {
-        throw new Error("Parent homework UI: target list is empty despite an eligible browser row");
-      }
-      if (await page.locator("[data-guide='submit-target'] button").count() > 0) {
-        throw new Error("Parent homework UI: target list has a different visible title");
-      }
-      throw error;
-    }
-    await page.getByText(homeworkTitle, { exact: true }).click();
+    const parentHomeworkTarget = page.locator("[data-guide='submit-target'] button").filter({
+      has: page.getByText(homeworkTitle, { exact: true }),
+    });
+    // Scope the title to a selectable target. A page-wide text locator can
+    // match the same title in another surface and fail Playwright strict mode.
+    await expect(parentHomeworkTarget).toHaveCount(1, { timeout: 30_000 });
+    await expect(parentHomeworkTarget).toBeVisible();
+    await parentHomeworkTarget.click();
     await page.locator("input[type='file']").first().setInputFiles({
       name: parentUploadName,
       mimeType: "image/png",
