@@ -509,7 +509,7 @@ export default function TemplateExplorer() {
           }}
         >
           <div>
-            <h2 className={panelStyles.headerTitle}>문구 저장</h2>
+            <h2 className={panelStyles.headerTitle}>알림톡 문구 만들기·수정</h2>
             <p className={panelStyles.headerDesc}>
               발송에 사용하는 내 양식을 수정합니다. 시스템 제공 문구는 아래에서 따로 확인할 수 있습니다.
             </p>

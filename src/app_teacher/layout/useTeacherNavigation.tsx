@@ -89,7 +89,7 @@ export function useTeacherNavigation() {
         items: [
           { label: "상담 메모", path: "/workspace/mobile/counseling", icon: <FileText size={ICON.md} />, keywords: ["상담", "기록"] },
           { label: "발송 내역", path: "/workspace/mobile/message-log", icon: <Send size={ICON.md} />, keywords: ["알림톡", "문자", "메시지"] },
-          { label: "템플릿 저장", path: "/workspace/mobile/message-templates", icon: <FileText size={ICON.md} />, keywords: ["알림톡", "메시지 양식"] },
+          { label: "알림톡 문구 관리", path: "/workspace/mobile/message-templates", icon: <FileText size={ICON.md} />, keywords: ["알림톡", "메시지 양식", "문구 수정"] },
           { label: "시험 템플릿", path: "/workspace/mobile/exams/templates", icon: <FileText size={ICON.md} />, keywords: ["시험 양식"] },
           { label: "시험 묶음", path: "/workspace/mobile/exams/bundles", icon: <FolderPlus size={ICON.md} />, keywords: ["시험 세트", "번들"] },
           { label: "자료 저장소", path: "/workspace/mobile/storage", icon: <FolderPlus size={ICON.md} />, keywords: ["파일", "문서", "시험지"] },

@@ -204,18 +204,26 @@ export interface MessageSendPreflight {
   can_send: boolean;
   recipient: {
     selected: number;
-    resolved?: number;
+    resolved: number;
     valid_phone: number;
     skipped_no_phone: number;
     duplicate_phone: number;
     unique_phone: number;
-    invalid_or_deleted?: number;
+    invalid_or_deleted: number;
   };
   template: {
     ok: boolean;
     name: string;
     detail: string;
   };
+  preview_recipients: Array<{
+    student_id: number;
+    student_name: string;
+    phone: string;
+    excluded: boolean;
+    exclude_reason: string;
+    full_message_body: string;
+  }>;
   blockers: Array<{ code: string; title: string; detail: string }>;
   warnings: Array<{ code: string; title: string; detail: string }>;
 }

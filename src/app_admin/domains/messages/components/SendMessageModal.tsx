@@ -48,7 +48,6 @@ import {
   TEMPLATE_CATEGORY_LABELS,
   getBlocksForCategory,
   getBlockColor,
-  renderPreviewWithActualData,
   ALWAYS_AVAILABLE_VARS,
 } from "../constants/templateBlocks";
 import type { TemplateCategory } from "../constants/templateBlocks";
@@ -65,7 +64,6 @@ import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
 import {
   getAlimtalkTemplateLabel,
   getAlimtalkTemplateTypeFromCategory,
-  renderAlimtalkFullPreview,
 } from "./AlimtalkTemplateInfoPanel";
 import {
   resolveManualAlimtalkTemplateType,
@@ -293,7 +291,7 @@ export default function SendMessageModal({
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
-  const { data: academyName = "", isError: isAcademyError, refetch: refetchAcademy } = useMessageAcademyName(open);
+  const { data: academyName = "" } = useMessageAcademyName(open);
 
   // ─── State ───
   const [subject, setSubject] = useState("");
@@ -323,6 +321,7 @@ export default function SendMessageModal({
   const [preflightResultKey, setPreflightResultKey] = useState("");
   const [preflightLoading, setPreflightLoading] = useState(false);
   const [preflightError, setPreflightError] = useState<string | null>(null);
+  const [preflightRetry, setPreflightRetry] = useState(0);
   const [confirmPreviewStudentId, setConfirmPreviewStudentId] = useState<number | null>(null);
   const [confirmRecipientsExpanded, setConfirmRecipientsExpanded] = useState(false);
   const bodyEditorRef = useRef<MessageBodyEditorHandle>(null);
@@ -554,12 +553,9 @@ export default function SendMessageModal({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [buildSendPayload, frontendReady, open, preflightKey, sendTargetKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [buildSendPayload, frontendReady, open, preflightKey, preflightRetry, sendTargetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Preview ───
-  // SSOT (2026-05-14): preview는 학원장이 textarea에 친 body 기준 (selectedTemplate.body 무시).
-  // 직전 결함: 양식 자동 매칭 시 preview가 DB 원본 template 고정 → 학원장 본문 수정이 preview에 안 보임.
-  // 학원장이 친 본문이 곧 발송 본문 → 그대로 preview에 노출되어야 일치.
+  // 양식 선택 팝업의 정보 블록 예시에만 사용한다. 발송 문구는 서버 preflight가 조립한다.
   const getPreviewData = useCallback((currentBody: string): Record<string, string> => {
     const perStudent = recomputePerStudentVarsRef?.current?.(currentBody) ?? alimtalkExtraVarsPerStudent;
     const firstStudent = perStudent?.[studentIds[0]];
@@ -571,15 +567,6 @@ export default function SendMessageModal({
     };
   }, [academyName, alimtalkExtraVars, alimtalkExtraVarsPerStudent, recomputePerStudentVarsRef, studentIds]);
   const previewData = useMemo(() => getPreviewData(body), [getPreviewData, body]);
-  const previewBody = renderPreviewWithActualData(previewData._body_subst ?? body, previewData, freeContent);
-
-  // 본문 수정과 양식 선택 모두 첫 수신자의 실제 값으로 다시 미리본다.
-  const previewLetterBody = previewData._body_subst ?? body;
-  const previewSubject = subject
-    ? renderPreviewWithActualData(subject, alimtalkExtraVars)
-    : selectedTemplate
-      ? renderPreviewWithActualData(selectedTemplate.subject || "", alimtalkExtraVars)
-      : subject;
   const activeAlimtalkType = resolveManualAlimtalkTemplateType(
     effectiveBlockCategory,
     selectedTemplate?.category,
@@ -621,6 +608,10 @@ export default function SendMessageModal({
       .filter((recipient): recipient is ConfirmPreviewRecipient => Boolean(recipient));
   }, [preflightResults, studentIds]);
   const confirmSendableRecipients = serverPreviewRecipients.filter((recipient) => !recipient.excluded);
+  const inlinePreviewRecipient =
+    preflightResultKey === preflightKey && preflightPreviewReady && !preflightLoading && !preflightError
+      ? confirmSendableRecipients[0] ?? null
+      : null;
   const confirmExcludedCount = Math.max(0, recipientCount - confirmSendableRecipients.length);
   const validParentCount =
     preflightResults.find((result) => result.send_to === "parent")?.recipient.valid_phone ?? 0;
@@ -672,6 +663,7 @@ export default function SendMessageModal({
     setPreflightResultKey("");
     setPreflightLoading(false);
     setPreflightError(null);
+    setPreflightRetry(0);
     setConfirmPreviewStudentId(null);
     setConfirmRecipientsExpanded(false);
     sendingRef.current = false;
@@ -1181,68 +1173,39 @@ export default function SendMessageModal({
               )}
             </section>
 
-            {/* 카드 2 — 미리보기 + 변수 상태 통합
-                봉투(카카오 자동 채움) + 편지(학원장 작성) 시각 분리.
-                blockCategory 또는 selectedTemplate.category 로 봉투 타입 판별 → renderAlimtalkFullPreview 사용. */}
+            {/* 카드 2 — 서버가 수신자별로 조립한 문구만 발송 미리보기로 표시한다. */}
             <section className="send-modal__card send-modal__card--preview">
               <div className="send-modal__card-label">
-                카카오톡 미리보기
-                {hasRecipients && recipientCount > 1 && (
+                현재 발송 문구
+                {inlinePreviewRecipient && (
                   <span className="send-modal__card-sublabel">
-                    {previewData.학생이름 ? ` · ${previewData.학생이름} 기준` : " · 첫 학생 기준"}
+                    {` · ${inlinePreviewRecipient.studentName} 기준`}
                   </span>
                 )}
               </div>
-              {(() => {
-                const alimtalkType = resolveManualAlimtalkTemplateType(
-                  effectiveBlockCategory,
-                  selectedTemplate?.category,
-                  selectedTemplate?.name ?? selectedPreset?.name ?? "",
-                  alimtalkExtraVars,
-                );
-                // 저장 원본 대신 현재 편집한 본문을 학생별 치환한 결과를 사용한다.
-                const letterBody = body && hasSelectedBodySource ? previewLetterBody : "";
-                const channelLabel = getAlimtalkTemplateLabel(alimtalkType);
-                if (alimtalkType) {
-                  return (
-                    <div className="template-preview-kakao">
-                      <div className="template-preview-kakao__helper">
-                        {isAcademyError ? <span role="alert">발송 학원명을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => void refetchAcademy()}>다시 확인</Button></span>
-                          : "기본 정보는 자동으로 채워지고, 안내문은 학생별로 표시됩니다"}
-                      </div>
-                      <div className="template-preview-kakao__card">
-                        <div className="template-preview-kakao__header">
-                          <span className="template-preview-kakao__header-label">알림톡 도착</span>
-                          <span className="template-preview-kakao__header-channel">{channelLabel}</span>
-                        </div>
-                        <div className="template-preview-kakao__body">
-                          {letterBody
-                            ? renderPreviewWithActualData(renderAlimtalkFullPreview(alimtalkType, letterBody, undefined, previewData), previewData)
-                            : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "문구를 선택하세요"}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                return (
-                  <div className="template-preview-kakao">
-                    <div className="template-preview-kakao__card">
-                      <div className="template-preview-kakao__header">
-                        <span className="template-preview-kakao__header-label">알림톡 도착</span>
-                        <span className="template-preview-kakao__header-channel">{channelLabel}</span>
-                      </div>
-                      {(selectedTemplate?.subject || subject) && (
-                        <div className="template-preview-kakao__title">{previewSubject}</div>
-                      )}
-                      <div className="template-preview-kakao__body">
-                        {letterBody
-                          ? previewBody
-                          : <span className="send-modal__preview-placeholder">{alimtalkFreeForm ? "내용을 입력하세요" : "문구를 선택하세요"}</span>}
-                      </div>
-                    </div>
+              <p className="template-preview-kakao__helper">
+                표시된 학생 한 명의 현재 발송 문구입니다. 다른 학생의 내용은 마지막 확인에서 선택해 보세요. 카카오톡 화면 배치는 기기에 따라 다를 수 있습니다.
+              </p>
+              {inlinePreviewRecipient ? (
+                <KakaoAlimtalkPreview channelLabel={activeAlimtalkLabel}>
+                  {inlinePreviewRecipient.fullMessageBody}
+                </KakaoAlimtalkPreview>
+              ) : (
+                <div className="template-preview-kakao__card">
+                  <div className="template-preview-kakao__body" aria-live="polite">
+                    {!hasSelectedBodySource ? "문구를 선택하거나 직접 작성해 주세요."
+                      : !body.trim() ? "안내문을 입력해 주세요."
+                      : !hasRecipients ? "수신자를 선택하면 실제 문구를 확인할 수 있습니다."
+                      : preflightError ? (
+                        <span role="alert">
+                          {preflightError} <Button intent="ghost" size="sm" onClick={() => setPreflightRetry((retry) => retry + 1)}>다시 확인</Button>
+                        </span>
+                      ) : preflightChecking ? "수신자별 발송 문구를 확인 중입니다…"
+                        : preflightBlockers.length > 0 ? "발송 가능 상태의 문제를 해결하면 실제 문구가 표시됩니다."
+                          : "실제 발송 문구를 준비하지 못했습니다. 입력 내용을 확인해 주세요."}
                   </div>
-                );
-              })()}
+                </div>
+              )}
 
               {/* 변수 상태 — 미리보기 카드 하단 inline */}
               {(selectedTemplate || selectedPreset) && varStatuses.length > 0 && (
@@ -1371,7 +1334,7 @@ export default function SendMessageModal({
                 onClick={() => setShowPickerModal(true)}
                 disabled={sending}
               >
-                {hasSelectedBodySource ? "문구 변경" : "문구 선택"}
+                {hasSelectedBodySource ? "다른 문구 선택" : "문구 선택"}
               </Button>
             </div>
 
@@ -1402,11 +1365,11 @@ export default function SendMessageModal({
               <span className="send-modal__editor-label-title">안내문</span>
               {hasRecipients && recipientCount > 1 ? (
                 <span className="send-modal__editor-label-hint">
-                  학생 {recipientCount}명에게 같은 안내문을 보내고, 이름·성적은 학생별로 맞춰 넣습니다
+                  학생 {recipientCount}명에게 같은 안내문을 보냅니다. 여기서 자유롭게 고치고, 이름·성적은 학생별로 맞춰 넣습니다.
                 </span>
               ) : (
                 <span className="send-modal__editor-label-hint">
-                  학원명·학생명·강의명 등 기본 정보는 자동으로 채워집니다. 여기에는 <strong>학원장님 메시지만</strong> 작성하세요.
+                  학원명·학생명·강의명 등은 자동으로 채워집니다. <strong>학원장님 안내문은 여기서 직접 수정</strong>할 수 있습니다.
                 </span>
               )}
             </div>

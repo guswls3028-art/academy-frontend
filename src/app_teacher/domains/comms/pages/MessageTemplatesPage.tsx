@@ -15,6 +15,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { teacherCommsQueryKeys } from "../queryKeys";
+import { stripInternalAlimtalkMemoToken } from "@/shared/notifications/teacherMemo";
 
 const CATEGORY_LABELS: Record<string, string> = {
   default: "일반 안내",
@@ -98,7 +99,7 @@ export default function MessageTemplatesPage() {
           <div>
             <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>승인 양식은 자동으로 연결됩니다</div>
             <div className="text-[11px] mt-0.5 leading-5" style={{ color: "var(--tc-text-muted)" }}>
-              여기서는 자주 쓰는 안내문만 저장하세요. 발송할 때 선택한 유형에 맞는 카카오 승인 알림톡으로 전송됩니다.
+              자주 쓰는 안내문을 만들거나 수정하세요. 학생 목록에서 알림톡 발송 시 이 문구를 불러와 이번 발송에 맞게 바꿀 수 있습니다.
             </div>
           </div>
         </div>
@@ -132,7 +133,7 @@ export default function MessageTemplatesPage() {
                     )}
                   </div>
                   <div className="text-[12px] mt-1 line-clamp-2" style={{ color: "var(--tc-text-muted)" }}>
-                    {t.body}
+                    {stripInternalAlimtalkMemoToken(t.body)}
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0">
@@ -193,14 +194,14 @@ function TemplateEditSheet({ open, onClose, template }: { open: boolean; onClose
   const readOnly = Boolean(template?.is_system);
   const [name, setName] = useState(template?.name || "");
   const [category, setCategory] = useState(template?.category || "default");
-  const [body, setBody] = useState(template?.body || "");
+  const [body, setBody] = useState(stripInternalAlimtalkMemoToken(template?.body || ""));
 
   // Reset when template changes
   useEffect(() => {
     if (open) {
       setName(template?.name || "");
       setCategory(template?.category || "default");
-      setBody(template?.body || "");
+      setBody(stripInternalAlimtalkMemoToken(template?.body || ""));
     }
   }, [open, template]);
 
@@ -235,7 +236,7 @@ function TemplateEditSheet({ open, onClose, template }: { open: boolean; onClose
         </div>
         <div>
           <label htmlFor="message-template-body" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>본문 *</label>
-          <textarea id="message-template-body" value={body} onChange={(e) => setBody(e.target.value)} rows={5} maxLength={5000} placeholder="알림톡 안내문 (예: #{학생이름})" disabled={readOnly}
+          <textarea id="message-template-body" value={body} onChange={(e) => setBody(e.target.value)} rows={5} placeholder="알림톡 안내문 (예: #{학생이름})" disabled={readOnly}
             className="w-full text-sm" style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none", resize: "vertical" }} />
         </div>
         {!readOnly && <button onClick={() => mutation.mutate()} disabled={!name.trim() || !body.trim() || mutation.isPending}

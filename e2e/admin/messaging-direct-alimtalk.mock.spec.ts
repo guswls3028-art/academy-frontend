@@ -184,6 +184,8 @@ test("메시지 화면에서 학생 선택과 알림톡 발송창까지 정확�
   await page.setViewportSize({ width: 390, height: 844 });
 
   await gotoAndSettle(page, `${BASE}/workspace/message/templates`, { timeout: 30_000 });
+  await expect(page.getByRole("tab", { name: "문구 편집" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "알림톡 문구 만들기·수정" })).toBeVisible();
   await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
 
   await expect(page).toHaveURL(/\/workspace\/students\/home\?compose=alimtalk$/);
@@ -196,6 +198,12 @@ test("메시지 화면에서 학생 선택과 알림톡 발송창까지 정확�
   await expect.poll(() => state.requests.filter(
     ({ method, path }) => method === "POST" && path === "/messaging/send/preflight/",
   ).length).toBeGreaterThan(0);
+  const preview = page.locator(".send-modal__card--preview");
+  await expect(preview).toContainText("김알림 학생의 안내 사항입니다.");
+  await expect(preview).not.toContainText("홍길동");
+  await expectNoHorizontalOverflow(page);
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await expect(preview).toContainText("김알림 학생의 안내 사항입니다.");
   await expectNoHorizontalOverflow(page);
   expect(state.requests.filter(
     ({ method, path }) => method !== "GET" && path !== "/messaging/send/preflight/",
