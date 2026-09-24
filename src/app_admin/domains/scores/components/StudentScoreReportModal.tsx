@@ -376,7 +376,13 @@ export default function StudentScoreReportModal({
               </div>
             </div>
 
-            {showStudentList && <details className="student-score-report-mobile-selection" defaultOpen>
+            {showStudentList && <details
+              className="student-score-report-mobile-selection"
+              open
+              onToggle={(event) => {
+                if (!event.currentTarget.open) setShowStudentList(false);
+              }}
+            >
               <summary>
                 <span><ListChecks size={15} aria-hidden /> 1. 출력할 학생</span>
                 <strong>{selectedReportRows.length}명 선택</strong>
