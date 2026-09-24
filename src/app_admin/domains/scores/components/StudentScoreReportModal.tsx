@@ -80,7 +80,6 @@ export default function StudentScoreReportModal({
     staleTime: 0,
     refetchOnMount: "always",
   });
-  const omrIssues = omrPreflight.data ?? [];
   const omrCheckFailed = omrExamIds.length > 0 && omrPreflight.isError;
   const omrCheckBusy = omrExamIds.length > 0 && omrPreflight.isFetching;
   const reportRows = useMemo(() => REPORTABLE_ROWS(rows), [rows]);
@@ -150,6 +149,9 @@ export default function StudentScoreReportModal({
     () => reportRows.filter((row) => selectedReportSet.has(row.enrollment_id)),
     [reportRows, selectedReportSet],
   );
+  const affectsSelectedReport = ({ row }: { row: { enrollment_id: number } }) =>
+    !row.enrollment_id || selectedReportSet.has(row.enrollment_id);
+  const omrIssues = (omrPreflight.data ?? []).filter(affectsSelectedReport);
 
   const selectedIndex = selectedRow
     ? reportRows.findIndex((row) => row.enrollment_id === selectedRow.enrollment_id)
@@ -266,7 +268,7 @@ export default function StudentScoreReportModal({
 
   const handleDownload = async () => {
     const freshOmr = omrExamIds.length > 0 ? await omrPreflight.refetch() : null;
-    if (freshOmr?.isError || (freshOmr?.data?.length ?? 0) > 0) {
+    if (freshOmr?.isError || freshOmr?.data?.some(affectsSelectedReport)) {
       feedback.warning("성적표를 만들기 전에 OMR 인식·학생 연결 문제를 확인해 주세요.");
       return;
     }
