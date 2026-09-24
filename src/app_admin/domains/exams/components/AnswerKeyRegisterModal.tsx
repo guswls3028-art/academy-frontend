@@ -1463,6 +1463,7 @@ export default function AnswerKeyRegisterModal({
               choiceCount={choiceQuestions.length}
               essayCount={essayQuestions.length}
               questionTypes={resolvedQuestionTypes}
+              guidedPrint={flowStep === "print"}
               onDownloaded={() => setDownloaded(true)}
             />
           )}
@@ -1908,6 +1909,7 @@ function OmrSettingsTab({
   choiceCount,
   essayCount,
   questionTypes,
+  guidedPrint,
   onDownloaded,
 }: {
   examId: number;
@@ -1917,6 +1919,7 @@ function OmrSettingsTab({
   choiceCount: number;
   essayCount: number;
   questionTypes: QuestionKind[];
+  guidedPrint?: boolean;
   onDownloaded?: () => void;
 }) {
   const exceedsOmrLimit = choiceCount > MAX_OMR_MC_COUNT || essayCount > MAX_OMR_ESSAY_COUNT;
@@ -1937,6 +1940,7 @@ function OmrSettingsTab({
         initialEssayCount={essayCount}
         initialQuestionTypes={questionTypes}
         layout="modal"
+        guidedPrint={guidedPrint}
         onDownloaded={onDownloaded}
       />
     </div>

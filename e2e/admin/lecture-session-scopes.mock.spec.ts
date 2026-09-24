@@ -920,6 +920,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
 
   const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
   await expect(printDialog).toBeVisible();
+  await expect(printDialog.getByRole("button", { name: "이 구성으로 PDF 다운로드" })).toBeInViewport();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     printDialog.getByRole("button", { name: "이 구성으로 PDF 다운로드" }).click(),
