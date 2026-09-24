@@ -409,6 +409,9 @@ async function installApi(page: Page, state: MockState) {
       return json({ selected_count: state.homeworkAssignmentIds.length });
     }
     if (path === "/lectures/attendance/") return json({ count: 0, results: [] });
+    if (path === `/results/admin/sessions/${REGULAR_SESSION_ID}/scores/` && method === "GET") {
+      return json({ meta: { exams: [], homeworks: [] }, rows: [] });
+    }
     if (path === "/results/admin/clinic-targets/") return json([]);
     if (path === "/staffs/currently-working/") return json([]);
     if (path === "/media/videos/youtube/" && method === "POST") {

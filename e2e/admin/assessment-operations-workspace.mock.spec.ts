@@ -179,8 +179,8 @@ async function openExam(page: Page, state: MockState) {
   await expect(page.getByText("시험 운영 준비", { exact: true })).toBeVisible({ timeout: 30_000 });
   const settings = page.locator("#assessment-policy > details");
   await expect(settings).not.toHaveAttribute("open", "");
-  await expect(settings.locator("summary")).toContainText("설정 변경");
-  await settings.locator("summary").click();
+  await expect(settings.locator(":scope > summary")).toContainText("설정 변경");
+  await settings.locator(":scope > summary").click();
 }
 
 test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 모바일에서도 정돈된 순서를 유지한다", async ({ page }, testInfo) => {
