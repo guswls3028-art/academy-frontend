@@ -1,0 +1,35 @@
+/* 한국식 OMR — 시각 버블은 modal.css SSOT, 라벨은 충분한 클릭 목표를 제공 */
+.answer-key-row__bubbles {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.answer-key-row__bubbles:focus {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 2px var(--color-bg-surface), 0 0 0 4px var(--color-brand-primary);
+}
+
+.answer-key-omr-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  min-width: 48px;
+  height: 52px;
+  cursor: pointer;
+  margin: 0;
+}
+
+.answer-key-omr-label .exam-omr-bubble {
+  width: 36px;
+  min-width: 36px;
+  height: 42px;
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.answer-key-omr-label:focus-within .exam-omr-bubble {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
