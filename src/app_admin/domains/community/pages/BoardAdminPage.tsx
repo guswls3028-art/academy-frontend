@@ -47,7 +47,7 @@ import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
 import PostThreadView from "../components/PostThreadView";
 import { stripHtml, timeAgo, formatFileSize } from "../utils/communityHelpers";
-import { createClientRequestKey } from "@/shared/api/contracts/community";
+import { createClientRequestKey, getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import "@admin/domains/community/qna-inbox.css";
 import "@admin/domains/community/notice-tree.css";
 import "@admin/domains/community/board-admin.css";
@@ -738,9 +738,13 @@ function PostDetailView({
 
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
-      feedback.success("게시물이 삭제되었습니다.");
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.boardPosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("board") });
+      const cleanupNotice = getCommunityStorageCleanupNotice(result);
+      if (cleanupNotice) feedback.warning(cleanupNotice);
+      else feedback.success("게시물이 삭제되었습니다.");
       onDeleted();
     },
     onError: (e: unknown) => {
@@ -877,9 +881,11 @@ function AdminAttachmentSection({
 
   const deleteMut = useMutation({
     mutationFn: (attId: number) => deletePostAttachment(postId, attId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
-      feedback.success("첨부파일이 삭제되었습니다.");
+      const cleanupNotice = getCommunityStorageCleanupNotice(result);
+      if (cleanupNotice) feedback.warning(cleanupNotice);
+      else feedback.success("첨부파일이 삭제되었습니다.");
     },
     onError: (e: unknown) => {
       feedback.error((e as Error)?.message ?? "삭제에 실패했습니다.");
