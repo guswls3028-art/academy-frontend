@@ -1478,7 +1478,7 @@ export default function AnswerKeyRegisterModal({
         right={
           <>
             <Button intent="secondary" onClick={onClose}>
-              {flowStep === "answer" ? "나중에 등록" : flowStep === "print" ? "설정 화면으로" : "취소"}
+              {flowStep === "answer" ? "나중에" : flowStep === "print" ? "설정 화면으로" : "취소"}
             </Button>
             {activeTab === "answer" && hasQuestions && answerKeyHydrated && (
               <Button
@@ -1487,7 +1487,7 @@ export default function AnswerKeyRegisterModal({
                 disabled={saveBusy || initMut.isPending || !canEditStructure}
                 loading={saveBusy}
               >
-                {flowStep === "answer" ? `답안 저장하고 다음 (총 ${formatScore(totalScore)}점)` : `저장 (총 ${formatScore(totalScore)}점)`}
+                {flowStep === "answer" ? "답안 저장하고 다음" : `저장 (총 ${formatScore(totalScore)}점)`}
               </Button>
             )}
             {activeTab === "image" && sortedQuestions.length > 0 && (
