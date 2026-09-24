@@ -26,8 +26,8 @@ export default function ExamBulkActionsPanel({ examId, lectureId, sessionId }: P
   const recalculate = useMutation({
     mutationFn: () => recalculateExam(examId),
     onSuccess: (result) => {
-      if (result.failed.length > 0) {
-        feedback.warning(`${result.graded}건 재채점, ${result.failed.length}건 실패했습니다. 다시 시도해 주세요.`);
+      if (result.failed.length > 0 || (result.needs_review?.length ?? 0) > 0) {
+        feedback.warning(`${result.graded + (result.manual_graded ?? 0)}건 재채점, 실패 ${result.failed.length}건·수기 확인 ${result.needs_review?.length ?? 0}건입니다.`);
       } else {
         feedback.success("저장된 정답·배점 기준으로 전체 재채점을 완료했습니다.");
       }
@@ -92,9 +92,9 @@ export default function ExamBulkActionsPanel({ examId, lectureId, sessionId }: P
           </Button>
         </div>
         {recalculate.data && (
-          <p role={recalculate.data.failed.length ? "alert" : "status"}>
-            재채점 {recalculate.data.graded}건 · 처리 중·미응시 등 제외 {recalculate.data.skipped}건 · 실패 {recalculate.data.failed.length}건
-            {recalculate.data.failed.length > 0 && " — 실패한 제출은 확인 후 다시 시도해 주세요."}
+          <p role={recalculate.data.failed.length || recalculate.data.needs_review?.length ? "alert" : "status"}>
+            재채점 {recalculate.data.graded + (recalculate.data.manual_graded ?? 0)}건 · 처리 중·미응시 등 제외 {recalculate.data.skipped}건 · 실패 {recalculate.data.failed.length}건 · 수기 확인 {recalculate.data.needs_review?.length ?? 0}건
+            {(recalculate.data.failed.length > 0 || (recalculate.data.needs_review?.length ?? 0) > 0) && " — 시험 결과와 OMR 검토에서 확인해 주세요."}
           </p>
         )}
       </div>

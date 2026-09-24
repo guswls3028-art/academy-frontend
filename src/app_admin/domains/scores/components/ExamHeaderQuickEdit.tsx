@@ -202,7 +202,13 @@ export default function ExamHeaderQuickEdit({
       await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       await qc.invalidateQueries({ queryKey: scoresQueryKeys.adminExam(examId) });
       await qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(sessionId) });
-      feedback.success(`${title || examTitle} 저장됨`);
+      await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) });
+      const reviewCount = updated.regrade?.needs_review?.length ?? 0;
+      if (reviewCount > 0) {
+        feedback.warning(`${title || examTitle} 설정을 저장했습니다. 수기 보정 ${reviewCount}건은 재채점에서 제외되어 확인이 필요합니다.`);
+      } else {
+        feedback.success(`${title || examTitle} 설정과 성적을 갱신했습니다.`);
+      }
       setOpen(false);
     },
     onError: async (e: unknown) => {

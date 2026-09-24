@@ -39,11 +39,14 @@ export async function updateAdminExam(
     | "student_results_published"
   >>,
   expectedUpdatedAt: string,
-): Promise<Exam> {
+): Promise<Exam & { regrade?: ExamRecalculation }> {
   const res = await api.patch(`/exams/${examId}/`, payload, {
     headers: expectedUpdatedAtHeaders(expectedUpdatedAt),
   });
-  return normalizeExam(res.data);
+  return {
+    ...normalizeExam(res.data),
+    regrade: res.data?.regrade,
+  };
 }
 
 /**
@@ -74,6 +77,9 @@ export type ExamRecalculation = {
   graded: number;
   skipped: number;
   failed: Array<{ submission_id: number; status: string; detail: string }>;
+  manual_total?: number;
+  manual_graded?: number;
+  needs_review?: Array<{ submission_id?: number; enrollment_id?: number; detail: string }>;
 };
 
 export async function recalculateExam(

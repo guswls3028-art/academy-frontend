@@ -865,11 +865,9 @@ export default function AnswerKeyRegisterModal({
       }
       const answersPayload = withScoreAdjustment(currentAnswers, scoreAdjustmentDraft);
       const targetExamId = examId;
-      if (!answerKey) {
-        await createAnswerKey({ exam: targetExamId, answers: answersPayload });
-      } else {
-        await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: answersPayload });
-      }
+      const savedKey = !answerKey
+        ? await createAnswerKey({ exam: targetExamId, answers: answersPayload })
+        : await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: answersPayload });
       await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) });
       if (canEditQuestions) {
         const toPatch = sortedQuestions.filter(
@@ -881,9 +879,23 @@ export default function AnswerKeyRegisterModal({
         }
         await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) });
       }
-      feedback.success(
-        canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
-      );
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.sessionScoresRoot() }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.clinicTargetsRoot() }),
+      ]);
+      const reviewCount = savedKey.data.regrade?.reduce((total, item) => total + item.needs_review.length, 0) ?? 0;
+      if (!savedKey.data.regrade) {
+        feedback.success(
+          canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
+        );
+      } else if (reviewCount > 0) {
+        feedback.warning(`정답을 저장하고 자동 재채점했습니다. 수기 보정 ${reviewCount}건은 확인이 필요합니다.`);
+      } else {
+        feedback.success(
+          canEditQuestions ? "저장·재채점되었습니다." : "정답을 저장하고 기존 성적을 재채점했습니다."
+        );
+      }
       onSaved?.();
     } catch (error: unknown) {
       feedback.error(extractApiError(error, "저장 실패"));

@@ -14,6 +14,13 @@ export interface AnswerKey {
   answers: Record<string, AnswerKeyValue>;
   created_at: string;
   updated_at: string;
+  regrade?: Array<{
+    exam_id: number;
+    graded: number;
+    manual_graded: number;
+    failed: Array<{ submission_id: number; detail: string }>;
+    needs_review: Array<{ submission_id?: number; enrollment_id?: number; detail: string }>;
+  }>;
 }
 
 export async function fetchAnswerKeyByExam(examId: number) {
