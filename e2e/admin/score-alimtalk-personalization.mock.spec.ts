@@ -396,7 +396,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await requestButton.click();
 
     const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
-    const preview = page.getByLabel("카카오톡 실제 발송 미리보기");
+    const preview = confirm.getByLabel("카카오톡 실제 발송 미리보기");
     await expect(confirm).toBeVisible();
     expect(sendPayloads).toHaveLength(0);
     await confirm.getByRole("button", { name: "돌아가기", exact: true }).click();

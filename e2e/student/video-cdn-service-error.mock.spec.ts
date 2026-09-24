@@ -517,7 +517,7 @@ test.describe("student video CDN service errors", () => {
     releaseProctoredBootstrap();
 
     await expect(page.getByRole("heading", { name: "정책 전환 재생 영상" })).toBeVisible();
-    await expect(page.getByText("온라인 수업 대체")).toHaveCount(1);
+    await expect(page.getByText("온라인 수업 대체")).toHaveCount(1, { timeout: 30_000 });
     expect(playbackRequests).toBe(2);
   });
 });

@@ -3,6 +3,11 @@ import type { Page, Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+const fixtureNow = new Date();
+
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(fixtureNow);
+});
 
 function isLocalBase(url: string): boolean {
   try {
@@ -23,7 +28,7 @@ function fakeJwt(tenantCode = "hakwonplus"): string {
 }
 
 function dateAfter(days: number): string {
-  const date = new Date();
+  const date = new Date(fixtureNow);
   date.setHours(12, 0, 0, 0);
   date.setDate(date.getDate() + days);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
