@@ -473,6 +473,7 @@ async function verifyChangedAnswerAndMaximum(
     await expect(saveButton).toBeEnabled();
     await answerDialog.getByRole("button", { name: "취소", exact: true }).click();
     await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("#assessment-policy > details > summary").click();
     await expect(page.getByRole("spinbutton", { name: "만점", exact: true })).toHaveValue(String(maximum));
 
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
