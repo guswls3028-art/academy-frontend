@@ -1,13 +1,14 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app/router/ProtectedRoute.tsx
 import { useState } from "react";
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import ForcePasswordChangeModal from "@/auth/components/ForcePasswordChangeModal";
 import { logout } from "@/auth/api/auth.api";
 import FirstLoginGuideModal from "@/auth/components/FirstLoginGuideModal";
 import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
+import SubscriptionNoticeGate from "@/auth/components/SubscriptionNoticeGate";
 import { getStudentSupportAccessToken } from "@/shared/auth/supportPreviewSession";
 import {
   dismissPasswordRecommendationForAuthSession,
@@ -27,6 +28,7 @@ const STUDENT_ROLES: Role[] = ["student", "parent"];
 const PASSWORD_RECOMMENDATION_ROLES: Role[] = ["owner", "student", "parent"];
 
 export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; tenantOnly?: string[] }) {
+  const location = useLocation();
   const {
     user,
     isLoading,
@@ -167,6 +169,8 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
           primaryColor={program.ui_config.primary_color}
           onCompleted={markFirstLoginGuideCompleted}
         />
+      ) : !isStudentSupportSession && location.pathname.startsWith("/workspace") ? (
+        <SubscriptionNoticeGate key={`${program.tenantCode}:${user.id}`} user={user} tenantCode={program.tenantCode} />
       ) : null}
     </>
   );

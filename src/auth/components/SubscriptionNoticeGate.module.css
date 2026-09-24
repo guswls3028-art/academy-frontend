@@ -1,0 +1,49 @@
+.dialog :global(.ant-modal-content) {
+  animation: notice-open 160ms ease-out;
+}
+
+.dates {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+}
+
+.dates > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.dates dt, .help {
+  color: var(--color-text-secondary);
+}
+
+.dates dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary, .help {
+  margin: 16px 0 0;
+  line-height: 1.65;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+@keyframes notice-open {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog, .dialog :global(.ant-modal-content) {
+    animation: none !important;
+    transition: none !important;
+  }
+}

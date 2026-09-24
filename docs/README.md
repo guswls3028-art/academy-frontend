@@ -37,6 +37,7 @@
 | [TEACHER-TOOLS.md](TEACHER-TOOLS.md) | 강사 도구함 확장 규칙과 AI 풀이·해설 Beta 상호작용 계약 |
 | [PROBLEM-REVIEW-REPORT.md](PROBLEM-REVIEW-REPORT.md) | 시험지 업로드부터 검수 편집, PDF/PPTX 다운로드까지 문제 리뷰 리포트 화면 계약 |
 | [FIRST-LOGIN-GUIDE.md](FIRST-LOGIN-GUIDE.md) | 신규 계정의 공통 1회 계정 안내 UX와 역할별 이동 경로 |
+| [SUBSCRIPTION-LOGIN-NOTICE.md](SUBSCRIPTION-LOGIN-NOTICE.md) | 실제 직원 로그인당 1회 이용료 납부 안내와 서버 정책·권한 경계 |
 | [STAFF-CLOCK-IN.md](STAFF-CLOCK-IN.md) | 조교 로그인 출근유형 선택, 비근무 로그인, PC·모바일 출퇴근과 정본 기간 기록 계약 |
 | [ACCOUNT-CREDENTIAL-FLOWS.md](ACCOUNT-CREDENTIAL-FLOWS.md) | 역할별 본인 비밀번호 변경, 직원 강제 초기화, 공용 계정복구의 화면→API·세션 폐기 계약 |
 | [PRODUCT-UPDATES.md](PRODUCT-UPDATES.md) | 공개 업데이트 페이지의 콘텐츠 범위, CTA, 접근성·라우팅 계약 |
