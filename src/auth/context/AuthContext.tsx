@@ -13,6 +13,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { resetParentStudentIdInMemory } from "@/shared/api/parentStudentSelection";
 import { setSentryUser, clearSentryUser } from "@/shared/lib/sentryContext";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
+import { clearAutoSendDrafts } from "@/app_admin/domains/messages/hooks/useAutoSendDraft";
 import {
   getSessionItem,
   removeSessionItem,
@@ -111,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     asyncStatusStore.clearAll();
     clearSentryUser();
     resetParentStudentIdInMemory();
+    clearAutoSendDrafts(queryClient);
     queryClient.clear();
     setUser(null);
     setAuthUnavailable(false);
@@ -193,6 +195,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isStudentSupportWindow()) return;
     const clearCrossTabSession = () => {
+      clearAutoSendDrafts(queryClient);
       queryClient.clear();
       resetParentStudentIdInMemory();
       clearSentryUser();
