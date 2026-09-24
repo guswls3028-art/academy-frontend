@@ -301,6 +301,159 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
     await expect(page.getByText(answer)).toBeVisible({ timeout: 10_000 });
     await expect.poll(async () => page.locator("body").innerText()).not.toContain("<p>");
   });
+
+  test("게시글 DB 삭제 뒤 스토리지 정리 대기는 재삭제 없이 목록으로 복귀한다", async ({ page }) => {
+    let deleteRequests = 0;
+    let listRequests = 0;
+    let postVisible = true;
+    const post = {
+      id: POST_ID,
+      post_type: "notice",
+      title: "삭제 정리 대기 공지",
+      content: "<p>원본 파일 정리를 확인합니다.</p>",
+      author_display_name: "선생님",
+      author_role: "staff",
+      replies_count: 0,
+      created_at: "2026-09-13T00:00:00.000Z",
+    };
+
+    await page.route("**/api/v1/**", async (route: Route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname.replace(/^\/api\/v1/, "");
+      const json = (body: unknown, status = 200) => route.fulfill({
+        status,
+        contentType: "application/json",
+        body: JSON.stringify(body),
+      });
+
+      if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
+      if (path === "/core/program/") {
+        return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+      }
+      if (path === "/core/me/") {
+        return json({ id: 101, username: "teacher", name: "선생님", is_staff: true, is_superuser: false, tenantRole: "admin" });
+      }
+      if (path === "/community/posts/" && request.method() === "GET") {
+        listRequests += 1;
+        const results = postVisible ? [post] : [];
+        return json({ count: results.length, results });
+      }
+      if (path === `/community/posts/${POST_ID}/` && request.method() === "DELETE") {
+        deleteRequests += 1;
+        postVisible = false;
+        return json({
+          code: "community_storage_cleanup_pending",
+          detail: "공지는 삭제됐지만 일부 원본 파일 정리가 지연되고 있습니다.",
+          deleted: { posts: 1, attachments: 1, r2_objects: 0 },
+          storage_cleanup: { pending: 0, failed: 1, cleaned: 0 },
+        }, 502);
+      }
+      if (path === `/community/posts/${POST_ID}/replies/`) return json({ count: 0, results: [] });
+      if (path === "/community/admin/posts/") return json({ count: 0, results: [] });
+      if (path.includes("pending-count") || path.includes("unread-count")) return json({ count: 0 });
+      return json({ count: 0, results: [] });
+    });
+
+    await page.addInitScript(() => {
+      localStorage.setItem("access", "mock-access");
+      localStorage.setItem("refresh", "mock-refresh");
+      localStorage.setItem("tenant_code", "hakwonplus");
+      sessionStorage.setItem("tenantCode", "hakwonplus");
+    });
+
+    await page.goto(`${BASE}/workspace/mobile/comms`, { waitUntil: "load", timeout: 20_000 });
+    await page.getByText(post.title, { exact: true }).click();
+    await page.getByRole("button", { name: "게시글 작업 메뉴" }).click();
+    await page.getByRole("button", { name: "삭제", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "글 삭제" }).getByRole("button", { name: "삭제", exact: true }).click();
+
+    await expect(page.getByRole("status")).toContainText("공지는 삭제됐지만 일부 원본 파일 정리가 지연");
+    await expect(page.getByRole("status")).toContainText("미완료 원본 파일 1개");
+    await expect(page.getByText(post.title, { exact: true })).toHaveCount(0);
+    await expect.poll(() => listRequests).toBeGreaterThan(1);
+    expect(deleteRequests).toBe(1);
+  });
+
+  test("첨부 업로드 실패의 보상 삭제가 부분 완료여도 원래 오류와 목록 갱신을 보존한다", async ({ page }) => {
+    let listRequests = 0;
+    let deleteRequests = 0;
+    const createdPost = {
+      id: POST_ID,
+      post_type: "notice",
+      title: "첨부 실패 공지",
+      content: "<p>첨부 실패를 확인합니다.</p>",
+      author_display_name: "선생님",
+      author_role: "staff",
+      replies_count: 0,
+      created_at: "2026-09-13T00:00:00.000Z",
+    };
+
+    await page.route("**/api/v1/**", async (route: Route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname.replace(/^\/api\/v1/, "");
+      const json = (body: unknown, status = 200) => route.fulfill({
+        status,
+        contentType: "application/json",
+        body: JSON.stringify(body),
+      });
+
+      if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
+      if (path === "/core/program/") {
+        return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+      }
+      if (path === "/core/me/") {
+        return json({ id: 101, username: "teacher", name: "선생님", is_staff: true, is_superuser: false, tenantRole: "admin" });
+      }
+      if (path === "/community/posts/" && request.method() === "GET") {
+        listRequests += 1;
+        return json({ count: 0, results: [] });
+      }
+      if (path === "/community/posts/" && request.method() === "POST") return json(createdPost, 201);
+      if (path === `/community/posts/${POST_ID}/attachments/` && request.method() === "POST") {
+        return json({ detail: "첨부 업로드 실패" }, 503);
+      }
+      if (path === `/community/posts/${POST_ID}/` && request.method() === "DELETE") {
+        deleteRequests += 1;
+        return json({
+          code: "community_storage_cleanup_pending",
+          detail: "임시 게시글은 삭제됐지만 일부 원본 파일 정리가 지연되고 있습니다.",
+          deleted: { posts: 1, attachments: 0, r2_objects: 0 },
+          storage_cleanup: { pending: 1, failed: 0, cleaned: 0 },
+        }, 502);
+      }
+      if (path === "/community/scope-nodes/") return json([]);
+      if (path === "/community/admin/posts/") return json({ count: 0, results: [] });
+      if (path.includes("pending-count") || path.includes("unread-count")) return json({ count: 0 });
+      return json({ count: 0, results: [] });
+    });
+
+    await page.addInitScript(() => {
+      localStorage.setItem("access", "mock-access");
+      localStorage.setItem("refresh", "mock-refresh");
+      localStorage.setItem("tenant_code", "hakwonplus");
+      sessionStorage.setItem("tenantCode", "hakwonplus");
+    });
+
+    await page.goto(`${BASE}/workspace/mobile/comms`, { waitUntil: "load", timeout: 20_000 });
+    await page.locator('button[aria-label="공지사항 작성"]').click();
+    const sheet = page.getByRole("dialog", { name: "공지사항 작성" });
+    await sheet.getByPlaceholder("공지사항 제목").fill(createdPost.title);
+    await sheet.locator(".ProseMirror").fill("첨부 실패를 확인합니다.");
+    await sheet.locator('input[type="file"]:not([accept])').setInputFiles({
+      name: "실패-첨부.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("attachment upload failure"),
+    });
+    const listRequestsBeforeSubmit = listRequests;
+    await sheet.getByRole("button", { name: "공지사항 등록" }).click();
+
+    await expect(page.getByRole("status")).toContainText("첨부 업로드 실패");
+    await expect(page.getByRole("status")).toContainText("미완료 원본 파일 1개");
+    await expect.poll(() => listRequests).toBeGreaterThan(listRequestsBeforeSubmit);
+    expect(deleteRequests).toBe(1);
+  });
 });
 
 test.describe("선생님 가입 정책과 대기 업무 경계", () => {

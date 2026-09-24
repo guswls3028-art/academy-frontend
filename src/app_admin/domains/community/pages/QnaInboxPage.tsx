@@ -14,6 +14,7 @@ import {
   fetchCommunityQuestions,
   fetchPost,
   deletePost,
+  getAttachmentDownloadUrl,
   fetchPostAuthorContext,
   type PostAttachment,
   type Question,
@@ -25,6 +26,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useOperationalNotificationCounts } from "@/shared/hooks/useOperationalNotificationCounts";
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import type { OperationalNotificationCountsResult } from "@/shared/api/contracts/notifications";
+import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import PostReadView from "../components/PostReadView";
 import PostThreadView from "../components/PostThreadView";
 import PostHistoryTimeline from "../components/PostHistoryTimeline";
@@ -34,6 +36,7 @@ import { adminCommunityQueryKeys } from "../queryKeys";
 import {
   communityAuthorContextQueryKey,
   normalizeStudentName,
+  formatFileSize,
   timeAgo,
   toLectureChips,
 } from "../utils/communityHelpers";
@@ -370,10 +373,13 @@ function ThreadView({
 
   const deletePostMut = useMutation({
     mutationFn: () => deletePost(postId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.questions });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.adminNotificationCounts });
-      feedback.success("질문이 삭제되었습니다.");
+      const cleanupNotice = getCommunityStorageCleanupNotice(result);
+      if (cleanupNotice) feedback.warning(cleanupNotice);
+      else feedback.success("질문이 삭제되었습니다.");
       onDelete();
     },
     onError: (e: unknown) => {
@@ -420,10 +426,12 @@ function ThreadView({
   const contextLectures = toLectureChips(studentDetail?.enrollments);
   const studentLectures = contextLectures?.length ? contextLectures : lectureInfosFromTitle(mappedLectureLabel);
   const imageAttachments = (post.attachments ?? []).filter(
-    (attachment): attachment is PostAttachment & { download_url: string } => (
-      (attachment.content_type || "").startsWith("image/") && Boolean(attachment.download_url)
-    ),
+    (attachment) => (attachment.content_type || "").startsWith("image/"),
   );
+  const fileAttachments = (post.attachments ?? []).filter(
+    (attachment) => !(attachment.content_type || "").startsWith("image/"),
+  );
+  const attachmentCount = imageAttachments.length + fileAttachments.length;
   const matchupResults = Array.isArray(post.meta?.matchup_results)
     ? post.meta.matchup_results as MatchupResultItem[]
     : [];
@@ -540,7 +548,7 @@ function ThreadView({
           onClick={() => setMobilePane("reference")}
         >
           질문 자료
-          {imageAttachments.length > 0 && <span>{imageAttachments.length}</span>}
+          {attachmentCount > 0 && <span>{attachmentCount}</span>}
         </button>
         <button
           type="button"
@@ -564,7 +572,12 @@ function ThreadView({
               <h2>질문 자료</h2>
             </div>
             <span className="qna-inbox__pane-caption">
-              {imageAttachments.length > 0 ? `첨부 이미지 ${imageAttachments.length}장` : "텍스트 질문"}
+              {attachmentCount > 0
+                ? [
+                    imageAttachments.length > 0 ? `이미지 ${imageAttachments.length}장` : null,
+                    fileAttachments.length > 0 ? `파일 ${fileAttachments.length}개` : null,
+                  ].filter(Boolean).join(" · ")
+                : "텍스트 질문"}
             </span>
           </div>
           <div className="qna-inbox__reference-scroll">
@@ -573,11 +586,15 @@ function ThreadView({
             </div>
 
             {imageAttachments.length > 0 ? (
-              <QnaAttachmentViewer attachments={imageAttachments} />
-            ) : (
+              <QnaAttachmentViewer postId={post.id} attachments={imageAttachments} />
+            ) : attachmentCount === 0 ? (
               <div className="qna-inbox__attachment-empty">
                 첨부된 문제 사진이 없습니다. 위 질문 내용을 확인해 주세요.
               </div>
+            ) : null}
+
+            {fileAttachments.length > 0 && (
+              <QnaFileAttachmentList postId={post.id} attachments={fileAttachments} />
             )}
 
             {matchupResults.length > 0 && <QnaMatchupResults results={matchupResults} />}
@@ -629,21 +646,107 @@ function ThreadView({
   );
 }
 
+function QnaFileAttachmentList({
+  postId,
+  attachments,
+  previewRecovery = false,
+}: {
+  postId: number;
+  attachments: PostAttachment[];
+  previewRecovery?: boolean;
+}) {
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  const handleDownload = async (attachment: PostAttachment) => {
+    setDownloadingId(attachment.id);
+    try {
+      const { url } = await getAttachmentDownloadUrl(postId, attachment.id);
+      const { downloadPresignedUrl } = await import("@/shared/utils/safeDownload");
+      downloadPresignedUrl(url, attachment.original_name);
+    } catch {
+      feedback.error("다운로드 URL을 가져오지 못했습니다.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  return (
+    <section
+      className="qna-inbox__file-section"
+      aria-label={previewRecovery ? "미리보기를 준비하지 못한 이미지" : "질문 첨부파일"}
+    >
+      <div className="qna-inbox__file-heading">
+        {previewRecovery ? "이미지 원본" : "첨부파일"} ({attachments.length})
+      </div>
+      {previewRecovery && (
+        <p className="qna-inbox__file-recovery-note">
+          이미지 미리보기를 준비하지 못했습니다. 첨부 정보는 남아 있으며 원본 파일을 다시 요청할 수 있습니다.
+        </p>
+      )}
+      <div className="qna-inbox__file-list">
+        {attachments.map((attachment) => {
+          const extension = attachment.original_name.includes(".")
+            ? attachment.original_name.split(".").pop()?.toUpperCase() || "FILE"
+            : "FILE";
+          const downloading = downloadingId === attachment.id;
+          const actionLabel = previewRecovery ? "원본 다시 요청" : "다운로드";
+          return (
+            <button
+              key={attachment.id}
+              type="button"
+              className="qna-inbox__file-card"
+              aria-label={`${attachment.original_name} ${actionLabel}`}
+              disabled={downloading}
+              onClick={() => void handleDownload(attachment)}
+            >
+              <span className="qna-inbox__file-ext" aria-hidden>
+                {extension.slice(0, 4)}
+              </span>
+              <span className="qna-inbox__file-info">
+                <strong title={attachment.original_name}>{attachment.original_name}</strong>
+                <span>{attachment.content_type || "파일"} · {formatFileSize(attachment.size_bytes)}</span>
+              </span>
+              <span className="qna-inbox__file-action">{downloading ? "준비 중…" : actionLabel}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function QnaAttachmentViewer({
+  postId,
   attachments,
 }: {
-  attachments: Array<PostAttachment & { download_url: string }>;
+  postId: number;
+  attachments: PostAttachment[];
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
-  const active = attachments[Math.min(activeIndex, attachments.length - 1)];
+  const [failedPreviewIds, setFailedPreviewIds] = useState<Set<number>>(() => new Set());
+  const attachmentKey = [
+    String(postId),
+    ...attachments.map((attachment) => `${attachment.id}:${attachment.download_url ?? ""}`),
+  ].join("|");
+  const availableAttachments = attachments.filter(
+    (attachment): attachment is PostAttachment & { download_url: string } => (
+      Boolean(attachment.download_url) && !failedPreviewIds.has(attachment.id)
+    ),
+  );
+  const unavailableAttachments = attachments.filter(
+    (attachment) => !attachment.download_url || failedPreviewIds.has(attachment.id),
+  );
+  const resolvedActiveIndex = Math.min(activeIndex, availableAttachments.length - 1);
+  const active = availableAttachments[resolvedActiveIndex];
 
   useEffect(() => {
     setActiveIndex(0);
     setRotation(0);
     setZoom(1);
-  }, [attachments]);
+    setFailedPreviewIds(new Set());
+  }, [attachmentKey]);
 
   const selectAttachment = (index: number) => {
     setActiveIndex(index);
@@ -651,59 +754,88 @@ function QnaAttachmentViewer({
     setZoom(1);
   };
 
+  const markPreviewFailed = (attachmentId: number) => {
+    setFailedPreviewIds((current) => {
+      if (current.has(attachmentId)) return current;
+      const next = new Set(current);
+      next.add(attachmentId);
+      return next;
+    });
+  };
+
+  if (!active) {
+    return (
+      <QnaFileAttachmentList postId={postId} attachments={unavailableAttachments} previewRecovery />
+    );
+  }
+
   return (
-    <div className="qna-inbox__image-viewer">
-      <div className="qna-inbox__viewer-toolbar" aria-label="문제 이미지 보기 도구">
-        <div className="qna-inbox__viewer-file">
-          <strong>{active.original_name}</strong>
-          <span>{activeIndex + 1} / {attachments.length}</span>
-        </div>
-        <div className="qna-inbox__viewer-actions">
-          <button type="button" onClick={() => setRotation((value) => value - 90)} aria-label="왼쪽으로 90도 회전" title="왼쪽 90도 회전">
-            <RotateCcw size={ICON_FOR_BUTTON.sm} aria-hidden />
-          </button>
-          <button type="button" onClick={() => setRotation((value) => value + 90)} aria-label="오른쪽으로 90도 회전" title="오른쪽 90도 회전">
-            <RotateCw size={ICON_FOR_BUTTON.sm} aria-hidden />
-          </button>
-          <span className="qna-inbox__viewer-divider" aria-hidden />
-          <button type="button" onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))} disabled={zoom <= 0.5} aria-label="이미지 축소" title="축소">
-            <ZoomOut size={ICON_FOR_BUTTON.sm} aria-hidden />
-          </button>
-          <span className="qna-inbox__viewer-zoom" aria-live="polite">{Math.round(zoom * 100)}%</span>
-          <button type="button" onClick={() => setZoom((value) => Math.min(2.5, value + 0.25))} disabled={zoom >= 2.5} aria-label="이미지 확대" title="확대">
-            <ZoomIn size={ICON_FOR_BUTTON.sm} aria-hidden />
-          </button>
-          <a href={active.download_url} target="_blank" rel="noopener noreferrer" aria-label="문제 이미지 원본 열기" title="원본 열기">
-            <ExternalLink size={ICON_FOR_BUTTON.sm} aria-hidden />
-            <span>원본</span>
-          </a>
-        </div>
-      </div>
-      <div className="qna-inbox__image-stage">
-        <img
-          src={active.download_url}
-          alt={active.original_name}
-          // Rotation and zoom are continuous viewer state, so a runtime transform is required.
-          // eslint-disable-next-line no-restricted-syntax
-          style={{ transform: `rotate(${rotation}deg) scale(${zoom})` }}
-        />
-      </div>
-      {attachments.length > 1 && (
-        <div className="qna-inbox__image-strip" aria-label="첨부 이미지 선택">
-          {attachments.map((attachment, index) => (
-            <button
-              key={attachment.id}
-              type="button"
-              className={index === activeIndex ? "is-active" : ""}
-              onClick={() => selectAttachment(index)}
-              aria-label={`${index + 1}번째 이미지 ${attachment.original_name}`}
-              aria-pressed={index === activeIndex}
-            >
-              <img src={attachment.download_url} alt="" />
+    <>
+      <div className="qna-inbox__image-viewer">
+        <div className="qna-inbox__viewer-toolbar" aria-label="문제 이미지 보기 도구">
+          <div className="qna-inbox__viewer-file">
+            <strong>{active.original_name}</strong>
+            <span>{resolvedActiveIndex + 1} / {availableAttachments.length}</span>
+          </div>
+          <div className="qna-inbox__viewer-actions">
+            <button type="button" onClick={() => setRotation((value) => value - 90)} aria-label="왼쪽으로 90도 회전" title="왼쪽 90도 회전">
+              <RotateCcw size={ICON_FOR_BUTTON.sm} aria-hidden />
             </button>
-          ))}
+            <button type="button" onClick={() => setRotation((value) => value + 90)} aria-label="오른쪽으로 90도 회전" title="오른쪽 90도 회전">
+              <RotateCw size={ICON_FOR_BUTTON.sm} aria-hidden />
+            </button>
+            <span className="qna-inbox__viewer-divider" aria-hidden />
+            <button type="button" onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))} disabled={zoom <= 0.5} aria-label="이미지 축소" title="축소">
+              <ZoomOut size={ICON_FOR_BUTTON.sm} aria-hidden />
+            </button>
+            <span className="qna-inbox__viewer-zoom" aria-live="polite">{Math.round(zoom * 100)}%</span>
+            <button type="button" onClick={() => setZoom((value) => Math.min(2.5, value + 0.25))} disabled={zoom >= 2.5} aria-label="이미지 확대" title="확대">
+              <ZoomIn size={ICON_FOR_BUTTON.sm} aria-hidden />
+            </button>
+            <a href={active.download_url} target="_blank" rel="noopener noreferrer" aria-label="문제 이미지 원본 열기" title="원본 열기">
+              <ExternalLink size={ICON_FOR_BUTTON.sm} aria-hidden />
+              <span>원본</span>
+            </a>
+          </div>
         </div>
+        <div className="qna-inbox__image-stage">
+          <img
+            src={active.download_url}
+            alt={active.original_name}
+            onError={() => markPreviewFailed(active.id)}
+            // Rotation and zoom are continuous viewer state, so a runtime transform is required.
+            // eslint-disable-next-line no-restricted-syntax
+            style={{ transform: `rotate(${rotation}deg) scale(${zoom})` }}
+          />
+        </div>
+        {availableAttachments.length > 1 && (
+          <div className="qna-inbox__image-strip" aria-label="첨부 이미지 선택">
+            {availableAttachments.map((attachment, index) => (
+              <button
+                key={attachment.id}
+                type="button"
+                className={index === resolvedActiveIndex ? "is-active" : ""}
+                onClick={() => selectAttachment(index)}
+                aria-label={`${index + 1}번째 이미지 ${attachment.original_name}`}
+                aria-pressed={index === resolvedActiveIndex}
+              >
+                <img
+                  src={attachment.download_url}
+                  alt=""
+                  onError={() => markPreviewFailed(attachment.id)}
+                />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {unavailableAttachments.length > 0 && (
+        <QnaFileAttachmentList
+          postId={postId}
+          attachments={unavailableAttachments}
+          previewRecovery
+        />
       )}
-    </div>
+    </>
   );
 }

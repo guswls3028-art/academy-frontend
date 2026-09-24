@@ -14,6 +14,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import { teacherCommsQueryKeys } from "../queryKeys";
+import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -109,10 +110,16 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
           await uploadPostAttachment(post.id, file);
         }
       } catch (error) {
+        let cleanupNotice: string | null = null;
         try {
-          await deletePost(post.id);
+          const result = await deletePost(post.id);
+          cleanupNotice = getCommunityStorageCleanupNotice(result);
+          await qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.posts });
         } catch {
           // 첨부 실패 시 부분 게시글 제거를 최우선으로 시도하고, 실패 원인은 원래 업로드 오류로 보여준다.
+        }
+        if (cleanupNotice) {
+          throw new Error(`${extractApiError(error, "첨부파일 업로드에 실패했습니다.")} ${cleanupNotice}`);
         }
         throw error;
       }
