@@ -42,9 +42,9 @@ export function resolveRootDestination({
   prefersFullWorkspace = false,
 }: RootDestinationInput): string {
   if (!isAuthenticated) {
-    return tenantCode === "hakwonplus" || tenantCode === "9999"
-      ? "/promo"
-      : "/login";
+    if (tenantCode === "hakwonplus" || tenantCode === "9999") return "/promo";
+    if (tenantCode === "godmin") return "/landing";
+    return "/login";
   }
 
   if (role && WORKSPACE_ROLES.includes(role)) {
