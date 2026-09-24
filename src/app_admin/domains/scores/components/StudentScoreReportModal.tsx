@@ -15,7 +15,7 @@ import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { listOmrReviewRows } from "@admin/domains/results/components/omr-review/omrReviewApi";
+import { listOmrReviewRows } from "@admin/domains/results/public/omrReview";
 import {
   buildStudentScoreReportHtml,
   downloadStudentScoreReportPdf,
@@ -64,8 +64,9 @@ export default function StudentScoreReportModal({
   const omrExamIds = useMemo(() => meta.exams
     .filter((exam) => exam.grading_mode !== "written")
     .map((exam) => exam.exam_id), [meta.exams]);
+  const omrPreflightQueryKey = ["student-score-report-omr-preflight", omrExamIds] as const;
   const omrPreflight = useQuery({
-    queryKey: ["student-score-report-omr-preflight", omrExamIds],
+    queryKey: omrPreflightQueryKey,
     queryFn: async () => (await Promise.all(omrExamIds.map(async (examId) => ({
       examId, rows: await listOmrReviewRows(examId),
     })))).flatMap(({ examId, rows }) => rows.filter((row) => {
