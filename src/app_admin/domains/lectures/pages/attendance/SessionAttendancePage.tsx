@@ -396,10 +396,7 @@ export default function SessionAttendancePage({
           lectureName = scoresData.meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
           sessionTitle = scoresData.meta?.session_title ?? session?.title ?? "";
 
-          const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
-          const userDefault = templates.find((t) => t.is_user_default && !t.is_system);
-          const userWithScoreVars = templates.find((t) => !t.is_system && hasScoreVars(t.body));
-          const chosenTpl = userDefault ?? userWithScoreVars;
+          const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
 
           const firstRow = scoresData.rows.find((r) => r.student_id === studentIds[0]);
           if (firstRow) {
@@ -426,17 +423,8 @@ export default function SessionAttendancePage({
             return result;
           };
         } catch {
-          // fallback: meta/scores fetch 실패 시 qc cache라도
-          const lecture = qc.getQueryData<{ title?: string; name?: string }>(
-            adminLectureQueryKeys.lecture(lectureId),
-          );
-          const session = qc.getQueryData<{ title?: string }>(
-            adminLectureQueryKeys.sessionDetail(sessionId),
-          );
-          lectureName = lecture?.title ?? lecture?.name ?? "";
-          sessionTitle = session?.title ?? "";
-          initialBody = buildGenericScoreTemplate({ lectureName, sessionTitle });
-          initialLetterPresetId = DEFAULT_GRADES_PRESET_ID;
+          feedback.error("성적과 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
+          return;
         }
 
         openSendMessageModal({

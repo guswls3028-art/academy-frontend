@@ -17,9 +17,9 @@ const PRESETS: ProvidedTemplatePreset[] = [
     id: DEFAULT_GRADES_PRESET_ID,
     category: "grades",
     name: "수업 결과 기본형",
-    description: "1차 시험과 재시험 이력을 자연스럽게 모두 안내합니다.",
+    description: "해당 학생의 시험·과제 결과만 자동으로 넣습니다.",
     recommended: true,
-    tags: ["추천", "재시험 이력"],
+    tags: ["추천", "시험·과제 결과"],
     body: DEFAULT_GRADES_PRESET_BODY,
   },
   {

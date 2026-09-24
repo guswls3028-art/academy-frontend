@@ -213,6 +213,20 @@ async function installScoreAlimtalkRoutes(
       await route.fulfill({ json: templates });
       return;
     }
+    if (path.endsWith("/api/v1/messaging/templates/") && method === "POST") {
+      const created = {
+        id: 992, is_system: false, is_user_default: false,
+        ...(request.postDataJSON() as Record<string, unknown>),
+      };
+      templates.push(created);
+      await route.fulfill({ status: 201, json: created });
+      return;
+    }
+    if (path.endsWith("/api/v1/messaging/templates/992/set-default/") && method === "POST") {
+      templates.forEach((template) => { template.is_user_default = template.id === 992; });
+      await route.fulfill({ json: templates.find((template) => template.id === 992) });
+      return;
+    }
 
     if (path.endsWith("/api/v1/messaging/send/preflight/") && method === "POST") {
       const payload = request.postDataJSON() as SendPayload;
@@ -345,9 +359,14 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await modal.getByRole("button", { name: /다른 문구 선택|문구 선택/, exact: true }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
     await picker.getByRole("button", { name: /실제 성적 문구/ }).click();
-    const preview = picker.locator(".template-preview-kakao__body");
+    const preview = picker.getByLabel("카카오톡 실제 발송 미리보기");
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
+      if (width === 390) {
+        await picker.getByRole("button", { name: /실제 성적 문구/ }).click();
+        await expect.poll(() => picker.locator(".tpl-picker__right").evaluate((node) => node.getBoundingClientRect().top))
+          .toBeLessThan(350);
+      }
       await expect(preview).toContainText("개인화학생1");
       await expect(preview).toContainText("실제 발송학원");
       await expect(preview).not.toContainText("실제 검증학원");
@@ -361,6 +380,32 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     }
   });
 
+  test("수정한 성적표 문구를 저장하면 다음 발송에도 기본으로 열린다", async ({ page }) => {
+    const templates: Record<string, unknown>[] = [{
+      id: 991, name: "오래된 문구", category: "grades", body: "1차 시험과 재시험 결과가 함께 기록됩니다.",
+      is_system: false, is_user_default: false,
+    }];
+    await openPersonalizedScores(page, "success", [], [], templates);
+    await selectBothStudentsAndOpen(page);
+    let modal = page.getByRole("dialog", { name: "알림톡 발송" });
+    const editor = modal.getByRole("textbox", { name: "안내문" });
+    await expect(editor).not.toContainText("1차 시험과 재시험 결과가 함께 기록됩니다.");
+    await expect(modal.locator(".send-modal__var-palette")).toBeVisible();
+    await editor.fill("#{학생이름} 학생의 이번 수업 결과입니다.\n#{시험성적}");
+    await modal.getByRole("button", { name: "성적표 문구 저장" }).click();
+    await modal.getByPlaceholder("예: 출결 알림, 성적표 안내").fill("내 성적표");
+    await modal.getByRole("button", { name: "저장", exact: true }).click();
+    await expect.poll(() => templates.find((template) => template.id === 992)?.is_user_default).toBe(true);
+    await expect(modal).toContainText("내 성적표");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("checkbox", { name: "개인화학생1 선택" })).toBeVisible();
+    await selectBothStudentsAndOpen(page);
+    modal = page.getByRole("dialog", { name: "알림톡 발송" });
+    await expect(modal.getByRole("textbox", { name: "안내문" })).toContainText("이번 수업 결과입니다.");
+    await expect(modal).toContainText("내 성적표");
+  });
+
   test("서로 다른 성적을 미리보고 공유값 없이 보호자 발송을 접수한다", async ({ page }, testInfo) => {
     const preflightPayloads: SendPayload[] = [];
     const sendPayloads: SendPayload[] = [];
@@ -372,7 +417,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     const modal = page.getByRole("dialog", { name: "알림톡 발송" });
     const editor = modal.getByRole("textbox", { name: "안내문" });
     await expect(editor).toBeVisible();
-    await modal.getByRole("button", { name: "정보 넣기", exact: true }).click();
+    await expect(modal.locator(".send-modal__var-palette")).toBeVisible();
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await expect.poll(() => modal.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);

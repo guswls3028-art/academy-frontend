@@ -407,3 +407,10 @@ export function renderPreviewWithActualData(
     }, `${varName}?`);
   });
 }
+
+/** Plain text for a chat bubble; variable badges belong in the editor only. */
+export function renderPlainMessagePreview(body: string, extraVars?: Record<string, string>): string {
+  return body.replace(/#\{([^}]+)\}/g, (token, name: string) => (
+    extraVars?.[name] ?? getTemplateBlock(token)?.previewValue ?? `[${name}]`
+  ));
+}
