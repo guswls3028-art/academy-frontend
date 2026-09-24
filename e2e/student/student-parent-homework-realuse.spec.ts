@@ -38,6 +38,7 @@ type HomeworkSummary = {
   score: number | null;
   passed: boolean;
   achievement: string;
+  submission_state?: "needs_submission" | "awaiting_review" | "reviewed";
 };
 
 type CreatedState = {
@@ -327,6 +328,9 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginThroughUi(page, student.ps_number, student.password);
+    await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
+    const todo = page.locator("[data-guide='dash-todo']");
+    await expect(todo.getByText(homeworkTitle, { exact: true })).toBeVisible();
     await gotoAndSettle(page, `${QA_BASE}/student/submit/assignment`, { timeout: 30_000 });
     await expect(page.getByRole("heading", { name: "과제 제출" })).toBeVisible();
     await page.getByText(homeworkTitle, { exact: true }).click();
@@ -371,6 +375,16 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await expect(fileRow).toHaveCount(0);
       await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
       await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
+      await waitForHomeworkSummary(
+        request,
+        studentTokens.access,
+        (row) => row.submission_state === "awaiting_review" && row.score === null,
+      );
+      await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
+      await expect(todo.getByText(homeworkTitle, { exact: true })).toHaveCount(0);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(todo.getByText(homeworkTitle, { exact: true })).toHaveCount(0);
+      await assertNoHorizontalOverflow(page);
       // Keep the assistant detail open: discovery must not depend on navigation
       // or manual reload after the student's successful submission.
       await expect(fileRow).toBeVisible({ timeout: 30_000 });

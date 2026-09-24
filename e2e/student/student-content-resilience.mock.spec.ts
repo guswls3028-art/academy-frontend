@@ -70,6 +70,7 @@ async function installStudentApi(
     failProfile?: boolean;
     pendingSubmittedExam?: boolean;
     completedFollowupExam?: "retest" | "correction";
+    pendingTodoSubmission?: () => boolean;
   } = {},
 ) {
   let firstImageAttempts = 0;
@@ -399,6 +400,25 @@ async function installStudentApi(
       return;
     }
     if (path.endsWith("/student/grades/")) {
+      if (options.pendingTodoSubmission) {
+        const pending = options.pendingTodoSubmission();
+        await route.fulfill({ json: {
+          ...emptyGrades(),
+          exams: [{
+            exam_id: 701, enrollment_id: 301, title: "재제출 시험",
+            total_score: 40, max_score: 100, is_pass: false,
+            achievement: "FAIL", submission_pending: pending,
+            session_title: "1차시", lecture_title: "수학", submitted_at: new Date().toISOString(),
+          }],
+          homeworks: [{
+            homework_id: 801, enrollment_id: 301, title: "재제출 과제",
+            score: 4, max_score: 10, passed: false, achievement: "FAIL",
+            submission_state: pending ? "awaiting_review" : "needs_submission",
+            submission_media_locked: false, session_title: "1차시", lecture_title: "수학",
+          }],
+        } });
+        return;
+      }
       if (options.completedFollowupExam) {
         const grades = emptyGrades(504);
         grades.exams[0] = {
@@ -580,6 +600,32 @@ function imageNotice() {
 
 test.describe("학생·학부모 콘텐츠 안정성", () => {
   test.skip(!IS_LOCAL_BASE, "Local route-mock contract spec.");
+
+  for (const width of [1366, 390]) {
+    test(`제출한 과제와 재시험은 할 일에서 빠지고 검토 후 재제출 필요 상태가 돌아온다 ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      let submitted = false;
+      await installStudentApi(page, { pendingTodoSubmission: () => submitted });
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      const todo = page.locator("[data-guide='dash-todo']");
+      await expect(todo.getByRole("link", { name: /재시험 필요/ })).toBeVisible();
+      await expect(todo.getByRole("link", { name: /과제 미통과/ })).toBeVisible();
+
+      submitted = true;
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
+      await expect(todo.getByRole("link", { name: /재시험 필요/ })).toHaveCount(0);
+      await expect(todo.getByRole("link", { name: /과제 미통과/ })).toHaveCount(0);
+      await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      await expect(page.getByRole("button", { name: /제출됨 · 파일 수정 가능.*재제출 과제/ })).toBeVisible();
+      await expect(page.getByRole("link", { name: /재제출 시험/ })).toHaveCount(0);
+
+      submitted = false;
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      await expect(todo.getByRole("link", { name: /재시험 필요/ })).toBeVisible();
+      await expect(todo.getByRole("link", { name: /과제 미통과/ })).toBeVisible();
+      await assertNoRenderedHtmlLeak(page);
+    });
+  }
 
   for (const width of [1366, 1100, 390]) {
     test(`제출한 시험은 채점 전에도 예정 시험 할 일에서 빠진다 ${width}`, async ({ page }) => {

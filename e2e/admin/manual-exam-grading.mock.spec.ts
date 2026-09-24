@@ -2586,7 +2586,9 @@ test.describe("문항별 직접 채점", () => {
         return dialog;
       };
       let dialog = await openSheet();
-      await dialog.getByRole("spinbutton", { name: "1번 배점", exact: true }).fill("16.6667");
+      const firstQuestionMax = dialog.getByRole("spinbutton", { name: "1번 배점", exact: true });
+      await expect(firstQuestionMax).toBeVisible({ timeout: 30_000 });
+      await firstQuestionMax.fill("16.6667");
       const cells = dialog.locator("input[data-manual-grade-cell]");
       for (let index = 0; index < 6; index += 1) await cells.nth(index).fill(index === 0 ? "16.6667" : String(100 / 6));
       await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();

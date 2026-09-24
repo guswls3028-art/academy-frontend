@@ -272,6 +272,7 @@ export default function DashboardPage() {
   const failedExams = useMemo(
     () => (grades?.exams ?? []).filter((e) => (
       e.lecture_active !== false
+      && e.submission_pending !== true
       && (wrongCompletionOnly
         ? e.correction_status === "PENDING"
         : (
@@ -286,11 +287,11 @@ export default function DashboardPage() {
     () => (grades?.homeworks ?? []).filter((h) => (
       h.lecture_active !== false
       && h.teacher_resolved !== true
-      && (
+      && (h.submission_state != null ? h.submission_state === "needs_submission" : (
         h.achievement === "FAIL"
         || h.achievement === "NOT_SUBMITTED"
         || (h.achievement == null && h.passed === false)
-      )
+      ))
     )),
     [grades?.homeworks],
   );
