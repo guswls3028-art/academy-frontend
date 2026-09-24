@@ -936,7 +936,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   await expect(answerDialog.locator(".answer-key-row--choice .answer-key-row__score-val")).toHaveText(["33.4점", "33.3점", "33.3점"]);
   await answerDialog.getByRole("button", { name: /답안 저장하고 다음/ }).click();
   await expect.poll(() => state.answerKeySaves?.length).toBe(1);
-  await expect.poll(() => Object.values(state.guidedQuestionScores ?? {}).reduce((sum, score) => sum + score, 0)).toBe(100);
+  await expect.poll(() => Object.keys(state.guidedQuestionScores ?? {}).length).toBe(3);
   expect(state.guidedQuestionScores).toEqual({ 99711: 33.4, 99712: 33.3, 99713: 33.3 });
   expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "2", "99712": "2", "99713": "2" } });
 
