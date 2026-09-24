@@ -220,8 +220,10 @@
 }
 
 /* 공용 오류·CapsLock 박스는 밝은 배경 전제라 잉크빛 위에서 흰 카드로 뜬다.
- * 어두운 테마가 다시 톤을 맞춘다 — docs/README.md 테마·공용 컨트롤 계약 `대비` */
-[data-app="auth"][data-tenant="hakwonplus"] div[class*="error"] {
+ * 어두운 테마가 다시 톤을 맞춘다 — docs/README.md 테마·공용 컨트롤 계약 `대비`
+ * login-panel 로 한정한다. 같은 `.error` 클래스를 쓰는 회원가입·계정복구 모달은
+ * 흰 카드 위에 있어서, 전역으로 두면 밝은 글자가 흰 배경에 묻힌다. */
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"] div[class*="error"] {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -233,7 +235,13 @@
   border-radius: 10px;
 }
 
-[data-app="auth"][data-tenant="hakwonplus"] div[class*="capsHint"] {
+/* 모달은 흰 카드 + 공용 연분홍 `.error` 배경을 유지한다. 어두운 면을 전제로 한
+ * `--auth-error`(밝은 적색)를 그대로 쓰면 읽히지 않으므로 공용 기본값으로 되돌린다. */
+[data-app="auth"][data-tenant="hakwonplus"] div[class*="overlayCard"] div[class*="error"] {
+  color: #b91c1c;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"] div[class*="capsHint"] {
   font-weight: 500;
   color: #ffd98a;
   background: rgba(112, 82, 20, 0.28);
