@@ -54,6 +54,15 @@ export interface User {
   must_change_password?: boolean;
   /** 생애 첫 계정 안내를 아직 확인하지 않았는지 여부 */
   first_login_guide_required?: boolean;
+  /** 서버가 현재 테넌트의 연체 안내 대상과 날짜를 결정한다. */
+  subscription_notice?: SubscriptionNotice | null;
+}
+
+export interface SubscriptionNotice {
+  subscription_expires_at: string;
+  service_access_expires_at: string;
+  days_overdue: number;
+  days_remaining: number;
 }
 
 function plainOptional(value: string | null | undefined): string | null | undefined {

@@ -6,6 +6,7 @@ import {
   isStudentSupportWindow,
 } from "@/shared/auth/supportPreviewSession";
 import { publishLoginTokenEnvelope } from "@/shared/auth/tokenSession";
+import { markSubscriptionNoticeLogin } from "@/auth/subscriptionNoticeLogin";
 
 export type LoginResponse = {
   access: string;
@@ -99,7 +100,8 @@ export const login = async (username: string, password: string) => {
     throw new Error("Invalid token response");
   }
 
-  await publishLoginTokenEnvelope(access, refresh);
+  const session = await publishLoginTokenEnvelope(access, refresh);
+  markSubscriptionNoticeLogin(session.generation, tenantCode);
   resetSessionEnding(); // 재로그인 시 세션 종료 플래그 초기화
 
   return res.data;
