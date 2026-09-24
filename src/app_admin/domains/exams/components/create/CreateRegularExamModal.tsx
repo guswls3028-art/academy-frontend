@@ -239,8 +239,9 @@ export default function CreateRegularExamModal({
         timeout: 120_000,
       });
 
-      onCreated(createdExamId, "answer-key");
-      if (["conversion_required", "source_saved"].includes(uploadResponse.data?.status)) {
+      const requiresManualQuestions = ["conversion_required", "source_saved"].includes(uploadResponse.data?.status);
+      onCreated(createdExamId, requiresManualQuestions ? "answer-key" : undefined);
+      if (requiresManualQuestions) {
         const enrollmentMessage = enrollResult.error
           ? " 응시 대상 자동 등록은 실패했으므로 시험 상세에서 확인해 주세요."
           : ` 수강생 ${enrollResult.enrolled}명을 응시 대상으로 등록했습니다.`;
@@ -253,7 +254,7 @@ export default function CreateRegularExamModal({
           ? " · 응시 대상은 시험 상세에서 확인해 주세요."
           : ` · 수강생 ${enrollResult.enrolled}명 등록`;
         feedback.success(
-          `시험을 만들고 문항 자동 분리를 시작했습니다${enrollmentMessage}`,
+          `시험을 만들고 문항 자동 분리를 시작했습니다${enrollmentMessage} · 분리 후 시험 설정에서 문항을 검수해 주세요`,
         );
       }
       onClose();

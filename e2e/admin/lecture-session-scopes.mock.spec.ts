@@ -980,6 +980,7 @@ test("원본을 선택하면 생성과 자동 등록 뒤 기존 업로드 순서
   await expect(dialog).toBeVisible();
 
   await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(state.createdExamPayloads).toHaveLength(1);
   expect(state.examEnrollmentPuts).toEqual([[501]]);
   expect(state.examPdfExtractRequests).toBe(1);
