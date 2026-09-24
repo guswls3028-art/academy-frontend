@@ -382,7 +382,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         await json({ detail: "preview unavailable" }, 404);
         return;
       }
-      await json({ url: `${BASE}/favicon.svg?submission=${previewMatch[1]}` });
+      await json({ url: `${BASE}/vite.svg?submission=${previewMatch[1]}` });
       return;
     }
     const manualEditMatch = path.match(/^\/submissions\/submissions\/(\d+)\/manual-edit\/$/);
@@ -1808,7 +1808,7 @@ test.describe("문항별 직접 채점", () => {
     await expect.poll(() => apiState.previewRequestCount).toBe(1);
     // The counter increments before the deferred response. Finish that request
     // before arming a failure for the next logical preview operation.
-    await expect(popup).toHaveURL(`${BASE}/favicon.svg?submission=${DONE_SUBMISSION_ID}`);
+    await expect(popup).toHaveURL(`${BASE}/vite.svg?submission=${DONE_SUBMISSION_ID}`);
     expect(apiState.inventoryPresignCount).toBe(0);
     expect(page.context().pages()).toHaveLength(2);
     await popup.close();
@@ -1827,7 +1827,7 @@ test.describe("문항별 직접 채점", () => {
     const recoveredPopupPromise = page.waitForEvent("popup");
     await viewButton.click();
     const recoveredPopup = await recoveredPopupPromise;
-    await expect(recoveredPopup).toHaveURL(`${BASE}/favicon.svg?submission=${DONE_SUBMISSION_ID}`);
+    await expect(recoveredPopup).toHaveURL(`${BASE}/vite.svg?submission=${DONE_SUBMISSION_ID}`);
     expect(apiState.previewRequestCount).toBe(3);
     await expect(page.getByRole("status").filter({ hasText: "파일을 열 수 없습니다." })).toHaveCount(0);
     await recoveredPopup.close();
