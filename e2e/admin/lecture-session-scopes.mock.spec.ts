@@ -926,7 +926,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   await expect(answerDialog.locator(".answer-key-score-guide")).toHaveCount(0);
   await answerDialog.getByRole("button", { name: /답안 저장하고 다음/ }).click();
   await expect.poll(() => state.answerKeySaves?.length).toBe(1);
-  expect(state.guidedQuestionScore).toBe(100);
+  await expect.poll(() => state.guidedQuestionScore).toBe(100);
   expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "2" } });
 
   const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
