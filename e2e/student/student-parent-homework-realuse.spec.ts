@@ -493,8 +493,17 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       expect.arrayContaining([uploadName, parentUploadName]),
     );
 
+    await waitForHomeworkSummary(
+      request,
+      parentTokens.access,
+      (row) => row.submission_state === "awaiting_review" && row.score === null
+        && row.lecture_active === true && row.submission_media_locked === false,
+      student.id,
+    );
     await reloadStudentApp(page);
-    await page.getByText(homeworkTitle, { exact: true }).click();
+    await expect(parentHomeworkTarget).toHaveCount(1, { timeout: 30_000 });
+    await expect(parentHomeworkTarget).toBeVisible();
+    await parentHomeworkTarget.click();
     await expect(page.getByText(uploadName, { exact: true })).toBeVisible();
     await expect(page.getByText(parentUploadName, { exact: true })).toBeVisible();
     await assertNoHorizontalOverflow(page);
