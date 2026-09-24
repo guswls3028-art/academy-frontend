@@ -22,12 +22,16 @@
 
 .student-score-report-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr);
   height: 100%;
   min-height: 0;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--score-report-brand, #14213d) 5%, transparent), transparent 44%),
     var(--color-bg-canvas, #eef2f6);
+}
+
+.student-score-report-workspace.is-student-list-open {
+  grid-template-columns: minmax(0, 1fr) 300px;
 }
 
 .student-score-report-preview {
@@ -39,6 +43,7 @@
 
 .student-score-report-preview__toolbar {
   display: flex;
+  flex-wrap: wrap;
   min-height: 52px;
   align-items: center;
   justify-content: space-between;
@@ -53,6 +58,21 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.student-score-report-preview__controls {
+  flex-wrap: wrap;
+}
+
+.student-score-report-preview__status {
+  flex: 0 0 auto;
+}
+
+.student-score-report-preview__step {
+  color: var(--color-text-secondary, #475569);
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
 }
 
 .student-score-report-preview__status {
@@ -95,9 +115,30 @@
   outline-offset: 2px;
 }
 
-.student-score-report-mobile-student,
 .student-score-report-mobile-selection {
   display: none;
+}
+
+.student-score-report-mobile-student {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-text-muted, #64748b);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.student-score-report-mobile-student select {
+  max-width: 180px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--color-border-divider, #dbe2ea);
+  border-radius: 7px;
+  background: var(--color-bg-surface, #fff);
+  color: var(--color-text-primary, #172033);
 }
 
 .student-score-report-brand-state {
@@ -123,6 +164,12 @@
 .student-score-report-data-state {
   color: var(--color-text-muted, #64748b);
   font-size: 12px;
+}
+
+@media (min-width: 761px) {
+  .student-score-report-data-state {
+    white-space: nowrap;
+  }
 }
 
 .student-score-report-preview__scroll {
@@ -245,6 +292,13 @@
   font-size: 12px;
 }
 
+.student-score-report-students__hint {
+  margin: 0 12px 8px;
+  color: var(--color-text-secondary, #475569);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .student-score-report-students__list {
   min-height: 0;
   flex: 1;
@@ -293,7 +347,10 @@
 }
 
 .student-score-report-students__row > button {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   width: 100%;
   min-width: 0;
   min-height: 44px;
@@ -304,6 +361,22 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.student-score-report-students__row > button > :first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.student-score-report-students__preview-label {
+  flex: 0 0 auto;
+  color: var(--color-text-muted, #64748b);
+  font-size: 10px;
+}
+
+.student-score-report-students__row.is-previewed .student-score-report-students__preview-label {
+  color: var(--score-report-brand, #14213d);
+  font-weight: 700;
 }
 
 .student-score-report-students__check {
@@ -335,7 +408,7 @@
 }
 
 @media (max-width: 1050px) {
-  .student-score-report-workspace {
+  .student-score-report-workspace.is-student-list-open {
     grid-template-columns: minmax(0, 1fr) 250px;
   }
 
@@ -358,7 +431,8 @@
     padding-right: 44px;
   }
 
-  .student-score-report-workspace {
+  .student-score-report-workspace,
+  .student-score-report-workspace.is-student-list-open {
     grid-template-columns: 1fr;
   }
 
@@ -447,6 +521,7 @@
   .student-score-report-preview__controls {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
   }
 
   .student-score-report-preview__status {

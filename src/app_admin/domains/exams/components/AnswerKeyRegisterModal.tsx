@@ -31,11 +31,15 @@ import {
 import ExamPdfUploadModal from "./ExamPdfUploadModal";
 import { adminExamsQueryKeys } from "../queryKeys";
 import "./AnswerKeyRegisterModal.css";
+import "./AnswerKeyRegisterModal.bubbles.css";
 import "./AnswerKeyRegisterModal.mobile.css";
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  onSaved?: () => void;
+  initialTab?: "answer" | "image" | "omr";
+  flowStep?: "answer" | "print";
   examId: number;
   structureOwnerId: number;
   /** false면 문항/배점 PATCH 생략(regular 시험에서 403 방지). 정답만 저장됨. */
@@ -197,8 +201,7 @@ function roundScore(value: number): number {
 }
 
 function formatScore(value: number): string {
-  const rounded = roundScore(value);
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return String(Math.round((value + Number.EPSILON) * 100) / 100);
 }
 
 function parseScoreInputDraft(value: ScoreInputDraft): number | null {
@@ -255,6 +258,9 @@ function normalizeAnswers(input: Record<string, AnswerKeyValue>) {
 export default function AnswerKeyRegisterModal({
   open,
   onClose,
+  onSaved,
+  initialTab = "answer",
+  flowStep,
   examId,
   structureOwnerId,
   canEditQuestions = true,
@@ -262,7 +268,8 @@ export default function AnswerKeyRegisterModal({
   sessionName = "",
 }: Props) {
   const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">("answer");
+  const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">(initialTab);
+  const [downloaded, setDownloaded] = useState(false);
   const { data: exam } = useAdminExam(examId);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [ensuredExamId, setEnsuredExamId] = useState<number | null>(null);
@@ -382,7 +389,8 @@ export default function AnswerKeyRegisterModal({
   const essayInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const resetLocalDraftState = useCallback(() => {
-    setActiveTab("answer");
+    setActiveTab(initialTab);
+    setDownloaded(false);
     setPdfModalOpen(false);
     setChoiceCount("");
     setChoiceCountInput("");
@@ -405,7 +413,7 @@ export default function AnswerKeyRegisterModal({
     setSaveBusy(false);
     choiceBubbleRefs.current = [];
     essayInputRefs.current = [];
-  }, []);
+  }, [initialTab]);
 
   useEffect(() => {
     resetLocalDraftState();
@@ -443,6 +451,29 @@ export default function AnswerKeyRegisterModal({
   const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.objective;
   const essayTotalScore = essayQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.subjective;
   const totalScore = questionTotalScore + scoreAdjustmentDraft.objective + scoreAdjustmentDraft.subjective;
+  const examMaxScore = Number(exam?.max_score);
+  const guidedScoreMismatch = flowStep === "answer" && Number.isFinite(examMaxScore)
+    && examMaxScore > 0 && Math.abs(totalScore - examMaxScore) > 0.01;
+
+  const alignGuidedScores = () => {
+    const count = sortedQuestions.length;
+    const targetCents = Math.round((examMaxScore - scoreAdjustmentDraft.objective - scoreAdjustmentDraft.subjective) * 100);
+    if (count < 1 || targetCents < 0) {
+      feedback.error("문항 수와 기본점수를 확인한 뒤 배점을 맞춰 주세요.");
+      return;
+    }
+    const unitCents = targetCents % 10 === 0 ? 10 : 1;
+    const targetUnits = targetCents / unitCents;
+    const baseUnits = Math.floor(targetUnits / count);
+    const remainder = targetUnits % count;
+    setScoreDraft((current) => ({
+      ...current,
+      ...Object.fromEntries(sortedQuestions.map((question, index) => [
+        question.id,
+        ((baseUnits + (index < remainder ? 1 : 0)) * unitCents) / 100,
+      ])),
+    }));
+  };
 
   useEffect(() => {
     if (!open || !structureReady || !answerKeyLoaded || answerKeyFetching || answerKeyHydrated) return;
@@ -782,6 +813,19 @@ export default function AnswerKeyRegisterModal({
       feedback.info("시험 구조가 준비되지 않아 아직 수정할 수 없습니다.");
       return;
     }
+    if (flowStep === "answer") {
+      const missingChoice = choiceQuestions.find((question) =>
+        parseChoiceDraft(draft[String(question.id)] ?? "").size === 0
+      );
+      if (missingChoice) {
+        feedback.error(`${missingChoice.number}번 객관식 정답을 입력한 뒤 저장해 주세요.`);
+        return;
+      }
+      if (guidedScoreMismatch) {
+        feedback.error(`문항 배점 합계 ${formatScore(totalScore)}점을 시험 만점 ${formatScore(examMaxScore)}점과 맞춰 주세요.`);
+        return;
+      }
+    }
     setSaveBusy(true);
     try {
       const shouldPersistQuestionTypes =
@@ -840,6 +884,7 @@ export default function AnswerKeyRegisterModal({
       feedback.success(
         canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
       );
+      onSaved?.();
     } catch (error: unknown) {
       feedback.error(extractApiError(error, "저장 실패"));
     } finally {
@@ -920,7 +965,9 @@ export default function AnswerKeyRegisterModal({
     >
       <ModalHeader
         type="action"
-        title={
+        title={flowStep ? (
+          <strong>{flowStep === "answer" ? "2. 답안 등록" : "3. OMR 답안지 다운로드"}</strong>
+        ) : (
           <div className="answer-key-modal-header-tabs">
             <Tabs
               value={activeTab}
@@ -941,8 +988,12 @@ export default function AnswerKeyRegisterModal({
               시험 자료 업로드
             </Button>
           </div>
-        }
-        description="선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."
+        )}
+        description={flowStep === "answer"
+          ? "문항 유형과 정답을 입력한 뒤 저장하세요. 저장하면 인쇄용 답안지가 열립니다."
+          : flowStep === "print"
+            ? "문항 수와 시험명을 확인하고 인쇄용 OMR 답안지 PDF를 다운로드하세요."
+            : "선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."}
       />
 
       {/* 시험 자료 업로드 통합 모달 — 현재 구조 소유자에 업로드 */}
@@ -1034,6 +1085,14 @@ export default function AnswerKeyRegisterModal({
                 <span><i className="is-essay" />서술형 {questionTypes.filter((kind) => kind === "essay").length}</span>
               </div>
             </section>
+            {guidedScoreMismatch && sortedQuestions.length > 0 && (
+              <div className="answer-key-score-guide" role="status">
+                <span>문항 배점 합계 {formatScore(totalScore)}점 · 시험 만점 {formatScore(examMaxScore)}점</span>
+                <Button type="button" intent="secondary" size="sm" onClick={alignGuidedScores} disabled={!canEditStructure}>
+                  만점에 맞게 균등 배점
+                </Button>
+              </div>
+            )}
             <div className="answer-key-two-panels">
               {/* 좌측: 선택형 — 문항 수 메뉴 상시 표시 */}
               <div className="answer-key-panel answer-key-panel--choice">
@@ -1433,22 +1492,28 @@ export default function AnswerKeyRegisterModal({
             <OmrSettingsTab
               examId={examId}
               examTitle={exam?.title || ""}
-              lectureName={lectureName}
-              sessionName={sessionName}
+              lectureName={lectureName || omrDefaults?.lecture_name || ""}
+              sessionName={sessionName || omrDefaults?.session_name || ""}
               choiceCount={choiceQuestions.length}
               essayCount={essayQuestions.length}
               questionTypes={resolvedQuestionTypes}
+              guidedPrint={flowStep === "print"}
+              onDownloaded={() => setDownloaded(true)}
             />
           )}
         </div>
       </ModalBody>
 
       <ModalFooter
-        left={null}
+        left={flowStep === "answer"
+          ? <span>저장 후 답안지 다운로드로 이어집니다.</span>
+          : flowStep === "print"
+            ? <span role="status">{downloaded ? "답안지 다운로드 완료" : "PDF를 다운로드한 뒤 설정 화면으로 돌아가세요."}</span>
+            : null}
         right={
           <>
             <Button intent="secondary" onClick={onClose}>
-              취소
+              {flowStep === "answer" ? "나중에" : flowStep === "print" ? "설정 화면으로" : "취소"}
             </Button>
             {activeTab === "answer" && hasQuestions && answerKeyHydrated && (
               <Button
@@ -1457,7 +1522,7 @@ export default function AnswerKeyRegisterModal({
                 disabled={saveBusy || initMut.isPending || !canEditStructure}
                 loading={saveBusy}
               >
-                저장 (총 {formatScore(totalScore)}점)
+                {flowStep === "answer" ? "답안 저장하고 다음" : `저장 (총 ${formatScore(totalScore)}점)`}
               </Button>
             )}
             {activeTab === "image" && sortedQuestions.length > 0 && (
@@ -1878,6 +1943,8 @@ function OmrSettingsTab({
   choiceCount,
   essayCount,
   questionTypes,
+  guidedPrint,
+  onDownloaded,
 }: {
   examId: number;
   examTitle: string;
@@ -1886,6 +1953,8 @@ function OmrSettingsTab({
   choiceCount: number;
   essayCount: number;
   questionTypes: QuestionKind[];
+  guidedPrint?: boolean;
+  onDownloaded?: () => void;
 }) {
   const exceedsOmrLimit = choiceCount > MAX_OMR_MC_COUNT || essayCount > MAX_OMR_ESSAY_COUNT;
   return (
@@ -1905,6 +1974,8 @@ function OmrSettingsTab({
         initialEssayCount={essayCount}
         initialQuestionTypes={questionTypes}
         layout="modal"
+        guidedPrint={guidedPrint}
+        onDownloaded={onDownloaded}
       />
     </div>
   );

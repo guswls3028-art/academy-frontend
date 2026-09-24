@@ -177,6 +177,10 @@ async function openExam(page: Page, state: MockState) {
   );
   await waitForRenderSettled(page, { timeout: 30_000 });
   await expect(page.getByText("시험 운영 준비", { exact: true })).toBeVisible({ timeout: 30_000 });
+  const settings = page.locator("#assessment-policy > details");
+  await expect(settings).not.toHaveAttribute("open", "");
+  await expect(settings.locator(":scope > summary")).toContainText("설정 변경");
+  await settings.locator(":scope > summary").click();
 }
 
 test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 모바일에서도 정돈된 순서를 유지한다", async ({ page }, testInfo) => {
@@ -249,6 +253,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await expect(primaryAction).toHaveText("운영 설정 보기");
   await primaryAction.click();
   await expect(page.getByRole("tab", { name: "운영", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.locator("#assessment-policy > details > summary").click();
 
   await gradingGroup.getByRole("button", { name: /^OMR \+ 직접 채점/ }).click();
   await expect(page.getByLabel("앞쪽 선택형 문항 수")).toHaveValue("1");
@@ -260,6 +265,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await page.getByLabel("합격 기준").fill("80");
 
   await gradingGroup.getByRole("button", { name: /^직접 정오 입력/ }).click();
+  await page.getByText("응시 기간·정답 공개·재응시", { exact: false }).click();
   await page.getByLabel("응시 시작").fill("2026-08-03T09:00");
   await page.getByRole("textbox", { name: /^마감 비워/ }).fill("2026-08-03T22:00");
   await page.getByLabel("정답 공개").selectOption("after_closed");
@@ -281,6 +287,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   expect(state.examPatchPayloads[0].close_at).toEqual(expect.any(String));
 
   await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("#assessment-policy > details > summary").click();
   await expect(
     page.getByRole("group", { name: "시험 채점 방식" }).getByRole("button", { name: /^직접 정오 입력/ }),
   ).toHaveAttribute("aria-pressed", "true");
@@ -291,6 +298,9 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByText("시험 운영 준비", { exact: true })).toBeVisible();
   await expect(page.getByText("시험 운영 설정", { exact: true })).toBeVisible();
+  if (await page.locator("#assessment-policy > details").getAttribute("open") === null) {
+    await page.locator("#assessment-policy > details > summary").click();
+  }
   await expect(page.getByRole("navigation", { name: "시험 업무 흐름" })).toBeVisible();
   await expect.poll(() => page.getByTestId("assessment-primary-action").evaluate(
     (element) => element.getBoundingClientRect().height,
@@ -474,6 +484,7 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
   })).toBe("79");
 
   await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("#assessment-policy > details > summary").click();
   const recovery = page.getByTestId("assessment-draft-recovery");
   await expect(recovery).toContainText("저장되지 않은 시험 설정이 있습니다");
   await page.screenshot({
@@ -481,6 +492,9 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
     fullPage: true,
   });
   await page.setViewportSize({ width: 390, height: 844 });
+  if (await page.locator("#assessment-policy > details").getAttribute("open") === null) {
+    await page.locator("#assessment-policy > details > summary").click();
+  }
   await expect(page.getByTestId("assessment-draft-recovery")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
   await recovery.scrollIntoViewIfNeeded();
@@ -504,6 +518,7 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
   )).toBe(true);
   state.exam = { ...state.exam, pass_score: 77, updated_at: "2026-08-03T02:00:00Z" };
   await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("#assessment-policy > details > summary").click();
   await expect(page.getByTestId("assessment-draft-recovery")).toHaveCount(0);
   await expect(page.getByLabel("합격 기준")).toHaveValue("77");
 
@@ -518,5 +533,6 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
       candidate.startsWith("assessment-policy-draft:v1:exam:9972:")),
   )).toBe(false);
   await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("#assessment-policy > details > summary").click();
   await expect(page.getByTestId("assessment-draft-recovery")).toHaveCount(0);
 });

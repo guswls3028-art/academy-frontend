@@ -136,10 +136,26 @@
 .answer-key-type-map__legend .is-choice { background: var(--color-brand-primary); }
 .answer-key-type-map__legend .is-essay { background: #d97706; }
 
+.answer-key-score-guide {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-warning) 7%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 /* 좌우 2패널 — 부모(.answer-key-panel)의 flex:1로 남은 공간 전부 사용 */
 .answer-key-two-panels {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: var(--space-3);
   align-items: stretch;
   flex: 1;
@@ -449,33 +465,6 @@
   font-weight: 600;
   color: var(--color-text-primary);
   text-align: right;
-}
-
-/* 한국식 OMR — 시각 버블은 modal.css SSOT, 라벨은 충분한 클릭 목표를 제공 */
-.answer-key-row__bubbles {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-.answer-key-row__bubbles:focus {
-  outline: none;
-  border-radius: var(--radius-sm);
-  box-shadow: 0 0 0 2px var(--color-bg-surface), 0 0 0 4px var(--color-brand-primary);
-}
-
-.answer-key-omr-label {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  min-width: 40px;
-  height: 44px;
-  cursor: pointer;
-  margin: 0;
-}
-
-.answer-key-omr-label .exam-omr-bubble {
-  pointer-events: none;
 }
 
 .answer-key-row__score {

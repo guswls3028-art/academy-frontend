@@ -62,6 +62,7 @@ export default function StudentScoreReportModal({
   const [selectedReportEnrollmentIds, setSelectedReportEnrollmentIds] = useState<number[]>([]);
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<StudentScoreReportMode>("detailed");
+  const [showStudentList, setShowStudentList] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number } | null>(null);
   const [mobilePreviewHeight, setMobilePreviewHeight] = useState(600);
@@ -88,6 +89,7 @@ export default function StudentScoreReportModal({
     );
     setSearch("");
     setMode("detailed");
+    setShowStudentList(initialRows.length > 1);
     setDownloadProgress(null);
   }, [open, reportRows, initialEnrollmentId, initialEnrollmentIds]);
 
@@ -302,19 +304,23 @@ export default function StudentScoreReportModal({
             개인 성적표
           </span>
         )}
-        description="미리볼 학생을 바꾸고, 필요한 학생을 여러 명 선택해 한 PDF로 만들 수 있습니다."
+        description="학생과 분량을 고른 뒤 PDF를 다운로드하세요. 여러 명을 한 번에 출력할 수도 있습니다."
         noIcon
       />
       <ModalBody>
-        <div className="student-score-report-workspace" style={workspaceStyle}>
+        <div className={`student-score-report-workspace${showStudentList ? " is-student-list-open" : ""}`} style={workspaceStyle}>
           <main className="student-score-report-preview">
             <div className="student-score-report-preview__toolbar">
               <div className="student-score-report-preview__controls">
                 <label className="student-score-report-mobile-student">
-                  <span>학생</span>
+                  <span>1. 출력 학생</span>
                   <select
                     value={selectedRow?.enrollment_id ?? ""}
-                    onChange={(event) => previewStudent(Number(event.target.value))}
+                    onChange={(event) => {
+                      const enrollmentId = Number(event.target.value);
+                      setSelectedEnrollmentId(enrollmentId);
+                      setSelectedReportEnrollmentIds([enrollmentId]);
+                    }}
                     aria-label="성적표 학생 선택"
                   >
                     {reportRows.map((row) => (
@@ -322,6 +328,18 @@ export default function StudentScoreReportModal({
                     ))}
                   </select>
                 </label>
+                {reportRows.length > 1 && (
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    aria-expanded={showStudentList}
+                    onClick={() => setShowStudentList((current) => !current)}
+                  >
+                    {showStudentList ? "학생 목록 닫기" : `여러 명 출력${selectedReportRows.length > 1 ? ` · ${selectedReportRows.length}명` : ""}`}
+                  </Button>
+                )}
+                <span className="student-score-report-preview__step">2. 분량 선택</span>
                 <div className="student-score-report-mode" aria-label="성적표 분량">
                   <button
                     type="button"
@@ -358,9 +376,15 @@ export default function StudentScoreReportModal({
               </div>
             </div>
 
-            <details className="student-score-report-mobile-selection">
+            {showStudentList && <details
+              className="student-score-report-mobile-selection"
+              open
+              onToggle={(event) => {
+                if (!event.currentTarget.open) setShowStudentList(false);
+              }}
+            >
               <summary>
-                <span><ListChecks size={15} aria-hidden /> 출력 학생</span>
+                <span><ListChecks size={15} aria-hidden /> 1. 출력할 학생</span>
                 <strong>{selectedReportRows.length}명 선택</strong>
               </summary>
               <div className="student-score-report-mobile-selection__actions">
@@ -379,7 +403,7 @@ export default function StudentScoreReportModal({
                   </label>
                 ))}
               </div>
-            </details>
+            </details>}
 
             {selectedRow ? (
               <div className="student-score-report-preview__scroll">
@@ -401,10 +425,10 @@ export default function StudentScoreReportModal({
             )}
           </main>
 
-          <aside className="student-score-report-students" aria-label="학생 선택">
+          {showStudentList && <aside className="student-score-report-students" aria-label="학생 선택">
             <div className="student-score-report-students__header">
               <div>
-                <strong>출력 학생 선택</strong>
+                <strong>1. 출력할 학생</strong>
                 <span>{selectedReportRows.length}/{reportRows.length}명</span>
               </div>
               <div className="student-score-report-students__nav">
@@ -436,6 +460,7 @@ export default function StudentScoreReportModal({
                 aria-label="성적표 학생 검색"
               />
             </label>
+            <p className="student-score-report-students__hint">체크한 학생만 PDF에 포함됩니다. 이름을 누르면 미리봅니다.</p>
             <div className="student-score-report-students__selection-actions">
               <button type="button" onClick={selectAllReports}>전체 선택</button>
               <button type="button" onClick={clearReportSelection}>선택 해제</button>
@@ -475,6 +500,7 @@ export default function StudentScoreReportModal({
                         maxLectureChips={1}
                         density="compact"
                       />
+                      <span className="student-score-report-students__preview-label">미리보기</span>
                     </button>
                   </div>
                 );
@@ -483,15 +509,15 @@ export default function StudentScoreReportModal({
                 <p className="student-score-report-students__empty">검색 결과가 없습니다.</p>
               )}
             </div>
-          </aside>
+          </aside>}
         </div>
       </ModalBody>
       <ModalFooter
         left={(
           <span className="student-score-report-modal__footnote">
             {selectedRow
-              ? `${selectedReportRows.length}명 선택 · 미리보기 ${selectedRow.student_name} · ${mode === "detailed" ? `상세 ${reportPageCount}쪽` : "요약 1쪽"}`
-              : "출력할 학생 없음"}
+              ? `${selectedReportRows.length}명 출력 · 미리보기: ${selectedRow.student_name} · ${mode === "detailed" ? `상세 ${reportPageCount}쪽` : "요약 1쪽"}`
+              : "출력할 학생을 선택해 주세요"}
           </span>
         )}
         right={(
@@ -511,8 +537,8 @@ export default function StudentScoreReportModal({
                   ? `${downloadProgress.current}/${downloadProgress.total}명 준비 중…`
                   : "PDF 생성 중…"
                 : selectedReportRows.length > 1
-                  ? `${selectedReportRows.length}명 성적표 PDF`
-                  : "개인 성적표 PDF"}
+                  ? `${selectedReportRows.length}명 성적표 PDF 다운로드`
+                  : "개인 성적표 PDF 다운로드"}
             </Button>
           </>
         )}

@@ -438,6 +438,7 @@ async function verifyChangedAnswerAndMaximum(
     const expected = changed ? EXPECTED_SCORE - 1 : EXPECTED_SCORE;
     await page.setViewportSize({ width: changed ? 1366 : 390, height: 900 });
     await loginBrowserAsRealUser(page, setupPath, { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+    await page.locator("#assessment-policy > details > summary").click();
     await page.getByRole("spinbutton", { name: "만점", exact: true }).fill(String(maximum));
     const policySaved = page.waitForResponse((response) => matchesApiResponse(response, "PATCH", `/exams/${created.examId}/`));
     await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
