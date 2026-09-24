@@ -23,6 +23,7 @@ import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
 import { adminCommunityQueryKeys } from "../queryKeys";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import {
   communityAuthorContextQueryKey,
   normalizeStudentName,
@@ -289,10 +290,14 @@ function CounselThreadView({
 
   const deletePostMut = useMutation({
     mutationFn: () => deletePost(postId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counselPosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("counsel") });
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.adminNotificationCounts });
-      feedback.success("상담 신청이 삭제되었습니다.");
+      const cleanupNotice = getCommunityStorageCleanupNotice(result);
+      if (cleanupNotice) feedback.warning(cleanupNotice);
+      else feedback.success("상담 신청이 삭제되었습니다.");
       onDelete();
     },
     onError: (e: unknown) => {
