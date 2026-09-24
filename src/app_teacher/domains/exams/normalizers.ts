@@ -51,17 +51,6 @@ export type TeacherHomeworkDetail = {
   max_score: number | null;
 };
 
-export type HomeworkSubmissionMediaFile = {
-  id: string;
-  position: number;
-  original_filename: string;
-  media_kind: "image" | "video";
-  file_size: number;
-  status: string;
-  error_message: string;
-  removed_at: string | null;
-};
-
 export type HomeworkSubmission = {
   id: number;
   enrollment_id: number;

@@ -262,7 +262,7 @@ test("신규 조교가 계정 안내 확인 후 모바일 과제 파일을 열�
   await page.setViewportSize({ width: 390, height: 844 });
   await installApi(page, "done", true);
   await page.goto(`${BASE}/workspace/mobile/homeworks/${HOMEWORK_ID}`);
-  await expect(page.getByRole("heading", { name: "제출 완료 (1)" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "제출 확인 (1)" })).toBeVisible();
   await expect(page.getByRole("dialog", { name: "계정 안내" })).toBeVisible();
   const guideCompleted = page.waitForResponse((response) =>
     response.request().method() === "POST" &&

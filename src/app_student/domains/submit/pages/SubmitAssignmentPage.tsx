@@ -426,7 +426,7 @@ export default function SubmitAssignmentPage() {
           </div>
         )}
         {uploadMut.isSuccess && uploadMut.data?.failed.length === 0 && uploadMut.data.reviewLocked !== true && (
-          <div className={styles.successMessage}><span>선택한 파일을 모두 제출했습니다. 선생님 확인을 기다려 주세요.</span><Link to="/student/grades" className={styles.successLink}>학습 현황<IconChevronRight className={styles.successLinkIcon} aria-hidden="true" /></Link></div>
+          <div className={styles.successMessage}><span><span>선택한 파일을 모두 제출했습니다.</span> 선생님 확인을 기다려 주세요.</span><Link to="/student/grades" className={styles.successLink}>학습 현황<IconChevronRight className={styles.successLinkIcon} aria-hidden="true" /></Link></div>
         )}
 
         <div data-guide="submit-target">
