@@ -148,9 +148,13 @@ async function mountAuditSurface(page: Page) {
       </div>
       <div data-app="auth" data-tenant="hakwonplus" hidden>
         <div data-auth-part="ambient" data-testid="hakwonplus-ambient"><span></span><span></span><span></span></div>
+        <section data-auth-part="login-panel"><div class="error" data-testid="hakwonplus-panel-error">오류</div></section>
+        <div class="overlayCard" style="background:#ffffff"><div class="error" data-testid="hakwonplus-modal-error">오류</div></div>
       </div>
       <div data-app="auth" data-tenant="movementhui" hidden>
         <div data-auth-part="ambient" data-testid="movementhui-ambient"><span></span><span></span><span></span></div>
+        <section data-auth-part="login-panel"><div class="error" data-testid="movementhui-panel-error">오류</div></section>
+        <div class="overlayCard" style="background:#ffffff"><div class="error" data-testid="movementhui-modal-error">오류</div></div>
       </div>
       <div data-app="auth" data-tenant="godmin" hidden>
         <div data-auth-part="ambient" data-testid="godmin-ambient"><span></span><span></span><span></span></div>
@@ -316,6 +320,53 @@ test("12개 테마에서 공용 버튼과 탭의 상태가 명확히 구분된�
   expect(ambientDisplays.hakwonplus).toEqual(["none", "none", "none"]);
   expect(ambientDisplays.movementhui[2]).toBe("none");
   expect(ambientDisplays.godmin).toEqual(["block", "block", "none"]);
+
+  // 어두운 로그인 테마는 공용 상태 박스를 어두운 면에 맞게 다시 정의하되, 같은 `.error`
+  // 클래스를 쓰는 회원가입·계정복구 모달(흰 카드)까지 덮으면 문구가 읽히지 않는다.
+  // 두 면을 함께 고정해 어느 쪽으로도 새지 않게 한다.
+  const statusBoxes = await page.evaluate(() => {
+    const srgb = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const lum = (color: string) => {
+      const [r, g, b] = (color.match(/[\d.]+/g) ?? ["0", "0", "0"]).map(Number);
+      return 0.2126 * srgb(r / 255) + 0.7152 * srgb(g / 255) + 0.0722 * srgb(b / 255);
+    };
+    const flatten = (fg: string, bg: string) => {
+      const f = (fg.match(/[\d.]+/g) ?? []).map(Number);
+      const b = (bg.match(/[\d.]+/g) ?? []).map(Number);
+      const a = f.length > 3 ? f[3] : 1;
+      return `rgb(${f[0] * a + b[0] * (1 - a)}, ${f[1] * a + b[1] * (1 - a)}, ${f[2] * a + b[2] * (1 - a)})`;
+    };
+    const contrast = (fg: string, bg: string) => {
+      const [hi, lo] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    const read = (id: string, surface: string) => {
+      const el = document.querySelector(`[data-testid='${id}']`);
+      if (!el) return null;
+      const cs = getComputedStyle(el);
+      const behind = flatten(cs.backgroundColor, surface);
+      return { contrast: contrast(cs.color, behind), boxLuminance: lum(behind) };
+    };
+    return {
+      movementhuiPanel: read("movementhui-panel-error", "rgb(9, 18, 33)"),
+      movementhuiModal: read("movementhui-modal-error", "rgb(255, 255, 255)"),
+      hakwonplusPanel: read("hakwonplus-panel-error", "rgb(6, 18, 30)"),
+      hakwonplusModal: read("hakwonplus-modal-error", "rgb(255, 255, 255)"),
+    };
+  });
+
+  for (const [key, state] of Object.entries(statusBoxes)) {
+    expect.soft(state, `${key}: 상태 박스를 찾지 못함`).not.toBeNull();
+    if (!state) continue;
+    expect.soft(state.contrast, `${key}: 오류 문구 대비`).toBeGreaterThanOrEqual(4.5);
+    if (key.endsWith("Panel")) {
+      // 어두운 로그인 면 위에 밝은 카드가 뜨지 않아야 한다
+      expect.soft(state.boxLuminance, `${key}: 어두운 면 위 밝은 박스`).toBeLessThan(0.35);
+    } else {
+      // 모달은 흰 카드를 유지하므로 테마가 밝은 면을 어둡게 덮어서는 안 된다
+      expect.soft(state.boxLuminance, `${key}: 흰 카드 위 어두운 박스`).toBeGreaterThan(0.5);
+    }
+  }
 
   await testInfo.attach("theme-control-contrast.json", {
     body: JSON.stringify(results, null, 2),
