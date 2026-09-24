@@ -101,11 +101,11 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     { id: "exam_list",    label: "시험 목록",  insertText: "#{시험목록}",  previewValue: "- 단원평가: 92/100 (92%) 합격\n- 쪽지시험: 45/50 (90%) 합격", description: "모든 시험 점수 자동 나열 (추천)" },
     { id: "exam_history", label: "시험 이력",  insertText: "#{시험이력}",  previewValue: "- 단원평가 1차시험 결과: 50/100 커트라인 70 불합격\n- 단원평가 2차시험 결과: 70/100 커트라인 60 합격", description: "1차·재시험 결과와 커트라인 자동 나열" },
     { id: "hw_list",      label: "과제 목록",  insertText: "#{과제목록}",  previewValue: "- 복습과제: 90/100 (90%)", description: "모든 과제 점수 자동 나열 (추천)" },
-    { id: "full_summary", label: "전체 요약",  insertText: "#{전체요약}",  previewValue: "시험: 2/2 합격 (평균 91점)\n과제: 1/1 완료\n최종: 합격", description: "합격률·완성도·최종판정 요약" },
+    { id: "full_summary", label: "전체 요약",  insertText: "#{전체요약}",  previewValue: "시험: 학생별 결과\n과제: 학생별 완료 현황\n최종: 학생별 판정", description: "합격률·완성도·최종판정 요약" },
     // ── 요약 수치 ──
     { id: "exam_total",     label: "시험 총점",     insertText: "#{시험총점}",   previewValue: "285",       description: "시험 점수 합계" },
     { id: "exam_total_max", label: "시험 총만점",   insertText: "#{시험총만점}", previewValue: "350",       description: "시험 만점 합계" },
-    { id: "hw_completion",  label: "숙제 완성도",   insertText: "#{숙제완성도}", previewValue: "2/3 완료",  description: "교사 확인 또는 자동 완료된 과제 수 / 전체. 점수 입력만으로 완료되지 않습니다." },
+    { id: "hw_completion",  label: "숙제 완성도",   insertText: "#{숙제완성도}", previewValue: "학생별 완료 수/전체 과제 수",  description: "교사 확인 또는 자동 완료된 과제 수 / 전체. 점수 입력만으로 완료되지 않습니다." },
     // ── 시험 개별 (번호별: 이름·점수·만점) ──
     // 시험 개수는 차시마다 다름. 양식에 필요한 만큼 삽입. 미사용 번호는 발송 시 자동 제거.
     ...[1,2,3,4,5].flatMap((n) => [
