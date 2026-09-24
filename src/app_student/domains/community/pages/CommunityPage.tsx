@@ -109,16 +109,31 @@ function SegmentedTabs<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
   return (
-    <div className="community-segmented-tabs">
-      {items.map(({ key, label, count }) => {
+    <div className="community-segmented-tabs" role="group" aria-label="소식·자료 메뉴">
+      {items.map(({ key, label, count }, index) => {
         const active = value === key;
         return (
           <button
             key={key}
+            ref={(node) => { buttonRefs.current[index] = node; }}
             type="button"
             onClick={() => onChange(key)}
+            onKeyDown={(event) => {
+              let next = index;
+              if (event.key === "ArrowRight") next = (index + 1) % items.length;
+              else if (event.key === "ArrowLeft") next = (index - 1 + items.length) % items.length;
+              else if (event.key === "Home") next = 0;
+              else if (event.key === "End") next = items.length - 1;
+              else return;
+              event.preventDefault();
+              buttonRefs.current[next]?.focus();
+              onChange(items[next].key);
+            }}
             aria-pressed={active}
+            tabIndex={active ? 0 : -1}
             className={`community-segmented-tabs__button${active ? " community-segmented-tabs__button--active" : ""}`}
           >
             <span>{label}</span>
