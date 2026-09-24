@@ -807,9 +807,7 @@ export default function StudentVideoPlayer({
                   }}
                 />
               )}
-
               <SeekOverlay overlay={overlay} />
-
               {!ready && (
                 <div className="svpOverlayCenter">
                   <div className="svpSpinner" />
