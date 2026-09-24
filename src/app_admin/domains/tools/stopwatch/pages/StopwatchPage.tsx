@@ -32,10 +32,12 @@ export default function StopwatchPage() {
     const branding = getTenantBranding(tenantId);
     const def = getTenantDefById(tenantId);
     return {
-      logoUrl: branding?.logoUrl ?? undefined,
+      logoUrl: tenantId === 10
+        ? (projector ? "/tenants/movementhui/logo-timer-dark.svg" : "/tenants/movementhui/logo-timer-light.svg")
+        : branding?.logoUrl ?? undefined,
       academyName: branding?.loginTitle ?? def?.name ?? undefined,
     };
-  }, []);
+  }, [projector]);
 
   useEffect(() => {
     const handler = () => setIsFullscreen(!!document.fullscreenElement);
