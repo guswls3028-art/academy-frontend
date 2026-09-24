@@ -219,6 +219,29 @@
   background: rgba(57, 217, 242, 0.07);
 }
 
+/* 공용 오류·CapsLock 박스는 밝은 배경 전제라 잉크빛 위에서 흰 카드로 뜬다.
+ * 어두운 테마가 다시 톤을 맞춘다 — docs/README.md 테마·공용 컨트롤 계약 `대비` */
+[data-app="auth"][data-tenant="hakwonplus"] div[class*="error"] {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: #ffc4c4;
+  background: rgba(118, 32, 42, 0.3);
+  border: 1px solid rgba(255, 150, 150, 0.26);
+  border-left: 2px solid #ff8f8f;
+  border-radius: 10px;
+}
+
+[data-app="auth"][data-tenant="hakwonplus"] div[class*="capsHint"] {
+  font-weight: 500;
+  color: #ffd98a;
+  background: rgba(112, 82, 20, 0.28);
+  border: 1px solid rgba(255, 217, 138, 0.24);
+  border-left: 2px solid rgba(255, 217, 138, 0.6);
+  border-radius: 10px;
+}
+
 [data-app="auth"][data-tenant="hakwonplus"] button[class*="link"],
 [data-app="auth"][data-tenant="hakwonplus"] a[class*="link"] {
   color: #b6cad6;

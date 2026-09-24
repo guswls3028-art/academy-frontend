@@ -15,10 +15,20 @@
 | 실행 결과를 바꾸는 운영 취향 | tenant + user | 매치업 분할 방식, 자동 재분석 동의, 공개 게시 확인 생략 |
 | 임시 비밀번호 변경 권장 미루기 | tenant + user + auth generation | 현재 로그인 동안 경로 이동·새로고침에서 반복 차단 방지 |
 
-tenant 또는 user를 확인할 수 없는 상태에서 tenant+user 키를 만들거나 읽지
-않는다. 소유 정보가 없던 기존 전역 초안은 다른 사용자에게 자동 귀속하지 않으며,
-읽거나 삭제하지 않는다. 서버에 저장된 답안, 성적, 영상 진도, 보고서, 공개 상태가
-항상 정본이다.
+tenant 또는 user를 확인할 수 없으면 tenant+user 키를 만들거나 읽지 않는다.
+서버에 저장된 답안, 성적, 영상 진도, 보고서, 공개 상태가 항상 정본이다.
+
+### 소유자를 알 수 없는 레거시 키
+
+scope 정보 없이 저장된 과거 전역 값은 다른 계정의 작성물일 수 있다. 현재
+사용자에게 귀속하지 않고, 읽지도 옮기지도 지우지도 않으며 복구 대상에서
+제외한다. 지금까지 확인된 대상은 Q&A session key, 교사 모바일 성적 입력의
+`score_entry_draft_<exam>`, user scope가 없던 성적 timestamp/session 초안,
+version이 없는 raw 초안 값이다. 새 사례를 만나면 이 목록에 더한다.
+
+이미 scope된 과거 키를 새 공통 키로 옮기는 이전만 허용한다. 현재 tenant와
+현재 user가 모두 확인될 때 수행하고, 새 키의 readback이 성공한 뒤에만 이전
+키를 지운다.
 
 ## Implementation ownership
 
@@ -50,8 +60,7 @@ URL은 초안 화면을 합성하지 않고 로그인 화면으로 이동한다.
 초안 불러오기**와 **현재 내용 유지** 중 하나를 고르게 한다. `File` 객체, bytes,
 Blob/data URL, 로컬 경로, 인증 token이나 사용자 프로필은 localStorage에 넣지 않는다.
 첨부는 최대 개수 안의 잘린 파일명·크기·MIME type만 보관해 어떤 파일이었는지와 다시
-선택해야 함을 안내한다. 소유자를 알 수 없는 기존 전역 Q&A session key는 읽거나
-삭제하거나 새 사용자에게 이관하지 않는다.
+선택해야 함을 안내한다.
 
 원시 `localStorage` 호출은 tenant bootstrap, 인증 토큰, 개발자 대리 로그인
 경계에만 허용한다. `scripts/tests/scoped-browser-storage.test.mjs`가 `src/` 전체를
@@ -59,13 +68,9 @@ Blob/data URL, 로컬 경로, 인증 token이나 사용자 프로필은 localSto
 reference-count 예산 안에서 우회할 수 없다. 일반 브라우저 취향도 안전 wrapper를
 사용하고, 답안·정책·성적 복구 상태는 tenant+user key가 없으면 읽거나 쓰지 않는다.
 
-기존 시험 답안과 평가 정책 초안은 현재 tenant와 현재 user가 모두 확인될 때만
-이전의 이미 scope된 key에서 새 공통 key로 옮긴다. 새 key의 readback이 성공한
-뒤에만 이전 key를 지운다. 과거 성적 timestamp/session 초안처럼 user scope가
-없던 값은 다른 계정에 귀속하지 않고 복구 대상에서 제외한다.
-교사 모바일 성적 입력의 미저장 점수도 `tenant+user+exam` 범위의 session key만
-복구한다. 과거 `score_entry_draft_<exam>` 전역 key는 읽거나 지우지 않으며, 학원이나
-계정 범위를 확인할 수 없으면 초안을 읽거나 쓰지 않는다.
+시험 답안, 평가 정책 초안, 교사 모바일 성적 입력의 미저장 점수는 모두 위
+[레거시 키 규칙](#소유자를-알-수-없는-레거시-키)을 따른다. 성적 입력은
+`tenant+user+exam` 범위의 session key만 복구한다.
 
 저장소가 비활성, 가득 참, 손상된 경우에도 API 조회·입력·제출은 계속 동작한다.
 만료되거나 파싱할 수 없는 보조값은 무시한다. 확인 생략이나 자동 실행 선호를 읽지

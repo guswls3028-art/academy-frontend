@@ -268,41 +268,47 @@ cleanup0을 같은 개발 artifact에서 확인한다. 자료함 삭제 확인�
   예약 타이머를 기다리지 않고 즉시 갱신한다. 기기 절전이나 백그라운드 정지로 기존
   권한이 이미 만료됐거나 inactive 응답을 받으면 playback bootstrap을 다시 받아
   현재 위치와 같은 `<video>` DOM을 유지한 채 재생을 복구한다.
-  같은 영상·수강·정책이면 새 토큰과 만료 시각만 적용하고 `<video>` DOM, controller,
-  재생 위치·재생/일시정지·배속·음량·화질, 감시 `playback_session_id`를 유지한다.
-  따라서 갱신 중 로딩 화면, `/playback/end/`, 전체 bootstrap, 조회수·활동 중복이
-  없어야 한다. 일반 수강 영상의 기존 HLS 주소는 다시 불러오지 않고, 짧은 URL 경계가
-  필요한 개별 허용·종료 수강 영상만 새 서명 URL로 같은 controller 안에서 교체한 뒤
-  상태를 복원한다. 최신 bootstrap도 거절되거나 유효한 새 권한을 주지 못하면 이전 CDN
-  주소를 계속 사용하지 않고 플레이어를 닫아 재생 권한 재확인 실패를 표시한다.
-  ACTIVE/PROCTORED 상태가 그대로인 정상 갱신 응답에는 `play_url`이 없으므로 기존 HLS
-  source와 요청 count를 유지한 채 토큰만 교체하고 재생을 계속한다.
-  릴리스 검증은 격리 개발 tenant의 두 학생(1366px/390px)이 같은 artifact로 690초 이상
-  동시에 재생해 390~500초 갱신, 동일 DOM/session, 토큰 교체, 진도 reload 오차 2초 이하,
-  브라우저·요청·PLAYER_ERROR·위반 0과 cleanup0을 모두 통과해야 한다.
-  각 화면은 reload 후 컨트롤을 일반 한 번의 탭으로 표시하고 전체화면 진입·종료 버튼을
-  눌러 현재 playback token의 `FULLSCREEN_ENTER`/`FULLSCREEN_EXIT`를 실제로 발생시킨다.
-  각 이벤트 요청의 `201` 및 `stored === 요청 batch 길이`를 확인한 뒤 기존 영상 목록으로
-  이동한다. 안정적인 재생만으로 감사 이벤트가 생성됐다고 추정하지 않는다.
+  - *갱신 중 유지* — 같은 영상·수강·정책이면 새 토큰과 만료 시각만 적용하고
+    `<video>` DOM, controller, 재생 위치·재생/일시정지·배속·음량·화질, 감시
+    `playback_session_id`를 유지한다. 따라서 갱신 중 로딩 화면, `/playback/end/`,
+    전체 bootstrap, 조회수·활동 중복이 없어야 한다. 일반 수강 영상의 기존 HLS
+    주소는 다시 불러오지 않고, 짧은 URL 경계가 필요한 개별 허용·종료 수강 영상만
+    새 서명 URL로 같은 controller 안에서 교체한 뒤 상태를 복원한다.
+    ACTIVE/PROCTORED 상태가 그대로인 정상 갱신 응답에는 `play_url`이 없으므로 기존
+    HLS source와 요청 count를 유지한 채 토큰만 교체하고 재생을 계속한다.
+  - *실패* — 최신 bootstrap도 거절되거나 유효한 새 권한을 주지 못하면 이전 CDN
+    주소를 계속 사용하지 않고 플레이어를 닫아 재생 권한 재확인 실패를 표시한다.
+  - *릴리스 검증* — 격리 개발 tenant의 두 학생(1366px/390px)이 같은 artifact로
+    690초 이상 동시에 재생해 390~500초 갱신, 동일 DOM/session, 토큰 교체, 진도
+    reload 오차 2초 이하, 브라우저·요청·PLAYER_ERROR·위반 0과 cleanup0을 모두
+    통과해야 한다. 각 화면은 reload 후 컨트롤을 일반 한 번의 탭으로 표시하고
+    전체화면 진입·종료 버튼을 눌러 현재 playback token의
+    `FULLSCREEN_ENTER`/`FULLSCREEN_EXIT`를 실제로 발생시킨다. 각 이벤트 요청의
+    `201` 및 `stored === 요청 batch 길이`를 확인한 뒤 기존 영상 목록으로 이동한다.
+    안정적인 재생만으로 감사 이벤트가 생성됐다고 추정하지 않는다.
 - HLS와 YouTube의 감시 세션은 일반 SPA 이탈에서 기존 최종 이벤트 전송 뒤 종료하고,
   새로고침·문서 이동의 `pagehide(persisted=false)`에서는 현재 controller의 최신 playback
   token 하나만 `POST /media/playback/end/`로 즉시 종료 요청한다. 두 경로가 겹쳐도
   controller당 종료 요청은 한 번이며 다른 탭·기기 세션을 취소하지 않는다. 단순 창 비활성화,
   백그라운드 이동이나 BFCache 보존(`persisted=true`)은 종료 사유가 아니다.
-  문서 이탈 요청만 공통 `studentApi`/인증 interceptor의 fetch keepalive를 사용한다.
-  실제 만료 전의 현재 JWT는 만료 임박이어도 refresh나 진행 중인 refresh를 기다리지 않고
-  사용하며, 만료·누락·잘못된 JWT 또는 교체된 인증 세대는 거절한다. 기존 tenant,
-  학부모 선택 자녀, 학생 지원창 토큰/헤더 경계는 유지한다. 이 옵션은 정확한 종료 POST에만
-  허용하며 일반 API의 refresh·재시도 규칙을 바꾸지 않는다. 종료 요청의 401·전송 실패를
-  성공으로 바꾸거나 다시 보내지 않고, 종료 여부는 서버 세션 상태로 확인한다.
-  keepalive는 OS 강제 종료·네트워크 단절·모든 브라우저 전달을 보장하지 않는다. 기존 SPA의
-  1초 최종 이벤트 대기 상한도 유지하므로, 이미 전송 중인 이벤트보다 종료가 먼저 처리되면
-  서버의 inactive 검사로 늦은 이벤트가 `409`가 될 수 있다. 이 한계는 세션 종료 수리와
-  구분하며 전체 final-event 무손실로 주장하지 않는다. 상태·이벤트 저장 판단은 backend의
-  `apps/domains/video/views/playback_views.py`와 `services/playback_session.py`가 소유한다.
-  집중 회귀는 `node --test scripts/tests/playback-unload.test.mjs`로 인증·세대·BFCache·
-  HLS/YouTube 종료 중복을 확인한다. 로컬 mock PASS는 실제 개발 API의 reload 후 ACTIVE 1,
-  목록 이동 후 ACTIVE 0 또는 장시간 실사용 PASS를 대신하지 않는다.
+  - *keepalive 범위* — 문서 이탈 요청만 공통 `studentApi`/인증 interceptor의 fetch
+    keepalive를 사용한다. 실제 만료 전의 현재 JWT는 만료 임박이어도 refresh나
+    진행 중인 refresh를 기다리지 않고 사용하며, 만료·누락·잘못된 JWT 또는 교체된
+    인증 세대는 거절한다. 기존 tenant, 학부모 선택 자녀, 학생 지원창 토큰/헤더
+    경계는 유지한다. 이 옵션은 정확한 종료 POST에만 허용하며 일반 API의
+    refresh·재시도 규칙을 바꾸지 않는다. 종료 요청의 401·전송 실패를 성공으로
+    바꾸거나 다시 보내지 않고, 종료 여부는 서버 세션 상태로 확인한다.
+  - *알려진 한계* — keepalive는 OS 강제 종료·네트워크 단절·모든 브라우저 전달을
+    보장하지 않는다. 기존 SPA의 1초 최종 이벤트 대기 상한도 유지하므로, 이미
+    전송 중인 이벤트보다 종료가 먼저 처리되면 서버의 inactive 검사로 늦은 이벤트가
+    `409`가 될 수 있다. 이 한계는 세션 종료 수리와 구분하며 전체 final-event
+    무손실로 주장하지 않는다.
+  - *소유와 검증* — 상태·이벤트 저장 판단은 backend의
+    `apps/domains/video/views/playback_views.py`와 `services/playback_session.py`가
+    소유한다. 집중 회귀는 `node --test scripts/tests/playback-unload.test.mjs`로
+    인증·세대·BFCache·HLS/YouTube 종료 중복을 확인한다. 로컬 mock PASS는 실제
+    개발 API의 reload 후 ACTIVE 1, 목록 이동 후 ACTIVE 0 또는 장시간 실사용 PASS를
+    대신하지 않는다.
 - 일시정지 상태의 어두운 오버레이는 포인터 입력을 받지 않는 표시 레이어이고, 실제
   재생 버튼은 영상 중앙의 독립된 88px 원형 터치 영역이다. 특히 390px 화면에서 버튼의
   클릭 영역을 플레이어 전체로 늘려 하단 컨트롤과 겹치게 만들지 않는다. 사용자는 중앙
