@@ -73,6 +73,8 @@ type InstallApiOptions = {
     methods?: string[];
     scoresAtRegrade?: number[];
     recalculations?: number;
+    scorePatches?: number;
+    failNextWrite?: boolean;
     failReads: boolean;
     readGate?: Promise<void>;
   };
@@ -568,6 +570,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     }
     if (options.answerKeyScenario && path === `/exams/questions/${QUESTION_IDS[0]}/` && method === "PATCH") {
       options.answerKeyScenario.score = Number(request.postDataJSON().score);
+      options.answerKeyScenario.scorePatches = (options.answerKeyScenario.scorePatches ?? 0) + 1;
       await json({ id: QUESTION_IDS[0], sheet: 1801, number: 1, score: options.answerKeyScenario.score, question_kind: "choice" });
       return;
     }
@@ -584,6 +587,11 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         if (state.failReads) { await json({ detail: "답안을 불러오지 못했습니다." }, 503); return; }
         await json(state.answers ? [{ id: 1801, exam: EXAM_ID, answers: state.answers }] : []);
       } else {
+        if (state.failNextWrite) {
+          state.failNextWrite = false;
+          await json({ detail: "정답 저장이 일시 실패했습니다." }, 503);
+          return;
+        }
         const previousAnswers = state.answers;
         state.answers = request.postDataJSON().answers;
         state.writes.push({ ...state.answers });
@@ -1067,6 +1075,25 @@ test.describe("답안 초기 로드와 입력 보존", () => {
           await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
           expect(state.recalculations).toBe(1);
           expect(state.score).toBe(2);
+          state.failNextWrite = true;
+          await row.getByRole("button", { name: "+5", exact: true }).click();
+          await row.locator(".answer-key-omr-label").nth(0).click();
+          await row.locator(".answer-key-omr-label").nth(1).click();
+          await dialog.getByRole("button", { name: "저장 (총 106점)", exact: true }).click();
+          await expect(page.getByText(/배점이 일부 저장됐을 수 있습니다/)).toBeVisible();
+          expect(state.score).toBe(7);
+          expect(state.answers?.["1001"]).toBe("1");
+          expect(state.scoresAtRegrade).toEqual([11, 1]);
+          const patchesAfterFailure = state.scorePatches;
+          await dialog.getByRole("button", { name: "저장 (총 106점)", exact: true }).click();
+          await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
+          expect(state.scorePatches).toBe(patchesAfterFailure);
+          expect(state.scoresAtRegrade).toEqual([11, 1, 7]);
+          expect(state.recalculations).toBe(1);
+          await page.reload({ waitUntil: "domcontentloaded" });
+          await openAnswers();
+          await expect(choice("2")).toBeChecked();
+          await expect(row.locator(".answer-key-row__score-val")).toHaveText("7점");
         }
       });
     }
