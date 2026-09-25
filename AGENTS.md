@@ -15,7 +15,9 @@ Self-contained instructions for the frontend Git root.
   reuse, read `../backend/docs/operations/concurrent-codex-sessions.md` → Execution efficiency.
   If a frontend-only worktree has no sibling backend, read the owner with
   `git -C C:\academy\backend show origin/main:docs/operations/concurrent-codex-sessions.md`.
-  Refresh that ref if its freshness is not established; do not copy the policy
+  In a Codespace, use `git -C /workspaces/academy-backend show
+  origin/main:docs/operations/concurrent-codex-sessions.md` instead. Refresh
+  that ref if its freshness is not established; do not copy the policy
   into this repository or overwrite canonical files.
 - In this owner's local sessions, use the installed ChatGPT Web bridge for
   meaningful independent work:
@@ -86,9 +88,12 @@ may omit product docs only with a final explanation and supporting verification.
 ## Delivery and isolation
 
 Keep canonical `C:\academy\frontend` and `C:\academy\backend` on clean `main`.
-Create/inspect an owned current-`origin/main` worktree with
-`C:\academy\backend\scripts\codex\session-worktree.ps1`; never mutate a foreign
-tree. One task owns release; others hand off exact committed SHA/CI. Close only
+For local Windows work, create/inspect an owned current-`origin/main` worktree
+with `C:\academy\backend\scripts\codex\session-worktree.ps1`. For GitHub
+Codespace Linux work, use the remote Git worktree procedure in
+`/workspaces/academy-backend/docs/operations/concurrent-codex-sessions.md`.
+Never mutate a foreign tree. One task owns release; others hand off exact
+committed SHA/CI. Close only
 clean, merged/patch-equivalent branches; intentional WIP needs a named recovery
 commit. Sync after active tasks/releases finish. Owner:
 `../backend/docs/operations/concurrent-codex-sessions.md`.
