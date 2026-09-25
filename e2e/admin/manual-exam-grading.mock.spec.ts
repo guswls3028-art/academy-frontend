@@ -1086,7 +1086,7 @@ test.describe("답안 초기 로드와 입력 보존", () => {
           expect(state.scoresAtRegrade).toEqual([11, 1]);
           const patchesAfterFailure = state.scorePatches;
           await dialog.getByRole("button", { name: "저장 (총 106점)", exact: true }).click();
-          await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
+          await expect(page.getByText("저장·재채점되었습니다.", { exact: true }).last()).toBeVisible();
           expect(state.scorePatches).toBe(patchesAfterFailure);
           expect(state.scoresAtRegrade).toEqual([11, 1, 7]);
           expect(state.recalculations).toBe(1);

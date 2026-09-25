@@ -323,7 +323,10 @@ async function installApi(page: Page, state: MockState) {
         const payload = request.postDataJSON() as Record<string, unknown>;
         state.answerKeySaves ??= [];
         state.answerKeySaves.push(payload);
-        return json({ id: 99712, ...payload }, 201);
+        return json({
+          id: 99712, ...payload,
+          regrade: [{ exam_id: 9971, total: 0, graded: 0, skipped: 0, failed: [], needs_review: [] }],
+        }, 201);
       }
       if (path === "/exams/9971/omr/defaults/" && method === "GET") {
         const choiceCount = state.guidedQuestionCount ?? 1;
