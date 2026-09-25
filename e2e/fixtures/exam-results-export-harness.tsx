@@ -14,6 +14,8 @@ const wrongCompletionOnly = new URLSearchParams(window.location.search)
   .get("assessmentStatusDisplay") === "wrong_completion";
 
 if (visualMode === "shared" || visualMode === "assignments") {
+  const attached: Array<{ lectureId: number; sessionId: number; passScore: number }> = [];
+  let failOnceSessionId = Number(new URLSearchParams(window.location.search).get("failOnce"));
   const sharedRows = [
     {
       enrollment_id: 901,
@@ -55,6 +57,15 @@ if (visualMode === "shared" || visualMode === "assignments") {
   api.defaults.adapter = async (config) => {
     const path = String(config.url ?? "").replace(/^\/api\/v1/, "");
     const lectureId = Number((config.params as { lecture_id?: number } | undefined)?.lecture_id);
+    const method = String(config.method ?? "get").toLowerCase();
+    if (path === "/exams/77/lecture-assignments/" && method === "post") {
+      const payload = JSON.parse(String(config.data)) as { session_id: number; pass_score: number };
+      if (payload.session_id === failOnceSessionId) {
+        failOnceSessionId = 0;
+        throw new Error("연결 일시 실패");
+      }
+      attached.push({ lectureId: payload.session_id === 4001 ? 404 : 303, sessionId: payload.session_id, passScore: payload.pass_score });
+    }
     let data: unknown = [];
     if (path === "/exams/77/") {
       data = {
@@ -71,8 +82,8 @@ if (visualMode === "shared" || visualMode === "assignments") {
       data = {
         exam_id: 77,
         default_pass_score: 60,
-        total_roster_count: 2,
-        total_selected_count: 2,
+        total_roster_count: 2 + attached.length,
+        total_selected_count: 2 + attached.length,
         assignments: [
           {
             lecture_id: 101,
@@ -96,6 +107,15 @@ if (visualMode === "shared" || visualMode === "assignments") {
             selected_count: 1,
             sessions: [{ session_id: 2001, session_title: "중간고사", session_label: "1회차" }],
           },
+          ...attached.map((item) => ({
+            lecture_id: item.lectureId,
+            lecture_title: item.lectureId === 404 ? "D학교 강의" : "C학교 강의",
+            pass_score: item.passScore,
+            uses_default_pass_score: false,
+            roster_count: 1,
+            selected_count: 1,
+            sessions: [{ session_id: item.sessionId, session_title: "8월 진단평가", session_label: "1회차" }],
+          })),
         ],
       };
     } else if (path === "/results/admin/exams/77/results/") {
@@ -112,6 +132,7 @@ if (visualMode === "shared" || visualMode === "assignments") {
         { id: 101, title: "A학교 강의", name: "A학교 강의", subject: "MATH", is_active: true, tenant: 1, created_at: "", updated_at: "" },
         { id: 202, title: "B학교 강의", name: "B학교 강의", subject: "MATH", is_active: true, tenant: 1, created_at: "", updated_at: "" },
         { id: 303, title: "C학교 강의", name: "C학교 강의", subject: "MATH", is_active: true, tenant: 1, created_at: "", updated_at: "" },
+        { id: 404, title: "D학교 강의", name: "D학교 강의", subject: "MATH", is_active: true, tenant: 1, created_at: "", updated_at: "" },
       ];
     } else if (path.startsWith("/lectures/sessions/")) {
       const requestedLectureId = Number(
@@ -123,7 +144,7 @@ if (visualMode === "shared" || visualMode === "assignments") {
         ? 1001
         : requestedLectureId === 202
           ? 2001
-          : 3001;
+          : requestedLectureId === 404 ? 4001 : 3001;
       data = [{
         id: sessionId,
         lecture: requestedLectureId,

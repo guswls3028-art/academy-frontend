@@ -21,7 +21,6 @@ import {
   buildAssessmentSearch,
   readAssessmentItemId,
 } from "@/shared/lib/assessmentQueryParams";
-import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import SessionAssessmentCreateModals from "./SessionAssessmentCreateModals";
 import { useAssessmentEditGuard } from "@/shared/ui/assessment/AssessmentEditGuard";
 
@@ -61,76 +60,39 @@ function shouldSkipAssessmentAutoSelect(state: unknown): boolean {
 
 const S = {
   aside: {
-    width: 296,
-    maxHeight: "calc(100vh - 140px)",
-    top: "var(--space-6)",
-    flexShrink: 0,
-    alignSelf: "start",
-    overflowY: "auto",
-    position: "sticky",
+    width: "100%",
+    minWidth: 0,
     display: "flex",
     flexDirection: "column",
-    gap: "var(--space-5)",
+    gap: "var(--space-2)",
   } satisfies CSSProperties,
 
   asideHeader: {
     display: "flex",
-    flexDirection: "column",
-    gap: "var(--space-3)",
-    padding: "14px",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "var(--space-2)",
+    padding: "8px 12px",
     border: "1px solid var(--color-border-divider)",
     borderRadius: "var(--radius-md, 8px)",
     background: "linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface)) 0%, var(--color-bg-surface) 100%)",
     boxShadow: "0 1px 3px rgba(15,23,42,.05)",
   } satisfies CSSProperties,
 
-  asideHeaderTop: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "var(--space-3)",
-  } satisfies CSSProperties,
-
-  asideTitleStack: {
-    display: "flex",
-    minWidth: 0,
-    flexDirection: "column",
-    gap: 3,
-  } satisfies CSSProperties,
-
-  asideKicker: {
-    fontSize: 11,
-    fontWeight: 800,
-    letterSpacing: "0.06em",
-    textTransform: "uppercase",
-    color: "var(--color-text-muted)",
-  } satisfies CSSProperties,
-
-  asideTitle: {
-    fontSize: 15,
-    fontWeight: 850,
-    lineHeight: 1.2,
-    color: "var(--color-text-primary)",
-  } satisfies CSSProperties,
-
-  asideMeta: {
-    fontSize: 12,
-    fontWeight: 650,
-    color: "var(--color-text-muted)",
-    whiteSpace: "nowrap",
-  } satisfies CSSProperties,
-
   quickNav: {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 6,
+    width: 224,
+    maxWidth: "100%",
   } satisfies CSSProperties,
 
   quickNavButton: (active: boolean): CSSProperties => ({
     display: "flex",
     minWidth: 0,
-    minHeight: 54,
-    flexDirection: "column",
+    minHeight: 38,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
@@ -153,7 +115,7 @@ const S = {
   } satisfies CSSProperties,
 
   bundleButton: {
-    width: "100%",
+    width: "auto",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -212,18 +174,17 @@ const S = {
 
   itemList: {
     display: "flex",
-    flexDirection: "column",
-    gap: 2,
-    padding: "0 6px 8px",
-    overflowY: "auto",
-    maxHeight: 320,
+    gap: 6,
+    padding: "0 12px 10px",
+    overflowX: "auto",
   } satisfies CSSProperties,
 
   /* Card base — shared between exam & homework rows */
   card: (active: boolean): CSSProperties => ({
     position: "relative",
     display: "flex",
-    width: "100%",
+    width: 220,
+    flexShrink: 0,
     flexDirection: "column",
     gap: 4,
     padding: "10px 12px 10px 12px",
@@ -315,7 +276,6 @@ export default function SessionAssessmentSidePanel({
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const isMobile = useIsMobile();
   const [openCreateExamLocal, setOpenCreateExamLocal] = useState(false);
   const openCreateExam = openCreateExamProp ?? openCreateExamLocal;
   const setOpenCreateExam = onOpenCreateExam ?? (() => setOpenCreateExamLocal(true));
@@ -389,33 +349,10 @@ export default function SessionAssessmentSidePanel({
   const examsActive = location.pathname.startsWith(`${base}/exams`);
   const assignmentsActive = location.pathname.startsWith(`${base}/assignments`);
 
-  const asideStyle = useMemo<CSSProperties>(() => {
-    if (!isMobile) return S.aside;
-    return {
-      ...S.aside,
-      width: "100%",
-      maxWidth: "100%",
-      maxHeight: "none",
-      position: "static",
-      top: "auto",
-      overflowY: "visible",
-      gap: "var(--space-3)",
-    };
-  }, [isMobile]);
-
   const getSectionStyle = (kind: AssessmentKind): CSSProperties => ({
     ...S.section,
-    order: kind === resolvedActiveKind ? 1 : 2,
+    display: kind === resolvedActiveKind ? "block" : "none",
   });
-
-  const getItemListStyle = (kind: AssessmentKind): CSSProperties => {
-    if (!isMobile) return S.itemList;
-    return {
-      ...S.itemList,
-      maxHeight: kind === resolvedActiveKind ? 188 : 112,
-      overflowY: "auto",
-    };
-  };
 
   // Auto-select or repair deleted/stale exam/homework query params on assessment tabs.
   useEffect(() => {
@@ -512,19 +449,10 @@ export default function SessionAssessmentSidePanel({
   return (
     <aside
       data-testid="session-assessment-remote"
-      aria-label="차시 시험/과제 리모컨"
-      style={asideStyle}
+      aria-label="차시 시험·과제 선택"
+      style={S.aside}
     >
       <div style={S.asideHeader}>
-        <div style={S.asideHeaderTop}>
-          <div style={S.asideTitleStack}>
-            <span style={S.asideKicker}>Assessment</span>
-            <span style={S.asideTitle}>차시 평가</span>
-          </div>
-          <span style={S.asideMeta}>
-            시험 {examsLoading ? "-" : exams.length} · 과제 {hwLoading ? "-" : homeworks.length}
-          </span>
-        </div>
         <div style={S.quickNav} aria-label="시험/과제 이동">
           <button
             type="button"
@@ -547,17 +475,15 @@ export default function SessionAssessmentSidePanel({
             <span style={S.quickNavCount}>{hwLoading ? "-" : homeworks.length}</span>
           </button>
         </div>
+        <button
+          type="button"
+          onClick={() => setOpenApplyBundle(true)}
+          style={S.bundleButton}
+        >
+          <Layers size={ICON_FOR_BUTTON.sm} aria-hidden />
+          묶음 불러오기
+        </button>
       </div>
-
-      {/* ── Bundle apply button ── */}
-      <button
-        type="button"
-        onClick={() => setOpenApplyBundle(true)}
-        style={S.bundleButton}
-      >
-        <Layers size={ICON_FOR_BUTTON.sm} aria-hidden />
-        묶음 불러오기
-      </button>
 
       {/* ── Exams Section ── */}
       <section style={getSectionStyle("exam")}>
@@ -572,7 +498,7 @@ export default function SessionAssessmentSidePanel({
           </Button>
         </div>
 
-        <div style={getItemListStyle("exam")}>
+        <div style={S.itemList}>
           {examsLoading && <EmptyState title="불러오는 중..." />}
           {!examsLoading && examsError && <EmptyState title="시험 목록을 불러오지 못했습니다" />}
           {!examsLoading && !examsError && exams.length === 0 && (
@@ -613,7 +539,7 @@ export default function SessionAssessmentSidePanel({
           </Button>
         </div>
 
-        <div style={getItemListStyle("homework")}>
+        <div style={S.itemList}>
           {hwLoading && <EmptyState title="불러오는 중..." />}
           {!hwLoading && hwError && <EmptyState title="과제 목록을 불러오지 못했습니다" />}
           {!hwLoading && !hwError && homeworks.length === 0 && (

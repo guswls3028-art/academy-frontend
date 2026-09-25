@@ -139,12 +139,6 @@ export default function SessionDetailPage() {
   }
 
   const assessmentRemoteKind = SESSION_ASSESSMENT_REMOTE_KIND_BY_TAB[activeTab];
-  const selectedAssessmentId = assessmentRemoteKind === "exam"
-    ? examId
-    : assessmentRemoteKind === "homework"
-      ? homeworkId
-      : null;
-  const moveAssessmentPanelAfterContentOnMobile = selectedAssessmentId != null;
   const showSessionStrip =
     activeTab === "attendance" ||
     activeTab === "scores" ||
@@ -160,9 +154,9 @@ export default function SessionDetailPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <div className="flex flex-col gap-4">
         {assessmentRemoteKind != null && (
-          <div className={moveAssessmentPanelAfterContentOnMobile ? "order-2 w-full lg:order-none lg:w-auto" : "w-full lg:w-auto"}>
+          <div className="w-full min-w-0">
             <SessionAssessmentSidePanel
               lectureId={lecId}
               sessionId={sId}
@@ -176,7 +170,7 @@ export default function SessionDetailPage() {
             />
           </div>
         )}
-        <div className="order-1 min-w-0 w-full lg:order-none lg:flex-1">
+        <div className="min-w-0 w-full">
           {activeTab === "attendance" && (
             <SessionAttendancePage
               sessionId={sId}
