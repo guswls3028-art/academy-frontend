@@ -61,6 +61,15 @@ an executable contract changes.
 
 ## Product and UI contract
 
+For design, usability, or workflow changes, inspect the current affected UI and
+the role's entry → task → saved result → next-screen journey before choosing a
+solution. Treat user suggestions as evidence, identify observed friction versus
+hypotheses, and prioritize plausible failure, interruption, permission, and
+responsive edge cases. Compare proportionate options, then verify the chosen
+journey and recovery. If the UI cannot be observed, use code/current evidence
+and disclose the gap. The focused method is in
+`docs/REAL-USE-REVIEW-MANUAL.md`.
+
 - Preserve tenant/auth/role boundaries in every route/API and user-authored data;
   do not reconstruct backend-owned business decisions.
 - Reuse design-system/role-app patterns: `Badge` from `@/shared/ui/ds` (no raw
