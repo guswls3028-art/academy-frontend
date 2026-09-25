@@ -652,6 +652,30 @@ test.describe("학생 클리닉 예약 UX", () => {
     )).toBe(true);
   });
 
+  test("열린 클리닉이 없어도 달력과 월 이동을 보여주고 새로고침 후에도 유지한다", async ({ page }) => {
+    const state = createState();
+    state.sessions = [];
+    state.bookings = [];
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+    const calendar = page.getByRole("grid", { name: "클리닉 월간 일정" });
+    await expect(calendar).toBeVisible();
+    await expect(calendar.getByRole("gridcell")).toHaveCount(42);
+    await expect(page.getByText("지금 예약 가능한 일정이 없습니다")).toBeVisible();
+    await expect(page.getByTestId(`clinic-calendar-day-${dateAfter(0)}`)).toHaveAttribute("aria-current", "date");
+    const monthBefore = await page.getByRole("region", { name: "클리닉 날짜 선택" }).locator("header strong").textContent();
+    await page.getByRole("button", { name: "다음 달" }).click();
+    await expect(page.getByRole("region", { name: "클리닉 날짜 선택" }).locator("header strong")).not.toHaveText(monthBefore ?? "");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(calendar).toBeVisible();
+    await expect(page.getByText("지금 예약 가능한 일정이 없습니다")).toBeVisible();
+    await page.setViewportSize({ width: 1366, height: 850 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
   test("보강 항목을 최근순으로 전부 표시한다", async ({ page }) => {
     const state = createState();
     await seed(page);

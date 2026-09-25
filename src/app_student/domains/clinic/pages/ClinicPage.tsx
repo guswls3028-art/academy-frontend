@@ -678,7 +678,9 @@ export default function ClinicPage() {
                   <p className={styles.openScheduleEyebrow}>예약 가능한 수업</p>
                   <h2 id="clinic-open-schedule-title">열린 일정</h2>
                   <p className={styles.openScheduleGuide}>
-                    {changingBooking
+                    {sessionGroups.length === 0
+                      ? "달력에서 날짜를 살펴보세요. 예약 가능한 일정이 열리면 날짜에 표시됩니다."
+                      : changingBooking
                       ? "변경할 시간대 하나를 선택해 주세요."
                       : "‘여러 시간대 가능’ 일정끼리는 같은 날짜에 함께 선택할 수 있어요."}
                   </p>
@@ -692,19 +694,19 @@ export default function ClinicPage() {
                 </div>
               </header>
 
+              <ClinicBookingCalendar
+                sessions={orderedSessions}
+                bookings={myRequests}
+                selectedDate={selectedDate}
+                onDateSelect={selectCalendarDate}
+              />
               {sessionGroups.length === 0 ? (
-                <EmptyState
-                  title="지금 예약 가능한 일정이 없습니다"
-                  description="학원에서 클리닉 일정을 열면 이곳에 날짜별로 표시됩니다."
-                />
+                <div className={styles.noOpenDates} role="status">
+                  <strong>지금 예약 가능한 일정이 없습니다</strong>
+                  <p>학원에서 일정을 열면 달력에 예약 가능 날짜가 표시됩니다.</p>
+                </div>
               ) : (
                 <>
-                  <ClinicBookingCalendar
-                    sessions={orderedSessions}
-                    bookings={myRequests}
-                    selectedDate={selectedDate}
-                    onDateSelect={selectCalendarDate}
-                  />
                   {selectedSessionGroup && selectedDateParts && (
                     <section
                       className={styles.dateGroup}
