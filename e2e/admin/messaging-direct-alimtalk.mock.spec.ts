@@ -225,13 +225,13 @@ test("알림톡 운영 중지 상태는 발송 진입을 비활성화하고 설�
   expect(state.requests.filter(({ method }) => method !== "GET")).toEqual([]);
 });
 
-test("등록된 우리 학원 채널의 양식 검수 상태를 내부 ID 없이 보여준다", async ({ page }) => {
+test("등록된 우리 학원 채널의 양식 준비 상태를 내부 ID 없이 보여준다", async ({ page }) => {
   await installMocks(page, { channelStatus: "pending_templates" });
   await page.setViewportSize({ width: 390, height: 844 });
 
   await gotoAndSettle(page, `${BASE}/workspace/message/settings`, { timeout: 30_000 });
 
-  await expect(page.getByText("우리 학원 채널 양식을 검수 중입니다.")).toBeVisible();
+  await expect(page.getByText("우리 학원 채널 양식을 준비 중입니다.")).toBeVisible();
   await expect(page.getByText(/채널 ····JTLe 확인 완료/)).toBeVisible();
   await expect(page.getByText(/승인 양식 0\/10개/)).toBeVisible();
   await expect(page.getByText("최근 전용 채널 테스트: 발송 접수 확인")).toBeVisible();
@@ -246,7 +246,7 @@ test("승인 양식이 달라진 전용 채널은 발송 중지 상태를 정확
   await gotoAndSettle(page, `${BASE}/workspace/message/settings`, { timeout: 30_000 });
 
   await expect(page.getByText("우리 학원 채널 발송을 확인해 주세요.")).toBeVisible();
-  await expect(page.getByText(/전용 채널 발송을 안전하게 막았습니다/)).toBeVisible();
+  await expect(page.getByText("우리 학원 채널의 양식 상태가 달라 현재 해당 채널로 보낼 수 없습니다.")).toBeVisible();
   await expect(page.getByText(/채널 ····JTLe 발송 중지/)).toBeVisible();
   await expectNoHorizontalOverflow(page);
 });
