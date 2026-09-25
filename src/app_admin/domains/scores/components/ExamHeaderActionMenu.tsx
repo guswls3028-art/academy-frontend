@@ -12,8 +12,8 @@ import { ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
-import { deleteSessionExam } from "@admin/domains/exams/api/adminExam";
-import { invalidateSessionExamQueries } from "@admin/domains/sessions/api/sessionAssessmentQueries";
+import { deleteSessionExam } from "@admin/domains/exams/public/sessionExamActions";
+import { invalidateSessionExamQueries } from "@admin/domains/sessions/public/assessmentQueries";
 import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
 import styles from "./ExamHeaderActionMenu.module.css";
 

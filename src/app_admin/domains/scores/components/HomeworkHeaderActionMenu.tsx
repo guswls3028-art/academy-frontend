@@ -9,9 +9,8 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { AssessmentEditGuardProvider } from "@/shared/ui/assessment/AssessmentEditGuard";
-import { deleteHomework } from "@admin/domains/homework/api/homeworks";
-import HomeworkPolicyPanel from "@admin/domains/homework/panels/setup/HomeworkPolicyPanel";
-import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
+import { deleteHomework, HomeworkPolicyPanel } from "@admin/domains/homework/public/scoreHeaderActions";
+import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/public/assessmentQueries";
 import { scoresQueryKeys } from "../api/queryKeys";
 import styles from "./ExamHeaderActionMenu.module.css";
 
