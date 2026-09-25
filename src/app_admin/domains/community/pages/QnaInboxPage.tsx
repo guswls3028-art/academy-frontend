@@ -18,7 +18,7 @@ import {
   type PostAttachment,
   type Question,
 } from "../api/community.api";
-import { ExternalLink, RotateCcw, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
+import { ExternalLink, Maximize2, Minimize2, RotateCcw, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
 import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -63,6 +63,7 @@ export default function QnaInboxPage() {
 
   const [filter, setFilter] = useState<FilterKind>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [expanded, setExpanded] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const operationalNotifications = useOperationalNotificationCounts();
 
@@ -98,6 +99,7 @@ export default function QnaInboxPage() {
 
   const setSelectedId = useCallback(
     (id: number | null) => {
+      setExpanded(false);
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         if (id != null) next.set("id", String(id));
@@ -133,8 +135,22 @@ export default function QnaInboxPage() {
     if (!filtered.some((q) => q.id === selectedId)) setSelectedId(null);
   }, [filtered, selectedId, isLoading, setSelectedId]);
 
+  useEffect(() => {
+    if (!expanded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) setExpanded(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [expanded]);
+
   return (
-    <div className={`qna-inbox qna-inbox--viewport${selectedId != null ? " qna-inbox--has-selection" : ""}`}>
+    <div className={`qna-inbox qna-inbox--viewport${selectedId != null ? " qna-inbox--has-selection" : ""}${expanded ? " qna-inbox--expanded" : ""}`}>
       <aside className="qna-inbox__list" ref={listRef}>
         <div className="qna-inbox__list-header">
           <h2 className="qna-inbox__list-title">질의응답</h2>
@@ -220,6 +236,8 @@ export default function QnaInboxPage() {
             onClose={() => setSelectedId(null)}
             onDelete={() => setSelectedId(null)}
             onSelectQuestion={setSelectedId}
+            expanded={expanded}
+            onToggleExpanded={() => setExpanded((value) => !value)}
           />
         )}
       </main>
@@ -283,12 +301,16 @@ function ThreadView({
   onClose,
   onDelete,
   onSelectQuestion,
+  expanded,
+  onToggleExpanded,
 }: {
   postId: number;
   questions: Question[];
   onClose: () => void;
   onDelete: () => void;
   onSelectQuestion: (id: number) => void;
+  expanded: boolean;
+  onToggleExpanded: () => void;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -482,6 +504,11 @@ function ThreadView({
             </div>
           </div>
           <div className="qna-inbox__thread-actions">
+            {expanded && (
+              <Button intent="ghost" size="sm" onClick={onToggleExpanded}>
+                화면 줄이기
+              </Button>
+            )}
             {!post.created_by_deleted && (
               <Button
                 intent="primary"
@@ -573,7 +600,7 @@ function ThreadView({
             </div>
 
             {imageAttachments.length > 0 ? (
-              <QnaAttachmentViewer attachments={imageAttachments} />
+              <QnaAttachmentViewer attachments={imageAttachments} expanded={expanded} onToggleExpanded={onToggleExpanded} />
             ) : (
               <div className="qna-inbox__attachment-empty">
                 첨부된 문제 사진이 없습니다. 위 질문 내용을 확인해 주세요.
@@ -631,19 +658,24 @@ function ThreadView({
 
 function QnaAttachmentViewer({
   attachments,
+  expanded,
+  onToggleExpanded,
 }: {
   attachments: Array<PostAttachment & { download_url: string }>;
+  expanded: boolean;
+  onToggleExpanded: () => void;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
   const active = attachments[Math.min(activeIndex, attachments.length - 1)];
+  const attachmentIds = attachments.map((attachment) => attachment.id).join(",");
 
   useEffect(() => {
     setActiveIndex(0);
     setRotation(0);
     setZoom(1);
-  }, [attachments]);
+  }, [attachmentIds]);
 
   const selectAttachment = (index: number) => {
     setActiveIndex(index);
@@ -659,6 +691,10 @@ function QnaAttachmentViewer({
           <span>{activeIndex + 1} / {attachments.length}</span>
         </div>
         <div className="qna-inbox__viewer-actions">
+          <button type="button" className="qna-inbox__viewer-expand" onClick={onToggleExpanded} aria-pressed={expanded} aria-label={expanded ? "답변 화면 줄이기" : "문제 사진 크게 보며 답변하기"} title={expanded ? "화면 줄이기" : "문제 사진 크게 보며 답변하기"}>
+            {expanded ? <Minimize2 size={ICON_FOR_BUTTON.sm} aria-hidden /> : <Maximize2 size={ICON_FOR_BUTTON.sm} aria-hidden />}
+            <span>{expanded ? "화면 줄이기" : "크게 보며 답변"}</span>
+          </button>
           <button type="button" onClick={() => setRotation((value) => value - 90)} aria-label="왼쪽으로 90도 회전" title="왼쪽 90도 회전">
             <RotateCcw size={ICON_FOR_BUTTON.sm} aria-hidden />
           </button>
