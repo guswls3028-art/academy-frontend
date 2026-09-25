@@ -447,7 +447,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
 
     await omrButton.click();
     const omrPicker = page.getByRole("listbox", { name: "OMR 시험 선택" });
-    await expect(omrPicker.getByText("OMR 등록할 시험 선택", { exact: true })).toBeVisible();
+    await expect(omrPicker.getByText(/등록 대상 시험 선택/)).toBeVisible();
     await expect(omrPicker.getByRole("option", { name: /객관식/ })).toBeVisible();
     await expect(omrPicker.getByRole("option", { name: /혼합형/ })).toBeVisible();
     await expect(omrPicker.getByRole("option", { name: /서술형/ })).toHaveCount(0);
