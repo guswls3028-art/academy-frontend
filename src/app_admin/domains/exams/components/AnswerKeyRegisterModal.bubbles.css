@@ -19,10 +19,6 @@
 }
 
 .answer-key-omr-label .exam-omr-bubble {
-  width: 20px;
-  min-width: 20px;
-  height: 25px;
-  font-size: 11px;
   pointer-events: none;
 }
 
