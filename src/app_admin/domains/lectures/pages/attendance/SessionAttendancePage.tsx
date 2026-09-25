@@ -1,13 +1,13 @@
 // PATH: src/app_admin/domains/lectures/pages/attendance/SessionAttendancePage.tsx
 // Design: students 도메인과 동일 — 검색·필터·컬럼정렬·툴바(수강생 등록만)
-// 학생 공통 메모와 수강등록 소유 강의 메모를 출결 행 아래에 표시
+// 학생 공통 메모와 수강등록 소유 강의 메모를 학생 행의 마지막 열에 표시
 //
 // R-11 baseline 임시 file-level disable (2026-05-14): 학원장 limglish 변수 누락 즉시 fix(712656a2)
 // 가 file에 line 추가/수정 → baseline file:line 매칭 깨져 기존 22 errors 새 fail로 분류 → CI 차단.
 // line-level disable 다수 추가도 line shift loop. file-level disable로 임시 회피
 // (백로그: unused-vars/prefer-const 정리 후 file-level 제거. [[feedback_lint_baseline_line_shift]]).
 /* eslint-disable prefer-const, no-restricted-syntax, react-hooks/exhaustive-deps */
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
 import { RotateCcw, ShieldCheck, X } from "lucide-react";
@@ -274,6 +274,7 @@ export default function SessionAttendancePage({
         : []),
       { key: "parent_phone", label: "학부모 전화번호", defaultWidth: col.parentPhone, minWidth: 90, maxWidth: 200 },
       { key: "phone", label: "학생 전화번호", defaultWidth: col.studentPhone, minWidth: 90, maxWidth: 200 },
+      { key: "memo", label: "메모", defaultWidth: 320, minWidth: 220, maxWidth: 500 },
     ],
     [isCompactAttendance, isSupplementSession]
   );
@@ -816,6 +817,9 @@ export default function SessionAttendancePage({
                   <ResizableTh columnKey="phone" width={columnWidths.phone ?? col.studentPhone} minWidth={90} maxWidth={200} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("phone")} className="cursor-pointer select-none text-center" aria-sort={sort === "phone" ? "ascending" : sort === "-phone" ? "descending" : "none"}>
                     <span className="inline-flex items-center gap-1">학생 <span aria-hidden style={{ fontSize: 10, opacity: sort === "phone" || sort === "-phone" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "phone" ? "▲" : sort === "-phone" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
+                  <ResizableTh columnKey="memo" width={columnWidths.memo ?? 320} minWidth={220} maxWidth={500} onWidthChange={setColumnWidth} scope="col">
+                    메모
+                  </ResizableTh>
                 </tr>
               </thead>
               <tbody>
@@ -823,8 +827,8 @@ export default function SessionAttendancePage({
                   const studentId = att.student_id ?? att.enrollment?.student_id;
                   const canOpenStudent = Number.isInteger(studentId) && Number(studentId) > 0;
                   return (
-                  <React.Fragment key={att.id}>
                   <tr
+                    key={att.id}
                     className={[
                       selectedSet.has(att.id) ? "ds-row-selected" : "",
                       canOpenStudent ? "cursor-pointer" : "",
@@ -919,18 +923,15 @@ export default function SessionAttendancePage({
                     <td className="text-[13px] leading-6 text-[var(--color-text-secondary)] truncate align-middle text-center" style={{ width: columnWidths.phone ?? col.studentPhone }}>
                       {formatPhone(att.phone ?? att.student_phone)}
                     </td>
-                  </tr>
-                  {att.enrollment_id != null && (
-                    <tr className={selectedSet.has(att.id) ? "ds-row-selected" : ""}>
-                      <td colSpan={attendanceColumnDefs.length}>
+                    <td className="align-middle" style={{ width: columnWidths.memo ?? 320 }} onClick={(event) => event.stopPropagation()}>
+                      {att.enrollment_id != null ? (
                         <StudentLectureMemo enrollmentId={att.enrollment_id}
                           studentName={att.name ?? att.student_name ?? "학생"}
                           lectureTitle={att.lecture_title} lectureMemo={att.lecture_memo}
                           studentMemo={att.student_memo} />
-                      </td>
-                    </tr>
-                  )}
-                  </React.Fragment>
+                      ) : "—"}
+                    </td>
+                  </tr>
                   );
                 })}
               </tbody>

@@ -94,6 +94,10 @@ for (const width of [1366, 1100, 390]) {
     const preview = page.locator('[data-student-memos="3001"]');
     await expect(preview).toContainText(INITIAL);
     await expect(preview).toContainText(COMMON);
+    const table = page.locator(".ds-table--attendance");
+    await expect(table.getByRole("columnheader", { name: "메모" })).toBeVisible();
+    await expect(table.locator("tbody tr")).toHaveCount(1);
+    await expect(table.locator("tbody tr td").last()).toContainText(INITIAL);
     const dialog = await openEditor(page);
     await expect(dialog.getByRole("region", { name: "학생 공통 메모" })).toContainText(COMMON);
     const draft = "영상 수강 · 수업 전 자료를 전달하고 수업 후 보호자에게 연락하기\n" + "긴안내문구".repeat(22);
