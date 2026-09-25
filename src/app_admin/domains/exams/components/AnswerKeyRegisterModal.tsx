@@ -20,7 +20,7 @@ import {
 } from "../api/answerKey.api";
 import { patchQuestionScore } from "@admin/domains/materials/api/sheetQuestions";
 import { useAdminExam } from "../hooks/useAdminExam";
-import { ensureExamStructure } from "../api/adminExam";
+import { ensureExamStructure, recalculateExam } from "../api/adminExam";
 import { fetchOMRDefaults } from "../api/omr.api";
 import OmrSheetBuilder from "./omr/OmrSheetBuilder";
 import {
@@ -858,6 +858,7 @@ export default function AnswerKeyRegisterModal({
       }
     }
     setSaveBusy(true);
+    let patchedScoreCount = 0;
     try {
       const shouldPersistQuestionTypes =
         questionTypes.length === sortedQuestions.length &&
@@ -896,31 +897,43 @@ export default function AnswerKeyRegisterModal({
       }
       const answersPayload = withScoreAdjustment(currentAnswers, scoreAdjustmentDraft);
       const targetExamId = examId;
+      const toPatch = canEditQuestions
+        ? sortedQuestions.filter(
+          (q) => Number.isFinite(scoreDraft[q.id] ?? q.score ?? 0) && (scoreDraft[q.id] ?? q.score ?? 0) !== (q.score ?? 0)
+        )
+        : [];
+      for (const q of toPatch) {
+        const nextScore = scoreDraft[q.id] ?? q.score ?? 0;
+        await patchQuestionScore({ questionId: q.id, score: nextScore });
+        patchedScoreCount += 1;
+      }
+      // The answer-key endpoint regrades immediately, so it must see the final weights.
       const savedKey = !answerKey
         ? await createAnswerKey({ exam: targetExamId, answers: answersPayload })
         : await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: answersPayload });
-      await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) });
-      if (canEditQuestions) {
-        const toPatch = sortedQuestions.filter(
-          (q) => Number.isFinite(scoreDraft[q.id] ?? q.score ?? 0) && (scoreDraft[q.id] ?? q.score ?? 0) !== (q.score ?? 0)
-        );
-        for (const q of toPatch) {
-          const nextScore = scoreDraft[q.id] ?? q.score ?? 0;
-          await patchQuestionScore({ questionId: q.id, score: nextScore });
-        }
-        await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) });
-      }
+      const regrade = savedKey.data.regrade ?? (toPatch.length > 0 ? [await recalculateExam(examId)] : undefined);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) }),
+        ...(toPatch.length > 0 ? [qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) })] : []),
+      ]);
       await Promise.all([
         qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamSummary(examId) }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestionStats(examId) }),
         qc.invalidateQueries({ queryKey: adminExamsQueryKeys.sessionScoresRoot() }),
         qc.invalidateQueries({ queryKey: adminExamsQueryKeys.clinicTargetsRoot() }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminSubmissions }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminPendingSubmissions }),
       ]);
-      const reviewCount = savedKey.data.regrade?.reduce((total, item) => total + item.needs_review.length, 0) ?? 0;
+      const reviewCount = regrade?.reduce((total, item) => total + (item.needs_review?.length ?? 0), 0) ?? 0;
+      const failedCount = regrade?.reduce((total, item) => total + item.failed.length, 0) ?? 0;
       feedback.clear();
-      if (!savedKey.data.regrade) {
+      if (!regrade) {
         feedback.success(
           canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
         );
+      } else if (failedCount > 0) {
+        feedback.warning(`답안과 배점을 저장했습니다. 재채점 실패 ${failedCount}건은 시험 결과에서 확인해 주세요.`);
       } else if (reviewCount > 0) {
         feedback.warning(`정답을 저장하고 자동 재채점했습니다. 수기 보정 ${reviewCount}건은 확인이 필요합니다.`);
       } else {
@@ -930,7 +943,17 @@ export default function AnswerKeyRegisterModal({
       }
       onSaved?.();
     } catch (error: unknown) {
-      feedback.error(extractApiError(error, "저장 실패"));
+      const detail = extractApiError(error, "저장 실패");
+      if (patchedScoreCount > 0) {
+        await Promise.allSettled([
+          qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) }),
+          qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) }),
+          qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
+        ]);
+      }
+      feedback.error(patchedScoreCount > 0
+        ? `${detail} 배점이 일부 저장됐을 수 있습니다. 다시 열어 확인하고 전체 재채점해 주세요.`
+        : detail);
     } finally {
       setSaveBusy(false);
     }

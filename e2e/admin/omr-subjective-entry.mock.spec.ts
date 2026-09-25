@@ -377,6 +377,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
 
     await page.getByTestId("subjective-pending-banner")
       .getByRole("button", { name: "중대부고 2회차 혼합형 서술형 점수 입력" }).click();
+    await expect(page.getByRole("region", { name: "혼합 채점 워크스페이스" })).toBeVisible();
     await page.getByRole("button", { name: "OMR 결과 보정", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "OMR 검토", exact: true })).toBeVisible();
     await expect(page.locator(".orw-q-row")).toHaveCount(30);
@@ -429,9 +430,10 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     });
     await page.getByRole("button", { name: "서술형 점수 입력", exact: true }).click();
     await page.getByRole("listbox", { name: "직접 채점 시험 선택" }).getByRole("option", { name: /혼합형/ }).click();
+    await expect(page.getByRole("region", { name: "혼합 채점 워크스페이스" })).toBeVisible();
     await page.getByRole("button", { name: "OMR 결과 보정", exact: true }).click();
     const review = page.getByRole("dialog", { name: "OMR 검토", exact: true });
-    await expect(review).toContainText("미해결 전체 1건");
+    await expect(review).toContainText("미해결 전체 1건", { timeout: 30_000 });
     await expect(review.getByText("미식별 학생", { exact: true })).toBeVisible();
     await expect(review.getByRole("button", { name: "검토 현황 새로고침" })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
