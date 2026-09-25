@@ -127,7 +127,7 @@ const EDITABLE_ENVELOPE_OPTIONS: Array<{ category: TemplateCategory; label: stri
   { category: "attendance", label: "수업·운영 공지", hint: "주소·영상·일정·출결" },
   { category: "grades", label: "성적표", hint: "시험·과제 결과" },
   { category: "clinic", label: "클리닉", hint: "보강·상담" },
-  { category: "exam", label: "시험/과제", hint: "안내·리마인드" },
+  { category: "exam", label: "시험/과제", hint: "안내·다시 알림" },
 ];
 
 function categoryHasSolapiEnvelope(category: TemplateCategory): boolean {
@@ -898,7 +898,7 @@ export default function SendMessageModal({
       const accepted = totalEnqueued + totalScheduled;
       if (totalEnqueueFailed > 0) {
         feedback.warning(
-          `${sendToLabel} 알림톡 ${accepted}건은 접수됐지만 ${totalEnqueueFailed}건은 큐 등록에 실패했습니다. 중복 발송을 막기 위해 발송 내역을 확인한 뒤 다시 시도해 주세요.`,
+          `${sendToLabel} 알림톡 ${accepted}건은 접수됐지만 ${totalEnqueueFailed}건은 발송 요청을 접수하지 못했습니다. 중복 발송을 막기 위해 발송 내역을 확인한 뒤 다시 시도해 주세요.`,
         );
         asyncStatusStore.completeTask(taskId, "error", `부분 실패 ${totalEnqueueFailed}건`);
         return;

@@ -82,7 +82,7 @@ function Desc({ children }: { children: ReactNode }) {
 function checkMessage(check: TestCredentialsCheck): string {
   switch (check.test) {
     case "operational_policy":
-      return check.ok ? "알림톡 발송이 켜져 있습니다." : check.message;
+      return check.ok ? "알림톡 발송이 켜져 있습니다." : "현재 알림톡 발송이 중지되어 있습니다. 운영자에게 문의하세요.";
     case "api_credentials":
       return check.ok
         ? "알림톡 발송 서비스가 연결되어 있습니다."
@@ -90,11 +90,11 @@ function checkMessage(check: TestCredentialsCheck): string {
     case "sender_number":
       return check.ok ? "발신번호가 준비되어 있습니다." : "발신번호가 준비되지 않았습니다. 운영자에게 문의하세요.";
     case "alimtalk_channel":
-      return check.ok ? "카카오 채널이 연결되어 있습니다." : check.message.replace("미연동", "연결되지 않았습니다");
+      return check.ok ? "카카오 채널이 연결되어 있습니다." : "카카오 채널 연결을 확인하지 못했습니다. 운영자에게 문의하세요.";
     case "approved_templates":
-      return check.message.replace("검수 승인된 공용 양식", "보낼 수 있는 공용 양식").replace("우리 학원 승인 양식", "우리 학원 발송 양식");
+      return check.ok ? "보낼 수 있는 알림톡 양식이 준비되어 있습니다." : "보낼 수 있는 알림톡 양식이 없습니다. 운영자에게 문의하세요.";
     default:
-      return check.message;
+      return check.ok ? "확인되었습니다." : "발송 준비 상태를 확인하지 못했습니다. 운영자에게 문의하세요.";
   }
 }
 
