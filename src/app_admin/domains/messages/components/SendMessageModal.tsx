@@ -651,6 +651,7 @@ export default function SendMessageModal({
     setSendToParent(true);
     setSendToStudent(true);
     setShowSaveForm(false);
+    setShowVarPalette(blockCategory === "grades");
     setSaveTemplateName("");
     setShowPickerModal(false);
     setManualEnvelopeCategory(categoryHasSolapiEnvelope(blockCategory) ? blockCategory : "attendance");
@@ -775,12 +776,31 @@ export default function SendMessageModal({
         subject: subject || "",
         body,
       });
-      setTemplates((prev) => [created, ...prev]);
+      let saved = created;
+      let defaultFailed = false;
+      if (effectiveBlockCategory === "grades") {
+        try {
+          saved = await setTemplateDefault(created.id);
+        } catch {
+          defaultFailed = true;
+        }
+      }
+      setTemplates((prev) => [saved, ...prev.map((template) => (
+        saved.is_user_default && template.category === saved.category
+          ? { ...template, is_user_default: false }
+          : template
+      ))]);
       void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
-      setSelectedTemplateId(created.id);
+      setSelectedTemplateId(saved.id);
       setSelectedPresetId(null);
-      setTemplateBodySnapshot(created.body);
-      feedback.success(`"${created.name}" 문구가 저장되었습니다.`);
+      setTemplateBodySnapshot(saved.body);
+      if (defaultFailed) {
+        feedback.error(`"${saved.name}" 문구는 저장됐지만 기본 지정에 실패했습니다. 기본으로 사용을 다시 눌러 주세요.`);
+      } else {
+        feedback.success(effectiveBlockCategory === "grades"
+          ? `"${saved.name}" 문구가 성적표 기본 문구로 저장되었습니다.`
+          : `"${saved.name}" 문구가 저장되었습니다.`);
+      }
       setShowSaveForm(false);
       setSaveTemplateName("");
     } catch {
@@ -813,6 +833,7 @@ export default function SendMessageModal({
         }
         return t;
       }));
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
       feedback.success(updated.is_user_default ? `"${updated.name}" 을(를) 기본 문구로 지정했습니다.` : "기본 문구 지정을 해제했습니다.");
     } catch {
       feedback.error("기본 문구 지정에 실패했습니다.");
@@ -1312,16 +1333,21 @@ export default function SendMessageModal({
                       </button>
                     </>
                   ) : (
-                    <button
-                      type="button"
+                    <Button
+                      size="sm"
+                      intent="secondary"
                       onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
                       disabled={sending}
-                      className="send-modal__save-bar-link"
                     >
-                      내 문구로 저장
-                    </button>
+                      {effectiveBlockCategory === "grades" ? "성적표 문구 저장" : "내 문구로 저장"}
+                    </Button>
                   )}
                 </div>
+              )}
+              {effectiveBlockCategory === "grades" && selectedTemplate && !isSystemTpl(selectedTemplate) && !selectedTemplate.is_user_default && (
+                <Button size="sm" intent="secondary" onClick={() => void handleSetDefault(selectedTemplate.id)} disabled={sending}>
+                  기본으로 사용
+                </Button>
               )}
 
               <Button
@@ -1337,7 +1363,11 @@ export default function SendMessageModal({
             {/* ── 양식 이름 입력 form — 저장 액션 클릭 시에만 노출 ── */}
             {showSaveForm && (
               <div className="send-modal__save-form">
-                <div className="send-modal__save-form-label">새 문구 이름을 입력하세요</div>
+                <div className="send-modal__save-form-label">
+                  {effectiveBlockCategory === "grades"
+                    ? "이름을 붙여 저장하면 다음 성적표 발송부터 기본으로 사용합니다."
+                    : "새 문구 이름을 입력하세요"}
+                </div>
                 <div className="send-modal__save-form-row">
                   <Input
                     size="small"

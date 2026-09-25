@@ -713,6 +713,11 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       return;
     }
 
+    if (path.endsWith("/api/v1/messaging/templates/") && method === "GET") {
+      await route.fulfill({ json: [] });
+      return;
+    }
+
     if (
       (path.endsWith("/api/v1/community/admin/reports/pending-count/")
         || path.endsWith("/api/v1/community/notifications/unread-count/"))
@@ -1716,6 +1721,20 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     await expect(page.getByText(/최신 성적을 다시 확인하지 못했습니다/)).toBeVisible();
     await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
+  });
+
+  test("성적표 문구 조회 실패는 오래된 문구를 열지 않고 다시 시도를 안내한다", async ({ page }) => {
+    await openScores(page, { initialScores: [65, 52] });
+    await page.route(
+      (url) => url.pathname.endsWith("/api/v1/messaging/templates/"),
+      (route) => route.fulfill({ status: 503, json: { detail: "temporary template failure" } }),
+    );
+
+    await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+
+    await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
+    await expect(page.getByText("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.")).toBeVisible();
   });
 
   test("성적 알림 모달은 보호자와 학생 수신을 모두 선택할 수 있다", async ({ page }) => {

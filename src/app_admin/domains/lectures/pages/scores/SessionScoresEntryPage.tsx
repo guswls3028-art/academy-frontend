@@ -909,10 +909,7 @@ export default function SessionScoresEntryPage({
 
               try {
                 const templates = await fetchMessageTemplates("grades");
-                const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험이력|시험목록|시험총점|학생이름)}/.test(body);
-                const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
-                const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
-                const chosenTpl = userDefault ?? userWithScoreVars;
+                const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
 
                 // 학원장 임근혁 보고(2026-05-12 23:50):
                 // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
@@ -924,11 +921,8 @@ export default function SessionScoresEntryPage({
                 initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
                 scoreDetail = buildScoreDetail(selectedRows[0], meta);
               } catch {
-                // 템플릿 조회 실패 시 — 범용 양식 fallback (변수 그대로)
-                initialBody = buildGenericScoreTemplate(reportOptions);
-                initialTemplateId = null;
-                initialLetterPresetId = DEFAULT_GRADES_PRESET_ID;
-                scoreDetail = buildScoreDetail(selectedRows[0], meta);
+                feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
+                return;
               }
 
               // SSOT (2026-05-14): 학생별 변수 재계산 callback.

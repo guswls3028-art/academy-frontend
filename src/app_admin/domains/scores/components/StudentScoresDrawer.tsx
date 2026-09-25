@@ -245,24 +245,21 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail };
 
     // 성적 양식 우선순위:
-    // ① 사용자 기본(is_user_default) → ② 성적변수 포함 사용자 양식 → ③ 기본 제공 편지지 프리셋
+    // 사용자 기본(is_user_default) → 기본 제공 편지지 프리셋
     let body: string;
     let initialTemplateId: number | null = null;
     let initialLetterPresetId: string | null = null;
     try {
       const templates = await fetchMessageTemplates("grades");
-      const hasScoreVars = (b: string) => /#{(시험\d|과제\d|시험성적|시험이력|시험목록|시험총점|학생이름)}/.test(b);
-      const userDefault = templates.find((t) => t.is_user_default && !t.is_system);
-      const userWithScoreVars = templates.find((t) => !t.is_system && hasScoreVars(t.body));
-      const chosenTpl = userDefault ?? userWithScoreVars;
+      const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
       body = chosenTpl
         ? chosenTpl.body
         : buildGenericScoreTemplate(reportOptions);
       initialTemplateId = chosenTpl?.id ?? null;
       initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
     } catch {
-      body = buildGenericScoreTemplate(reportOptions);
-      initialLetterPresetId = DEFAULT_GRADES_PRESET_ID;
+      feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
+      return;
     }
 
     const scoreDetail = buildScoreDetail(currentRow, currentMeta, { passLabel: labels.pass, failLabel: labels.fail });

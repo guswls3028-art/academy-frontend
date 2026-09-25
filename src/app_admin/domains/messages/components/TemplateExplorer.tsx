@@ -24,6 +24,7 @@ import {
   updateMessageTemplate,
   deleteMessageTemplate,
   provisionDefaultTemplates,
+  setTemplateDefault,
   type MessageTemplateItem,
   type MessageTemplatePayload,
   type MessageTemplateCategory,
@@ -294,14 +295,26 @@ export default function TemplateExplorer() {
     },
   });
 
-  const handleDuplicate = (t: MessageTemplateItem) => {
-    createMut.mutate({
-      category: t.category,
-      name: buildDuplicateTemplateName(t.name),
-      subject: t.subject ?? "",
-      body: t.body,
-    });
-    feedback.info("문구를 복제합니다…");
+  const handleDuplicate = async (t: MessageTemplateItem) => {
+    try {
+      const copy = await createMut.mutateAsync({
+        category: t.category,
+        name: buildDuplicateTemplateName(t.name),
+        subject: t.subject ?? "",
+        body: t.body,
+      });
+      setModalOpen({ template: copy, mode: "edit" });
+    } catch { /* createMut reports the error */ }
+  };
+
+  const handleSetDefault = async (template: MessageTemplateItem) => {
+    try {
+      const updated = await setTemplateDefault(template.id);
+      await qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
+      feedback.success(updated.is_user_default ? "성적표 발송 기본 문구로 지정했습니다." : "기본 문구 지정을 해제했습니다.");
+    } catch {
+      feedback.error("기본 문구 지정에 실패했습니다.");
+    }
   };
 
   const isCreate = modalOpen === "create";
@@ -420,9 +433,17 @@ export default function TemplateExplorer() {
               <IconAction
                 icon={<FiCopy size={16} />}
                 label="복제"
-                onClick={() => handleDuplicate(t)}
+                onClick={() => void handleDuplicate(t)}
                 disabled={createMut.isPending}
               />
+              {t.category === "grades" && !isDef && (
+                <Button size="sm" intent="secondary" onClick={(event) => {
+                  event.stopPropagation();
+                  void handleSetDefault(t);
+                }}>
+                  {t.is_user_default ? "기본 해제" : "발송 기본으로 지정"}
+                </Button>
+              )}
               {!t.is_system && (
                 <IconAction
                   icon={<FiTrash2 size={16} />}
@@ -674,6 +695,7 @@ export default function TemplateExplorer() {
         onDelete={(id) => {
           deleteMut.mutate(id, { onSuccess: () => setModalOpen(null) });
         }}
+        onDuplicate={(template) => void handleDuplicate(template)}
         isDeleting={deleteMut.isPending}
       />
     </div>

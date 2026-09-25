@@ -8,11 +8,11 @@ import { Input } from "antd";
 import { FiAlertCircle } from "react-icons/fi";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import KakaoAlimtalkPreview from "@/shared/ui/notifications/KakaoAlimtalkPreview";
 import {
   getBlocksForCategory,
   getBlockColor,
-  renderPreviewBadges,
-  renderPreviewWithActualData,
+  renderPlainMessagePreview,
   TEMPLATE_CATEGORY_LABELS,
   type TemplateCategory,
 } from "../constants/templateBlocks";
@@ -44,6 +44,7 @@ export type TemplateEditModalProps = {
   zIndex?: number;
   /** 삭제 콜백. 주어지면 수정 모드에서 삭제 버튼 표시 */
   onDelete?: (id: number) => void;
+  onDuplicate?: (template: MessageTemplateItem) => void;
   isDeleting?: boolean;
   /** 자동발송 트리거명 (통합 알림톡 템플릿 타입 판별용) */
   trigger?: string;
@@ -58,6 +59,7 @@ export default function TemplateEditModal({
   isPending = false,
   zIndex,
   onDelete,
+  onDuplicate,
   isDeleting = false,
   trigger,
 }: TemplateEditModalProps) {
@@ -82,7 +84,7 @@ export default function TemplateEditModal({
       setBody(stripInternalAlimtalkMemoToken(initial?.body ?? ""));
       setSelectedCategory(initial?.category ?? category);
       setConfirmDelete(false);
-      setIndividualExpanded(false);
+      setIndividualExpanded((initial?.category ?? category) === "grades");
     }
   }, [open, initial?.id, initial?.name, initial?.subject, initial?.body, initial?.category, category]);
 
@@ -105,8 +107,6 @@ export default function TemplateEditModal({
     });
   };
 
-  const badgeBody = renderPreviewBadges(hideInternalAlimtalkMemoToken(body));
-  const badgeSubject = renderPreviewBadges(subject);
   const showSubject = !alimtalkType;
 
   if (!open) return null;
@@ -149,37 +149,16 @@ export default function TemplateEditModal({
                 {isAcademyError ? <span role="alert">발송 학원명을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => void refetchAcademy()}>다시 확인</Button></span>
                   : "이 화면의 이름·날짜 등은 예시입니다. 수신자별 문구는 발송 화면에서 확인하세요."}
               </p>}
-              <div className="template-preview-kakao" aria-label="카카오톡 알림톡 미리보기">
-                <div className="template-preview-kakao__card">
-                  {alimtalkType ? (
-                    <>
-                      <div className="template-preview-kakao__header">
-                        <span className="template-preview-kakao__header-label">알림톡 도착</span>
-                        <span className="template-preview-kakao__header-channel">
-                          {TEMPLATE_CATEGORY_LABELS[selectedCategory]}
-                        </span>
-                      </div>
-                      <div className="template-preview-kakao__body" style={{ lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
-                        {renderPreviewWithActualData(
-                          renderAlimtalkFullPreview(alimtalkType, hideInternalAlimtalkMemoToken(body, ""), undefined, { 학원명: academyName }),
-                          { 학원명: academyName, 학원이름: academyName },
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {subject && (
-                        <div className="template-preview-kakao__title" style={{ lineHeight: 1.7 }}>{badgeSubject}</div>
-                      )}
-                      <div className="template-preview-kakao__body" style={{ lineHeight: 1.7 }}>
-                        {body ? badgeBody : (
-                          <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
+              <KakaoAlimtalkPreview channelLabel={TEMPLATE_CATEGORY_LABELS[selectedCategory]} subject={alimtalkType ? undefined : subject}>
+                {body
+                  ? renderPlainMessagePreview(
+                    alimtalkType
+                      ? renderAlimtalkFullPreview(alimtalkType, hideInternalAlimtalkMemoToken(body, ""), undefined, { 학원명: academyName })
+                      : hideInternalAlimtalkMemoToken(body),
+                    { 학원명: academyName, 학원이름: academyName },
+                  )
+                  : "본문을 입력하면 미리보기가 표시됩니다."}
+              </KakaoAlimtalkPreview>
               <p className="message-template-preview-help">
                 저장한 문구는 발송 전 서버 확인을 거쳐 학생별 전체 문구로 표시됩니다.
               </p>
@@ -198,7 +177,7 @@ export default function TemplateEditModal({
                 fontSize: 13, color: "var(--color-status-info, #2563eb)", fontWeight: 600,
               }}>
                 <FiAlertCircle size={14} style={{ flexShrink: 0 }} />
-                기본 문구는 수정할 수 없습니다. 복제하여 사용해 주세요.
+                제공 문구는 원본을 유지합니다. 복제하면 내 문구로 수정할 수 있습니다.
               </div>
             )}
             <div className="message-template-edit-heading">
@@ -382,6 +361,11 @@ export default function TemplateEditModal({
             <Button intent="secondary" onClick={onClose} disabled={isPending || isDeleting}>
               {isSystem ? "닫기" : "취소"}
             </Button>
+            {isSystem && initial && onDuplicate && (
+              <Button intent="primary" onClick={() => onDuplicate(initial)} disabled={isPending}>
+                {isPending ? "복제 중…" : "복제해서 수정"}
+              </Button>
+            )}
             {!isSystem && (
               <Button
                 intent="primary"
