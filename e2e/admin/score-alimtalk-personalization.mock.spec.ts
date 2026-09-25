@@ -9,6 +9,7 @@ import { realMessagingSkipReason } from "../helpers/safety";
 type SendPayload = {
   student_ids?: number[];
   send_to?: string;
+  template_id?: number;
   block_category?: string;
   raw_body?: string;
   alimtalk_extra_vars?: Record<string, string>;
@@ -378,6 +379,31 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       await expect.poll(() => picker.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath(`template-picker-actual-${width}.png`) });
     }
+  });
+
+  test("비기본 성적 문구를 선택하면 학생별 본문으로 보호자 발송 전 검사를 요청한다", async ({ page }) => {
+    const preflightPayloads: SendPayload[] = [];
+    await openPersonalizedScores(page, "success", preflightPayloads, [], [{
+      id: 992,
+      name: "검증 성적 문구",
+      category: "grades",
+      body: "학생 #{학생이름3} 점수 #{시험총점} 확인 완료",
+      subject: "",
+      is_system: false,
+      is_user_default: false,
+      solapi_status: "",
+      solapi_template_id: "",
+    }]);
+    await selectBothStudentsAndOpen(page);
+    const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+    await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+    await modal.getByRole("button", { name: /다른 문구 선택|문구 선택/, exact: true }).click();
+    const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
+    await picker.getByRole("button", { name: /검증 성적 문구/ }).click();
+    await picker.getByRole("button", { name: "이 문구로 작성하기", exact: true }).click();
+    await expect(picker).toBeHidden();
+    await expect.poll(() => preflightPayloads.find((payload) => payload.template_id === 992 && payload.send_to === "parent")
+      ?.alimtalk_extra_vars_per_student?.["9301"]?._body_subst).toBe("학생 개인화학생1 점수 70 확인 완료");
   });
 
   test("수정한 성적표 문구를 저장하면 다음 발송에도 기본으로 열린다", async ({ page }) => {
