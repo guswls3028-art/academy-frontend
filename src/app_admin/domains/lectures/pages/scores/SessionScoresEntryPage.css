@@ -773,7 +773,18 @@
   font-weight: 700;
 }
 
-@media (min-width: 1024px) and (max-width: 1180px) {
+@media (min-width: 1024px) and (max-width: 1600px) {
+  .scores-entry-page .domain-list-toolbar > div:first-child {
+    flex-wrap: wrap;
+  }
+
+  .scores-entry-page .domain-list-toolbar > div:first-child > div:last-child {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+    min-width: 0;
+  }
+
   .scores-toolbar-actions {
     width: 100%;
   }
