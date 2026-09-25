@@ -918,8 +918,12 @@ export default function AnswerKeyRegisterModal({
       ]);
       await Promise.all([
         qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamSummary(examId) }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestionStats(examId) }),
         qc.invalidateQueries({ queryKey: adminExamsQueryKeys.sessionScoresRoot() }),
         qc.invalidateQueries({ queryKey: adminExamsQueryKeys.clinicTargetsRoot() }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminSubmissions }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminPendingSubmissions }),
       ]);
       const reviewCount = regrade?.reduce((total, item) => total + (item.needs_review?.length ?? 0), 0) ?? 0;
       const failedCount = regrade?.reduce((total, item) => total + item.failed.length, 0) ?? 0;
