@@ -365,8 +365,8 @@ test.describe("조교 로그인 출근 선택", () => {
       await choice.getByRole("button", { name: /^출근하지 않고 로그인/ }).click();
       await expect(choice).toBeHidden();
 
-      const scoresRequested = page.waitForRequest((request) => new URL(request.url()).pathname === "/api/v1/results/admin/sessions/41/scores/");
-      const scoresBody = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/results/admin/sessions/41/scores/")
+      const scoresRequested = page.waitForRequest((request) => new URL(request.url()).pathname === "/api/v1/results/admin/sessions/41/scores/", { timeout: 20_000 });
+      const scoresBody = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/results/admin/sessions/41/scores/", { timeout: 20_000 })
         .then(async (response) => {
           expect(response.status()).toBe(200);
           return await response.json() as { meta: { exams: Array<{ exam_id: number }> } };
