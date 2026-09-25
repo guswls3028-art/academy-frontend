@@ -468,13 +468,30 @@ async function verifyChangedAnswerAndMaximum(
     ));
     const saveButton = answerDialog.getByRole("button", { name: `저장 (총 ${maximum}점)`, exact: true });
     await saveButton.click();
-    expect((await answerSaved).status()).toBe(200);
-    await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+    const savedResponse = await answerSaved;
+    expect(savedResponse.status()).toBe(200);
+    const savedBody = await savedResponse.json() as { regrade?: Array<{ needs_review: unknown[] }> };
+    if (!Array.isArray(savedBody.regrade)) throw new Error("Answer-key save did not return a regrade summary");
+    const reviewCount = savedBody.regrade.reduce((total, item) => total + item.needs_review.length, 0);
+    if (reviewCount > 0) {
+      await expect(page.getByText(
+        `정답을 저장하고 자동 재채점했습니다. 수기 보정 ${reviewCount}건은 확인이 필요합니다.`,
+        { exact: true },
+      )).toBeVisible();
+    } else {
+      await expect(page.getByText(/^(저장·재채점되었습니다\.|정답을 저장하고 기존 성적을 재채점했습니다\.)$/)).toBeVisible();
+    }
     await expect(saveButton).toBeEnabled();
     await answerDialog.getByRole("button", { name: "취소", exact: true }).click();
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator("#assessment-policy > details > summary").click();
     await expect(page.getByRole("spinbutton", { name: "만점", exact: true })).toHaveValue(String(maximum));
+    await expect.poll(async () => (await waitForStudentResult(request, studentToken, created.examId!)).total_score,
+      { timeout: 30_000 }).toBe(expected);
+    await expect.poll(async () => {
+      const parent = await expectParentApi<{ exams?: any[] }>(request, "/student/grades/", parentToken, created.studentId);
+      return parent.exams?.find((row) => Number(row.exam_id) === created.examId)?.total_score;
+    }, { timeout: 30_000 }).toBe(expected);
 
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
     const recalculated = page.waitForResponse((response) => matchesApiResponse(response, "POST", `/exams/${created.examId}/recalculate/`), { timeout: 90_000 });
