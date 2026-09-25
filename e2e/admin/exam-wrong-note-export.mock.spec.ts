@@ -173,7 +173,9 @@ async function installApi(page: Page, options: {
       return;
     }
     if (path === "/submissions/submissions/exams/77/") {
-      await json(route, []);
+      await json(route, new URL(request.url()).searchParams.get("review_issues") === "1"
+        ? { items: [], total: 0, next_cursor: null }
+        : []);
       return;
     }
     if (path === "/results/admin/exams/77/wrong-note-export/") {

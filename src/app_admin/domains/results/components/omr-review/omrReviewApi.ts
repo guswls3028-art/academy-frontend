@@ -167,6 +167,39 @@ export async function listOmrReviewRows(examId: number): Promise<OmrReviewRow[]>
   return items as OmrReviewRow[];
 }
 
+export type OmrReviewIssuesPage = {
+  items: OmrReviewRow[];
+  total: number;
+  next_cursor: number | null;
+};
+
+/** 전체 시험에서 미해결 건만 서버가 세어 반환한다. 최신 200건 제한을 사용하지 않는다. */
+export async function listOmrReviewIssuesPage(
+  examId: number,
+  options: { cursor?: number; enrollmentIds?: number[]; includeUnbound?: boolean; focusId?: number } = {},
+): Promise<OmrReviewIssuesPage> {
+  const res = await api.get(`/submissions/submissions/exams/${examId}/`, {
+    params: {
+      review_issues: 1,
+      ...(options.cursor ? { cursor: options.cursor } : {}),
+      ...(options.enrollmentIds ? { enrollment_ids: options.enrollmentIds.join(",") } : {}),
+      ...(options.includeUnbound === false ? { include_unbound: 0 } : {}),
+      ...(options.focusId ? { focus_id: options.focusId } : {}),
+    },
+  });
+  const data = res.data;
+  if (!data || !Array.isArray(data.items) || !Number.isSafeInteger(data.total)
+    || data.total < data.items.length
+    || !(data.next_cursor == null || Number.isSafeInteger(data.next_cursor) && data.next_cursor > 0)
+    || data.items.some((item: OmrReviewRow) => !Number.isSafeInteger(item?.id) || item.id <= 0)
+    || (!options.cursor && data.total > 0 && data.items.length === 0)
+    || (!options.cursor && data.total > data.items.length && data.next_cursor == null)
+    || (data.next_cursor != null && data.next_cursor !== data.items.at(-1)?.id)) {
+    throw new Error("OMR 검토 현황 응답이 불완전합니다.");
+  }
+  return data as OmrReviewIssuesPage;
+}
+
 export async function fetchOmrReviewDetail(submissionId: number): Promise<OmrReviewDetail> {
   const res = await api.get(`/submissions/submissions/${submissionId}/manual-edit/`);
   return res.data as OmrReviewDetail;

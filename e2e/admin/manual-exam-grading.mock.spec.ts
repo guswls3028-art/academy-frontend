@@ -352,7 +352,12 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       return;
     }
     if (path === `/submissions/submissions/exams/${EXAM_ID}/` && method === "GET") {
-      await json(options.submissionRows ?? []);
+      const rows = options.submissionRows ?? [];
+      if (url.searchParams.get("review_issues") === "1") {
+        await json({ items: rows.filter((row) => row.status !== "done"), total: rows.filter((row) => row.status !== "done").length, next_cursor: null });
+      } else {
+        await json(rows);
+      }
       return;
     }
     if (path === `/submissions/submissions/exams/${EXAM_ID}/candidates/` && method === "GET") {
