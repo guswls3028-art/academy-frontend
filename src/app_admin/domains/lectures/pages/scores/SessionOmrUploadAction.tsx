@@ -50,11 +50,15 @@ export function SessionOmrUploadModal({
       <ModalHeader
         type="action"
         title="OMR 스캔 등록"
-        description={target.title}
+        description="스캔 파일은 아래에 표시된 시험의 답안으로 등록됩니다."
         noIcon
       />
       <ModalBody>
         <div className="scores-omr-modal__body">
+          <div className="scores-omr-modal__target" role="status">
+            <span>등록 대상 시험</span>
+            <strong>{target.title}</strong>
+          </div>
           <AdminOmrBatchUploadBox
             examId={target.examId}
             sessionId={sessionId}
@@ -157,17 +161,17 @@ export default function SessionOmrUploadAction({
           onClick={() => void openUpload()}
           title={preparing
             ? "성적 입력 준비가 끝나면 OMR을 등록할 수 있습니다."
-            : disabled ? "입력 중인 점수를 먼저 저장하거나 복구 여부를 확인해 주세요." : "OMR 스캔 등록"}
+            : disabled ? "입력 중인 점수를 먼저 저장하거나 복구 여부를 확인해 주세요." : exams.length === 1 ? `${exams[0].title}에 등록` : `${exams.length}개 시험 중 선택`}
           leftIcon={<Upload size={ICON_FOR_BUTTON.md} />}
           rightIcon={exams.length > 1 ? <ChevronDown size={ICON_FOR_BUTTON.md} /> : undefined}
           aria-haspopup={exams.length > 1 ? "listbox" : undefined}
           aria-expanded={exams.length > 1 ? showPicker : undefined}
         >
-          OMR 스캔 등록
+          {exams.length === 1 ? "OMR 스캔 등록" : "OMR 스캔 등록 · 시험 선택"}
         </Button>
         {showPicker && (
           <div className="scores-omr-picker" role="listbox" aria-label="OMR 시험 선택">
-            <div className="scores-omr-picker__title">OMR 등록할 시험 선택</div>
+            <div className="scores-omr-picker__title">등록 대상 시험 선택 · {exams.length}개</div>
             {exams.map((exam) => (
               <button
                 key={exam.exam_id}

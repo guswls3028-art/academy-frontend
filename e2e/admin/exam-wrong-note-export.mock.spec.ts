@@ -421,9 +421,13 @@ test("시험 설정에서 다른 강의 차시와 귀가 기준을 390px에서�
   await dialog.getByRole("combobox", { name: "강의" }).selectOption("202");
   await expect(dialog.getByRole("spinbutton")).toHaveValue("70");
   await dialog.getByRole("combobox", { name: "강의" }).selectOption("303");
-  await expect(dialog.getByRole("combobox", { name: /시험 차시/ })).toHaveValue("3001");
+  await dialog.getByRole("checkbox", { name: "1회차 · 8월 진단평가" }).check();
   await expect(dialog.getByRole("spinbutton")).toHaveValue("60");
-  await expect(dialog.getByRole("button", { name: "강의 연결" })).toBeEnabled();
+  await dialog.getByRole("button", { name: "선택한 차시 담고 다른 강의 고르기" }).click();
+  await expect(dialog.getByText("연결 예정 · 1개 차시")).toBeVisible();
+  await dialog.getByRole("combobox", { name: "강의" }).selectOption("404");
+  await dialog.getByRole("checkbox", { name: "1회차 · 8월 진단평가" }).check();
+  await expect(dialog.getByRole("button", { name: "2개 차시 연결" })).toBeEnabled();
 
   const screenshot = testInfo.outputPath("shared-exam-assignments-390.png");
   await page.screenshot({ path: screenshot, fullPage: true });
@@ -431,4 +435,27 @@ test("시험 설정에서 다른 강의 차시와 귀가 기준을 390px에서�
     path: screenshot,
     contentType: "image/png",
   });
+  await dialog.getByRole("button", { name: "2개 차시 연결" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(panel.getByText("4개 강의", { exact: true })).toBeVisible();
+});
+
+test("여러 강의 연결에서 일부 실패하면 성공한 차시는 유지하고 실패한 차시만 재시도한다", async ({ page }) => {
+  await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html?visual=assignments&failOnce=4001`, {
+    timeout: 60_000,
+  });
+  await page.getByRole("button", { name: "강의 추가" }).click();
+  const dialog = page.getByRole("dialog", { name: "이 시험에 강의 추가" });
+  await dialog.getByRole("combobox", { name: "강의" }).selectOption("303");
+  await dialog.getByRole("checkbox", { name: "1회차 · 8월 진단평가" }).check();
+  await dialog.getByRole("button", { name: "선택한 차시 담고 다른 강의 고르기" }).click();
+  await dialog.getByRole("combobox", { name: "강의" }).selectOption("404");
+  await dialog.getByRole("checkbox", { name: "1회차 · 8월 진단평가" }).check();
+  await dialog.getByRole("button", { name: "2개 차시 연결" }).click();
+  await expect(dialog.getByText("연결 예정 · 1개 차시")).toBeVisible();
+  await expect(dialog.getByText(/D학교 강의 · 1회차/)).toBeVisible();
+  await expect(page.getByText("3개 강의", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "1개 차시 연결" }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByText("4개 강의", { exact: true })).toBeVisible();
 });

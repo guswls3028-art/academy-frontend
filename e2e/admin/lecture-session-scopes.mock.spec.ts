@@ -926,12 +926,27 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   expect(await answerDialog.locator(".answer-key-omr-label").first().evaluate((element) =>
     (element as HTMLElement).offsetWidth
   )).toBeGreaterThanOrEqual(44);
+  expect(await answerDialog.locator(".exam-omr-bubble").first().evaluate((element) =>
+    (element as HTMLElement).offsetWidth
+  )).toBeLessThanOrEqual(24);
   expect(await answerDialog.locator(".answer-key-row__bubbles").first().evaluate((element) =>
     element.scrollWidth <= element.clientWidth + 1
   )).toBe(true);
+  const firstBubble = answerDialog.getByRole("checkbox", { name: "1번 1번 선택지" });
+  await firstBubble.focus();
+  await firstBubble.press("ArrowRight");
+  await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).not.toBeChecked();
+  await answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" }).press("Enter");
+  await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
+  await answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" }).press("Space");
+  await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).not.toBeChecked();
+  await answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" }).press("ArrowDown");
+  await expect(answerDialog.getByRole("checkbox", { name: "2번 2번 선택지" })).not.toBeChecked();
   for (const row of await answerDialog.locator(".answer-key-row--choice").all()) {
     await row.locator(".answer-key-omr-label").nth(1).click();
   }
+  await answerDialog.locator(".answer-key-panel--choice").getByRole("textbox", { name: "목표 총점" }).fill("100");
+  await expect(answerDialog.getByText(/현재 \d+점 \/ 목표 100점/)).toBeVisible();
   await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
   await answerDialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
   expect(state.answerKeySaves).toHaveLength(0);
@@ -943,13 +958,14 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   await expect.poll(() => Object.keys(state.guidedQuestionScores ?? {}).length).toBe(3);
   expect(state.guidedQuestionScores).toEqual({ 99711: 33.4, 99712: 33.3, 99713: 33.3 });
   expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "2", "99712": "2", "99713": "2" } });
+  expect(state.answerKeySaves?.[0].answers).not.toHaveProperty("__score_adjustment__");
 
   const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
   await expect(printDialog).toBeVisible();
-  await expect(printDialog.getByRole("button", { name: "이 구성으로 PDF 다운로드" })).toBeInViewport();
+  await expect(printDialog.getByRole("button", { name: "OMR PDF 다운로드" })).toBeInViewport();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    printDialog.getByRole("button", { name: "이 구성으로 PDF 다운로드" }).click(),
+    printDialog.getByRole("button", { name: "OMR PDF 다운로드" }).click(),
   ]);
   expect(download.suggestedFilename()).toContain("OMR");
   await expect(printDialog.getByText("답안지 다운로드 완료")).toBeVisible();
@@ -958,6 +974,14 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   await page.reload();
   await page.getByRole("button", { name: "문항·답안 확인" }).click();
   await expect(page.getByRole("dialog").locator(".answer-key-row--choice .answer-key-row__score-val")).toHaveText(["33.4점", "33.3점", "33.3점"]);
+  await page.getByRole("dialog").getByRole("button", { name: "취소" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const assessmentPicker = page.getByTestId("session-assessment-remote");
+  const pickerBox = await assessmentPicker.boundingBox();
+  expect(pickerBox).not.toBeNull();
+  expect(pickerBox!.width).toBeGreaterThan(330);
+  expect(pickerBox!.x + pickerBox!.width).toBeLessThanOrEqual(390);
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
 
 test("성적 탭의 첫 시험 안내에서 현재 가이드의 해당 단계가 열린다", async ({ page }, testInfo) => {

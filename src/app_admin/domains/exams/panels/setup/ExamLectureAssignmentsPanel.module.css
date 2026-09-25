@@ -138,9 +138,45 @@
 .formGrid label > span { color: var(--color-text-secondary); font-size: 12px; font-weight: 850; }
 .formGrid select,
 .formGrid input { width: 100%; border: 1px solid var(--border-divider); border-radius: 9px; padding: 10px 12px; color: var(--color-text-primary); background: var(--bg-surface); }
+.formGrid select { min-height: 44px; cursor: pointer; }
+.formGrid select:focus-visible,
+.formGrid input:focus-visible,
+.sessionOption:focus-within { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .formGrid small { color: var(--color-text-muted); font-size: 11px; }
 .scoreInput { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
 .scoreInput b { color: var(--color-text-secondary); font-size: 12px; }
+
+.sessionSelect {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.sessionSelectHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sessionSelectHeader strong { color: var(--color-text-secondary); font-size: 12px; }
+.sessionSelectHeader small { margin-left: 6px; font-weight: 600; }
+.formGrid .sessionOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-divider);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.sessionOption:hover { border-color: var(--color-primary); background: var(--color-bg-surface-soft); }
+.sessionOption input { width: 18px; height: 18px; flex-shrink: 0; padding: 0; accent-color: var(--color-primary); }
+.formGrid .sessionOption span { min-width: 0; overflow-wrap: anywhere; font-size: 13px; color: var(--color-text-primary); }
+.queue { display: grid; gap: 5px; padding: 10px 12px; border: 1px solid var(--border-divider); border-radius: 9px; background: var(--color-bg-surface-soft); }
+.queue > strong { color: var(--color-text-primary); font-size: 12px; }
+.queue > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; }
+.queue > div > span { min-width: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 860px) {
   .lane { grid-template-columns: minmax(0, 1fr) auto; }
