@@ -343,7 +343,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
   test.setTimeout(120_000);
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
 
-  test("저장 문구 선택 미리보기에 실제 학생·강의·점수가 표시된다", async ({ page }, testInfo) => {
+  test("성적 안내문 선택은 초안만 보여주고 적용 후 서버 문구를 확인한다", async ({ page }, testInfo) => {
     await openPersonalizedScores(page, "success", [], [], [{
       id: 991,
       name: "실제 성적 문구",
@@ -357,10 +357,10 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     }], "실제 검증학원");
     await selectBothStudentsAndOpen(page);
     const modal = page.getByRole("dialog", { name: "알림톡 발송" });
-    await modal.getByRole("button", { name: /다른 문구 선택|문구 선택/, exact: true }).click();
+    await modal.getByRole("button", { name: "안내문 바꾸기" }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
     await picker.getByRole("button", { name: /실제 성적 문구/ }).click();
-    const preview = picker.getByLabel("카카오톡 실제 발송 미리보기");
+    const draft = picker.getByLabel("선택할 안내문 내용");
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
       if (width === 390) {
@@ -368,17 +368,20 @@ test.describe("성적 알림톡 학생별 개인화", () => {
         await expect.poll(() => picker.locator(".tpl-picker__right").evaluate((node) => node.getBoundingClientRect().top))
           .toBeLessThan(350);
       }
-      await expect(preview).toContainText("개인화학생1");
-      await expect(preview).toContainText("실제 발송학원");
-      await expect(preview).not.toContainText("실제 검증학원");
-      await expect(preview).not.toContainText("학원플러스");
-      await expect(preview).toContainText("개인화 검증반");
-      await expect(preview).toContainText("개인화 검증 차시");
-      await expect(preview).toContainText("점수 70");
-      await expect(preview).not.toContainText("285");
+      await expect(draft).toContainText("#{학생이름3}");
+      await expect(draft).toContainText("#{시험총점}");
+      await expect(picker.getByLabel("카카오톡 실제 발송 미리보기")).toHaveCount(0);
       await expect.poll(() => picker.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
-      await page.screenshot({ path: testInfo.outputPath(`template-picker-actual-${width}.png`) });
+      await page.screenshot({ path: testInfo.outputPath(`notice-picker-${width}.png`) });
     }
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await picker.getByRole("button", { name: "이 안내문 적용", exact: true }).click();
+    const actual = modal.getByLabel("현재 학생의 실제 발송 문구");
+    await expect(actual).toContainText("개인화학생1");
+    await expect(actual).toContainText("실제 발송학원");
+    await expect(actual).not.toContainText("실제 검증학원");
+    await expect(actual).toContainText("개인화 검증반");
+    await expect(actual).toContainText("점수 70");
   });
 
   test("비기본 성적 문구를 선택하면 학생별 본문으로 보호자 발송 전 검사를 요청한다", async ({ page }) => {
@@ -397,12 +400,12 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await selectBothStudentsAndOpen(page);
     const modal = page.getByRole("dialog", { name: "알림톡 발송" });
     await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
-    await modal.getByRole("button", { name: /다른 문구 선택|문구 선택/, exact: true }).click();
+    await modal.getByRole("button", { name: "안내문 바꾸기" }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
     await picker.getByRole("button", { name: /검증 성적 문구/ }).click();
-    await expect(picker.getByLabel("카카오톡 실제 발송 미리보기"))
-      .toContainText("학생 개인화학생1 점수 70 확인 완료");
-    await picker.getByRole("button", { name: "이 문구로 작성하기", exact: true }).click();
+    await expect(picker.getByLabel("선택할 안내문 내용"))
+      .toContainText("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
+    await picker.getByRole("button", { name: "이 안내문 적용", exact: true }).click();
     await expect(picker).toBeHidden();
     await expect.poll(() => preflightPayloads.find((payload) => payload.template_id === 992 && payload.send_to === "parent")
       ?.alimtalk_extra_vars_per_student?.["9301"]?._body_subst).toBe("학생 개인화학생1 점수 70 확인 완료");
@@ -420,7 +423,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await expect(editor).not.toContainText("1차 시험과 재시험 결과가 함께 기록됩니다.");
     await expect(modal.locator(".send-modal__var-palette")).toBeVisible();
     await editor.fill("#{학생이름} 학생의 이번 수업 결과입니다.\n#{시험성적}");
-    await modal.getByRole("button", { name: "성적표 문구 저장" }).click();
+    await modal.getByRole("button", { name: "성적 안내문 저장" }).click();
     await modal.getByPlaceholder("예: 출결 알림, 성적표 안내").fill("내 성적표");
     await modal.getByRole("button", { name: "저장", exact: true }).click();
     await expect.poll(() => templates.find((template) => template.id === 992)?.is_user_default).toBe(true);
@@ -449,6 +452,13 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await expect.poll(() => modal.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await expect(modal.getByLabel("현재 학생의 실제 발송 문구")).toContainText("개인화학생1");
+      if (width === 1366) {
+        const preview = modal.locator(".send-modal__card--preview");
+        const status = modal.locator(".send-modal__card--preflight");
+        expect((await preview.boundingBox())!.y).toBeLessThan((await status.boundingBox())!.y);
+        expect((await modal.getByLabel("현재 학생의 실제 발송 문구").boundingBox())!.width).toBeGreaterThan(260);
+      }
       if (width === 390) {
         const previewTop = await modal.locator(".send-modal__card--preview").evaluate((node) => node.getBoundingClientRect().top);
         expect((await editor.boundingBox())!.y).toBeLessThan(previewTop);
