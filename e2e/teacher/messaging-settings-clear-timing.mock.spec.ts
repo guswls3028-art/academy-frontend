@@ -87,6 +87,10 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
       timeout: 20_000,
     });
     await expect(page.getByRole("heading", { name: "메시지 설정" })).toBeVisible();
+    await expect(page.getByText("보내는 채널", { exact: true })).toBeVisible();
+    await expect(page.getByText("발송 상태", { exact: true })).toBeVisible();
+    await expect(page.getByText("공급자", { exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
     await page.getByTitle("설정 편집").click();
     const timingInput = page.getByRole("spinbutton", { name: "분 전" });

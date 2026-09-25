@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
-import { ChevronLeft, Check, AlertCircle, Send, MessageCircle, Settings, Lock, Pencil, Eye } from "@teacher/shared/ui/Icons";
+import { ChevronLeft, Check, AlertCircle, Send, MessageCircle, Lock, Pencil, Eye } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -44,11 +44,11 @@ export default function MessagingSettingsPage() {
   const customChannelSuspended = info?.custom_channel_status === "suspended";
   const channelNeedsAttention = customChannelPending || customChannelSuspended;
   let channelLabel = "공용 채널";
-  let channelSummary = "공용 채널 · 별도 입력 없음";
+  let channelSummary = "공용 카카오 채널로 알림톡을 보낼 수 있습니다.";
   let channelBadge = alimtalkAvailable ? "연결됨" : "확인 필요";
   let channelStatusLabel: string | undefined;
   let noticeTitle = "알림톡 상태를 확인해 주세요.";
-  let noticeMessage = "학원에서 키를 입력하지 않습니다. 대표·관리자가 운영 담당자에게 상태 확인을 요청해 주세요.";
+  let noticeMessage = "대표·관리자가 알림톡 발송 상태를 확인해 주세요.";
   if (customChannelPending) {
     channelLabel = "채널 준비 중";
     channelSummary = `${info?.custom_channel_reference || "우리 학원 채널"} · ${info?.custom_channel_approved_templates ?? 0}/${info?.custom_channel_required_templates ?? 0} 승인`;
@@ -112,16 +112,14 @@ export default function MessagingSettingsPage() {
           )}
 
           <div className="grid grid-cols-2 gap-2">
-            <KpiStatCard icon={<Settings size={ICON.xs} />} label="공급자" value="공용 솔라피" status="ok" tone="provider" />
-            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="채널" value={channelLabel} status={channelNeedsAttention ? "warn" : alimtalkAvailable ? "ok" : "warn"} statusLabel={channelStatusLabel} tone="sender" />
-            <KpiStatCard icon={<Send size={ICON.xs} />} label="알림톡" value={messagingDisabled ? "운영 중지" : alimtalkAvailable ? "사용 가능" : "확인 필요"} status={alimtalkAvailable ? "ok" : "warn"} statusLabel={messagingDisabled ? "중지" : undefined} tone="kakao" />
-            <KpiStatCard icon={<Lock size={ICON.xs} />} label="발송 정책" value="알림톡 전용" status="ok" tone="sms" />
+            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="보내는 채널" value={channelLabel} status={channelNeedsAttention ? "warn" : alimtalkAvailable ? "ok" : "warn"} statusLabel={channelStatusLabel} tone="sender" />
+            <KpiStatCard icon={<Send size={ICON.xs} />} label="발송 상태" value={messagingDisabled ? "운영 중지" : alimtalkAvailable ? "사용 가능" : "확인 필요"} status={alimtalkAvailable ? "ok" : "warn"} statusLabel={messagingDisabled ? "중지" : undefined} tone="kakao" />
           </div>
 
           <Card>
-            <SectionHeader icon={<Lock size={ICON.sm} />} title="알림톡 채널 정책" desc="학생·학부모 안내는 승인된 카카오 알림톡으로만 발송됩니다." badge="알림톡 전용" />
+            <SectionHeader icon={<Lock size={ICON.sm} />} title="안전하게 보내기" desc="받는 사람과 내용을 확인한 뒤 카카오 알림톡으로 보냅니다." badge="알림톡" />
             <p className={`${styles.mutedText} text-[12px] leading-5`}>
-              공급자, API 키와 발신번호는 서비스가 공용으로 관리합니다. 운영자가 검증한 우리 학원 채널만 전용 채널로 연결하며 과거 직접 연동값은 사용하지 않습니다.
+              발송 전에 받는 사람에게 보일 내용을 확인할 수 있습니다. 보낼 수 있는 양식이 준비되지 않았다면 발송되지 않습니다.
             </p>
           </Card>
 
@@ -184,7 +182,7 @@ function KpiStatCard({ icon, label, value, status, statusLabel, tone }: {
         {status !== "none" && (
           <span className={`${statusClass} text-[10px] font-semibold flex items-center gap-0.5`}>
             {status === "ok" ? <Check size={9} /> : <AlertCircle size={9} />}
-            {statusLabel ?? (status === "ok" ? "연동" : "미설정")}
+            {statusLabel ?? (status === "ok" ? "정상" : "확인 필요")}
           </span>
         )}
       </div>
