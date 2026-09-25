@@ -11,9 +11,11 @@ import { submitPptJob, submitPdfPptJob, pollPptJob, type PptSettings } from "../
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import ImageUploadArea from "../components/ImageUploadArea";
 import PdfUploadArea from "../components/PdfUploadArea";
+import ManualPdfCropper from "../components/ManualPdfCropper";
 import SortableImageGrid, { type ImageItem } from "../components/SortableImageGrid";
 import SlideSettingsPanel from "../components/SlideSettingsPanel";
 import { pptBytesText as formatBytes } from "../pptFileSize";
+import { renderCropFiles, type PdfCropRegion } from "../manualPdfCrop";
 import styles from "./PptGeneratorPage.module.css";
 
 type InputMode = "image" | "pdf";
@@ -78,6 +80,8 @@ export default function PptGeneratorPage() {
   const [mode, setMode] = useState<InputMode>("image");
   const [images, setImages] = useState<ImageItem[]>([]);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfWorkflow, setPdfWorkflow] = useState<"auto" | "manual">("auto");
+  const [manualRegions, setManualRegions] = useState<PdfCropRegion[]>([]);
   const [settings, setSettings] = useState<PptSettings>(DEFAULT_SETTINGS);
   const [sortMode, setSortMode] = useState<SortMode>("nameAsc");
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -88,6 +92,11 @@ export default function PptGeneratorPage() {
   // 모드 전환
   const handleModeChange = useCallback((newMode: InputMode) => {
     setMode(newMode);
+  }, []);
+
+  const handlePdfSelect = useCallback((file: File | null) => {
+    setPdfFile(file);
+    setManualRegions([]);
   }, []);
 
   useEffect(() => {
@@ -195,31 +204,19 @@ export default function PptGeneratorPage() {
     });
   }, [images.length]);
 
-  // PPT 생성 mutation — 이미지 모드
-  const imageGenerateMutation = useMutation({
-    mutationFn: async () => {
-      const files = images.map((i) => i.file);
-      const order = images.map((_, idx) => idx);
-
-      const perSlide = images.map((item) => ({
-        invert: item.invert || settings.invert,
-        grayscale: settings.grayscale,
-        auto_enhance: settings.auto_enhance,
-        brightness: settings.brightness,
-        contrast: settings.contrast,
-      }));
-
+  async function runImageJob(files: File[], perSlide: PptSettings["per_slide"], label: string, uploadBase = 0) {
+      const order = files.map((_, idx) => idx);
       setProgressLabel("파일 업로드 중...");
 
       // Phase 1: Upload and submit job
       const jobResp = await submitPptJob(files, order, { ...settings, per_slide: perSlide }, (pct) => {
-        setProgressPct(Math.round(pct * 0.5));
+        setProgressPct(uploadBase + Math.round(pct * (50 - uploadBase) / 100));
         setProgressLabel(`업로드 중 ${Math.round(pct)}%`);
       });
 
       // Register in workbox for background tracking
       asyncStatusStore.addWorkerJob(
-        `PPT 생성 (${images.length}장)`,
+        label,
         jobResp.job_id,
         "ppt_generation",
         undefined,
@@ -244,6 +241,40 @@ export default function PptGeneratorPage() {
       );
 
       return result;
+  }
+
+  // PPT 생성 mutation — 이미지 모드
+  const imageGenerateMutation = useMutation({
+    mutationFn: async () => runImageJob(
+      images.map((item) => item.file),
+      images.map((item) => ({
+        invert: item.invert || settings.invert,
+        grayscale: settings.grayscale,
+        auto_enhance: settings.auto_enhance,
+        brightness: settings.brightness,
+        contrast: settings.contrast,
+      })),
+      `PPT 생성 (${images.length}장)`,
+    ),
+    onSuccess: handleGenerateSuccess,
+    onError: handleGenerateError,
+  });
+
+  const manualGenerateMutation = useMutation({
+    mutationFn: async () => {
+      if (!pdfFile || !manualRegions.length) throw new Error("먼저 자를 영역을 선택해주세요.");
+      setProgressLabel("선택 영역을 이미지로 만드는 중...");
+      const files = await renderCropFiles(pdfFile, manualRegions, (done, total) => {
+        setProgressPct(Math.round(done / total * 20));
+        setProgressLabel(`선택 영역 준비 중 ${done}/${total}`);
+      });
+      return runImageJob(files, files.map(() => ({
+        invert: settings.invert,
+        grayscale: settings.grayscale,
+        auto_enhance: settings.auto_enhance,
+        brightness: settings.brightness,
+        contrast: settings.contrast,
+      })), `PPT 직접 자르기 (${files.length}장)`, 20);
     },
     onSuccess: handleGenerateSuccess,
     onError: handleGenerateError,
@@ -317,8 +348,8 @@ export default function PptGeneratorPage() {
     feedback.error(getApiErrorMessage(err, "PPT 생성에 실패했습니다."));
   }
 
-  const isGenerating = imageGenerateMutation.isPending || pdfGenerateMutation.isPending;
-  const canGenerate = mode === "image" ? images.length > 0 : pdfFile !== null;
+  const isGenerating = imageGenerateMutation.isPending || pdfGenerateMutation.isPending || manualGenerateMutation.isPending;
+  const canGenerate = mode === "image" ? images.length > 0 : pdfFile !== null && (pdfWorkflow === "auto" || manualRegions.length > 0);
   const previewItem = images[previewIndex];
   const previewFilter = buildPreviewFilter(previewItem, settings);
   const previewWindow = useMemo(() => {
@@ -333,6 +364,8 @@ export default function PptGeneratorPage() {
   const handleGenerate = () => {
     if (mode === "image") {
       imageGenerateMutation.mutate();
+    } else if (pdfWorkflow === "manual") {
+      manualGenerateMutation.mutate();
     } else {
       pdfGenerateMutation.mutate();
     }
@@ -410,15 +443,23 @@ export default function PptGeneratorPage() {
           <>
             <PdfUploadArea
               file={pdfFile}
-              onFileSelect={setPdfFile}
+              onFileSelect={handlePdfSelect}
               disabled={isGenerating}
             />
             {pdfFile && (
-              <div className={styles.pdfInfoCard}>
-                <div className={styles.pdfInfoText}>
-                  PDF의 문항을 자동으로 분리해 슬라이드로 변환합니다. 텍스트가 어려우면 이미지 기반으로 한 번 더 찾습니다.
+              <>
+                <div className={styles.pdfWorkflowTabs} role="group" aria-label="PDF 분할 방법">
+                  <button type="button" aria-pressed={pdfWorkflow === "auto"} onClick={() => setPdfWorkflow("auto")} disabled={isGenerating}>자동 문항 분리</button>
+                  <button type="button" aria-pressed={pdfWorkflow === "manual"} onClick={() => setPdfWorkflow("manual")} disabled={isGenerating}>직접 자르기</button>
                 </div>
-              </div>
+                {pdfWorkflow === "auto" ? (
+                  <div className={styles.pdfInfoCard}>
+                    <div className={styles.pdfInfoText}>
+                      문항을 자동으로 찾아 PPT를 만듭니다. 결과가 빠지거나 잘못 잘렸다면 직접 자르기로 같은 PDF를 다시 만들 수 있습니다.
+                    </div>
+                  </div>
+                ) : <ManualPdfCropper file={pdfFile} regions={manualRegions} onChange={setManualRegions} disabled={isGenerating} />}
+              </>
             )}
           </>
         )}

@@ -48,6 +48,36 @@
   background: var(--bg-surface);
 }
 
+.pdfWorkflowTabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.pdfWorkflowTabs button {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.pdfWorkflowTabs button[aria-pressed="true"] {
+  border-color: var(--color-primary, #2563eb);
+  background: var(--color-primary-soft, #eaf1ff);
+  font-weight: 700;
+}
+
+.pdfWorkflowTabs button:hover:not(:disabled) { transform: translateY(-1px); }
+.pdfWorkflowTabs button:disabled { cursor: not-allowed; opacity: .5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pdfWorkflowTabs button { transition: none; }
+}
+
 .pdfInfoText {
   color: var(--color-text-secondary);
   font-size: 13px;
