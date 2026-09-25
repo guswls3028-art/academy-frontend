@@ -229,6 +229,9 @@ test("전체 미통과는 학생별 항목을 한 줄 레일로 유지하고 같
   await page.setViewportSize({ width: 1366, height: 850 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
 
+  await expect(page).toHaveURL(/\/workspace\/clinic\/operations\?panel=unresolved/);
+  await expect(page.getByRole("navigation", { name: "클리닉 운영 화면" })
+    .getByRole("button", { name: "미통과 처리 · 전체 기간" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("heading", { name: "전체 미통과 정리", exact: true })).toBeVisible();
   await expect(page.getByText("날짜와 상관없이 아직 해결되지 않은 시험·과제입니다.", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "오늘 클리닉 학생 보기", exact: true }))

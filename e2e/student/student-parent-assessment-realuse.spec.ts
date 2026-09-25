@@ -609,11 +609,12 @@ async function verifyScoreMessageTemplate(
     // This family fixture has parent phones only. Verify the normal authorized recipient journey.
     await send.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
     await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
-    await send.getByRole("button", { name: /문구 변경|문구 선택/, exact: true }).click();
+    await send.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
     await picker.getByRole("button", { name: new RegExp(templateName) }).click();
-    await expect(picker.getByLabel("카카오톡 실제 발송 미리보기"))
-      .toContainText(`학생 ${student.name} 점수 60 확인 완료`);
+    await expect(picker.getByLabel("선택할 안내문 내용"))
+      .toContainText("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
+    await expect(picker.getByLabel("카카오톡 실제 발송 미리보기")).toHaveCount(0);
     // Start the response timer at the action that selects this non-default template.
     const preflightResponse = page.waitForResponse((response) => {
       if (response.request().method() !== "POST"
@@ -627,9 +628,10 @@ async function verifyScoreMessageTemplate(
         && payload.alimtalk_extra_vars_per_student?.[String(student.id)]?._body_subst
           === `학생 ${student.name} 점수 60 확인 완료`;
     });
-    await picker.getByRole("button", { name: "이 문구로 작성하기", exact: true }).click();
+    await picker.getByRole("button", { name: "이 안내문 적용", exact: true }).click();
     await expect(picker).toBeHidden();
-    await expect(send.locator(".send-modal__card--preview")).toContainText(student.name);
+    await expect(send.getByLabel("현재 학생의 실제 발송 문구"))
+      .toContainText(`학생 ${student.name} 점수 60 확인 완료`);
     const checkedResponse = await preflightResponse;
     expect(checkedResponse.status()).toBe(200);
     const checked = await checkedResponse.json() as SendPreflightResponse;

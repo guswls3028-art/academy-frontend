@@ -29,7 +29,7 @@ export default function ExamTabs({ activeTab, onChange, mode = "design" }: Props
   const effectiveTab = mode === "operate" && activeTab === "assets" ? "setup" : activeTab;
   return (
     <nav
-      className="assessment-workflow-tabs"
+      className="assessment-workflow-tabs assessment-workflow-tabs--exam"
       aria-label={mode === "operate" ? "시험 업무 흐름" : "시험 구성 단계"}
     >
       <span className="assessment-workflow-tabs__label">

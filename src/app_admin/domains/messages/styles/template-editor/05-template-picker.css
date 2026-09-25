@@ -579,3 +579,10 @@
     width: 100%;
   }
 }
+
+@media (max-width: 640px) {
+  .tpl-picker-modal .modal-footer__actions:has(> :nth-child(2):last-child) > :first-child,
+  .tpl-picker-modal .modal-footer__actions:has(> :nth-child(2):last-child) > :last-child {
+    flex: 1 1 0;
+  }
+}

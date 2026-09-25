@@ -211,6 +211,7 @@ export default function TemplatePickerModal({
 
   const blockLabel = TEMPLATE_CATEGORY_LABELS[blockCategory] ?? "사용자";
   const totalMatched = grouped.presets.length + grouped.my.length + grouped.sys.length;
+  const isGradeNotice = blockCategory === "grades";
 
   // ─── 카드 ───
   const renderCard = (t: MessageTemplateItem) => {
@@ -299,7 +300,7 @@ export default function TemplatePickerModal({
           <div className="tpl-picker__card-title-row">
             <Tag size={ICON.xs} className="tpl-picker__icon-primary" />
             <span className="tpl-picker__card-name">{preset.name}</span>
-            <Badge tone="primary" size="xs">기본 제공</Badge>
+            <Badge tone="primary" size="xs">{isGradeNotice ? "작성 예시" : "기본 제공"}</Badge>
             {preset.recommended && <Badge tone="success" size="xs">추천</Badge>}
             {isSelected && <Badge tone="info" size="xs">현재 적용</Badge>}
           </div>
@@ -322,11 +323,13 @@ export default function TemplatePickerModal({
         noIcon
         title={
           <div className="tpl-picker__title">
-            <span>문구 선택</span>
+            <span>{isGradeNotice ? "성적 안내문 선택" : "문구 선택"}</span>
             <Badge tone="primary" size="sm">{blockLabel}</Badge>
           </div>
         }
-        description="저장한 내 문구는 어느 공지 유형에서도 다시 쓸 수 있습니다. 발송 유형에 맞는 승인 알림톡 봉투는 별도로 유지됩니다."
+        description={isGradeNotice
+          ? "여기서는 성적 알림톡에 넣을 안내문만 고릅니다. 카카오 승인 형식과 학생별 성적을 포함한 실제 문구는 작성 화면에서 확인하세요."
+          : "보낼 내용을 선택하거나 직접 작성하세요. 발송 전에는 받는 사람에게 보일 내용을 미리 확인할 수 있습니다."}
       />
 
       <ModalBody>
@@ -375,14 +378,14 @@ export default function TemplatePickerModal({
 
               {grouped.my.length > 0 && (
                 <>
-                  <div className="tpl-picker__group-label">내 문구 · {grouped.my.length}</div>
+                  <div className="tpl-picker__group-label">{isGradeNotice ? "저장한 안내문" : "내 문구"} · {grouped.my.length}</div>
                   {grouped.my.map(renderCard)}
                 </>
               )}
 
               {grouped.presets.length > 0 && (
                 <details className="tpl-picker__provided" open={grouped.my.length === 0 || Boolean(search) || Boolean(previewPreset)}>
-                  <summary className="tpl-picker__group-label">새 양식으로 시작 · {grouped.presets.length}</summary>
+                  <summary className="tpl-picker__group-label">{isGradeNotice ? "작성 예시" : "새 양식으로 시작"} · {grouped.presets.length}</summary>
                   {grouped.presets.map(renderPresetCard)}
                 </details>
               )}
@@ -412,7 +415,9 @@ export default function TemplatePickerModal({
               <>
                 <div className="tpl-picker__preview-header">
                   <p className="tpl-picker__preview-context">
-                    문구 배치 예시 · 실제 수신자별 전체 문구는 발송 화면에서 확인합니다
+                    {isGradeNotice
+                      ? "이 안내문만 편집창에 적용됩니다. 실제 발송 문구는 작성 화면에서 확인하세요."
+                      : "문구 배치 예시 · 실제 수신자별 전체 문구는 발송 화면에서 확인합니다"}
                   </p>
                   <div className="tpl-picker__preview-title-row">
                     {previewTpl && isSystemTpl(previewTpl) && <Shield size={ICON.sm} className="tpl-picker__icon-sys" />}
@@ -425,7 +430,7 @@ export default function TemplatePickerModal({
                         ? (TEMPLATE_CATEGORY_LABELS[previewTpl.category as TemplateCategory] ?? previewTpl.category)
                         : (TEMPLATE_CATEGORY_LABELS[previewPreset!.category] ?? previewPreset!.category)}
                     </span>
-                    {previewPreset && <Badge tone="primary" size="xs">기본 제공</Badge>}
+                    {previewPreset && <Badge tone="primary" size="xs">{isGradeNotice ? "작성 예시" : "기본 제공"}</Badge>}
                     {previewPreset?.recommended && <Badge tone="success" size="xs">추천</Badge>}
                     {previewTpl?.alimtalk_readiness === "ready" && <Badge tone="success" size="xs">알림톡 준비됨</Badge>}
                     {previewTpl?.alimtalk_readiness === "provider_template_missing" && <Badge tone="warning" size="xs">발송 준비 필요</Badge>}
@@ -433,9 +438,15 @@ export default function TemplatePickerModal({
                   </div>
                 </div>
 
-                <KakaoAlimtalkPreview channelLabel={previewChannelLabel} subject={previewTpl?.subject} className="tpl-picker__preview-chat">
-                  {previewBody}
-                </KakaoAlimtalkPreview>
+                {isGradeNotice ? (
+                  <div className="tpl-picker__preview-card" aria-label="선택할 안내문 내용">
+                    {previewSourceBody}
+                  </div>
+                ) : (
+                  <KakaoAlimtalkPreview channelLabel={previewChannelLabel} subject={previewTpl?.subject} className="tpl-picker__preview-chat">
+                    {previewBody}
+                  </KakaoAlimtalkPreview>
+                )}
 
                 <div className="tpl-picker__preview-actions">
                   <Button
@@ -445,7 +456,7 @@ export default function TemplatePickerModal({
                     className="tpl-picker__apply-btn"
                   >
                     <Check size={ICON.sm} className="tpl-picker__apply-icon" />
-                    이 문구로 작성하기
+                    {isGradeNotice ? "이 안내문 적용" : "이 문구로 작성하기"}
                   </Button>
                 </div>
               </>
@@ -465,7 +476,7 @@ export default function TemplatePickerModal({
         right={
           <>
             {(previewTpl || previewPreset) && (
-              <Button intent="primary" onClick={applyPreview} size="lg" className="tpl-picker__mobile-apply" aria-label="이 문구로 작성하기">문구 적용</Button>
+              <Button intent="primary" onClick={applyPreview} size="lg" className="tpl-picker__mobile-apply" aria-label={isGradeNotice ? "이 안내문 적용" : "이 문구로 작성하기"}>{isGradeNotice ? "안내문 적용" : "문구 적용"}</Button>
             )}
             <Button intent="secondary" onClick={onClose} size="lg">닫기</Button>
           </>

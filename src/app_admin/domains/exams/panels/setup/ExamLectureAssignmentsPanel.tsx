@@ -19,6 +19,7 @@ import {
 import { adminExamsQueryKeys } from "../../queryKeys";
 import styles from "./ExamLectureAssignmentsPanel.module.css";
 
+type QueuedLink = { lectureId: number; sessionId: number; passScore: number; label: string };
 
 export default function ExamLectureAssignmentsPanel({
   examId,
@@ -30,8 +31,9 @@ export default function ExamLectureAssignmentsPanel({
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [lectureId, setLectureId] = useState<number | null>(null);
-  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<number[]>([]);
   const [passScore, setPassScore] = useState(0);
+  const [pendingLinks, setPendingLinks] = useState<QueuedLink[]>([]);
 
   const assignmentsQuery = useQuery({
     queryKey: adminExamsQueryKeys.examLectureAssignments(examId),
@@ -56,31 +58,71 @@ export default function ExamLectureAssignmentsPanel({
     [assignmentsQuery.data?.assignments],
   );
   const availableSessions = useMemo(
-    () => (sessionsQuery.data ?? []).filter((session) => !existingSessionIds.has(session.id)),
-    [existingSessionIds, sessionsQuery.data],
+    () => lectureId == null ? [] : (sessionsQuery.data ?? []).filter((session) =>
+      !existingSessionIds.has(session.id) && !pendingLinks.some((link) => link.sessionId === session.id)),
+    [existingSessionIds, lectureId, pendingLinks, sessionsQuery.data],
   );
 
   useEffect(() => {
-    setSessionId(availableSessions[0]?.id ?? null);
+    const availableIds = new Set(availableSessions.map((session) => session.id));
+    setSelectedSessionIds((current) => current.filter((id) => availableIds.has(id)));
   }, [availableSessions]);
 
+  const currentLinks = lectureId == null ? [] : selectedSessionIds.map((sessionId): QueuedLink => {
+    const session = availableSessions.find((item) => item.id === sessionId);
+    const lecture = lecturesQuery.data?.find((item) => item.id === lectureId);
+    return {
+      lectureId,
+      sessionId,
+      passScore,
+      label: `${lecture?.title ?? "강의"} · ${session?.display_label ?? `${session?.order ?? "?"}차시`}`,
+    };
+  });
+  const linksToAttach = [...pendingLinks, ...currentLinks];
+  const validCurrentScore = Number.isFinite(passScore) && passScore >= 0 && passScore <= maxScore;
+  const canAttach = linksToAttach.length > 0 && (selectedSessionIds.length === 0 || validCurrentScore);
+
+  const queueCurrentLinks = () => {
+    if (!validCurrentScore || currentLinks.length === 0) return;
+    setPendingLinks((current) => [...current, ...currentLinks]);
+    setSelectedSessionIds([]);
+    setLectureId(null);
+    setPassScore(assignmentsQuery.data?.default_pass_score ?? 0);
+  };
+
   const attachMutation = useMutation({
-    mutationFn: () => attachExamSession(examId, {
-      session_id: sessionId!,
-      pass_score: passScore,
-    }),
-    onSuccess: async () => {
+    mutationFn: async () => {
+      const completed: QueuedLink[] = [];
+      const failed: QueuedLink[] = [];
+      let lastError: unknown;
+      for (const link of linksToAttach) {
+        try {
+          await attachExamSession(examId, { session_id: link.sessionId, pass_score: link.passScore });
+          completed.push(link);
+        } catch (error) {
+          failed.push(link);
+          lastError = error;
+        }
+      }
+      return { completed, failed, lastError };
+    },
+    onSuccess: async ({ completed, failed, lastError }) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.examLectureAssignments(examId) }),
         queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
         queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.examEnrollmentRoot(examId) }),
       ]);
-      feedback.success("강의를 연결하고 현재 활성 명단을 시험 대상에 합쳤습니다.");
+      if (failed.length > 0) {
+        setPendingLinks(failed);
+        setSelectedSessionIds([]);
+        setLectureId(null);
+        feedback.error(`${completed.length}개 차시 연결 완료, ${failed.length}개 실패. ${extractApiError(lastError, "실패한 차시를 다시 시도해 주세요.")}`);
+        return;
+      }
+      feedback.success(`${completed.length}개 차시를 연결하고 현재 활성 명단을 시험 대상에 합쳤습니다.`);
+      setPendingLinks([]);
       setOpen(false);
     },
-    onError: (error) => feedback.error(
-      extractApiError(error, "강의를 연결하지 못했습니다."),
-    ),
   });
 
   const openAddModal = () => {
@@ -89,7 +131,8 @@ export default function ExamLectureAssignmentsPanel({
       (assignment) => assignment.lecture_id === firstLectureId,
     );
     setLectureId(firstLectureId);
-    setSessionId(null);
+    setSelectedSessionIds([]);
+    setPendingLinks([]);
     setPassScore(
       firstAssignment?.pass_score
         ?? assignmentsQuery.data?.default_pass_score
@@ -153,12 +196,12 @@ export default function ExamLectureAssignmentsPanel({
         onClose={() => setOpen(false)}
         closeDisabled={attachMutation.isPending}
         onEnterConfirm={() => {
-          if (sessionId != null && !attachMutation.isPending) attachMutation.mutate();
+          if (canAttach && !attachMutation.isPending) attachMutation.mutate();
         }}
       >
         <ModalHeader
           title="이 시험에 강의 추가"
-          description="강의의 실제 시험 차시를 고르면 활성 수강생이 시험 대상에 자동으로 합쳐집니다."
+          description="강의를 고른 뒤 시험 차시를 여러 개 선택할 수 있습니다. 연결하면 활성 수강생이 시험 대상에 합쳐집니다."
         />
         <ModalBody>
           <div className={styles.formGrid}>
@@ -166,12 +209,14 @@ export default function ExamLectureAssignmentsPanel({
               <span>강의</span>
               <select
                 value={lectureId ?? ""}
+                disabled={lecturesQuery.isLoading || lecturesQuery.isError}
                 onChange={(event) => {
                   const nextLectureId = Number(event.target.value) || null;
                   const existingAssignment = assignmentsQuery.data?.assignments.find(
                     (assignment) => assignment.lecture_id === nextLectureId,
                   );
                   setLectureId(nextLectureId);
+                  setSelectedSessionIds([]);
                   setPassScore(
                     existingAssignment?.pass_score
                       ?? assignmentsQuery.data?.default_pass_score
@@ -184,25 +229,50 @@ export default function ExamLectureAssignmentsPanel({
                   <option key={lecture.id} value={lecture.id}>{lecture.title}</option>
                 ))}
               </select>
+              {lecturesQuery.isLoading && <small role="status">강의 목록을 불러오는 중입니다.</small>}
+              {lecturesQuery.isError && <Button type="button" intent="secondary" size="sm" onClick={() => void lecturesQuery.refetch()}>강의 다시 불러오기</Button>}
             </label>
-            <label>
-              <span>시험 차시</span>
-              <select
-                value={sessionId ?? ""}
-                disabled={lectureId == null || sessionsQuery.isLoading}
-                onChange={(event) => setSessionId(Number(event.target.value) || null)}
-              >
-                <option value="">차시를 선택하세요</option>
-                {availableSessions.map((session) => (
-                  <option key={session.id} value={session.id}>
-                    {session.display_label ?? `${session.order}차시`} · {session.title}
-                  </option>
-                ))}
-              </select>
+            <div className={styles.sessionSelect} role="group" aria-label="시험 차시 선택">
+              <div className={styles.sessionSelectHeader}>
+                <strong>시험 차시 <small>{selectedSessionIds.length}개 선택</small></strong>
+                {availableSessions.length > 1 && (
+                  <Button type="button" intent="ghost" size="sm" onClick={() => setSelectedSessionIds(
+                    selectedSessionIds.length === availableSessions.length ? [] : availableSessions.map((session) => session.id)
+                  )}>
+                    {selectedSessionIds.length === availableSessions.length ? "전체 해제" : "전체 선택"}
+                  </Button>
+                )}
+              </div>
+              {sessionsQuery.isLoading && <small role="status">차시를 불러오는 중입니다.</small>}
+              {sessionsQuery.isError && <Button type="button" intent="secondary" size="sm" onClick={() => void sessionsQuery.refetch()}>차시 다시 불러오기</Button>}
+              {availableSessions.map((session) => (
+                <label key={session.id} className={styles.sessionOption}>
+                  <input type="checkbox" checked={selectedSessionIds.includes(session.id)} onChange={() => setSelectedSessionIds((current) =>
+                    current.includes(session.id) ? current.filter((id) => id !== session.id) : [...current, session.id]
+                  )} />
+                  <span>{session.display_label ?? `${session.order}차시`} · {session.title}</span>
+                </label>
+              ))}
               {lectureId != null && !sessionsQuery.isLoading && availableSessions.length === 0 && (
                 <small>추가할 수 있는 미연결 차시가 없습니다.</small>
               )}
-            </label>
+            </div>
+            {currentLinks.length > 0 && (
+              <Button type="button" intent="secondary" size="sm" disabled={!validCurrentScore} onClick={queueCurrentLinks}>
+                선택한 차시 담고 다른 강의 고르기
+              </Button>
+            )}
+            {pendingLinks.length > 0 && (
+              <div className={styles.queue} role="list" aria-label="연결 예정 차시">
+                <strong>연결 예정 · {pendingLinks.length}개 차시</strong>
+                {pendingLinks.map((link) => (
+                  <div key={link.sessionId} role="listitem">
+                    <span>{link.label} · 귀가 기준 {link.passScore}점</span>
+                    <Button type="button" intent="ghost" size="sm" onClick={() => setPendingLinks((current) => current.filter((item) => item.sessionId !== link.sessionId))}>제외</Button>
+                  </div>
+                ))}
+              </div>
+            )}
             <label>
               <span>이 강의 귀가 기준</span>
               <div className={styles.scoreInput}>
@@ -228,10 +298,10 @@ export default function ExamLectureAssignmentsPanel({
                 type="button"
                 intent="primary"
                 loading={attachMutation.isPending}
-                disabled={sessionId == null || !Number.isFinite(passScore) || passScore < 0 || passScore > maxScore}
+                disabled={!canAttach}
                 onClick={() => attachMutation.mutate()}
               >
-                강의 연결
+                {linksToAttach.length}개 차시 연결
               </Button>
             </>
           )}

@@ -218,7 +218,88 @@ details[open] > .clinic-tree__summary {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  max-width: 720px;
+  max-width: 980px;
+}
+
+.clinic-home__overview {
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+}
+
+.clinic-home__overview-heading {
+  padding: 18px 20px 14px;
+}
+
+.clinic-home__overview-heading h2,
+.clinic-home__overview-heading p {
+  margin: 0;
+}
+
+.clinic-home__overview-heading h2 {
+  color: var(--color-text-primary);
+  font-size: 18px;
+  letter-spacing: -0.025em;
+}
+
+.clinic-home__overview-heading p {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.clinic-home__quick-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.clinic-home__quick-links button {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 14px 18px;
+  border: 0;
+  border-right: 1px solid var(--color-border-divider);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.clinic-home__quick-links button:last-child { border-right: 0; }
+.clinic-home__quick-links button:hover { background: var(--color-bg-surface-soft); }
+.clinic-home__quick-links button:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+}
+
+.clinic-home__quick-links strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.clinic-home__quick-links span {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
+@media (max-width: 600px) {
+  .clinic-home__quick-links { grid-template-columns: 1fr; }
+  .clinic-home__quick-links button {
+    min-height: 62px;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border-divider);
+  }
+  .clinic-home__quick-links button:last-child { border-bottom: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clinic-home__quick-links button { transition: none; }
 }
 
 /* ── 액션바 ── */

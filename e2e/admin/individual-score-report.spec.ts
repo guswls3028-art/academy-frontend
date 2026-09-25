@@ -13,6 +13,10 @@ const DENSE_EXAM_TITLE = "매우 긴 한국어 시험 제목으로 줄바꿈과 
 
 type InstallApiOptions = {
   denseReport?: boolean;
+  omrIssue?: boolean;
+  omrIssueEnrollmentId?: number;
+  omrIssueQueryFailure?: boolean;
+  omrIssueQueryPartial?: boolean;
   primaryColor?: string;
   scoreRowCount?: number;
 };
@@ -333,6 +337,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       ? denseScoreRows()
       : scoreRows;
   let studentGradesRequestCount = 0;
+  let omrIssueResolved = false;
 
   await page.route("**/version.json?*", async (route) => {
     await route.fulfill({ status: 404, contentType: "text/plain", body: "" });
@@ -443,6 +448,36 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       });
       return;
     }
+    if (pathname.endsWith("/submissions/submissions/exams/3101/")) {
+      const issue = {
+        id: 9001, enrollment_id: options.omrIssueEnrollmentId ?? 0,
+        student_name: options.omrIssueEnrollmentId ? "다른 학생" : "", status: "needs_identification",
+        source: "OMR_SCAN", score: null, created_at: "2026-07-28T10:00:00+09:00",
+        file_key: "scan.jpg", has_file: true, manual_review_required: true,
+        manual_review_reasons: ["IDENTIFIER_INCOMPLETE"], identifier_status: "no_match",
+      };
+      if (url.searchParams.get("review_issues") === "1") {
+        if (options.omrIssueQueryFailure) {
+          await route.fulfill({ status: 503, headers: corsHeaders, contentType: "application/json", json: { detail: "unavailable" } });
+          return;
+        }
+        const selectedIds = url.searchParams.get("enrollment_ids")?.split(",").map(Number) ?? [];
+        const selected = options.omrIssue && !omrIssueResolved && (
+          !url.searchParams.has("enrollment_ids")
+          || (issue.enrollment_id === 0 && url.searchParams.get("include_unbound") !== "0")
+          || selectedIds.includes(issue.enrollment_id)
+        );
+        if (options.omrIssueQueryPartial) {
+          await fulfill({ items: [], total: 1, next_cursor: null });
+          return;
+        }
+        await fulfill({ items: selected ? [issue] : [], total: selected ? 1 : 0, next_cursor: null });
+      } else {
+        // 최신 200건에 없는 오래된 식별 실패를 재현한다.
+        await fulfill([]);
+      }
+      return;
+    }
     if (pathname.endsWith("/results/admin/student-grades/")) {
       studentGradesRequestCount += 1;
       const studentId = Number(url.searchParams.get("student_id"));
@@ -470,10 +505,95 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 
   return {
     getStudentGradesRequestCount: () => studentGradesRequestCount,
+    resolveOmrIssue: () => { omrIssueResolved = true; },
   };
 }
 
 test.describe("개인 성적표", () => {
+  test("최신 성적 재조회가 실패하면 오래된 성적표를 열지 않는다", async ({ page }) => {
+    await installApi(page);
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    const reportButton = page.getByRole("button", { name: "개인 성적표", exact: true });
+    await expect(reportButton).toBeVisible({ timeout: 30_000 });
+    await page.route((url) => url.pathname.endsWith(`/results/admin/sessions/${SESSION_ID}/scores/`), async (route) => {
+      await route.fulfill({ status: 500, contentType: "application/json", body: "{}" });
+    });
+    await reportButton.click();
+    await expect(page.getByText("최신 성적을 불러오지 못했습니다. 다시 시도해 주세요.")).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("최신 200건 밖의 식별 실패 OMR을 출력 전에 드러내고 검토 화면으로 안내한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installApi(page, { omrIssue: true });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "commit", timeout: 30_000 });
+    await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("alert")).toContainText("OMR 1건을 먼저 확인해 주세요.");
+    await expect(dialog.getByRole("alert")).toContainText("미식별 스캔 #9001");
+    await expect(dialog.getByRole("button", { name: "개인 성적표 PDF" })).toBeDisabled();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await dialog.getByRole("button", { name: "시험 OMR 검토로 이동" }).click();
+    await expect(page).toHaveURL(/exams\?examId=3101/);
+    await expect(page).toHaveURL(/reviewSubmissionId=9001/);
+  });
+
+  test("미해결 OMR 조회 실패 시 출력이 잠기고 다시 확인할 수 있다", async ({ page }) => {
+    await installApi(page, { omrIssueQueryFailure: true });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("alert")).toContainText("OMR 검토 현황을 불러오지 못했습니다.");
+    await expect(dialog.getByRole("button", { name: "개인 성적표 PDF" })).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: "다시 확인" })).toBeVisible();
+  });
+
+  test("미해결 OMR 목록이 일부만 오면 정상으로 간주하지 않는다", async ({ page }) => {
+    await installApi(page, { omrIssueQueryPartial: true });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "commit", timeout: 30_000 });
+    await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("alert")).toContainText("OMR 검토 현황을 불러오지 못했습니다.");
+    await expect(dialog.getByRole("button", { name: "개인 성적표 PDF" })).toBeDisabled();
+  });
+
+  test("미식별 답안을 처리한 뒤 다시 열면 성적표 출력을 복구한다", async ({ page }) => {
+    const api = await installApi(page, { omrIssue: true });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "commit", timeout: 30_000 });
+    await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("button", { name: "개인 성적표 PDF" })).toBeDisabled();
+    api.resolveOmrIssue();
+    await page.reload({ waitUntil: "commit", timeout: 30_000 });
+    await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
+    await expect(page.getByRole("dialog").getByRole("button", { name: "개인 성적표 PDF" })).toBeEnabled();
+  });
+
+  test("다른 학생의 OMR 검토 건은 선택한 학생의 성적표를 막지 않는다", async ({ page }) => {
+    await installApi(page, { omrIssue: true, omrIssueEnrollmentId: 9102 });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("button", { name: "개인 성적표 PDF" })).toBeEnabled();
+    await expect(dialog.getByText("OMR 1건을 먼저 확인해 주세요.")).toHaveCount(0);
+  });
+
   test("학생 전환, 1·2쪽 미리보기, 단일·다중 PDF 다운로드", async ({ page }, testInfo) => {
     test.setTimeout(180_000);
     await page.setViewportSize({ width: 1366, height: 900 });
@@ -481,9 +601,8 @@ test.describe("개인 성적표", () => {
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
-    await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
-    await page.getByRole("button", { name: "성적 도구" }).click();
-    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
+    await expect(page.getByRole("button", { name: "개인 성적표", exact: true })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("개인 성적표", { exact: true })).toBeVisible();

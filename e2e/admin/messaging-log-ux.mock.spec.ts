@@ -200,7 +200,7 @@ test.describe("알림톡 발송 기록 UX", () => {
 
     const operationsSummary = page.getByRole("region", { name: "알림톡 운영 요약" });
     await expect(operationsSummary).toContainText("1 진행 중");
-    await expect(operationsSummary).toContainText("1 미확정 전체");
+    await expect(operationsSummary).toContainText("1 결과 확인 필요");
     await expect(operationsSummary).toContainText("1 실패");
     const logRegion = page.getByRole("region", { name: "알림톡 발송 기록" });
     await expect(logRegion.getByText("접수 완료", { exact: true })).toBeVisible();
@@ -214,7 +214,7 @@ test.describe("알림톡 발송 기록 UX", () => {
     await expect(dialog.getByRole("region", { name: "카카오 알림톡 미리보기" })).toBeVisible();
     await expect(dialog.getByText("우리 학원 알림톡", { exact: true })).toBeVisible();
     await expect(dialog.getByText(/보안을 위해 본문을 저장하지 않았습니다/)).toBeVisible();
-    await expect(dialog.getByText("공급사 접수 기록 있음", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("발송 접수 기록 있음", { exact: true })).toBeVisible();
     await expect(dialog.getByText(/group-provider-A12345/)).toBeVisible();
     expect(detailRequests).toContain(901);
   });
@@ -261,9 +261,12 @@ test.describe("알림톡 발송 기록 UX", () => {
     await expect(card).toBeVisible({ timeout: 60_000 });
     await expect(card.getByText("카카오 알림톡", { exact: true })).toBeVisible();
     await expect(card.getByText("정상", { exact: true })).toBeVisible();
-    await expect(card.getByText(/자동 안내별 준비 상태는 메시지 설정에서 확인/)).toBeVisible();
+    await expect(card.getByText(/보낼 내용을 미리 확인하고, 결과는 발송 내역에서 확인/)).toBeVisible();
     await expect(card.getByRole("button", { name: "발송 내역" })).toBeVisible();
-    await expect(card.getByRole("button", { name: "메시지 설정" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "알림톡 보내기" })).toBeVisible();
+    await card.getByRole("button", { name: "알림톡 보내기" }).click();
+    await expect(page).toHaveURL(/\/workspace\/students\/home\?compose=alimtalk$/);
+    await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "commit", timeout: 60_000 });
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(card).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);

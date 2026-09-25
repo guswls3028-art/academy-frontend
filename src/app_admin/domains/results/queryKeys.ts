@@ -44,6 +44,11 @@ export const adminResultsQueryKeys = {
     ["wrong-note-document", jobId] as const,
 
   omrReviewList: (examId: number) => ["omr-review-list", examId] as const,
+  omrReviewIssues: (examId: number) => ["omr-review-issues", examId] as const,
+  omrReviewIssuesPages: (examId: number) => ["omr-review-issues", examId, "pages"] as const,
+  omrReviewIssuesSummary: (examId: number) => ["omr-review-issues", examId, "summary"] as const,
+  omrReviewIssuesFocus: (examId: number, submissionId: number | undefined) =>
+    ["omr-review-issues", examId, "focus", submissionId] as const,
   omrReviewDetail: (submissionId: number | null | undefined) => ["omr-review-detail", submissionId] as const,
   omrCandidates: (queryKeyId: string, query: string) => ["omr-candidates", queryKeyId, query] as const,
 

@@ -176,7 +176,7 @@ async function openExam(page: Page, state: MockState) {
     { waitUntil: "domcontentloaded", timeout: 45_000 },
   );
   await waitForRenderSettled(page, { timeout: 30_000 });
-  await expect(page.getByText("시험 운영 준비", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible({ timeout: 30_000 });
   const settings = page.locator("#assessment-policy > details");
   await expect(settings).not.toHaveAttribute("open", "");
   await expect(settings.locator(":scope > summary")).toContainText("설정 변경");
@@ -219,9 +219,12 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await page.setViewportSize({ width: 1366, height: 900 });
   await openExam(page, state);
 
-  await expect(page.getByText("시험 운영 준비", { exact: true })).toBeVisible();
-  await expect(page.getByText("준비 완료", { exact: true })).toBeVisible();
+  await expect(page.getByText("시험 운영 준비 완료", { exact: true })).toBeVisible();
+  const readiness = page.locator('details[aria-label="시험 운영 준비"]');
+  await expect(readiness).not.toHaveAttribute("open", "");
+  await readiness.locator("summary").click();
   await expect(page.getByRole("button", { name: /대상 학생: 2명 등록/ })).toBeVisible();
+  await readiness.locator("summary").click();
   await expect(page.getByText("시험 운영 설정", { exact: true })).toBeVisible();
   await expect(page.getByLabel("학생 성적 공개")).toBeChecked();
   await page.getByTestId("student-results-visibility-control").screenshot({
@@ -296,7 +299,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await expect(page.getByLabel("최대 응시 횟수")).toHaveValue("3");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByText("시험 운영 준비", { exact: true })).toBeVisible();
+  await expect(page.getByText("시험 운영 준비 완료", { exact: true })).toBeVisible();
   await expect(page.getByText("시험 운영 설정", { exact: true })).toBeVisible();
   if (await page.locator("#assessment-policy > details").getAttribute("open") === null) {
     await page.locator("#assessment-policy > details > summary").click();

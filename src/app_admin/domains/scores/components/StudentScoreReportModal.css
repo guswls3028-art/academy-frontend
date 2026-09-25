@@ -199,6 +199,17 @@
   transform-origin: top left;
 }
 
+@media (min-width: 1200px) {
+  .student-score-report-preview__paper {
+    width: 635px;
+    height: var(--score-report-preview-height-80, 1822px);
+  }
+
+  .student-score-report-preview__iframe {
+    transform: scale(0.8);
+  }
+}
+
 .student-score-report-preview__empty {
   display: flex;
   flex: 1;

@@ -74,6 +74,8 @@ type Props = {
   examTitle: string;
   scoreSessionId?: number;
   readOnly?: boolean;
+  onReviewOmr?: (submissionId: number) => void;
+  onEditManualAnswers?: () => void;
   onClose: () => void;
 };
 
@@ -102,7 +104,7 @@ function questionKindFromNumber(
   return null;
 }
 
-export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, scoreSessionId, readOnly = false, onClose }: Props) {
+export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, scoreSessionId, readOnly = false, onReviewOmr, onEditManualAnswers, onClose }: Props) {
   const qc = useQueryClient();
   const tenantLabels = useTenantLabels();
   const wrongCompletionOnly = useWrongCompletionDisplay();
@@ -338,6 +340,16 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                 >
                   {detail.grading_status === "subjective_pending" ? "서술형 입력 필요" : "임시 점수"}
                 </Badge>
+              )}
+              {onReviewOmr && detail?.submission_id && (
+                <Button type="button" intent="secondary" size="sm" onClick={() => onReviewOmr(detail.submission_id!)}>
+                  OMR 답안 검토·수정
+                </Button>
+              )}
+              {onEditManualAnswers && detail?.manual_answer_entry && (
+                <Button type="button" intent="secondary" size="sm" onClick={onEditManualAnswers}>
+                  오프라인 답안 수정
+                </Button>
               )}
             </div>
             {/* 편집 모드 표시 */}

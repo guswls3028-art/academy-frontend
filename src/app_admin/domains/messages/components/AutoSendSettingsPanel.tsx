@@ -58,7 +58,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   withdrawal_complete:
     "퇴원 처리가 완료되면 학생·학부모에게 퇴원 확인 메시지를 발송합니다.",
   lecture_session_reminder:
-    "수업 시작 전 학생·학부모에게 수업 일시/교실/강사를 리마인드합니다. 분 전 설정 필수.",
+    "수업 시작 전에 학생·학부모에게 수업 일시·교실·강사를 다시 알려줍니다. 시작 몇 분 전인지 설정하세요.",
   check_in_complete:
     "입실(출석) 처리가 완료되면 학부모에게 출석 확인 알림을 발송합니다.",
   absent_occurred:
@@ -66,7 +66,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   exam_scheduled_days_before:
     "시험 예정일 N일 전에 학생·학부모에게 시험명/일정을 안내합니다.",
   exam_start_minutes_before:
-    "시험 시작 N분 전에 학생에게 시험 시작 리마인드를 발송합니다.",
+    "시험 시작 전에 학생에게 시험 일정을 다시 알려줍니다.",
   exam_not_taken:
     "시험 미응시가 확인되면 학생·학부모에게 미응시 알림을 발송합니다.",
   exam_score_published:
@@ -76,13 +76,13 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   assignment_registered:
     "새 과제가 등록되면 학생에게 과제명/마감일을 안내합니다.",
   assignment_due_hours_before:
-    "과제 마감 N시간 전에 학생에게 미제출 리마인드를 발송합니다.",
+    "과제 마감 전에 학생에게 미제출 과제를 다시 알려줍니다.",
   assignment_not_submitted:
     "과제 미제출이 확인되면 학생·학부모에게 미제출 알림을 발송합니다.",
   monthly_report_generated:
     "월간 성적 리포트가 생성되면 학부모에게 성적 요약을 발송합니다.",
   clinic_reminder:
-    "클리닉 시작 N분 전에 학생에게 예약 일시/장소를 리마인드합니다.",
+    "클리닉 시작 전에 학생에게 예약 일시와 장소를 다시 알려줍니다.",
   clinic_reservation_created:
     "클리닉 예약이 완료되면 학생·학부모에게 예약 일시를 확인 안내합니다.",
   clinic_reservation_changed:
@@ -205,7 +205,7 @@ function TriggerCard({
   const implStatus = config.implementation_status;
   const isUnimplemented = implStatus === "manual_only" || implStatus === "disabled";
   const unimplementedHint = implStatus === "disabled"
-    ? "정책상 비활성 — 발송되지 않습니다"
+    ? "이 알림은 발송하지 않습니다"
     : implStatus === "manual_only"
       ? "직접 발송에서만 사용할 수 있습니다"
       : "";
@@ -259,7 +259,7 @@ function TriggerCard({
             className={styles.channelState}
             data-channel-active={channelActive ? "true" : "false"}
           >
-            {operationalDisabled ? "운영 중지" : !deliveryReady ? "발송 준비 필요" : isSystem ? "항상 활성" : channelActive ? "활성화" : "비활성화"}
+            {operationalDisabled ? "운영 중지" : !deliveryReady ? "발송 준비 필요" : isSystem ? "항상 발송" : channelActive ? "켜짐" : "꺼짐"}
           </span>
           {config.template_body && (
             <button
@@ -431,7 +431,7 @@ function AutoSendSummaryStrip({
       )}
       {summary.manualOnly > 0 && (
         <span className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>수동 전용</span>
+          <span className={styles.summaryLabel}>직접 발송만</span>
           <strong>{summary.manualOnly}</strong>
         </span>
       )}

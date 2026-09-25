@@ -228,9 +228,8 @@ export default function OmrSheetBuilder({
   };
 
   const downloadButton = (
-    <Button type="button" intent="primary" size="md" className="w-full" onClick={handleDownload} disabled={pdfLoading || totalCount < 1}>
-      <Download size={16} aria-hidden="true" />
-      {pdfLoading ? "다운로드 중..." : "이 구성으로 PDF 다운로드"}
+    <Button type="button" intent="primary" size="md" className="w-full" leftIcon={<Download size={16} />} onClick={handleDownload} disabled={pdfLoading || totalCount < 1}>
+      {pdfLoading ? "다운로드 중..." : "OMR PDF 다운로드"}
     </Button>
   );
 

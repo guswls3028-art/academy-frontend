@@ -893,7 +893,7 @@ test("원본 없이 직접 채점 시험을 만들고 문항별 점수 입력을
   ]);
 });
 
-test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운로드가 이어진다", async ({ page }) => {
+test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운로드가 이어진다", async ({ page }, testInfo) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
@@ -909,6 +909,11 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
     waitUntil: "domcontentloaded",
   });
 
+  await expect(page.getByRole("region", { name: "첫 시험 시작" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "시험을 만들어 보세요" })).toBeInViewport();
+  await expect(page.getByRole("link", { name: "시험·성적표 사용 순서" })).toHaveAttribute("href", "/workspace/guide#exam-score-guide");
+  await expect(page.getByRole("button", { name: "시험 추가", exact: true }).first()).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("scores-first-exam-390.png") });
   await page.getByRole("button", { name: "시험 추가", exact: true }).first().click();
   await page.getByText("시험 설정해서 만들기", { exact: true }).click();
   await page.getByLabel("시험명").fill("고1 OMR 단원평가");
@@ -922,12 +927,27 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   expect(await answerDialog.locator(".answer-key-omr-label").first().evaluate((element) =>
     (element as HTMLElement).offsetWidth
   )).toBeGreaterThanOrEqual(44);
+  expect(await answerDialog.locator(".exam-omr-bubble").first().evaluate((element) =>
+    (element as HTMLElement).offsetWidth
+  )).toBeGreaterThanOrEqual(30);
   expect(await answerDialog.locator(".answer-key-row__bubbles").first().evaluate((element) =>
     element.scrollWidth <= element.clientWidth + 1
   )).toBe(true);
+  const firstBubble = answerDialog.getByRole("checkbox", { name: "1번 1번 선택지" });
+  await firstBubble.focus();
+  await firstBubble.press("ArrowRight");
+  await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).not.toBeChecked();
+  await answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" }).press("Enter");
+  await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
+  await answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" }).press("Space");
+  await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).not.toBeChecked();
+  await answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" }).press("ArrowDown");
+  await expect(answerDialog.getByRole("checkbox", { name: "2번 2번 선택지" })).not.toBeChecked();
   for (const row of await answerDialog.locator(".answer-key-row--choice").all()) {
     await row.locator(".answer-key-omr-label").nth(1).click();
   }
+  await answerDialog.locator(".answer-key-panel--choice").getByRole("textbox", { name: "목표 총점" }).fill("100");
+  await expect(answerDialog.getByText(/현재 \d+점 \/ 목표 100점/)).toBeVisible();
   await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
   await answerDialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
   expect(state.answerKeySaves).toHaveLength(0);
@@ -939,13 +959,15 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   await expect.poll(() => Object.keys(state.guidedQuestionScores ?? {}).length).toBe(3);
   expect(state.guidedQuestionScores).toEqual({ 99711: 33.4, 99712: 33.3, 99713: 33.3 });
   expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "2", "99712": "2", "99713": "2" } });
+  expect(state.answerKeySaves?.[0].answers).not.toHaveProperty("__score_adjustment__");
 
   const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
   await expect(printDialog).toBeVisible();
-  await expect(printDialog.getByRole("button", { name: "이 구성으로 PDF 다운로드" })).toBeInViewport();
+  await expect(page.getByText("수동 총점과 문항별 배점 합계를 맞춰 주세요.", { exact: false })).toHaveCount(0, { timeout: 500 });
+  await expect(printDialog.getByRole("button", { name: "OMR PDF 다운로드" })).toBeInViewport();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    printDialog.getByRole("button", { name: "이 구성으로 PDF 다운로드" }).click(),
+    printDialog.getByRole("button", { name: "OMR PDF 다운로드" }).click(),
   ]);
   expect(download.suggestedFilename()).toContain("OMR");
   await expect(printDialog.getByText("답안지 다운로드 완료")).toBeVisible();
@@ -954,6 +976,30 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   await page.reload();
   await page.getByRole("button", { name: "문항·답안 확인" }).click();
   await expect(page.getByRole("dialog").locator(".answer-key-row--choice .answer-key-row__score-val")).toHaveText(["33.4점", "33.3점", "33.3점"]);
+  await page.getByRole("dialog").getByRole("button", { name: "취소" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const assessmentPicker = page.getByTestId("session-assessment-remote");
+  const pickerBox = await assessmentPicker.boundingBox();
+  expect(pickerBox).not.toBeNull();
+  expect(pickerBox!.width).toBeGreaterThan(330);
+  expect(pickerBox!.x + pickerBox!.width).toBeLessThanOrEqual(390);
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+});
+
+test("성적 탭의 첫 시험 안내에서 현재 가이드의 해당 단계가 열린다", async ({ page }, testInfo) => {
+  const state: MockState = { supplementTitle: "토요일 심화 클리닉", patchTitles: [] };
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await openLecture(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/scores`, {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(page.getByRole("region", { name: "첫 시험 시작" })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("scores-first-exam-1366.png") });
+  await page.getByRole("link", { name: "시험·성적표 사용 순서" }).click();
+  await expect(page).toHaveURL(/\/workspace\/guide#exam-score-guide$/);
+  await expect(page.locator("#exam-score-guide")).toHaveAttribute("class", /cardOpen/);
+  await expect(page.getByText("OMR 답안지 받기", { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("exam-score-guide-1366.png") });
 });
 
 test("원본을 선택하면 생성과 자동 등록 뒤 기존 업로드 순서를 유지한다", async ({ page }, testInfo) => {

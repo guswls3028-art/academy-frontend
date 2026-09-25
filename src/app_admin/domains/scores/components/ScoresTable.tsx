@@ -37,6 +37,7 @@ import { getSessionRowExamReviewSummary } from "@/shared/scoring/sessionScoreRow
 import ScoreInputCell from "./ScoreInputCell";
 import ScoreCellCollaborator from "./ScoreCellCollaborator";
 import ExamHeaderActionMenu, { type ExamHeaderAction } from "./ExamHeaderActionMenu";
+import HomeworkHeaderActionMenu from "./HomeworkHeaderActionMenu";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Badge, Button, type BadgeTone } from "@/shared/ui/ds";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
@@ -444,6 +445,7 @@ type Props = {
     manualGradingMethod: "correctness" | "score",
     action: ExamHeaderAction,
   ) => void;
+  deleteAssessmentLocked?: boolean;
 
 };
 
@@ -469,6 +471,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   onSelectRow,
   onReorderColumnSwap,
   onOpenExamGrading,
+  deleteAssessmentLocked = false,
   onRequestMoveNext,
   onRequestMovePrev,
   onRequestMoveDown,
@@ -1252,6 +1255,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       initialMaxScore={ex.max_score}
                       initialPassScore={ex.pass_score}
                       sessionId={sessionId}
+                      deleteLocked={deleteAssessmentLocked}
                       onSelect={(action) => {
                         onOpenExamGrading(
                           ex.exam_id,
@@ -1373,7 +1377,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   title={onReorderColumnSwap ? `${hw.title} — 끌어서 순서 변경` : hw.title}
                 >
                   <Badge variant="soft" tone="teal" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="과제">과</Badge>
-                  <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{hw.title}</span>
+                  <HomeworkHeaderActionMenu
+                    homeworkId={hw.homework_id}
+                    homeworkTitle={hw.title}
+                    sessionId={sessionId}
+                    deleteLocked={deleteAssessmentLocked}
+                  />
                   {hw.grading_mode === "COMPLETION" && (
                     <Badge variant="soft" tone="success" size="xs" shape="square" ariaLabel="완료형 과제">✓</Badge>
                   )}

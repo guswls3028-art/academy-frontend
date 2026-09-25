@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useAdminExam } from "../hooks/useAdminExam";
 import type { ExamTabKey } from "../types";
 
@@ -25,11 +26,13 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
   const { data: exam, isLoading, isError, refetch } = useAdminExam(examId);
   const { confirmDiscard } = useAssessmentEditGuard();
   const wrongCompletionOnly = useWrongCompletionDisplay();
-  const [tab, setTab] = useState<ExamTabKey>("setup");
+  const [searchParams] = useSearchParams();
+  const linkedTab = searchParams.get("examTab");
+  const [tab, setTab] = useState<ExamTabKey>(linkedTab === "results" ? "results" : "setup");
 
   useEffect(() => {
-    setTab("setup");
-  }, [examId]);
+    setTab(linkedTab === "results" ? "results" : "setup");
+  }, [examId, linkedTab]);
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="시험 정보 불러오는 중…" />;
   if (isError) return <EmptyState scope="panel" tone="error" title="시험을 불러오지 못했습니다." description="이전 값으로 수정하지 않도록 시험 작업을 잠갔습니다." actions={<button type="button" onClick={() => void refetch()}>다시 시도</button>} />;

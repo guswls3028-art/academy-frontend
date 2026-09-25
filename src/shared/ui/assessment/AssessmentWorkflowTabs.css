@@ -55,6 +55,24 @@
     flex: 1 0 auto;
     justify-content: center;
   }
+
+  .assessment-workflow-tabs--exam .assessment-workflow-tabs__label,
+  .assessment-workflow-tabs--exam .assessment-workflow-tabs__step {
+    display: none;
+  }
+
+  .assessment-workflow-tabs--exam .assessment-workflow-tabs__control,
+  .assessment-workflow-tabs--exam .ds-tabs--flat {
+    width: 100%;
+  }
+
+  .assessment-workflow-tabs--exam .ds-tabs--flat .ds-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
