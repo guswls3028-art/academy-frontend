@@ -99,11 +99,13 @@ for (const width of [1366, 1100, 390]) {
     await expect(table.locator("tbody tr")).toHaveCount(1);
     await expect(table.locator("tbody tr td").last()).toContainText(INITIAL);
     const dialog = await openEditor(page);
+    await expect(page.getByTestId("student-detail-overlay")).toHaveCount(0);
     await expect(dialog.getByRole("region", { name: "학생 공통 메모" })).toContainText(COMMON);
     const draft = "영상 수강 · 수업 전 자료를 전달하고 수업 후 보호자에게 연락하기\n" + "긴안내문구".repeat(22);
     await dialog.getByRole("textbox", { name: "강의 메모", exact: true }).fill(draft);
     await dialog.getByRole("button", { name: "저장", exact: true }).click();
     await expect(dialog).toBeHidden();
+    await expect(page.getByTestId("student-detail-overlay")).toHaveCount(0);
     await expect(preview).toContainText(draft);
     expect(state.patches).toEqual([{ id: 3001, memo: draft, version: "2026-09-20T10:00:01Z" }]);
     await page.reload();
