@@ -647,7 +647,7 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
     }
     await textarea.fill(`${marker}\n실제 발송 전 즉시 취소되는 E2E fixture입니다.`);
 
-    const reserveButton = dialog.getByRole("button", { name: /학부모 1명에게 알림톡 예약/ });
+    const reserveButton = dialog.getByRole("button", { name: "예약할 내용 확인" });
     await expect(reserveButton).toBeEnabled({ timeout: 45_000 });
     await reserveButton.click();
     await page.getByRole("button", { name: "예약하기", exact: true }).click();
