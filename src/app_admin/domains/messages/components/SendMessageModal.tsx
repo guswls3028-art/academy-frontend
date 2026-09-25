@@ -798,7 +798,7 @@ export default function SendMessageModal({
         feedback.error(`"${saved.name}" 문구는 저장됐지만 기본 지정에 실패했습니다. 기본으로 사용을 다시 눌러 주세요.`);
       } else {
         feedback.success(effectiveBlockCategory === "grades"
-          ? `"${saved.name}" 문구가 성적표 기본 문구로 저장되었습니다.`
+          ? `"${saved.name}" 안내문이 성적 알림톡 기본 안내문으로 저장되었습니다.`
           : `"${saved.name}" 문구가 저장되었습니다.`);
       }
       setShowSaveForm(false);
@@ -1001,7 +1001,7 @@ export default function SendMessageModal({
   // ─── Render ───
   return (
     <>
-    <AdminModal open={open} onClose={onClose} width={920} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
+    <AdminModal open={open} onClose={onClose} width={1080} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
       <ModalHeader
         noIcon
         title={
@@ -1060,7 +1060,7 @@ export default function SendMessageModal({
                   <Check size={ICON.xs} className="send-modal__icon-success" />
                   <span className="send-modal__applied-tpl-name">{selectedTemplate?.name ?? selectedPreset?.name}</span>
                   {selectedTemplate?.is_user_default && <Badge tone="primary" size="xs">기본</Badge>}
-                  {selectedPreset && <Badge tone="primary" size="xs">기본 제공</Badge>}
+                  {selectedPreset && <Badge tone="primary" size="xs">{effectiveBlockCategory === "grades" ? "작성 예시" : "기본 제공"}</Badge>}
                   {selectedTemplate && isSystemTpl(selectedTemplate) && <Badge tone="info" size="xs">시스템</Badge>}
                 </div>
               )}
@@ -1080,6 +1080,72 @@ export default function SendMessageModal({
               )}
             </section>
 
+            {/* 카드 2 — 서버가 수신자별로 조립한 문구만 발송 미리보기로 표시한다. */}
+            <section className="send-modal__card send-modal__card--preview">
+              <div className="send-modal__card-label">
+                받는 사람에게 보일 내용
+                {inlinePreviewRecipient && (
+                  <span className="send-modal__card-sublabel">
+                    {` · ${inlinePreviewRecipient.studentName} 기준`}
+                  </span>
+                )}
+              </div>
+              <p className="send-modal__preview-help">
+                서버가 만든 실제 문구입니다. 다른 학생의 내용은 마지막 확인에서 선택해 보세요.
+              </p>
+              {inlinePreviewRecipient ? (
+                <div className="send-modal__actual-message" aria-label="현재 학생의 실제 발송 문구">
+                  {inlinePreviewRecipient.fullMessageBody}
+                </div>
+              ) : (
+                <div className="template-preview-kakao__card">
+                  <div className="template-preview-kakao__body" aria-live="polite">
+                    {!hasSelectedBodySource ? "문구를 선택하거나 직접 작성해 주세요."
+                      : !body.trim() ? "안내문을 입력해 주세요."
+                      : !hasRecipients ? "수신자를 선택하면 실제 문구를 확인할 수 있습니다."
+                      : preflightError ? (
+                        <span role="alert">
+                          {preflightError} <Button intent="ghost" size="sm" onClick={() => setPreflightRetry((retry) => retry + 1)}>다시 확인</Button>
+                        </span>
+                      ) : preflightChecking ? "수신자별 발송 문구를 확인 중입니다…"
+                        : preflightBlockers.length > 0 ? "발송 가능 상태의 문제를 해결하면 실제 문구가 표시됩니다."
+                          : "실제 발송 문구를 준비하지 못했습니다. 입력 내용을 확인해 주세요."}
+                  </div>
+                </div>
+              )}
+
+              {/* 변수 상태 — 미리보기 카드 하단 inline */}
+              {(selectedTemplate || selectedPreset) && varStatuses.length > 0 && (
+                <div className="send-modal__var-status">
+                  {varStatuses.map((v) => (
+                    <div key={v.name} className="send-modal__var-row" data-status={v.status}>
+                      {v.status === "missing"
+                        ? <AlertCircle size={ICON.xs} className="send-modal__icon-warning" />
+                        : <Check size={ICON.xs} className="send-modal__icon-success" />}
+                      <span className="send-modal__var-name">{v.name}</span>
+                      <span className="send-modal__var-value">
+                        {v.status === "auto" ? "자동" : v.status === "provided" ? (v.value ? `"${v.value}"` : "제공됨") : "미제공"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {qualityIssues.length > 0 && (
+                <div className="send-modal__quality-status">
+                  <div className="send-modal__quality-title">
+                    <AlertTriangle size={ICON.xs} />
+                    확인이 필요한 내용
+                  </div>
+                  {qualityIssues.map((issue) => (
+                    <div key={issue.id} className="send-modal__quality-row" data-severity={issue.severity}>
+                      <span className="send-modal__quality-row-title">{issue.title}</span>
+                      <span className="send-modal__quality-row-detail">{issue.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
             <section className="send-modal__card send-modal__card--timing">
               <div className="send-modal__card-label">발송 시점</div>
               <div className="send-modal__timing-toggle" role="group" aria-label="발송 시점">
@@ -1168,12 +1234,6 @@ export default function SendMessageModal({
                         : "확인 필요"}
                     </span>
                   </div>
-                  <div className="send-modal__preflight-grid">
-                    <span>대상</span>
-                    <strong>{sendToTargets.map(formatSendTargetLabel).join(" + ")}</strong>
-                    <span>문구</span>
-                    <strong>{preflightResults[0]?.template.name || selectedTemplate?.name || selectedPreset?.name || "직접 작성"}</strong>
-                  </div>
                   {preflightBlockers.map((issue, index) => (
                     <div key={`${issue.code}-${index}`} className="send-modal__preflight-issue" data-tone="error">
                       <AlertCircle size={ICON.xs} />
@@ -1190,72 +1250,6 @@ export default function SendMessageModal({
               )}
             </section>
 
-            {/* 카드 2 — 서버가 수신자별로 조립한 문구만 발송 미리보기로 표시한다. */}
-            <section className="send-modal__card send-modal__card--preview">
-              <div className="send-modal__card-label">
-                받는 사람에게 보일 내용
-                {inlinePreviewRecipient && (
-                  <span className="send-modal__card-sublabel">
-                    {` · ${inlinePreviewRecipient.studentName} 기준`}
-                  </span>
-                )}
-              </div>
-              <p className="template-preview-kakao__helper">
-                표시된 학생 한 명의 현재 발송 문구입니다. 다른 학생의 내용은 마지막 확인에서 선택해 보세요. 카카오톡 화면 배치는 기기에 따라 다를 수 있습니다.
-              </p>
-              {inlinePreviewRecipient ? (
-                <KakaoAlimtalkPreview channelLabel={activeAlimtalkLabel}>
-                  {inlinePreviewRecipient.fullMessageBody}
-                </KakaoAlimtalkPreview>
-              ) : (
-                <div className="template-preview-kakao__card">
-                  <div className="template-preview-kakao__body" aria-live="polite">
-                    {!hasSelectedBodySource ? "문구를 선택하거나 직접 작성해 주세요."
-                      : !body.trim() ? "안내문을 입력해 주세요."
-                      : !hasRecipients ? "수신자를 선택하면 실제 문구를 확인할 수 있습니다."
-                      : preflightError ? (
-                        <span role="alert">
-                          {preflightError} <Button intent="ghost" size="sm" onClick={() => setPreflightRetry((retry) => retry + 1)}>다시 확인</Button>
-                        </span>
-                      ) : preflightChecking ? "수신자별 발송 문구를 확인 중입니다…"
-                        : preflightBlockers.length > 0 ? "발송 가능 상태의 문제를 해결하면 실제 문구가 표시됩니다."
-                          : "실제 발송 문구를 준비하지 못했습니다. 입력 내용을 확인해 주세요."}
-                  </div>
-                </div>
-              )}
-
-              {/* 변수 상태 — 미리보기 카드 하단 inline */}
-              {(selectedTemplate || selectedPreset) && varStatuses.length > 0 && (
-                <div className="send-modal__var-status">
-                  {varStatuses.map((v) => (
-                    <div key={v.name} className="send-modal__var-row" data-status={v.status}>
-                      {v.status === "missing"
-                        ? <AlertCircle size={ICON.xs} className="send-modal__icon-warning" />
-                        : <Check size={ICON.xs} className="send-modal__icon-success" />}
-                      <span className="send-modal__var-name">{v.name}</span>
-                      <span className="send-modal__var-value">
-                        {v.status === "auto" ? "자동" : v.status === "provided" ? (v.value ? `"${v.value}"` : "제공됨") : "미제공"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {qualityIssues.length > 0 && (
-                <div className="send-modal__quality-status">
-                  <div className="send-modal__quality-title">
-                    <AlertTriangle size={ICON.xs} />
-                    확인이 필요한 내용
-                  </div>
-                  {qualityIssues.map((issue) => (
-                    <div key={issue.id} className="send-modal__quality-row" data-severity={issue.severity}>
-                      <span className="send-modal__quality-row-title">{issue.title}</span>
-                      <span className="send-modal__quality-row-detail">{issue.detail}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
           </div>
 
           {/* ═══ 우측: 양식 선택 + 본문 편집 ═══ */}
@@ -1304,7 +1298,7 @@ export default function SendMessageModal({
                 ) : selectedPreset ? (
                   <div className="send-modal__tpl-bar-name-row">
                     <span className="send-modal__tpl-bar-name">{selectedPreset.name}</span>
-                    <Badge tone="primary" size="xs">기본 제공</Badge>
+                    <Badge tone="primary" size="xs">{effectiveBlockCategory === "grades" ? "작성 예시" : "기본 제공"}</Badge>
                     {selectedPreset.recommended && <Badge tone="success" size="xs">추천</Badge>}
                     {presetBodyModified && <Badge tone="warning" size="xs">수정됨</Badge>}
                   </div>
@@ -1339,7 +1333,7 @@ export default function SendMessageModal({
                       onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
                       disabled={sending}
                     >
-                      {effectiveBlockCategory === "grades" ? "성적표 문구 저장" : "내 문구로 저장"}
+                      {effectiveBlockCategory === "grades" ? "성적 안내문 저장" : "내 문구로 저장"}
                     </Button>
                   )}
                 </div>
@@ -1356,7 +1350,7 @@ export default function SendMessageModal({
                 onClick={() => setShowPickerModal(true)}
                 disabled={sending}
               >
-                {hasSelectedBodySource ? "다른 문구 선택" : "문구 선택"}
+                {effectiveBlockCategory === "grades" ? "안내문 바꾸기" : hasSelectedBodySource ? "다른 문구 선택" : "문구 선택"}
               </Button>
             </div>
 
@@ -1365,7 +1359,7 @@ export default function SendMessageModal({
               <div className="send-modal__save-form">
                 <div className="send-modal__save-form-label">
                   {effectiveBlockCategory === "grades"
-                    ? "이름을 붙여 저장하면 다음 성적표 발송부터 기본으로 사용합니다."
+                    ? "이 안내문을 저장하고 다음 성적 알림톡의 기본 안내문으로 사용합니다. 발송은 별도로 확정해야 합니다."
                     : "새 문구 이름을 입력하세요"}
                 </div>
                 <div className="send-modal__save-form-row">
@@ -1388,7 +1382,7 @@ export default function SendMessageModal({
 
             {/* ── 본문 영역 라벨 — 일괄 발송 의도 명시 ── */}
             <div className="send-modal__editor-label">
-              <span className="send-modal__editor-label-title">안내문</span>
+              <span className="send-modal__editor-label-title">{effectiveBlockCategory === "grades" ? "성적 안내문" : "안내문"}</span>
               {hasRecipients && recipientCount > 1 ? (
                 <span className="send-modal__editor-label-hint">
                   학생 {recipientCount}명에게 같은 안내문을 보냅니다. 여기서 자유롭게 고치고, 이름·성적은 학생별로 맞춰 넣습니다.
@@ -1396,6 +1390,11 @@ export default function SendMessageModal({
               ) : (
                 <span className="send-modal__editor-label-hint">
                   학원명·학생명·강의명 등은 자동으로 채워집니다. <strong>학원장님 안내문은 여기서 직접 수정</strong>할 수 있습니다.
+                </span>
+              )}
+              {effectiveBlockCategory === "grades" && (
+                <span className="send-modal__editor-label-hint">
+                  카카오 승인 형식과 자동 성적 정보는 위 실제 발송 문구에 함께 표시됩니다. 이 입력창과 저장 버튼은 안내문만 변경합니다.
                 </span>
               )}
             </div>
