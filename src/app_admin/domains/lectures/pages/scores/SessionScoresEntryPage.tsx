@@ -1212,7 +1212,11 @@ export default function SessionScoresEntryPage({
 
   const openStudentScoreReport = async () => {
     if (!await saveScoresNow()) return;
-    await refetch();
+    const refreshed = await refetch();
+    if (refreshed.isError) {
+      feedback.error("최신 성적을 불러오지 못했습니다. 다시 시도해 주세요.");
+      return;
+    }
     setShowStudentReport(true);
     setShowMoreMenu(false);
   };

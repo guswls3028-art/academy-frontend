@@ -486,6 +486,20 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 }
 
 test.describe("개인 성적표", () => {
+  test("최신 성적 재조회가 실패하면 오래된 성적표를 열지 않는다", async ({ page }) => {
+    await installApi(page);
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    const reportButton = page.getByRole("button", { name: "개인 성적표", exact: true });
+    await expect(reportButton).toBeVisible();
+    await page.route((url) => url.pathname.endsWith(`/results/admin/sessions/${SESSION_ID}/scores/`), async (route) => {
+      await route.fulfill({ status: 500, contentType: "application/json", body: "{}" });
+    });
+    await reportButton.click();
+    await expect(page.getByText("최신 성적을 불러오지 못했습니다. 다시 시도해 주세요.")).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
   test("식별 실패 OMR을 출력 전에 드러내고 검토 화면으로 안내한다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await installApi(page, { omrIssue: true });
