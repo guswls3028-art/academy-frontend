@@ -1789,7 +1789,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeChecked();
     await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeEnabled();
     await expect.poll(() => [...new Set(preflightTargets)].sort()).toEqual(["parent", "student"]);
-    await dialog.getByRole("button", { name: "학부모 1명 + 학생 1명에게 알림톡 발송" }).click();
+    await dialog.getByRole("button", { name: "보낼 내용 확인" }).click();
     const combinedConfirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
     const combinedRecipient = combinedConfirm.getByRole("radio", { name: /자동저장학생1/ });
     await expect(combinedRecipient).toContainText("학부모 010****2222");
@@ -1802,7 +1802,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(dialog).not.toContainText("성적 알림은 보호자에게만 발송됩니다.");
     await expect.poll(() => preflightTargets.at(-1)).toBe("student");
 
-    await dialog.getByRole("button", { name: "학생 1명에게 알림톡 발송" }).click();
+    await dialog.getByRole("button", { name: "보낼 내용 확인" }).click();
     await page.getByRole("dialog", { name: "보내기 전 마지막 확인" })
       .getByRole("button", { name: "발송하기" })
       .click();
