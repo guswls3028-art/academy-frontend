@@ -31,6 +31,7 @@ import {
 import ExamPdfUploadModal from "./ExamPdfUploadModal";
 import { adminExamsQueryKeys } from "../queryKeys";
 import "./AnswerKeyRegisterModal.css";
+import "./AnswerKeyRegisterModal.typeMap.css";
 import "./AnswerKeyRegisterModal.bubbles.css";
 import "./AnswerKeyRegisterModal.mobile.css";
 

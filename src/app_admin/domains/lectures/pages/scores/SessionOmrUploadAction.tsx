@@ -8,6 +8,7 @@ import { Badge, Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
+import "./SessionOmrUploadAction.css";
 
 type ExamOption = SessionScoreMeta["exams"][number];
 

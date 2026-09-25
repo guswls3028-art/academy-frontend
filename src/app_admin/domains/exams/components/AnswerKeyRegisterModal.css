@@ -123,20 +123,6 @@
   font-size: 11px;
   color: var(--color-text-muted);
 }
-.answer-key-type-map__expand {
-  margin-left: var(--space-3);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-brand-primary);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.answer-key-type-map__expand:focus-visible {
-  outline: 2px solid var(--color-brand-primary);
-  outline-offset: 2px;
-}
 .answer-key-type-map__legend span {
   display: inline-flex;
   align-items: center;
