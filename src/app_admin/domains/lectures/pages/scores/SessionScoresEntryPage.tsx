@@ -64,6 +64,7 @@ import {
 } from "@/shared/scoring/sessionScoreRows";
 import "./SessionScoresEntryActions.css";
 import "./SessionScoresEntryPage.css";
+import "./SessionScoresStartPanel.css";
 
 type SessionScoresEntryPageProps = {
   onOpenCreateExam?: () => void;
