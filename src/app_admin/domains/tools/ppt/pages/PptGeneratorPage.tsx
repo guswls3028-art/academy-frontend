@@ -3,12 +3,22 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { ChevronLeft, ChevronRight, Download, Settings } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { ICON_FOR_BUTTON } from "@/shared/ui/ds";
-import { submitPptJob, submitPdfPptJob, pollPptJob, type PptSettings } from "../api/ppt.api";
+import { submitPptJob, submitPdfPptJob, pollPptJob, getPptJobStatus, type PptSettings, type PptGenerateResponse } from "../api/ppt.api";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
+import {
+  forgetPptJobReference,
+  loadPptJobReferences,
+  rememberPptJobReference,
+  type PptJobReference,
+  type PptRecoveryIssue,
+} from "@/shared/ui/asyncStatus/pptJobRecovery";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import useAuth from "@/auth/hooks/useAuth";
 import ImageUploadArea from "../components/ImageUploadArea";
 import PdfUploadArea from "../components/PdfUploadArea";
 import ManualPdfCropper from "../components/ManualPdfCropper";
@@ -20,6 +30,25 @@ import styles from "./PptGeneratorPage.module.css";
 
 type InputMode = "image" | "pdf";
 type SortMode = "nameAsc" | "nameDesc" | "oldest" | "newest" | "upload" | "manual";
+type RecoveryJob = { reference: PptJobReference; status: "checking" | "pending" | "done" | "error"; message?: string; slideCount?: number; retryable?: boolean };
+
+function recoveryIssueMessage(issue: PptRecoveryIssue): string {
+  if (issue === "scope_changed") return "이전 작업은 현재 계정이나 학원에서 복구할 수 없습니다.";
+  if (issue === "expired") return "오래된 작업 기록은 만료되었습니다. 원본 파일을 다시 선택해 주세요.";
+  if (issue === "invalid") return "저장된 작업 기록을 확인할 수 없습니다. 원본 파일을 다시 선택해 주세요.";
+  if (issue === "storage_unavailable") return "이 브라우저의 작업 기록을 읽을 수 없습니다. 원본 파일을 다시 선택해 주세요.";
+  return "";
+}
+
+function triggerPptDownload(data: PptGenerateResponse) {
+  const a = document.createElement("a");
+  a.href = data.download_url;
+  a.download = data.filename;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => a.remove(), 100);
+}
 
 let _idSeq = 0;
 function nextImageIdentity() {
@@ -77,6 +106,9 @@ function buildPreviewFilter(item: ImageItem | undefined, settings: PptSettings):
 }
 
 export default function PptGeneratorPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const tenantScope = getTenantCodeForApiRequest() ?? "";
+  const userId = user?.id == null ? "" : String(user.id);
   const [mode, setMode] = useState<InputMode>("image");
   const [images, setImages] = useState<ImageItem[]>([]);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -87,7 +119,97 @@ export default function PptGeneratorPage() {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [progressPct, setProgressPct] = useState<number | null>(null);
   const [progressLabel, setProgressLabel] = useState<string>("");
+  const [recoveryJobs, setRecoveryJobs] = useState<RecoveryJob[]>([]);
+  const [recoveryNotice, setRecoveryNotice] = useState("");
+  const [recoveryNonce, setRecoveryNonce] = useState(0);
   const imagesRef = useRef<ImageItem[]>([]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!userId || !tenantScope) {
+      setRecoveryJobs([]);
+      setRecoveryNotice("");
+      return;
+    }
+    const { references, issue } = loadPptJobReferences(tenantScope, userId);
+    setRecoveryNotice(recoveryIssueMessage(issue));
+    setRecoveryJobs(references.map((reference) => ({ reference, status: "checking" })));
+    const controller = new AbortController();
+    const timers = new Set<number>();
+    let active = true;
+    const update = (jobId: string, value: Partial<RecoveryJob>) => {
+      if (!active) return;
+      setRecoveryJobs((jobs) => jobs.map((job) => job.reference.jobId === jobId ? { ...job, ...value } : job));
+    };
+    const poll = async (reference: PptJobReference) => {
+      if (!active) return;
+      if (getTenantCodeForApiRequest() !== reference.tenantScope) {
+        forgetPptJobReference(reference.jobId);
+        update(reference.jobId, { status: "error", message: "학원이 변경되어 이 작업을 복구할 수 없습니다.", retryable: false });
+        return;
+      }
+      try {
+        const job = await getPptJobStatus(reference.jobId, controller.signal);
+        if (!active) return;
+        if (job.status === "DONE" && job.result?.download_url && job.result.filename) {
+          update(reference.jobId, { status: "done", message: "완료된 PPT를 다시 다운로드할 수 있습니다.", slideCount: job.result.slide_count });
+        } else if (["PENDING", "VALIDATING", "RUNNING", "RETRYING"].includes(job.status)) {
+          update(reference.jobId, { status: "pending", message: "PPT를 만드는 중입니다. 이 페이지를 새로고침해도 작업은 이어집니다." });
+          const timer = window.setTimeout(() => {
+            timers.delete(timer);
+            void poll(reference);
+          }, 2000);
+          timers.add(timer);
+        } else {
+          forgetPptJobReference(reference.jobId);
+          update(reference.jobId, { status: "error", message: "작업을 확인하거나 다운로드할 수 없습니다. 원본 파일을 다시 선택해 주세요.", retryable: false });
+        }
+      } catch (error) {
+        if (!active) return;
+        const status = isAxiosError(error) ? error.response?.status : undefined;
+        if (status === 401 || status === 403 || status === 404 || !isAxiosError(error)) {
+          forgetPptJobReference(reference.jobId);
+          update(reference.jobId, { status: "error", message: "이 작업에 접근할 수 없습니다. 현재 계정과 학원을 확인해 주세요.", retryable: false });
+        } else {
+          update(reference.jobId, { status: "error", message: "연결이 끊겨 작업 상태를 확인하지 못했습니다. 다시 확인해 주세요.", retryable: true });
+        }
+      }
+    };
+    references.forEach((reference) => { void poll(reference); });
+    return () => {
+      active = false;
+      controller.abort();
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [authLoading, tenantScope, userId, recoveryNonce]);
+
+  function rememberAcceptedJob(jobId: string, label: string) {
+    if (!userId || !tenantScope) {
+      feedback.warning("계정 정보를 확인할 수 없어 새로고침 후 작업 복구가 제한됩니다.");
+      return;
+    }
+    if (!rememberPptJobReference({ jobId, tenantScope, userId, label, createdAt: Date.now() })) {
+      feedback.warning("브라우저에 작업 기록을 저장하지 못했습니다. 이 화면을 닫기 전에 PPT를 다운로드해 주세요.");
+    }
+  }
+
+  async function handleRecoveredDownload(reference: PptJobReference) {
+    try {
+      const job = await getPptJobStatus(reference.jobId);
+      if (job.status !== "DONE" || !job.result?.download_url || !job.result.filename) {
+        throw new Error("완료된 PPT를 확인할 수 없습니다.");
+      }
+      triggerPptDownload(job.result);
+    } catch (error) {
+      const status = isAxiosError(error) ? error.response?.status : undefined;
+      if (status === 401 || status === 403 || status === 404 || !isAxiosError(error)) {
+        forgetPptJobReference(reference.jobId);
+      }
+      setRecoveryJobs((jobs) => jobs.map((job) => job.reference.jobId === reference.jobId
+        ? { ...job, status: "error", retryable: status !== 401 && status !== 403 && status !== 404 && isAxiosError(error), message: "다운로드를 확인하지 못했습니다. 계정과 학원을 확인하거나 다시 시도해 주세요." }
+        : job));
+    }
+  }
 
   // 모드 전환
   const handleModeChange = useCallback((newMode: InputMode) => {
@@ -205,6 +327,7 @@ export default function PptGeneratorPage() {
   }, [images.length]);
 
   async function runImageJob(files: File[], perSlide: PptSettings["per_slide"], label: string, uploadBase = 0) {
+      if (!userId || !tenantScope) throw new Error("계정과 학원을 확인한 뒤 다시 시도해 주세요.");
       const order = files.map((_, idx) => idx);
       setProgressLabel("파일 업로드 중...");
 
@@ -213,6 +336,7 @@ export default function PptGeneratorPage() {
         setProgressPct(uploadBase + Math.round(pct * (50 - uploadBase) / 100));
         setProgressLabel(`업로드 중 ${Math.round(pct)}%`);
       });
+      rememberAcceptedJob(jobResp.job_id, label);
 
       // Register in workbox for background tracking
       asyncStatusStore.addWorkerJob(
@@ -284,6 +408,7 @@ export default function PptGeneratorPage() {
   const pdfGenerateMutation = useMutation({
     mutationFn: async () => {
       if (!pdfFile) throw new Error("PDF 파일을 선택해주세요.");
+      if (!userId || !tenantScope) throw new Error("계정과 학원을 확인한 뒤 다시 시도해 주세요.");
 
       setProgressLabel("PDF 업로드 중...");
 
@@ -292,6 +417,7 @@ export default function PptGeneratorPage() {
         setProgressPct(Math.round(pct * 0.5));
         setProgressLabel(`업로드 중 ${Math.round(pct)}%`);
       });
+      rememberAcceptedJob(jobResp.job_id, "PPT 생성 (PDF)");
 
       // Register in workbox for background tracking
       asyncStatusStore.addWorkerJob(
@@ -333,13 +459,7 @@ export default function PptGeneratorPage() {
       // 텍스트 추출 안 되는 PDF는 페이지 단위로 fallback. 사용자 안내(표지·목차도 포함됨).
       feedback.info("이 PDF는 텍스트 추출이 어려워 페이지 단위로 변환했습니다. 표지·목차도 슬라이드에 포함됩니다.");
     }
-    const a = document.createElement("a");
-    a.href = data.download_url;
-    a.download = data.filename;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => a.remove(), 100);
+    triggerPptDownload(data);
   }
 
   function handleGenerateError(err: unknown) {
@@ -576,6 +696,27 @@ export default function PptGeneratorPage() {
             </div>
           )}
         </button>
+
+        {(recoveryJobs.length > 0 || recoveryNotice) && (
+          <section className={styles.recoveryPanel} aria-label="이전 PPT 작업">
+            <h3>이전 PPT 작업</h3>
+            {recoveryNotice && <p role="status">{recoveryNotice}</p>}
+            {recoveryJobs.map((job) => (
+              <div className={styles.recoveryJob} key={job.reference.jobId}>
+                <strong>{job.reference.label}</strong>
+                <p role="status">{job.message || "작업 상태를 확인하는 중입니다..."}</p>
+                {job.status === "done" && (
+                  <button type="button" onClick={() => { void handleRecoveredDownload(job.reference); }}>
+                    완료된 PPT 다운로드{job.slideCount ? ` (${job.slideCount}장)` : ""}
+                  </button>
+                )}
+                {job.status === "error" && job.retryable && (
+                  <button type="button" onClick={() => setRecoveryNonce((value) => value + 1)}>다시 확인</button>
+                )}
+              </div>
+            ))}
+          </section>
+        )}
 
         {/* 상태 요약 */}
         {mode === "image" && images.length > 0 && (
