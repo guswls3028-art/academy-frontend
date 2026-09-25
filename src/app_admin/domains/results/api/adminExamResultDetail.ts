@@ -111,6 +111,7 @@ export type ExamResultDetail = {
 
   /** 스캔 제출 기준 submission id (manual-edit API 호출용) */
   submission_id?: number | null;
+  manual_answer_entry?: boolean;
 
   /** Submission 상태 (answers_ready / needs_identification / failed 등) */
   submission_status?: string | null;

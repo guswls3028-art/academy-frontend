@@ -13,6 +13,8 @@ const DENSE_EXAM_TITLE = "매우 긴 한국어 시험 제목으로 줄바꿈과 
 
 type InstallApiOptions = {
   denseReport?: boolean;
+  omrIssue?: boolean;
+  omrIssueEnrollmentId?: number;
   primaryColor?: string;
   scoreRowCount?: number;
 };
@@ -443,6 +445,16 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       });
       return;
     }
+    if (pathname.endsWith("/submissions/submissions/exams/3101/")) {
+      await fulfill(options.omrIssue ? [{
+        id: 9001, enrollment_id: options.omrIssueEnrollmentId ?? 0,
+        student_name: options.omrIssueEnrollmentId ? "다른 학생" : "", status: "needs_identification",
+        source: "OMR_SCAN", score: null, created_at: "2026-07-28T10:00:00+09:00",
+        file_key: "scan.jpg", has_file: true, manual_review_required: true,
+        manual_review_reasons: ["IDENTIFIER_INCOMPLETE"], identifier_status: "no_match",
+      }] : []);
+      return;
+    }
     if (pathname.endsWith("/results/admin/student-grades/")) {
       studentGradesRequestCount += 1;
       const studentId = Number(url.searchParams.get("student_id"));
@@ -474,6 +486,33 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 }
 
 test.describe("개인 성적표", () => {
+  test("식별 실패 OMR을 출력 전에 드러내고 검토 화면으로 안내한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installApi(page, { omrIssue: true });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("alert")).toContainText("OMR 1건을 먼저 확인해 주세요.");
+    await expect(dialog.getByRole("alert")).toContainText("미식별 스캔 #9001");
+    await expect(dialog.getByRole("button", { name: "개인 성적표 PDF" })).toBeDisabled();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await dialog.getByRole("button", { name: "시험 OMR 검토로 이동" }).click();
+    await expect(page).toHaveURL(/exams\?examId=3101/);
+  });
+
+  test("다른 학생의 OMR 검토 건은 선택한 학생의 성적표를 막지 않는다", async ({ page }) => {
+    await installApi(page, { omrIssue: true, omrIssueEnrollmentId: 9102 });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("button", { name: "개인 성적표 PDF" })).toBeEnabled();
+    await expect(dialog.getByText("OMR 1건을 먼저 확인해 주세요.")).toHaveCount(0);
+  });
+
   test("학생 전환, 1·2쪽 미리보기, 단일·다중 PDF 다운로드", async ({ page }, testInfo) => {
     test.setTimeout(180_000);
     await page.setViewportSize({ width: 1366, height: 900 });

@@ -13,8 +13,9 @@
  * - 0건이고 OMR 제출 자체가 없으면 아무것도 렌더하지 않음
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router";
 
 import OmrReviewWorkspace from "./OmrReviewWorkspace";
 import { listOmrReviewRows } from "./omrReviewApi";
@@ -28,6 +29,15 @@ type Props = {
 
 export default function OmrReviewEntry({ examId, examTitle }: Props) {
   const [open, setOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("reviewOmr") !== "1") return;
+    setOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("reviewOmr");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const { data: rows = [], isError, refetch } = useQuery({
     queryKey: adminResultsQueryKeys.omrReviewList(examId),
@@ -40,17 +50,24 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
     let pending = 0;
     let needsId = 0;
     let flagged = 0;
+    let processing = 0;
     let alignmentFailed = 0;
     let answerOk = 0;
     let answerTotal = 0;
+    let total = 0;
     for (const r of rows) {
       const st = String(r.status || "").toLowerCase();
+      if (st === "superseded") continue;
+      total++;
       const ids = String(r.identifier_status || "").toLowerCase();
       if (st === "needs_identification" || ids === "no_match" || ids === "missing") {
         needsId++;
         pending++;
       } else if (r.manual_review_required || st === "failed") {
         flagged++;
+        pending++;
+      } else if (st && st !== "done") {
+        processing++;
         pending++;
       }
       if ((r.manual_review_reasons || []).includes("ALIGNMENT_FAILED")) {
@@ -68,11 +85,12 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
       pending,
       needsId,
       flagged,
+      processing,
       alignmentFailed,
       autoRate,
       answerOk,
       answerTotal,
-      total: rows.length,
+      total,
     };
   }, [rows]);
 
@@ -126,6 +144,9 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
                   <span className="omr-entry__metric omr-entry__metric--flag">
                     답안 검토 필요 {badge.flagged}건
                   </span>
+                )}
+                {badge.processing > 0 && (
+                  <span className="omr-entry__metric">처리 중 {badge.processing}건</span>
                 )}
                 {badge.alignmentFailed > 0 && (
                   <span className="omr-entry__metric omr-entry__metric--flag">

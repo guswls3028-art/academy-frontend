@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, ChevronRight, Download, FileUser, ListChecks, Search } from "lucide-react";
 
 import type {
@@ -14,6 +15,7 @@ import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { listOmrReviewRows } from "@admin/domains/results/public/omrReview";
 import {
   buildStudentScoreReportHtml,
   downloadStudentScoreReportPdf,
@@ -56,7 +58,30 @@ export default function StudentScoreReportModal({
   initialEnrollmentIds,
 }: Props) {
   const { program } = useProgram();
+  const navigate = useNavigate();
+  const { lectureId, sessionId } = useParams<{ lectureId: string; sessionId: string }>();
   const queryClient = useQueryClient();
+  const omrExamIds = useMemo(() => meta.exams
+    .filter((exam) => exam.grading_mode !== "written")
+    .map((exam) => exam.exam_id), [meta.exams]);
+  const omrPreflightQueryKey = ["student-score-report-omr-preflight", omrExamIds] as const;
+  const omrPreflight = useQuery({
+    queryKey: omrPreflightQueryKey,
+    queryFn: async () => (await Promise.all(omrExamIds.map(async (examId) => ({
+      examId, rows: await listOmrReviewRows(examId),
+    })))).flatMap(({ examId, rows }) => rows.filter((row) => {
+      const status = String(row.status || "").toLowerCase();
+      const identifier = String(row.identifier_status || "").toLowerCase();
+      return (status !== "done" && status !== "superseded")
+        || identifier === "no_match" || identifier === "missing"
+        || row.manual_review_required;
+    }).map((row) => ({ examId, row }))),
+    enabled: open && omrExamIds.length > 0,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const omrCheckFailed = omrExamIds.length > 0 && omrPreflight.isError;
+  const omrCheckBusy = omrExamIds.length > 0 && omrPreflight.isFetching;
   const reportRows = useMemo(() => REPORTABLE_ROWS(rows), [rows]);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
   const [selectedReportEnrollmentIds, setSelectedReportEnrollmentIds] = useState<number[]>([]);
@@ -124,6 +149,9 @@ export default function StudentScoreReportModal({
     () => reportRows.filter((row) => selectedReportSet.has(row.enrollment_id)),
     [reportRows, selectedReportSet],
   );
+  const affectsSelectedReport = ({ row }: { row: { enrollment_id: number } }) =>
+    !row.enrollment_id || selectedReportSet.has(row.enrollment_id);
+  const omrIssues = (omrPreflight.data ?? []).filter(affectsSelectedReport);
 
   const selectedIndex = selectedRow
     ? reportRows.findIndex((row) => row.enrollment_id === selectedRow.enrollment_id)
@@ -240,6 +268,11 @@ export default function StudentScoreReportModal({
   };
 
   const handleDownload = async () => {
+    const freshOmr = omrExamIds.length > 0 ? await omrPreflight.refetch() : null;
+    if (freshOmr?.isError || freshOmr?.data?.some(affectsSelectedReport)) {
+      feedback.warning("성적표를 만들기 전에 OMR 인식·학생 연결 문제를 확인해 주세요.");
+      return;
+    }
     if (selectedReportRows.length === 0) {
       feedback.info("PDF로 만들 학생을 한 명 이상 선택해 주세요.");
       return;
@@ -309,6 +342,28 @@ export default function StudentScoreReportModal({
         noIcon
       />
       <ModalBody>
+        {(omrCheckBusy || omrCheckFailed || omrIssues.length > 0) && (
+          <div role={omrCheckFailed || omrIssues.length > 0 ? "alert" : "status"} className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            {omrCheckBusy ? "출력 전 OMR 검토 상태를 확인하는 중…" : omrCheckFailed ? (
+              <>
+                <strong>OMR 검토 현황을 불러오지 못했습니다.</strong>
+                <Button type="button" intent="secondary" size="sm" onClick={() => void omrPreflight.refetch()}>다시 확인</Button>
+              </>
+            ) : (
+              <>
+                <strong>OMR {omrIssues.length}건을 먼저 확인해 주세요.</strong>
+                <p className="mt-1">{omrIssues.slice(0, 4).map(({ examId, row }) => `${meta.exams.find((exam) => exam.exam_id === examId)?.title ?? "시험"}: ${row.student_name || `미식별 스캔 #${row.id}`}`).join(", ")}{omrIssues.length > 4 ? ` 외 ${omrIssues.length - 4}건` : ""} · 학생 식별 또는 답안 판독이 완료되면 성적표를 만들 수 있습니다.</p>
+                <Button type="button" intent="secondary" size="sm" onClick={() => {
+                  const first = omrIssues[0];
+                  if (first && lectureId && sessionId) {
+                    onClose();
+                    navigate(`/workspace/lectures/${lectureId}/sessions/${sessionId}/exams?examId=${first.examId}&examTab=results&reviewOmr=1`);
+                  }
+                }}>시험 OMR 검토로 이동</Button>
+              </>
+            )}
+          </div>
+        )}
         <div className={`student-score-report-workspace${showStudentList ? " is-student-list-open" : ""}`} style={workspaceStyle}>
           <main className="student-score-report-preview">
             <div className="student-score-report-preview__toolbar">
@@ -530,7 +585,7 @@ export default function StudentScoreReportModal({
               intent="primary"
               size="sm"
               leftIcon={<Download size={ICON_FOR_BUTTON.sm} aria-hidden />}
-              disabled={selectedReportRows.length === 0 || downloading}
+              disabled={selectedReportRows.length === 0 || downloading || omrCheckBusy || omrCheckFailed || omrIssues.length > 0}
               onClick={() => { void handleDownload(); }}
             >
               {downloading
