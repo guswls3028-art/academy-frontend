@@ -595,6 +595,9 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   await page.setViewportSize({ width: 1366, height: 850 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
+  const openCalendar = page.getByRole("button", { name: "달력으로 이동" });
+  await expect(openCalendar).toBeVisible({ timeout: 45_000 });
+  await openCalendar.click();
   const saturdayCell = page.getByRole("gridcell", { name: new RegExp(`${saturdayLabel} 토요일, 클리닉 3개`) });
   await expect(saturdayCell).toContainText("3개", { timeout: 20_000 });
   await saturdayCell.click();
