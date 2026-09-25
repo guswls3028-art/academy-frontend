@@ -429,6 +429,7 @@ async function waitForStudentResult(
 async function verifyChangedAnswerAndMaximum(
   page: Page,
   request: APIRequestContext,
+  adminToken: string,
   studentToken: string,
   parentToken: string,
 ): Promise<void> {
@@ -499,6 +500,28 @@ async function verifyChangedAnswerAndMaximum(
       const parent = await expectParentApi<{ exams?: any[] }>(request, "/student/grades/", parentToken, created.studentId);
       return parent.exams?.find((row) => Number(row.exam_id) === created.examId)?.total_score;
     }, { timeout: 30_000 }).toBe(expected);
+    const summary = await expectApi<{ participant_count: number; avg_score: number }>(
+      request, "GET", `/results/admin/exams/${created.examId}/summary/?lecture_id=${created.lectureId}`, adminToken,
+    );
+    expect(summary.participant_count).toBe(1);
+    expect(summary.avg_score).toBe(expected);
+    const questionStats = await expectApi<Array<{
+      question_number: number; attempts: number; correct: number; max_score: number;
+    }>>(request, "GET", `/results/admin/exams/${created.examId}/questions/?lecture_id=${created.lectureId}`, adminToken);
+    expect(questionStats.find((row) => row.question_number === 1)).toMatchObject({
+      attempts: 1, correct: changed ? 0 : 1, max_score: changed ? 0 : 1,
+    });
+    for (const account of [
+      { role: "student" as const, username: STUDENT_USER, password: STUDENT_PASS },
+      { role: "parent" as const, username: CONTROLLED_PHONE, password: STUDENT_PASS },
+    ]) {
+      await loginBrowserAsRealUser(page, "/student/grades", account);
+      const card = page.getByRole("link").filter({ hasText: EXAM_TITLE });
+      await expect(card).toContainText(`${expected}/${maximum}점`, { timeout: 30_000 });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(card).toContainText(`${expected}/${maximum}점`, { timeout: 30_000 });
+    }
+    await loginBrowserAsRealUser(page, setupPath, { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
 
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
     const recalculated = page.waitForResponse((response) => matchesApiResponse(response, "POST", `/exams/${created.examId}/recalculate/`), { timeout: 90_000 });
@@ -1304,7 +1327,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       .toContainText(`${EXPECTED_SCORE}/50점`, { timeout: 20_000 });
     await page.screenshot({ path: `e2e/screenshots/omr-review-realuse-parent-${TS}.png`, fullPage: true });
 
-    await verifyChangedAnswerAndMaximum(page, request, studentTokens.access, parentTokens.access);
+    await verifyChangedAnswerAndMaximum(page, request, adminTokens.access, studentTokens.access, parentTokens.access);
     await verifyStaffSubjectiveRecovery(page, request);
     await expect.poll(async () => (await waitForStudentResult(request, studentTokens.access, created.examId!)).total_score,
       { timeout: 30_000 }).toBe(EXPECTED_SCORE);
