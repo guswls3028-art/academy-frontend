@@ -35,6 +35,46 @@
   margin: 0;
 }
 
+.previewChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.previewChoices button {
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.previewChoices button:hover,
+.previewChoices button.previewChoiceActive {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+.previewChoices button:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+.previewExplanation {
+  margin: 12px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
 .intro h2 {
   margin-top: 4px;
   color: var(--color-text-primary);
@@ -66,14 +106,6 @@
   padding: 8px 11px;
   background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
   color: var(--color-brand-primary);
-}
-
-.live i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: passcard-live 1s ease-in-out infinite;
 }
 
 .grid {
@@ -138,6 +170,16 @@
   animation: passcard-gradient 8s ease-in-out infinite;
 }
 
+.previewConfirmed {
+  background: radial-gradient(circle at 82% 12%, rgb(56 189 248 / 34%), transparent 34%),
+    linear-gradient(155deg, #1e3a8a 0%, #172554 52%, #0f172a 100%);
+}
+
+.previewRequired {
+  background: radial-gradient(circle at 85% 10%, rgb(239 68 68 / 22%), transparent 34%),
+    linear-gradient(155deg, #18181b 0%, #050505 72%);
+}
+
 .preview::after {
   position: absolute;
   inset: -35%;
@@ -191,6 +233,32 @@
   color: #475569;
   font-size: 13px;
   font-weight: 700;
+}
+
+.previewCardDark {
+  border-color: rgb(255 255 255 / 35%);
+  background: linear-gradient(145deg, rgb(30 41 59 / 86%), rgb(15 23 42 / 95%));
+  color: #fff;
+}
+
+.previewConfirmed .previewCardDark {
+  border-color: rgb(125 211 252 / 74%);
+  background: linear-gradient(145deg, rgb(30 64 175 / 82%), rgb(15 23 42 / 94%));
+}
+
+.previewRequired .previewCardDark {
+  border-color: rgb(239 68 68 / 65%);
+  background: linear-gradient(145deg, rgb(127 29 29 / 72%), rgb(24 24 27 / 94%));
+}
+
+.previewCardDark > span,
+.previewCardDark strong,
+.previewCardDark p {
+  color: #fff;
+}
+
+.previewCardDark strong {
+  font-size: clamp(32px, 5vw, 54px);
 }
 
 .controls {
@@ -333,16 +401,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .live i,
   .preview,
   .preview::after {
     animation: none !important;
   }
-}
-
-@keyframes passcard-live {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.45; transform: scale(0.82); }
 }
 
 @keyframes passcard-gradient {

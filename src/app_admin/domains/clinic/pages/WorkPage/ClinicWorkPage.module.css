@@ -1,0 +1,80 @@
+.page {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+}
+
+.switcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 16px;
+  background: var(--color-bg-surface);
+}
+
+.switcherCopy {
+  display: grid;
+  gap: 3px;
+}
+
+.switcherCopy strong {
+  color: var(--color-text-primary);
+  font-size: 16px;
+}
+
+.switcherCopy span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+
+.switcherButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: var(--color-bg-surface-soft);
+}
+
+.switcherButtons button {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.switcherButtons button:hover,
+.switcherButtons button.active {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 4px rgb(15 23 42 / 10%);
+}
+
+.switcherButtons button:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+  .switcher { padding: 14px; }
+  .switcherButtons { width: 100%; }
+  .switcherButtons button { flex: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switcherButtons button { transition: none; }
+}

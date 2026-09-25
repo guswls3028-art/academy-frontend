@@ -307,6 +307,23 @@
   font-size: 12px;
   line-height: 1.45;
 }
+
+.noOpenDates {
+  padding: 18px var(--stu-space-4) 20px;
+  color: var(--stu-text);
+  text-align: center;
+}
+
+.noOpenDates strong {
+  font-size: 14px;
+}
+
+.noOpenDates p {
+  margin: 5px 0 0;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
 .openScheduleSummary {
   display: flex;
   flex: 0 0 auto;

@@ -245,6 +245,28 @@ export default function ClinicHomePage() {
 
   return (
     <div className="clinic-page clinic-home clinic-home--workspace">
+      <section className="clinic-home__overview" aria-labelledby="clinic-home-overview-title">
+        <div className="clinic-home__overview-heading">
+          <div>
+            <h2 id="clinic-home-overview-title">오늘 한눈에</h2>
+            <p>{todayLabel} · 필요한 업무로 바로 이동하세요.</p>
+          </div>
+        </div>
+        <div className="clinic-home__quick-links">
+          <button type="button" onClick={() => nav("/workspace/clinic/operations?scope=day")}>
+            <strong>오늘 운영</strong>
+            <span>{todayLoading ? "일정 확인 중…" : todayError ? "일정 확인 필요" : `일정 ${sessions.length}개 · 출석 ${todaySummary.attended}/${todaySummary.total}명`}</span>
+          </button>
+          <button type="button" onClick={() => nav("/workspace/clinic/schedule")}>
+            <strong>일정 배정</strong>
+            <span>{targetsQ.isLoading || weekQ.listQ.isLoading ? "미예약 확인 중…" : bookingCoverageError ? "미예약 확인 필요" : `이번 주 미예약 ${requiredCount}명`}</span>
+          </button>
+          <button type="button" onClick={() => nav("/workspace/clinic/operations?panel=unresolved")}>
+            <strong>미통과 처리</strong>
+            <span>시험·과제 전체 기간 확인</span>
+          </button>
+        </div>
+      </section>
       {/* ── 1) 액션바: 승인 대기 + 불참 — 할 일이 없으면 완전 숨김 ── */}
       {hasActionableItems && (
         <div className="clinic-home__action-bar">
