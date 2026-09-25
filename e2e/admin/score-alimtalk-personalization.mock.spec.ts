@@ -35,13 +35,14 @@ async function installScoreAlimtalkRoutes(
   sendPayloads: SendPayload[],
   templates: Record<string, unknown>[] = [],
 ) {
+  const tenantName = "실제 발송학원";
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     const method = request.method();
 
     if (path === "/api/v1/core/subscription/") {
-      await route.fulfill({ json: { tenant_name: "실제 발송학원", is_subscription_active: true } });
+      await route.fulfill({ json: { tenant_name: tenantName, is_subscription_active: true } });
       return;
     }
 
@@ -266,13 +267,16 @@ async function installScoreAlimtalkRoutes(
             uses_unified_template: true,
             template_type: "grades",
           },
+          // Preflight resolves Tenant.name inside each grade body before returning its preview.
           preview_recipients: [9301, 9302].map((studentId, index) => ({
             student_id: studentId,
             student_name: `개인화학생${index + 1}`,
             phone: `010****00${index + 1}`,
             excluded: false,
             exclude_reason: "",
-            full_message_body: perStudent[String(studentId)]?._body_subst ?? "",
+            full_message_body: (perStudent[String(studentId)]?._body_subst ?? "")
+              .replaceAll("#{학원이름}", tenantName)
+              .replaceAll("#{학원명}", tenantName),
           })),
           limits: { hourly_limit: 500, sent_last_hour: 0, remaining_this_hour: 500 },
           blockers: [],

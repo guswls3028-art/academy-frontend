@@ -1005,7 +1005,9 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       return;
     }
     autoFittedExamRef.current = examId;
-    const frame = window.requestAnimationFrame(() => fitTableToViewport(false));
+    const frame = window.requestAnimationFrame(() => {
+      if (!hasSavedTableScaleRef.current) fitTableToViewport(false);
+    });
     return () => window.cancelAnimationFrame(frame);
   }, [draftRows.length, examId, fitTableToViewport, visibleQuestions.length]);
 
