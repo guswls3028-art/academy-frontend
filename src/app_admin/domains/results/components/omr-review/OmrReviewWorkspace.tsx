@@ -194,14 +194,14 @@ export default function OmrReviewWorkspace({
     refetchInterval: open ? 8000 : false,
   });
   const issues = useInfiniteQuery({
-    queryKey: [...adminResultsQueryKeys.omrReviewIssues(examId), "pages"],
+    queryKey: adminResultsQueryKeys.omrReviewIssuesPages(examId),
     queryFn: ({ pageParam }) => listOmrReviewIssuesPage(examId, { cursor: pageParam }),
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (page) => page.next_cursor ?? undefined,
     enabled: open && Number.isFinite(examId),
   });
   const focusedIssue = useQuery({
-    queryKey: [...adminResultsQueryKeys.omrReviewIssues(examId), "focus", initialSubmissionId],
+    queryKey: adminResultsQueryKeys.omrReviewIssuesFocus(examId, initialSubmissionId),
     queryFn: () => listOmrReviewIssuesPage(examId, { focusId: initialSubmissionId }),
     enabled: open && initialSubmissionId != null,
   });

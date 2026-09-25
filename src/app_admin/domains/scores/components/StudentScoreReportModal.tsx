@@ -16,6 +16,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { listOmrReviewIssuesPage } from "@admin/domains/results/public/omrReview";
+import { scoresQueryKeys } from "../api/queryKeys";
 import {
   buildStudentScoreReportHtml,
   downloadStudentScoreReportPdf,
@@ -133,7 +134,7 @@ export default function StudentScoreReportModal({
   );
   const selectedOmrIds = useMemo(() => selectedReportRows.map((row) => row.enrollment_id).sort((a, b) => a - b), [selectedReportRows]);
   const omrPreflight = useQuery({
-    queryKey: ["student-score-report-omr-preflight", omrExamIds, selectedOmrIds],
+    queryKey: scoresQueryKeys.studentScoreReportOmrPreflight(omrExamIds, selectedOmrIds),
     queryFn: async () => {
       const checks = [];
       for (const examId of omrExamIds) {

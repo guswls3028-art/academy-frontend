@@ -50,7 +50,7 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
     refetchInterval: 15000,
   });
   const issues = useQuery({
-    queryKey: [...adminResultsQueryKeys.omrReviewIssues(examId), "summary"],
+    queryKey: adminResultsQueryKeys.omrReviewIssuesSummary(examId),
     queryFn: () => listOmrReviewIssuesPage(examId),
     enabled: Number.isFinite(examId),
     refetchInterval: 15000,
