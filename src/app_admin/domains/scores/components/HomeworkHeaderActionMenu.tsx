@@ -8,6 +8,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
+import { AssessmentEditGuardProvider } from "@/shared/ui/assessment/AssessmentEditGuard";
 import { deleteHomework } from "@admin/domains/homework/api/homeworks";
 import HomeworkPolicyPanel from "@admin/domains/homework/panels/setup/HomeworkPolicyPanel";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
@@ -94,7 +95,11 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
         <ModalHeader type="action" title="과제 수정" subtitle={homeworkTitle} />
         <ModalBody>
           <div className="max-h-[min(70vh,680px)] overflow-y-auto pr-1">
-            {editOpen && <HomeworkPolicyPanel homeworkId={homeworkId} onDirtyChange={setDirty} onSavingChange={setSaving} onSaved={handleSaved} />}
+            {editOpen && (
+              <AssessmentEditGuardProvider>
+                <HomeworkPolicyPanel homeworkId={homeworkId} onDirtyChange={setDirty} onSavingChange={setSaving} onSaved={handleSaved} />
+              </AssessmentEditGuardProvider>
+            )}
           </div>
         </ModalBody>
       </AdminModal>
