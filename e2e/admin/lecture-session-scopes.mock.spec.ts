@@ -893,7 +893,7 @@ test("원본 없이 직접 채점 시험을 만들고 문항별 점수 입력을
   ]);
 });
 
-test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운로드가 이어진다", async ({ page }) => {
+test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운로드가 이어진다", async ({ page }, testInfo) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
@@ -909,6 +909,10 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
     waitUntil: "domcontentloaded",
   });
 
+  await expect(page.getByRole("region", { name: "첫 시험 시작" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "시험·성적표 사용 순서" })).toHaveAttribute("href", "/workspace/guide#exam-score-guide");
+  await expect(page.getByRole("button", { name: "시험 추가", exact: true }).first()).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("scores-first-exam-390.png") });
   await page.getByRole("button", { name: "시험 추가", exact: true }).first().click();
   await page.getByText("시험 설정해서 만들기", { exact: true }).click();
   await page.getByLabel("시험명").fill("고1 OMR 단원평가");
@@ -954,6 +958,22 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   await page.reload();
   await page.getByRole("button", { name: "문항·답안 확인" }).click();
   await expect(page.getByRole("dialog").locator(".answer-key-row--choice .answer-key-row__score-val")).toHaveText(["33.4점", "33.3점", "33.3점"]);
+});
+
+test("성적 탭의 첫 시험 안내에서 현재 가이드의 해당 단계가 열린다", async ({ page }, testInfo) => {
+  const state: MockState = { supplementTitle: "토요일 심화 클리닉", patchTitles: [] };
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await openLecture(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/scores`, {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(page.getByRole("region", { name: "첫 시험 시작" })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("scores-first-exam-1366.png") });
+  await page.getByRole("link", { name: "시험·성적표 사용 순서" }).click();
+  await expect(page).toHaveURL(/\/workspace\/guide#exam-score-guide$/);
+  await expect(page.locator("#exam-score-guide")).toHaveAttribute("class", /cardOpen/);
+  await expect(page.getByText("OMR 답안지 받기", { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("exam-score-guide-1366.png") });
 });
 
 test("원본을 선택하면 생성과 자동 등록 뒤 기존 업로드 순서를 유지한다", async ({ page }, testInfo) => {

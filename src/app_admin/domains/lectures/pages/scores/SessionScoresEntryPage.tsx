@@ -10,7 +10,7 @@
  */
 
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -1215,8 +1215,20 @@ export default function SessionScoresEntryPage({
     );
   }
 
+  const openStudentScoreReport = async () => {
+    if (!await saveScoresNow()) return;
+    await refetch();
+    setShowStudentReport(true);
+    setShowMoreMenu(false);
+  };
+
   const primaryAction = (
     <div className="scores-primary-actions">
+      {hasExamsOrHomeworks && (
+        <Button type="button" intent="primary" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={openCreateExam}>
+          시험 추가
+        </Button>
+      )}
       {/* ── 그룹 1: OMR 주 동선 ──
           SSOT: 차시 성적 화면에서 OMR 스캔 등록을 가장 먼저 보여준다.
           시험 상세/제출관리는 등록이 아니라 조회/재처리 보조 동선으로 둔다. */}
@@ -1300,6 +1312,12 @@ export default function SessionScoresEntryPage({
         {isSaving || draft.isStartingEdit ? "저장 중…" : isEditMode ? "저장하고 잠금" : "수정"}
       </Button>
 
+      {hasExamsOrHomeworks && (
+        <Button type="button" intent="secondary" size="sm" disabled={recoveryBlocked || isLoading || isError || displayCount === 0} leftIcon={<UserRound size={ICON_FOR_BUTTON.sm} />} onClick={() => void openStudentScoreReport()} title={displayCount === 0 ? "수강생이 등록되면 개인 성적표를 출력할 수 있습니다" : undefined}>
+          개인 성적표
+        </Button>
+      )}
+
       {/* 구성·출력·클리닉을 한곳에 모아 상단의 선택 부담을 줄인다. */}
       <div ref={moreMenuRef} className="relative">
         <Button
@@ -1379,12 +1397,7 @@ export default function SessionScoresEntryPage({
                   <span className="scores-tool-card__icon" data-tone="print"><Printer size={ICON_FOR_BUTTON.sm} /></span>
                   <span><strong>성적표 출력</strong><small>교사용 전체 현황</small></span>
                 </button>
-                <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
-                  if (!await saveScoresNow()) return;
-                  await refetch();
-                  setShowStudentReport(true);
-                  setShowMoreMenu(false);
-                }}>
+                <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked || isLoading || isError || displayCount === 0} onClick={() => void openStudentScoreReport()}>
                   <span className="scores-tool-card__icon" data-tone="student"><UserRound size={ICON_FOR_BUTTON.sm} /></span>
                   <span><strong>개인 성적표</strong><small>여러 학생 PDF</small></span>
                 </button>
@@ -1419,6 +1432,24 @@ export default function SessionScoresEntryPage({
 
   return (
     <div className="scores-entry-page flex flex-col gap-3">
+      {!isLoading && !isError && !hasExamsOrHomeworks && (
+        <section className="scores-start-panel" aria-label="첫 시험 시작">
+          <div className="scores-start-panel__head">
+            <span className="scores-start-panel__kicker">이 차시의 첫 평가</span>
+            <h3 className="scores-start-panel__title">시험을 만들어 보세요</h3>
+            <p className="scores-start-panel__copy">시험 추가 → 답안 등록 → OMR 답안지 다운로드까지 팝업에서 이어집니다.</p>
+          </div>
+          <div className="scores-start-panel__actions">
+            <Button type="button" intent="primary" size="md" leftIcon={<Plus size={ICON_FOR_BUTTON.md} />} onClick={openCreateExam}>
+              시험 추가
+            </Button>
+            <Button type="button" intent="secondary" size="md" leftIcon={<Plus size={ICON_FOR_BUTTON.md} />} onClick={openCreateHomework}>
+              과제 추가
+            </Button>
+            <Link className="scores-start-panel__guide" to="/workspace/guide#exam-score-guide">시험·성적표 사용 순서</Link>
+          </div>
+        </section>
+      )}
       <DomainListToolbar
         totalLabel={isLoading ? "…" : `총 ${displayCount}명`}
         searchSlot={
@@ -1589,53 +1620,6 @@ export default function SessionScoresEntryPage({
             </Button>
           }
         />
-      )}
-
-      {/* ── 워크플로우 안내: 시험/과제가 없을 때 ──
-          P2 (2026-05-13): 자동 등록 사실을 1단계에 흡수, 가이드와 모달 동작 정합.
-          기존 2단계 "수강생 일괄배정"은 자동 등록 실패 시 보조 경로로 강등. */}
-      {!isLoading && !isError && !hasExamsOrHomeworks && (
-        <div className="scores-start-panel">
-          <div className="scores-start-panel__head">
-            <span className="scores-start-panel__kicker">Assessment</span>
-            <h3 className="scores-start-panel__title">평가 항목 없음</h3>
-            <p className="scores-start-panel__copy">
-              이 차시에 연결된 시험이나 과제가 없습니다.
-            </p>
-          </div>
-          <div className="scores-start-panel__actions">
-            <Button
-              type="button"
-              intent="primary"
-              size="md"
-              leftIcon={<Plus size={ICON_FOR_BUTTON.md} />}
-              onClick={openCreateExam}
-            >
-              시험 추가
-            </Button>
-            <Button
-              type="button"
-              intent="secondary"
-              size="md"
-              leftIcon={<Plus size={ICON_FOR_BUTTON.md} />}
-              onClick={openCreateHomework}
-            >
-              과제 추가
-            </Button>
-          </div>
-          <div className="scores-start-panel__cards" aria-label="성적 항목 상태">
-            <div className="scores-start-panel__card">
-              <ClipboardList size={18} aria-hidden />
-              <span>시험</span>
-              <strong>0</strong>
-            </div>
-            <div className="scores-start-panel__card">
-              <FileText size={18} aria-hidden />
-              <span>과제</span>
-              <strong>0</strong>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* ── 안내 배너: 시험/과제별 응시·제출 대상이 일부라도 누락됐을 때 ── */}

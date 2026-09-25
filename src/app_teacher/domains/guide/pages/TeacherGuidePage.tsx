@@ -46,8 +46,8 @@ const GUIDE_ITEMS = [
 
 const DESKTOP_ITEMS = [
   {
-    title: "시험지, 영상, 자료, 학원 설정",
-    description: "대량 입력이나 파일 작업은 화면이 넓은 PC에서 처리하면 실수가 줄어듭니다.",
+    title: "시험 준비와 성적표 출력은 PC에서",
+    description: "시험·답안·OMR 답안지 준비와 개인 성적표 출력은 PC 기능을 확인하세요. 학원 관리 권한이 있다면 강의 → 차시 → 성적에서 시작합니다.",
     path: "/workspace/mobile/desktop-only",
     action: "PC 기능",
     icon: <Monitor size={ICON.md} />,

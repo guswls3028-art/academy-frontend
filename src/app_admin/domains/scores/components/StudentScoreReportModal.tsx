@@ -180,6 +180,7 @@ export default function StudentScoreReportModal({
     "--score-report-accent": reportTheme.accent,
     "--score-report-on-brand": reportTheme.onPrimary,
     "--score-report-preview-height": `${previewSourceHeight}px`,
+    "--score-report-preview-height-80": `${Math.ceil(previewSourceHeight * 0.8)}px`,
     "--score-report-preview-height-70": `${Math.ceil(previewSourceHeight * 0.7)}px`,
     "--score-report-preview-height-60": `${Math.ceil(previewSourceHeight * 0.6)}px`,
     "--score-report-mobile-height": `${mobilePreviewHeight}px`,

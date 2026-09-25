@@ -481,9 +481,8 @@ test.describe("개인 성적표", () => {
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
-    await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
-    await page.getByRole("button", { name: "성적 도구" }).click();
-    await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
+    await expect(page.getByRole("button", { name: "개인 성적표", exact: true })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
 
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("개인 성적표", { exact: true })).toBeVisible();

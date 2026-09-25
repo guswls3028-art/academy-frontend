@@ -1,8 +1,8 @@
 /**
  * 선생앱(관리자) 공식 사용 가이드 — 계약 직후 온보딩 + 업무 흐름 + 투어
  */
-import { useState, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useState, useCallback, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { ArrowRight, CheckCircle2, ChevronDown, CircleAlert, KeyRound, Play } from "lucide-react";
 import { DomainLayout } from "@/shared/ui/layout";
 import { useGuideTour } from "@/shared/ui/guide";
@@ -176,7 +176,7 @@ function WorkflowCard({
   }, [wf, startTour, navigate]);
 
   return (
-    <div className={`${styles.card} ${open ? styles.cardOpen : ""}`}>
+    <div id={wf.id === "create-exam" ? "exam-score-guide" : undefined} className={`${styles.card} ${open ? styles.cardOpen : ""}`}>
       {/* 헤더 — 클릭으로 펼침/접힘. 우측 「시작」 버튼은 stopPropagation으로 분리 */}
       <div
         className={styles.cardHeader}
@@ -274,6 +274,14 @@ function WorkflowCard({
    ================================================================ */
 export default function AdminGuidePage() {
   const [openId, setOpenId] = useState<string | null>(null);
+  const { hash } = useLocation();
+
+  useEffect(() => {
+    if (hash !== "#exam-score-guide") return;
+    setOpenId("create-exam");
+    const timer = window.setTimeout(() => document.getElementById("exam-score-guide")?.scrollIntoView({ block: "start" }), 80);
+    return () => window.clearTimeout(timer);
+  }, [hash]);
 
   const toggle = useCallback(
     (id: string) => setOpenId((prev) => (prev === id ? null : id)),
@@ -288,7 +296,7 @@ export default function AdminGuidePage() {
       <div className={styles.guidePage}>
         <section className={styles.heroPanel} aria-labelledby="official-guide-title">
           <div className={styles.heroCopy}>
-            <p className={styles.kicker}>Official onboarding</p>
+            <p className={styles.kicker}>처음 시작</p>
             <h2 id="official-guide-title">처음 하루는 이 순서만 따라오세요.</h2>
             <p>
               모든 기능을 한 번에 익히려고 하면 복잡합니다. 먼저 대표가 기본 정보를 채우고,
@@ -302,10 +310,30 @@ export default function AdminGuidePage() {
           </div>
         </section>
 
+        <section className={styles.section} aria-labelledby="workflow-title">
+          <div className={styles.sectionHeader}>
+            <div>
+              <p className={styles.sectionKicker}>업무 안내</p>
+              <h2 id="workflow-title">지금 할 일 따라하기</h2>
+            </div>
+            <span className={styles.sectionHint}>카드를 눌러 현재 화면의 순서 확인</span>
+          </div>
+          <div className={styles.workflowList}>
+            {ADMIN_WORKFLOWS.map((wf) => (
+              <WorkflowCard
+                key={wf.id}
+                wf={wf}
+                open={openId === wf.id}
+                onToggle={() => toggle(wf.id)}
+              />
+            ))}
+          </div>
+        </section>
+
         <section className={styles.section} aria-labelledby="start-order-title">
           <div className={styles.sectionHeader}>
             <div>
-              <p className={styles.sectionKicker}>Start order</p>
+              <p className={styles.sectionKicker}>첫날 준비</p>
               <h2 id="start-order-title">계약 직후 체크리스트</h2>
             </div>
             <span className={styles.sectionHint}>대표 계정으로 먼저 확인</span>
@@ -320,7 +348,7 @@ export default function AdminGuidePage() {
         <section className={styles.section} aria-labelledby="first-use-findings-title">
           <div className={styles.sectionHeader}>
             <div>
-              <p className={styles.sectionKicker}>First-use review</p>
+              <p className={styles.sectionKicker}>막히기 쉬운 곳</p>
               <h2 id="first-use-findings-title">처음 막히기 쉬운 지점</h2>
             </div>
             <span className={styles.sectionHint}>
@@ -331,26 +359,6 @@ export default function AdminGuidePage() {
           <div className={styles.findingList}>
             {FIRST_USE_FINDINGS.map((item, index) => (
               <FindingDetails key={item.title} item={item} index={index} />
-            ))}
-          </div>
-        </section>
-
-        <section className={styles.section} aria-labelledby="workflow-title">
-          <div className={styles.sectionHeader}>
-            <div>
-              <p className={styles.sectionKicker}>Workflow</p>
-              <h2 id="workflow-title">업무별 따라하기</h2>
-            </div>
-            <span className={styles.sectionHint}>카드를 눌러 상세 단계 보기</span>
-          </div>
-          <div className={styles.workflowList}>
-            {ADMIN_WORKFLOWS.map((wf) => (
-              <WorkflowCard
-                key={wf.id}
-                wf={wf}
-                open={openId === wf.id}
-                onToggle={() => toggle(wf.id)}
-              />
             ))}
           </div>
         </section>
