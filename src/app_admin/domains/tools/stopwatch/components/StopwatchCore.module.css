@@ -467,6 +467,42 @@
   filter: brightness(0) invert(1);
 }
 
+.projector .watermark[src$="logo-timer-dark.svg"] {
+  opacity: 0.16;
+  filter: none;
+}
+
+@media (max-width: 600px) {
+  .root {
+    justify-content: flex-start;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .topBar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .brand { grid-column: 1 / -1; min-width: 0; }
+  .brandName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .modeToggle { grid-column: 1; min-width: 0; }
+  .modeBtn { padding: 7px 12px; white-space: nowrap; }
+  .topRight { grid-column: 2; gap: 6px; }
+  .projToggle { padding: 7px 9px; gap: 6px; }
+  .main { box-sizing: border-box; flex: none; padding: 88px 12px 24px; gap: 16px; }
+  .display { font-size: clamp(30px, 9vw, 42px); letter-spacing: -1px; padding: 8px 0; }
+  .digit { min-width: 1.8ch; }
+  .sep { margin: 0 1px; }
+  .cs { margin-left: 2px; min-width: 0; }
+  .controls { gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .btnMain { width: 64px; height: 64px; }
+  .btnSide, .btnLap { padding: 10px 14px; font-size: 14px; white-space: nowrap; }
+  .hints { display: none; }
+}
+
 /* Status */
 .projector .statusRunning .statusDot {
   background: #51cf66;
