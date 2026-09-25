@@ -1518,6 +1518,8 @@ test.describe("문항별 직접 채점", () => {
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
     await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
     expect((await editor.boundingBox())?.width).toBeGreaterThanOrEqual(380);
+    expect((await editor.getByRole("heading", { name: "김학생 · 오프라인 답안 입력" }).boundingBox())?.y).toBeGreaterThanOrEqual(56);
+    expect((await editor.getByRole("group", { name: "1번 답안" }).getByRole("button", { name: "4" }).boundingBox())?.width).toBeGreaterThanOrEqual(44);
     await expect(editor.getByRole("button", { name: "채점 미리보기" })).toBeEnabled();
     await editor.getByRole("group", { name: "1번 답안" }).getByRole("button", { name: "4" }).click();
     await editor.getByRole("textbox", { name: "2번 숫자 답안" }).fill("7");

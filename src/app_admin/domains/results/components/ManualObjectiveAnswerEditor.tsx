@@ -96,7 +96,7 @@ export default function ManualObjectiveAnswerEditor({ examId, row, questions, on
   };
 
   return (
-    <section className="min-w-0 flex-1 space-y-4 rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4 max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:bottom-16 max-md:z-50 max-md:overflow-y-auto max-md:overscroll-contain max-md:rounded-none max-md:pb-20" aria-label={`${row.student_name} 오프라인 답안 입력`}>
+    <section className="min-w-0 flex-1 space-y-4 rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4 max-md:fixed max-md:inset-x-0 max-md:top-14 max-md:bottom-16 max-md:z-50 max-md:overflow-y-auto max-md:overscroll-contain max-md:rounded-none max-md:pb-20" aria-label={`${row.student_name} 오프라인 답안 입력`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold">{row.student_name} · 오프라인 답안 입력</h2>
@@ -143,7 +143,7 @@ export default function ManualObjectiveAnswerEditor({ examId, row, questions, on
                         aria-pressed={requiredChoiceTokens(answer).includes(choice)}
                         onClick={() => toggleChoice(question.question_id, choice)}
                         disabled={busy || !loaded}
-                        className="h-9 w-9 rounded-full border border-[var(--color-border-divider)] text-sm font-semibold transition-transform hover:-translate-y-0.5 aria-pressed:border-[var(--color-primary)] aria-pressed:bg-[var(--color-primary)] aria-pressed:text-white motion-reduce:transition-none"
+                        className="h-11 w-11 rounded-full border border-[var(--color-border-divider)] text-sm font-semibold transition-transform hover:-translate-y-0.5 aria-pressed:border-[var(--color-primary)] aria-pressed:bg-[var(--color-primary)] aria-pressed:text-white motion-reduce:transition-none"
                       >{choice}</button>
                     ))}
                   </div>
