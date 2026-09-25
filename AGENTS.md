@@ -19,7 +19,7 @@ Self-contained instructions for the frontend Git root.
   into this repository or overwrite canonical files.
 - In this owner's local sessions, use the installed ChatGPT Web bridge for
   meaningful independent work:
-  `chatgpt-web/pro` at `ultra` is the default subagent. Start one bounded Web
+  `chatgpt-web/gpt-6-pro` at `max` is the default subagent. Start one bounded Web
   task early; use a lower Web model only for genuinely trivial work. Preserve
   the primary Codex model and Codex ownership of integration, checks, and
   release. Retry Pro once on capacity errors; do not silently downgrade
