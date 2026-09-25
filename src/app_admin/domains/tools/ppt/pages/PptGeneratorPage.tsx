@@ -123,16 +123,25 @@ export default function PptGeneratorPage() {
   const [recoveryNotice, setRecoveryNotice] = useState("");
   const [recoveryNonce, setRecoveryNonce] = useState(0);
   const imagesRef = useRef<ImageItem[]>([]);
+  const recoveryIdentityRef = useRef("");
 
   useEffect(() => {
     if (authLoading) return;
     if (!userId || !tenantScope) {
       setRecoveryJobs([]);
       setRecoveryNotice("");
+      recoveryIdentityRef.current = "";
       return;
     }
+    const identity = `${tenantScope}:${userId}`;
+    if (recoveryIdentityRef.current !== identity) {
+      recoveryIdentityRef.current = identity;
+      setRecoveryNotice("");
+    }
     const { references, issue } = loadPptJobReferences(tenantScope, userId);
-    setRecoveryNotice(recoveryIssueMessage(issue));
+    // Reading removes unsafe/expired refs; a second effect pass must keep that guidance visible.
+    if (issue) setRecoveryNotice(recoveryIssueMessage(issue));
+    else if (references.length) setRecoveryNotice("");
     setRecoveryJobs(references.map((reference) => ({ reference, status: "checking" })));
     const controller = new AbortController();
     const timers = new Set<number>();

@@ -94,8 +94,8 @@ test("다른 사용자 작업 기록은 조회하지 않고 지운다", async ({
     await route.fulfill({ status: 500, body: "unexpected job GET" });
   });
   await page.goto(`${getBaseUrl("admin")}/workspace/tools/ppt`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("이전 작업은 현재 계정이나 학원에서 복구할 수 없습니다.")).toBeVisible();
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), storageKey)).toBeNull();
+  await expect(page.getByText("이전 작업은 현재 계정이나 학원에서 복구할 수 없습니다.")).toBeVisible();
   expect(jobGets).toBe(0);
 });
 
@@ -116,8 +116,8 @@ test("만료된 PPT 작업 기록은 조회하지 않고 안내한다", async ({
     await route.fulfill({ status: 500, body: "unexpected job GET" });
   });
   await page.goto(`${getBaseUrl("admin")}/workspace/tools/ppt`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("오래된 작업 기록은 만료되었습니다. 원본 파일을 다시 선택해 주세요.")).toBeVisible();
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), storageKey)).toBeNull();
+  await expect(page.getByText("오래된 작업 기록은 만료되었습니다. 원본 파일을 다시 선택해 주세요.")).toBeVisible();
   expect(jobGets).toBe(0);
 });
 
