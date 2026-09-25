@@ -486,6 +486,12 @@ async function verifyChangedAnswerAndMaximum(
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator("#assessment-policy > details > summary").click();
     await expect(page.getByRole("spinbutton", { name: "만점", exact: true })).toHaveValue(String(maximum));
+    await expect.poll(async () => (await waitForStudentResult(request, studentToken, created.examId!)).total_score,
+      { timeout: 30_000 }).toBe(expected);
+    await expect.poll(async () => {
+      const parent = await expectParentApi<{ exams?: any[] }>(request, "/student/grades/", parentToken, created.studentId);
+      return parent.exams?.find((row) => Number(row.exam_id) === created.examId)?.total_score;
+    }, { timeout: 30_000 }).toBe(expected);
 
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
     const recalculated = page.waitForResponse((response) => matchesApiResponse(response, "POST", `/exams/${created.examId}/recalculate/`), { timeout: 90_000 });
