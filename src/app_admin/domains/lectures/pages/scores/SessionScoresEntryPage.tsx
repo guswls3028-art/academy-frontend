@@ -1111,7 +1111,7 @@ export default function SessionScoresEntryPage({
             ) : (
               <ul>
                 <li>학생 행을 누르면 개별 성적 상세를 볼 수 있습니다.</li>
-                <li>시험명을 누르면 정오표 작성·OMR 검토·시험 설정을 선택할 수 있습니다.</li>
+                <li>시험명을 누르면 채점·설정·수정·삭제를, 과제명을 누르면 수정·삭제를 선택할 수 있습니다.</li>
                 <li>시험·과제 머리글을 끌어 표시 순서를 바꿀 수 있습니다.</li>
                 <li>회색 <strong>-</strong>는 해당 시험·과제에 아직 배정되지 않은 상태입니다.</li>
               </ul>
@@ -1688,6 +1688,7 @@ export default function SessionScoresEntryPage({
           search={searchInput}
           isEditMode={isEditMode}
           hasUnsavedChanges={isEditMode || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
+          assessmentDeleteLocked={recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error" || activeScoreCell !== null}
           onPendingChange={draft.requestAutosave}
           activeEditors={draft.activeEditors}
           onClaimOwnCell={draft.claimOwnCell}
