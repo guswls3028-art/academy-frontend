@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" role="img" aria-label="동휘원소 과학연구소">
+  <g fill="none" stroke="#ffdb5a" stroke-width="3.2">
+    <ellipse cx="100" cy="52" rx="48" ry="18"/>
+    <ellipse cx="100" cy="52" rx="48" ry="18" transform="rotate(60 100 52)"/>
+    <ellipse cx="100" cy="52" rx="48" ry="18" transform="rotate(120 100 52)"/>
+  </g>
+  <circle cx="100" cy="52" r="9" fill="#fffdf0"/>
+  <circle cx="52" cy="52" r="4.5" fill="#ffdb5a"/>
+  <circle cx="124" cy="10" r="4.5" fill="#ffdb5a"/>
+  <circle cx="124" cy="94" r="4.5" fill="#ffdb5a"/>
+  <text x="100" y="130" text-anchor="middle" fill="#fffdf0" font-family="Noto Sans KR, Malgun Gothic, sans-serif" font-size="31" font-weight="900" letter-spacing="-2">동휘원소</text>
+  <text x="100" y="150" text-anchor="middle" fill="#ffdb5a" font-family="Noto Sans KR, Malgun Gothic, sans-serif" font-size="13" font-weight="700" letter-spacing="1">과학연구소</text>
+</svg>
