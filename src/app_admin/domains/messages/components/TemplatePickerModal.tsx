@@ -20,7 +20,8 @@ import { Input } from "antd";
 import { Search, Check, Edit3, Star, Copy, Trash2, Shield, Tag } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Badge, Button, ICON } from "@/shared/ui/ds";
-import { renderPreviewWithActualData, TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
+import KakaoAlimtalkPreview from "@/shared/ui/notifications/KakaoAlimtalkPreview";
+import { renderPlainMessagePreview, TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
 import type { TemplateCategory } from "../constants/templateBlocks";
 import type { MessageTemplateItem } from "../api/messages.api";
 import type { ProvidedTemplatePreset } from "../constants/templatePresets";
@@ -87,6 +88,7 @@ export default function TemplatePickerModal({
   );
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const prevOpenRef = useRef(false);
 
   // 발송 모달이 열린 시점의 selectedTemplateId를 미리보기 기본으로
@@ -185,9 +187,25 @@ export default function TemplatePickerModal({
     ? renderAlimtalkFullPreview(previewAlimtalkType, previewData?._body_subst ?? previewSourceBody, undefined, previewData)
     : previewSourceBody;
   const previewBody = previewTpl || previewPreset
-    ? renderPreviewWithActualData(previewDisplayBody, previewData)
+    ? renderPlainMessagePreview(previewDisplayBody, previewData)
     : null;
   const previewChannelLabel = getAlimtalkTemplateLabel(previewAlimtalkType);
+
+  const showPreview = (key: string) => {
+    setPreviewKey(key);
+    if (window.matchMedia("(max-width: 640px)").matches) {
+      window.requestAnimationFrame(() => previewRef.current?.scrollIntoView({
+        block: "start",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      }));
+    }
+  };
+
+  const applyPreview = () => {
+    if (previewTpl) onPick(previewTpl);
+    else if (previewPreset) onPickPreset?.(previewPreset);
+    onClose();
+  };
 
   if (!open) return null;
 
@@ -208,7 +226,7 @@ export default function TemplatePickerModal({
       >
         <button
           type="button"
-          onClick={() => setPreviewKey(`template:${t.id}`)}
+          onClick={() => showPreview(`template:${t.id}`)}
           onDoubleClick={() => { onPick(t); onClose(); }}
           className="tpl-picker__card-body"
         >
@@ -274,7 +292,7 @@ export default function TemplatePickerModal({
       >
         <button
           type="button"
-          onClick={() => setPreviewKey(`preset:${preset.id}`)}
+          onClick={() => showPreview(`preset:${preset.id}`)}
           onDoubleClick={() => { onPickPreset?.(preset); onClose(); }}
           className="tpl-picker__card-body"
         >
@@ -389,7 +407,7 @@ export default function TemplatePickerModal({
           </div>
 
           {/* ═══ 우측: 미리보기 ═══ */}
-          <div className="tpl-picker__right">
+          <div className="tpl-picker__right" ref={previewRef}>
             {previewTpl || previewPreset ? (
               <>
                 <div className="tpl-picker__preview-header">
@@ -415,26 +433,15 @@ export default function TemplatePickerModal({
                   </div>
                 </div>
 
-                <div className="tpl-picker__preview-card">
-                  <div className="template-preview-kakao__header">
-                    <span className="template-preview-kakao__header-label">알림톡 도착</span>
-                    <span className="template-preview-kakao__header-channel">{previewChannelLabel}</span>
-                  </div>
-                  {previewTpl?.subject && (
-                    <div className="template-preview-kakao__title">{previewTpl.subject}</div>
-                  )}
-                  <div className="template-preview-kakao__body">{previewBody}</div>
-                </div>
+                <KakaoAlimtalkPreview channelLabel={previewChannelLabel} subject={previewTpl?.subject} className="tpl-picker__preview-chat">
+                  {previewBody}
+                </KakaoAlimtalkPreview>
 
                 <div className="tpl-picker__preview-actions">
                   <Button
                     intent="primary"
                     size="lg"
-                    onClick={() => {
-                      if (previewTpl) onPick(previewTpl);
-                      else if (previewPreset) onPickPreset?.(previewPreset);
-                      onClose();
-                    }}
+                    onClick={applyPreview}
                     className="tpl-picker__apply-btn"
                   >
                     <Check size={ICON.sm} className="tpl-picker__apply-icon" />
@@ -456,7 +463,12 @@ export default function TemplatePickerModal({
 
       <ModalFooter
         right={
-          <Button intent="secondary" onClick={onClose} size="lg">닫기</Button>
+          <>
+            {(previewTpl || previewPreset) && (
+              <Button intent="primary" onClick={applyPreview} size="lg" className="tpl-picker__mobile-apply" aria-label="이 문구로 작성하기">문구 적용</Button>
+            )}
+            <Button intent="secondary" onClick={onClose} size="lg">닫기</Button>
+          </>
         }
       />
     </AdminModal>
