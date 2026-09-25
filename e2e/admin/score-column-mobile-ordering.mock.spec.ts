@@ -356,12 +356,12 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
 
     await examTrigger.click();
     await examMenu.getByRole("menuitem", { name: "삭제" }).click();
-    const examConfirm = page.getByRole("dialog", { name: "시험 삭제" });
+    const examConfirm = page.getByRole("alertdialog", { name: "시험 삭제" });
     await examConfirm.getByRole("button", { name: "취소" }).click();
     expect(deletedAssessments).toEqual([]);
     await examTrigger.click();
     await examMenu.getByRole("menuitem", { name: "삭제" }).click();
-    await page.getByRole("dialog", { name: "시험 삭제" }).getByRole("button", { name: "삭제" }).click();
+    await page.getByRole("alertdialog", { name: "시험 삭제" }).getByRole("button", { name: "삭제" }).click();
     await expect(examTrigger).toHaveCount(0);
 
     const homeworkTrigger = page.getByRole("button", { name: "첫 과제 작업 선택" });
@@ -374,12 +374,12 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
 
     await homeworkTrigger.click();
     await homeworkMenu.getByRole("menuitem", { name: "삭제" }).click();
-    const homeworkConfirm = page.getByRole("dialog", { name: "과제 삭제" });
+    const homeworkConfirm = page.getByRole("alertdialog", { name: "과제 삭제" });
     await homeworkConfirm.getByRole("button", { name: "취소" }).click();
     expect(deletedAssessments).toEqual(["exam:9101"]);
     await homeworkTrigger.click();
     await homeworkMenu.getByRole("menuitem", { name: "삭제" }).click();
-    await page.getByRole("dialog", { name: "과제 삭제" }).getByRole("button", { name: "삭제" }).click();
+    await page.getByRole("alertdialog", { name: "과제 삭제" }).getByRole("button", { name: "삭제" }).click();
     await expect(homeworkTrigger).toHaveCount(0);
 
     expect(deletedAssessments).toEqual(["exam:9101", "homework:9151"]);
