@@ -365,8 +365,9 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       await page.setViewportSize({ width, height: 900 });
       if (width === 390) {
         await picker.getByRole("button", { name: /실제 성적 문구/ }).click();
-        await expect.poll(() => picker.locator(".tpl-picker__right").evaluate((node) => node.getBoundingClientRect().top))
-          .toBeLessThan(350);
+        await expect(draft).toBeInViewport({ ratio: 1 });
+        await expect.poll(() => picker.locator(".tpl-picker__mobile-apply .ds-button__label")
+          .evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
       }
       await expect(draft).toContainText("#{학생이름3}");
       await expect(draft).toContainText("#{시험총점}");
