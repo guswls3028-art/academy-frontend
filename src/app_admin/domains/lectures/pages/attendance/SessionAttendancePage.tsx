@@ -825,6 +825,7 @@ export default function SessionAttendancePage({
               <tbody>
                 {sorted.map((att) => {
                   const studentId = att.student_id ?? att.enrollment?.student_id;
+                  const studentName = att.name ?? att.student_name ?? "학생";
                   const canOpenStudent = Number.isInteger(studentId) && Number(studentId) > 0;
                   return (
                   <tr
@@ -924,9 +925,12 @@ export default function SessionAttendancePage({
                       {formatPhone(att.phone ?? att.student_phone)}
                     </td>
                     <td className="align-middle" style={{ width: columnWidths.memo ?? 320 }} onClick={(event) => event.stopPropagation()}>
+                      <div className="truncate px-2 pt-1 text-[12px] font-semibold text-[var(--color-text-secondary)]" title={studentName}>
+                        {studentName}
+                      </div>
                       {att.enrollment_id != null ? (
                         <StudentLectureMemo enrollmentId={att.enrollment_id}
-                          studentName={att.name ?? att.student_name ?? "학생"}
+                          studentName={studentName}
                           lectureTitle={att.lecture_title} lectureMemo={att.lecture_memo}
                           studentMemo={att.student_memo} />
                       ) : "—"}
