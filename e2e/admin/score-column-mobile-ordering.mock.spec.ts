@@ -33,6 +33,7 @@ function createLocalJwt() {
 type OrderingHarness = {
   reorderPayloads: Array<{ exams?: number[]; homeworks?: number[] }>;
   unexpectedMutations: string[];
+  deletedAssessments: string[];
 };
 
 async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
@@ -41,11 +42,53 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
   let failNextReorder = true;
   const reorderPayloads: OrderingHarness["reorderPayloads"] = [];
   const unexpectedMutations: string[] = [];
+  const deletedAssessments: string[] = [];
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname;
+    const url = new URL(request.url());
+    const path = url.pathname;
     const method = request.method();
+
+    if (path.endsWith(`/exams/${EXAM_IDS[0]}/`)) {
+      if (method === "DELETE") {
+        if (url.searchParams.get("session_id") !== String(SESSION_ID)) {
+          await route.fulfill({ status: 400, json: { detail: "차시가 일치하지 않습니다." } });
+          return;
+        }
+        examOrder = examOrder.filter((id) => id !== EXAM_IDS[0]);
+        deletedAssessments.push(`exam:${EXAM_IDS[0]}`);
+        await route.fulfill({ json: { action: "archived" } });
+        return;
+      }
+      if (method === "GET") {
+        await route.fulfill({ json: {
+          id: EXAM_IDS[0], title: examTitles[EXAM_IDS[0]], exam_type: "regular",
+          grading_mode: "written", manual_grading_method: "score", max_score: 100,
+          pass_score: 60, updated_at: "2026-08-25T12:00:00+09:00",
+        } });
+        return;
+      }
+    }
+
+    if (path.endsWith(`/homeworks/${HOMEWORK_IDS[0]}/`)) {
+      if (method === "DELETE") {
+        homeworkOrder = homeworkOrder.filter((id) => id !== HOMEWORK_IDS[0]);
+        deletedAssessments.push(`homework:${HOMEWORK_IDS[0]}`);
+        await route.fulfill({ status: 204, body: "" });
+        return;
+      }
+      if (method === "GET") {
+        await route.fulfill({ json: {
+          id: HOMEWORK_IDS[0], session_id: SESSION_ID,
+          title: homeworkTitles[HOMEWORK_IDS[0]], grading_mode: "SCORE",
+          max_score: 100, effective_cutline_mode: "PERCENT",
+          effective_cutline_value: 80, effective_round_unit_percent: 5,
+          updated_at: "2026-08-25T12:00:00+09:00",
+        } });
+        return;
+      }
+    }
 
     if (
       path.endsWith(`/results/admin/sessions/${SESSION_ID}/reorder/`)
@@ -184,7 +227,7 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
     await route.fallback();
   });
 
-  return { reorderPayloads, unexpectedMutations };
+  return { reorderPayloads, unexpectedMutations, deletedAssessments };
 }
 
 async function openScores(page: Page): Promise<OrderingHarness> {
@@ -291,6 +334,53 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
       await expect(handle).toHaveAttribute("draggable", "true");
     }
 
+    expect(unexpectedMutations).toEqual([]);
+    await expectDocumentOverflowZero(page);
+  });
+
+  test("시험·과제 머리글에서 수정 모달과 확인 후 삭제가 작동하고 새로고침에도 반영된다", async ({ page }) => {
+    const { deletedAssessments, unexpectedMutations } = await openScores(page);
+
+    const examTrigger = page.getByRole("button", { name: "첫 시험 작업 선택" });
+    await examTrigger.click();
+    const examMenu = page.getByRole("menu", { name: "첫 시험 작업 선택" });
+    await expect(examMenu.getByRole("menuitem", { name: "수정" })).toBeVisible();
+    await examMenu.getByRole("menuitem", { name: "수정" }).click();
+    await expect(page.getByRole("dialog").filter({ hasText: "시험 설정" }).getByRole("textbox", { name: "시험명" })).toHaveValue("첫 시험");
+    await page.keyboard.press("Escape");
+
+    await examTrigger.click();
+    await examMenu.getByRole("menuitem", { name: "삭제" }).click();
+    const examConfirm = page.getByRole("dialog", { name: "시험 삭제" });
+    await examConfirm.getByRole("button", { name: "취소" }).click();
+    expect(deletedAssessments).toEqual([]);
+    await examTrigger.click();
+    await examMenu.getByRole("menuitem", { name: "삭제" }).click();
+    await page.getByRole("dialog", { name: "시험 삭제" }).getByRole("button", { name: "삭제" }).click();
+    await expect(examTrigger).toHaveCount(0);
+
+    const homeworkTrigger = page.getByRole("button", { name: "첫 과제 작업 선택" });
+    await homeworkTrigger.click();
+    const homeworkMenu = page.getByRole("menu", { name: "첫 과제 작업 선택" });
+    await expect(homeworkMenu.getByRole("menuitem", { name: "수정" })).toBeVisible();
+    await homeworkMenu.getByRole("menuitem", { name: "수정" }).click();
+    await expect(page.getByRole("dialog").filter({ hasText: "과제 수정" }).getByRole("textbox", { name: "과제명" })).toHaveValue("첫 과제");
+    await page.keyboard.press("Escape");
+
+    await homeworkTrigger.click();
+    await homeworkMenu.getByRole("menuitem", { name: "삭제" }).click();
+    const homeworkConfirm = page.getByRole("dialog", { name: "과제 삭제" });
+    await homeworkConfirm.getByRole("button", { name: "취소" }).click();
+    expect(deletedAssessments).toEqual(["exam:9101"]);
+    await homeworkTrigger.click();
+    await homeworkMenu.getByRole("menuitem", { name: "삭제" }).click();
+    await page.getByRole("dialog", { name: "과제 삭제" }).getByRole("button", { name: "삭제" }).click();
+    await expect(homeworkTrigger).toHaveCount(0);
+
+    expect(deletedAssessments).toEqual(["exam:9101", "homework:9151"]);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "첫 시험 작업 선택" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "첫 과제 작업 선택" })).toHaveCount(0);
     expect(unexpectedMutations).toEqual([]);
     await expectDocumentOverflowZero(page);
   });

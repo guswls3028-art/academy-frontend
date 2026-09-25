@@ -46,6 +46,11 @@ export async function updateAdminExam(
   return normalizeExam(res.data);
 }
 
+/** Remove a regular exam from this session, preserving recorded history when required. */
+export async function deleteSessionExam(examId: number, sessionId: number): Promise<void> {
+  await api.delete(`/exams/${examId}/`, { params: { session_id: sessionId } });
+}
+
 /**
  * POST /exams/{id}/save-as-template/
  * regular 시험에 template가 없을 때, 현재 설정으로 템플릿을 생성해 연결합니다.

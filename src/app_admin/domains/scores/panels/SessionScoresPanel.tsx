@@ -39,6 +39,7 @@ type Props = {
   isEditMode?: boolean;
   /** 수정 중 알림톡 등 저장된 점수 소비 액션을 잠시 막는 상태 */
   hasUnsavedChanges?: boolean;
+  assessmentDeleteLocked?: boolean;
   examEditTotal?: boolean;
   examEditObjective?: boolean;
   examEditSubjective?: boolean;
@@ -101,6 +102,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   search = "",
   isEditMode = false,
   hasUnsavedChanges = false,
+  assessmentDeleteLocked = false,
   examEditTotal = false,
   examEditObjective = false,
   examEditSubjective = false,
@@ -553,6 +555,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           onSelectionChange={onSelectionChange}
           onReorderColumnSwap={handleReorderSwap}
           onOpenExamGrading={onOpenExamGrading}
+          deleteAssessmentLocked={assessmentDeleteLocked}
         />
       </div>
 
