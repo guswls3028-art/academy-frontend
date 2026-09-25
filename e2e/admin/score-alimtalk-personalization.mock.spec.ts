@@ -400,6 +400,8 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await modal.getByRole("button", { name: /다른 문구 선택|문구 선택/, exact: true }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
     await picker.getByRole("button", { name: /검증 성적 문구/ }).click();
+    await expect(picker.getByLabel("카카오톡 실제 발송 미리보기"))
+      .toContainText("학생 개인화학생1 점수 70 확인 완료");
     await picker.getByRole("button", { name: "이 문구로 작성하기", exact: true }).click();
     await expect(picker).toBeHidden();
     await expect.poll(() => preflightPayloads.find((payload) => payload.template_id === 992 && payload.send_to === "parent")
