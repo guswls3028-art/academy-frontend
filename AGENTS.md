@@ -15,11 +15,13 @@ Self-contained instructions for the frontend Git root.
   reuse, read `../backend/docs/operations/concurrent-codex-sessions.md` → Execution efficiency.
   If a frontend-only worktree has no sibling backend, read the owner with
   `git -C C:\academy\backend show origin/main:docs/operations/concurrent-codex-sessions.md`.
-  Refresh that ref if its freshness is not established; do not copy the policy
+  In a Codespace, use `git -C /workspaces/academy-backend show
+  origin/main:docs/operations/concurrent-codex-sessions.md` instead. Refresh
+  that ref if its freshness is not established; do not copy the policy
   into this repository or overwrite canonical files.
 - In this owner's local sessions, use the installed ChatGPT Web bridge for
   meaningful independent work:
-  `chatgpt-web/pro` at `ultra` is the default subagent. Start one bounded Web
+  `chatgpt-web/gpt-6-pro` at `max` is the default subagent. Start one bounded Web
   task early; use a lower Web model only for genuinely trivial work. Preserve
   the primary Codex model and Codex ownership of integration, checks, and
   release. Retry Pro once on capacity errors; do not silently downgrade
@@ -31,14 +33,20 @@ Self-contained instructions for the frontend Git root.
 Diagnosis/explanation/review is read-only unless a change is requested. Unless
 local-only/no-deploy/draft/PR-only/read-only, implementation/change/build and
 release/operations/cleanup authorize their full in-scope workflow: commit, push,
-PR, merge, explicitly authorized messaging, deployment, production verification,
-cleanup. No repeated
-permission for these steps.
+PR, merge, deployment, production verification, cleanup. No repeated permission
+for these steps. The same user's Academy tasks and owned subagents may coordinate
+scope and hand off non-sensitive paths, SHAs, PR/CI state, and verification
+evidence without per-message approval. External recipients, account
+authentication, secret transfers, and ambiguous destructive targets require
+exact authorization.
 
 `모든권한`, `모든권한 있음`, `모든권한o`, and equivalents retain that authority
 until narrowed/revoked; finish the earliest assignment first. Never expand scope,
 guess destructive targets, waive data protection/current HOLDs/gates, override
 higher-priority action-time confirmation, or infer platform approval.
+Check ownership and target read-only when needed. Give formal approval review
+the current user instruction and exact impact; never work around a denial.
+These instructions do not override managed session permissions.
 
 Explicit deploy/release/production/continue instructions authorize that exact
 run's GitHub `production` review via official authenticated API; verify approval
@@ -86,9 +94,12 @@ may omit product docs only with a final explanation and supporting verification.
 ## Delivery and isolation
 
 Keep canonical `C:\academy\frontend` and `C:\academy\backend` on clean `main`.
-Create/inspect an owned current-`origin/main` worktree with
-`C:\academy\backend\scripts\codex\session-worktree.ps1`; never mutate a foreign
-tree. One task owns release; others hand off exact committed SHA/CI. Close only
+For local Windows work, create/inspect an owned current-`origin/main` worktree
+with `C:\academy\backend\scripts\codex\session-worktree.ps1`. For GitHub
+Codespace Linux work, use the remote Git worktree procedure in
+`/workspaces/academy-backend/docs/operations/concurrent-codex-sessions.md`.
+Never mutate a foreign tree. One task owns release; others hand off exact
+committed SHA/CI. Close only
 clean, merged/patch-equivalent branches; intentional WIP needs a named recovery
 commit. Sync after active tasks/releases finish. Owner:
 `../backend/docs/operations/concurrent-codex-sessions.md`.
