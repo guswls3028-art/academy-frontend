@@ -54,7 +54,7 @@ test.describe("알림톡 실사용 검증 — 템플릿 편집 → 발송 → �
         await page.waitForTimeout(800);
         const bodyText = await page.locator("main, [class*='content']").first().innerText().catch(() => "");
         // 활성화/비활성 토글 수 세기
-        const activeCount = (bodyText.match(/활성화|항상 활성/g) || []).length;
+        const activeCount = (bodyText.match(/활성화|항상 발송/g) || []).length;
         console.log(`[${sec}] 트리거 활성 수: ${activeCount}`);
       }
     }

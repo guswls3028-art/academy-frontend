@@ -70,19 +70,19 @@ const DELIVERY_STATES: Record<NotificationLogStatus, DeliveryState> = {
   },
   sending: {
     label: "접수 확인 중",
-    detail: "카카오 공급사에 발송 요청을 전달하고 있습니다.",
+    detail: "알림톡 발송 요청을 전달하고 있습니다.",
     tone: "info",
     icon: Clock3,
   },
   sent: {
     label: "접수 완료",
-    detail: "카카오 공급사가 발송 요청을 접수했습니다. 읽음 여부는 제공되지 않습니다.",
+    detail: "알림톡 발송 요청이 접수되었습니다. 상대방이 읽었는지는 확인할 수 없습니다.",
     tone: "success",
     icon: CheckCircle2,
   },
   retryable_failed: {
     label: "재시도 대기",
-    detail: "공급사 호출 전에 일시적인 문제가 확인되어 자동 처리 순서를 기다립니다.",
+    detail: "일시적인 문제로 발송을 다시 시도할 예정입니다.",
     tone: "warning",
     icon: RefreshCw,
   },
@@ -94,7 +94,7 @@ const DELIVERY_STATES: Record<NotificationLogStatus, DeliveryState> = {
   },
   ambiguous: {
     label: "결과 확인 필요",
-    detail: "공급사 접수 여부가 불분명해 자동으로 다시 보내지 않습니다.",
+    detail: "접수 여부를 확인할 수 없어 중복 발송을 막기 위해 자동으로 다시 보내지 않습니다.",
     tone: "warning",
     icon: AlertTriangle,
   },
@@ -161,7 +161,7 @@ function OperationsStrip({
         </span>
         <span>
           <strong>{hasRisk ? "운영 확인 필요" : "알림톡 운영 정상"}</strong>
-          <small>워커 기록 {formatAge(status.worker.age_seconds)}</small>
+          <small>발송 시스템 확인 {formatAge(status.worker.age_seconds)}</small>
         </span>
       </div>
       <div className={styles.operationsFacts}>
@@ -174,7 +174,7 @@ function OperationsStrip({
           ).toLocaleString()}</strong> 진행 중
         </span>
         <span data-warning={unresolvedActionRequired > 0 ? "true" : undefined}>
-          <strong>{unresolvedActionRequired.toLocaleString()}</strong> 미확정 전체
+          <strong>{unresolvedActionRequired.toLocaleString()}</strong> 결과 확인 필요
         </span>
         <span data-warning={status.log_24h.failed > 0 ? "true" : undefined}>
           <strong>{status.log_24h.failed.toLocaleString()}</strong> 실패
@@ -217,7 +217,7 @@ function LogRow({ item, onClick }: { item: NotificationLogItem; onClick: () => v
   return (
     <button type="button" onClick={onClick} className={styles.logRow} data-tone={state.tone}>
       <span className={styles.sentAtCell}>
-        <span className={styles.mobileLabel}>로그 기록</span>
+        <span className={styles.mobileLabel}>기록 시각</span>
         {koreanDateTimeText(item.sent_at)}
       </span>
       <span className={styles.statusCell}><StatusMark item={item} /></span>
@@ -310,21 +310,22 @@ function LogDetailModal({
   const state = deliveryState(detail);
   const StateIcon = state.icon;
   const providerStatus = providerQ.data?.provider_delivery_status;
+  const providerReference = detail.provider_message_id || detail.provider_message_reference;
   const providerState = providerStatus === "delivered"
-    ? { label: "최종 전달 확인", tone: "success" as const, detail: "공급사가 최종 전달 완료로 보고했습니다." }
+    ? { label: "최종 전달 확인", tone: "success" as const, detail: "받는 사람에게 전달된 것으로 확인됐습니다." }
     : providerStatus === "failed"
-      ? { label: "최종 전달 실패", tone: "danger" as const, detail: "공급사가 최종 전달 실패로 보고했습니다." }
+      ? { label: "최종 전달 실패", tone: "danger" as const, detail: "받는 사람에게 전달되지 않은 것으로 확인됐습니다." }
       : providerStatus === "provider_accepted"
-        ? { label: "공급사 접수", tone: "info" as const, detail: "공급사 접수는 확인됐지만 최종 전달 완료 상태는 아닙니다." }
+        ? { label: "발송 접수 확인", tone: "info" as const, detail: "발송 요청은 접수됐지만 받는 사람에게 전달됐는지는 아직 확인되지 않았습니다." }
         : providerStatus === "unavailable"
-          ? { label: "최종 상태 확인 불가", tone: "warning" as const, detail: "공급사 최종 상태를 확인할 수 없습니다." }
+          ? { label: "최종 상태 확인 불가", tone: "warning" as const, detail: "최종 전달 상태를 확인할 수 없습니다." }
           : null;
 
   return (
     <AdminModal open={open} onClose={onClose} type="inspect" width={820} noMinimize className={styles.detailModal}>
       <ModalHeader
         title="알림톡 발송 기록"
-        description={`${koreanFullDateTimeText(detail.sent_at)} 로그 기록`}
+        description={`${koreanFullDateTimeText(detail.sent_at)} 기록`}
         type="inspect"
       />
       <ModalBody>
@@ -384,8 +385,8 @@ function LogDetailModal({
               <section className={styles.detailGrid} aria-label="발송 기본 정보">
                 <DetailItem label="수신자">{detail.recipient_summary || "정보 없음"}</DetailItem>
                 <DetailItem label="알림 종류">{notificationLabel(detail)}</DetailItem>
-                <DetailItem label="로그 기록">{koreanFullDateTimeText(detail.sent_at)}</DetailItem>
-                <DetailItem label="처리 시작">
+                <DetailItem label="기록 시각">{koreanFullDateTimeText(detail.sent_at)}</DetailItem>
+                <DetailItem label="발송 처리 시작">
                   {detail.claimed_at ? koreanFullDateTimeText(detail.claimed_at) : "기록 없음"}
                 </DetailItem>
               </section>
@@ -393,11 +394,11 @@ function LogDetailModal({
               <section className={styles.evidenceRow} data-confirmed={detail.provider_evidence ? "true" : "false"}>
                 <MessageCircle size={ICON.md} aria-hidden />
                 <span>
-                  <strong>{detail.provider_evidence ? "공급사 접수 기록 있음" : "공급사 접수 기록 없음"}</strong>
+                  <strong>{detail.provider_evidence ? "발송 접수 기록 있음" : "발송 접수 기록 없음"}</strong>
                   <small>
                     {detail.provider_evidence
-                      ? `${detail.provider_message_id || detail.provider_message_reference || "식별 정보 보호됨"} · 접수 기록은 읽음 확인을 뜻하지 않습니다.`
-                      : "아직 공급사 접수 근거가 기록되지 않았습니다."}
+                      ? `${providerReference ? `문의할 때 사용할 기록번호: ${providerReference} · ` : ""}접수 기록만으로 읽음 여부는 알 수 없습니다.`
+                      : "아직 발송 접수 기록이 없습니다."}
                   </small>
                 </span>
               </section>
@@ -409,7 +410,7 @@ function LogDetailModal({
                   <small>
                     {providerState
                       ? (detail.provider_delivery_failure_reason || providerState.detail)
-                      : "공급사 접수 기록과 최종 전달 상태는 다를 수 있습니다."}
+                      : "발송 접수와 받는 사람에게 전달된 상태는 다를 수 있습니다."}
                   </small>
                 </span>
                 <Button
@@ -579,7 +580,7 @@ export default function MessageLogPage() {
         <>
           <section className={styles.logTable} aria-label="알림톡 발송 기록">
             <div className={styles.logHeader} aria-hidden>
-              <span>로그 기록</span><span>처리 상태</span><span>수신자</span><span>알림 종류</span><span>차감</span><span />
+              <span>기록 시각</span><span>처리 상태</span><span>수신자</span><span>알림 종류</span><span>차감</span><span />
             </div>
             <div className={styles.logList}>
               {results.map((item) => <LogRow key={item.id} item={item} onClick={() => setSelectedItem(item)} />)}

@@ -82,11 +82,11 @@ export function AlimtalkTriggerEnvelope({
           <div>
             <div className={styles.triggerTitle}>
               <Send size={14} />
-              승인된 전용 알림톡
-              <span className={styles.templateBadge}>전용 양식</span>
+              보낼 알림톡
+              <span className={styles.templateBadge}>내용 수정 불가</span>
             </div>
             <div className={styles.triggerMeta}>
-              카카오 검수가 완료된 전용 양식으로 발송됩니다.
+              정해진 내용으로 발송됩니다. 미리보기에서 내용을 확인해 주세요.
             </div>
           </div>
           <div className={styles.memoPreview}>
@@ -123,15 +123,15 @@ export function AlimtalkTriggerEnvelope({
         <div>
           <div className={styles.triggerTitle}>
             <Send size={14} />
-            {editable ? "수정 가능한 알림톡" : "정해진 알림톡"}
+            {editable ? "수정할 수 있는 안내문" : "정해진 안내문"}
             <span className={styles.templateBadge}>
-              {editable ? "카카오 승인 공용 양식" : "카카오 승인 전용 양식"}
+              {editable ? "내용 수정 가능" : "내용 수정 불가"}
             </span>
           </div>
           <div className={styles.triggerMeta}>
             {editable
-              ? `${fallbackTrigger || "이 알림"} 문구를 카카오 승인 공용 양식으로 보냅니다.`
-              : `${fallbackTrigger || "이 알림"} 전용으로 승인된 내용이며 켜고 끄기만 할 수 있습니다.`}
+              ? `${fallbackTrigger || "이 알림"}에 보낼 문구를 수정할 수 있습니다. 이름과 일정은 발송할 때 채워집니다.`
+              : `${fallbackTrigger || "이 알림"}은 정해진 내용으로 발송되며 켜고 끄기만 할 수 있습니다.`}
           </div>
         </div>
       <div className={styles.memoPreview}>

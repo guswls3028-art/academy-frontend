@@ -83,6 +83,7 @@ export default function DashboardPage() {
   const customChannelActive = messagingInfo?.custom_channel_status === "active";
   const customChannelPending = messagingInfo?.custom_channel_status === "pending_templates";
   const customChannelSuspended = messagingInfo?.custom_channel_status === "suspended";
+  const readyGuide = "보낼 내용을 미리 확인하고, 결과는 발송 내역에서 확인하세요. 자동 안내는 메시지 설정에서 따로 확인할 수 있습니다.";
   const alimtalkCopy = {
     loading: {
       title: "알림톡 상태를 확인하고 있습니다",
@@ -107,10 +108,10 @@ export default function DashboardPage() {
     ready: {
       title: "알림톡 발송 가능",
       description: customChannelActive
-        ? "우리 학원 카카오 채널과 승인 양식이 준비되어 있습니다."
+        ? `우리 학원 카카오 채널로 알림톡을 보낼 수 있습니다. ${readyGuide}`
         : customChannelPending
-          ? `우리 학원 채널 양식 ${messagingInfo?.custom_channel_approved_templates ?? 0}/${messagingInfo?.custom_channel_required_templates ?? 0}개를 검수 중입니다. 완료 전에는 공용 채널로 정상 발송됩니다.`
-          : "공용 알림톡 채널과 직접 발송 봉투가 준비되어 있습니다. 자동 안내별 준비 상태는 메시지 설정에서 확인하세요.",
+          ? `우리 학원 채널 양식 ${messagingInfo?.custom_channel_approved_templates ?? 0}/${messagingInfo?.custom_channel_required_templates ?? 0}개를 준비 중입니다. 완료 전에는 공용 카카오 채널로 보낼 수 있습니다. ${readyGuide}`
+          : `공용 카카오 채널로 알림톡을 보낼 수 있습니다. ${readyGuide}`,
       badge: "정상",
       tone: "success" as const,
     },
@@ -231,6 +232,15 @@ export default function DashboardPage() {
                 <p>{alimtalkCopy.description}</p>
               </div>
               <div className={styles.messageActions}>
+                {alimtalkState === "ready" && (
+                  <Button
+                    size="sm"
+                    intent="primary"
+                    onClick={() => navigate("/workspace/students/home?compose=alimtalk")}
+                  >
+                    알림톡 보내기
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   intent="secondary"
@@ -238,13 +248,15 @@ export default function DashboardPage() {
                 >
                   발송 내역
                 </Button>
-                <Button
-                  size="sm"
-                  intent={alimtalkState === "ready" || alimtalkState === "loading" ? "secondary" : "primary"}
-                  onClick={() => navigate("/workspace/message/settings")}
-                >
-                  메시지 설정
-                </Button>
+                {alimtalkState !== "ready" && (
+                  <Button
+                    size="sm"
+                    intent={alimtalkState === "loading" ? "secondary" : "primary"}
+                    onClick={() => navigate("/workspace/message/settings")}
+                  >
+                    메시지 설정
+                  </Button>
+                )}
               </div>
             </section>
           </aside>

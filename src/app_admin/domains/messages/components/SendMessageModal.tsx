@@ -127,7 +127,7 @@ const EDITABLE_ENVELOPE_OPTIONS: Array<{ category: TemplateCategory; label: stri
   { category: "attendance", label: "수업·운영 공지", hint: "주소·영상·일정·출결" },
   { category: "grades", label: "성적표", hint: "시험·과제 결과" },
   { category: "clinic", label: "클리닉", hint: "보강·상담" },
-  { category: "exam", label: "시험/과제", hint: "안내·리마인드" },
+  { category: "exam", label: "시험/과제", hint: "안내·다시 알림" },
 ];
 
 function categoryHasSolapiEnvelope(category: TemplateCategory): boolean {
@@ -919,7 +919,7 @@ export default function SendMessageModal({
       const accepted = totalEnqueued + totalScheduled;
       if (totalEnqueueFailed > 0) {
         feedback.warning(
-          `${sendToLabel} 알림톡 ${accepted}건은 접수됐지만 ${totalEnqueueFailed}건은 큐 등록에 실패했습니다. 중복 발송을 막기 위해 발송 내역을 확인한 뒤 다시 시도해 주세요.`,
+          `${sendToLabel} 알림톡 ${accepted}건은 접수됐지만 ${totalEnqueueFailed}건은 발송 요청을 접수하지 못했습니다. 중복 발송을 막기 위해 발송 내역을 확인한 뒤 다시 시도해 주세요.`,
         );
         asyncStatusStore.completeTask(taskId, "error", `부분 실패 ${totalEnqueueFailed}건`);
         return;
@@ -976,12 +976,8 @@ export default function SendMessageModal({
 
   const sendButtonText = (() => {
     if (sending) return "발송 중…";
-    const verb = sendTiming === "scheduled" ? "예약" : "발송";
-    const parts: string[] = [];
-    if (sendToParent) parts.push(`학부모 ${recipientCount}명`);
-    if (sendToStudent) parts.push(`학생 ${recipientCount}명`);
-    if (parts.length === 0) return "대상 선택 필요";
-    return `${parts.join(" + ")}에게 알림톡 ${verb}`;
+    if (sendToTargets.length === 0) return "받는 사람 선택 필요";
+    return sendTiming === "scheduled" ? "예약할 내용 확인" : "보낼 내용 확인";
   })();
 
   const disableReason = (() => {
@@ -1147,7 +1143,7 @@ export default function SendMessageModal({
                       : "ok"
               }
             >
-              <div className="send-modal__card-label">발송 가능 상태</div>
+              <div className="send-modal__card-label">보내기 전 확인</div>
               {!frontendReady ? (
                 <div className="send-modal__preflight-muted">
                   수신자·본문·예약 시각이 준비되면 자동으로 확인합니다.
@@ -1197,7 +1193,7 @@ export default function SendMessageModal({
             {/* 카드 2 — 서버가 수신자별로 조립한 문구만 발송 미리보기로 표시한다. */}
             <section className="send-modal__card send-modal__card--preview">
               <div className="send-modal__card-label">
-                현재 발송 문구
+                받는 사람에게 보일 내용
                 {inlinePreviewRecipient && (
                   <span className="send-modal__card-sublabel">
                     {` · ${inlinePreviewRecipient.studentName} 기준`}
@@ -1506,7 +1502,7 @@ export default function SendMessageModal({
             <div className="send-modal__confirm-heading">
               <div>
                 <div id="send-modal-confirm-title" className="send-modal__confirm-title">보내기 전 마지막 확인</div>
-                <p>학생을 골라 실제로 들어갈 문구를 확인한 뒤 발송하세요.</p>
+                <p>받는 사람과 발송 시점, 학생별로 실제 전송할 내용을 확인해 주세요.</p>
               </div>
               <span className="send-modal__confirm-count">
                 {preflightResults.length > 0

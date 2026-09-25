@@ -30,7 +30,8 @@ test.describe("알림톡 숨은 모순", () => {
     await expect(signupCard).toBeVisible();
     const text = await signupCard.innerText();
     if (text.includes("사용 가능")) {
-      expect(text).toContain("승인된 전용 알림톡");
+      expect(text).toContain("보낼 알림톡");
+      expect(text).toContain("내용 수정 불가");
       expect(text).not.toContain("아직 자동 발송하지 않음");
     }
   });

@@ -60,17 +60,15 @@ test.describe("Batch 10 실사용 리뷰", () => {
     await page.evaluate(() => { localStorage.removeItem("teacher:preferAdmin"); });
   });
 
-  test("메시지 설정 — KPI 4장, 공급자 선택, 자체 키 폼, 연동 테스트, 자동발송", async ({ page }) => {
+  test("메시지 설정 — 발송 상태, 채널, 문구 관리, 자동 발송", async ({ page }) => {
     const { errors } = attachNetCapture(page);
     await visit(page, "/workspace/mobile/messaging-settings");
 
     await page.screenshot({ path: `${SCREEN_DIR}/messaging-settings.png`, fullPage: true });
-    for (const label of ["공급자", "발신번호", "알림톡", "채널"]) {
+    for (const label of ["보내는 채널", "발송 상태", "안전하게 보내기", "알림톡 문구 관리"]) {
       await expect(page.getByText(label).first()).toBeVisible({ timeout: 6_000 });
     }
-    await expect(page.getByText("솔라피(Solapi)").first()).toBeVisible();
-    await expect(page.getByText("뿌리오(Ppurio)").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /연동 상태 테스트|테스트 중/ })).toBeVisible();
+    await expect(page.getByText("공급자", { exact: true })).toHaveCount(0);
 
     expect(errors).toHaveLength(0);
   });

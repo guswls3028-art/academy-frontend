@@ -120,6 +120,7 @@ test("알림톡 발송 직전 카카오 디자인과 학생별 문구를 확인�
 
   const sendButton = page.locator(".send-modal__send-btn");
   await expect(sendButton).toBeEnabled();
+  await expect(sendButton).toHaveText("보낼 내용 확인");
   const inlinePreview = page.locator(".send-modal__card--preview");
   await expect(inlinePreview).toContainText("김민준학생님");
   await expect(inlinePreview).not.toContainText("홍길동");

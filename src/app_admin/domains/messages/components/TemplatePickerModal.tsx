@@ -326,7 +326,7 @@ export default function TemplatePickerModal({
             <Badge tone="primary" size="sm">{blockLabel}</Badge>
           </div>
         }
-        description="저장한 내 문구는 어느 공지 유형에서도 다시 쓸 수 있습니다. 발송 유형에 맞는 승인 알림톡 봉투는 별도로 유지됩니다."
+        description="보낼 내용을 선택하거나 직접 작성하세요. 발송 전에는 받는 사람에게 보일 내용을 미리 확인할 수 있습니다."
       />
 
       <ModalBody>
