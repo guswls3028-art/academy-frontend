@@ -107,6 +107,8 @@ For local Windows work, create/inspect an owned current-`origin/main` worktree
 with `C:\academy\backend\scripts\codex\session-worktree.ps1`. For GitHub
 Codespace Linux work, use the remote Git worktree procedure in
 `/workspaces/academy-backend/docs/operations/concurrent-codex-sessions.md`.
+Below 10 GB free on C:, use a Codespace for new installs and builds; local
+`Start` refuses unless explicitly limited to lightweight recovery work.
 Never mutate a foreign tree. One task owns release; others hand off exact
 committed SHA/CI. Close only
 clean, merged/patch-equivalent branches; intentional WIP needs a named recovery
