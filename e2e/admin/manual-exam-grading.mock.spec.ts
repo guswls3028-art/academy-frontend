@@ -71,6 +71,8 @@ type InstallApiOptions = {
     reads: number;
     writes: Array<Record<string, string>>;
     methods?: string[];
+    scoresAtRegrade?: number[];
+    recalculations?: number;
     failReads: boolean;
     readGate?: Promise<void>;
   };
@@ -569,6 +571,11 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       await json({ id: QUESTION_IDS[0], sheet: 1801, number: 1, score: options.answerKeyScenario.score, question_kind: "choice" });
       return;
     }
+    if (options.answerKeyScenario && path === `/exams/${EXAM_ID}/recalculate/` && method === "POST") {
+      options.answerKeyScenario.recalculations = (options.answerKeyScenario.recalculations ?? 0) + 1;
+      await json({ exam_id: EXAM_ID, total: 1, graded: 1, skipped: 0, failed: [], needs_review: [] });
+      return;
+    }
     if (options.answerKeyScenario && (path === "/exams/answer-keys/" || path === "/exams/answer-keys/1801/")) {
       const state = options.answerKeyScenario;
       if (method === "GET") {
@@ -577,10 +584,16 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         if (state.failReads) { await json({ detail: "답안을 불러오지 못했습니다." }, 503); return; }
         await json(state.answers ? [{ id: 1801, exam: EXAM_ID, answers: state.answers }] : []);
       } else {
+        const previousAnswers = state.answers;
         state.answers = request.postDataJSON().answers;
         state.writes.push({ ...state.answers });
         state.methods?.push(method);
-        await json({ id: 1801, exam: EXAM_ID, answers: state.answers }, method === "POST" ? 201 : 200);
+        const changed = JSON.stringify(previousAnswers) !== JSON.stringify(state.answers);
+        if (changed) state.scoresAtRegrade?.push(state.score);
+        await json({
+          id: 1801, exam: EXAM_ID, answers: state.answers,
+          ...(changed ? { regrade: [{ exam_id: EXAM_ID, graded: 1, manual_graded: 0, failed: [], needs_review: [] }] } : {}),
+        }, method === "POST" ? 201 : 200);
       }
       return;
     }
@@ -958,6 +971,7 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         const state: NonNullable<InstallApiOptions["answerKeyScenario"]> = {
           answers: mode === "retry-empty" ? null : { "1001": "1", "1002": "2" },
           score: 1, reads: 0, writes: [], methods: [], failReads: mode === "retry-empty",
+          scoresAtRegrade: [], recalculations: 0,
           readGate: mode === "deferred" ? new Promise<void>((resolve) => { release = resolve; }) : undefined,
         };
         await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
@@ -1007,9 +1021,10 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         await row.getByRole("button", { name: "+5", exact: true }).click();
         await row.getByRole("button", { name: "+5", exact: true }).click();
         await dialog.getByRole("button", { name: "저장 (총 110점)", exact: true }).click();
-        await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+        await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
         expect(state.writes.at(-1)?.["1001"]).toBe("2");
         expect(state.score).toBe(11);
+        expect(state.scoresAtRegrade).toEqual([11]);
         expect(state.methods?.[0]).toBe(mode === "retry-empty" ? "POST" : "PUT");
         await expect(choice("2")).toBeChecked();
         expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
@@ -1036,14 +1051,23 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         await row.getByRole("button", { name: "점수 초기화", exact: true }).click();
         await row.getByRole("button", { name: "+1", exact: true }).click();
         await dialog.getByRole("button", { name: "저장 (총 100점)", exact: true }).click();
-        await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+        await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
         expect(state.writes.at(-1)?.["1001"]).toBe("1");
         expect(state.score).toBe(1);
+        expect(state.scoresAtRegrade).toEqual([11, 1]);
+        expect(state.recalculations).toBe(0);
         await page.reload({ waitUntil: "domcontentloaded" });
         await openAnswers();
         await expect(choice("1")).toBeChecked();
         await expect(choice("2")).not.toBeChecked();
         await expect(row.locator(".answer-key-row__score-val")).toHaveText("1점");
+        if (mode === "fast" && width === 390) {
+          await row.getByRole("button", { name: "+1", exact: true }).click();
+          await dialog.getByRole("button", { name: "저장 (총 101점)", exact: true }).click();
+          await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
+          expect(state.recalculations).toBe(1);
+          expect(state.score).toBe(2);
+        }
       });
     }
   }

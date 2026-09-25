@@ -470,8 +470,15 @@ async function verifyChangedAnswerAndMaximum(
     await saveButton.click();
     const savedResponse = await answerSaved;
     expect(savedResponse.status()).toBe(200);
-    const savedBody = await savedResponse.json() as { regrade?: Array<{ needs_review: unknown[] }> };
+    const savedBody = await savedResponse.json() as { regrade?: Array<{
+      exam_id: number; total: number; graded: number; skipped: number;
+      failed: unknown[]; needs_review: unknown[];
+    }> };
     if (!Array.isArray(savedBody.regrade)) throw new Error("Answer-key save did not return a regrade summary");
+    expect(savedBody.regrade).toHaveLength(1);
+    expect(savedBody.regrade[0]).toMatchObject({
+      exam_id: created.examId, total: 1, graded: 1, skipped: 0, failed: [], needs_review: [],
+    });
     const reviewCount = savedBody.regrade.reduce((total, item) => total + item.needs_review.length, 0);
     if (reviewCount > 0) {
       await expect(page.getByText(
