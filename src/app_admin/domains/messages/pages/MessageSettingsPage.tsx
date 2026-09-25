@@ -117,20 +117,20 @@ export default function MessageSettingsPage() {
   const setupSteps = [
     { done: alimtalkAvailable, label: "알림톡 발송 준비" },
     ...(customChannelRegistered
-      ? [{ done: customChannelActive, label: "우리 학원 채널 승인 양식" }]
+      ? [{ done: customChannelActive, label: "우리 학원 채널 양식" }]
       : []),
   ];
   const allSetupDone = setupSteps.every((s) => s.done);
 
-  let setupAlertTitle = "알림톡 연동 상태를 확인해 주세요.";
-  let setupAlertMessage = `${setupSteps.filter((step) => !step.done).map((step) => step.label).join(", ")} 설정이 필요합니다.`;
+  let setupAlertTitle = "알림톡 발송 상태를 확인해 주세요.";
+  let setupAlertMessage = `${setupSteps.filter((step) => !step.done).map((step) => step.label).join(", ")} 준비가 필요합니다.`;
   if (customChannelPending) {
-    setupAlertTitle = "우리 학원 채널 양식을 검수 중입니다.";
-    setupAlertMessage = "승인 전에는 공용 채널로 정상 발송됩니다.";
+    setupAlertTitle = "우리 학원 채널 양식을 준비 중입니다.";
+    setupAlertMessage = "준비가 끝나기 전에는 공용 카카오 채널로 보낼 수 있습니다.";
   }
   if (customChannelSuspended) {
     setupAlertTitle = "우리 학원 채널 발송을 확인해 주세요.";
-    setupAlertMessage = "승인 양식 상태가 달라 전용 채널 발송을 안전하게 막았습니다.";
+    setupAlertMessage = "우리 학원 채널의 양식 상태가 달라 현재 해당 채널로 보낼 수 없습니다.";
   }
   if (messagingDisabled) {
     setupAlertTitle = "알림톡 발송이 운영 중지되었습니다.";

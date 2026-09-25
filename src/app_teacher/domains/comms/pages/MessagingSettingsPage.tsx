@@ -52,10 +52,10 @@ export default function MessagingSettingsPage() {
   if (customChannelPending) {
     channelLabel = "채널 준비 중";
     channelSummary = `${info?.custom_channel_reference || "우리 학원 채널"} · ${info?.custom_channel_approved_templates ?? 0}/${info?.custom_channel_required_templates ?? 0} 승인`;
-    channelBadge = "검수 중";
-    channelStatusLabel = "검수 중";
-    noticeTitle = "우리 학원 채널 양식을 검수 중입니다.";
-    noticeMessage = `승인 양식 ${info?.custom_channel_approved_templates ?? 0}/${info?.custom_channel_required_templates ?? 0}개 · 완료 전에는 공용 채널로 정상 발송됩니다.`;
+    channelBadge = "준비 중";
+    channelStatusLabel = "준비 중";
+    noticeTitle = "우리 학원 채널 양식을 준비 중입니다.";
+    noticeMessage = `보낼 수 있는 양식 ${info?.custom_channel_approved_templates ?? 0}/${info?.custom_channel_required_templates ?? 0}개 · 준비가 끝나기 전에는 공용 카카오 채널로 보낼 수 있습니다.`;
   }
   if (customChannelSuspended) {
     channelLabel = "채널 사용 중지";
