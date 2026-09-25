@@ -604,6 +604,16 @@ async function verifyScoreMessageTemplate(
     await page.setViewportSize({ width: 1366, height: 900 });
     await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`, { timeout: 30_000 });
     await page.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
+    const send = page.getByRole("dialog", { name: "알림톡 발송" });
+    // This family fixture has parent phones only. Verify the normal authorized recipient journey.
+    await send.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+    await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
+    await send.getByRole("button", { name: /문구 변경|문구 선택/, exact: true }).click();
+    const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
+    await picker.getByRole("button", { name: new RegExp(templateName) }).click();
+    await expect(picker.locator(".template-preview-kakao__body")).toContainText(`학생 ${student.name} 점수 60 확인 완료`);
+    // Start the response timer at the action that selects this non-default template.
     const preflightResponse = page.waitForResponse((response) => {
       if (response.request().method() !== "POST"
         || !new URL(response.url()).pathname.endsWith("/api/v1/messaging/send/preflight/")) return false;
@@ -616,15 +626,6 @@ async function verifyScoreMessageTemplate(
         && payload.alimtalk_extra_vars_per_student?.[String(student.id)]?._body_subst
           === `학생 ${student.name} 점수 60 확인 완료`;
     });
-    await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
-    const send = page.getByRole("dialog", { name: "알림톡 발송" });
-    // This family fixture has parent phones only. Verify the normal authorized recipient journey.
-    await send.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
-    await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
-    await send.getByRole("button", { name: /문구 변경|문구 선택/, exact: true }).click();
-    const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
-    await picker.getByRole("button", { name: new RegExp(templateName) }).click();
-    await expect(picker.locator(".template-preview-kakao__body")).toContainText(`학생 ${student.name} 점수 60 확인 완료`);
     await picker.getByRole("button", { name: "이 문구로 작성하기", exact: true }).click();
     await expect(picker).toBeHidden();
     await expect(send.locator(".send-modal__card--preview")).toContainText(student.name);
