@@ -30,6 +30,7 @@ import {
 } from "../api/explanation.api";
 import ExamPdfUploadModal from "./ExamPdfUploadModal";
 import { adminExamsQueryKeys } from "../queryKeys";
+import "./AnswerKeyRegisterModal.type-map.css";
 import "./AnswerKeyRegisterModal.css";
 import "./AnswerKeyRegisterModal.bubbles.css";
 import "./AnswerKeyRegisterModal.mobile.css";

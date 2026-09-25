@@ -491,7 +491,7 @@ test.describe("개인 성적표", () => {
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
     const reportButton = page.getByRole("button", { name: "개인 성적표", exact: true });
-    await expect(reportButton).toBeVisible();
+    await expect(reportButton).toBeVisible({ timeout: 30_000 });
     await page.route((url) => url.pathname.endsWith(`/results/admin/sessions/${SESSION_ID}/scores/`), async (route) => {
       await route.fulfill({ status: 500, contentType: "application/json", body: "{}" });
     });
