@@ -54,6 +54,15 @@ export interface JobProgressResponse {
   error_message?: string | null;
 }
 
+export async function getPptJobStatus(jobId: string, signal?: AbortSignal): Promise<JobProgressResponse> {
+  const response = await api.get<JobProgressResponse>(`/jobs/${encodeURIComponent(jobId)}/`, { signal });
+  const job = response.data;
+  if (job.job_id !== jobId || job.job_type !== "ppt_generation") {
+    throw new Error("이 PPT 작업을 확인할 수 없습니다.");
+  }
+  return job;
+}
+
 const PPT_SUBMIT_TIMEOUT_MS = 10 * 60 * 1000;
 const POLL_INTERVAL_MS = 2000;
 const POLL_MAX_ATTEMPTS = 450; // 15 minutes max for 500-slide batches
