@@ -432,7 +432,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await page.getByRole("button", { name: "OMR 결과 보정", exact: true }).click();
     const review = page.getByRole("dialog", { name: "OMR 검토", exact: true });
     await expect(review).toContainText("미해결 전체 1건");
-    await expect(review.getByText("미식별 학생")).toBeVisible();
+    await expect(review.getByText("미식별 학생", { exact: true })).toBeVisible();
     await expect(review.getByRole("button", { name: "검토 현황 새로고침" })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
