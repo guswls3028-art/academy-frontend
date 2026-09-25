@@ -612,7 +612,8 @@ async function verifyScoreMessageTemplate(
     await send.getByRole("button", { name: /문구 변경|문구 선택/, exact: true }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
     await picker.getByRole("button", { name: new RegExp(templateName) }).click();
-    await expect(picker.locator(".template-preview-kakao__body")).toContainText(`학생 ${student.name} 점수 60 확인 완료`);
+    await expect(picker.getByLabel("카카오톡 실제 발송 미리보기"))
+      .toContainText(`학생 ${student.name} 점수 60 확인 완료`);
     // Start the response timer at the action that selects this non-default template.
     const preflightResponse = page.waitForResponse((response) => {
       if (response.request().method() !== "POST"
