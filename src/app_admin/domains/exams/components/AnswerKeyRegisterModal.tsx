@@ -916,6 +916,7 @@ export default function AnswerKeyRegisterModal({
         qc.invalidateQueries({ queryKey: adminExamsQueryKeys.clinicTargetsRoot() }),
       ]);
       const reviewCount = savedKey.data.regrade?.reduce((total, item) => total + item.needs_review.length, 0) ?? 0;
+      feedback.clear();
       if (!savedKey.data.regrade) {
         feedback.success(
           canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."

@@ -910,6 +910,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   });
 
   await expect(page.getByRole("region", { name: "첫 시험 시작" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "시험을 만들어 보세요" })).toBeInViewport();
   await expect(page.getByRole("link", { name: "시험·성적표 사용 순서" })).toHaveAttribute("href", "/workspace/guide#exam-score-guide");
   await expect(page.getByRole("button", { name: "시험 추가", exact: true }).first()).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath("scores-first-exam-390.png") });
@@ -928,7 +929,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   )).toBeGreaterThanOrEqual(44);
   expect(await answerDialog.locator(".exam-omr-bubble").first().evaluate((element) =>
     (element as HTMLElement).offsetWidth
-  )).toBeLessThanOrEqual(24);
+  )).toBeGreaterThanOrEqual(30);
   expect(await answerDialog.locator(".answer-key-row__bubbles").first().evaluate((element) =>
     element.scrollWidth <= element.clientWidth + 1
   )).toBe(true);
@@ -962,6 +963,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
 
   const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
   await expect(printDialog).toBeVisible();
+  await expect(page.getByText("수동 총점과 문항별 배점 합계를 맞춰 주세요.", { exact: false })).toHaveCount(0, { timeout: 500 });
   await expect(printDialog.getByRole("button", { name: "OMR PDF 다운로드" })).toBeInViewport();
   const [download] = await Promise.all([
     page.waitForEvent("download"),

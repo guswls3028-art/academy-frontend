@@ -449,6 +449,16 @@
 }
 
 @media (max-width: 640px) {
+  .legacyBar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .legacyBar > * {
+    flex: 0 0 auto;
+  }
+
   .viewModeHeader,
   .scopeHeader {
     align-items: stretch;
