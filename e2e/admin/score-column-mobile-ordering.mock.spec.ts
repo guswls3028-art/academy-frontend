@@ -181,6 +181,11 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
       return;
     }
 
+    if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/`) && method === "GET") {
+      await route.fulfill({ json: { changes: [], active_editors: [], stale: false } });
+      return;
+    }
+
     if (path.endsWith("/lectures/attendance/") && method === "GET") {
       await route.fulfill({
         json: { count: 1, results: [{ id: 9401, enrollment_id: 9201, status: "PRESENT" }] },
