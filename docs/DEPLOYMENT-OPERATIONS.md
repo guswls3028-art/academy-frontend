@@ -250,10 +250,14 @@ API의 media ID와 일치해야 하며 SigV4 만료는 최대 600초다. 등록 
 `student-parent-homework-realuse.spec.ts`가 파일 decode와 reload를 검증한다.
 
 개발 QnA 첨부 사진은 인증·QA tenant·CORS를 통과한 정확한
-`GET /api/v1/community/posts/<post_id>/`의 200 `post_type=qna` 응답에서만
-현재 browser context에 서명 URL을 등록한다. URL은 Setup tenant와 해당 게시글의
+`GET /api/v1/community/posts/<post_id>/` 또는 `post_type=qna` 목록의 200 응답에서
+게시글·첨부 ID를 현재 browser context에 등록한다. 목록에서 진입한 학생 상세 화면이
+`GET /api/v1/community/posts/<post_id>/attachments/<att_id>/download/`를 호출하면
+앞서 등록한 동일 게시글·첨부와 원본 파일명이 일치하는 200 응답의 URL만 추가 등록한다.
+URL은 Setup tenant와 해당 게시글의
 `community/posts/<post_id>/uploads/` 경로, PNG/JPEG/WebP 확장자·MIME,
 `response-content-type` 및 최대 3600초 SigV4 host 서명을 모두 만족해야 한다.
+다운로드 응답 URL에는 원본 파일명과 일치하는 단일 `response-content-disposition`도 요구한다.
 등록된 정확한 image GET만 인증 header 없이 전달하고 redirect·다른 bucket·tenant·
 게시글·변형된 서명 query를 거부한다. 200 응답의 MIME과 이미지 시그니처를 확인한 실제
 bytes만 브라우저에 전달한다. direct APIRequestContext의 외부 origin 경계는 유지한다.

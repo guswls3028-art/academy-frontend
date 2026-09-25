@@ -15,6 +15,9 @@ const query = new URLSearchParams({ "response-content-type": "image/png", "X-Amz
   "X-Amz-Credential": "UNITKEYUNITKEY123456/20260919/auto/s3/aws4_request", "X-Amz-Date": "20260919T010000Z",
   "X-Amz-Expires": "3600", "X-Amz-SignedHeaders": "host", "X-Amz-Signature": "a".repeat(64) });
 const url = `${origin}/academy-development-artifacts/tenants/352/community/posts/123/uploads/0123456789abcdef0123456789abcdef/0_${"b".repeat(16)}_${"c".repeat(8)}_qa-problem.png?${query}`;
+const signedDownload = new URL(url);
+signedDownload.searchParams.set("response-content-disposition", 'attachment; filename="qa-problem.png"');
+const downloadUrl = signedDownload.href;
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=", "base64");
 
 async function exercise(options = {}) {
@@ -26,21 +29,37 @@ async function exercise(options = {}) {
   if (options.register !== false) {
     const apiHeaders = { origin: boundary.webOrigin, authorization: "Bearer qa-token",
       "x-tenant-code": boundary.tenantCode, ...options.apiHeaders };
-    const apiRequest = { url: () => `${boundary.apiOrigin}${options.apiPath ?? "/api/v1/community/posts/123/"}`,
+    const apiRequest = { url: () => `${boundary.apiOrigin}${options.apiPath ?? (options.list ? "/api/v1/community/posts/?page_size=200&post_type=qna" : "/api/v1/community/posts/123/")}`,
       method: () => options.apiMethod ?? "GET", resourceType: () => "fetch", allHeaders: async () => apiHeaders,
       headerValue: async (name) => apiHeaders[name] ?? null, postDataJSON: () => null, postDataBuffer: () => null };
     await handler({ request: () => apiRequest, abort: async () => {}, continue: async () => assert.fail("unguarded API"),
       fetch: async () => ({ status: () => options.apiStatus ?? 200,
         headers: () => ({ "content-type": "application/json", "access-control-allow-origin": options.corsOrigin ?? boundary.webOrigin,
           "access-control-allow-credentials": "true" }),
-        json: async () => ({ id: options.postId ?? 123, post_type: options.postType ?? "qna",
+        json: async () => (options.list ? [{ id: options.postId ?? 123, post_type: options.postType ?? "qna",
+          attachments: options.attachments ?? [{ id: 456, original_name: "qa-problem.png",
+            content_type: options.attachmentType ?? "image/png", download_url: options.registerUrl ?? url }] }]
+          : { id: options.postId ?? 123, post_type: options.postType ?? "qna",
           attachments: options.attachments ?? [{ id: 456, content_type: options.attachmentType ?? "image/png",
-            download_url: options.registerUrl ?? url }] }) }), fulfill: async () => {} });
+            original_name: "qa-problem.png", download_url: options.registerUrl ?? url }] }) }), fulfill: async () => {} });
+  }
+  if (options.download) {
+    const apiHeaders = { origin: boundary.webOrigin, authorization: "Bearer qa-token", "x-tenant-code": boundary.tenantCode,
+      ...options.downloadHeaders };
+    await handler({ request: () => ({ url: () => `${boundary.apiOrigin}${options.downloadPath ?? "/api/v1/community/posts/123/attachments/456/download/"}`,
+      method: () => "GET", resourceType: () => "fetch", allHeaders: async () => apiHeaders,
+      headerValue: async (name) => apiHeaders[name] ?? null, postDataJSON: () => null, postDataBuffer: () => null }),
+    abort: async () => {}, continue: async () => assert.fail("unguarded download API"),
+    fetch: async () => ({ status: () => options.downloadStatus ?? 200,
+      headers: () => ({ "content-type": "application/json", "access-control-allow-origin": boundary.webOrigin,
+        "access-control-allow-credentials": "true" }),
+      json: async () => ({ url: options.downloadUrl ?? downloadUrl, original_name: options.downloadName ?? "qa-problem.png" }) }),
+    fulfill: async () => {} });
   }
   const fetched = [], fulfilled = [];
   let aborted = 0;
   const imageHeaders = options.headers ?? { referer: `${boundary.webOrigin}/workspace/community/qna` };
-  await handler({ request: () => ({ url: () => options.url ?? options.registerUrl ?? url,
+  await handler({ request: () => ({ url: () => options.url ?? (options.download ? options.downloadUrl ?? downloadUrl : options.registerUrl ?? url),
     method: () => options.method ?? "GET", resourceType: () => options.resourceType ?? "image",
     allHeaders: async () => imageHeaders, headerValue: async (name) => imageHeaders[name] ?? null,
     postDataJSON: () => null, postDataBuffer: () => options.requestBody ?? null }),
@@ -74,6 +93,22 @@ test("QnA image requires exact authenticated post response and preserves R2 PNG 
   rejected(await exercise({ register: false }));
   rejected(await exercise({ url: url.replace("a".repeat(64), "d".repeat(64)) }));
   assert.throws(() => assertReleaseRequestSafe(boundary, url, "GET"), /escaped/);
+});
+
+test("student QnA list binds attachment ID to an exact authorized download URL", async () => {
+  const result = await exercise({ list: true, download: true });
+  result.guard.assertClean();
+  assert.equal(result.aborted, 0);
+  assert.deepEqual(result.fetched, [{ url: downloadUrl, method: "GET", headers: { accept: "image/png" }, maxRedirects: 0 }]);
+  assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/png" }, body: png }]);
+  for (const options of [
+    { register: false }, { postType: "notice" }, { postId: 124 }, { downloadStatus: 403 },
+    { downloadPath: "/api/v1/community/posts/123/attachments/457/download/" },
+    { downloadPath: "/api/v1/community/posts/124/attachments/456/download/" },
+    { downloadName: "other.png" }, { downloadHeaders: { authorization: "" } },
+    { downloadUrl: downloadUrl.replace("tenants/352/", "tenants/353/") },
+    { downloadUrl: downloadUrl.replace("response-content-disposition=", "other=") },
+  ]) rejected(await exercise({ list: true, download: true, ...options }));
 });
 
 test("QnA registration rejects foreign API responses and loose R2 URL scopes", async () => {

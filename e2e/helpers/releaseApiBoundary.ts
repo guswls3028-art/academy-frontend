@@ -48,7 +48,7 @@ function isExactDevelopmentHomeworkPng(boundary: ReleaseBoundary, rawUrl: string
 }
 
 function isExactDevelopmentCommunityImage(
-  boundary: ReleaseBoundary, rawUrl: string, postId: number, contentType: string,
+  boundary: ReleaseBoundary, rawUrl: string, postId: number, contentType: string, downloadName?: string,
 ): boolean {
   if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
     || Number(boundary.omrR2TenantId) < 1 || !Number.isSafeInteger(postId) || postId < 1
@@ -62,8 +62,15 @@ function isExactDevelopmentCommunityImage(
     : path[1].toLowerCase() === "webp" ? "image/webp" : "image/jpeg";
   if (extensionType !== contentType || target.searchParams.getAll("response-content-type").length !== 1
     || target.searchParams.get("response-content-type") !== contentType) return false;
+  if (downloadName === undefined) {
+    if (target.searchParams.has("response-content-disposition")) return false;
+  } else if (target.searchParams.getAll("response-content-disposition").length !== 1
+    || target.searchParams.get("response-content-disposition") !== `attachment; filename="${downloadName.replaceAll('"', "")}"`) {
+    return false;
+  }
   const unsignedType = new URL(target);
   unsignedType.searchParams.delete("response-content-type");
+  unsignedType.searchParams.delete("response-content-disposition");
   return hasExactHostSignature(unsignedType, 3600);
 }
 
@@ -787,6 +794,23 @@ export async function installReleaseContextGuard(
   const defects: string[] = [];
   const homeworkPreviewUrls = new Set<string>();
   const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
+  const communityAttachments = new Map<string, { contentType: string; originalName: string }>();
+  const registerQnaPost = (post: unknown) => {
+    if (!isRecord(post) || post.post_type !== "qna" || typeof post.id !== "number" || !Number.isSafeInteger(post.id)
+      || Number(post.id) < 1 || !Array.isArray(post.attachments) || post.attachments.length > 10) return;
+    const postId = Number(post.id);
+    for (const attachment of post.attachments) {
+      if (!isRecord(attachment) || typeof attachment.id !== "number" || !Number.isSafeInteger(attachment.id) || Number(attachment.id) < 1
+        || typeof attachment.content_type !== "string" || typeof attachment.original_name !== "string") continue;
+      const contentType = attachment.content_type;
+      if (!["image/png", "image/jpeg", "image/webp"].includes(contentType)) continue;
+      communityAttachments.set(`${postId}:${attachment.id}`, { contentType, originalName: attachment.original_name });
+      const url = attachment.download_url;
+      if (typeof url === "string" && isExactDevelopmentCommunityImage(boundary, url, postId, contentType)) {
+        communityImageUrls.set(url, contentType as "image/png" | "image/jpeg" | "image/webp");
+      }
+    }
+  };
   const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
   const activeRoutes = new Set<Promise<void>>();
   let closing = false;
@@ -974,21 +998,35 @@ export async function installReleaseContextGuard(
             homeworkPreviewUrls.add(preview.url);
           }
         }
-        const communityPost = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/$/.exec(new URL(upstream).pathname);
-        if (boundary.mode === "development" && request.method() === "GET" && communityPost
-          && !new URL(upstream).search && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")
+        const communityTarget = new URL(upstream);
+        const communityPost = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/$/.exec(communityTarget.pathname);
+        const communityList = communityTarget.pathname === "/api/v1/community/posts/"
+          && communityTarget.searchParams.getAll("post_type").length === 1
+          && communityTarget.searchParams.get("post_type") === "qna"
+          && [...communityTarget.searchParams.keys()].every((key) => ["post_type", "page_size"].includes(key))
+          && (communityTarget.searchParams.getAll("page_size").length === 0
+            || (communityTarget.searchParams.getAll("page_size").length === 1
+              && /^[1-9][0-9]*$/.test(communityTarget.searchParams.get("page_size") ?? "")
+              && Number(communityTarget.searchParams.get("page_size")) <= 200));
+        const communityDownload = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/attachments\/([1-9][0-9]*)\/download\/$/.exec(communityTarget.pathname);
+        if (boundary.mode === "development" && request.method() === "GET"
+          && ((communityPost && !communityTarget.search) || communityList || (communityDownload && !communityTarget.search))
+          && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")
           && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
-          const post = await response.json();
-          const postId = Number(communityPost[1]);
-          if (post?.id === postId && post?.post_type === "qna" && Array.isArray(post.attachments)
-            && post.attachments.length <= 10) {
-            for (const attachment of post.attachments) {
-              const contentType = attachment?.content_type;
-              const url = attachment?.download_url;
-              if (typeof url === "string" && typeof contentType === "string"
-                && isExactDevelopmentCommunityImage(boundary, url, postId, contentType)) {
-                communityImageUrls.set(url, contentType as "image/png" | "image/jpeg" | "image/webp");
-              }
+          const payload = await response.json();
+          if (communityPost && payload?.id === Number(communityPost[1])) registerQnaPost(payload);
+          if (communityList) {
+            const posts = Array.isArray(payload) ? payload : payload?.results;
+            if (Array.isArray(posts) && posts.length <= 200) posts.forEach(registerQnaPost);
+          }
+          if (communityDownload) {
+            const postId = Number(communityDownload[1]);
+            const attachment = communityAttachments.get(`${postId}:${communityDownload[2]}`);
+            if (attachment && payload?.original_name === attachment.originalName && typeof payload?.url === "string"
+              && isExactDevelopmentCommunityImage(boundary, payload.url, postId,
+                attachment.contentType, attachment.originalName)) {
+              communityImageUrls.set(payload.url,
+                attachment.contentType as "image/png" | "image/jpeg" | "image/webp");
             }
           }
         }
