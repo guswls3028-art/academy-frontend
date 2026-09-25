@@ -249,6 +249,17 @@ API의 media ID와 일치해야 하며 SigV4 만료는 최대 600초다. 등록 
 `release-homework-image-boundary.test.mjs`가 등록·거부 경계를 검사하고 기존 공식
 `student-parent-homework-realuse.spec.ts`가 파일 decode와 reload를 검증한다.
 
+개발 QnA 첨부 사진은 인증·QA tenant·CORS를 통과한 정확한
+`GET /api/v1/community/posts/<post_id>/`의 200 `post_type=qna` 응답에서만
+현재 browser context에 서명 URL을 등록한다. URL은 Setup tenant와 해당 게시글의
+`community/posts/<post_id>/uploads/` 경로, PNG/JPEG/WebP 확장자·MIME,
+`response-content-type` 및 최대 3600초 SigV4 host 서명을 모두 만족해야 한다.
+등록된 정확한 image GET만 인증 header 없이 전달하고 redirect·다른 bucket·tenant·
+게시글·변형된 서명 query를 거부한다. 200 응답의 MIME과 이미지 시그니처를 확인한 실제
+bytes만 브라우저에 전달한다. direct APIRequestContext의 외부 origin 경계는 유지한다.
+`release-community-image-boundary.test.mjs`가 허용·거부를 검사하며 QnA 실사용
+브라우저 검증은 사진 decode, 확대·회전·답변, 학생 화면 반영과 cleanup zero를 요구한다.
+
 개발 transport는 artifact가 가리키는 정확한 `https://api.hakwonplus.com/api/`만
 SSM의 `http://127.0.0.1:<port>/api/`로 전달한다. 웹 origin은 개발 settings가 실제로
 허용하는 `http://localhost:4173`이다. real upstream status/body/header를 전달하고

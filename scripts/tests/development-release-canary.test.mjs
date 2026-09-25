@@ -13,6 +13,7 @@ import "./release-video-scope.test.mjs";
 import "./release-native-keepalive.test.mjs";
 import "./release-omr-image-boundary.test.mjs";
 import "./release-homework-image-boundary.test.mjs";
+import "./release-community-image-boundary.test.mjs";
 import "./binary-safe-ssm.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
