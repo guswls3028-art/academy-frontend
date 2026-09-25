@@ -183,6 +183,27 @@ test.describe("커뮤니티 QnA 작업대", () => {
     expect(workbenchGeometry.composerTop).toBeLessThan(
       workbenchGeometry.answerTop + workbenchGeometry.answerHeight * 0.45,
     );
+    const viewer = await page.locator(".qna-inbox__image-viewer").boundingBox();
+    const originalButton = await page.getByRole("link", { name: "문제 이미지 원본 열기" }).boundingBox();
+    expect(viewer).not.toBeNull();
+    expect(originalButton).not.toBeNull();
+    expect(originalButton!.x + originalButton!.width).toBeLessThanOrEqual(viewer!.x + viewer!.width + 1);
+
+    const editor = page.locator(".qna-inbox__answer-pane .ProseMirror");
+    await editor.fill("광합성량 차이는 선택압 변화로 설명할 수 있습니다.");
+    await page.getByRole("button", { name: "문제 사진 크게 보며 답변하기" }).click();
+    await expect(page.locator(".qna-inbox--expanded")).toBeVisible();
+    const expandedGeometry = await page.locator(".qna-inbox__workbench").evaluate((workbench) => {
+      const reference = workbench.querySelector<HTMLElement>(".qna-inbox__reference-pane")?.getBoundingClientRect();
+      const answer = workbench.querySelector<HTMLElement>(".qna-inbox__answer-pane")?.getBoundingClientRect();
+      if (!reference || !answer) throw new Error("확대된 QnA 작업 영역을 찾지 못했습니다.");
+      return { referenceWidth: reference.width, referenceRight: reference.right, answerLeft: answer.left };
+    });
+    expect(expandedGeometry.referenceWidth).toBeGreaterThan(workbenchGeometry.referenceWidth);
+    expect(expandedGeometry.referenceRight).toBeLessThanOrEqual(expandedGeometry.answerLeft + 1);
+    const expandedEditorHeight = await page.locator(".qna-inbox__answer-pane .rich-editor__content").evaluate((element) => element.getBoundingClientRect().height);
+    expect(expandedEditorHeight).toBeGreaterThan(400);
+    await expect(editor).toContainText("광합성량 차이는 선택압 변화로 설명할 수 있습니다.");
 
     const problemImage = page.locator(".qna-inbox__image-stage img");
     await page.getByRole("button", { name: "오른쪽으로 90도 회전" }).click();
@@ -191,12 +212,24 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await expect(page.locator(".qna-inbox__viewer-zoom")).toHaveText("125%");
     await expect(page.getByRole("link", { name: "문제 이미지 원본 열기" })).toHaveAttribute("href", /^data:image\/svg\+xml/);
 
-    const editor = page.locator(".qna-inbox__answer-pane .ProseMirror");
-    await editor.fill("광합성량 차이는 선택압 변화로 설명할 수 있습니다.");
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".qna-inbox--expanded")).toHaveCount(0);
+    await expect(editor).toContainText("광합성량 차이는 선택압 변화로 설명할 수 있습니다.");
+    await expect(page.locator(".qna-inbox__viewer-zoom")).toHaveText("125%");
+    await page.getByRole("button", { name: "문제 사진 크게 보며 답변하기" }).click();
     await page.getByRole("button", { name: "답변 등록" }).click();
     await expect(page.getByText("답변이 등록되었습니다.")).toBeVisible();
     await expect(page.getByTitle("답변 필요 질문 1건")).toHaveCount(0);
     await expect(page.getByRole("tab", { name: "QnA 1" })).toHaveCount(0);
+    await page.reload();
+    await expect(page.locator(".qna-inbox__answer-pane")).toContainText("광합성량 차이는 선택압 변화로 설명할 수 있습니다.");
+
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await page.getByRole("button", { name: "문제 사진 크게 보며 답변하기" }).click();
+    await expect(page.locator(".qna-inbox__reference-pane")).toBeVisible();
+    await expect(page.locator(".qna-inbox__answer-pane")).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
   });
 
   test("390px 자료/답변 전환에서 작성 내용을 보존하고 가로 넘침이 없다", async ({ page }) => {
@@ -204,9 +237,15 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
 
     await expect(page.getByRole("tab", { name: /질문 자료/ })).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("button", { name: "문제 사진 크게 보며 답변하기" }).click();
+    await expect(page.locator(".qna-inbox--expanded")).toBeVisible();
+    const referenceOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(referenceOverflow).toBeLessThanOrEqual(1);
     await page.getByRole("tab", { name: "답변 작성" }).click();
     const editor = page.locator(".qna-inbox__answer-pane .ProseMirror");
     await editor.fill("작성 중인 답변은 보존됩니다.");
+    await page.getByRole("button", { name: "화면 줄이기", exact: true }).click();
+    await expect(editor).toContainText("작성 중인 답변은 보존됩니다.");
     await page.getByRole("tab", { name: /질문 자료/ }).click();
     await page.getByRole("tab", { name: "답변 작성" }).click();
     await expect(editor).toContainText("작성 중인 답변은 보존됩니다.");

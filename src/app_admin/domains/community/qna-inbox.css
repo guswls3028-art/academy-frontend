@@ -147,9 +147,9 @@
 .qna-inbox__viewer-toolbar {
   display: flex;
   min-height: 44px;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2, 8px);
+  align-items: stretch;
+  flex-direction: column;
+  gap: 4px;
   padding: 6px 8px 6px 12px;
   border-bottom: 1px solid var(--color-border-divider);
   background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
@@ -182,7 +182,9 @@
   display: flex;
   flex: 0 0 auto;
   align-items: center;
+  flex-wrap: wrap;
   gap: 3px;
+  justify-content: space-between;
 }
 
 .qna-inbox__viewer-actions button,
@@ -223,6 +225,13 @@
 .qna-inbox__viewer-actions button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+.qna-inbox__viewer-actions .qna-inbox__viewer-expand {
+  border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 9%, var(--color-bg-surface));
+  color: var(--color-primary);
+  white-space: nowrap;
 }
 
 .qna-inbox__viewer-divider {
@@ -338,9 +347,56 @@
   background: color-mix(in srgb, var(--color-primary) 2%, var(--color-bg-surface));
 }
 
-.qna-inbox__answer-pane .qna-inbox__composer-editor .ql-editor {
+.qna-inbox__answer-pane .qna-inbox__composer-editor .rich-editor__content {
   min-height: clamp(180px, 28vh, 320px);
   max-height: 42vh;
+}
+
+.qna-inbox--expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  width: 100%;
+  height: 100dvh;
+  border: 0;
+  border-radius: 0;
+}
+
+.qna-inbox--expanded > .qna-inbox__list,
+.qna-inbox--expanded .qna-inbox__student-panel {
+  display: none;
+}
+
+.qna-inbox--expanded > .qna-inbox__thread {
+  width: 100%;
+}
+
+.qna-inbox--expanded .qna-inbox__workbench {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.qna-inbox--expanded .qna-inbox__reference-scroll {
+  display: flex;
+  flex-direction: column;
+}
+
+.qna-inbox--expanded .qna-inbox__image-viewer {
+  order: -1;
+  flex: 0 0 auto;
+}
+
+.qna-inbox--expanded .qna-inbox__image-stage {
+  min-height: calc(100dvh - 210px);
+  max-height: none;
+}
+
+.qna-inbox--expanded .qna-inbox__image-stage img {
+  max-height: calc(100dvh - 250px);
+}
+
+.qna-inbox--expanded .qna-inbox__thread-view--empty .rich-editor__content {
+  min-height: min(54dvh, 500px);
+  max-height: 60dvh;
 }
 
 /* ─────────────────────────────────────────────────────
@@ -1716,7 +1772,7 @@
     max-height: 56vh;
   }
 
-  .qna-inbox__answer-pane .qna-inbox__composer-editor .ql-editor {
+  .qna-inbox__answer-pane .qna-inbox__composer-editor .rich-editor__content {
     min-height: 180px;
     max-height: 34vh;
   }
