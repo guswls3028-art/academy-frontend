@@ -474,7 +474,12 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                 <span>처리 중 {task.omrBatch.counts.processing}</span>
               )}
               {task.omrBatch.counts.completed > 0 && (
-                <span>완료 {task.omrBatch.counts.completed}</span>
+                <span>OMR 처리 완료 {task.omrBatch.counts.completed}</span>
+              )}
+              {(task.omrBatch.grading_counts?.subjective_pending ?? 0) > 0 && (
+                <span className="async-status-bar__omr-count--attention">
+                  서술형 입력 필요 {task.omrBatch.grading_counts!.subjective_pending}
+                </span>
               )}
               {task.omrBatch.counts.needs_identification > 0 && (
                 <span className="async-status-bar__omr-count--attention">
@@ -551,6 +556,22 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               OMR 검토
             </button>
           )}
+          {task.omrBatch?.grading_status === "subjective_pending"
+            && task.omrBatch.lecture_id
+            && task.omrBatch.session_id && (
+              <button
+                type="button"
+                className="async-status-bar__item-btn async-status-bar__item-btn--review"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  workbox?.setWorkboxOpen(false);
+                  navigate(`/workspace/lectures/${task.omrBatch!.lecture_id}/sessions/${task.omrBatch!.session_id}/scores?gradingExamId=${task.omrBatch!.exam_id}`);
+                }}
+                aria-label="서술형 점수 입력"
+              >
+                서술형 입력
+              </button>
+            )}
           {/* ✅ 실패(error) 작업: 재시도 + 목록에서 제거 */}
           {canRetry && (
             <>

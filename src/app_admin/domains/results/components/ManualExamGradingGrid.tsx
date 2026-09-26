@@ -66,6 +66,7 @@ import overviewStyles from "./ManualExamGradingOverview.module.css";
 
 type Props = {
   examId: number;
+  focusEnrollmentId?: number;
   onApplied?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   showUnavailableState?: boolean;
@@ -182,6 +183,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   examId,
   onApplied,
   onDirtyChange,
+  focusEnrollmentId,
   showUnavailableState = false,
 }, forwardedRef) {
   const queryClient = useQueryClient();
@@ -807,7 +809,9 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     const nextScale = [...TABLE_SCALE_STEPS]
       .reverse()
       .find((scale) => scale <= idealScale) ?? TABLE_SCALE_STEPS[0];
-    applyTableScale(nextScale, persist);
+    // Keep the ordinary grading view editable; the separate overview action
+    // is the place for scales that turn cells into a read-only map.
+    applyTableScale(Math.max(50, nextScale), persist);
   }, [applyTableScale, measureNaturalTable]);
 
   const fitEntireTableToViewport = useCallback(() => {
@@ -1006,10 +1010,13 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     }
     autoFittedExamRef.current = examId;
     const frame = window.requestAnimationFrame(() => {
-      if (!hasSavedTableScaleRef.current) fitTableToViewport(false);
+      if (!hasSavedTableScaleRef.current) {
+        if (window.innerWidth <= 640) applyTableScale(80, false);
+        else fitTableToViewport(false);
+      }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [draftRows.length, examId, fitTableToViewport, visibleQuestions.length]);
+  }, [applyTableScale, draftRows.length, examId, fitTableToViewport, visibleQuestions.length]);
 
   useEffect(() => {
     if (draftRows.length === 0 || isOverviewMode) return;
@@ -1030,7 +1037,12 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       return;
     }
     const frame = window.requestAnimationFrame(() => {
-      const firstCell = tableWrapRef.current?.querySelector<HTMLElement>(
+      const focusRowIndex = draftRows.findIndex((row) => row.enrollment_id === focusEnrollmentId);
+      const firstCell = (focusRowIndex >= 0
+        ? tableWrapRef.current?.querySelector<HTMLElement>(
+          `[data-manual-grade-cell][data-row-index="${focusRowIndex}"]:not(:disabled)`,
+        )
+        : null) ?? tableWrapRef.current?.querySelector<HTMLElement>(
         "[data-manual-grade-cell]:not(:disabled)",
       );
       if (!firstCell) return;
@@ -1038,7 +1050,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       autoFocusedExamRef.current = examId;
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [busy, data?.has_manual_questions, draftRows.length, examId, shortcutSettingsOpen]);
+  }, [busy, data?.has_manual_questions, draftRows, examId, focusEnrollmentId, shortcutSettingsOpen]);
 
   if (sheetQuery.isLoading) {
     return (
@@ -1778,6 +1790,8 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
               빈칸 {emptyCorrectnessCount}칸 O로
             </Button>
             <div className={styles.keyboardHints}>
+              <span><kbd>방향키</kbd> 셀 이동</span>
+              <span><kbd>Space</kbd> 상태 변경</span>
               <span><kbd>Tab</kbd> 다음 칸</span>
               <span><kbd>Enter</kbd> 아래 칸</span>
               <span><kbd>{primaryShortcutModifier}+V</kbd> 엑셀 붙여넣기</span>
