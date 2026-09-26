@@ -290,6 +290,7 @@ function ParticipantList({
   onCreateSession: () => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [addOpen, setAddOpen] = useState(false);
   const [actionDialog, setActionDialog] = useState<{
     participant: TeacherClinicParticipant;
@@ -529,7 +530,21 @@ function ParticipantList({
                     <SmallBtn
                       label="예약 거절"
                       color="var(--tc-danger)"
-                      onClick={() => bookingStatusMut.mutate({ participantId: p.id, status: "rejected" })}
+                      onClick={async () => {
+                        if (lifecycleBusy) return;
+                        const accepted = await confirm({
+                          title: "예약 거절",
+                          message: "거절한 예약은 다시 승인할 수 없습니다. 학생과 일정을 확인해 주세요.",
+                          confirmText: "예약 거절",
+                          cancelText: "돌아가기",
+                          danger: true,
+                          review: { items: [
+                            { label: "학생", value: name, tone: "accent" },
+                            { label: "일정", value: `${sessionDate} ${availableSessions.find((session) => session.id === sessionId)?.title || "클리닉"}` },
+                          ] },
+                        });
+                        if (accepted && !lifecycleBusy) bookingStatusMut.mutate({ participantId: p.id, status: "rejected" });
+                      }}
                       disabled={lifecycleBusy}
                     />
                   </>
