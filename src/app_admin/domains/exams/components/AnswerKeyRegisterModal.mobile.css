@@ -83,3 +83,9 @@
     margin-left: 0;
   }
 }
+
+@media (max-width: 480px) {
+  .answer-key-modal-header-tabs {
+    padding-top: 36px;
+  }
+}
