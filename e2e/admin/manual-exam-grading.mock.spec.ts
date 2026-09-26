@@ -970,6 +970,71 @@ test.describe("답안 초기 로드와 입력 보존", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock spec.");
   test.use({ serviceWorkers: "block" });
 
+  for (const { width, existingKey } of [
+    { width: 1366, existingKey: false },
+    { width: 390, existingKey: true },
+  ]) {
+    test(`${width}px에서 ${existingKey ? "기존 정답 수정" : "첫 정답 등록"}의 예외 정답을 저장·복원한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.route("**/*", (route) => new URL(route.request().url()).origin === BASE ? route.continue() : route.abort());
+      const state: NonNullable<InstallApiOptions["answerKeyScenario"]> = {
+        answers: existingKey ? { "1001": "3", "1002": "2" } : null,
+        score: 1, reads: 0, writes: [], methods: [], scoresAtRegrade: [], recalculations: 0,
+      };
+      await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
+      const openAnswers = async () => {
+        await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
+        await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+        return page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+      };
+      await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+      const dialog = await openAnswers();
+      const row = dialog.locator(".answer-key-row--choice").first();
+      await expect(row).toBeVisible();
+      if (!existingKey) await row.getByRole("checkbox", { name: "1번 3번 선택지" }).click();
+      await row.getByRole("button", { name: "+ 예외 정답" }).click();
+      await row.getByRole("checkbox", { name: "1번 5번 선택지" }).click();
+      await expect(row).toContainText("3번 또는 5번, 둘 다 선택해도 정답");
+      expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+      await dialog.getByRole("button", { name: /^저장 \(총/ }).click();
+      await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
+      expect(state.writes.at(-1)?.["1001"]).toBe("3|5|3,5");
+      await dialog.getByRole("button", { name: "취소", exact: true }).click();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await openAnswers();
+      await expect(row.getByRole("checkbox", { name: "1번 3번 선택지" })).toBeChecked();
+      await expect(row.getByRole("checkbox", { name: "1번 5번 선택지" })).toBeChecked();
+      await expect(row).toContainText("3번 또는 5번, 둘 다 선택해도 정답");
+      await row.getByRole("checkbox", { name: "1번 5번 선택지" }).click();
+      await row.getByRole("checkbox", { name: "1번 5번 선택지" }).click();
+      await dialog.getByRole("button", { name: /^저장 \(총/ }).click();
+      await expect.poll(() => state.writes.length).toBe(2);
+      expect(state.writes.at(-1)?.["1001"]).toBe("3|5|3,5");
+    });
+  }
+
+  test("기존의 하나만 허용하는 정답은 명시적으로 바꾸기 전까지 유지한다", async ({ page }) => {
+    await page.route("**/*", (route) => new URL(route.request().url()).origin === BASE ? route.continue() : route.abort());
+    const state: NonNullable<InstallApiOptions["answerKeyScenario"]> = {
+      answers: { "1001": "3|5", "1002": "2" },
+      score: 1, reads: 0, writes: [], methods: [], scoresAtRegrade: [], recalculations: 0,
+    };
+    await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+    await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+    const dialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+    const row = dialog.locator(".answer-key-row--choice").first();
+    await expect(row).toContainText("3·5 중 하나만 선택해야 정답");
+    await dialog.getByRole("button", { name: /^저장 \(총/ }).click();
+    await expect.poll(() => state.writes.length).toBe(1);
+    expect(state.writes[0]?.["1001"]).toBe("3|5");
+    await row.getByRole("button", { name: "함께 선택해도 정답 처리" }).click();
+    await expect(row).toContainText("3번 또는 5번, 둘 다 선택해도 정답");
+    await dialog.getByRole("button", { name: /^저장 \(총/ }).click();
+    await expect.poll(() => state.writes.length).toBe(2);
+    expect(state.writes[1]?.["1001"]).toBe("3|5|3,5");
+  });
+
   for (const width of [1366, 390]) {
     for (const mode of ["deferred", "fast", "retry-empty"] as const) {
       test(`${mode} · ${width}px에서 정답과 배점 저장·복원`, async ({ page }) => {
