@@ -38,6 +38,7 @@ import {
   toLectureChips,
 } from "../utils/communityHelpers";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import "@admin/domains/community/qna-inbox.css";
 
 type MatchupResultItem = {
@@ -392,10 +393,14 @@ function ThreadView({
 
   const deletePostMut = useMutation({
     mutationFn: () => deletePost(postId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.questions });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("qna") });
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.adminNotificationCounts });
-      feedback.success("질문이 삭제되었습니다.");
+      const cleanupNotice = getCommunityStorageCleanupNotice(result);
+      if (cleanupNotice) feedback.warning(cleanupNotice);
+      else feedback.success("질문이 삭제되었습니다.");
       onDelete();
     },
     onError: (e: unknown) => {

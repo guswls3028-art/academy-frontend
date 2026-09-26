@@ -29,6 +29,7 @@ import { useTreeCounts } from "../hooks/useTreeCounts";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { adminCommunityQueryKeys } from "../queryKeys";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/shared/api/contracts/sessions";
+import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import CmsTreeNav from "../components/CmsTreeNav";
 import { Button, Badge } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -504,7 +505,15 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
 
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) }); feedback.success("자료가 삭제되었습니다."); onDeleted(); },
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.materialsPosts });
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("materials") });
+      const cleanupNotice = getCommunityStorageCleanupNotice(result);
+      if (cleanupNotice) feedback.warning(cleanupNotice);
+      else feedback.success("자료가 삭제되었습니다.");
+      onDeleted();
+    },
     onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."); },
   });
 
@@ -602,7 +611,12 @@ function MatAttachmentSection({ postId, attachments }: { postId: number; attachm
 
   const deleteMut = useMutation({
     mutationFn: (attId: number) => deletePostAttachment(postId, attId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) }); feedback.success("첨부파일이 삭제되었습니다."); },
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
+      const cleanupNotice = getCommunityStorageCleanupNotice(result);
+      if (cleanupNotice) feedback.warning(cleanupNotice);
+      else feedback.success("첨부파일이 삭제되었습니다.");
+    },
     onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."); },
   });
 

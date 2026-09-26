@@ -19,6 +19,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { richHtmlToPreviewText } from "@/shared/utils/richHtml";
 import { teacherCounselingQueryKeys } from "../queryKeys";
+import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 
 interface CounselingPost {
   id: number;
@@ -67,9 +68,9 @@ export default function CounselingPage() {
 
   const deleteMut = useMutation({
     mutationFn: deleteCounselingPost,
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: teacherCounselingQueryKeys.posts });
-      teacherToast.info("상담 메모가 삭제되었습니다.");
+      teacherToast.info(getCommunityStorageCleanupNotice(result) ?? "상담 메모가 삭제되었습니다.");
       setSelectedPost(null);
     },
     onError: (e) => teacherToast.error(extractApiError(e, "상담 메모를 삭제하지 못했습니다.")),
