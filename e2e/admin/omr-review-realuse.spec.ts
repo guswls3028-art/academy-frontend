@@ -429,6 +429,7 @@ async function waitForStudentResult(
 async function verifyChangedAnswerAndMaximum(
   page: Page,
   request: APIRequestContext,
+  adminToken: string,
   studentToken: string,
   parentToken: string,
 ): Promise<void> {
@@ -438,6 +439,7 @@ async function verifyChangedAnswerAndMaximum(
     const expected = changed ? EXPECTED_SCORE - 1 : EXPECTED_SCORE;
     await page.setViewportSize({ width: changed ? 1366 : 390, height: 900 });
     await loginBrowserAsRealUser(page, setupPath, { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+    await page.locator("#assessment-policy > details > summary").click();
     await page.getByRole("spinbutton", { name: "만점", exact: true }).fill(String(maximum));
     const policySaved = page.waitForResponse((response) => matchesApiResponse(response, "PATCH", `/exams/${created.examId}/`));
     await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
@@ -467,12 +469,59 @@ async function verifyChangedAnswerAndMaximum(
     ));
     const saveButton = answerDialog.getByRole("button", { name: `저장 (총 ${maximum}점)`, exact: true });
     await saveButton.click();
-    expect((await answerSaved).status()).toBe(200);
-    await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+    const savedResponse = await answerSaved;
+    expect(savedResponse.status()).toBe(200);
+    const savedBody = await savedResponse.json() as { regrade?: Array<{
+      exam_id: number; total: number; graded: number; skipped: number;
+      failed: unknown[]; needs_review: unknown[];
+    }> };
+    if (!Array.isArray(savedBody.regrade)) throw new Error("Answer-key save did not return a regrade summary");
+    expect(savedBody.regrade).toHaveLength(1);
+    expect(savedBody.regrade[0]).toMatchObject({
+      exam_id: created.examId, total: 1, graded: 1, skipped: 0, failed: [], needs_review: [],
+    });
+    const reviewCount = savedBody.regrade.reduce((total, item) => total + item.needs_review.length, 0);
+    if (reviewCount > 0) {
+      await expect(page.getByText(
+        `정답을 저장하고 자동 재채점했습니다. 수기 보정 ${reviewCount}건은 확인이 필요합니다.`,
+        { exact: true },
+      )).toBeVisible();
+    } else {
+      await expect(page.getByText(/^(저장·재채점되었습니다\.|정답을 저장하고 기존 성적을 재채점했습니다\.)$/)).toBeVisible();
+    }
     await expect(saveButton).toBeEnabled();
     await answerDialog.getByRole("button", { name: "취소", exact: true }).click();
     await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("#assessment-policy > details > summary").click();
     await expect(page.getByRole("spinbutton", { name: "만점", exact: true })).toHaveValue(String(maximum));
+    await expect.poll(async () => (await waitForStudentResult(request, studentToken, created.examId!)).total_score,
+      { timeout: 30_000 }).toBe(expected);
+    await expect.poll(async () => {
+      const parent = await expectParentApi<{ exams?: any[] }>(request, "/student/grades/", parentToken, created.studentId);
+      return parent.exams?.find((row) => Number(row.exam_id) === created.examId)?.total_score;
+    }, { timeout: 30_000 }).toBe(expected);
+    const summary = await expectApi<{ participant_count: number; avg_score: number }>(
+      request, "GET", `/results/admin/exams/${created.examId}/summary/?lecture_id=${created.lectureId}`, adminToken,
+    );
+    expect(summary.participant_count).toBe(1);
+    expect(summary.avg_score).toBe(expected);
+    const questionStats = await expectApi<Array<{
+      question_number: number; attempts: number; correct: number; max_score: number;
+    }>>(request, "GET", `/results/admin/exams/${created.examId}/questions/?lecture_id=${created.lectureId}`, adminToken);
+    expect(questionStats.find((row) => row.question_number === 1)).toMatchObject({
+      attempts: 1, correct: changed ? 0 : 1, max_score: changed ? 0 : 1,
+    });
+    for (const account of [
+      { role: "student" as const, username: STUDENT_USER, password: STUDENT_PASS },
+      { role: "parent" as const, username: CONTROLLED_PHONE, password: STUDENT_PASS },
+    ]) {
+      await loginBrowserAsRealUser(page, "/student/grades", account);
+      const card = page.getByRole("link").filter({ hasText: EXAM_TITLE });
+      await expect(card).toContainText(`${expected}/${maximum}점`, { timeout: 30_000 });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(card).toContainText(`${expected}/${maximum}점`, { timeout: 30_000 });
+    }
+    await loginBrowserAsRealUser(page, setupPath, { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
 
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
     const recalculated = page.waitForResponse((response) => matchesApiResponse(response, "POST", `/exams/${created.examId}/recalculate/`), { timeout: 90_000 });
@@ -1015,10 +1064,14 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
         .toBeVisible({ timeout: 15_000 });
       await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
       await expect(page.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME, { timeout: 10_000 });
+      await expect(page.getByRole("dialog", { name: "학생 선택" })).toBeHidden();
     }
 
     const firstAnswerRow = page.locator(".orw-q-row").first();
-    await firstAnswerRow.getByRole("button", { name: "2", exact: true }).click();
+    await expect(firstAnswerRow.locator(".orw-q-row__num")).toHaveText("1번");
+    const correctedAnswer = firstAnswerRow.getByRole("button", { name: "2", exact: true });
+    await expect(correctedAnswer).toBeVisible({ timeout: 30_000 });
+    await correctedAnswer.click();
     await expect(page.getByRole("button", { name: "저장 + 재채점" })).toBeEnabled();
 
     const wrongSaveResponsePromise = page.waitForResponse(
@@ -1274,7 +1327,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       .toContainText(`${EXPECTED_SCORE}/50점`, { timeout: 20_000 });
     await page.screenshot({ path: `e2e/screenshots/omr-review-realuse-parent-${TS}.png`, fullPage: true });
 
-    await verifyChangedAnswerAndMaximum(page, request, studentTokens.access, parentTokens.access);
+    await verifyChangedAnswerAndMaximum(page, request, adminTokens.access, studentTokens.access, parentTokens.access);
     await verifyStaffSubjectiveRecovery(page, request);
     await expect.poll(async () => (await waitForStudentResult(request, studentTokens.access, created.examId!)).total_score,
       { timeout: 30_000 }).toBe(EXPECTED_SCORE);

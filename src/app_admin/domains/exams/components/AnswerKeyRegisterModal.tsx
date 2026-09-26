@@ -20,7 +20,7 @@ import {
 } from "../api/answerKey.api";
 import { patchQuestionScore } from "@admin/domains/materials/api/sheetQuestions";
 import { useAdminExam } from "../hooks/useAdminExam";
-import { ensureExamStructure } from "../api/adminExam";
+import { ensureExamStructure, recalculateExam } from "../api/adminExam";
 import { fetchOMRDefaults } from "../api/omr.api";
 import OmrSheetBuilder from "./omr/OmrSheetBuilder";
 import {
@@ -30,12 +30,17 @@ import {
 } from "../api/explanation.api";
 import ExamPdfUploadModal from "./ExamPdfUploadModal";
 import { adminExamsQueryKeys } from "../queryKeys";
+import "./AnswerKeyRegisterModal.type-map.css";
 import "./AnswerKeyRegisterModal.css";
+import "./AnswerKeyRegisterModal.bubbles.css";
 import "./AnswerKeyRegisterModal.mobile.css";
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  onSaved?: () => void;
+  initialTab?: "answer" | "image" | "omr";
+  flowStep?: "answer" | "print";
   examId: number;
   structureOwnerId: number;
   /** false면 문항/배점 PATCH 생략(regular 시험에서 403 방지). 정답만 저장됨. */
@@ -197,8 +202,7 @@ function roundScore(value: number): number {
 }
 
 function formatScore(value: number): string {
-  const rounded = roundScore(value);
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return String(Math.round((value + Number.EPSILON) * 100) / 100);
 }
 
 function parseScoreInputDraft(value: ScoreInputDraft): number | null {
@@ -255,6 +259,9 @@ function normalizeAnswers(input: Record<string, AnswerKeyValue>) {
 export default function AnswerKeyRegisterModal({
   open,
   onClose,
+  onSaved,
+  initialTab = "answer",
+  flowStep,
   examId,
   structureOwnerId,
   canEditQuestions = true,
@@ -262,7 +269,8 @@ export default function AnswerKeyRegisterModal({
   sessionName = "",
 }: Props) {
   const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">("answer");
+  const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">(initialTab);
+  const [downloaded, setDownloaded] = useState(false);
   const { data: exam } = useAdminExam(examId);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [ensuredExamId, setEnsuredExamId] = useState<number | null>(null);
@@ -354,6 +362,7 @@ export default function AnswerKeyRegisterModal({
   const [essayScoreMode, setEssayScoreMode] = useState<ScoreDistributionMode>("integer");
   const [essayTotalInput, setEssayTotalInput] = useState<ScoreInputDraft>("");
   const [questionTypes, setQuestionTypes] = useState<QuestionKind[]>([]);
+  const [typeMapExpanded, setTypeMapExpanded] = useState(false);
   const [totalCountInput, setTotalCountInput] = useState<CountDraft>("");
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [answerKeyHydrated, setAnswerKeyHydrated] = useState(false);
@@ -378,11 +387,12 @@ export default function AnswerKeyRegisterModal({
   });
   const explanationsFromApi = explanationsData ?? EMPTY_EXPLANATIONS;
 
-  const choiceBubbleRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const choiceBubbleRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const essayInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const resetLocalDraftState = useCallback(() => {
-    setActiveTab("answer");
+    setActiveTab(initialTab);
+    setDownloaded(false);
     setPdfModalOpen(false);
     setChoiceCount("");
     setChoiceCountInput("");
@@ -395,6 +405,7 @@ export default function AnswerKeyRegisterModal({
     setEssayScoreMode("integer");
     setEssayTotalInput("");
     setQuestionTypes([]);
+    setTypeMapExpanded(false);
     setTotalCountInput("");
     setDraft({});
     setAnswerKeyHydrated(false);
@@ -405,7 +416,7 @@ export default function AnswerKeyRegisterModal({
     setSaveBusy(false);
     choiceBubbleRefs.current = [];
     essayInputRefs.current = [];
-  }, []);
+  }, [initialTab]);
 
   useEffect(() => {
     resetLocalDraftState();
@@ -443,6 +454,29 @@ export default function AnswerKeyRegisterModal({
   const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.objective;
   const essayTotalScore = essayQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.subjective;
   const totalScore = questionTotalScore + scoreAdjustmentDraft.objective + scoreAdjustmentDraft.subjective;
+  const examMaxScore = Number(exam?.max_score);
+  const guidedScoreMismatch = flowStep === "answer" && Number.isFinite(examMaxScore)
+    && examMaxScore > 0 && Math.abs(totalScore - examMaxScore) > 0.01;
+
+  const alignGuidedScores = () => {
+    const count = sortedQuestions.length;
+    const targetCents = Math.round((examMaxScore - scoreAdjustmentDraft.objective - scoreAdjustmentDraft.subjective) * 100);
+    if (count < 1 || targetCents < 0) {
+      feedback.error("문항 수와 기본점수를 확인한 뒤 배점을 맞춰 주세요.");
+      return;
+    }
+    const unitCents = targetCents % 10 === 0 ? 10 : 1;
+    const targetUnits = targetCents / unitCents;
+    const baseUnits = Math.floor(targetUnits / count);
+    const remainder = targetUnits % count;
+    setScoreDraft((current) => ({
+      ...current,
+      ...Object.fromEntries(sortedQuestions.map((question, index) => [
+        question.id,
+        ((baseUnits + (index < remainder ? 1 : 0)) * unitCents) / 100,
+      ])),
+    }));
+  };
 
   useEffect(() => {
     if (!open || !structureReady || !answerKeyLoaded || answerKeyFetching || answerKeyHydrated) return;
@@ -706,6 +740,22 @@ export default function AnswerKeyRegisterModal({
     }
     const parsedChoiceTotal = parseScoreInputDraft(choiceTotalInput);
     const parsedEssayTotal = parseScoreInputDraft(essayTotalInput);
+    if (choiceTotalInput.trim() !== "" && parsedChoiceTotal === null) {
+      feedback.error("선택형 총점을 숫자로 입력해 주세요.");
+      return;
+    }
+    if (essayTotalInput.trim() !== "" && parsedEssayTotal === null) {
+      feedback.error("서술형 총점을 숫자로 입력해 주세요.");
+      return;
+    }
+    if (!choiceAutoScore && parsedChoiceTotal !== null && parsedChoiceTotal < choiceQuestions.reduce((sum, q) => sum + getScore(q), 0)) {
+      feedback.error("선택형 총점이 문항별 배점 합계보다 작습니다. 배점을 먼저 조정해 주세요.");
+      return;
+    }
+    if (!essayAutoScore && parsedEssayTotal !== null && parsedEssayTotal < essayQuestions.reduce((sum, q) => sum + getScore(q), 0)) {
+      feedback.error("서술형 총점이 문항별 배점 합계보다 작습니다. 배점을 먼저 조정해 주세요.");
+      return;
+    }
     if (choiceAutoScore) {
       if (parsedChoiceTotal === null) {
         feedback.error("자동점수 부여(사용) 시 선택형 총점을 입력해 주세요.");
@@ -782,7 +832,33 @@ export default function AnswerKeyRegisterModal({
       feedback.info("시험 구조가 준비되지 않아 아직 수정할 수 없습니다.");
       return;
     }
+    const manualChoiceTarget = choiceAutoScore || choiceTotalInput.trim() === "" ? null : parseScoreInputDraft(choiceTotalInput);
+    const manualEssayTarget = essayAutoScore || essayTotalInput.trim() === "" ? null : parseScoreInputDraft(essayTotalInput);
+    if ((!choiceAutoScore && choiceTotalInput.trim() !== "" && manualChoiceTarget === null)
+      || (!essayAutoScore && essayTotalInput.trim() !== "" && manualEssayTarget === null)) {
+      feedback.error("수동 총점을 숫자로 입력해 주세요.");
+      return;
+    }
+    if ((manualChoiceTarget !== null && Math.abs(choiceTotalScore - manualChoiceTarget) > 0.01)
+      || (manualEssayTarget !== null && Math.abs(essayTotalScore - manualEssayTarget) > 0.01)) {
+      feedback.error("수동 총점과 문항별 배점 합계를 맞춰 주세요. 자동 배점을 사용하면 균등 배점할 수 있습니다.");
+      return;
+    }
+    if (flowStep === "answer") {
+      const missingChoice = choiceQuestions.find((question) =>
+        parseChoiceDraft(draft[String(question.id)] ?? "").size === 0
+      );
+      if (missingChoice) {
+        feedback.error(`${missingChoice.number}번 객관식 정답을 입력한 뒤 저장해 주세요.`);
+        return;
+      }
+      if (guidedScoreMismatch) {
+        feedback.error(`문항 배점 합계 ${formatScore(totalScore)}점을 시험 만점 ${formatScore(examMaxScore)}점과 맞춰 주세요.`);
+        return;
+      }
+    }
     setSaveBusy(true);
+    let patchedScoreCount = 0;
     try {
       const shouldPersistQuestionTypes =
         questionTypes.length === sortedQuestions.length &&
@@ -821,27 +897,63 @@ export default function AnswerKeyRegisterModal({
       }
       const answersPayload = withScoreAdjustment(currentAnswers, scoreAdjustmentDraft);
       const targetExamId = examId;
-      if (!answerKey) {
-        await createAnswerKey({ exam: targetExamId, answers: answersPayload });
-      } else {
-        await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: answersPayload });
-      }
-      await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) });
-      if (canEditQuestions) {
-        const toPatch = sortedQuestions.filter(
+      const toPatch = canEditQuestions
+        ? sortedQuestions.filter(
           (q) => Number.isFinite(scoreDraft[q.id] ?? q.score ?? 0) && (scoreDraft[q.id] ?? q.score ?? 0) !== (q.score ?? 0)
-        );
-        for (const q of toPatch) {
-          const nextScore = scoreDraft[q.id] ?? q.score ?? 0;
-          await patchQuestionScore({ questionId: q.id, score: nextScore });
-        }
-        await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) });
+        )
+        : [];
+      for (const q of toPatch) {
+        const nextScore = scoreDraft[q.id] ?? q.score ?? 0;
+        await patchQuestionScore({ questionId: q.id, score: nextScore });
+        patchedScoreCount += 1;
       }
-      feedback.success(
-        canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
-      );
+      // The answer-key endpoint regrades immediately, so it must see the final weights.
+      const savedKey = !answerKey
+        ? await createAnswerKey({ exam: targetExamId, answers: answersPayload })
+        : await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: answersPayload });
+      const regrade = savedKey.data.regrade ?? (toPatch.length > 0 ? [await recalculateExam(examId)] : undefined);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) }),
+        ...(toPatch.length > 0 ? [qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) })] : []),
+      ]);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamSummary(examId) }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestionStats(examId) }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.sessionScoresRoot() }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.clinicTargetsRoot() }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminSubmissions }),
+        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminPendingSubmissions }),
+      ]);
+      const reviewCount = regrade?.reduce((total, item) => total + (item.needs_review?.length ?? 0), 0) ?? 0;
+      const failedCount = regrade?.reduce((total, item) => total + item.failed.length, 0) ?? 0;
+      feedback.clear();
+      if (!regrade) {
+        feedback.success(
+          canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
+        );
+      } else if (failedCount > 0) {
+        feedback.warning(`답안과 배점을 저장했습니다. 재채점 실패 ${failedCount}건은 시험 결과에서 확인해 주세요.`);
+      } else if (reviewCount > 0) {
+        feedback.warning(`정답을 저장하고 자동 재채점했습니다. 수기 보정 ${reviewCount}건은 확인이 필요합니다.`);
+      } else {
+        feedback.success(
+          canEditQuestions ? "저장·재채점되었습니다." : "정답을 저장하고 기존 성적을 재채점했습니다."
+        );
+      }
+      onSaved?.();
     } catch (error: unknown) {
-      feedback.error(extractApiError(error, "저장 실패"));
+      const detail = extractApiError(error, "저장 실패");
+      if (patchedScoreCount > 0) {
+        await Promise.allSettled([
+          qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) }),
+          qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) }),
+          qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
+        ]);
+      }
+      feedback.error(patchedScoreCount > 0
+        ? `${detail} 배점이 일부 저장됐을 수 있습니다. 다시 열어 확인하고 전체 재채점해 주세요.`
+        : detail);
     } finally {
       setSaveBusy(false);
     }
@@ -920,7 +1032,9 @@ export default function AnswerKeyRegisterModal({
     >
       <ModalHeader
         type="action"
-        title={
+        title={flowStep ? (
+          <strong>{flowStep === "answer" ? "2. 답안 등록" : "3. OMR 답안지 다운로드"}</strong>
+        ) : (
           <div className="answer-key-modal-header-tabs">
             <Tabs
               value={activeTab}
@@ -941,8 +1055,12 @@ export default function AnswerKeyRegisterModal({
               시험 자료 업로드
             </Button>
           </div>
-        }
-        description="선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."
+        )}
+        description={flowStep === "answer"
+          ? "문항 유형과 정답을 입력한 뒤 저장하세요. 저장하면 인쇄용 답안지가 열립니다."
+          : flowStep === "print"
+            ? "문항 수와 시험명을 확인하고 인쇄용 OMR 답안지 PDF를 다운로드하세요."
+            : "선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."}
       />
 
       {/* 시험 자료 업로드 통합 모달 — 현재 구조 소유자에 업로드 */}
@@ -978,7 +1096,7 @@ export default function AnswerKeyRegisterModal({
               <div className="answer-key-type-map__header">
                 <div>
                   <strong id="answer-key-type-map-title">문항별 유형</strong>
-                  <p>전체 문항 수를 정하고, 각 번호를 눌러 객관식과 서술형을 지정하세요.</p>
+                  <p>전체 {sortedQuestions.length}문항 · 선택형 {choiceQuestions.length} · 서술형 {essayQuestions.length}</p>
                 </div>
                 <div className="answer-key-type-map__actions">
                   <label className="answer-key-field">
@@ -1008,7 +1126,7 @@ export default function AnswerKeyRegisterModal({
                   </Button>
                 </div>
               </div>
-              {questionTypes.length > 0 && (
+              {questionTypes.length > 0 && typeMapExpanded && (
                 <div className="answer-key-type-map__grid" role="group" aria-label="문항별 유형">
                   {questionTypes.map((kind, index) => (
                     <button
@@ -1033,7 +1151,20 @@ export default function AnswerKeyRegisterModal({
                 <span><i className="is-choice" />객관식 {questionTypes.filter((kind) => kind === "choice").length}</span>
                 <span><i className="is-essay" />서술형 {questionTypes.filter((kind) => kind === "essay").length}</span>
               </div>
+              {questionTypes.length > 0 && (
+                <button type="button" className="answer-key-type-map__expand" aria-expanded={typeMapExpanded} onClick={() => setTypeMapExpanded((value) => !value)}>
+                  {typeMapExpanded ? "문항 유형 접기" : "문항별 유형 편집"}
+                </button>
+              )}
             </section>
+            {guidedScoreMismatch && sortedQuestions.length > 0 && (
+              <div className="answer-key-score-guide" role="status">
+                <span>문항 배점 합계 {formatScore(totalScore)}점 · 시험 만점 {formatScore(examMaxScore)}점</span>
+                <Button type="button" intent="secondary" size="sm" onClick={alignGuidedScores} disabled={!canEditStructure}>
+                  만점에 맞게 균등 배점
+                </Button>
+              </div>
+            )}
             <div className="answer-key-two-panels">
               {/* 좌측: 선택형 — 문항 수 메뉴 상시 표시 */}
               <div className="answer-key-panel answer-key-panel--choice">
@@ -1098,8 +1229,8 @@ export default function AnswerKeyRegisterModal({
                       disabled={!canEditStructure}
                     />
                   </label>
-                  <label className={`answer-key-field answer-key-field--total ${!choiceAutoScore ? "answer-key-field--disabled" : ""}`}>
-                    <span className="answer-key-field__label">총점</span>
+                  <label className="answer-key-field answer-key-field--total">
+                    <span className="answer-key-field__label">{choiceAutoScore ? "총점" : "목표 총점"}</span>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -1108,9 +1239,11 @@ export default function AnswerKeyRegisterModal({
                       onKeyDown={handleApplyEnter}
                       placeholder="예: 80"
                       className="ds-input answer-key-input--score"
-                      disabled={!canEditStructure || !choiceAutoScore}
-                      aria-readonly={!canEditStructure || !choiceAutoScore}
+                      disabled={!canEditStructure}
                     />
+                    {!choiceAutoScore && choiceTotalInput.trim() !== "" && (
+                      <small role="status">현재 {formatScore(choiceTotalScore)}점 / 목표 {choiceTotalInput}점</small>
+                    )}
                   </label>
                   <div className="answer-key-field">
                     <span className="answer-key-field__label">자동점수 부여</span>
@@ -1193,13 +1326,7 @@ export default function AnswerKeyRegisterModal({
                         if (choiceBubbleRefs.current.length <= index) choiceBubbleRefs.current.length = index + 1;
                         choiceBubbleRefs.current[index] = el;
                       }}
-                      onMoveToNextRow={(currentValue) => {
-                        const nextQ = choiceQuestions[index + 1];
-                        if (nextQ) {
-                          setDraft((prev) => ({ ...prev, [String(nextQ.id)]: currentValue }));
-                          choiceBubbleRefs.current[index + 1]?.focus();
-                        }
-                      }}
+                      onMoveToNextRow={() => choiceBubbleRefs.current[index + 1]?.focus()}
                       onMoveToPreviousRow={() => {
                         choiceBubbleRefs.current[index - 1]?.focus();
                       }}
@@ -1278,8 +1405,8 @@ export default function AnswerKeyRegisterModal({
                       disabled={!canEditStructure}
                     />
                   </label>
-                  <label className={`answer-key-field answer-key-field--total ${!essayAutoScore ? "answer-key-field--disabled" : ""}`}>
-                    <span className="answer-key-field__label">총점</span>
+                  <label className="answer-key-field answer-key-field--total">
+                    <span className="answer-key-field__label">{essayAutoScore ? "총점" : "목표 총점"}</span>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -1288,9 +1415,11 @@ export default function AnswerKeyRegisterModal({
                       onKeyDown={handleApplyEnter}
                       placeholder="예: 50"
                       className="ds-input answer-key-input--score"
-                      disabled={!canEditStructure || !essayAutoScore}
-                      aria-readonly={!canEditStructure || !essayAutoScore}
+                      disabled={!canEditStructure}
                     />
+                    {!essayAutoScore && essayTotalInput.trim() !== "" && (
+                      <small role="status">현재 {formatScore(essayTotalScore)}점 / 목표 {essayTotalInput}점</small>
+                    )}
                   </label>
                   <div className="answer-key-field">
                     <span className="answer-key-field__label">자동점수 부여</span>
@@ -1433,22 +1562,28 @@ export default function AnswerKeyRegisterModal({
             <OmrSettingsTab
               examId={examId}
               examTitle={exam?.title || ""}
-              lectureName={lectureName}
-              sessionName={sessionName}
+              lectureName={lectureName || omrDefaults?.lecture_name || ""}
+              sessionName={sessionName || omrDefaults?.session_name || ""}
               choiceCount={choiceQuestions.length}
               essayCount={essayQuestions.length}
               questionTypes={resolvedQuestionTypes}
+              guidedPrint={flowStep === "print"}
+              onDownloaded={() => setDownloaded(true)}
             />
           )}
         </div>
       </ModalBody>
 
       <ModalFooter
-        left={null}
+        left={flowStep === "answer"
+          ? <span>저장 후 답안지 다운로드로 이어집니다.</span>
+          : flowStep === "print"
+            ? <span role="status">{downloaded ? "답안지 다운로드 완료" : "PDF를 다운로드한 뒤 설정 화면으로 돌아가세요."}</span>
+            : null}
         right={
           <>
             <Button intent="secondary" onClick={onClose}>
-              취소
+              {flowStep === "answer" ? "나중에" : flowStep === "print" ? "설정 화면으로" : "취소"}
             </Button>
             {activeTab === "answer" && hasQuestions && answerKeyHydrated && (
               <Button
@@ -1457,7 +1592,7 @@ export default function AnswerKeyRegisterModal({
                 disabled={saveBusy || initMut.isPending || !canEditStructure}
                 loading={saveBusy}
               >
-                저장 (총 {formatScore(totalScore)}점)
+                {flowStep === "answer" ? "답안 저장하고 다음" : `저장 (총 ${formatScore(totalScore)}점)`}
               </Button>
             )}
             {activeTab === "image" && sortedQuestions.length > 0 && (
@@ -1498,15 +1633,14 @@ function ChoiceRow({
   onScoreReset: () => void;
   editable: boolean;
   showDividerAfter?: boolean;
-  bubblesRef?: (el: HTMLDivElement | null) => void;
-  onMoveToNextRow?: (currentValue: string) => void;
+  bubblesRef?: (el: HTMLButtonElement | null) => void;
+  onMoveToNextRow?: () => void;
   onMoveToPreviousRow?: () => void;
 }) {
   const scoreTone = Math.min(10, Math.max(0, Math.floor(score)));
   const selectedChoices = parseChoiceDraft(draft);
-  const firstSelected = CHOICES.find((choice) => selectedChoices.has(choice)) ?? "";
-  const currentIndex = CHOICES.indexOf(firstSelected);
-  const selectedIndex = currentIndex >= 0 ? currentIndex : 0;
+  const [activeIndex, setActiveIndex] = useState(0);
+  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const toggleChoice = (choice: string) => {
     if (!editable) return;
@@ -1518,29 +1652,32 @@ function ChoiceRow({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!editable) return;
+    if (e.target !== e.currentTarget) return;
     if (/^[1-5]$/.test(e.key)) {
       e.preventDefault();
-      toggleChoice(e.key);
+      const next = CHOICES.indexOf(e.key);
+      setActiveIndex(next);
+      buttonRefs.current[next]?.focus();
       return;
     }
     if (e.key === "ArrowLeft") {
       e.preventDefault();
-      const next = selectedIndex <= 0 ? CHOICES[0] : CHOICES[selectedIndex - 1];
-      onChange(next);
+      const next = Math.max(0, activeIndex - 1);
+      setActiveIndex(next);
+      buttonRefs.current[next]?.focus();
       return;
     }
     if (e.key === "ArrowRight") {
       e.preventDefault();
-      const next =
-        selectedIndex >= CHOICES.length - 1 ? CHOICES[CHOICES.length - 1] : CHOICES[selectedIndex + 1];
-      onChange(next);
+      const next = Math.min(CHOICES.length - 1, activeIndex + 1);
+      setActiveIndex(next);
+      buttonRefs.current[next]?.focus();
       return;
     }
-    if (e.key === "ArrowDown" || e.key === "Enter") {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
       e.stopPropagation();
-      const value = draft || CHOICES[0];
-      onMoveToNextRow?.(value);
+      onMoveToNextRow?.();
       return;
     }
     if (e.key === "ArrowUp") {
@@ -1548,9 +1685,10 @@ function ChoiceRow({
       onMoveToPreviousRow?.();
       return;
     }
-    if (e.key === " ") {
+    if (e.key === " " || e.key === "Enter") {
       e.preventDefault();
-      const next = CHOICES[selectedIndex];
+      e.stopPropagation();
+      const next = CHOICES[activeIndex];
       if (next) toggleChoice(next);
       return;
     }
@@ -1560,32 +1698,39 @@ function ChoiceRow({
     <li className={`answer-key-row answer-key-row--choice ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
       <div className="answer-key-row__num">{question.number}</div>
       <div
-        ref={bubblesRef}
         className="answer-key-row__bubbles"
         role="group"
-        aria-label={`${question.number}번 정답`}
-        tabIndex={editable ? 0 : -1}
-        onKeyDown={handleKeyDown}
+        aria-label={`${question.number}번 정답. 방향키로 이동, Enter 또는 스페이스로 선택`}
       >
-        {CHOICES.map((c) => (
-          <label key={c} className="answer-key-omr-label">
-            <input
-              type="checkbox"
-              name={`q-${question.id}`}
-              value={c}
-              checked={selectedChoices.has(c)}
-              onChange={() => toggleChoice(c)}
-              aria-label={`${question.number}번 ${c}번 선택지`}
-              className="ds-sr-only"
-              disabled={!editable}
-            />
+        {CHOICES.map((c, index) => (
+          <button
+            key={c}
+            ref={(el) => {
+              buttonRefs.current[index] = el;
+              if (index === activeIndex) bubblesRef?.(el);
+            }}
+            type="button"
+            className={`answer-key-omr-label ${activeIndex === index ? "answer-key-omr-label--active" : ""}`}
+            role="checkbox"
+            aria-label={`${question.number}번 ${c}번 선택지`}
+            aria-checked={selectedChoices.has(c)}
+            tabIndex={editable && activeIndex === index ? 0 : -1}
+            onKeyDown={handleKeyDown}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={(event) => {
+              setActiveIndex(index);
+              toggleChoice(c);
+              event.currentTarget.focus({ preventScroll: true });
+            }}
+            disabled={!editable}
+          >
             <span
               className={`exam-omr-bubble ${selectedChoices.has(c) ? "exam-omr-bubble--selected" : ""}`}
               aria-hidden
             >
               {c}
             </span>
-          </label>
+          </button>
         ))}
       </div>
       <div className="answer-key-row__score-ctrl">
@@ -1878,6 +2023,8 @@ function OmrSettingsTab({
   choiceCount,
   essayCount,
   questionTypes,
+  guidedPrint,
+  onDownloaded,
 }: {
   examId: number;
   examTitle: string;
@@ -1886,6 +2033,8 @@ function OmrSettingsTab({
   choiceCount: number;
   essayCount: number;
   questionTypes: QuestionKind[];
+  guidedPrint?: boolean;
+  onDownloaded?: () => void;
 }) {
   const exceedsOmrLimit = choiceCount > MAX_OMR_MC_COUNT || essayCount > MAX_OMR_ESSAY_COUNT;
   return (
@@ -1905,6 +2054,8 @@ function OmrSettingsTab({
         initialEssayCount={essayCount}
         initialQuestionTypes={questionTypes}
         layout="modal"
+        guidedPrint={guidedPrint}
+        onDownloaded={onDownloaded}
       />
     </div>
   );

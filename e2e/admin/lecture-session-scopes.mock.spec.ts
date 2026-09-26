@@ -44,6 +44,11 @@ type MockState = {
   examPdfExtractDelayMs?: number;
   examPdfExtractRequests?: number;
   examRequestSequence?: string[];
+  guidedExamFlow?: boolean;
+  guidedQuestionsInitialized?: boolean;
+  guidedQuestionCount?: number;
+  guidedQuestionScores?: Record<number, number>;
+  answerKeySaves?: Array<Record<string, unknown>>;
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
   homeworkAssignmentIds?: number[];
   homeworkAssignmentPuts?: number[][];
@@ -260,6 +265,90 @@ async function installApi(page: Page, state: MockState) {
         ...payload,
       }, 201);
     }
+    if (state.guidedExamFlow && state.createdExamPayloads?.length) {
+      const created = state.createdExamPayloads[0];
+      if (path === `/results/admin/sessions/${REGULAR_SESSION_ID}/exams/` && method === "GET") {
+        return json([{ exam_id: 9971, title: created.title, open_at: null, close_at: null, allow_retake: false, max_attempts: 1 }]);
+      }
+      const exam = {
+        id: 9971,
+        title: created.title,
+        description: "",
+        subject: "수학",
+        exam_type: "regular",
+        session_id: REGULAR_SESSION_ID,
+        max_score: created.max_score,
+        pass_score: created.pass_score,
+        grading_mode: created.grading_mode,
+        manual_grading_method: created.manual_grading_method,
+        choice_question_count: 1,
+        segmentation_status: "none",
+        source_filename: "",
+        structure_owner_id: 9971,
+        can_edit_structure: true,
+        answer_visibility: "hidden",
+        student_results_published: false,
+        allow_retake: false,
+        max_attempts: 1,
+        open_at: null,
+        close_at: null,
+        created_at: "2026-08-02T00:00:00Z",
+        updated_at: "2026-08-02T00:00:00Z",
+      };
+      if (path === "/exams/9971/" && method === "GET") return json(exam);
+      if (path === "/exams/9971/structure/ensure/" && method === "POST") return json(exam);
+      const guidedQuestions = Array.from({ length: state.guidedQuestionCount ?? 1 }, (_, index) => {
+        const id = 99711 + index;
+        return { id, sheet: 9971, number: index + 1, question_kind: "choice", score: state.guidedQuestionScores?.[id] ?? 1 };
+      });
+      if (path === "/exams/9971/questions/" && method === "GET") {
+        return json(state.guidedQuestionsInitialized ? guidedQuestions : []);
+      }
+      if (path === "/exams/9971/questions/init/" && method === "POST") {
+        state.guidedQuestionsInitialized = true;
+        return json(guidedQuestions);
+      }
+      if (/^\/exams\/questions\/9971\d\/$/.test(path) && method === "PATCH") {
+        const payload = request.postDataJSON() as { score: number };
+        const id = Number(path.split("/")[3]);
+        state.guidedQuestionScores ??= {};
+        state.guidedQuestionScores[id] = payload.score;
+        return json({ id, sheet: 9971, number: id - 99710, question_kind: "choice", score: payload.score });
+      }
+      if (path === "/exams/9971/explanations/" && method === "GET") return json([]);
+      if (path === "/exams/answer-keys/" && method === "GET") {
+        return json((state.answerKeySaves ?? []).map((payload, index) => ({ id: 99712 + index, ...payload })));
+      }
+      if (path === "/exams/answer-keys/" && method === "POST") {
+        const payload = request.postDataJSON() as Record<string, unknown>;
+        state.answerKeySaves ??= [];
+        state.answerKeySaves.push(payload);
+        return json({
+          id: 99712, ...payload,
+          regrade: [{ exam_id: 9971, total: 0, graded: 0, skipped: 0, failed: [], needs_review: [] }],
+        }, 201);
+      }
+      if (path === "/exams/9971/omr/defaults/" && method === "GET") {
+        const choiceCount = state.guidedQuestionCount ?? 1;
+        return json({
+          exam_title: String(created.title), lecture_name: "고1 Hyper 정규반",
+          session_name: "1차시", mc_count: choiceCount, essay_count: 0,
+          include_optional_essay_area: false, can_include_optional_essay_area: true,
+          n_choices: 5, question_types: Array(choiceCount).fill("choice"), choice_question_numbers: Array.from({ length: choiceCount }, (_, index) => index + 1),
+          essay_question_numbers: [], logo_url: null,
+        });
+      }
+      if (path === "/exams/9971/omr/preview/" && method === "POST") {
+        return route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><html><body>OMR 미리보기</body></html>" });
+      }
+      if (path === "/exams/9971/omr/pdf/" && method === "POST") {
+        return route.fulfill({
+          status: 200, contentType: "application/pdf",
+          headers: { "content-disposition": "attachment; filename=exam-omr.pdf" },
+          body: Buffer.from("%PDF-1.4\n%%EOF\n"),
+        });
+      }
+    }
     if (/^\/exams\/\d+\/enrollments\/$/.test(path) && method === "PUT") {
       const payload = request.postDataJSON() as { enrollment_ids?: number[] };
       state.examRequestSequence?.push("auto-enroll");
@@ -345,6 +434,9 @@ async function installApi(page: Page, state: MockState) {
       return json({ selected_count: state.homeworkAssignmentIds.length });
     }
     if (path === "/lectures/attendance/") return json({ count: 0, results: [] });
+    if (path === `/results/admin/sessions/${REGULAR_SESSION_ID}/scores/` && method === "GET") {
+      return json({ meta: { exams: [], homeworks: [] }, rows: [] });
+    }
     if (path === "/results/admin/clinic-targets/") return json([]);
     if (path === "/staffs/currently-working/") return json([]);
     if (path === "/media/videos/youtube/" && method === "POST") {
@@ -804,6 +896,115 @@ test("원본 없이 직접 채점 시험을 만들고 문항별 점수 입력을
   ]);
 });
 
+test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운로드가 이어진다", async ({ page }, testInfo) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    guidedExamFlow: true,
+    guidedQuestionCount: 3,
+    createdExamPayloads: [],
+    examSessionEnrollmentRows: [],
+    answerKeySaves: [],
+  };
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openLecture(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/scores`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await expect(page.getByRole("region", { name: "첫 시험 시작" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "시험을 만들어 보세요" })).toBeInViewport();
+  await expect(page.getByRole("link", { name: "시험·성적표 사용 순서" })).toHaveAttribute("href", "/workspace/guide#exam-score-guide");
+  await expect(page.getByRole("button", { name: "시험 추가", exact: true }).first()).toBeInViewport();
+  await page.screenshot({ path: testInfo.outputPath("scores-first-exam-390.png") });
+  await page.getByRole("button", { name: "시험 추가", exact: true }).first().click();
+  await page.getByText("시험 설정해서 만들기", { exact: true }).click();
+  await page.getByLabel("시험명").fill("고1 OMR 단원평가");
+  await page.getByRole("button", { name: "시험 만들기", exact: true }).click();
+
+  const answerDialog = page.getByRole("dialog").filter({ hasText: "2. 답안 등록" });
+  await expect(answerDialog).toBeVisible();
+  await answerDialog.getByRole("spinbutton", { name: "전체 문항 수" }).fill("3");
+  await answerDialog.getByRole("button", { name: "유형 저장" }).click();
+  await expect.poll(() => state.guidedQuestionsInitialized).toBe(true);
+  expect(await answerDialog.locator(".answer-key-omr-label").first().evaluate((element) =>
+    (element as HTMLElement).offsetWidth
+  )).toBeGreaterThanOrEqual(44);
+  expect(await answerDialog.locator(".exam-omr-bubble").first().evaluate((element) =>
+    (element as HTMLElement).offsetWidth
+  )).toBeGreaterThanOrEqual(30);
+  expect(await answerDialog.locator(".answer-key-row__bubbles").first().evaluate((element) =>
+    element.scrollWidth <= element.clientWidth + 1
+  )).toBe(true);
+  const firstBubble = answerDialog.getByRole("checkbox", { name: "1번 1번 선택지" });
+  await firstBubble.focus();
+  await firstBubble.press("ArrowRight");
+  await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).not.toBeChecked();
+  await answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" }).press("Enter");
+  await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
+  await answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" }).press("Space");
+  await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).not.toBeChecked();
+  await answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" }).press("ArrowDown");
+  await expect(answerDialog.getByRole("checkbox", { name: "2번 2번 선택지" })).not.toBeChecked();
+  for (const row of await answerDialog.locator(".answer-key-row--choice").all()) {
+    await row.locator(".answer-key-omr-label").nth(1).click();
+  }
+  await answerDialog.locator(".answer-key-panel--choice").getByRole("textbox", { name: "목표 총점" }).fill("100");
+  await expect(answerDialog.getByText(/현재 \d+점 \/ 목표 100점/)).toBeVisible();
+  await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
+  await answerDialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
+  expect(state.answerKeySaves).toHaveLength(0);
+  await answerDialog.getByRole("button", { name: "만점에 맞게 균등 배점" }).click();
+  await expect(answerDialog.locator(".answer-key-score-guide")).toHaveCount(0);
+  await expect(answerDialog.locator(".answer-key-row--choice .answer-key-row__score-val")).toHaveText(["33.4점", "33.3점", "33.3점"]);
+  await answerDialog.getByRole("button", { name: /답안 저장하고 다음/ }).click();
+  await expect.poll(() => state.answerKeySaves?.length).toBe(1);
+  await expect.poll(() => Object.keys(state.guidedQuestionScores ?? {}).length).toBe(3);
+  expect(state.guidedQuestionScores).toEqual({ 99711: 33.4, 99712: 33.3, 99713: 33.3 });
+  expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "2", "99712": "2", "99713": "2" } });
+  expect(state.answerKeySaves?.[0].answers).not.toHaveProperty("__score_adjustment__");
+
+  const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
+  await expect(printDialog).toBeVisible();
+  await expect(page.getByText("수동 총점과 문항별 배점 합계를 맞춰 주세요.", { exact: false })).toHaveCount(0, { timeout: 500 });
+  await expect(printDialog.getByRole("button", { name: "OMR PDF 다운로드" })).toBeInViewport();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    printDialog.getByRole("button", { name: "OMR PDF 다운로드" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toContain("OMR");
+  await expect(printDialog.getByText("답안지 다운로드 완료")).toBeVisible();
+  await printDialog.getByRole("button", { name: "설정 화면으로" }).click();
+  await expect(page).toHaveURL(/\/exams\?examId=9971/);
+  await page.reload();
+  await page.getByRole("button", { name: "문항·답안 확인" }).click();
+  await expect(page.getByRole("dialog").locator(".answer-key-row--choice .answer-key-row__score-val")).toHaveText(["33.4점", "33.3점", "33.3점"]);
+  await page.getByRole("dialog").getByRole("button", { name: "취소" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const assessmentPicker = page.getByTestId("session-assessment-remote");
+  const pickerBox = await assessmentPicker.boundingBox();
+  expect(pickerBox).not.toBeNull();
+  expect(pickerBox!.width).toBeGreaterThan(330);
+  expect(pickerBox!.x + pickerBox!.width).toBeLessThanOrEqual(390);
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+});
+
+test("성적 탭의 첫 시험 안내에서 현재 가이드의 해당 단계가 열린다", async ({ page }, testInfo) => {
+  const state: MockState = { supplementTitle: "토요일 심화 클리닉", patchTitles: [] };
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await openLecture(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/scores`, {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(page.getByRole("region", { name: "첫 시험 시작" })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("scores-first-exam-1366.png") });
+  await page.getByRole("link", { name: "시험·성적표 사용 순서" }).click();
+  await expect(page).toHaveURL(/\/workspace\/guide#exam-score-guide$/);
+  await expect(page.locator("#exam-score-guide")).toHaveAttribute("class", /cardOpen/);
+  await expect(page.getByText("OMR 답안지 받기", { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("exam-score-guide-1366.png") });
+});
+
 test("원본을 선택하면 생성과 자동 등록 뒤 기존 업로드 순서를 유지한다", async ({ page }, testInfo) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",
@@ -864,6 +1065,7 @@ test("원본을 선택하면 생성과 자동 등록 뒤 기존 업로드 순서
   await expect(dialog).toBeVisible();
 
   await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(state.createdExamPayloads).toHaveLength(1);
   expect(state.examEnrollmentPuts).toEqual([[501]]);
   expect(state.examPdfExtractRequests).toBe(1);

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, ChevronRight, Download, FileUser, ListChecks, Search } from "lucide-react";
 
 import type {
@@ -14,6 +15,8 @@ import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { listOmrReviewIssuesPage } from "@admin/domains/results/public/omrReview";
+import { scoresQueryKeys } from "../api/queryKeys";
 import {
   buildStudentScoreReportHtml,
   downloadStudentScoreReportPdf,
@@ -56,12 +59,18 @@ export default function StudentScoreReportModal({
   initialEnrollmentIds,
 }: Props) {
   const { program } = useProgram();
+  const navigate = useNavigate();
+  const { lectureId, sessionId } = useParams<{ lectureId: string; sessionId: string }>();
   const queryClient = useQueryClient();
+  const omrExamIds = useMemo(() => meta.exams
+    .filter((exam) => exam.grading_mode !== "written")
+    .map((exam) => exam.exam_id), [meta.exams]);
   const reportRows = useMemo(() => REPORTABLE_ROWS(rows), [rows]);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
   const [selectedReportEnrollmentIds, setSelectedReportEnrollmentIds] = useState<number[]>([]);
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<StudentScoreReportMode>("detailed");
+  const [showStudentList, setShowStudentList] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number } | null>(null);
   const [mobilePreviewHeight, setMobilePreviewHeight] = useState(600);
@@ -88,6 +97,7 @@ export default function StudentScoreReportModal({
     );
     setSearch("");
     setMode("detailed");
+    setShowStudentList(initialRows.length > 1);
     setDownloadProgress(null);
   }, [open, reportRows, initialEnrollmentId, initialEnrollmentIds]);
 
@@ -122,6 +132,31 @@ export default function StudentScoreReportModal({
     () => reportRows.filter((row) => selectedReportSet.has(row.enrollment_id)),
     [reportRows, selectedReportSet],
   );
+  const selectedOmrIds = useMemo(() => selectedReportRows.map((row) => row.enrollment_id).sort((a, b) => a - b), [selectedReportRows]);
+  const omrPreflight = useQuery({
+    queryKey: scoresQueryKeys.studentScoreReportOmrPreflight(omrExamIds, selectedOmrIds),
+    queryFn: async () => {
+      const checks = [];
+      for (const examId of omrExamIds) {
+        for (let index = 0; index < selectedOmrIds.length; index += 500) {
+          const enrollmentIds = selectedOmrIds.slice(index, index + 500);
+          const page = await listOmrReviewIssuesPage(examId, {
+            enrollmentIds,
+            includeUnbound: index === 0,
+          });
+          checks.push({ examId, page });
+        }
+      }
+      return checks;
+    },
+    enabled: open && omrExamIds.length > 0 && selectedOmrIds.length > 0,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const omrCheckFailed = omrExamIds.length > 0 && selectedOmrIds.length > 0 && omrPreflight.isError;
+  const omrCheckBusy = omrExamIds.length > 0 && selectedOmrIds.length > 0 && omrPreflight.isFetching;
+  const omrIssuesTotal = (omrPreflight.data ?? []).reduce((count, { page }) => count + page.total, 0);
+  const omrIssues = (omrPreflight.data ?? []).flatMap(({ examId, page }) => page.items.map((row) => ({ examId, row })));
 
   const selectedIndex = selectedRow
     ? reportRows.findIndex((row) => row.enrollment_id === selectedRow.enrollment_id)
@@ -178,6 +213,7 @@ export default function StudentScoreReportModal({
     "--score-report-accent": reportTheme.accent,
     "--score-report-on-brand": reportTheme.onPrimary,
     "--score-report-preview-height": `${previewSourceHeight}px`,
+    "--score-report-preview-height-80": `${Math.ceil(previewSourceHeight * 0.8)}px`,
     "--score-report-preview-height-70": `${Math.ceil(previewSourceHeight * 0.7)}px`,
     "--score-report-preview-height-60": `${Math.ceil(previewSourceHeight * 0.6)}px`,
     "--score-report-mobile-height": `${mobilePreviewHeight}px`,
@@ -237,6 +273,11 @@ export default function StudentScoreReportModal({
   };
 
   const handleDownload = async () => {
+    const freshOmr = omrExamIds.length > 0 ? await omrPreflight.refetch() : null;
+    if (freshOmr?.isError || freshOmr?.data?.some(({ page }) => page.total > 0)) {
+      feedback.warning("성적표를 만들기 전에 OMR 인식·학생 연결 문제를 확인해 주세요.");
+      return;
+    }
     if (selectedReportRows.length === 0) {
       feedback.info("PDF로 만들 학생을 한 명 이상 선택해 주세요.");
       return;
@@ -302,19 +343,45 @@ export default function StudentScoreReportModal({
             개인 성적표
           </span>
         )}
-        description="미리볼 학생을 바꾸고, 필요한 학생을 여러 명 선택해 한 PDF로 만들 수 있습니다."
+        description="학생과 분량을 고른 뒤 PDF를 다운로드하세요. 여러 명을 한 번에 출력할 수도 있습니다."
         noIcon
       />
       <ModalBody>
-        <div className="student-score-report-workspace" style={workspaceStyle}>
+        {(omrCheckBusy || omrCheckFailed || omrIssuesTotal > 0) && (
+          <div role={omrCheckFailed || omrIssuesTotal > 0 ? "alert" : "status"} className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            {omrCheckBusy ? "출력 전 OMR 검토 상태를 확인하는 중…" : omrCheckFailed ? (
+              <>
+                <strong>OMR 검토 현황을 불러오지 못했습니다.</strong>
+                <Button type="button" intent="secondary" size="sm" onClick={() => void omrPreflight.refetch()}>다시 확인</Button>
+              </>
+            ) : (
+              <>
+                <strong>OMR {omrIssuesTotal}건을 먼저 확인해 주세요.</strong>
+                <p className="mt-1">{omrIssues.slice(0, 4).map(({ examId, row }) => `${meta.exams.find((exam) => exam.exam_id === examId)?.title ?? "시험"}: ${row.student_name || `미식별 스캔 #${row.id}`}`).join(", ")}{omrIssuesTotal > 4 ? ` 외 ${omrIssuesTotal - 4}건` : ""} · 학생 식별 또는 답안 판독이 완료되면 성적표를 만들 수 있습니다.</p>
+                <Button type="button" intent="secondary" size="sm" onClick={() => {
+                  const first = omrIssues[0];
+                  if (first && lectureId && sessionId) {
+                    onClose();
+                    navigate(`/workspace/lectures/${lectureId}/sessions/${sessionId}/exams?examId=${first.examId}&examTab=results&reviewOmr=1&reviewSubmissionId=${first.row.id}`);
+                  }
+                }}>시험 OMR 검토로 이동</Button>
+              </>
+            )}
+          </div>
+        )}
+        <div className={`student-score-report-workspace${showStudentList ? " is-student-list-open" : ""}`} style={workspaceStyle}>
           <main className="student-score-report-preview">
             <div className="student-score-report-preview__toolbar">
               <div className="student-score-report-preview__controls">
                 <label className="student-score-report-mobile-student">
-                  <span>학생</span>
+                  <span>1. 출력 학생</span>
                   <select
                     value={selectedRow?.enrollment_id ?? ""}
-                    onChange={(event) => previewStudent(Number(event.target.value))}
+                    onChange={(event) => {
+                      const enrollmentId = Number(event.target.value);
+                      setSelectedEnrollmentId(enrollmentId);
+                      setSelectedReportEnrollmentIds([enrollmentId]);
+                    }}
                     aria-label="성적표 학생 선택"
                   >
                     {reportRows.map((row) => (
@@ -322,6 +389,18 @@ export default function StudentScoreReportModal({
                     ))}
                   </select>
                 </label>
+                {reportRows.length > 1 && (
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    aria-expanded={showStudentList}
+                    onClick={() => setShowStudentList((current) => !current)}
+                  >
+                    {showStudentList ? "학생 목록 닫기" : `여러 명 출력${selectedReportRows.length > 1 ? ` · ${selectedReportRows.length}명` : ""}`}
+                  </Button>
+                )}
+                <span className="student-score-report-preview__step">2. 분량 선택</span>
                 <div className="student-score-report-mode" aria-label="성적표 분량">
                   <button
                     type="button"
@@ -358,9 +437,15 @@ export default function StudentScoreReportModal({
               </div>
             </div>
 
-            <details className="student-score-report-mobile-selection">
+            {showStudentList && <details
+              className="student-score-report-mobile-selection"
+              open
+              onToggle={(event) => {
+                if (!event.currentTarget.open) setShowStudentList(false);
+              }}
+            >
               <summary>
-                <span><ListChecks size={15} aria-hidden /> 출력 학생</span>
+                <span><ListChecks size={15} aria-hidden /> 1. 출력할 학생</span>
                 <strong>{selectedReportRows.length}명 선택</strong>
               </summary>
               <div className="student-score-report-mobile-selection__actions">
@@ -379,7 +464,7 @@ export default function StudentScoreReportModal({
                   </label>
                 ))}
               </div>
-            </details>
+            </details>}
 
             {selectedRow ? (
               <div className="student-score-report-preview__scroll">
@@ -401,10 +486,10 @@ export default function StudentScoreReportModal({
             )}
           </main>
 
-          <aside className="student-score-report-students" aria-label="학생 선택">
+          {showStudentList && <aside className="student-score-report-students" aria-label="학생 선택">
             <div className="student-score-report-students__header">
               <div>
-                <strong>출력 학생 선택</strong>
+                <strong>1. 출력할 학생</strong>
                 <span>{selectedReportRows.length}/{reportRows.length}명</span>
               </div>
               <div className="student-score-report-students__nav">
@@ -436,6 +521,7 @@ export default function StudentScoreReportModal({
                 aria-label="성적표 학생 검색"
               />
             </label>
+            <p className="student-score-report-students__hint">체크한 학생만 PDF에 포함됩니다. 이름을 누르면 미리봅니다.</p>
             <div className="student-score-report-students__selection-actions">
               <button type="button" onClick={selectAllReports}>전체 선택</button>
               <button type="button" onClick={clearReportSelection}>선택 해제</button>
@@ -475,6 +561,7 @@ export default function StudentScoreReportModal({
                         maxLectureChips={1}
                         density="compact"
                       />
+                      <span className="student-score-report-students__preview-label">미리보기</span>
                     </button>
                   </div>
                 );
@@ -483,15 +570,15 @@ export default function StudentScoreReportModal({
                 <p className="student-score-report-students__empty">검색 결과가 없습니다.</p>
               )}
             </div>
-          </aside>
+          </aside>}
         </div>
       </ModalBody>
       <ModalFooter
         left={(
           <span className="student-score-report-modal__footnote">
             {selectedRow
-              ? `${selectedReportRows.length}명 선택 · 미리보기 ${selectedRow.student_name} · ${mode === "detailed" ? `상세 ${reportPageCount}쪽` : "요약 1쪽"}`
-              : "출력할 학생 없음"}
+              ? `${selectedReportRows.length}명 출력 · 미리보기: ${selectedRow.student_name} · ${mode === "detailed" ? `상세 ${reportPageCount}쪽` : "요약 1쪽"}`
+              : "출력할 학생을 선택해 주세요"}
           </span>
         )}
         right={(
@@ -503,7 +590,7 @@ export default function StudentScoreReportModal({
               intent="primary"
               size="sm"
               leftIcon={<Download size={ICON_FOR_BUTTON.sm} aria-hidden />}
-              disabled={selectedReportRows.length === 0 || downloading}
+              disabled={selectedReportRows.length === 0 || downloading || omrCheckBusy || omrCheckFailed || omrIssuesTotal > 0}
               onClick={() => { void handleDownload(); }}
             >
               {downloading
@@ -511,8 +598,8 @@ export default function StudentScoreReportModal({
                   ? `${downloadProgress.current}/${downloadProgress.total}명 준비 중…`
                   : "PDF 생성 중…"
                 : selectedReportRows.length > 1
-                  ? `${selectedReportRows.length}명 성적표 PDF`
-                  : "개인 성적표 PDF"}
+                  ? `${selectedReportRows.length}명 성적표 PDF 다운로드`
+                  : "개인 성적표 PDF 다운로드"}
             </Button>
           </>
         )}

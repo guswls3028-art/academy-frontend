@@ -23,7 +23,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RotateCcw, RotateCw, Upload } from "lucide-react";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -34,6 +34,7 @@ import { adminResultsQueryKeys } from "../../queryKeys";
 import {
   acceptFromDuplicatesApi,
   fetchOmrReviewDetail,
+  listOmrReviewIssuesPage,
   listOmrReviewRows,
   rotateRescanApi,
   type DuplicateSibling,
@@ -183,7 +184,7 @@ export default function OmrReviewWorkspace({
 
   // 리스트
   const {
-    data: rows = [],
+    data: recentRows = [],
     isLoading: listLoading,
     isError: listError,
     refetch: refetchList,
@@ -193,6 +194,30 @@ export default function OmrReviewWorkspace({
     enabled: open && Number.isFinite(examId),
     refetchInterval: open ? 8000 : false,
   });
+  const issues = useInfiniteQuery({
+    queryKey: adminResultsQueryKeys.omrReviewIssuesPages(examId),
+    queryFn: ({ pageParam }) => listOmrReviewIssuesPage(examId, { cursor: pageParam }),
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
+    enabled: open && Number.isFinite(examId),
+  });
+  const focusedIssue = useQuery({
+    queryKey: adminResultsQueryKeys.omrReviewIssuesFocus(examId, initialSubmissionId),
+    queryFn: () => listOmrReviewIssuesPage(examId, { focusId: initialSubmissionId }),
+    enabled: open && initialSubmissionId != null,
+  });
+  const rows = useMemo(() => {
+    const seen = new Set<number>();
+    return [
+      ...(focusedIssue.data?.items ?? []),
+      ...(issues.data?.pages.flatMap((page) => page.items) ?? []),
+      ...recentRows,
+    ].filter((row) => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    });
+  }, [focusedIssue.data, issues.data, recentRows]);
 
   // 상세
   const {
@@ -234,6 +259,7 @@ export default function OmrReviewWorkspace({
   // selectedId를 dep에서 제거하고 functional setter로 비교 → setState 무한 루프 방지.
   useEffect(() => {
     if (!open) return;
+    if (initialSubmissionId != null && focusedIssue.isPending) return;
     setSelectedId((prev) => {
       if (visibleRows.length === 0) return prev === null ? prev : null;
       if (prev != null && visibleRows.some((r) => r.id === prev)) return prev;
@@ -246,7 +272,7 @@ export default function OmrReviewWorkspace({
       }
       return visibleRows[0].id;
     });
-  }, [initialSubmissionId, open, visibleRows]);
+  }, [focusedIssue.isPending, initialSubmissionId, open, visibleRows]);
 
   // open이 false로 닫히면 selection 초기화
   useEffect(() => {
@@ -323,7 +349,7 @@ export default function OmrReviewWorkspace({
             <span className="orw-header__title">OMR 검토</span>
             <span className="orw-header__exam">{examTitle}</span>
             <span className="orw-header__progress">
-              처리 완료 <b>{progress.done}</b> / {progress.total}
+              표시 완료 <b>{progress.done}</b> / {progress.total} · 미해결 전체 {issues.data?.pages[0]?.total ?? "확인 중"}건
             </span>
           </div>
           <div className="orw-header__actions">
@@ -356,6 +382,9 @@ export default function OmrReviewWorkspace({
         </header>
 
         <div className="orw-toolbar">
+          <Button intent="secondary" size="sm" onClick={() => { void refetchList(); void issues.refetch(); }}>
+            검토 현황 새로고침
+          </Button>
           <input
             className="orw-search"
             type="text"
@@ -405,13 +434,13 @@ export default function OmrReviewWorkspace({
         <div className={`orw-body orw-body--mobile-${mobilePane}`}>
           {/* ── LEFT ── */}
           <div className="orw-list-pane">
-            {listLoading ? (
+            {(listLoading || issues.isPending || focusedIssue.isPending && initialSubmissionId != null) ? (
               <div className="orw-loading">불러오는 중…</div>
-            ) : listError ? (
+            ) : listError || issues.isError || focusedIssue.isError ? (
               <div className="orw-list-empty orw-list-empty--first">
                 <strong>OMR 답안 목록을 불러오지 못했습니다.</strong>
                 <span>기존 답안을 빈 목록으로 처리하지 않았습니다.</span>
-                <Button intent="secondary" size="sm" onClick={() => void refetchList()}>다시 시도</Button>
+                <Button intent="secondary" size="sm" onClick={() => { void refetchList(); void issues.refetch(); void focusedIssue.refetch(); }}>다시 시도</Button>
               </div>
             ) : visibleRows.length === 0 ? (
               rows.length === 0 && filter === "all" && search.trim() === "" ? (
@@ -455,6 +484,11 @@ export default function OmrReviewWorkspace({
                 );
               })
             )}
+            {issues.hasNextPage && (
+              <Button intent="secondary" size="sm" disabled={issues.isFetchingNextPage} onClick={() => void issues.fetchNextPage()}>
+                {issues.isFetchingNextPage ? "더 불러오는 중…" : `미해결 OMR 더 보기 (${issues.data?.pages.flatMap((page) => page.items).length ?? 0}/${issues.data?.pages[0]?.total ?? 0})`}
+              </Button>
+            )}
           </div>
 
           {/* ── CENTER: 스캔 이미지 ── */}
@@ -478,6 +512,7 @@ export default function OmrReviewWorkspace({
             onRescanCreated={(submissionId) => {
               setSelectedId(submissionId);
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewIssues(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(submissionId) });
             }}
             onImageLoadError={() => {
@@ -525,6 +560,7 @@ export default function OmrReviewWorkspace({
                 });
               }
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewIssues(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(selectedId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResults(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId) });

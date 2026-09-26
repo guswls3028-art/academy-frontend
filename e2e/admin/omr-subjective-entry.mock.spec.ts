@@ -342,6 +342,9 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await page.route("**/api/v1/submissions/submissions/**", async (route) => {
       const path = new URL(route.request().url()).pathname;
       if (path.endsWith(`/exams/${MIXED_EXAM_ID}/`)) {
+        if (new URL(route.request().url()).searchParams.get("review_issues") === "1") {
+          return route.fulfill({ json: { items: [], total: 0, next_cursor: null } });
+        }
         return route.fulfill({ json: [{
           id: submissionId, enrollment_id: 9911, student_name: "테스트 학생",
           status: "done", source: "omr", score: 30, created_at: "2026-09-01T12:00:00+09:00",
@@ -374,6 +377,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
 
     await page.getByTestId("subjective-pending-banner")
       .getByRole("button", { name: "중대부고 2회차 혼합형 서술형 점수 입력" }).click();
+    await expect(page.getByRole("region", { name: "혼합 채점 워크스페이스" })).toBeVisible();
     await page.getByRole("button", { name: "OMR 결과 보정", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "OMR 검토", exact: true })).toBeVisible();
     await expect(page.locator(".orw-q-row")).toHaveCount(30);
@@ -393,6 +397,48 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     expect(unexpectedMutations).toEqual([]);
   });
 
+  test("390px OMR 검토에서 최근 목록 밖의 미식별 답안을 찾는다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openScores(page);
+    await page.route("**/api/v1/submissions/submissions/**", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith(`/exams/${MIXED_EXAM_ID}/`)) {
+        if (url.searchParams.get("review_issues") === "1") {
+          return route.fulfill({ json: { items: [{
+            id: 10020, enrollment_id: 0, student_name: "", status: "needs_identification",
+            source: "omr_scan", score: null, created_at: "2026-09-01T11:00:00+09:00",
+            file_key: "old-scan.jpg", has_file: true, manual_review_required: true,
+            manual_review_reasons: ["identifier_no_match"], identifier_status: "no_match",
+          }], total: 1, next_cursor: null } });
+        }
+        return route.fulfill({ json: [{
+          id: 10021, enrollment_id: 9911, student_name: "테스트 학생", status: "done",
+          source: "omr_scan", score: 30, created_at: "2026-09-01T12:00:00+09:00",
+          file_key: "recent-scan.jpg", has_file: true, manual_review_required: false,
+          manual_review_reasons: [], identifier_status: "matched",
+        }] });
+      }
+      if (url.pathname.endsWith("/10020/manual-edit/")) {
+        return route.fulfill({ json: {
+          submission_id: 10020, submission_status: "needs_identification", enrollment_id: null,
+          target_type: "exam", target_id: MIXED_EXAM_ID, identifier: {},
+          scan_image_url: "", scan_image_is_aligned: false, meta: {}, duplicate_siblings: [],
+          answers: [{ question_id: 10001, question_no: 1, answer: "1", omr: null }],
+        } });
+      }
+      return route.fallback();
+    });
+    await page.getByRole("button", { name: "서술형 점수 입력", exact: true }).click();
+    await page.getByRole("listbox", { name: "직접 채점 시험 선택" }).getByRole("option", { name: /혼합형/ }).click();
+    await expect(page.getByRole("region", { name: "혼합 채점 워크스페이스" })).toBeVisible();
+    await page.getByRole("button", { name: "OMR 결과 보정", exact: true }).click();
+    const review = page.getByRole("dialog", { name: "OMR 검토", exact: true });
+    await expect(review).toContainText("미해결 전체 1건", { timeout: 30_000 });
+    await expect(review.getByText("미식별 학생", { exact: true })).toBeVisible();
+    await expect(review.getByRole("button", { name: "검토 현황 새로고침" })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
   test("시험 계약으로 가능한 작업만 자동 노출하고 혼합형은 한 화면에서 이어진다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     const unexpectedMutations = await openScores(page);
@@ -403,7 +449,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
 
     await omrButton.click();
     const omrPicker = page.getByRole("listbox", { name: "OMR 시험 선택" });
-    await expect(omrPicker.getByText("OMR 등록할 시험 선택", { exact: true })).toBeVisible();
+    await expect(omrPicker.getByText(/등록 대상 시험 선택/)).toBeVisible();
     await expect(omrPicker.getByRole("option", { name: /객관식/ })).toBeVisible();
     await expect(omrPicker.getByRole("option", { name: /혼합형/ })).toBeVisible();
     await expect(omrPicker.getByRole("option", { name: /서술형/ })).toHaveCount(0);

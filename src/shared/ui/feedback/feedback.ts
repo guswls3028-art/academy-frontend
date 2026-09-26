@@ -30,6 +30,9 @@ export function setNotificationApi(
 type ToastAction = { label: string; onClick: () => void };
 
 export const feedback = {
+  clear() {
+    messageApiRef.current?.destroy();
+  },
   success(text: string) {
     messageApiRef.current?.success({ content: text, duration: 2 });
   },

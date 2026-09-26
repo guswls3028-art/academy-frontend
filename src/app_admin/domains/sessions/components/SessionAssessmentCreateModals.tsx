@@ -7,7 +7,7 @@ import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { buildAssessmentSearch } from "@/shared/lib/assessmentQueryParams";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 
-const CreateRegularExamModal = lazy(() => import("@admin/domains/exams/components/create/CreateRegularExamModal"));
+const ExamCreationFlow = lazy(() => import("@admin/domains/exams/components/create/ExamCreationFlow"));
 const CreateHomeworkModal = lazy(() => import("@admin/domains/homework/components/CreateHomeworkModal"));
 
 type Props = {
@@ -47,17 +47,17 @@ export default function SessionAssessmentCreateModals({
   return (
     <Suspense fallback={null}>
       {openCreateExam && (
-        <CreateRegularExamModal
+        <ExamCreationFlow
           open={openCreateExam}
           onClose={onCloseCreateExam}
           sessionId={sessionId}
           lectureId={lectureId}
-          onCreated={async (id) => {
+          onCreated={() => {
             invalidateExams();
             invalidateExamsSummary();
             invalidateSessionScores();
-            onSelectExam(id);
           }}
+          onComplete={onSelectExam}
         />
       )}
       {openCreateHomework && (

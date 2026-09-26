@@ -16,4 +16,6 @@ export const scoresQueryKeys = {
   ) => ["attempt-history", sourceType, sourceId, enrollmentId] as const,
   clinicTargets: ["clinic-targets"] as const,
   adminExamResults: ["admin-exam-results"] as const,
+  studentScoreReportOmrPreflight: (examIds: number[], enrollmentIds: number[]) =>
+    ["student-score-report-omr-preflight", examIds, enrollmentIds] as const,
 };

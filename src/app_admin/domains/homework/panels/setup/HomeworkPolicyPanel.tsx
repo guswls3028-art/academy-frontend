@@ -64,7 +64,17 @@ function validateForm(form: HomeworkPolicyForm): string | null {
   return null;
 }
 
-export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number }) {
+export default function HomeworkPolicyPanel({
+  homeworkId,
+  onDirtyChange,
+  onSavingChange,
+  onSaved,
+}: {
+  homeworkId: number;
+  onDirtyChange?: (dirty: boolean) => void;
+  onSavingChange?: (saving: boolean) => void;
+  onSaved?: () => void;
+}) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { data: homework, isLoading, isError, refetch } = useAdminHomework(homeworkId);
@@ -164,6 +174,7 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
           : Promise.resolve(),
       ]);
       feedback.success("과제 운영 설정을 저장했습니다.");
+      onSaved?.();
     },
     onError: async (error: unknown) => {
       if (isStaleResourceConflict(error)) {
@@ -185,6 +196,9 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
     `homework-policy:${homeworkId}`,
     dirty && !updateMutation.isPending,
   );
+
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => { onSavingChange?.(updateMutation.isPending); }, [updateMutation.isPending, onSavingChange]);
 
   if (isError) {
     return <EmptyState mode="embedded" scope="panel" tone="error" title="과제 설정을 불러오지 못했습니다." />;

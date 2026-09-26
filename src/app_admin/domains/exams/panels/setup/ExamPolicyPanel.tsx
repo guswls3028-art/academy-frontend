@@ -150,6 +150,7 @@ export default function ExamPolicyPanel({
   const confirm = useConfirm();
   const { data: exam, isLoading, isError, refetch } = useAdminExam(examId);
   const [form, setForm] = useState<ExamPolicyForm | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [conflictDetected, setConflictDetected] = useState(false);
   const initializedExamId = useRef<number | null>(null);
@@ -162,6 +163,7 @@ export default function ExamPolicyPanel({
     baseFormRef.current = nextForm;
     baseUpdatedAtRef.current = nextExam.updated_at;
     setForm(nextForm);
+    setAdvancedOpen(Boolean(nextForm.openAt || nextForm.closeAt || nextForm.allowRetake || nextForm.answerVisibility !== "hidden"));
     setConflictDetected(false);
   }, []);
 
@@ -336,11 +338,23 @@ export default function ExamPolicyPanel({
           <div>
             <h2 className={formStyles.title}>시험 운영 설정</h2>
             <p className={formStyles.description}>
-              점수, 채점 방식, 응시 기간과 학생 성적·정답 공개를 한곳에서 관리합니다.
+              현재 설정을 확인하고, 바꿀 때만 펼쳐서 저장하세요.
             </p>
           </div>
         </div>
 
+        <details className={formStyles.policyDisclosure}>
+          <summary>
+            <span className={formStyles.policySnapshot}>
+              <strong>{GRADING_OPTIONS.find((option) => option.value === currentChoice)?.title}</strong>
+              <span>{form.maxScore}점 만점 · 합격 {form.passScore}점</span>
+              <span>{form.studentResultsPublished ? "학생 성적 공개" : "학생 성적 비공개"}</span>
+              {dirty && <em>저장되지 않은 변경</em>}
+              {recoverableDraftSavedAt && <em>이어서 편집할 초안 있음</em>}
+              {(conflictDetected || remoteChanged) && <em>최신 설정 확인 필요</em>}
+            </span>
+            <span className={formStyles.policyEditLabel}>설정 변경</span>
+          </summary>
         <div className={formStyles.body}>
           {recoverableDraftSavedAt && (
             <div className={formStyles.inlineStatus} role="status" data-testid="assessment-draft-recovery">
@@ -453,7 +467,7 @@ export default function ExamPolicyPanel({
           </div>
 
           <div className={formStyles.group}>
-            <h3 className={formStyles.groupTitle}>응시와 공개</h3>
+            <h3 className={formStyles.groupTitle}>학생 성적 공개</h3>
             <div className={formStyles.fieldGrid}>
               <div
                 className={`${formStyles.field} ${formStyles.fieldWide}`}
@@ -482,6 +496,13 @@ export default function ExamPolicyPanel({
                   />
                 </div>
               </div>
+            </div>
+          </div>
+
+          <details className={formStyles.advanced} open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
+            <summary>응시 기간·정답 공개·재응시 <span className={formStyles.helper}>— {form.openAt || form.closeAt ? "기간 설정됨" : "기간 제한 없음"} · {form.answerVisibility === "hidden" ? "정답 비공개" : "정답 공개 설정됨"} · {form.allowRetake ? "재응시 허용" : "1회 응시"}</span></summary>
+            <div className={formStyles.advancedBody}>
+              <div className={formStyles.fieldGrid}>
               <label className={formStyles.field}>
                 <span className={formStyles.label}>응시 시작</span>
                 <input
@@ -551,8 +572,9 @@ export default function ExamPolicyPanel({
                   </label>
                 )}
               </div>
+              </div>
             </div>
-          </div>
+          </details>
 
           {(conflictDetected || remoteChanged) && (
             <div className={formStyles.inlineStatus} role="alert">
@@ -583,6 +605,7 @@ export default function ExamPolicyPanel({
             {patchMutation.isPending ? "저장 중…" : "운영 설정 저장"}
           </Button>
         </div>
+        </details>
       </section>
 
       <section id="assessment-answer-key" tabIndex={-1} className={formStyles.section}>

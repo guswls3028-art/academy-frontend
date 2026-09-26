@@ -47,6 +47,33 @@ function isExactDevelopmentHomeworkPng(boundary: ReleaseBoundary, rawUrl: string
   return Boolean(path && Number.isSafeInteger(Number(path[1])) && hasExactHostSignature(target, 600));
 }
 
+function isExactDevelopmentCommunityImage(
+  boundary: ReleaseBoundary, rawUrl: string, postId: number, contentType: string, downloadName?: string,
+): boolean {
+  if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
+    || Number(boundary.omrR2TenantId) < 1 || !Number.isSafeInteger(postId) || postId < 1
+    || !["image/png", "image/jpeg", "image/webp"].includes(contentType)) return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
+  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/community/posts/${postId}/uploads/[A-Za-z0-9_-]{16,80}/[0-9]_[0-9a-f]{16}_[0-9a-f]{8}_[^/]+\\.(png|jpg|jpeg|webp)$`, "i").exec(target.pathname);
+  if (!path) return false;
+  const extensionType = path[1].toLowerCase() === "png" ? "image/png"
+    : path[1].toLowerCase() === "webp" ? "image/webp" : "image/jpeg";
+  if (extensionType !== contentType || target.searchParams.getAll("response-content-type").length !== 1
+    || target.searchParams.get("response-content-type") !== contentType) return false;
+  if (downloadName === undefined) {
+    if (target.searchParams.has("response-content-disposition")) return false;
+  } else if (target.searchParams.getAll("response-content-disposition").length !== 1
+    || target.searchParams.get("response-content-disposition") !== `attachment; filename="${downloadName.replaceAll('"', "")}"`) {
+    return false;
+  }
+  const unsignedType = new URL(target);
+  unsignedType.searchParams.delete("response-content-type");
+  unsignedType.searchParams.delete("response-content-disposition");
+  return hasExactHostSignature(unsignedType, 3600);
+}
+
 function isExactPublicTenantMetadataRead(boundary: ReleaseBoundary, target: URL, verb: string): boolean {
   return verb === "GET"
     && target.pathname === "/api/v1/core/og-meta/"
@@ -766,6 +793,24 @@ export async function installReleaseContextGuard(
   };
   const defects: string[] = [];
   const homeworkPreviewUrls = new Set<string>();
+  const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
+  const communityAttachments = new Map<string, { contentType: string; originalName: string }>();
+  const registerQnaPost = (post: unknown) => {
+    if (!isRecord(post) || post.post_type !== "qna" || typeof post.id !== "number" || !Number.isSafeInteger(post.id)
+      || Number(post.id) < 1 || !Array.isArray(post.attachments) || post.attachments.length > 10) return;
+    const postId = Number(post.id);
+    for (const attachment of post.attachments) {
+      if (!isRecord(attachment) || typeof attachment.id !== "number" || !Number.isSafeInteger(attachment.id) || Number(attachment.id) < 1
+        || typeof attachment.content_type !== "string" || typeof attachment.original_name !== "string") continue;
+      const contentType = attachment.content_type;
+      if (!["image/png", "image/jpeg", "image/webp"].includes(contentType)) continue;
+      communityAttachments.set(`${postId}:${attachment.id}`, { contentType, originalName: attachment.original_name });
+      const url = attachment.download_url;
+      if (typeof url === "string" && isExactDevelopmentCommunityImage(boundary, url, postId, contentType)) {
+        communityImageUrls.set(url, contentType as "image/png" | "image/jpeg" | "image/webp");
+      }
+    }
+  };
   const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
   const activeRoutes = new Set<Promise<void>>();
   let closing = false;
@@ -855,7 +900,9 @@ export async function installReleaseContextGuard(
         return;
       }
       const homeworkPng = request.method() === "GET" && homeworkPreviewUrls.has(upstream);
-      if ((homeworkPng || isExactDevelopmentOmrImage(boundary, upstream, request.method())) && request.resourceType() === "image") {
+      const communityImageType = request.method() === "GET" ? communityImageUrls.get(upstream) : undefined;
+      if ((homeworkPng || communityImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
+        && request.resourceType() === "image") {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
           .some((key) => headers[key])) {
@@ -864,13 +911,15 @@ export async function installReleaseContextGuard(
         }
         // Only this signed development object URL is forwarded. Never send app
         // credentials/referrer or follow redirects; never report the signed URL.
-        const contentType = homeworkPng ? "image/png" : "image/jpeg";
+        const contentType = communityImageType || (homeworkPng ? "image/png" : "image/jpeg");
         const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: contentType }, maxRedirects: 0 });
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
         const body = await response.body();
-        const signature = homeworkPng ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] : [0xff, 0xd8, 0xff];
+        const signature = contentType === "image/png" ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+          : contentType === "image/webp" ? [0x52, 0x49, 0x46, 0x46] : [0xff, 0xd8, 0xff];
         if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== contentType
-          || signature.some((byte, index) => body[index] !== byte)) {
+          || signature.some((byte, index) => body[index] !== byte)
+          || (contentType === "image/webp" && body.subarray(8, 12).toString("ascii") !== "WEBP")) {
           await reject("transport");
           return;
         }
@@ -947,6 +996,38 @@ export async function installReleaseContextGuard(
           if (preview?.media_kind === "image" && preview.mime_type === "image/png" && preview.expires_in === 600
             && typeof preview.url === "string" && isExactDevelopmentHomeworkPng(boundary, preview.url, homeworkPreview[2])) {
             homeworkPreviewUrls.add(preview.url);
+          }
+        }
+        const communityTarget = new URL(upstream);
+        const communityPost = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/$/.exec(communityTarget.pathname);
+        const communityList = communityTarget.pathname === "/api/v1/community/posts/"
+          && communityTarget.searchParams.getAll("post_type").length === 1
+          && communityTarget.searchParams.get("post_type") === "qna"
+          && [...communityTarget.searchParams.keys()].every((key) => ["post_type", "page_size"].includes(key))
+          && (communityTarget.searchParams.getAll("page_size").length === 0
+            || (communityTarget.searchParams.getAll("page_size").length === 1
+              && /^[1-9][0-9]*$/.test(communityTarget.searchParams.get("page_size") ?? "")
+              && Number(communityTarget.searchParams.get("page_size")) <= 200));
+        const communityDownload = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/attachments\/([1-9][0-9]*)\/download\/$/.exec(communityTarget.pathname);
+        if (boundary.mode === "development" && request.method() === "GET"
+          && ((communityPost && !communityTarget.search) || communityList || (communityDownload && !communityTarget.search))
+          && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")
+          && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
+          const payload = await response.json();
+          if (communityPost && payload?.id === Number(communityPost[1])) registerQnaPost(payload);
+          if (communityList) {
+            const posts = Array.isArray(payload) ? payload : payload?.results;
+            if (Array.isArray(posts) && posts.length <= 200) posts.forEach(registerQnaPost);
+          }
+          if (communityDownload) {
+            const postId = Number(communityDownload[1]);
+            const attachment = communityAttachments.get(`${postId}:${communityDownload[2]}`);
+            if (attachment && payload?.original_name === attachment.originalName && typeof payload?.url === "string"
+              && isExactDevelopmentCommunityImage(boundary, payload.url, postId,
+                attachment.contentType, attachment.originalName)) {
+              communityImageUrls.set(payload.url,
+                attachment.contentType as "image/png" | "image/jpeg" | "image/webp");
+            }
           }
         }
         if (counter && (kind === "observation" ? response.status() === 202 : response.ok())) counter.accepted += 1;

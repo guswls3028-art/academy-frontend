@@ -13,9 +13,9 @@ test.describe("메시징 비즈니스 계약", () => {
   test("설정은 적용 채널 상태만 보여주고 공급자 키 편집을 노출하지 않는다", async ({ page }) => {
     await gotoAndSettle(page, `${BASE}/workspace/message/settings`);
 
-    await expect(page.getByText("공용 솔라피", { exact: true })).toBeVisible();
-    await expect(page.getByText("알림톡 전용", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "알림톡 연동 테스트" })).toBeVisible();
+    await expect(page.getByText("보내는 채널", { exact: true })).toBeVisible();
+    await expect(page.getByText("카카오 알림톡", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "발송 상태 확인" })).toBeVisible();
     await expect(page.getByText(/API Key|API Secret|뿌리오/)).toHaveCount(0);
     await expect(page.getByText(/공용 PFID|현재 PFID/)).toHaveCount(0);
   });
@@ -29,7 +29,7 @@ test.describe("메시징 비즈니스 계약", () => {
     await expect(page.getByText(/SMS|LMS/)).toHaveCount(0);
   });
 
-  test("자동발송 카드에서 발송 준비 필요와 항상 활성이 동시에 표시되지 않는다", async ({ page }) => {
+  test("자동발송 카드에서 발송 준비 필요와 항상 발송이 동시에 표시되지 않는다", async ({ page }) => {
     await gotoAndSettle(page, `${BASE}/workspace/message/auto-send`);
 
     const cards = page.locator("[data-card-state]");
@@ -37,7 +37,7 @@ test.describe("메시징 비즈니스 계약", () => {
     const count = await cards.count();
     for (let i = 0; i < count; i += 1) {
       const text = await cards.nth(i).innerText();
-      expect(!(text.includes("발송 준비 필요") && text.includes("항상 활성"))).toBeTruthy();
+      expect(!(text.includes("발송 준비 필요") && text.includes("항상 발송"))).toBeTruthy();
     }
     await expect(page.getByText(/SMS|LMS/)).toHaveCount(0);
   });

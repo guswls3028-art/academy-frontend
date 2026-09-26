@@ -54,10 +54,10 @@ import "../styles/templateEditor.css";
 const EMPTY_CONFIGS: AutoSendConfigItem[] = [];
 
 const POLICY_LABELS = {
-  SYSTEM_AUTO: "시스템",
-  AUTO_DEFAULT: "자동",
-  MANUAL_DEFAULT: "수동",
-  DISABLED: "비활성",
+  SYSTEM_AUTO: "기본 자동 안내",
+  AUTO_DEFAULT: "자동 발송",
+  MANUAL_DEFAULT: "직접 발송",
+  DISABLED: "발송 안 함",
 } as const;
 
 type PolicyKey = keyof typeof POLICY_LABELS;
@@ -68,9 +68,9 @@ function getPolicyKey(policy?: string): PolicyKey {
 
 function getMasterToggleLabel(summary: AutoSendSummary): string {
   if (summary.toggleable === 0) return "변경 가능 항목 없음";
-  if (isAllToggleableEnabled(summary)) return "설정 가능 항목 모두 활성";
-  if (summary.enabledToggleable === 0) return "설정 가능 항목 모두 비활성";
-  return `${summary.enabledToggleable}/${summary.toggleable} 활성`;
+  if (isAllToggleableEnabled(summary)) return "모든 자동 안내 켜짐";
+  if (summary.enabledToggleable === 0) return "모든 자동 안내 꺼짐";
+  return `${summary.enabledToggleable}/${summary.toggleable}개 켜짐`;
 }
 
 function AutoSendSummaryStrip({
@@ -97,7 +97,7 @@ function AutoSendSummaryStrip({
       </span>
       {!operationalDisabled && summary.systemAuto > 0 && (
         <span className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>항상 활성</span>
+          <span className={styles.summaryLabel}>항상 발송</span>
           <strong>{summary.systemAuto}</strong>
         </span>
       )}
@@ -115,13 +115,13 @@ function AutoSendSummaryStrip({
       )}
       {summary.manualOnly > 0 && (
         <span className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>수동 전용</span>
+          <span className={styles.summaryLabel}>직접 발송만</span>
           <strong>{summary.manualOnly}</strong>
         </span>
       )}
       {summary.disabled > 0 && (
         <span className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>비활성 정책</span>
+          <span className={styles.summaryLabel}>발송 안 함</span>
           <strong>{summary.disabled}</strong>
         </span>
       )}
@@ -134,19 +134,19 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   registration_approved_student: "신규 학생의 첫 수강이 확정되면 학생에게 아이디/비밀번호 및 접속 안내를 알림톡으로 한 번 발송합니다.",
   registration_approved_parent: "신규 학생의 첫 수강이 확정되면 학부모에게 학부모+학생 로그인 정보를 알림톡으로 한 번 발송합니다.",
   withdrawal_complete: "퇴원 처리가 완료되면 학생·학부모에게 퇴원 확인 메시지를 발송합니다.",
-  lecture_session_reminder: "수업 시작 전 학생·학부모에게 수업 일시/교실/강사를 리마인드합니다. 분 전 설정 필수.",
+  lecture_session_reminder: "수업 시작 전에 학생·학부모에게 수업 일시·교실·강사를 다시 알려줍니다. 시작 몇 분 전인지 설정하세요.",
   check_in_complete: "입실(출석) 처리가 완료되면 학부모에게 출석 확인 알림을 발송합니다.",
   absent_occurred: "결석이 확인되면 학부모에게 결석 알림을 즉시 발송합니다.",
   exam_scheduled_days_before: "시험 예정일 N일 전에 학생·학부모에게 시험명/일정을 안내합니다.",
-  exam_start_minutes_before: "시험 시작 N분 전에 학생에게 시험 시작 리마인드를 발송합니다.",
+  exam_start_minutes_before: "시험 시작 전에 학생에게 시험 일정을 다시 알려줍니다.",
   exam_not_taken: "시험 미응시가 확인되면 학생·학부모에게 미응시 알림을 발송합니다.",
   exam_score_published: "성적이 공개되면 학생·학부모에게 성적/평균/등급을 안내합니다.",
   retake_assigned: "재시험 대상으로 지정되면 학생·학부모에게 재시험 일정을 안내합니다.",
   assignment_registered: "새 과제가 등록되면 학생에게 과제명/마감일을 안내합니다.",
-  assignment_due_hours_before: "과제 마감 N시간 전에 학생에게 미제출 리마인드를 발송합니다.",
+  assignment_due_hours_before: "과제 마감 전에 학생에게 미제출 과제를 다시 알려줍니다.",
   assignment_not_submitted: "과제 미제출이 확인되면 학생·학부모에게 미제출 알림을 발송합니다.",
   monthly_report_generated: "월간 성적 리포트가 생성되면 학부모에게 성적 요약을 발송합니다.",
-  clinic_reminder: "클리닉 시작 N분 전에 학생에게 예약 일시/장소를 리마인드합니다.",
+  clinic_reminder: "클리닉 시작 전에 학생에게 예약 일시와 장소를 다시 알려줍니다.",
   clinic_reservation_created: "클리닉 예약이 완료되면 학생·학부모에게 예약 일시를 확인 안내합니다.",
   clinic_reservation_changed: "클리닉 예약이 변경되면 학생·학부모에게 변경 내용을 안내합니다.",
   clinic_cancelled: "클리닉 예약이 취소되면 학생·학부모에게 취소 안내를 발송합니다.",
@@ -159,7 +159,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   payment_complete: "결제가 완료되면 학부모에게 결제 금액/내역을 확인 안내합니다.",
   payment_due_days_before: "납부 예정일 N일 전에 학부모에게 납부 금액/기한을 안내합니다.",
   // 영상
-  video_encoding_complete: "영상 인코딩이 완료되면 업로드한 선생님에게 완료 알림을 발송합니다.",
+  video_encoding_complete: "영상 변환이 완료되면 업로드한 선생님에게 알려줍니다.",
   matchup_report_submitted: "강사가 매치업 적중 보고서를 제출하면 대표·관리자에게 알림을 발송합니다.",
   // urgent_notice: 카카오 알림톡 정책 위반으로 제거
   // 커뮤니티
@@ -170,13 +170,13 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
 const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
   default: "직접 만든 알림톡 문구를 관리합니다.",
   signup: "회원가입, 가입 승인, 퇴원 등 등록 관련 이벤트를 설정합니다.",
-  attendance: "수업 시작 N분 전 리마인드, 입실(출석) 확인, 결석 발생 알림을 설정합니다.",
-  lecture: "영상 인코딩 완료, 매치업 보고서 제출 등 강의·차시 관련 알림을 설정합니다.",
-  exam: "시험 예정 안내, 시작 전 리마인드, 미응시, 성적 공개, 재시험 대상 지정을 설정합니다.",
-  assignment: "과제 등록 안내, 마감 전 리마인드, 미제출 알림을 설정합니다.",
+  attendance: "수업 시작 전 안내, 입실(출석) 확인, 결석 알림을 설정합니다.",
+  lecture: "영상 변환 완료, 매치업 보고서 제출 등 강의·차시 관련 알림을 설정합니다.",
+  exam: "시험 예정 안내, 시작 전 안내, 미응시, 성적 공개, 재시험 대상 지정을 설정합니다.",
+  assignment: "과제 등록 안내, 마감 전 안내, 미제출 알림을 설정합니다.",
   grades: "성적 공개 안내, 월간 성적 리포트 발송을 설정합니다.",
-  clinic: "클리닉 예약 완료/변경, 시작 전 리마인드, 상담 예약 완료 알림을 설정합니다.",
-  payment: "결제 완료 확인, 납부 예정일 리마인드를 설정합니다.",
+  clinic: "클리닉 예약 완료·변경, 시작 전 안내, 상담 예약 완료 알림을 설정합니다.",
+  payment: "결제 완료 확인, 납부 예정일 안내를 설정합니다.",
   // notice: 카카오 알림톡 정책 위반으로 제거
   community: "QnA·상담 답변 등록 시 학생·학부모에게 자동 발송합니다.",
 };
@@ -203,7 +203,7 @@ function TriggerCard({
   const isUnimplemented = implStatus === "manual_only" || implStatus === "disabled";
   const deliveryReady = !operationalDisabled && Boolean(config.effective_template_is_approved);
   const unimplementedHint = implStatus === "disabled"
-    ? "정책상 비활성 — 발송되지 않습니다"
+    ? "이 알림은 발송하지 않습니다"
     : implStatus === "manual_only"
       ? "직접 발송에서만 사용할 수 있습니다"
       : "";
@@ -259,13 +259,13 @@ function TriggerCard({
             {operationalDisabled
               ? "운영 중지"
               : isDisabled
-              ? "정책상 비활성"
+              ? "발송 안 함"
               : !deliveryReady
                 ? "발송 준비 필요"
                 : isSystem
-                  ? "항상 활성"
+                  ? "항상 발송"
                   : isUnimplemented
-                    ? "수동 발송 전용"
+                    ? "직접 발송만"
                     : config.enabled
                       ? "활성화"
                       : "비활성화"}
@@ -663,7 +663,7 @@ export default function MessageAutoSendPage() {
                   : messagingOpsHold
                 ? "긴급 장애 확산 방지용 운영 보호가 적용되어 있습니다. 고객 설정과 별개로 표시됩니다."
                 : tenantMessagingEnabled
-                  ? "수동 발송과 켜 둔 자동발송이 정상 동작합니다."
+                  ? "직접 보내는 알림톡과 켜 둔 자동 안내를 사용할 수 있습니다."
                   : "현재 모든 알림톡이 멈춰 있습니다. 대표 또는 관리자가 바로 다시 켤 수 있습니다."}
             </small>
           </span>

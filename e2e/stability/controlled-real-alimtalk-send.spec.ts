@@ -339,7 +339,7 @@ test.describe.serial("[E2E] 통제번호 실제 알림톡 발송 검증", () => 
       messageBody,
     );
 
-    const sendButton = dialog.getByRole("button", { name: /학부모 1명에게 알림톡 발송/ });
+    const sendButton = dialog.getByRole("button", { name: "보낼 내용 확인" });
     const readyWithDefaultBody = await expect(sendButton).toBeEnabled({ timeout: 45_000 }).then(() => true).catch(() => false);
     if (!readyWithDefaultBody) {
       await applyTemplateFromPicker(page, dialog, approvedTemplate);

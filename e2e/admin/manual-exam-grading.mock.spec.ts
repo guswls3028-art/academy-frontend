@@ -71,6 +71,10 @@ type InstallApiOptions = {
     reads: number;
     writes: Array<Record<string, string>>;
     methods?: string[];
+    scoresAtRegrade?: number[];
+    recalculations?: number;
+    scorePatches?: number;
+    failNextWrite?: boolean;
     failReads: boolean;
     readGate?: Promise<void>;
   };
@@ -99,6 +103,8 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let hasQuestions = options.hasQuestions ?? true;
   let manualSheetGetCount = 0;
   const postedRows: unknown[] = [];
+  const offlineAnswerWrites: Array<{ answers: Record<string, string>; apply: boolean; preview_token?: string }> = [];
+  let offlineAnswers: Record<string, string> | null = null;
   const persistedQuestionScores: Record<string, number> = {};
   const examPatches: unknown[] = [];
   const manualEditGetIds: number[] = [];
@@ -350,7 +356,12 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       return;
     }
     if (path === `/submissions/submissions/exams/${EXAM_ID}/` && method === "GET") {
-      await json(options.submissionRows ?? []);
+      const rows = options.submissionRows ?? [];
+      if (url.searchParams.get("review_issues") === "1") {
+        await json({ items: rows.filter((row) => row.status !== "done"), total: rows.filter((row) => row.status !== "done").length, next_cursor: null });
+      } else {
+        await json(rows);
+      }
       return;
     }
     if (path === `/submissions/submissions/exams/${EXAM_ID}/candidates/` && method === "GET") {
@@ -559,7 +570,13 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     }
     if (options.answerKeyScenario && path === `/exams/questions/${QUESTION_IDS[0]}/` && method === "PATCH") {
       options.answerKeyScenario.score = Number(request.postDataJSON().score);
+      options.answerKeyScenario.scorePatches = (options.answerKeyScenario.scorePatches ?? 0) + 1;
       await json({ id: QUESTION_IDS[0], sheet: 1801, number: 1, score: options.answerKeyScenario.score, question_kind: "choice" });
+      return;
+    }
+    if (options.answerKeyScenario && path === `/exams/${EXAM_ID}/recalculate/` && method === "POST") {
+      options.answerKeyScenario.recalculations = (options.answerKeyScenario.recalculations ?? 0) + 1;
+      await json({ exam_id: EXAM_ID, total: 1, graded: 1, skipped: 0, failed: [], needs_review: [] });
       return;
     }
     if (options.answerKeyScenario && (path === "/exams/answer-keys/" || path === "/exams/answer-keys/1801/")) {
@@ -570,10 +587,21 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         if (state.failReads) { await json({ detail: "답안을 불러오지 못했습니다." }, 503); return; }
         await json(state.answers ? [{ id: 1801, exam: EXAM_ID, answers: state.answers }] : []);
       } else {
+        if (state.failNextWrite) {
+          state.failNextWrite = false;
+          await json({ detail: "정답 저장이 일시 실패했습니다." }, 503);
+          return;
+        }
+        const previousAnswers = state.answers;
         state.answers = request.postDataJSON().answers;
         state.writes.push({ ...state.answers });
         state.methods?.push(method);
-        await json({ id: 1801, exam: EXAM_ID, answers: state.answers }, method === "POST" ? 201 : 200);
+        const changed = JSON.stringify(previousAnswers) !== JSON.stringify(state.answers);
+        if (changed) state.scoresAtRegrade?.push(state.score);
+        await json({
+          id: 1801, exam: EXAM_ID, answers: state.answers,
+          ...(changed ? { regrade: [{ exam_id: EXAM_ID, graded: 1, manual_graded: 0, failed: [], needs_review: [] }] } : {}),
+        }, method === "POST" ? 201 : 200);
       }
       return;
     }
@@ -586,6 +614,35 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     }
     if (path === "/exams/answer-keys/") {
       await json([]);
+      return;
+    }
+    if (path === `/results/admin/exams/${EXAM_ID}/enrollments/${ENROLLMENT_ID}/manual-answers/`) {
+      if (method === "GET") {
+        await json({ exam_id: EXAM_ID, enrollment_id: ENROLLMENT_ID,
+          expected_version: offlineAnswers ? "offline-v1" : null, answers: offlineAnswers ?? {} });
+        return;
+      }
+      const body = request.postDataJSON() as { answers: Record<string, string>; apply: boolean; preview_token?: string };
+      offlineAnswerWrites.push(body);
+      const firstCorrect = body.answers[String(QUESTION_IDS[0])] === "4";
+      const secondCorrect = body.answers[String(QUESTION_IDS[1])] === "7";
+      const total = (firstCorrect ? 40 : 0) + (secondCorrect ? 60 : 0);
+      if (body.apply) {
+        offlineAnswers = { ...body.answers };
+        options.resultRows = [{ enrollment_id: ENROLLMENT_ID, student_name: "김학생",
+          rank: 1, ranking_score: total, final_score: total, cohort_size: 1,
+          result_status: "DONE", achievement: total >= 60 ? "PASS" : "FAIL",
+          lecture_title: "공통수학2 정규반", lecture_chip_label: "수2" }];
+      }
+      await json({ exam_id: EXAM_ID, enrollment_id: ENROLLMENT_ID,
+        expected_version: body.apply ? "offline-v1" : null,
+        objective_score: total, total_score: total, max_score: 100,
+        subjective_pending: false, applied: body.apply,
+        preview_token: "offline-preview-v1",
+        questions: [
+          { question_id: QUESTION_IDS[0], number: 1, answer: body.answers[String(QUESTION_IDS[0])], is_correct: firstCorrect, score: firstCorrect ? 40 : 0, max_score: 40 },
+          { question_id: QUESTION_IDS[1], number: 2, answer: body.answers[String(QUESTION_IDS[1])], is_correct: secondCorrect, score: secondCorrect ? 60 : 0, max_score: 60 },
+        ] });
       return;
     }
     if (path === `/results/admin/exams/${EXAM_ID}/manual-grading/`) {
@@ -887,6 +944,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     rotateRescanBodies,
     manualEditGetIds,
     manualEditBodies,
+    offlineAnswerWrites,
     manualSheetGetEvents,
     failNextPreview() {
       failNextPreview = true;
@@ -921,6 +979,7 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         const state: NonNullable<InstallApiOptions["answerKeyScenario"]> = {
           answers: mode === "retry-empty" ? null : { "1001": "1", "1002": "2" },
           score: 1, reads: 0, writes: [], methods: [], failReads: mode === "retry-empty",
+          scoresAtRegrade: [], recalculations: 0,
           readGate: mode === "deferred" ? new Promise<void>((resolve) => { release = resolve; }) : undefined,
         };
         await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
@@ -970,9 +1029,10 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         await row.getByRole("button", { name: "+5", exact: true }).click();
         await row.getByRole("button", { name: "+5", exact: true }).click();
         await dialog.getByRole("button", { name: "저장 (총 110점)", exact: true }).click();
-        await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+        await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
         expect(state.writes.at(-1)?.["1001"]).toBe("2");
         expect(state.score).toBe(11);
+        expect(state.scoresAtRegrade).toEqual([11]);
         expect(state.methods?.[0]).toBe(mode === "retry-empty" ? "POST" : "PUT");
         await expect(choice("2")).toBeChecked();
         expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
@@ -999,14 +1059,42 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         await row.getByRole("button", { name: "점수 초기화", exact: true }).click();
         await row.getByRole("button", { name: "+1", exact: true }).click();
         await dialog.getByRole("button", { name: "저장 (총 100점)", exact: true }).click();
-        await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+        await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
         expect(state.writes.at(-1)?.["1001"]).toBe("1");
         expect(state.score).toBe(1);
+        expect(state.scoresAtRegrade).toEqual([11, 1]);
+        expect(state.recalculations).toBe(0);
         await page.reload({ waitUntil: "domcontentloaded" });
         await openAnswers();
         await expect(choice("1")).toBeChecked();
         await expect(choice("2")).not.toBeChecked();
         await expect(row.locator(".answer-key-row__score-val")).toHaveText("1점");
+        if (mode === "fast" && width === 390) {
+          await row.getByRole("button", { name: "+1", exact: true }).click();
+          await dialog.getByRole("button", { name: "저장 (총 101점)", exact: true }).click();
+          await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
+          expect(state.recalculations).toBe(1);
+          expect(state.score).toBe(2);
+          state.failNextWrite = true;
+          await row.getByRole("button", { name: "+5", exact: true }).click();
+          await row.locator(".answer-key-omr-label").nth(0).click();
+          await row.locator(".answer-key-omr-label").nth(1).click();
+          await dialog.getByRole("button", { name: "저장 (총 106점)", exact: true }).click();
+          await expect(page.getByText(/배점이 일부 저장됐을 수 있습니다/)).toBeVisible();
+          expect(state.score).toBe(7);
+          expect(state.answers?.["1001"]).toBe("1");
+          expect(state.scoresAtRegrade).toEqual([11, 1]);
+          const patchesAfterFailure = state.scorePatches;
+          await dialog.getByRole("button", { name: "저장 (총 106점)", exact: true }).click();
+          await expect(page.getByText("저장·재채점되었습니다.", { exact: true }).last()).toBeVisible();
+          expect(state.scorePatches).toBe(patchesAfterFailure);
+          expect(state.scoresAtRegrade).toEqual([11, 1, 7]);
+          expect(state.recalculations).toBe(1);
+          await page.reload({ waitUntil: "domcontentloaded" });
+          await openAnswers();
+          await expect(choice("2")).toBeChecked();
+          await expect(row.locator(".answer-key-row__score-val")).toHaveText("7점");
+        }
       });
     }
   }
@@ -1455,6 +1543,66 @@ test.describe("문항별 직접 채점", () => {
     await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
     await expect(studentRow.getByRole("button", { name: "오답노트" })).toHaveCount(1);
     await expect(page.getByText("확정 전 변경사항", { exact: true })).toHaveCount(0);
+  });
+
+  test("OMR 없는 학생의 답안을 미리 채점한 뒤 한 번에 확정한다", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1100, height: 800 });
+    const apiState = await installApi(page, { gradingMode: "choice", editable: false, resultRows: [] });
+    await gotoAndSettle(page,
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { timeout: 60_000 });
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+
+    const missing = page.getByRole("region", { name: "답안 없는 시험 대상자" });
+    await expect(missing).toContainText("1명");
+    await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
+    const editor = page.getByRole("region", { name: "김학생 오프라인 답안 입력" });
+    await expect(editor).toBeVisible();
+    expect((await editor.boundingBox())?.width).toBeGreaterThanOrEqual(360);
+    await expect(editor.getByRole("button", { name: "채점 미리보기" })).toBeEnabled();
+    await editor.getByRole("group", { name: "1번 답안" }).getByRole("button", { name: "4" }).click();
+    await editor.getByRole("textbox", { name: "2번 숫자 답안" }).fill("7");
+    await editor.getByRole("button", { name: "채점 미리보기" }).click();
+    await expect(editor).toContainText("미리보기 · 100/100점");
+    await expect(page.getByRole("region", { name: "시험 학생별 결과" })).toContainText("결과 0명");
+    await editor.screenshot({ path: testInfo.outputPath("offline-answer-desktop.png") });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(page,
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { timeout: 60_000 });
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
+    expect((await editor.boundingBox())?.width).toBeGreaterThanOrEqual(380);
+    expect((await editor.getByRole("heading", { name: "김학생 · 오프라인 답안 입력" }).boundingBox())?.y).toBeGreaterThanOrEqual(56);
+    expect((await editor.getByRole("group", { name: "1번 답안" }).getByRole("button", { name: "4" }).boundingBox())?.width).toBeGreaterThanOrEqual(44);
+    await expect(editor.getByRole("button", { name: "채점 미리보기" })).toBeEnabled();
+    await editor.getByRole("group", { name: "1번 답안" }).getByRole("button", { name: "4" }).click();
+    await editor.getByRole("textbox", { name: "2번 숫자 답안" }).fill("7");
+    await editor.getByRole("button", { name: "채점 미리보기" }).click();
+    await expect(editor).toContainText("미리보기 · 100/100점");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await editor.screenshot({ path: testInfo.outputPath("offline-answer-390.png") });
+    await editor.getByRole("button", { name: "답안 확정" }).click();
+    await expect.poll(() => apiState.offlineAnswerWrites.filter((write) => write.apply).length).toBe(1);
+    expect(apiState.offlineAnswerWrites.find((write) => write.apply)?.preview_token).toBe("offline-preview-v1");
+    await expect(page.getByRole("region", { name: "시험 학생별 결과" })).toContainText("김학생");
+    await expect(missing).toContainText("0명");
+  });
+
+  test("결시로 기록된 학생도 늦은 오프라인 답안을 입력할 수 있다", async ({ page }) => {
+    await installApi(page, { gradingMode: "choice", editable: false, resultRows: [{
+      enrollment_id: ENROLLMENT_ID, student_name: "김학생", result_status: "NOT_SUBMITTED",
+      meta_status: "NOT_SUBMITTED", final_score: null, ranking_score: null,
+    }] });
+    await gotoAndSettle(page,
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { timeout: 60_000 });
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    const missing = page.getByRole("region", { name: "답안 없는 시험 대상자" });
+    await expect(missing).toContainText("1명");
+    await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
+    await expect(page.getByRole("region", { name: "김학생 오프라인 답안 입력" })).toBeVisible();
   });
 
   test("학생별 결과가 1차 등수 점수와 최종점수를 구분하고 전체 행을 정렬·필터한다", async ({ page }, testInfo) => {

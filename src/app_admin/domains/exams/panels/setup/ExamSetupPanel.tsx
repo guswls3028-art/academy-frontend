@@ -107,6 +107,7 @@ export default function ExamSetupPanel({ examId }: { examId: number }) {
           title="시험 운영 준비"
           description="확인이 필요한 항목을 선택하면 해당 설정으로 바로 이동합니다."
           items={readinessItems}
+          compactWhenReady
         />
       )}
       <ExamPolicyPanel examId={examId} lectureId={lectureId} sessionId={sessionId} />

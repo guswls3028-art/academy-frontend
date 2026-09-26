@@ -48,10 +48,10 @@ const GUIDE_BOOK_PRESETS: Record<GuideBookScope, GuideBookPreset> = {
         title: "자주 쓰는 업무",
         items: [
           {
-            title: "성적과 출력물 확인",
-            description: "성적표, 클리닉 대상자, 테넌트별 출력물을 성적탭에서 처리합니다.",
-            path: "/workspace/results",
-            actionLabel: "성적",
+            title: "시험부터 개인 성적표까지",
+            description: "강의 → 차시 → 성적에서 시험·답안·답안지를 준비하고 성적표를 출력합니다.",
+            path: "/workspace/guide#exam-score-guide",
+            actionLabel: "순서 보기",
           },
           {
             title: "알림톡 결과 확인",
@@ -100,6 +100,17 @@ const GUIDE_BOOK_PRESETS: Record<GuideBookScope, GuideBookPreset> = {
             description: "보낸 알림톡은 발송 내역에서 성공/실패까지 확인합니다.",
             path: "/workspace/mobile/message-log",
             actionLabel: "발송 내역",
+          },
+        ],
+      },
+      {
+        title: "시험 준비와 출력",
+        items: [
+          {
+            title: "PC에서 시험과 개인 성적표",
+            description: "학원 관리 권한이 있다면 강의 → 차시 → 성적에서 시험·답안·답안지를 준비합니다.",
+            path: "/workspace/mobile/desktop-only",
+            actionLabel: "PC 기능",
           },
         ],
       },

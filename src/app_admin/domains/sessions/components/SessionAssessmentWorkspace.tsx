@@ -49,7 +49,7 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
           <div
             className="mt-1 text-xs text-[var(--color-text-muted)]"
           >
-            좌측 패널에서 {titleLabel}을 선택하세요
+            위 목록에서 {titleLabel}을 선택하세요
           </div>
         </div>
       ) : (

@@ -5,6 +5,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import {
   CalendarPlus,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -102,6 +103,7 @@ export default function ClinicSchedulePage() {
   );
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [monthAnchor, setMonthAnchor] = useState(initialDate);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const monthStart = useMemo(() => dayjs(monthAnchor).startOf("month"), [monthAnchor]);
   const monthGridStart = useMemo(
     () => monthStart.subtract(monthStart.day(), "day"),
@@ -137,6 +139,7 @@ export default function ClinicSchedulePage() {
         ordering: "date,start_time,id",
       }),
     staleTime: 30_000,
+    enabled: calendarOpen,
   });
   const sessionsByDate = useMemo(() => {
     const grouped = new Map<string, ClinicSessionDetail[]>();
@@ -218,6 +221,7 @@ export default function ClinicSchedulePage() {
     const next = new URLSearchParams(searchParams);
     next.set("date", dateISO);
     setSearchParams(next, { replace: true });
+    setCalendarOpen(false);
   };
 
   const loading = sessionsQ.isLoading || participantsQ.listQ.isLoading;
@@ -238,10 +242,22 @@ export default function ClinicSchedulePage() {
           <div>
             <h2 id="clinic-schedule-title" className={styles.title}>예약 일정</h2>
             <p className={styles.description}>
-              달력에서 날짜를 고르고, 그날의 시간대와 예약 학생을 관리하세요.
+              주간 일정에서 시간대와 예약 학생을 관리하세요. 다른 날짜는 달력에서 빠르게 찾을 수 있습니다.
             </p>
           </div>
           <div className={styles.headerActions}>
+            <Button
+              intent="secondary"
+              size="md"
+              leftIcon={<CalendarDays size={ICON_FOR_BUTTON.md} />}
+              aria-haspopup="dialog"
+              onClick={() => {
+                setMonthAnchor(selectedDate);
+                setCalendarOpen(true);
+              }}
+            >
+              달력으로 이동
+            </Button>
             <Button
               intent="secondary"
               size="md"
@@ -261,6 +277,8 @@ export default function ClinicSchedulePage() {
           </div>
         </header>
 
+        <AdminModal open={calendarOpen} onClose={() => setCalendarOpen(false)} width={760}>
+          <ModalHeader title="날짜 이동" description="날짜를 선택하면 해당 주의 예약 일정으로 이동합니다." />
         <section
           className={styles.monthOverview}
           aria-label="월간 날짜 탐색"
@@ -275,12 +293,12 @@ export default function ClinicSchedulePage() {
                     iconOnly
                     aria-label="이전 달"
                     leftIcon={<ChevronLeft size={ICON_FOR_BUTTON.sm} />}
-                    onClick={() => selectCalendarDate(monthStart.subtract(1, "month").format("YYYY-MM-DD"))}
+                    onClick={() => setMonthAnchor(monthStart.subtract(1, "month").format("YYYY-MM-DD"))}
                   />
                   <Button
                     intent="secondary"
                     size="sm"
-                    disabled={isCurrentMonth}
+                    disabled={isCurrentMonth && selectedDate === today}
                     onClick={() => selectCalendarDate(today)}
                   >
                     이번 달
@@ -291,7 +309,7 @@ export default function ClinicSchedulePage() {
                     iconOnly
                     aria-label="다음 달"
                     leftIcon={<ChevronRight size={ICON_FOR_BUTTON.sm} />}
-                    onClick={() => selectCalendarDate(monthStart.add(1, "month").format("YYYY-MM-DD"))}
+                    onClick={() => setMonthAnchor(monthStart.add(1, "month").format("YYYY-MM-DD"))}
                   />
                   <Button
                     intent="ghost"
@@ -347,6 +365,8 @@ export default function ClinicSchedulePage() {
                       const sessionCount = dateSessions.length;
                       const isFull = sessionCount > 0 && dateSessions.every(isClinicSessionFull);
                       const isSelected = dateISO === selectedDate;
+                      const isTabStop = dayjs(selectedDate).isSame(monthStart, "month")
+                        ? isSelected : dateISO === monthStart.format("YYYY-MM-DD");
                       const isToday = dateISO === today;
                       const isOutsideMonth = !date.isSame(monthStart, "month");
                       const loadLabel = monthSessionsQ.isLoading
@@ -372,7 +392,7 @@ export default function ClinicSchedulePage() {
                           aria-current={isToday ? "date" : undefined}
                           aria-selected={isSelected}
                           data-calendar-date={dateISO}
-                          tabIndex={isSelected ? 0 : -1}
+                          tabIndex={isTabStop ? 0 : -1}
                           onClick={() => selectCalendarDate(dateISO)}
                         >
                           <span className={styles.monthDayNumber}>{date.format("D")}</span>
@@ -393,6 +413,7 @@ export default function ClinicSchedulePage() {
               </div>
             </div>
         </section>
+        </AdminModal>
 
         <section aria-labelledby="clinic-week-title">
           <div className={styles.toolbar}>

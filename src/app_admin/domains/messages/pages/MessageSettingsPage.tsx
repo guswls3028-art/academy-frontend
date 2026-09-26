@@ -7,12 +7,11 @@ import {
   FiMessageCircle,
   FiSend,
   FiShield,
-  FiZap,
 } from "react-icons/fi";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useMessagingInfo, useTestCredentials } from "../hooks/useMessagingInfo";
-import type { TestCredentialsResult } from "../api/messages.api";
+import type { TestCredentialsCheck, TestCredentialsResult } from "../api/messages.api";
 import { useState, type ReactNode } from "react";
 import styles from "./MessageSettingsPage.module.css";
 
@@ -27,7 +26,7 @@ function KpiCard({
   label: string;
   value: string;
   status?: "ok" | "warn" | "none";
-  tone: "provider" | "channel" | "alimtalk" | "policy";
+  tone: "channel" | "alimtalk" | "policy";
 }) {
   return (
     <div className={styles.kpiCard}>
@@ -80,6 +79,25 @@ function Desc({ children }: { children: ReactNode }) {
   return <p className={styles.description}>{children}</p>;
 }
 
+function checkMessage(check: TestCredentialsCheck): string {
+  switch (check.test) {
+    case "operational_policy":
+      return check.ok ? "알림톡 발송이 켜져 있습니다." : "현재 알림톡 발송이 중지되어 있습니다. 운영자에게 문의하세요.";
+    case "api_credentials":
+      return check.ok
+        ? "알림톡 발송 서비스가 연결되어 있습니다."
+        : "알림톡 발송 서비스 연결을 확인하지 못했습니다. 계속되면 운영자에게 문의하세요.";
+    case "sender_number":
+      return check.ok ? "발신번호가 준비되어 있습니다." : "발신번호가 준비되지 않았습니다. 운영자에게 문의하세요.";
+    case "alimtalk_channel":
+      return check.ok ? "카카오 채널이 연결되어 있습니다." : "카카오 채널 연결을 확인하지 못했습니다. 운영자에게 문의하세요.";
+    case "approved_templates":
+      return check.ok ? "보낼 수 있는 알림톡 양식이 준비되어 있습니다." : "보낼 수 있는 알림톡 양식이 없습니다. 운영자에게 문의하세요.";
+    default:
+      return check.ok ? "확인되었습니다." : "발송 준비 상태를 확인하지 못했습니다. 운영자에게 문의하세요.";
+  }
+}
+
 export default function MessageSettingsPage() {
   const { data: info, isError, refetch } = useMessagingInfo();
   const { mutate: runTest, isPending: isTesting } = useTestCredentials();
@@ -99,20 +117,20 @@ export default function MessageSettingsPage() {
   const setupSteps = [
     { done: alimtalkAvailable, label: "알림톡 발송 준비" },
     ...(customChannelRegistered
-      ? [{ done: customChannelActive, label: "우리 학원 채널 승인 양식" }]
+      ? [{ done: customChannelActive, label: "우리 학원 채널 양식" }]
       : []),
   ];
   const allSetupDone = setupSteps.every((s) => s.done);
 
-  let setupAlertTitle = "알림톡 연동 상태를 확인해 주세요.";
-  let setupAlertMessage = `${setupSteps.filter((step) => !step.done).map((step) => step.label).join(", ")} 설정이 필요합니다.`;
+  let setupAlertTitle = "알림톡 발송 상태를 확인해 주세요.";
+  let setupAlertMessage = `${setupSteps.filter((step) => !step.done).map((step) => step.label).join(", ")} 준비가 필요합니다.`;
   if (customChannelPending) {
-    setupAlertTitle = "우리 학원 채널 양식을 검수 중입니다.";
-    setupAlertMessage = "승인 전에는 공용 채널로 정상 발송됩니다.";
+    setupAlertTitle = "우리 학원 채널 양식을 준비 중입니다.";
+    setupAlertMessage = "준비가 끝나기 전에는 공용 카카오 채널로 보낼 수 있습니다.";
   }
   if (customChannelSuspended) {
     setupAlertTitle = "우리 학원 채널 발송을 확인해 주세요.";
-    setupAlertMessage = "승인 양식 상태가 달라 전용 채널 발송을 안전하게 막았습니다.";
+    setupAlertMessage = "우리 학원 채널의 양식 상태가 달라 현재 해당 채널로 보낼 수 없습니다.";
   }
   if (messagingDisabled) {
     setupAlertTitle = "알림톡 발송이 운영 중지되었습니다.";
@@ -120,8 +138,8 @@ export default function MessageSettingsPage() {
   }
 
   let channelDescription = alimtalkAvailable
-    ? "공용 채널이 연결되어 있습니다. 별도 채널 정보나 API 키를 입력할 필요가 없습니다."
-    : "공용 채널 연결 상태를 확인해 주세요. 학원에서 직접 연동 정보를 입력하지 않습니다.";
+    ? "공용 카카오 채널로 알림톡을 보낼 수 있습니다. 보낼 내용은 발송 전 미리보기에서 확인하세요."
+    : "현재 알림톡을 보낼 수 없습니다. 아래 발송 상태 확인에서 원인을 확인해 주세요.";
   if (customChannelPending) {
     channelDescription = `${info?.custom_channel_reference || "우리 학원 채널"} 확인 완료 · 승인 양식 ${info?.custom_channel_approved_templates ?? 0}/${info?.custom_channel_required_templates ?? 0}개를 준비하고 있습니다. 완료 전에는 공용 채널로 정상 발송됩니다.`;
   }
@@ -156,40 +174,33 @@ export default function MessageSettingsPage() {
 
       <div className={styles.kpiGrid}>
         <KpiCard
-          icon={<FiZap size={16} />}
-          label="공급자"
-          value="공용 솔라피"
-          status="ok"
-          tone="provider"
-        />
-        <KpiCard
           icon={<FiMessageCircle size={16} />}
-          label="채널"
+          label="보내는 채널"
           value={channelSourceLabel}
           status={customChannelPending || customChannelSuspended ? "warn" : alimtalkAvailable ? "ok" : "warn"}
           tone="channel"
         />
         <KpiCard
           icon={<FiSend size={16} />}
-          label="알림톡"
+          label="발송 상태"
           value={messagingDisabled ? "운영 중지" : alimtalkAvailable ? "사용 가능" : "확인 필요"}
           status={alimtalkAvailable ? "ok" : "warn"}
           tone="alimtalk"
         />
         <KpiCard
           icon={<FiShield size={16} />}
-          label="발송 정책"
-          value="알림톡 전용"
+          label="안내 방식"
+          value="카카오 알림톡"
           status="ok"
           tone="policy"
         />
       </div>
 
       <Card accent="primary">
-        <SectionTitle icon={<FiShield size={15} />}>알림톡 채널 정책</SectionTitle>
+        <SectionTitle icon={<FiShield size={15} />}>안전하게 보내기</SectionTitle>
         <Desc>
-          운영자가 공급자에서 확인한 우리 학원 채널만 전용 채널로 사용합니다.
-          검수 전에는 공용 채널이 발송을 이어가며, 과거 PFID·자체 키·문자 발송 경로는 사용하지 않습니다.
+          발송 전에 받는 사람과 실제로 보낼 내용을 확인할 수 있습니다.
+          카카오에서 승인된 양식으로만 보내며, 준비되지 않은 알림톡은 발송되지 않습니다.
         </Desc>
       </Card>
 
@@ -204,8 +215,8 @@ export default function MessageSettingsPage() {
       </Card>
 
       <Card accent="success">
-        <SectionTitle icon={<FiCheckCircle size={15} />}>연동 테스트</SectionTitle>
-        <Desc>현재 적용되는 알림톡 채널, 발신번호, 승인 양식 준비 상태를 확인합니다.</Desc>
+        <SectionTitle icon={<FiCheckCircle size={15} />}>발송 상태 확인</SectionTitle>
+        <Desc>카카오 채널과 발신번호, 보낼 양식이 준비됐는지 확인합니다. 실제 알림톡은 보내지 않습니다.</Desc>
         <div className={styles.testActions}>
           <Button
             intent="primary"
@@ -214,15 +225,15 @@ export default function MessageSettingsPage() {
               runTest(undefined, {
                 onSuccess: (data) => {
                   setTestResult(data);
-                  if (data.all_ok) feedback.success("알림톡 연동 상태가 정상입니다.");
-                  else feedback.error("일부 설정을 확인해 주세요.");
+                  if (data.all_ok) feedback.success("알림톡을 보낼 준비가 되었습니다.");
+                  else feedback.warning("아래 발송 상태를 확인해 주세요.");
                 },
-                onError: () => feedback.error("연동 테스트에 실패했습니다."),
+                onError: () => feedback.error("발송 상태를 확인하지 못했습니다. 다시 시도해 주세요."),
               });
             }}
             disabled={isTesting}
           >
-            {isTesting ? "테스트 중…" : "알림톡 연동 테스트"}
+            {isTesting ? "확인 중…" : "발송 상태 확인"}
           </Button>
           {testResult && <StatusChip ok={testResult.all_ok} label={testResult.all_ok ? "정상" : "확인 필요"} />}
         </div>
@@ -239,7 +250,7 @@ export default function MessageSettingsPage() {
                 ) : (
                   <FiAlertCircle size={14} className={styles.testResultIcon} data-ok={c.ok} />
                 )}
-                <span className={styles.testResultMessage}>{c.message}</span>
+                <span className={styles.testResultMessage}>{checkMessage(c)}</span>
               </div>
             ))}
           </div>

@@ -31,6 +31,8 @@ type OmrSheetBuilderProps = {
   initialQuestionTypes?: Array<"choice" | "essay">;
   countsEditable?: boolean;
   layout?: OmrSheetBuilderLayout;
+  guidedPrint?: boolean;
+  onDownloaded?: () => void;
 };
 
 function clampInt(value: number, min: number, max: number): number {
@@ -54,6 +56,8 @@ export default function OmrSheetBuilder({
   initialQuestionTypes,
   countsEditable = false,
   layout = "page",
+  guidedPrint = false,
+  onDownloaded,
 }: OmrSheetBuilderProps) {
   const [examTitle, setExamTitle] = useState(initialExamTitle || "");
   const [lectureName, setLectureName] = useState(initialLectureName || "");
@@ -187,6 +191,7 @@ export default function OmrSheetBuilder({
     try {
       await downloadOMRPdfForTarget(requestTarget, params(), examTitle || "OMR");
       feedback.success("PDF 다운로드 완료");
+      onDownloaded?.();
     } catch {
       feedback.error("PDF 다운로드 실패");
     } finally {
@@ -221,6 +226,12 @@ export default function OmrSheetBuilder({
     setMcCount((current) => current > 0 ? current : lastMcCountRef.current);
     setEssayCount((current) => current > 0 ? current : lastEssayCountRef.current);
   };
+
+  const downloadButton = (
+    <Button type="button" intent="primary" size="md" className="w-full" leftIcon={<Download size={16} />} onClick={handleDownload} disabled={pdfLoading || totalCount < 1}>
+      {pdfLoading ? "다운로드 중..." : "OMR PDF 다운로드"}
+    </Button>
+  );
 
   return (
     <div className={`${styles.builder} ${layout === "modal" ? styles.modal : styles.page}`}>
@@ -261,6 +272,8 @@ export default function OmrSheetBuilder({
             />
           </label>
         </div>
+
+        {guidedPrint && downloadButton}
 
         <div className={styles.group}>
           <div className={styles.groupTitle}>문항 설정</div>
@@ -379,10 +392,7 @@ export default function OmrSheetBuilder({
         </div>
 
         <div className={styles.actions}>
-          <Button type="button" intent="primary" size="md" className="w-full" onClick={handleDownload} disabled={pdfLoading || totalCount < 1}>
-            <Download size={16} aria-hidden="true" />
-            {pdfLoading ? "다운로드 중..." : "이 구성으로 PDF 다운로드"}
-          </Button>
+          {!guidedPrint && downloadButton}
           <Button type="button" intent="secondary" size="md" className="w-full" onClick={loadPreview} disabled={previewLoading || totalCount < 1}>
             <RefreshCw size={15} aria-hidden="true" />
             {previewLoading ? "생성 중..." : "미리보기 새로고침"}

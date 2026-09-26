@@ -274,6 +274,22 @@ test("학부모가 선택 자녀의 과제를 제출하고 새로고침 뒤에�
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });
 
+test("학생 제출 후 검토 대기 중인 과제는 학부모의 파일 추가 대상으로 남는다", async ({ page }) => {
+  const state = await installApi(page, 0, "parent", {
+    score: null,
+    passed: null,
+    achievement: null,
+    submission_state: "awaiting_review",
+    lecture_active: true,
+    submission_media_locked: false,
+  });
+  await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+  await expect(page.getByRole("button", { name: /도형 풀이 인증/ })).toBeVisible();
+  expect(state.getStudentScopedHeaders().length).toBeGreaterThan(0);
+  expect(state.getStudentScopedHeaders().every((value) => value === "72")).toBe(true);
+});
+
 test("학생이 먼저 올린 직후 학부모는 백그라운드 재조회가 끝난 최신 순서로 제출한다", async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });

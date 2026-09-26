@@ -17,6 +17,7 @@ type Props = {
   title: string;
   description: string;
   items: AssessmentReadinessItem[];
+  compactWhenReady?: boolean;
 };
 
 function moveToTarget(targetId: string) {
@@ -26,28 +27,12 @@ function moveToTarget(targetId: string) {
   target.focus({ preventScroll: true });
 }
 
-export default function AssessmentReadinessStrip({ title, description, items }: Props) {
+export default function AssessmentReadinessStrip({ title, description, items, compactWhenReady = false }: Props) {
   const readyCount = items.filter((item) => item.state === "ready").length;
   const attentionCount = items.length - readyCount;
 
-  return (
-    <section className={styles.root} aria-label={title}>
-      <div className={styles.header}>
-        <div>
-          <p className={styles.eyebrow}>운영 준비</p>
-          <h2 className={styles.title}>{title}</h2>
-          <p className={styles.description}>{description}</p>
-        </div>
-        <Badge
-          tone={attentionCount === 0 ? "success" : "warning"}
-          size="md"
-          shape="square"
-        >
-          {attentionCount === 0 ? "준비 완료" : `${attentionCount}개 확인 필요`}
-        </Badge>
-      </div>
-
-      <ol
+  const itemList = (
+    <ol
         className={styles.track}
         aria-label={`${readyCount}/${items.length} 항목 준비됨`}
         style={{ "--assessment-readiness-columns": items.length } as CSSProperties}
@@ -86,7 +71,38 @@ export default function AssessmentReadinessStrip({ title, description, items }: 
             </li>
           );
         })}
-      </ol>
+    </ol>
+  );
+
+  if (compactWhenReady && attentionCount === 0) {
+    return (
+      <details className={styles.compactRoot} aria-label={title}>
+        <summary className={styles.compactSummary}>
+          <span className={styles.compactStatus}><Check size={ICON.sm} aria-hidden /> {title} 완료</span>
+          <span className={styles.compactHint}>{items.length}개 항목 보기</span>
+        </summary>
+        {itemList}
+      </details>
+    );
+  }
+
+  return (
+    <section className={styles.root} aria-label={title}>
+      <div className={styles.header}>
+        <div>
+          <p className={styles.eyebrow}>운영 준비</p>
+          <h2 className={styles.title}>{title}</h2>
+          <p className={styles.description}>{description}</p>
+        </div>
+        <Badge
+          tone={attentionCount === 0 ? "success" : "warning"}
+          size="md"
+          shape="square"
+        >
+          {attentionCount === 0 ? "준비 완료" : `${attentionCount}개 확인 필요`}
+        </Badge>
+      </div>
+      {itemList}
     </section>
   );
 }

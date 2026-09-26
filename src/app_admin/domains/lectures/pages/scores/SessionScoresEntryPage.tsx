@@ -10,7 +10,7 @@
  */
 
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -64,6 +64,7 @@ import {
 } from "@/shared/scoring/sessionScoreRows";
 import "./SessionScoresEntryActions.css";
 import "./SessionScoresEntryPage.css";
+import "./SessionScoresStartPanel.css";
 
 type SessionScoresEntryPageProps = {
   onOpenCreateExam?: () => void;
@@ -909,10 +910,7 @@ export default function SessionScoresEntryPage({
 
               try {
                 const templates = await fetchMessageTemplates("grades");
-                const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험이력|시험목록|시험총점|학생이름)}/.test(body);
-                const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
-                const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
-                const chosenTpl = userDefault ?? userWithScoreVars;
+                const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
 
                 // 학원장 임근혁 보고(2026-05-12 23:50):
                 // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
@@ -924,11 +922,8 @@ export default function SessionScoresEntryPage({
                 initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
                 scoreDetail = buildScoreDetail(selectedRows[0], meta);
               } catch {
-                // 템플릿 조회 실패 시 — 범용 양식 fallback (변수 그대로)
-                initialBody = buildGenericScoreTemplate(reportOptions);
-                initialTemplateId = null;
-                initialLetterPresetId = DEFAULT_GRADES_PRESET_ID;
-                scoreDetail = buildScoreDetail(selectedRows[0], meta);
+                feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
+                return;
               }
 
               // SSOT (2026-05-14): 학생별 변수 재계산 callback.
@@ -1116,7 +1111,7 @@ export default function SessionScoresEntryPage({
             ) : (
               <ul>
                 <li>학생 행을 누르면 개별 성적 상세를 볼 수 있습니다.</li>
-                <li>시험명을 누르면 정오표 작성·OMR 검토·시험 설정을 선택할 수 있습니다.</li>
+                <li>시험명을 누르면 채점·설정·수정·삭제를, 과제명을 누르면 수정·삭제를 선택할 수 있습니다.</li>
                 <li>시험·과제 머리글을 끌어 표시 순서를 바꿀 수 있습니다.</li>
                 <li>회색 <strong>-</strong>는 해당 시험·과제에 아직 배정되지 않은 상태입니다.</li>
               </ul>
@@ -1215,8 +1210,24 @@ export default function SessionScoresEntryPage({
     );
   }
 
+  const openStudentScoreReport = async () => {
+    if (!await saveScoresNow()) return;
+    const refreshed = await refetch();
+    if (refreshed.isError) {
+      feedback.error("최신 성적을 불러오지 못했습니다. 다시 시도해 주세요.");
+      return;
+    }
+    setShowStudentReport(true);
+    setShowMoreMenu(false);
+  };
+
   const primaryAction = (
     <div className="scores-primary-actions">
+      {hasExamsOrHomeworks && (
+        <Button type="button" intent="primary" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={openCreateExam}>
+          시험 추가
+        </Button>
+      )}
       {/* ── 그룹 1: OMR 주 동선 ──
           SSOT: 차시 성적 화면에서 OMR 스캔 등록을 가장 먼저 보여준다.
           시험 상세/제출관리는 등록이 아니라 조회/재처리 보조 동선으로 둔다. */}
@@ -1300,6 +1311,12 @@ export default function SessionScoresEntryPage({
         {isSaving || draft.isStartingEdit ? "저장 중…" : isEditMode ? "저장하고 잠금" : "수정"}
       </Button>
 
+      {hasExamsOrHomeworks && (
+        <Button type="button" intent="secondary" size="sm" disabled={recoveryBlocked || isLoading || isError || displayCount === 0} leftIcon={<UserRound size={ICON_FOR_BUTTON.sm} />} onClick={() => void openStudentScoreReport()} title={displayCount === 0 ? "수강생이 등록되면 개인 성적표를 출력할 수 있습니다" : undefined}>
+          개인 성적표
+        </Button>
+      )}
+
       {/* 구성·출력·클리닉을 한곳에 모아 상단의 선택 부담을 줄인다. */}
       <div ref={moreMenuRef} className="relative">
         <Button
@@ -1379,12 +1396,7 @@ export default function SessionScoresEntryPage({
                   <span className="scores-tool-card__icon" data-tone="print"><Printer size={ICON_FOR_BUTTON.sm} /></span>
                   <span><strong>성적표 출력</strong><small>교사용 전체 현황</small></span>
                 </button>
-                <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
-                  if (!await saveScoresNow()) return;
-                  await refetch();
-                  setShowStudentReport(true);
-                  setShowMoreMenu(false);
-                }}>
+                <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked || isLoading || isError || displayCount === 0} onClick={() => void openStudentScoreReport()}>
                   <span className="scores-tool-card__icon" data-tone="student"><UserRound size={ICON_FOR_BUTTON.sm} /></span>
                   <span><strong>개인 성적표</strong><small>여러 학생 PDF</small></span>
                 </button>
@@ -1419,6 +1431,24 @@ export default function SessionScoresEntryPage({
 
   return (
     <div className="scores-entry-page flex flex-col gap-3">
+      {!isLoading && !isError && !hasExamsOrHomeworks && (
+        <section className="scores-start-panel" aria-label="첫 시험 시작">
+          <div className="scores-start-panel__head">
+            <span className="scores-start-panel__kicker">이 차시의 첫 평가</span>
+            <h3 className="scores-start-panel__title">시험을 만들어 보세요</h3>
+            <p className="scores-start-panel__copy">시험 추가 → 답안 등록 → OMR 답안지 다운로드까지 팝업에서 이어집니다.</p>
+          </div>
+          <div className="scores-start-panel__actions">
+            <Button type="button" intent="primary" size="md" leftIcon={<Plus size={ICON_FOR_BUTTON.md} />} onClick={openCreateExam}>
+              시험 추가
+            </Button>
+            <Button type="button" intent="secondary" size="md" leftIcon={<Plus size={ICON_FOR_BUTTON.md} />} onClick={openCreateHomework}>
+              과제 추가
+            </Button>
+            <Link className="scores-start-panel__guide" to="/workspace/guide#exam-score-guide">시험·성적표 사용 순서</Link>
+          </div>
+        </section>
+      )}
       <DomainListToolbar
         totalLabel={isLoading ? "…" : `총 ${displayCount}명`}
         searchSlot={
@@ -1591,53 +1621,6 @@ export default function SessionScoresEntryPage({
         />
       )}
 
-      {/* ── 워크플로우 안내: 시험/과제가 없을 때 ──
-          P2 (2026-05-13): 자동 등록 사실을 1단계에 흡수, 가이드와 모달 동작 정합.
-          기존 2단계 "수강생 일괄배정"은 자동 등록 실패 시 보조 경로로 강등. */}
-      {!isLoading && !isError && !hasExamsOrHomeworks && (
-        <div className="scores-start-panel">
-          <div className="scores-start-panel__head">
-            <span className="scores-start-panel__kicker">Assessment</span>
-            <h3 className="scores-start-panel__title">평가 항목 없음</h3>
-            <p className="scores-start-panel__copy">
-              이 차시에 연결된 시험이나 과제가 없습니다.
-            </p>
-          </div>
-          <div className="scores-start-panel__actions">
-            <Button
-              type="button"
-              intent="primary"
-              size="md"
-              leftIcon={<Plus size={ICON_FOR_BUTTON.md} />}
-              onClick={openCreateExam}
-            >
-              시험 추가
-            </Button>
-            <Button
-              type="button"
-              intent="secondary"
-              size="md"
-              leftIcon={<Plus size={ICON_FOR_BUTTON.md} />}
-              onClick={openCreateHomework}
-            >
-              과제 추가
-            </Button>
-          </div>
-          <div className="scores-start-panel__cards" aria-label="성적 항목 상태">
-            <div className="scores-start-panel__card">
-              <ClipboardList size={18} aria-hidden />
-              <span>시험</span>
-              <strong>0</strong>
-            </div>
-            <div className="scores-start-panel__card">
-              <FileText size={18} aria-hidden />
-              <span>과제</span>
-              <strong>0</strong>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── 안내 배너: 시험/과제별 응시·제출 대상이 일부라도 누락됐을 때 ── */}
       {!isLoading && !isError && hasExamsOrHomeworks && assignmentGapSummary.missingCellCount > 0 && (
         <section className="scores-roster-warning" aria-label="응시·제출 대상 미배정 안내">
@@ -1705,6 +1688,7 @@ export default function SessionScoresEntryPage({
           search={searchInput}
           isEditMode={isEditMode}
           hasUnsavedChanges={isEditMode || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
+          assessmentDeleteLocked={recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error" || activeScoreCell !== null}
           onPendingChange={draft.requestAutosave}
           activeEditors={draft.activeEditors}
           onClaimOwnCell={draft.claimOwnCell}

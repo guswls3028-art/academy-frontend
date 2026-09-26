@@ -80,7 +80,7 @@
 }
 
 .disabled {
-  color: color-mix(in srgb, var(--stu-text-muted) 55%, transparent);
+  color: var(--stu-text-muted);
   cursor: default;
 }
 

@@ -39,11 +39,19 @@ export async function updateAdminExam(
     | "student_results_published"
   >>,
   expectedUpdatedAt: string,
-): Promise<Exam> {
+): Promise<Exam & { regrade?: ExamRecalculation }> {
   const res = await api.patch(`/exams/${examId}/`, payload, {
     headers: expectedUpdatedAtHeaders(expectedUpdatedAt),
   });
-  return normalizeExam(res.data);
+  return {
+    ...normalizeExam(res.data),
+    regrade: res.data?.regrade,
+  };
+}
+
+/** Remove a regular exam from this session, preserving recorded history when required. */
+export async function deleteSessionExam(examId: number, sessionId: number): Promise<void> {
+  await api.delete(`/exams/${examId}/`, { params: { session_id: sessionId } });
 }
 
 /**
@@ -74,6 +82,9 @@ export type ExamRecalculation = {
   graded: number;
   skipped: number;
   failed: Array<{ submission_id: number; status: string; detail: string }>;
+  manual_total?: number;
+  manual_graded?: number;
+  needs_review?: Array<{ submission_id?: number; enrollment_id?: number; detail: string }>;
 };
 
 export async function recalculateExam(

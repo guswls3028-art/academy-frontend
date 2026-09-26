@@ -39,6 +39,8 @@ type HomeworkSummary = {
   passed: boolean;
   achievement: string;
   submission_state?: "needs_submission" | "awaiting_review" | "reviewed";
+  lecture_active?: boolean;
+  submission_media_locked?: boolean;
 };
 
 type CreatedState = {
@@ -425,9 +427,44 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
 
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
+    const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
+    const parentSummary = await waitForHomeworkSummary(
+      request,
+      parentTokens.access,
+      (row) => row.submission_state === "awaiting_review" && row.score === null,
+      student.id,
+    );
+    expect(parentSummary.lecture_active).toBe(true);
+    expect(parentSummary.submission_media_locked).toBe(false);
+    const browserGradesResponses: Array<import("@playwright/test").Response> = [];
+    page.on("response", (response) => {
+      if (response.request().method() === "GET" && new URL(response.url()).pathname === "/api/v1/student/grades/") {
+        browserGradesResponses.push(response);
+      }
+    });
     await gotoAndSettle(page, `${QA_BASE}/student/submit/assignment`, { timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "과제 제출" })).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => browserGradesResponses.length).toBeGreaterThan(0);
+    const browserGradesResponse = browserGradesResponses.at(-1)!;
+    expect(browserGradesResponse.request().headers()["x-student-id"]).toBe(String(student.id));
+    expect(browserGradesResponse.status()).toBe(200);
+    const browserGrades = await browserGradesResponse.json() as { homeworks?: HomeworkSummary[] };
+    const browserHomework = browserGrades.homeworks?.find((row) => row.homework_id === created.homeworkId);
+    expect(browserHomework).toMatchObject({
+      title: homeworkTitle,
+      submission_state: "awaiting_review",
+      lecture_active: true,
+      submission_media_locked: false,
+    });
     await expect(page.getByText("학부모 계정은 직접 제출할 수 없습니다.")).toHaveCount(0);
-    await page.getByText(homeworkTitle, { exact: true }).click();
+    const parentHomeworkTarget = page.locator("[data-guide='submit-target'] button").filter({
+      has: page.getByText(homeworkTitle, { exact: true }),
+    });
+    // Scope the title to a selectable target. A page-wide text locator can
+    // match the same title in another surface and fail Playwright strict mode.
+    await expect(parentHomeworkTarget).toHaveCount(1, { timeout: 30_000 });
+    await expect(parentHomeworkTarget).toBeVisible();
+    await parentHomeworkTarget.click();
     await page.locator("input[type='file']").first().setInputFiles({
       name: parentUploadName,
       mimeType: "image/png",
@@ -439,7 +476,6 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
     await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
 
-    const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
     const parentMediaResponse = await request.get(
       `${QA_API}/api/v1/submissions/submissions/homework/${created.homeworkId}/media/?enrollment_id=${created.enrollmentId}`,
       {
@@ -457,8 +493,17 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       expect.arrayContaining([uploadName, parentUploadName]),
     );
 
+    await waitForHomeworkSummary(
+      request,
+      parentTokens.access,
+      (row) => row.submission_state === "awaiting_review" && row.score === null
+        && row.lecture_active === true && row.submission_media_locked === false,
+      student.id,
+    );
     await reloadStudentApp(page);
-    await page.getByText(homeworkTitle, { exact: true }).click();
+    await expect(parentHomeworkTarget).toHaveCount(1, { timeout: 30_000 });
+    await expect(parentHomeworkTarget).toBeVisible();
+    await parentHomeworkTarget.click();
     await expect(page.getByText(uploadName, { exact: true })).toBeVisible();
     await expect(page.getByText(parentUploadName, { exact: true })).toBeVisible();
     await assertNoHorizontalOverflow(page);

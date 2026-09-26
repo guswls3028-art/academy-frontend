@@ -347,7 +347,8 @@ test.describe("조교 로그인 출근 선택", () => {
         }
         return route.fallback();
       });
-      await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+      await page.goto(`${BASE}/login`, { waitUntil: "commit", timeout: 30_000 });
+      await expect(page.getByTestId("login-username")).toBeVisible({ timeout: 30_000 });
       await page.getByTestId("login-username").fill("assistant77");
       await page.getByTestId("login-password").fill("password");
       const meRequested = page.waitForRequest((request) => new URL(request.url()).pathname === "/api/v1/core/me/");
@@ -365,13 +366,19 @@ test.describe("조교 로그인 출근 선택", () => {
       await choice.getByRole("button", { name: /^출근하지 않고 로그인/ }).click();
       await expect(choice).toBeHidden();
 
-      const scoresRequested = page.waitForRequest((request) => new URL(request.url()).pathname === "/api/v1/results/admin/sessions/41/scores/");
-      const scoresBody = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/results/admin/sessions/41/scores/")
+      const scoresRequested = page.waitForRequest(
+        (request) => new URL(request.url()).pathname === "/api/v1/results/admin/sessions/41/scores/",
+        { timeout: 30_000 },
+      );
+      const scoresBody = page.waitForResponse(
+        (response) => new URL(response.url()).pathname === "/api/v1/results/admin/sessions/41/scores/",
+        { timeout: 30_000 },
+      )
         .then(async (response) => {
           expect(response.status()).toBe(200);
           return await response.json() as { meta: { exams: Array<{ exam_id: number }> } };
         });
-      await page.goto(`${BASE}${scorePath}`, { waitUntil: "domcontentloaded" });
+      await page.goto(`${BASE}${scorePath}`, { waitUntil: "commit", timeout: 30_000 });
       await scoresRequested;
       const options = page.getByRole("button", { name: /표시 옵션/ });
       await expect(options).toHaveCount(0);

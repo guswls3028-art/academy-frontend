@@ -282,7 +282,7 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await expect(studentLink).toBeFocused();
 
   const studentRow = page.getByRole("row").filter({ has: studentLink });
-  await studentRow.locator("td").last().click();
+  await studentRow.getByRole("cell", { name: "010-3333-4444" }).click();
   await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
   await expect(overlay).toBeVisible();
   await overlay.getByRole("button", { name: "닫기" }).click();
