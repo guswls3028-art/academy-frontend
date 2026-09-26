@@ -627,6 +627,12 @@ test("선생님이 모바일과 데스크톱에서 예약 승인부터 하원·�
   await expect(approveRow.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
 
   await rejectRow.getByRole("button", { name: "예약 거절" }).click();
+  const rejectConfirm = page.getByRole("alertdialog", { name: "예약 거절" });
+  await expect(rejectConfirm).toContainText("거절 검수 학생");
+  await rejectConfirm.getByRole("button", { name: "돌아가기" }).click();
+  expect(statusPayloads).not.toContainEqual({ id: 911, status: "rejected" });
+  await rejectRow.getByRole("button", { name: "예약 거절" }).click();
+  await rejectConfirm.getByRole("button", { name: "예약 거절" }).click();
   await expect.poll(() => statusPayloads).toContainEqual({ id: 911, status: "rejected" });
   await expect(rejectRow).toContainText("거절");
   await expect(rejectRow.locator(".ds-student-name--clinic-highlight")).toHaveText("거절 검수 학생");
