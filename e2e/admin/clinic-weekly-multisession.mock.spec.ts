@@ -972,13 +972,22 @@ test("월간 달력에서 원하는 날짜를 고르면 그날 일정만 명확�
   await page.screenshot({ path: "test-results/admin-clinic-calendar-forwardfix-390.png", fullPage: false });
 
   await page.setViewportSize({ width: 312, height: 675 });
-  const zoomedCalendarTargets = await page.getByRole("grid", { name: /클리닉 월간 달력/ })
-    .getByRole("gridcell")
-    .evaluateAll((elements) => elements.map((element) => {
+  const zoomedCalendarTargets = page.getByRole("grid", { name: /클리닉 월간 달력/ })
+    .getByRole("gridcell");
+  await expect(zoomedCalendarTargets).toHaveCount(42);
+  // Measure the settled modal, rather than a frame of its opening zoom motion.
+  await expect.poll(() => page.getByRole("dialog", { name: "날짜 이동" }).evaluate((dialog) =>
+    dialog.getAnimations({ subtree: true }).filter((animation) =>
+      animation.playState !== "finished" && animation.playState !== "idle"
+      && Number.isFinite(animation.effect?.getComputedTiming().endTime),
+    ).length), { timeout: 5_000 }).toBe(0);
+  await expect.poll(async () => {
+    const sizes = await zoomedCalendarTargets.evaluateAll((elements) => elements.map((element) => {
       const bounds = element.getBoundingClientRect();
       return Math.min(bounds.width, bounds.height) * 1.25;
     }));
-  expect(Math.min(...zoomedCalendarTargets)).toBeGreaterThanOrEqual(44);
+    return sizes.length === 42 ? Math.min(...sizes) : 0;
+  }, { timeout: 5_000 }).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole("dialog", { name: "날짜 이동" }).press("Escape");
   for (const buttonName of ["달력으로 이동", "이전 주 복사", "클리닉 만들기"]) {

@@ -29,6 +29,7 @@ import { RotateCcw, RotateCw, Upload } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { Badge, Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 import { adminResultsQueryKeys } from "../../queryKeys";
 import {
   acceptFromDuplicatesApi,
@@ -666,7 +667,7 @@ function ScanPane({
     const requestKey = `${detail.submission_id}:${rotation}`;
     const clientRequestId = rotateRequestRef.current?.key === requestKey
       ? rotateRequestRef.current.id
-      : crypto.randomUUID();
+      : createRandomUuid();
     rotateRequestRef.current = { key: requestKey, id: clientRequestId };
     rotateRescan.mutate({
       rotationDegrees: rotation,

@@ -235,7 +235,7 @@ export class StudentHlsController {
   play() {
     if (this.disposed || !this.el) return;
     try {
-      this.el.play().catch(ignoreBestEffortError);
+      this.el.play()?.catch(ignoreBestEffortError);
     } catch {
       ignoreBestEffortError();
     }
@@ -415,7 +415,7 @@ export class StudentHlsController {
       el.volume = pending.volume;
       el.muted = pending.muted;
       if (pending.quality >= 0 && this.hls) this.hls.currentLevel = pending.quality;
-      if (pending.wasPlaying) el.play().catch(ignoreBestEffortError);
+      if (pending.wasPlaying) el.play()?.catch(ignoreBestEffortError);
     } catch {
       ignoreBestEffortError();
     }
