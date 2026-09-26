@@ -28,6 +28,7 @@ type OmrSheetBuilderProps = {
   initialSessionName?: string;
   initialMcCount: number;
   initialEssayCount: number;
+  initialEssayNumbering?: "continuous" | "separate";
   initialQuestionTypes?: Array<"choice" | "essay">;
   countsEditable?: boolean;
   layout?: OmrSheetBuilderLayout;
@@ -53,6 +54,7 @@ export default function OmrSheetBuilder({
   initialSessionName = "",
   initialMcCount,
   initialEssayCount,
+  initialEssayNumbering = "continuous",
   initialQuestionTypes,
   countsEditable = false,
   layout = "page",
@@ -64,6 +66,7 @@ export default function OmrSheetBuilder({
   const [sessionName, setSessionName] = useState(initialSessionName || "");
   const [mcCount, setMcCount] = useState(clampInt(initialMcCount, 0, MAX_MC_COUNT));
   const [essayCount, setEssayCount] = useState(clampInt(initialEssayCount, 0, MAX_ESSAY_COUNT));
+  const [essayNumbering, setEssayNumbering] = useState(initialEssayNumbering);
   const [format, setFormat] = useState<OmrFormat>(() => getInitialFormat(initialMcCount, initialEssayCount));
   const [includeOptionalEssayArea, setIncludeOptionalEssayArea] = useState(true);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
@@ -91,6 +94,7 @@ export default function OmrSheetBuilder({
   useEffect(() => {
     if (!countsEditable) setEssayCount(clampInt(initialEssayCount, 0, MAX_ESSAY_COUNT));
   }, [countsEditable, initialEssayCount]);
+  useEffect(() => { if (targetType === "exam") setEssayNumbering(initialEssayNumbering); }, [initialEssayNumbering, targetType]);
   useEffect(() => {
     setIncludeOptionalEssayArea(true);
   }, [targetType, targetExamId]);
@@ -144,6 +148,7 @@ export default function OmrSheetBuilder({
     session_name: sessionName,
     mc_count: mcCount,
     essay_count: essayCount,
+    ...(targetType === "tool" ? { essay_numbering: essayNumbering } : {}),
     include_optional_essay_area: includeOptionalEssayArea,
     n_choices: 5,
     ...(initialQuestionTypes?.length === totalCount
@@ -156,7 +161,7 @@ export default function OmrSheetBuilder({
             .filter((number): number is number => number !== null),
         }
       : {}),
-  }), [examTitle, lectureName, sessionName, mcCount, essayCount, includeOptionalEssayArea, initialQuestionTypes, totalCount]);
+  }), [examTitle, lectureName, sessionName, mcCount, essayCount, essayNumbering, targetType, includeOptionalEssayArea, initialQuestionTypes, totalCount]);
 
   const loadPreview = useCallback(async () => {
     if (totalCount < 1) return;
@@ -339,6 +344,17 @@ export default function OmrSheetBuilder({
               <span> · 총 {totalCount}문항</span>
             </div>
           )}
+          {essayCount > 0 && (targetType === "tool" ? (
+            <label className={styles.field}>
+              <span>서술형 번호 표시</span>
+              <select className="ds-input" value={essayNumbering} onChange={(event) => setEssayNumbering(event.target.value as "continuous" | "separate")}>
+                <option value="continuous">연속 번호 (서술형 19~20번)</option>
+                <option value="separate">별도 번호 (서술형 1~2번)</option>
+              </select>
+            </label>
+          ) : (
+            <p className={styles.optionHelp}>서술형 번호: {essayNumbering === "separate" ? "별도 번호" : "이어지는 번호"} · 시험 운영 설정에서 변경</p>
+          ))}
         </div>
 
         <div className={styles.group}>

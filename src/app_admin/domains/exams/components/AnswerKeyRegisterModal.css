@@ -365,8 +365,9 @@
 }
 
 .answer-key-row__num {
-  width: 28px;
+  min-width: 28px;
   flex-shrink: 0;
+  white-space: nowrap;
   font-weight: 600;
   color: var(--color-text-primary);
   text-align: right;

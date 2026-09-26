@@ -19,6 +19,8 @@ import type {
   QuestionStat,
 } from "@admin/domains/results/types/results.types";
 import { useAdminExam } from "../hooks/useAdminExam";
+import { fetchQuestionsByExam } from "../api/question.api";
+import { essayIndexFromBoundary, examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 import ExamResultsPanel from "@admin/domains/results/panels/ExamResultsPanel";
 import OmrReviewEntry from "@admin/domains/results/components/omr-review/OmrReviewEntry";
 import ExamResultExcelImport from "@admin/domains/results/components/ExamResultExcelImport";
@@ -61,6 +63,23 @@ async function fetchQuestionStats(examId: number, lectureId: number | null): Pro
 export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = false }: Props) {
   const [selectedLectureId, setSelectedLectureId] = useState<number | null>(null);
   const { data: exam } = useAdminExam(examId);
+  const questionKindsQ = useQuery({
+    queryKey: adminExamsQueryKeys.examQuestions(examId),
+    queryFn: () => fetchQuestionsByExam(examId).then((response) => response.data),
+    enabled: exam?.essay_numbering === "separate",
+  });
+  const essayIndexes = useMemo(() => {
+    const indexes = new Map<number, number>();
+    (questionKindsQ.data ?? [])
+      .filter((question) => question.question_kind === "essay")
+      .sort((left, right) => left.number - right.number)
+      .forEach((question, index) => indexes.set(question.number, index + 1));
+    return indexes;
+  }, [questionKindsQ.data]);
+  const questionLabel = (number: number) => examQuestionLabel(
+    number, exam?.essay_numbering,
+    essayIndexes.get(number) ?? essayIndexFromBoundary(number, exam?.grading_mode, exam?.choice_question_count),
+  );
   const assignmentsQ = useQuery({
     queryKey: adminExamsQueryKeys.examLectureAssignments(examId),
     queryFn: () => fetchExamLectureAssignments(examId),
@@ -123,8 +142,8 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
     ),
   });
 
-  const isLoading = resultsQ.isLoading || statsQ.isLoading;
-  const isError = resultsQ.isError;
+  const isLoading = resultsQ.isLoading || statsQ.isLoading || questionKindsQ.isLoading;
+  const isError = resultsQ.isError || questionKindsQ.isError;
   if (isLoading) {
     return (
       <section className={styles.statePanel}>
@@ -144,7 +163,7 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
               type="button"
               intent="secondary"
               size="sm"
-              onClick={() => void resultsQ.refetch()}
+              onClick={() => { void resultsQ.refetch(); if (exam?.essay_numbering === "separate") void questionKindsQ.refetch(); }}
             >
               다시 시도
             </Button>
@@ -326,7 +345,7 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
                   <ol className={styles.priorityList}>
                     {insight.priorityQuestions.slice(0, 5).map((question) => (
                       <li key={question.question_id} data-tone={question.tone}>
-                        <span className={styles.questionNumber}>{question.question_number}</span>
+                        <span className={styles.questionNumber}>{questionLabel(question.question_number)}</span>
                         <div className={styles.questionBody}>
                           <div className={styles.questionTopline}>
                             <strong>{question.action}</strong>
@@ -364,7 +383,7 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
                         .sort((left, right) => left.question_number - right.question_number)
                         .map((question) => (
                           <tr key={question.question_id}>
-                            <td>{question.question_number}번</td>
+                            <td>{questionLabel(question.question_number)}</td>
                             <td><span data-tone={question.tone}>{question.accuracyPercent.toFixed(1)}%</span></td>
                             <td>{question.correct}</td>
                             <td>{question.attempts}</td>

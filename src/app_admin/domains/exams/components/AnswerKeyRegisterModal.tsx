@@ -20,6 +20,7 @@ import {
 } from "../api/answerKey.api";
 import { patchQuestionScore } from "@admin/domains/materials/api/sheetQuestions";
 import { useAdminExam } from "../hooks/useAdminExam";
+import { examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 import { ensureExamStructure, recalculateExam } from "../api/adminExam";
 import { fetchOMRDefaults } from "../api/omr.api";
 import OmrSheetBuilder from "./omr/OmrSheetBuilder";
@@ -444,6 +445,10 @@ export default function AnswerKeyRegisterModal({
   }, [effectiveChoiceCount, questionTypes, sortedQuestions]);
   const choiceQuestions = sortedQuestions.filter((_, index) => resolvedQuestionTypes[index] === "choice");
   const essayQuestions = sortedQuestions.filter((_, index) => resolvedQuestionTypes[index] === "essay");
+  const essayIndexById = new Map(essayQuestions.map((question, index) => [question.id, index + 1]));
+  const questionLabel = (question: ExamQuestion) => examQuestionLabel(
+    question.number, exam?.essay_numbering, essayIndexById.get(question.id),
+  );
 
   const getScore = (q: ExamQuestion) => scoreDraft[q.id] ?? q.score ?? 0;
   const questionTotalScore = useMemo(
@@ -1139,9 +1144,9 @@ export default function AnswerKeyRegisterModal({
                           : value
                       ))}
                       disabled={!canEditStructure || initMut.isPending}
-                      aria-label={`${index + 1}번 ${kind === "choice" ? "객관식" : "서술형"}. 눌러서 변경`}
+                      aria-label={`${examQuestionLabel(index + 1, exam?.essay_numbering, kind === "essay" ? questionTypes.slice(0, index + 1).filter((type) => type === "essay").length : null)} ${kind === "choice" ? "객관식" : "서술형"}. 눌러서 변경`}
                     >
-                      <span>{index + 1}</span>
+                      <span>{kind === "essay" && exam?.essay_numbering === "separate" ? `서${questionTypes.slice(0, index + 1).filter((type) => type === "essay").length}` : index + 1}</span>
                       <small>{kind === "choice" ? "객관식" : "서술형"}</small>
                     </button>
                   ))}
@@ -1305,7 +1310,7 @@ export default function AnswerKeyRegisterModal({
                   {choiceQuestions.map((q, index) => (
                     <ChoiceRow
                       key={q.id}
-                      question={q}
+                      displayLabel={questionLabel(q)}
                       draft={draft[String(q.id)] ?? ""}
                       onChange={(value) =>
                         setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
@@ -1481,7 +1486,7 @@ export default function AnswerKeyRegisterModal({
                   {essayQuestions.map((q, index) => (
                     <EssayRow
                       key={q.id}
-                      question={q}
+                      displayLabel={questionLabel(q)}
                       draft={draft[String(q.id)] ?? ""}
                       onChange={(value) =>
                         setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
@@ -1539,7 +1544,7 @@ export default function AnswerKeyRegisterModal({
                       {sortedQuestions.map((q) => (
                         <ExplanationRow
                           key={q.id}
-                          question={q}
+                          displayLabel={questionLabel(q)}
                           examId={examId}
                           explanation={explanationDraft[q.id] ?? { text: "", problemImageUrl: null, problemImageKey: null, imageUrl: null, imageKey: null, dirty: false }}
                           onChange={(next) =>
@@ -1566,6 +1571,7 @@ export default function AnswerKeyRegisterModal({
               sessionName={sessionName || omrDefaults?.session_name || ""}
               choiceCount={choiceQuestions.length}
               essayCount={essayQuestions.length}
+              essayNumbering={exam?.essay_numbering}
               questionTypes={resolvedQuestionTypes}
               guidedPrint={flowStep === "print"}
               onDownloaded={() => setDownloaded(true)}
@@ -1613,7 +1619,7 @@ export default function AnswerKeyRegisterModal({
 }
 
 function ChoiceRow({
-  question,
+  displayLabel,
   draft,
   onChange,
   score,
@@ -1625,7 +1631,7 @@ function ChoiceRow({
   onMoveToNextRow,
   onMoveToPreviousRow,
 }: {
-  question: ExamQuestion;
+  displayLabel: string;
   draft: string;
   onChange: (value: string) => void;
   score: number;
@@ -1696,11 +1702,11 @@ function ChoiceRow({
 
   return (
     <li className={`answer-key-row answer-key-row--choice ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
-      <div className="answer-key-row__num">{question.number}</div>
+      <div className="answer-key-row__num">{displayLabel}</div>
       <div
         className="answer-key-row__bubbles"
         role="group"
-        aria-label={`${question.number}번 정답. 방향키로 이동, Enter 또는 스페이스로 선택`}
+        aria-label={`${displayLabel} 정답. 방향키로 이동, Enter 또는 스페이스로 선택`}
       >
         {CHOICES.map((c, index) => (
           <button
@@ -1712,7 +1718,7 @@ function ChoiceRow({
             type="button"
             className={`answer-key-omr-label ${activeIndex === index ? "answer-key-omr-label--active" : ""}`}
             role="checkbox"
-            aria-label={`${question.number}번 ${c}번 선택지`}
+            aria-label={`${displayLabel} ${c}번 선택지`}
             aria-checked={selectedChoices.has(c)}
             tabIndex={editable && activeIndex === index ? 0 : -1}
             onKeyDown={handleKeyDown}
@@ -1758,7 +1764,7 @@ function ResetIcon() {
 }
 
 function EssayRow({
-  question,
+  displayLabel,
   draft,
   onChange,
   score,
@@ -1771,7 +1777,7 @@ function EssayRow({
   onMoveToNextRow,
   onMoveToPreviousRow,
 }: {
-  question: ExamQuestion;
+  displayLabel: string;
   draft: string;
   onChange: (value: string) => void;
   score: number;
@@ -1801,7 +1807,7 @@ function EssayRow({
 
   return (
     <li className={`answer-key-row answer-key-row--essay ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
-      <div className="answer-key-row__num">{question.number}</div>
+      <div className="answer-key-row__num">{displayLabel}</div>
       <div className="answer-key-row__input-wrap">
         <input
           ref={inputRef}
@@ -1815,7 +1821,7 @@ function EssayRow({
           onKeyDown={handleKeyDown}
           placeholder={numericOnly ? "0~999" : "해설참조"}
           maxLength={numericOnly ? 3 : undefined}
-          aria-label={`${question.number}번 ${numericOnly ? "단답형" : "서술형"} 정답`}
+          aria-label={`${displayLabel} ${numericOnly ? "숫자 " : ""}정답`}
           className="ds-input answer-key-row__input"
           disabled={!editable}
         />
@@ -1958,17 +1964,17 @@ function ImageCell({
 }
 
 function ExplanationRow({
-  question,
+  displayLabel,
   examId,
   explanation,
   onChange,
 }: {
-  question: ExamQuestion;
+  displayLabel: string;
   examId: number;
   explanation: ExplanationState;
   onChange: (next: ExplanationState) => void;
 }) {
-  const label = typeof question.number === "number" ? String(question.number) : `S${question.number}`;
+  const label = displayLabel;
   const problemUrl = explanation.problemImageUrl;
   const explanationUrl = explanation.imageUrl;
 
@@ -2022,6 +2028,7 @@ function OmrSettingsTab({
   sessionName,
   choiceCount,
   essayCount,
+  essayNumbering,
   questionTypes,
   guidedPrint,
   onDownloaded,
@@ -2032,6 +2039,7 @@ function OmrSettingsTab({
   sessionName: string;
   choiceCount: number;
   essayCount: number;
+  essayNumbering?: "continuous" | "separate";
   questionTypes: QuestionKind[];
   guidedPrint?: boolean;
   onDownloaded?: () => void;
@@ -2052,6 +2060,7 @@ function OmrSettingsTab({
         initialSessionName={sessionName || ""}
         initialMcCount={choiceCount}
         initialEssayCount={essayCount}
+        initialEssayNumbering={essayNumbering}
         initialQuestionTypes={questionTypes}
         layout="modal"
         guidedPrint={guidedPrint}

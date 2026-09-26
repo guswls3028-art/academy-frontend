@@ -409,11 +409,10 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  max-width: 40px;
-  aspect-ratio: 1 / 1;
-  padding: 0;
+  min-height: 44px;
+  padding: 3px;
   color: var(--stu-text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   background: var(--stu-surface-soft);

@@ -3,6 +3,7 @@ export type ExamType = "template" | "regular";
 export type AnswerVisibility = "hidden" | "after_closed" | "always";
 export type ExamGradingMode = "choice" | "written" | "mixed";
 export type ManualGradingMethod = "correctness" | "score";
+export type EssayNumbering = "continuous" | "separate";
 export type ExamSegmentationStatus =
   | "none"
   | "processing"
@@ -40,6 +41,7 @@ export type Exam = {
   grading_mode: ExamGradingMode;
   manual_grading_method: ManualGradingMethod;
   choice_question_count: number;
+  essay_numbering: EssayNumbering;
   segmentation_status: ExamSegmentationStatus;
   source_filename: string;
   display_order: number;
