@@ -312,18 +312,6 @@
   min-width: 3ch;
 }
 
-@media (max-width: 480px) {
-  .display {
-    font-size: clamp(42px, 14vw, 64px);
-  }
-
-  .display .sep,
-  .display .cs {
-    margin-left: 0;
-    margin-right: 0;
-  }
-}
-
 @keyframes blink {
   50% { opacity: 0.05; }
 }
@@ -897,6 +885,16 @@
   .main {
     gap: 20px;
     padding: 16px;
+  }
+
+  .display {
+    font-size: clamp(42px, 14vw, 64px);
+  }
+
+  .display .sep,
+  .display .cs {
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .controls {
