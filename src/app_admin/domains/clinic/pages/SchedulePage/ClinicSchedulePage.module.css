@@ -810,7 +810,7 @@
   }
 
   .monthDay {
-    min-height: 44px;
+    min-height: 48px;
     flex-direction: column;
     justify-content: center;
     gap: 3px;

@@ -38,7 +38,7 @@ const FLOW_COUNTS = {
   "student-parent-homework-realuse.spec.ts": 1,
   "student-parent-learning-realuse.spec.ts": 1,
   "student-parent-storage-realuse.spec.ts": 1,
-  "omr-review-realuse.spec.ts": 1,
+  "omr-review-realuse.spec.ts": 3,
   "video-playback-renewal.realuse.spec.ts": 1,
 };
 const LONG_VIDEO_CHECKPOINT_STAGES = [
