@@ -106,6 +106,52 @@ async function assertDesktopTimerSurface(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
 }
 
+async function assertResponsiveTimerSurface(page: Page) {
+  const display = page.getByTestId("timer-display");
+  await page.getByRole("button", { name: "Projector" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobilePreset = page.getByRole("button", { name: "1분", exact: true });
+  await mobilePreset.evaluate((element) => (element as HTMLButtonElement).click());
+  await page.keyboard.press("Space");
+  await display.scrollIntoViewIfNeeded();
+  await expect(page.getByText("LAST MINUTE", { exact: true })).toBeVisible();
+  await expect(display).toHaveCSS("color", "rgb(166, 27, 27)");
+  const mobileBounds = await display.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const childRects = Array.from(element.children, (child) => child.getBoundingClientRect());
+    let clipLeft = 0;
+    let clipRight = window.innerWidth;
+    for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+      const overflow = getComputedStyle(ancestor).overflowX;
+      if (overflow === "hidden" || overflow === "clip") {
+        const box = ancestor.getBoundingClientRect();
+        clipLeft = Math.max(clipLeft, box.left);
+        clipRight = Math.min(clipRight, box.right);
+      }
+    }
+    return {
+      left: Math.min(rect.left, ...childRects.map((child) => child.left)),
+      right: Math.max(rect.right, ...childRects.map((child) => child.right)),
+      clipLeft,
+      clipRight,
+    };
+  });
+  expect(mobileBounds.left).toBeGreaterThanOrEqual(mobileBounds.clipLeft);
+  expect(mobileBounds.right).toBeLessThanOrEqual(mobileBounds.clipRight);
+  for (const name of ["타이머", "스톱워치", "Projector", "초기화", "+1분"]) {
+    const button = page.getByRole("button", { name, exact: true });
+    const bounds = await button.boundingBox();
+    expect(bounds, `${name} button should be visible`).not.toBeNull();
+    expect(bounds!.height, `${name} button should stay horizontal`).toBeLessThanOrEqual(60);
+    expect(bounds!.x).toBeGreaterThanOrEqual(mobileBounds.clipLeft);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(mobileBounds.clipRight);
+  }
+  const mobileFontSize = Number.parseFloat(await display.evaluate((element) => getComputedStyle(element).fontSize));
+  expect(mobileFontSize).toBeGreaterThanOrEqual(54);
+  expect(mobileFontSize).toBeLessThanOrEqual(55);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+}
+
 async function assertMobileStopwatchSurface(page: Page) {
   await expect(page.getByTestId("mobile-stopwatch-display")).toHaveText("00:00.00");
   await expect(page.getByRole("button", { name: "시작", exact: true })).toBeVisible();
@@ -125,12 +171,14 @@ test("타이머는 외부 글꼴 없이 관리자·강사 화면에서 안정적
   });
 
   await page.setViewportSize({ width: 1366, height: 900 });
-  await page.goto(`${BASE}/workspace/tools/stopwatch`);
+  await page.goto(`${BASE}/workspace/tools/stopwatch`, { waitUntil: "domcontentloaded" });
   await assertDesktopTimerSurface(page);
   await page.screenshot({ path: testInfo.outputPath("admin-stopwatch.png"), fullPage: true });
+  await assertResponsiveTimerSurface(page);
+  await page.screenshot({ path: testInfo.outputPath("admin-mobile-timer-viewport.png") });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`${BASE}/workspace/mobile/tools/stopwatch`);
+  await page.goto(`${BASE}/workspace/mobile/tools/stopwatch`, { waitUntil: "domcontentloaded" });
   await assertMobileStopwatchSurface(page);
   await page.screenshot({ path: testInfo.outputPath("teacher-mobile-stopwatch.png"), fullPage: true });
 
