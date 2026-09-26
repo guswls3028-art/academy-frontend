@@ -102,6 +102,9 @@ type ScheduleState = {
   createPayloads: Array<Record<string, unknown>>;
   updatePayloads: Array<{ id: number; payload: Record<string, unknown> }>;
   sessions?: Array<(typeof sessions)[number]>;
+  sessionReadQueries?: string[];
+  filterSessionRowsByQuery?: boolean;
+  createFailureCountByTitle?: Record<string, number>;
   failSessionRead?: boolean;
   sessionReadGate?: Promise<void>;
   settingsReadGate?: Promise<void>;
@@ -220,14 +223,28 @@ async function installApi(
     if (path === "/clinic/sessions/" && method === "GET") {
       await scheduleState?.sessionReadGate;
       if (scheduleState?.failSessionRead) return json({ detail: "temporary failure" }, 503);
+      scheduleState?.sessionReadQueries?.push(`${path}${url.search}`);
+      if (scheduleState?.filterSessionRowsByQuery) {
+        const dateFrom = url.searchParams.get("date_from");
+        const dateTo = url.searchParams.get("date_to");
+        return json(sessionRows.filter((session) =>
+          (!dateFrom || session.date >= dateFrom) && (!dateTo || session.date <= dateTo)
+        ));
+      }
       return json(sessionRows);
     }
     if (path === "/clinic/sessions/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       scheduleState?.createPayloads.push(payload);
       await scheduleState?.createGate;
+      const failures = scheduleState?.createFailureCountByTitle;
+      const title = String(payload.title ?? "");
+      if (failures?.[title]) {
+        failures[title] -= 1;
+        return json({ detail: "같은 시간의 일정과 충돌합니다." }, 409);
+      }
       const created = {
-        id: 799,
+        id: Math.max(798, ...sessionRows.map((session) => session.id)) + 1,
         title: String(payload.title ?? "클리닉"),
         date: String(payload.date),
         start_time: String(payload.start_time),
@@ -236,10 +253,7 @@ async function installApi(
         max_participants: Number(payload.max_participants),
         participant_count: 0,
         booked_count: 0,
-        allow_multi_slot_booking: payload.allow_multi_slot_booking === true,
-        booking_mode: payload.booking_mode,
-        booking_interval_minutes: payload.booking_interval_minutes,
-        booking_max_stay_minutes: payload.booking_max_stay_minutes,
+        ...payload,
       } as (typeof sessionRows)[number];
       const existingSession = sessionRows.find((session) => session.id === created.id);
       if (existingSession) Object.assign(existingSession, created);
@@ -256,7 +270,23 @@ async function installApi(
       if (session) Object.assign(session, payload);
       return json({ id: sessionId, ...payload });
     }
-    if (path === "/clinic/sessions/tree/" && method === "GET") return json(sessionRows.map(({ ...row }) => { delete (row as Record<string, unknown>).end_date; delete (row as Record<string, unknown>).end_time; return row; }));
+    if (path === "/clinic/sessions/tree/" && method === "GET") {
+      scheduleState?.sessionReadQueries?.push(`${path}${url.search}`);
+      const dateFrom = url.searchParams.get("date_from");
+      const dateTo = url.searchParams.get("date_to");
+      const year = Number(url.searchParams.get("year"));
+      const month = Number(url.searchParams.get("month"));
+      const rows = scheduleState?.filterSessionRowsByQuery
+        ? sessionRows.filter((session) => dateFrom || dateTo
+          ? (!dateFrom || session.date >= dateFrom) && (!dateTo || session.date <= dateTo)
+          : Number(session.date.slice(0, 4)) === year && Number(session.date.slice(5, 7)) === month)
+        : sessionRows;
+      return json(rows.map(({ ...row }) => {
+        delete (row as Record<string, unknown>).end_date;
+        delete (row as Record<string, unknown>).end_time;
+        return row;
+      }));
+    }
     const availabilityMatch = path.match(/^\/clinic\/sessions\/(\d+)\/availability\/$/);
     if (availabilityMatch && method === "GET") {
       const sessionId = Number(availabilityMatch[1]);
@@ -986,6 +1016,191 @@ test("월간 달력에서 원하는 날짜를 고르면 그날 일정만 명확�
     await expect(action).toBeVisible();
     expect(await action.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   }
+});
+
+test("월말을 건넌 이전 주 일정을 개별·전체 선택하고 같은 설정으로 복사한다", async ({ page }, testInfo) => {
+  const crossingMonthSessions = [
+    {
+      id: 801,
+      title: "9월 첫 수요일 클리닉",
+      date: "2026-09-02",
+      start_time: "16:30:00",
+      duration_minutes: 120,
+      location: "4층 심화실",
+      max_participants: 14,
+      participant_count: 1,
+      booked_count: 0,
+      target_grade: 2,
+      target_school_type: "HIGH",
+      target_lecture_ids: [31, 32],
+      section: 5,
+      allow_time_preference: true,
+      allow_multi_slot_booking: true,
+      booking_mode: "fixed_slot",
+      booking_interval_minutes: 30,
+      booking_max_stay_minutes: 120,
+    },
+    {
+      id: 802,
+      title: "9월 첫 일요일 클리닉",
+      date: "2026-09-06",
+      start_time: "18:00:00",
+      duration_minutes: 90,
+      location: "2층 보강실",
+      max_participants: 10,
+      participant_count: 0,
+      booked_count: 0,
+      target_grade: null,
+      target_school_type: null,
+      target_lecture_ids: [],
+      section: null,
+      allow_time_preference: false,
+      allow_multi_slot_booking: false,
+      booking_mode: "fixed_slot",
+      booking_interval_minutes: 60,
+      booking_max_stay_minutes: 240,
+    },
+  ];
+  const state: ScheduleState = {
+    createPayloads: [],
+    updatePayloads: [],
+    sessions: crossingMonthSessions as ScheduleState["sessions"],
+    sessionReadQueries: [],
+    filterSessionRowsByQuery: true,
+  };
+
+  await seed(page);
+  await installApi(page, undefined, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/schedule?date=2026-09-07`,
+    { timeout: 45_000 },
+  );
+
+  const importButton = page.getByRole("button", { name: "이전 주 복사", exact: true });
+  await expect(importButton).toBeVisible({ timeout: 30_000 });
+  await importButton.click();
+  const dialog = page.getByRole("dialog").filter({ hasText: "이전 주 클리닉 불러오기" });
+  await expect(dialog).toContainText("8/31 ~ 9/6 의 클리닉을 이번 주 동일 요일로 복사합니다");
+  await expect(dialog.getByText("이전 주에 클리닉이 없습니다.", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByText("9/2 (수)", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("9/6 (일)", { exact: true })).toBeVisible();
+
+  const sourceRows = dialog.locator(".clinic-import__session-item");
+  await expect(sourceRows).toHaveCount(2);
+  await sourceRows.first().click();
+  await expect(dialog.getByRole("button", { name: "1건 불러오기", exact: true })).toBeEnabled();
+  await dialog.getByRole("button", { name: "전체 선택 (2건)", exact: true }).click();
+  await expect(dialog.getByRole("button", { name: "2건 불러오기", exact: true })).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath("previous-week-import-1366.png") });
+
+  await dialog.getByRole("button", { name: "취소", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "이전 주 복사", exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "전체 선택 (2건)", exact: true }).click();
+  await expect(dialog.getByRole("button", { name: "2건 불러오기", exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  for (const row of await sourceRows.all()) {
+    const box = await row.boundingBox();
+    expect(box?.width ?? 0).toBeLessThanOrEqual(390);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  }
+  await page.screenshot({ path: testInfo.outputPath("previous-week-import-390.png") });
+  await dialog.getByRole("button", { name: "2건 불러오기", exact: true }).click();
+
+  await expect.poll(() => state.createPayloads.length).toBe(2);
+  expect(state.createPayloads).toEqual([
+    {
+      title: "9월 첫 수요일 클리닉",
+      date: "2026-09-09",
+      start_time: "16:30:00",
+      duration_minutes: 120,
+      location: "4층 심화실",
+      max_participants: 14,
+      target_grade: 2,
+      target_school_type: "HIGH",
+      target_lecture_ids: [31, 32],
+      section: 5,
+      allow_time_preference: true,
+      allow_multi_slot_booking: true,
+      booking_mode: "fixed_slot",
+      booking_interval_minutes: 30,
+      booking_max_stay_minutes: 120,
+    },
+    {
+      title: "9월 첫 일요일 클리닉",
+      date: "2026-09-13",
+      start_time: "18:00:00",
+      duration_minutes: 90,
+      location: "2층 보강실",
+      max_participants: 10,
+      target_grade: null,
+      target_school_type: null,
+      target_lecture_ids: [],
+      section: null,
+      allow_time_preference: false,
+      allow_multi_slot_booking: false,
+      booking_mode: "fixed_slot",
+      booking_interval_minutes: 60,
+      booking_max_stay_minutes: 240,
+    },
+  ]);
+  expect(state.sessionReadQueries).toContain(
+    "/clinic/sessions/tree/?date_from=2026-08-31&date_to=2026-09-06",
+  );
+  expect(state.sessionReadQueries).toContain(
+    "/clinic/sessions/tree/?date_from=2026-09-07&date_to=2026-09-13",
+  );
+  expect(state.createPayloads.every((payload) =>
+    !("participant_count" in payload) && !("booked_count" in payload)
+  )).toBe(true);
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("article").filter({ hasText: "9월 첫 수요일 클리닉" })).toBeVisible();
+  await expect(page.getByRole("article").filter({ hasText: "9월 첫 일요일 클리닉" })).toBeVisible();
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("article").filter({ hasText: "9월 첫 수요일 클리닉" })).toBeVisible();
+  await expect(page.getByRole("article").filter({ hasText: "9월 첫 일요일 클리닉" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("이전 주 복사 일부 실패는 성공 항목을 보존하고 실패 항목만 다시 시도한다", async ({ page }) => {
+  const state: ScheduleState = {
+    createPayloads: [],
+    updatePayloads: [],
+    sessions: [
+      { ...sessions[0], id: 801, date: "2026-09-02", title: "복사 성공 일정" },
+      { ...sessions[1], id: 802, date: "2026-09-03", title: "재시도 일정" },
+    ],
+    filterSessionRowsByQuery: true,
+    createFailureCountByTitle: { "재시도 일정": 1 },
+  };
+  await seed(page);
+  await installApi(page, undefined, undefined, state);
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule?date=2026-09-07`, { timeout: 45_000 });
+
+  await page.getByRole("button", { name: "이전 주 복사", exact: true }).click();
+  const dialog = page.getByRole("dialog").filter({ hasText: "이전 주 클리닉 불러오기" });
+  await expect(dialog.locator(".clinic-import__session-item")).toHaveCount(2);
+  await dialog.getByRole("button", { name: "전체 선택 (2건)", exact: true }).click();
+  await dialog.getByRole("button", { name: "2건 불러오기", exact: true }).click();
+
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "1건 불러오기", exact: true })).toBeEnabled();
+  await expect(dialog.locator(".clinic-import__session-item--selected")).toContainText("재시도 일정");
+  await expect(page.getByText("같은 시간의 일정과 충돌합니다.", { exact: false })).toBeVisible();
+  await dialog.getByRole("button", { name: "1건 불러오기", exact: true }).click();
+
+  await expect(dialog).toHaveCount(0);
+  expect(state.createPayloads.map((payload) => payload.title)).toEqual([
+    "복사 성공 일정", "재시도 일정", "재시도 일정",
+  ]);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("article").filter({ hasText: "복사 성공 일정" })).toBeVisible();
+  await expect(page.getByRole("article").filter({ hasText: "재시도 일정" })).toBeVisible();
 });
 
 test("월간 달력은 42일 경계를 유지하고 방향키와 Space로 날짜를 선택한다", async ({ page }) => {
