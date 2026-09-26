@@ -13,6 +13,45 @@ const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5173").replace(/\/+$
 
 test.use({ serviceWorkers: "block", strictBrowserAutoAssert: false });
 
+test("malformed settings response shows a retry instead of crashing", async ({ page }) => {
+  test.setTimeout(90_000);
+  const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const token = `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "hakwonplus", user_id: 12 })}.sig`;
+  await page.addInitScript(({ access }) => {
+    localStorage.setItem("tenant_code", "hakwonplus");
+    localStorage.setItem("access", access);
+    localStorage.setItem("refresh", `${access}-refresh`);
+    sessionStorage.setItem("tenantCode", "hakwonplus");
+  }, { access: token });
+  let validResponse = false;
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const json = (body: unknown) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    if (request.method() === "OPTIONS") return route.fulfill({ status: 204, body: "" });
+    if (path === "/core/program/") return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    if (path === "/core/me/") return json({ id: 12, username: "owner", name: "학원장", is_staff: true, tenantRole: "owner", must_change_password: false, first_login_guide_required: false });
+    if (path === "/messaging/info/") return json({ alimtalk_available: true, tenant_messaging_enabled: true, messaging_ops_hold: false, can_manage_messaging: true, messaging_disabled: false });
+    if (path === "/messaging/auto-send/") return json(validResponse ? [] : { count: 0, results: [] });
+    if (path === "/messaging/templates/") return json([]);
+    return json({ count: 0, results: [] });
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${BASE}/workspace/message/auto-send`, { waitUntil: "commit", timeout: 60_000 });
+  const loadError = page.getByText("자동발송 설정을 불러오지 못했습니다.");
+  await expect(loadError).toBeVisible({ timeout: 30_000 });
+  validResponse = true;
+  await page.getByRole("button", { name: "다시 시도" }).click();
+  await expect(loadError).toBeHidden({ timeout: 30_000 });
+  expect(pageErrors).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await page.reload({ waitUntil: "commit", timeout: 60_000 });
+  await expect(loadError).toBeHidden({ timeout: 30_000 });
+});
+
 test("auto-send keeps a failed draft across navigation and serializes newer edits", async ({ page }) => {
   test.setTimeout(90_000);
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");

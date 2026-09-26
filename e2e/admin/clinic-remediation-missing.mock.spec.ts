@@ -88,6 +88,7 @@ for (const width of [390, 1366]) {
         const body = routeData.response(path, method, url.search) as { results: Array<Record<string, unknown>> };
         return json({ count: 1, next: null, previous: null, results: body.results.map((row) => ({ ...row, student: 310, student_name: "작업대 학생", enrollment_id: 910 })) });
       }
+      if (path === "/messaging/auto-send/" && method === "GET") return json([]);
       if (method !== "GET") unexpectedWrites.push(`${method} ${path}`);
       return json(routeData.response(path, method, url.search));
     });
@@ -1007,6 +1008,7 @@ test("다른 기기에서 생긴 오늘 예약은 열린 운영 화면의 학생
     });
 
     if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/messaging/auto-send/" && method === "GET") return json([]);
     return json(routeData.response(path, method, url.search));
   });
 
