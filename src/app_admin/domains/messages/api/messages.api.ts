@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/messages/api/messages.api.ts
 // 알림톡 잔액 · 충전 · 카카오 연동 · 발송 로그 (Backend 연동 대비)
 
-import api from "@/shared/api/axios";
+import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
 
 const PREFIX = "/messaging";
 
@@ -601,7 +601,7 @@ export async function fetchAutoSendConfigs(): Promise<AutoSendConfigItem[]> {
   return res.data;
 }
 
-export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>[], signal?: AbortSignal): Promise<AutoSendConfigItem[]> {
+export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>[], signal?: AbortSignal, authGeneration?: string): Promise<AutoSendConfigItem[]> {
   const payload = configs.map((c) => {
     const item: Record<string, unknown> = {
       trigger: c.trigger,
@@ -617,7 +617,7 @@ export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>
   });
   const res = await api.patch<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`, {
     configs: payload,
-  }, { signal });
+  }, authGeneration ? createAuthSessionBoundConfig(authGeneration, signal) : { signal });
   return res.data;
 }
 

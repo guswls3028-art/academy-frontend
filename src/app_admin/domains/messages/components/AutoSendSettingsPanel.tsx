@@ -189,7 +189,7 @@ function TriggerCard({
   const handleChannelToggle = (checked: boolean) => {
     if (!channelMode) {
       // unified mode — simple enable/disable
-      onUpdate({ ...config, enabled: checked });
+      onUpdate({ trigger: config.trigger, enabled: checked });
       return;
     }
     const { message_mode, enabled } = deriveMessageMode(
@@ -198,7 +198,7 @@ function TriggerCard({
       channelMode,
       checked,
     );
-    onUpdate({ ...config, message_mode, enabled });
+    onUpdate({ trigger: config.trigger, message_mode, enabled });
   };
 
   const isReminder = isReminderTrigger(config.trigger);
@@ -348,7 +348,7 @@ function TriggerCard({
               value="alimtalk"
               onChange={() =>
                 onUpdate({
-                  ...config,
+                  trigger: config.trigger,
                   message_mode: "alimtalk",
                 })
               }
@@ -365,7 +365,7 @@ function TriggerCard({
           <Switch
             size="small"
             checked={config.show_actual_time ?? false}
-            onChange={(checked) => onUpdate({ ...config, show_actual_time: checked })}
+            onChange={(checked) => onUpdate({ trigger: config.trigger, show_actual_time: checked })}
             aria-label={`${AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger} 실제 처리 시각 표시`}
           />
           <span className={styles.clinicTimeText}>
@@ -587,6 +587,7 @@ export default function AutoSendSettingsPanel({
         <div className={panelStyles.header}>
           <h2 className={panelStyles.headerTitle}>{title}</h2>
           <p className={panelStyles.headerDesc}>{description}</p>
+          {saveError && <p role="alert" className={styles.saveError}>{saveError} <Button onClick={retrySave}>다시 저장</Button></p>}
         </div>
         <div className={styles.cardsBody}>
           <div className={panelStyles.contentInner}>
@@ -605,6 +606,7 @@ export default function AutoSendSettingsPanel({
         <div className={panelStyles.header}>
           <h2 className={panelStyles.headerTitle}>{title}</h2>
           <p className={panelStyles.headerDesc}>자동발송 설정을 불러오지 못했습니다.</p>
+          {saveError && <p role="alert" className={styles.saveError}>{saveError} <Button onClick={retrySave}>다시 저장</Button></p>}
           <Button intent="secondary" onClick={() => void refetch()}>다시 시도</Button>
         </div>
       </div>
@@ -618,6 +620,7 @@ export default function AutoSendSettingsPanel({
         <div className={panelStyles.header}>
           <h2 className={panelStyles.headerTitle}>{title}</h2>
           <p className={panelStyles.headerDesc}>{description}</p>
+          {saveError && <p role="alert" className={styles.saveError}>{saveError} <Button onClick={retrySave}>다시 저장</Button></p>}
         </div>
         <div className={panelStyles.placeholder}>
           <FiZap

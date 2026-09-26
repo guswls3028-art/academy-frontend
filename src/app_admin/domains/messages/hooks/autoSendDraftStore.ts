@@ -16,9 +16,9 @@ export class AutoSendDraft {
 
   constructor(
     private qc: QueryClient,
-    private tenant: string,
+    private owner: string,
     private save: (patches: Partial<AutoSendConfigItem>[], signal: AbortSignal) => Promise<AutoSendConfigItem[]>,
-    private currentTenant: () => string | null,
+    private currentOwner: () => string | null,
     private onSaved: () => void,
   ) {}
 
@@ -60,18 +60,18 @@ export class AutoSendDraft {
 
   private async flush() {
     if (this.running || this.disposed || !this.snapshot.patches.length) return;
-    if (this.currentTenant() !== this.tenant) { this.dispose(); return; }
+    if (this.currentOwner() !== this.owner) { this.dispose(); return; }
     this.running = true;
     const sent = this.snapshot.patches;
     this.abort = new AbortController();
     this.publish({ ...this.snapshot, saving: true });
     try {
       await this.qc.cancelQueries({ queryKey: messageQueryKeys.autoSend });
-      if (this.disposed || this.currentTenant() !== this.tenant) { this.dispose(); return; }
+      if (this.disposed || this.currentOwner() !== this.owner) { this.dispose(); return; }
       const saved = await this.save(sent, this.abort.signal);
-      if (this.disposed || this.currentTenant() !== this.tenant) { this.dispose(); return; }
+      if (this.disposed || this.currentOwner() !== this.owner) { this.dispose(); return; }
       await this.qc.cancelQueries({ queryKey: messageQueryKeys.autoSend });
-      if (this.disposed || this.currentTenant() !== this.tenant) { this.dispose(); return; }
+      if (this.disposed || this.currentOwner() !== this.owner) { this.dispose(); return; }
       // Only remove fields that still equal the submitted values. Edits made during
       // the request remain pending and are sent after this response.
       const remaining = this.snapshot.patches.flatMap((current) => {
@@ -128,16 +128,16 @@ export function clearAutoSendDrafts(qc: QueryClient) {
 export function getAutoSendDraft(
   qc: QueryClient,
   scope: string,
-  tenant: string,
+  owner: string,
   save: (patches: Partial<AutoSendConfigItem>[], signal: AbortSignal) => Promise<AutoSendConfigItem[]>,
-  currentTenant: () => string | null,
+  currentOwner: () => string | null,
   onSaved: () => void,
 ) {
   let byScope = drafts.get(qc);
   if (!byScope) { byScope = new Map(); drafts.set(qc, byScope); }
   let current = byScope.get(scope);
   if (!current) {
-    current = new AutoSendDraft(qc, tenant, save, currentTenant, onSaved);
+    current = new AutoSendDraft(qc, owner, save, currentOwner, onSaved);
     byScope.set(scope, current);
   }
   return current;

@@ -245,7 +245,7 @@ function TriggerCard({
         <div className={styles.cardActions}>
           <Switch
             checked={isSystem ? deliveryReady : isUnimplemented ? false : config.enabled}
-            onChange={(checked) => onUpdate({ ...config, enabled: checked })}
+            onChange={(checked) => onUpdate({ trigger: config.trigger, enabled: checked })}
             disabled={operationalDisabled || isSystem || isDisabled || isUnimplemented || !config.effective_template_is_approved}
             aria-label={`${AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger} 자동 발송`}
             size="small"
@@ -361,7 +361,7 @@ function TriggerCard({
                 <select
                   className={`ds-select ${styles.channelSelect}`}
                   value="alimtalk"
-                  onChange={() => onUpdate({ ...config, message_mode: "alimtalk" })}
+                  onChange={() => onUpdate({ trigger: config.trigger, message_mode: "alimtalk" })}
                   disabled={isUnimplemented}
                 >
                   <option value="alimtalk">알림톡</option>
@@ -494,6 +494,7 @@ export default function MessageAutoSendPage() {
             <p className={panelStyles.headerDesc}>
               학원 운영 이벤트 발생 시 학생·학부모에게 알림톡을 자동 발송합니다.
             </p>
+            {saveError && <p role="alert" className={styles.saveError}>{saveError} <Button onClick={retrySave}>다시 저장</Button></p>}
         </div>
         <div className={panelStyles.body}>
           <aside className={panelStyles.tree}>
@@ -517,6 +518,7 @@ export default function MessageAutoSendPage() {
         <div className={panelStyles.header}>
           <h2 className={panelStyles.headerTitle}>자동발송</h2>
           <p className={panelStyles.headerDesc}>자동발송 설정을 불러오지 못했습니다.</p>
+          {saveError && <p role="alert" className={styles.saveError}>{saveError} <Button onClick={retrySave}>다시 저장</Button></p>}
           <Button
             intent="secondary"
             onClick={() => void Promise.all([refetchConfigs(), refetchTemplates(), refetchCustomTemplates()])}

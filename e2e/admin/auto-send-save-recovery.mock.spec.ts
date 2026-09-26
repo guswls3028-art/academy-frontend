@@ -49,6 +49,7 @@ test("auto-send keeps a failed draft across navigation and serializes newer edit
     if (path === "/messaging/info/") return json({ alimtalk_available: true, tenant_messaging_enabled: true, messaging_ops_hold: false, can_manage_messaging: true, messaging_disabled: false });
     if (path === "/messaging/auto-send/" && request.method() === "PATCH") {
       const body = request.postDataJSON() as { configs: Array<{ delay_value: number }> };
+      expect(Object.keys(body.configs[0]).sort()).toEqual(["delay_value", "trigger"]);
       writes.push(body.configs[0].delay_value);
       active += 1;
       maxActive = Math.max(maxActive, active);
@@ -149,6 +150,23 @@ test("logout and tenant switch discard a pending draft before any cross-account 
   await new Promise((resolve) => setTimeout(resolve, 650));
   expect(oldTenantDraft.getSnapshot().patches).toEqual([]);
   expect(patches).toBe(0);
+  clearAutoSendDrafts(qc);
+});
+
+test("same-tenant auth-session switch discards an earlier account's queued save", async () => {
+  const qc = new QueryClient();
+  let owner = "tenant-a:auth-1";
+  let writes = 0;
+  const draft = getAutoSendDraft(
+    qc, "tenant-a:auth-1:1", owner,
+    async () => { writes += 1; return [configItem(45)]; },
+    () => owner, () => {},
+  );
+  draft.edit([{ trigger: "withdrawal_complete", delay_value: 45 }], true);
+  owner = "tenant-a:auth-2";
+  await new Promise((resolve) => setTimeout(resolve, 650));
+  expect(writes).toBe(0);
+  expect(draft.getSnapshot().patches).toEqual([]);
   clearAutoSendDrafts(qc);
 });
 

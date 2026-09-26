@@ -42,7 +42,7 @@ export default function AutoSendTimingControl({
   }, [config.delay_value, config.trigger, delayMode]);
 
   const patch = (next: Partial<AutoSendConfigItem>, debounce = false) => {
-    onUpdate({ ...config, ...next }, debounce);
+    onUpdate({ trigger: config.trigger, ...next }, debounce);
   };
 
   if (isReminderTrigger(config.trigger)) {
