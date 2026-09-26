@@ -787,6 +787,107 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await expect(page.getByRole("heading", { name: "커뮤니티에서 무엇을 할까요?" })).toBeVisible();
   });
 
+  test("학생 홈과 메뉴의 게시판·자료실 링크가 목록, 상세, 첨부파일까지 연결된다", async ({ page }, testInfo) => {
+    await installStudentApi(page);
+    const board = {
+      id: 181, post_type: "board", title: "게시판 안내", content: "<p>함께 읽는 글입니다.</p>",
+      created_by: 1, created_by_display: "담당 선생님", created_at: "2026-09-20T09:00:00+09:00",
+      mappings: [], attachments: [],
+    };
+    const materials = {
+      id: 182, post_type: "materials", title: "1차시 학습 자료", content: "<p>복습 자료입니다.</p>",
+      created_by: 1, created_by_display: "담당 선생님", created_at: "2026-09-20T09:00:00+09:00",
+      mappings: [], attachments: [{ id: 1701, original_name: "복습.pdf", content_type: "application/pdf", size_bytes: 1024 }],
+    };
+    await page.route(/\/community\/posts\/(board|materials)\/(?:\?.*)?$/, async (route) => {
+      await route.fulfill({ json: [route.request().url().includes("/board/") ? board : materials] });
+    });
+    await page.route(/\/community\/posts\/(181|182)\/(?:\?.*)?$/, async (route) => {
+      await route.fulfill({ json: route.request().url().includes("/181/") ? board : materials });
+    });
+    await page.route(/\/community\/posts\/182\/attachments\/1701\/download\/(?:\?.*)?$/, async (route) => {
+      await route.fulfill({ json: {
+        url: "data:application/pdf;base64,JVBERi0xLjQKJUVPRgo=",
+        original_name: "복습.pdf",
+      } });
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    const shortcuts = page.getByRole("region", { name: "게시판과 자료실" });
+    await expect(shortcuts).toBeVisible();
+    const boardLink = shortcuts.getByRole("link", { name: /게시판/ });
+    const materialsLink = shortcuts.getByRole("link", { name: /자료실/ });
+    await expect(boardLink).toHaveAttribute("href", "/student/community?tab=board");
+    await expect(materialsLink).toHaveAttribute("href", "/student/community?tab=materials");
+    expect((await boardLink.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    const mobileScreenshot = testInfo.outputPath("student-content-shortcuts-390.png");
+    await page.screenshot({ path: mobileScreenshot, fullPage: true });
+    await testInfo.attach("student-content-shortcuts-390", { path: mobileScreenshot, contentType: "image/png" });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const desktopScreenshot = testInfo.outputPath("student-content-shortcuts-1366.png");
+    await page.screenshot({ path: desktopScreenshot, fullPage: true });
+    await testInfo.attach("student-content-shortcuts-1366", { path: desktopScreenshot, contentType: "image/png" });
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await boardLink.click();
+    await expect(page).toHaveURL(/\/student\/community\?tab=board$/);
+    await expect(page.getByRole("button", { name: "게시판", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: /게시판 안내/ }).click();
+    await expect(page.getByRole("heading", { name: "게시판 안내" })).toBeVisible();
+    await page.getByRole("button", { name: "뒤로", exact: true }).click();
+    await expect(page.getByRole("button", { name: /게시판 안내/ })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "게시판", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByRole("button", { name: "메뉴 열기" }).click();
+    const drawer = page.getByRole("dialog", { name: "메뉴" });
+    await expect(drawer.getByRole("link", { name: "커뮤니티", exact: true })).toBeVisible();
+    await expect(drawer.getByRole("link", { name: "게시판", exact: true })).toHaveAttribute("href", "/student/community?tab=board");
+    await drawer.getByRole("link", { name: "자료실", exact: true }).click();
+    await expect(page).toHaveURL(/\/student\/community\?tab=materials$/);
+    await page.getByRole("button", { name: /1차시 학습 자료/ }).click();
+    await expect(page.getByRole("heading", { name: "1차시 학습 자료" })).toBeVisible();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: /복습.pdf/ }).click();
+    expect((await downloadPromise).suggestedFilename()).toBe("복습.pdf");
+    await page.getByRole("button", { name: "뒤로", exact: true }).click();
+    await expect(page.getByRole("button", { name: /1차시 학습 자료/ })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "자료실", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.goBack();
+    await expect(page).toHaveURL(/\/student\/community\?tab=board$/);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test("게시판·자료실 직접 URL은 조회 실패 뒤 재시도로 빈 상태를 구분한다", async ({ page }) => {
+    await installStudentApi(page);
+    const recover = { board: false, materials: false };
+    await page.route(/\/community\/posts\/(board|materials)\/(?:\?.*)?$/, async (route) => {
+      const kind = route.request().url().includes("/board/") ? "board" : "materials";
+      if (recover[kind]) {
+        await route.fulfill({ json: [] });
+      } else {
+        await route.fulfill({ status: 503, json: { detail: "temporary content failure" } });
+      }
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const [kind, error, empty] of [
+      ["board", "게시물을 불러오지 못했습니다", "등록된 게시물이 없습니다"],
+      ["materials", "자료를 불러오지 못했습니다", "등록된 자료가 없습니다"],
+    ] as const) {
+      await page.goto(`${BASE}/student/community?tab=${kind}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      await expect(page.getByText(error, { exact: true })).toBeVisible();
+      recover[kind] = true;
+      await page.getByRole("button", { name: "다시 시도" }).click();
+      await expect(page.getByText(empty, { exact: true })).toBeVisible();
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+  });
+
   test("영상 홈·차시·재생목록은 다중 이스케이프 HTML을 일반 텍스트로만 표시한다", async ({ page }) => {
     await installStudentApi(page);
     await page.setViewportSize({ width: 1366, height: 900 });

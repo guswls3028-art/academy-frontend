@@ -551,6 +551,24 @@ export default function DashboardPage() {
         )}
       </section>
 
+      <section className={`${styles.quickSection} ${styles.contentShortcuts}`} aria-label="게시판과 자료실">
+        <div className={styles.sectionLabel}>학원 소식·자료</div>
+        <div className={styles.quickGrid}>
+          <QuickAction
+            to="/student/community?tab=board"
+            icon={<IconBoard />}
+            label="게시판"
+            detail="학원 게시글 보기"
+          />
+          <QuickAction
+            to="/student/community?tab=materials"
+            icon={<IconFolder />}
+            label="자료실"
+            detail="수업 자료 받기"
+          />
+        </div>
+      </section>
+
       <section className={styles.quickSection} aria-label="자주 쓰는 일">
         <div className={styles.sectionLabel}>자주 쓰는 일</div>
         <div className={styles.quickGrid}>
