@@ -64,7 +64,7 @@ export function formatCorrectChoiceForDisplay(value: string): string {
     const subset = choices.filter((_, index) => (mask & (1 << index)) !== 0);
     if (!actual.has(formatChoiceAnswer(subset))) return value;
   }
-  return `${formatChoiceAnswer(choices).replaceAll(",", "·")} 중 하나 이상`;
+  return `${formatChoiceAnswer(choices).replace(/,/g, "·")} 중 하나 이상`;
 }
 
 export function choiceAnswerMatches(answer: string, correct: string): boolean {
