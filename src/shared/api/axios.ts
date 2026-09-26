@@ -45,6 +45,12 @@ type RetryConfig = ApiRequestConfig & {
 /** AllowAny 엔드포인트(예: /core/program/) 호출 시 만료 토큰 401 방지 */
 export type ApiRequestConfig = AxiosRequestConfig & { skipAuth?: boolean; playbackUnload?: true };
 
+/** Reject a queued mutation if another login becomes active before its interceptor runs. */
+export function createAuthSessionBoundConfig(expectedGeneration: string, signal?: AbortSignal): ApiRequestConfig {
+  const config: RetryConfig = { signal, _authGeneration: expectedGeneration };
+  return config;
+}
+
 /** Capture the request generation before axios schedules its interceptor chain. */
 export function createPlaybackUnloadConfig(): ApiRequestConfig {
   const config: RetryConfig = { playbackUnload: true };
