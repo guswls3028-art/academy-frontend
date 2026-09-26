@@ -86,8 +86,10 @@ test("7쪽 자동 생성 실패 안내에서 직접 자르기·다운로드·새
   await page.getByRole("button", { name: "PPT 생성 및 다운로드" }).click();
   const rejected = await badResponse;
   expect(rejected.status()).toBe(400);
-  expect((await rejected.json() as { job_id?: string }).job_id).toBeUndefined();
-  await expect(page.locator(".ant-message-error")).toBeVisible();
+  const rejectedBody = await rejected.json() as { code?: string; job_id?: string };
+  expect(rejectedBody.code).toBe("invalid_pdf");
+  expect(rejectedBody.job_id).toBeUndefined();
+  await expect(page.getByText("유효한 PDF 파일이 아닙니다.")).toBeVisible();
   await expect(page.getByText("broken.pdf")).toBeVisible();
   await expect(page.getByRole("button", { name: "PPT 생성 및 다운로드" })).toBeEnabled();
 
