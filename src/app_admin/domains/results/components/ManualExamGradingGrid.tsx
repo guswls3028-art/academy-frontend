@@ -32,6 +32,7 @@ import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useAssessmentDirtyRegistration } from "@/shared/ui/assessment/AssessmentEditGuard";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 import AnswerKeyRegisterModal from "@admin/domains/exams/components/AnswerKeyRegisterModal";
 import { initExamQuestions } from "@admin/domains/exams/api/questionInit.api";
@@ -679,6 +680,17 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     () => data?.questions ?? [],
     [data?.questions],
   );
+  const questionLabels = useMemo(() => {
+    const labels = new Map<number, string>();
+    let essayIndex = 0;
+    [...visibleQuestions].sort((a, b) => a.number - b.number).forEach((question) => {
+      if (question.kind === "essay") essayIndex += 1;
+      labels.set(question.question_id, examQuestionLabel(
+        question.number, exam?.essay_numbering, question.kind === "essay" ? essayIndex : null,
+      ));
+    });
+    return labels;
+  }, [exam?.essay_numbering, visibleQuestions]);
   const questionTypeCounts = useMemo(
     () =>
       visibleQuestions.reduce(
@@ -2061,7 +2073,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
                         {getQuestionAnswerTypeLabel(answerType)}
                       </span>
                       <strong className={styles.questionNumber}>
-                        {question.number}
+                        {questionLabels.get(question.question_id)}
                       </strong>
                     </div>
                     {question.editable ? (
@@ -2074,7 +2086,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
                           style={scoreInputStyle}
                           title={`${questionScoreDraft[key] ?? ""}점`}
                           disabled={busy || isOverviewMode}
-                          aria-label={`${question.number}번 배점`}
+                          aria-label={`${questionLabels.get(question.question_id)} 배점`}
                           onChange={(event) =>
                             setQuestionScore(
                               question.question_id,
@@ -2099,6 +2111,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
                 row={row}
                 rowIndex={rowIndex}
                 questions={visibleQuestions}
+                questionLabels={questionLabels}
                 questionScoreDraft={questionScoreDraft}
                 manualGradingMethod={data.manual_grading_method}
                 hasEditableQuestions={hasEditableQuestions}
@@ -2220,6 +2233,7 @@ type ManualGradingTableRowProps = {
   row: ManualGradeRow;
   rowIndex: number;
   questions: ManualGradeQuestion[];
+  questionLabels: Map<number, string>;
   questionScoreDraft: Record<string, string>;
   manualGradingMethod: ManualGradeSheet["manual_grading_method"];
   hasEditableQuestions: boolean;
@@ -2249,6 +2263,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
   row,
   rowIndex,
   questions,
+  questionLabels,
   questionScoreDraft,
   manualGradingMethod,
   hasEditableQuestions,
@@ -2336,14 +2351,14 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
               <ReadOnlyGradeCell
                 cell={cell}
                 studentName={row.student_name}
-                questionNumber={question.number}
+                questionLabel={questionLabels.get(question.question_id) ?? `${question.number}번`}
               />
             ) : manualGradingMethod === "correctness" ? (
               <CorrectnessCell
                 value={cell.state}
                 disabled={row.is_not_submitted || busy}
                 studentName={row.student_name}
-                questionNumber={question.number}
+                questionLabel={questionLabels.get(question.question_id) ?? `${question.number}번`}
                 rowIndex={rowIndex}
                 columnIndex={columnIndex}
                 shortcuts={shortcuts}
@@ -2367,7 +2382,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
                 review={cell.include_in_wrong_note}
                 disabled={row.is_not_submitted || busy}
                 studentName={row.student_name}
-                questionNumber={question.number}
+                questionLabel={questionLabels.get(question.question_id) ?? `${question.number}번`}
                 rowIndex={rowIndex}
                 columnIndex={columnIndex}
                 onMoveFocus={onMoveFocus}
@@ -2399,6 +2414,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
   previous.row === next.row &&
   previous.rowIndex === next.rowIndex &&
   previous.questions === next.questions &&
+  previous.questionLabels === next.questionLabels &&
   previous.questionScoreDraft === next.questionScoreDraft &&
   previous.manualGradingMethod === next.manualGradingMethod &&
   previous.hasEditableQuestions === next.hasEditableQuestions &&
@@ -2409,11 +2425,11 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
 function ReadOnlyGradeCell({
   cell,
   studentName,
-  questionNumber,
+  questionLabel,
 }: {
   cell: ManualGradeCell;
   studentName: string;
-  questionNumber: number;
+  questionLabel: string;
 }) {
   const label = cell.state ? STATE_CELL_LABEL[cell.state] : "·";
   return (
@@ -2421,7 +2437,7 @@ function ReadOnlyGradeCell({
       className={`${styles.correctnessCell} ${styles.readOnlyCell} ${
         cell.state ? styles[cell.state] : styles.empty
       }`}
-      aria-label={`${studentName} ${questionNumber}번 자동채점 ${cell.state ? STATE_LABEL[cell.state] : "결과 없음"}`}
+      aria-label={`${studentName} ${questionLabel} 자동채점 ${cell.state ? STATE_LABEL[cell.state] : "결과 없음"}`}
       title={cell.score == null ? "자동채점 결과 없음" : `${formatScore(cell.score)}점`}
     >
       {label}
@@ -2433,7 +2449,7 @@ function CorrectnessCell({
   value,
   disabled,
   studentName,
-  questionNumber,
+  questionLabel,
   rowIndex,
   columnIndex,
   shortcuts,
@@ -2445,7 +2461,7 @@ function CorrectnessCell({
   value: ManualGradeState | null;
   disabled: boolean;
   studentName: string;
-  questionNumber: number;
+  questionLabel: string;
   rowIndex: number;
   columnIndex: number;
   shortcuts: ManualGradingShortcutSettings;
@@ -2468,7 +2484,7 @@ function CorrectnessCell({
         value ? styles[value] : styles.empty
       }`}
       disabled={disabled}
-      aria-label={`${studentName} ${questionNumber}번 ${value ? STATE_LABEL[value] : "미입력"}`}
+      aria-label={`${studentName} ${questionLabel} ${value ? STATE_LABEL[value] : "미입력"}`}
       aria-keyshortcuts={`${shortcuts.correct} ${shortcuts.incorrect} ${shortcuts.review}`}
       data-manual-grade-cell
       data-row-index={rowIndex}
@@ -2571,7 +2587,7 @@ function ScoreCell({
   review,
   disabled,
   studentName,
-  questionNumber,
+  questionLabel,
   rowIndex,
   columnIndex,
   onMoveFocus,
@@ -2583,7 +2599,7 @@ function ScoreCell({
   review: boolean;
   disabled: boolean;
   studentName: string;
-  questionNumber: number;
+  questionLabel: string;
   rowIndex: number;
   columnIndex: number;
   onMoveFocus: (
@@ -2602,7 +2618,7 @@ function ScoreCell({
         step="any"
         value={value ?? ""}
         disabled={disabled}
-        aria-label={`${studentName} ${questionNumber}번 ${formatScoreInput(maxScore)}점 만점 점수`}
+        aria-label={`${studentName} ${questionLabel} ${formatScoreInput(maxScore)}점 만점 점수`}
         data-manual-grade-cell
         data-row-index={rowIndex}
         data-column-index={columnIndex}

@@ -9,6 +9,7 @@ export type OMRDefaults = {
   session_name: string;
   mc_count: number;
   essay_count: number;
+  essay_numbering?: "continuous" | "separate";
   include_optional_essay_area: boolean;
   can_include_optional_essay_area: boolean;
   n_choices: number;
@@ -24,6 +25,7 @@ export type OMRParams = {
   session_name?: string;
   mc_count: number;
   essay_count: number;
+  essay_numbering?: "continuous" | "separate";
   include_optional_essay_area: boolean;
   n_choices: number;
   choice_question_numbers?: number[];

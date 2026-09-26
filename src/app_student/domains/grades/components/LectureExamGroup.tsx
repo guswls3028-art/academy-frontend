@@ -5,6 +5,7 @@ import { Link } from "react-router";
 import { IconExam, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import { Badge } from "@/shared/ui/ds";
 import { useWrongCompletionDisplay, wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
+import { essayIndexFromBoundary, examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 import GradeBadge from "./GradeBadge";
 import type { MyExamGradeSummary } from "../api/grades.api";
 import styles from "./LectureGradeGroup.module.css";
@@ -28,9 +29,13 @@ function examScoreLabel(exam: MyExamGradeSummary): string {
   return fmtScore(exam.total_score, exam.max_score);
 }
 
-function wrongPreview(numbers?: number[]): string {
+function wrongPreview(exam: MyExamGradeSummary): string {
+  const numbers = exam.wrong_question_numbers;
   if (!Array.isArray(numbers) || numbers.length === 0) return "";
-  const shown = numbers.slice(0, 6).join(", ");
+  const shown = numbers.slice(0, 6).map((number) => examQuestionLabel(
+    number, exam.essay_numbering,
+    essayIndexFromBoundary(number, exam.grading_mode, exam.choice_question_count),
+  )).join(", ");
   return numbers.length > 6 ? `${shown} 외 ${numbers.length - 6}` : shown;
 }
 
@@ -46,7 +51,7 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
             && e.meta_status !== "NOT_SUBMITTED"
             && !subjectivePending;
           const wrongCount = Number(e.wrong_count ?? 0);
-          const wrongNumbers = wrongPreview(e.wrong_question_numbers);
+          const wrongNumbers = wrongPreview(e);
           const correction = wrongCompletionOnly
             ? {
                 label: wrongCompletionLabel(e.correction_status),
@@ -90,7 +95,7 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                       {hasQuestionAnalysis && (wrongCount > 0 ? (
                         <>
                           <span className={styles.analysisLabel}>오답 {wrongCount}문항</span>
-                          {wrongNumbers && <span className={styles.analysisNumbers}>{wrongNumbers}번</span>}
+                          {wrongNumbers && <span className={styles.analysisNumbers}>{wrongNumbers}</span>}
                         </>
                       ) : (
                         <span className={styles.analysisLabel}>전 문항 정답</span>
