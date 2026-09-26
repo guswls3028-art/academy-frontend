@@ -117,19 +117,16 @@ function parseChoiceDraft(value: string): Set<string> {
   return new Set(tokens);
 }
 
-function formatChoiceDraft(values: Set<string>): string {
-  return CHOICES.filter((choice) => values.has(choice)).join(",");
-}
-
-type ChoiceRule = "all" | "any" | "one-only" | "custom";
-
 /** A pipe separates acceptable mark sets; a comma requires marks together. */
-function formatAnyChoiceDraft(values: Set<string>): string {
+function formatChoiceDraft(values: Set<string>, mode: "all" | "any" = "all"): string {
   const choices = CHOICES.filter((choice) => values.has(choice));
+  if (mode === "all") return choices.join(",");
   return Array.from({ length: (1 << choices.length) - 1 }, (_, index) =>
     choices.filter((_, position) => ((index + 1) & (1 << position)) !== 0).join(",")
   ).join("|");
 }
+
+type ChoiceRule = "all" | "any" | "one-only" | "custom";
 
 function choiceRuleForDraft(draft: string): ChoiceRule {
   if (!draft.trim()) return "all";
@@ -143,7 +140,7 @@ function choiceRuleForDraft(draft: string): ChoiceRule {
   const actual = new Set(alternatives.map((parts) => formatChoiceDraft(new Set(parts))));
   if (actual.size !== alternatives.length) return "custom";
   const selected = new Set(alternatives.flat());
-  const expected = new Set(formatAnyChoiceDraft(selected).split("|"));
+  const expected = new Set(formatChoiceDraft(selected, "any").split("|"));
   if (actual.size === expected.size && [...actual].every((answer) => expected.has(answer))) return "any";
   if (alternatives.every((parts) => parts.length === 1)) return "one-only";
   return "custom";
@@ -1702,7 +1699,7 @@ function ChoiceRow({
     if (choiceRule === "one-only") onChange(CHOICES.filter((item) => next.has(item)).join("|"));
     else {
       if (acceptsAny) setAddingException(true);
-      onChange(acceptsAny ? formatAnyChoiceDraft(next) : formatChoiceDraft(next));
+      onChange(formatChoiceDraft(next, acceptsAny ? "any" : "all"));
     }
   };
 
@@ -1800,7 +1797,7 @@ function ChoiceRow({
           </button>
         )}
         {editable && choiceRule === "one-only" && (
-          <button type="button" className="answer-key-row__rule-action" onClick={() => onChange(formatAnyChoiceDraft(selectedChoices))}>
+          <button type="button" className="answer-key-row__rule-action" onClick={() => onChange(formatChoiceDraft(selectedChoices, "any"))}>
             함께 선택해도 정답 처리
           </button>
         )}
@@ -1811,7 +1808,7 @@ function ChoiceRow({
         ) : (
           <button type="button" className="answer-key-row__rule-action" onClick={() => {
             setAddingException(true);
-            if (selectedChoices.size > 1) onChange(formatAnyChoiceDraft(selectedChoices));
+            if (selectedChoices.size > 1) onChange(formatChoiceDraft(selectedChoices, "any"));
           }}>
             + 예외 정답
           </button>

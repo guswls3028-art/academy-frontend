@@ -54,7 +54,7 @@ export function formatChoiceAnswer(tokens: string[]): string {
   return CHOICE_LABELS.filter((choice) => selected.has(choice)).join(",");
 }
 
-export function formatCorrectChoiceForDisplay(value: string): string {
+export function describeCorrectChoiceForDisplay(value: string): string {
   const sets = choiceAnswerSets(value);
   const choices = choiceTokens(value);
   if (choices.length < 2 || sets.length !== (1 << choices.length) - 1) return value;
