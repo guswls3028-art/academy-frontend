@@ -49,6 +49,16 @@ export type OmrUploadBatchSummary = {
   duplicate_ordinals: number[];
   terminal: boolean;
   overall_status: "receiving" | "processing" | "completed" | "needs_identification" | "failed";
+  /** OMR 처리와 별개인 최종 채점 상태. 이전 서버 응답도 허용한다. */
+  grading_complete?: boolean;
+  grading_status?: "completed" | "subjective_pending" | "pending";
+  grading_counts?: {
+    completed: number;
+    subjective_pending: number;
+    manual_review_required: number;
+    grading_pending: number;
+  };
+  subjective_pending_ordinals?: number[];
   completion_notice_claimed: boolean;
   created_at: string;
   updated_at: string;
