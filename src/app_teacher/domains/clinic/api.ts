@@ -77,10 +77,29 @@ export async function fetchClinicSessions(params: {
 
 /** 클리닉 세션의 참가자 목록 */
 export async function fetchClinicParticipants(sessionId: number): Promise<TeacherClinicParticipant[]> {
-  const res = await api.get("/clinic/participants/", {
-    params: { session: sessionId, page_size: 200 },
+  type ParticipantPage = { count?: number; next?: string | null; results?: TeacherClinicParticipant[] };
+  const getPage = (page: number) => api.get("/clinic/participants/", {
+    params: { session: sessionId, page_size: 200, ordering: "id", page },
   });
-  return listFromApiResponse<TeacherClinicParticipant>(res.data);
+  const first = (await getPage(1)).data as ParticipantPage | TeacherClinicParticipant[];
+  if (Array.isArray(first)) return first;
+  if (!Array.isArray(first?.results)) throw new Error("참가자 명단 응답 형식이 올바르지 않습니다.");
+
+  const rows = [...first.results];
+  let next = first.next;
+  let page = 1;
+  while (next) {
+    if (++page > 100) throw new Error("참가자 명단이 너무 많아 모두 확인할 수 없습니다.");
+    const data = (await getPage(page)).data as ParticipantPage;
+    if (!Array.isArray(data?.results)) throw new Error("참가자 명단을 끝까지 불러오지 못했습니다.");
+    rows.push(...data.results);
+    next = data.next;
+  }
+  const uniqueRows = [...new Map(rows.map((row) => [row.id, row])).values()];
+  if (typeof first.count === "number" && uniqueRows.length < first.count) {
+    throw new Error("참가자 명단을 끝까지 불러오지 못했습니다.");
+  }
+  return uniqueRows;
 }
 
 /** 참가자 상태 변경 (출석/결석) */

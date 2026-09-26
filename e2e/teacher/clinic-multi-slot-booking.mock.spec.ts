@@ -510,6 +510,7 @@ test("선생님이 모바일과 데스크톱에서 예약 승인부터 하원·�
   const uncompletedIds: number[] = [];
   const completedIds: number[] = [];
   let rejectFirstApproval = true;
+  let participantPageTwoReads = 0;
 
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
@@ -552,7 +553,11 @@ test("선생님이 모바일과 데스크톱에서 예약 승인부터 하원·�
     }
     if (path === "/clinic/sessions/" && request.method() === "GET") return json([session]);
     if (path === "/clinic/participants/" && request.method() === "GET") {
-      return json({ count: participants.length, results: participants });
+      if (url.searchParams.get("page") === "2") {
+        participantPageTwoReads += 1;
+        return json({ count: participants.length, next: null, results: participants.slice(5) });
+      }
+      return json({ count: participants.length, next: "?page=2", results: participants.slice(0, 5) });
     }
 
     const statusMatch = path.match(/^\/clinic\/participants\/(\d+)\/set_status\/$/);
@@ -615,6 +620,7 @@ test("선생님이 모바일과 데스크톱에서 예약 승인부터 하원·�
   const completedRow = page.getByTestId("teacher-clinic-participant-913");
   const readyRow = page.getByTestId("teacher-clinic-participant-914");
   const missingIdentityRow = page.getByTestId("teacher-clinic-participant-915");
+  await expect.poll(() => participantPageTwoReads).toBeGreaterThan(0);
 
   await expect(approveRow).toContainText("승인 대기");
   await expect(approveRow.locator(".ds-student-name--clinic-highlight")).toHaveText("승인 검수 학생");
