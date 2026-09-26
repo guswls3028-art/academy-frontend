@@ -71,6 +71,17 @@
   line-height: 1.35;
 }
 
+.saveError {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+  color: var(--color-status-warning, #d97706);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .cardActions {
   display: inline-flex;
   flex-shrink: 0;

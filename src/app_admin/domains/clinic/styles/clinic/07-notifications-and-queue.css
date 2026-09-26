@@ -19,6 +19,26 @@
   color: var(--text-secondary, #555);
   margin-right: 2px;
 }
+.clinic-ops__autosend-notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 12px 8px;
+  font-size: 13px;
+}
+.clinic-ops__autosend-notice--error {
+  color: var(--color-status-warning, #d97706);
+  font-weight: 600;
+}
+.clinic-ops__autosend-notice button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
 .clinic-ops__trigger-badge {
   display: inline-flex;
   align-items: center;

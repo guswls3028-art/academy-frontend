@@ -408,7 +408,16 @@ export default function ClinicConsoleWorkspace({
   const [waiveTarget, setWaiveTarget] = useState<ClinicTarget | null>(null);
   const [waivingTargetKey, setWaivingTargetKey] = useState<string | null>(null);
 
-  const { configs: autoSendConfigs, toggleEnabled, isToggling } = useAutoSendConfig();
+  const {
+    configs: autoSendConfigs,
+    toggleEnabled,
+    isToggling,
+    isLoading: autoSendLoading,
+    isError: autoSendLoadError,
+    refetch: refetchAutoSendConfigs,
+    saveError: autoSendSaveError,
+    retrySave: retryAutoSendSave,
+  } = useAutoSendConfig();
   const clinicTargetsQuery = useClinicTargets();
   const {
     data: clinicTargets,
@@ -1592,7 +1601,16 @@ export default function ClinicConsoleWorkspace({
         )}
 
         {/* ═══ 알림 트리거 상태 — ON/OFF 인디케이터 ═══ */}
-        {!isLoading && !isError && !isAggregate && session && (() => {
+        {!isLoading && !isError && !isAggregate && session && autoSendLoading && (
+          <div className="clinic-ops__autosend-notice" role="status">알림 설정을 불러오는 중입니다.</div>
+        )}
+        {!isLoading && !isError && !isAggregate && session && autoSendLoadError && (
+          <div className="clinic-ops__autosend-notice clinic-ops__autosend-notice--error" role="alert">
+            알림 설정을 불러오지 못했습니다.
+            <button type="button" onClick={() => void refetchAutoSendConfigs()}>다시 시도</button>
+          </div>
+        )}
+        {!isLoading && !isError && !isAggregate && session && !autoSendLoading && !autoSendLoadError && (() => {
           const CLINIC_TRIGGERS = [
             { key: "clinic_reservation_created", label: "예약 완료", desc: "클리닉 예약이 완료되면 학부모에게 예약 안내를 발송합니다." },
             { key: "clinic_check_in", label: "참석", desc: "출석 버튼을 누르면 학부모에게 입실 알림을 발송합니다." },
@@ -1690,6 +1708,12 @@ export default function ClinicConsoleWorkspace({
             </div>
           );
         })()}
+        {!isLoading && !isError && !isAggregate && session && autoSendSaveError && (
+          <div className="clinic-ops__autosend-notice clinic-ops__autosend-notice--error" role="alert">
+            {autoSendSaveError}
+            <button type="button" onClick={retryAutoSendSave}>다시 저장</button>
+          </div>
+        )}
 
         {/* ═══ B. 상태 필터 칩 — 미확인 우선 강조 ═══ */}
         {!isLoading && !isError && workspaceMode === "day" && rosterParticipants.length > 0 && (

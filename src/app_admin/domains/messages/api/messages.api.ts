@@ -601,7 +601,7 @@ export async function fetchAutoSendConfigs(): Promise<AutoSendConfigItem[]> {
   return res.data;
 }
 
-export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>[]): Promise<AutoSendConfigItem[]> {
+export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>[], signal?: AbortSignal): Promise<AutoSendConfigItem[]> {
   const payload = configs.map((c) => {
     const item: Record<string, unknown> = {
       trigger: c.trigger,
@@ -617,7 +617,7 @@ export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>
   });
   const res = await api.patch<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`, {
     configs: payload,
-  });
+  }, { signal });
   return res.data;
 }
 
