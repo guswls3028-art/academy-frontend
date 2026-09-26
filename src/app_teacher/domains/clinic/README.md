@@ -115,6 +115,7 @@ transport 재시도 예산이 끝난 뒤 화면 재시도를 제공하므로 무
 - API와 타입: `src/app_teacher/domains/clinic/api.ts`
 - 다중 시간·학생 선택: `components/AddParticipantSheet.tsx`
 - 세션 생성 정책·참가자 화면: `pages/ClinicPage.tsx`
+- 참가자 상태 배지·버튼: `components/ParticipantStatusControls.tsx`
 - 공용 개설 방식 카드: `src/shared/ui/clinic/ClinicBookingModeChoice.tsx`
 - 원자 요청·상태 전이 payload·하이라이트·새로고침·390px/데스크톱 가로 넘침 회귀:
   `e2e/teacher/clinic-multi-slot-booking.mock.spec.ts`
