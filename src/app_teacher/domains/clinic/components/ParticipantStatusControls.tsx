@@ -18,6 +18,7 @@ export function SmallBtn({
       disabled={disabled}
       title={title}
       className="min-h-11 text-xs font-semibold px-2 py-1.5 rounded cursor-pointer"
+      // eslint-disable-next-line no-restricted-syntax -- 버튼 색상은 작업 상태에 따라 바뀐다.
       style={{
         color,
         background: `color-mix(in srgb, ${color} 10%, transparent)`,
@@ -50,6 +51,7 @@ export function StatusBadge({ status, isLate, checkedOut }: { status: string; is
   return (
     <span
       className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+      // eslint-disable-next-line no-restricted-syntax -- 배지 색상은 서버 참가자 상태에 따라 바뀐다.
       style={{ color: st.color, background: `color-mix(in srgb, ${st.color} 12%, transparent)` }}
     >
       {st.label}
