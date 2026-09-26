@@ -1372,8 +1372,12 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`;
     await loginBrowserAsRealUser(page, setupPath,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
-    await page.locator("#assessment-policy > details > summary").click();
-    await page.getByLabel("서술형 번호", { exact: true }).selectOption("separate");
+    const policyDisclosure = page.locator("#assessment-policy > details");
+    if (!(await policyDisclosure.evaluate((details: HTMLDetailsElement) => details.open))) {
+      await policyDisclosure.locator("summary").click();
+    }
+    await expect(policyDisclosure).toHaveJSProperty("open", true);
+    await policyDisclosure.getByLabel("서술형 번호", { exact: true }).selectOption("separate");
     const numberingSaved = page.waitForResponse((response) => matchesApiResponse(response, "PATCH", `/exams/${created.examId}/`));
     await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
     expect((await numberingSaved).status()).toBe(200);
