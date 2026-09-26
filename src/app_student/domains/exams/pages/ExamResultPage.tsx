@@ -3,13 +3,13 @@
  * 대표 Result + ResultItem(문항별) 렌더링
  * 서버 권한 기반 정답 노출 (answer_visibility)
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { Badge } from "@/shared/ui/ds";
 import { useMyExamResult } from "@student/domains/exams/hooks/useMyExamResult";
-import { useMyExamResultItems } from "@student/domains/exams/hooks/useMyExamResultItems";
+import { examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 import type { ExamResultAnalysis, MyExamResultItem } from "@student/domains/exams/api/results";
 import GradeBadge from "@student/domains/grades/components/GradeBadge";
 import { useWrongCompletionDisplay, wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
@@ -21,7 +21,14 @@ export default function ExamResultPage() {
   const safeId = Number(examId);
 
   const resultQ = useMyExamResult(Number.isFinite(safeId) ? safeId : undefined);
-  const itemsQ = useMyExamResultItems(Number.isFinite(safeId) ? safeId : undefined);
+  const essayIndices = useMemo(() => {
+    const indexes = new Map<number, number>();
+    const resultItems = resultQ.data?.student_results_published === false ? [] : resultQ.data?.items ?? [];
+    resultItems.forEach((item) => {
+      if (item.essay_index != null) indexes.set(item.question_number, item.essay_index);
+    });
+    return indexes;
+  }, [resultQ.data]);
 
   if (!Number.isFinite(safeId)) {
     return (
@@ -48,7 +55,7 @@ export default function ExamResultPage() {
         <EmptyState
           title="결과를 불러오지 못했어요."
           description="아직 채점 전이거나, 시험에 응시하지 않았을 수 있어요."
-          onRetry={() => resultQ.refetch()}
+          onRetry={() => { void resultQ.refetch(); }}
         />
       </StudentPageShell>
     );
@@ -72,7 +79,12 @@ export default function ExamResultPage() {
       </StudentPageShell>
     );
   }
-  const items = itemsQ.data ?? [];
+  const items = r.items ?? [];
+  const questionLabel = (number: number) => examQuestionLabel(
+    number,
+    r.essay_numbering,
+    essayIndices.get(number),
+  );
   const pct = r.max_score > 0 ? clampPercent(Math.round((r.total_score / r.max_score) * 100)) : 0;
   // 최종 합격 여부: 1차 합격(is_pass) OR 클리닉 재시험 통과(remediated)
   const finalPass = r.final_pass ?? r.is_pass;
@@ -157,6 +169,7 @@ export default function ExamResultPage() {
             cohortAvg={r.cohort_avg ?? null}
             myScore={r.total_score}
             maxScore={r.max_score}
+            questionLabel={questionLabel}
           />
         )}
 
@@ -188,17 +201,6 @@ export default function ExamResultPage() {
               문항별 결과
             </div>
 
-            {itemsQ.isLoading && (
-              <div className={`stu-muted ${styles.mutedSmall}`}>
-                불러오는 중...
-              </div>
-            )}
-            {itemsQ.isError && (
-              <div className={styles.dangerSmall}>
-                문항별 결과를 불러오지 못했어요.
-              </div>
-            )}
-
             {!r.answers_visible && items.length > 0 && (
               <div className={`stu-muted ${styles.answersNote}`}>
                 정답 내용은 비공개입니다. 틀린 번호와 내 답만 확인할 수 있습니다.
@@ -211,10 +213,11 @@ export default function ExamResultPage() {
                 items={items}
                 showAnswer={!!r.answers_visible}
                 answersVisible={!!r.answers_visible}
+                questionLabel={questionLabel}
               />
             )}
 
-            {items.length === 0 && !itemsQ.isLoading && !itemsQ.isError && (
+            {items.length === 0 && (
               <div className={`stu-muted ${styles.mutedSmall}`}>
                 문항별 결과가 아직 없어요.
               </div>
@@ -310,11 +313,13 @@ function AnalysisOverviewCard({
   cohortAvg,
   myScore,
   maxScore,
+  questionLabel,
 }: {
   analysis: ExamResultAnalysis;
   cohortAvg: number | null;
   myScore: number;
   maxScore: number;
+  questionLabel: (number: number) => string;
 }) {
   const diff = cohortAvg != null ? Math.round((myScore - cohortAvg) * 10) / 10 : null;
   const scoreRate = maxScore > 0 ? clampPercent(Math.round((myScore / maxScore) * 100)) : null;
@@ -359,7 +364,7 @@ function AnalysisOverviewCard({
         <div className={styles.wrongNumberList}>
           {analysis.wrong_question_numbers.length > 0 ? (
             analysis.wrong_question_numbers.map((num) => (
-              <span key={num} className={styles.wrongNumberChip} data-testid="wrong-number-chip">{num}</span>
+              <span key={num} className={styles.wrongNumberChip} data-testid="wrong-number-chip">{questionLabel(num)}</span>
             ))
           ) : (
             <span className={styles.noWrongChip}>없음</span>
@@ -553,10 +558,12 @@ function QuestionGrid({
   items,
   showAnswer,
   answersVisible,
+  questionLabel,
 }: {
   items: QuestionItemData[];
   showAnswer: boolean;
   answersVisible: boolean;
+  questionLabel: (number: number) => string;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const selectedItem = items.find((it) => it.question_number === selected);
@@ -576,13 +583,13 @@ function QuestionGrid({
                 setSelected(isSelected ? null : it.question_number)
               }
               aria-pressed={isSelected}
-              aria-label={`${it.question_number}번 ${it.is_correct ? "정답" : "오답"}`}
+              aria-label={`${questionLabel(it.question_number)} ${it.is_correct ? "정답" : "오답"}`}
               className={styles.questionButton}
               data-answers-visible={answersVisible}
               data-correct={it.is_correct}
               data-selected={isSelected}
             >
-              {it.question_number}
+              {questionLabel(it.question_number)}
             </button>
           );
         })}
@@ -596,7 +603,7 @@ function QuestionGrid({
         >
           <div className={styles.questionDetailHeader}>
             <span className={styles.questionNumber}>
-              {selectedItem.question_number}번
+              {questionLabel(selectedItem.question_number)}
             </span>
             <GradeBadge
               passed={selectedItem.is_correct}

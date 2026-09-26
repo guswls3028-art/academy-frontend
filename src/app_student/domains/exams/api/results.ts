@@ -36,6 +36,8 @@ type PublishedExamResult = {
   can_retake: boolean;
   answer_visibility?: AnswerVisibility;
   answers_visible?: boolean;
+  essay_numbering?: "continuous" | "separate";
+  items?: MyExamResultItem[];
   // 석차 정보
   rank?: number | null;
   percentile?: number | null;
@@ -58,6 +60,7 @@ export type MyExamResult = PublishedExamResult | UnpublishedExamResult;
 export type MyExamResultItem = {
   question_id: number;
   question_number: number;
+  essay_index?: number;
   student_answer: string | null;
   correct_answer: string | null;
   score: number;

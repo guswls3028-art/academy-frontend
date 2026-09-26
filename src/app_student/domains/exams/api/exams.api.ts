@@ -12,6 +12,9 @@ export type StudentExam = {
   max_attempts: number;
   pass_score: number;
   max_score: number;
+  essay_numbering?: "continuous" | "separate";
+  grading_mode?: "choice" | "written" | "mixed";
+  choice_question_count?: number;
   description?: string | null;
   session_id?: number | null;
   status?: string;
@@ -55,6 +58,7 @@ export type StudentExamQuestion = {
   number: number;
   score: number;
   answer_format: "text" | "integer_0_999";
+  question_kind?: "choice" | "essay" | null;
 };
 
 export async function fetchStudentExamQuestions(

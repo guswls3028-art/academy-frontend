@@ -41,6 +41,9 @@ export type MyExamGradeSummary = {
   wrong_count?: number;
   accuracy_rate?: number | null;
   wrong_question_numbers?: number[];
+  grading_mode?: "choice" | "written" | "mixed";
+  choice_question_count?: number;
+  essay_numbering?: "continuous" | "separate";
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
   lecture_active?: boolean;
   grading_status?: "subjective_pending" | null;
