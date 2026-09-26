@@ -33,7 +33,7 @@ export interface PptGenerateResponse {
   filename: string;
   slide_count: number;
   size_bytes: number;
-  // PDF 모드 결과 분기. "question" = 문항 단위, "page" = 페이지 단위 fallback (스캔 PDF). 이미지 모드는 undefined.
+  // PDF 모드 결과 분기. "question" = 문항 단위, "page" = 페이지 단위 fallback. 이미지 모드는 undefined.
   mode?: "question" | "page";
 }
 
@@ -52,6 +52,15 @@ export interface JobProgressResponse {
   } | null;
   result?: PptGenerateResponse;
   error_message?: string | null;
+}
+
+export async function getPptJobStatus(jobId: string, signal?: AbortSignal): Promise<JobProgressResponse> {
+  const response = await api.get<JobProgressResponse>(`/jobs/${encodeURIComponent(jobId)}/`, { signal });
+  const job = response.data;
+  if (job.job_id !== jobId || job.job_type !== "ppt_generation") {
+    throw new Error("이 PPT 작업을 확인할 수 없습니다.");
+  }
+  return job;
 }
 
 const PPT_SUBMIT_TIMEOUT_MS = 10 * 60 * 1000;
