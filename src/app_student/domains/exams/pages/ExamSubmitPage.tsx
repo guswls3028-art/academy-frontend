@@ -17,6 +17,7 @@ import { useAuthContext } from "@/auth/context/AuthContext";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { useTrackedTask } from "@/shared/productAnalytics";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
+import { essayIndexFromBoundary, examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 import { studentExamQueryKeys } from "../queryKeys";
 import {
   getLocalItem,
@@ -67,6 +68,22 @@ export default function ExamSubmitPage() {
     enabled: Number.isFinite(safeId),
   });
   const questions = useMemo(() => questionsQ.data ?? [], [questionsQ.data]);
+  const essayIndexes = useMemo(() => {
+    const indexes = new Map<number, number>();
+    [...questions].sort((a, b) => a.number - b.number).forEach((question) => {
+      const exam = examQ.data;
+      const isEssay = question.question_kind === "essay" || (
+        question.question_kind == null && essayIndexFromBoundary(
+          question.number, exam?.grading_mode, exam?.choice_question_count,
+        ) != null
+      );
+      if (isEssay) indexes.set(question.id, indexes.size + 1);
+    });
+    return indexes;
+  }, [questions, examQ.data]);
+  const questionLabel = (question: (typeof questions)[number]) => examQuestionLabel(
+    question.number, examQ.data?.essay_numbering, essayIndexes.get(question.id),
+  );
   const loadingQuestions = questionsQ.isLoading;
 
   const selectedStudentId = isParent ? getParentStudentId() : null;
@@ -139,7 +156,7 @@ export default function ExamSubmitPage() {
       if (question.answer_format === "integer_0_999") {
         const numericAnswer = normalizeNumericShortAnswer(answer);
         if (numericAnswer === null) {
-          setError(`${question.number}번 답은 0~999 사이의 정수로 입력해 주세요.`);
+          setError(`${questionLabel(question)} 답은 0~999 사이의 정수로 입력해 주세요.`);
           return;
         }
         normalizedAnswers.push({ exam_question_id: questionId, answer: numericAnswer });
@@ -322,7 +339,7 @@ export default function ExamSubmitPage() {
 
             <div className="stu-section">
               <div className={`stu-section-header ${styles.sectionHeader}`}>
-                문항별 답 입력 (1 ~ {questions.length})
+                문항별 답 입력 ({questions.length}문항)
               </div>
               <div className={styles.answerList}>
                 {questions.map((q) => (
@@ -331,7 +348,7 @@ export default function ExamSubmitPage() {
                     className={styles.answerRow}
                   >
                     <span className={styles.questionNumber}>
-                      {q.number}
+                      {questionLabel(q)}
                     </span>
                     <span className={`stu-muted ${styles.scoreLabel}`}>
                       배점 {q.score}
@@ -353,7 +370,7 @@ export default function ExamSubmitPage() {
                       }}
                       placeholder={q.answer_format === "integer_0_999" ? "0~999" : "1~5, O/X, 단답"}
                       maxLength={q.answer_format === "integer_0_999" ? 3 : 20}
-                      aria-label={`${q.number}번 답`}
+                      aria-label={`${questionLabel(q)} 답`}
                     />
                   </div>
                 ))}

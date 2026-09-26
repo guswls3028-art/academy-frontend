@@ -54,8 +54,9 @@ const exams = [
   },
 ] as const;
 
-async function installRoutes(page: Page) {
+async function installRoutes(page: Page, options: { choicePending?: boolean } = {}) {
   const unexpectedMutations: string[] = [];
+  let savedSubjectiveScore: number | null = null;
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -93,15 +94,16 @@ async function installRoutes(page: Page) {
             attempt_count: 1,
             clinic_link_id: null,
             block: {
-              score: exam.exam_id === MIXED_EXAM_ID ? 80 : null,
+              score: exam.exam_id === MIXED_EXAM_ID ? 80 + (savedSubjectiveScore ?? 0) : exam.exam_id === CHOICE_EXAM_ID && options.choicePending ? 80 : null,
               max_score: 100,
               passed: null,
               clinic_required: false,
               is_locked: false,
-              objective_score: exam.exam_id === MIXED_EXAM_ID ? 80 : null,
-              subjective_score: null,
-              is_provisional: exam.exam_id === MIXED_EXAM_ID,
-              grading_status: exam.exam_id === MIXED_EXAM_ID ? "subjective_pending" : null,
+              objective_score: exam.exam_id === MIXED_EXAM_ID || (exam.exam_id === CHOICE_EXAM_ID && options.choicePending) ? 80 : null,
+              subjective_score: exam.exam_id === MIXED_EXAM_ID ? savedSubjectiveScore : null,
+              is_provisional: exam.exam_id === MIXED_EXAM_ID && savedSubjectiveScore == null,
+              grading_status: (exam.exam_id === MIXED_EXAM_ID && savedSubjectiveScore == null)
+                || (exam.exam_id === CHOICE_EXAM_ID && options.choicePending) ? "subjective_pending" : null,
               correction_status: "NOT_REQUIRED",
               meta: {},
             },
@@ -156,7 +158,7 @@ async function installRoutes(page: Page) {
             color: "#2563eb",
             chip_label: "중",
           }],
-          expected_version: null,
+          expected_version: savedSubjectiveScore == null ? null : "saved-1",
           is_not_submitted: false,
           exam_not_submitted_count: 0,
           cells: {
@@ -170,11 +172,28 @@ async function installRoutes(page: Page) {
             "10002": {
               editable: true,
               entry_method: "score",
-              state: null,
-              score: null,
+              state: savedSubjectiveScore == null ? null : "incorrect",
+              score: savedSubjectiveScore,
               include_in_wrong_note: false,
             },
           },
+        }],
+      });
+    }
+    if (path.endsWith(`/results/admin/exams/${MIXED_EXAM_ID}/manual-grading/`) && method === "POST") {
+      const body = request.postDataJSON() as { apply: boolean; rows: Array<{ cells: Record<string, { score?: number }> }> };
+      const subjectiveScore = body.rows[0]?.cells["10002"]?.score;
+      if (typeof subjectiveScore !== "number") return fulfill({ detail: "서술형 점수가 필요합니다" }, 400);
+      if (body.apply) savedSubjectiveScore = subjectiveScore;
+      return fulfill({
+        ok: true, applied: body.apply, exam_id: MIXED_EXAM_ID,
+        exam_title: "중대부고 2회차 혼합형", grading_mode: "mixed", manual_grading_method: "score",
+        matched_count: 1, question_count: 2, overwrite_count: 0, not_submitted_count: 0, errors: [],
+        rows: [{
+          enrollment_id: 9911, student_name: "테스트 학생", correct_count: 1,
+          wrong_count: 1, wrong_questions: [2], review_count: 0, review_questions: [],
+          total_score: 80 + subjectiveScore, max_score: 100, will_overwrite: false,
+          is_not_submitted: false,
         }],
       });
     }
@@ -304,7 +323,7 @@ async function installRoutes(page: Page) {
   return unexpectedMutations;
 }
 
-async function openScores(page: Page) {
+async function openScores(page: Page, options: { choicePending?: boolean; gradingExamId?: number } = {}) {
   const baseUrl = getBaseUrl("admin");
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl),
@@ -316,9 +335,9 @@ async function openScores(page: Page) {
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
   }, createLocalJwt());
-  const unexpectedMutations = await installRoutes(page);
+  const unexpectedMutations = await installRoutes(page, options);
   await page.goto(
-    `${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+    `${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores${options.gradingExamId ? `?gradingExamId=${options.gradingExamId}` : ""}`,
     { waitUntil: "domcontentloaded", timeout: 45_000 },
   );
   await expect(page).toHaveURL(new RegExp(`/sessions/${SESSION_ID}/scores`));
@@ -330,6 +349,12 @@ async function openScores(page: Page) {
 
 test.describe("OMR와 서술형 점수 입력 진입", () => {
   test.setTimeout(90_000);
+
+  test("작업박스 링크로 해당 시험의 서술형 입력을 바로 연다", async ({ page }) => {
+    await openScores(page, { gradingExamId: MIXED_EXAM_ID });
+    await expect(page.getByRole("region", { name: "혼합 채점 워크스페이스" })).toBeVisible();
+    await expect(page).not.toHaveURL(/gradingExamId=/);
+  });
 
   test("30문항 스캔을 열고 첫 객관식 답안을 수정·저장·원복한다", async ({ page }) => {
     const unexpectedMutations = await openScores(page);
@@ -376,7 +401,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     });
 
     await page.getByTestId("subjective-pending-banner")
-      .getByRole("button", { name: "중대부고 2회차 혼합형 서술형 점수 입력" }).click();
+      .getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" }).click();
     await expect(page.getByRole("region", { name: "혼합 채점 워크스페이스" })).toBeVisible();
     await page.getByRole("button", { name: "OMR 결과 보정", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "OMR 검토", exact: true })).toBeVisible();
@@ -428,8 +453,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       }
       return route.fallback();
     });
-    await page.getByRole("button", { name: "서술형 점수 입력", exact: true }).click();
-    await page.getByRole("listbox", { name: "직접 채점 시험 선택" }).getByRole("option", { name: /혼합형/ }).click();
+    await page.getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" }).click();
     await expect(page.getByRole("region", { name: "혼합 채점 워크스페이스" })).toBeVisible();
     await page.getByRole("button", { name: "OMR 결과 보정", exact: true }).click();
     const review = page.getByRole("dialog", { name: "OMR 검토", exact: true });
@@ -439,13 +463,16 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
-  test("시험 계약으로 가능한 작업만 자동 노출하고 혼합형은 한 화면에서 이어진다", async ({ page }) => {
+  test("시험별 남은 채점을 보여주고 혼합형은 한 화면에서 이어진다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     const unexpectedMutations = await openScores(page);
 
     const omrButton = page.getByRole("button", { name: "OMR 스캔 등록" });
-    const subjectiveButton = page.getByRole("button", { name: "서술형 점수 입력", exact: true });
-    await expect(subjectiveButton).toBeVisible();
+    const mixedButton = page.getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" });
+    await expect(mixedButton).toBeVisible();
+    await expect(page.getByText("객관식 저장 완료 · 서술형 1명 남음")).toBeVisible();
+    await expect(page.getByRole("button", { name: "중대부고 2회차 서술형 문항별 점수 입력" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "중대부고 2회차 객관식 문항별 점수 입력" })).toHaveCount(0);
 
     await omrButton.click();
     const omrPicker = page.getByRole("listbox", { name: "OMR 시험 선택" });
@@ -455,13 +482,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await expect(omrPicker.getByRole("option", { name: /서술형/ })).toHaveCount(0);
     await page.keyboard.press("Escape");
 
-    await subjectiveButton.click();
-    const subjectivePicker = page.getByRole("listbox", { name: "직접 채점 시험 선택" });
-    await expect(subjectivePicker.getByText("직접 채점할 시험 선택", { exact: true })).toBeVisible();
-    await expect(subjectivePicker.getByRole("option", { name: /서술형/ })).toBeVisible();
-    await expect(subjectivePicker.getByRole("option", { name: /혼합형/ })).toBeVisible();
-    await expect(subjectivePicker.getByRole("option", { name: /객관식/ })).toHaveCount(0);
-    await subjectivePicker.getByRole("option", { name: /혼합형/ }).click();
+    await mixedButton.click();
 
     const gradingDialog = page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 혼합 채점" });
     await expect(gradingDialog).toBeVisible();
@@ -471,27 +492,27 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await gradingDialog.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(gradingDialog).toHaveCount(0);
     await expect(page).toHaveURL(new RegExp(`/sessions/${SESSION_ID}/scores`));
-    await expect(subjectiveButton).toBeVisible();
+    await expect(mixedButton).toBeVisible();
     expect(unexpectedMutations).toEqual([]);
   });
 
-  test("390px에서도 두 작업 진입점과 시험 선택이 넘치지 않는다", async ({ page }) => {
+  test("390px에서도 OMR과 시험별 채점 진입점이 넘치지 않는다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     const unexpectedMutations = await openScores(page);
 
     for (const button of [
       page.getByRole("button", { name: "OMR 스캔 등록" }),
-      page.getByRole("button", { name: "서술형 점수 입력", exact: true }),
+      page.getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" }),
     ]) {
       const box = await button.boundingBox();
-      expect(box?.height).toBeGreaterThanOrEqual(44);
+      expect(box?.height, await button.getAttribute("aria-label") ?? await button.innerText()).toBeGreaterThanOrEqual(44);
       expect(box?.x).toBeGreaterThanOrEqual(0);
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390);
     }
 
-    await page.getByRole("button", { name: "서술형 점수 입력", exact: true }).click();
-    const picker = page.getByRole("listbox", { name: "직접 채점 시험 선택" });
-    await expect(picker).toBeVisible();
+    await page.getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" }).click();
+    await expect(page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 혼합 채점" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "채점표 배율 선택" })).toHaveValue("80");
     await expect.poll(() => page.evaluate(() => ({
       body: document.body.scrollWidth - document.body.clientWidth,
       document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -506,7 +527,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     const banner = page.getByTestId("subjective-pending-banner");
     await expect(banner).toBeVisible();
     await expect(banner).toContainText("1명의 서술형 점수 입력이 필요합니다");
-    await expect(banner).toContainText("학생 공개·석차·클리닉 반영은 보류 중입니다");
+    await expect(banner).toContainText("학생 공개·석차·클리닉 반영이 보류됩니다");
     await expect(page.getByText("객관 80", { exact: true })).toBeVisible();
     await expect(page.getByText("서술형 입력", { exact: true })).toBeVisible();
 
@@ -518,11 +539,32 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       "서술형 점수 입력을 완료한 뒤 알림톡을 발송할 수 있습니다.",
     );
 
-    await banner.getByRole("button", { name: "중대부고 2회차 혼합형 서술형 점수 입력" }).click();
+    await banner.getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" }).click();
 
     const gradingDialog = page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 혼합 채점" });
     await expect(gradingDialog).toBeVisible();
     await expect(gradingDialog.getByText("직접 문항 입력 중", { exact: true })).toBeVisible();
+    expect(unexpectedMutations).toEqual([]);
+  });
+
+  test("시험별 채점에서 서술형 점수를 확정하면 대기가 사라지고 새로고침 후 최종 점수가 남는다", async ({ page }) => {
+    const unexpectedMutations = await openScores(page);
+    await page.getByTestId("subjective-pending-banner")
+      .getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" }).click();
+
+    const gradingDialog = page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 혼합 채점" });
+    const scoreInput = gradingDialog.locator("input[data-manual-grade-cell]");
+    await expect(scoreInput).toHaveCount(1);
+    await scoreInput.fill("14");
+    await gradingDialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+    await expect(gradingDialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+    await gradingDialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+    await expect(page.getByTestId("subjective-pending-banner")).toHaveCount(0);
+    await gradingDialog.getByRole("button", { name: "닫기", exact: true }).click();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("subjective-pending-banner")).toHaveCount(0);
+    await expect(page.locator(`[data-score-cell="exam:9911:${MIXED_EXAM_ID}:total:"]`)).toContainText("94");
     expect(unexpectedMutations).toEqual([]);
   });
 
@@ -536,6 +578,19 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 혼합 채점" }),
     ).toBeVisible();
     await expect(page.locator(".student-scores-drawer")).toHaveCount(0);
+    expect(unexpectedMutations).toEqual([]);
+  });
+
+  test("OMR 전용 설정과 서술형 대기 상태가 충돌하면 채점 불가 사유와 복구 경로를 보인다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const unexpectedMutations = await openScores(page, { choicePending: true });
+    const banner = page.getByTestId("subjective-pending-banner");
+    await expect(banner.getByText("서술형 채점 대기 상태와 OMR 전용 설정이 맞지 않습니다", { exact: false })).toBeVisible();
+    await expect(banner.getByRole("button", { name: "중대부고 2회차 객관식 문항별 점수 입력" })).toHaveCount(0);
+
+    await page.locator(`[data-score-cell="exam:9911:${CHOICE_EXAM_ID}:total:"]`).click();
+    await expect(page.getByRole("alert").filter({ hasText: "시험명을 눌러 문항 유형과 채점 방식을 확인해 주세요" })).toBeVisible();
+    await expect(page.getByRole("dialog").filter({ hasText: "혼합 채점" })).toHaveCount(0);
     expect(unexpectedMutations).toEqual([]);
   });
 

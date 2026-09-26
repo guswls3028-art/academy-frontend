@@ -105,6 +105,8 @@
 
 .questionNumber {
   min-width: 32px;
+  flex-shrink: 0;
+  white-space: nowrap;
   color: var(--stu-primary);
   font-size: 16px;
   font-weight: 700;

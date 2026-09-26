@@ -10,7 +10,7 @@
  */
 
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -49,9 +49,6 @@ import SessionOmrUploadAction, {
   SessionOmrUploadModal,
   type SessionOmrUploadTarget,
 } from "./SessionOmrUploadAction";
-import SessionManualGradingAction, {
-  type SessionManualGradingTarget,
-} from "./SessionManualGradingAction";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
 import { useTrackedTask } from "@/shared/productAnalytics";
@@ -64,6 +61,7 @@ import {
 } from "@/shared/scoring/sessionScoreRows";
 import "./SessionScoresEntryActions.css";
 import "./SessionScoresEntryPage.css";
+import "./SessionGradingNext.css";
 import "./SessionScoresStartPanel.css";
 
 type SessionScoresEntryPageProps = {
@@ -130,6 +128,7 @@ export default function SessionScoresEntryPage({
   onOpenCreateHomework,
 }: SessionScoresEntryPageProps = {}) {
   const { sessionId: sessionIdParam, lectureId: lectureIdParam } = useParams<{ lectureId: string; sessionId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const numericSessionId = Number(sessionIdParam);
   const numericLectureId = Number(lectureIdParam);
   const qc = useQueryClient();
@@ -191,6 +190,7 @@ export default function SessionScoresEntryPage({
     title: string;
     gradingMode: "written" | "mixed";
     manualGradingMethod: "correctness" | "score";
+    focusEnrollmentId?: number;
   } | null>(null);
   const [omrReviewExam, setOmrReviewExam] = useState<{
     examId: number;
@@ -198,6 +198,9 @@ export default function SessionScoresEntryPage({
   } | null>(null);
   const [omrUploadExam, setOmrUploadExam] = useState<SessionOmrUploadTarget | null>(null);
   const [manualGradingDirty, setManualGradingDirty] = useState(false);
+  const [gradingEntryError, setGradingEntryError] = useState<string | null>(null);
+  const gradingEntryErrorRef = useRef<HTMLDivElement>(null);
+  const openedGradingDeepLinkRef = useRef<number | null>(null);
   const manualGradingRef = useRef<ManualGradingFlushHandle>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const recoveryRestoreButtonRef = useRef<HTMLButtonElement>(null);
@@ -539,18 +542,15 @@ export default function SessionScoresEntryPage({
     [data?.meta?.exams],
   );
   const pendingSubjectiveSummary = useMemo(() => {
-    const examIds = new Set<number>();
     const enrollmentIds = new Set<number>();
     for (const row of data?.rows ?? []) {
       for (const exam of row.exams ?? []) {
         if (exam.block.grading_status !== "subjective_pending") continue;
-        examIds.add(exam.exam_id);
         enrollmentIds.add(row.enrollment_id);
       }
     }
-    const exams = (data?.meta?.exams ?? []).filter((exam) => examIds.has(exam.exam_id));
-    return { exams, studentCount: enrollmentIds.size };
-  }, [data?.meta?.exams, data?.rows]);
+    return { studentCount: enrollmentIds.size };
+  }, [data?.rows]);
 
   // P1-5: setPresetTotalHw / setPresetSubjectiveHw preset 함수 제거 — 5버튼 segment 단순화로 불필요.
 
@@ -698,19 +698,19 @@ export default function SessionScoresEntryPage({
     () => examOptions.filter((exam) => resolveExamGradingMode(exam) !== "written"),
     [examOptions],
   );
-  const manualExamOptions = useMemo<SessionManualGradingTarget[]>(
-    () => examOptions.flatMap((exam) => {
-      const gradingMode = resolveExamGradingMode(exam);
-      if (gradingMode === "choice") return [];
-      return [{
-        examId: exam.exam_id,
-        title: exam.title,
-        gradingMode,
-        manualGradingMethod: exam.manual_grading_method ?? "score",
-      }];
-    }),
-    [examOptions],
-  );
+  const gradingAttentionExams = useMemo(() => examOptions.flatMap((exam) => {
+    const entries = (data?.rows ?? []).flatMap((row) => {
+      const entry = row.exams.find((item) => item.exam_id === exam.exam_id);
+      return entry ? [entry] : [];
+    });
+    const pendingCount = entries.filter((entry) => entry.block.grading_status === "subjective_pending").length;
+    const unfinishedCount = entries.filter((entry) =>
+      entry.block.score == null && entry.block.meta?.status !== "NOT_SUBMITTED",
+    ).length;
+    const gradingMode = resolveExamGradingMode(exam);
+    if (pendingCount === 0 && (gradingMode !== "written" || unfinishedCount === 0)) return [];
+    return [{ exam, gradingMode, pendingCount, unfinishedCount }];
+  }), [data?.rows, examOptions]);
 
   const openExamGrading = async (
     examId: number,
@@ -732,19 +732,25 @@ export default function SessionScoresEntryPage({
       setIsEditMode(false);
     }
     if (action === "omr") {
+      setGradingEntryError(null);
       setOmrReviewExam({ examId, title });
       return;
     }
     if (gradingMode === "choice") {
-      feedback.info("이 시험은 OMR 검토에서 채점해 주세요.");
+      setGradingEntryError(`${title}: 서술형 채점 대기 상태와 시험의 OMR 전용 설정이 맞지 않습니다. 시험명을 눌러 문항 유형과 채점 방식을 확인해 주세요.`);
       return;
     }
+    setGradingEntryError(null);
     setManualGradingDirty(false);
+    const focusEnrollmentId = data?.rows.find((row) => row.exams.some(
+      (entry) => entry.exam_id === examId && entry.block.grading_status === "subjective_pending",
+    ))?.enrollment_id;
     setGradingExam({
       examId,
       title,
       gradingMode,
       manualGradingMethod,
+      focusEnrollmentId,
     });
   };
 
@@ -757,6 +763,36 @@ export default function SessionScoresEntryPage({
     exam.manual_grading_method ?? "score",
     "manual",
   );
+  const openPendingSubjectiveGradingRef = useRef(openPendingSubjectiveGrading);
+  useEffect(() => {
+    openPendingSubjectiveGradingRef.current = openPendingSubjectiveGrading;
+  });
+
+  useEffect(() => {
+    const examId = Number(searchParams.get("gradingExamId"));
+    if (!searchParams.has("gradingExamId")) {
+      openedGradingDeepLinkRef.current = null;
+      return;
+    }
+    if (isLoading || isError || recoveryBlocked || openedGradingDeepLinkRef.current === examId) return;
+    openedGradingDeepLinkRef.current = examId;
+    const exam = gradingAttentionExams.find((entry) => entry.exam.exam_id === examId)?.exam;
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete("gradingExamId");
+      return next;
+    }, { replace: true });
+    if (exam) {
+      void openPendingSubjectiveGradingRef.current(exam);
+    } else {
+      feedback.info("이 시험의 서술형 채점 대기가 없습니다. 최신 성적을 확인해 주세요.");
+    }
+  }, [gradingAttentionExams, isError, isLoading, recoveryBlocked, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!gradingEntryError) return;
+    gradingEntryErrorRef.current?.focus();
+  }, [gradingEntryError]);
 
   useEffect(() => {
     if (
@@ -1257,26 +1293,6 @@ export default function SessionScoresEntryPage({
         }
       />
 
-      <SessionManualGradingAction
-        exams={manualExamOptions}
-        onSelect={(exam) => {
-          void openExamGrading(
-            exam.examId,
-            exam.title,
-            exam.gradingMode,
-            exam.manualGradingMethod,
-            "manual",
-          );
-        }}
-        disabled={
-          recoveryBlocked ||
-          isSaving ||
-          draft.hasPendingChanges ||
-          draft.draftStatus === "saving" ||
-          draft.draftStatus === "error"
-        }
-      />
-
       {/* ── 그룹 2: 안전한 수정 시작 / 저장 완료 ── */}
       <Button
         type="button"
@@ -1489,7 +1505,7 @@ export default function SessionScoresEntryPage({
                 ) : (
                   <span className="scores-lock-status">
                     <LockKeyhole size={13} aria-hidden />
-                    입력 잠금됨
+                    성적표 수정 잠김
                   </span>
                 )
               ) : (
@@ -1647,34 +1663,55 @@ export default function SessionScoresEntryPage({
         </section>
       )}
 
-      {!isLoading && !isError && pendingSubjectiveSummary.studentCount > 0 && (
+      {gradingEntryError && (
+        <div ref={gradingEntryErrorRef} className="scores-grading-entry-error" role="alert" tabIndex={-1}>
+          {gradingEntryError}
+        </div>
+      )}
+
+      {!isLoading && !isError && gradingAttentionExams.length > 0 && (
         <section
-          className="scores-roster-warning"
-          aria-label="서술형 점수 입력 필요"
-          data-testid="subjective-pending-banner"
+          className="scores-grading-next"
+          aria-label="시험별 채점 작업"
+          data-testid={pendingSubjectiveSummary.studentCount > 0 ? "subjective-pending-banner" : undefined}
         >
-          <ClipboardCheck size={18} aria-hidden />
-          <div className="min-w-0 flex-1">
-            <div className="scores-roster-warning__title">
-              {pendingSubjectiveSummary.studentCount}명의 서술형 점수 입력이 필요합니다
-            </div>
-            <div className="scores-roster-warning__copy">
-              객관식 점수는 저장됐지만 최종 점수·학생 공개·석차·클리닉 반영은 보류 중입니다.
+          <div className="scores-grading-next__heading">
+            <ClipboardCheck size={18} aria-hidden />
+            <div>
+              <strong>시험별 채점</strong>
+              {pendingSubjectiveSummary.studentCount > 0 && (
+                <p>{pendingSubjectiveSummary.studentCount}명의 서술형 점수 입력이 필요합니다. 완료 전에는 최종 점수·학생 공개·석차·클리닉 반영이 보류됩니다.</p>
+              )}
             </div>
           </div>
-          <div className="flex max-w-full flex-wrap justify-end gap-2">
-            {pendingSubjectiveSummary.exams.map((exam) => (
-              <Button
-                key={exam.exam_id}
-                type="button"
-                intent="primary"
-                size="sm"
-                leftIcon={<ClipboardCheck size={ICON_FOR_BUTTON.sm} />}
-                onClick={() => { void openPendingSubjectiveGrading(exam); }}
-                aria-label={`${exam.title} 서술형 점수 입력`}
-              >
-                {pendingSubjectiveSummary.exams.length === 1 ? "서술형 점수 입력" : `${exam.title} 입력`}
-              </Button>
+          <div className="scores-grading-next__list">
+            {gradingAttentionExams.map(({ exam, gradingMode, pendingCount, unfinishedCount }) => (
+              <div className="scores-grading-next__exam" key={exam.exam_id}>
+                <div className="scores-grading-next__exam-copy">
+                  <strong>{exam.title}</strong>
+                  <span>
+                    {gradingMode === "choice"
+                      ? "서술형 채점 대기 상태와 OMR 전용 설정이 맞지 않습니다. 시험명 → 시험 설정에서 문항 유형을 확인해 주세요."
+                      : pendingCount > 0
+                        ? `객관식 저장 완료 · 서술형 ${pendingCount}명 남음`
+                        : `${unfinishedCount}명 채점 전`}
+                  </span>
+                </div>
+                {gradingMode !== "choice" && (
+                  <Button
+                    type="button"
+                    intent={pendingCount > 0 ? "primary" : "secondary"}
+                    size="sm"
+                    onClick={() => { void openPendingSubjectiveGrading(exam); }}
+                    disabled={recoveryBlocked || isSaving || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
+                    aria-label={`${exam.title} ${exam.manual_grading_method === "correctness" ? "정오 입력" : "문항별 점수 입력"}`}
+                  >
+                    {exam.manual_grading_method === "correctness"
+                      ? pendingCount > 0 ? "서술형 정오 입력" : "정오 입력 시작"
+                      : pendingCount > 0 ? "서술형 점수 입력" : "문항별 점수 입력 시작"}
+                  </Button>
+                )}
+              </div>
             ))}
           </div>
         </section>
@@ -1827,8 +1864,12 @@ export default function SessionScoresEntryPage({
             )}
             description={
               gradingExam.gradingMode === "mixed"
-                ? "OMR 문항은 잠긴 상태로 확인하고, 직접 채점 문항만 입력합니다."
-                : "수기 채점 결과를 학생별로 입력합니다. 오답과 오답노트 지정 문항은 오답노트에 반영됩니다."
+                ? gradingExam.manualGradingMethod === "correctness"
+                  ? "OMR 문항은 읽기 전용입니다. 서술형 셀은 방향키로 이동하고 Space로 상태를 바꿉니다. O/X/0은 기본 단축키입니다."
+                  : "OMR 문항은 읽기 전용입니다. 서술형 점수를 숫자로 입력하고 Enter로 다음 학생에게 이동하세요."
+                : gradingExam.manualGradingMethod === "correctness"
+                  ? "O/X/0으로 바로 입력하고 방향키로 이동하세요. Enter는 아래 학생, Space는 상태 변경입니다."
+                  : "문항별 점수를 숫자로 입력하고 Enter로 다음 학생에게 이동하세요."
             }
             noIcon
           />
@@ -1890,6 +1931,7 @@ export default function SessionScoresEntryPage({
                   ref={manualGradingRef}
                   key={gradingExam.examId}
                   examId={gradingExam.examId}
+                  focusEnrollmentId={gradingExam.focusEnrollmentId}
                   showUnavailableState
                   onDirtyChange={setManualGradingDirty}
                   onApplied={() => {

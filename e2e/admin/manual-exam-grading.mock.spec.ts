@@ -77,6 +77,7 @@ type InstallApiOptions = {
     failNextWrite?: boolean;
     failReads: boolean;
     readGate?: Promise<void>;
+    needsReview?: Array<{ submission_id: number; detail: string }>;
   };
   examType?: "regular" | "template";
   gradingMode?: "choice" | "written" | "mixed";
@@ -319,6 +320,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       await json({
         id: EXAM_ID,
         title: "7월 진단평가",
+        session_ids: [SESSION_ID],
         description: "답변형 정오 입력 검증",
         subject: "MATH",
         exam_type: options.examType ?? "regular",
@@ -600,7 +602,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         if (changed) state.scoresAtRegrade?.push(state.score);
         await json({
           id: 1801, exam: EXAM_ID, answers: state.answers,
-          ...(changed ? { regrade: [{ exam_id: EXAM_ID, graded: 1, manual_graded: 0, failed: [], needs_review: [] }] } : {}),
+          ...(changed ? { regrade: [{ exam_id: EXAM_ID, graded: 1, manual_graded: 0, failed: [], needs_review: state.needsReview ?? [] }] } : {}),
         }, method === "POST" ? 201 : 200);
       }
       return;
@@ -969,6 +971,92 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 test.describe("답안 초기 로드와 입력 보존", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock spec.");
   test.use({ serviceWorkers: "block" });
+
+  for (const { width, existingKey } of [
+    { width: 1366, existingKey: false },
+    { width: 390, existingKey: true },
+  ]) {
+    test(`${width}px에서 ${existingKey ? "기존 정답 수정" : "첫 정답 등록"}의 예외 정답을 저장·복원한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.route("**/*", (route) => new URL(route.request().url()).origin === BASE ? route.continue() : route.abort());
+      const state: NonNullable<InstallApiOptions["answerKeyScenario"]> = {
+        answers: existingKey ? { "1001": "3", "1002": "2" } : null,
+        score: 1, reads: 0, writes: [], methods: [], scoresAtRegrade: [], recalculations: 0,
+      };
+      await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
+      const openAnswers = async () => {
+        await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
+        await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+        return page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+      };
+      await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+      const dialog = await openAnswers();
+      const row = dialog.locator(".answer-key-row--choice").first();
+      await expect(row).toBeVisible();
+      if (!existingKey) await row.getByRole("checkbox", { name: "1번 3번 선택지" }).click();
+      await row.getByRole("button", { name: "+ 예외 정답" }).click();
+      await row.getByRole("checkbox", { name: "1번 5번 선택지" }).click();
+      await expect(row).toContainText("3번 또는 5번, 둘 다 선택해도 정답");
+      expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+      await dialog.getByRole("button", { name: /^저장 \(총/ }).click();
+      await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
+      expect(state.writes.at(-1)?.["1001"]).toBe("3|5|3,5");
+      await dialog.getByRole("button", { name: "취소", exact: true }).click();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await openAnswers();
+      await expect(row.getByRole("checkbox", { name: "1번 3번 선택지" })).toBeChecked();
+      await expect(row.getByRole("checkbox", { name: "1번 5번 선택지" })).toBeChecked();
+      await expect(row).toContainText("3번 또는 5번, 둘 다 선택해도 정답");
+      await row.getByRole("checkbox", { name: "1번 5번 선택지" }).click();
+      await row.getByRole("checkbox", { name: "1번 5번 선택지" }).click();
+      await dialog.getByRole("button", { name: /^저장 \(총/ }).click();
+      await expect.poll(() => state.writes.length).toBe(2);
+      expect(state.writes.at(-1)?.["1001"]).toBe("3|5|3,5");
+    });
+  }
+
+  test("정답 변경 뒤 확인 대상이 있으면 시험 결과로 이어진다", async ({ page }) => {
+    await page.route("**/*", (route) => new URL(route.request().url()).origin === BASE ? route.continue() : route.abort());
+    const state: NonNullable<InstallApiOptions["answerKeyScenario"]> = {
+      answers: { "1001": "3", "1002": "2" },
+      score: 1, reads: 0, writes: [], failReads: false,
+      needsReview: [{ submission_id: 4101, detail: "manual_override" }],
+    };
+    await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+    await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+    const dialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+    const row = dialog.locator(".answer-key-row--choice").first();
+    await row.getByRole("button", { name: "+ 예외 정답" }).click();
+    await row.getByRole("checkbox", { name: "1번 5번 선택지" }).click();
+    await dialog.getByRole("button", { name: /^저장 \(총/ }).click();
+    await expect(page.getByText(/확인 대상 1건/)).toBeVisible();
+    await expect(page.getByText(/OMR 검토에서 미식별 스캔/)).toBeVisible();
+    await page.getByRole("button", { name: "시험 결과 열기" }).click();
+    await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams\\?examId=${EXAM_ID}&examTab=results`));
+  });
+
+  test("기존의 하나만 허용하는 정답은 명시적으로 바꾸기 전까지 유지한다", async ({ page }) => {
+    await page.route("**/*", (route) => new URL(route.request().url()).origin === BASE ? route.continue() : route.abort());
+    const state: NonNullable<InstallApiOptions["answerKeyScenario"]> = {
+      answers: { "1001": "3|5", "1002": "2" },
+      score: 1, reads: 0, writes: [], methods: [], scoresAtRegrade: [], recalculations: 0,
+    };
+    await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+    await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+    const dialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+    const row = dialog.locator(".answer-key-row--choice").first();
+    await expect(row).toContainText("3·5 중 하나만 선택해야 정답");
+    await dialog.getByRole("button", { name: /^저장 \(총/ }).click();
+    await expect.poll(() => state.writes.length).toBe(1);
+    expect(state.writes[0]?.["1001"]).toBe("3|5");
+    await row.getByRole("button", { name: "함께 선택해도 정답 처리" }).click();
+    await expect(row).toContainText("3번 또는 5번, 둘 다 선택해도 정답");
+    await dialog.getByRole("button", { name: /^저장 \(총/ }).click();
+    await expect.poll(() => state.writes.length).toBe(2);
+    expect(state.writes[1]?.["1001"]).toBe("3|5|3,5");
+  });
 
   for (const width of [1366, 390]) {
     for (const mode of ["deferred", "fast", "retry-empty"] as const) {
@@ -1743,9 +1831,12 @@ test.describe("문항별 직접 채점", () => {
         await expect(page.getByRole("heading", { name: "정오 직접입력", exact: true })).toBeVisible();
 
         const hints = page.getByLabel("정오표 입력 도움말");
+        await expect(hints.getByText("방향키 셀 이동", { exact: true })).toBeVisible();
+        await expect(hints.getByText("Space 상태 변경", { exact: true })).toBeVisible();
+        await expect(hints.getByText("Enter 아래 칸", { exact: true })).toBeVisible();
         await expect(hints.getByText(`${shortcut.label}+V 엑셀 붙여넣기`, { exact: true })).toBeVisible();
-        await expect(hints.getByText(`${shortcut.label}+Z 실행 취소`, { exact: true })).toBeVisible();
-        await expect(hints.getByText(`${shortcut.label}+S 지금 저장`, { exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "마지막 변경 실행 취소" })).toBeVisible();
+        await expect(page.getByRole("button", { name: "마지막 변경 다시 실행" })).toBeVisible();
 
         const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
         const firstCell = studentRow.locator('[data-row-index="0"][data-column-index="0"]');
@@ -2588,7 +2679,7 @@ test.describe("문항별 직접 채점", () => {
     });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText(
-      "OMR 문항은 잠긴 상태로 확인하고, 직접 채점 문항만 입력합니다.",
+      "OMR 문항은 잠그고 직접 채점 문항만 입력해 함께 확정합니다.",
       { exact: true },
     )).toBeVisible();
     await expect(dialog.locator('[aria-label="김학생 1번 자동채점 O"]')).toBeVisible();

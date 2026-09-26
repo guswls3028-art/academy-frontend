@@ -84,6 +84,8 @@ function pollOmrBatch(taskId: string, batchId: string, tenantScope: string): voi
             feedback.warning("OMR 처리가 끝났습니다. 실패 항목을 확인해 주세요.");
           } else if (claim.batch.counts.needs_identification > 0) {
             feedback.warning("OMR 처리가 끝났습니다. 식별이 필요한 답안지가 있습니다.");
+          } else if (claim.batch.grading_status === "subjective_pending") {
+            feedback.info("OMR 객관식 처리가 끝났습니다. 차시 성적에서 서술형 점수를 입력해 주세요.");
           } else {
             feedback.success("OMR 처리가 모두 끝났습니다.");
           }

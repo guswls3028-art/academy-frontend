@@ -19,6 +19,7 @@ import type {
   AnswerVisibility,
   Exam,
   ExamGradingMode,
+  EssayNumbering,
   ManualGradingMethod,
 } from "../../types";
 import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
@@ -29,6 +30,7 @@ type ExamPolicyForm = {
   gradingMode: ExamGradingMode;
   manualGradingMethod: ManualGradingMethod;
   choiceQuestionCount: string;
+  essayNumbering: EssayNumbering;
   allowRetake: boolean;
   maxAttempts: string;
   openAt: string;
@@ -87,6 +89,7 @@ function formFromExam(exam: Exam): ExamPolicyForm {
     gradingMode: exam.grading_mode,
     manualGradingMethod: exam.manual_grading_method,
     choiceQuestionCount: String(exam.choice_question_count ?? 0),
+    essayNumbering: exam.essay_numbering,
     allowRetake: exam.allow_retake,
     maxAttempts: String(Math.max(1, exam.max_attempts || 1)),
     openAt: toLocalDateTime(exam.open_at),
@@ -223,6 +226,7 @@ export default function ExamPolicyPanel({
         grading_mode: nextForm.gradingMode,
         manual_grading_method: nextForm.manualGradingMethod,
         choice_question_count: Number(nextForm.choiceQuestionCount || 0),
+        essay_numbering: nextForm.essayNumbering,
         allow_retake: nextForm.allowRetake,
         max_attempts: nextForm.allowRetake ? Number(nextForm.maxAttempts) : 1,
         open_at: toIsoDateTime(nextForm.openAt),
@@ -348,6 +352,7 @@ export default function ExamPolicyPanel({
             <span className={formStyles.policySnapshot}>
               <strong>{GRADING_OPTIONS.find((option) => option.value === currentChoice)?.title}</strong>
               <span>{form.maxScore}점 만점 · 합격 {form.passScore}점</span>
+              <span>{form.essayNumbering === "separate" ? "서술형 별도 번호" : "문항 연속 번호"}</span>
               <span>{form.studentResultsPublished ? "학생 성적 공개" : "학생 성적 비공개"}</span>
               {dirty && <em>저장되지 않은 변경</em>}
               {recoverableDraftSavedAt && <em>이어서 편집할 초안 있음</em>}
@@ -435,6 +440,23 @@ export default function ExamPolicyPanel({
                 </label>
               </div>
             )}
+          </div>
+
+          <div className={formStyles.group}>
+            <h3 className={formStyles.groupTitle}>문항 번호 표시</h3>
+            <p className={formStyles.groupDescription}>채점 순서와 점수는 그대로 두고, 서술형 번호를 보여주는 방식만 정합니다.</p>
+            <label className={formStyles.field}>
+              <span className={formStyles.label}>서술형 번호</span>
+              <select
+                className={formStyles.select}
+                value={form.essayNumbering}
+                onChange={(event) => setForm({ ...form, essayNumbering: event.target.value as EssayNumbering })}
+              >
+                <option value="continuous">연속 번호 (서술형 19~20번)</option>
+                <option value="separate">별도 번호 (서술형 1~2번)</option>
+              </select>
+              <span className={formStyles.helper}>예: 객관식 1~18번 다음 {form.essayNumbering === "separate" ? "서술형 1~2번" : "서술형 19~20번"} · 시험 화면, 결과 조회, OMR 인쇄에 적용</span>
+            </label>
           </div>
 
           <div className={formStyles.group}>

@@ -1606,7 +1606,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     await saveAndLockButton.click();
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("입력 잠금됨");
+    await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
   });
 
@@ -1648,7 +1648,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await openScores(page, { initialScores: [0, null] });
 
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("status")).toContainText("입력 잠금됨");
+    await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
   });
 
@@ -2309,7 +2309,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     const editButton = page.getByRole("button", { name: "수정", exact: true });
     await expect(editButton).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole("status")).toContainText("입력 잠금됨");
+    await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath("score-entry-locked-1366.png"), fullPage: true });
     await page.setViewportSize({ width: 1100, height: 900 });
@@ -2399,7 +2399,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
     await expect(editButton).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("입력 잠금됨");
+    await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
     await expect(page.getByRole("cell", { name: /77\/100/ }).first()).toBeVisible();
 
@@ -2475,7 +2475,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.locator(".ds-scores-cell-editable").first()).toBeVisible();
     await page.getByRole("button", { name: "잠금 다시 시도", exact: true }).click();
     await expect(editButton).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("입력 잠금됨");
+    await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
 
     expect(scorePatchHeaders.length).toBeGreaterThan(0);
     for (const headers of scorePatchHeaders) {
