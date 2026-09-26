@@ -1804,11 +1804,8 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
             <div className={styles.keyboardHints}>
               <span><kbd>방향키</kbd> 셀 이동</span>
               <span><kbd>Space</kbd> 상태 변경</span>
-              <span><kbd>Tab</kbd> 다음 칸</span>
               <span><kbd>Enter</kbd> 아래 칸</span>
               <span><kbd>{primaryShortcutModifier}+V</kbd> 엑셀 붙여넣기</span>
-              <span><kbd>{primaryShortcutModifier}+Z</kbd> 실행 취소</span>
-              <span><kbd>{primaryShortcutModifier}+S</kbd> 지금 저장</span>
             </div>
           </div>
         </div>

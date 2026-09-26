@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
@@ -318,6 +319,7 @@ export default function AnswerKeyRegisterModal({
   const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">(initialTab);
   const [downloaded, setDownloaded] = useState(false);
   const { data: exam } = useAdminExam(examId);
+  const navigate = useNavigate();
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [ensuredExamId, setEnsuredExamId] = useState<number | null>(null);
   const [ensureAttemptedExamId, setEnsureAttemptedExamId] = useState<number | null>(null);
@@ -985,7 +987,15 @@ export default function AnswerKeyRegisterModal({
       } else if (failedCount > 0) {
         feedback.warning(`답안과 배점을 저장했습니다. 재채점 실패 ${failedCount}건은 시험 결과에서 확인해 주세요.`);
       } else if (reviewCount > 0) {
-        feedback.warning(`정답을 저장하고 자동 재채점했습니다. 수기 보정 ${reviewCount}건은 확인이 필요합니다.`);
+        feedback.successWithAction({
+          message: `정답 저장·자동 재채점 완료 · 확인 대상 ${reviewCount}건`,
+          description: "시험 결과에서 학생 답안을, 상단 OMR 검토에서 미식별 스캔을 확인해 주세요.",
+          action: {
+            label: "시험 결과 열기",
+            onClick: () => navigate(`/workspace/exams/${examId}?examTab=results`),
+          },
+          duration: 12,
+        });
       } else {
         feedback.success(
           canEditQuestions ? "저장·재채점되었습니다." : "정답을 저장하고 기존 성적을 재채점했습니다."
