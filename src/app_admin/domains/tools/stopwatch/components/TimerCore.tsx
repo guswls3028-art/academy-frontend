@@ -498,6 +498,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
                   className={`${styles.btnMain} ${phase === "running" ? styles.btnStop : styles.btnStart}`}
                   onClick={doToggle}
                   type="button"
+                  aria-label={phase === "running" ? "일시정지" : "시작"}
                 >
                   {phase === "running" ? (
                     <svg viewBox="0 0 24 24" fill="#fff">
