@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/tools/stopwatch/pages/StopwatchPage.tsx
 // 타이머/스톱워치 도구 페이지 — 모드 전환, 프로젝터/전체화면, 안전한 PWA 설치
 
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useMemo, useState, useEffect, useCallback, useContext } from "react";
 import {
   resolveTenantCode,
   getTenantIdFromCode,
@@ -13,12 +13,14 @@ import { useA2HS } from "@/shared/pwa/useA2HS";
 import TimerCore from "../components/TimerCore";
 import StopwatchCore from "../components/StopwatchCore";
 import styles from "./StopwatchPage.module.css";
+import { StopwatchSessionContext } from "../stopwatchSession";
 
 type Mode = "timer" | "stopwatch";
 
 export default function StopwatchPage() {
-  const [mode, setMode] = useState<Mode>("timer");
-  const [projector, setProjector] = useState(false);
+  const session = useContext(StopwatchSessionContext);
+  const [mode, setMode] = useState<Mode>(() => session?.current.mode ?? "timer");
+  const [projector, setProjector] = useState(() => session?.current.projector ?? false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [helpOpen, setHelpOpen] = useState(true);
@@ -61,13 +63,23 @@ export default function StopwatchPage() {
     }
   }, [canInstall, promptInstall]);
 
+  const changeMode = useCallback((next: Mode) => {
+    if (session) session.current.mode = next;
+    setMode(next);
+  }, [session]);
+
+  const changeProjector = useCallback((next: boolean) => {
+    if (session) session.current.projector = next;
+    setProjector(next);
+  }, [session]);
+
   const shared = {
     logoUrl,
     academyName,
     mode,
-    onModeChange: setMode,
+    onModeChange: changeMode,
     projector,
-    onProjectorChange: setProjector,
+    onProjectorChange: changeProjector,
   };
 
   // fullscreen일 때: fixed overlay로 전체 화면 덮기 (사이드바/헤더 위)

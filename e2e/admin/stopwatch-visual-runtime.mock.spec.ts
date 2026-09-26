@@ -108,14 +108,20 @@ async function assertDesktopTimerSurface(page: Page) {
 
 async function assertResponsiveTimerSurface(page: Page) {
   const display = page.getByTestId("timer-display");
+  const remainingMs = async () => {
+    const match = (await display.textContent())?.replace(/\s/g, "").match(/^(\d+):(\d+):(\d+)\.(\d{2})$/);
+    expect(match, "timer should retain a numeric countdown").not.toBeNull();
+    return ((Number(match![1]) * 60 + Number(match![2])) * 60 + Number(match![3])) * 1000 + Number(match![4]) * 10;
+  };
   await page.getByRole("button", { name: "Projector" }).click();
+  const desktopBeforeResize = await remainingMs();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByText("SET TIME", { exact: true })).toBeVisible();
-  const mobilePreset = page.getByRole("button", { name: "1분", exact: true });
-  await mobilePreset.click();
-  await page.getByRole("button", { name: "시작", exact: true }).click();
+  await expect(page.getByRole("button", { name: "메뉴 열기" })).toBeVisible();
   await display.scrollIntoViewIfNeeded();
   await expect(page.getByText("LAST MINUTE", { exact: true })).toBeVisible();
+  const mobileAfterResize = await remainingMs();
+  expect(mobileAfterResize).toBeGreaterThan(0);
+  expect(mobileAfterResize).toBeLessThanOrEqual(desktopBeforeResize);
   await expect(display).toHaveCSS("color", "rgb(166, 27, 27)");
   const mobileBounds = await display.evaluate((element) => {
     const rect = element.getBoundingClientRect();
@@ -153,6 +159,25 @@ async function assertResponsiveTimerSurface(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   await page.getByRole("button", { name: "일시정지", exact: true }).click();
   await expect(page.getByText("PAUSED", { exact: true })).toBeVisible();
+  const paused = await remainingMs();
+  await page.waitForTimeout(300);
+  expect(Math.abs((await remainingMs()) - paused)).toBeLessThanOrEqual(10);
+  await page.getByRole("button", { name: "시작", exact: true }).click();
+  await expect(page.getByText("LAST MINUTE", { exact: true })).toBeVisible();
+  const mobileBeforeDesktop = await remainingMs();
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await expect(page.getByRole("button", { name: "사이드바 토글" })).toBeVisible();
+  await expect(display).toBeVisible();
+  const desktopAfterResize = await remainingMs();
+  expect(desktopAfterResize).toBeGreaterThan(0);
+  expect(desktopAfterResize).toBeLessThanOrEqual(mobileBeforeDesktop);
+  await page.getByRole("button", { name: "일시정지", exact: true }).click();
+  await expect(page.getByText("PAUSED", { exact: true })).toBeVisible();
+  const desktopPaused = await remainingMs();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("button", { name: "메뉴 열기" })).toBeVisible();
+  await expect(page.getByText("PAUSED", { exact: true })).toBeVisible();
+  expect(Math.abs((await remainingMs()) - desktopPaused)).toBeLessThanOrEqual(10);
   await page.getByRole("button", { name: "시작", exact: true }).click();
   await expect(page.getByText("LAST MINUTE", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "초기화", exact: true }).click();
