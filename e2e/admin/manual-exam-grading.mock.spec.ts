@@ -983,11 +983,11 @@ test.describe("답안 초기 로드와 입력 보존", () => {
       };
       await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
       const openAnswers = async () => {
+        await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
         await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
         return page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
       };
       await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-      await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
       const dialog = await openAnswers();
       const row = dialog.locator(".answer-key-row--choice").first();
       await expect(row).toBeVisible();
