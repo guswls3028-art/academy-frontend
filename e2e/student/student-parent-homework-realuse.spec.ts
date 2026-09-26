@@ -280,6 +280,13 @@ async function gradeHomework(
         body: await staffPage.screenshot({ fullPage: true }), contentType: "image/png",
       });
     }
+    await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/homeworks/${created.homeworkId}`);
+    await expect(staffPage.getByText("점수 입력 완료", { exact: true })).toBeVisible();
+    await staffPage.getByRole("button", { name: "제출물 확인" }).click();
+    const scoredSheet = staffPage.getByRole("dialog").filter({ hasText: "점수가 입력되어 성적 화면에서 결과를 관리합니다." });
+    await expect(scoredSheet).toBeVisible();
+    await expect(scoredSheet.getByRole("button", { name: "확인 완료 취소" })).toHaveCount(0);
+    await scoredSheet.getByRole("button", { name: "닫기" }).click();
     boundary.assertClean();
     browser.assertZeroDefects();
   } catch (error) {
@@ -312,7 +319,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await cleanup(request);
   });
 
-  test("390px 학생·학부모 파일 제출, 채점·reload/relogin·desktop을 완료한다", async ({ page, request }, testInfo) => {
+  test("390px 학생·학부모 파일 제출, 직접 확인·취소, 채점·reload/relogin·desktop을 완료한다", async ({ page, request }, testInfo) => {
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
@@ -390,14 +397,46 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       // Keep the assistant detail open: discovery must not depend on navigation
       // or manual reload after the student's successful submission.
       await expect(fileRow).toBeVisible({ timeout: 30_000 });
-      await fileRow.getByRole("button", { name: "미리보기" }).click();
-      const preview = staffPage.getByRole("dialog").filter({ hasText: uploadName });
+      await staffPage.getByRole("button", { name: "제출물 확인" }).click();
+      const preview = staffPage.getByRole("dialog", { name: `${student.name} 제출 확인` });
       const image = preview.getByRole("img", { name: /과제 제출 미리보기/ });
       await expect(image).toBeVisible();
       await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
-      await preview.getByRole("button", { name: "닫기" }).click();
+      await expect(preview.getByRole("button", { name: "직접 확인 완료" })).toBeEnabled();
+      const completed = staffPage.waitForResponse((response) => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1/results/admin/sessions/${created.sessionId}/score-correction/`);
+      await preview.getByRole("button", { name: "직접 확인 완료" }).click();
+      await staffPage.getByRole("alertdialog").getByRole("button", { name: "확인 완료", exact: true }).click();
+      expect((await completed).status()).toBe(200);
+      await expect(staffPage.getByText("확인 완료", { exact: true })).toBeVisible();
+      const completedRows = await expectApi<Array<{ enrollment_id: number; teacher_reviewed: boolean; teacher_review_source: string | null }>>(
+        request, "GET", `/submissions/submissions/homework/${created.homeworkId}/`, staffTokens.access,
+      );
+      expect(completedRows).toEqual(expect.arrayContaining([expect.objectContaining({
+        enrollment_id: created.enrollmentId, teacher_reviewed: true, teacher_review_source: "manual",
+      })]));
+      await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === true);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(fileRow).toBeVisible();
+      await expect(staffPage.getByText("확인 완료", { exact: true })).toBeVisible();
+      await staffPage.getByRole("button", { name: "제출물 확인" }).click();
+      const reviewedSheet = staffPage.getByRole("dialog", { name: `${student.name} 제출 확인` });
+      const cancelled = staffPage.waitForResponse((response) => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1/results/admin/sessions/${created.sessionId}/score-correction/`);
+      await reviewedSheet.getByRole("button", { name: "확인 완료 취소" }).click();
+      await staffPage.getByRole("alertdialog").getByRole("button", { name: "확인 취소" }).click();
+      expect((await cancelled).status()).toBe(200);
+      await expect(staffPage.getByText("확인 대기", { exact: true })).toBeVisible();
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(staffPage.getByText("확인 대기", { exact: true })).toBeVisible();
+      const cancelledRows = await expectApi<Array<{ enrollment_id: number; teacher_reviewed: boolean; teacher_review_source: string | null }>>(
+        request, "GET", `/submissions/submissions/homework/${created.homeworkId}/`, staffTokens.access,
+      );
+      expect(cancelledRows).toEqual(expect.arrayContaining([expect.objectContaining({
+        enrollment_id: created.enrollmentId, teacher_reviewed: false, teacher_review_source: null,
+      })]));
+      await waitForHomeworkSummary(request, studentTokens.access, (row) => row.submission_state === "awaiting_review"
+        && row.score === null && row.submission_media_locked === false);
       await expect(staffPage.getByRole("dialog", { name: "계정 안내" })).toBeHidden();
       await assertNoHorizontalOverflow(staffPage);
       await testInfo.attach("assistant-homework-submission-390", {
