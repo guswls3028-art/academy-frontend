@@ -2,6 +2,11 @@
 // 소통 도메인 API — community + registration + messaging
 import api from "@/shared/api/axios";
 import { countFromApiResponse, listFromApiResponse } from "@/shared/api/response";
+import {
+  deleteCommunityPost,
+  deleteCommunityPostAttachment,
+  type CommunityDeleteResult,
+} from "@/shared/api/contracts/community";
 
 /* ─── Types ─── */
 export interface Post {
@@ -127,8 +132,8 @@ export async function updatePost(postId: number, data: {
   return res.data;
 }
 
-export async function deletePost(postId: number): Promise<void> {
-  await api.delete(`/community/posts/${postId}/`);
+export async function deletePost(postId: number): Promise<CommunityDeleteResult> {
+  return deleteCommunityPost(api, postId);
 }
 
 export async function togglePostPin(postId: number, isPinned: boolean): Promise<Post> {
@@ -152,8 +157,8 @@ export async function fetchPostAttachmentDownload(postId: number, attachmentId: 
   return res.data;
 }
 
-export async function deletePostAttachment(postId: number, attachmentId: number): Promise<void> {
-  await api.delete(`/community/posts/${postId}/attachments/${attachmentId}/`);
+export async function deletePostAttachment(postId: number, attachmentId: number): Promise<CommunityDeleteResult> {
+  return deleteCommunityPostAttachment(api, postId, attachmentId);
 }
 
 /* ─── Registration Requests ─── */
