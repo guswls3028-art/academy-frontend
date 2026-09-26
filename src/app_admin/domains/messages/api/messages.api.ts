@@ -598,6 +598,9 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
 
 export async function fetchAutoSendConfigs(): Promise<AutoSendConfigItem[]> {
   const res = await api.get<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`);
+  if (!Array.isArray(res.data)) {
+    throw new Error("자동발송 설정 응답 형식이 올바르지 않습니다.");
+  }
   return res.data;
 }
 
