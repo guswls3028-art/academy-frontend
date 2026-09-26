@@ -41,6 +41,7 @@ import {
   choiceAnswerMatches,
   choiceTokens,
   formatChoiceAnswer,
+  formatCorrectChoiceForDisplay,
   isChoiceAnswer,
   requiredChoiceTokens,
 } from "../utils/choiceAnswerMatching";
@@ -636,7 +637,7 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjec
                   <div key={it.question_id} className={`srd-read__choice-cell ${it.answer ? (correct ? "srd-read__choice-cell--correct" : "srd-read__choice-cell--wrong") : "srd-read__choice-cell--empty"}`}>
                     <span className="srd-read__choice-num" title={num == null ? "문항 번호 미확인" : undefined}>{num ?? "—"}</span>
                     <span className="srd-read__choice-ans">{it.answer || "—"}</span>
-                    {showCorrectAnswer && <span className="srd-read__choice-correct">{ca}</span>}
+                    {showCorrectAnswer && <span className="srd-read__choice-correct" title={formatCorrectChoiceForDisplay(ca)}>{formatCorrectChoiceForDisplay(ca)}</span>}
                   </div>
                 );
               })}

@@ -372,6 +372,43 @@
   text-align: right;
 }
 
+.answer-key-row__answer {
+  flex: 1;
+  min-width: 0;
+}
+
+.answer-key-row__rule {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px var(--space-2);
+  padding: 0 0 3px;
+  font-size: 11px;
+}
+
+.answer-key-row__rule-summary {
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.answer-key-row__rule-action {
+  border: 0;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--color-brand-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.answer-key-row__rule-action:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .answer-key-row__score {
   margin-left: auto;
   font-size: 12px;

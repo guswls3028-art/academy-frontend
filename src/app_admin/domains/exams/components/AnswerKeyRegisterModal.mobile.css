@@ -56,7 +56,7 @@
     padding-top: 11px;
   }
 
-  .answer-key-row__bubbles,
+  .answer-key-row__answer,
   .answer-key-row__input-wrap {
     grid-column: 2;
     grid-row: 1;

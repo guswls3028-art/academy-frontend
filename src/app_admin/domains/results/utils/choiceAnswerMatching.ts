@@ -54,6 +54,19 @@ export function formatChoiceAnswer(tokens: string[]): string {
   return CHOICE_LABELS.filter((choice) => selected.has(choice)).join(",");
 }
 
+export function formatCorrectChoiceForDisplay(value: string): string {
+  const sets = choiceAnswerSets(value);
+  const choices = choiceTokens(value);
+  if (choices.length < 2 || sets.length !== (1 << choices.length) - 1) return value;
+  const actual = new Set(sets.map(formatChoiceAnswer));
+  if (actual.size !== sets.length) return value;
+  for (let mask = 1; mask < 1 << choices.length; mask += 1) {
+    const subset = choices.filter((_, index) => (mask & (1 << index)) !== 0);
+    if (!actual.has(formatChoiceAnswer(subset))) return value;
+  }
+  return `${formatChoiceAnswer(choices).replaceAll(",", "·")} 중 하나 이상`;
+}
+
 export function choiceAnswerMatches(answer: string, correct: string): boolean {
   const answerSet = requiredChoiceTokens(answer);
   if (answerSet.length === 0) return false;
