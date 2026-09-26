@@ -1831,9 +1831,12 @@ test.describe("문항별 직접 채점", () => {
         await expect(page.getByRole("heading", { name: "정오 직접입력", exact: true })).toBeVisible();
 
         const hints = page.getByLabel("정오표 입력 도움말");
+        await expect(hints.getByText("방향키 셀 이동", { exact: true })).toBeVisible();
+        await expect(hints.getByText("Space 상태 변경", { exact: true })).toBeVisible();
+        await expect(hints.getByText("Enter 아래 칸", { exact: true })).toBeVisible();
         await expect(hints.getByText(`${shortcut.label}+V 엑셀 붙여넣기`, { exact: true })).toBeVisible();
-        await expect(hints.getByText(`${shortcut.label}+Z 실행 취소`, { exact: true })).toBeVisible();
-        await expect(hints.getByText(`${shortcut.label}+S 지금 저장`, { exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "마지막 변경 실행 취소" })).toBeVisible();
+        await expect(page.getByRole("button", { name: "마지막 변경 다시 실행" })).toBeVisible();
 
         const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
         const firstCell = studentRow.locator('[data-row-index="0"][data-column-index="0"]');
