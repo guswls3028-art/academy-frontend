@@ -465,8 +465,7 @@ export default function PptGeneratorPage() {
     setProgressLabel("");
     feedback.success(`PPT 생성 완료 (${data.slide_count}장, ${formatBytes(data.size_bytes)})`);
     if (data.mode === "page") {
-      // 텍스트 추출 안 되는 PDF는 페이지 단위로 fallback. 사용자 안내(표지·목차도 포함됨).
-      feedback.info("이 PDF는 텍스트 추출이 어려워 페이지 단위로 변환했습니다. 표지·목차도 슬라이드에 포함됩니다.");
+      feedback.info("문항을 정확히 나누기 어려워 모든 쪽을 그대로 넣었습니다. 필요한 문항만 쓰려면 '직접 자르기'에서 영역을 골라 다시 만드세요.");
     }
     triggerPptDownload(data);
   }
