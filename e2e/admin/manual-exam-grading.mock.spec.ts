@@ -1898,7 +1898,7 @@ test.describe("문항별 직접 채점", () => {
       });
     };
 
-    await cells.nth(0).focus();
+    await expect(cells.first()).toBeFocused();
     await pressPhysicalKey("ㅐ", "KeyO", 79);
     await expect(cells.nth(0)).toHaveAccessibleName("김학생 1번 O");
     await expect(cells.nth(1)).toBeFocused();
