@@ -116,7 +116,7 @@ export default function PptGeneratorPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!userId || !tenantScope) {
+    if (!userId || !tenantScope || !session.isCurrent()) {
       setRecoveryJobs([]);
       setRecoveryNotice("");
       recoveryIdentityRef.current = "";
@@ -140,7 +140,7 @@ export default function PptGeneratorPage() {
       setRecoveryJobs((jobs) => jobs.map((job) => job.reference.jobId === jobId ? { ...job, ...value } : job));
     };
     const poll = async (reference: PptJobReference) => {
-      if (!active) return;
+      if (!active || !session.isCurrent()) return;
       if (getTenantCodeForApiRequest() !== reference.tenantScope) {
         forgetPptJobReference(reference.jobId);
         update(reference.jobId, { status: "error", message: "학원이 변경되어 이 작업을 복구할 수 없습니다.", retryable: false });
@@ -148,7 +148,7 @@ export default function PptGeneratorPage() {
       }
       try {
         const job = await getPptJobStatus(reference.jobId, controller.signal, session.requestConfig());
-        if (!active) return;
+        if (!active || !session.isCurrent()) return;
         if (job.status === "DONE" && job.result?.download_url && job.result.filename) {
           update(reference.jobId, { status: "done", message: "완료된 PPT를 다시 다운로드할 수 있습니다.", slideCount: job.result.slide_count });
         } else if (["PENDING", "VALIDATING", "RUNNING", "RETRYING"].includes(job.status)) {
@@ -163,7 +163,7 @@ export default function PptGeneratorPage() {
           update(reference.jobId, { status: "error", message: "작업을 확인하거나 다운로드할 수 없습니다. 원본 파일을 다시 선택해 주세요.", retryable: false });
         }
       } catch (error) {
-        if (!active) return;
+        if (!active || !session.isCurrent()) return;
         const status = isAxiosError(error) ? error.response?.status : undefined;
         if (status === 401 || status === 403 || status === 404 || !isAxiosError(error)) {
           forgetPptJobReference(reference.jobId);
