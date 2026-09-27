@@ -1013,7 +1013,7 @@ export function artifactFingerprint(directory) {
 
 function serveArtifact(directory, playbackBoundary) {
   const playbackProxy = createPlaybackEndProxy(playbackBoundary);
-  const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
+  const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
     ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp" };
   const server = http.createServer((request, response) => {
     if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH) || request.url?.startsWith(SCORE_EXIT_PROXY_PATH)) {

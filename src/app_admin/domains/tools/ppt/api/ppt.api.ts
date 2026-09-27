@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/tools/ppt/api/pptApi.ts
 // PPT 생성 API — async worker pattern (job dispatch + polling)
 
-import api from "@/shared/api/axios";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { isFailedAIJobStatus } from "@/shared/api/contracts/aiJob";
 
 export interface PptSettings {
@@ -54,8 +54,8 @@ export interface JobProgressResponse {
   error_message?: string | null;
 }
 
-export async function getPptJobStatus(jobId: string, signal?: AbortSignal): Promise<JobProgressResponse> {
-  const response = await api.get<JobProgressResponse>(`/jobs/${encodeURIComponent(jobId)}/`, { signal });
+export async function getPptJobStatus(jobId: string, signal?: AbortSignal, requestConfig?: ApiRequestConfig): Promise<JobProgressResponse> {
+  const response = await api.get<JobProgressResponse>(`/jobs/${encodeURIComponent(jobId)}/`, { ...requestConfig, signal });
   const job = response.data;
   if (job.job_id !== jobId || job.job_type !== "ppt_generation") {
     throw new Error("이 PPT 작업을 확인할 수 없습니다.");
@@ -76,6 +76,7 @@ export async function submitPptJob(
   order: number[],
   settings: PptSettings,
   onUploadProgress?: (pct: number) => void,
+  requestConfig?: ApiRequestConfig,
 ): Promise<PptJobResponse> {
   const form = new FormData();
 
@@ -87,6 +88,7 @@ export async function submitPptJob(
   form.append("settings", JSON.stringify(settings));
 
   const resp = await api.post<PptJobResponse>("/tools/ppt/generate/", form, {
+    ...requestConfig,
     headers: { "Content-Type": "multipart/form-data" },
     timeout: PPT_SUBMIT_TIMEOUT_MS,
     onUploadProgress: onUploadProgress
@@ -106,12 +108,14 @@ export async function submitPdfPptJob(
   pdfFile: File,
   settings: PptSettings,
   onUploadProgress?: (pct: number) => void,
+  requestConfig?: ApiRequestConfig,
 ): Promise<PptJobResponse> {
   const form = new FormData();
   form.append("pdf", pdfFile);
   form.append("settings", JSON.stringify(settings));
 
   const resp = await api.post<PptJobResponse>("/tools/ppt/generate/", form, {
+    ...requestConfig,
     headers: { "Content-Type": "multipart/form-data" },
     timeout: PPT_SUBMIT_TIMEOUT_MS,
     onUploadProgress: onUploadProgress
@@ -132,10 +136,12 @@ export async function pollPptJob(
   jobId: string,
   onProgress?: (progress: JobProgressResponse["progress"]) => void,
   onStatus?: (status: string) => void,
+  requestConfig?: ApiRequestConfig,
 ): Promise<PptGenerateResponse> {
   for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
     const res = await api.get<JobProgressResponse>(
       `/jobs/${encodeURIComponent(jobId)}/progress/`,
+      requestConfig,
     );
     const data = res.data;
 

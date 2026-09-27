@@ -26,6 +26,7 @@ import useAuth from "@/auth/hooks/useAuth";
 import { NavIcon } from "./adminNavConfig";
 import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
 import StopwatchSessionProvider from "@admin/domains/tools/stopwatch/StopwatchSessionProvider";
+import PptSessionProvider from "@admin/domains/tools/ppt/PptSessionProvider";
 
 // 새 배포 안내는 AppInner의 전역 VersionUpdateNotice가 맡는다.
 
@@ -59,6 +60,7 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
   return (
     <>
       <StopwatchSessionProvider pathname={location.pathname}>
+      <PptSessionProvider pathname={location.pathname} tenant={tenantCode} userId={user?.id == null ? null : String(user.id)}>
       {isMobile ? (
         <AdminLayoutProvider>
           <WorkboxProvider>
@@ -145,6 +147,7 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
     </div>
     </WorkboxProvider>
       )}
+      </PptSessionProvider>
       </StopwatchSessionProvider>
       <QuickNavigationDialog
         open={quickNavigationOpen}
