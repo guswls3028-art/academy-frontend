@@ -616,3 +616,36 @@
 .projector .lapT { color: #fff; }
 .projector .lapBest .lapT { color: #51cf66; }
 .projector .lapWorst .lapT { color: #ff6b6b; }
+
+@media (max-width: 480px) {
+  .topBar {
+    position: relative;
+    width: 100%;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .modeToggle {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+  }
+
+  .topRight {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .main {
+    padding: 16px 12px 24px;
+  }
+
+  .projector .topBar {
+    opacity: 1;
+  }
+}
