@@ -112,8 +112,7 @@ test("7쪽 자동 생성 실패 안내에서 직접 자르기·다운로드·새
   expect(automatic.ok(), `PPT 자동 생성 제출: status=${automatic.status()}, code=${failureCode}`).toBe(true);
   expect(automaticBody.job_id).toBeTruthy();
   await expect(page.getByText(/문항을 정확히 나누기 어려워 모든 쪽을 그대로 넣었습니다/)).toBeVisible({ timeout: 480_000 });
-  await expect(page.getByRole("region", { name: "이전 PPT 작업" })
-    .getByRole("button", { name: "완료된 PPT 다운로드 (7장)", exact: true })).toBeVisible();
+  // Verify the generated file; both persistent completion controls are checked after reload below.
   await expectPptx(await automaticDownload, 7);
 
   await page.getByRole("button", { name: "직접 자르기" }).click();
