@@ -14,6 +14,9 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import LectureCreateModal from "../../components/LectureCreateModal";
 import LectureSettingsModal from "../../components/LectureSettingsModal";
 import { adminLectureQueryKeys } from "../../queryKeys";
+import { adminStudentsQueryKeys } from "@admin/domains/students/queryKeys";
+import { teacherStudentsQueryKeys } from "@/app_teacher/domains/students/queryKeys";
+import { clinicQueryKeys } from "@admin/domains/clinic/queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 /** 강의 목록 테이블 컬럼 정의 (useTableColumnPrefs SSOT) */
@@ -201,6 +204,13 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
   const [settingsLecture, setSettingsLecture] = useState<LectureItem | null>(null);
   const [editLectureId, setEditLectureId] = useState<number | null>(null);
   const qc = useQueryClient();
+  const invalidateLectureConsumers = () => {
+    qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
+    qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.student });
+    qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.students });
+    qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
+    qc.invalidateQueries({ queryKey: clinicQueryKeys.lecturesForFilter });
+  };
 
   const reorderMutation = useMutation({
     mutationFn: async ({ scope, orderedIds }: { scope: "ACTIVE" | "PAST"; orderedIds: number[] }) => {
@@ -635,9 +645,13 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
           }}
           onAfterEnd={() => {
             qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
+            invalidateLectureConsumers();
             navigate("/workspace/lectures/past");
           }}
-          onAfterRestore={() => qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures })}
+          onAfterRestore={() => {
+            qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
+            invalidateLectureConsumers();
+          }}
           onAfterDelete={() => qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures })}
         />
       )}

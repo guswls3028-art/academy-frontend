@@ -310,7 +310,7 @@ export default function StudentListPage() {
                     avatarSize={40}
                     chipSize={20}
                     className="text-sm"
-                    lectures={enrollments.map((e) => ({
+                    lectures={enrollments.filter((e) => e.lectureActive && (e.status ?? "ACTIVE") === "ACTIVE").map((e) => ({
                       lectureName: e.lectureName,
                       color: e.lectureColor,
                       chipLabel: e.lectureChipLabel,

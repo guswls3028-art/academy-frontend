@@ -79,9 +79,11 @@ export default function ClinicPage() {
   const [selectedSession, setSelectedSession] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const { data: sessions, isLoading } = useQuery({
+  const invalidDateRange = dateFrom > dateTo;
+  const { data: sessions, isLoading, isError, refetch } = useQuery({
     queryKey: teacherClinicQueryKeys.sessionsRange(dateFrom, dateTo),
     queryFn: () => fetchClinicSessions({ date_from: dateFrom, date_to: dateTo }),
+    enabled: !invalidDateRange,
     staleTime: 30_000,
   });
 
@@ -151,8 +153,18 @@ export default function ClinicPage() {
           전날 시작·진행 중 · {yesterday} {session.start_time?.slice(0, 5)}
         </button>
       ))}
-      {isLoading ? (
+      {invalidDateRange ? (
+        <EmptyState scope="panel" tone="error" title="날짜 범위를 확인해 주세요" description="시작일은 종료일보다 늦을 수 없습니다." />
+      ) : isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : isError ? (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="클리닉 일정을 불러오지 못했습니다"
+          description="연결을 확인한 뒤 다시 시도해 주세요."
+          actions={<EmptyActionButton onClick={() => void refetch()}>다시 시도</EmptyActionButton>}
+        />
       ) : sessions && sessions.length > 0 ? (
         <div className="flex flex-col gap-3">
           {sessions.map((s) => (
@@ -491,7 +503,7 @@ function ParticipantList({
                   chipSize={16}
                   density="compact"
                   clinicHighlight={p.name_highlight_clinic_target === true}
-                  lectures={p.lecture_title ? [{
+                  lectures={p.lecture_title && p.lecture_current !== false ? [{
                     lectureName: p.lecture_title,
                     color: p.lecture_color,
                     chipLabel: p.lecture_chip_label,

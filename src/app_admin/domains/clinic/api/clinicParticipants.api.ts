@@ -68,6 +68,7 @@ export type ClinicParticipant = {
   lecture_title?: string | null;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
+  lecture_current?: boolean;
   name_highlight_clinic_target?: boolean;
   profile_photo_url?: string | null;
 

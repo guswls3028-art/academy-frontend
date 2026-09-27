@@ -53,6 +53,7 @@ export default function LectureSettingsModal({
     if (!ok) return;
     try {
       await updateLecture(lecture.id, { is_active: false });
+      feedback.success("강의를 종료했습니다. 지난 강의에서 복원할 수 있습니다.");
       onAfterEnd?.();
       onClose();
     } catch (e: unknown) {
@@ -63,6 +64,7 @@ export default function LectureSettingsModal({
   async function handleRestore() {
     try {
       await updateLecture(lecture.id, { is_active: true });
+      feedback.success("강의를 복원했습니다.");
       onAfterRestore?.();
       onClose();
     } catch (e: unknown) {

@@ -105,6 +105,8 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       session: 701,
       student: 803,
       student_name: "정학생",
+      lecture_title: "지난 화학",
+      lecture_current: false,
       status: "booked",
       preferred_start_time: "17:15:00",
       preferred_end_time: "17:45:00",
@@ -345,6 +347,8 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await firstSessionButton.click();
   await expect(page.getByText("김학생", { exact: true })).toBeVisible();
   await expect(page.getByText("이학생", { exact: true })).toBeVisible();
+  await expect(page.getByText("정학생", { exact: true })).toBeVisible();
+  await expect(page.locator('[data-lecture-chip][title="지난 화학"]')).toHaveCount(0);
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 
   await page.setViewportSize({ width: 390, height: 844 });
