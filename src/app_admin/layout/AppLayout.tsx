@@ -25,6 +25,7 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
 import { NavIcon } from "./adminNavConfig";
 import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
+import StopwatchSessionProvider from "@admin/domains/tools/stopwatch/StopwatchSessionProvider";
 
 // 새 배포 안내는 AppInner의 전역 VersionUpdateNotice가 맡는다.
 
@@ -57,6 +58,7 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
 
   return (
     <>
+      <StopwatchSessionProvider pathname={location.pathname}>
       {isMobile ? (
         <AdminLayoutProvider>
           <WorkboxProvider>
@@ -143,6 +145,7 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
     </div>
     </WorkboxProvider>
       )}
+      </StopwatchSessionProvider>
       <QuickNavigationDialog
         open={quickNavigationOpen}
         onClose={() => setQuickNavigationOpen(false)}
