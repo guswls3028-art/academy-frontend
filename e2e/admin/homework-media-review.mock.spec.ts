@@ -90,6 +90,12 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     if (path === "/homeworks/") return json({ count: 1, results: [homework] });
     if (path === `/homeworks/${HOMEWORK_ID}/`) return json(homework);
     if (path === "/homework/assignments/") return json({ items: [] });
+    if (path === `/results/admin/sessions/${SESSION_ID}/scores/`) {
+      return json({
+        meta: { exams: [], homeworks: [] },
+        rows: [{ enrollment_id: 9902, student_name: "김하늘", exams: [], homeworks: [], updated_at: "2026-08-23T03:20:00Z" }],
+      });
+    }
     if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/`) {
       return json([{
         id: 9901,
