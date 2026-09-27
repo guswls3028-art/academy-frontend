@@ -16,6 +16,7 @@ import LectureSettingsModal from "../../components/LectureSettingsModal";
 import { adminLectureQueryKeys } from "../../queryKeys";
 import { adminStudentsQueryKeys } from "@admin/domains/students/queryKeys";
 import { teacherStudentsQueryKeys } from "@/app_teacher/domains/students/queryKeys";
+import { teacherClinicQueryKeys } from "@/app_teacher/domains/clinic/queryKeys";
 import { clinicQueryKeys } from "@admin/domains/clinic/queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
@@ -209,7 +210,9 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
     qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.student });
     qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.students });
     qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
+    qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
     qc.invalidateQueries({ queryKey: clinicQueryKeys.lecturesForFilter });
+    qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participantsAll });
   };
 
   const reorderMutation = useMutation({

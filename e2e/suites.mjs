@@ -93,6 +93,7 @@ export const routeMockSpecs = [
   "e2e/teacher/teacher-business-workflow.mock.spec.ts",
   "e2e/teacher/messaging-settings-clear-timing.mock.spec.ts",
   "e2e/teacher/clinic-multi-slot-booking.mock.spec.ts",
+  "e2e/teacher/ended-lecture-student-chip.mock.spec.ts",
   "e2e/teacher/video-thumbnail-render.mock.spec.ts",
   "e2e/teacher/video-preview-playback.mock.spec.ts",
   "e2e/teacher/full-workspace-parity.mock.spec.ts",
@@ -115,6 +116,7 @@ export const criticalStateTransitionSpecs = [
   "e2e/admin/score-entry-autosave.spec.ts",
   "e2e/student/numeric-short-answer.spec.ts",
   "e2e/teacher/messaging-settings-clear-timing.mock.spec.ts",
+  "e2e/teacher/ended-lecture-student-chip.mock.spec.ts",
 ];
 
 export const e2eGateSpecs = [
