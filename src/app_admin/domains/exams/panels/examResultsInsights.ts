@@ -92,11 +92,13 @@ export function buildExamResultsInsightModel({
   questionStats,
   maxScore,
   passScore,
+  questionLabel,
 }: {
   results: AdminExamResultRow[];
   questionStats: QuestionStat[];
   maxScore: number;
   passScore: number;
+  questionLabel: (number: number) => string;
 }): ExamResultsInsightModel {
   const safeMaxScore = Number.isFinite(maxScore) && maxScore > 0 ? maxScore : 100;
   const scoredRows = results.flatMap((row) => {
@@ -228,7 +230,7 @@ export function buildExamResultsInsightModel({
   const actionTargets = (criticalQuestions.length > 0 ? criticalQuestions : weakQuestions).slice(0, 3);
   const nextAction = actionTargets.length > 0
     ? {
-        title: `${actionTargets.map((question) => `${question.question_number}번`).join(" · ")} 재풀이`,
+        title: `${actionTargets.map((question) => questionLabel(question.question_number)).join(" · ")} 재풀이`,
         detail: criticalQuestions.length > 0
           ? "개념 확인 → 대표 풀이 → 유사 문항 순서로 공통 보충하세요."
           : "정답률이 낮은 순서입니다. 학생별 오답표와 함께 대상자를 나누세요.",

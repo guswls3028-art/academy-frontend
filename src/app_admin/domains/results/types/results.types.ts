@@ -235,6 +235,8 @@ export type WrongNoteItem = {
 
   question_id: number;
   question_number: number | null;
+  essay_numbering?: "continuous" | "separate";
+  essay_index?: number | null;
   answer_type: string;
   question_image_url: string;
   has_question_image: boolean;
