@@ -18,6 +18,24 @@ export const PRODUCT_UPDATE_CADENCE = {
 
 export const PRODUCT_UPDATES: ProductUpdate[] = [
   {
+    id: "2026-09-28-classroom-workflows",
+    date: "2026-09-28",
+    title: "수업 준비·예약·알림 동선 정리",
+    summary:
+      "자료 만들기와 채점, 클리닉 예약부터 선생님 도움말까지 자주 사용하는 작업의 저장·확인 흐름을 다듬었습니다.",
+    audience: ["원장·관리자", "선생님·조교", "학생·학부모"],
+    availability: "기능별 이용 권한에 따라 제공",
+    highlights: [
+      { kind: "improve", text: "선생님 앱의 제품 업데이트는 상단 ? 도움말에서 확인하고, 알림 종에는 업무·오류 알림만 집계" },
+      { kind: "improve", text: "이미지 PDF의 PPT 자동·수동 제작과 생성 결과의 다시 열기·다운로드 흐름 정리" },
+      { kind: "improve", text: "클리닉의 다음 날까지 이어지는 이용 시간 표시와 학생 예약·학부모 확인 동선 개선" },
+      { kind: "fix", text: "종료된 강의를 현재 클리닉 대상과 학생 이름 옆 강의 표시에서 제외하고 기존 예약 이력은 보존" },
+      { kind: "improve", text: "과제 제출물의 교사 검토와 학생 확인, 서술형 번호·오답노트 표시 정리" },
+      { kind: "fix", text: "자동발송 설정의 저장 실패 후 초안을 유지하고 다시 저장할 수 있도록 개선" },
+      { kind: "improve", text: "작은 화면에서도 타이머·스톱워치의 상태와 조작 버튼을 함께 확인하도록 배치 개선" },
+    ],
+  },
+  {
     id: "2026-08-25-weekly-operations",
     date: "2026-08-25",
     title: "수업부터 지원·정산까지 이어지는 운영 업데이트",
