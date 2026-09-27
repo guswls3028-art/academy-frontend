@@ -94,7 +94,10 @@ test("7쪽 자동 생성 실패 안내에서 직접 자르기·다운로드·새
   await expect(page.getByRole("button", { name: "PPT 생성 및 다운로드" })).toBeEnabled();
 
   await page.getByRole("button", { name: "선택한 PDF 제거" }).click();
-  await upload.setInputFiles(PDF);
+  // Chromium omits disk-backed multipart bytes from intercepted route.fetch requests.
+  await upload.setInputFiles({
+    name: path.basename(PDF), mimeType: "application/pdf", buffer: await readFile(PDF),
+  });
   await expect(page.getByText("synthetic-math-low-anchor-7pages.pdf")).toBeVisible();
   await expect(page.getByRole("button", { name: "자동 문항 분리" })).toHaveAttribute("aria-pressed", "true");
   const automaticResponse = waitForSubmission(page);
