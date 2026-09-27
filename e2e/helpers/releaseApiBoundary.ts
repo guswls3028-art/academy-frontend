@@ -9,6 +9,28 @@ export type ReleaseBoundary = {
 };
 
 const DEVELOPMENT_OMR_R2_ORIGIN = "https://af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.com";
+const PPTX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
+function isExactDevelopmentPptDownload(
+  boundary: ReleaseBoundary, rawUrl: string, filename: string,
+): boolean {
+  if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
+    || Number(boundary.omrR2TenantId) < 1) return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== target.origin + target.pathname + target.search) return false;
+  const match = new RegExp("^/academy-development-artifacts/tenants/" + boundary.omrR2TenantId
+    + "/tools/ppt/([a-f0-9]{12})\\.pptx$").exec(target.pathname);
+  if (!match || filename !== "presentation_" + match[1] + ".pptx"
+    || target.searchParams.getAll("response-content-type").length !== 1
+    || target.searchParams.get("response-content-type") !== PPTX_CONTENT_TYPE
+    || target.searchParams.getAll("response-content-disposition").length !== 1
+    || target.searchParams.get("response-content-disposition") !== 'attachment; filename="' + filename + '"') return false;
+  const unsigned = new URL(target);
+  unsigned.searchParams.delete("response-content-type");
+  unsigned.searchParams.delete("response-content-disposition");
+  return hasExactHostSignature(unsigned, 3600);
+}
 
 function isExactDevelopmentOmrImage(boundary: ReleaseBoundary, rawUrl: string, method: string): boolean {
   if (boundary.mode !== "development" || method !== "GET"
@@ -794,6 +816,8 @@ export async function installReleaseContextGuard(
   const defects: string[] = [];
   const homeworkPreviewUrls = new Set<string>();
   const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
+  const acceptedPptJobs = new Set<string>();
+  const pptDownloadUrls = new Map<string, { url: string; filename: string }>();
   const communityAttachments = new Map<string, { contentType: string; originalName: string }>();
   const registerQnaPost = (post: unknown) => {
     if (!isRecord(post) || post.post_type !== "qna" || typeof post.id !== "number" || !Number.isSafeInteger(post.id)
@@ -899,6 +923,31 @@ export async function installReleaseContextGuard(
         }
         return;
       }
+      const pptDownload = request.method() === "GET"
+        ? [...pptDownloadUrls.values()].find((item) => item.url === upstream) : undefined;
+      if (pptDownload && ["document", "other"].includes(request.resourceType())) {
+        const headers = await request.allHeaders();
+        if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
+          .some((key) => headers[key])) {
+          await reject("credentials");
+          return;
+        }
+        const response = await route.fetch({ url: upstream, method: "GET",
+          headers: { accept: PPTX_CONTENT_TYPE }, maxRedirects: 0 });
+        if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
+        const body = await response.body();
+        const disposition = 'attachment; filename="' + pptDownload.filename + '"';
+        if (response.status() !== 200
+          || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== PPTX_CONTENT_TYPE
+          || response.headers()["content-disposition"] !== disposition
+          || body.length < 4 || body.subarray(0, 4).toString("binary") !== "PK\x03\x04") {
+          await reject("transport");
+          return;
+        }
+        await route.fulfill({ status: 200, headers: { "content-type": PPTX_CONTENT_TYPE,
+          "content-disposition": disposition }, body });
+        return;
+      }
       const homeworkPng = request.method() === "GET" && homeworkPreviewUrls.has(upstream);
       const communityImageType = request.method() === "GET" ? communityImageUrls.get(upstream) : undefined;
       if ((homeworkPng || communityImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
@@ -988,6 +1037,27 @@ export async function installReleaseContextGuard(
           || response.headers()["access-control-allow-origin"] !== boundary.webOrigin
           || response.headers()["access-control-allow-credentials"] !== "true") {
           throw new Error("Real API CORS boundary mismatch");
+        }
+        const pptTarget = new URL(upstream);
+        const pptSubmission = request.method() === "POST"
+          && pptTarget.pathname === "/api/v1/tools/ppt/generate/" && !pptTarget.search;
+        const pptStatus = request.method() === "GET"
+          ? /^\/api\/v1\/jobs\/([0-9a-f-]{36})\/(?:progress\/)?$/.exec(pptTarget.pathname) : null;
+        if (boundary.mode === "development" && response.status() >= 200 && response.status() < 300
+          && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json"
+          && /^Bearer \S+$/.test(headers.authorization ?? "") && headers["x-tenant-code"] === boundary.tenantCode
+          && (pptSubmission || (pptStatus && !pptTarget.search))) {
+          const payload = await response.json();
+          if (pptSubmission && UUID.test(payload?.job_id) && acceptedPptJobs.size < 2) {
+            acceptedPptJobs.add(payload.job_id);
+          }
+          if (pptStatus && UUID.test(pptStatus[1]) && acceptedPptJobs.has(pptStatus[1])
+            && payload?.job_id === pptStatus[1] && payload?.job_type === "ppt_generation"
+            && payload?.status === "DONE" && typeof payload?.result?.download_url === "string"
+            && typeof payload.result.filename === "string"
+            && isExactDevelopmentPptDownload(boundary, payload.result.download_url, payload.result.filename)) {
+            pptDownloadUrls.set(pptStatus[1], { url: payload.result.download_url, filename: payload.result.filename });
+          }
         }
         const homeworkPreview = /^\/api\/v1\/submissions\/submissions\/homework\/([1-9][0-9]*)\/media\/([1-9][0-9]*)\/preview\/$/.exec(new URL(upstream).pathname);
         if (boundary.mode === "development" && request.method() === "GET" && homeworkPreview
