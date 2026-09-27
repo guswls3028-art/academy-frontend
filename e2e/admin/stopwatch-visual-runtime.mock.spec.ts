@@ -215,6 +215,15 @@ async function assertResponsiveStopwatchSurface(page: Page, mobileScreenshotPath
   await expect(page.getByText("LAP 01", { exact: true })).toBeVisible();
   const mobileAfterResize = await readClockMs(display);
   expect(mobileAfterResize).toBeGreaterThanOrEqual(desktopBeforeResize);
+  const modeBounds = await page.getByRole("button", { name: "스톱워치", exact: true }).boundingBox();
+  const projectorBounds = await page.getByRole("button", { name: "Projector", exact: true }).boundingBox();
+  expect(modeBounds).not.toBeNull();
+  expect(projectorBounds).not.toBeNull();
+  const headerOverlaps = modeBounds!.x < projectorBounds!.x + projectorBounds!.width
+    && modeBounds!.x + modeBounds!.width > projectorBounds!.x
+    && modeBounds!.y < projectorBounds!.y + projectorBounds!.height
+    && modeBounds!.y + modeBounds!.height > projectorBounds!.y;
+  expect(headerOverlaps, `mode ${JSON.stringify(modeBounds)} overlaps projector ${JSON.stringify(projectorBounds)}`).toBe(false);
   const mobileDisplayBounds = await display.evaluate((element) => {
     const children = Array.from(element.children, (child) => child.getBoundingClientRect());
     return { left: Math.min(...children.map((child) => child.left)), right: Math.max(...children.map((child) => child.right)) };
