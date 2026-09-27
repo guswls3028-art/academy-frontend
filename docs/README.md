@@ -23,6 +23,7 @@
 | [ATTENDANCE-ROSTER-SAFETY.md](ATTENDANCE-ROSTER-SAFETY.md) | 차시 수강생 일괄배정의 미입력 시작, 선택 검토·실행취소, 전체 현장 출석의 원자적 되돌리기 계약 |
 | [ARRIVAL-OPERATIONS.md](ARRIVAL-OPERATIONS.md) | 보강 예정 입력과 클리닉 예약을 합친 대시보드·우상단 알림 운영 계약 |
 | [관리자](../src/app_admin/domains/clinic/README.md) · [선생님](../src/app_teacher/domains/clinic/README.md) · [학생](../src/app_student/domains/clinic/README.md) 클리닉 | 세션별 같은 날 다중 시간대 예약 정책과 역할별 생성·신청·추가 UX 계약 |
+| [학생 이름의 현재 강의 표시](STUDENT-LECTURE-STATUS.md) | 종료·비활성 강의 딱지 제외, 이력 보존, 종료·복원 후 화면 갱신 |
 | [LECTURE-SESSION-SCOPES.md](LECTURE-SESSION-SCOPES.md) | 강의 안의 정규 수업·보강 분리 진입, 보강 이름 생성·수정 계약 |
 | [STUDENT-LECTURE-MEMOS.md](STUDENT-LECTURE-MEMOS.md) | 학생 공통 메모와 학생별 강의 메모의 차시 공유·편집·동시 수정·직원 화면 계약 |
 | [REAL-USE-REVIEW-MANUAL.md](REAL-USE-REVIEW-MANUAL.md) | 실제 운영 흐름과 UI/UX 상품성을 함께 점검하는 반복 검수 매뉴얼 |
@@ -33,6 +34,7 @@
 | [TENANT-BRANDING.md](TENANT-BRANDING.md) | 신규 테넌트 로그인·역할별 공용 헤더 브랜딩 계약과 검증표 |
 | [DEV-TENANT-OPERATIONS.md](DEV-TENANT-OPERATIONS.md) | 개발자 콘솔 테넌트·소유자 생성, 기존 계정 승격, 실패 안전 UI 계약 |
 | [TCHUL-PUBLIC-SITE.md](TCHUL-PUBLIC-SITE.md) | tchul 공식 홈페이지의 정보 구조, 매치업 PDF 게시·공유, 반응형·실패 처리 계약 |
+| [GODMIN-PUBLIC-SITE.md](GODMIN-PUBLIC-SITE.md) | godmin 전용 통합과학 공개 홈페이지의 진입·로그인·반응형·메타데이터 계약 |
 | [PRODUCT-USAGE-ANALYTICS.md](PRODUCT-USAGE-ANALYTICS.md) | 역할별 화면·CTA·대표 업무 사용 신호와 실패 안전 계약 |
 | [TEACHER-TOOLS.md](TEACHER-TOOLS.md) | 강사 도구함 확장 규칙과 AI 풀이·해설 Beta 상호작용 계약 |
 | [PROBLEM-REVIEW-REPORT.md](PROBLEM-REVIEW-REPORT.md) | 시험지 업로드부터 검수 편집, PDF/PPTX 다운로드까지 문제 리뷰 리포트 화면 계약 |

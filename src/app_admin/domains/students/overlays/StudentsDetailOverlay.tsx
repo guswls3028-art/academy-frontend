@@ -338,7 +338,7 @@ export default function StudentsDetailOverlay({
                       chipSize={36}
                       lectures={
                         Array.isArray(student.enrollments) && student.enrollments.length > 0
-                          ? student.enrollments.map((en: { lectureName?: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
+                          ? student.enrollments.filter((en) => en.lectureActive && (en.status ?? "ACTIVE") === "ACTIVE").map((en) => ({
                               lectureName: en.lectureName ?? "—",
                               color: en.lectureColor ?? undefined,
                               chipLabel: en.lectureChipLabel ?? undefined,

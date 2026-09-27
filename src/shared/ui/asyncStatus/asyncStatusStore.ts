@@ -5,6 +5,7 @@
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import type { OmrUploadBatchSummary } from "@/shared/api/contracts/submissions";
 import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
+import { clearPptJobReferences, forgetPptJobReference } from "./pptJobRecovery";
 
 export type AsyncTaskStatus = "pending" | "success" | "error";
 
@@ -483,6 +484,9 @@ export const asyncStatusStore = {
 
   /** 항목 제거 (사용자가 휴지통으로 삭제) */
   removeTask(id: string): void {
+    if (tasks.some((task) => task.id === id && task.meta?.jobType === "ppt_generation")) {
+      forgetPptJobReference(id);
+    }
     tasks = tasks.filter((t) => t.id !== id);
     emit();
   },
@@ -493,6 +497,7 @@ export const asyncStatusStore = {
     tasks = [];
     try {
       removeLocalItem(EXCEL_RECOVERY_STORAGE_KEY);
+      clearPptJobReferences();
     } catch {
       // ignore
     }
@@ -532,6 +537,8 @@ export const asyncStatusStore = {
   /** 완료된 항목 일괄 제거 (휴지통) — 현재 테넌트 소속만 제거, 테넌트 격리 */
   clearCompleted(): void {
     const scope = this._getTenantScope();
+    tasks.filter((task) => task.status !== "pending" && (task.tenantScope ?? "") === scope && task.meta?.jobType === "ppt_generation")
+      .forEach((task) => forgetPptJobReference(task.id));
     tasks = tasks.filter(
       (t) => t.status === "pending" || (t.tenantScope ?? "") !== scope
     );

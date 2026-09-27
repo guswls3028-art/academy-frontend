@@ -40,10 +40,17 @@ type RetryConfig = ApiRequestConfig & {
   _asyncId?: string;
   _transientRetryCount?: number;
   _authGeneration?: string | null;
+  _expectedTenant?: string;
 };
 
 /** AllowAny 엔드포인트(예: /core/program/) 호출 시 만료 토큰 401 방지 */
 export type ApiRequestConfig = AxiosRequestConfig & { skipAuth?: boolean; playbackUnload?: true };
+
+/** Reject a queued mutation if another login becomes active before its interceptor runs. */
+export function createAuthSessionBoundConfig(expectedGeneration: string, signal?: AbortSignal, expectedTenant?: string): ApiRequestConfig {
+  const config: RetryConfig = { signal, _authGeneration: expectedGeneration, _expectedTenant: expectedTenant };
+  return config;
+}
 
 /** Capture the request generation before axios schedules its interceptor chain. */
 export function createPlaybackUnloadConfig(): ApiRequestConfig {
@@ -464,6 +471,10 @@ api.interceptors.request.use(async (config) => {
 
   // 테넌트 코드가 있으면 항상 전송 (B 구조: tchul.com → api.hakwonplus.com 에서 필수)
   const tenantCode = getTenantCodeForApiRequest();
+  // Recheck after the asynchronous token refresh, including every retry.
+  if (retryCfg._expectedTenant !== undefined && (!tenantCode || retryCfg._expectedTenant !== tenantCode)) {
+    throw new axios.CanceledError("학원이 변경되었습니다. 파일을 다시 선택해주세요.");
+  }
   if (tenantCode) {
     setRequestHeader(cfg, "X-Tenant-Code", tenantCode);
   }

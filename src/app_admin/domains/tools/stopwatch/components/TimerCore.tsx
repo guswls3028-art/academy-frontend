@@ -1,12 +1,13 @@
 // PATH: src/app_admin/domains/tools/stopwatch/components/TimerCore.tsx
 // 프리미엄 카운트다운 타이머 — 시험 남은시간 표시, 빔프로젝터 모드 지원
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useContext, useLayoutEffect } from "react";
 import { getStopwatchTimeParts, padStopwatchPart as pad } from "../stopwatchTime";
+import { StopwatchSessionContext, type TimerFontKey, type TimerPhase } from "../stopwatchSession";
 import styles from "./TimerCore.module.css";
 
 type Mode = "timer" | "stopwatch";
-type FontKey = "mono" | "classic" | "modern" | "round";
+type FontKey = TimerFontKey;
 
 interface Props {
   logoUrl?: string;
@@ -20,7 +21,7 @@ interface Props {
   containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-type Phase = "setup" | "ready" | "running" | "paused" | "finished";
+type Phase = TimerPhase;
 
 const PRESETS = [
   { label: "1분", ms: 1 * 60_000 },
@@ -73,10 +74,14 @@ function playAlarm() {
 }
 
 export default function TimerCore({ logoUrl, academyName, startFullscreen, mode = "timer", onModeChange, projector: projectorProp, onProjectorChange, containerRef: externalContainerRef }: Props) {
-  const [phase, setPhase] = useState<Phase>("setup");
-  const [remaining, setRemaining] = useState(0);
-  const [totalSet, setTotalSet] = useState(0);
-  const [fontKey, setFontKey] = useState<FontKey>(FONT_OPTIONS_TYPED[0].value);
+  const session = useContext(StopwatchSessionContext);
+  const restored = useRef(session?.current.timer).current;
+  const [phase, setPhase] = useState<Phase>(restored?.phase ?? "setup");
+  const [remaining, setRemaining] = useState(() => restored?.phase === "running"
+    ? Math.max(0, restored.endTime - performance.now())
+    : restored?.remaining ?? 0);
+  const [totalSet, setTotalSet] = useState(restored?.totalSet ?? 0);
+  const [fontKey, setFontKey] = useState<FontKey>(restored?.fontKey ?? FONT_OPTIONS_TYPED[0].value);
   const [projectorLocal, setProjectorLocal] = useState(false);
   const projector = projectorProp ?? projectorLocal;
   const toggleProjector = useCallback(() => {
@@ -87,12 +92,12 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Custom input
-  const [inputMin, setInputMin] = useState("");
-  const [inputSec, setInputSec] = useState("");
+  const [inputMin, setInputMin] = useState(restored?.inputMin ?? "");
+  const [inputSec, setInputSec] = useState(restored?.inputSec ?? "");
 
-  const endTimeRef = useRef(0);
-  const remainingRef = useRef(0);
-  const runningRef = useRef(false);
+  const endTimeRef = useRef(restored?.endTime ?? 0);
+  const remainingRef = useRef(remaining);
+  const runningRef = useRef(restored?.phase === "running");
   const afRef = useRef(0);
   const internalRef = useRef<HTMLDivElement>(null);
   const containerRef = externalContainerRef ?? internalRef;
@@ -120,6 +125,19 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
     setRemaining(left);
     afRef.current = requestAnimationFrame(tick);
   }, []);
+
+  useLayoutEffect(() => {
+    if (session) {
+      session.current.timer = {
+        phase, remaining: remainingRef.current, endTime: endTimeRef.current,
+        totalSet, fontKey, inputMin, inputSec,
+      };
+    }
+  }, [session, phase, totalSet, fontKey, inputMin, inputSec]);
+
+  useEffect(() => {
+    if (runningRef.current) afRef.current = requestAnimationFrame(tick);
+  }, [tick]);
 
   const startTimer = useCallback((ms: number) => {
     setTotalSet(ms);
@@ -288,8 +306,9 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
     if (phase === "running" || phase === "paused" || phase === "ready") {
       if (!window.confirm("타이머가 진행 중입니다. 모드를 전환하면 설정한 시간이 사라집니다. 계속할까요?")) return;
     }
+    if (session) session.current.timer = null;
     onModeChange?.(next);
-  }, [mode, phase, onModeChange]);
+  }, [mode, phase, onModeChange, session]);
 
   const t = getStopwatchTimeParts(remaining, { clamp: true });
   const isWarning = phase === "running" && remaining > 0 && remaining < 60_000;
@@ -498,6 +517,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
                   className={`${styles.btnMain} ${phase === "running" ? styles.btnStop : styles.btnStart}`}
                   onClick={doToggle}
                   type="button"
+                  aria-label={phase === "running" ? "일시정지" : "시작"}
                 >
                   {phase === "running" ? (
                     <svg viewBox="0 0 24 24" fill="#fff">

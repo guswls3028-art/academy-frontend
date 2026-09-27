@@ -197,7 +197,7 @@ export default function ClinicBookingsPage() {
                           <StudentDetailLink studentId={row.student} studentName={row.student_name}>
                             <StudentNameWithLectureChip
                               name={row.student_name}
-                              lectures={row.lecture_title ? [{
+                              lectures={row.lecture_title && row.lecture_current !== false ? [{
                                 lectureName: row.lecture_title,
                                 color: row.lecture_color,
                                 chipLabel: row.lecture_chip_label,

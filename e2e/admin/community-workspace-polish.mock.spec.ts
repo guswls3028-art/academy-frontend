@@ -2,6 +2,11 @@ import { devices, type Page, type Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { installLocalAuthApiStubs } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
+import {
+  deleteCommunityPost,
+  deleteCommunityPostAttachment,
+  type CommunityHttpClient,
+} from "@/shared/api/contracts/community";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const QUESTION_ID = 4332;
@@ -146,6 +151,41 @@ async function installApi(page: Page) {
   });
 }
 
+test("커뮤니티 DELETE는 정확한 부분 완료 응답만 삭제 완료로 분류한다", async () => {
+  const clientFor = (error?: unknown) => ({
+    delete: async () => {
+      if (error) throw error;
+      return { data: undefined };
+    },
+  }) as unknown as CommunityHttpClient;
+  const partial = (deleted: { posts: number; attachments: number; r2_objects: number }) => ({
+    response: {
+      status: 502,
+      data: {
+        code: "community_storage_cleanup_pending",
+        detail: "DB 삭제 뒤 원본 파일 정리가 남았습니다.",
+        deleted,
+        storage_cleanup: { pending: 1, failed: 1, cleaned: 0 },
+      },
+    },
+  });
+
+  await expect(deleteCommunityPost(clientFor(), QUESTION_ID)).resolves.toEqual({ status: "deleted" });
+  await expect(deleteCommunityPost(clientFor(partial({ posts: 1, attachments: 2, r2_objects: 0 })), QUESTION_ID))
+    .resolves.toMatchObject({ status: "deleted_with_storage_cleanup_pending" });
+  const wrongPostCount = partial({ posts: 0, attachments: 2, r2_objects: 0 });
+  await expect(deleteCommunityPost(clientFor(wrongPostCount), QUESTION_ID)).rejects.toBe(wrongPostCount);
+
+  await expect(deleteCommunityPostAttachment(
+    clientFor(partial({ posts: 0, attachments: 1, r2_objects: 0 })), QUESTION_ID, 80,
+  )).resolves.toMatchObject({ status: "deleted_with_storage_cleanup_pending" });
+  const wrongAttachmentCount = partial({ posts: 0, attachments: 0, r2_objects: 0 });
+  await expect(deleteCommunityPostAttachment(clientFor(wrongAttachmentCount), QUESTION_ID, 80))
+    .rejects.toBe(wrongAttachmentCount);
+  const ordinaryFailure = { response: { status: 503, data: { detail: "일반 삭제 실패" } } };
+  await expect(deleteCommunityPost(clientFor(ordinaryFailure), QUESTION_ID)).rejects.toBe(ordinaryFailure);
+});
+
 test.describe("커뮤니티 QnA 작업대", () => {
   test.use({ serviceWorkers: "block" });
 
@@ -153,6 +193,45 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await seed(page);
     await installApi(page);
     await installLocalAuthApiStubs(page);
+  });
+
+  test("부분 삭제는 재전송 없이 목록과 새로고침에 반영하고 정리 대기를 알린다", async ({ page }) => {
+    let deleteRequests = 0;
+    let deleted = false;
+    let listRequests = 0;
+    await page.route("**/api/v1/community/admin/posts/**", async (route) => {
+      listRequests += 1;
+      if (!deleted) return route.fallback();
+      await route.fulfill({ status: 200, headers: CORS_HEADERS, contentType: "application/json",
+        body: JSON.stringify({ count: 0, results: [] }) });
+    });
+    await page.route(`**/api/v1/community/posts/${QUESTION_ID}/`, async (route) => {
+      if (route.request().method() === "DELETE") {
+        deleteRequests += 1;
+        deleted = true;
+        return route.fulfill({ status: 502, headers: CORS_HEADERS, contentType: "application/json",
+          body: JSON.stringify({ code: "community_storage_cleanup_pending",
+            detail: "질문은 삭제됐지만 원본 파일 정리가 지연되고 있습니다.",
+            deleted: { posts: 1, attachments: 1, r2_objects: 0 },
+            storage_cleanup: { pending: 1, failed: 0, cleaned: 0 } }) });
+      }
+      if (deleted) return route.fulfill({ status: 404, headers: CORS_HEADERS, contentType: "application/json",
+        body: JSON.stringify({ detail: "Not found." }) });
+      return route.fallback();
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
+    await page.locator(".qna-inbox__thread-actions").getByRole("button", { name: "삭제", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "질문 삭제" }).getByRole("button", { name: "삭제", exact: true }).click();
+    await expect(page.getByText(/질문은 삭제됐지만 원본 파일 정리가 지연/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "프린트 진화와 자연선택 20번" })).toHaveCount(0);
+    await expect.poll(() => listRequests).toBeGreaterThan(1);
+    await page.reload();
+    await waitForRenderSettled(page);
+    await expect(page.getByRole("heading", { name: "프린트 진화와 자연선택 20번" })).toHaveCount(0);
+    expect(deleteRequests).toBe(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   });
 
   test("데스크톱에서 문제 이미지와 답변기를 함께 보고 미답변 수를 즉시 줄인다", async ({ page }) => {

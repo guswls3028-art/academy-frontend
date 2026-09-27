@@ -70,15 +70,13 @@ export type ProductAnalyticsOverview = {
 export async function getProductAnalyticsOverview(
   filters: ProductAnalyticsFilters,
 ): Promise<ProductAnalyticsOverview> {
-  const res = await api.get<ProductAnalyticsOverview>(
+  const res = await api.post<ProductAnalyticsOverview>(
     "/core/dev/product-analytics/overview/",
     {
-      params: {
-        days: filters.days,
-        tenant_id: filters.tenantId,
-        role: filters.role || undefined,
-        surface: filters.surface || undefined,
-      },
+      days: filters.days,
+      tenant_id: filters.tenantId,
+      role: filters.role || undefined,
+      surface: filters.surface || undefined,
     },
   );
   return res.data;

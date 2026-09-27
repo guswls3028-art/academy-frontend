@@ -96,6 +96,27 @@ export interface CommunityPostCreatePayload {
   published_at?: string | null;
 }
 
+export type CommunityDeleteCounts = {
+  posts: number;
+  attachments: number;
+  r2_objects: number;
+};
+
+export type CommunityStorageCleanupCounts = {
+  pending: number;
+  failed: number;
+  cleaned: number;
+};
+
+export type CommunityDeleteResult =
+  | { status: "deleted" }
+  | {
+      status: "deleted_with_storage_cleanup_pending";
+      detail: string;
+      deleted: CommunityDeleteCounts;
+      storage_cleanup: CommunityStorageCleanupCounts;
+    };
+
 export interface Question {
   id: number;
   enrollment?: number;
@@ -416,8 +437,83 @@ export async function updateCommunityPost(
   return normalizeCommunityPostDisplay(res.data);
 }
 
-export async function deleteCommunityPost(client: CommunityHttpClient, postId: number): Promise<void> {
-  await client.delete(`${COMMUNITY_PREFIX}/posts/${postId}/`);
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function parseStorageCleanupPending(
+  error: unknown,
+  expected: { posts: number; attachments?: number },
+): CommunityDeleteResult | null {
+  const response = (error as { response?: { status?: unknown; data?: unknown } } | null)?.response;
+  if (response?.status !== 502) return null;
+
+  const data = asRecord(response.data);
+  const deleted = asRecord(data?.deleted);
+  const storageCleanup = asRecord(data?.storage_cleanup);
+  if (
+    data?.code !== "community_storage_cleanup_pending"
+    || typeof data.detail !== "string"
+    || !data.detail.trim()
+    || !deleted
+    || !storageCleanup
+    || deleted.posts !== expected.posts
+    || (expected.attachments != null && deleted.attachments !== expected.attachments)
+    || !isNonNegativeInteger(deleted.attachments)
+    || !isNonNegativeInteger(deleted.r2_objects)
+    || !isNonNegativeInteger(storageCleanup.pending)
+    || !isNonNegativeInteger(storageCleanup.failed)
+    || !isNonNegativeInteger(storageCleanup.cleaned)
+    || storageCleanup.pending + storageCleanup.failed <= 0
+  ) {
+    return null;
+  }
+
+  return {
+    status: "deleted_with_storage_cleanup_pending",
+    detail: richHtmlToPlainText(data.detail),
+    deleted: {
+      posts: expected.posts,
+      attachments: deleted.attachments,
+      r2_objects: deleted.r2_objects,
+    },
+    storage_cleanup: {
+      pending: storageCleanup.pending,
+      failed: storageCleanup.failed,
+      cleaned: storageCleanup.cleaned,
+    },
+  };
+}
+
+export function getCommunityStorageCleanupNotice(result: CommunityDeleteResult): string | null {
+  if (result.status === "deleted") return null;
+  const { pending, failed } = result.storage_cleanup;
+  const incomplete = pending + failed;
+  const breakdown = [
+    pending > 0 ? `정리 대기 ${pending}개` : null,
+    failed > 0 ? `정리 실패 ${failed}개` : null,
+  ].filter(Boolean).join(" · ");
+  return `${result.detail} 미완료 원본 파일 ${incomplete}개 (${breakdown}). 동일한 삭제를 다시 시도하지 마세요.`;
+}
+
+export async function deleteCommunityPost(
+  client: CommunityHttpClient,
+  postId: number,
+): Promise<CommunityDeleteResult> {
+  try {
+    await client.delete(`${COMMUNITY_PREFIX}/posts/${postId}/`);
+    return { status: "deleted" };
+  } catch (error) {
+    const partial = parseStorageCleanupPending(error, { posts: 1 });
+    if (partial) return partial;
+    throw error;
+  }
 }
 
 export async function bulkUpdateCommunityPostStatus(
@@ -549,8 +645,15 @@ export async function deleteCommunityPostAttachment(
   client: CommunityHttpClient,
   postId: number,
   attId: number,
-): Promise<void> {
-  await client.delete(`${COMMUNITY_PREFIX}/posts/${postId}/attachments/${attId}/`);
+): Promise<CommunityDeleteResult> {
+  try {
+    await client.delete(`${COMMUNITY_PREFIX}/posts/${postId}/attachments/${attId}/`);
+    return { status: "deleted" };
+  } catch (error) {
+    const partial = parseStorageCleanupPending(error, { posts: 0, attachments: 1 });
+    if (partial) return partial;
+    throw error;
+  }
 }
 
 export async function fetchCommunityPostCounts(

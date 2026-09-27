@@ -3,7 +3,7 @@
  * 제안은 현재 대표 결과에서 계산하며 시험 컷이나 재시험 정책을 자동 변경하지 않는다.
  */
 
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   BookOpenCheck,
@@ -76,10 +76,10 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
       .forEach((question, index) => indexes.set(question.number, index + 1));
     return indexes;
   }, [questionKindsQ.data]);
-  const questionLabel = (number: number) => examQuestionLabel(
+  const questionLabel = useCallback((number: number) => examQuestionLabel(
     number, exam?.essay_numbering,
     essayIndexes.get(number) ?? essayIndexFromBoundary(number, exam?.grading_mode, exam?.choice_question_count),
-  );
+  ), [essayIndexes, exam?.essay_numbering, exam?.grading_mode, exam?.choice_question_count]);
   const assignmentsQ = useQuery({
     queryKey: adminExamsQueryKeys.examLectureAssignments(examId),
     queryFn: () => fetchExamLectureAssignments(examId),
@@ -122,8 +122,9 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
       questionStats,
       maxScore: examMaxScore,
       passScore,
+      questionLabel,
     }),
-    [examMaxScore, passScore, questionStats, results],
+    [examMaxScore, passScore, questionLabel, questionStats, results],
   );
   const hasData = insight.scoredCount > 0;
 

@@ -1,8 +1,9 @@
 // PATH: src/app_admin/domains/tools/stopwatch/components/StopwatchCore.tsx
 // 프리미엄 스톱워치 — 빔프로젝터 모드 지원, 테넌트 로고 브랜딩
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useContext, useLayoutEffect } from "react";
 import { getStopwatchTimeParts, padStopwatchPart as pad, toStopwatchTimeText } from "../stopwatchTime";
+import { StopwatchSessionContext, type StopwatchLap } from "../stopwatchSession";
 import styles from "./StopwatchCore.module.css";
 
 type Mode = "timer" | "stopwatch";
@@ -21,11 +22,13 @@ interface Props {
   containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-type Lap = { n: number; split: number; total: number };
-
 export default function StopwatchCore({ logoUrl, academyName, startFullscreen, mode = "stopwatch", onModeChange, projector: projectorProp, onProjectorChange, containerRef: externalContainerRef }: Props) {
-  const [running, setRunning] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  const session = useContext(StopwatchSessionContext);
+  const restored = useRef(session?.current.stopwatch).current;
+  const [running, setRunning] = useState(restored?.running ?? false);
+  const [elapsed, setElapsed] = useState(() => restored?.running
+    ? restored.elapsedBase + (performance.now() - restored.startTime)
+    : restored?.elapsedBase ?? 0);
   const [projectorLocal, setProjectorLocal] = useState(false);
   const projector = projectorProp ?? projectorLocal;
   const toggleProjector = useCallback(() => {
@@ -34,12 +37,12 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
     else setProjectorLocal(next);
   }, [projector, onProjectorChange]);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [laps, setLaps] = useState<Lap[]>([]);
+  const [laps, setLaps] = useState<StopwatchLap[]>(restored?.laps ?? []);
 
-  const startTimeRef = useRef(0);
-  const elapsedRef = useRef(0);
-  const runningRef = useRef(false);
-  const lastLapRef = useRef(0);
+  const startTimeRef = useRef(restored?.startTime ?? 0);
+  const elapsedRef = useRef(restored?.elapsedBase ?? 0);
+  const runningRef = useRef(restored?.running ?? false);
+  const lastLapRef = useRef(restored?.lastLap ?? 0);
   const afRef = useRef(0);
   const internalRef = useRef<HTMLDivElement>(null);
   const containerRef = externalContainerRef ?? internalRef;
@@ -50,6 +53,20 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
     setElapsed(elapsedRef.current + (now - startTimeRef.current));
     afRef.current = requestAnimationFrame(tick);
   }, []);
+
+  useLayoutEffect(() => {
+    if (session) {
+      session.current.stopwatch = {
+        running, elapsedBase: elapsedRef.current, startTime: startTimeRef.current,
+        lastLap: lastLapRef.current, laps,
+      };
+    }
+  }, [session, running, elapsed, laps]);
+
+  useEffect(() => {
+    if (runningRef.current) afRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(afRef.current);
+  }, [tick]);
 
   const doToggle = useCallback(() => {
     if (!runningRef.current) {
@@ -151,8 +168,9 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
     if (running || elapsed > 0 || laps.length > 0) {
       if (!window.confirm("스톱워치 기록이 있습니다. 모드를 전환하면 기록이 사라집니다. 계속할까요?")) return;
     }
+    if (session) session.current.stopwatch = null;
     onModeChange?.(next);
-  }, [mode, running, elapsed, laps.length, onModeChange]);
+  }, [mode, running, elapsed, laps.length, onModeChange, session]);
 
   const t = getStopwatchTimeParts(elapsed);
   const hasLaps = laps.length > 0;
@@ -235,7 +253,7 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
         </div>
 
         {/* Time display */}
-        <div className={`${styles.display} ${running ? styles.displayRunning : ""}`}>
+        <div data-testid="stopwatch-display" className={`${styles.display} ${running ? styles.displayRunning : ""}`}>
           <span className={styles.digit}>{t.h}</span>
           <span className={styles.sep}>:</span>
           <span className={styles.digit}>{t.m}</span>
@@ -258,6 +276,7 @@ export default function StopwatchCore({ logoUrl, academyName, startFullscreen, m
             className={`${styles.btnMain} ${running ? styles.btnStop : styles.btnStart}`}
             onClick={doToggle}
             type="button"
+            aria-label={running ? "일시정지" : "시작"}
           >
             {running ? (
               <svg viewBox="0 0 24 24" fill="#fff">

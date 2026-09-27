@@ -13,6 +13,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { teacherCommsQueryKeys } from "../queryKeys";
+import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 
 interface Props {
   post: Post;
@@ -72,9 +73,10 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
 
   const deleteMutation = useMutation({
     mutationFn: () => deletePost(post.id),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.posts });
-      teacherToast.info("게시글이 삭제되었습니다.");
+      const cleanupNotice = getCommunityStorageCleanupNotice(result);
+      teacherToast.info(cleanupNotice ?? "게시글이 삭제되었습니다.");
       onBack();
     },
     onError: (e) => teacherToast.error(extractApiError(e, "게시글을 삭제하지 못했습니다.")),
