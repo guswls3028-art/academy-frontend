@@ -52,7 +52,7 @@ export default function TeacherTopBar({
   const logoUrl = headerBrandStyle
     ? (tenantHeaderLogoUrl || programLogoUrl)
     : (programLogoUrl || tenantHeaderLogoUrl);
-  const knownBadge = (counts?.total ?? 0) + (productUpdate.isUnread ? 1 : 0);
+  const knownBadge = counts?.total ?? 0;
   const badgeIncomplete = isError || failures.length > 0;
   const badgeLabel = isLoading ? "…" : badgeIncomplete ? "!" : knownBadge > 99 ? "99+" : String(knownBadge);
   const hasBadge = isLoading || badgeIncomplete || knownBadge > 0;
@@ -203,6 +203,13 @@ export default function TeacherTopBar({
           iconSize={ICON.lg}
           ariaLabel="가이드북"
           onNavigate={navigate}
+          updateNotice={{
+            title: productUpdate.latest.title,
+            date: productUpdate.latest.date,
+            href: productUpdate.href,
+            isUnread: productUpdate.isUnread,
+            onOpen: productUpdate.markRead,
+          }}
         />
         <button
           onClick={() => navigate("/workspace/mobile/notifications")}
