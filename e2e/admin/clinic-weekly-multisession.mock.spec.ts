@@ -1387,11 +1387,15 @@ test("월간 달력은 조회 중·실패·빈 날짜에 0개를 반복 표시�
   await installApi(page, undefined, undefined, state);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/workspace/clinic/schedule`, {
-    waitUntil: "commit",
+    // The session GET is held below on purpose, so wait for the shell and CTA
+    // rather than network idle before checking the calendar's loading state.
+    waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
 
-  await page.getByRole("button", { name: "달력으로 이동" }).click();
+  const openCalendar = page.getByRole("button", { name: "달력으로 이동" });
+  await expect(openCalendar).toBeVisible({ timeout: 30_000 });
+  await openCalendar.click({ timeout: 30_000 });
   const overview = page.getByRole("region", { name: "월간 날짜 탐색" });
   await expect(overview.getByRole("grid", { name: /클리닉 월간 달력/ })).toBeVisible({ timeout: 30_000 });
   await expect(overview.getByText("월간 일정을 불러오는 중입니다.")).toBeVisible({ timeout: 20_000 });
