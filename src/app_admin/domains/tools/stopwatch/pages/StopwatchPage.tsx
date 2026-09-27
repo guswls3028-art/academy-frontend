@@ -23,7 +23,7 @@ export default function StopwatchPage() {
   const [projector, setProjector] = useState(() => session?.current.projector ?? false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [installing, setInstalling] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(true);
+  const [helpOpen, setHelpOpen] = useState(() => typeof window === "undefined" || !window.matchMedia("(max-width: 900px)").matches);
   const { canInstall, isInstalled, promptInstall } = useA2HS();
 
   const { logoUrl, academyName } = useMemo(() => {
@@ -99,7 +99,7 @@ export default function StopwatchPage() {
     <div className={styles.page}>
       {/* 안전한 PC 설치 카드 — unsigned EXE/ZIP 대신 PWA만 안내한다. */}
       {!isFullscreen && (
-        <section className={styles.downloadCard} aria-labelledby="pc-timer-install-title">
+        <section className={styles.downloadCard} data-expanded={helpOpen} aria-labelledby="pc-timer-install-title">
           <div className={styles.cardRow}>
           <div className={styles.cardLeft}>
             <div className={styles.cardIcon} aria-hidden>

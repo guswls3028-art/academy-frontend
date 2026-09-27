@@ -1,9 +1,15 @@
-import type { Page, Route } from "@playwright/test";
+import type { Locator, Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+
+async function readClockMs(display: Locator) {
+  const match = (await display.textContent())?.replace(/\s/g, "").match(/^(\d+):(\d+):(\d+)\.(\d{2})$/);
+  expect(match, "time display should stay numeric").not.toBeNull();
+  return ((Number(match![1]) * 60 + Number(match![2])) * 60 + Number(match![3])) * 1000 + Number(match![4]) * 10;
+}
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -106,20 +112,15 @@ async function assertDesktopTimerSurface(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
 }
 
-async function assertResponsiveTimerSurface(page: Page) {
+async function assertResponsiveTimerSurface(page: Page, mobileScreenshotPath: string) {
   const display = page.getByTestId("timer-display");
-  const remainingMs = async () => {
-    const match = (await display.textContent())?.replace(/\s/g, "").match(/^(\d+):(\d+):(\d+)\.(\d{2})$/);
-    expect(match, "timer should retain a numeric countdown").not.toBeNull();
-    return ((Number(match![1]) * 60 + Number(match![2])) * 60 + Number(match![3])) * 1000 + Number(match![4]) * 10;
-  };
   await page.getByRole("button", { name: "Projector" }).click();
-  const desktopBeforeResize = await remainingMs();
+  const desktopBeforeResize = await readClockMs(display);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("button", { name: "메뉴 열기" })).toBeVisible();
-  await display.scrollIntoViewIfNeeded();
+  await expect(page.getByRole("button", { name: "실행 방법 보기" })).toBeVisible();
   await expect(page.getByText("LAST MINUTE", { exact: true })).toBeVisible();
-  const mobileAfterResize = await remainingMs();
+  const mobileAfterResize = await readClockMs(display);
   expect(mobileAfterResize).toBeGreaterThan(0);
   expect(mobileAfterResize).toBeLessThanOrEqual(desktopBeforeResize);
   await expect(display).toHaveCSS("color", "rgb(166, 27, 27)");
@@ -145,6 +146,10 @@ async function assertResponsiveTimerSurface(page: Page) {
   });
   expect(mobileBounds.left).toBeGreaterThanOrEqual(mobileBounds.clipLeft);
   expect(mobileBounds.right).toBeLessThanOrEqual(mobileBounds.clipRight);
+  const bottomBarTop = (await page.getByRole("navigation", { name: "하단 메뉴" }).boundingBox())!.y;
+  const displayViewportBounds = await display.boundingBox();
+  expect(displayViewportBounds).not.toBeNull();
+  expect(displayViewportBounds!.y + displayViewportBounds!.height).toBeLessThanOrEqual(bottomBarTop);
   for (const name of ["타이머", "스톱워치", "Projector", "초기화", "+1분"]) {
     const button = page.getByRole("button", { name, exact: true });
     const bounds = await button.boundingBox();
@@ -152,36 +157,102 @@ async function assertResponsiveTimerSurface(page: Page) {
     expect(bounds!.height, `${name} button should stay horizontal`).toBeLessThanOrEqual(60);
     expect(bounds!.x).toBeGreaterThanOrEqual(mobileBounds.clipLeft);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(mobileBounds.clipRight);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(bottomBarTop);
   }
   const mobileFontSize = Number.parseFloat(await display.evaluate((element) => getComputedStyle(element).fontSize));
   expect(mobileFontSize).toBeGreaterThanOrEqual(54);
   expect(mobileFontSize).toBeLessThanOrEqual(55);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: mobileScreenshotPath });
   await page.getByRole("button", { name: "일시정지", exact: true }).click();
   await expect(page.getByText("PAUSED", { exact: true })).toBeVisible();
-  const paused = await remainingMs();
+  const paused = await readClockMs(display);
+  // The paused display must remain unchanged after real time passes.
+  // eslint-disable-next-line no-restricted-syntax
   await page.waitForTimeout(300);
-  expect(Math.abs((await remainingMs()) - paused)).toBeLessThanOrEqual(10);
+  expect(Math.abs((await readClockMs(display)) - paused)).toBeLessThanOrEqual(10);
   await page.getByRole("button", { name: "시작", exact: true }).click();
   await expect(page.getByText("LAST MINUTE", { exact: true })).toBeVisible();
-  const mobileBeforeDesktop = await remainingMs();
+  const mobileBeforeDesktop = await readClockMs(display);
   await page.setViewportSize({ width: 1366, height: 900 });
   await expect(page.getByRole("button", { name: "사이드바 토글" })).toBeVisible();
   await expect(display).toBeVisible();
-  const desktopAfterResize = await remainingMs();
+  const desktopAfterResize = await readClockMs(display);
   expect(desktopAfterResize).toBeGreaterThan(0);
   expect(desktopAfterResize).toBeLessThanOrEqual(mobileBeforeDesktop);
   await page.getByRole("button", { name: "일시정지", exact: true }).click();
   await expect(page.getByText("PAUSED", { exact: true })).toBeVisible();
-  const desktopPaused = await remainingMs();
+  const desktopPaused = await readClockMs(display);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("button", { name: "메뉴 열기" })).toBeVisible();
   await expect(page.getByText("PAUSED", { exact: true })).toBeVisible();
-  expect(Math.abs((await remainingMs()) - desktopPaused)).toBeLessThanOrEqual(10);
+  expect(Math.abs((await readClockMs(display)) - desktopPaused)).toBeLessThanOrEqual(10);
   await page.getByRole("button", { name: "시작", exact: true }).click();
   await expect(page.getByText("LAST MINUTE", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "초기화", exact: true }).click();
   await expect(page.getByText("SET TIME", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "실행 방법 보기" }).click();
+  await expect(page.getByText("Smart App Control은 켠 상태로 유지하세요")).toBeVisible();
+  await page.getByRole("button", { name: "실행 방법 접기" }).click();
+  await expect(page.getByText("Smart App Control은 켠 상태로 유지하세요")).toHaveCount(0);
+}
+
+async function assertResponsiveStopwatchSurface(page: Page, mobileScreenshotPath: string) {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await expect(page.getByRole("button", { name: "사이드바 토글" })).toBeVisible();
+  await page.getByRole("button", { name: "스톱워치", exact: true }).click();
+  const display = page.getByTestId("stopwatch-display");
+  await expect(display).toBeVisible();
+  await page.getByRole("button", { name: "시작", exact: true }).click();
+  await expect(page.getByText("RUNNING", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Lap", exact: true }).click();
+  await expect(page.getByText("LAP 01", { exact: true })).toBeVisible();
+  const desktopBeforeResize = await readClockMs(display);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("button", { name: "메뉴 열기" })).toBeVisible();
+  await expect(page.getByText("RUNNING", { exact: true })).toBeVisible();
+  await expect(page.getByText("LAP 01", { exact: true })).toBeVisible();
+  const mobileAfterResize = await readClockMs(display);
+  expect(mobileAfterResize).toBeGreaterThanOrEqual(desktopBeforeResize);
+  const mobileDisplayBounds = await display.evaluate((element) => {
+    const children = Array.from(element.children, (child) => child.getBoundingClientRect());
+    return { left: Math.min(...children.map((child) => child.left)), right: Math.max(...children.map((child) => child.right)) };
+  });
+  expect(mobileDisplayBounds.left).toBeGreaterThanOrEqual(0);
+  expect(mobileDisplayBounds.right).toBeLessThanOrEqual(390);
+  const bottomBarTop = (await page.getByRole("navigation", { name: "하단 메뉴" }).boundingBox())!.y;
+  const displayViewportBounds = await display.boundingBox();
+  expect(displayViewportBounds).not.toBeNull();
+  expect(displayViewportBounds!.y + displayViewportBounds!.height).toBeLessThanOrEqual(bottomBarTop);
+  for (const name of ["Reset", "일시정지", "Lap"]) {
+    const bounds = await page.getByRole("button", { name, exact: true }).boundingBox();
+    expect(bounds, `${name} control should be visible`).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(bottomBarTop);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: mobileScreenshotPath });
+  await page.getByRole("button", { name: "일시정지", exact: true }).click();
+  await expect(page.getByText("PAUSED", { exact: true })).toBeVisible();
+  const paused = await readClockMs(display);
+  // Verify pause across elapsed wall time as well as a responsive remount.
+  // eslint-disable-next-line no-restricted-syntax
+  await page.waitForTimeout(300);
+  expect(Math.abs((await readClockMs(display)) - paused)).toBeLessThanOrEqual(10);
+  await page.getByRole("button", { name: "시작", exact: true }).click();
+  const mobileBeforeDesktop = await readClockMs(display);
+
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await expect(page.getByRole("button", { name: "사이드바 토글" })).toBeVisible();
+  await expect(page.getByText("RUNNING", { exact: true })).toBeVisible();
+  await expect(page.getByText("LAP 01", { exact: true })).toBeVisible();
+  expect(await readClockMs(display)).toBeGreaterThanOrEqual(mobileBeforeDesktop);
+  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  await expect(page.getByText("READY", { exact: true })).toBeVisible();
+  await expect(display).toHaveText("00:00:00.00");
+  await expect(page.getByText("LAP 01", { exact: true })).toHaveCount(0);
 }
 
 async function assertMobileStopwatchSurface(page: Page) {
@@ -206,8 +277,9 @@ test("타이머는 외부 글꼴 없이 관리자·강사 화면에서 안정적
   await page.goto(`${BASE}/workspace/tools/stopwatch`, { waitUntil: "commit", timeout: 60_000 });
   await assertDesktopTimerSurface(page);
   await page.screenshot({ path: testInfo.outputPath("admin-stopwatch.png"), fullPage: true });
-  await assertResponsiveTimerSurface(page);
+  await assertResponsiveTimerSurface(page, testInfo.outputPath("admin-mobile-timer-running.png"));
   await page.screenshot({ path: testInfo.outputPath("admin-mobile-timer-viewport.png") });
+  await assertResponsiveStopwatchSurface(page, testInfo.outputPath("admin-mobile-stopwatch-running.png"));
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/workspace/mobile/tools/stopwatch`, { waitUntil: "commit", timeout: 60_000 });

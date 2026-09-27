@@ -25,7 +25,7 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
 import { NavIcon } from "./adminNavConfig";
 import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
-import { StopwatchSessionProvider } from "@admin/domains/tools/stopwatch/stopwatchSession";
+import StopwatchSessionProvider from "@admin/domains/tools/stopwatch/StopwatchSessionProvider";
 
 // 새 배포 안내는 AppInner의 전역 VersionUpdateNotice가 맡는다.
 
