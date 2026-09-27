@@ -95,18 +95,22 @@ test("7쪽 자동 생성 실패 안내에서 직접 자르기·다운로드·새
 
   await page.getByRole("button", { name: "선택한 PDF 제거" }).click();
   await upload.setInputFiles(PDF);
+  await expect(page.getByText("synthetic-math-low-anchor-7pages.pdf")).toBeVisible();
   await expect(page.getByRole("button", { name: "자동 문항 분리" })).toHaveAttribute("aria-pressed", "true");
   const automaticResponse = waitForSubmission(page);
   const automaticDownload = page.waitForEvent("download", { timeout: 480_000 });
+  void automaticDownload.catch(() => undefined);
   await page.getByRole("button", { name: "PPT 생성 및 다운로드" }).click();
+  const automatic = await automaticResponse;
+  const automaticBody = await automatic.json().catch(() => ({})) as { code?: unknown; job_id?: string };
+  const safeFailureCodes = new Set(["invalid_type", "pdf_too_large", "invalid_pdf", "invalid_settings", "no_files"]);
+  const failureCode = typeof automaticBody.code === "string" && safeFailureCodes.has(automaticBody.code)
+    ? automaticBody.code : "unclassified";
+  expect(automatic.ok(), `PPT 자동 생성 제출: status=${automatic.status()}, code=${failureCode}`).toBe(true);
+  expect(automaticBody.job_id).toBeTruthy();
   await expect(page.getByText(/문항을 정확히 나누기 어려워 모든 쪽을 그대로 넣었습니다/)).toBeVisible({ timeout: 480_000 });
   await expect(page.getByText(/PPT 생성 완료 \(7장/)).toBeVisible();
   await expectPptx(await automaticDownload, 7);
-  const automatic = await automaticResponse;
-  expect(automatic.status()).toBeGreaterThanOrEqual(200);
-  expect(automatic.status()).toBeLessThan(300);
-  const automaticJob = await automatic.json() as { job_id?: string };
-  expect(automaticJob.job_id).toBeTruthy();
 
   await page.getByRole("button", { name: "직접 자르기" }).click();
   await expect(page.getByText("1 / 7쪽")).toBeVisible();
