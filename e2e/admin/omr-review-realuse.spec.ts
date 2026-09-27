@@ -1374,10 +1374,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
     const policyDisclosure = page.locator("#assessment-policy > details");
     if (!(await policyDisclosure.evaluate((details: HTMLDetailsElement) => details.open))) {
-      await policyDisclosure.locator("summary").click();
+      await policyDisclosure.locator(":scope > summary").click();
     }
     await expect(policyDisclosure).toHaveJSProperty("open", true);
-    await policyDisclosure.getByLabel("서술형 번호", { exact: true }).selectOption("separate");
+    await policyDisclosure.getByRole("combobox", { name: /^서술형 번호/ }).selectOption("separate");
     const numberingSaved = page.waitForResponse((response) => matchesApiResponse(response, "PATCH", `/exams/${created.examId}/`));
     await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
     expect((await numberingSaved).status()).toBe(200);
