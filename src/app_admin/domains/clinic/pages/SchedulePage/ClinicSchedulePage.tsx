@@ -53,7 +53,7 @@ function activeParticipants(rows: ClinicParticipant[]) {
 }
 
 function participantLectures(participant: ClinicParticipant) {
-  if (!participant.lecture_title) return [];
+  if (!participant.lecture_title || participant.lecture_current === false) return [];
   return [{
     lectureName: participant.lecture_title,
     color: participant.lecture_color,

@@ -1959,7 +1959,7 @@ export default function ClinicConsoleWorkspace({
                       >
                         <StudentNameWithLectureChip
                           name={p.student_name}
-                          lectures={p.lecture_title ? [{ lectureName: p.lecture_title, color: p.lecture_color, chipLabel: p.lecture_chip_label }] : undefined}
+                          lectures={p.lecture_title && p.lecture_current !== false ? [{ lectureName: p.lecture_title, color: p.lecture_color, chipLabel: p.lecture_chip_label }] : undefined}
                           avatarSize={24}
                           profilePhotoUrl={p.profile_photo_url}
                           clinicHighlight={p.name_highlight_clinic_target}
@@ -2383,7 +2383,7 @@ export default function ClinicConsoleWorkspace({
                     >
                       <StudentNameWithLectureChip
                         name={drawerParticipant.student_name}
-                        lectures={drawerParticipant.lecture_title ? [{ lectureName: drawerParticipant.lecture_title, color: drawerParticipant.lecture_color, chipLabel: drawerParticipant.lecture_chip_label }] : undefined}
+                        lectures={drawerParticipant.lecture_title && drawerParticipant.lecture_current !== false ? [{ lectureName: drawerParticipant.lecture_title, color: drawerParticipant.lecture_color, chipLabel: drawerParticipant.lecture_chip_label }] : undefined}
                         avatarSize={24}
                         profilePhotoUrl={drawerParticipant.profile_photo_url}
                         clinicHighlight={drawerParticipant.name_highlight_clinic_target}
