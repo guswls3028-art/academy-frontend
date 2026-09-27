@@ -107,6 +107,7 @@ test.describe("선생님 업데이트 안내의 도움말 이동", () => {
     await expect(popup).toHaveURL(/\/promo\/updates#latest-update$/);
     await popup.close();
     await expect(page.getByRole("button", { name: "가이드북", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "가이드북", exact: true })).toBeFocused();
     await expect(page.getByRole("button", { name: "알림", exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByRole("button", { name: "가이드북", exact: true })).toBeVisible();

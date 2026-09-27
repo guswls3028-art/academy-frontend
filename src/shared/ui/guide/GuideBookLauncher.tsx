@@ -133,6 +133,7 @@ export function GuideBookLauncher({
                     onClick={() => {
                       updateNotice.onOpen();
                       setOpen(false);
+                      triggerRef.current?.focus();
                     }}
                   >
                     <span>
