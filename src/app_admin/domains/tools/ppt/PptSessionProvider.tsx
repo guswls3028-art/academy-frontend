@@ -16,4 +16,3 @@ export default function PptSessionProvider({ pathname, tenant, userId, children 
   }, [session]);
   return <PptSessionContext.Provider value={session}>{children}</PptSessionContext.Provider>;
 }
-
