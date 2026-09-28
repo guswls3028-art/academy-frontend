@@ -506,6 +506,15 @@ runner는 Setup 전부터 `passed:false`/`cleanup:null`인 미완료 증거를 �
 실패/timeout은 finally로 들어가 test process를 먼저 stop/reap한 뒤 Cleanup을 시도하고,
 소유 SSM session들의 종료 API와 Active/History readback 후 최종 증거를 쓴다. Cleanup
 실패·소유 session ID/종료 readback 누락은 각각 실패 분류로 남아 승격을 차단한다.
+전체 실사용 child 한도는 50분, 이를 제공하는 SSM 터널은 55분, CI job은 설치·정리와
+증거 업로드 여유를 포함해 60분이다. 이전 28분 36초 실행은 serial OMR 한 건 실패·한 건
+건너뛰기를 포함해 두 건의 각 10분 한도를 추가하면 48분 36초 미만이다. 기존 30분
+한도를 넘긴 실행은 전체 결과를 보고하기 전에 종료됐다. OMR 각 10분,
+영상 test 17분, 단일 worker·재시도 0·필수 23건·690초 재생 및 cleanup0 요구는 유지한다.
+`development-release-progress.json`은 테스트 시작/종료마다 허용 spec 파일명·행·상태·
+소요 시간만 저장해 child timeout 시 마지막 진행 지점을 보존한다. 제목·오류 원문·
+API 데이터·인증정보는 기록하지 않는다. 이 진단 파일이나 일부 통과 결과로 전체 JSON
+보고서와 cleanup0 검증을 대신해 승격할 수 없다.
 artifact 비교는 archive/content SHA256 원문을 항상 함께 보존한다. 다만 source 변경이
 version SHA와 Vite content-hash filename 치환뿐이고, 이전→현재 SHA 및 일대일 hashed
 filename을 정규화한 모든 변경 파일이 byte-equal이면 제품 의미가 같은 증거로 인정한다.
