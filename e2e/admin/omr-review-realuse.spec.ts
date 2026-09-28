@@ -1460,7 +1460,13 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}&reviewOmr=1&reviewSubmissionId=${replacementId}`,
       { timeout: 45_000 });
     await page.getByRole("tab", { name: "채점·결과" }).click();
-    await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible({ timeout: 30_000 });
+    const replacementReview = page.getByRole("dialog", { name: "OMR 검토" });
+    await expect(replacementReview).toBeVisible({ timeout: 30_000 });
+    // This journey retains the student's 390px viewport. Open the mobile edit
+    // pane just as a teacher does; the initial list pane hides its controls.
+    const editTab = replacementReview.getByRole("tab", { name: "확인", exact: true });
+    await editTab.click();
+    await expect(editTab).toHaveAttribute("aria-selected", "true");
     const picker = page.getByRole("button", { name: "학생 검색·연결" });
     if (await picker.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await picker.click();
@@ -1469,10 +1475,12 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     }
     // The rescan already identifies the same student. Adopt the immutable scan
     // explicitly; an unchanged answer has no manual-edit save to submit.
+    const acceptReplacement = replacementReview.getByRole("button", { name: "이 답안 채택", exact: true });
+    await expect(acceptReplacement).toBeVisible();
     const replacementAccepted = page.waitForResponse((response) => matchesApiResponse(
       response, "POST", `/submissions/submissions/${replacementId}/accept-from-duplicates/`,
     ), { timeout: 60_000 });
-    await page.getByRole("button", { name: "이 답안 채택", exact: true }).click();
+    await acceptReplacement.click();
     const acceptDialog = page.getByRole("alertdialog", { name: "이 답안 채택", exact: true });
     await expect(acceptDialog).toBeVisible();
     await acceptDialog.getByRole("button", { name: "채택", exact: true }).click();
