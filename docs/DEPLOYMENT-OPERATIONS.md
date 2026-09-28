@@ -1,6 +1,6 @@
 # 프론트엔드 배포·E2E 운영 계약
 
-**상태:** 현재 실행 계약 및 자동 release QA 경계 전환 HOLD (아래 3.1)
+**상태:** 현재 실행 계약. 최초 자동 release QA 전환 조건과 확인 이력은 아래 3.1.
 **정본:** `.github/workflows/quality-gate.yml`, `.github/workflows/e2e.yml`,
 `package.json`, `scripts/guard-e2e-safety.mjs`
 
@@ -11,7 +11,7 @@
 [backend 배포 시점과 사용자 연속성](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/deployment-modes.md)이다.
 이미 열린 앱과 구·신 API/DB의 호환, 활성 영상·입력·업로드의 강제 새로고침 없는
 연속성, development-canary/cleanup zero와 승인·rollback 증거를 확인한다.
-아래 3.1의 IAM/SSM 전환 HOLD 같은 기술적 제한은 실제 해제 증거 전까지 유지한다.
+현재 후보에서 IAM/SSM 격리 검증이 실패하면 해당 원인을 해결한 뒤 진행한다.
 과거 시간 약속이나 자동화 재개 시간만으로 새 배포를 지연하지 않는다.
 
 ## 1. 배포 순서
@@ -22,7 +22,8 @@
    `CLOUDFLARE_PREVIEW_API_TOKEN`으로 Cloudflare Pages preview에 direct
    upload한다. preview revision, Functions bundle, 핵심 route와 lazy asset을
    검증한다.
-3. `main` push에서는 동일 `deploy-bundle`의 개발 real-use 21개와 exact tenant/user
+3. `main` push에서는 동일 `deploy-bundle`로 `scripts/run-development-release-canary.mjs`와
+   `e2e/suites.mjs`에 등록된 개발 real-use 전체 및 exact tenant/user
    cleanup0을 `development-canary` job에서 먼저 통과한다. 이 job의 success 없이는
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
 4. 기존 운영 deployment id/version과 Pages production
@@ -32,7 +33,7 @@
 6. 운영 `version.json`, 배포 `index.html`이 직접 참조하는 진입 JS/CSS, 그리고
    route-critical lazy asset이 연속 3회 일치한 뒤 login, tenant availability,
    조회-only session-assessment canary를 실행한다. notice/QnA/clinic 쓰기는 개발
-   job에서만 실행한다. 실제 IAM/격리 검증이 끝나기 전에는 3.1의 HOLD를 적용한다.
+   job에서만 실행한다. 후보마다 실제 IAM/격리 검증과 cleanup0을 통과해야 한다.
    진입 자산을 빼면 새
    HTML만 먼저 전파되어 `index-*.js`가 404인 순간을 안정화 완료로 오인할 수 있다.
 7. deploy job 내부 검증 실패는 같은 승인 job에서 즉시 baseline으로 rollback한다.
@@ -160,11 +161,15 @@ proxy/tunnel을 삭제하고 backend destroy readback으로 잔여 tenant/user�
 성공 여부와 무관하게 생성된 `[E2E-*]` residue는 backend exact-token cleanup과
 postdeploy canary의 residue 0 증거까지 닫아야 한다.
 
-### 3.1 자동 release QA 경계 전환과 HOLD
+### 3.1 자동 release QA 경계와 최초 전환 이력
 
 이 checkout의 workflow는 운영 `E2E_ALLOW_PRODUCTION_WRITES=0`과 개발 전용 write
-suite를 연결한다. 다만 새 IAM role/document와 개발 host parameter deny가 실제로
-수렴·검증되고 격리 real-use가 성공하기 전에는 운영 배포에 사용하지 않는다.
+suite를 연결한다. 최초 도입 때는 IAM role/document와 개발 host parameter deny의
+실제 수렴·격리 real-use 성공이 전환 조건이었다. 2026-09-28의
+[공식 실행 36386831234](https://github.com/guswls3028-art/academy-frontend/actions/runs/36386831234)는
+동일 artifact의 실사용 23건·양쪽 QA tenant/user cleanup0·운영 승격까지 통과했다.
+최초 전환을 아직 미적용인 상시 HOLD로 해석하지 않는다. 이후 후보도 기존 workflow의
+동일 artifact·격리·cleanup·공식 승인·배포 후 검증을 매번 통과해야 한다.
 로컬 helper 구현이나 단위 테스트 통과는 IAM 적용, development real-use 통과 또는
 배포 승인 증거가 아니다.
 

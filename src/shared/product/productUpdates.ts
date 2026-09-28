@@ -30,6 +30,7 @@ export const PRODUCT_UPDATES: ProductUpdate[] = [
       { kind: "improve", text: "선생님 앱의 문구 편집·발송에도 변수 블록과 실행 취소·다시 실행 제공" },
       { kind: "fix", text: "관리자·선생님 화면에서 문구를 바꾼 뒤 다른 화면에 옛 목록이 남던 문제 수정" },
       { kind: "improve", text: "성적표에 실행 취소·다시 실행 버튼을 추가해 모바일에서도 시험·과제 입력 실수 복구" },
+      { kind: "fix", text: "화면 크기가 바뀔 때 관리자 업무 화면이 다시 열려 편집 상태가 초기화되던 문제 수정" },
     ],
   },
   {
