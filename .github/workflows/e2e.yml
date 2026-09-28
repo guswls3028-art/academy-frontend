@@ -158,11 +158,15 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  pr-route-mocks:
-    name: E2E closed-proxy route mocks
+  pr-route-mock-shards:
+    name: E2E route mocks (shard ${{ matrix.shard }}/3)
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -205,9 +209,10 @@ jobs:
           E2E_STRICT: strict
           E2E_ALLOW_REAL_ALIMTALK: "0"
           E2E_ALLOW_PRODUCTION_WRITES: "0"
-        run: pnpm test:e2e:gate:mock --reporter=github,html
+        run: pnpm test:e2e:gate:mock --reporter=github,html --shard=${{ matrix.shard }}/3
 
       - name: Run mandatory iPhone WebKit closed-proxy gate
+        if: matrix.shard == 1
         env:
           E2E_BASE_URL: http://127.0.0.1:5174
           E2E_LOCAL_BASE_URL: http://127.0.0.1:5174
@@ -217,9 +222,11 @@ jobs:
         run: pnpm test:e2e:gate:iphone-webkit --reporter=github,list
 
       - name: Build production bundle
+        if: matrix.shard == 1
         run: pnpm build
 
       - name: Start production bundle preview
+        if: matrix.shard == 1
         run: |
           pnpm preview --host 127.0.0.1 --port 4173 --strictPort > /tmp/academy-vite-preview.log 2>&1 &
           for attempt in $(seq 1 60); do
@@ -232,6 +239,7 @@ jobs:
           exit 1
 
       - name: Run production bundle runtime smoke
+        if: matrix.shard == 1
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           E2E_STRICT: strict
@@ -240,6 +248,7 @@ jobs:
         run: pnpm test:e2e:bundle-smoke
 
       - name: Verify shared control states across all themes
+        if: matrix.shard == 1
         env:
           THEME_AUDIT_BASE_URL: http://127.0.0.1:4173
           E2E_STRICT: strict
@@ -251,7 +260,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: playwright-report-pr-route-mocks
+          name: playwright-report-pr-route-mocks-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
@@ -262,7 +271,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: frontend-server-log-pr-route-mocks
+          name: frontend-server-log-pr-route-mocks-${{ matrix.shard }}
           path: /tmp/academy-vite.log
           retention-days: 7
           if-no-files-found: ignore
@@ -271,10 +280,22 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: frontend-preview-log-pr-route-mocks
+          name: frontend-preview-log-pr-route-mocks-${{ matrix.shard }}
           path: /tmp/academy-vite-preview.log
           retention-days: 7
           if-no-files-found: ignore
+
+  pr-route-mocks:
+    name: E2E closed-proxy route mocks
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    needs: [pr-route-mock-shards]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all shards and mandatory browser checks
+        env:
+          SHARDS_RESULT: ${{ needs.pr-route-mock-shards.result }}
+        run: test "$SHARDS_RESULT" = "success"
 
   all-menu-audit:
     name: All-menu audit

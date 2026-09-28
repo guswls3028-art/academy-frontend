@@ -51,13 +51,19 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import BBoxOverlay from "./BBoxOverlay";
 import type { CandidateRow } from "./omrReviewApi";
 import {
+  categorizeOmrReviewRow,
+  isArchivedOmrReviewRow,
+  summarizeOmrReviewRows,
+  type OmrReviewFilterKey,
+} from "./omrReviewRowState";
+import {
   CHOICE_LABELS,
   formatChoiceAnswer,
   requiredChoiceTokens,
 } from "../../utils/choiceAnswerMatching";
 import "./OmrReviewWorkspace.css";
 
-type FilterKey = "all" | "ok" | "noid" | "flag" | "failed";
+type FilterKey = OmrReviewFilterKey;
 type MobilePane = "list" | "scan" | "edit";
 
 function lecturesForCandidate(row: CandidateRow) {
@@ -78,17 +84,6 @@ function scoreFromManualEditResult(result: SubmissionManualEditResult | undefine
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform || "");
 const SAVE_KBD_LABEL = isMac ? "⌘S" : "Ctrl+S";
 
-function categorize(row: OmrReviewRow): FilterKey {
-  const st = String(row.status || "").toLowerCase();
-  if (st === "failed") return "failed";
-  const idStatus = String(row.identifier_status || "").toLowerCase();
-  if (st === "needs_identification" || idStatus === "no_match" || idStatus === "missing") {
-    return "noid";
-  }
-  if (row.manual_review_required) return "flag";
-  return "ok";
-}
-
 function toneForCategory(c: FilterKey): "success" | "danger" | "warning" | "primary" | "neutral" {
   switch (c) {
     case "ok":
@@ -99,6 +94,8 @@ function toneForCategory(c: FilterKey): "success" | "danger" | "warning" | "prim
       return "primary";
     case "failed":
       return "danger";
+    case "archived":
+      return "neutral";
     default:
       return "neutral";
   }
@@ -114,6 +111,8 @@ function labelForCategory(c: FilterKey): string {
       return "검토필요";
     case "failed":
       return "실패";
+    case "archived":
+      return "보관";
     default:
       return "전체";
   }
@@ -229,22 +228,22 @@ export default function OmrReviewWorkspace({
     queryFn: () => fetchOmrReviewDetail(selectedId!),
     enabled: open && selectedId != null,
   });
+  const selectedRow = rows.find((row) => row.id === selectedId);
+  const selectedArchived = Boolean(
+    (selectedRow && isArchivedOmrReviewRow(selectedRow))
+    || (detail && detail.submission_id === selectedId
+      && String(detail.submission_status || "").toLowerCase() === "superseded"),
+  );
 
   // 카테고리별 카운트
-  const counts = useMemo(() => {
-    const c: Record<FilterKey, number> = { all: 0, ok: 0, noid: 0, flag: 0, failed: 0 };
-    for (const r of rows) {
-      c.all++;
-      c[categorize(r)]++;
-    }
-    return c;
-  }, [rows]);
+  const summary = useMemo(() => summarizeOmrReviewRows(rows), [rows]);
+  const counts = summary.counts;
 
   // 필터·검색된 리스트
   const visibleRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
-      if (filter !== "all" && categorize(r) !== filter) return false;
+      if (filter !== "all" && categorizeOmrReviewRow(r) !== filter) return false;
       if (!q) return true;
       return (
         (r.student_name || "").toLowerCase().includes(q) ||
@@ -331,11 +330,7 @@ export default function OmrReviewWorkspace({
   );
 
   // 진행도: ok/noid/flag/failed 중 처리 완료 (ok+done) vs 전체
-  const progress = useMemo(() => {
-    const total = rows.length;
-    const done = rows.filter((r) => categorize(r) === "ok").length;
-    return { done, total };
-  }, [rows]);
+  const progress = { done: summary.done, total: summary.activeTotal };
 
   if (!open) return null;
 
@@ -391,7 +386,7 @@ export default function OmrReviewWorkspace({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          {(["all", "noid", "flag", "ok", "failed"] as FilterKey[]).map((k) => {
+          {(["all", "noid", "flag", "ok", "failed", "archived"] as FilterKey[]).map((k) => {
             const isZero = counts[k] === 0;
             return (
               <button
@@ -452,7 +447,7 @@ export default function OmrReviewWorkspace({
               )
             ) : (
               visibleRows.map((r) => {
-                const cat = categorize(r);
+                const cat = categorizeOmrReviewRow(r);
                 const tone = toneForCategory(cat);
                 const label = labelForCategory(cat);
                 return (
@@ -473,7 +468,7 @@ export default function OmrReviewWorkspace({
                     <div className="orw-list-row__sub">
                       <Badge tone={tone}>{label}</Badge>
                       <span className="orw-list-row__time">{formatTime(r.created_at)}</span>
-                      {r.manual_review_reasons && r.manual_review_reasons.length > 0 && (
+                      {cat !== "archived" && r.manual_review_reasons && r.manual_review_reasons.length > 0 && (
                         <span className="orw-list-row__reasons">
                           {r.manual_review_reasons.slice(0, 2).map(reasonLabel).join(", ")}
                         </span>
@@ -499,6 +494,7 @@ export default function OmrReviewWorkspace({
           ) : (
           <ScanPane
             detail={detail}
+            archived={selectedArchived}
             detailLoading={detailLoading}
             zoom={zoom}
             setZoom={setZoom}
@@ -526,12 +522,19 @@ export default function OmrReviewWorkspace({
           {/* ── RIGHT: 답안 편집 ── */}
           {detailError ? (
             <div className="orw-loading">상세 정보를 복구한 뒤 수정할 수 있습니다.</div>
+          ) : selectedArchived ? (
+          <div className="orw-edit-pane">
+            <div className="orw-edit-pane__header">
+              <div className="orw-edit-pane__title">보관된 답안지</div>
+              <div className="orw-edit-pane__summary">이전 판독 기록입니다. 원본을 확인할 수 있으며 식별·수정·채택·폐기·재판독은 할 수 없습니다.</div>
+            </div>
+          </div>
           ) : (
           <EditPane
             key={selectedId ?? "empty"}
             examId={examId}
             detail={detail}
-            reviewRow={rows.find((row) => row.id === selectedId)}
+            reviewRow={selectedRow}
             detailLoading={detailLoading}
             studentName={visibleRows.find((r) => r.id === selectedId)?.student_name ?? null}
             focusedQid={focusedQid}
@@ -598,6 +601,7 @@ export default function OmrReviewWorkspace({
  * ────────────────────────────────────────────── */
 function ScanPane({
   detail,
+  archived,
   detailLoading,
   zoom,
   setZoom,
@@ -611,6 +615,7 @@ function ScanPane({
   onImageLoadError,
 }: {
   detail: OmrReviewDetail | undefined;
+  archived: boolean;
   detailLoading: boolean;
   zoom: number;
   setZoom: (fn: (z: number) => number) => void;
@@ -655,7 +660,7 @@ function ScanPane({
   });
 
   const requestRotateRescan = async () => {
-    if (!detail || rotation === 0 || rotateRescan.isPending) return;
+    if (!detail || archived || rotation === 0 || rotateRescan.isPending) return;
     const ok = await confirm({
       title: "이 방향으로 다시 읽기",
       message: `원본 답안지를 오른쪽 기준 ${rotation}° 회전해 새 판독 건을 만듭니다. 기존 답안지는 비교를 위해 그대로 보존됩니다.`,
@@ -796,7 +801,7 @@ function ScanPane({
           >
             <RotateCw size={14} aria-hidden="true" />
           </button>
-          {rotation !== 0 && (
+          {rotation !== 0 && !archived && (
             <Button
               type="button"
               intent="primary"

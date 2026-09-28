@@ -34,6 +34,7 @@ import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { HeaderCenterStaffClock } from "@admin/domains/staff/components/HeaderCenterStaffClock";
 import CompactStaffClockButton from "@/features/staff-clock/CompactStaffClockButton";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import {
   resolveTenantCode,
   getTenantIdFromCode,
@@ -141,7 +142,7 @@ const STAFF_ROLE_LABEL: Record<MeStaffRole, string> = {
 export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
   const nav = useNavigate();
   const adminLayout = useAdminLayout();
-  const isMobile = adminLayout != null;
+  const isMobile = useIsMobile();
   const { program } = useProgram();
   const meQ = useQuery({ queryKey: accountQueryKeys.me, queryFn: fetchMe });
   const me = meQ.data;

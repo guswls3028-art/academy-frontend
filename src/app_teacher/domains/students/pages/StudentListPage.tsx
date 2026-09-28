@@ -25,6 +25,7 @@ import { teacherStudentsQueryKeys } from "../queryKeys";
 import { fetchAllTemplates, preflightMessage, sendMessage, type MessageSendPreflight } from "@teacher/domains/comms/api";
 import { teacherMessageTemplatesQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 import { stripInternalAlimtalkMemoToken } from "@/shared/notifications/teacherMemo";
+import MessageBodyEditor from "@/shared/messaging/MessageBodyEditor";
 import { useConfirm } from "@/shared/ui/confirm";
 import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
 import {
@@ -922,11 +923,10 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
         </div>
         <div>
           <label htmlFor="bulk-message-body" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>선생님 안내문 (자유롭게 수정)</label>
-          <textarea value={body} onChange={(e) => { setBody(e.target.value); setPreflight(null); }} rows={5}
-            id="bulk-message-body"
+          <MessageBodyEditor key={String(open)} value={body} onChange={(value) => { setBody(value); setPreflight(null); }}
+            id="bulk-message-body" ariaLabel="선생님 안내문 (자유롭게 수정)"
             placeholder="학생·학부모에게 전할 안내를 작성하세요. 예: #{학생이름} 학생의 이번 주 과제를 확인해 주세요."
-            className="w-full text-sm"
-            style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none", resize: "vertical" }} />
+          />
           <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
             {body.length}자 · 여기서 고친 내용은 이번 발송에만 적용됩니다. 저장 문구를 바꾸려면 위의 문구 관리로 이동하세요.
           </div>

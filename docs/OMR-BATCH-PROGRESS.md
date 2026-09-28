@@ -59,6 +59,14 @@ PDF는 브라우저에서 변환하지 않고 업로드 후 OMR 검토의 원본
 terminal batch에는 서버가 반환한 exact exam id의 OMR 검토 화면을 직접 여는 `OMR 검토`
 CTA를 제공한다. 다른 시험이나 차시로 fallback하지 않는다.
 
+OMR 검토의 미해결 총수는 서버의 `review_issues` 총수를 따른다. 일반 목록에서 서버가
+`archived=true`로 분류한 이전 판독·폐기 답안은 `보관` 기록으로 남기되 활성 식별 실패,
+검토 필요, 처리 실패 건수와 완료 진행도에서 제외한다. 보관 기록의 원본은 열람할 수 있지만
+학생 연결, 답안 수정, 채택, 폐기, 회전 재판독은 제공하지 않는다. 정상 완료 답안과
+활성 식별 실패·처리 실패 답안은 계속 표시하고 기존 검토 동작을 유지한다. 구버전 서버가
+`archived`를 보내지 않으면 `superseded` 상태만 보관으로 판정하고 나머지 실패를 추측해
+숨기지 않는다. 목록이나 미해결 조회가 실패하면 빈 목록으로 처리하지 않고 재시도를 제공한다.
+
 ## 실패와 재시도
 
 - multipart 응답이 끊기면 batch detail을 다시 읽어 서버가 이미 받은 ordinal과
@@ -92,6 +100,8 @@ CTA를 제공한다. 다른 시험이나 차시로 fallback하지 않는다.
   22개 단일 multipart, 응답 중단 후 정확한 ordinal 재선택, reload 복구,
   삭제/재추가와 비우기/재선택 ordinal, query detail fail-closed, logout 중 지연 list/upload/retry/claim,
   loading/error/empty와 수동 새로고침 partial failure, 390px overflow를 고정한다.
+- `e2e/admin/omr-subjective-entry.mock.spec.ts`는 1366px/390px에서 활성 식별 실패·처리
+  실패와 오래된 보관 플래그의 분리, 보관 원본 열람과 수정 행동 차단, 새로고침 복구를 검증한다.
 - 서버의 1/22/100 총수, 100건 중 부분 실패, 중복 없는 retry, tenant/creator scope와
   SHA-256 cross-batch 멱등성, PostgreSQL completion-claim race는
   `apps/domains/submissions/tests/test_exam_omr_batch_upload_pdf_guard.py`가 검증한다.

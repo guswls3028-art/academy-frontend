@@ -3443,6 +3443,9 @@ test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 
   await expect(drawer.getByRole("button", { name: "클리닉 완료", exact: true })).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect(drawer).toBeVisible();
+  await expect(drawerAlert).toBeVisible();
+  await drawer.getByRole("button", { name: "닫기", exact: true }).click();
   await expect(drawer).toHaveCount(0);
   await expect(workspaceAlert).toBeVisible();
   await expect(studentCard.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);

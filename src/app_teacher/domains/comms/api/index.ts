@@ -306,6 +306,8 @@ export interface MsgTemplate {
   is_default?: boolean;
   is_user_default?: boolean;
   is_system?: boolean;
+  can_delete?: boolean;
+  delete_block_reason?: string;
   alimtalk_envelope_type?: string;
   alimtalk_readiness?: "ready" | "provider_template_missing" | "system_managed" | "envelope_selection_required" | string;
 }

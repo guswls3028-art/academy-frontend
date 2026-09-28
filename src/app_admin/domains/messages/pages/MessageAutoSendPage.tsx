@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/messages/pages/MessageAutoSendPage.tsx
 // 자동발송 — 좌측 구간 폴더 트리 + 우측 설정 (템플릿 저장과 동일한 흐름)
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FiZap, FiEdit3 } from "react-icons/fi";
 import { Eye, Power } from "lucide-react";
@@ -420,18 +420,6 @@ export default function MessageAutoSendPage() {
   const { localConfigs, saving, error: saveError, edit: saveConfigs, retry: retrySave } = useAutoSendDraft(configs);
   const globalSummary = getAutoSendSummary(localConfigs);
   const globalEnabled = isAllToggleableEnabled(globalSummary);
-  const autoProvisionedRef = useRef(false);
-
-  // 기본 템플릿이 없으면 자동 프로비저닝 (1회)
-  useEffect(() => {
-    if (autoProvisionedRef.current) return;
-    if (isLoading) return;
-    const hasNoTemplates = configs.length === 0 || configs.every((c) => !c.template);
-    if (hasNoTemplates && configs.length > 0) {
-      autoProvisionedRef.current = true;
-      provisionMut.mutate();
-    }
-  }, [configs, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const editTemplateMut = useMutation({
     mutationFn: (payload: MessageTemplatePayload) => {

@@ -72,6 +72,12 @@ for (const required of [
   "VITE_DEV_PROXY_TARGET: http://127.0.0.1:9",
   "run: pnpm test:e2e:gate:readonly --reporter=github,html",
   "run: pnpm test:e2e:gate:mock --reporter=github,html",
+  "--shard=${{ matrix.shard }}/3",
+  "shard: [1, 2, 3]",
+  "fail-fast: false",
+  "needs: [pr-route-mock-shards]",
+  "SHARDS_RESULT: ${{ needs.pr-route-mock-shards.result }}",
+  'run: test "$SHARDS_RESULT" = "success"',
   "github.event.pull_request.user.login != 'dependabot[bot]'",
 ]) {
   if (!e2e.includes(required)) {

@@ -118,6 +118,8 @@ async function assertResponsiveTimerSurface(page: Page, mobileScreenshotPath: st
   const desktopBeforeResize = await readClockMs(display);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole("button", { name: "메뉴 열기" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "실행 방법 접기" })).toBeVisible();
+  await page.getByRole("button", { name: "실행 방법 접기" }).click();
   await expect(page.getByRole("button", { name: "실행 방법 보기" })).toBeVisible();
   await expect(page.getByText("LAST MINUTE", { exact: true })).toBeVisible();
   const mobileAfterResize = await readClockMs(display);

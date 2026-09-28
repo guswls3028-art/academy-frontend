@@ -288,8 +288,7 @@ test("교직원은 명시 확인으로 영상 1개만 승인하고 사유와 함
 
   await expectRevokeCtaLayout(page, direct);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("region", { name: "학생 시청 현황" }).getByRole("button", { name: "권한 관리" }).click();
-  await page.getByRole("button", { name: "수강 등록 없이 영상만" }).click();
+  await expect(direct).toBeVisible();
   await expect(direct.getByText("사용 중", { exact: true })).toBeVisible();
   await expectRevokeCtaLayout(page, direct);
 
