@@ -15,6 +15,7 @@ import "./release-omr-image-boundary.test.mjs";
 import "./release-homework-image-boundary.test.mjs";
 import "./release-community-image-boundary.test.mjs";
 import "./binary-safe-ssm.test.mjs";
+import "./release-canary-progress.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
@@ -1411,10 +1412,10 @@ test("production promotion requires the non-skipped isolated development canary"
 
 test("expanded development real-use suite keeps time to report and clean up", () => {
   const runner = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
-  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 30 \* 60_000;/);
+  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 50 \* 60_000;/);
   assert.doesNotMatch(runner, /REAL_USE_SUITE_TIMEOUT_MS = 20 \* 60_000/);
   assert.match(runner, /}, REAL_USE_SUITE_TIMEOUT_MS\);/);
-  assert.match(job("development-canary"), /timeout-minutes: 40/);
+  assert.match(job("development-canary"), /timeout-minutes: 60/);
 });
 
 test("the SSM tunnel outlives the real-use suite it serves", () => {
