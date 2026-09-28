@@ -1,4 +1,5 @@
 export const clinicQueryKeys = {
+  availability: (sessionId: number | null) => ["clinic", "availability", sessionId] as const,
   participants: ["clinic-participants"] as const,
   participantsList: (params: object) => ["clinic-participants", params] as const,
   targets: ["clinic-targets"] as const,

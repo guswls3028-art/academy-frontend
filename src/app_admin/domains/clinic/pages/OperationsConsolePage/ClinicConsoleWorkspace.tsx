@@ -401,7 +401,7 @@ export default function ClinicConsoleWorkspace({
   const replacementSession = replacementSessions.find((session) => session.id === Number(replacementSessionId));
   const replacementNeedsTime = replacementSession?.booking_mode === "time_range";
   const replacementAvailabilityQ = useQuery({
-    queryKey: ["clinic", "availability", replacementSession?.id],
+    queryKey: clinicQueryKeys.availability(replacementSession?.id ?? null),
     queryFn: () => fetchClinicAvailability(replacementSession!.id),
     enabled: !!rescheduleParticipant && replacementNeedsTime,
     retry: 0,

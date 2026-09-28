@@ -16,10 +16,8 @@ import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import {
   fetchClinicSessions,
   fetchClinicParticipants,
-  fetchClinicAvailability,
   patchParticipantStatus,
   checkoutParticipant,
-  changeParticipantBooking,
   completeParticipant,
   uncompleteParticipant,
   remindParticipant,
@@ -29,10 +27,10 @@ import {
   type TeacherClinicSession,
 } from "../api";
 import AddParticipantSheet from "../components/AddParticipantSheet";
+import RescheduleParticipantSheet from "../components/RescheduleParticipantSheet";
 import { SmallBtn, StatusBadge } from "../components/ParticipantStatusControls";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
-import { ClinicActualTimePicker } from "@/shared/ui/clinic/ClinicActualTimePicker";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { fetchAllSections, type Section } from "@/shared/api/contracts/lectureSections";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -314,25 +312,6 @@ function ParticipantList({
     participant: TeacherClinicParticipant;
     sendTo: ClinicParticipantActionPayload["send_to"];
   } | null>(null);
-  const [replacementSessionId, setReplacementSessionId] = useState("");
-  const [replacementPreferredStart, setReplacementPreferredStart] = useState("");
-  const [replacementPreferredEnd, setReplacementPreferredEnd] = useState("");
-  const [replacementBookingStart, setReplacementBookingStart] = useState("");
-  const [replacementBookingEnd, setReplacementBookingEnd] = useState("");
-  const replacementSession = availableSessions.find(
-    (session) => session.id === Number(replacementSessionId),
-  );
-  const replacementNeedsTime = replacementSession?.booking_mode === "time_range";
-  const replacementAvailabilityQ = useQuery({
-    queryKey: teacherClinicQueryKeys.availability(Number(replacementSessionId)),
-    queryFn: () => fetchClinicAvailability(Number(replacementSessionId)),
-    enabled: !!reschedule && replacementNeedsTime,
-    retry: 0,
-  });
-  const replacementTimeIncomplete = replacementNeedsTime && (
-    !replacementBookingStart || !replacementBookingEnd || replacementAvailabilityQ.isFetching || replacementAvailabilityQ.isError
-  );
-
   const { data: participants, isLoading, isError, refetch } = useQuery({
     queryKey: teacherClinicQueryKeys.participants(sessionId),
     queryFn: () => fetchClinicParticipants(sessionId),
@@ -393,49 +372,10 @@ function ParticipantList({
       const label = variables.action === "arrive" ? "등원" : variables.action === "late" ? "지각 등원" : variables.action === "checkout" ? "하원" : variables.action === "remind" ? "재촉" : "결석";
       teacherToast.success(`${label} 처리가 완료되었습니다.`);
       if (variables.action === "absent") {
-        setReplacementSessionId("");
-        setReplacementBookingStart("");
-        setReplacementBookingEnd("");
-        changeBookingMut.reset();
-        setReplacementPreferredStart(variables.participant.preferred_start_time?.slice(0, 5) ?? "");
-        setReplacementPreferredEnd(variables.participant.preferred_end_time?.slice(0, 5) ?? "");
         setReschedule({ participant: variables.participant, sendTo: variables.payload.send_to });
       }
     },
     onError: (e) => teacherToast.error(extractApiError(e, "클리닉 처리를 완료하지 못했습니다.")),
-  });
-
-  const changeBookingMut = useMutation({
-    mutationFn: async () => {
-      if (!reschedule || !replacementSessionId || replacementTimeIncomplete) return null;
-      return changeParticipantBooking(reschedule.participant.id, {
-        new_session_id: Number(replacementSessionId),
-        memo: "결석 후 보충 일정 이동",
-        send_to: reschedule.sendTo,
-        ...(replacementNeedsTime ? {
-          booking_start_time: replacementBookingStart,
-          booking_end_time: replacementBookingEnd,
-        } : {}),
-        ...(!replacementNeedsTime && replacementSession?.allow_time_preference && replacementPreferredStart && replacementPreferredEnd
-          ? {
-              preferred_start_time: replacementPreferredStart,
-              preferred_end_time: replacementPreferredEnd,
-            }
-          : {}),
-      });
-    },
-    onSuccess: () => {
-      setReschedule(null);
-      setReplacementSessionId("");
-      setReplacementPreferredStart("");
-      setReplacementPreferredEnd("");
-      setReplacementBookingStart("");
-      setReplacementBookingEnd("");
-      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
-      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participantsAll });
-      teacherToast.success("보충 일정으로 이동했습니다.");
-    },
-    onError: (e) => teacherToast.error(extractApiError(e, "보충 일정을 옮기지 못했습니다.")),
   });
 
   const completeMut = useMutation({
@@ -649,96 +589,17 @@ function ParticipantList({
           onConfirm={(payload) => { if (!lifecycleBusy) actionMut.mutate({ ...actionDialog, payload }); }}
         />
       )}
-      <BottomSheet
-        open={!!reschedule}
-        onClose={() => !changeBookingMut.isPending && setReschedule(null)}
-        title="보충 일정 정하기"
-      >
-        <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-3) 0" }}>
-          <p className="text-sm" style={{ color: "var(--tc-text-muted)" }}>
-            결석 기록은 유지됩니다. 기존 클리닉으로 옮기거나 새 일정을 만드세요.
-          </p>
-          <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--tc-text)" }}>
-            이동할 일정
-            <select
-              value={replacementSessionId}
-              onChange={(event) => {
-                setReplacementSessionId(event.target.value);
-                setReplacementBookingStart("");
-                setReplacementBookingEnd("");
-                changeBookingMut.reset();
-              }}
-              disabled={changeBookingMut.isPending}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                border: "1px solid var(--tc-border)",
-                borderRadius: "var(--tc-radius-sm)",
-                background: "var(--tc-surface)",
-                color: "var(--tc-text)",
-              }}
-            >
-              <option value="">일정을 선택하세요</option>
-              {availableSessions
-                .filter((session) => session.id !== sessionId)
-                .map((session) => (
-                  <option key={session.id} value={session.id}>
-                    {session.date ?? sessionDate} {session.start_time?.slice(0, 5) ?? "시간 미정"} · {session.title || "클리닉"}
-                  </option>
-                ))}
-            </select>
-          </label>
-          {replacementNeedsTime && (
-            <fieldset disabled={changeBookingMut.isPending} className="m-0 min-w-0 border-0 p-0">
-              <ClinicActualTimePicker
-                availability={replacementAvailabilityQ.data}
-                loading={replacementAvailabilityQ.isFetching}
-                error={replacementAvailabilityQ.isError}
-                bookingStart={replacementBookingStart}
-                bookingEnd={replacementBookingEnd}
-                onBookingStartChange={setReplacementBookingStart}
-                onBookingEndChange={setReplacementBookingEnd}
-                onRetry={() => void replacementAvailabilityQ.refetch()}
-                tone="teacher"
-              />
-            </fieldset>
-          )}
-          {!replacementNeedsTime && replacementSession?.allow_time_preference && (
-            <div className="grid grid-cols-2 gap-2" aria-label="학생 희망 시간">
-              <Fld label="희망 시작" value={replacementPreferredStart} onChange={setReplacementPreferredStart} type="time" />
-              <Fld label="희망 종료" value={replacementPreferredEnd} onChange={setReplacementPreferredEnd} type="time" />
-            </div>
-          )}
-          {changeBookingMut.isError && (
-            <p role="alert" className="text-sm" style={{ color: "var(--tc-danger)" }}>
-              {extractApiError(changeBookingMut.error, "보충 일정을 옮기지 못했습니다.")}
-            </p>
-          )}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              className="text-sm font-bold cursor-pointer"
-              style={{ padding: "10px", border: "1px solid var(--tc-border)", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-surface)", color: "var(--tc-primary)" }}
-              onClick={() => {
-                setReschedule(null);
-                onCreateSession();
-              }}
-              disabled={changeBookingMut.isPending}
-            >
-              새 클리닉 만들기
-            </button>
-            <button
-              type="button"
-              className="text-sm font-bold cursor-pointer disabled:cursor-not-allowed"
-              style={{ padding: "10px", border: "none", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-primary)", color: "#fff", opacity: !replacementSessionId || replacementTimeIncomplete || changeBookingMut.isPending ? 0.5 : 1 }}
-              disabled={!replacementSessionId || replacementTimeIncomplete || changeBookingMut.isPending}
-              onClick={() => changeBookingMut.mutate()}
-            >
-              {changeBookingMut.isPending ? "변경 중…" : "일정 이동"}
-            </button>
-          </div>
-        </div>
-      </BottomSheet>
+      {reschedule && (
+        <RescheduleParticipantSheet
+          participant={reschedule.participant}
+          sendTo={reschedule.sendTo}
+          sessionId={sessionId}
+          sessionDate={sessionDate}
+          availableSessions={availableSessions}
+          onClose={() => setReschedule(null)}
+          onCreateSession={onCreateSession}
+        />
+      )}
     </div>
   );
 }
