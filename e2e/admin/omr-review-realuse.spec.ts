@@ -1409,7 +1409,14 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     });
     expect(preview.status()).toBe(200);
     const previewHtml = await preview.text();
-    expect(previewHtml).toMatch(/<div class="dc-h-a">서술형<\/div>[\s\S]*?<div class="dr-n">1<\/div>[\s\S]*?<div class="dr-n">2<\/div>/);
+    const previewEssay = await page.evaluate((html) => {
+      const document = new DOMParser().parseFromString(html, "text/html");
+      return {
+        labels: Array.from(document.querySelectorAll(".dc-h-a"), (element) => element.textContent?.trim()),
+        numbers: Array.from(document.querySelectorAll(".dr-n"), (element) => element.textContent?.trim()),
+      };
+    }, previewHtml);
+    expect(previewEssay).toEqual({ labels: ["서술형 2문항"], numbers: ["1", "2"] });
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginBrowserAsRealUser(page, "/student/grades",
@@ -1448,30 +1455,69 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await uploadDialog.getByRole("button", { name: "닫기", exact: true }).click();
     const scan = await waitForOmrAnswers(request, adminAccess, replacementId, 30);
     expect(scan.answers.sort((a: any, b: any) => Number(a.question_no) - Number(b.question_no))[0].answer).toBe("2");
+    await expect.poll(async () => {
+      const detail = await expectApi<{
+        submission_id: number; enrollment_id: number | null; submission_status: string;
+        meta: { identifier_status?: string };
+      }>(request, "GET", `/submissions/submissions/${replacementId}/manual-edit/`, adminAccess);
+      return {
+        id: detail.submission_id, enrollment: detail.enrollment_id,
+        status: detail.submission_status, identifier: detail.meta.identifier_status,
+      };
+    }, { timeout: 30_000, intervals: [1_000, 2_000] }).toEqual({
+      id: replacementId, enrollment: null,
+      status: "needs_identification", identifier: "matched_duplicate",
+    });
 
+    const replacementDetailResponse = page.waitForResponse((response) => matchesApiResponse(
+      response, "GET", `/submissions/submissions/${replacementId}/manual-edit/`,
+    ), { timeout: 30_000 });
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}&reviewOmr=1&reviewSubmissionId=${replacementId}`,
       { timeout: 45_000 });
     await page.getByRole("tab", { name: "채점·결과" }).click();
-    await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible({ timeout: 30_000 });
-    const picker = page.getByRole("button", { name: "학생 검색·연결" });
-    if (await picker.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await picker.click();
-      await page.locator(".spm-search").fill(STUDENT_NAME);
-      await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
-    }
-    const replacementSaves: number[] = [];
-    page.on("response", (response) => {
-      if (response.request().method() === "POST"
-        && new URL(response.url()).pathname === `/api/v1/submissions/submissions/${replacementId}/manual-edit/`) {
-        replacementSaves.push(response.status());
-      }
+    const replacementReview = page.getByRole("dialog", { name: "OMR 검토" });
+    await expect(replacementReview).toBeVisible({ timeout: 30_000 });
+    // This journey retains the student's 390px viewport. Open the mobile edit
+    // pane just as a teacher does; the initial list pane hides its controls.
+    const editTab = replacementReview.getByRole("tab", { name: "확인", exact: true });
+    await editTab.click();
+    await expect(editTab).toHaveAttribute("aria-selected", "true");
+    const detailResponse = await replacementDetailResponse;
+    expect(detailResponse.status()).toBe(200);
+    const replacementDetail = await detailResponse.json() as {
+      submission_id: number; enrollment_id: number | null; submission_status: string;
+      answers: unknown[]; meta: { identifier_status?: string; manual_review?: { reasons?: string[] } };
+    };
+    expect(replacementDetail.submission_id).toBe(replacementId);
+    expect(replacementDetail.answers).toHaveLength(30);
+    // A second scan is deliberately left unmatched until the teacher confirms
+    // replacement of the student's existing completed answer sheet.
+    expect(replacementDetail.enrollment_id).toBeNull();
+    expect(replacementDetail.submission_status).toBe("needs_identification");
+    expect(replacementDetail.meta.identifier_status).toBe("matched_duplicate");
+    expect(replacementDetail.meta.manual_review?.reasons).toContain("DUPLICATE_ENROLLMENT");
+    const picker = replacementReview.getByRole("button", { name: "학생 검색·연결" });
+    await expect(picker).toBeVisible();
+    await picker.click();
+    await page.locator(".spm-search").fill(STUDENT_NAME);
+    await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+    const duplicateResponse = page.waitForResponse((response) => matchesApiResponse(
+      response, "POST", `/submissions/submissions/${replacementId}/manual-edit/`,
+    ));
+    await replacementReview.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
+    const conflict = await duplicateResponse;
+    expect(conflict.status()).toBe(409);
+    expect(await conflict.json()).toMatchObject({
+      code: "DUPLICATE_ENROLLMENT", conflict_submission_id: created.submissionIds[0],
     });
-    await page.getByRole("button", { name: /저장 \+ 재채점|확정하고 점수 표시/ }).click();
     const duplicateDialog = page.getByRole("alertdialog", { name: "이미 매칭된 답안지가 있습니다" });
-    await expect(duplicateDialog).toBeVisible({ timeout: 15_000 });
+    await expect(duplicateDialog).toBeVisible();
+    const replacementSaved = page.waitForResponse((response) => matchesApiResponse(
+      response, "POST", `/submissions/submissions/${replacementId}/manual-edit/`,
+    ), { timeout: 60_000 });
     await duplicateDialog.getByRole("button", { name: "덮어쓰기", exact: true }).click();
-    await expect.poll(() => replacementSaves, { timeout: 60_000 }).toContain(200);
+    expect((await replacementSaved).status()).toBe(200);
     await expect.poll(async () => (await waitForStudentResult(request, studentAccess, created.examId!)).total_score,
       { timeout: 60_000 }).toBe(EXPECTED_SCORE - 1);
     const parent = await expectParentApi<{ exams?: any[] }>(request, "/student/grades/", parentAccess, created.studentId!);
