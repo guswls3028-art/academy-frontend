@@ -76,7 +76,7 @@ test.describe("안내문 변수 편집", () => {
       }
       return route.fulfill({ json: { suppressed_defaults: remaining } });
     });
-    const restore = page.locator("details").filter({ has: page.getByText("삭제한 제공 문구 선택 복원", { exact: true }) });
+    const restore = page.locator("details").filter({ has: page.getByText("다시 쓸 제공 문구 선택 복원", { exact: true }) });
     await restore.locator("summary").click();
     const selected = restore.getByRole("checkbox", { name: "다시 사용할 공지 문구" });
     await selected.check();
@@ -87,7 +87,7 @@ test.describe("안내문 변수 편집", () => {
     await expect(selected).toHaveCount(0);
     expect(requests).toEqual([{ restore_keys: ["freeform_general"] }, { restore_keys: ["freeform_general"] }]);
     await page.reload();
-    await page.getByText("삭제한 제공 문구 선택 복원", { exact: true }).click();
+    await page.getByText("다시 쓸 제공 문구 선택 복원", { exact: true }).click();
     await expect(page.getByRole("checkbox", { name: "복원하지 않을 수납 문구" })).not.toBeChecked();
     expect(requests).toHaveLength(2);
   });
