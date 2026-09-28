@@ -10,6 +10,7 @@ import {
   expectApi,
   installQaStudentParentBoundary,
   loginAdmin,
+  loginApi,
   loginThroughUi,
   logoutStudentApp,
   QA_BASE,
@@ -40,6 +41,8 @@ let family: QaFamily | null = null;
 let adminAccess = "";
 let sessionId: number | undefined;
 let participantId: number | undefined;
+let lectureId: number | undefined;
+let enrollmentId: number | undefined;
 
 const runStamp = Date.now();
 const clinicDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })
@@ -88,7 +91,16 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     }
   };
   if (sessionId) await remove("DELETE", `/clinic/sessions/${sessionId}/`);
+  if (enrollmentId) await remove("DELETE", `/enrollments/${enrollmentId}/`);
+  if (lectureId) await remove("DELETE", `/lectures/lectures/${lectureId}/`);
   await cleanupQaFamily(request, adminAccess, family);
+  for (const path of [
+    ...(enrollmentId ? [`/enrollments/${enrollmentId}/`] : []),
+    ...(lectureId ? [`/lectures/lectures/${lectureId}/`] : []),
+  ]) {
+    const residue = await api(request, "GET", path, adminAccess);
+    if (residue.status !== 404) failures.push(`verify ${path} absent -> ${residue.status}`);
+  }
   if (sessionId) {
     const residue = await api(request, "GET", `/clinic/sessions/${sessionId}/`, adminAccess);
     if (residue.status !== 404) failures.push(`verify clinic session ${sessionId} absent -> ${residue.status}`);
@@ -135,6 +147,29 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
       allow_multi_slot_booking: false,
     });
     sessionId = Number(clinicSession.id);
+
+    // Current booking policy requires an active course enrollment, including
+    // unrestricted clinic sessions (backend/docs/domain/clinic-targets.md).
+    const studentTokens = await loginApi(request, student.ps_number, student.password);
+    const sessionsPath = `/clinic/sessions/?date_from=${clinicDate}&date_to=${clinicDate}`;
+    const unavailable = await expectApi(request, "GET", sessionsPath, studentTokens.access);
+    expect(listFrom(unavailable)).toEqual([]);
+    const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", adminAccess, {
+      title: `QA 클리닉 수강 ${runStamp}`,
+      name: "QA클리닉",
+      subject: "수학",
+      start_date: clinicDate,
+      is_active: true,
+    });
+    lectureId = Number(lecture.id);
+    const enrollments = await expectApi<Array<{ id: number }>>(
+      request, "POST", "/enrollments/bulk_create/", adminAccess,
+      { lecture: lectureId, students: [student.id] },
+    );
+    enrollmentId = Number(enrollments[0]?.id);
+    expect(enrollmentId).toBeGreaterThan(0);
+    const available = await expectApi(request, "GET", sessionsPath, studentTokens.access);
+    expect(listFrom(available).map((session) => session.id)).toContain(sessionId);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginThroughUi(page, student.ps_number, student.password);

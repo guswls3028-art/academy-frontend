@@ -16,6 +16,13 @@ type Props = {
     label: string;
     onClick: () => void;
   };
+  updateNotice?: {
+    title: string;
+    date: string;
+    href: string;
+    isUnread: boolean;
+    onOpen: () => void;
+  };
 };
 
 export function GuideBookLauncher({
@@ -28,9 +35,11 @@ export function GuideBookLauncher({
   buttonStyle,
   iconSize = 20,
   supportAction,
+  updateNotice,
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const titleId = useMemo(() => `guidebook-title-${tone}`, [tone]);
 
   useEffect(() => {
@@ -39,7 +48,10 @@ export function GuideBookLauncher({
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener("mousedown", closeOnOutside);
     document.addEventListener("touchstart", closeOnOutside);
@@ -65,16 +77,18 @@ export function GuideBookLauncher({
       data-align={align}
     >
       <button
+        ref={triggerRef}
         type="button"
         className={`guidebook-trigger ${buttonClassName}`.trim()}
         style={buttonStyle}
-        aria-label={open ? "가이드북 닫기" : ariaLabel}
+        aria-label={open ? "가이드북 닫기" : updateNotice?.isUnread ? `${ariaLabel}, 새 제품 업데이트` : ariaLabel}
         aria-expanded={open}
         aria-haspopup="dialog"
         title={ariaLabel}
         onClick={() => setOpen((value) => !value)}
       >
         <HelpCircle size={iconSize} strokeWidth={2.2} aria-hidden />
+        {updateNotice?.isUnread && <span className="guidebook-trigger__update-dot" aria-hidden="true" />}
       </button>
 
       {open && (
@@ -96,13 +110,41 @@ export function GuideBookLauncher({
               type="button"
               className="guidebook-popup__close"
               aria-label="가이드북 닫기"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                triggerRef.current?.focus();
+              }}
             >
               <X size={16} aria-hidden />
             </button>
           </header>
 
           <div className="guidebook-popup__body">
+            {updateNotice && (
+              <section className="guidebook-popup__section" aria-label="제품 업데이트">
+                <h3>제품 업데이트</h3>
+                <div className="guidebook-popup__items">
+                  <a
+                    className="guidebook-popup__item"
+                    data-clickable="true"
+                    href={updateNotice.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      updateNotice.onOpen();
+                      setOpen(false);
+                      triggerRef.current?.focus();
+                    }}
+                  >
+                    <span>
+                      <strong>{updateNotice.isUnread ? "새 제품 업데이트" : "최신 제품 업데이트"}</strong>
+                      <small><time dateTime={updateNotice.date}>{updateNotice.date}</time> · {updateNotice.title}</small>
+                    </span>
+                    <em>패치노트 보기 <ArrowRight size={13} strokeWidth={2.5} aria-hidden /></em>
+                  </a>
+                </div>
+              </section>
+            )}
             {preset.sections.map((section) => (
               <section key={section.title} className="guidebook-popup__section">
                 <h3>{section.title}</h3>
