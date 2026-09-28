@@ -1474,54 +1474,34 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(detailResponse.status()).toBe(200);
     const replacementDetail = await detailResponse.json() as {
       submission_id: number; enrollment_id: number | null; submission_status: string;
-      answers: unknown[]; meta: { identifier_status?: string };
-      duplicate_siblings: Array<{ submission_id: number }>;
+      answers: unknown[]; meta: { manual_review?: { reasons?: string[] } };
     };
     expect(replacementDetail.submission_id).toBe(replacementId);
     expect(replacementDetail.answers).toHaveLength(30);
-    const needsIdentification = !replacementDetail.enrollment_id
-      || replacementDetail.submission_status === "needs_identification"
-      || ["no_match", "missing"].includes(replacementDetail.meta.identifier_status ?? "");
-    if (needsIdentification) {
-      const picker = replacementReview.getByRole("button", { name: "학생 검색·연결" });
-      await expect(picker).toBeVisible();
-      await picker.click();
-      await page.locator(".spm-search").fill(STUDENT_NAME);
-      await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
-      const duplicateResponse = page.waitForResponse((response) => matchesApiResponse(
-        response, "POST", `/submissions/submissions/${replacementId}/manual-edit/`,
-      ));
-      await replacementReview.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
-      const conflict = await duplicateResponse;
-      expect(conflict.status()).toBe(409);
-      expect(await conflict.json()).toMatchObject({ code: "DUPLICATE_ENROLLMENT" });
-      const duplicateDialog = page.getByRole("alertdialog", { name: "이미 매칭된 답안지가 있습니다" });
-      await expect(duplicateDialog).toBeVisible();
-      const replacementSaved = page.waitForResponse((response) => matchesApiResponse(
-        response, "POST", `/submissions/submissions/${replacementId}/manual-edit/`,
-      ), { timeout: 60_000 });
-      await duplicateDialog.getByRole("button", { name: "덮어쓰기", exact: true }).click();
-      expect((await replacementSaved).status()).toBe(200);
-    } else {
-      expect(replacementDetail.enrollment_id).toBe(created.enrollmentId);
-      expect(replacementDetail.duplicate_siblings.map((row) => row.submission_id))
-        .toContain(created.submissionIds[0]);
-      const acceptReplacement = replacementReview.getByRole("button", { name: "이 답안 채택", exact: true });
-      await expect(acceptReplacement).toBeVisible();
-      const replacementAccepted = page.waitForResponse((response) => matchesApiResponse(
-        response, "POST", `/submissions/submissions/${replacementId}/accept-from-duplicates/`,
-      ), { timeout: 60_000 });
-      await acceptReplacement.click();
-      const acceptDialog = page.getByRole("alertdialog", { name: "이 답안 채택", exact: true });
-      await expect(acceptDialog).toBeVisible();
-      await acceptDialog.getByRole("button", { name: "채택", exact: true }).click();
-      const acceptedResponse = await replacementAccepted;
-      expect(acceptedResponse.status()).toBe(200);
-      expect(await acceptedResponse.json()).toMatchObject({
-        submission_id: replacementId, status: "done", graded: true,
-        superseded_count: 1, skipped: [], score: EXPECTED_SCORE - 1,
-      });
-    }
+    // A second scan is deliberately left unmatched until the teacher confirms
+    // replacement of the student's existing completed answer sheet.
+    expect(replacementDetail.enrollment_id).toBeNull();
+    expect(replacementDetail.submission_status).toBe("needs_identification");
+    expect(replacementDetail.meta.manual_review?.reasons).toContain("DUPLICATE_ENROLLMENT");
+    const picker = replacementReview.getByRole("button", { name: "학생 검색·연결" });
+    await expect(picker).toBeVisible();
+    await picker.click();
+    await page.locator(".spm-search").fill(STUDENT_NAME);
+    await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+    const duplicateResponse = page.waitForResponse((response) => matchesApiResponse(
+      response, "POST", `/submissions/submissions/${replacementId}/manual-edit/`,
+    ));
+    await replacementReview.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
+    const conflict = await duplicateResponse;
+    expect(conflict.status()).toBe(409);
+    expect(await conflict.json()).toMatchObject({ code: "DUPLICATE_ENROLLMENT" });
+    const duplicateDialog = page.getByRole("alertdialog", { name: "이미 매칭된 답안지가 있습니다" });
+    await expect(duplicateDialog).toBeVisible();
+    const replacementSaved = page.waitForResponse((response) => matchesApiResponse(
+      response, "POST", `/submissions/submissions/${replacementId}/manual-edit/`,
+    ), { timeout: 60_000 });
+    await duplicateDialog.getByRole("button", { name: "덮어쓰기", exact: true }).click();
+    expect((await replacementSaved).status()).toBe(200);
     await expect.poll(async () => (await waitForStudentResult(request, studentAccess, created.examId!)).total_score,
       { timeout: 60_000 }).toBe(EXPECTED_SCORE - 1);
     const parent = await expectParentApi<{ exams?: any[] }>(request, "/student/grades/", parentAccess, created.studentId!);
