@@ -281,7 +281,13 @@ export async function replaceClinicParticipantPlan(
 
 export async function changeClinicParticipantBooking(
   id: number,
-  payload: { new_session_id: number; memo?: string; send_to: ClinicRecipient },
+  payload: {
+    new_session_id: number;
+    memo?: string;
+    send_to: ClinicRecipient;
+    booking_start_time?: string;
+    booking_end_time?: string;
+  },
 ) {
   const res = await api.post(`/clinic/participants/${id}/change-booking/`, payload);
   return res.data as ClinicParticipantMutationResult;

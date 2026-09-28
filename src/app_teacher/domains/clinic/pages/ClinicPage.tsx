@@ -16,6 +16,7 @@ import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import {
   fetchClinicSessions,
   fetchClinicParticipants,
+  fetchClinicAvailability,
   patchParticipantStatus,
   checkoutParticipant,
   changeParticipantBooking,
@@ -31,6 +32,7 @@ import AddParticipantSheet from "../components/AddParticipantSheet";
 import { SmallBtn, StatusBadge } from "../components/ParticipantStatusControls";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { ClinicActualTimePicker } from "@/shared/ui/clinic/ClinicActualTimePicker";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { fetchAllSections, type Section } from "@/shared/api/contracts/lectureSections";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -315,8 +317,20 @@ function ParticipantList({
   const [replacementSessionId, setReplacementSessionId] = useState("");
   const [replacementPreferredStart, setReplacementPreferredStart] = useState("");
   const [replacementPreferredEnd, setReplacementPreferredEnd] = useState("");
+  const [replacementBookingStart, setReplacementBookingStart] = useState("");
+  const [replacementBookingEnd, setReplacementBookingEnd] = useState("");
   const replacementSession = availableSessions.find(
     (session) => session.id === Number(replacementSessionId),
+  );
+  const replacementNeedsTime = replacementSession?.booking_mode === "time_range";
+  const replacementAvailabilityQ = useQuery({
+    queryKey: teacherClinicQueryKeys.availability(Number(replacementSessionId)),
+    queryFn: () => fetchClinicAvailability(Number(replacementSessionId)),
+    enabled: !!reschedule && replacementNeedsTime,
+    retry: 0,
+  });
+  const replacementTimeIncomplete = replacementNeedsTime && (
+    !replacementBookingStart || !replacementBookingEnd || replacementAvailabilityQ.isFetching || replacementAvailabilityQ.isError
   );
 
   const { data: participants, isLoading, isError, refetch } = useQuery({
@@ -380,6 +394,9 @@ function ParticipantList({
       teacherToast.success(`${label} 처리가 완료되었습니다.`);
       if (variables.action === "absent") {
         setReplacementSessionId("");
+        setReplacementBookingStart("");
+        setReplacementBookingEnd("");
+        changeBookingMut.reset();
         setReplacementPreferredStart(variables.participant.preferred_start_time?.slice(0, 5) ?? "");
         setReplacementPreferredEnd(variables.participant.preferred_end_time?.slice(0, 5) ?? "");
         setReschedule({ participant: variables.participant, sendTo: variables.payload.send_to });
@@ -390,12 +407,16 @@ function ParticipantList({
 
   const changeBookingMut = useMutation({
     mutationFn: async () => {
-      if (!reschedule || !replacementSessionId) return null;
+      if (!reschedule || !replacementSessionId || replacementTimeIncomplete) return null;
       return changeParticipantBooking(reschedule.participant.id, {
         new_session_id: Number(replacementSessionId),
         memo: "결석 후 보충 일정 이동",
         send_to: reschedule.sendTo,
-        ...(replacementSession?.allow_time_preference && replacementPreferredStart && replacementPreferredEnd
+        ...(replacementNeedsTime ? {
+          booking_start_time: replacementBookingStart,
+          booking_end_time: replacementBookingEnd,
+        } : {}),
+        ...(!replacementNeedsTime && replacementSession?.allow_time_preference && replacementPreferredStart && replacementPreferredEnd
           ? {
               preferred_start_time: replacementPreferredStart,
               preferred_end_time: replacementPreferredEnd,
@@ -408,8 +429,10 @@ function ParticipantList({
       setReplacementSessionId("");
       setReplacementPreferredStart("");
       setReplacementPreferredEnd("");
+      setReplacementBookingStart("");
+      setReplacementBookingEnd("");
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
-      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participantsAll });
       teacherToast.success("보충 일정으로 이동했습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "보충 일정을 옮기지 못했습니다.")),
@@ -639,7 +662,13 @@ function ParticipantList({
             이동할 일정
             <select
               value={replacementSessionId}
-              onChange={(event) => setReplacementSessionId(event.target.value)}
+              onChange={(event) => {
+                setReplacementSessionId(event.target.value);
+                setReplacementBookingStart("");
+                setReplacementBookingEnd("");
+                changeBookingMut.reset();
+              }}
+              disabled={changeBookingMut.isPending}
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -659,11 +688,31 @@ function ParticipantList({
                 ))}
             </select>
           </label>
-          {replacementSession?.allow_time_preference && (
+          {replacementNeedsTime && (
+            <fieldset disabled={changeBookingMut.isPending} className="m-0 min-w-0 border-0 p-0">
+              <ClinicActualTimePicker
+                availability={replacementAvailabilityQ.data}
+                loading={replacementAvailabilityQ.isFetching}
+                error={replacementAvailabilityQ.isError}
+                bookingStart={replacementBookingStart}
+                bookingEnd={replacementBookingEnd}
+                onBookingStartChange={setReplacementBookingStart}
+                onBookingEndChange={setReplacementBookingEnd}
+                onRetry={() => void replacementAvailabilityQ.refetch()}
+                tone="teacher"
+              />
+            </fieldset>
+          )}
+          {!replacementNeedsTime && replacementSession?.allow_time_preference && (
             <div className="grid grid-cols-2 gap-2" aria-label="학생 희망 시간">
               <Fld label="희망 시작" value={replacementPreferredStart} onChange={setReplacementPreferredStart} type="time" />
               <Fld label="희망 종료" value={replacementPreferredEnd} onChange={setReplacementPreferredEnd} type="time" />
             </div>
+          )}
+          {changeBookingMut.isError && (
+            <p role="alert" className="text-sm" style={{ color: "var(--tc-danger)" }}>
+              {extractApiError(changeBookingMut.error, "보충 일정을 옮기지 못했습니다.")}
+            </p>
           )}
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -674,17 +723,18 @@ function ParticipantList({
                 setReschedule(null);
                 onCreateSession();
               }}
+              disabled={changeBookingMut.isPending}
             >
               새 클리닉 만들기
             </button>
             <button
               type="button"
               className="text-sm font-bold cursor-pointer disabled:cursor-not-allowed"
-              style={{ padding: "10px", border: "none", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-primary)", color: "#fff", opacity: !replacementSessionId || changeBookingMut.isPending ? 0.5 : 1 }}
-              disabled={!replacementSessionId || changeBookingMut.isPending}
+              style={{ padding: "10px", border: "none", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-primary)", color: "#fff", opacity: !replacementSessionId || replacementTimeIncomplete || changeBookingMut.isPending ? 0.5 : 1 }}
+              disabled={!replacementSessionId || replacementTimeIncomplete || changeBookingMut.isPending}
               onClick={() => changeBookingMut.mutate()}
             >
-              일정 이동
+              {changeBookingMut.isPending ? "변경 중…" : "일정 이동"}
             </button>
           </div>
         </div>

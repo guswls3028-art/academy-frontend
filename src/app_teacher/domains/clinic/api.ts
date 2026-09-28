@@ -150,6 +150,8 @@ export async function changeParticipantBooking(
     send_to: TeacherClinicRecipient;
     preferred_start_time?: string;
     preferred_end_time?: string;
+    booking_start_time?: string;
+    booking_end_time?: string;
   },
 ): Promise<TeacherClinicParticipant> {
   const res = await api.post(`/clinic/participants/${participantId}/change-booking/`, payload);

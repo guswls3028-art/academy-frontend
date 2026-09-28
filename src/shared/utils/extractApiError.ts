@@ -24,6 +24,9 @@ const FIELD_LABELS: Record<string, string> = {
   end_date: "종료일",
   lecture_time: "강의 시간",
   order: "차시 순번",
+  booking_time: "예약 시간",
+  booking_start_time: "예약 시작 시간",
+  booking_end_time: "예약 종료 시간",
   detail: "",
   non_field_errors: "",
 };
