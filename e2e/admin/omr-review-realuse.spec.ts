@@ -464,7 +464,7 @@ async function verifyChangedAnswerAndMaximum(
   studentToken: string,
   parentToken: string,
 ): Promise<void> {
-  const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`;
+  const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`;
   for (const changed of [true, false]) {
     const maximum = changed ? 60 : 50;
     const expected = changed ? EXPECTED_SCORE - 1 : EXPECTED_SCORE;
@@ -1288,7 +1288,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(page.getByText("1명의 성적을 확정했습니다.")).toBeVisible({ timeout: 30_000 });
 
     await gotoAndSettle(page,
-      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`,
+      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,
       { timeout: 30_000 });
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
     const recalculateResponse = page.waitForResponse((response) =>
@@ -1400,7 +1400,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const adminAccess = created.adminAccess!;
     const studentAccess = (await loginToken(request, STUDENT_USER, STUDENT_PASS)).access;
     const parentAccess = (await loginToken(request, CONTROLLED_PHONE, STUDENT_PASS)).access;
-    const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`;
+    const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`;
     await loginBrowserAsRealUser(page, setupPath,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
     const policyDisclosure = page.locator("#assessment-policy > details");
@@ -1654,10 +1654,12 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       { timeout: 30_000 }).toBe(2);
 
     await loginBrowserAsRealUser(page,
-      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${examId}`,
+      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${examId}`,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+    await expect(page).toHaveURL(new RegExp(`[?&]examId=${examId}(?:&|$)`));
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+    await expect(answerDialog.locator(".answer-key-row--choice")).toHaveCount(3);
     const firstRow = answerDialog.locator(".answer-key-row--choice").first();
     await expect(firstRow).toContainText("3번 또는 5번, 둘 다 선택해도 정답");
     await firstRow.locator(".answer-key-omr-label").nth(4).click();
