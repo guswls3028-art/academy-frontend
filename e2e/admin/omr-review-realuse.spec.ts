@@ -9,6 +9,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page, Response } from "@playwright/test";
 import { PDFDocument, rgb } from "pdf-lib";
+import { setTimeout as delay } from "node:timers/promises";
 import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 import { emitOmrCleanupStatus, safeLectureSessionDeleteBlocker } from "../helpers/releaseApiBoundary";
@@ -238,18 +239,47 @@ async function loginBrowserAsRealUser(
   await expect(loginForm).toBeVisible();
   await page.getByTestId("login-username").fill(expected.username);
   await page.getByTestId("login-password").fill(expected.password);
-  const loginResponsePromise = page.waitForResponse(
-    (response) => matchesApiResponse(response, "POST", "/token/"),
-    { timeout: 30_000 },
-  );
-  const currentUserResponsePromise = page.waitForResponse(
-    (response) => matchesApiResponse(response, "GET", "/core/me/") && response.status() === 200,
-    { timeout: 30_000 },
-  );
-  await page.getByTestId("login-submit").click();
-  const loginResponse = await loginResponsePromise;
-  expect(loginResponse.status(), `POST /token/ -> ${loginResponse.status()}`).toBe(200);
-  const currentUser = await readCurrentUserResponse(await currentUserResponsePromise);
+  const currentUserResponses: Response[] = [];
+  let loginAccepted = false;
+  const observeCurrentUser = (response: Response) => {
+    if (matchesApiResponse(response, "POST", "/token/") && response.status() === 200) {
+      loginAccepted = true;
+    }
+    if (loginAccepted && matchesApiResponse(response, "GET", "/core/me/") && response.status() === 200) {
+      currentUserResponses.push(response);
+    }
+  };
+  page.on("response", observeCurrentUser);
+  let currentUser: CurrentUser;
+  try {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const loginResponsePromise = page.waitForResponse(
+        (response) => matchesApiResponse(response, "POST", "/token/"),
+        { timeout: 30_000 },
+      );
+      await page.getByTestId("login-submit").click();
+      const loginResponse = await loginResponsePromise;
+      if (loginResponse.status() === 429 && attempt === 0) {
+        // The repeated real-account journeys can exhaust the production-shaped
+        // 10-per-five-minute limit. Respect its exact wait before one form retry.
+        const retryAfter = Number(loginResponse.headers()["retry-after"]);
+        expect(Number.isInteger(retryAfter)).toBe(true);
+        expect(retryAfter).toBeGreaterThan(0);
+        expect(retryAfter).toBeLessThanOrEqual(300);
+        await expect(loginForm.getByRole("alert")).toBeVisible();
+        await expect(page.getByTestId("login-submit")).toBeEnabled();
+        expect(currentUserResponses).toHaveLength(0);
+        await delay((retryAfter + 1) * 1000);
+        continue;
+      }
+      expect(loginResponse.status(), `POST /token/ -> ${loginResponse.status()}`).toBe(200);
+      break;
+    }
+    await expect.poll(() => currentUserResponses.length, { timeout: 30_000 }).toBeGreaterThan(0);
+    currentUser = await readCurrentUserResponse(currentUserResponses[0]);
+  } finally {
+    page.off("response", observeCurrentUser);
+  }
   expect(currentUser.tenantRole).toBe(expected.role);
 
   const activeSession = await page.evaluate(() => {
@@ -434,7 +464,7 @@ async function verifyChangedAnswerAndMaximum(
   studentToken: string,
   parentToken: string,
 ): Promise<void> {
-  const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`;
+  const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`;
   for (const changed of [true, false]) {
     const maximum = changed ? 60 : 50;
     const expected = changed ? EXPECTED_SCORE - 1 : EXPECTED_SCORE;
@@ -1087,10 +1117,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const pickButton = page.getByRole("button", { name: "학생 검색·연결" });
     if (await pickButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await pickButton.click();
-      await page.locator(".spm-search").fill(STUDENT_NAME);
-      await expect(page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }))
+      const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
+      await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+      await expect(studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }))
         .toBeVisible({ timeout: 15_000 });
-      await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+      await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
       await expect(page.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME, { timeout: 10_000 });
       await expect(page.getByRole("dialog", { name: "학생 선택" })).toBeHidden();
     }
@@ -1257,7 +1288,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(page.getByText("1명의 성적을 확정했습니다.")).toBeVisible({ timeout: 30_000 });
 
     await gotoAndSettle(page,
-      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`,
+      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,
       { timeout: 30_000 });
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
     const recalculateResponse = page.waitForResponse((response) =>
@@ -1369,7 +1400,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const adminAccess = created.adminAccess!;
     const studentAccess = (await loginToken(request, STUDENT_USER, STUDENT_PASS)).access;
     const parentAccess = (await loginToken(request, CONTROLLED_PHONE, STUDENT_PASS)).access;
-    const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`;
+    const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`;
     await loginBrowserAsRealUser(page, setupPath,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
     const policyDisclosure = page.locator("#assessment-policy > details");
@@ -1500,8 +1531,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const picker = replacementReview.getByRole("button", { name: "학생 검색·연결" });
     await expect(picker).toBeVisible();
     await picker.click();
-    await page.locator(".spm-search").fill(STUDENT_NAME);
-    await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+    const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
+    await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+    await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+    await expect(studentPicker).toBeHidden();
+    await expect(replacementReview.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME);
     const duplicateResponse = page.waitForResponse((response) => matchesApiResponse(
       response, "POST", `/submissions/submissions/${replacementId}/manual-edit/`,
     ));
@@ -1620,10 +1654,12 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       { timeout: 30_000 }).toBe(2);
 
     await loginBrowserAsRealUser(page,
-      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${examId}`,
+      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${examId}`,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+    await expect(page).toHaveURL(new RegExp(`[?&]examId=${examId}(?:&|$)`));
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+    await expect(answerDialog.locator(".answer-key-row--choice")).toHaveCount(3);
     const firstRow = answerDialog.locator(".answer-key-row--choice").first();
     await expect(firstRow).toContainText("3번 또는 5번, 둘 다 선택해도 정답");
     await firstRow.locator(".answer-key-omr-label").nth(4).click();
