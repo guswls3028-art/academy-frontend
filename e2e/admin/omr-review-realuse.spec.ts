@@ -1455,6 +1455,19 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await uploadDialog.getByRole("button", { name: "닫기", exact: true }).click();
     const scan = await waitForOmrAnswers(request, adminAccess, replacementId, 30);
     expect(scan.answers.sort((a: any, b: any) => Number(a.question_no) - Number(b.question_no))[0].answer).toBe("2");
+    await expect.poll(async () => {
+      const detail = await expectApi<{
+        submission_id: number; enrollment_id: number | null; submission_status: string;
+        meta: { identifier_status?: string };
+      }>(request, "GET", `/submissions/submissions/${replacementId}/manual-edit/`, adminAccess);
+      return {
+        id: detail.submission_id, enrollment: detail.enrollment_id,
+        status: detail.submission_status, identifier: detail.meta.identifier_status,
+      };
+    }, { timeout: 30_000, intervals: [1_000, 2_000] }).toEqual({
+      id: replacementId, enrollment: null,
+      status: "needs_identification", identifier: "matched_duplicate",
+    });
 
     const replacementDetailResponse = page.waitForResponse((response) => matchesApiResponse(
       response, "GET", `/submissions/submissions/${replacementId}/manual-edit/`,
@@ -1474,7 +1487,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(detailResponse.status()).toBe(200);
     const replacementDetail = await detailResponse.json() as {
       submission_id: number; enrollment_id: number | null; submission_status: string;
-      answers: unknown[]; meta: { manual_review?: { reasons?: string[] } };
+      answers: unknown[]; meta: { identifier_status?: string; manual_review?: { reasons?: string[] } };
     };
     expect(replacementDetail.submission_id).toBe(replacementId);
     expect(replacementDetail.answers).toHaveLength(30);
@@ -1482,6 +1495,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     // replacement of the student's existing completed answer sheet.
     expect(replacementDetail.enrollment_id).toBeNull();
     expect(replacementDetail.submission_status).toBe("needs_identification");
+    expect(replacementDetail.meta.identifier_status).toBe("matched_duplicate");
     expect(replacementDetail.meta.manual_review?.reasons).toContain("DUPLICATE_ENROLLMENT");
     const picker = replacementReview.getByRole("button", { name: "학생 검색·연결" });
     await expect(picker).toBeVisible();
@@ -1494,7 +1508,9 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await replacementReview.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
     const conflict = await duplicateResponse;
     expect(conflict.status()).toBe(409);
-    expect(await conflict.json()).toMatchObject({ code: "DUPLICATE_ENROLLMENT" });
+    expect(await conflict.json()).toMatchObject({
+      code: "DUPLICATE_ENROLLMENT", conflict_submission_id: created.submissionIds[0],
+    });
     const duplicateDialog = page.getByRole("alertdialog", { name: "이미 매칭된 답안지가 있습니다" });
     await expect(duplicateDialog).toBeVisible();
     const replacementSaved = page.waitForResponse((response) => matchesApiResponse(
