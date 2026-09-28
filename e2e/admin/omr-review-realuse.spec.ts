@@ -1087,10 +1087,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const pickButton = page.getByRole("button", { name: "학생 검색·연결" });
     if (await pickButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await pickButton.click();
-      await page.locator(".spm-search").fill(STUDENT_NAME);
-      await expect(page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }))
+      const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
+      await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+      await expect(studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }))
         .toBeVisible({ timeout: 15_000 });
-      await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+      await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
       await expect(page.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME, { timeout: 10_000 });
       await expect(page.getByRole("dialog", { name: "학생 선택" })).toBeHidden();
     }
@@ -1500,8 +1501,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const picker = replacementReview.getByRole("button", { name: "학생 검색·연결" });
     await expect(picker).toBeVisible();
     await picker.click();
-    await page.locator(".spm-search").fill(STUDENT_NAME);
-    await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+    const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
+    await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+    await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+    await expect(studentPicker).toBeHidden();
+    await expect(replacementReview.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME);
     const duplicateResponse = page.waitForResponse((response) => matchesApiResponse(
       response, "POST", `/submissions/submissions/${replacementId}/manual-edit/`,
     ));
