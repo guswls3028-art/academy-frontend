@@ -1958,8 +1958,8 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(drawer).not.toContainText(/PASS|보강\s?합격/);
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByText("자동저장학생1", { exact: true }).first().click();
     await expect(drawer).toBeVisible();
+    await expect(drawer.locator(".student-scores-drawer__verdict-value")).toHaveText("오답 완료");
     await expect.poll(() => drawer.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
       return bounds.left >= 0 && bounds.right <= window.innerWidth && element.scrollWidth <= element.clientWidth;
