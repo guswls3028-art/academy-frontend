@@ -1594,6 +1594,42 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   test.setTimeout(120_000);
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
 
+  for (const width of [1366, 390]) {
+    for (const rowCount of [1, 2]) {
+      test(`@enter-boundary ${rowCount}명 마지막 행은 Enter만으로 저장하고 재입력·실행 취소를 유지한다 (${width}px)`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        await openScores(page, { initialScores: Array(rowCount).fill(null) });
+        await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible({ timeout: 30_000 });
+        const cell = page.locator(`[data-score-cell="exam:${9200 + rowCount}:9101:total:"]`).getByRole("textbox");
+        await cell.click();
+        await cell.fill("65");
+        await cell.press("Enter");
+        // 다른 셀 클릭이나 테스트의 blur 없이 Enter가 실제 저장을 완료해야 한다.
+        await expect.poll(() => currentScores[rowCount - 1], { timeout: 10_000 }).toBe(65);
+        await expect(page.getByRole("status")).toContainText("저장됨");
+        expect(scorePatches).toHaveLength(1);
+        await page.screenshot({ path: testInfo.outputPath(`enter-saved-${rowCount}-${width}.png`), fullPage: true });
+
+        await cell.fill("101");
+        await cell.press("Enter");
+        await expect(cell).toHaveText("65");
+        expect(currentScores[rowCount - 1]).toBe(65);
+
+        await cell.fill("74");
+        await cell.press("Enter");
+        await expect.poll(() => currentScores[rowCount - 1], { timeout: 10_000 }).toBe(74);
+        await expect(page.getByRole("status")).toContainText("저장됨");
+        await page.keyboard.press("Control+z");
+        await expect.poll(() => currentScores[rowCount - 1], { timeout: 10_000 }).toBe(65);
+        expect(scorePatches.map((patch) => patch.score)).toEqual([65, 74, 65]);
+        await expect(page.getByRole("status")).toContainText("저장됨");
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await ensureScoreEditing(page);
+        await expect(cell).toHaveText("65");
+      });
+    }
+  }
+
   test("입력 이력이 전혀 없으면 바로 수정 상태로 열리고 저장 후 잠금은 유지된다", async ({ page }, testInfo) => {
     await openScores(page, { initialScores: [null, null] });
 

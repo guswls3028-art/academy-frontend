@@ -389,7 +389,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const onRequestMoveDown = useCallback(() => {
     const cur = ensureSelection();
     if (!cur.ok) return;
-    focusVertical(cur.r, cur.c, 1);
+    // 마지막 입력 가능 행도 이동 성공 시와 같이 현재 셀을 확정한다.
+    if (!focusVertical(cur.r, cur.c, 1)) tableRef.current?.commitActiveCell();
   }, [ensureSelection, focusVertical]);
 
   const onRequestMoveUp = useCallback(() => {
