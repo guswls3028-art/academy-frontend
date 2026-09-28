@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/comms/pages/MessageTemplatesPage.tsx
 // 알림톡에 담을 사용자 문구 관리. 카카오 승인 봉투와 저장 문구를 구분해 표시한다.
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -16,6 +16,10 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { teacherCommsQueryKeys } from "../queryKeys";
 import { stripInternalAlimtalkMemoToken } from "@/shared/notifications/teacherMemo";
+import MessageBodyEditor, { type MessageBodyEditorHandle } from "@/shared/messaging/MessageBodyEditor";
+import { getBlocksForCategory, type TemplateCategory } from "@/shared/messaging/templateBlocks";
+import styles from "./MessageTemplatesPage.module.css";
+import { suppressedTemplateDefaultsQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 
 const CATEGORY_LABELS: Record<string, string> = {
   default: "일반 안내",
@@ -43,18 +47,19 @@ export default function MessageTemplatesPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const [editSheet, setEditSheet] = useState<{ open: boolean; template?: MsgTemplate }>({ open: false });
+  const [editSheet, setEditSheet] = useState<{ open: boolean; template?: MsgTemplate; copy?: boolean }>({ open: false });
 
   const { data: templates, isLoading, isError, refetch } = useQuery({
     queryKey: teacherCommsQueryKeys.templates,
     queryFn: fetchAllTemplates,
   });
 
-  // 시스템 템플릿 우선 → 카테고리 → 이름 가나다순. 운영 화면에서 시스템 템플릿이 먼저 보이도록.
+  // 직접 저장한 문구와 발송 기본을 먼저 보여준다. 제공 문구는 원본으로 보존한다.
   const sortedTemplates = useMemo(() => {
     if (!templates) return [];
     return [...templates].sort((a, b) => {
-      if (a.is_system !== b.is_system) return a.is_system ? -1 : 1;
+      if (Boolean(a.is_system) !== Boolean(b.is_system)) return a.is_system ? 1 : -1;
+      if (Boolean(a.is_user_default) !== Boolean(b.is_user_default)) return a.is_user_default ? -1 : 1;
       if (a.category !== b.category) return (a.category || "").localeCompare(b.category || "");
       return (a.name || "").localeCompare(b.name || "");
     });
@@ -74,7 +79,11 @@ export default function MessageTemplatesPage() {
 
   const deleteMut = useMutation({
     mutationFn: deleteTemplate,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.templates }); teacherToast.info("템플릿이 삭제되었습니다."); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.templates });
+      qc.invalidateQueries({ queryKey: suppressedTemplateDefaultsQueryKey });
+      teacherToast.info("템플릿이 삭제되었습니다.");
+    },
     onError: (e) => teacherToast.error(extractApiError(e, "템플릿을 삭제하지 못했습니다.")),
   });
 
@@ -150,15 +159,15 @@ export default function MessageTemplatesPage() {
                         className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
                         <Pencil size={ICON.xs} />
                       </button>
-                      <button onClick={async () => {
+                    </>
+                  )}
+                  {(t.can_delete ?? !t.is_system) && <button disabled={deleteMut.isPending} onClick={async () => {
                           const ok = await confirm({ title: "템플릿 삭제", message: "이 템플릿을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                           if (ok) deleteMut.mutate(t.id);
                         }} aria-label={`${t.name} 삭제`}
                         className="flex p-1.5 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}>
                         <Trash2 size={ICON.xs} />
-                      </button>
-                    </>
-                  )}
+                      </button>}
                 </div>
               </div>
             </Card>
@@ -183,15 +192,22 @@ export default function MessageTemplatesPage() {
         open={editSheet.open}
         onClose={() => setEditSheet({ open: false })}
         template={editSheet.template}
+        copy={editSheet.copy}
+        onCopy={() => setEditSheet((current) => ({ ...current, copy: true }))}
       />
     </div>
   );
 }
 
-function TemplateEditSheet({ open, onClose, template }: { open: boolean; onClose: () => void; template?: MsgTemplate }) {
+function TemplateEditSheet({ open, onClose, template, copy = false, onCopy }: {
+  open: boolean; onClose: () => void; template?: MsgTemplate; copy?: boolean; onCopy: () => void;
+}) {
   const qc = useQueryClient();
-  const isEdit = !!template;
-  const readOnly = Boolean(template?.is_system);
+  const confirm = useConfirm();
+  const bodyEditorRef = useRef<MessageBodyEditorHandle>(null);
+  const isEdit = !!template && !copy;
+  const readOnly = Boolean(template?.is_system) && !copy;
+  const initialName = copy ? `복사 - ${template?.name ?? "새 문구"}`.slice(0, 120) : template?.name || "";
   const [name, setName] = useState(template?.name || "");
   const [category, setCategory] = useState(template?.category || "default");
   const [body, setBody] = useState(stripInternalAlimtalkMemoToken(template?.body || ""));
@@ -199,16 +215,29 @@ function TemplateEditSheet({ open, onClose, template }: { open: boolean; onClose
   // Reset when template changes
   useEffect(() => {
     if (open) {
-      setName(template?.name || "");
+      setName(initialName);
       setCategory(template?.category || "default");
       setBody(stripInternalAlimtalkMemoToken(template?.body || ""));
     }
-  }, [open, template]);
+  }, [open, template, initialName]);
+
+  const changed = !readOnly && (name !== initialName
+    || category !== (template?.category || "default")
+    || body !== stripInternalAlimtalkMemoToken(template?.body || ""));
+  const requestClose = async () => {
+    if (mutation.isPending) return;
+    if (changed && !await confirm({
+      title: "수정한 문구를 닫을까요?",
+      message: "아직 저장하지 않은 내용이 있습니다. 계속 편집하면 입력한 내용을 유지할 수 있습니다.",
+      confirmText: "저장하지 않고 닫기", cancelText: "계속 편집",
+    })) return;
+    onClose();
+  };
 
   const mutation = useMutation({
     mutationFn: () => isEdit
       ? updateTemplate(template!.id, { name, category, body })
-      : createTemplate({ name, category, body }),
+      : createTemplate({ name, category, body, subject: template?.subject }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.templates });
       teacherToast.success(isEdit ? "템플릿이 수정되었습니다." : "템플릿이 생성되었습니다.");
@@ -218,16 +247,16 @@ function TemplateEditSheet({ open, onClose, template }: { open: boolean; onClose
   });
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={readOnly ? "시스템 문구 보기" : isEdit ? "문구 편집" : "새 문구"}>
+    <BottomSheet open={open} onClose={() => void requestClose()} title={readOnly ? "시스템 문구 보기" : isEdit ? "문구 편집" : "새 문구"}>
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
         <div>
           <label htmlFor="message-template-name" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>이름 *</label>
-          <input id="message-template-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="문구 이름" disabled={readOnly}
+          <input id="message-template-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="문구 이름" disabled={readOnly || mutation.isPending} maxLength={120}
             className="w-full text-sm" style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
         </div>
         <div>
           <label htmlFor="message-template-category" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>카테고리</label>
-          <select id="message-template-category" value={category} onChange={(e) => setCategory(e.target.value)} disabled={readOnly}
+          <select id="message-template-category" value={category} onChange={(e) => setCategory(e.target.value)} disabled={readOnly || mutation.isPending}
             className="w-full text-sm" style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }}>
             {["default", "signup", "attendance", "lecture", "exam", "assignment", "grades", "clinic", "payment", "notice", "community", "staff"].map((c) => (
               <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
@@ -236,9 +265,18 @@ function TemplateEditSheet({ open, onClose, template }: { open: boolean; onClose
         </div>
         <div>
           <label htmlFor="message-template-body" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>본문 *</label>
-          <textarea id="message-template-body" value={body} onChange={(e) => setBody(e.target.value)} rows={5} placeholder="알림톡 안내문 (예: #{학생이름})" disabled={readOnly}
-            className="w-full text-sm" style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none", resize: "vertical" }} />
+          <MessageBodyEditor key={`${open}:${template?.id ?? "new"}:${copy}`} ref={bodyEditorRef}
+            id="message-template-body" ariaLabel="본문" value={body} onChange={setBody}
+            placeholder="알림톡 안내문 (예: #{학생이름})" disabled={readOnly || mutation.isPending} />
+          {!readOnly && <div className={styles.variables} role="group" aria-label="안내문에 정보 넣기">
+            {getBlocksForCategory(category as TemplateCategory).filter((block) => block.insertText !== "#{선생님메모}").map((block) => (
+              <button key={block.id} type="button" className={styles.variable} disabled={mutation.isPending}
+                onMouseDown={(event) => event.preventDefault()} title={block.description}
+                onClick={() => bodyEditorRef.current?.insert(block.insertText)}>{block.label}</button>
+            ))}
+          </div>}
         </div>
+        {readOnly && <button type="button" className={styles.copyButton} onClick={onCopy}>이 문구를 복제해서 수정</button>}
         {!readOnly && <button onClick={() => mutation.mutate()} disabled={!name.trim() || !body.trim() || mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: name.trim() && body.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: name.trim() && body.trim() ? "#fff" : "var(--tc-text-muted)" }}>

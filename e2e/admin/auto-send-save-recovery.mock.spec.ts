@@ -13,6 +13,33 @@ const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5173").replace(/\/+$
 
 test.use({ serviceWorkers: "block", strictBrowserAutoAssert: false });
 
+test("빈 연결 문구는 화면 진입·새로고침으로 다시 생성되지 않는다", async ({ page }) => {
+  const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const token = `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "hakwonplus", user_id: 12 })}.sig`;
+  await page.addInitScript((access) => {
+    localStorage.setItem("tenant_code", "hakwonplus");
+    localStorage.setItem("access", access);
+    localStorage.setItem("refresh", `${access}-refresh`);
+  }, token);
+  let provisions = 0;
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api\/v1/, "");
+    const json = (body: unknown) => route.fulfill({ json: body });
+    if (path === "/core/program/") return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    if (path === "/core/me/") return json({ id: 12, username: "owner", name: "학원장", is_staff: true, tenantRole: "owner", must_change_password: false, first_login_guide_required: false });
+    if (path === "/messaging/info/") return json({ alimtalk_available: true, tenant_messaging_enabled: true, can_manage_messaging: true });
+    if (path === "/messaging/auto-send/") return json([{ id: 1, trigger: "clinic_reminder", template: null, enabled: false, message_mode: "alimtalk", policy_mode: "AUTO_DEFAULT", implementation_status: "implemented" }]);
+    if (path === "/messaging/templates/") return json([]);
+    if (path === "/messaging/provision-defaults/" && route.request().method() === "POST") provisions += 1;
+    return json({ count: 0, results: [] });
+  });
+  await page.goto(`${BASE}/workspace/message/auto-send`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "자동발송", exact: true })).toBeVisible();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "자동발송", exact: true })).toBeVisible();
+  expect(provisions).toBe(0);
+});
+
 test("malformed settings response shows a retry instead of crashing", async ({ page }) => {
   test.setTimeout(90_000);
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");

@@ -14,8 +14,10 @@ import {
 import { FilePlus, Shield } from "lucide-react";
 import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import TemplateCategoryTree from "./TemplateCategoryTree";
 import TemplateEditModal from "./TemplateEditModal";
+import TemplateRestorePanel from "./TemplateRestorePanel";
 import { AlimtalkEnvelopeGuide } from "./AlimtalkEnvelopeGuide";
 import {
   fetchMessageTemplates,
@@ -271,12 +273,14 @@ export default function TemplateExplorer() {
     mutationFn: (id: number) => deleteMessageTemplate(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.suppressedDefaults });
       setConfirmAction(null);
       feedback.success("문구가 삭제되었습니다.");
     },
-    onError: () => {
+    onError: (error) => {
       setConfirmAction(null);
-      feedback.error("삭제에 실패했습니다.");
+      feedback.error(extractApiError(error, "삭제에 실패했습니다."));
     },
   });
 
@@ -444,7 +448,7 @@ export default function TemplateExplorer() {
                   {t.is_user_default ? "기본 해제" : "발송 기본으로 지정"}
                 </Button>
               )}
-              {!t.is_system && (
+              {(t.can_delete ?? !t.is_system) && (
                 <IconAction
                   icon={<FiTrash2 size={16} />}
                   label="삭제"
@@ -550,13 +554,14 @@ export default function TemplateExplorer() {
           <summary>알림톡 문구 사용 안내</summary>
           <AlimtalkEnvelopeGuide variant="compact" />
           <div className="message-template-restore">
-            <span>제공 문구가 없거나 기본값이 필요할 때 복원할 수 있습니다.</span>
+            <span>새로 추가된 기본 문구를 준비합니다. 삭제한 문구와 기존 설정은 유지됩니다.</span>
             <Button intent="secondary" size="sm" onClick={() => provisionMut.mutate()}
               disabled={provisionMut.isPending}>
-              {provisionMut.isPending ? "복원 중…" : "제공 문구 복원"}
+              {provisionMut.isPending ? "준비 중…" : "누락된 기본 문구 준비"}
             </Button>
           </div>
         </details>
+        <TemplateRestorePanel />
       </div>
 
       {/* 본문: 좌측 트리 + 우측 카드 */}

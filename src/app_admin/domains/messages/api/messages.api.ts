@@ -338,6 +338,8 @@ export interface MessageTemplateItem {
   body: string;
   /** 시스템 기본 양식 여부 — true이면 수정/삭제 불가 */
   is_system: boolean;
+  can_delete?: boolean;
+  delete_block_reason?: string;
   /** 사용자가 해당 카테고리에서 기본으로 지정한 양식 */
   is_user_default: boolean;
   /** 솔라피에서 발급된 템플릿 ID (검수 신청 후) */
@@ -637,6 +639,24 @@ export interface ProvisionDefaultsResult {
   review_errors?: string[];
   /** 검수 신청 결과 안내 */
   review_note?: string;
+  suppressed_defaults?: SuppressedTemplateDefault[];
+}
+
+export interface SuppressedTemplateDefault {
+  key: string;
+  name: string;
+  category: string;
+}
+
+export async function fetchSuppressedTemplateDefaults(): Promise<SuppressedTemplateDefault[]> {
+  const res = await api.get<{ suppressed_defaults: SuppressedTemplateDefault[] }>(`${PREFIX}/provision-defaults/`);
+  if (!Array.isArray(res.data.suppressed_defaults)) throw new Error("삭제한 제공 문구 목록을 확인하지 못했습니다.");
+  return res.data.suppressed_defaults;
+}
+
+export async function restoreDefaultTemplates(keys: string[]): Promise<ProvisionDefaultsResult> {
+  const res = await api.post<ProvisionDefaultsResult>(`${PREFIX}/provision-defaults/`, { restore_keys: keys });
+  return res.data;
 }
 
 export async function provisionDefaultTemplates(): Promise<ProvisionDefaultsResult> {
