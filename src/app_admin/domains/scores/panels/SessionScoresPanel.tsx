@@ -377,13 +377,13 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const onRequestMoveNext = useCallback(() => {
     const cur = ensureSelection();
     if (!cur.ok) return;
-    focusLinear(cur.r, cur.c, 1);
+    if (!focusLinear(cur.r, cur.c, 1)) tableRef.current?.commitActiveCell();
   }, [ensureSelection, focusLinear]);
 
   const onRequestMovePrev = useCallback(() => {
     const cur = ensureSelection();
     if (!cur.ok) return;
-    focusLinear(cur.r, cur.c, -1);
+    if (!focusLinear(cur.r, cur.c, -1)) tableRef.current?.commitActiveCell();
   }, [ensureSelection, focusLinear]);
 
   const onRequestMoveDown = useCallback(() => {
@@ -396,7 +396,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const onRequestMoveUp = useCallback(() => {
     const cur = ensureSelection();
     if (!cur.ok) return;
-    focusVertical(cur.r, cur.c, -1);
+    if (!focusVertical(cur.r, cur.c, -1)) tableRef.current?.commitActiveCell();
   }, [ensureSelection, focusVertical]);
 
   useEffect(() => {
