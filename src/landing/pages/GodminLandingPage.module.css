@@ -301,6 +301,7 @@
   .labStatement h2,
   .teacherCopy h2,
   .finalCopy h2 { font-size: 40px; }
+  .finalCopy h2 { word-break: keep-all; }
   .disciplineCard { min-height: 190px; padding: 22px 18px; }
   .disciplineCard h3 { font-size: 24px; margin: 44px 0 8px; }
   .disciplineCard p { font-size: 12px; }
