@@ -78,6 +78,10 @@
 }
 
 .clinic-reschedule__dialog {
+  box-sizing: border-box;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   width: min(520px, 100%);
   padding: 24px;
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-border-default));
@@ -90,6 +94,7 @@
 .clinic-reschedule__dialog header span { color: var(--color-brand-primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 .clinic-reschedule__dialog h2 { margin: 4px 0 6px; font-size: 22px; }
 .clinic-reschedule__dialog p { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
+.clinic-reschedule__dialog p[role="alert"] { margin-top: 12px; color: var(--color-status-danger); }
 .clinic-reschedule__dialog header button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--color-text-secondary); cursor: pointer; }
 .clinic-reschedule__select { display: grid; gap: 7px; margin-top: 22px; color: var(--color-text-secondary); font-size: 12px; font-weight: 800; }
 .clinic-reschedule__select select { min-height: 46px; border: 1px solid var(--color-border-default); border-radius: 12px; padding: 0 12px; background: var(--color-bg-surface); color: var(--color-text-primary); }
