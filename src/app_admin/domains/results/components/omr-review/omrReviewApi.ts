@@ -23,6 +23,8 @@ export type OmrReviewRow = {
   enrollment_id: number;
   student_name: string;
   status: string;
+  /** Server-classified historical row; absent on older servers. */
+  archived?: boolean;
   source: string;
   score: number | null;
   created_at: string;

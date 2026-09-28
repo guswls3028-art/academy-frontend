@@ -463,6 +463,94 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
+  for (const width of [1366, 390]) {
+    test(`${width}px OMR 검토에서 보관 답안은 기록만 열고 활성 문제를 유지한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+      const unexpectedMutations = await openScores(page);
+      const scan = "data:image/svg+xml," + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="90" height="120"><rect width="90" height="120" fill="white"/></svg>',
+      );
+      const makeRow = (
+        id: number, status: string, archived: boolean, identifierStatus: string,
+        manualReviewRequired: boolean,
+      ) => ({
+        id, enrollment_id: id === 10032 ? 9911 : 0,
+        student_name: id === 10032 ? "테스트 학생" : "",
+        status, archived, source: "omr_scan", score: id === 10032 ? 30 : null,
+        created_at: "2026-09-01T12:00:00+09:00", file_key: `scan-${id}.jpg`, has_file: true,
+        manual_review_required: manualReviewRequired,
+        manual_review_reasons: manualReviewRequired ? ["identifier_no_match"] : [],
+        identifier_status: identifierStatus,
+      });
+      const rows = [
+        makeRow(10032, "done", false, "matched", false),
+        makeRow(10031, "needs_identification", false, "missing", true),
+        makeRow(10030, "failed", false, "no_match", true),
+        makeRow(10029, "failed", true, "missing", true),
+        makeRow(10028, "superseded", true, "no_match", true),
+      ];
+      await page.route("**/api/v1/submissions/submissions/**", async (route) => {
+        const url = new URL(route.request().url());
+        if (url.pathname.endsWith(`/exams/${MIXED_EXAM_ID}/`)) {
+          if (url.searchParams.get("review_issues") === "1") {
+            return route.fulfill({ json: { items: [rows[1], rows[2]], total: 2, next_cursor: null } });
+          }
+          return route.fulfill({ json: rows });
+        }
+        const row = rows.find((item) => url.pathname.endsWith(`/${item.id}/manual-edit/`));
+        if (row && route.request().method() === "GET") {
+          return route.fulfill({ json: {
+            submission_id: row.id, submission_status: row.status,
+            enrollment_id: row.enrollment_id || null, target_type: "exam", target_id: MIXED_EXAM_ID,
+            identifier: {}, scan_image_url: scan, original_scan_image_url: scan,
+            scan_image_size: { width: 90, height: 120 }, scan_image_is_aligned: true,
+            meta: { identifier_status: row.identifier_status, discarded: row.id === 10029 || row.id === 10031 },
+            duplicate_siblings: [],
+            answers: [{ question_id: 10001, question_no: 1, answer: "1", omr: null }],
+          } });
+        }
+        return route.fallback();
+      });
+
+      const openReview = async () => {
+        await page.getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" }).click();
+        await expect(page.getByRole("region", { name: "혼합 채점 워크스페이스" })).toBeVisible();
+        await page.getByRole("button", { name: "OMR 결과 보정", exact: true }).click();
+        return page.getByRole("dialog", { name: "OMR 검토", exact: true });
+      };
+      let review = await openReview();
+      await expect(review).toContainText("표시 완료 1 / 3 · 미해결 전체 2건");
+      await expect(review.locator(".orw-filter-chip").filter({ hasText: /^식별실패\s*1$/ })).toHaveCount(1);
+      await expect(review.locator(".orw-filter-chip").filter({ hasText: /^실패\s*1$/ })).toHaveCount(1);
+      await expect(review.locator(".orw-filter-chip").filter({ hasText: /^보관\s*2$/ })).toHaveCount(1);
+      await review.locator(".orw-filter-chip").filter({ hasText: "보관" }).click();
+      await expect(review.locator(".orw-list-row")).toHaveCount(2);
+      await review.locator(".orw-list-row").first().click();
+      await expect(review.getByText("보관된 답안지", { exact: true })).toBeVisible();
+      if (width === 390) await review.getByRole("tab", { name: "원본" }).click();
+      await expect(review.getByRole("img", { name: "OMR 스캔 원본", exact: true })).toBeVisible();
+      await expect(review.getByRole("button", { name: "답안지 폐기" })).toHaveCount(0);
+      await expect(review.getByRole("button", { name: "저장 + 재채점" })).toHaveCount(0);
+      await expect(review.getByRole("button", { name: "학생 검색·연결" })).toHaveCount(0);
+      await review.getByRole("button", { name: "오른쪽으로 90도 회전" }).click();
+      await expect(review.getByRole("button", { name: "이 방향으로 다시 읽기" })).toHaveCount(0);
+      if (width === 390) await review.getByRole("tab", { name: "확인" }).click();
+      await page.screenshot({ path: testInfo.outputPath(`omr-archived-${width}.png`) });
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      review = await openReview();
+      await expect(review).toContainText("표시 완료 1 / 3 · 미해결 전체 2건");
+      await review.locator(".orw-filter-chip").filter({ hasText: "식별실패" }).click();
+      await expect(review.locator(".orw-list-row")).toHaveCount(1);
+      await review.locator(".orw-list-row").first().click();
+      await expect(review.getByRole("button", { name: "학생 검색·연결" })).toBeVisible();
+      await review.locator(".orw-filter-chip").filter({ hasText: /^실패\s*1$/ }).click();
+      await expect(review.locator(".orw-list-row")).toHaveCount(1);
+      expect(unexpectedMutations).toEqual([]);
+    });
+  }
+
   test("시험별 남은 채점을 보여주고 혼합형은 한 화면에서 이어진다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     const unexpectedMutations = await openScores(page);

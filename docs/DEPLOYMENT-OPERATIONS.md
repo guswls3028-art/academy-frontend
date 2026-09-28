@@ -123,11 +123,15 @@ stale 충돌, 동일 계정 복구와 유효한 0을 소유한다.
 PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 
 PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency
-chain으로 직렬 실행한다. 별도 job은 API proxy를 `http://127.0.0.1:9`로 닫고 각
-browser context에 API interception을 설치하는 route-mock 파일만 CI 최대 3 worker로
-병렬 실행한다. 두 job은 서로 기다리지 않으므로 운영 계정 직렬성은 보존하면서
-route-mock wall time을 줄인다. 수동 workflow도 두 job을 병렬 재사용하며 전 메뉴
-감사는 둘 다 성공한 뒤에만 시작한다. `e2e/suites.mjs`가 운영 read-only,
+chain으로 직렬 실행한다. 별도 세 job은 API proxy를 `http://127.0.0.1:9`로 닫고
+route-mock 전체 목록을 Playwright의 `--shard=1/3`, `2/3`, `3/3`으로 나눈다.
+각 실행기는 기존 최대 3 worker를 유지하고, 한 shard가 실패해도 나머지 검사를
+취소하지 않는다. shard 1은 WebKit, production bundle smoke와 theme 검증도 수행한다.
+필수 check 이름 `E2E closed-proxy route mocks`는 세 shard의 결과를 합치며,
+실패·취소·건너뜀 중 하나라도 있으면 통과하지 않는다. 테스트 목록·재시도·쓰기
+경계는 그대로이고 report/server-log는 shard 번호로 구분해 보존한다.
+운영 read-only chain과 shard는 독립 실행되며 수동 전 메뉴 감사는 둘 다 성공한
+뒤에만 시작한다. `e2e/suites.mjs`가 운영 read-only,
 route mock, 통제 쓰기 목록을 한 곳에서 소유하며 safety guard가 production
 allowlist, route interception, 중복·누락과 package script 진입점을 함께 차단한다.
 
