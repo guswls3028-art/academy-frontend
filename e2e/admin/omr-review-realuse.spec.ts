@@ -1467,18 +1467,21 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       await page.locator(".spm-search").fill(STUDENT_NAME);
       await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
     }
-    const replacementSaves: number[] = [];
-    page.on("response", (response) => {
-      if (response.request().method() === "POST"
-        && new URL(response.url()).pathname === `/api/v1/submissions/submissions/${replacementId}/manual-edit/`) {
-        replacementSaves.push(response.status());
-      }
+    // The rescan already identifies the same student. Adopt the immutable scan
+    // explicitly; an unchanged answer has no manual-edit save to submit.
+    const replacementAccepted = page.waitForResponse((response) => matchesApiResponse(
+      response, "POST", `/submissions/submissions/${replacementId}/accept-from-duplicates/`,
+    ), { timeout: 60_000 });
+    await page.getByRole("button", { name: "이 답안 채택", exact: true }).click();
+    const acceptDialog = page.getByRole("alertdialog", { name: "이 답안 채택", exact: true });
+    await expect(acceptDialog).toBeVisible();
+    await acceptDialog.getByRole("button", { name: "채택", exact: true }).click();
+    const acceptedResponse = await replacementAccepted;
+    expect(acceptedResponse.status()).toBe(200);
+    expect(await acceptedResponse.json()).toMatchObject({
+      submission_id: replacementId, status: "done", graded: true,
+      superseded_count: 1, skipped: [], score: EXPECTED_SCORE - 1,
     });
-    await page.getByRole("button", { name: /저장 \+ 재채점|확정하고 점수 표시/ }).click();
-    const duplicateDialog = page.getByRole("alertdialog", { name: "이미 매칭된 답안지가 있습니다" });
-    await expect(duplicateDialog).toBeVisible({ timeout: 15_000 });
-    await duplicateDialog.getByRole("button", { name: "덮어쓰기", exact: true }).click();
-    await expect.poll(() => replacementSaves, { timeout: 60_000 }).toContain(200);
     await expect.poll(async () => (await waitForStudentResult(request, studentAccess, created.examId!)).total_score,
       { timeout: 60_000 }).toBe(EXPECTED_SCORE - 1);
     const parent = await expectParentApi<{ exams?: any[] }>(request, "/student/grades/", parentAccess, created.studentId!);
