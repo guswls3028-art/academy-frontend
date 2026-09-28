@@ -18,6 +18,21 @@ export const PRODUCT_UPDATE_CADENCE = {
 
 export const PRODUCT_UPDATES: ProductUpdate[] = [
   {
+    id: "2026-09-28-message-editing-recovery",
+    date: "2026-09-28",
+    title: "알림톡 문구와 입력 실수 복구 개선",
+    summary: "삭제한 문구의 자동 재생성을 막고, 관리자·선생님 편집과 성적표의 실수 복구 동선을 맞췄습니다.",
+    audience: ["원장·관리자", "선생님·조교"],
+    availability: "기능별 이용 권한에 따라 제공",
+    highlights: [
+      { kind: "fix", text: "자동발송 화면을 열 때 삭제한 기본 문구가 다시 만들어지던 경로 수정" },
+      { kind: "improve", text: "필요한 제공 문구만 골라 복원하고 기존 사용자 문구와 발송 설정 보존" },
+      { kind: "improve", text: "선생님 앱의 문구 편집·발송에도 변수 블록과 실행 취소·다시 실행 제공" },
+      { kind: "fix", text: "관리자·선생님 화면에서 문구를 바꾼 뒤 다른 화면에 옛 목록이 남던 문제 수정" },
+      { kind: "improve", text: "성적표에 실행 취소·다시 실행 버튼을 추가해 모바일에서도 시험·과제 입력 실수 복구" },
+    ],
+  },
+  {
     id: "2026-09-28-classroom-workflows",
     date: "2026-09-28",
     title: "수업 준비·예약·알림 동선 정리",

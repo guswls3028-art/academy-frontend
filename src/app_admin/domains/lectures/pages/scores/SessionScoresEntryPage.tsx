@@ -467,6 +467,13 @@ export default function SessionScoresEntryPage({
     };
   }, [draft.hasDraftToRestore]);
 
+  const changeScoreHistory = useCallback((redo: boolean, notifyEmpty = false) => {
+    if (!isEditMode || panelRef.current?.hasUncommittedActiveCell?.()) return false;
+    const changed = redo ? panelRef.current?.redoLastChange?.() : panelRef.current?.undoLastChange?.();
+    if (!changed && notifyEmpty) feedback.info(redo ? "다시 실행할 변경이 없습니다." : "이 화면에서 되돌릴 변경이 없습니다.");
+    return Boolean(changed);
+  }, [isEditMode]);
+
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
       if (!isEditMode) return;
@@ -492,14 +499,12 @@ export default function SessionScoresEntryPage({
       if (isScoreCell) event.preventDefault();
 
       const redo = key === "y" || (key === "z" && event.shiftKey);
-      const changed = redo
-        ? panelRef.current?.redoLastChange?.()
-        : panelRef.current?.undoLastChange?.();
+      const changed = changeScoreHistory(redo);
       if (changed) event.preventDefault();
     };
     document.addEventListener("keydown", handleShortcut);
     return () => document.removeEventListener("keydown", handleShortcut);
-  }, [isEditMode, saveScoresNow]);
+  }, [isEditMode, saveScoresNow, changeScoreHistory]);
 
   useEffect(() => {
     if (!isEditMode) return;
@@ -1482,6 +1487,12 @@ export default function SessionScoresEntryPage({
         primaryAction={
           <div className="scores-toolbar-actions">
             {primaryAction}
+            {isEditMode && <>
+              <Button type="button" intent="secondary" size="sm" disabled={isSaving || recoveryBlocked}
+                aria-label="성적 변경 실행 취소" onClick={() => changeScoreHistory(false, true)}>실행 취소</Button>
+              <Button type="button" intent="secondary" size="sm" disabled={isSaving || recoveryBlocked}
+                aria-label="성적 변경 다시 실행" onClick={() => changeScoreHistory(true, true)}>다시 실행</Button>
+            </>}
             <span className="scores-draft-status text-xs text-[var(--color-text-muted)]" role="status" aria-live="polite">
               {!isEditMode ? (
                 draft.editLockConflict ? (

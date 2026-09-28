@@ -3,6 +3,7 @@
 // 템플릿 저장 — "기본"=사용자 커스텀 | 나머지=자동발송 동일 카테고리 (기본 템플릿 구분 표시) (R-11 baseline 동결)
 
 import { useState } from "react";
+import { Link } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   FiMessageSquare,
@@ -412,6 +413,9 @@ export default function TemplateExplorer() {
               >
                 {TEMPLATE_CATEGORY_LABELS[t.category]} · {koreanDateText(t.updated_at)}
               </div>
+              {t.delete_block_reason === "auto_send_linked" && <p className="message-template-preview-help">
+                사용 중인 자동발송에 연결되어 있습니다. <Link to="/workspace/message/auto-send" onClick={(event) => event.stopPropagation()}>연결 문구 변경</Link> 후 삭제할 수 있습니다.
+              </p>}
             </div>
           </div>
 

@@ -2363,12 +2363,13 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await editButton.click();
     await expect(page.getByRole("status")).toContainText("저장됨");
 
-    await page.keyboard.press("Control+z");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole("button", { name: "성적 변경 실행 취소", exact: true }).click();
     await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(2);
     expect(scorePatches[1]).toMatchObject({ score: 65, max_score: 100 });
     await expect(cells.nth(0)).toHaveText("65");
 
-    await page.keyboard.press("Control+Shift+z");
+    await page.getByRole("button", { name: "성적 변경 다시 실행", exact: true }).click();
     await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(3);
     expect(scorePatches[2]).toMatchObject({ score: 74, max_score: 100 });
     await expect(cells.nth(0)).toHaveText("74");

@@ -165,7 +165,7 @@ for (const width of [390, 1366]) {
     await sheet.getByRole("button", { name: "다시 실행", exact: true }).click();
     await expect(editor).toContainText("수정 안내");
     await editor.press("Escape");
-    const confirm = page.getByRole("dialog", { name: "수정한 문구를 닫을까요?" });
+    const confirm = page.getByRole("alertdialog", { name: "수정한 문구를 닫을까요?" });
     await confirm.getByRole("button", { name: "계속 편집" }).click();
     await expect(editor).toContainText("수정 안내");
     expect(await sheet.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
