@@ -1409,7 +1409,14 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     });
     expect(preview.status()).toBe(200);
     const previewHtml = await preview.text();
-    expect(previewHtml).toMatch(/<div class="dc-h-a">서술형<\/div>[\s\S]*?<div class="dr-n">1<\/div>[\s\S]*?<div class="dr-n">2<\/div>/);
+    const previewEssay = await page.evaluate((html) => {
+      const document = new DOMParser().parseFromString(html, "text/html");
+      return {
+        labels: Array.from(document.querySelectorAll(".dc-h-a"), (element) => element.textContent?.trim()),
+        numbers: Array.from(document.querySelectorAll(".dr-n"), (element) => element.textContent?.trim()),
+      };
+    }, previewHtml);
+    expect(previewEssay).toEqual({ labels: ["서술형 2문항"], numbers: ["1", "2"] });
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginBrowserAsRealUser(page, "/student/grades",
