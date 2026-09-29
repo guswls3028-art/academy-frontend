@@ -251,6 +251,8 @@ test.describe("교사 모바일 테스트 오답 상태", () => {
       max_score: 100,
     });
     await expect(page.locator("main")).not.toContainText("다른 화면에서 수정 중");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("input[inputmode=decimal]").first()).toHaveValue("71");
   });
 
   test("미저장 점수는 tenant·account 범위에서만 복구하고 legacy key를 가져오지 않는다", async ({ page }) => {
