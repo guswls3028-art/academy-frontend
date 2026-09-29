@@ -18,6 +18,7 @@ import type {
 import { STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS } from "@/shared/api/contracts/studentGradeReportLayout";
 import type { MyExamGradeSummary, MyGradesAnalytics, MyHomeworkGradeSummary } from "../api/grades.api";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
+import { calculateExamStats, calculateHomeworkStats, calculateWeakestLecture } from "../utils/gradeStats";
 import styles from "./GradesStatsTab.module.css";
 
 type Props = {
@@ -48,60 +49,8 @@ export default function GradesStatsTab({
   reportLayout,
 }: Props) {
   const wrongCompletionOnly = useWrongCompletionDisplay();
-  const examStats = useMemo(() => {
-    if (exams.length === 0) return null;
-    const scoredExams = exams.filter((e) => e.total_score != null);
-    const avgPct = scoredExams.length > 0
-      ? scoredExams.reduce((s, e) => s + (e.max_score > 0 ? ((e.total_score ?? 0) / e.max_score) * 100 : 0), 0) / scoredExams.length
-      : 0;
-    // 합격률 정책: "성취" 기준. achievement가 내려오면 PASS+REMEDIATED를 합격으로,
-    // FAIL을 불합격으로 집계. 미응시/미판정은 분모에서 제외.
-    // 백엔드가 achievement를 안 내려주는 구서버 환경에선 is_pass로 폴백.
-    let passCount = 0;
-    let judgedCount = 0;
-    for (const e of exams) {
-      if (wrongCompletionOnly) {
-        if (e.correction_status === "PENDING") judgedCount += 1;
-        if (e.correction_status === "COMPLETED" || e.correction_status === "NOT_REQUIRED") {
-          passCount += 1;
-          judgedCount += 1;
-        }
-      } else if (e.achievement) {
-        if (e.achievement === "PASS" || e.achievement === "REMEDIATED") {
-          passCount += 1;
-          judgedCount += 1;
-        } else if (e.achievement === "FAIL") {
-          judgedCount += 1;
-        }
-      } else if (e.is_pass !== null) {
-        judgedCount += 1;
-        if (e.is_pass) passCount += 1;
-      }
-    }
-    const passRate = judgedCount > 0 ? (passCount / judgedCount) * 100 : 0;
-    const rankedExams = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED");
-    const avgRank = rankedExams.length > 0
-      ? Math.round((rankedExams.reduce((s, e) => s + e.rank!, 0) / rankedExams.length) * 10) / 10
-      : null;
-    return { avgPct: Math.round(avgPct), passRate: Math.round(passRate), count: exams.length, avgRank };
-  }, [exams, wrongCompletionOnly]);
-
-  const hwStats = useMemo(() => {
-    if (homeworks.length === 0) return null;
-    const graded = homeworks.filter((h) => h.score != null || h.teacher_resolved === true);
-    const passed = graded.filter((h) => (
-      h.teacher_resolved === true
-      || h.achievement === "PASS"
-      || h.achievement === "REMEDIATED"
-      || h.passed === true
-    )).length;
-    const withMax = graded.filter((h) => h.max_score != null && h.max_score > 0);
-    const avgPct = withMax.length > 0
-      ? Math.round(withMax.reduce((s, h) => s + (h.score! / h.max_score!) * 100, 0) / withMax.length)
-      : null;
-    const passRate = graded.length > 0 ? Math.round((passed / graded.length) * 100) : 0;
-    return { passed, failed: graded.length - passed, graded: graded.length, total: homeworks.length, avgPct, passRate };
-  }, [homeworks]);
+  const examStats = useMemo(() => calculateExamStats(exams, wrongCompletionOnly), [exams, wrongCompletionOnly]);
+  const hwStats = useMemo(() => calculateHomeworkStats(homeworks), [homeworks]);
 
   const rankInsight = useMemo(() => {
     const ranked = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED");
@@ -114,30 +63,7 @@ export default function GradesStatsTab({
     return { topQuartile, midRange, bottom, bestExam, worstExam };
   }, [exams]);
 
-  const weakestLecture = useMemo(() => {
-    const byLecture = new Map<string, { total: number; pass: number; scores: number[] }>();
-    for (const e of exams) {
-      if (!e.lecture_title || e.total_score == null) continue;
-      const key = e.lecture_title;
-      if (!byLecture.has(key)) byLecture.set(key, { total: 0, pass: 0, scores: [] });
-      const entry = byLecture.get(key)!;
-      entry.total++;
-      if (wrongCompletionOnly
-        ? e.correction_status === "COMPLETED" || e.correction_status === "NOT_REQUIRED"
-        : e.is_pass) entry.pass++;
-      entry.scores.push(e.max_score > 0 ? (e.total_score / e.max_score) * 100 : 0);
-    }
-    if (byLecture.size < 2) return null;
-    const lectureStats = Array.from(byLecture.entries())
-      .map(([name, d]) => ({
-        name: name.length > 8 ? name.slice(0, 8) + "\u2026" : name,
-        avg: Math.round(d.scores.reduce((s, v) => s + v, 0) / d.scores.length),
-        passRate: Math.round((d.pass / d.total) * 100),
-      }))
-      .sort((a, b) => a.avg - b.avg);
-    const weakest = lectureStats[0];
-    return weakest && weakest.avg < 70 ? weakest : null;
-  }, [exams, wrongCompletionOnly]);
+  const weakestLecture = useMemo(() => calculateWeakestLecture(exams, wrongCompletionOnly), [exams, wrongCompletionOnly]);
 
   const homeworkPassPct = hwStats && hwStats.total > 0 ? (hwStats.passed / hwStats.total) * 100 : 0;
   const homeworkFailPct = hwStats && hwStats.total > 0 ? (hwStats.failed / hwStats.total) * 100 : 0;
@@ -193,14 +119,15 @@ export default function GradesStatsTab({
         <div className={styles.sectionTitle}>시험 성적 요약</div>
         <div className={styles.examSummary}>
           <ProgressRing
-            percent={examStats.avgPct}
+            percent={examStats.avgPct ?? 0}
+            label={examStats.avgPct == null ? "미채점" : undefined}
             size={88}
-            color={examStats.avgPct >= 70 ? "var(--stu-success)" : examStats.avgPct >= 40 ? "var(--stu-warn)" : "var(--stu-danger)"}
+            color={examStats.avgPct == null ? "var(--stu-text-muted)" : examStats.avgPct >= 70 ? "var(--stu-success)" : examStats.avgPct >= 40 ? "var(--stu-warn)" : "var(--stu-danger)"}
             sublabel="평균"
           />
           <div className={styles.summaryStats}>
             <StatGrid>
-              <StatCard label={wrongCompletionOnly ? "오답 완료율" : "합격률"} value={`${examStats.passRate}%`} accent={examStats.passRate >= 70 ? "success" : examStats.passRate > 0 ? "danger" : undefined} />
+              <StatCard label={wrongCompletionOnly ? "오답 완료율" : "합격률"} value={examStats.passRate == null ? "미판정" : `${examStats.passRate}%`} accent={examStats.passRate == null ? undefined : examStats.passRate >= 70 ? "success" : "danger"} />
               <StatCard label="시험 수" value={`${examStats.count}건`} />
               {examStats.avgRank != null
                 ? <StatCard label="평균 등수" value={`${examStats.avgRank}등`} />
@@ -241,7 +168,7 @@ export default function GradesStatsTab({
         <div className={styles.weaknessText}>
           <span className={styles.weaknessEmphasis}>{weakestLecture.name}</span> 강좌의
           평균 득점률이 <strong className={styles.weaknessEmphasis}>{weakestLecture.avg}%</strong>로 가장 낮습니다.
-          {weakestLecture.passRate < 50 && ` ${wrongCompletionOnly ? "오답 완료율" : "합격률"}도 ${weakestLecture.passRate}%입니다.`}
+          {weakestLecture.passRate != null && weakestLecture.passRate < 50 && ` ${wrongCompletionOnly ? "오답 완료율" : "합격률"}도 ${weakestLecture.passRate}%입니다.`}
         </div>
       </section>
     ) : null,
@@ -249,9 +176,9 @@ export default function GradesStatsTab({
       <section aria-label="과제 현황">
         <div className={styles.sectionTitle}>과제 현황</div>
         <StatGrid>
-          <StatCard label="채점 완료" value={`${hwStats.graded}/${hwStats.total}건`} />
-          <StatCard label="평균 득점률" value={hwStats.avgPct != null ? `${hwStats.avgPct}%` : "-"} />
-          <StatCard label={wrongCompletionOnly ? "완료율" : "합격률"} value={`${hwStats.passRate}%`} accent={hwStats.passRate >= 70 ? "success" : hwStats.passRate > 0 ? "danger" : undefined} />
+          <StatCard label="처리 완료" value={`${hwStats.graded}/${hwStats.total}건`} />
+          <StatCard label="평균 득점률" value={hwStats.avgPct != null ? `${hwStats.avgPct}%` : "미채점"} />
+          <StatCard label={wrongCompletionOnly ? "완료율" : "합격률"} value={hwStats.passRate == null ? "미판정" : `${hwStats.passRate}%`} accent={hwStats.passRate == null ? undefined : hwStats.passRate >= 70 ? "success" : "danger"} />
         </StatGrid>
         {hwStats.total > 0 && (
           <svg className={styles.homeworkBar} viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">

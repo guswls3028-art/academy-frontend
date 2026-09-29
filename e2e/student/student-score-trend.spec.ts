@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
+import type { MyExamGradeSummary, MyGradesSummary, MyHomeworkGradeSummary } from "../../src/app_student/domains/grades/api/grades.api";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 
@@ -18,6 +19,16 @@ function fakeJwt(): string {
 }
 
 type Viewer = "student" | "parent";
+
+const unscoredExam: MyExamGradeSummary = {
+  exam_id: 901, enrollment_id: 201, title: "미응시 통계 시험", total_score: null,
+  max_score: 100, is_pass: null, achievement: "NOT_SUBMITTED", meta_status: "NOT_SUBMITTED",
+  session_title: "1차시", lecture_title: "수학", submitted_at: null,
+};
+const unscoredHomework: MyHomeworkGradeSummary = {
+  homework_id: 902, enrollment_id: 201, title: "통계 과제", score: null,
+  max_score: 100, passed: null, session_title: "1차시", lecture_title: "수학",
+};
 
 const trendA = [
   {
@@ -296,6 +307,8 @@ async function installApi(
     analyticsRequests?: string[];
     lectureOptions?: LectureOption[];
     omitLectureOptions?: boolean;
+    gradeSummary?: Partial<MyGradesSummary>;
+    wrongCompletionOnly?: boolean;
   } = {},
 ): Promise<string[]> {
   const selectedHeaders: string[] = [];
@@ -319,7 +332,7 @@ async function installApi(
         display_name: "Ymath",
         is_active: true,
         ui_config: {},
-        feature_flags: { assessment_status_display: "wrong_completion" },
+        feature_flags: options.wrongCompletionOnly === false ? {} : { assessment_status_display: "wrong_completion" },
       } });
       return;
     }
@@ -396,6 +409,7 @@ async function installApi(
           ...(!options.omitLectureOptions ? {
             lecture_options: options.lectureOptions ?? lectureOptionsFor(selectedPoints),
           } : {}),
+          ...(selectedId === "11" ? options.gradeSummary : {}),
           ...(options.reportLayout ? { report_layout: options.reportLayout } : {}),
         },
       });
@@ -413,6 +427,97 @@ async function installApi(
 test.describe("학생·학부모 회차별 누적 성적", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock visual contract spec.");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
+
+  for (const viewer of ["student", "parent"] as const) {
+    test(`${viewer}: 미응시는 중립 상태이고 점수 없는 교사 완료 과제는 평균에 포함하지 않는다`, async ({ page }) => {
+      if (viewer === "parent") await page.setViewportSize({ width: 1366, height: 900 });
+      const headers = await installApi(page, viewer, {
+        studentPoints: [],
+        wrongCompletionOnly: false,
+        gradeSummary: {
+          exams: [unscoredExam],
+          homeworks: [{ ...unscoredHomework, teacher_resolved: true }],
+        },
+      });
+      await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+      if (viewer === "parent") {
+        await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
+        await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" }).click();
+        await expect(page).toHaveURL(/\/student\/dashboard/);
+        await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+      }
+
+      const summary = page.getByRole("region", { name: "시험 성적 요약" });
+      const homework = page.getByRole("region", { name: "과제 현황" });
+      for (const reload of [false, true]) {
+        if (reload) await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(summary.getByText("미채점", { exact: true })).toBeVisible();
+        await expect(summary.getByText("미판정", { exact: true })).toBeVisible();
+        await expect(summary.getByText("미판정", { exact: true })).not.toHaveClass(/valueDanger/);
+        await expect(summary.getByText("0%", { exact: true })).toHaveCount(0);
+        await expect(summary.locator("circle[stroke]")).toHaveAttribute("stroke", "var(--stu-text-muted)");
+        await expect(homework.getByText("미채점", { exact: true })).toBeVisible();
+        await expect(homework.getByText("100%", { exact: true })).toBeVisible();
+        await expect(homework.getByText("1/1건", { exact: true })).toBeVisible();
+      }
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+      if (viewer === "parent") {
+        expect(headers).toContain("11");
+        expect(headers).not.toContain("missing");
+      }
+    });
+  }
+
+  test("실제 0점과 불합격은 시험과 과제에서 0% 실패 상태로 표시한다", async ({ page }) => {
+    await installApi(page, "student", {
+      studentPoints: [],
+      wrongCompletionOnly: false,
+      gradeSummary: {
+        exams: [{ ...unscoredExam, total_score: 0, is_pass: false, achievement: "FAIL", meta_status: null }],
+        homeworks: [{ ...unscoredHomework, score: 0, passed: false, achievement: "FAIL" }],
+      },
+    });
+    await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+    for (const name of ["시험 성적 요약", "과제 현황"]) {
+      const summary = page.getByRole("region", { name });
+      await expect(summary.getByText("0%", { exact: true })).toHaveCount(2);
+      await expect(summary.getByText(/미채점|미판정/)).toHaveCount(0);
+      await expect(summary.getByText("합격률", { exact: true }).locator("..").getByText("0%", { exact: true })).toHaveClass(/valueDanger/);
+    }
+    await expect(page.getByRole("region", { name: "시험 성적 요약" }).locator("circle[stroke]")).toHaveAttribute("stroke", "var(--stu-danger)");
+  });
+
+  test("약점 강좌는 미판정을 제외하고 실제 실패만 합격률 경고에 포함한다", async ({ page }) => {
+    const mathExam: MyExamGradeSummary = { ...unscoredExam, total_score: 10, achievement: null, meta_status: null };
+    const englishExam: MyExamGradeSummary = { ...mathExam, exam_id: 905, lecture_title: "영어", total_score: 90, is_pass: true };
+    const summary: Partial<MyGradesSummary> = {
+      exams: [
+        mathExam,
+        { ...mathExam, exam_id: 903, total_score: 20 },
+        { ...mathExam, exam_id: 904, total_score: 60, is_pass: true },
+        englishExam,
+      ],
+      homeworks: [
+        { ...unscoredHomework, teacher_resolved: true },
+        { ...unscoredHomework, homework_id: 903, score: 80, passed: true },
+      ],
+    };
+    await installApi(page, "student", { studentPoints: [], wrongCompletionOnly: false, gradeSummary: summary });
+    await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+    const weakness = page.getByRole("region", { name: "약점 강좌" });
+    await expect(weakness).toContainText("30%");
+    await expect(weakness).not.toContainText("합격률");
+    await expect(page.getByRole("region", { name: "과제 현황" }).getByText("80%", { exact: true })).toBeVisible();
+
+    summary.exams = [{ ...mathExam, total_score: 0 }, englishExam];
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(weakness).toContainText("0%");
+    await expect(weakness).not.toContainText("합격률");
+
+    summary.exams = [{ ...mathExam, total_score: 0, is_pass: false, achievement: "FAIL" }, englishExam];
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(weakness).toContainText("합격률도 0%입니다.");
+  });
 
   test("학생은 강좌별 성장선과 등수 우선 지표를 확인한다", async ({ page }) => {
     const firstLectureTitle = "[26년 여름방학] 고1 Hyper 정규반 공통수학2 Routine";

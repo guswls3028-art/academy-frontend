@@ -220,12 +220,12 @@ test.describe("promo business readiness", () => {
 
     await page.goto(`${BASE}/promo/pricing`, { waitUntil: "load" });
     await expect(
-      page.getByRole("heading", { name: /8월 가입 14만 5천원/ }),
+      page.getByRole("heading", { name: /월 18만원/ }),
     ).toBeVisible();
     await expect(page.getByText("18만원", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/8월 가입 요금은 서비스를 이용하는 동안 계속 적용/).first()).toBeVisible();
     await expect(page.getByText("월 요금 · 부가세 10% 별도", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("부가세 1만 4,500원 · 결제금액 15만 9,500원", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("부가세 1만 4천원 · 결제금액 15만 9천원", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("부가세 1만 8천원 · 결제금액 19만 8천원", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/선착순|마감 임박|지금 신청/)).toHaveCount(0);
   });

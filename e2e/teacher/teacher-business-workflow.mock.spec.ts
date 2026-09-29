@@ -50,6 +50,8 @@ async function installApi(
     consultFailure?: boolean;
     consultPatchStatus?: number;
     consultFailureAfterPatch?: boolean;
+    sessionCreates?: Array<Record<string, unknown>>;
+    sessionPatches?: Array<Record<string, unknown>>;
   },
 ) {
   let cardRequests = 0;
@@ -89,6 +91,32 @@ async function installApi(
         must_change_password: false,
         first_login_guide_required: false,
       });
+    }
+    if (path === "/lectures/lectures/9/") {
+      return json({ id: 9, title: "수학 A반", is_active: true });
+    }
+    if (path === "/lectures/sessions/" && (request.method() === "POST" || url.searchParams.get("lecture") === "9")) {
+      if (request.method() === "POST") {
+        const payload = request.postDataJSON() as Record<string, unknown>;
+        options.sessionCreates?.push(payload);
+        return json({ id: 78, order: 2, regular_order: null, display_label: payload.title, ...payload }, 201);
+      }
+      const regular = {
+        id: 77, lecture: 9, order: 1, regular_order: 1, session_type: "REGULAR",
+        title: "1차시", display_label: "1차시", date: "2026-08-18",
+      };
+      const created = (options.sessionCreates ?? []).map((payload, index) => ({
+        id: 78 + index, order: 2 + index, regular_order: null,
+        display_label: options.sessionPatches?.at(-1)?.title ?? payload.title,
+        ...payload,
+        ...(options.sessionPatches?.at(-1) ?? {}),
+      }));
+      return json({ count: 1 + created.length, results: [regular, ...created] });
+    }
+    if (path === "/lectures/sessions/78/" && request.method() === "PATCH") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      options.sessionPatches?.push(payload);
+      return json({ id: 78, lecture: 9, order: 2, regular_order: null, session_type: "SUPPLEMENT", ...payload });
     }
     if (path === "/lectures/sessions/" && url.searchParams.get("include_progress") === "1") {
       return json({
@@ -277,6 +305,48 @@ test("차시 상세은 UNSET 출결을 미입력으로 표시한다", async ({ p
 
   await expect(page.getByText("미입력", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("UNSET", { exact: true })).toHaveCount(0);
+});
+
+test("교사 화면에서 직보를 보강으로 추가하고 새로고침 후에도 이름과 정규 번호를 유지한다", async ({ page }, testInfo) => {
+  for (const width of [1366, 390]) {
+    const sessionCreates: Array<Record<string, unknown>> = [];
+    const sessionPatches: Array<Record<string, unknown>> = [];
+    await page.setViewportSize({ width, height: 844 });
+    await installAuth(page);
+    await installApi(page, { role: "teacher", sessionCreates, sessionPatches });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/classes/9`);
+
+    await page.getByRole("button", { name: "차시 추가", exact: true }).click();
+    const kind = page.getByRole("group", { name: "차시 유형" });
+    await page.getByPlaceholder("예: 1차시, 중간고사 대비").fill("정규 시범");
+    await page.locator('input[type="number"]').fill("0.5");
+    await page.getByRole("button", { name: "추가", exact: true }).click();
+    await expect(page.getByText("차시 번호는 1 이상의 정수로 입력하세요.", { exact: true })).toBeVisible();
+    expect(sessionCreates).toHaveLength(0);
+    await kind.getByRole("button", { name: "보강·직보" }).click();
+    await expect(kind.getByRole("button", { name: "보강·직보" })).toHaveAttribute("aria-pressed", "true");
+    await page.getByPlaceholder("예: 직보").fill("직보");
+    await page.locator('input[type="date"]').fill("2026-09-29");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    if (width === 390) await page.screenshot({ path: testInfo.outputPath("teacher-named-session-390.png") });
+    await page.getByRole("button", { name: "추가", exact: true }).click();
+
+    await expect.poll(() => sessionCreates).toHaveLength(1);
+    expect(sessionCreates[0]).toEqual(expect.objectContaining({
+      lecture: 9, title: "직보", date: "2026-09-29", session_type: "SUPPLEMENT",
+    }));
+    expect(sessionCreates[0]).not.toHaveProperty("regular_order");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("직보", { exact: true })).toBeVisible();
+    await expect(page.getByText("1차시", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /직보/ }).locator("span:has(svg)").click();
+    await page.getByPlaceholder("예: 직보").fill("직보 심화");
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await expect.poll(() => sessionPatches).toHaveLength(1);
+    expect(sessionPatches[0]).toEqual({ title: "직보 심화", date: "2026-09-29" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("직보 심화", { exact: true })).toBeVisible();
+  }
 });
 
 test("넓은 데스크톱에서는 선생님 업무 캔버스를 충분히 사용한다", async ({ page }) => {

@@ -12,6 +12,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { teacherLectureQueryKeys } from "../queryKeys";
+import { isSupplementSession, type SessionType } from "@/shared/product/sessions/sessionOrdering";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -27,23 +28,36 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [regularOrder, setRegularOrder] = useState("");
+  const [sessionType, setSessionType] = useState<SessionType>("REGULAR");
 
   useEffect(() => {
     if (editData) {
+      const supplement = isSupplementSession(editData);
+      setSessionType(supplement ? "SUPPLEMENT" : "REGULAR");
       setTitle(editData.title || "");
       setDate(editData.date || "");
-      setRegularOrder(editData.regular_order != null ? String(editData.regular_order) : editData.order != null ? String(editData.order) : "");
+      setRegularOrder(supplement ? "" : editData.regular_order != null ? String(editData.regular_order) : editData.order != null ? String(editData.order) : "");
     } else {
-      setTitle(""); setDate(""); setRegularOrder("");
+      setTitle(""); setDate(""); setRegularOrder(""); setSessionType("REGULAR");
     }
   }, [editData, open]);
 
   const mutation = useMutation({
     mutationFn: () => {
       if (isEdit) {
-        return updateSession(editData.id, { title, date: date || undefined, regular_order: regularOrder ? Number(regularOrder) : undefined });
+        return updateSession(editData.id, {
+          title: title.trim(),
+          date: date || undefined,
+          ...(sessionType === "REGULAR" && regularOrder.trim() ? { regular_order: Number(regularOrder) } : {}),
+        });
       }
-      return createSession(lectureId, title, date || undefined, regularOrder ? Number(regularOrder) : undefined);
+      return createSession(
+        lectureId,
+        title.trim(),
+        date || undefined,
+        sessionType === "REGULAR" && regularOrder.trim() ? Number(regularOrder) : undefined,
+        sessionType,
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectureSessions });
@@ -76,14 +90,47 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
     if (ok) deleteMut.mutate();
   };
 
+  const handleSave = () => {
+    const order = regularOrder.trim();
+    if (sessionType === "REGULAR" && order && (!/^[1-9]\d*$/.test(order) || !Number.isSafeInteger(Number(order)))) {
+      teacherToast.error("차시 번호는 1 이상의 정수로 입력하세요.");
+      return;
+    }
+    mutation.mutate();
+  };
+
   return (
     <BottomSheet open={open} onClose={onClose} title={isEdit ? "차시 편집" : "차시 추가"}>
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
+        {!isEdit && (
+          <div role="group" aria-label="차시 유형" className="grid grid-cols-2 gap-2">
+            {(["REGULAR", "SUPPLEMENT"] as const).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                aria-pressed={sessionType === kind}
+                onClick={() => setSessionType(kind)}
+                className="text-sm font-semibold cursor-pointer"
+                style={{
+                  minHeight: 44,
+                  borderRadius: "var(--tc-radius-sm)",
+                  border: "1px solid var(--tc-border-strong)",
+                  background: sessionType === kind ? "var(--tc-primary)" : "var(--tc-surface-soft)",
+                  color: sessionType === kind ? "#fff" : "var(--tc-text)",
+                }}
+              >
+                {kind === "REGULAR" ? "정규 차시" : "보강·직보"}
+              </button>
+            ))}
+          </div>
+        )}
         <div>
-          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>차시명 *</label>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 1차시, 중간고사 대비"
+          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{sessionType === "SUPPLEMENT" ? "보강 이름 *" : "차시명 *"}</label>
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={sessionType === "SUPPLEMENT" ? "예: 직보" : "예: 1차시, 중간고사 대비"}
             className="w-full text-sm"
             style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
+          {sessionType === "SUPPLEMENT" && <p className="mt-1 text-xs" style={{ color: "var(--tc-text-muted)" }}>이 이름으로 표시되며 정규 차시 번호는 늘어나지 않습니다.</p>}
+          {sessionType === "REGULAR" && <p className="mt-1 text-xs" style={{ color: "var(--tc-text-muted)" }}>정규 차시는 번호로 표시됩니다. 직보처럼 이름 있는 차시는 보강·직보를 선택하세요.</p>}
         </div>
         <div className="flex gap-2">
           <div className="flex-1">
@@ -92,15 +139,15 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
               className="w-full text-sm"
               style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
           </div>
-          <div style={{ width: 80 }}>
+          {sessionType === "REGULAR" && <div style={{ width: 80 }}>
             <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>차시 번호</label>
             <input type="number" value={regularOrder} onChange={(e) => setRegularOrder(e.target.value)} placeholder="#"
               className="w-full text-sm"
               style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
-          </div>
+          </div>}
         </div>
 
-        <button onClick={() => mutation.mutate()} disabled={!title.trim() || mutation.isPending}
+        <button onClick={handleSave} disabled={!title.trim() || mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-2"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: title.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: title.trim() ? "#fff" : "var(--tc-text-muted)" }}>
           {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "추가"}
