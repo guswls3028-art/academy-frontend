@@ -169,9 +169,9 @@ function WorkflowCard({
   const navigate = useNavigate();
   const { startTour } = useGuideTour();
 
-  const handleTour = useCallback(() => {
-    if (!wf.tourPath || !wf.tourSteps?.length) return;
-    startTour({ steps: wf.tourSteps });
+  const handleOpen = useCallback(() => {
+    if (!wf.tourPath) return;
+    if (wf.tourSteps?.length) startTour({ steps: wf.tourSteps });
     navigate(wf.tourPath);
   }, [wf, startTour, navigate]);
 
@@ -201,18 +201,20 @@ function WorkflowCard({
             {wf.summary}
           </div>
         </div>
-        {wf.tourPath && wf.tourSteps?.length ? (
+        {wf.tourPath ? (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              handleTour();
+              handleOpen();
             }}
-            aria-label={`${wf.title} 투어 시작`}
+            aria-label={`${wf.title} ${wf.tourSteps?.length ? "투어 시작" : "화면 열기"}`}
             className={styles.startButton}
           >
-            <Play size={11} fill="currentColor" aria-hidden="true" />
-            시작
+            {wf.tourSteps?.length
+              ? <Play size={11} fill="currentColor" aria-hidden="true" />
+              : <ArrowRight size={12} aria-hidden="true" />}
+            {wf.tourSteps?.length ? "시작" : "화면 열기"}
           </button>
         ) : null}
         <ChevronDown
@@ -252,13 +254,13 @@ function WorkflowCard({
             </div>
 
             {/* 직접 해보기 버튼 */}
-            {wf.tourPath && wf.tourSteps?.length ? (
+            {wf.tourPath ? (
               <button
                 type="button"
-                onClick={handleTour}
+                onClick={handleOpen}
                 className={styles.tryButton}
               >
-                직접 해보기
+                {wf.tourSteps?.length ? "직접 해보기" : "업무 화면 열기"}
                 <ArrowRight size={14} strokeWidth={2.5} aria-hidden="true" />
               </button>
             ) : null}
@@ -291,22 +293,22 @@ export default function AdminGuidePage() {
   return (
     <DomainLayout
       title="공식 사용 가이드"
-      description="계약 직후 대표와 선생님이 그대로 따라갈 수 있는 시작 순서입니다. 로그인 화면은 심플하게 두고, 자세한 안내는 여기에서 확인합니다."
+      description="학생 추가부터 강의·차시·수강생, 시험·과제·클리닉·영상까지 실제 운영 순서로 안내합니다. 휴대폰에서도 PC 버전 화면을 열어 같은 업무를 이어갈 수 있습니다."
     >
       <div className={styles.guidePage}>
         <section className={styles.heroPanel} aria-labelledby="official-guide-title">
           <div className={styles.heroCopy}>
             <p className={styles.kicker}>처음 시작</p>
-            <h2 id="official-guide-title">처음 하루는 이 순서만 따라오세요.</h2>
+            <h2 id="official-guide-title">첫 수업을 여는 순서부터 따라오세요.</h2>
             <p>
-              모든 기능을 한 번에 익히려고 하면 복잡합니다. 먼저 대표가 기본 정보를 채우고,
-              학생 1명으로 실제 로그인과 발송 흐름을 확인한 뒤 전체 운영으로 넓혀 가세요.
+              학생 명부에 한 명을 추가하고 강의·차시·수강생을 연결하세요. 시험과 과제를
+              등록한 뒤 클리닉과 영상을 붙이고, 각 단계의 저장 결과를 다시 확인하세요.
             </p>
           </div>
           <div className={styles.heroGoal}>
             <KeyRound size={18} aria-hidden="true" />
             <span>첫날 목표</span>
-            <strong>학생 1명 등록 → 강의 배정 → 로그인 확인 → 알림톡 준비</strong>
+            <strong>학생 추가 → 강의·차시 → 수강생 → 시험·과제 → 클리닉·영상</strong>
           </div>
         </section>
 

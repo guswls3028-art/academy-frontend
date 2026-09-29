@@ -193,6 +193,26 @@ test("390px 선생님은 공용 기능만 보고 관리자·원장·급여 경�
   await expectNoHorizontalOverflow(page);
 });
 
+test("390px 선생님 가이드에서 시험 생성 PC 화면으로 이어지고 두 가이드가 넘치지 않는다", async ({ page }) => {
+  const apiRequests = await installWorkspaceMocks(page, { role: "teacher" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/mobile/guide`, { timeout: 20_000 });
+
+  for (const title of ["학생 추가", "강의 개설", "차시 생성", "수강생 등록", "시험 등록", "과제 등록과 배정", "클리닉 운영", "영상 등록과 시청 확인"]) {
+    await expect(page.getByText(title, { exact: true })).toBeVisible();
+  }
+  await expectNoHorizontalOverflow(page);
+  await page.getByText("시험 등록", { exact: true }).click();
+  await page.getByRole("button", { name: "PC 화면에서 시작" }).click();
+  await expect(page).toHaveURL(/\/workspace\/lectures$/);
+
+  await gotoAndSettle(page, `${BASE}/workspace/guide`, { timeout: 20_000 });
+  await expect(page.getByRole("heading", { name: "첫 수업을 여는 순서부터 따라오세요." })).toBeVisible();
+  await expect(page.getByText("과제 등록과 배정하기", { exact: true })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  expect(apiRequests.filter(({ method }) => method !== "GET")).toEqual([]);
+});
+
 test("Mac 데스크톱은 구형 모바일 강제값에 갇히지 않는다", async ({ page }) => {
   await installWorkspaceMocks(page, { role: "teacher" });
   await page.setViewportSize({ width: 1366, height: 900 });

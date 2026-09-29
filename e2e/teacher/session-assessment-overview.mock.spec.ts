@@ -611,6 +611,8 @@ test("평가가 없는 차시는 빈 상태를 설명하고 기존 시험·과�
   await expect(page.getByText("시험을 선택하세요", { exact: true })).toHaveCount(0);
   expect(api.scoreRequests()).toBeGreaterThan(0);
   expect(api.resultRequests).toEqual([]);
+  await mainButton(page, "PC 화면에서 시험·과제 추가").click();
+  await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores$`));
 });
 
 test("종합 조회 API 오류를 빈 성적으로 오인시키지 않고 다시 시도로 정상 복구한다", async ({ page }) => {
