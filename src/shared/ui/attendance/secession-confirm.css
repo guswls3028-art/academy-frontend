@@ -1,0 +1,12 @@
+.secession-option {
+  border-color: var(--color-border-divider);
+  background: var(--color-bg-surface);
+}
+
+.secession-option[data-selected="true"] {
+  border-color: var(--color-primary);
+}
+
+.secession-description {
+  color: var(--color-text-secondary);
+}
