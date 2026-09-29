@@ -57,9 +57,9 @@ body:has([data-app="student"][data-student-dark="true"]) {
 }
 
 /* =========================
-   헤더 다크모드
+   앱 상단바 다크모드 (페이지 안 <header>는 제외)
    ========================= */
-[data-app="student"][data-student-dark="true"] header {
+[data-app="student"][data-student-dark="true"] .student-layout__header {
   background: var(--stu-header-bg) !important;
   backdrop-filter: blur(20px) !important;
   border-bottom-color: var(--stu-border) !important;
@@ -253,7 +253,7 @@ body:has([data-app="student"][data-student-dark="true"]) {
   transition: background-color 200ms ease, color 200ms ease;
 }
 
-[data-app="student"] header,
+[data-app="student"] .student-layout__header,
 [data-app="student"] nav.stu-tabbar,
 [data-app="student"] .stu-panel,
 [data-app="student"] .stu-section,

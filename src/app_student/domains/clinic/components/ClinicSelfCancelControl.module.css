@@ -29,7 +29,7 @@
 
 .actions .dangerAction {
   border-color: var(--stu-danger);
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
 }
 
 .actions button:disabled {

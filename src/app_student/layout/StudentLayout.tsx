@@ -1,6 +1,6 @@
 /**
  * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
- * 테넌트별 테마: data-student-tenant 에 따라 theme/tenants/{code}.css 적용
+ * 테넌트별 테마: STUDENT_THEME_BY_TENANT → data-student-theme → theme/tenants/{theme}.css
  */
 import { useState, useEffect, useCallback } from "react";
 import { Outlet, useLocation } from "react-router";
@@ -40,24 +40,29 @@ import {
 import { endCurrentStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 import { logout } from "@/auth/api/auth.api";
 
-/** 2번(박철과학) 전용 테마 */
-const TCHUL_THEME_TENANTS = ["tchul"];
-/** 4번(ymath) 전용 테마 — 화이트+스카이블루 */
-const YMATH_THEME_TENANTS = ["ymath"];
-/** 8번(SSWE) 전용 테마 — 네이비+오렌지 */
-const SSWE_THEME_TENANTS = ["sswe"];
-/** 9번(DnB) 전용 테마 — 보라+노랑 */
-const DNB_THEME_TENANTS = ["dnb"];
-/** 10번(이동휘원소) 전용 테마 — 딥 네이비+오비트 옐로 */
-const MOVEMENTHUI_THEME_TENANTS = ["movementhui"];
-/** 11번(신과함께) 전용 테마 — 화이트+클린 블루 */
-const GODMIN_THEME_TENANTS = ["godmin"];
-/** limglish 전용 테마 */
-const LIMGLISH_THEME_TENANTS = ["limglish"];
-/** 1번(hakwonplus) 전용 테마 */
-const HAKWONPLUS_THEME_TENANTS = ["hakwonplus"];
-/** 9999번 공통 — commonlogo + 2번 색상 (common=9999 로컬 경로) */
-const COMMON_THEME_TENANTS = ["9999", "common"];
+/**
+ * 테넌트 코드 → 학생앱 테마(theme/tenants/{theme}.css). 9999·common 로컬 경로는 common 테마를 쓴다.
+ * 등록되지 않은 테넌트는 tokens.css 기본 테마를 그대로 사용한다.
+ */
+const STUDENT_THEME_BY_TENANT: Readonly<Record<string, string>> = {
+  hakwonplus: "hakwonplus",
+  tchul: "tchul",
+  limglish: "limglish",
+  ymath: "ymath",
+  sswe: "sswe",
+  dnb: "dnb",
+  movementhui: "movementhui",
+  godmin: "godmin",
+  "9999": "common",
+  common: "common",
+};
+
+/** CommonLogoIcon이 gradientId로 참조하는 로고 전용 그라데이션 (아이콘 그라데이션과 분리) */
+const LOGO_GRADIENTS = [
+  { id: "stu-gradient-hakwonplus", stops: ["#1e3a8a", "#2563eb", "#60a5fa"] },
+  { id: "stu-gradient-ymath", stops: ["#0B4A82", "#4DAAD6", "#8ED0EE"] },
+  { id: "stu-gradient-common", stops: ["#0d47a1", "#00695c", "#004d40"] },
+] as const;
 
 // 새 배포 안내는 AppInner의 전역 VersionUpdateNotice가 맡는다.
 
@@ -79,15 +84,10 @@ function StudentLayoutInner() {
   useFavicon();
   useDocumentTitle(); // 브라우저 타이틀 설정
   useStudentPwa();
-  const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
-  const useYmathTheme = tenantCode != null && YMATH_THEME_TENANTS.includes(String(tenantCode));
-  const useSsweTheme = tenantCode != null && SSWE_THEME_TENANTS.includes(String(tenantCode));
-  const useDnbTheme = tenantCode != null && DNB_THEME_TENANTS.includes(String(tenantCode));
-  const useMovementhuiTheme = tenantCode != null && MOVEMENTHUI_THEME_TENANTS.includes(String(tenantCode));
-  const useGodminTheme = tenantCode != null && GODMIN_THEME_TENANTS.includes(String(tenantCode));
-  const useLimglishTheme = tenantCode != null && LIMGLISH_THEME_TENANTS.includes(String(tenantCode));
-  const useHakwonplusTheme = tenantCode != null && HAKWONPLUS_THEME_TENANTS.includes(String(tenantCode));
-  const useCommonTheme = tenantCode != null && COMMON_THEME_TENANTS.includes(String(tenantCode));
+  const themeKey = tenantCode != null ? String(tenantCode) : "";
+  const studentTheme = Object.prototype.hasOwnProperty.call(STUDENT_THEME_BY_TENANT, themeKey)
+    ? STUDENT_THEME_BY_TENANT[themeKey]
+    : undefined;
   const { user } = useAuthContext();
   const supportInfo = isStudentSupportWindow() ? getStudentSupportSessionInfo() : null;
   const [supportRemainingSeconds, setSupportRemainingSeconds] = useState<number | null>(null);
@@ -205,53 +205,25 @@ function StudentLayoutInner() {
       className="student-layout"
       data-app="student"
       data-student-tenant={tenantCode || undefined}
-      data-student-theme={useTchulTheme ? "tchul" : useYmathTheme ? "ymath" : useSsweTheme ? "sswe" : useDnbTheme ? "dnb" : useMovementhuiTheme ? "movementhui" : useGodminTheme ? "godmin" : useLimglishTheme ? "limglish" : useHakwonplusTheme ? "hakwonplus" : useCommonTheme ? "common" : undefined}
+      data-student-theme={studentTheme}
       data-video-page={isVideoPage ? "true" : undefined}
       data-student-dark={isDark ? "true" : undefined}
     >
-      {(useTchulTheme || useYmathTheme || useSsweTheme || useDnbTheme || useMovementhuiTheme || useGodminTheme || useLimglishTheme || useHakwonplusTheme || useCommonTheme) && (
+      {studentTheme && (
         <svg aria-hidden width={0} height={0} className="student-layout__defs">
           <defs>
-            <linearGradient id="stu-gradient-tchul" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#0d47a1" />
-              <stop offset="50%" stopColor="#00695c" />
-              <stop offset="100%" stopColor="#004d40" />
+            {/* 콘텐츠 아이콘용 — 정지점 색은 테넌트 토큰(--stu-icon-1/2)이 라이트·다크별로 정한다 */}
+            <linearGradient id="stu-icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" className="stu-icon-gradient__stop--start" />
+              <stop offset="100%" className="stu-icon-gradient__stop--end" />
             </linearGradient>
-            <linearGradient id="stu-gradient-ymath" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#0B4A82" />
-              <stop offset="50%" stopColor="#4DAAD6" />
-              <stop offset="100%" stopColor="#8ED0EE" />
-            </linearGradient>
-            <linearGradient id="stu-gradient-common" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#0d47a1" />
-              <stop offset="50%" stopColor="#00695c" />
-              <stop offset="100%" stopColor="#004d40" />
-            </linearGradient>
-            <linearGradient id="stu-gradient-sswe" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#002357" />
-              <stop offset="40%" stopColor="#003580" />
-              <stop offset="100%" stopColor="#f18e2c" />
-            </linearGradient>
-            <linearGradient id="stu-gradient-dnb" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#612e8d" />
-              <stop offset="50%" stopColor="#7b3faa" />
-              <stop offset="100%" stopColor="#c9a82e" />
-            </linearGradient>
-            <linearGradient id="stu-gradient-movementhui" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#1a253b" />
-              <stop offset="68%" stopColor="#263653" />
-              <stop offset="100%" stopColor="#e7bd2f" />
-            </linearGradient>
-            <linearGradient id="stu-gradient-hakwonplus" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#1e3a8a" />
-              <stop offset="50%" stopColor="#2563eb" />
-              <stop offset="100%" stopColor="#60a5fa" />
-            </linearGradient>
-            <linearGradient id="stu-gradient-limglish" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#0f1c30" />
-              <stop offset="40%" stopColor="#1a2e47" />
-              <stop offset="100%" stopColor="#2a4a6b" />
-            </linearGradient>
+            {LOGO_GRADIENTS.map(({ id, stops }) => (
+              <linearGradient key={id} id={id} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor={stops[0]} />
+                <stop offset="50%" stopColor={stops[1]} />
+                <stop offset="100%" stopColor={stops[2]} />
+              </linearGradient>
+            ))}
           </defs>
         </svg>
       )}

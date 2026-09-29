@@ -91,8 +91,10 @@ tenant를 확정할 수 없는 preview에서는 숨김 값을 저장하거나 �
 1. `public/tenants/<code>/`에 로그인 로고와 1:1 헤더 에셋을 준비한다.
 2. `src/shared/tenant/tenants/<code>.ts`에 호스트·브랜드·헤더 팔레트를 등록한다.
 3. `src/auth/themes/<code>.css`에서 로그인 장면을 구성한다.
-4. 학생앱 전용 색이 필요하면
-   `src/app_student/shared/ui/theme/tenants/<code>.css`를 추가한다.
+4. 학생앱 색은 `src/app_student/shared/ui/theme/tenants/<code>.css`에 **토큰만** 정의하고
+   `STUDENT_THEME_BY_TENANT`에 등록한다. 공통 규칙은 `tenants/brand.css`가 소유하며,
+   흰 글자용 그라데이션·아이콘·상태 글자의 대비 기준은
+   [학생앱 디자인 시스템](../src/app_student/shared/ui/theme/README.md)을 따른다.
 5. `index.html`의 초기 메타데이터 레지스트리와 OG·PWA·성적표 등 백엔드
    커스텀 도메인 매뉴얼의 나머지 경계를 반영한다. Pages 함수가 응답 HTML을
    올바르게 바꿔도 초기 스크립트에 호스트가 없으면 브라우저가 fallback 값으로

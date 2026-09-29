@@ -33,6 +33,7 @@
 | [DEV-INBOX-GUIDE.md](DEV-INBOX-GUIDE.md) | 학원 직원 문의 제출·답변 확인과 플랫폼 문의 처리 가이드 |
 | [DEVELOPER-CONSOLE.md](DEVELOPER-CONSOLE.md) | 개발자 콘솔 정보 구조, 운영 상태 레저, 반응형 메뉴, 조회 실패·쓰기 안전 계약 |
 | [TENANT-BRANDING.md](TENANT-BRANDING.md) | 신규 테넌트 로그인·역할별 공용 헤더 브랜딩 계약과 검증표 |
+| [학생앱 디자인 시스템](../src/app_student/shared/ui/theme/README.md) | 학생·학부모 앱 토큰, 테넌트 테마(공통 브랜드 레이어·토큰 전용 테넌트 파일), 라이트·다크 대비 기준과 테넌트 추가 절차 |
 | [DEV-TENANT-OPERATIONS.md](DEV-TENANT-OPERATIONS.md) | 개발자 콘솔 테넌트·소유자 생성, 기존 계정 승격, 실패 안전 UI 계약 |
 | [TCHUL-PUBLIC-SITE.md](TCHUL-PUBLIC-SITE.md) | tchul 공식 홈페이지의 정보 구조, 매치업 PDF 게시·공유, 반응형·실패 처리 계약 |
 | [GODMIN-PUBLIC-SITE.md](GODMIN-PUBLIC-SITE.md) | godmin 전용 통합과학 공개 홈페이지의 진입·로그인·반응형·메타데이터 계약 |

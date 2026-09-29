@@ -474,7 +474,7 @@ export default function DashboardPage() {
                   icon={<IconBell />}
                   iconBg="color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1))"
                   label={`새 답변 ${replyCount}건`}
-                  labelColor="var(--stu-success)"
+                  labelColor="var(--stu-success-text)"
                   detail="질문/상담에 선생님이 답변했어요"
                 />
               );
@@ -514,7 +514,7 @@ export default function DashboardPage() {
                   icon={<IconExam />}
                   iconBg="var(--stu-danger-bg)"
                   label={`${wrongCompletionOnly ? "오답 미완료" : "재시험 필요"} ${failedExams.length}건`}
-                  labelColor="var(--stu-danger)"
+                  labelColor="var(--stu-danger-text)"
                   detail={preview.join(", ") + more}
                 />
               );
@@ -878,7 +878,7 @@ function ParentDashboardView({
               icon={<IconClinic />}
               iconBg="color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1))"
               label="클리닉 예약이 있어요"
-              labelColor="var(--stu-success)"
+              labelColor="var(--stu-success-text)"
               detail="보충 일정과 상태를 확인해 주세요"
             />
           )}
@@ -997,7 +997,7 @@ function LearningStatusCard({
   /* 컬러 임계값 완화: 70% 이상 녹색, 그 외 회색. 빨강 제거. */
   const tone = (rate: number | null): string => {
     if (rate == null) return "var(--stu-text)";
-    if (rate >= 70) return "var(--stu-success, #10b981)";
+    if (rate >= 70) return "var(--stu-success-text, #15803d)";
     return "var(--stu-text)";
   };
 

@@ -69,15 +69,15 @@
 }
 
 .riskAttention {
-  color: var(--stu-danger) !important;
+  color: var(--stu-danger-text) !important;
 }
 
 .riskWatch {
-  color: var(--stu-warn) !important;
+  color: var(--stu-warn-text) !important;
 }
 
 .riskStable {
-  color: var(--stu-success) !important;
+  color: var(--stu-success-text) !important;
 }
 
 .riskNeutral {
@@ -175,7 +175,7 @@
 
 .questionChips span {
   padding: 5px 8px;
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
   font-size: 12px;
   font-weight: 800;
   background: var(--stu-danger-bg);
@@ -193,7 +193,7 @@
 
 .analyticsNotice {
   padding: var(--stu-space-4);
-  color: var(--stu-warn);
+  color: var(--stu-warn-text);
   font-size: 13px;
   font-weight: 700;
   background: var(--stu-warn-bg);
@@ -289,13 +289,13 @@
 }
 
 .bestLabel {
-  color: var(--stu-success);
+  color: var(--stu-success-text);
   font-weight: 600;
 }
 
 .worstLabel,
 .weaknessEmphasis {
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
 }
 
 .worstLabel {

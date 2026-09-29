@@ -42,15 +42,15 @@
 }
 
 .kpiValue[data-tone="success"] {
-  color: var(--stu-success);
+  color: var(--stu-success-text);
 }
 
 .kpiValue[data-tone="warn"] {
-  color: var(--stu-warn);
+  color: var(--stu-warn-text);
 }
 
 .kpiValue[data-tone="danger"] {
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
 }
 
 .kpiLabel {
@@ -107,16 +107,16 @@
 }
 
 .statusPill[data-tone="success"] {
-  color: var(--stu-success);
+  color: var(--stu-success-text);
   background: color-mix(in srgb, var(--stu-success) 13%, transparent);
 }
 
 .statusPill[data-tone="warn"] {
-  color: var(--stu-warn);
+  color: var(--stu-warn-text);
   background: color-mix(in srgb, var(--stu-warn) 13%, transparent);
 }
 
 .statusPill[data-tone="danger"] {
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
   background: color-mix(in srgb, var(--stu-danger) 13%, transparent);
 }

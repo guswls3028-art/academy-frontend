@@ -1,6 +1,8 @@
-/* PATH: src/student/shared/ui/theme/tenants/index.css
- * 테넌트별 학생앱 테마 SSOT — 여기서만 import 추가. 셀렉터는 [data-student-tenant="{code}"]
+/* PATH: src/app_student/shared/ui/theme/tenants/index.css
+ * 학생앱 테넌트 테마 SSOT — 여기서만 import 추가.
+ * brand.css(공통 규칙)를 먼저, 테넌트 토큰 파일을 뒤에 둔다. 셀렉터는 [data-student-theme="{code}"].
  */
+@import "./brand.css";
 @import "./tchul.css";
 @import "./common.css";
 @import "./hakwonplus.css";
