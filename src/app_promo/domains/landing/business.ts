@@ -6,16 +6,16 @@ export const CONSULT_PHONE_LABEL = "전화 문의";
 export const CONSULT_PHONE_DISPLAY = CONSULT_PHONE_PARTS.join("-");
 export const MONTHLY_VAT_RATE_PERCENT = 10;
 export const AUGUST_MONTHLY_SUPPLY_AMOUNT = 145000;
-export const AUGUST_MONTHLY_TAX_AMOUNT = 14500;
-export const AUGUST_MONTHLY_TOTAL_AMOUNT = 159500;
+export const AUGUST_MONTHLY_TAX_AMOUNT = 14000;
+export const AUGUST_MONTHLY_TOTAL_AMOUNT = 159000;
 export const POST_AUGUST_MONTHLY_SUPPLY_AMOUNT = 180000;
 export const POST_AUGUST_MONTHLY_TAX_AMOUNT = 18000;
 export const POST_AUGUST_MONTHLY_TOTAL_AMOUNT = 198000;
-export const AUGUST_PROMOTION_LABEL = "2026년 8월 가입 혜택";
+export const AUGUST_PROMOTION_LABEL = "2026년 8월 가입 혜택 · 신규 적용 종료";
 export const AUGUST_MONTHLY_SAVINGS =
   POST_AUGUST_MONTHLY_SUPPLY_AMOUNT - AUGUST_MONTHLY_SUPPLY_AMOUNT;
 export const AUGUST_PRICE_GUARANTEE =
-  "2026년 8월 1일부터 31일까지 가입한 학원은 월 14만 5천원(부가세 10% 별도, 결제금액 15만 9,500원)으로 이용하며, 해당 공급가는 이용 기간 동안 계속 적용됩니다.";
+  "2026년 8월 1일부터 31일까지 가입한 학원은 월 14만 5천원(고정 부가세 1만 4천원 별도, 결제금액 15만 9천원)으로 이용하며, 해당 공급가는 이용 기간 동안 계속 적용됩니다.";
 export const POST_AUGUST_PRICE_POLICY =
   "2026년 9월 1일부터 가입하는 학원은 월 18만원(부가세 10% 별도, 결제금액 19만 8천원)입니다.";
 
@@ -65,9 +65,9 @@ export const PROMO_PLANS: PromoPlanDef[] = [
     postAugustMonthlyTaxAmount: POST_AUGUST_MONTHLY_TAX_AMOUNT,
     postAugustMonthlyTotalAmount: POST_AUGUST_MONTHLY_TOTAL_AMOUNT,
     monthlySavings: AUGUST_MONTHLY_SAVINGS,
-    target: "2026년 8월 1일~31일 가입 학원",
-    positioning: "2026년 8월 가입 요금",
-    verdict: "8월에 가입하면 월 14만 5천원의 공급가가 이용 기간 동안 유지됩니다.",
+    target: "2026년 9월 1일 이후 가입 학원",
+    positioning: "현재 신규 가입 요금",
+    verdict: "신규 가입은 월 18만원(부가세 10% 별도)이며, 8월 가입 학원의 기존 요금은 유지됩니다.",
     studentLimit: "학생 수에 따른 추가 요금 없음",
     adminLimit: "계정 수에 따른 추가 요금 없음",
     storage: "200GB 포함",

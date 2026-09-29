@@ -129,7 +129,12 @@ export default function SessionCreateModal({
     [sectionSessions]
   );
   const nextRegularOrder = getNextRegularOrder(sectionSessions);
-  const manualRegularOrder = Number(regularOrderInput);
+  const trimmedRegularOrder = regularOrderInput.trim();
+  const namedSessionInput =
+    regularMode === "manual" && /[^\d\s.+-]/u.test(trimmedRegularOrder)
+      ? trimmedRegularOrder
+      : "";
+  const manualRegularOrder = Number(trimmedRegularOrder);
   const effectiveRegularOrder =
     regularMode === "manual" && Number.isFinite(manualRegularOrder) && manualRegularOrder > 0
       ? manualRegularOrder
@@ -193,12 +198,19 @@ export default function SessionCreateModal({
 
   const MAX_SESSIONS = 52;
 
+  function switchToNamedSupplement() {
+    if (!namedSessionInput) return;
+    setSupplementTitle(namedSessionInput);
+    if (dateMode === "default") setDate("");
+    setSessionType("supplement");
+  }
+
   function validate(): string | null {
     if (!sessionType) return "차시 유형을 선택하세요.";
     if (sectionSessions.length >= MAX_SESSIONS) return `차시는 최대 ${MAX_SESSIONS}개까지 생성할 수 있습니다.`;
     if (sessionType === "regular" && regularMode === "manual") {
-      if (!Number.isFinite(manualRegularOrder) || manualRegularOrder <= 0) {
-        return "차시 번호를 입력하세요.";
+      if (!/^[1-9]\d*$/.test(trimmedRegularOrder) || !Number.isSafeInteger(manualRegularOrder)) {
+        return "정규 차시 번호는 1 이상의 정수로 입력하세요.";
       }
       if (regularSessions.some((s) => getRegularOrder(s) === manualRegularOrder)) {
         return `이미 ${manualRegularOrder}차시가 있습니다.`;
@@ -217,6 +229,11 @@ export default function SessionCreateModal({
   async function handleSubmit() {
     if (formLocked || confirmationInFlightRef.current) {
       if (dependencyError) feedback.warning("강의와 기존 차시를 다시 불러온 뒤 추가해 주세요.");
+      return;
+    }
+    if (sessionType === "regular" && namedSessionInput) {
+      switchToNamedSupplement();
+      feedback.info("이름이 있는 차시로 전환했습니다. 날짜와 시간을 확인한 뒤 저장하세요.");
       return;
     }
     const err = validate();
@@ -315,21 +332,23 @@ export default function SessionCreateModal({
             <div className="grid grid-cols-2 gap-5">
               <SessionBlockView
                 variant="n1"
+                className="session-block--create-type"
                 compact={false}
                 selected={sessionType === "regular"}
                 showCheck
                 title={`${nextRegularOrder}차시`}
-                desc="정규 차시 추가 · 기본 날짜/시간 사용"
+                desc="정규 차시 추가 · 기본 일정"
                 onClick={() => setSessionType("regular")}
                 ariaPressed={sessionType === "regular"}
               />
               <SessionBlockView
                 variant="supplement"
+                className="session-block--create-type"
                 compact={false}
                 selected={sessionType === "supplement"}
                 showCheck
                 title="보강"
-                desc="보강 차시 · 날짜·시간 직접 선택"
+                desc="직보 등 이름 있는 차시"
                 onClick={() => setSessionType("supplement")}
                 ariaPressed={sessionType === "supplement"}
               />
@@ -338,7 +357,7 @@ export default function SessionCreateModal({
 
           {sessionType === "regular" && (
             <div>
-              <div className="modal-section-label mb-3">차시 번호</div>
+              <label className="modal-section-label mb-3 block" htmlFor="regular-session-order">차시 번호</label>
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   intent={regularMode === "auto" ? "primary" : "secondary"}
@@ -356,15 +375,27 @@ export default function SessionCreateModal({
                 </Button>
               </div>
               {regularMode === "manual" && (
-                <input
-                  type="number"
-                  min={1}
-                  value={regularOrderInput}
-                  onChange={(e) => setRegularOrderInput(e.target.value)}
-                  className="ds-input mt-3"
-                  placeholder={`${nextRegularOrder}차시`}
-                  disabled={busy}
-                />
+                <div className="mt-3 grid gap-2">
+                  <input
+                    id="regular-session-order"
+                    type="text"
+                    maxLength={220}
+                    value={regularOrderInput}
+                    onChange={(e) => setRegularOrderInput(e.target.value)}
+                    className="ds-input"
+                    placeholder={`${nextRegularOrder}`}
+                    disabled={busy}
+                  />
+                  {namedSessionInput ? (
+                    <Button intent="secondary" size="sm" onClick={switchToNamedSupplement} disabled={busy}>
+                      이 이름으로 보강 추가
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-[var(--color-text-muted)]">
+                      정규 차시는 숫자로 지정합니다. 직보 등 이름 있는 차시는 보강에서 추가하세요.
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -385,7 +416,7 @@ export default function SessionCreateModal({
                 disabled={busy}
               />
               <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-                강의 화면과 출결·성적 화면에 이 이름으로 표시됩니다.
+                직보처럼 이름 있는 추가 차시도 여기서 만듭니다. 정규 차시 번호는 늘어나지 않으며, 강의·출결·성적 화면에 이 이름으로 표시됩니다.
               </p>
             </div>
           )}

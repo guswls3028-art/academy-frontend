@@ -32,6 +32,7 @@ type MockState = {
   regularIncluded?: boolean;
   supplementIncluded?: boolean;
   createdSessionPayloads?: Array<Record<string, unknown>>;
+  persistCreatedSessions?: boolean;
   createdHomeworkPayloads?: Array<Record<string, unknown>>;
   createdExamPayloads?: Array<Record<string, unknown>>;
   examCreateDelayMs?: number;
@@ -71,7 +72,7 @@ function sessionRows(state: MockState, lectureId = LECTURE_ID) {
     }];
   }
 
-  return [
+  const rows = [
     {
       id: REGULAR_SESSION_ID,
       lecture: LECTURE_ID,
@@ -99,6 +100,22 @@ function sessionRows(state: MockState, lectureId = LECTURE_ID) {
       ? state.regularIncluded !== false
       : state.supplementIncluded !== false
   ));
+  if (state.persistCreatedSessions) {
+    for (const [index, payload] of (state.createdSessionPayloads ?? []).entries()) {
+      rows.push({
+        id: 9991 + index,
+        lecture: LECTURE_ID,
+        title: String(payload.title),
+        display_label: String(payload.title),
+        order: 3 + index,
+        regular_order: typeof payload.regular_order === "number" ? payload.regular_order : null,
+        session_type: payload.session_type === "REGULAR" ? "REGULAR" : "SUPPLEMENT",
+        date: String(payload.date ?? ""),
+        section: state.sectionMode ? SECTION_ID : null,
+      });
+    }
+  }
+  return rows;
 }
 
 async function installApi(page: Page, state: MockState) {
@@ -675,7 +692,7 @@ test("보강 범위의 추가 버튼은 보강 유형과 이름 입력을 바로
   await page.getByRole("button", { name: "보강 추가" }).click();
 
   await expect(page.getByLabel("보강 이름")).toHaveValue("보강");
-  await expect(page.getByRole("button", { name: /보강 차시 · 날짜·시간 직접 선택/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: /직보 등 이름 있는 차시/ })).toHaveAttribute("aria-pressed", "true");
   const startTime = page.getByRole("button", { name: "시작 시간 선택", exact: true });
   await startTime.click();
   const timeDialog = page.getByRole("dialog", { name: "시간 선택", exact: true });
@@ -690,6 +707,66 @@ test("보강 범위의 추가 버튼은 보강 유형과 이름 입력을 바로
   await timeDialog.getByLabel("분 단위 직접 입력").fill("19:20");
   await timeDialog.getByRole("button", { name: "적용", exact: true }).click();
   await expect(startTime).toContainText("오후 7:20");
+});
+
+test("정규 번호 칸에 입력한 직보를 이름 있는 차시로 저장하고 재조회한다", async ({ page }, testInfo) => {
+  for (const width of [1366, 390]) {
+    const state: MockState = {
+      supplementTitle: "토요일 심화 클리닉",
+      patchTitles: [],
+      createdSessionPayloads: [],
+      persistCreatedSessions: true,
+    };
+    await page.setViewportSize({ width, height: 844 });
+    await openLecture(page, state);
+    await page.getByRole("button", { name: "수업 추가", exact: true }).click();
+    await page.getByRole("button", { name: /정규 차시 추가/ }).click();
+    await page.getByRole("button", { name: "직접 지정", exact: true }).click();
+    await page.getByLabel("차시 번호").fill("직보");
+    await expect(page.getByRole("button", { name: "이 이름으로 보강 추가" })).toBeVisible();
+    if (width === 390) {
+      const modalBody = page.locator(".modal-scroll-body");
+      expect(await modalBody.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      for (const card of await page.locator(".session-block--create-type").all()) {
+        expect(await card.evaluate((element) => {
+          const description = element.querySelector(".session-block__desc");
+          return description != null && description.getBoundingClientRect().bottom <= element.getBoundingClientRect().bottom - 4;
+        })).toBe(true);
+      }
+      await page.screenshot({ path: testInfo.outputPath("named-session-390.png") });
+    }
+
+    // 기존 사용 흐름처럼 저장을 눌러도 이름을 잃지 않고 보강 입력으로 이동한다.
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.getByLabel("보강 이름")).toHaveValue("직보");
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.getByText("날짜를 선택하세요.", { exact: true })).toBeVisible();
+    expect(state.createdSessionPayloads).toHaveLength(0);
+
+    await page.getByRole("button", { name: "날짜 선택", exact: true }).click();
+    await page.getByRole("dialog", { name: "날짜 선택" }).getByRole("button", { name: "15", exact: true }).click();
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    const confirmation = page.getByRole("alertdialog", { name: "차시 생성 최종 확인" });
+    await expect(confirmation.getByText("직보", { exact: true })).toBeVisible();
+    await confirmation.getByRole("button", { name: "확인하고 추가" }).click();
+    await expect.poll(() => state.createdSessionPayloads).toHaveLength(1);
+    expect(state.createdSessionPayloads?.[0]).toEqual(expect.objectContaining({
+      lecture: LECTURE_ID,
+      session_type: "SUPPLEMENT",
+      title: expect.stringMatching(/^직보 \(/),
+      date: expect.stringMatching(/^\d{4}-\d{2}-15$/),
+    }));
+    expect(state.createdSessionPayloads?.[0]).not.toHaveProperty("regular_order");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: /직보/ })).toBeVisible();
+    await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
+    await page.getByRole("tab", { name: /^보강/ }).click();
+    await expect(page.getByRole("button", { name: /직보/ })).toBeVisible();
+    await page.getByRole("tab", { name: /정규 수업/ }).click();
+    await expect(page.getByRole("button", { name: /1차시/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /직보/ })).toHaveCount(0);
+  }
 });
 
 test("한 회차에서 만드는 여러 과제는 커트라인을 행마다 따로 저장한다", async ({ page }, testInfo) => {
