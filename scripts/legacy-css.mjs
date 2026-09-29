@@ -7,6 +7,12 @@ import { readFileSync } from "node:fs";
 function replaceFunction(value, name, replacement) {
   let start = value.indexOf(`${name}(`);
   while (start !== -1) {
+    // A CSS function name must start at an identifier boundary. In particular,
+    // max() must not match the suffix of grid's minmax().
+    if (start > 0 && /[-\w\u0080-\uffff]/.test(value[start - 1])) {
+      start = value.indexOf(`${name}(`, start + name.length);
+      continue;
+    }
     let depth = 1;
     let end = start + name.length + 1;
     for (; end < value.length && depth; end += 1) {

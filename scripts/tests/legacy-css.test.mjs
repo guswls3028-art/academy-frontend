@@ -33,6 +33,14 @@ test("legacy theme values stay tenant scoped and mobile layout has supported val
   assert.doesNotMatch(css, /color-mix\(|oklch\(|clamp\(|min\(|env\(/);
 });
 
+test("legacy grid keeps minmax columns while replacing standalone max", async () => {
+  const outputs = await createLegacyStylesheets([{ fileName: "calendar.css", source: ".calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));width:max(100%,320px)}" }]);
+  const css = outputs.get("calendar.css");
+  assert.match(css, /grid-template-columns:\s*repeat\(7,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /width:\s*100%/);
+  assert.doesNotMatch(css, /min0\b/);
+});
+
 test("Tailwind registered defaults exist without property registration", async () => {
   const outputs = await createLegacyStylesheets([{ fileName: "assets/index.css", source: '@property --tw-translate-x{syntax:"*";inherits:false;initial-value:0}.translate-x-1{--tw-translate-x:4px}' }]);
   const css = outputs.get("assets/index.css");
