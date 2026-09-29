@@ -40,11 +40,11 @@ const JOURNEY: JourneyStep[] = [
   },
   {
     title: "수강생 등록",
-    place: "강의 → 강의 선택 → 수강생 → 수강생 등록",
-    action: "이미 학생 명부에 등록된 학생을 검색·선택하고 등록합니다. 명부에 없는 학생은 먼저 학생 화면에서 추가합니다.",
-    result: "수강생 목록과 해당 차시의 출결 대상에 학생이 보이는지 확인합니다. 첫 수강 확정 시 계정 안내 발송 결과도 확인합니다.",
-    path: "/workspace/mobile/classes",
-    mode: "mobile",
+    place: "강의 → 수강생 등록 → 차시 → 출결 → 수강생 등록",
+    action: "강의 명부에 학생을 등록한 다음, 수업할 차시의 출결 화면에서 그 차시 수강생을 별도로 등록합니다. 휴대폰에서 PC 버전으로 전환해 차시 등록을 이어갈 수 있습니다.",
+    result: "강의 명부와 차시 출결 대상 양쪽에서 학생을 확인합니다. 강의 첫 수강 확정 시 계정 안내 발송 결과도 확인합니다.",
+    path: "/workspace/lectures",
+    mode: "desktop",
   },
   {
     title: "시험 등록",
@@ -103,7 +103,7 @@ export default function TeacherGuidePage() {
         <CheckCircle size={ICON.md} aria-hidden />
         <div>
           <strong>휴대폰에서도 두 화면을 사용할 수 있습니다.</strong>
-          <span>학생·강의·차시·수강생·클리닉·영상은 모바일 화면에서 진행합니다. 시험과 과제 생성은 아래 버튼이 PC 버전의 실제 업무 화면으로 연결합니다.</span>
+          <span>학생·강의·차시·강의 명부·클리닉·영상은 모바일에서 진행할 수 있습니다. 차시 수강생 배정과 시험·과제 생성은 PC 버전의 실제 업무 화면으로 연결합니다.</span>
         </div>
       </div>
 
@@ -140,7 +140,7 @@ export default function TeacherGuidePage() {
       <section className={styles.helpBox} aria-labelledby="teacher-guide-help-title">
         <h2 id="teacher-guide-help-title">막혔을 때 먼저 확인</h2>
         <ul>
-          <li>학생이 수업에 안 보이면 학생 명부 등록 후 해당 강의의 수강생 등록을 확인하세요.</li>
+          <li>학생이 수업에 안 보이면 학생 명부와 강의 수강 등록, 해당 차시 출결의 수강생 등록을 차례로 확인하세요.</li>
           <li>모바일 시험·과제 목록에서 새 항목을 만들 수 없으면 위의 PC 화면 버튼으로 해당 강의의 차시를 여세요.</li>
           <li>영상 파일은 업로드 완료와 시청 가능 상태가 다릅니다. 처리 완료 또는 실패 상태를 확인하세요.</li>
         </ul>

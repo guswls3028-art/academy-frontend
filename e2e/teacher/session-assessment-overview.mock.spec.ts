@@ -70,7 +70,7 @@ function makeScores(scenario: Scenario): SessionScoresResponse {
   };
 }
 
-async function installScenario(page: Page, options: { scenario?: Scenario; failScores?: boolean; wrongCompletion?: boolean; failScoreWrite?: boolean } = {}) {
+async function installScenario(page: Page, options: { scenario?: Scenario; failScores?: boolean; wrongCompletion?: boolean; failScoreWrite?: boolean; withoutSessionEnrollments?: boolean } = {}) {
   const scores = makeScores(options.scenario ?? "mixed");
   let failScores = options.failScores ?? false;
   let failScoreWrite = options.failScoreWrite ?? false;
@@ -114,7 +114,7 @@ async function installScenario(page: Page, options: { scenario?: Scenario; failS
     });
     if (path === `/lectures/lectures/${LECTURE_ID}/`) return json({ id: LECTURE_ID, title: "가상 평가 검증반", is_active: true });
     if (path === "/enrollments/session-enrollments/") {
-      return list(Number(url.searchParams.get("session")) === SESSION_ID ? scores.rows.map((row, index) => ({
+      return list(Number(url.searchParams.get("session")) === SESSION_ID && !options.withoutSessionEnrollments ? scores.rows.map((row, index) => ({
         id: 9950 + index, session: SESSION_ID, enrollment: row.enrollment_id,
         student_id: row.student_id, student_name: row.student_name,
       })) : []);
@@ -613,6 +613,17 @@ test("평가가 없는 차시는 빈 상태를 설명하고 기존 시험·과�
   expect(api.resultRequests).toEqual([]);
   await mainButton(page, "PC 화면에서 시험·과제 추가").click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores$`));
+});
+
+test("차시 수강생이 없으면 모바일에서 정확한 PC 출결 등록 화면으로 이동한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installScenario(page, { withoutSessionEnrollments: true });
+  await gotoSession(page, "?tab=students");
+  await expect(page.getByText("강의 명부 등록 후에도 이 차시의 수강생은 출결 화면에서 별도로 등록해야 합니다.")).toBeVisible();
+  await mainButton(page, "출석").click();
+  await expect(page.getByText("먼저 이 차시의 수강생을 등록해야 출석을 확인할 수 있습니다.")).toBeVisible();
+  await mainButton(page, "PC 화면에서 차시 수강생 등록").click();
+  await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/attendance$`));
 });
 
 test("종합 조회 API 오류를 빈 성적으로 오인시키지 않고 다시 시도로 정상 복구한다", async ({ page }) => {

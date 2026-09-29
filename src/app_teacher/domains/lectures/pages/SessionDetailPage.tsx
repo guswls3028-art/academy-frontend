@@ -148,7 +148,9 @@ export default function SessionDetailPage() {
         chipLabel: session.lecture_chip_label,
       }
     : undefined;
-  const lecturePath = session?.lecture ? `/workspace/mobile/classes/${session.lecture}` : "/workspace/mobile/classes";
+  const enrollmentPath = session?.lecture
+    ? `/workspace/lectures/${session.lecture}/sessions/${sid}/attendance`
+    : "/workspace/lectures";
   const assessmentCreationPath = session?.lecture
     ? `/workspace/lectures/${session.lecture}/sessions/${sid}/scores`
     : "/workspace/lectures";
@@ -251,11 +253,11 @@ export default function SessionDetailPage() {
             attendances={attendanceQ.data ?? []}
             lectureInfo={sessionLectureInfo}
             navigate={navigate}
-            lecturePath={lecturePath}
+            enrollmentPath={enrollmentPath}
           />
         </QueryBoundary>
       )}
-      {tab === "attendance" && <QueryBoundary loading={attendanceQ.isLoading} failed={attendanceQ.isError} onRetry={() => void attendanceQ.refetch()}><AttendanceTab attendances={attendanceQ.data ?? []} lectureInfo={sessionLectureInfo} navigate={navigate} sessionId={sid} /></QueryBoundary>}
+      {tab === "attendance" && <QueryBoundary loading={attendanceQ.isLoading || enrollmentsQ.isLoading} failed={attendanceQ.isError || enrollmentsQ.isError} onRetry={() => { void attendanceQ.refetch(); void enrollmentsQ.refetch(); }}><AttendanceTab attendances={attendanceQ.data ?? []} hasEnrollments={Boolean(enrollmentsQ.data?.length)} lectureInfo={sessionLectureInfo} navigate={navigate} sessionId={sid} enrollmentPath={enrollmentPath} /></QueryBoundary>}
       {tab === "scores" && (
         <QueryBoundary loading={scoresQ.isLoading} failed={scoresQ.isError} onRetry={() => void scoresQ.refetch()}>
           <div className={assessmentStyles.workspace}>
@@ -552,18 +554,18 @@ function StudentsTab({
   attendances,
   lectureInfo,
   navigate,
-  lecturePath,
-}: { enrollments: SessionEnrollmentRow[]; attendances: any[]; lectureInfo?: LectureInfo; navigate: any; lecturePath: string }) {
+  enrollmentPath,
+}: { enrollments: SessionEnrollmentRow[]; attendances: any[]; lectureInfo?: LectureInfo; navigate: any; enrollmentPath: string }) {
   if (!enrollments.length) {
     return (
       <EmptyState
         scope="panel"
         tone="empty"
         title="수강생이 없습니다"
-        description="강의에 수강생을 등록하면 차시별 출석과 성적 입력 대상이 표시됩니다."
+        description="강의 명부 등록 후에도 이 차시의 수강생은 출결 화면에서 별도로 등록해야 합니다."
         actions={
-          <EmptyActionButton variant="secondary" onClick={() => navigate(lecturePath)}>
-            강의로 돌아가기
+          <EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate(enrollmentPath); }}>
+            PC 화면에서 차시 수강생 등록
           </EmptyActionButton>
         }
       />
@@ -625,17 +627,20 @@ function StudentsTab({
 }
 
 /* === Attendance tab === */
-function AttendanceTab({ attendances, lectureInfo, navigate, sessionId }: { attendances: any[]; lectureInfo?: LectureInfo; navigate: any; sessionId: number }) {
+function AttendanceTab({ attendances, hasEnrollments, lectureInfo, navigate, sessionId, enrollmentPath }: { attendances: any[]; hasEnrollments: boolean; lectureInfo?: LectureInfo; navigate: any; sessionId: number; enrollmentPath: string }) {
   if (!attendances.length) {
     return (
       <EmptyState
         scope="panel"
         tone="empty"
         title="출석 데이터가 없습니다"
-        description="출석 체크를 시작하면 학생별 상태가 차시 상세에 반영됩니다."
+        description={hasEnrollments ? "출석 체크를 시작하면 학생별 상태가 차시 상세에 반영됩니다." : "먼저 이 차시의 수강생을 등록해야 출석을 확인할 수 있습니다."}
         actions={
-          <EmptyActionButton onClick={() => navigate(`/workspace/mobile/attendance/${sessionId}`)}>
-            출석 체크
+          <EmptyActionButton onClick={() => {
+            if (!hasEnrollments) setPreferFullWorkspace(true);
+            navigate(hasEnrollments ? `/workspace/mobile/attendance/${sessionId}` : enrollmentPath);
+          }}>
+            {hasEnrollments ? "출석 체크" : "PC 화면에서 차시 수강생 등록"}
           </EmptyActionButton>
         }
       />
