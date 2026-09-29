@@ -143,7 +143,7 @@ export async function deleteLecture(lectureId: number) {
 }
 
 /* ─── Session CRUD ─── */
-export async function createSession(lectureId: number, title: string, date?: string | null, regularOrder?: number | null) {
+export async function createSession(lectureId: number, title: string, date?: string | null, regularOrder?: number | null, sessionType: SessionType = "REGULAR") {
   const payload: {
     lecture: number;
     title: string;
@@ -153,10 +153,10 @@ export async function createSession(lectureId: number, title: string, date?: str
   } = {
     lecture: lectureId,
     title,
-    session_type: "REGULAR",
+    session_type: sessionType,
   };
   if (date !== undefined) payload.date = date;
-  if (regularOrder != null) payload.regular_order = regularOrder;
+  if (sessionType === "REGULAR" && regularOrder != null) payload.regular_order = regularOrder;
   const res = await api.post("/lectures/sessions/", payload);
   return res.data;
 }
