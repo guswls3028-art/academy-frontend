@@ -172,11 +172,20 @@ async function installScenario(page: Page, options: { scenario?: Scenario; failS
       }));
     }
     if (path === `/results/admin/sessions/${SESSION_ID}/score-draft/` && method === "PUT") {
-      const body = request.postDataJSON();
+      const body = request.postDataJSON() as {
+        changes?: Array<{ type?: string; examId?: number; enrollmentId?: number; score?: number; maxScore?: number }>;
+        take_over_same_user?: boolean;
+      };
       leaseClient = request.headers()["x-score-editor-client"] ?? null;
-      if (!leaseClient || body.changes?.length !== 0) return json({ detail: "invalid fixture lease" }, 409);
+      const change = body.changes?.[0];
+      if (!leaseClient || body.take_over_same_user !== true || body.changes?.length !== 1
+        || change?.type !== "examTotal" || !scores.rows.some((row) => row.enrollment_id === change.enrollmentId
+          && row.exams.some((exam) => exam.exam_id === change.examId))
+        || typeof change.score !== "number" || change.maxScore !== 100) {
+        return json({ detail: "invalid fixture lease" }, 409);
+      }
       leaseEvents.push("lease");
-      return json({ changes: [], version: 1 });
+      return json({ changes: body.changes, version: 1 });
     }
     const patchMatch = path.match(/^\/results\/admin\/exams\/(\d+)\/enrollments\/(\d+)\/score\/$/);
     if (patchMatch && method === "PATCH") {
