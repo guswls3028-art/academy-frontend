@@ -95,8 +95,11 @@ test("manual E2E reuses the isolated read-only and closed-proxy gates", () => {
   assert.match(e2eWorkflow, /name: Run production read-only gate/);
   assert.match(
     e2eWorkflow,
-    /pr-route-mocks:[\s\S]{0,160}if: github\.event_name == 'pull_request' \|\| github\.event_name == 'workflow_dispatch'/,
+    /pr-route-mock-shards:[\s\S]{0,160}if: github\.event_name == 'pull_request' \|\| github\.event_name == 'workflow_dispatch'/,
   );
+  assert.match(e2eWorkflow, /pr-route-mocks:[\s\S]{0,250}if: always\(\) && \(github\.event_name == 'pull_request' \|\| github\.event_name == 'workflow_dispatch'\)/);
+  assert.match(e2eWorkflow, /needs: \[pr-route-mock-shards\]/);
+  assert.match(e2eWorkflow, /run: test "\$SHARDS_RESULT" = "success"/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:controlled-writes --reporter=github,html/);
 });
 

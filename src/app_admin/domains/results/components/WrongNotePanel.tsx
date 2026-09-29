@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getApiErrorStatus } from "@/shared/api/axios";
 import { Button } from "@/shared/ui/ds";
+import { examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   getSessionItem,
@@ -81,7 +82,7 @@ function sessionLabel(item: WrongNoteItem): string {
 
 function questionLabel(item: WrongNoteItem): string {
   return item.question_number != null
-    ? `${item.question_number}번`
+    ? examQuestionLabel(item.question_number, item.essay_numbering, item.essay_index)
     : "문항 번호 미확인";
 }
 

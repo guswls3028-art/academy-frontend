@@ -254,6 +254,32 @@
 
 /* ── Responsive ────────────────────────── */
 @media (max-width: 900px) {
+  .downloadCard[data-expanded="false"] {
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+
+  .downloadCard[data-expanded="false"] .cardRow {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .downloadCard[data-expanded="false"] .cardIcon,
+  .downloadCard[data-expanded="false"] .cardDesc,
+  .downloadCard[data-expanded="false"] .cardMeta,
+  .downloadCard[data-expanded="false"] .downloadBtn {
+    display: none;
+  }
+
+  .downloadCard[data-expanded="false"] .cardTitle {
+    margin: 0;
+  }
+
+  .downloadCard[data-expanded="false"] .cardRight {
+    width: auto;
+  }
+
   .cardRow {
     flex-direction: column;
     gap: 16px;

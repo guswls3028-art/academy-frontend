@@ -15,6 +15,7 @@ import "./release-omr-image-boundary.test.mjs";
 import "./release-homework-image-boundary.test.mjs";
 import "./release-community-image-boundary.test.mjs";
 import "./binary-safe-ssm.test.mjs";
+import "./release-canary-progress.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
@@ -1411,10 +1412,10 @@ test("production promotion requires the non-skipped isolated development canary"
 
 test("expanded development real-use suite keeps time to report and clean up", () => {
   const runner = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
-  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 30 \* 60_000;/);
+  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 50 \* 60_000;/);
   assert.doesNotMatch(runner, /REAL_USE_SUITE_TIMEOUT_MS = 20 \* 60_000/);
   assert.match(runner, /}, REAL_USE_SUITE_TIMEOUT_MS\);/);
-  assert.match(job("development-canary"), /timeout-minutes: 40/);
+  assert.match(job("development-canary"), /timeout-minutes: 60/);
 });
 
 test("the SSM tunnel outlives the real-use suite it serves", () => {
@@ -1475,14 +1476,14 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 21, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 23, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 4,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
       "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
       "student-clinic-required-cancel-realuse.spec.ts": 1,
       "student-parent-homework-realuse.spec.ts": 1,
       "student-parent-learning-realuse.spec.ts": 1, "student-parent-storage-realuse.spec.ts": 1,
-      "omr-review-realuse.spec.ts": 1,
+      "omr-review-realuse.spec.ts": 3,
       "video-playback-renewal.realuse.spec.ts": 1 }).map(([file, count]) => ({
       file, specs: Array.from({ length: count }, () => ({ file, tests: [{ expectedStatus: "passed", status: "expected", results: [{ status: "passed" }] }] })),
     })),
@@ -1940,7 +1941,7 @@ test("development config discovers twenty-one enabled cases without executing an
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 21);
+  assert.equal(discovered, 23);
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);

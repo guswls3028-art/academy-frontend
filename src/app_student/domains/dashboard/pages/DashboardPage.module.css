@@ -441,6 +441,22 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.contentShortcuts .quickAction:focus-visible {
+  outline: 3px solid var(--stu-primary);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .contentShortcuts .quickAction {
+    transition: border-color 160ms ease, transform 160ms ease;
+  }
+
+  .contentShortcuts .quickAction:hover {
+    border-color: var(--stu-primary);
+    transform: translateY(-2px);
+  }
+}
+
 .quickActionPrimary {
   border-color: color-mix(in srgb, var(--stu-primary) 28%, var(--stu-border));
   background: color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface-1));

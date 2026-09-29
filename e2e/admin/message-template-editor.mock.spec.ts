@@ -59,6 +59,38 @@ async function openTemplateEditor(page: Page, openEditor = true, initialBody = "
 }
 
 test.describe("안내문 변수 편집", () => {
+  test("삭제한 제공 문구는 선택한 항목만 복원하고 실패해도 선택을 유지한다", async ({ page }) => {
+    await openTemplateEditor(page, false);
+    await page.setViewportSize({ width: 390, height: 844 });
+    let remaining = [
+      { key: "freeform_general", name: "다시 사용할 공지 문구", category: "default" },
+      { key: "freeform_payment", name: "복원하지 않을 수납 문구", category: "payment" },
+    ];
+    const requests: unknown[] = [];
+    await page.route("**/api/v1/messaging/provision-defaults/", async (route) => {
+      if (route.request().method() === "POST") {
+        requests.push(route.request().postDataJSON());
+        if (requests.length === 1) return route.fulfill({ status: 503, json: { detail: "일시적인 복원 실패" } });
+        remaining = remaining.filter((item) => item.key !== "freeform_general");
+        return route.fulfill({ json: { created_templates: 1, created_configs: 0, reset_templates: 0, linked: 0, total_templates: 4, total_configs: 1, suppressed_defaults: remaining } });
+      }
+      return route.fulfill({ json: { suppressed_defaults: remaining } });
+    });
+    const restore = page.locator("details").filter({ has: page.getByText("다시 쓸 제공 문구 선택 복원", { exact: true }) });
+    await restore.locator("summary").click();
+    const selected = restore.getByRole("checkbox", { name: "다시 사용할 공지 문구" });
+    await selected.check();
+    await restore.getByRole("button", { name: "선택한 1개 문구 복원" }).click();
+    await expect(page.getByText("일시적인 복원 실패", { exact: true })).toBeVisible();
+    await expect(selected).toBeChecked();
+    await restore.getByRole("button", { name: "선택한 1개 문구 복원" }).click();
+    await expect(selected).toHaveCount(0);
+    expect(requests).toEqual([{ restore_keys: ["freeform_general"] }, { restore_keys: ["freeform_general"] }]);
+    await page.reload();
+    await page.getByText("다시 쓸 제공 문구 선택 복원", { exact: true }).click();
+    await expect(page.getByRole("checkbox", { name: "복원하지 않을 수납 문구" })).not.toBeChecked();
+    expect(requests).toHaveLength(2);
+  });
   test.setTimeout(90_000);
   test.use({ serviceWorkers: "block" });
 

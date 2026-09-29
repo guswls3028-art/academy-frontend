@@ -68,6 +68,7 @@ export type ClinicParticipant = {
   lecture_title?: string | null;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
+  lecture_current?: boolean;
   name_highlight_clinic_target?: boolean;
   profile_photo_url?: string | null;
 
@@ -280,7 +281,13 @@ export async function replaceClinicParticipantPlan(
 
 export async function changeClinicParticipantBooking(
   id: number,
-  payload: { new_session_id: number; memo?: string; send_to: ClinicRecipient },
+  payload: {
+    new_session_id: number;
+    memo?: string;
+    send_to: ClinicRecipient;
+    booking_start_time?: string;
+    booking_end_time?: string;
+  },
 ) {
   const res = await api.post(`/clinic/participants/${id}/change-booking/`, payload);
   return res.data as ClinicParticipantMutationResult;

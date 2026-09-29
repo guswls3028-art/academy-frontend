@@ -9,6 +9,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page, Response } from "@playwright/test";
 import { PDFDocument, rgb } from "pdf-lib";
+import { setTimeout as delay } from "node:timers/promises";
 import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 import { emitOmrCleanupStatus, safeLectureSessionDeleteBlocker } from "../helpers/releaseApiBoundary";
@@ -69,6 +70,7 @@ type CreatedState = {
   lectureId?: number;
   sessionId?: number;
   examId?: number;
+  extraExamIds: number[];
   studentId?: number;
   enrollmentId?: number;
   sessionEnrollmentIds: number[];
@@ -79,7 +81,7 @@ type CreatedState = {
   staffScoreEditorClientIds: Set<string>;
 };
 
-const created: CreatedState = { sessionEnrollmentIds: [], submissionIds: [], scoreEditorClientIds: new Set(), staffScoreEditorClientIds: new Set() };
+const created: CreatedState = { extraExamIds: [], sessionEnrollmentIds: [], submissionIds: [], scoreEditorClientIds: new Set(), staffScoreEditorClientIds: new Set() };
 
 function headers(token: string, contentType = "application/json"): Record<string, string> {
   return {
@@ -237,18 +239,47 @@ async function loginBrowserAsRealUser(
   await expect(loginForm).toBeVisible();
   await page.getByTestId("login-username").fill(expected.username);
   await page.getByTestId("login-password").fill(expected.password);
-  const loginResponsePromise = page.waitForResponse(
-    (response) => matchesApiResponse(response, "POST", "/token/"),
-    { timeout: 30_000 },
-  );
-  const currentUserResponsePromise = page.waitForResponse(
-    (response) => matchesApiResponse(response, "GET", "/core/me/") && response.status() === 200,
-    { timeout: 30_000 },
-  );
-  await page.getByTestId("login-submit").click();
-  const loginResponse = await loginResponsePromise;
-  expect(loginResponse.status(), `POST /token/ -> ${loginResponse.status()}`).toBe(200);
-  const currentUser = await readCurrentUserResponse(await currentUserResponsePromise);
+  const currentUserResponses: Response[] = [];
+  let loginAccepted = false;
+  const observeCurrentUser = (response: Response) => {
+    if (matchesApiResponse(response, "POST", "/token/") && response.status() === 200) {
+      loginAccepted = true;
+    }
+    if (loginAccepted && matchesApiResponse(response, "GET", "/core/me/") && response.status() === 200) {
+      currentUserResponses.push(response);
+    }
+  };
+  page.on("response", observeCurrentUser);
+  let currentUser: CurrentUser;
+  try {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const loginResponsePromise = page.waitForResponse(
+        (response) => matchesApiResponse(response, "POST", "/token/"),
+        { timeout: 30_000 },
+      );
+      await page.getByTestId("login-submit").click();
+      const loginResponse = await loginResponsePromise;
+      if (loginResponse.status() === 429 && attempt === 0) {
+        // The repeated real-account journeys can exhaust the production-shaped
+        // 10-per-five-minute limit. Respect its exact wait before one form retry.
+        const retryAfter = Number(loginResponse.headers()["retry-after"]);
+        expect(Number.isInteger(retryAfter)).toBe(true);
+        expect(retryAfter).toBeGreaterThan(0);
+        expect(retryAfter).toBeLessThanOrEqual(300);
+        await expect(loginForm.getByRole("alert")).toBeVisible();
+        await expect(page.getByTestId("login-submit")).toBeEnabled();
+        expect(currentUserResponses).toHaveLength(0);
+        await delay((retryAfter + 1) * 1000);
+        continue;
+      }
+      expect(loginResponse.status(), `POST /token/ -> ${loginResponse.status()}`).toBe(200);
+      break;
+    }
+    await expect.poll(() => currentUserResponses.length, { timeout: 30_000 }).toBeGreaterThan(0);
+    currentUser = await readCurrentUserResponse(currentUserResponses[0]);
+  } finally {
+    page.off("response", observeCurrentUser);
+  }
   expect(currentUser.tenantRole).toBe(expected.role);
 
   const activeSession = await page.evaluate(() => {
@@ -433,7 +464,7 @@ async function verifyChangedAnswerAndMaximum(
   studentToken: string,
   parentToken: string,
 ): Promise<void> {
-  const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`;
+  const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`;
   for (const changed of [true, false]) {
     const maximum = changed ? 60 : 50;
     const expected = changed ? EXPECTED_SCORE - 1 : EXPECTED_SCORE;
@@ -720,6 +751,22 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   }
   if (created.enrollmentId) await remove("DELETE", `/enrollments/${created.enrollmentId}/`);
   let archivedExamHandoff = false;
+  const extraExamDeleteStatuses = new Map<number, "archived" | "absent">();
+  for (const examId of created.extraExamIds ?? []) {
+    const examDelete = await remove("DELETE", `/exams/${examId}/?session_id=${created.sessionId}`,
+      undefined, [200, 204, 404]);
+    if (examDelete.status === 200) {
+      if ((examDelete.body as { action?: unknown } | null)?.action === "archived") {
+        archivedExamHandoff = true;
+        extraExamDeleteStatuses.set(examId, "archived");
+      } else {
+        emitOmrCleanupStatus("archive-action", [200], examDelete.status, null);
+        failures.push(`unexpected extra exam cleanup action -> 200 ${JSON.stringify(examDelete.body)}`);
+      }
+    } else if (examDelete.status === 204 || examDelete.status === 404) {
+      extraExamDeleteStatuses.set(examId, "absent");
+    }
+  }
   if (created.examId && created.sessionId) {
     const examDelete = await remove(
       "DELETE",
@@ -814,6 +861,17 @@ async function cleanup(request: APIRequestContext): Promise<void> {
         `session=${created.sessionId ?? 0}, lecture=${created.lectureId ?? 0}; ` +
         "the fixed SSM Cleanup for the exact Setup tenant and post-cleanup Inspect zero are required.",
       );
+    }
+  }
+  for (const examId of created.extraExamIds ?? []) {
+    const archived = extraExamDeleteStatuses.get(examId) === "archived";
+    const retained = await apiFetch<{ id?: number; is_active?: boolean }>(request, "GET",
+      `/exams/${examId}/${archived ? "?include_inactive=true" : ""}`, token);
+    if (archived
+      ? retained.status !== 200 || retained.body?.id !== examId || retained.body?.is_active !== false
+      : retained.status !== 404) {
+      emitOmrCleanupStatus(archived ? "verify-archive" : "verify-absent", archived ? [200] : [404], retained.status, null);
+      failures.push(`verify extra E2E exam cleanup -> ${retained.status} ${JSON.stringify(retained.body)}`);
     }
   }
 
@@ -1059,10 +1117,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const pickButton = page.getByRole("button", { name: "학생 검색·연결" });
     if (await pickButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await pickButton.click();
-      await page.locator(".spm-search").fill(STUDENT_NAME);
-      await expect(page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }))
+      const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
+      await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+      await expect(studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }))
         .toBeVisible({ timeout: 15_000 });
-      await page.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+      await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
       await expect(page.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME, { timeout: 10_000 });
       await expect(page.getByRole("dialog", { name: "학생 선택" })).toBeHidden();
     }
@@ -1229,7 +1288,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(page.getByText("1명의 성적을 확정했습니다.")).toBeVisible({ timeout: 30_000 });
 
     await gotoAndSettle(page,
-      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`,
+      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,
       { timeout: 30_000 });
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
     const recalculateResponse = page.waitForResponse((response) =>
@@ -1335,5 +1394,296 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(restoredParentGrades.exams?.find((row) => Number(row.exam_id) === created.examId)?.total_score).toBe(EXPECTED_SCORE);
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText(`${EXPECTED_SCORE}/50점`);
+  });
+
+  test("서술형 별도 번호와 새 OMR 채택 후 수기 점수가 유지된다", async ({ page, request }) => {
+    const adminAccess = created.adminAccess!;
+    const studentAccess = (await loginToken(request, STUDENT_USER, STUDENT_PASS)).access;
+    const parentAccess = (await loginToken(request, CONTROLLED_PHONE, STUDENT_PASS)).access;
+    const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`;
+    await loginBrowserAsRealUser(page, setupPath,
+      { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+    const policyDisclosure = page.locator("#assessment-policy > details");
+    if (!(await policyDisclosure.evaluate((details: HTMLDetailsElement) => details.open))) {
+      await policyDisclosure.locator(":scope > summary").click();
+    }
+    await expect(policyDisclosure).toHaveJSProperty("open", true);
+    await policyDisclosure.getByRole("combobox", { name: /^서술형 번호/ }).selectOption("separate");
+    const numberingSaved = page.waitForResponse((response) => matchesApiResponse(response, "PATCH", `/exams/${created.examId}/`));
+    await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+    expect((await numberingSaved).status()).toBe(200);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("#assessment-policy")).toContainText("서술형 별도 번호");
+    const exam = await expectApi<{ essay_numbering: string }>(request, "GET", `/exams/${created.examId}/`, adminAccess);
+    expect(exam.essay_numbering).toBe("separate");
+    await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+    const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+    await expect(answerDialog.locator(".answer-key-row--essay .answer-key-row__num"))
+      .toHaveText(["서술형 1번", "서술형 2번"]);
+    await answerDialog.getByRole("button", { name: "취소", exact: true }).click();
+
+    const defaults = await expectApi<{ essay_numbering: string; essay_question_numbers: number[] }>(
+      request, "GET", `/exams/${created.examId}/omr/defaults/`, adminAccess,
+    );
+    expect(defaults.essay_numbering).toBe("separate");
+    expect(defaults.essay_question_numbers).toEqual([31, 32]);
+    const preview = await request.post(`${API}/api/v1/exams/${created.examId}/omr/preview/`, {
+      headers: { ...headers(adminAccess), Accept: "text/html" },
+      data: {
+        exam_title: EXAM_TITLE, lecture_name: LECTURE_TITLE, session_name: SESSION_TITLE,
+        mc_count: 30, essay_count: 2, essay_numbering: "separate",
+        include_optional_essay_area: false, n_choices: 5,
+        choice_question_numbers: Array.from({ length: 30 }, (_, index) => index + 1),
+        essay_question_numbers: [31, 32],
+      },
+      timeout: 90_000,
+    });
+    expect(preview.status()).toBe(200);
+    const previewHtml = await preview.text();
+    const previewEssay = await page.evaluate((html) => {
+      const document = new DOMParser().parseFromString(html, "text/html");
+      return {
+        labels: Array.from(document.querySelectorAll(".dc-h-a"), (element) => element.textContent?.trim()),
+        numbers: Array.from(document.querySelectorAll(".dr-n"), (element) => element.textContent?.trim()),
+      };
+    }, previewHtml);
+    expect(previewEssay).toEqual({ labels: ["서술형 2문항"], numbers: ["1", "2"] });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await loginBrowserAsRealUser(page, "/student/grades",
+      { role: "student", username: STUDENT_USER, password: STUDENT_PASS });
+    const studentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
+    await expect(studentCard).toContainText("서술형 1번");
+    await expect(studentCard).toContainText("서술형 2번");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText("서술형 1번");
+
+    // A changed PDF creates a new immutable scan event, then the teacher explicitly
+    // accepts it for the same sitting. Both scans remain tracked for cleanup.
+    const answers = [...EXPECTED_ANSWERS];
+    answers[0] = "2";
+    const markedPdf = await markThirtyQuestionOmrPdf(
+      await downloadOmrPdf(request, adminAccess, created.examId!), answers, CONTROLLED_PHONE.slice(-8),
+    );
+    await loginBrowserAsRealUser(page,
+      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
+      { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+    await page.getByRole("button", { name: "OMR 스캔 등록" }).click();
+    const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+    await uploadDialog.locator(".admin-omr-upload input[type='file']").setInputFiles({
+      name: `omr-rescan-${TS}.pdf`, mimeType: "application/pdf", buffer: markedPdf,
+    });
+    const uploaded = page.waitForResponse((response) => response.request().method() === "POST"
+      && response.url().includes(`/submissions/submissions/exams/${created.examId}/omr/batch/`),
+    { timeout: 90_000 });
+    await uploadDialog.getByRole("button", { name: "등록 시작", exact: true }).click();
+    const uploadResponse = await uploaded;
+    expect(uploadResponse.status()).toBe(201);
+    const uploadBody = await uploadResponse.json() as { submission_ids?: number[] };
+    expect(uploadBody.submission_ids).toHaveLength(1);
+    const replacementId = Number(uploadBody.submission_ids![0]);
+    created.submissionIds.push(replacementId);
+    await uploadDialog.getByRole("button", { name: "닫기", exact: true }).click();
+    const scan = await waitForOmrAnswers(request, adminAccess, replacementId, 30);
+    expect(scan.answers.sort((a: any, b: any) => Number(a.question_no) - Number(b.question_no))[0].answer).toBe("2");
+    await expect.poll(async () => {
+      const detail = await expectApi<{
+        submission_id: number; enrollment_id: number | null; submission_status: string;
+        meta: { identifier_status?: string };
+      }>(request, "GET", `/submissions/submissions/${replacementId}/manual-edit/`, adminAccess);
+      return {
+        id: detail.submission_id, enrollment: detail.enrollment_id,
+        status: detail.submission_status, identifier: detail.meta.identifier_status,
+      };
+    }, { timeout: 30_000, intervals: [1_000, 2_000] }).toEqual({
+      id: replacementId, enrollment: null,
+      status: "needs_identification", identifier: "matched_duplicate",
+    });
+
+    const replacementDetailResponse = page.waitForResponse((response) => matchesApiResponse(
+      response, "GET", `/submissions/submissions/${replacementId}/manual-edit/`,
+    ), { timeout: 30_000 });
+    await gotoAndSettle(page,
+      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}&reviewOmr=1&reviewSubmissionId=${replacementId}`,
+      { timeout: 45_000 });
+    await page.getByRole("tab", { name: "채점·결과" }).click();
+    const replacementReview = page.getByRole("dialog", { name: "OMR 검토" });
+    await expect(replacementReview).toBeVisible({ timeout: 30_000 });
+    // This journey retains the student's 390px viewport. Open the mobile edit
+    // pane just as a teacher does; the initial list pane hides its controls.
+    const editTab = replacementReview.getByRole("tab", { name: "확인", exact: true });
+    await editTab.click();
+    await expect(editTab).toHaveAttribute("aria-selected", "true");
+    const detailResponse = await replacementDetailResponse;
+    expect(detailResponse.status()).toBe(200);
+    const replacementDetail = await detailResponse.json() as {
+      submission_id: number; enrollment_id: number | null; submission_status: string;
+      answers: unknown[]; meta: { identifier_status?: string; manual_review?: { reasons?: string[] } };
+    };
+    expect(replacementDetail.submission_id).toBe(replacementId);
+    expect(replacementDetail.answers).toHaveLength(30);
+    // A second scan is deliberately left unmatched until the teacher confirms
+    // replacement of the student's existing completed answer sheet.
+    expect(replacementDetail.enrollment_id).toBeNull();
+    expect(replacementDetail.submission_status).toBe("needs_identification");
+    expect(replacementDetail.meta.identifier_status).toBe("matched_duplicate");
+    expect(replacementDetail.meta.manual_review?.reasons).toContain("DUPLICATE_ENROLLMENT");
+    const picker = replacementReview.getByRole("button", { name: "학생 검색·연결" });
+    await expect(picker).toBeVisible();
+    await picker.click();
+    const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
+    await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+    await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
+    await expect(studentPicker).toBeHidden();
+    await expect(replacementReview.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME);
+    const duplicateResponse = page.waitForResponse((response) => matchesApiResponse(
+      response, "POST", `/submissions/submissions/${replacementId}/manual-edit/`,
+    ));
+    await replacementReview.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
+    const conflict = await duplicateResponse;
+    expect(conflict.status()).toBe(409);
+    expect(await conflict.json()).toMatchObject({
+      code: "DUPLICATE_ENROLLMENT", conflict_submission_id: created.submissionIds[0],
+    });
+    const duplicateDialog = page.getByRole("alertdialog", { name: "이미 매칭된 답안지가 있습니다" });
+    await expect(duplicateDialog).toBeVisible();
+    const replacementSaved = page.waitForResponse((response) => matchesApiResponse(
+      response, "POST", `/submissions/submissions/${replacementId}/manual-edit/`,
+    ), { timeout: 60_000 });
+    await duplicateDialog.getByRole("button", { name: "덮어쓰기", exact: true }).click();
+    expect((await replacementSaved).status()).toBe(200);
+    await expect.poll(async () => (await waitForStudentResult(request, studentAccess, created.examId!)).total_score,
+      { timeout: 60_000 }).toBe(EXPECTED_SCORE - 1);
+    const parent = await expectParentApi<{ exams?: any[] }>(request, "/student/grades/", parentAccess, created.studentId!);
+    expect(parent.exams?.find((row) => Number(row.exam_id) === created.examId)?.total_score).toBe(EXPECTED_SCORE - 1);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const current = await expectApi<{ submission_id?: number; total_score?: number }>(request, "GET",
+      `/results/admin/exams/${created.examId}/enrollments/${created.enrollmentId}/`, adminAccess);
+    expect(current.submission_id).toBe(replacementId);
+    expect(current.total_score).toBe(EXPECTED_SCORE - 1);
+    await gotoAndSettle(page,
+      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
+      { timeout: 30_000 });
+    await chooseExamHeaderAction(page, "문항별 점수 입력");
+    const gradingDialog = page.getByRole("dialog").filter({ hasText: `${EXAM_TITLE} 혼합 채점` });
+    await expect(gradingDialog.getByRole("spinbutton", {
+      name: `${STUDENT_NAME} 서술형 1번 10점 만점 점수`,
+    })).toHaveValue(String(EXPECTED_WRITTEN_SCORES[0]));
+    await expect(gradingDialog.getByRole("spinbutton", {
+      name: `${STUDENT_NAME} 서술형 2번 10점 만점 점수`,
+    })).toHaveValue(String(EXPECTED_WRITTEN_SCORES[1]));
+    await loginBrowserAsRealUser(page, "/student/grades",
+      { role: "student", username: STUDENT_USER, password: STUDENT_PASS });
+    await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText(`${EXPECTED_SCORE - 1}/50점`);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText(`${EXPECTED_SCORE - 1}/50점`);
+  });
+
+  test("3·5·3+5를 실제 제출하고 수기 보정 재채점의 확인 경로를 연다", async ({ page, request }) => {
+    const adminAccess = created.adminAccess!;
+    const examTitle = `OMR 복수 정답 실사용 검증 ${TS}`;
+    const exam = await expectApi<{ id: number }>(request, "POST", "/exams/", adminAccess, {
+      title: examTitle, description: "qa-* alternative choice answers and manual review canary",
+      exam_type: "regular", session_id: created.sessionId, pass_score: 2, max_score: 3,
+      grading_mode: "choice", choice_question_count: 3,
+      answer_visibility: "hidden", student_results_published: true,
+      open_at: new Date().toISOString(),
+    });
+    const examId = Number(exam.id);
+    created.extraExamIds.push(examId);
+    const questions = await expectApi<Array<{ id: number; number: number }>>(
+      request, "POST", `/exams/${examId}/questions/init/`, adminAccess,
+      { choice_count: 3, choice_score: 1, essay_count: 0, essay_score: 0,
+        question_types: ["choice", "choice", "choice"] },
+    );
+    const questionIds = questions.sort((a, b) => a.number - b.number).map((row) => Number(row.id));
+    expect(questionIds).toHaveLength(3);
+    await expectApi(request, "POST", "/exams/answer-keys/", adminAccess, {
+      exam: examId,
+      answers: Object.fromEntries(questionIds.map((id) => [String(id), "3|5|3,5"])),
+    });
+    await expectApi(request, "PUT", `/exams/${examId}/enrollments/?session_id=${created.sessionId}`,
+      adminAccess, { enrollment_ids: [created.enrollmentId] }, [200]);
+
+    await loginBrowserAsRealUser(page, `/student/exams/${examId}/submit`,
+      { role: "student", username: STUDENT_USER, password: STUDENT_PASS });
+    for (const [number, answer] of [[1, "3"], [2, "5"], [3, "3,5"]] as const) {
+      await page.getByLabel(`${number}번 답`, { exact: true }).fill(answer);
+    }
+    await expect(page.getByText("3/3문항 (100%)")).toBeVisible();
+    const submitted = page.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname === `/api/v1/student/exams/${examId}/submit/`);
+    await page.getByRole("button", { name: "제출하기", exact: true }).click();
+    await page.locator("[data-confirm-dialog]").getByRole("button", { name: "제출", exact: true }).click();
+    const submittedResponse = await submitted;
+    expect(submittedResponse.status()).toBe(201);
+    const submissionId = Number((await submittedResponse.json() as { submission_id: number }).submission_id);
+    created.submissionIds.push(submissionId);
+    const studentAccess = (await loginToken(request, STUDENT_USER, STUDENT_PASS)).access;
+    await expect.poll(async () => (await waitForStudentResult(request, studentAccess, examId)).total_score,
+      { timeout: 30_000 }).toBe(3);
+    const scored = await waitForStudentResult(request, studentAccess, examId);
+    expect(scored.total_score).toBe(3);
+    expect(scored.analysis.wrong_question_numbers).toEqual([]);
+    await gotoAndSettle(page, `${BASE}/student/grades`, { timeout: 30_000 });
+    await expect(page.getByRole("link").filter({ hasText: examTitle })).toContainText("3/3점");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("link").filter({ hasText: examTitle })).toContainText("3/3점");
+
+    // The teacher's correction is an explicit ResultItem.manual fact. Regrading
+    // must skip that submission, preserve the correction, and expose the review.
+    const clientId = `omr-review-${TS}`;
+    const editHeaders = {
+      "X-Score-Editor-Client": clientId,
+      "X-Score-Session-Id": String(created.sessionId),
+    };
+    created.scoreEditorClientIds.add(clientId);
+    const lease = await apiFetch(request, "PUT", `/results/admin/sessions/${created.sessionId}/score-draft/`,
+      adminAccess,
+      { changes: [], active_cell: { type: "exam", enrollmentId: created.enrollmentId,
+        examId, sub: "item", questionId: questionIds[0] } }, editHeaders);
+    expect(lease.status, JSON.stringify(lease.body)).toBe(200);
+    const corrected = await apiFetch(request, "PATCH",
+      `/results/admin/exams/${examId}/enrollments/${created.enrollmentId}/items/${questionIds[0]}/`,
+      adminAccess, { answer: "1", score: 0 }, editHeaders);
+    expect(corrected.status, JSON.stringify(corrected.body)).toBe(200);
+    const released = await apiFetch(request, "POST", `/results/admin/sessions/${created.sessionId}/score-draft/commit/`,
+      adminAccess, { release_lease: true }, editHeaders);
+    expect(released.status).toBe(204);
+    await expect.poll(async () => (await waitForStudentResult(request, studentAccess, examId)).total_score,
+      { timeout: 30_000 }).toBe(2);
+
+    await loginBrowserAsRealUser(page,
+      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${examId}`,
+      { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+    await expect(page).toHaveURL(new RegExp(`[?&]examId=${examId}(?:&|$)`));
+    await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+    const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+    await expect(answerDialog.locator(".answer-key-row--choice")).toHaveCount(3);
+    const firstRow = answerDialog.locator(".answer-key-row--choice").first();
+    await expect(firstRow).toContainText("3번 또는 5번, 둘 다 선택해도 정답");
+    await firstRow.locator(".answer-key-omr-label").nth(4).click();
+    await expect(firstRow.getByRole("checkbox", { name: "1번 5번 선택지", exact: true })).not.toBeChecked();
+    const regraded = page.waitForResponse((response) => response.request().method() === "PUT"
+      && /\/api\/v1\/exams\/answer-keys\/\d+\/$/.test(new URL(response.url()).pathname));
+    await answerDialog.getByRole("button", { name: "저장 (총 3점)", exact: true }).click();
+    const regradeResponse = await regraded;
+    expect(regradeResponse.status()).toBe(200);
+    const regradeBody = await regradeResponse.json() as { regrade: Array<{
+      exam_id: number; graded: number; skipped: number;
+      failed: unknown[]; needs_review: Array<{ submission_id?: number }>;
+    }> };
+    expect(regradeBody.regrade).toHaveLength(1);
+    expect(regradeBody.regrade[0]).toMatchObject({
+      exam_id: examId, graded: 0, skipped: 1, failed: [],
+      needs_review: [{ submission_id: submissionId }],
+    });
+    await expect(page.getByText("정답 저장·자동 재채점 완료 · 확인 대상 1건", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "시험 결과 열기", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/workspace/.+examTab=results`));
+    await expect(page.getByText("학생별 결과", { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "시험 학생별 결과" })).toContainText(STUDENT_NAME);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    expect((await waitForStudentResult(request, studentAccess, examId)).total_score).toBe(2);
   });
 });

@@ -136,6 +136,7 @@ async function installApi(
     if (path === "/clinic/idcard/" && request.method() === "GET") return json({ result: "FAIL" });
     if (path === "/lectures/lectures/" || path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path === "/students/" && request.method() === "GET") return json({ count: 0, results: [] });
+    if (path === "/messaging/auto-send/" && request.method() === "GET") return json([]);
     return json({ count: 0, next: null, previous: null, results: [] });
   });
   return { date };
@@ -210,7 +211,7 @@ test("관리자 생성 모달의 두 방식은 데스크톱과 모바일에서 �
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   }));
   await expect(page.getByRole("main")).toBeVisible();
-  await page.getByRole("button", { name: "클리닉 만들기", exact: true }).first().click();
+  await expect(dialog).toBeVisible();
   const mobileDialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
   const mobileChooser = mobileDialog.getByRole("group", { name: "클리닉 예약 방식" });
   await expect(mobileChooser.getByRole("button")).toHaveCount(2);

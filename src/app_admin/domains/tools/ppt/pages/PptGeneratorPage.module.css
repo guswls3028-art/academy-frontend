@@ -48,6 +48,36 @@
   background: var(--bg-surface);
 }
 
+.pdfWorkflowTabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.pdfWorkflowTabs button {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.pdfWorkflowTabs button[aria-pressed="true"] {
+  border-color: var(--color-primary, #2563eb);
+  background: var(--color-primary-soft, #eaf1ff);
+  font-weight: 700;
+}
+
+.pdfWorkflowTabs button:hover:not(:disabled) { transform: translateY(-1px); }
+.pdfWorkflowTabs button:disabled { cursor: not-allowed; opacity: .5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pdfWorkflowTabs button { transition: none; }
+}
+
 .pdfInfoText {
   color: var(--color-text-secondary);
   font-size: 13px;
@@ -294,6 +324,59 @@
 .generateProgress::-moz-progress-bar {
   border-radius: 2px;
   background: #fff;
+}
+
+.recoveryPanel {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-surface);
+}
+
+.recoveryPanel h3 {
+  margin: 0 0 12px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.recoveryPanel p {
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.recoveryJob {
+  min-width: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.recoveryJob strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.recoveryJob button {
+  min-height: 44px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-primary-soft, #eaf1ff);
+  color: var(--color-primary);
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+
+.recoveryJob button:hover { transform: translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .recoveryJob button { transition: none; }
+  .recoveryJob button:hover { transform: none; }
 }
 
 .summary {

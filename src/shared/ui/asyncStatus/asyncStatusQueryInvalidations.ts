@@ -12,6 +12,11 @@ const asyncStatusQueryKeys = {
   lecture: ["lecture"] as const,
   students: ["students"] as const,
   teacherStudents: ["students-mobile"] as const,
+  student: ["student"] as const,
+  clinicTargets: ["clinic-targets"] as const,
+  clinicParticipants: ["clinic-participants"] as const,
+  clinicLectures: ["lectures-for-clinic-filter"] as const,
+  teacherClinicParticipants: ["teacher-clinic-participants"] as const,
   matchupDocuments: ["matchup-documents"] as const,
   matchupProblems: ["matchup-problems"] as const,
   adminStorageInventory: ["storage-inventory", "admin"] as const,
@@ -55,6 +60,18 @@ export function invalidateExcelProgressCaches(queryClient: QueryClient) {
     asyncStatusQueryKeys.teacherStudents,
     asyncStatusQueryKeys.lectureEnrollments,
     asyncStatusQueryKeys.sessions,
+  ]);
+}
+
+export function invalidateLectureStatusCaches(queryClient: QueryClient) {
+  invalidateMany(queryClient, [
+    asyncStatusQueryKeys.students,
+    asyncStatusQueryKeys.student,
+    asyncStatusQueryKeys.teacherStudents,
+    asyncStatusQueryKeys.clinicTargets,
+    asyncStatusQueryKeys.clinicParticipants,
+    asyncStatusQueryKeys.clinicLectures,
+    asyncStatusQueryKeys.teacherClinicParticipants,
   ]);
 }
 

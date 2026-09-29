@@ -22,7 +22,9 @@ const PASSWORD_PARAMETER = "/academy/api/development/ymath-realuse-password";
 // requests, surfacing as unexplained transport failures indistinguishable
 // from a stale-socket drop. 5 minutes of margin covers tunnel startup
 // (before the tests start) and the tests' own teardown (after they finish).
-const REAL_USE_SUITE_TIMEOUT_MS = 30 * 60_000;
+// The previous 28m36s run failed/skipped two serial OMR cases (10m each).
+// Keep individual assertions/deadlines unchanged and budget for all 23 cases.
+const REAL_USE_SUITE_TIMEOUT_MS = 50 * 60_000;
 const TUNNEL_TIMEOUT_MS = REAL_USE_SUITE_TIMEOUT_MS + 5 * 60_000;
 const WEB_ORIGIN = "http://localhost:4173";
 const API_ORIGIN = "http://127.0.0.1:18000";
@@ -38,7 +40,7 @@ const FLOW_COUNTS = {
   "student-parent-homework-realuse.spec.ts": 1,
   "student-parent-learning-realuse.spec.ts": 1,
   "student-parent-storage-realuse.spec.ts": 1,
-  "omr-review-realuse.spec.ts": 1,
+  "omr-review-realuse.spec.ts": 3,
   "video-playback-renewal.realuse.spec.ts": 1,
 };
 const LONG_VIDEO_CHECKPOINT_STAGES = [
@@ -1013,7 +1015,7 @@ export function artifactFingerprint(directory) {
 
 function serveArtifact(directory, playbackBoundary) {
   const playbackProxy = createPlaybackEndProxy(playbackBoundary);
-  const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
+  const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
     ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp" };
   const server = http.createServer((request, response) => {
     if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH) || request.url?.startsWith(SCORE_EXIT_PROXY_PATH)) {

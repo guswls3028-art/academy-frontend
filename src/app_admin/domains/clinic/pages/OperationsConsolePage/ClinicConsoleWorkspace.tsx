@@ -57,7 +57,8 @@ import {
   retryClinicParticipantNotification,
   uncompleteClinicParticipant,
 } from "../../api/clinicParticipants.api";
-import { fetchClinicSessions } from "../../api/clinicSessions.api";
+import { fetchClinicAvailability, fetchClinicSessions } from "../../api/clinicSessions.api";
+import { ClinicActualTimePicker } from "@/shared/ui/clinic/ClinicActualTimePicker";
 import type { ClinicTarget } from "../../api/clinicTargets";
 import { getCutlineLabel } from "../BookingsPage/remediationFormatters";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
@@ -394,6 +395,21 @@ export default function ClinicConsoleWorkspace({
   const [replacementSessionId, setReplacementSessionId] = useState("");
   const [replacementSessionsLoading, setReplacementSessionsLoading] = useState(false);
   const [replacementSessionsError, setReplacementSessionsError] = useState(false);
+  const [replacementBookingStart, setReplacementBookingStart] = useState("");
+  const [replacementBookingEnd, setReplacementBookingEnd] = useState("");
+  const [replacementBookingError, setReplacementBookingError] = useState("");
+  const replacementSession = replacementSessions.find((session) => session.id === Number(replacementSessionId));
+  const replacementNeedsTime = replacementSession?.booking_mode === "time_range";
+  const replacementAvailabilityQ = useQuery({
+    queryKey: clinicQueryKeys.availability(replacementSession?.id ?? null),
+    queryFn: () => fetchClinicAvailability(replacementSession!.id),
+    enabled: !!rescheduleParticipant && replacementNeedsTime,
+    retry: 0,
+  });
+  const replacementTimeIncomplete = replacementNeedsTime && (
+    !replacementBookingStart || !replacementBookingEnd || replacementAvailabilityQ.isFetching || replacementAvailabilityQ.isError
+  );
+  const rescheduleBusy = !!rescheduleParticipant && mutatingIds.has(rescheduleParticipant.id);
   // 출석/불참 체크 상태 (API 호출 전 로컬 상태)
   const [pendingStatuses, setPendingStatuses] = useState<Map<number, "attended" | "no_show">>(new Map());
 
@@ -408,7 +424,16 @@ export default function ClinicConsoleWorkspace({
   const [waiveTarget, setWaiveTarget] = useState<ClinicTarget | null>(null);
   const [waivingTargetKey, setWaivingTargetKey] = useState<string | null>(null);
 
-  const { configs: autoSendConfigs, toggleEnabled, isToggling } = useAutoSendConfig();
+  const {
+    configs: autoSendConfigs,
+    toggleEnabled,
+    isToggling,
+    isLoading: autoSendLoading,
+    isError: autoSendLoadError,
+    refetch: refetchAutoSendConfigs,
+    saveError: autoSendSaveError,
+    retrySave: retryAutoSendSave,
+  } = useAutoSendConfig();
   const clinicTargetsQuery = useClinicTargets();
   const {
     data: clinicTargets,
@@ -808,6 +833,9 @@ export default function ClinicConsoleWorkspace({
     setReplacementSessionId("");
     setReplacementSessions([]);
     setReplacementSessionsError(false);
+    setReplacementBookingStart("");
+    setReplacementBookingEnd("");
+    setReplacementBookingError("");
   }
 
   async function openRescheduleDialog(
@@ -822,6 +850,9 @@ export default function ClinicConsoleWorkspace({
     setReplacementSessions([]);
     setReplacementSessionsLoading(true);
     setReplacementSessionsError(false);
+    setReplacementBookingStart("");
+    setReplacementBookingEnd("");
+    setReplacementBookingError("");
     try {
       const rows = await fetchClinicSessions({
         date_from: participant.session_date,
@@ -838,16 +869,21 @@ export default function ClinicConsoleWorkspace({
   }
 
   async function handleReschedule() {
-    if (!rescheduleParticipant || !replacementSessionId || mutatingIds.has(rescheduleParticipant.id)) return;
+    if (!rescheduleParticipant || !replacementSessionId || replacementTimeIncomplete || rescheduleBusy) return;
     const participant = rescheduleParticipant;
     const participantId = participant.id;
     const isBookingChange = rescheduleMode === "booking";
+    setReplacementBookingError("");
     setMutatingIds((prev) => new Set(prev).add(participantId));
     try {
       const result = await changeClinicParticipantBooking(participantId, {
         new_session_id: Number(replacementSessionId),
         memo: isBookingChange ? "교직원 예약 일정 변경" : "결석 후 보충 일정 이동",
         send_to: rescheduleRecipient,
+        ...(replacementNeedsTime ? {
+          booking_start_time: replacementBookingStart,
+          booking_end_time: replacementBookingEnd,
+        } : {}),
       });
       closeRescheduleDialog();
       if (drawerParticipantId === participantId) closeDrawer();
@@ -859,12 +895,12 @@ export default function ClinicConsoleWorkspace({
         result.notification,
       );
     } catch (error) {
-      feedback.error(
-        clinicActionErrorMessage(
-          error,
-          isBookingChange ? "일정 변경에 실패했습니다." : "보충 일정 이동에 실패했습니다.",
-        ),
+      const message = extractApiError(
+        error,
+        isBookingChange ? "일정 변경에 실패했습니다." : "보충 일정 이동에 실패했습니다.",
       );
+      setReplacementBookingError(message);
+      feedback.error(message);
     } finally {
       setMutatingIds((prev) => {
         const next = new Set(prev);
@@ -1592,7 +1628,16 @@ export default function ClinicConsoleWorkspace({
         )}
 
         {/* ═══ 알림 트리거 상태 — ON/OFF 인디케이터 ═══ */}
-        {!isLoading && !isError && !isAggregate && session && (() => {
+        {!isLoading && !isError && !isAggregate && session && autoSendLoading && (
+          <div className="clinic-ops__autosend-notice" role="status">알림 설정을 불러오는 중입니다.</div>
+        )}
+        {!isLoading && !isError && !isAggregate && session && autoSendLoadError && (
+          <div className="clinic-ops__autosend-notice clinic-ops__autosend-notice--error" role="alert">
+            알림 설정을 불러오지 못했습니다.
+            <button type="button" onClick={() => void refetchAutoSendConfigs()}>다시 시도</button>
+          </div>
+        )}
+        {!isLoading && !isError && !isAggregate && session && !autoSendLoading && !autoSendLoadError && (() => {
           const CLINIC_TRIGGERS = [
             { key: "clinic_reservation_created", label: "예약 완료", desc: "클리닉 예약이 완료되면 학부모에게 예약 안내를 발송합니다." },
             { key: "clinic_check_in", label: "참석", desc: "출석 버튼을 누르면 학부모에게 입실 알림을 발송합니다." },
@@ -1690,6 +1735,12 @@ export default function ClinicConsoleWorkspace({
             </div>
           );
         })()}
+        {!isLoading && !isError && !isAggregate && session && autoSendSaveError && (
+          <div className="clinic-ops__autosend-notice clinic-ops__autosend-notice--error" role="alert">
+            {autoSendSaveError}
+            <button type="button" onClick={retryAutoSendSave}>다시 저장</button>
+          </div>
+        )}
 
         {/* ═══ B. 상태 필터 칩 — 미확인 우선 강조 ═══ */}
         {!isLoading && !isError && workspaceMode === "day" && rosterParticipants.length > 0 && (
@@ -1959,7 +2010,7 @@ export default function ClinicConsoleWorkspace({
                       >
                         <StudentNameWithLectureChip
                           name={p.student_name}
-                          lectures={p.lecture_title ? [{ lectureName: p.lecture_title, color: p.lecture_color, chipLabel: p.lecture_chip_label }] : undefined}
+                          lectures={p.lecture_title && p.lecture_current !== false ? [{ lectureName: p.lecture_title, color: p.lecture_color, chipLabel: p.lecture_chip_label }] : undefined}
                           avatarSize={24}
                           profilePhotoUrl={p.profile_photo_url}
                           clinicHighlight={p.name_highlight_clinic_target}
@@ -2383,7 +2434,7 @@ export default function ClinicConsoleWorkspace({
                     >
                       <StudentNameWithLectureChip
                         name={drawerParticipant.student_name}
-                        lectures={drawerParticipant.lecture_title ? [{ lectureName: drawerParticipant.lecture_title, color: drawerParticipant.lecture_color, chipLabel: drawerParticipant.lecture_chip_label }] : undefined}
+                        lectures={drawerParticipant.lecture_title && drawerParticipant.lecture_current !== false ? [{ lectureName: drawerParticipant.lecture_title, color: drawerParticipant.lecture_color, chipLabel: drawerParticipant.lecture_chip_label }] : undefined}
                         avatarSize={24}
                         profilePhotoUrl={drawerParticipant.profile_photo_url}
                         clinicHighlight={drawerParticipant.name_highlight_clinic_target}
@@ -3016,7 +3067,7 @@ export default function ClinicConsoleWorkspace({
       )}
 
       {rescheduleParticipant && createPortal(
-        <div className="clinic-reschedule__backdrop" onMouseDown={(event) => event.target === event.currentTarget && closeRescheduleDialog()}>
+        <div className="clinic-reschedule__backdrop" onMouseDown={(event) => event.target === event.currentTarget && !rescheduleBusy && closeRescheduleDialog()}>
           <section className="clinic-reschedule__dialog" role="dialog" aria-modal="true" aria-label={rescheduleMode === "booking" ? "클리닉 일정 변경" : "보충 일정 정하기"}>
             <header>
               <div>
@@ -3026,14 +3077,19 @@ export default function ClinicConsoleWorkspace({
                   <strong>{rescheduleParticipant.student_name}</strong>의 기존 {rescheduleMode === "booking" ? "예약" : "결석"} 기록은 보존됩니다.
                 </p>
               </div>
-              <button type="button" onClick={closeRescheduleDialog} aria-label="닫기"><X size={18} aria-hidden /></button>
+              <button type="button" onClick={closeRescheduleDialog} disabled={rescheduleBusy} aria-label="닫기"><X size={18} aria-hidden /></button>
             </header>
             <label className="clinic-reschedule__select">
               이동할 일정
               <select
                 value={replacementSessionId}
-                onChange={(event) => setReplacementSessionId(event.target.value)}
-                disabled={replacementSessionsLoading || replacementSessionsError}
+                onChange={(event) => {
+                  setReplacementSessionId(event.target.value);
+                  setReplacementBookingStart("");
+                  setReplacementBookingEnd("");
+                  setReplacementBookingError("");
+                }}
+                disabled={replacementSessionsLoading || replacementSessionsError || rescheduleBusy}
               >
                 <option value="">
                   {replacementSessionsLoading
@@ -3051,10 +3107,26 @@ export default function ClinicConsoleWorkspace({
                 ))}
               </select>
             </label>
+            {replacementNeedsTime && (
+              <fieldset disabled={rescheduleBusy} className="m-0 min-w-0 border-0 p-0">
+                <ClinicActualTimePicker
+                  availability={replacementAvailabilityQ.data}
+                  loading={replacementAvailabilityQ.isFetching}
+                  error={replacementAvailabilityQ.isError}
+                  bookingStart={replacementBookingStart}
+                  bookingEnd={replacementBookingEnd}
+                  onBookingStartChange={setReplacementBookingStart}
+                  onBookingEndChange={setReplacementBookingEnd}
+                  onRetry={() => void replacementAvailabilityQ.refetch()}
+                  tone="admin"
+                />
+              </fieldset>
+            )}
+            {replacementBookingError && <p role="alert">{replacementBookingError}</p>}
             <div className="clinic-reschedule__choices">
-              <a href={`/workspace/clinic/schedule?create=1&date=${selectedDate}`}>새 클리닉 만들기</a>
-              <button type="button" onClick={handleReschedule} disabled={!replacementSessionId || mutatingIds.has(rescheduleParticipant.id)}>
-                {rescheduleMode === "booking" ? "일정 변경" : "일정 이동"}
+              {!rescheduleBusy && <a href={`/workspace/clinic/schedule?create=1&date=${selectedDate}`}>새 클리닉 만들기</a>}
+              <button type="button" onClick={handleReschedule} disabled={!replacementSessionId || replacementTimeIncomplete || rescheduleBusy}>
+                {rescheduleBusy ? "변경 중…" : rescheduleMode === "booking" ? "일정 변경" : "일정 이동"}
               </button>
             </div>
           </section>

@@ -218,7 +218,7 @@ export default function StudentsTable({
             avatarSize={24}
             lectures={
               Array.isArray(s.enrollments) && s.enrollments.length > 0
-                ? s.enrollments.map((en: { id: number; lectureName: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
+                ? s.enrollments.filter((en) => en.lectureActive && (en.status ?? "ACTIVE") === "ACTIVE").map((en) => ({
                     lectureName: en.lectureName ?? "",
                     color: en.lectureColor ?? undefined,
                     chipLabel: en.lectureChipLabel ?? undefined,

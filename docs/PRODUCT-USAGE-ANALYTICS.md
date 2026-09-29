@@ -114,6 +114,11 @@ catalog version, synthetic 여부만 전송한다. tenant, user, role,
 
 플랫폼 운영자 전용 `/dev/product-analytics`는 다음을 제공한다.
 
+화면은 `POST /api/v1/core/dev/product-analytics/overview/`의 JSON 본문으로
+기간·테넌트·역할·surface를 보내 결과와 조회 감사 기록을 한 요청에서 받는다.
+백엔드 POST 배포가 먼저 필요하다. 이전 GET 호출은 `405 post_required`로
+명시적으로 실패하며 화면에는 재시도 가능한 오류 상태가 표시된다.
+
 - 7·28·90일 기간
 - 원본 role, surface와 tenant 필터
 - 활성 actor, 화면 방문, 10초 참여율, task 완료·실패율

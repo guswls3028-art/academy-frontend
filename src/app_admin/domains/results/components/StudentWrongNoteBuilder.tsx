@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 
 import {
   createWrongNotePDF,
@@ -99,10 +100,12 @@ export default function StudentWrongNoteBuilder({ studentId }: { studentId: numb
     (preview.data?.results ?? []).reduce((map, item) => {
       const title = item.exam_title || "자료";
       const numbers = map.get(title) ?? [];
-      if (item.question_number != null) numbers.push(item.question_number);
+      if (item.question_number != null) {
+        numbers.push(examQuestionLabel(item.question_number, item.essay_numbering, item.essay_index));
+      }
       map.set(title, numbers);
       return map;
-    }, new Map<string, number[]>()),
+    }, new Map<string, string[]>()),
   );
   const canCreate = Boolean(
     selected.length > 0
@@ -201,7 +204,7 @@ export default function StudentWrongNoteBuilder({ studentId }: { studentId: numb
                     {previewGroups.map(([title, numbers]) => (
                       <div key={title}>
                         <strong>{title}</strong>
-                        <span>{numbers.map((number) => `${number}번`).join(" · ") || "문항"}</span>
+                        <span>{numbers.join(" · ") || "문항"}</span>
                       </div>
                     ))}
                   </div>

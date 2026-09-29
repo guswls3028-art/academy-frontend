@@ -18,8 +18,8 @@ import {
   fetchClinicParticipants,
   patchParticipantStatus,
   checkoutParticipant,
-  changeParticipantBooking,
   completeParticipant,
+  uncompleteParticipant,
   remindParticipant,
   createClinicSession,
   fetchClinicSettings,
@@ -27,6 +27,8 @@ import {
   type TeacherClinicSession,
 } from "../api";
 import AddParticipantSheet from "../components/AddParticipantSheet";
+import RescheduleParticipantSheet from "../components/RescheduleParticipantSheet";
+import { SmallBtn, StatusBadge } from "../components/ParticipantStatusControls";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
@@ -77,9 +79,11 @@ export default function ClinicPage() {
   const [selectedSession, setSelectedSession] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const { data: sessions, isLoading } = useQuery({
+  const invalidDateRange = dateFrom > dateTo;
+  const { data: sessions, isLoading, isError, refetch } = useQuery({
     queryKey: teacherClinicQueryKeys.sessionsRange(dateFrom, dateTo),
     queryFn: () => fetchClinicSessions({ date_from: dateFrom, date_to: dateTo }),
+    enabled: !invalidDateRange,
     staleTime: 30_000,
   });
 
@@ -149,8 +153,18 @@ export default function ClinicPage() {
           전날 시작·진행 중 · {yesterday} {session.start_time?.slice(0, 5)}
         </button>
       ))}
-      {isLoading ? (
+      {invalidDateRange ? (
+        <EmptyState scope="panel" tone="error" title="날짜 범위를 확인해 주세요" description="시작일은 종료일보다 늦을 수 없습니다." />
+      ) : isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : isError ? (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="클리닉 일정을 불러오지 못했습니다"
+          description="연결을 확인한 뒤 다시 시도해 주세요."
+          actions={<EmptyActionButton onClick={() => void refetch()}>다시 시도</EmptyActionButton>}
+        />
       ) : sessions && sessions.length > 0 ? (
         <div className="flex flex-col gap-3">
           {sessions.map((s) => (
@@ -288,6 +302,7 @@ function ParticipantList({
   onCreateSession: () => void;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const [addOpen, setAddOpen] = useState(false);
   const [actionDialog, setActionDialog] = useState<{
     participant: TeacherClinicParticipant;
@@ -297,14 +312,7 @@ function ParticipantList({
     participant: TeacherClinicParticipant;
     sendTo: ClinicParticipantActionPayload["send_to"];
   } | null>(null);
-  const [replacementSessionId, setReplacementSessionId] = useState("");
-  const [replacementPreferredStart, setReplacementPreferredStart] = useState("");
-  const [replacementPreferredEnd, setReplacementPreferredEnd] = useState("");
-  const replacementSession = availableSessions.find(
-    (session) => session.id === Number(replacementSessionId),
-  );
-
-  const { data: participants, isLoading } = useQuery({
+  const { data: participants, isLoading, isError, refetch } = useQuery({
     queryKey: teacherClinicQueryKeys.participants(sessionId),
     queryFn: () => fetchClinicParticipants(sessionId),
   });
@@ -331,6 +339,20 @@ function ParticipantList({
         });
       }
       if (action === "checkout") {
+        const withoutArrival = participant.status === "booked" && !participant.checked_in_at;
+        if (withoutArrival) {
+          const expectedSessionId = participant.session;
+          const expectedStudentId = participant.student;
+          if (!expectedSessionId || !expectedStudentId) {
+            throw new Error("예약의 세션과 학생을 확인할 수 없어 하원할 수 없습니다.");
+          }
+          return checkoutParticipant(participant.id, {
+            send_to: payload.send_to,
+            confirm_without_arrival: true,
+            expected_session_id: expectedSessionId,
+            expected_student_id: expectedStudentId,
+          });
+        }
         return checkoutParticipant(participant.id, { send_to: payload.send_to });
       }
       await remindParticipant(participant.id, {
@@ -341,59 +363,70 @@ function ParticipantList({
       });
       return participant;
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: async (_data, variables) => {
       setActionDialog(null);
-      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
-      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) }),
+        qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions }),
+      ]);
       const label = variables.action === "arrive" ? "등원" : variables.action === "late" ? "지각 등원" : variables.action === "checkout" ? "하원" : variables.action === "remind" ? "재촉" : "결석";
       teacherToast.success(`${label} 처리가 완료되었습니다.`);
       if (variables.action === "absent") {
-        setReplacementSessionId("");
-        setReplacementPreferredStart(variables.participant.preferred_start_time?.slice(0, 5) ?? "");
-        setReplacementPreferredEnd(variables.participant.preferred_end_time?.slice(0, 5) ?? "");
         setReschedule({ participant: variables.participant, sendTo: variables.payload.send_to });
       }
     },
     onError: (e) => teacherToast.error(extractApiError(e, "클리닉 처리를 완료하지 못했습니다.")),
   });
 
-  const changeBookingMut = useMutation({
-    mutationFn: async () => {
-      if (!reschedule || !replacementSessionId) return null;
-      return changeParticipantBooking(reschedule.participant.id, {
-        new_session_id: Number(replacementSessionId),
-        memo: "결석 후 보충 일정 이동",
-        send_to: reschedule.sendTo,
-        ...(replacementSession?.allow_time_preference && replacementPreferredStart && replacementPreferredEnd
-          ? {
-              preferred_start_time: replacementPreferredStart,
-              preferred_end_time: replacementPreferredEnd,
-            }
-          : {}),
-      });
-    },
-    onSuccess: () => {
-      setReschedule(null);
-      setReplacementSessionId("");
-      setReplacementPreferredStart("");
-      setReplacementPreferredEnd("");
-      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
-      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
-      teacherToast.success("보충 일정으로 이동했습니다.");
-    },
-    onError: (e) => teacherToast.error(extractApiError(e, "보충 일정을 옮기지 못했습니다.")),
-  });
-
   const completeMut = useMutation({
     mutationFn: (participantId: number) => completeParticipant(participantId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
       teacherToast.success("완료 처리되었습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "완료 처리에 실패했습니다.")),
   });
 
+  const uncompleteMut = useMutation({
+    mutationFn: (participantId: number) => uncompleteParticipant(participantId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
+      teacherToast.success("완료가 취소되었습니다.");
+    },
+    onError: (e) => teacherToast.error(extractApiError(e, "완료 취소에 실패했습니다.")),
+  });
+
+  const bookingStatusMut = useMutation({
+    mutationFn: ({
+      participantId,
+      status,
+    }: {
+      participantId: number;
+      status: "booked" | "rejected";
+    }) => patchParticipantStatus(participantId, { status }),
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) }),
+        qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions }),
+      ]);
+      teacherToast.success(variables.status === "booked" ? "예약을 승인했습니다." : "예약을 거절했습니다.");
+    },
+    onError: (e, variables) => teacherToast.error(extractApiError(
+      e,
+      variables.status === "booked" ? "예약 승인에 실패했습니다." : "예약 거절에 실패했습니다.",
+    )),
+  });
+  const lifecycleBusy = actionMut.isPending || completeMut.isPending || uncompleteMut.isPending || bookingStatusMut.isPending;
+
   if (isLoading) return <div className="px-4 pb-4 text-sm" style={{ color: "var(--tc-text-muted)" }}>불러오는 중…</div>;
+  if (isError) {
+    return (
+      <div className="px-4 pb-4 text-sm" role="alert" style={{ color: "var(--tc-danger)" }}>
+        참가자 명단을 불러오지 못했습니다.
+        <button type="button" className="ml-2 underline" onClick={() => void refetch()}>다시 시도</button>
+      </div>
+    );
+  }
 
   const empty = !participants?.length;
 
@@ -416,10 +449,12 @@ function ParticipantList({
       <div className="flex flex-col gap-1">
         {participants.map((p) => {
           const name = p.student_name ?? p.enrollment_name ?? "이름 없음";
-          const st = p.status ?? "booked";
+          const st = p.status ?? "unknown";
+          const missingCheckoutIdentity = !p.session || !p.student;
           return (
             <div
               key={p.id}
+              data-testid={`teacher-clinic-participant-${p.id}`}
               className="flex flex-col gap-2 py-2 border-b last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
               style={{ borderColor: "var(--tc-border)" }}
             >
@@ -430,7 +465,8 @@ function ParticipantList({
                   avatarSize={24}
                   chipSize={16}
                   density="compact"
-                  lectures={p.lecture_title ? [{
+                  clinicHighlight={p.name_highlight_clinic_target === true}
+                  lectures={p.lecture_title && p.lecture_current !== false ? [{
                     lectureName: p.lecture_title,
                     color: p.lecture_color,
                     chipLabel: p.lecture_chip_label,
@@ -458,25 +494,75 @@ function ParticipantList({
                 </span>
               </div>
               <div className="flex flex-wrap justify-end gap-1">
+                {st === "pending" && (
+                  <>
+                    <SmallBtn
+                      label="예약 승인"
+                      color="var(--tc-success)"
+                      onClick={() => bookingStatusMut.mutate({ participantId: p.id, status: "booked" })}
+                      disabled={lifecycleBusy}
+                    />
+                    <SmallBtn
+                      label="예약 거절"
+                      color="var(--tc-danger)"
+                      onClick={async () => {
+                        if (lifecycleBusy) return;
+                        const accepted = await confirm({
+                          title: "예약 거절",
+                          message: "거절한 예약은 다시 승인할 수 없습니다. 학생과 일정을 확인해 주세요.",
+                          confirmText: "예약 거절",
+                          cancelText: "돌아가기",
+                          danger: true,
+                          review: { items: [
+                            { label: "학생", value: name, tone: "accent" },
+                            { label: "일정", value: `${sessionDate} ${availableSessions.find((session) => session.id === sessionId)?.title || "클리닉"}` },
+                          ] },
+                        });
+                        if (accepted && !lifecycleBusy) bookingStatusMut.mutate({ participantId: p.id, status: "rejected" });
+                      }}
+                      disabled={lifecycleBusy}
+                    />
+                  </>
+                )}
                 {st === "booked" && (
                   <>
-                    <SmallBtn label="등원" color="var(--tc-success)" onClick={() => setActionDialog({ participant: p, action: "arrive" })} />
-                    <SmallBtn label="재촉" color="var(--tc-warning)" onClick={() => setActionDialog({ participant: p, action: "remind" })} />
-                    <SmallBtn label="결석" color="var(--tc-danger)" onClick={() => setActionDialog({ participant: p, action: "absent" })} />
-                    <SmallBtn label="하원" color="var(--tc-primary)" onClick={() => undefined} disabled />
+                    <SmallBtn label="등원" color="var(--tc-success)" onClick={() => setActionDialog({ participant: p, action: "arrive" })} disabled={lifecycleBusy} />
+                    <SmallBtn label="재촉" color="var(--tc-warning)" onClick={() => setActionDialog({ participant: p, action: "remind" })} disabled={lifecycleBusy} />
+                    <SmallBtn label="결석" color="var(--tc-danger)" onClick={() => setActionDialog({ participant: p, action: "absent" })} disabled={lifecycleBusy} />
+                    <SmallBtn
+                      label={p.checked_out_at ? "하원 완료" : "하원"}
+                      color="var(--tc-primary)"
+                      onClick={() => setActionDialog({ participant: p, action: "checkout" })}
+                      disabled={!!p.checked_out_at || missingCheckoutIdentity || lifecycleBusy}
+                      title={missingCheckoutIdentity ? "예약의 세션과 학생을 확인할 수 없어 하원할 수 없습니다." : undefined}
+                    />
+                    {!p.checked_out_at && missingCheckoutIdentity && (
+                      <span className="basis-full text-xs" style={{ color: "var(--tc-danger)" }}>
+                        학생 또는 일정 정보를 확인할 수 없어 하원 처리할 수 없습니다.
+                      </span>
+                    )}
                   </>
                 )}
                 {st === "no_show" && (
-                  <SmallBtn label="지각 등원" color="var(--tc-warning)" onClick={() => setActionDialog({ participant: p, action: "late" })} />
+                  <SmallBtn label="지각 등원" color="var(--tc-warning)" onClick={() => setActionDialog({ participant: p, action: "late" })} disabled={lifecycleBusy} />
                 )}
                 {st === "attended" && (
-                  <SmallBtn label={p.checked_out_at ? "하원 완료" : "하원"} color="var(--tc-primary)" onClick={() => setActionDialog({ participant: p, action: "checkout" })} disabled={!!p.checked_out_at} />
+                  <SmallBtn label={p.checked_out_at ? "하원 완료" : "하원"} color="var(--tc-primary)" onClick={() => setActionDialog({ participant: p, action: "checkout" })} disabled={!!p.checked_out_at || lifecycleBusy} />
                 )}
                 {st === "attended" && !p.completed_at && (
                   <SmallBtn
                     label="자율학습 완료"
                     color="var(--tc-primary)"
                     onClick={() => completeMut.mutate(p.id)}
+                    disabled={lifecycleBusy}
+                  />
+                )}
+                {p.completed_at && (
+                  <SmallBtn
+                    label="완료 취소"
+                    color="var(--tc-warning)"
+                    onClick={() => uncompleteMut.mutate(p.id)}
+                    disabled={lifecycleBusy}
                   />
                 )}
               </div>
@@ -497,119 +583,24 @@ function ParticipantList({
           action={actionDialog.action}
           participantName={actionDialog.participant.student_name ?? actionDialog.participant.enrollment_name ?? "학생"}
           selectedDate={sessionDate}
-          busy={actionMut.isPending}
+          withoutArrival={actionDialog.action === "checkout" && actionDialog.participant.status === "booked" && !actionDialog.participant.checked_in_at}
+          busy={lifecycleBusy}
           onClose={() => setActionDialog(null)}
-          onConfirm={(payload) => actionMut.mutate({ ...actionDialog, payload })}
+          onConfirm={(payload) => { if (!lifecycleBusy) actionMut.mutate({ ...actionDialog, payload }); }}
         />
       )}
-      <BottomSheet
-        open={!!reschedule}
-        onClose={() => !changeBookingMut.isPending && setReschedule(null)}
-        title="보충 일정 정하기"
-      >
-        <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-3) 0" }}>
-          <p className="text-sm" style={{ color: "var(--tc-text-muted)" }}>
-            결석 기록은 유지됩니다. 기존 클리닉으로 옮기거나 새 일정을 만드세요.
-          </p>
-          <label className="flex flex-col gap-1 text-xs font-semibold" style={{ color: "var(--tc-text)" }}>
-            이동할 일정
-            <select
-              value={replacementSessionId}
-              onChange={(event) => setReplacementSessionId(event.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                border: "1px solid var(--tc-border)",
-                borderRadius: "var(--tc-radius-sm)",
-                background: "var(--tc-surface)",
-                color: "var(--tc-text)",
-              }}
-            >
-              <option value="">일정을 선택하세요</option>
-              {availableSessions
-                .filter((session) => session.id !== sessionId)
-                .map((session) => (
-                  <option key={session.id} value={session.id}>
-                    {session.date ?? sessionDate} {session.start_time?.slice(0, 5) ?? "시간 미정"} · {session.title || "클리닉"}
-                  </option>
-                ))}
-            </select>
-          </label>
-          {replacementSession?.allow_time_preference && (
-            <div className="grid grid-cols-2 gap-2" aria-label="학생 희망 시간">
-              <Fld label="희망 시작" value={replacementPreferredStart} onChange={setReplacementPreferredStart} type="time" />
-              <Fld label="희망 종료" value={replacementPreferredEnd} onChange={setReplacementPreferredEnd} type="time" />
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              className="text-sm font-bold cursor-pointer"
-              style={{ padding: "10px", border: "1px solid var(--tc-border)", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-surface)", color: "var(--tc-primary)" }}
-              onClick={() => {
-                setReschedule(null);
-                onCreateSession();
-              }}
-            >
-              새 클리닉 만들기
-            </button>
-            <button
-              type="button"
-              className="text-sm font-bold cursor-pointer disabled:cursor-not-allowed"
-              style={{ padding: "10px", border: "none", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-primary)", color: "#fff", opacity: !replacementSessionId || changeBookingMut.isPending ? 0.5 : 1 }}
-              disabled={!replacementSessionId || changeBookingMut.isPending}
-              onClick={() => changeBookingMut.mutate()}
-            >
-              일정 이동
-            </button>
-          </div>
-        </div>
-      </BottomSheet>
+      {reschedule && (
+        <RescheduleParticipantSheet
+          participant={reschedule.participant}
+          sendTo={reschedule.sendTo}
+          sessionId={sessionId}
+          sessionDate={sessionDate}
+          availableSessions={availableSessions}
+          onClose={() => setReschedule(null)}
+          onCreateSession={onCreateSession}
+        />
+      )}
     </div>
-  );
-}
-
-function SmallBtn({ label, color, onClick, disabled = false }: { label: string; color: string; onClick: () => void; disabled?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="text-[11px] font-semibold px-2 py-1 rounded cursor-pointer"
-      style={{
-        color,
-        background: `color-mix(in srgb, ${color} 10%, transparent)`,
-        border: "none",
-        opacity: disabled ? 0.45 : 1,
-        cursor: disabled ? "not-allowed" : "pointer",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  booked: { label: "미등원", color: "var(--tc-info)" },
-  attended: { label: "등원", color: "var(--tc-success)" },
-  no_show: { label: "결석", color: "var(--tc-danger)" },
-  cancelled: { label: "취소", color: "var(--tc-text-muted)" },
-  rejected: { label: "거절", color: "var(--tc-text-muted)" },
-};
-
-function StatusBadge({ status, isLate, checkedOut }: { status: string; isLate: boolean; checkedOut: boolean }) {
-  const base = STATUS_LABELS[status] ?? { label: status, color: "var(--tc-text-muted)" };
-  const st = checkedOut
-    ? { label: "하원 완료", color: "var(--tc-primary)" }
-    : isLate && status === "attended"
-    ? { label: "지각 등원", color: "var(--tc-warning)" }
-    : base;
-  return (
-    <span
-      className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-      style={{ color: st.color, background: `color-mix(in srgb, ${st.color} 12%, transparent)` }}
-    >
-      {st.label}
-    </span>
   );
 }
 

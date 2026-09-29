@@ -14,6 +14,7 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import LectureCreateModal from "../../components/LectureCreateModal";
 import LectureSettingsModal from "../../components/LectureSettingsModal";
 import { adminLectureQueryKeys } from "../../queryKeys";
+import { invalidateLectureStatusCaches } from "@/shared/ui/asyncStatus/asyncStatusQueryInvalidations";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 /** 강의 목록 테이블 컬럼 정의 (useTableColumnPrefs SSOT) */
@@ -635,9 +636,13 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
           }}
           onAfterEnd={() => {
             qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
+            invalidateLectureStatusCaches(qc);
             navigate("/workspace/lectures/past");
           }}
-          onAfterRestore={() => qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures })}
+          onAfterRestore={() => {
+            qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
+            invalidateLectureStatusCaches(qc);
+          }}
           onAfterDelete={() => qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures })}
         />
       )}

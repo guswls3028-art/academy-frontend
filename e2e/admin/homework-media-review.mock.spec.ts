@@ -90,6 +90,12 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     if (path === "/homeworks/") return json({ count: 1, results: [homework] });
     if (path === `/homeworks/${HOMEWORK_ID}/`) return json(homework);
     if (path === "/homework/assignments/") return json({ items: [] });
+    if (path === `/results/admin/sessions/${SESSION_ID}/scores/`) {
+      return json({
+        meta: { exams: [], homeworks: [] },
+        rows: [{ enrollment_id: 9902, student_name: "김하늘", exams: [], homeworks: [], updated_at: "2026-08-23T03:20:00Z" }],
+      });
+    }
     if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/`) {
       return json([{
         id: 9901,
@@ -223,7 +229,7 @@ test("신규 조교가 계정 안내 확인 후 모바일 과제 파일을 열�
   await page.setViewportSize({ width: 390, height: 844 });
   await installApi(page, "done", true);
   await page.goto(`${BASE}/workspace/mobile/homeworks/${HOMEWORK_ID}`);
-  await expect(page.getByRole("heading", { name: "제출 완료 (1)" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "제출 확인 (1)" })).toBeVisible();
   await expect(page.getByRole("dialog", { name: "계정 안내" })).toBeVisible();
   const guideCompleted = page.waitForResponse((response) =>
     response.request().method() === "POST" &&
@@ -231,21 +237,22 @@ test("신규 조교가 계정 안내 확인 후 모바일 과제 파일을 열�
   );
   await acknowledgeInitialAccountPromptsIfVisible(page);
   expect((await guideCompleted).status()).toBe(200);
-  const imageRow = page.locator('[class*="fileRow"]').filter({ hasText: "풀이 앞면.jpg" });
-  await imageRow.getByRole("button", { name: "미리보기" }).click();
-  let dialog = page.getByRole("dialog").filter({ hasText: "풀이 앞면.jpg" });
-  await expect(dialog.getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
+  const reviewButton = page.getByRole("button", { name: "제출물 확인" });
+  await reviewButton.click();
+  const dialog = page.getByRole("dialog", { name: "김하늘 제출 확인" });
+  const preview = dialog.getByRole("img", { name: "풀이 앞면.jpg 과제 제출 미리보기" });
+  await expect(preview).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /흐린 사진\.png/ })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
   await dialog.getByRole("button", { name: "닫기" }).click();
-  await expect(page.locator('[class*="fileRow"]').filter({ hasText: "흐린 사진.png" }).getByRole("button", { name: "미리보기" })).toBeDisabled();
   await page.reload();
   await expect(page.getByText("풀이 설명.mp4", { exact: true })).toBeVisible();
   await expect(page.getByRole("dialog", { name: "계정 안내" })).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath("mobile-homework-files-390.png"), fullPage: true });
   await page.setViewportSize({ width: 1366, height: 900 });
-  await imageRow.getByRole("button", { name: "미리보기" }).click();
-  dialog = page.getByRole("dialog").filter({ hasText: "풀이 앞면.jpg" });
-  await expect(dialog.getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
+  await reviewButton.click();
+  await expect(preview).toBeVisible();
   await expect(dialog).not.toHaveClass(/ant-zoom/);
   await expect(dialog).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath("mobile-homework-preview-1366.png"), fullPage: true, animations: "disabled" });

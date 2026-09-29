@@ -19,6 +19,7 @@ import { useSearchParams } from "react-router";
 
 import OmrReviewWorkspace from "./OmrReviewWorkspace";
 import { listOmrReviewIssuesPage, listOmrReviewRows } from "./omrReviewApi";
+import { isArchivedOmrReviewRow } from "./omrReviewRowState";
 import { adminResultsQueryKeys } from "../../queryKeys";
 import "./OmrReviewEntry.css";
 
@@ -64,7 +65,9 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
     let answerOk = 0;
     let answerTotal = 0;
     let total = 0;
+    let archivedTotal = 0;
     for (const r of issues.data?.items ?? []) {
+      if (isArchivedOmrReviewRow(r)) continue;
       const st = String(r.status || "").toLowerCase();
       const ids = String(r.identifier_status || "").toLowerCase();
       if (st === "needs_identification" || ids === "no_match" || ids === "missing") {
@@ -79,7 +82,10 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
       }
     }
     for (const r of rows) {
-      if (String(r.status || "").toLowerCase() === "superseded") continue;
+      if (isArchivedOmrReviewRow(r)) {
+        archivedTotal++;
+        continue;
+      }
       total++;
       const s = r.answer_stats;
       if (s && typeof s.total === "number" && s.total > 0) {
@@ -98,6 +104,7 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
       answerOk,
       answerTotal,
       total,
+      archivedTotal,
     };
   }, [issues.data, rows]);
 
@@ -120,7 +127,7 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
   }
 
   // 제출 자체가 없으면 노출 안 함
-  if (badge.total === 0 && issues.data?.total === 0) return null;
+  if (badge.total === 0 && badge.archivedTotal === 0 && issues.data?.total === 0) return null;
 
   const pending = issues.data?.total ?? 0;
   const allClean = pending === 0;
@@ -143,7 +150,7 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
           </div>
           <div className="omr-entry__detail">
             {allClean ? (
-              <span>미해결 OMR이 없습니다. 최근 {badge.total}건은 필요 시 다시 열어 수정할 수 있습니다.</span>
+              <span>미해결 OMR이 없습니다. 최근 활성 답안 {badge.total}건은 다시 열 수 있습니다.{badge.archivedTotal > 0 ? ` 보관 기록 ${badge.archivedTotal}건은 읽기 전용입니다.` : ""}</span>
             ) : (
               <>
                 <span>최근 표시된 답안 {badge.total}건 · 전체 검토 대기 {pending}건</span>

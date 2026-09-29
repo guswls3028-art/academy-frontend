@@ -236,9 +236,8 @@ test.describe("성적표 공식 클리닉 대상 PDF", () => {
     await page.screenshot({ path: testInfo.outputPath("clinic-preview-1366.png"), fullPage: true });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    // 데스크톱/모바일 점수 화면이 서로 다른 셸이어서 전환 시 모달이 닫힌다.
-    await page.getByRole("button", { name: "성적 도구" }).click();
-    await page.locator("button").filter({ hasText: "클리닉 대상" }).first().click();
+    // 화면 크기를 바꿔도 열린 미리보기와 대상 명단을 유지한다.
+    await expect(frame.locator(".footer-left")).toContainText("클리닉 대상 3명 / 전체 출석 4명");
     await expect(page.getByRole("button", { name: "PDF 다운로드" })).toBeVisible();
     await expect(page.getByRole("button", { name: "닫기" })).toBeVisible();
     const mobileLayout = await page.locator('[role="dialog"]').evaluate((dialog) => {

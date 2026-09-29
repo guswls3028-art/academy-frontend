@@ -1,20 +1,15 @@
-/* eslint-disable no-restricted-syntax -- legacy admin shell layout uses tokenized inline styles; current touch removes duplicate theme provider only. */
 // PATH: src/app_admin/layout/AppLayout.tsx
 import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from "react";
-import { Outlet, useLocation } from "react-router";
+import { useLocation } from "react-router";
 import { ConfigProvider, App } from "antd";
-import Sidebar from "./Sidebar";
-import Header from "./Header";
 import { AdminLayoutProvider } from "./AdminLayoutContext";
 import { TeacherViewProvider } from "./TeacherViewContext";
 import { WorkboxProvider } from "@/shared/ui/layout/WorkboxContext";
-import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import { FeedbackBridge } from "@/shared/ui/feedback";
 import { ProgramProvider } from "@/shared/program";
 import { NoticeProvider } from "@admin/domains/notice/context/NoticeContext";
 import { SendMessageModalProvider } from "@admin/domains/messages/context/SendMessageModalContext";
 import { ClinicHighlightProvider } from "@/shared/contexts/ClinicHighlightContext";
-import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { GuideTourProvider, GuideTourOverlay } from "@/shared/ui/guide";
 import QuickNavigationDialog, {
@@ -25,13 +20,14 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
 import { NavIcon } from "./adminNavConfig";
 import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
+import StopwatchSessionProvider from "@admin/domains/tools/stopwatch/StopwatchSessionProvider";
+import PptSessionProvider from "@admin/domains/tools/ppt/PptSessionProvider";
 
 // 새 배포 안내는 AppInner의 전역 VersionUpdateNotice가 맡는다.
 
-const AppLayoutMobile = lazy(() => import("./AppLayoutMobile"));
+const ResponsiveAdminLayout = lazy(() => import("./ResponsiveAdminLayout"));
 
 function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
-  const isMobile = useIsMobile();
   const location = useLocation();
   const { user } = useAuth();
   const navigationGroups = useAvailableAdminNavigation();
@@ -57,92 +53,17 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
 
   return (
     <>
-      {isMobile ? (
-        <AdminLayoutProvider>
-          <WorkboxProvider>
-            <Suspense fallback={null}>
-              <AppLayoutMobile onOpenQuickNavigation={openQuickNavigation} />
-            </Suspense>
-          </WorkboxProvider>
-        </AdminLayoutProvider>
-      ) : (
-    <WorkboxProvider>
-    <div
-      data-app="admin"
-      style={{
-        height: "100dvh",
-        minHeight: "100dvh",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        background: "var(--layout-canvas-bg)",
-        color: "var(--color-text-primary)",
-      }}
-    >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "var(--sidebar-width) 1fr",
-          gridTemplateRows: "auto 1fr",
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
-        <header
-          style={{
-            gridColumn: "1 / -1",
-            position: "sticky",
-            top: 0,
-            zIndex: 80,
-            height: "var(--panel-header)",
-            minHeight: "var(--panel-header)",
-            background: "var(--layout-header-bg)",
-            isolation: "isolate",
-          }}
-        >
-          <Header onOpenQuickNavigation={openQuickNavigation} />
-        </header>
-
-        <aside
-          className="sidebar"
-          style={{
-            gridRow: "2",
-            position: "sticky",
-            top: "var(--panel-header)",
-            height: "calc(100dvh - var(--panel-header) - var(--notice-banner-height, 0px))",
-            overflow: "hidden",
-          }}
-        >
-          <Sidebar />
-        </aside>
-
-        <main
-          style={{
-            gridRow: "2",
-            minWidth: 0,
-            minHeight: 0,
-            overflowY: "auto",
-            overflowX: "hidden",
-            overscrollBehavior: "contain",
-            WebkitOverflowScrolling: "touch",
-            background: "var(--layout-page-bg)",
-          }}
-        >
-          <div
-            style={{
-              padding: "var(--space-6)",
-              maxWidth: 1520,
-              margin: "0 auto",
-            }}
-          >
-            <Outlet key={location.pathname} />
-          </div>
-        </main>
-      </div>
-      <AsyncStatusBar />
-    </div>
-    </WorkboxProvider>
-      )}
+      <StopwatchSessionProvider pathname={location.pathname}>
+      <PptSessionProvider pathname={location.pathname} tenant={tenantCode} userId={user?.id == null ? null : String(user.id)}>
+      <AdminLayoutProvider>
+        <WorkboxProvider>
+          <Suspense fallback={null}>
+            <ResponsiveAdminLayout onOpenQuickNavigation={openQuickNavigation} />
+          </Suspense>
+        </WorkboxProvider>
+      </AdminLayoutProvider>
+      </PptSessionProvider>
+      </StopwatchSessionProvider>
       <QuickNavigationDialog
         open={quickNavigationOpen}
         onClose={() => setQuickNavigationOpen(false)}

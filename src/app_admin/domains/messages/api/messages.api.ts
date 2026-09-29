@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/messages/api/messages.api.ts
 // 알림톡 잔액 · 충전 · 카카오 연동 · 발송 로그 (Backend 연동 대비)
 
-import api from "@/shared/api/axios";
+import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
 
 const PREFIX = "/messaging";
 
@@ -338,6 +338,8 @@ export interface MessageTemplateItem {
   body: string;
   /** 시스템 기본 양식 여부 — true이면 수정/삭제 불가 */
   is_system: boolean;
+  can_delete?: boolean;
+  delete_block_reason?: string;
   /** 사용자가 해당 카테고리에서 기본으로 지정한 양식 */
   is_user_default: boolean;
   /** 솔라피에서 발급된 템플릿 ID (검수 신청 후) */
@@ -598,10 +600,13 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
 
 export async function fetchAutoSendConfigs(): Promise<AutoSendConfigItem[]> {
   const res = await api.get<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`);
+  if (!Array.isArray(res.data)) {
+    throw new Error("자동발송 설정 응답 형식이 올바르지 않습니다.");
+  }
   return res.data;
 }
 
-export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>[]): Promise<AutoSendConfigItem[]> {
+export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>[], signal?: AbortSignal, authGeneration?: string): Promise<AutoSendConfigItem[]> {
   const payload = configs.map((c) => {
     const item: Record<string, unknown> = {
       trigger: c.trigger,
@@ -617,7 +622,7 @@ export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>
   });
   const res = await api.patch<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`, {
     configs: payload,
-  });
+  }, authGeneration ? createAuthSessionBoundConfig(authGeneration, signal) : { signal });
   return res.data;
 }
 
@@ -634,6 +639,24 @@ export interface ProvisionDefaultsResult {
   review_errors?: string[];
   /** 검수 신청 결과 안내 */
   review_note?: string;
+  suppressed_defaults?: SuppressedTemplateDefault[];
+}
+
+export interface SuppressedTemplateDefault {
+  key: string;
+  name: string;
+  category: string;
+}
+
+export async function fetchSuppressedTemplateDefaults(): Promise<SuppressedTemplateDefault[]> {
+  const res = await api.get<{ suppressed_defaults: SuppressedTemplateDefault[] }>(`${PREFIX}/provision-defaults/`);
+  if (!Array.isArray(res.data.suppressed_defaults)) throw new Error("삭제한 제공 문구 목록을 확인하지 못했습니다.");
+  return res.data.suppressed_defaults;
+}
+
+export async function restoreDefaultTemplates(keys: string[]): Promise<ProvisionDefaultsResult> {
+  const res = await api.post<ProvisionDefaultsResult>(`${PREFIX}/provision-defaults/`, { restore_keys: keys });
+  return res.data;
 }
 
 export async function provisionDefaultTemplates(): Promise<ProvisionDefaultsResult> {

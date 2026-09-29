@@ -3,21 +3,51 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { ChevronLeft, ChevronRight, Download, Settings } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { ICON_FOR_BUTTON } from "@/shared/ui/ds";
-import { submitPptJob, submitPdfPptJob, pollPptJob, type PptSettings } from "../api/ppt.api";
+import { submitPptJob, submitPdfPptJob, pollPptJob, getPptJobStatus, type PptSettings, type PptGenerateResponse } from "../api/ppt.api";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
+import {
+  forgetPptJobReference,
+  loadPptJobReferences,
+  rememberPptJobReference,
+  type PptJobReference,
+  type PptRecoveryIssue,
+} from "@/shared/ui/asyncStatus/pptJobRecovery";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import useAuth from "@/auth/hooks/useAuth";
 import ImageUploadArea from "../components/ImageUploadArea";
 import PdfUploadArea from "../components/PdfUploadArea";
+import ManualPdfCropper from "../components/ManualPdfCropper";
 import SortableImageGrid, { type ImageItem } from "../components/SortableImageGrid";
 import SlideSettingsPanel from "../components/SlideSettingsPanel";
 import { pptBytesText as formatBytes } from "../pptFileSize";
+import { renderCropFiles } from "../manualPdfCrop";
+import { usePptDraftState, usePptSession, type InputMode, type SortMode } from "../usePptSession";
 import styles from "./PptGeneratorPage.module.css";
 
-type InputMode = "image" | "pdf";
-type SortMode = "nameAsc" | "nameDesc" | "oldest" | "newest" | "upload" | "manual";
+type RecoveryJob = { reference: PptJobReference; status: "checking" | "pending" | "done" | "error"; message?: string; slideCount?: number; retryable?: boolean };
+
+function recoveryIssueMessage(issue: PptRecoveryIssue): string {
+  if (issue === "scope_changed") return "이전 작업은 현재 계정이나 학원에서 복구할 수 없습니다.";
+  if (issue === "expired") return "오래된 작업 기록은 만료되었습니다. 원본 파일을 다시 선택해 주세요.";
+  if (issue === "invalid") return "저장된 작업 기록을 확인할 수 없습니다. 원본 파일을 다시 선택해 주세요.";
+  if (issue === "storage_unavailable") return "이 브라우저의 작업 기록을 읽을 수 없습니다. 원본 파일을 다시 선택해 주세요.";
+  return "";
+}
+
+function triggerPptDownload(data: PptGenerateResponse) {
+  const a = document.createElement("a");
+  a.href = data.download_url;
+  a.download = data.filename;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => a.remove(), 100);
+}
 
 let _idSeq = 0;
 function nextImageIdentity() {
@@ -30,17 +60,6 @@ function nextImageIdentity() {
 
 const MAX_IMAGES = 500;
 const MAX_TOTAL_IMAGE_BYTES = 1024 * 1024 * 1024;
-
-const DEFAULT_SETTINGS: PptSettings = {
-  aspect_ratio: "16:9",
-  background: "black",
-  fit_mode: "contain",
-  invert: true,
-  grayscale: true,
-  auto_enhance: false,
-  brightness: 1.0,
-  contrast: 1.0,
-};
 
 const sortCollator = new Intl.Collator("ko-KR", {
   numeric: true,
@@ -75,29 +94,134 @@ function buildPreviewFilter(item: ImageItem | undefined, settings: PptSettings):
 }
 
 export default function PptGeneratorPage() {
-  const [mode, setMode] = useState<InputMode>("image");
-  const [images, setImages] = useState<ImageItem[]>([]);
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [settings, setSettings] = useState<PptSettings>(DEFAULT_SETTINGS);
-  const [sortMode, setSortMode] = useState<SortMode>("nameAsc");
-  const [previewIndex, setPreviewIndex] = useState(0);
-  const [progressPct, setProgressPct] = useState<number | null>(null);
-  const [progressLabel, setProgressLabel] = useState<string>("");
-  const imagesRef = useRef<ImageItem[]>([]);
+  const { user, isLoading: authLoading } = useAuth();
+  const tenantScope = getTenantCodeForApiRequest() ?? "";
+  const userId = user?.id == null ? "" : String(user.id);
+  const [mode, setMode] = usePptDraftState("mode");
+  const [images, setImages] = usePptDraftState("images");
+  const [pdfFile, setPdfFile] = usePptDraftState("pdfFile");
+  const [pdfWorkflow, setPdfWorkflow] = usePptDraftState("pdfWorkflow");
+  const [manualRegions, setManualRegions] = usePptDraftState("manualRegions");
+  const [settings, setSettings] = usePptDraftState("settings");
+  const [sortMode, setSortMode] = usePptDraftState("sortMode");
+  const [previewIndex, setPreviewIndex] = usePptDraftState("previewIndex");
+  const [progressPct, setProgressPct] = usePptDraftState("progressPct");
+  const [progressLabel, setProgressLabel] = usePptDraftState("progressLabel");
+  const [isGenerating, setGenerating] = usePptDraftState("generating");
+  const session = usePptSession();
+  const [recoveryJobs, setRecoveryJobs] = useState<RecoveryJob[]>([]);
+  const [recoveryNotice, setRecoveryNotice] = useState("");
+  const [recoveryNonce, setRecoveryNonce] = usePptDraftState("recoveryNonce");
+  const recoveryIdentityRef = useRef("");
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!userId || !tenantScope || !session.isCurrent()) {
+      setRecoveryJobs([]);
+      setRecoveryNotice("");
+      recoveryIdentityRef.current = "";
+      return;
+    }
+    const identity = `${tenantScope}:${userId}`;
+    if (recoveryIdentityRef.current !== identity) {
+      recoveryIdentityRef.current = identity;
+      setRecoveryNotice("");
+    }
+    const { references, issue } = loadPptJobReferences(tenantScope, userId);
+    // Reading removes unsafe/expired refs; a second effect pass must keep that guidance visible.
+    if (issue) setRecoveryNotice(recoveryIssueMessage(issue));
+    else if (references.length) setRecoveryNotice("");
+    setRecoveryJobs(references.map((reference) => ({ reference, status: "checking" })));
+    const controller = new AbortController();
+    const timers = new Set<number>();
+    let active = true;
+    const update = (jobId: string, value: Partial<RecoveryJob>) => {
+      if (!active) return;
+      setRecoveryJobs((jobs) => jobs.map((job) => job.reference.jobId === jobId ? { ...job, ...value } : job));
+    };
+    const poll = async (reference: PptJobReference) => {
+      if (!active || !session.isCurrent()) return;
+      if (getTenantCodeForApiRequest() !== reference.tenantScope) {
+        forgetPptJobReference(reference.jobId);
+        update(reference.jobId, { status: "error", message: "학원이 변경되어 이 작업을 복구할 수 없습니다.", retryable: false });
+        return;
+      }
+      try {
+        const job = await getPptJobStatus(reference.jobId, controller.signal, session.requestConfig());
+        if (!active || !session.isCurrent()) return;
+        if (job.status === "DONE" && job.result?.download_url && job.result.filename) {
+          update(reference.jobId, { status: "done", message: "완료된 PPT를 다시 다운로드할 수 있습니다.", slideCount: job.result.slide_count });
+        } else if (["PENDING", "VALIDATING", "RUNNING", "RETRYING"].includes(job.status)) {
+          update(reference.jobId, { status: "pending", message: "PPT를 만드는 중입니다. 이 페이지를 새로고침해도 작업은 이어집니다." });
+          const timer = window.setTimeout(() => {
+            timers.delete(timer);
+            void poll(reference);
+          }, 2000);
+          timers.add(timer);
+        } else {
+          forgetPptJobReference(reference.jobId);
+          update(reference.jobId, { status: "error", message: "작업을 확인하거나 다운로드할 수 없습니다. 원본 파일을 다시 선택해 주세요.", retryable: false });
+        }
+      } catch (error) {
+        if (!active || !session.isCurrent()) return;
+        const status = isAxiosError(error) ? error.response?.status : undefined;
+        if (status === 401 || status === 403 || status === 404 || !isAxiosError(error)) {
+          forgetPptJobReference(reference.jobId);
+          update(reference.jobId, { status: "error", message: "이 작업에 접근할 수 없습니다. 현재 계정과 학원을 확인해 주세요.", retryable: false });
+        } else {
+          update(reference.jobId, { status: "error", message: "연결이 끊겨 작업 상태를 확인하지 못했습니다. 다시 확인해 주세요.", retryable: true });
+        }
+      }
+    };
+    references.forEach((reference) => { void poll(reference); });
+    return () => {
+      active = false;
+      controller.abort();
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [authLoading, tenantScope, userId, recoveryNonce, session]);
+
+  function rememberAcceptedJob(jobId: string, label: string) {
+    if (!userId || !tenantScope) {
+      if (session.isCurrent()) feedback.warning("계정 정보를 확인할 수 없어 새로고침 후 작업 복구가 제한됩니다.");
+      return;
+    }
+    if (!rememberPptJobReference({ jobId, tenantScope, userId, label, createdAt: Date.now() })) {
+      if (session.isCurrent()) feedback.warning("브라우저에 작업 기록을 저장하지 못했습니다. 이 화면을 닫기 전에 PPT를 다운로드해 주세요.");
+    }
+    if (session.isCurrent()) setRecoveryNonce((value) => value + 1);
+  }
+
+  async function handleRecoveredDownload(reference: PptJobReference) {
+    if (!session.isCurrent()) return;
+    try {
+      const job = await getPptJobStatus(reference.jobId, undefined, session.requestConfig());
+      if (!session.isCurrent()) return;
+      if (job.status !== "DONE" || !job.result?.download_url || !job.result.filename) {
+        throw new Error("완료된 PPT를 확인할 수 없습니다.");
+      }
+      triggerPptDownload(job.result);
+    } catch (error) {
+      if (!session.isCurrent()) return;
+      const status = isAxiosError(error) ? error.response?.status : undefined;
+      if (status === 401 || status === 403 || status === 404 || !isAxiosError(error)) {
+        forgetPptJobReference(reference.jobId);
+      }
+      setRecoveryJobs((jobs) => jobs.map((job) => job.reference.jobId === reference.jobId
+        ? { ...job, status: "error", retryable: status !== 401 && status !== 403 && status !== 404 && isAxiosError(error), message: "다운로드를 확인하지 못했습니다. 계정과 학원을 확인하거나 다시 시도해 주세요." }
+        : job));
+    }
+  }
 
   // 모드 전환
   const handleModeChange = useCallback((newMode: InputMode) => {
     setMode(newMode);
-  }, []);
+  }, [setMode]);
 
-  useEffect(() => {
-    imagesRef.current = images;
-  }, [images]);
-
-  useEffect(() => () => {
-    imagesRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
-    imagesRef.current = [];
-  }, []);
+  const handlePdfSelect = useCallback((file: File | null) => {
+    setPdfFile(file);
+    setManualRegions([]);
+  }, [setPdfFile, setManualRegions]);
 
   // 이미지 추가
   const handleFilesAdd = useCallback((files: File[]) => {
@@ -151,19 +275,19 @@ export default function PptGeneratorPage() {
       }
       return sortImageItems([...prev, ...accepted], sortMode);
     });
-  }, [sortMode]);
+  }, [sortMode, setImages]);
 
   // 순서 변경
   const handleReorder = useCallback((newItems: ImageItem[]) => {
     setSortMode("manual");
     setImages(newItems);
-  }, []);
+  }, [setSortMode, setImages]);
 
   const handleSortModeChange = useCallback((newMode: SortMode) => {
     setSortMode(newMode);
     setImages((prev) => sortImageItems(prev, newMode));
     setPreviewIndex(0);
-  }, []);
+  }, [setSortMode, setImages, setPreviewIndex]);
 
   // 이미지 삭제
   const handleRemove = useCallback((id: string) => {
@@ -172,54 +296,45 @@ export default function PptGeneratorPage() {
       if (item) URL.revokeObjectURL(item.previewUrl);
       return prev.filter((i) => i.id !== id);
     });
-  }, []);
+  }, [setImages]);
 
   // 개별 반전 토글
   const handleToggleInvert = useCallback((id: string) => {
     setImages((prev) =>
       prev.map((item) => (item.id === id ? { ...item, invert: !item.invert } : item)),
     );
-  }, []);
+  }, [setImages]);
 
   // 전체 삭제
   const handleClearAll = useCallback(() => {
     images.forEach((i) => URL.revokeObjectURL(i.previewUrl));
     setImages([]);
     setPreviewIndex(0);
-  }, [images]);
+  }, [images, setImages, setPreviewIndex]);
 
   useEffect(() => {
     setPreviewIndex((prev) => {
       if (images.length === 0) return 0;
       return Math.min(prev, images.length - 1);
     });
-  }, [images.length]);
+  }, [images.length, setPreviewIndex]);
 
-  // PPT 생성 mutation — 이미지 모드
-  const imageGenerateMutation = useMutation({
-    mutationFn: async () => {
-      const files = images.map((i) => i.file);
-      const order = images.map((_, idx) => idx);
-
-      const perSlide = images.map((item) => ({
-        invert: item.invert || settings.invert,
-        grayscale: settings.grayscale,
-        auto_enhance: settings.auto_enhance,
-        brightness: settings.brightness,
-        contrast: settings.contrast,
-      }));
-
+  async function runImageJob(files: File[], perSlide: PptSettings["per_slide"], label: string, uploadBase = 0) {
+      if (!userId || !tenantScope) throw new Error("계정과 학원을 확인한 뒤 다시 시도해 주세요.");
+      const order = files.map((_, idx) => idx);
       setProgressLabel("파일 업로드 중...");
 
       // Phase 1: Upload and submit job
       const jobResp = await submitPptJob(files, order, { ...settings, per_slide: perSlide }, (pct) => {
-        setProgressPct(Math.round(pct * 0.5));
+        setProgressPct(uploadBase + Math.round(pct * (50 - uploadBase) / 100));
         setProgressLabel(`업로드 중 ${Math.round(pct)}%`);
-      });
+      }, session.requestConfig());
+      if (!session.isCurrent()) throw new Error("PPT 작업의 계정 또는 화면이 변경되었습니다.");
+      rememberAcceptedJob(jobResp.job_id, label);
 
       // Register in workbox for background tracking
       asyncStatusStore.addWorkerJob(
-        `PPT 생성 (${images.length}장)`,
+        label,
         jobResp.job_id,
         "ppt_generation",
         undefined,
@@ -241,9 +356,44 @@ export default function PptGeneratorPage() {
           if (status === "PENDING") setProgressLabel("작업 대기 중...");
           else if (status === "RUNNING") setProgressLabel((prev) => prev.startsWith("PPT 생성 중") || prev.includes("%") ? prev : "PPT 생성 시작...");
         },
+        session.requestConfig(),
       );
 
       return result;
+  }
+
+  // PPT 생성 mutation — 이미지 모드
+  const imageGenerateMutation = useMutation({
+    mutationFn: async () => runImageJob(
+      images.map((item) => item.file),
+      images.map((item) => ({
+        invert: item.invert || settings.invert,
+        grayscale: settings.grayscale,
+        auto_enhance: settings.auto_enhance,
+        brightness: settings.brightness,
+        contrast: settings.contrast,
+      })),
+      `PPT 생성 (${images.length}장)`,
+    ),
+    onSuccess: handleGenerateSuccess,
+    onError: handleGenerateError,
+  });
+
+  const manualGenerateMutation = useMutation({
+    mutationFn: async () => {
+      if (!pdfFile || !manualRegions.length) throw new Error("먼저 자를 영역을 선택해주세요.");
+      setProgressLabel("선택 영역을 이미지로 만드는 중...");
+      const files = await renderCropFiles(pdfFile, manualRegions, (done, total) => {
+        setProgressPct(Math.round(done / total * 20));
+        setProgressLabel(`선택 영역 준비 중 ${done}/${total}`);
+      });
+      return runImageJob(files, files.map(() => ({
+        invert: settings.invert,
+        grayscale: settings.grayscale,
+        auto_enhance: settings.auto_enhance,
+        brightness: settings.brightness,
+        contrast: settings.contrast,
+      })), `PPT 직접 자르기 (${files.length}장)`, 20);
     },
     onSuccess: handleGenerateSuccess,
     onError: handleGenerateError,
@@ -253,6 +403,7 @@ export default function PptGeneratorPage() {
   const pdfGenerateMutation = useMutation({
     mutationFn: async () => {
       if (!pdfFile) throw new Error("PDF 파일을 선택해주세요.");
+      if (!userId || !tenantScope) throw new Error("계정과 학원을 확인한 뒤 다시 시도해 주세요.");
 
       setProgressLabel("PDF 업로드 중...");
 
@@ -260,7 +411,9 @@ export default function PptGeneratorPage() {
       const jobResp = await submitPdfPptJob(pdfFile, settings, (pct) => {
         setProgressPct(Math.round(pct * 0.5));
         setProgressLabel(`업로드 중 ${Math.round(pct)}%`);
-      });
+      }, session.requestConfig());
+      if (!session.isCurrent()) throw new Error("PPT 작업의 계정 또는 화면이 변경되었습니다.");
+      rememberAcceptedJob(jobResp.job_id, "PPT 생성 (PDF)");
 
       // Register in workbox for background tracking
       asyncStatusStore.addWorkerJob(
@@ -286,6 +439,7 @@ export default function PptGeneratorPage() {
           if (status === "PENDING") setProgressLabel("작업 대기 중...");
           else if (status === "RUNNING") setProgressLabel((prev) => prev.startsWith("PPT 생성 중") || prev.includes("%") ? prev : "PPT 생성 시작...");
         },
+        session.requestConfig(),
       );
 
       return result;
@@ -295,30 +449,26 @@ export default function PptGeneratorPage() {
   });
 
   function handleGenerateSuccess(data: { slide_count: number; size_bytes: number; download_url: string; filename: string; mode?: "question" | "page" }) {
+    if (!session.isCurrent()) return;
+    setGenerating(false);
     setProgressPct(null);
     setProgressLabel("");
     feedback.success(`PPT 생성 완료 (${data.slide_count}장, ${formatBytes(data.size_bytes)})`);
     if (data.mode === "page") {
-      // 텍스트 추출 안 되는 PDF는 페이지 단위로 fallback. 사용자 안내(표지·목차도 포함됨).
-      feedback.info("이 PDF는 텍스트 추출이 어려워 페이지 단위로 변환했습니다. 표지·목차도 슬라이드에 포함됩니다.");
+      feedback.info("문항을 정확히 나누기 어려워 모든 쪽을 그대로 넣었습니다. 필요한 문항만 쓰려면 '직접 자르기'에서 영역을 골라 다시 만드세요.");
     }
-    const a = document.createElement("a");
-    a.href = data.download_url;
-    a.download = data.filename;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => a.remove(), 100);
+    triggerPptDownload(data);
   }
 
   function handleGenerateError(err: unknown) {
+    setGenerating(false);
     setProgressPct(null);
     setProgressLabel("");
+    if (!session.isCurrent()) return;
     feedback.error(getApiErrorMessage(err, "PPT 생성에 실패했습니다."));
   }
 
-  const isGenerating = imageGenerateMutation.isPending || pdfGenerateMutation.isPending;
-  const canGenerate = mode === "image" ? images.length > 0 : pdfFile !== null;
+  const canGenerate = mode === "image" ? images.length > 0 : pdfFile !== null && (pdfWorkflow === "auto" || manualRegions.length > 0);
   const previewItem = images[previewIndex];
   const previewFilter = buildPreviewFilter(previewItem, settings);
   const previewWindow = useMemo(() => {
@@ -331,8 +481,16 @@ export default function PptGeneratorPage() {
   }, [images, previewIndex]);
 
   const handleGenerate = () => {
+    if (!canGenerate || isGenerating) return;
+    if (!session.isCurrent()) {
+      feedback.error("계정이나 학원이 변경되었습니다. 파일을 다시 선택해주세요.");
+      return;
+    }
+    if (!session.claim()) return;
     if (mode === "image") {
       imageGenerateMutation.mutate();
+    } else if (pdfWorkflow === "manual") {
+      manualGenerateMutation.mutate();
     } else {
       pdfGenerateMutation.mutate();
     }
@@ -410,15 +568,23 @@ export default function PptGeneratorPage() {
           <>
             <PdfUploadArea
               file={pdfFile}
-              onFileSelect={setPdfFile}
+              onFileSelect={handlePdfSelect}
               disabled={isGenerating}
             />
             {pdfFile && (
-              <div className={styles.pdfInfoCard}>
-                <div className={styles.pdfInfoText}>
-                  PDF의 문항을 자동으로 분리해 슬라이드로 변환합니다. 텍스트가 어려우면 이미지 기반으로 한 번 더 찾습니다.
+              <>
+                <div className={styles.pdfWorkflowTabs} role="group" aria-label="PDF 분할 방법">
+                  <button type="button" aria-pressed={pdfWorkflow === "auto"} onClick={() => setPdfWorkflow("auto")} disabled={isGenerating}>자동 문항 분리</button>
+                  <button type="button" aria-pressed={pdfWorkflow === "manual"} onClick={() => setPdfWorkflow("manual")} disabled={isGenerating}>직접 자르기</button>
                 </div>
-              </div>
+                {pdfWorkflow === "auto" ? (
+                  <div className={styles.pdfInfoCard}>
+                    <div className={styles.pdfInfoText}>
+                      문항을 자동으로 찾아 PPT를 만듭니다. 결과가 빠지거나 잘못 잘렸다면 직접 자르기로 같은 PDF를 다시 만들 수 있습니다.
+                    </div>
+                  </div>
+                ) : <ManualPdfCropper file={pdfFile} regions={manualRegions} onChange={setManualRegions} disabled={isGenerating} />}
+              </>
             )}
           </>
         )}
@@ -535,6 +701,27 @@ export default function PptGeneratorPage() {
             </div>
           )}
         </button>
+
+        {(recoveryJobs.length > 0 || recoveryNotice) && (
+          <section className={styles.recoveryPanel} aria-label="이전 PPT 작업">
+            <h3>이전 PPT 작업</h3>
+            {recoveryNotice && <p role="status">{recoveryNotice}</p>}
+            {recoveryJobs.map((job) => (
+              <div className={styles.recoveryJob} key={job.reference.jobId}>
+                <strong>{job.reference.label}</strong>
+                <p role="status">{job.message || "작업 상태를 확인하는 중입니다..."}</p>
+                {job.status === "done" && (
+                  <button type="button" onClick={() => { void handleRecoveredDownload(job.reference); }}>
+                    완료된 PPT 다운로드{job.slideCount ? ` (${job.slideCount}장)` : ""}
+                  </button>
+                )}
+                {job.status === "error" && job.retryable && (
+                  <button type="button" onClick={() => setRecoveryNonce((value) => value + 1)}>다시 확인</button>
+                )}
+              </div>
+            ))}
+          </section>
+        )}
 
         {/* 상태 요약 */}
         {mode === "image" && images.length > 0 && (

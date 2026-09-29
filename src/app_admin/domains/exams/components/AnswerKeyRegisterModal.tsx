@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
@@ -20,6 +21,7 @@ import {
 } from "../api/answerKey.api";
 import { patchQuestionScore } from "@admin/domains/materials/api/sheetQuestions";
 import { useAdminExam } from "../hooks/useAdminExam";
+import { examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 import { ensureExamStructure, recalculateExam } from "../api/adminExam";
 import { fetchOMRDefaults } from "../api/omr.api";
 import OmrSheetBuilder from "./omr/OmrSheetBuilder";
@@ -117,8 +119,53 @@ function parseChoiceDraft(value: string): Set<string> {
   return new Set(tokens);
 }
 
-function formatChoiceDraft(values: Set<string>): string {
-  return CHOICES.filter((choice) => values.has(choice)).join(",");
+/** A pipe separates acceptable mark sets; a comma requires marks together. */
+function formatChoiceDraft(values: Set<string>, mode: "all" | "either" = "all"): string {
+  const choices = CHOICES.filter((choice) => values.has(choice));
+  if (mode === "all") return choices.join(",");
+  return Array.from({ length: (1 << choices.length) - 1 }, (_, index) =>
+    choices.filter((_, position) => ((index + 1) & (1 << position)) !== 0).join(",")
+  ).join("|");
+}
+
+type ChoiceRule = "all" | "either" | "one-only" | "custom";
+
+function choiceRuleForDraft(draft: string): ChoiceRule {
+  if (!draft.trim()) return "all";
+  const alternatives = draft.split(/\s*(?:\||또는|혹은|\bor\b)\s*/i).map((part) =>
+    part.split(/\s*[,;+&]\s*/).map(normalizeChoiceToken)
+  );
+  if (alternatives.some((parts) =>
+    parts.length === 0 || parts.some((part) => !CHOICES.includes(part)) || new Set(parts).size !== parts.length
+  )) return "custom";
+  if (alternatives.length === 1) return "all";
+  const actual = new Set(alternatives.map((parts) => formatChoiceDraft(new Set(parts))));
+  if (actual.size !== alternatives.length) return "custom";
+  const selected = new Set(alternatives.flat());
+  const expected = new Set(formatChoiceDraft(selected, "either").split("|"));
+  if (actual.size === expected.size && [...actual].every((answer) => expected.has(answer))) return "either";
+  if (alternatives.every((parts) => parts.length === 1)) return "one-only";
+  return "custom";
+}
+
+function choiceRuleSummary(
+  rule: ChoiceRule,
+  labels: string[],
+  acceptsAny: boolean,
+  draft: string
+): string {
+  if (rule === "custom") return `기존 조합 정답 유지: ${draft}`;
+  if (labels.length === 0) return acceptsAny
+    ? "기본 정답과 예외 정답 번호를 선택해 주세요."
+    : "정답 번호를 선택해 주세요.";
+  if (acceptsAny) {
+    if (labels.length === 1) return "예외로 인정할 번호를 추가로 선택해 주세요.";
+    if (labels.length === 2) return `${labels[0]}번 또는 ${labels[1]}번, 둘 다 선택해도 정답`;
+    return `${labels.join("·")} 중 하나 이상 선택하면 정답`;
+  }
+  if (rule === "one-only") return `${labels.join("·")} 중 하나만 선택해야 정답`;
+  if (labels.length > 1) return `${labels.join("·")}을 모두 선택해야 정답`;
+  return `${labels[0]}번 정답`;
 }
 
 function parseCountDraft(value: string): CountDraft {
@@ -272,6 +319,7 @@ export default function AnswerKeyRegisterModal({
   const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">(initialTab);
   const [downloaded, setDownloaded] = useState(false);
   const { data: exam } = useAdminExam(examId);
+  const navigate = useNavigate();
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [ensuredExamId, setEnsuredExamId] = useState<number | null>(null);
   const [ensureAttemptedExamId, setEnsureAttemptedExamId] = useState<number | null>(null);
@@ -444,6 +492,10 @@ export default function AnswerKeyRegisterModal({
   }, [effectiveChoiceCount, questionTypes, sortedQuestions]);
   const choiceQuestions = sortedQuestions.filter((_, index) => resolvedQuestionTypes[index] === "choice");
   const essayQuestions = sortedQuestions.filter((_, index) => resolvedQuestionTypes[index] === "essay");
+  const essayIndexById = new Map(essayQuestions.map((question, index) => [question.id, index + 1]));
+  const questionLabel = (question: ExamQuestion) => examQuestionLabel(
+    question.number, exam?.essay_numbering, essayIndexById.get(question.id),
+  );
 
   const getScore = (q: ExamQuestion) => scoreDraft[q.id] ?? q.score ?? 0;
   const questionTotalScore = useMemo(
@@ -935,7 +987,15 @@ export default function AnswerKeyRegisterModal({
       } else if (failedCount > 0) {
         feedback.warning(`답안과 배점을 저장했습니다. 재채점 실패 ${failedCount}건은 시험 결과에서 확인해 주세요.`);
       } else if (reviewCount > 0) {
-        feedback.warning(`정답을 저장하고 자동 재채점했습니다. 수기 보정 ${reviewCount}건은 확인이 필요합니다.`);
+        feedback.successWithAction({
+          message: `정답 저장·자동 재채점 완료 · 확인 대상 ${reviewCount}건`,
+          description: "시험 결과에서 학생 답안을, 상단 OMR 검토에서 미식별 스캔을 확인해 주세요.",
+          action: {
+            label: "시험 결과 열기",
+            onClick: () => navigate(`/workspace/exams/${examId}?examTab=results`),
+          },
+          duration: 12,
+        });
       } else {
         feedback.success(
           canEditQuestions ? "저장·재채점되었습니다." : "정답을 저장하고 기존 성적을 재채점했습니다."
@@ -1139,9 +1199,9 @@ export default function AnswerKeyRegisterModal({
                           : value
                       ))}
                       disabled={!canEditStructure || initMut.isPending}
-                      aria-label={`${index + 1}번 ${kind === "choice" ? "객관식" : "서술형"}. 눌러서 변경`}
+                      aria-label={`${examQuestionLabel(index + 1, exam?.essay_numbering, kind === "essay" ? questionTypes.slice(0, index + 1).filter((type) => type === "essay").length : null)} ${kind === "choice" ? "객관식" : "서술형"}. 눌러서 변경`}
                     >
-                      <span>{index + 1}</span>
+                      <span>{kind === "essay" && exam?.essay_numbering === "separate" ? `서${questionTypes.slice(0, index + 1).filter((type) => type === "essay").length}` : index + 1}</span>
                       <small>{kind === "choice" ? "객관식" : "서술형"}</small>
                     </button>
                   ))}
@@ -1305,7 +1365,7 @@ export default function AnswerKeyRegisterModal({
                   {choiceQuestions.map((q, index) => (
                     <ChoiceRow
                       key={q.id}
-                      question={q}
+                      displayLabel={questionLabel(q)}
                       draft={draft[String(q.id)] ?? ""}
                       onChange={(value) =>
                         setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
@@ -1481,7 +1541,7 @@ export default function AnswerKeyRegisterModal({
                   {essayQuestions.map((q, index) => (
                     <EssayRow
                       key={q.id}
-                      question={q}
+                      displayLabel={questionLabel(q)}
                       draft={draft[String(q.id)] ?? ""}
                       onChange={(value) =>
                         setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
@@ -1539,7 +1599,7 @@ export default function AnswerKeyRegisterModal({
                       {sortedQuestions.map((q) => (
                         <ExplanationRow
                           key={q.id}
-                          question={q}
+                          displayLabel={questionLabel(q)}
                           examId={examId}
                           explanation={explanationDraft[q.id] ?? { text: "", problemImageUrl: null, problemImageKey: null, imageUrl: null, imageKey: null, dirty: false }}
                           onChange={(next) =>
@@ -1566,6 +1626,7 @@ export default function AnswerKeyRegisterModal({
               sessionName={sessionName || omrDefaults?.session_name || ""}
               choiceCount={choiceQuestions.length}
               essayCount={essayQuestions.length}
+              essayNumbering={exam?.essay_numbering}
               questionTypes={resolvedQuestionTypes}
               guidedPrint={flowStep === "print"}
               onDownloaded={() => setDownloaded(true)}
@@ -1613,7 +1674,7 @@ export default function AnswerKeyRegisterModal({
 }
 
 function ChoiceRow({
-  question,
+  displayLabel,
   draft,
   onChange,
   score,
@@ -1625,7 +1686,7 @@ function ChoiceRow({
   onMoveToNextRow,
   onMoveToPreviousRow,
 }: {
-  question: ExamQuestion;
+  displayLabel: string;
   draft: string;
   onChange: (value: string) => void;
   score: number;
@@ -1639,15 +1700,23 @@ function ChoiceRow({
 }) {
   const scoreTone = Math.min(10, Math.max(0, Math.floor(score)));
   const selectedChoices = parseChoiceDraft(draft);
+  const choiceRule = choiceRuleForDraft(draft);
+  const [addingException, setAddingException] = useState(false);
+  const acceptsAny = choiceRule === "either" || (choiceRule === "all" && addingException);
+  const selectedLabels = CHOICES.filter((choice) => selectedChoices.has(choice));
   const [activeIndex, setActiveIndex] = useState(0);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const toggleChoice = (choice: string) => {
-    if (!editable) return;
+    if (!editable || choiceRule === "custom") return;
     const next = new Set(selectedChoices);
     if (next.has(choice)) next.delete(choice);
     else next.add(choice);
-    onChange(formatChoiceDraft(next));
+    if (choiceRule === "one-only") onChange(CHOICES.filter((item) => next.has(item)).join("|"));
+    else {
+      if (acceptsAny) setAddingException(true);
+      onChange(formatChoiceDraft(next, acceptsAny ? "either" : "all"));
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -1696,11 +1765,12 @@ function ChoiceRow({
 
   return (
     <li className={`answer-key-row answer-key-row--choice ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
-      <div className="answer-key-row__num">{question.number}</div>
+      <div className="answer-key-row__num">{displayLabel}</div>
+      <div className="answer-key-row__answer">
       <div
         className="answer-key-row__bubbles"
         role="group"
-        aria-label={`${question.number}번 정답. 방향키로 이동, Enter 또는 스페이스로 선택`}
+        aria-label={`${displayLabel} 정답. 방향키로 이동, Enter 또는 스페이스로 선택`}
       >
         {CHOICES.map((c, index) => (
           <button
@@ -1712,9 +1782,9 @@ function ChoiceRow({
             type="button"
             className={`answer-key-omr-label ${activeIndex === index ? "answer-key-omr-label--active" : ""}`}
             role="checkbox"
-            aria-label={`${question.number}번 ${c}번 선택지`}
+            aria-label={`${displayLabel} ${c}번 선택지`}
             aria-checked={selectedChoices.has(c)}
-            tabIndex={editable && activeIndex === index ? 0 : -1}
+            tabIndex={editable && choiceRule !== "custom" && activeIndex === index ? 0 : -1}
             onKeyDown={handleKeyDown}
             onMouseDown={(event) => event.preventDefault()}
             onClick={(event) => {
@@ -1722,7 +1792,7 @@ function ChoiceRow({
               toggleChoice(c);
               event.currentTarget.focus({ preventScroll: true });
             }}
-            disabled={!editable}
+            disabled={!editable || choiceRule === "custom"}
           >
             <span
               className={`exam-omr-bubble ${selectedChoices.has(c) ? "exam-omr-bubble--selected" : ""}`}
@@ -1732,6 +1802,34 @@ function ChoiceRow({
             </span>
           </button>
         ))}
+      </div>
+      <div className="answer-key-row__rule">
+        <span className="answer-key-row__rule-summary">
+          {choiceRuleSummary(choiceRule, selectedLabels, acceptsAny, draft)}
+        </span>
+        {editable && choiceRule === "custom" && (
+          <button type="button" className="answer-key-row__rule-action" onClick={() => { setAddingException(false); onChange(""); }}>
+            정답 규칙 다시 설정
+          </button>
+        )}
+        {editable && choiceRule === "one-only" && (
+          <button type="button" className="answer-key-row__rule-action" onClick={() => onChange(formatChoiceDraft(selectedChoices, "either"))}>
+            함께 선택해도 정답 처리
+          </button>
+        )}
+        {editable && choiceRule !== "custom" && choiceRule !== "one-only" && (acceptsAny ? (
+          <button type="button" className="answer-key-row__rule-action" onClick={() => { setAddingException(false); onChange(formatChoiceDraft(selectedChoices)); }}>
+            {selectedChoices.size > 1 ? "모두 선택해야 정답으로 변경" : "예외 추가 취소"}
+          </button>
+        ) : (
+          <button type="button" className="answer-key-row__rule-action" onClick={() => {
+            setAddingException(true);
+            if (selectedChoices.size > 1) onChange(formatChoiceDraft(selectedChoices, "either"));
+          }}>
+            + 예외 정답
+          </button>
+        ))}
+      </div>
       </div>
       <div className="answer-key-row__score-ctrl">
         <span className={`answer-key-row__score-val answer-key-row__score-val--${scoreTone}`}>{formatScore(score)}점</span>
@@ -1758,7 +1856,7 @@ function ResetIcon() {
 }
 
 function EssayRow({
-  question,
+  displayLabel,
   draft,
   onChange,
   score,
@@ -1771,7 +1869,7 @@ function EssayRow({
   onMoveToNextRow,
   onMoveToPreviousRow,
 }: {
-  question: ExamQuestion;
+  displayLabel: string;
   draft: string;
   onChange: (value: string) => void;
   score: number;
@@ -1801,7 +1899,7 @@ function EssayRow({
 
   return (
     <li className={`answer-key-row answer-key-row--essay ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
-      <div className="answer-key-row__num">{question.number}</div>
+      <div className="answer-key-row__num">{displayLabel}</div>
       <div className="answer-key-row__input-wrap">
         <input
           ref={inputRef}
@@ -1815,7 +1913,7 @@ function EssayRow({
           onKeyDown={handleKeyDown}
           placeholder={numericOnly ? "0~999" : "해설참조"}
           maxLength={numericOnly ? 3 : undefined}
-          aria-label={`${question.number}번 ${numericOnly ? "단답형" : "서술형"} 정답`}
+          aria-label={`${displayLabel} ${numericOnly ? "숫자 " : ""}정답`}
           className="ds-input answer-key-row__input"
           disabled={!editable}
         />
@@ -1958,17 +2056,17 @@ function ImageCell({
 }
 
 function ExplanationRow({
-  question,
+  displayLabel,
   examId,
   explanation,
   onChange,
 }: {
-  question: ExamQuestion;
+  displayLabel: string;
   examId: number;
   explanation: ExplanationState;
   onChange: (next: ExplanationState) => void;
 }) {
-  const label = typeof question.number === "number" ? String(question.number) : `S${question.number}`;
+  const label = displayLabel;
   const problemUrl = explanation.problemImageUrl;
   const explanationUrl = explanation.imageUrl;
 
@@ -2022,6 +2120,7 @@ function OmrSettingsTab({
   sessionName,
   choiceCount,
   essayCount,
+  essayNumbering,
   questionTypes,
   guidedPrint,
   onDownloaded,
@@ -2032,6 +2131,7 @@ function OmrSettingsTab({
   sessionName: string;
   choiceCount: number;
   essayCount: number;
+  essayNumbering?: "continuous" | "separate";
   questionTypes: QuestionKind[];
   guidedPrint?: boolean;
   onDownloaded?: () => void;
@@ -2052,6 +2152,7 @@ function OmrSettingsTab({
         initialSessionName={sessionName || ""}
         initialMcCount={choiceCount}
         initialEssayCount={essayCount}
+        initialEssayNumbering={essayNumbering}
         initialQuestionTypes={questionTypes}
         layout="modal"
         guidedPrint={guidedPrint}

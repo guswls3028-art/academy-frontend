@@ -34,6 +34,7 @@ function batchSummary(options: {
   terminal?: boolean;
   claimed?: boolean;
   admissionFailure?: boolean;
+  subjectivePending?: boolean;
 } = {}) {
   const terminal = options.terminal ?? false;
   const admissionFailure = terminal && (options.admissionFailure ?? false);
@@ -49,9 +50,9 @@ function batchSummary(options: {
           received: 0,
           duplicate: 0,
           processing: 0,
-          completed: admissionFailure ? 19 : 20,
-          needs_identification: 1,
-          failed: admissionFailure ? 2 : 1,
+          completed: options.subjectivePending ? 22 : admissionFailure ? 19 : 20,
+          needs_identification: options.subjectivePending ? 0 : 1,
+          failed: options.subjectivePending ? 0 : admissionFailure ? 2 : 1,
           superseded: 0,
         }
       : {
@@ -65,11 +66,22 @@ function batchSummary(options: {
           superseded: 0,
         },
     pending_admission_ordinals: terminal ? [] : [1],
-    failed_ordinals: terminal ? [22] : [],
+    failed_ordinals: terminal && !options.subjectivePending ? [22] : [],
     admission_failed_ordinals: admissionFailure ? [21] : [],
     duplicate_ordinals: [],
     terminal,
-    overall_status: terminal ? "failed" : "receiving",
+    overall_status: terminal ? options.subjectivePending ? "completed" : "failed" : "receiving",
+    grading_complete: false,
+    grading_status: options.subjectivePending && terminal ? "subjective_pending" : "pending",
+    grading_counts: {
+      completed: 0,
+      subjective_pending: options.subjectivePending && terminal ? 22 : 0,
+      manual_review_required: 0,
+      grading_pending: 0,
+    },
+    subjective_pending_ordinals: options.subjectivePending && terminal
+      ? Array.from({ length: 22 }, (_, index) => index + 1)
+      : [],
     completion_notice_claimed: options.claimed ?? false,
     created_at: "2026-08-27T01:00:00Z",
     updated_at: "2026-08-27T01:00:00Z",
@@ -128,6 +140,7 @@ async function installDashboardApi(
     failDetail?: boolean;
     holdRetryResponse?: boolean;
     holdCompletionClaim?: boolean;
+    subjectivePending?: boolean;
   } = {},
 ) {
   await installTenantOneInitScript(page);
@@ -265,7 +278,7 @@ async function installDashboardApi(
       }
       const batch = options.uploadFlow && initializedUploads
         ? admissionSummary(uploadPosts > 0 ? "received" : "pending")
-        : batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure });
+        : batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
       const response = options.empty || hideBatches ? [] : [batch];
       if (options.holdListResponse && listGets === 1) await listResponseGate;
       await safeJson(route, response);
@@ -292,7 +305,7 @@ async function installDashboardApi(
           ? partialUpload
             ? partialAdmissionSummary()
             : admissionSummary(uploadPosts > 0 ? "received" : "pending")
-          : batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure });
+          : batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
       await safeJson(route, batch);
       return;
     }
@@ -326,6 +339,7 @@ async function installDashboardApi(
           terminal: true,
           claimed: true,
           admissionFailure: options.admissionFailure,
+          subjectivePending: options.subjectivePending,
         }),
       });
       completionClaimResponses += 1;
@@ -558,6 +572,17 @@ test.describe("OMR durable batch progress", () => {
     await expect(page).toHaveURL(
       new RegExp(`/workspace/mobile/exams/${EXAM_ID}/omr`),
     );
+  });
+
+  test("OMR 처리가 끝나도 서술형 채점 대기를 표시하고 해당 차시로 연결한다", async ({ page }) => {
+    const api = await installDashboardApi(page, { subjectivePending: true });
+    api.finish();
+    await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+    const task = await openWorkbox(page);
+    await expect(task).toContainText("OMR 처리 완료 22");
+    await expect(task).toContainText("서술형 입력 필요 22");
+    await task.getByRole("button", { name: "서술형 점수 입력" }).click();
+    await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores\\?gradingExamId=${EXAM_ID}`));
   });
 
   test("작업 상태 목록의 loading/error/empty를 구분하고 수동 복구한다", async ({ page }) => {

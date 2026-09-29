@@ -147,7 +147,7 @@ export default function StudentDetailPage() {
               avatarSize={56}
               chipSize={ICON.lg}
               className="text-lg"
-              lectures={enrollments.map((e) => ({
+              lectures={enrollments.filter((e) => e.lectureActive && (e.status ?? "ACTIVE") === "ACTIVE").map((e) => ({
                 lectureName: e.lectureName,
                 color: e.lectureColor,
                 chipLabel: e.lectureChipLabel,

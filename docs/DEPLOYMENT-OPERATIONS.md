@@ -1,6 +1,6 @@
 # 프론트엔드 배포·E2E 운영 계약
 
-**상태:** 현재 실행 계약 및 자동 release QA 경계 전환 HOLD (아래 3.1)
+**상태:** 현재 실행 계약. 최초 자동 release QA 전환 조건과 확인 이력은 아래 3.1.
 **정본:** `.github/workflows/quality-gate.yml`, `.github/workflows/e2e.yml`,
 `package.json`, `scripts/guard-e2e-safety.mjs`
 
@@ -11,7 +11,7 @@
 [backend 배포 시점과 사용자 연속성](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/deployment-modes.md)이다.
 이미 열린 앱과 구·신 API/DB의 호환, 활성 영상·입력·업로드의 강제 새로고침 없는
 연속성, development-canary/cleanup zero와 승인·rollback 증거를 확인한다.
-아래 3.1의 IAM/SSM 전환 HOLD 같은 기술적 제한은 실제 해제 증거 전까지 유지한다.
+현재 후보에서 IAM/SSM 격리 검증이 실패하면 해당 원인을 해결한 뒤 진행한다.
 과거 시간 약속이나 자동화 재개 시간만으로 새 배포를 지연하지 않는다.
 
 ## 1. 배포 순서
@@ -22,7 +22,8 @@
    `CLOUDFLARE_PREVIEW_API_TOKEN`으로 Cloudflare Pages preview에 direct
    upload한다. preview revision, Functions bundle, 핵심 route와 lazy asset을
    검증한다.
-3. `main` push에서는 동일 `deploy-bundle`의 개발 real-use 21개와 exact tenant/user
+3. `main` push에서는 동일 `deploy-bundle`로 `scripts/run-development-release-canary.mjs`와
+   `e2e/suites.mjs`에 등록된 개발 real-use 전체 및 exact tenant/user
    cleanup0을 `development-canary` job에서 먼저 통과한다. 이 job의 success 없이는
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
 4. 기존 운영 deployment id/version과 Pages production
@@ -32,7 +33,7 @@
 6. 운영 `version.json`, 배포 `index.html`이 직접 참조하는 진입 JS/CSS, 그리고
    route-critical lazy asset이 연속 3회 일치한 뒤 login, tenant availability,
    조회-only session-assessment canary를 실행한다. notice/QnA/clinic 쓰기는 개발
-   job에서만 실행한다. 실제 IAM/격리 검증이 끝나기 전에는 3.1의 HOLD를 적용한다.
+   job에서만 실행한다. 후보마다 실제 IAM/격리 검증과 cleanup0을 통과해야 한다.
    진입 자산을 빼면 새
    HTML만 먼저 전파되어 `index-*.js`가 404인 순간을 안정화 완료로 오인할 수 있다.
 7. deploy job 내부 검증 실패는 같은 승인 job에서 즉시 baseline으로 rollback한다.
@@ -122,11 +123,15 @@ stale 충돌, 동일 계정 복구와 유효한 0을 소유한다.
 PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 
 PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency
-chain으로 직렬 실행한다. 별도 job은 API proxy를 `http://127.0.0.1:9`로 닫고 각
-browser context에 API interception을 설치하는 route-mock 파일만 CI 최대 3 worker로
-병렬 실행한다. 두 job은 서로 기다리지 않으므로 운영 계정 직렬성은 보존하면서
-route-mock wall time을 줄인다. 수동 workflow도 두 job을 병렬 재사용하며 전 메뉴
-감사는 둘 다 성공한 뒤에만 시작한다. `e2e/suites.mjs`가 운영 read-only,
+chain으로 직렬 실행한다. 별도 세 job은 API proxy를 `http://127.0.0.1:9`로 닫고
+route-mock 전체 목록을 Playwright의 `--shard=1/3`, `2/3`, `3/3`으로 나눈다.
+각 실행기는 기존 최대 3 worker를 유지하고, 한 shard가 실패해도 나머지 검사를
+취소하지 않는다. shard 1은 WebKit, production bundle smoke와 theme 검증도 수행한다.
+필수 check 이름 `E2E closed-proxy route mocks`는 세 shard의 결과를 합치며,
+실패·취소·건너뜀 중 하나라도 있으면 통과하지 않는다. 테스트 목록·재시도·쓰기
+경계는 그대로이고 report/server-log는 shard 번호로 구분해 보존한다.
+운영 read-only chain과 shard는 독립 실행되며 수동 전 메뉴 감사는 둘 다 성공한
+뒤에만 시작한다. `e2e/suites.mjs`가 운영 read-only,
 route mock, 통제 쓰기 목록을 한 곳에서 소유하며 safety guard가 production
 allowlist, route interception, 중복·누락과 package script 진입점을 함께 차단한다.
 
@@ -160,11 +165,15 @@ proxy/tunnel을 삭제하고 backend destroy readback으로 잔여 tenant/user�
 성공 여부와 무관하게 생성된 `[E2E-*]` residue는 backend exact-token cleanup과
 postdeploy canary의 residue 0 증거까지 닫아야 한다.
 
-### 3.1 자동 release QA 경계 전환과 HOLD
+### 3.1 자동 release QA 경계와 최초 전환 이력
 
 이 checkout의 workflow는 운영 `E2E_ALLOW_PRODUCTION_WRITES=0`과 개발 전용 write
-suite를 연결한다. 다만 새 IAM role/document와 개발 host parameter deny가 실제로
-수렴·검증되고 격리 real-use가 성공하기 전에는 운영 배포에 사용하지 않는다.
+suite를 연결한다. 최초 도입 때는 IAM role/document와 개발 host parameter deny의
+실제 수렴·격리 real-use 성공이 전환 조건이었다. 2026-09-28의
+[공식 실행 36386831234](https://github.com/guswls3028-art/academy-frontend/actions/runs/36386831234)는
+동일 artifact의 실사용 23건·양쪽 QA tenant/user cleanup0·운영 승격까지 통과했다.
+최초 전환을 아직 미적용인 상시 HOLD로 해석하지 않는다. 이후 후보도 기존 workflow의
+동일 artifact·격리·cleanup·공식 승인·배포 후 검증을 매번 통과해야 한다.
 로컬 helper 구현이나 단위 테스트 통과는 IAM 적용, development real-use 통과 또는
 배포 승인 증거가 아니다.
 
@@ -506,6 +515,15 @@ runner는 Setup 전부터 `passed:false`/`cleanup:null`인 미완료 증거를 �
 실패/timeout은 finally로 들어가 test process를 먼저 stop/reap한 뒤 Cleanup을 시도하고,
 소유 SSM session들의 종료 API와 Active/History readback 후 최종 증거를 쓴다. Cleanup
 실패·소유 session ID/종료 readback 누락은 각각 실패 분류로 남아 승격을 차단한다.
+전체 실사용 child 한도는 50분, 이를 제공하는 SSM 터널은 55분, CI job은 설치·정리와
+증거 업로드 여유를 포함해 60분이다. 이전 28분 36초 실행은 serial OMR 한 건 실패·한 건
+건너뛰기를 포함해 두 건의 각 10분 한도를 추가하면 48분 36초 미만이다. 기존 30분
+한도를 넘긴 실행은 전체 결과를 보고하기 전에 종료됐다. OMR 각 10분,
+영상 test 17분, 단일 worker·재시도 0·필수 23건·690초 재생 및 cleanup0 요구는 유지한다.
+`development-release-progress.json`은 테스트 시작/종료마다 허용 spec 파일명·행·상태·
+소요 시간만 저장해 child timeout 시 마지막 진행 지점을 보존한다. 제목·오류 원문·
+API 데이터·인증정보는 기록하지 않는다. 이 진단 파일이나 일부 통과 결과로 전체 JSON
+보고서와 cleanup0 검증을 대신해 승격할 수 없다.
 artifact 비교는 archive/content SHA256 원문을 항상 함께 보존한다. 다만 source 변경이
 version SHA와 Vite content-hash filename 치환뿐이고, 이전→현재 SHA 및 일대일 hashed
 filename을 정규화한 모든 변경 파일이 byte-equal이면 제품 의미가 같은 증거로 인정한다.

@@ -82,6 +82,7 @@ export function normalizeExam(raw: unknown): Exam {
       data.manual_grading_method,
     ),
     choice_question_count: numberOr(data.choice_question_count, 0),
+    essay_numbering: data.essay_numbering === "separate" ? "separate" : "continuous",
     segmentation_status: normalizeSegmentationStatus(
       data.segmentation_status,
     ),

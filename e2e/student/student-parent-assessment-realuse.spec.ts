@@ -298,7 +298,7 @@ async function submitFirstStudentThroughUi(
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${QA_BASE}/student/exams/${examId}/result`, { timeout: 30_000 });
   await waitForRenderSettled(page, { timeout: 20_000 });
-  await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2", "5"]);
+  await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2번", "5번"]);
   await assertNoHorizontalOverflow(page);
   return submissionId;
 }
@@ -357,7 +357,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await page.locator("[data-confirm-dialog]").getByRole("button", { name: "제출" }).click();
     const parentSubmissionId = await parentSubmitResponse;
     await page.waitForURL(`**/student/exams/${created.examId}/result`, { timeout: 45_000 });
-    await expect(page.getByTestId("wrong-number-chip")).toHaveText(["1", "2", "3", "4"]);
+    await expect(page.getByTestId("wrong-number-chip")).toHaveText(["1번", "2번", "3번", "4번"]);
     expect(await waitForResult(request, parentTokens.access, created.examId!, peer.id)).toMatchObject({
       total_score: 20,
       analysis: { wrong_count: 4 },

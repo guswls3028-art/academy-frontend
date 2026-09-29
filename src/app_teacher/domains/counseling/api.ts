@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/counseling/api.ts
 // 상담 메모 API — community posts (post_type=counsel) 기반
 import api from "@/shared/api/axios";
+import { deleteCommunityPost } from "@/shared/api/contracts/community";
 
 /** 상담 메모 목록 (관리자 뷰, counsel 타입) */
 export async function fetchCounselingPosts(params?: { page?: number; pageSize?: number }) {
@@ -56,5 +57,5 @@ export async function createCounselingReply(postId: number, content: string) {
 
 /** 상담 메모 삭제 */
 export async function deleteCounselingPost(postId: number) {
-  await api.delete(`/community/posts/${postId}/`);
+  return deleteCommunityPost(api, postId);
 }

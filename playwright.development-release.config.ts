@@ -23,7 +23,7 @@ export default defineConfig({
   retries: 0,
   timeout: 17 * 60_000,
   expect: { timeout: 10_000 },
-  reporter: [["json"]],
+  reporter: [["json"], ["./scripts/release-canary-progress-reporter.mjs"]],
   use: {
     ...devices["Desktop Chrome"],
     viewport: { width: 1920, height: 1080 },

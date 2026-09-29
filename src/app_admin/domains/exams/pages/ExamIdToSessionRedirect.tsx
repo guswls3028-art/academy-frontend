@@ -58,8 +58,11 @@ export default function ExamIdToSessionRedirect() {
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const rawSessionContext = searchParams.get("sessionId");
   const sessionContext = rawSessionContext == null ? null : positiveInteger(rawSessionContext);
-  const invalidSearch = Array.from(searchParams.keys()).some((key) => key !== "sessionId")
+  const resultsTab = searchParams.get("examTab") === "results";
+  const invalidSearch = Array.from(searchParams.keys()).some((key) => key !== "sessionId" && key !== "examTab")
     || searchParams.getAll("sessionId").length > 1
+    || searchParams.getAll("examTab").length > 1
+    || (searchParams.has("examTab") && !resultsTab)
     || (rawSessionContext != null && sessionContext == null);
 
   const examQ = useQuery({
@@ -97,10 +100,10 @@ export default function ExamIdToSessionRedirect() {
   useEffect(() => {
     if (!exactTarget) return;
     navigate(
-      `/workspace/lectures/${exactTarget.lectureId}/sessions/${exactTarget.id}/exams?examId=${parsedExamId}`,
+      `/workspace/lectures/${exactTarget.lectureId}/sessions/${exactTarget.id}/exams?examId=${parsedExamId}${resultsTab ? "&examTab=results" : ""}`,
       { replace: true },
     );
-  }, [exactTarget, navigate, parsedExamId]);
+  }, [exactTarget, navigate, parsedExamId, resultsTab]);
 
   useEffect(() => {
     if (!showSelector) return;
@@ -158,7 +161,7 @@ export default function ExamIdToSessionRedirect() {
               className="w-full justify-start"
               intent="secondary"
               size="lg"
-              onClick={() => navigate(`/workspace/lectures/${session.lectureId}/sessions/${session.id}/exams?examId=${parsedExamId}`)}
+              onClick={() => navigate(`/workspace/lectures/${session.lectureId}/sessions/${session.id}/exams?examId=${parsedExamId}${resultsTab ? "&examTab=results" : ""}`)}
             >
               {sessionLabel(session.data, session.id)}
             </Button>

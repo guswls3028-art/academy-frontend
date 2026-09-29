@@ -7,7 +7,7 @@ import { Slice } from "@tiptap/pm/model";
 import { TextSelection } from "@tiptap/pm/state";
 import { Redo2, Undo2 } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
-import { getTemplateBlock } from "../constants/templateBlocks";
+import { getTemplateBlock } from "./templateBlocks";
 import type { MessageBodyEditorHandle, MessageBodyEditorProps } from "./MessageBodyEditor";
 
 function inlineContent(text: string): JSONContent[] {
@@ -71,7 +71,7 @@ const MessageVariable = Node.create({
 });
 
 const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEditorProps>(({
-  value, onChange, disabled = false, placeholder = "안내문을 작성하고 필요한 정보를 블록으로 넣으세요.",
+  value, onChange, disabled = false, placeholder = "안내문을 작성하고 필요한 정보를 블록으로 넣으세요.", id, ariaLabel = "안내문",
 }, ref) => {
   const currentEditor = useRef<Editor | null>(null);
   const editor = useEditor({
@@ -90,7 +90,7 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
     editable: !disabled,
     onUpdate: ({ editor: current }) => onChange(messageText(current.getJSON())),
     editorProps: {
-      attributes: { role: "textbox", "aria-label": "안내문", "aria-multiline": "true", spellcheck: "false" },
+      attributes: { role: "textbox", "aria-label": ariaLabel, "aria-multiline": "true", spellcheck: "false", ...(id ? { id } : {}) },
       handlePaste: (view, event) => {
         const text = event.clipboardData?.getData("text/plain");
         event.preventDefault();
