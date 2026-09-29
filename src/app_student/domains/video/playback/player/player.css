@@ -209,6 +209,25 @@
   aspect-ratio: 21 / 9;
 }
 
+/* iOS 10 / older Android: the absolutely positioned iframe needs a real
+   containing height even when aspect-ratio is unsupported. */
+@supports not (aspect-ratio: 16 / 9) {
+  .svpYoutubeFrame::before {
+    content: "";
+    display: block;
+    padding-top: 56.25%;
+  }
+
+  .svpTheater .svpYoutubeFrame::before {
+    padding-top: 42.857143%;
+  }
+
+  .svpPlayerWrap--fullscreen .svpYoutubeFrame::before {
+    display: none;
+    padding-top: 0;
+  }
+}
+
 .svpOverlayCenter {
   position: absolute;
   inset: 0;

@@ -1,4 +1,5 @@
 import api from "@/shared/api/axios";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 import {
   getSessionItem,
   removeSessionItem,
@@ -25,14 +26,10 @@ let queue: QueuedEvent[] = [];
 let flushTimer: number | null = null;
 let flushing = false;
 
-function randomId(): string {
-  return crypto.randomUUID();
-}
-
 function getSessionId(): string {
   const existing = getSessionItem(SESSION_KEY);
   if (existing) return existing;
-  const created = randomId();
+  const created = createRandomUuid();
   setSessionItem(SESSION_KEY, created);
   return created;
 }
@@ -69,7 +66,7 @@ if (typeof window !== "undefined") {
 }
 
 export function trackProductUsage(input: ProductUsageInput): string {
-  const eventId = randomId();
+  const eventId = createRandomUuid();
   queue.push({
     attempts: 0,
     event: {

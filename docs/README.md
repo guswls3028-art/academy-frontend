@@ -10,6 +10,7 @@
 | [PUBLIC-VIDEO-WORKFLOW.md](PUBLIC-VIDEO-WORKFLOW.md) | 공개 영상의 첫 추가, 명시적 공간 준비, 실패·재시도와 구버전 호환 |
 | [REFACTOR-GUARDRAILS.md](REFACTOR-GUARDRAILS.md) | 도메인 공개 표면, 대형 파일, 생성 코드 분리와 CI 부채 예산 |
 | [BROWSER-PERSISTENCE.md](BROWSER-PERSISTENCE.md) | 인증·표시 취향·사용자 초안·운영 선호의 브라우저 저장 범위와 실패 안전 계약 |
+| [BROWSER-COMPATIBILITY.md](BROWSER-COMPATIBILITY.md) | 구형 iOS·Android의 legacy 로더·스타일·런타임 보완과 로그인·학습·영상 검증 범위 |
 | [DATA-LIST-CONTRACT.md](DATA-LIST-CONTRACT.md) | 테이블·성적 그리드·선택 모달의 정렬, 필터, 동률, 페이지·390px 계약 |
 | [USER-GUIDE-ADMIN.md](USER-GUIDE-ADMIN.md) | 관리자 앱 사용 가이드 |
 | [USER-GUIDE-STUDENT.md](USER-GUIDE-STUDENT.md) | 학생 앱 사용 가이드 |

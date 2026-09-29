@@ -5,6 +5,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import * as Sentry from "@sentry/react";
+import { StyleProvider, legacyLogicalPropertiesTransformer } from "@ant-design/cssinjs";
 
 import AppInner from "@/AppInner";
 import QueryProvider from "@/core/providers/QueryProvider";
@@ -129,7 +130,7 @@ if (SENTRY_DSN && import.meta.env.PROD) {
   });
 }
 
-const AppContent = (
+const RoutedAppContent = (
   <ThemeProvider>
     <BrowserRouter>
       <QueryProvider>
@@ -147,6 +148,13 @@ const AppContent = (
     </BrowserRouter>
   </ThemeProvider>
 );
+
+// Ant Design injects its styles at runtime, outside the legacy CSS build pass.
+const AppContent = import.meta.env.LEGACY ? (
+  <StyleProvider hashPriority="high" transformers={[legacyLogicalPropertiesTransformer]}>
+    {RoutedAppContent}
+  </StyleProvider>
+) : RoutedAppContent;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
