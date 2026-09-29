@@ -96,6 +96,9 @@ async function installLegacyRuntime(page: Page, profile: Profile) {
 }
 
 async function installStudentApi(page: Page, role: "student" | "parent" = "student") {
+  // The loopback host has no academy domain. Keep public routing and the
+  // mocked API on the same explicit tenant after logout leaves /login/godmin.
+  await page.addInitScript(() => localStorage.setItem("tenant_code", "godmin"));
   const access = `e30.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url")}.test`;
   const loginBodies: unknown[] = [];
   const studentScopes: string[] = [];
@@ -270,8 +273,20 @@ for (const profile of profiles) {
     await expect(page.locator("body")).toHaveCSS("overflow", "hidden");
     await page.getByRole("button", { name: "프로필 메뉴" }).click();
     await page.getByRole("button", { name: "로그아웃", exact: true }).click();
-    await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
+    await expect(page).toHaveURL(`${BASE}/landing`);
+    await expect(page.getByRole("link", { name: "수강생·학부모 로그인", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => {
+      const generation = localStorage.getItem("academy:auth-active-generation:v1");
+      return {
+        activeEnvelope: generation ? localStorage.getItem(`academy:auth-tokens:v1:${generation}`) : null,
+        legacyAccess: localStorage.getItem("access"),
+        legacyRefresh: localStorage.getItem("refresh"),
+      };
+    })).toEqual({ activeEnvelope: null, legacyAccess: null, legacyRefresh: null });
     await expect(page.locator("html")).not.toHaveAttribute("data-student-app", "true");
+    await page.getByRole("link", { name: "수강생·학부모 로그인", exact: true }).click();
+    await expect(page).toHaveURL(`${BASE}/login/godmin`);
+    await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
   });
 }
 
