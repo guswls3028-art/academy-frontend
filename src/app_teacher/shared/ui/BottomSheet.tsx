@@ -44,6 +44,8 @@ export default function BottomSheet({ open, onClose, title, children, footer, in
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const focusFrame = requestAnimationFrame(() => {
+      // A keyboard user may have focused a control before this frame runs.
+      if (sheet.contains(document.activeElement) && document.activeElement !== sheet) return;
       const requestedTarget = initialFocusRef?.current;
       const target = requestedTarget && isVisibleFocusable(requestedTarget)
         ? requestedTarget

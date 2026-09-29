@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
+import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { EmptyState } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -83,8 +84,8 @@ function ExamTab() {
         title="등록된 시험이 없습니다"
         description="시험은 강의의 차시에 추가하면 목록과 성적 화면으로 연결됩니다."
         actions={
-          <EmptyActionButton onClick={() => navigate("/workspace/mobile/classes")}>
-            강의에서 추가
+          <EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate("/workspace/lectures"); }}>
+            PC 화면에서 시험 추가
           </EmptyActionButton>
         }
       />
@@ -147,8 +148,8 @@ function HomeworkTab() {
         title="등록된 과제가 없습니다"
         description="과제는 강의의 차시에 추가하면 제출 현황과 미제출 안내로 이어집니다."
         actions={
-          <EmptyActionButton onClick={() => navigate("/workspace/mobile/classes")}>
-            강의에서 추가
+          <EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate("/workspace/lectures"); }}>
+            PC 화면에서 과제 추가
           </EmptyActionButton>
         }
       />

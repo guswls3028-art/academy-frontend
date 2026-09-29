@@ -45,15 +45,13 @@ export const ADMIN_WORKFLOWS: GuideWorkflow[] = [
   {
     id: "create-lecture",
     icon: <NavIcon d="M4 4h16v12H4zM8 20h8M12 16v4" />,
-    title: "강의 만들고 수업 관리하기",
+    title: "강의 개설하기",
     summary:
-      "강의, 차시, 수강생을 연결해 수업 운영의 기준점을 만드는 흐름입니다.",
+      "학생에게 배정할 강의를 먼저 만듭니다. 차시와 수강생은 저장 후 연결합니다.",
     steps: [
       { title: "강의 관리로 이동", description: "사이드바에서 '강의'를 클릭합니다." },
       { title: "강의 추가", description: "'강의 추가' 버튼으로 반 이름, 과목, 담당 선생님, 수업 요일을 정합니다." },
-      { title: "차시 추가", description: "강의 상세에서 실제 수업 날짜와 내용을 차시로 만듭니다. 출결과 시험은 차시를 기준으로 연결됩니다." },
-      { title: "수강생 배정", description: "강의 또는 차시에 학생을 배정합니다. 학생이 배정되어야 학생앱에 수업과 자료가 보입니다." },
-      { title: "오늘 수업 확인", description: "대시보드 또는 선생 모바일 화면에서 오늘 수업으로 보이는지 확인합니다." },
+      { title: "저장 결과 확인", description: "강의 목록에서 새 강의를 검색해 이름·강사·과목·시간을 확인합니다. 목록에 없다면 저장 오류를 확인하고 다시 시도합니다." },
     ],
     tourPath: "/workspace/lectures",
     tourSteps: [
@@ -76,6 +74,32 @@ export const ADMIN_WORKFLOWS: GuideWorkflow[] = [
         placement: "top",
       },
     ],
+  },
+  {
+    id: "create-session",
+    icon: <NavIcon d="M3 4h18v17H3zM7 2v4M17 2v4M3 9h18M8 13h3M8 17h3" />,
+    title: "차시 생성하기",
+    summary: "실제 수업 날짜를 강의에 연결해야 출결과 평가를 운영할 수 있습니다.",
+    steps: [
+      { title: "강의 선택", description: "강의 목록에서 방금 만든 강의를 열고 '차시'로 이동합니다." },
+      { title: "차시 추가", description: "차시 바의 '+'에서 회차, 수업 날짜·시간을 확인합니다. 보강이나 직보는 보강 차시로 구분합니다." },
+      { title: "최종 확인 후 저장", description: "확인 화면에서 강의·차시 유형·날짜·시간을 검토한 뒤 저장합니다. 수강생과 출결 상태는 자동 등록되지 않습니다." },
+      { title: "차시 목록 확인", description: "저장한 날짜와 회차가 차시 목록에 보이는지 확인합니다. 실패하면 입력한 값을 유지한 채 오류를 확인합니다." },
+    ],
+    tourPath: "/workspace/lectures",
+  },
+  {
+    id: "enroll-students",
+    icon: <NavIcon d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8M18 8v6M15 11h6" />,
+    title: "수강생 등록하기",
+    summary: "학생 명부의 학생을 강의에 연결한 뒤 수업할 차시에도 별도로 등록합니다.",
+    steps: [
+      { title: "강의의 수강생 열기", description: "강의 목록 → 강의 선택 → '수강생'에서 등록을 시작합니다." },
+      { title: "명부의 학생 선택", description: "이미 등록된 학생을 검색해 선택합니다. 명부에 없다면 학생 관리에서 먼저 등록합니다." },
+      { title: "차시 수강생 등록", description: "강의 등록만으로 차시에 자동 배정되지 않습니다. 수업할 차시의 '출결 → 수강생 등록'에서 강의 수강생을 선택하고 최종 확인 후 저장합니다." },
+      { title: "등록 결과 확인", description: "강의 명부와 차시 출결 대상 양쪽에서 학생을 확인합니다. 첫 수강 확정으로 발송된 계정 안내는 발송 내역에서 결과를 확인합니다." },
+    ],
+    tourPath: "/workspace/lectures",
   },
   {
     id: "create-exam",
@@ -101,6 +125,32 @@ export const ADMIN_WORKFLOWS: GuideWorkflow[] = [
         placement: "top",
       },
     ],
+  },
+  {
+    id: "create-homework",
+    icon: <NavIcon d="M4 4h16v16H4zM8 9h8M8 13h8M8 17h5" />,
+    title: "과제 등록과 배정하기",
+    summary: "차시에 과제를 만든 뒤 대상 수강생과 제출 상태를 확인합니다.",
+    steps: [
+      { title: "강의와 차시 열기", description: "강의 목록 → 강의 선택 → 차시 선택 → '성적' 탭으로 이동합니다." },
+      { title: "과제 추가", description: "'성적 도구 → 과제 추가'에서 과제 내용과 제출 조건을 저장합니다. 필요하면 같은 차시의 '과제' 탭에서 상세를 확인합니다." },
+      { title: "배정 확인", description: "수강생과 제출 대상이 맞는지 확인합니다. 대상에 없는 학생을 임의로 미제출로 처리하지 않습니다." },
+      { title: "학생 화면과 제출 확인", description: "해당 학생에게 과제가 보이는지, 제출 후 교사 화면의 제출 현황에 반영되는지 확인합니다." },
+    ],
+    tourPath: "/workspace/lectures",
+  },
+  {
+    id: "run-clinic",
+    icon: <NavIcon d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11zM9 12h6M12 9v6" />,
+    title: "클리닉 배정과 운영하기",
+    summary: "대상 학생을 확인하고 날짜·세션에 배정한 뒤 당일 상태를 기록합니다.",
+    steps: [
+      { title: "대상 확인", description: "클리닉 화면에서 학습·성적 근거와 대상자를 확인합니다. 점수 미입력을 불합격으로 추정하지 않습니다." },
+      { title: "일정과 세션", description: "운영할 날짜의 클리닉 세션을 만들거나 기존 세션을 선택합니다." },
+      { title: "학생 배정", description: "참가자를 추가하고 학생·날짜·시간을 확인합니다. 중복이나 시간 충돌이 표시되면 임의로 진행하지 말고 대상 일정을 다시 선택합니다." },
+      { title: "당일 결과", description: "출석·진행·완료를 실제 상태에 맞춰 기록한 뒤 참가자 목록과 학생 상세 이력에서 확인합니다." },
+    ],
+    tourPath: "/workspace/clinic",
   },
   {
     id: "upload-video",

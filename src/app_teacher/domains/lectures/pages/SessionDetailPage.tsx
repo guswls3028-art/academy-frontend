@@ -4,6 +4,7 @@
 import { type ReactNode } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
+import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
@@ -147,7 +148,12 @@ export default function SessionDetailPage() {
         chipLabel: session.lecture_chip_label,
       }
     : undefined;
-  const lecturePath = session?.lecture ? `/workspace/mobile/classes/${session.lecture}` : "/workspace/mobile/classes";
+  const enrollmentPath = session?.lecture
+    ? `/workspace/lectures/${session.lecture}/sessions/${sid}/attendance`
+    : "/workspace/lectures";
+  const assessmentCreationPath = session?.lecture
+    ? `/workspace/lectures/${session.lecture}/sessions/${sid}/scores`
+    : "/workspace/lectures";
 
   return (
     <div className="flex flex-col gap-3">
@@ -247,11 +253,11 @@ export default function SessionDetailPage() {
             attendances={attendanceQ.data ?? []}
             lectureInfo={sessionLectureInfo}
             navigate={navigate}
-            lecturePath={lecturePath}
+            enrollmentPath={enrollmentPath}
           />
         </QueryBoundary>
       )}
-      {tab === "attendance" && <QueryBoundary loading={attendanceQ.isLoading} failed={attendanceQ.isError} onRetry={() => void attendanceQ.refetch()}><AttendanceTab attendances={attendanceQ.data ?? []} lectureInfo={sessionLectureInfo} navigate={navigate} sessionId={sid} /></QueryBoundary>}
+      {tab === "attendance" && <QueryBoundary loading={attendanceQ.isLoading || enrollmentsQ.isLoading} failed={attendanceQ.isError || enrollmentsQ.isError} onRetry={() => { void attendanceQ.refetch(); void enrollmentsQ.refetch(); }}><AttendanceTab attendances={attendanceQ.data ?? []} hasEnrollments={Boolean(enrollmentsQ.data?.length)} lectureInfo={sessionLectureInfo} navigate={navigate} sessionId={sid} enrollmentPath={enrollmentPath} /></QueryBoundary>}
       {tab === "scores" && (
         <QueryBoundary loading={scoresQ.isLoading} failed={scoresQ.isError} onRetry={() => void scoresQ.refetch()}>
           <div className={assessmentStyles.workspace}>
@@ -260,13 +266,13 @@ export default function SessionDetailPage() {
               <button type="button" aria-pressed={examView} onClick={() => setScoreSelection("exams")}>시험별 조회</button>
             </div>
             {examView ? (
-              <ScoresTab exams={scoreExams} sessionId={sid} selectedExam={selectedExam} onSelectExam={(exam) => setScoreSelection("exams", exam)} lectureInfo={sessionLectureInfo} navigate={navigate} lecturePath={lecturePath} />
-            ) : scoresQ.data ? <SessionAssessmentOverview scores={scoresQ.data} lecturePath={lecturePath} /> : null}
+              <ScoresTab exams={scoreExams} sessionId={sid} selectedExam={selectedExam} onSelectExam={(exam) => setScoreSelection("exams", exam)} lectureInfo={sessionLectureInfo} navigate={navigate} creationPath={assessmentCreationPath} />
+            ) : scoresQ.data ? <SessionAssessmentOverview scores={scoresQ.data} creationPath={assessmentCreationPath} /> : null}
           </div>
         </QueryBoundary>
       )}
-      {tab === "exams" && <QueryBoundary loading={examsQ.isLoading} failed={examsQ.isError} onRetry={() => void examsQ.refetch()}><ExamsTab exams={examsQ.data ?? []} navigate={navigate} lecturePath={lecturePath} /></QueryBoundary>}
-      {tab === "homeworks" && <QueryBoundary loading={homeworksQ.isLoading} failed={homeworksQ.isError} onRetry={() => void homeworksQ.refetch()}><HomeworksTab homeworks={homeworksQ.data ?? []} navigate={navigate} lecturePath={lecturePath} /></QueryBoundary>}
+      {tab === "exams" && <QueryBoundary loading={examsQ.isLoading} failed={examsQ.isError} onRetry={() => void examsQ.refetch()}><ExamsTab exams={examsQ.data ?? []} navigate={navigate} creationPath={assessmentCreationPath} /></QueryBoundary>}
+      {tab === "homeworks" && <QueryBoundary loading={homeworksQ.isLoading} failed={homeworksQ.isError} onRetry={() => void homeworksQ.refetch()}><HomeworksTab homeworks={homeworksQ.data ?? []} navigate={navigate} creationPath={assessmentCreationPath} /></QueryBoundary>}
       {tab === "videos" && <QueryBoundary loading={videosQ.isLoading} failed={videosQ.isError} onRetry={() => void videosQ.refetch()}><VideosTab videos={videosQ.data ?? []} navigate={navigate} /></QueryBoundary>}
       {tab === "clinic" && (
         <QueryBoundary loading={clinicLinksQ.isLoading} failed={clinicLinksQ.isError} onRetry={() => void clinicLinksQ.refetch()}>
@@ -301,7 +307,7 @@ function QueryBoundary({ loading, failed, onRetry, children }: { loading: boolea
 }
 
 /* === Exams tab === */
-function ExamsTab({ exams, navigate, lecturePath }: { exams: any[]; navigate: any; lecturePath: string }) {
+function ExamsTab({ exams, navigate, creationPath }: { exams: any[]; navigate: any; creationPath: string }) {
   if (!exams.length) return (
     <EmptyState
       scope="panel"
@@ -309,8 +315,8 @@ function ExamsTab({ exams, navigate, lecturePath }: { exams: any[]; navigate: an
       title="이 차시에 등록된 시험이 없습니다"
       description="강의 차시에 시험을 추가하면 성적 입력과 결과 조회가 연결됩니다."
       actions={
-        <EmptyActionButton onClick={() => navigate(lecturePath)}>
-          강의에서 추가
+        <EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate(creationPath); }}>
+          PC 화면에서 시험 추가
         </EmptyActionButton>
       }
     />
@@ -346,7 +352,7 @@ function ExamsTab({ exams, navigate, lecturePath }: { exams: any[]; navigate: an
 }
 
 /* === Homeworks tab === */
-function HomeworksTab({ homeworks, navigate, lecturePath }: { homeworks: any[]; navigate: any; lecturePath: string }) {
+function HomeworksTab({ homeworks, navigate, creationPath }: { homeworks: any[]; navigate: any; creationPath: string }) {
   if (!homeworks.length) return (
     <EmptyState
       scope="panel"
@@ -354,8 +360,8 @@ function HomeworksTab({ homeworks, navigate, lecturePath }: { homeworks: any[]; 
       title="이 차시에 등록된 과제가 없습니다"
       description="과제를 추가하면 제출 현황과 미제출 안내를 바로 확인할 수 있습니다."
       actions={
-        <EmptyActionButton onClick={() => navigate(lecturePath)}>
-          강의에서 추가
+        <EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate(creationPath); }}>
+          PC 화면에서 과제 추가
         </EmptyActionButton>
       }
     />
@@ -548,18 +554,18 @@ function StudentsTab({
   attendances,
   lectureInfo,
   navigate,
-  lecturePath,
-}: { enrollments: SessionEnrollmentRow[]; attendances: any[]; lectureInfo?: LectureInfo; navigate: any; lecturePath: string }) {
+  enrollmentPath,
+}: { enrollments: SessionEnrollmentRow[]; attendances: any[]; lectureInfo?: LectureInfo; navigate: any; enrollmentPath: string }) {
   if (!enrollments.length) {
     return (
       <EmptyState
         scope="panel"
         tone="empty"
         title="수강생이 없습니다"
-        description="강의에 수강생을 등록하면 차시별 출석과 성적 입력 대상이 표시됩니다."
+        description="강의 명부 등록 후에도 이 차시의 수강생은 출결 화면에서 별도로 등록해야 합니다."
         actions={
-          <EmptyActionButton variant="secondary" onClick={() => navigate(lecturePath)}>
-            강의로 돌아가기
+          <EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate(enrollmentPath); }}>
+            PC 화면에서 차시 수강생 등록
           </EmptyActionButton>
         }
       />
@@ -621,17 +627,20 @@ function StudentsTab({
 }
 
 /* === Attendance tab === */
-function AttendanceTab({ attendances, lectureInfo, navigate, sessionId }: { attendances: any[]; lectureInfo?: LectureInfo; navigate: any; sessionId: number }) {
+function AttendanceTab({ attendances, hasEnrollments, lectureInfo, navigate, sessionId, enrollmentPath }: { attendances: any[]; hasEnrollments: boolean; lectureInfo?: LectureInfo; navigate: any; sessionId: number; enrollmentPath: string }) {
   if (!attendances.length) {
     return (
       <EmptyState
         scope="panel"
         tone="empty"
         title="출석 데이터가 없습니다"
-        description="출석 체크를 시작하면 학생별 상태가 차시 상세에 반영됩니다."
+        description={hasEnrollments ? "출석 체크를 시작하면 학생별 상태가 차시 상세에 반영됩니다." : "먼저 이 차시의 수강생을 등록해야 출석을 확인할 수 있습니다."}
         actions={
-          <EmptyActionButton onClick={() => navigate(`/workspace/mobile/attendance/${sessionId}`)}>
-            출석 체크
+          <EmptyActionButton onClick={() => {
+            if (!hasEnrollments) setPreferFullWorkspace(true);
+            navigate(hasEnrollments ? `/workspace/mobile/attendance/${sessionId}` : enrollmentPath);
+          }}>
+            {hasEnrollments ? "출석 체크" : "PC 화면에서 차시 수강생 등록"}
           </EmptyActionButton>
         }
       />
@@ -697,10 +706,10 @@ function ScoresTab({
   sessionId,
   lectureInfo,
   navigate,
-  lecturePath,
+  creationPath,
   selectedExam,
   onSelectExam,
-}: { exams: any[]; sessionId: number; lectureInfo?: LectureInfo; navigate: any; lecturePath: string; selectedExam: number | null; onSelectExam: (exam: number) => void }) {
+}: { exams: any[]; sessionId: number; lectureInfo?: LectureInfo; navigate: any; creationPath: string; selectedExam: number | null; onSelectExam: (exam: number) => void }) {
 
   const resultsQ = useQuery({
     queryKey: teacherLectureQueryKeys.examResultsSession(selectedExam),
@@ -717,8 +726,8 @@ function ScoresTab({
         title="이 차시에 시험이 없습니다"
         description="강의 차시에 시험을 추가하면 성적 입력 버튼이 활성화됩니다."
         actions={
-          <EmptyActionButton variant="secondary" onClick={() => navigate(lecturePath)}>
-            강의에서 추가
+          <EmptyActionButton variant="secondary" onClick={() => { setPreferFullWorkspace(true); navigate(creationPath); }}>
+            PC 화면에서 시험 추가
           </EmptyActionButton>
         }
       />
