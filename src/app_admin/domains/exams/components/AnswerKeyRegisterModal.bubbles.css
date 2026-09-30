@@ -1,8 +1,13 @@
-/* 한국식 OMR — 시각 버블은 modal.css SSOT, 라벨은 충분한 클릭 목표를 제공 */
+/* 정답 선택지는 44px 터치 영역을 유지하고 OMR 표시만 간결하게 묶는다. */
 .answer-key-row__bubbles {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 2px;
+  width: fit-content;
+  padding: 2px 4px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 999px;
+  background: var(--color-bg-surface-soft);
 }
 .answer-key-omr-label {
   display: inline-flex;
@@ -20,6 +25,25 @@
 
 .answer-key-omr-label .exam-omr-bubble {
   pointer-events: none;
+  width: 28px;
+  min-width: 28px;
+  height: 32px;
+  border-width: 1px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: none;
+}
+
+.answer-key-omr-label:hover:not(:disabled) .exam-omr-bubble:not(.exam-omr-bubble--selected) {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+}
+
+.answer-key-omr-label .exam-omr-bubble--selected {
+  color: var(--text-on-primary, #fff);
+  background: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
 }
 
 .answer-key-omr-label:focus-visible .exam-omr-bubble {
