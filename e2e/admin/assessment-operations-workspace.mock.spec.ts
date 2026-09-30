@@ -25,6 +25,7 @@ type MockState = {
   selectedEnrollmentIds: number[];
   recalculations?: number;
   failRecalculation?: boolean;
+  answerKeyPresent?: boolean;
 };
 
 const session = {
@@ -140,6 +141,15 @@ async function installApi(page: Page, state: MockState) {
         { id: 2, sheet: 1, number: 2, question_kind: "essay", score: 50 },
       ]);
     }
+    if (path === "/exams/answer-keys/" && method === "GET") {
+      return json(state.answerKeyPresent === false ? [] : [{
+        id: 9980,
+        exam: EXAM_ID,
+        answers: { "1": "1" },
+        created_at: "2026-08-02T00:00:00Z",
+        updated_at: "2026-08-02T00:00:00Z",
+      }]);
+    }
     if (path === `/exams/${EXAM_ID}/assets/`) return json([]);
     if (path === `/exams/${EXAM_ID}/enrollments/` && method === "PUT") {
       const payload = request.postDataJSON() as { enrollment_ids?: number[] };
@@ -214,10 +224,17 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
     },
     examPatchPayloads: [],
     selectedEnrollmentIds: [601, 602],
+    answerKeyPresent: false,
   };
 
   await page.setViewportSize({ width: 1366, height: 900 });
   await openExam(page, state);
+
+  await expect(page.getByText("정답표 등록 필요", { exact: true })).toBeVisible();
+  await expect(page.getByText("2개 문항 · 정답표 없음", { exact: true })).toBeVisible();
+  state.answerKeyPresent = true;
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("#assessment-policy > details > summary").click();
 
   await expect(page.getByText("시험 운영 준비 완료", { exact: true })).toBeVisible();
   const readiness = page.locator('details[aria-label="시험 운영 준비"]');

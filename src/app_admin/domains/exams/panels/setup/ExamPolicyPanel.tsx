@@ -144,10 +144,12 @@ export default function ExamPolicyPanel({
   examId,
   lectureId = 0,
   sessionId = 0,
+  answerKeyMissing = false,
 }: {
   examId: number;
   lectureId?: number;
   sessionId?: number;
+  answerKeyMissing?: boolean;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -645,6 +647,8 @@ export default function ExamPolicyPanel({
               <strong>
                 {questionsQuery.isError
                   ? "문항 정보를 불러오지 못했습니다"
+                  : questions.length > 0 && answerKeyMissing
+                    ? `${questions.length}개 문항 · 정답표 없음`
                   : questions.length > 0
                     ? `${questions.length}개 문항 등록됨`
                     : "등록된 문항이 없습니다"}
@@ -652,6 +656,8 @@ export default function ExamPolicyPanel({
               <p>
                 {questionsQuery.isError
                   ? "네트워크 상태를 확인하고 다시 불러와 주세요."
+                  : questions.length > 0 && answerKeyMissing
+                  ? "정답표를 저장해야 OMR 복수 마킹을 판정하고 기존 제출을 채점할 수 있습니다."
                   : questions.length > 0
                   ? "답안과 배점을 다시 확인하거나 OMR 답안지를 내려받을 수 있습니다."
                   : "직접 채점 또는 OMR을 시작하기 전에 문항과 답안을 등록하세요."}

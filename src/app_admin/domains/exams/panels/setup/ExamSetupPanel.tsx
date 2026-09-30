@@ -11,6 +11,7 @@ import ExamLectureAssignmentsPanel from "./ExamLectureAssignmentsPanel";
 import { useAdminExam } from "../../hooks/useAdminExam";
 import { useExamEnrollmentRows } from "../../hooks/useExamEnrollments";
 import { fetchQuestionsByExam } from "../../api/question.api";
+import { answerKeyRows, fetchAnswerKeyByExam } from "../../api/answerKey.api";
 import { adminExamsQueryKeys } from "../../queryKeys";
 
 export default function ExamSetupPanel({ examId }: { examId: number }) {
@@ -34,6 +35,13 @@ export default function ExamSetupPanel({ examId }: { examId: number }) {
     enabled: examId > 0,
   });
   const questions = questionsQuery.data ?? [];
+  const objectiveNeedsKey = exam?.grading_mode === "choice" || exam?.grading_mode === "mixed";
+  const answerKeyQuery = useQuery({
+    queryKey: adminExamsQueryKeys.answerKey(examId),
+    queryFn: () => fetchAnswerKeyByExam(examId),
+    enabled: examId > 0 && objectiveNeedsKey,
+  });
+  const answerKeyPresent = answerKeyQuery.isSuccess && answerKeyRows(answerKeyQuery.data).length > 0;
 
   const selectedCount = enrollmentQuery.data?.items?.filter((row) => row.is_selected).length ?? 0;
   const scoreReady = Boolean(
@@ -79,12 +87,17 @@ export default function ExamSetupPanel({ examId }: { examId: number }) {
     {
       id: "questions",
       label: "문항·답안",
-      summary: questionsQuery.isError
+      summary: questionsQuery.isError || (objectiveNeedsKey && answerKeyQuery.isError)
         ? "불러오기 실패"
+        : questionsQuery.isLoading || (objectiveNeedsKey && answerKeyQuery.isLoading)
+          ? "확인 중"
+        : questions.length > 0 && objectiveNeedsKey && !answerKeyPresent
+          ? "정답표 등록 필요"
         : questions.length > 0
-          ? `${questions.length}개 문항`
+          ? objectiveNeedsKey ? `${questions.length}개 문항 · 정답표 확인됨` : `${questions.length}개 문항`
           : "등록 필요",
-      state: !questionsQuery.isError && questions.length > 0 ? "ready" : "attention",
+      state: !questionsQuery.isError && (!objectiveNeedsKey || !answerKeyQuery.isError) && questions.length > 0
+        && (!objectiveNeedsKey || answerKeyPresent) ? "ready" : "attention",
       targetId: "assessment-answer-key",
     },
     {
@@ -110,7 +123,10 @@ export default function ExamSetupPanel({ examId }: { examId: number }) {
           compactWhenReady
         />
       )}
-      <ExamPolicyPanel examId={examId} lectureId={lectureId} sessionId={sessionId} />
+      <ExamPolicyPanel
+        examId={examId} lectureId={lectureId} sessionId={sessionId}
+        answerKeyMissing={Boolean(objectiveNeedsKey && answerKeyQuery.isSuccess && !answerKeyPresent)}
+      />
       <ExamLectureAssignmentsPanel
         examId={examId}
         maxScore={exam?.max_score ?? 100}
