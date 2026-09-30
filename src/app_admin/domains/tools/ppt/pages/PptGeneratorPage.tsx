@@ -580,7 +580,7 @@ export default function PptGeneratorPage() {
                 {pdfWorkflow === "auto" ? (
                   <div className={styles.pdfInfoCard}>
                     <div className={styles.pdfInfoText}>
-                      문항을 자동으로 찾아 PPT를 만듭니다. 결과가 빠지거나 잘못 잘렸다면 직접 자르기로 같은 PDF를 다시 만들 수 있습니다.
+                      문항을 자동으로 찾아 PPT를 만듭니다. 결과가 빠지거나 잘못 잘렸다면 직접 자르기로 같은 PDF를 다시 만들 수 있습니다. 원본에 그림 대신 ‘삽입 위치’만 있으면 원본 PDF에 그림을 넣은 뒤 다시 생성하세요.
                     </div>
                   </div>
                 ) : <ManualPdfCropper file={pdfFile} regions={manualRegions} onChange={setManualRegions} disabled={isGenerating} />}
