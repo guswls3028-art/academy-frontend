@@ -95,7 +95,7 @@ function SessionBox({
           </span>
         </div>
         <div className="video-card__body">
-          <div className="video-card__kicker">{isPublic ? "공개 강의" : `${order}차시`}</div>
+          <div className="video-card__kicker">{isPublic ? "공개 강의" : "수업 영상"}</div>
           <div className="video-card__title">{sessionTitle}</div>
           <div className="video-card__meta">
             <span className="video-card__meta-item">시청 가능한 항목이 없습니다</span>
@@ -149,7 +149,7 @@ function SessionBox({
       </div>
 
       <div className="video-card__body">
-        <div className="video-card__kicker">{isPublic ? "공개 강의" : `${order}차시`}</div>
+        <div className="video-card__kicker">{isPublic ? "공개 강의" : "수업 영상"}</div>
         <div className="video-card__title">{sessionTitle}</div>
         <div className="video-card__meta">
           <span className="video-card__meta-item">

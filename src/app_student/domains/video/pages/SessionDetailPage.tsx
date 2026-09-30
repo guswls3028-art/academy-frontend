@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useParams, useNavigate, useSearchParams, Link, useLocation } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchStudentSessionVideos, fetchStudentVideoPlayback, type StudentVideoListItem } from "../api/video.api";
+import { fetchVideoMe, fetchStudentSessionVideos, fetchStudentVideoPlayback, type StudentVideoListItem } from "../api/video.api";
 import EmptyState from "@student/layout/EmptyState";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
@@ -230,6 +230,12 @@ export default function SessionDetailPage() {
   });
 
   const videos = sortStudentVideos(videosData?.items ?? []);
+  const { data: videoCatalog, isError: isCatalogError, refetch: refetchCatalog } = useQuery({
+    queryKey: studentVideoQueryKeys.me(queryScope),
+    queryFn: fetchVideoMe,
+    enabled: !!sessionIdNum && !routeState.isPublic,
+    retry: false,
+  });
   const res = (queryError as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
   const is403 = isError && res?.status === 403;
   const serverMessage =
@@ -243,8 +249,9 @@ export default function SessionDetailPage() {
   const totalDuration = playableVideos.reduce((sum, v) => sum + (v.duration ?? 0), 0);
   const completedCount = playableVideos.filter(isStudentVideoComplete).length;
   const progressLabel = playableVideos.length > 0 ? `${completedCount}/${playableVideos.length} 완료` : "시청 가능한 항목 없음";
-  const sessionTitle = routeState.sessionTitle || "재생 목록";
-  const courseTitle = routeState.courseTitle || "영상 학습";
+  const lecture = videoCatalog?.lectures.find((item) => item.sessions.some((session) => session.id === sessionIdNum));
+  const sessionTitle = lecture?.sessions.find((session) => session.id === sessionIdNum)?.title || routeState.sessionTitle || "재생 목록";
+  const courseTitle = lecture?.title || routeState.courseTitle || "영상 학습";
 
   if (isLoading) {
     return (
@@ -311,9 +318,16 @@ export default function SessionDetailPage() {
             <span>{courseTitle}</span>
           </div>
           <h1 className="video-hero__title">
-            {routeState.order && !routeState.isPublic ? `${routeState.order}차시 · ` : ""}
             {sessionTitle}
           </h1>
+          {!routeState.isPublic && isCatalogError && (
+            <div role="alert" className="video-hero__desc">
+              수업 이름을 새로 불러오지 못했습니다.
+              <button type="button" className="video-back" onClick={() => void refetchCatalog()}>
+                다시 불러오기
+              </button>
+            </div>
+          )}
           <div className="video-hero__desc">
             영상을 선택하면 마지막으로 보던 지점부터 이어서 볼 수 있습니다.
           </div>

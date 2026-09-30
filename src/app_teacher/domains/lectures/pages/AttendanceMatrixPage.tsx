@@ -75,8 +75,8 @@ export default function AttendanceMatrixPage() {
           <div className={`${styles.matrixLine} flex gap-1 pb-1`}>
             <div className={`${styles.mutedText} w-20 shrink-0 text-[10px] font-bold`}>학생</div>
             {sessions.map((s, i) => (
-              <div key={s.id ?? i} className={`${styles.mutedText} w-10 shrink-0 text-center text-[9px] font-semibold`}>
-                {formatSessionLabel(s).replace("차시", "차")}
+              <div key={s.id ?? i} title={formatSessionLabel(s)} className={`${styles.mutedText} w-10 shrink-0 break-words text-center text-[9px] font-semibold`}>
+                {formatSessionLabel(s)}
               </div>
             ))}
           </div>
