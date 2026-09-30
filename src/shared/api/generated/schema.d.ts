@@ -979,7 +979,9 @@ export interface paths {
         };
         /**
          * @description GET /clinic/sessions/tree/?year=YYYY&month=MM
+         *     GET /clinic/sessions/tree/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
          *     - 운영 페이지 좌측 트리 전용
+         *     - 날짜 범위 모드는 이전 주 복사처럼 월 경계를 건너는 최대 31일 조회용
          *     - serializer 우회 (UI 최적화 목적)
          */
         get: operations["clinic_sessions_tree_retrieve"];
@@ -1993,9 +1995,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["core_dev_product_analytics_overview_retrieve"];
+        get?: never;
         put?: never;
-        post?: never;
+        post: operations["core_dev_product_analytics_overview_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7254,14 +7256,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** @description GET: 복원 가능 기본 문구. POST: 미설정 트리거 초기화/선택 복원. */
+        get: operations["messaging_provision_defaults_retrieve"];
         put?: never;
-        /**
-         * @description POST: 기본 템플릿 + 자동발송 config 일괄 생성/리셋.
-         *     - 기존 기본 템플릿(이름이 DEFAULT_TEMPLATES와 동일)은 누락된 config만 연결
-         *     - 학원장이 편집한 제목/본문은 덮어쓰지 않음
-         *     - 사용자가 새로 만든 템플릿은 그대로 유지
-         */
+        /** @description GET: 복원 가능 기본 문구. POST: 미설정 트리거 초기화/선택 복원. */
         post: operations["messaging_provision_defaults_create"];
         delete?: never;
         options?: never;
@@ -8155,6 +8153,24 @@ export interface paths {
          *     - 프론트 계약 변경
          */
         patch: operations["results_admin_exams_enrollments_items_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/results/admin/exams/{exam_id}/enrollments/{enrollment_id}/manual-answers/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Preview or atomically confirm one student's offline objective answers. */
+        get: operations["results_admin_exams_enrollments_manual_answers_retrieve"];
+        put?: never;
+        /** @description Preview or atomically confirm one student's offline objective answers. */
+        post: operations["results_admin_exams_enrollments_manual_answers_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/results/admin/exams/{exam_id}/enrollments/{enrollment_id}/objective/": {
@@ -12659,6 +12675,7 @@ export interface components {
             is_late?: boolean;
             readonly lecture_chip_label: string;
             readonly lecture_color: string;
+            readonly lecture_current: boolean;
             readonly lecture_title: string;
             memo?: string | null;
             readonly name_highlight_clinic_target: string;
@@ -13138,6 +13155,12 @@ export interface components {
             status?: components["schemas"]["Status2d4Enum"];
         };
         /**
+         * @description * `continuous` - 이어서 표시
+         *     * `separate` - 서술형 1번부터 표시
+         * @enum {string}
+         */
+        EssayNumberingEnum: "continuous" | "separate";
+        /**
          * @description * `1` - 1
          *     * `2` - 2
          * @enum {integer}
@@ -13182,6 +13205,13 @@ export interface components {
              * @description 성적탭 내 표시 순서 (작을수록 앞)
              */
             display_order?: number;
+            /**
+             * @description 서술형 표시 번호 방식. 저장된 문항 번호와 채점·OMR 인식 계약은 변경하지 않는다.
+             *
+             *     * `continuous` - 이어서 표시
+             *     * `separate` - 서술형 1번부터 표시
+             */
+            essay_numbering?: components["schemas"]["EssayNumberingEnum"];
             exam_type?: components["schemas"]["ExamTypeEnum"];
             /**
              * @description 선택형은 OMR, 답변형은 수기 채점, 혼합형은 두 흐름을 함께 사용한다.
@@ -13293,6 +13323,13 @@ export interface components {
             /** Format: date-time */
             close_at?: string | null;
             description?: string;
+            /**
+             * @description 서술형 표시 번호 방식. 저장된 문항 번호와 채점·OMR 인식 계약은 변경하지 않는다.
+             *
+             *     * `continuous` - 이어서 표시
+             *     * `separate` - 서술형 1번부터 표시
+             */
+            essay_numbering?: components["schemas"]["EssayNumberingEnum"];
             exam_type: string;
             /**
              * @description 선택형은 OMR, 답변형은 수기 채점, 혼합형은 두 흐름을 함께 사용한다.
@@ -13350,6 +13387,13 @@ export interface components {
             /** Format: date-time */
             close_at?: string | null;
             description?: string;
+            /**
+             * @description 서술형 표시 번호 방식. 저장된 문항 번호와 채점·OMR 인식 계약은 변경하지 않는다.
+             *
+             *     * `continuous` - 이어서 표시
+             *     * `separate` - 서술형 1번부터 표시
+             */
+            essay_numbering?: components["schemas"]["EssayNumberingEnum"];
             exam_type: string;
             /**
              * @description 선택형은 OMR, 답변형은 수기 채점, 혼합형은 두 흐름을 함께 사용한다.
@@ -13430,6 +13474,13 @@ export interface components {
              */
             display_order?: number;
             /**
+             * @description 서술형 표시 번호 방식. 저장된 문항 번호와 채점·OMR 인식 계약은 변경하지 않는다.
+             *
+             *     * `continuous` - 이어서 표시
+             *     * `separate` - 서술형 1번부터 표시
+             */
+            essay_numbering?: components["schemas"]["EssayNumberingEnum"];
+            /**
              * @description 선택형은 OMR, 답변형은 수기 채점, 혼합형은 두 흐름을 함께 사용한다.
              *
              *     * `choice` - 선택형
@@ -13493,6 +13544,13 @@ export interface components {
              * @description 성적탭 내 표시 순서 (작을수록 앞)
              */
             display_order?: number;
+            /**
+             * @description 서술형 표시 번호 방식. 저장된 문항 번호와 채점·OMR 인식 계약은 변경하지 않는다.
+             *
+             *     * `continuous` - 이어서 표시
+             *     * `separate` - 서술형 1번부터 표시
+             */
+            essay_numbering?: components["schemas"]["EssayNumberingEnum"];
             /**
              * @description 선택형은 OMR, 답변형은 수기 채점, 혼합형은 두 흐름을 함께 사용한다.
              *
@@ -14159,11 +14217,12 @@ export interface components {
             planned_arrival_time?: string | null;
             readonly profile_photo_url: string | null;
             session: number;
-            status?: components["schemas"]["LectureAttendanceStatusEnum"];
+            status?: components["schemas"]["SessionAttendanceStatus"];
             readonly student_id: number;
             readonly student_memo: string;
         };
         LectureAttendanceRequest: {
+            confirm_secession?: boolean;
             enrollment_id: number;
             memo?: string;
             /**
@@ -14176,24 +14235,16 @@ export interface components {
              * @description 보강 학생의 예정 등원 시간. 날짜만 정해진 경우 비워둘 수 있다.
              */
             planned_arrival_time?: string | null;
+            /**
+             * @description session: 이 차시만 퇴원. lecture 또는 생략: 기존 강의 전체 퇴원.
+             *
+             *     * `session` - session
+             *     * `lecture` - lecture
+             */
+            secession_scope?: components["schemas"]["SecessionScopeEnum"];
             session: number;
-            status?: components["schemas"]["LectureAttendanceStatusEnum"];
+            status?: components["schemas"]["SessionAttendanceStatus"];
         };
-        /**
-         * @description * `UNSET` - 미입력
-         *     * `PRESENT` - 출석
-         *     * `LATE` - 지각
-         *     * `ONLINE` - 온라인
-         *     * `SUPPLEMENT` - 보강
-         *     * `EARLY_LEAVE` - 조퇴
-         *     * `ABSENT` - 결석
-         *     * `RUNAWAY` - 출튀
-         *     * `MATERIAL` - 자료
-         *     * `INACTIVE` - 부재
-         *     * `SECESSION` - 탈퇴
-         * @enum {string}
-         */
-        LectureAttendanceStatusEnum: "UNSET" | "PRESENT" | "LATE" | "ONLINE" | "SUPPLEMENT" | "EARLY_LEAVE" | "ABSENT" | "RUNAWAY" | "MATERIAL" | "INACTIVE" | "SECESSION";
         LectureMemoResult: {
             readonly id: number;
             readonly lecture_memo: string;
@@ -14414,6 +14465,48 @@ export interface components {
          * @enum {string}
          */
         LockReasonEnum: "GRADING" | "PUBLISHED" | "MANUAL" | "OTHER";
+        ManualAnswerQuestion: {
+            answer: string;
+            is_correct: boolean;
+            /** Format: double */
+            max_score: number;
+            number: number;
+            question_id: number;
+            /** Format: double */
+            score: number;
+        };
+        ManualAnswersDraft: {
+            answers: {
+                [key: string]: string;
+            };
+            enrollment_id: number;
+            exam_id: number;
+            expected_version: string | null;
+        };
+        ManualAnswersInputRequest: {
+            answers: {
+                [key: string]: string;
+            };
+            apply: boolean;
+            expected_version: string | null;
+            note: string;
+            preview_token?: string;
+        };
+        ManualAnswersPreview: {
+            applied: boolean;
+            enrollment_id: number;
+            exam_id: number;
+            expected_version: string | null;
+            /** Format: double */
+            max_score: number;
+            /** Format: double */
+            objective_score: number;
+            preview_token: string;
+            questions: components["schemas"]["ManualAnswerQuestion"][];
+            subjective_pending: boolean;
+            /** Format: double */
+            total_score: number;
+        };
         /**
          * @description * `correctness` - 정오 입력
          *     * `score` - 점수 입력
@@ -14511,6 +14604,11 @@ export interface components {
             duplicate_ordinals: number[];
             exam_id: number;
             failed_ordinals: number[];
+            grading_complete: boolean;
+            grading_counts: {
+                [key: string]: number;
+            };
+            grading_status: string;
             /** Format: uuid */
             id: string;
             lecture_id: number | null;
@@ -14520,6 +14618,7 @@ export interface components {
             retried_ordinals: number[];
             session_id: number | null;
             skipped_ordinals: number[];
+            subjective_pending_ordinals: number[];
             terminal: boolean;
             total_count: number;
             /** Format: date-time */
@@ -14536,12 +14635,18 @@ export interface components {
             duplicate_ordinals: number[];
             exam_id: number;
             failed_ordinals: number[];
+            grading_complete: boolean;
+            grading_counts: {
+                [key: string]: number;
+            };
+            grading_status: string;
             /** Format: uuid */
             id: string;
             lecture_id: number | null;
             overall_status: string;
             pending_admission_ordinals: number[];
             session_id: number | null;
+            subjective_pending_ordinals: number[];
             terminal: boolean;
             total_count: number;
             /** Format: date-time */
@@ -14559,12 +14664,18 @@ export interface components {
             duplicate_ordinals: number[];
             exam_id: number;
             failed_ordinals: number[];
+            grading_complete: boolean;
+            grading_counts: {
+                [key: string]: number;
+            };
+            grading_status: string;
             /** Format: uuid */
             id: string;
             lecture_id: number | null;
             overall_status: string;
             pending_admission_ordinals: number[];
             session_id: number | null;
+            subjective_pending_ordinals: number[];
             submission_ids: number[];
             terminal: boolean;
             total_count: number;
@@ -15576,6 +15687,13 @@ export interface components {
              */
             display_order?: number;
             /**
+             * @description 서술형 표시 번호 방식. 저장된 문항 번호와 채점·OMR 인식 계약은 변경하지 않는다.
+             *
+             *     * `continuous` - 이어서 표시
+             *     * `separate` - 서술형 1번부터 표시
+             */
+            essay_numbering?: components["schemas"]["EssayNumberingEnum"];
+            /**
              * @description 선택형은 OMR, 답변형은 수기 채점, 혼합형은 두 흐름을 함께 사용한다.
              *
              *     * `choice` - 선택형
@@ -15695,6 +15813,7 @@ export interface components {
             teacher_approved?: boolean;
         };
         PatchedLectureAttendanceRequest: {
+            confirm_secession?: boolean;
             enrollment_id?: number;
             memo?: string;
             /**
@@ -15707,8 +15826,15 @@ export interface components {
              * @description 보강 학생의 예정 등원 시간. 날짜만 정해진 경우 비워둘 수 있다.
              */
             planned_arrival_time?: string | null;
+            /**
+             * @description session: 이 차시만 퇴원. lecture 또는 생략: 기존 강의 전체 퇴원.
+             *
+             *     * `session` - session
+             *     * `lecture` - lecture
+             */
+            secession_scope?: components["schemas"]["SecessionScopeEnum"];
             session?: number;
-            status?: components["schemas"]["LectureAttendanceStatusEnum"];
+            status?: components["schemas"]["SessionAttendanceStatus"];
         };
         PatchedLectureMemoRequest: {
             lecture_memo?: string;
@@ -16488,6 +16614,13 @@ export interface components {
         };
         ProblemReviewReportList: {
             readonly reports: components["schemas"]["ProblemReviewReport"][];
+        };
+        ProductUsageOverviewRequestRequest: {
+            /** @description 7, 28, 90 중 하나 */
+            days?: number;
+            role?: string;
+            surface?: string;
+            tenant_id?: number | null;
         };
         ProgressPolicy: {
             /** Format: date-time */
@@ -17316,6 +17449,12 @@ export interface components {
          * @enum {string}
          */
         SealedVideoStatusEnum: "PENDING" | "UPLOADED" | "PROCESSING" | "READY" | "FAILED";
+        /**
+         * @description * `session` - session
+         *     * `lecture` - lecture
+         * @enum {string}
+         */
+        SecessionScopeEnum: "session" | "lecture";
         SectionAssignment: {
             /** @description 수업 정규반 */
             class_section: number;
@@ -17378,6 +17517,21 @@ export interface components {
          * @enum {string}
          */
         SendToEnum: "student" | "parent" | "both";
+        /**
+         * @description * `UNSET` - 미입력
+         *     * `PRESENT` - 출석
+         *     * `LATE` - 지각
+         *     * `ONLINE` - 온라인
+         *     * `SUPPLEMENT` - 보강
+         *     * `EARLY_LEAVE` - 조퇴
+         *     * `ABSENT` - 결석
+         *     * `RUNAWAY` - 출튀
+         *     * `MATERIAL` - 자료
+         *     * `INACTIVE` - 부재
+         *     * `SECESSION` - 탈퇴
+         * @enum {string}
+         */
+        SessionAttendanceStatus: "UNSET" | "PRESENT" | "LATE" | "ONLINE" | "SUPPLEMENT" | "EARLY_LEAVE" | "ABSENT" | "RUNAWAY" | "MATERIAL" | "INACTIVE" | "SECESSION";
         SessionEnrollment: {
             /** Format: date-time */
             readonly created_at: string;
@@ -18963,6 +19117,8 @@ export interface components {
             attempt_created_at: string | null;
             attempt_id: number;
             correct_answer?: string;
+            essay_index?: number | null;
+            essay_numbering?: components["schemas"]["EssayNumberingEnum"];
             exam_id: number;
             exam_title?: string;
             explanation_image_url?: string;
@@ -20295,7 +20451,12 @@ export interface operations {
     };
     clinic_sessions_tree_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                date_from?: string;
+                date_to?: string;
+                month?: number;
+                year?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -22011,21 +22172,30 @@ export interface operations {
             };
         };
     };
-    core_dev_product_analytics_overview_retrieve: {
+    core_dev_product_analytics_overview_create: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ProductUsageOverviewRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProductUsageOverviewRequestRequest"];
+                "multipart/form-data": components["schemas"]["ProductUsageOverviewRequestRequest"];
+            };
+        };
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };
@@ -30682,6 +30852,24 @@ export interface operations {
             };
         };
     };
+    messaging_provision_defaults_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     messaging_provision_defaults_create: {
         parameters: {
             query?: never;
@@ -32036,6 +32224,56 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    results_admin_exams_enrollments_manual_answers_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                enrollment_id: number;
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualAnswersDraft"];
+                };
+            };
+        };
+    };
+    results_admin_exams_enrollments_manual_answers_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                enrollment_id: number;
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManualAnswersInputRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ManualAnswersInputRequest"];
+                "multipart/form-data": components["schemas"]["ManualAnswersInputRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManualAnswersPreview"];
+                };
             };
         };
     };
