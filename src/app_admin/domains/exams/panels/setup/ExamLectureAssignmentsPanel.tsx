@@ -10,6 +10,7 @@ import ModalFooter from "@/shared/ui/modal/ModalFooter";
 import ModalHeader from "@/shared/ui/modal/ModalHeader";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { formatSessionLabel } from "@/shared/product/sessions/sessionOrdering";
 import {
   attachExamSession,
   fetchExamLectureAssignments,
@@ -75,7 +76,7 @@ export default function ExamLectureAssignmentsPanel({
       lectureId,
       sessionId,
       passScore,
-      label: `${lecture?.title ?? "강의"} · ${session?.display_label ?? `${session?.order ?? "?"}차시`}`,
+      label: `${lecture?.title ?? "강의"} · ${formatSessionLabel(session)}`,
     };
   });
   const linksToAttach = [...pendingLinks, ...currentLinks];
@@ -250,7 +251,7 @@ export default function ExamLectureAssignmentsPanel({
                   <input type="checkbox" checked={selectedSessionIds.includes(session.id)} onChange={() => setSelectedSessionIds((current) =>
                     current.includes(session.id) ? current.filter((id) => id !== session.id) : [...current, session.id]
                   )} />
-                  <span>{session.display_label ?? `${session.order}차시`} · {session.title}</span>
+                  <span>{formatSessionLabel(session)}</span>
                 </label>
               ))}
               {lectureId != null && !sessionsQuery.isLoading && availableSessions.length === 0 && (

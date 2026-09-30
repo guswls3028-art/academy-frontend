@@ -83,8 +83,8 @@ function SessionGearMenu({
     placement: "bottom",
     gap: 4,
     margin: 8,
-    estimateHeight: editing ? 320 : 180,
-    estimateWidth: 200,
+    estimateHeight: editing ? 390 : 180,
+    estimateWidth: editing ? 280 : 200,
     alignRight: !editing,
   });
 
@@ -131,19 +131,19 @@ function SessionGearMenu({
   };
 
   const handleSaveEdit = async () => {
+    if (busy) return;
     if (supplement && !editTitle.trim()) {
       feedback.warning("보강 이름을 입력하세요.");
       return;
     }
     const nextRegularOrder = Number(editOrder);
-    if (!supplement && (!Number.isInteger(nextRegularOrder) || nextRegularOrder < 1)) {
+    if (!supplement && (!Number.isSafeInteger(nextRegularOrder) || nextRegularOrder < 1)) {
       feedback.warning("차시 번호는 1 이상의 정수로 입력하세요.");
       return;
     }
     setBusy(true);
     try {
-      const payload: Parameters<typeof updateSession>[1] = {};
-      if (editTitle.trim()) payload.title = editTitle.trim();
+      const payload: Parameters<typeof updateSession>[1] = { title: editTitle.trim() };
       if (editDate.trim()) payload.date = editDate.trim();
       if (!supplement) payload.regular_order = nextRegularOrder;
       await updateSession(session.id, payload);
@@ -228,22 +228,29 @@ function SessionGearMenu({
                   autoFocus
                 />
                 <span id={`session-order-help-${session.id}`} className="text-[11px] leading-4 text-[var(--color-text-muted)]">
-                  저장하면 카드와 차시 제목이 {editOrder || "N"}차시로 표시됩니다.
+                  정규 진도 번호입니다. 이름을 비워 두면 {editOrder || "N"}차시로 표시됩니다.
                 </span>
               </>
             )}
             <label htmlFor={`session-title-${session.id}`} className="text-xs font-medium text-[var(--color-text-muted)]">
-              {supplement ? "보강 이름" : "차시 설명 (선택)"}
+              {supplement ? "보강 이름" : "차시 이름 (선택)"}
             </label>
             <input
               id={`session-title-${session.id}`}
               className="ds-input text-sm"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              placeholder={supplement ? "예: 토요일 심화 클리닉" : "예: 함수 개념 정리"}
+              placeholder={supplement ? "예: 토요일 심화 클리닉" : "예: 직보(직전보강)"}
               maxLength={255}
               autoFocus={supplement}
+              disabled={busy}
+              aria-describedby={!supplement ? `session-title-help-${session.id}` : undefined}
             />
+            {!supplement && (
+              <p id={`session-title-help-${session.id}`} className="text-[11px] leading-4 text-[var(--color-text-muted)]">
+                이름을 입력하면 번호 대신 표시됩니다. 정규 진도 번호와 유형은 유지됩니다.
+              </p>
+            )}
             <label className="text-xs font-medium text-[var(--color-text-muted)]">날짜</label>
             <input type="date" className="ds-input text-sm" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
             <div className="flex justify-end gap-1 mt-1">
@@ -523,7 +530,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                     selected={isActive}
                     title={formatSessionBlockLabel(s)}
                     desc={s.date ?? "-"}
-                    className={supplement ? styles.supplementCard : undefined}
+                    className={supplement || formatSessionBlockLabel(s) !== `${s.regular_order ?? s.order}차시` ? styles.namedCard : undefined}
                     onClick={() => navigate(getSessionTargetPath(s.id))}
                   />
                   <SessionGearMenu session={s} onDone={(action) => { invalidate(); if (action === "deleted" && currentSessionId === s.id) navigate(`/workspace/lectures/${lectureId}`); }} />
@@ -753,7 +760,7 @@ function SessionRow({
               selected={isActive}
               title={formatSessionBlockLabel(s)}
               desc={s.date ?? "-"}
-              className={supplement ? styles.supplementCard : undefined}
+              className={supplement || formatSessionBlockLabel(s) !== `${s.regular_order ?? s.order}차시` ? styles.namedCard : undefined}
               onClick={() => navigate(getSessionTargetPath(s.id))}
             />
             <SessionGearMenu session={s} sections={sections} onDone={(action) => { invalidate(); if (action === "deleted" && currentSessionId === s.id) navigate(`/workspace/lectures/${lectureId}`); }} />

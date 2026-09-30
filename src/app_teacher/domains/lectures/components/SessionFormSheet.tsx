@@ -62,7 +62,9 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectureSessions });
       qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.legacyLectureDetail });
-      teacherToast.success(isEdit ? `${title} 차시가 수정되었습니다.` : `${title} 차시가 추가되었습니다.`);
+      qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.attendanceMatrix(lectureId) });
+      if (isEdit) qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.sessionDetail(editData.id) });
+      teacherToast.success(isEdit ? "차시가 수정되었습니다." : "차시가 추가되었습니다.");
       onClose();
     },
     onError: (e) => teacherToast.error(extractApiError(e, isEdit ? "차시를 수정하지 못했습니다." : "차시를 추가하지 못했습니다.")),
@@ -91,6 +93,11 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
   };
 
   const handleSave = () => {
+    if (mutation.isPending) return;
+    if (sessionType === "SUPPLEMENT" && !title.trim()) {
+      teacherToast.error("보강 이름을 입력하세요.");
+      return;
+    }
     const order = regularOrder.trim();
     if (sessionType === "REGULAR" && order && (!/^[1-9]\d*$/.test(order) || !Number.isSafeInteger(Number(order)))) {
       teacherToast.error("차시 번호는 1 이상의 정수로 입력하세요.");
@@ -119,18 +126,22 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
                   color: sessionType === kind ? "#fff" : "var(--tc-text)",
                 }}
               >
-                {kind === "REGULAR" ? "정규 차시" : "보강·직보"}
+                {kind === "REGULAR" ? "정규 차시" : "보강"}
               </button>
             ))}
           </div>
         )}
         <div>
-          <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{sessionType === "SUPPLEMENT" ? "보강 이름 *" : "차시명 *"}</label>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={sessionType === "SUPPLEMENT" ? "예: 직보" : "예: 1차시, 중간고사 대비"}
+          <label htmlFor="mobile-session-title" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{sessionType === "SUPPLEMENT" ? "보강 이름 *" : "차시 이름 (선택)"}</label>
+          <input id="mobile-session-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={sessionType === "SUPPLEMENT" ? "예: 토요일 심화 클리닉" : "예: 직보(직전보강)"}
+            maxLength={255} disabled={mutation.isPending} aria-describedby="mobile-session-title-help"
             className="w-full text-sm"
             style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
-          {sessionType === "SUPPLEMENT" && <p className="mt-1 text-xs" style={{ color: "var(--tc-text-muted)" }}>이 이름으로 표시되며 정규 차시 번호는 늘어나지 않습니다.</p>}
-          {sessionType === "REGULAR" && <p className="mt-1 text-xs" style={{ color: "var(--tc-text-muted)" }}>정규 차시는 번호로 표시됩니다. 직보처럼 이름 있는 차시는 보강·직보를 선택하세요.</p>}
+          <p id="mobile-session-title-help" className="mt-1 text-xs" style={{ color: "var(--tc-text-muted)" }}>
+            {sessionType === "SUPPLEMENT"
+              ? "이 이름으로 표시되며 정규 차시 번호는 늘어나지 않습니다."
+              : "이름을 입력하면 번호 대신 표시됩니다. 비워 두면 번호로 표시되며, 정규 진도 번호와 유형은 유지됩니다."}
+          </p>
         </div>
         <div className="flex gap-2">
           <div className="flex-1">
@@ -140,16 +151,16 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
               style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
           </div>
           {sessionType === "REGULAR" && <div style={{ width: 80 }}>
-            <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>차시 번호</label>
-            <input type="number" value={regularOrder} onChange={(e) => setRegularOrder(e.target.value)} placeholder="#"
+            <label htmlFor="mobile-session-order" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>차시 번호</label>
+            <input id="mobile-session-order" type="number" min={1} step={1} inputMode="numeric" value={regularOrder} onChange={(e) => setRegularOrder(e.target.value)} placeholder="자동"
               className="w-full text-sm"
               style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
           </div>}
         </div>
 
-        <button onClick={handleSave} disabled={!title.trim() || mutation.isPending}
+        <button onClick={handleSave} disabled={(sessionType === "SUPPLEMENT" && !title.trim()) || mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-2"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: title.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: title.trim() ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: sessionType === "REGULAR" || title.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: sessionType === "REGULAR" || title.trim() ? "#fff" : "var(--tc-text-muted)" }}>
           {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "추가"}
         </button>
 

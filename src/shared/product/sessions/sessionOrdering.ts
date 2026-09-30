@@ -40,17 +40,24 @@ export function getDisplayOrder(session: SessionOrderLike | null | undefined): n
 }
 
 export function formatSessionLabel(session: SessionOrderLike | null | undefined): string {
+  const title = (session?.title ?? "").trim();
+  const displayLabel = (session?.display_label ?? "").trim();
   if (isSupplementSession(session)) {
-    const title = (session?.title ?? "").trim();
     if (title) return title;
-    const displayLabel = (session?.display_label ?? "").trim();
     return displayLabel || "보강";
   }
+
+  // Older creates stored the numbered label and timetable in title. These are
+  // defaults, so renumbering must still use regular_order. Named regular lessons
+  // keep their title even when an older API returns a numbered display_label.
+  const numberedTitle = /^\d+(?:\s*(?:차시|회차))?(?:\s*\(\s*\d{1,2}:\d{2}\s*[~–-]\s*\d{1,2}:\d{2}\s*\))?$/u;
+  if (displayLabel && !numberedTitle.test(displayLabel)) return displayLabel;
+  if (title && !numberedTitle.test(title)) return title;
 
   const regularOrder = getRegularOrder(session);
   if (regularOrder != null) return `${regularOrder}차시`;
 
-  const title = (session?.title ?? "").trim();
+  if (displayLabel) return /^\d+$/.test(displayLabel) ? `${displayLabel}차시` : displayLabel;
   if (/^\d+$/.test(title)) return `${title}차시`;
   if (title) return title;
   return "-차시";
