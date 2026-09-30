@@ -455,7 +455,7 @@ export default function PptGeneratorPage() {
     setProgressLabel("");
     feedback.success(`PPT 생성 완료 (${data.slide_count}장, ${formatBytes(data.size_bytes)})`);
     if (data.mode === "page") {
-      feedback.info("문항을 정확히 나누기 어려워 모든 쪽을 그대로 넣었습니다. 필요한 문항만 쓰려면 '직접 자르기'에서 영역을 골라 다시 만드세요.");
+      feedback.info("문항을 찾지 못한 쪽은 원본 페이지로 넣었습니다. 결과를 확인하고 필요하면 '직접 자르기'에서 영역을 골라 다시 만드세요.");
     }
     triggerPptDownload(data);
   }
