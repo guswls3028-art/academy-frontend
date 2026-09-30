@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/clinic/components/PreviousWeekImportModal.tsx
 // 이전 주 클리닉 불러오기 — 직전 주 세션 목록 → 선택 → 이번 주 동일 요일로 일괄 생성
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
@@ -34,10 +34,10 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [creating, setCreating] = useState(false);
 
-  // 모달 열릴 때 선택 초기화 (이전 선택 잔존 방지)
-  useEffect(() => {
-    if (open) { setSelectedIds(new Set()); setCreating(false); }
-  }, [open]);
+  const closeModal = () => {
+    setSelectedIds(new Set());
+    onClose();
+  };
 
   // 이전 주 범위 계산
   const prevWeek = useMemo(() => {
@@ -198,8 +198,7 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
       } else {
         feedback.warning(`${ok}건 생성, ${skipped}건 중복 건너뜀`);
       }
-      setSelectedIds(new Set());
-      onClose();
+      closeModal();
     } catch {
       feedback.error("불러오기에 실패했습니다.");
     } finally {
@@ -208,7 +207,7 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
   };
 
   return (
-    <AdminModal open={open} onClose={onClose} width={560}>
+    <AdminModal open={open} onClose={closeModal} width={560}>
       <div className="clinic-import">
         <div className="clinic-import__header">
           <h2 className="clinic-import__title">이전 주 클리닉 불러오기</h2>
@@ -320,7 +319,7 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
         </div>
 
         <div className="clinic-import__footer">
-          <Button intent="secondary" size="md" onClick={onClose} disabled={creating}>
+          <Button intent="secondary" size="md" onClick={closeModal} disabled={creating}>
             취소
           </Button>
           <Button
