@@ -22,7 +22,7 @@
 }
 
 .clearPastButton:hover:not(:disabled) {
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
   background: var(--stu-danger-bg);
   border-color: var(--stu-danger-border);
 }

@@ -130,7 +130,7 @@
   width: 100%;
   min-height: 44px;
   padding: 10px;
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;

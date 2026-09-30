@@ -1,4 +1,8 @@
-/* 이동휘원소 학생앱 — 딥 네이비 #1A253B + 오비트 옐로 #FFDB5A */
+/* PATH: src/app_student/shared/ui/theme/tenants/movementhui.css
+ * 10번(이동휘원소) — 딥 네이비 #1A253B + 오비트 옐로 #FFDB5A.
+ * 옐로는 인디케이터·포커스·상단 빛 번짐에, 글자를 올리는 그라데이션 끝과 아이콘에는
+ * 대비가 보장되는 딥 골드를 사용한다. 공통 규칙은 brand.css가 소유한다.
+ */
 [data-student-theme="movementhui"] {
   --stu-bg: #f4f6fa;
   --stu-surface: #ffffff;
@@ -22,8 +26,15 @@
   --stu-primary-hover: #111a2c;
   --stu-primary-contrast: #fffdf2;
   --stu-glow-primary: 0 0 20px rgba(26, 37, 59, 0.22);
-  --stu-gradient: linear-gradient(135deg, #1a253b 0%, #263653 68%, #e7bd2f 100%);
+  --stu-gradient: linear-gradient(135deg, #1a253b 0%, #263653 70%, #9a7a12 100%);
   --stu-focus: rgba(255, 219, 90, 0.42);
+
+  --stu-brand-1: #1a253b;
+  --stu-brand-2: #263653;
+  --stu-brand-3: #ffdb5a;
+  --stu-icon-1: #1a253b;
+  --stu-icon-2: #9a7a12;
+  --stu-tab-indicator: #ffdb5a;
 
   --stu-success: #21845b;
   --stu-success-bg: rgba(33, 132, 91, 0.10);
@@ -49,103 +60,22 @@
   --stu-primary: #ffdb5a;
   --stu-primary-hover: #f2cd43;
   --stu-primary-contrast: #111a2c;
-  --stu-gradient: linear-gradient(135deg, #ffdb5a 0%, #e7bd2f 42%, #7585a4 100%);
+  --stu-gradient: linear-gradient(135deg, #223150 0%, #2e4166 70%, #9a7a12 100%);
+  --stu-icon-1: #ffdb5a;
+  --stu-icon-2: #aab6cc;
 }
 
-[data-student-theme="movementhui"] :focus-visible {
-  outline: 3px solid var(--stu-focus);
-  outline-offset: 2px;
-  border-radius: 10px;
-}
-
-[data-student-theme="movementhui"] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
-  color: #1a253b;
-  font-weight: 800;
-  position: relative;
-}
-
+/* 옐로 인디케이터가 밝은 탭바에서도 경계가 보이도록 얇은 네이비 테두리 */
 [data-student-theme="movementhui"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
   width: 26px;
-  height: 3px;
-  border-radius: 999px;
-  background: #ffdb5a;
   box-shadow: 0 0 0 1px rgba(26, 37, 59, 0.22);
 }
 
-[data-student-theme="movementhui"] .stu-btn--primary {
-  background: var(--stu-gradient);
-  box-shadow: 0 3px 10px rgba(26, 37, 59, 0.20);
-}
-
-[data-student-theme="movementhui"] .stu-btn--primary:hover {
-  filter: brightness(1.07);
-  background: var(--stu-gradient);
-  box-shadow: 0 5px 18px rgba(26, 37, 59, 0.26);
-}
-
-[data-student-theme="movementhui"] .stu-icon,
-[data-student-theme="movementhui"] .stu-icon path,
-[data-student-theme="movementhui"] .stu-icon circle,
-[data-student-theme="movementhui"] .stu-icon polygon,
-[data-student-theme="movementhui"] .stu-icon rect {
-  stroke: url(#stu-gradient-movementhui);
-}
-
-[data-student-theme="movementhui"] .stu-icon path[fill="currentColor"],
-[data-student-theme="movementhui"] .stu-icon circle[fill="currentColor"],
-[data-student-theme="movementhui"] .stu-icon polygon[fill="currentColor"] {
-  fill: url(#stu-gradient-movementhui);
-}
-
+/* 상단 옐로 빛 번짐 — 브랜드 고유 장식이라 공통 배경 위에 한 겹 더한다 */
 [data-app="student"][data-student-theme="movementhui"] {
   background-image:
     radial-gradient(ellipse 80% 42% at 50% -12%, rgba(255, 219, 90, 0.12) 0%, transparent 62%),
-    linear-gradient(145deg, rgba(26, 37, 59, 0.038) 0%, rgba(38, 54, 83, 0.018) 58%, rgba(255, 219, 90, 0.018) 100%),
+    var(--stu-wash-app),
     var(--stu-bg-pattern) !important;
   background-size: 100% 100%, 100% 100%, var(--stu-bg-pattern-size) !important;
-  background-color: var(--stu-bg) !important;
-  background-repeat: no-repeat !important;
-  background-attachment: fixed !important;
-}
-
-[data-app="student"][data-student-theme="movementhui"] header,
-[data-app="student"][data-student-theme="movementhui"] .stu-tabbar {
-  background-image: linear-gradient(120deg, rgba(26, 37, 59, 0.055), rgba(255, 219, 90, 0.025)) !important;
-  background-size: 100% 100%;
-}
-
-[data-app="student"][data-student-theme="movementhui"] .stu-panel,
-[data-app="student"][data-student-theme="movementhui"] .stu-section,
-[data-app="student"][data-student-theme="movementhui"] .stu-card {
-  background-image: linear-gradient(145deg, rgba(26, 37, 59, 0.035), rgba(255, 219, 90, 0.012));
-  background-color: var(--stu-surface-1);
-}
-
-[data-app="student"][data-student-theme="movementhui"] .stu-action-tile {
-  background-color: var(--stu-surface-1) !important;
-  background-image: linear-gradient(145deg, rgba(26, 37, 59, 0.12), rgba(38, 54, 83, 0.07) 62%, rgba(255, 219, 90, 0.07)) !important;
-}
-
-[data-app="student"][data-student-theme="movementhui"] .stu-action-tile__icon {
-  background-color: var(--stu-tint-primary) !important;
-  background-image: linear-gradient(145deg, rgba(26, 37, 59, 0.14), rgba(255, 219, 90, 0.09)) !important;
-}
-
-[data-student-theme="movementhui"] [data-page="qna"] .stu-emptystate__icon {
-  background: linear-gradient(145deg, rgba(26, 37, 59, 0.10), rgba(255, 219, 90, 0.10)) !important;
-  border-color: rgba(26, 37, 59, 0.16) !important;
-}
-
-[data-student-theme="movementhui"] [data-page="qna"] .stu-emptystate__icon-svg {
-  stroke: #1a253b;
-}
-
-[data-student-theme="movementhui"] [data-page="qna"] .stu-section--nested > div:first-child {
-  color: #1a253b;
-  letter-spacing: -0.02em;
 }

@@ -134,7 +134,7 @@
 }
 
 .dangerSmall {
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
 }
 
 .answersNote {

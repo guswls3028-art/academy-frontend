@@ -155,12 +155,12 @@ test("godmin student and parent light theme uses white surfaces with clean blue 
       <nav class="stu-tabbar"></nav>
     </div>
   `);
-  await page.addStyleTag({
-    path: resolve(
-      process.cwd(),
-      "src/app_student/shared/ui/theme/tenants/godmin.css",
-    ),
-  });
+  // brand.css(공통 규칙) 뒤에 godmin 토큰을 적용해 실제 로드 순서와 같게 검증한다.
+  for (const file of ["brand.css", "godmin.css"]) {
+    await page.addStyleTag({
+      path: resolve(process.cwd(), "src/app_student/shared/ui/theme/tenants", file),
+    });
+  }
 
   const theme = await page.locator('[data-app="student"]').evaluate((root) => {
     const style = getComputedStyle(root);
@@ -173,7 +173,10 @@ test("godmin student and parent light theme uses white surfaces with clean blue 
       surface: style.getPropertyValue("--stu-surface").trim(),
       text: style.getPropertyValue("--stu-text").trim(),
       primary: style.getPropertyValue("--stu-primary").trim(),
-      rootBackgroundImage: style.backgroundImage,
+      // 공통 레이어는 워시·패턴 두 겹이므로 모든 레이어가 none인지 확인한다.
+      rootBackgroundImage: style.backgroundImage.split(",").every((layer) => layer.trim() === "none")
+        ? "none"
+        : style.backgroundImage,
       headerBackgroundImage: header.backgroundImage,
       panelBackgroundImage: panel.backgroundImage,
       tabbarBackgroundImage: tabbar.backgroundImage,
@@ -208,7 +211,8 @@ test("godmin student and parent light theme uses white surfaces with clean blue 
   });
   expect(darkTheme).toEqual({
     primary: "#6ea1f4",
-    contrast: "#ffffff",
+    // 밝은 다크 primary(#6ea1f4) 위 흰 글자는 2.6:1이라 짙은 잉크를 쓴다.
+    contrast: "#0b1b36",
     brandSurface: "#121827",
     brandAccent: "#6ea1f4",
   });

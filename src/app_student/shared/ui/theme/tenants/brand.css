@@ -1,0 +1,140 @@
+/* PATH: src/app_student/shared/ui/theme/tenants/brand.css
+ * 학생앱 테넌트 공통 브랜드 레이어 — 모든 [data-student-theme]에 같은 규칙을 적용한다.
+ * 테넌트 파일({code}.css)은 토큰만 정의하고, 선택자·구조는 이 파일에서만 관리한다.
+ *
+ * 테넌트가 정의하는 브랜드 토큰
+ *   --stu-gradient        흰 글자를 올리는 CTA·primary 버튼 배경 (0~70% 구간 흰 글자 4.5:1 이상)
+ *   --stu-brand-1/2/3     배경·크롬·서페이스에 옅게 까는 장식용 브랜드 색
+ *   --stu-icon-1/2        콘텐츠 아이콘 그라데이션 (라이트는 흰 배경, 다크는 다크 서페이스 대비 3:1 이상)
+ *   --stu-tab-indicator   하단 탭 활성 표시 (기본: --stu-gradient)
+ *   --stu-wash-*          장식 배경. 깔끔한 테마는 none으로 끈다.
+ *
+ * 이 파일은 tenants/index.css에서 테넌트 파일보다 먼저 import해야 테넌트 토큰 재정의가 이긴다.
+ */
+[data-student-theme] {
+  --stu-on-gradient: #fff;
+  --stu-focus-ring: var(--stu-primary);
+  --stu-icon-paint: url(#stu-icon-gradient);
+  --stu-tab-indicator: var(--stu-gradient);
+
+  --stu-wash-app: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--stu-brand-1) 4%, transparent) 0%,
+    color-mix(in srgb, var(--stu-brand-2) 3%, transparent) 50%,
+    color-mix(in srgb, var(--stu-brand-3) 2%, transparent) 100%
+  );
+  --stu-wash-chrome: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--stu-brand-1) 7%, transparent) 0%,
+    color-mix(in srgb, var(--stu-brand-2) 5%, transparent) 50%,
+    color-mix(in srgb, var(--stu-brand-3) 3%, transparent) 100%
+  );
+  --stu-wash-surface: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--stu-brand-1) 4%, transparent) 0%,
+    color-mix(in srgb, var(--stu-brand-2) 3%, transparent) 50%,
+    color-mix(in srgb, var(--stu-brand-3) 1.5%, transparent) 100%
+  );
+}
+
+/* 다크모드 primary는 밝은 톤이므로 primary 면 위 글자는 짙은 잉크를 쓴다 (테넌트가 재정의 가능) */
+[data-app="student"][data-student-dark="true"][data-student-theme] {
+  --stu-primary-contrast: #0b1220;
+}
+
+/* 포커스: 옅은 반투명 링 대신 테마 primary 실선으로 키보드 위치를 분명히 표시 */
+[data-student-theme] :focus-visible {
+  outline: 2px solid var(--stu-focus-ring);
+  outline-offset: 2px;
+}
+
+/* 앱 배경 */
+[data-app="student"][data-student-theme] {
+  background-color: var(--stu-bg) !important;
+  background-image: var(--stu-wash-app), var(--stu-bg-pattern, none) !important;
+  background-size: 100% 100%, var(--stu-bg-pattern-size, auto) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+/* 앱 상단바·하단 탭바. 페이지 안의 <header>(제목·달력 머리글)는 칠하지 않는다. */
+[data-app="student"][data-student-theme] .student-layout__header,
+[data-app="student"][data-student-theme] .stu-tabbar {
+  background-image: var(--stu-wash-chrome) !important;
+  background-size: 100% 100%;
+}
+
+/* 패널·섹션 */
+[data-app="student"][data-student-theme] .stu-panel,
+[data-app="student"][data-student-theme] .stu-section {
+  background-color: var(--stu-surface-1);
+  background-image: var(--stu-wash-surface);
+}
+
+/* 하단 탭 활성 상태 — 아이콘·라벨이 함께 primary로 바뀌고 브랜드 인디케이터를 표시 */
+[data-student-theme] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
+  color: var(--stu-primary);
+  font-weight: 800;
+}
+
+[data-student-theme] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--stu-tab-indicator);
+  transform: translateX(-50%);
+}
+
+/* primary 버튼 — 텍스트 대비가 보장된 브랜드 그라데이션 */
+[data-student-theme] .stu-btn--primary {
+  border-color: transparent;
+  background: var(--stu-gradient);
+  color: var(--stu-on-gradient);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--stu-brand-1) 18%, transparent);
+}
+
+[data-student-theme] .stu-btn--primary:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--stu-gradient);
+  filter: brightness(1.06);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--stu-brand-1) 24%, transparent);
+}
+
+/* 콘텐츠 아이콘 브랜드 그라데이션 (#stu-icon-gradient 정지점은 --stu-icon-1/2) */
+[data-student-theme] .stu-icon,
+[data-student-theme] .stu-icon path,
+[data-student-theme] .stu-icon circle,
+[data-student-theme] .stu-icon polygon,
+[data-student-theme] .stu-icon rect {
+  stroke: var(--stu-icon-paint);
+}
+
+[data-student-theme] .stu-icon path[fill="currentColor"],
+[data-student-theme] .stu-icon circle[fill="currentColor"],
+[data-student-theme] .stu-icon polygon[fill="currentColor"] {
+  fill: var(--stu-icon-paint);
+}
+
+/* 글자색을 따라야 하는 아이콘
+ * - 하단 탭: 상태색(비활성 muted, 활성 primary)으로 현재 위치를 구분한다.
+ * - 그라데이션 면(primary 버튼·커뮤니티 질문 CTA) 위: 같은 그라데이션으로 칠하면 사라지므로 흰 글자색을 따른다. */
+[data-student-theme] :is(.stu-tabbar, .stu-btn--primary, .community-hub__question) .stu-icon,
+[data-student-theme] :is(.stu-tabbar, .stu-btn--primary, .community-hub__question) .stu-icon :is(path, circle, polygon, rect) {
+  stroke: currentColor;
+}
+
+[data-student-theme] :is(.stu-tabbar, .stu-btn--primary, .community-hub__question) .stu-icon :is(path, circle, polygon)[fill="currentColor"] {
+  fill: currentColor;
+}
+
+.stu-icon-gradient__stop--start {
+  stop-color: var(--stu-icon-1, var(--stu-primary));
+}
+
+.stu-icon-gradient__stop--end {
+  stop-color: var(--stu-icon-2, var(--stu-primary));
+}

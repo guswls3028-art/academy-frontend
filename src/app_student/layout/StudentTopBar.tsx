@@ -62,7 +62,7 @@ function StudentAvatar({ profile }: { profile: { name?: string; profile_photo_ur
         alignItems: "center",
         justifyContent: "center",
         background: "var(--stu-gradient, var(--stu-primary))",
-        color: "var(--stu-primary-contrast)",
+        color: "var(--stu-on-gradient, var(--stu-primary-contrast))",
         fontSize: 13,
         fontWeight: 600,
         letterSpacing: 0,

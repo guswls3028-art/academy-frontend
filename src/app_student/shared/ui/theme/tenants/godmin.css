@@ -1,4 +1,7 @@
-/* 신과함께 학생·학부모 앱 — 화이트 + 클린 블루 */
+/* PATH: src/app_student/shared/ui/theme/tenants/godmin.css
+ * 11번(신과함께) 학생·학부모 앱 — 화이트 + 클린 블루. 장식 워시 없이 단색 면과 단색 아이콘을 쓴다.
+ * 공통 규칙은 brand.css가 소유하고 이 파일은 토큰과 헤더 팔레트만 정의한다.
+ */
 [data-student-theme="godmin"] {
   --stu-bg: #eef2f7;
   --stu-surface: #ffffff;
@@ -23,6 +26,15 @@
   --stu-gradient: linear-gradient(135deg, #245fc8 0%, #2f6fe4 100%);
   --stu-focus: rgba(47, 111, 228, 0.38);
 
+  --stu-brand-1: #2f6fe4;
+  --stu-brand-2: #2f6fe4;
+  --stu-brand-3: #2f6fe4;
+  --stu-icon-paint: var(--stu-primary);
+  --stu-tab-indicator: var(--stu-primary);
+  --stu-wash-app: none;
+  --stu-wash-chrome: none;
+  --stu-wash-surface: none;
+
   --stu-success: #4f7554;
   --stu-success-bg: rgba(79, 117, 84, 0.10);
   --stu-success-border: rgba(79, 117, 84, 0.28);
@@ -46,72 +58,8 @@
 [data-app="student"][data-student-dark="true"][data-student-theme="godmin"] {
   --stu-primary: #6ea1f4;
   --stu-primary-hover: #97bcff;
-  --stu-primary-contrast: #ffffff;
-  --stu-gradient: linear-gradient(135deg, #97bcff 0%, #6ea1f4 52%, #2f6fe4 100%);
-}
-
-[data-student-theme="godmin"] :focus-visible {
-  outline: 3px solid var(--stu-focus);
-  outline-offset: 2px;
-  border-radius: 10px;
-}
-
-[data-student-theme="godmin"] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
-  position: relative;
-  color: var(--stu-primary);
-  font-weight: 800;
-}
-
-[data-student-theme="godmin"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  width: 26px;
-  height: 3px;
-  transform: translateX(-50%);
-  background: var(--stu-primary);
-  border-radius: 999px;
-}
-
-[data-student-theme="godmin"] .stu-btn--primary {
-  background: var(--stu-gradient);
-  box-shadow: 0 3px 10px rgba(47, 111, 228, 0.16);
-}
-
-[data-student-theme="godmin"] .stu-btn--primary:hover {
-  filter: brightness(1.04);
-  background: var(--stu-gradient);
-  box-shadow: 0 5px 18px rgba(47, 111, 228, 0.22);
-}
-
-[data-student-theme="godmin"] .stu-icon,
-[data-student-theme="godmin"] .stu-icon path,
-[data-student-theme="godmin"] .stu-icon circle,
-[data-student-theme="godmin"] .stu-icon polygon,
-[data-student-theme="godmin"] .stu-icon rect {
-  stroke: var(--stu-primary);
-}
-
-[data-student-theme="godmin"] .stu-icon path[fill="currentColor"],
-[data-student-theme="godmin"] .stu-icon circle[fill="currentColor"],
-[data-student-theme="godmin"] .stu-icon polygon[fill="currentColor"] {
-  fill: var(--stu-primary);
-}
-
-[data-app="student"][data-student-theme="godmin"] {
-  background-color: var(--stu-bg) !important;
-  background-image: none !important;
-}
-
-[data-app="student"][data-student-theme="godmin"] header,
-[data-app="student"][data-student-theme="godmin"] .stu-tabbar {
-  background-color: var(--stu-header-bg) !important;
-  background-image: none !important;
-}
-
-[data-app="student"][data-student-theme="godmin"] .stu-tabbar {
-  background-color: var(--stu-tabbar-bg) !important;
+  --stu-primary-contrast: #0b1b36;
+  --stu-gradient: linear-gradient(135deg, #3574e6 0%, #2f6fe4 55%, #245fc8 100%);
 }
 
 [data-app="student"][data-student-theme="godmin"] [data-tenant-header-brand] {
@@ -126,32 +74,4 @@
   --tenant-header-surface-soft: #1a2235 !important;
   --tenant-header-foreground: rgba(255, 255, 255, 0.95) !important;
   --tenant-header-accent: #6ea1f4 !important;
-}
-
-[data-app="student"][data-student-theme="godmin"] .stu-panel,
-[data-app="student"][data-student-theme="godmin"] .stu-section,
-[data-app="student"][data-student-theme="godmin"] .stu-card {
-  background-color: var(--stu-surface-1);
-  background-image: none;
-}
-
-[data-app="student"][data-student-theme="godmin"] .stu-action-tile {
-  background-color: var(--stu-surface-1) !important;
-  background-image: none !important;
-}
-
-[data-app="student"][data-student-theme="godmin"] .stu-action-tile__icon {
-  background-color: var(--stu-tint-primary) !important;
-  background-image: none !important;
-}
-
-[data-student-theme="godmin"] [data-page="qna"] .stu-emptystate__icon {
-  background: var(--stu-tint-primary) !important;
-  border-color: rgba(47, 111, 228, 0.22) !important;
-}
-
-[data-student-theme="godmin"] [data-page="qna"] .stu-emptystate__icon-svg,
-[data-student-theme="godmin"] [data-page="qna"] .stu-section--nested > div:first-child {
-  color: var(--stu-primary);
-  stroke: var(--stu-primary);
 }
