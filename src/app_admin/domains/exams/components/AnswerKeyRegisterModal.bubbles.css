@@ -25,8 +25,8 @@
 
 .answer-key-omr-label .exam-omr-bubble {
   pointer-events: none;
-  width: 28px;
-  min-width: 28px;
+  width: 30px;
+  min-width: 30px;
   height: 32px;
   border-width: 1px;
   border-radius: 999px;
