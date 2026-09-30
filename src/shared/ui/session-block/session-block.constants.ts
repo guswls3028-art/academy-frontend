@@ -31,9 +31,9 @@ export function isSupplement(title: string | null | undefined): boolean {
 }
 
 /**
- * 차시 표시 SSOT — "1", "2" 같은 숫자만이 아니라 항상 `N차시` 형태.
- * 보강은 사용자가 저장한 이름을 표시하고, 이름이 없는 레거시 응답만 "보강"으로 폴백한다.
- * - 새 응답은 regular_order/session_type 우선
+ * 차시 표시 SSOT — 사용자 이름을 표시하고, 이름 없는 정규 수업은 `N차시` 형태.
+ * 보강은 이름이 없는 레거시 응답만 "보강"으로 폴백한다.
+ * - 이름 변경은 regular_order/session_type을 바꾸지 않는다.
  * - 과거 응답은 order/title fallback
  * - order 없고 title이 순수 숫자면 `${title}차시`
  * - 그 외 비보강 커스텀 제목은 title 그대로

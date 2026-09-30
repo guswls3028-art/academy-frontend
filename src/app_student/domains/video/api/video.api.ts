@@ -1,9 +1,10 @@
 import api from "@student/shared/api/student.api";
 import type { AccessMode, VideoSourceType } from "@/shared/api/contracts/videos";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
+import { formatSessionLabel, type SessionOrderLike } from "@/shared/product/sessions/sessionOrdering";
 
 /** GET /student/video/me/ 응답 — 영상 탭용 */
-export type StudentVideoMeSession = {
+export type StudentVideoMeSession = SessionOrderLike & {
   id: number;
   title: string;
   order: number;
@@ -46,7 +47,11 @@ export type StudentVideoMeResponse = {
 function normalizeStudentVideoSession(session: StudentVideoMeSession): StudentVideoMeSession {
   return {
     ...session,
-    title: richHtmlToPlainText(session.title),
+    title: formatSessionLabel({
+      ...session,
+      title: richHtmlToPlainText(session.title),
+      display_label: richHtmlToPlainText(session.display_label),
+    }),
   };
 }
 

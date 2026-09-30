@@ -378,7 +378,7 @@ export default function LectureStudentsPage() {
                           style={{ paddingLeft: 0, paddingRight: 0 }}
                           title={`${formatSessionBlockLabel(s)}${s.date ? ` (${s.date})` : ""}`}
                         >
-                          {formatSessionBlockLabel(s).replace("차시", "차")}
+                          {formatSessionBlockLabel(s)}
                         </ResizableTh>
                       ))}
                     </tr>

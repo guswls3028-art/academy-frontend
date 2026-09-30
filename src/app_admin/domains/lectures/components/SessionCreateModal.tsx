@@ -84,6 +84,7 @@ export default function SessionCreateModal({
   );
   const [regularMode, setRegularMode] = useState<RegularMode>("auto");
   const [regularOrderInput, setRegularOrderInput] = useState("");
+  const [regularTitle, setRegularTitle] = useState("");
   const [supplementTitle, setSupplementTitle] = useState("보강");
   const [supplementAfterOrder, setSupplementAfterOrder] = useState<number | null>(null);
   const [dateMode, setDateMode] = useState<DateMode>("default");
@@ -130,10 +131,6 @@ export default function SessionCreateModal({
   );
   const nextRegularOrder = getNextRegularOrder(sectionSessions);
   const trimmedRegularOrder = regularOrderInput.trim();
-  const namedSessionInput =
-    regularMode === "manual" && /[^\d\s.+-]/u.test(trimmedRegularOrder)
-      ? trimmedRegularOrder
-      : "";
   const manualRegularOrder = Number(trimmedRegularOrder);
   const effectiveRegularOrder =
     regularMode === "manual" && Number.isFinite(manualRegularOrder) && manualRegularOrder > 0
@@ -157,7 +154,7 @@ export default function SessionCreateModal({
 
   const defaultTitle =
     sessionType === "regular"
-      ? `${effectiveRegularOrder}차시`
+      ? regularTitle.trim() || `${effectiveRegularOrder}차시`
       : sessionType === "supplement"
         ? supplementTitle.trim()
         : "";
@@ -198,13 +195,6 @@ export default function SessionCreateModal({
 
   const MAX_SESSIONS = 52;
 
-  function switchToNamedSupplement() {
-    if (!namedSessionInput) return;
-    setSupplementTitle(namedSessionInput);
-    if (dateMode === "default") setDate("");
-    setSessionType("supplement");
-  }
-
   function validate(): string | null {
     if (!sessionType) return "차시 유형을 선택하세요.";
     if (sectionSessions.length >= MAX_SESSIONS) return `차시는 최대 ${MAX_SESSIONS}개까지 생성할 수 있습니다.`;
@@ -231,11 +221,6 @@ export default function SessionCreateModal({
       if (dependencyError) feedback.warning("강의와 기존 차시를 다시 불러온 뒤 추가해 주세요.");
       return;
     }
-    if (sessionType === "regular" && namedSessionInput) {
-      switchToNamedSupplement();
-      feedback.info("이름이 있는 차시로 전환했습니다. 날짜와 시간을 확인한 뒤 저장하세요.");
-      return;
-    }
     const err = validate();
     if (err) { feedback.warning(err); return; }
 
@@ -245,7 +230,7 @@ export default function SessionCreateModal({
         ? timeInput.trim()
         : lectureTimeExtract || lectureTimeRaw;
     if (timeStr) title = `${title} (${timeStr})`;
-    if (title.length > 255) return feedback.warning("보강 이름과 시간을 합쳐 255자 이내로 입력하세요.");
+    if (title.length > 255) return feedback.warning("차시 이름과 시간을 합쳐 255자 이내로 입력하세요.");
 
     confirmationInFlightRef.current = true;
     const confirmed = await confirm({
@@ -348,7 +333,7 @@ export default function SessionCreateModal({
                 selected={sessionType === "supplement"}
                 showCheck
                 title="보강"
-                desc="직보 등 이름 있는 차시"
+                desc="정규 진도와 별도의 추가 수업"
                 onClick={() => setSessionType("supplement")}
                 ariaPressed={sessionType === "supplement"}
               />
@@ -379,24 +364,35 @@ export default function SessionCreateModal({
                   <input
                     id="regular-session-order"
                     type="text"
-                    maxLength={220}
+                    inputMode="numeric"
+                    maxLength={10}
                     value={regularOrderInput}
                     onChange={(e) => setRegularOrderInput(e.target.value)}
                     className="ds-input"
                     placeholder={`${nextRegularOrder}`}
                     disabled={busy}
                   />
-                  {namedSessionInput ? (
-                    <Button intent="secondary" size="sm" onClick={switchToNamedSupplement} disabled={busy}>
-                      이 이름으로 보강 추가
-                    </Button>
-                  ) : (
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      정규 차시는 숫자로 지정합니다. 직보 등 이름 있는 차시는 보강에서 추가하세요.
-                    </p>
-                  )}
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    정규 진도 순서에 사용할 번호를 입력하세요.
+                  </p>
                 </div>
               )}
+              <label className="modal-section-label mt-4 mb-3 block" htmlFor="regular-session-title">
+                차시 이름 (선택)
+              </label>
+              <input
+                id="regular-session-title"
+                className="ds-input"
+                value={regularTitle}
+                onChange={(e) => setRegularTitle(e.target.value)}
+                maxLength={220}
+                placeholder="예: 직보(직전보강)"
+                aria-describedby="regular-session-title-help"
+                disabled={busy}
+              />
+              <p id="regular-session-title-help" className="mt-2 text-xs text-[var(--color-text-muted)]">
+                이름을 입력하면 번호 대신 표시됩니다. 비워 두면 {effectiveRegularOrder}차시로 표시되며, 정규 진도 번호와 유형은 유지됩니다.
+              </p>
             </div>
           )}
 
@@ -416,7 +412,7 @@ export default function SessionCreateModal({
                 disabled={busy}
               />
               <p className="mt-2 text-xs text-[var(--color-text-muted)]">
-                직보처럼 이름 있는 추가 차시도 여기서 만듭니다. 정규 차시 번호는 늘어나지 않으며, 강의·출결·성적 화면에 이 이름으로 표시됩니다.
+                정규 진도와 별도로 추가하는 수업입니다. 정규 차시 번호는 늘어나지 않으며, 강의·출결·성적 화면에 이 이름으로 표시됩니다.
               </p>
             </div>
           )}

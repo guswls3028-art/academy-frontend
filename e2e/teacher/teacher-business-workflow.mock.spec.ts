@@ -318,14 +318,14 @@ test("교사 화면에서 직보를 보강으로 추가하고 새로고침 후�
 
     await page.getByRole("button", { name: "차시 추가", exact: true }).click();
     const kind = page.getByRole("group", { name: "차시 유형" });
-    await page.getByPlaceholder("예: 1차시, 중간고사 대비").fill("정규 시범");
+    await page.getByPlaceholder("예: 직보(직전보강)").fill("정규 시범");
     await page.locator('input[type="number"]').fill("0.5");
     await page.getByRole("button", { name: "추가", exact: true }).click();
     await expect(page.getByText("차시 번호는 1 이상의 정수로 입력하세요.", { exact: true })).toBeVisible();
     expect(sessionCreates).toHaveLength(0);
-    await kind.getByRole("button", { name: "보강·직보" }).click();
-    await expect(kind.getByRole("button", { name: "보강·직보" })).toHaveAttribute("aria-pressed", "true");
-    await page.getByPlaceholder("예: 직보").fill("직보");
+    await kind.getByRole("button", { name: "보강" }).click();
+    await expect(kind.getByRole("button", { name: "보강" })).toHaveAttribute("aria-pressed", "true");
+    await page.getByPlaceholder("예: 토요일 심화 클리닉").fill("직보");
     await page.locator('input[type="date"]').fill("2026-09-29");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     if (width === 390) await page.screenshot({ path: testInfo.outputPath("teacher-named-session-390.png") });
@@ -340,7 +340,7 @@ test("교사 화면에서 직보를 보강으로 추가하고 새로고침 후�
     await expect(page.getByText("직보", { exact: true })).toBeVisible();
     await expect(page.getByText("1차시", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: /직보/ }).locator("span:has(svg)").click();
-    await page.getByPlaceholder("예: 직보").fill("직보 심화");
+    await page.getByPlaceholder("예: 토요일 심화 클리닉").fill("직보 심화");
     await page.getByRole("button", { name: "수정", exact: true }).click();
     await expect.poll(() => sessionPatches).toHaveLength(1);
     expect(sessionPatches[0]).toEqual({ title: "직보 심화", date: "2026-09-29" });

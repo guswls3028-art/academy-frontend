@@ -23,6 +23,8 @@ function localJwt(): string {
 
 type MockState = {
   regularOrder?: number;
+  regularTitle?: string;
+  regularPatchFailures?: number;
   regularPatchPayloads?: Array<Record<string, unknown>>;
   supplementTitle: string;
   patchTitles: string[];
@@ -76,8 +78,8 @@ function sessionRows(state: MockState, lectureId = LECTURE_ID) {
     {
       id: REGULAR_SESSION_ID,
       lecture: LECTURE_ID,
-      title: "1차시 (14:00~16:00)",
-      display_label: `${state.regularOrder ?? 1}차시`,
+      title: state.regularTitle ?? "1차시 (14:00~16:00)",
+      display_label: state.regularTitle?.trim() || `${state.regularOrder ?? 1}차시`,
       order: 1,
       regular_order: state.regularOrder ?? 1,
       session_type: "REGULAR",
@@ -108,7 +110,9 @@ function sessionRows(state: MockState, lectureId = LECTURE_ID) {
         title: String(payload.title),
         display_label: String(payload.title),
         order: 3 + index,
-        regular_order: typeof payload.regular_order === "number" ? payload.regular_order : null,
+        regular_order: payload.session_type === "REGULAR"
+          ? typeof payload.regular_order === "number" ? payload.regular_order : Math.max(0, ...rows.map((row) => row.regular_order ?? 0)) + 1
+          : null,
         session_type: payload.session_type === "REGULAR" ? "REGULAR" : "SUPPLEMENT",
         date: String(payload.date ?? ""),
         section: state.sectionMode ? SECTION_ID : null,
@@ -182,6 +186,11 @@ async function installApi(page: Page, state: MockState) {
       const payload = request.postDataJSON() as Record<string, unknown>;
       state.regularPatchPayloads ??= [];
       state.regularPatchPayloads.push(payload);
+      if ((state.regularPatchFailures ?? 0) > 0) {
+        state.regularPatchFailures = (state.regularPatchFailures ?? 0) - 1;
+        return json({ detail: "차시 이름을 저장하지 못했습니다. 다시 시도해 주세요." }, 503);
+      }
+      if (typeof payload.title === "string") state.regularTitle = payload.title;
       if (typeof payload.regular_order === "number") {
         state.regularOrder = payload.regular_order;
       }
@@ -692,7 +701,7 @@ test("보강 범위의 추가 버튼은 보강 유형과 이름 입력을 바로
   await page.getByRole("button", { name: "보강 추가" }).click();
 
   await expect(page.getByLabel("보강 이름")).toHaveValue("보강");
-  await expect(page.getByRole("button", { name: /직보 등 이름 있는 차시/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: /정규 진도와 별도의 추가 수업/ })).toHaveAttribute("aria-pressed", "true");
   const startTime = page.getByRole("button", { name: "시작 시간 선택", exact: true });
   await startTime.click();
   const timeDialog = page.getByRole("dialog", { name: "시간 선택", exact: true });
@@ -709,7 +718,7 @@ test("보강 범위의 추가 버튼은 보강 유형과 이름 입력을 바로
   await expect(startTime).toContainText("오후 7:20");
 });
 
-test("정규 번호 칸에 입력한 직보를 이름 있는 차시로 저장하고 재조회한다", async ({ page }, testInfo) => {
+test("정규 차시에 직보 이름을 지정해 생성하고 번호와 유형을 재조회 후 유지한다", async ({ page }, testInfo) => {
   for (const width of [1366, 390]) {
     const state: MockState = {
       supplementTitle: "토요일 심화 클리닉",
@@ -723,7 +732,12 @@ test("정규 번호 칸에 입력한 직보를 이름 있는 차시로 저장하
     await page.getByRole("button", { name: /정규 차시 추가/ }).click();
     await page.getByRole("button", { name: "직접 지정", exact: true }).click();
     await page.getByLabel("차시 번호").fill("직보");
-    await expect(page.getByRole("button", { name: "이 이름으로 보강 추가" })).toBeVisible();
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.getByText("정규 차시 번호는 1 이상의 정수로 입력하세요.", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("보강 이름")).toHaveCount(0);
+    expect(state.createdSessionPayloads).toHaveLength(0);
+    await page.getByLabel("차시 번호").fill("7");
+    await page.getByLabel("차시 이름 (선택)").fill("직보(직전보강)");
     if (width === 390) {
       const modalBody = page.locator(".modal-scroll-body");
       expect(await modalBody.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -736,36 +750,83 @@ test("정규 번호 칸에 입력한 직보를 이름 있는 차시로 저장하
       await page.screenshot({ path: testInfo.outputPath("named-session-390.png") });
     }
 
-    // 기존 사용 흐름처럼 저장을 눌러도 이름을 잃지 않고 보강 입력으로 이동한다.
-    await page.getByRole("button", { name: "저장", exact: true }).click();
-    await expect(page.getByLabel("보강 이름")).toHaveValue("직보");
-    await page.getByRole("button", { name: "저장", exact: true }).click();
-    await expect(page.getByText("날짜를 선택하세요.", { exact: true })).toBeVisible();
-    expect(state.createdSessionPayloads).toHaveLength(0);
-
-    await page.getByRole("button", { name: "날짜 선택", exact: true }).click();
-    await page.getByRole("dialog", { name: "날짜 선택" }).getByRole("button", { name: "15", exact: true }).click();
     await page.getByRole("button", { name: "저장", exact: true }).click();
     const confirmation = page.getByRole("alertdialog", { name: "차시 생성 최종 확인" });
-    await expect(confirmation.getByText("직보", { exact: true })).toBeVisible();
+    await expect(confirmation.getByText("직보(직전보강)", { exact: true })).toBeVisible();
+    await expect(confirmation.getByText("정규 차시", { exact: true })).toBeVisible();
     await confirmation.getByRole("button", { name: "확인하고 추가" }).click();
     await expect.poll(() => state.createdSessionPayloads).toHaveLength(1);
     expect(state.createdSessionPayloads?.[0]).toEqual(expect.objectContaining({
       lecture: LECTURE_ID,
-      session_type: "SUPPLEMENT",
-      title: expect.stringMatching(/^직보 \(/),
-      date: expect.stringMatching(/^\d{4}-\d{2}-15$/),
+      session_type: "REGULAR",
+      regular_order: 7,
+      title: "직보(직전보강) (14:00~16:00)",
+      date: "2026-08-08",
     }));
-    expect(state.createdSessionPayloads?.[0]).not.toHaveProperty("regular_order");
+    expect(state.createdSessionPayloads?.[0]).not.toHaveProperty("insert_after_order");
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("button", { name: /직보/ })).toBeVisible();
     await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
-    await page.getByRole("tab", { name: /^보강/ }).click();
     await expect(page.getByRole("button", { name: /직보/ })).toBeVisible();
-    await page.getByRole("tab", { name: /정규 수업/ }).click();
     await expect(page.getByRole("button", { name: /1차시/ })).toBeVisible();
+    await page.getByRole("tab", { name: /^보강/ }).click();
     await expect(page.getByRole("button", { name: /직보/ })).toHaveCount(0);
+  }
+});
+
+test("정규 차시 이름 수정은 실패 후 입력을 보존하고 재시도·재조회·이름 지우기를 지원한다", async ({ page }, testInfo) => {
+  const customTitle = "직보(직전보강) — 다음 차시 대비 핵심 개념과 오답 정리";
+  for (const width of [1366, 390]) {
+    const state: MockState = {
+      regularOrder: 7,
+      regularPatchFailures: 1,
+      regularPatchPayloads: [],
+      supplementTitle: "토요일 심화 클리닉",
+      patchTitles: [],
+    };
+    await page.setViewportSize({ width, height: 844 });
+    await openLecture(page, state);
+    await page.getByRole("button", { name: "차시 설정", exact: true }).click();
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "차시 설정 편집" });
+    const nameInput = dialog.getByLabel("차시 이름 (선택)");
+    await nameInput.fill(customTitle);
+    await dialog.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.getByText("차시 이름을 저장하지 못했습니다. 다시 시도해 주세요.", { exact: true })).toBeVisible();
+    await expect(nameInput).toHaveValue(customTitle);
+    await expect(dialog.getByLabel("차시 번호")).toHaveValue("7");
+    await expect(page.getByRole("button", { name: /^7차시/ })).toBeVisible();
+    await expect.poll(async () => {
+      const box = await dialog.boundingBox();
+      return box != null && box.x >= 0 && box.x + box.width <= width && box.y >= 0 && box.y + box.height <= 844;
+    }).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`regular-name-retry-${width}.png`) });
+    await dialog.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(dialog).toBeHidden();
+    expect(state.regularPatchPayloads).toHaveLength(2);
+    for (const payload of state.regularPatchPayloads ?? []) {
+      expect(payload).toMatchObject({ title: customTitle, regular_order: 7 });
+      expect(payload).not.toHaveProperty("session_type");
+      expect(payload).not.toHaveProperty("order");
+    }
+    await expect(page.getByRole("button", { name: /직보/ })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /직보/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/sessions/${REGULAR_SESSION_ID}/attendance`));
+    await expect(page.locator("main").getByText(customTitle, { exact: false }).first()).toBeVisible();
+    await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
+    await expect(page.getByRole("tab", { name: /정규 수업/ })).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("button", { name: "차시 설정", exact: true }).click();
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await nameInput.fill("");
+    await dialog.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(dialog).toBeHidden();
+    expect(state.regularPatchPayloads?.at(-1)).toMatchObject({ title: "", regular_order: 7 });
+    await expect(page.locator("main").getByText("7차시", { exact: false }).first()).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("main").getByText("7차시", { exact: false }).first()).toBeVisible();
+    expect(sessionRows(state)[0]).toMatchObject({ session_type: "REGULAR", regular_order: 7, order: 1 });
   }
 });
 

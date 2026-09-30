@@ -16,6 +16,9 @@
 .dropdownEdit {
   z-index: 9999;
   min-width: 200px;
+  width: min(280px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
   padding: 12px;
   transform: none;
 }
@@ -230,11 +233,11 @@
   font-size: 11px;
 }
 
-.supplementCard {
+.namedCard {
   width: 168px;
 }
 
-.supplementCard :global(.session-block__title) {
+.namedCard :global(.session-block__title) {
   display: -webkit-box;
   flex-shrink: 0;
   max-width: 100%;
@@ -247,7 +250,7 @@
   -webkit-line-clamp: 2;
 }
 
-.supplementCard :global(.session-block__desc) {
+.namedCard :global(.session-block__desc) {
   flex-shrink: 0;
 }
 
@@ -505,7 +508,7 @@
     display: none;
   }
 
-  .supplementCard {
+  .namedCard {
     width: 148px;
     padding-block: 6px;
   }

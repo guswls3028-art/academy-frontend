@@ -28,6 +28,17 @@ export async function fetchAnswerKeyByExam(examId: number) {
   return api.get<AnswerKey[]>(`/exams/answer-keys/`, { params: { exam: examId } });
 }
 
+export function answerKeyRows(response: unknown): AnswerKey[] {
+  const body = response && typeof response === "object" && "data" in response
+    ? response.data
+    : response;
+  if (Array.isArray(body)) return body as AnswerKey[];
+  if (body && typeof body === "object" && "results" in body && Array.isArray(body.results)) {
+    return body.results as AnswerKey[];
+  }
+  return [];
+}
+
 export async function createAnswerKey(payload: { exam: number; answers: Record<string, AnswerKeyValue> }) {
   return api.post<AnswerKey>(`/exams/answer-keys/`, payload);
 }

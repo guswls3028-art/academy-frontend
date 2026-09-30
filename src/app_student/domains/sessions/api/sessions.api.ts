@@ -2,8 +2,9 @@
 
 import api from "@student/shared/api/student.api";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
+import { formatSessionLabel, type SessionOrderLike } from "@/shared/product/sessions/sessionOrdering";
 
-export type StudentSession = {
+export type StudentSession = SessionOrderLike & {
   id: number;
   title: string;
   date?: string | null;
@@ -14,9 +15,14 @@ export type StudentSession = {
 };
 
 function normalizeStudentSession(session: StudentSession): StudentSession {
+  const title = richHtmlToPlainText(session.title);
   return {
     ...session,
-    title: richHtmlToPlainText(session.title),
+    title: session.type === "clinic" ? title : formatSessionLabel({
+      ...session,
+      title,
+      display_label: richHtmlToPlainText(session.display_label),
+    }),
   };
 }
 
