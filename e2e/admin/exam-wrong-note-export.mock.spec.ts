@@ -455,7 +455,7 @@ test("여러 강의 연결에서 일부 실패하면 성공한 차시는 유지�
   await dialog.getByRole("checkbox", { name: "8월 진단평가" }).check();
   await dialog.getByRole("button", { name: "2개 차시 연결" }).click();
   await expect(dialog.getByText("연결 예정 · 1개 차시")).toBeVisible();
-  await expect(dialog.getByText(/D학교 강의 · 1회차/)).toBeVisible();
+  await expect(dialog.getByText(/D학교 강의 · 8월 진단평가/)).toBeVisible();
   await expect(page.getByText("3개 강의", { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "1개 차시 연결" }).click();
   await expect(dialog).not.toBeVisible();
