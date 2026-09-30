@@ -50,7 +50,7 @@ export function formatSessionLabel(session: SessionOrderLike | null | undefined)
   // Older creates stored the numbered label and timetable in title. These are
   // defaults, so renumbering must still use regular_order. Named regular lessons
   // keep their title even when an older API returns a numbered display_label.
-  const numberedTitle = /^\d+(?:\s*차시)?(?:\s*\(\s*\d{1,2}:\d{2}\s*[~–-]\s*\d{1,2}:\d{2}\s*\))?$/u;
+  const numberedTitle = /^\d+(?:\s*(?:차시|회차))?(?:\s*\(\s*\d{1,2}:\d{2}\s*[~–-]\s*\d{1,2}:\d{2}\s*\))?$/u;
   if (displayLabel && !numberedTitle.test(displayLabel)) return displayLabel;
   if (title && !numberedTitle.test(title)) return title;
 

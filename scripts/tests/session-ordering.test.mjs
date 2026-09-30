@@ -64,5 +64,6 @@ test("legacy order-only and title-only responses retain numbered fallbacks", () 
   assert.equal(formatSessionLabel({ order: 7 }), "7차시");
   assert.equal(formatSessionLabel({ title: "7" }), "7차시");
   assert.equal(formatSessionLabel({ display_label: "7" }), "7차시");
+  assert.equal(formatSessionLabel({ order: 1, display_label: "1회차", title: "8월 진단평가" }), "8월 진단평가");
   assert.equal(formatSessionLabel(undefined), "-차시");
 });
