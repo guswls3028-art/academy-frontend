@@ -154,7 +154,7 @@
 }
 
 .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdownItem--danger {
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
 }
 
 .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdownItem--danger:hover {

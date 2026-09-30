@@ -1,12 +1,8 @@
-# 학생앱 테넌트별 테마
+# 학생앱 테넌트 테마
 
-- **기본 테마**: 상위 `tokens.css` (다크 톤, 학원플러스 등)
-- **테넌트 오버라이드**: 이 폴더에 `{code}.css` 추가 후 **`index.css`에만** `@import "{code}.css";` 추가
-  - 셀렉터: `[data-student-tenant="{code}"]`
-  - `--stu-*` 변수 재정의 (색상, 헤더/탭바, `--stu-gradient`, `--stu-focus` 등)
-  - 테넌트 전용 클래스 오버라이드 가능 (예: `.stu-tabbar__link`, `.stu-btn--primary`)
-- **테넌트 추가 시**
-  1. `tenants/{code}.css` 생성
-  2. `tenants/index.css`에 `@import "{code}.css";` 한 줄 추가
-  3. `student/shared/tenant/studentTenantBranding.ts`에 로고·타이틀 추가
-- **tchul(2번)**: auth 로그인 페이지 SSOT 색상·그라데이션 적용 (`@/auth/themes/tchul.css` 참고)
+- `brand.css`: 모든 `[data-student-theme]`에 적용되는 공통 규칙(배경 워시, 상단바·탭바,
+  패널, 활성 탭, primary 버튼, 아이콘 그라데이션, 포커스). 선택자는 여기서만 관리한다.
+- `{theme}.css`: 테넌트 토큰만 정의한다(라이트 블록 + 다크 블록).
+- `index.css`: `brand.css`를 먼저, 테넌트 파일을 뒤에 import한다.
+
+토큰 의미·대비 기준·추가 절차는 상위 [`../README.md`](../README.md)를 따른다.

@@ -207,7 +207,7 @@
 .targetItemReason {
   flex-shrink: 0;
   margin-left: auto;
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
@@ -560,7 +560,7 @@
 
 .fullBadge {
   background: var(--stu-danger-bg, rgba(239, 68, 68, 0.08));
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
 }
 
 .selectHint {
@@ -720,7 +720,7 @@
 
 .errorText {
   margin: 0;
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -887,7 +887,7 @@
 }
 
 .rejectedList strong {
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
   font-size: 11px;
 }
 

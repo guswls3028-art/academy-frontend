@@ -216,7 +216,7 @@
   width: 42px;
   height: 42px;
   background: color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1));
-  color: var(--stu-success);
+  color: var(--stu-success-text);
 }
 
 .heroDoneTitle {
@@ -274,7 +274,7 @@
 
 .countdownCardClinic .countdownIcon {
   background: color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1));
-  color: var(--stu-success);
+  color: var(--stu-success-text);
 }
 
 .countdownIcon svg {
@@ -322,7 +322,7 @@
 }
 
 .countdownCardClinic .countdownValue {
-  color: var(--stu-success);
+  color: var(--stu-success-text);
 }
 
 .todoPanel {
@@ -561,7 +561,7 @@
 
 .sessionIconClinic {
   background: color-mix(in srgb, var(--stu-success) 9%, var(--stu-surface-1));
-  color: var(--stu-success);
+  color: var(--stu-success-text);
   border-color: color-mix(in srgb, var(--stu-success) 18%, var(--stu-border));
 }
 
@@ -825,7 +825,7 @@
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--stu-danger);
-  color: var(--stu-primary-contrast);
+  color: #fff;
   font-size: 10px;
   font-weight: 850;
   line-height: 1.4;

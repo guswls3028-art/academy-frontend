@@ -684,7 +684,7 @@ html[data-student-app="true"] {
 
 .student-notice-card__badge--urgent {
   background: var(--stu-danger);
-  color: var(--stu-primary-contrast);
+  color: #fff;
 }
 
 .student-notice-card__badge--pinned {

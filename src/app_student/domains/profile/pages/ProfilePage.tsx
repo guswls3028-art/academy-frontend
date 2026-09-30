@@ -687,7 +687,7 @@ export default function ProfilePage() {
               </button>
             </div>
             {updateProfileMutation.isError && lastMutationSource === "username" && (
-              <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger)" }}>
+              <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger-text)" }}>
                 {(updateProfileMutation.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail || "아이디 변경에 실패했습니다."}
               </div>
             )}
@@ -776,7 +776,7 @@ export default function ProfilePage() {
               </button>
             </div>
             {passwordMutation.isError && (
-              <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger)" }}>
+              <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger-text)" }}>
                 {(passwordMutation.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail || "비밀번호 변경에 실패했습니다."}
               </div>
             )}

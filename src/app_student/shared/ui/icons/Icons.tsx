@@ -1,6 +1,6 @@
 /**
  * 학생 앱 전역 아이콘 — 단일 SSOT, 아이콘 방식
- * tchul/9999 테넌트에서 .stu-icon 그라데이션은 tenants/tchul.css에서 적용
+ * 테넌트 테마의 .stu-icon 브랜드 그라데이션은 theme/tenants/brand.css에서 적용 (하단 탭은 상태색 유지)
  */
 import type { SVGProps } from "react";
 

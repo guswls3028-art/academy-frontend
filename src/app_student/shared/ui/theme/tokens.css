@@ -56,6 +56,8 @@
 
   /* 테넌트별 오버라이드용 (그라데이션·포커스) — 기본은 단색 */
   --stu-gradient: var(--stu-primary);
+  /* --stu-gradient 위 글자색. 테넌트 브랜드 레이어는 흰 글자 대비가 보장된 그라데이션과 #fff를 쓴다. */
+  --stu-on-gradient: var(--stu-primary-contrast);
   --stu-focus: rgba(59, 130, 246, 0.15);
   
   /* Primary Tint (멀티테넌트 브랜딩용) */

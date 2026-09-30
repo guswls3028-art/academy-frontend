@@ -36,7 +36,7 @@
 
 .alert {
   padding: 12px;
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
   font-size: 14px;
   background: var(--stu-surface-soft);
   border-radius: 10px;

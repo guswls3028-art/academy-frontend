@@ -59,7 +59,7 @@
 
 .outstandingAmount {
   margin-top: 4px;
-  color: var(--stu-danger);
+  color: var(--stu-danger-text);
   font-size: 13px;
   font-weight: 600;
 }
