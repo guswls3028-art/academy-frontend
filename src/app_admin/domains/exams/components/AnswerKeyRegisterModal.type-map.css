@@ -1,9 +1,9 @@
 .answer-key-type-map {
   flex: 0 0 auto;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border-divider));
+  border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+  background: var(--color-bg-surface);
 }
 .answer-key-type-map__header {
   display: flex;
@@ -45,10 +45,10 @@
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: transform 0.12s, border-color 0.12s, background 0.12s;
+  transition: border-color 0.12s, background 0.12s;
 }
 .answer-key-type-chip:hover:not(:disabled) {
-  transform: translateY(-1px);
+  border-color: var(--color-brand-primary);
 }
 .answer-key-type-chip:focus-visible {
   outline: 2px solid var(--color-brand-primary);
@@ -63,14 +63,13 @@
   font-weight: 700;
 }
 .answer-key-type-chip--choice {
-  color: var(--color-brand-primary);
-  border-color: color-mix(in srgb, var(--color-brand-primary) 38%, var(--color-border-divider));
-  background: color-mix(in srgb, var(--color-brand-primary) 9%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
 }
 .answer-key-type-chip--essay {
   color: #9a4f08;
-  border-color: color-mix(in srgb, #d97706 42%, var(--color-border-divider));
-  background: color-mix(in srgb, #f59e0b 10%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, #d97706 35%, var(--color-border-divider));
+  background: color-mix(in srgb, #f59e0b 6%, var(--color-bg-surface));
 }
 .answer-key-type-map__legend {
   display: inline-flex;

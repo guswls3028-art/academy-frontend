@@ -38,7 +38,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .answer-key-score-guide {
@@ -151,6 +151,13 @@
 .answer-key-section-btn--label-only {
   cursor: default;
   pointer-events: none;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 700;
 }
 .answer-key-section-btn--label-only * {
   pointer-events: auto;
@@ -165,7 +172,7 @@
   padding: var(--space-2);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-divider);
-  background: color-mix(in srgb, var(--color-border-divider) 6%, var(--color-modal-bg));
+  background: var(--color-bg-surface-soft);
 }
 
 @media (max-width: 720px) {
@@ -183,7 +190,7 @@
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -347,8 +354,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 44px;
-  padding: 2px 0;
+  min-height: 52px;
+  padding: 6px 4px;
   border-bottom: 1px solid var(--color-border-divider);
   font-size: 13px;
 }
@@ -368,9 +375,10 @@
   min-width: 28px;
   flex-shrink: 0;
   white-space: nowrap;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  text-align: center;
 }
 
 .answer-key-row__answer {
@@ -398,10 +406,15 @@
   padding: 5px 4px;
   margin-left: -4px;
   background: transparent;
-  color: var(--color-brand-primary);
+  color: var(--color-text-muted);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  text-decoration: none;
+}
+
+.answer-key-row__rule-action:hover {
+  color: var(--color-brand-primary);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -429,24 +442,15 @@
 
 .answer-key-row__score-val {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text-primary);
   min-width: 2.5rem;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
-/* 1~10점 구간별 색상 (0점은 회색) */
+/* 배점은 정답 선택보다 조용하게 표시한다. */
 .answer-key-row__score-val--0 { color: var(--color-text-muted); }
-.answer-key-row__score-val--1 { color: #b91c1c; }
-.answer-key-row__score-val--2 { color: #c2410c; }
-.answer-key-row__score-val--3 { color: #b45309; }
-.answer-key-row__score-val--4 { color: #a16207; }
-.answer-key-row__score-val--5 { color: #15803d; }
-.answer-key-row__score-val--6 { color: #0d9488; }
-.answer-key-row__score-val--7 { color: #0b7285; }
-.answer-key-row__score-val--8 { color: #1d4ed8; }
-.answer-key-row__score-val--9 { color: #6d28d9; }
-.answer-key-row__score-val--10 { color: #be185d; }
 
 .answer-key-row__score-btns {
   display: flex;
@@ -463,49 +467,23 @@
   padding: 0 var(--space-1);
   font-size: 11px;
   font-weight: 600;
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface));
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface);
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
-.answer-key-score-btn--plus1 {
-  background: #dbeafe;
-  border-color: #93c5fd;
-  color: #1d4ed8;
-}
-.answer-key-score-btn--plus2 {
-  background: #d1fae5;
-  border-color: #6ee7b7;
-  color: #047857;
-}
-.answer-key-score-btn--plus5 {
-  background: #fce7f3;
-  border-color: #f9a8d4;
-  color: #be185d;
-}
-
 .answer-key-score-btn:hover {
-  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
   border-color: var(--color-brand-primary);
 }
 
-.answer-key-score-btn--plus1:hover {
-  background: #93c5fd;
-  border-color: #3b82f6;
-  color: #fff;
-}
-.answer-key-score-btn--plus2:hover {
-  background: #6ee7b7;
-  border-color: #10b981;
-  color: #fff;
-}
-.answer-key-score-btn--plus5:hover {
-  background: #f9a8d4;
-  border-color: #ec4899;
-  color: #fff;
+.answer-key-score-btn:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
 }
 
 .answer-key-score-btn--reset {
