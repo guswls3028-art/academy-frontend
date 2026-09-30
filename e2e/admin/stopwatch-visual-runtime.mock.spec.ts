@@ -226,12 +226,12 @@ async function assertResponsiveStopwatchSurface(page: Page, mobileScreenshotPath
     && modeBounds!.y < projectorBounds!.y + projectorBounds!.height
     && modeBounds!.y + modeBounds!.height > projectorBounds!.y;
   expect(headerOverlaps, `mode ${JSON.stringify(modeBounds)} overlaps projector ${JSON.stringify(projectorBounds)}`).toBe(false);
-  const mobileDisplayBounds = await display.evaluate((element) => {
+  const readMobileDisplayBounds = () => display.evaluate((element) => {
     const children = Array.from(element.children, (child) => child.getBoundingClientRect());
     return { left: Math.min(...children.map((child) => child.left)), right: Math.max(...children.map((child) => child.right)) };
   });
-  expect(mobileDisplayBounds.left).toBeGreaterThanOrEqual(0);
-  expect(mobileDisplayBounds.right).toBeLessThanOrEqual(390);
+  await expect.poll(async () => (await readMobileDisplayBounds()).left).toBeGreaterThanOrEqual(0);
+  await expect.poll(async () => (await readMobileDisplayBounds()).right).toBeLessThanOrEqual(390);
   const bottomBarTop = (await page.getByRole("navigation", { name: "하단 메뉴" }).boundingBox())!.y;
   const displayViewportBounds = await display.boundingBox();
   expect(displayViewportBounds).not.toBeNull();
