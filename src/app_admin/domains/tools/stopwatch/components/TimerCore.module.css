@@ -266,7 +266,7 @@
   font-size: clamp(80px, 14vw, 176px);
   letter-spacing: -2px;
   line-height: 1;
-  transition: all 0.5s ease;
+  transition: color 0.5s ease;
   padding: 20px 0;
 }
 
