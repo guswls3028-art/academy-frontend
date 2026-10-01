@@ -1,4 +1,4 @@
-export type StudentInitialPasswordMode = "fixed" | "random";
+export type StudentInitialPasswordMode = "fixed" | "random" | "tenant";
 
 export interface StudentInitialPasswordSettings {
   mode: StudentInitialPasswordMode;
@@ -6,7 +6,7 @@ export interface StudentInitialPasswordSettings {
 }
 
 export const DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS: StudentInitialPasswordSettings = {
-  mode: "fixed",
+  mode: "tenant",
   fixedPassword: "",
 };
 

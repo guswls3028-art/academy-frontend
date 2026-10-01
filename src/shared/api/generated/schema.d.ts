@@ -10277,6 +10277,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/students/account-password-settings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["students_account_password_settings_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["students_account_password_settings_partial_update"];
+        trace?: never;
+    };
     "/api/v1/students/bulk_create_from_excel/": {
         parameters: {
             query?: never;
@@ -12099,6 +12115,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description * `phone_last4` - phone_last4
+         *     * `fixed` - fixed
+         *     * `random` - random
+         * @enum {string}
+         */
+        AccountPasswordModeEnum: "phone_last4" | "fixed" | "random";
+        AccountPasswordSettingsSchema: {
+            parent_fixed_password?: string;
+            parent_mode?: components["schemas"]["AccountPasswordModeEnum"];
+            student_fixed_password?: string;
+            student_mode?: components["schemas"]["AccountPasswordModeEnum"];
+        };
         /**
          * @description * `ACTIVE` - ACTIVE
          *     * `INACTIVE` - INACTIVE
@@ -14406,7 +14435,7 @@ export interface components {
             session_type: components["schemas"]["SessionTypeEnum"];
             /** Format: time */
             readonly start_time: string;
-            title: string;
+            title?: string;
             /** Format: date-time */
             readonly updated_at: string;
         };
@@ -14421,7 +14450,7 @@ export interface components {
             section?: number | null;
             /** @default REGULAR */
             session_type: components["schemas"]["SessionTypeEnum"];
-            title: string;
+            title?: string;
         };
         /**
          * @description * `COURSE` - 강의
@@ -15499,6 +15528,12 @@ export interface components {
          * @enum {string}
          */
         ParticipantStatusEnum: "pending" | "booked" | "attended" | "no_show" | "cancelled" | "rejected";
+        PatchedAccountPasswordSettingsSchemaRequest: {
+            parent_fixed_password?: string;
+            parent_mode?: components["schemas"]["AccountPasswordModeEnum"];
+            student_fixed_password?: string;
+            student_mode?: components["schemas"]["AccountPasswordModeEnum"];
+        };
         PatchedAnswerKeyRequest: {
             /** @description key=ExamQuestion.id (string), value=correct answer */
             answers?: unknown;
@@ -18215,7 +18250,7 @@ export interface components {
             grade?: number | null;
             high_school?: string | null;
             high_school_class?: string | null;
-            initial_password: string;
+            initial_password?: string;
             is_managed?: boolean;
             major?: string | null;
             memo?: string | null;
@@ -18231,6 +18266,7 @@ export interface components {
             /** @description 출신중학교 (고등학생 선택 입력) */
             origin_middle_school?: string | null;
             parent?: number | null;
+            parent_initial_password?: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             parent_phone: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
@@ -35322,6 +35358,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentSupportSessionEndedSchema"];
+                };
+            };
+        };
+    };
+    students_account_password_settings_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountPasswordSettingsSchema"];
+                };
+            };
+        };
+    };
+    students_account_password_settings_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedAccountPasswordSettingsSchemaRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedAccountPasswordSettingsSchemaRequest"];
+                "multipart/form-data": components["schemas"]["PatchedAccountPasswordSettingsSchemaRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountPasswordSettingsSchema"];
                 };
             };
         };

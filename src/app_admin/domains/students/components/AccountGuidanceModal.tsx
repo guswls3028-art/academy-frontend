@@ -54,7 +54,7 @@ export default function AccountGuidanceModal({
           failures.push(`${current === "student" ? "학생" : "학부모"}: ${extractApiError(error, "발송 실패")}`);
         }
       }
-      if (sent > 0) feedback.success(`아이디 안내 알림톡 ${sent}건을 발송했습니다.`);
+      if (sent > 0) feedback.success(`로그인 정보 안내 알림톡 ${sent}건을 발송했습니다.`);
       if (failures.length) feedback.error(failures.join(" · "));
       if (sent > 0) onSuccess();
       if (sent > 0 && failures.length === 0) onClose();
@@ -72,8 +72,8 @@ export default function AccountGuidanceModal({
   return (
     <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.sm}>
       <ModalHeader
-        title="아이디 안내 알림톡"
-        description="등록된 번호로 로그인 아이디를 안내합니다. 현재 비밀번호와 로그인 상태는 변경되지 않습니다."
+        title="로그인 정보 안내 알림톡"
+        description="등록된 번호로 실제 로그인 가능한 아이디와 비밀번호를 안내합니다. 기존 비밀번호는 유지하며, 과거 비밀번호를 확인할 수 없는 계정에는 안내용 로그인 비밀번호를 발급합니다."
       />
       <ModalBody>
         <div className="space-y-4">
@@ -124,7 +124,7 @@ export default function AccountGuidanceModal({
               disabled={sending || (target === "student" ? !hasStudentRecipient : target === "parent" ? !hasParentRecipient : !hasStudentRecipient || !hasParentRecipient)}
               loading={sending}
             >
-              {sending ? "발송 중…" : "아이디 안내 보내기"}
+              {sending ? "발송 중…" : "로그인 정보 안내 보내기"}
             </Button>
           </>
         }

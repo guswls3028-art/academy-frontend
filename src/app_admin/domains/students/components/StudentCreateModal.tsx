@@ -29,6 +29,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
+import InitialAccountPasswords from "@/shared/product/students/InitialAccountPasswords";
 import StudentCustomFieldsForm from "./StudentCustomFieldsForm";
 import { plannedStudentLoginId, presentStudentLoginReadback } from "./studentLoginReadback";
 import {
@@ -52,6 +53,7 @@ type StudentCreateForm = {
   psNumber: string;
   gender: string;
   initialPassword: string;
+  parentInitialPassword: string;
   studentPhone: string;
   omrCode: string;
   parentPhone: string;
@@ -83,6 +85,7 @@ function createInitialForm(defaultSchoolType: SchoolType): StudentCreateForm {
     psNumber: "",
     gender: "",
     initialPassword: "",
+    parentInitialPassword: "",
     studentPhone: "",
     omrCode: "",
     parentPhone: "",
@@ -214,9 +217,10 @@ export default function StudentCreateModal({
 
   function validate(): string | null {
     if (!String(form.name || "").trim()) return "이름을 입력해 주세요.";
-    if (String(form.initialPassword || "").trim().length < 4) {
-      return "초기 비밀번호를 4자 이상 입력해 주세요.";
+    if (form.initialPassword && form.initialPassword.length < 4) {
+      return "학생 초기 비밀번호를 4자 이상 입력해 주세요.";
     }
+    if (form.parentInitialPassword && form.parentInitialPassword.length < 4) return "학부모 초기 비밀번호를 4자 이상 입력해 주세요.";
 
     const parent = String(form.parentPhone || "").trim();
     if (!parent || parent.length !== 11) return "학부모 전화번호를 입력해 주세요. (010 뒤 8자리)";
@@ -256,7 +260,8 @@ export default function StudentCreateModal({
           { label: "학부모 연락처", value: formatPhone(String(form.parentPhone || "").trim()) },
           { label: "학생 연락처", value: String(form.studentPhone || "").trim() ? formatPhone(String(form.studentPhone).trim()) : "미입력" },
           { label: "학교·학년", value: schoolSummary },
-          { label: "초기 비밀번호", value: "입력 완료" },
+          { label: "학생 초기 비밀번호", value: form.initialPassword ? "개별 입력" : "학원 설정 적용" },
+          { label: "학부모 초기 비밀번호", value: form.parentInitialPassword ? "개별 입력 · 기존 계정은 유지" : "학원 설정 적용 · 기존 계정은 유지" },
         ],
         note: "지금은 학생 명부와 계정만 준비합니다. 강의 수강과 계정 안내 알림톡은 아직 발생하지 않습니다.",
       },
@@ -340,6 +345,7 @@ export default function StudentCreateModal({
           action: "restore",
           student_data: { ...deletedStudentConflict.formData },
         }],
+        deletedStudentConflict.formData.parentInitialPassword,
       );
       if (result.restored < 1) {
         const reason = result.failed[0]?.error;
@@ -390,6 +396,7 @@ export default function StudentCreateModal({
           action: "delete",
           student_data: { ...deletedStudentConflict.formData },
         }],
+        deletedStudentConflict.formData.parentInitialPassword,
       );
       const resolvedStudentId = result.resolved.find((row) => row.state === "created")?.student_id;
       if (!resolvedStudentId) {
@@ -670,18 +677,10 @@ export default function StudentCreateModal({
               className="ds-input"
               disabled={busy}
             />
-            <input
-              name="initialPassword"
-              type="password"
-              placeholder="초기 비밀번호"
-              value={form.initialPassword ?? ""}
-              onChange={handleChange}
-              className="ds-input"
-              data-required="true"
-              minLength={4}
-              data-invalid={String(form.initialPassword || "").trim().length < 4 ? "true" : "false"}
-              disabled={busy}
-            />
+            <InitialAccountPasswords studentPassword={form.initialPassword} parentPassword={form.parentInitialPassword}
+              onStudentChange={(value) => setForm((previous) => ({ ...previous, initialPassword: value }))}
+              onParentChange={(value) => setForm((previous) => ({ ...previous, parentInitialPassword: value }))}
+              disabled={busy} />
             <div className="modal-phone-row">
               <span className="modal-phone-label">학부모 전화번호 (필수)</span>
               <span className="modal-phone-desc">알림톡·연락 수신용입니다.</span>

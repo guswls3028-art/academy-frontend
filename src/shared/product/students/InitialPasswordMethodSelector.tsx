@@ -16,10 +16,11 @@ const OPTIONS: Array<{
   label: string;
   description: string;
 }> = [
+  { value: "tenant", label: "학원 초기 비밀번호 설정", description: "학생·학부모 각자의 초기 비밀번호 설정을 적용합니다." },
   {
     value: "fixed",
     label: "직접 입력",
-    description: "새 학생과 새 학부모 계정에 입력한 비밀번호를 적용합니다.",
+    description: "신규 학생에 입력한 비밀번호를 적용합니다. 학부모는 학원 설정을 사용합니다.",
   },
   {
     value: "random",

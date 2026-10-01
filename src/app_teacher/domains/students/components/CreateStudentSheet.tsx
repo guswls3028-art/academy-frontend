@@ -4,6 +4,7 @@
 // R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
 import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import InitialAccountPasswords from "@/shared/product/students/InitialAccountPasswords";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { MessageSquare } from "@teacher/shared/ui/Icons";
 import { ICON } from "@/shared/ui/ds";
@@ -23,6 +24,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [parentPassword, setParentPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [parentPhone, setParentPhone] = useState("");
   const [school, setSchool] = useState("");
@@ -46,7 +48,8 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
     const normalizedPhone = normalizePhone(phone);
     const normalizedParentPhone = normalizePhone(parentPhone);
     if (!name.trim()) return "이름을 입력해 주세요.";
-    if (password.trim().length < 4) return "초기 비밀번호를 4자 이상 입력해 주세요.";
+    if (password && password.length < 4) return "학생 초기 비밀번호를 4자 이상 입력해 주세요.";
+    if (parentPassword && parentPassword.length < 4) return "학부모 초기 비밀번호를 4자 이상 입력해 주세요.";
     if (!/^010\d{8}$/.test(normalizedParentPhone)) {
       return "학부모 전화번호를 010 뒤 8자리로 입력해 주세요.";
     }
@@ -67,7 +70,8 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
       const normalizedParentPhone = normalizePhone(parentPhone);
       return createStudent({
         name: name.trim(),
-        initialPassword: password.trim(),
+        initialPassword: password,
+        parentInitialPassword: parentPassword,
         studentPhone: normalizedPhone,
         parentPhone: normalizedParentPhone,
         school: school.trim(),
@@ -98,7 +102,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
   });
 
   const resetAndClose = () => {
-    setName(""); setPassword(""); setPhone(""); setParentPhone("");
+    setName(""); setPassword(""); setParentPassword(""); setPhone(""); setParentPhone("");
     setSchool(""); setGrade(""); setGender("");
     setSubmitError(""); setCreatedStudent(null);
     onClose();
@@ -154,7 +158,8 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
       ) : (
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
         <Field label="이름 *" value={name} onChange={setName} placeholder="학생 이름" />
-        <Field label="초기 비밀번호" value={password} onChange={setPassword} placeholder="4자 이상 직접 입력" type="password" />
+        <InitialAccountPasswords studentPassword={password} parentPassword={parentPassword}
+          onStudentChange={setPassword} onParentChange={setParentPassword} disabled={mutation.isPending} />
         <div className="flex gap-2">
           <Field label="학생 전화 (로그인 ID)" value={phone} onChange={setPhone} placeholder="010-" type="tel" />
           <Field label="학부모 전화" value={parentPhone} onChange={setParentPhone} placeholder="010-" type="tel" />

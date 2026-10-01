@@ -546,7 +546,7 @@ function normalizePhone(v: unknown): string {
 
 export async function createStudent(form: StudentFormInput) {
   const name = safeStr(form?.name).trim();
-  const initialPassword = safeStr(form?.initialPassword).trim();
+  const initialPassword = safeStr(form?.initialPassword);
 
   const studentPhoneRaw = safeStr(form?.studentPhone).trim();
   const parentPhoneRaw = safeStr(form?.parentPhone).trim();
@@ -558,7 +558,8 @@ export async function createStudent(form: StudentFormInput) {
 
   const payload: Record<string, unknown> = {
     name,
-    initial_password: initialPassword,
+    ...(initialPassword ? { initial_password: initialPassword } : {}),
+    ...(form?.parentInitialPassword ? { parent_initial_password: form.parentInitialPassword } : {}),
     parent_phone: parentPhone,
     school_type: schoolType,
     high_school: schoolType === "HIGH" ? (form?.school?.trim() || null) : null,
@@ -771,9 +772,11 @@ export async function bulkResolveConflicts(
     action: "restore" | "delete";
     student_data: Record<string, unknown>;
   }>,
+  parentPassword?: string,
 ) {
   const res = await api.post("/students/bulk_resolve_conflicts/", {
     initial_password: password,
+    ...(parentPassword !== undefined ? { parent_initial_password: parentPassword } : {}),
     resolutions: resolutions.map((r) => ({
       row: r.row,
       student_id: r.student_id,
@@ -1133,4 +1136,18 @@ export async function detachStudentTag(studentId: number, tagId: number) {
 
 export async function createMemo(studentId: number, content: string) {
   await api.patch(`/students/${studentId}/`, { memo: String(content ?? "") });
+}
+
+export type AccountPasswordMode = "phone_last4" | "fixed" | "random";
+export interface AccountPasswordPolicy {
+  student_mode: AccountPasswordMode;
+  parent_mode: AccountPasswordMode;
+  student_fixed_password: string;
+  parent_fixed_password: string;
+}
+export async function fetchAccountPasswordSettings(): Promise<AccountPasswordPolicy> {
+  return (await api.get("/students/account-password-settings/")).data;
+}
+export async function saveAccountPasswordSettings(policy: AccountPasswordPolicy): Promise<AccountPasswordPolicy> {
+  return (await api.patch("/students/account-password-settings/", policy)).data;
 }
