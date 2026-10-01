@@ -219,13 +219,15 @@ test.describe("학생 커뮤니티 durable draft", () => {
       await openForm(page, "QnA");
       await page.getByPlaceholder("질문 제목").fill("서식 왕복 질문");
       const editor = page.locator(".ProseMirror");
-      await editor.fill("강조 문장");
-      await editor.press("Control+a");
+      await editor.click();
       await page.getByTitle("굵게 (Ctrl+B)").click();
+      await page.keyboard.insertText("강조 문장");
       await expect(editor.locator("strong")).toHaveText("강조 문장");
-      await editor.press("End");
+      await page.getByTitle("굵게 (Ctrl+B)").click();
       await editor.press("Enter");
+      await expect(editor.locator(":scope > p")).toHaveCount(2);
       await page.getByTitle("글머리 기호").click();
+      await expect(editor.locator("ul strong")).toHaveCount(0);
       await page.keyboard.insertText("참고 링크");
       await editor.press("Shift+Home");
       page.once("dialog", (dialog) => dialog.accept("https://example.com/study"));
