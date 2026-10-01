@@ -28,6 +28,9 @@
 성적표를 새로고침해도 같은 대상 여부가 유지되어야 한다. 서버의 정확한 데이터·
 클리닉 보존 규칙은 [백엔드 출결 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/attendance.md#실제-결석과-평가-todo)이 소유한다.
 
+테스트 오답 검토의 전체·처리됨 필터도 결석자를 제외해 표시 인원과 행을 일치시킨다.
+일반 판정 보기로 돌아가면 결석 전 점수 이력을 조회하고 개별 점수 수정·저장을 할 수 있다.
+
 `e2e/admin/score-entry-autosave.spec.ts`는 1366px·390px에서 결석자의 명단·빈 칸,
 영상 수강자의 미배정 복구, 재로드 및 배정 API 대상 ID를 검증한다.
 

@@ -253,8 +253,10 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     const searchedRows = allRows.filter((row) => (
       matchesSessionScoreStudentSearch(row.student_name ?? "", search)
     ));
-    if (summaryColumnMode !== "exam_wrong" || examReviewFilter === "all") return searchedRows;
-    return searchedRows.filter((row) => matchesSessionRowExamReviewFilter(row, examReviewFilter));
+    if (summaryColumnMode !== "exam_wrong") return searchedRows;
+    return searchedRows
+      .filter((row) => row.assessment_todo_eligible !== false)
+      .filter((row) => matchesSessionRowExamReviewFilter(row, examReviewFilter));
   }, [allRows, examReviewFilter, search, summaryColumnMode]);
 
   // 드로어에 항상 최신 rows 데이터를 전달 (쿼리 갱신 시 자동 반영)

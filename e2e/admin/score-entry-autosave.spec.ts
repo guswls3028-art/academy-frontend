@@ -2172,29 +2172,54 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     });
   }
 
-  test("결석 전 기록된 시험·과제 이력은 보이고 개별 점수 수정도 저장된다", async ({ page }) => {
-    await openScores(page, {
-      initialScores: [75, 85],
-      includeHomework: true,
-      homeworkAssignedRows: [true, true],
-      initialHomeworkScores: [70, 45],
-      attendanceStatuses: ["ABSENT", "ONLINE"],
-      assessmentTodoEligible: [false, true],
+  for (const width of [1366, 390]) {
+    test(`결석 전 이력 수정은 저장되고 오답 검토 인원과 표시 행은 일치한다 (${width}px)`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await openScores(page, {
+        initialScores: [75, 85],
+        initialCorrectionStatuses: ["COMPLETED", "COMPLETED"],
+        includeHomework: true,
+        homeworkAssignedRows: [true, true],
+        initialHomeworkScores: [70, 45],
+        attendanceStatuses: ["ABSENT", "ONLINE"],
+        assessmentTodoEligible: [false, true],
+      });
+      const absentRow = page.locator("tbody tr").filter({ hasText: "자동저장학생1" });
+      await expect(absentRow.getByRole("checkbox", { name: "자동저장학생1 선택" })).toBeDisabled();
+      await expect(absentRow.getByRole("cell", { name: "75/100", exact: true })).toBeVisible();
+      await expect(absentRow.getByRole("cell", { name: "70/100", exact: true })).toBeVisible();
+      await ensureScoreEditing(page);
+      const examCell = page.getByRole("textbox", { name: "자동저장학생1 · 주간 확인 점수 입력" });
+      await examCell.fill("81");
+      await page.keyboard.press("Control+s");
+      await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(1);
+      expect(scorePatches[0]).toMatchObject({ score: 81, max_score: 100 });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("cell", { name: "81/100", exact: true })).toBeVisible();
+      await expect(page.getByRole("cell", { name: "70/100", exact: true })).toBeVisible();
+
+      await page.getByRole("button", { name: /표시 옵션/ }).click();
+      const summaryMode = page.getByRole("group", { name: "마지막 열 표시" });
+      await summaryMode.getByRole("button", { name: "테스트 오답", exact: true }).click();
+      const reviewFilter = page.getByRole("group", { name: "테스트 오답 확인 학생 필터" });
+      await expect(reviewFilter.getByRole("button", { name: "전체 1명" })).toHaveAttribute("aria-pressed", "true");
+      await expect(page.locator('td[data-col-type="exam-review"]')).toHaveCount(1);
+      await expect(absentRow).toHaveCount(0);
+      await reviewFilter.getByRole("button", { name: "처리됨 1명" }).click();
+      await expect(page.locator('td[data-col-type="exam-review"]')).toHaveCount(1);
+      await expect(page.locator("tbody tr").filter({ hasText: "자동저장학생2" })).toBeVisible();
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("group", { name: "테스트 오답 확인 학생 필터" }).getByRole("button", { name: "전체 1명" })).toHaveAttribute("aria-pressed", "true");
+      await expect(page.locator('td[data-col-type="exam-review"]')).toHaveCount(1);
+      await expect(absentRow).toHaveCount(0);
+      await page.getByRole("group", { name: "마지막 열 표시" }).getByRole("button", { name: "종합 판정", exact: true }).click();
+      await expect(absentRow.getByRole("cell", { name: "81/100", exact: true })).toBeVisible();
+      await expect(absentRow.getByRole("cell", { name: "70/100", exact: true })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`absent-history-review-${width}.png`), fullPage: true });
     });
-    const absentRow = page.locator("tbody tr").filter({ hasText: "자동저장학생1" });
-    await expect(absentRow.getByRole("checkbox", { name: "자동저장학생1 선택" })).toBeDisabled();
-    await expect(absentRow.getByRole("cell", { name: "75/100", exact: true })).toBeVisible();
-    await expect(absentRow.getByRole("cell", { name: "70/100", exact: true })).toBeVisible();
-    await ensureScoreEditing(page);
-    const examCell = page.getByRole("textbox", { name: "자동저장학생1 · 주간 확인 점수 입력" });
-    await examCell.fill("81");
-    await page.keyboard.press("Control+s");
-    await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(1);
-    expect(scorePatches[0]).toMatchObject({ score: 81, max_score: 100 });
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("cell", { name: "81/100", exact: true })).toBeVisible();
-    await expect(page.getByRole("cell", { name: "70/100", exact: true })).toBeVisible();
-  });
+  }
 
   test("시험 만점 변경 뒤 모든 학생 셀과 저장이 현재 만점 하나를 사용한다", async ({ page }) => {
     await openScores(page, {
