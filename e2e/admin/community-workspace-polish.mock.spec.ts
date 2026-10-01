@@ -222,7 +222,11 @@ test.describe("커뮤니티 QnA 작업대", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
-    await page.locator(".qna-inbox__thread-actions").getByRole("button", { name: "삭제", exact: true }).click();
+    const deleteButton = page.locator(".qna-inbox__thread-actions").getByRole("button", { name: "삭제", exact: true });
+    await expect(page.getByRole("heading", { name: "프린트 진화와 자연선택 20번" })).toBeVisible({ timeout: 60_000 });
+    await expect(deleteButton).toBeVisible({ timeout: 60_000 });
+    await waitForRenderSettled(page);
+    await deleteButton.click();
     await page.getByRole("alertdialog", { name: "질문 삭제" }).getByRole("button", { name: "삭제", exact: true }).click();
     await expect(page.getByText(/질문은 삭제됐지만 원본 파일 정리가 지연/)).toBeVisible();
     await expect(page.getByRole("heading", { name: "프린트 진화와 자연선택 20번" })).toHaveCount(0);
