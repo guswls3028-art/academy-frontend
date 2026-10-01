@@ -457,7 +457,9 @@ export default function StudentCreateModal({
     const eligibleCount = parsedExcel.rows.length;
     const passwordModeLabel = excelPasswordSettings.mode === "fixed"
       ? "직접 입력한 공통 비밀번호"
-      : "학생별 안전한 임시 비밀번호";
+      : excelPasswordSettings.mode === "tenant"
+        ? "학원 초기 비밀번호 설정 적용"
+        : "학생별 안전한 임시 비밀번호";
     confirmationInFlightRef.current = true;
     const confirmed = await confirm({
       title: "학생 일괄 등록 최종 확인",

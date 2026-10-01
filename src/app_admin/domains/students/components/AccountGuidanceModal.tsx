@@ -106,8 +106,8 @@ export default function AccountGuidanceModal({
           <div className="flex gap-3 rounded-xl border border-[var(--color-border)] p-3">
             <FiMessageSquare size={18} className="mt-0.5 shrink-0 text-[var(--color-primary)]" aria-hidden />
             <div>
-              <div className="text-sm font-semibold text-[var(--color-text)]">아이디만 안전하게 안내</div>
-              <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">비밀번호를 잊은 경우에는 학생 상세의 비밀번호 초기화를 별도로 사용해 주세요.</div>
+              <div className="text-sm font-semibold text-[var(--color-text)]">실제 로그인 가능한 정보 안내</div>
+              <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">기존 비밀번호와 로그인 상태는 유지됩니다. 안내받은 아이디와 비밀번호로 로그인할 수 있습니다.</div>
             </div>
           </div>
         </div>

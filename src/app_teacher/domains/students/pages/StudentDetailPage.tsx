@@ -690,7 +690,7 @@ function AccountGuidanceSheet({ open, onClose, student }: {
         <div>
           <div className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>{name}</div>
           <p className="text-[12px] mt-1 mb-0" style={{ color: "var(--tc-text-muted)" }}>
-            등록된 번호로 로그인 아이디를 안내합니다. 비밀번호는 바뀌지 않습니다.
+            등록된 번호로 실제 로그인 가능한 아이디와 비밀번호를 안내합니다. 기존 비밀번호는 유지하며, 과거 비밀번호를 확인할 수 없는 계정에는 안내용 로그인 비밀번호를 발급합니다.
           </p>
         </div>
 
