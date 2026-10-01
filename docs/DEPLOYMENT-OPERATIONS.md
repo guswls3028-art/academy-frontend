@@ -26,6 +26,13 @@
    `e2e/suites.mjs`에 등록된 개발 real-use 전체 및 exact tenant/user
    cleanup0을 `development-canary` job에서 먼저 통과한다. 이 job의 success 없이는
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
+
+   공개 비밀번호 찾기와 가입 요청은 개발 API에서도 동일 IP의
+   `AlimtalkEndpointThrottle` 시간당 5회 한도를 공유한다. 연속 후보 검증에서
+   `429`가 나오면 해당 실패와 cleanup0 증거를 보존하고 실제 한도 만료 후 새
+   QA scope로 전체 실사용을 검증한다. 보안 한도·캐시를 변경하거나 실패한 POST를
+   재전송하지 않는다. 가입 응답 검사는 정확한 200/201 조건을 유지하며, 실패
+   진단에는 응답의 HTTP 상태만 남기고 원문 응답·계정 정보는 게시하지 않는다.
 4. 기존 운영 deployment id/version과 Pages production
    ownership을 읽고 rollback baseline으로 고정한다.
 5. `production` GitHub Environment의 승인 뒤 같은 artifact를
