@@ -51,6 +51,7 @@ import {
   setLocalItem,
 } from "@/shared/utils/safeLocalStorage";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import type { MatchupExamCycle } from "@/shared/constants/matchupExamCycle";
 
 const DocumentUploadModal = lazy(() => import("../components/matchup/DocumentUploadModal"));
 const PromoteFromInventoryModal = lazy(() => import("../components/matchup/PromoteFromInventoryModal"));
@@ -581,7 +582,7 @@ export default function MatchupPage() {
     async (payload: {
       file: File; title: string; category: string; subject: string; grade_level: string;
       source_type?: import("../components/matchup/documentIntent").MatchupSourceType;
-      exam_cycle?: "" | "midterm" | "final" | "mock" | "other";
+      exam_cycle?: MatchupExamCycle;
       exam_year?: number;
     }) => {
       // source_type 우선, 미지정 시 legacy intent 그대로 전송 (backend에서 정규화).
@@ -591,20 +592,6 @@ export default function MatchupPage() {
         intent: uploadIntent,
         source_type: payload.source_type,
       });
-      // 업로드 직후 cycle/year 메타 patch — uploadMatchupDocument body 가 cycle 미지원 시 별도 patch.
-      if ((payload.exam_cycle || payload.exam_year) && doc?.id) {
-        try {
-          const { patchMatchupDocument } = await import("@admin/domains/storage/api/matchup.api");
-          const patch: Record<string, unknown> = {};
-          if (payload.exam_cycle) patch.exam_cycle = payload.exam_cycle;
-          if (typeof payload.exam_year === "number" && payload.exam_year > 0) patch.exam_year = payload.exam_year;
-          if (Object.keys(patch).length > 0) {
-            await patchMatchupDocument(doc.id, patch as never);
-          }
-        } catch {
-          // best-effort — 실패 시 학원장이 나중에 편집 가능
-        }
-      }
       qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
       if (doc.ai_job_id) {
         asyncStatusStore.addWorkerJob(

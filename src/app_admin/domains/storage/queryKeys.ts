@@ -17,6 +17,8 @@ export const storageQueryKeys = {
     ["matchup-cross-matches", documentId] as const,
   matchupDocPages: (documentId: number) =>
     ["matchup-doc-pages", documentId] as const,
+  matchupDocPage: (documentId: number, pageIndex: number) =>
+    ["matchup-doc-pages", documentId, pageIndex] as const,
   matchupPageStates: (documentId: number) =>
     ["matchup-page-states", documentId] as const,
   matchupPendingProposals: (documentId: number) =>

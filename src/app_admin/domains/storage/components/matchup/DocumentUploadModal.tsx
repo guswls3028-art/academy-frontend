@@ -19,6 +19,7 @@ import {
   type MatchupSourceType, intentToSourceType, suggestSourceType,
 } from "./documentIntent";
 import { useAuthContext } from "@/auth/context/AuthContext";
+import { MATCHUP_EXAM_CYCLE_LABELS, MATCHUP_EXAM_CYCLE_OPTIONS, type MatchupExamCycle } from "@/shared/constants/matchupExamCycle";
 import {
   getLocalItem,
   getTenantUserLocalKey,
@@ -31,7 +32,7 @@ type Props = {
     file: File; title: string; category: string; subject: string; grade_level: string;
     source_type: MatchupSourceType;  // Phase 1C — 7-value SSOT (backend 라우터 1순위 신호)
     // Phase #15 (2026-05-12): 학교별 grouping용 회차/연도 — 학원장 입력(선택)
-    exam_cycle?: "" | "midterm" | "final" | "mock" | "other";
+    exam_cycle?: MatchupExamCycle;
     exam_year?: number;
   }) => Promise<void>;
   intent?: "reference" | "test";
@@ -101,7 +102,7 @@ export default function DocumentUploadModal({
   const [subject, setSubject] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
   // Phase #15 — 학교별 grouping (랜딩 적중보고서). 미지정 OK.
-  const [examCycle, setExamCycle] = useState<"" | "midterm" | "final" | "mock" | "other">("");
+  const [examCycle, setExamCycle] = useState<MatchupExamCycle>("");
   const [examYear, setExamYear] = useState<number | "">("");
   // Phase 1C — 7-value source_type SSOT. 미지정 시 legacy intent에서 매핑.
   // 파일이 추가되면 suggestSourceType 으로 추천 default 를 갱신 (학원장 directive
@@ -1056,7 +1057,7 @@ export default function DocumentUploadModal({
                 시험 회차 <span style={/* eslint-disable-line no-restricted-syntax */ { fontWeight: 500, color: "var(--color-text-muted)", fontSize: 11 }}>(선택)</span>
                 <select
                   value={examCycle}
-                  onChange={(e) => setExamCycle(e.target.value as "" | "midterm" | "final" | "mock" | "other")}
+                  onChange={(e) => setExamCycle(e.target.value as MatchupExamCycle)}
                   data-testid="matchup-upload-exam-cycle"
                   style={/* eslint-disable-line no-restricted-syntax */ {
                     display: "block", width: "100%", marginTop: "var(--space-1)",
@@ -1064,11 +1065,9 @@ export default function DocumentUploadModal({
                     borderRadius: "var(--radius-md)", fontSize: 14, background: "var(--color-bg-surface)",
                   }}
                 >
-                  <option value="">미지정</option>
-                  <option value="midterm">중간고사</option>
-                  <option value="final">기말고사</option>
-                  <option value="mock">모의고사</option>
-                  <option value="other">기타</option>
+                  {MATCHUP_EXAM_CYCLE_OPTIONS.map((cycle) => (
+                    <option key={cycle} value={cycle}>{MATCHUP_EXAM_CYCLE_LABELS[cycle]}</option>
+                  ))}
                 </select>
               </label>
               <label style={/* eslint-disable-line no-restricted-syntax */ { flex: 1, fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)" }}>
@@ -1095,7 +1094,7 @@ export default function DocumentUploadModal({
               </label>
             </div>
             <p style={/* eslint-disable-line no-restricted-syntax */ { fontSize: 11, color: "var(--color-text-muted)", margin: "-4px 0 0", lineHeight: 1.5 }}>
-              💡 학교(카테고리)별로 회차/연도 입력 시 학원 홈페이지 적중보고서가 <strong>"숙명여고 → 2025 중간 / 기말 / 2024 중간"</strong> 순으로 자동 그룹핑됩니다.
+              학교(카테고리)와 시험 연도·회차를 입력하면 적중보고서를 <strong>학교별 → 연도별 → 1학기 중간·기말 / 2학기 중간·기말</strong> 순으로 볼 수 있습니다.
             </p>
           </div>
         </div>
