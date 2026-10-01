@@ -117,7 +117,9 @@ async function verifySignupAndApproval(page: Page, request: APIRequestContext): 
       ));
       await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
       const response = await submitted;
-      expect(response.status()).toBe(autoApprove ? 200 : 201);
+      expect(response.status(),
+        `POST /students/registration_requests/ returned ${response.status()}`,
+      ).toBe(autoApprove ? 200 : 201);
       let student = await response.json() as { id: number; name: string; ps_number: string; parent_phone: string };
       await expect(dialog.getByRole("status")).toHaveText(autoApprove
         ? "가입이 완료되었습니다. 지금 로그인할 수 있습니다."

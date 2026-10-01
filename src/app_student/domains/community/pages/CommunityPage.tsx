@@ -284,9 +284,14 @@ export default function CommunityPage() {
   const [tab, setTab] = useState<Tab | null>(() => tabFromPath(location.pathname) ?? tabFromSearch(location.search));
   const [view, setView] = useState<View>({ kind: "tabs" });
   const preserveViewOnNextLocationRef = useRef(false);
+  const handledLocationKeyRef = useRef<string | null>(null);
 
   // 알림에서 질문/상담 상세 직접 진입 + dashboard "새 답변" tab prefill
   useEffect(() => {
+    // Re-rendering the router can change navigate without a new navigation.
+    // Process each committed location once so it cannot close a newly opened form.
+    if (handledLocationKeyRef.current === location.key) return;
+    handledLocationKeyRef.current = location.key;
     const state = location.state as CommunityLocationState;
     if (state?.openQuestionId != null) {
       setTab("qna");
@@ -321,7 +326,7 @@ export default function CommunityPage() {
         setView({ kind: "tabs" });
       }
     }
-  }, [location.pathname, location.search, location.state, navigate]);
+  }, [location.key, location.pathname, location.search, location.state, navigate]);
 
   const selectTab = (nextTab: Tab) => {
     if (nextTab === tab) return;

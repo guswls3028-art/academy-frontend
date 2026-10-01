@@ -284,7 +284,7 @@ test.describe("promo route navigation", () => {
     await gotoAndAssert(page, "/promo/updates");
 
     await expect(
-      page.getByRole("heading", { name: "수업부터 지원·정산까지 이어지는 운영 업데이트" }).first(),
+      page.locator("#latest-update").getByRole("heading", { name: "업로드와 클리닉·학생 화면 개선" }),
     ).toBeVisible();
     await expect(page.getByText("매주 화요일 오전 9시", { exact: true })).toBeVisible();
     await expect(page.getByText("클리닉 출석·진행 콘솔", { exact: false })).toBeVisible();
