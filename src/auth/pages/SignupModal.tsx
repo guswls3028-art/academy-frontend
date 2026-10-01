@@ -9,6 +9,7 @@ import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import type { SchoolType } from "@/shared/hooks/useSchoolLevelMode";
 import styles from "./LoginPage.module.css";
+import { useRegistrationPasswordConfirmation } from "@/shared/product/students/RegistrationPasswordConfirmation";
 
 interface SignupModalProps {
   open: boolean;
@@ -39,6 +40,7 @@ const cx = (...classes: Array<string | false | null | undefined>) => classes.fil
 
 export default function SignupModal({ open, onClose }: SignupModalProps) {
   const slm = useSchoolLevelMode();
+  const confirmPasswords = useRegistrationPasswordConfirmation();
   const [form, setForm] = useState<typeof INITIAL_FORM>({ ...INITIAL_FORM, schoolType: slm.defaultSchoolType });
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -183,10 +185,14 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     submissionRef.current = true;
     setPending(true);
     try {
+      const choice = await confirmPasswords({ title: "가입 신청 최종 확인", message: "학생 비밀번호는 입력한 값으로 유지합니다. 신규 학부모 계정의 비밀번호 방식을 선택해 주세요.", confirmText: "가입 신청", parentPhone, studentAlreadySelected: true, publicSignup: true });
+      if (!choice) return;
       const result = await submitRegistrationRequest({
         name: form.name.trim(),
         username: form.username.trim() || undefined,
         initialPassword: form.initialPassword,
+        parentInitialPasswordMode: choice.parentInitialPasswordMode,
+        parentInitialPassword: choice.parentInitialPassword,
         passwordConfirmation: form.passwordConfirmation,
         parentPhone: parentPhone,
         phone,

@@ -17,6 +17,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useProgram } from "@/shared/program";
 import StudentGradeReportLayoutEditor from "@/shared/ui/assessment/StudentGradeReportLayoutEditor";
+import AccountPasswordSettings from "@/shared/product/students/AccountPasswordSettings";
 
 import s from "../components/SettingsSection.module.css";
 import { adminSettingsQueryKeys } from "../queryKeys";
@@ -238,6 +239,7 @@ export default function OrganizationSettingsPage() {
     return (
       <div className={s.page}>
         <AcademyModeSection />
+        <AccountPasswordSettings />
         {canManageStudentReport && <StudentGradeReportLayoutEditor />}
         <div className={s.sectionHeader}>
           <h2 className={s.sectionTitle}>학원 정보</h2>
@@ -260,6 +262,7 @@ export default function OrganizationSettingsPage() {
   return (
     <div className={s.page}>
       <AcademyModeSection />
+      <AccountPasswordSettings />
 
       <div className={s.sectionHeader}>
         <h2 className={s.sectionTitle}>학원 정보</h2>

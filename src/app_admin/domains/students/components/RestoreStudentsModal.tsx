@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useRegistrationPasswordConfirmation } from "@/shared/product/students/RegistrationPasswordConfirmation";
 
 import { bulkRestoreStudents, type ClientStudent } from "../api/students.api";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
@@ -22,26 +23,19 @@ export default function RestoreStudentsModal({
   onSelectionChange,
   onChanged,
 }: Props) {
-  const [parentInitialPassword, setParentInitialPassword] = useState("");
+  const confirmPasswords = useRegistrationPasswordConfirmation();
   const [restoring, setRestoring] = useState(false);
-
-  useEffect(() => {
-    if (open) setParentInitialPassword("");
-  }, [open]);
 
   const handleRestore = async () => {
     if (selectedStudents.length === 0 || restoring) return;
-    const password = parentInitialPassword.trim();
-    if (password && password.length < 4) {
-      feedback.error("학부모 초기 비밀번호는 4자 이상 입력해 주세요.");
-      return;
-    }
-
     setRestoring(true);
     try {
+      const choice = await confirmPasswords({ title: "학생 복원 최종 확인", message: `${selectedStudents.length}명의 누락 학부모 계정에 사용할 비밀번호 방식을 선택해 주세요.`, confirmText: "복원", studentAlreadySelected: true, parentPhoneAvailable: selectedStudents.every((student) => /^010\d{8}$/.test(student.parentPhone ?? "")) });
+      if (!choice) return;
       const result = await bulkRestoreStudents(
         selectedStudents.map((student) => student.id),
-        password || undefined,
+        choice.parentInitialPassword || undefined,
+        choice.parentInitialPasswordMode,
       );
       const skipped = result.skipped ?? [];
       if (skipped.length > 0) {
@@ -54,7 +48,7 @@ export default function RestoreStudentsModal({
         feedback.warning(
           `${result.restored}명 복원, ${skipped.length}명은 복원하지 못했습니다.${reason}`,
         );
-        if (needsPassword && !password) return;
+        if (needsPassword) return;
         return;
       }
 
@@ -83,23 +77,7 @@ export default function RestoreStudentsModal({
             그 사이 종료된 강의는 비활성 상태로 유지됩니다.
           </p>
           <div>
-            <label
-              className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1"
-              htmlFor="restore-parent-initial-password"
-            >
-              누락 학부모 계정 초기 비밀번호 <span className="text-[var(--color-text-muted)]">(선택)</span>
-            </label>
-            <input
-              id="restore-parent-initial-password"
-              type="password"
-              className="ds-input w-full"
-              placeholder="필요한 경우 4자 이상 직접 입력"
-              value={parentInitialPassword}
-              onChange={(event) => setParentInitialPassword(event.target.value)}
-              disabled={restoring}
-              minLength={4}
-              autoComplete="new-password"
-            />
+            <p className="text-sm">누락 학부모 계정의 비밀번호 방식은 마지막 확인창에서 선택합니다.</p>
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
               정상 학부모 계정의 비밀번호는 바뀌지 않습니다. 과거 데이터에 계정이 없거나 비밀번호가 없는 경우에만 사용하고 알림톡으로 안내합니다.
             </p>

@@ -218,6 +218,8 @@ async function createStudentApi(
     grade: 1,
     gender: "M",
     initial_password: ORIGINAL_PW,
+    initial_password_mode: "fixed",
+    parent_initial_password_mode: "phone_last4",
     memo: `${RUN} fixture student. Account notice follows the mandatory delivery path.`,
   });
   created.studentIds.add(Number(student.id));
@@ -235,6 +237,7 @@ async function createRegistrationRequest(
     name,
     username,
     initial_password: ORIGINAL_PW,
+    parent_initial_password_mode: "phone_last4",
     parent_phone: parentPhone,
     phone,
     school_type: "HIGH",
@@ -477,15 +480,17 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
     await setFirstSwitch(createDialog, false);
     await createDialog.getByPlaceholder("이름").fill(originalName);
     await createDialog.getByPlaceholder("로그인 아이디").fill(username);
-    await createDialog.getByPlaceholder("초기 비밀번호").fill(ORIGINAL_PW);
     await fillParentPhone(createDialog, CONTROLLED_PHONE);
     await createDialog.getByRole("button", { name: "남자" }).click();
     await createDialog.locator("select").nth(1).selectOption("1");
     await createDialog.getByPlaceholder("메모").fill(`${RUN} UI 생성 버튼 감사`);
     await createDialog.getByRole("button", { name: "등록", exact: true }).click();
-    await page.getByRole("alertdialog", { name: "학생 등록 최종 확인" })
-      .getByRole("button", { name: "확인하고 등록" })
-      .click();
+    const confirmation = page.getByRole("alertdialog", { name: "학생 등록 최종 확인" });
+    await expect(confirmation.locator('input[type="radio"]:checked')).toHaveCount(0);
+    await confirmation.getByRole("group", { name: "학생 초기 비밀번호" }).getByLabel("직접 입력", { exact: true }).check();
+    await confirmation.getByLabel("학생 직접 입력 비밀번호", { exact: true }).fill(ORIGINAL_PW);
+    await confirmation.getByRole("group", { name: "학부모 초기 비밀번호" }).getByLabel("전화번호 뒤 4자리", { exact: true }).check();
+    await confirmation.getByRole("button", { name: "확인하고 등록" }).click();
     await expect(createDialog).toBeHidden({ timeout: 30_000 });
 
     const createdStudent = await waitForStudent(request, token, originalName);
@@ -526,6 +531,11 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
 
     await selectStudentInUi(page, updatedName, true);
     await page.getByRole("button", { name: "복원", exact: true }).click();
+    await page.getByRole("dialog", { name: "학생 복원", exact: true })
+      .getByRole("button", { name: "복원", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "학생 복원 최종 확인" })
+      .getByRole("group", { name: "학부모 초기 비밀번호" })
+      .getByLabel("전화번호 뒤 4자리", { exact: true }).check();
     await confirmAction(page, "복원");
     await waitForStudent(request, token, updatedName, false);
 

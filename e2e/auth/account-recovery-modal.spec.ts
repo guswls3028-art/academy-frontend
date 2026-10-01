@@ -6,6 +6,14 @@ import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
 
+async function confirmParentPassword(page: Page, title: string, button: string) {
+  const confirmation = page.getByRole("alertdialog", { name: title });
+  await expect(confirmation.getByRole("radio", { checked: true })).toHaveCount(0);
+  await confirmation.getByRole("group", { name: "학부모 초기 비밀번호", exact: true })
+    .getByRole("radio", { name: "전화번호 뒤 4자리", exact: true }).check();
+  await confirmation.getByRole("button", { name: button, exact: true }).click();
+}
+
 function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
 }
@@ -349,6 +357,7 @@ test.describe("계정 복구 모달 UI 검증", () => {
       (button as HTMLButtonElement).click();
       (button as HTMLButtonElement).click();
     });
+    await confirmParentPassword(page, "가입 신청 최종 확인", "가입 신청");
 
     await expect.poll(() => requestCount).toBe(1);
     expect(payload?.initial_password).toBe(password);
@@ -419,6 +428,7 @@ test.describe("계정 복구 모달 UI 검증", () => {
     }
     await dialog.getByLabel("주소 *").fill("서울");
     await dialog.getByRole("button", { name: "가입 신청" }).click();
+    await confirmParentPassword(page, "가입 신청 최종 확인", "가입 신청");
 
     await expect(dialog.getByText("이미 가입된 아이디입니다.")).toBeVisible();
     await expect(dialog.getByText(/카카오톡을 사용할 수 없으면.*학생 상세.*비밀번호 초기화/)).toBeVisible();
@@ -564,7 +574,7 @@ test("삭제 가입 이력은 선생님이 하나를 선택하고 중복 제출 
     }
     if (path.endsWith("/students/registration_requests/322/resolve_deleted/") && method === "POST") {
       resolveCount += 1;
-      expect(route.request().postDataJSON()).toEqual({ student_id: 768 });
+      expect(route.request().postDataJSON()).toEqual({ student_id: 768, parent_initial_password_mode: "phone_last4", parent_initial_password: "" });
       await resolveGate;
       resolved = true;
       await route.fulfill({
@@ -580,7 +590,7 @@ test("삭제 가입 이력은 선생님이 하나를 선택하고 중복 제출 
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/students/requests`, { timeout: 30_000 });
   await page.getByRole("button", { name: "승인", exact: true }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "승인", exact: true }).click();
+  await confirmParentPassword(page, "가입 승인 최종 확인", "승인");
 
   const recovery = page.getByRole("dialog", { name: "과거 계정을 선택해 주세요" });
   await expect(recovery).toBeVisible();
@@ -591,6 +601,7 @@ test("삭제 가입 이력은 선생님이 하나를 선택하고 중복 제출 
     (button as HTMLButtonElement).click();
     (button as HTMLButtonElement).click();
   });
+  await confirmParentPassword(page, "과거 계정 복구 최종 확인", "복구하고 승인");
   await page.keyboard.press("Escape");
 
   await expect(recovery).toBeVisible();
@@ -671,7 +682,7 @@ test("구 backend의 일반 가입 승인 409는 복구 요청 없이 fail-close
 
   await gotoAndSettle(page, `${BASE}/workspace/students/requests`, { timeout: 30_000 });
   await page.getByRole("button", { name: "승인", exact: true }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "승인", exact: true }).click();
+  await confirmParentPassword(page, "가입 승인 최종 확인", "승인");
 
   await expect.poll(() => approveCount).toBe(1);
   await expect(page.getByRole("dialog", { name: "과거 계정을 선택해 주세요" })).toHaveCount(0);
@@ -754,7 +765,7 @@ test("삭제 가입 복구의 active·cross-tenant·stale·retry 409는 데스�
       }, 409);
     }
     if (path.endsWith("/students/registration_requests/322/resolve_deleted/") && method === "POST") {
-      expect(route.request().postDataJSON()).toEqual({ student_id: 768 });
+      expect(route.request().postDataJSON()).toEqual({ student_id: 768, parent_initial_password_mode: "phone_last4", parent_initial_password: "" });
       const detail = rejectionDetails[Math.min(resolveCount, rejectionDetails.length - 1)];
       resolveCount += 1;
       return json({ detail }, 409);
@@ -765,7 +776,7 @@ test("삭제 가입 복구의 active·cross-tenant·stale·retry 409는 데스�
   await page.setViewportSize({ width: 1366, height: 900 });
   await gotoAndSettle(page, `${BASE}/workspace/students/requests`, { timeout: 30_000 });
   await page.getByRole("button", { name: "승인", exact: true }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "승인", exact: true }).click();
+  await confirmParentPassword(page, "가입 승인 최종 확인", "승인");
 
   const recovery = page.getByRole("dialog", { name: "과거 계정을 선택해 주세요" });
   await expect(recovery).toBeVisible();
@@ -774,6 +785,7 @@ test("삭제 가입 복구의 active·cross-tenant·stale·retry 409는 데스�
 
   for (const detail of rejectionDetails) {
     await confirm.click();
+    await confirmParentPassword(page, "과거 계정 복구 최종 확인", "복구하고 승인");
     await expect(page.getByText(detail, { exact: true })).toBeVisible();
     await expect(recovery).toBeVisible();
     await expect(confirm).toBeEnabled();

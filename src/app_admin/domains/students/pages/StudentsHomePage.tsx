@@ -17,6 +17,7 @@ import {
 } from "../api/students.api";
 import { downloadStudentsExcel, type StudentExportRow } from "../excel/studentExcel";
 import StudentsTable, { getStudentsTableColumnsDef } from "../components/StudentsTable";
+import AccountPasswordSettings from "@/shared/product/students/AccountPasswordSettings";
 import StudentCreateModal from "../components/StudentCreateModal";
 import StudentCustomFieldsModal from "../components/StudentCustomFieldsModal";
 import StudentFilterModal from "../components/StudentFilterModal";
@@ -361,6 +362,7 @@ export default function StudentsHomePage() {
   return (
     <>
       <div className="flex flex-col gap-4">
+        {!isDeletedTab && <AccountPasswordSettings />}
         {isAlimtalkComposeEntry && !isDeletedTab && (
           <section className={styles.alimtalkComposeGuide} aria-label="알림톡 발송 안내">
             <div className={styles.alimtalkComposeGuideText}>

@@ -96,6 +96,8 @@ export async function ensureClinicSessionForTrigger(page: Page): Promise<Ensured
     grade: 1,
     gender: "M",
     initial_password: "test1234",
+    initial_password_mode: "fixed",
+    parent_initial_password_mode: "phone_last4",
     memo: `[E2E-${ts}] clinic trigger fixture`,
   });
   if (createStudent.status !== 201 || !createStudent.body?.id) {

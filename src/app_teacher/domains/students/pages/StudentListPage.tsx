@@ -27,12 +27,7 @@ import { teacherMessageTemplatesQueryKey } from "@/shared/notifications/messageT
 import { stripInternalAlimtalkMemoToken } from "@/shared/notifications/teacherMemo";
 import MessageBodyEditor from "@/shared/messaging/MessageBodyEditor";
 import { useConfirm } from "@/shared/ui/confirm";
-import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
-import {
-  DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS,
-  isStudentInitialPasswordReady,
-  type StudentInitialPasswordSettings,
-} from "@/shared/product/students/initialPassword";
+import { useRegistrationPasswordConfirmation } from "@/shared/product/students/RegistrationPasswordConfirmation";
 import {
   parseStudentExcel,
   type ParseStudentExcelResult,
@@ -431,9 +426,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
   onClose: () => void;
   onDone: (jobId: string, expectsCredentialDownload: boolean) => Promise<void>;
 }) {
-  const [passwordSettings, setPasswordSettings] = useState<StudentInitialPasswordSettings>(
-    () => ({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS }),
-  );
+  const confirmPasswords = useRegistrationPasswordConfirmation();
   const [parsed, setParsed] = useState<ParseStudentExcelResult | null>(null);
   const [parseError, setParseError] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -442,7 +435,6 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
   useEffect(() => {
     if (!open || !file) return;
     let cancelled = false;
-    setPasswordSettings({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS });
     setParsed(null);
     setParseError("");
     setParsing(true);
@@ -480,22 +472,22 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
       teacherToast.error(parseError || "엑셀 파일을 확인하고 있습니다.");
       return;
     }
-    if (!isStudentInitialPasswordReady(passwordSettings)) {
-      teacherToast.error(
-        passwordSettings.mode === "fixed"
-          ? "공통 초기 비밀번호를 4자 이상 입력해 주세요."
-          : "초기 비밀번호 방식을 확인해 주세요.",
-      );
-      return;
-    }
     setSubmitting(true);
     try {
-      const { job_id } = await uploadStudentBulkExcel(file, passwordSettings);
+      const choice = await confirmPasswords({
+        title: "학생 일괄 등록 최종 확인",
+        message: `${file.name} · ${parsed.rows.length}명의 학생·학부모 비밀번호 방식을 선택해 주세요.`,
+        confirmText: "등록 요청",
+        studentPhoneAvailable: parsed.rows.every((row) => !row.usesIdentifier && /^010\d{8}$/.test(row.studentPhone)),
+        parentPhoneAvailable: parsed.rows.every((row) => /^010\d{8}$/.test(row.parentPhone)),
+      });
+      if (!choice) return;
+      const { job_id } = await uploadStudentBulkExcel(file, choice);
       if (!job_id) {
         teacherToast.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
         return;
       }
-      await onDone(job_id, passwordSettings.mode === "random");
+      await onDone(job_id, choice.initialPasswordMode === "random");
       teacherToast.success("백그라운드에서 진행됩니다. 완료까지 몇 분 걸릴 수 있으며 작업박스에서 확인할 수 있습니다.");
       onClose();
     } catch (err) {
@@ -508,8 +500,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
   const canSubmit =
     parsed != null
     && !parsing
-    && !submitting
-    && isStudentInitialPasswordReady(passwordSettings);
+    && !submitting;
 
   return (
     <BottomSheet open={open} onClose={handleClose} title="엑셀 가져오기">
@@ -533,11 +524,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
           </div>
         </div>
 
-        <InitialPasswordMethodSelector
-          value={passwordSettings}
-          onChange={setPasswordSettings}
-          disabled={submitting || parsing}
-        />
+        <p className="text-xs">등록 마지막 확인창에서 학생·학부모 각각의 초기 비밀번호 방식을 선택합니다.</p>
 
         {parsing ? (
           <div className="text-[11px] leading-5" style={{ color: "var(--tc-text-muted)" }}>
