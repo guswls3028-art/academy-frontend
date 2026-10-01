@@ -230,6 +230,7 @@ test.describe("교사 모바일 테스트 오답 상태", () => {
       await expect(page.getByRole("heading", { name: "출석 체크", exact: true })).toBeVisible();
       await page.getByText("김확인", { exact: true }).click();
       await expect(page.getByText("출석 상태", { exact: true })).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`attendance-status-sheet-${width}.png`), fullPage: true });
       await page.getByRole("button", { name: "온라인", exact: true }).click();
       await expect.poll(api.attendancePayload).toMatchObject({ status: "ONLINE" });
       await expect(page.getByText("출석 상태", { exact: true })).toHaveCount(0);
