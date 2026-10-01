@@ -406,6 +406,7 @@ export default function RichTextEditor({
           <button
             type="button"
             className={btnCls(isActive("bulletList"))}
+            onMouseDown={(event) => event.preventDefault()}
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             title="글머리 기호"
           >
@@ -420,6 +421,7 @@ export default function RichTextEditor({
             <button
               type="button"
               className={btnCls(isActive("orderedList"))}
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
               title="번호 목록"
             >

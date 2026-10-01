@@ -229,6 +229,7 @@ test.describe("학생 커뮤니티 durable draft", () => {
       await page.getByTitle("글머리 기호").click();
       await expect(editor.locator("ul strong")).toHaveCount(0);
       await page.keyboard.insertText("참고 링크");
+      await expect(editor.locator("ul li")).toHaveText("참고 링크");
       await editor.press("Shift+Home");
       page.once("dialog", (dialog) => dialog.accept("https://example.com/study"));
       await page.getByTitle("링크 삽입/수정").click();
