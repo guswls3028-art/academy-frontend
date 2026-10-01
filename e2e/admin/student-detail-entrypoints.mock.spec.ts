@@ -543,17 +543,19 @@ test("삭제 학생 복원은 누락 학부모 계정에만 명시 비밀번호�
   ).toBe(true);
   await expect(dialog.getByText(/정상 학부모 계정의 비밀번호는 바뀌지 않습니다/)).toBeVisible();
   await dialog.getByRole("button", { name: "복원", exact: true }).click();
+  let confirmation = page.getByRole("alertdialog", { name: "학생 복원 최종 확인" });
+  await confirmation.getByRole("button", { name: "복원", exact: true }).click();
+  await expect(confirmation.getByRole("alert")).toContainText("방식을 선택");
+  expect(restorePayloads).toEqual([]);
+  await confirmation.getByRole("button", { name: "취소", exact: true }).click();
   await expect(dialog).toBeVisible();
-  expect(restorePayloads[0]).toEqual({ ids: [1002] });
-
-  await dialog.getByLabel("누락 학부모 계정 초기 비밀번호 (선택)").fill("teacher-selected-password");
   await dialog.getByRole("button", { name: "복원", exact: true }).click();
-
+  confirmation = page.getByRole("alertdialog", { name: "학생 복원 최종 확인" });
+  await confirmation.getByRole("group", { name: "학부모 초기 비밀번호", exact: true }).getByRole("radio", { name: "직접 입력", exact: true }).check();
+  await confirmation.getByLabel("학부모 직접 입력 비밀번호", { exact: true }).fill("teacher-selected-password");
+  await confirmation.getByRole("button", { name: "복원", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  expect(restorePayloads[1]).toEqual({
-    ids: [1002],
-    parent_initial_password: "teacher-selected-password",
-  });
+  expect(restorePayloads[0]).toEqual({ ids: [1002], parent_initial_password_mode: "fixed", parent_initial_password: "teacher-selected-password" });
 });
 
 test("학생 상세의 클리닉 이력은 해당 날짜와 세션의 출석 화면을 연다", async ({ page }) => {

@@ -55,6 +55,12 @@
   line-height: 1.4;
 }
 
+.confirm-dialog__card--content {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .confirm-dialog__review-heading {
   display: flex;
   align-items: center;

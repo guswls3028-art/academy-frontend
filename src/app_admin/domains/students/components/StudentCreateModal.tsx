@@ -28,15 +28,9 @@ import { type SchoolType, useSchoolLevelMode } from "@/shared/hooks/useSchoolLev
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { formatPhone } from "@/shared/utils/formatPhone";
-import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
-import InitialAccountPasswords from "@/shared/product/students/InitialAccountPasswords";
+import { useRegistrationPasswordConfirmation, type RegistrationPasswordChoice } from "@/shared/product/students/RegistrationPasswordConfirmation";
 import StudentCustomFieldsForm from "./StudentCustomFieldsForm";
 import { plannedStudentLoginId, presentStudentLoginReadback } from "./studentLoginReadback";
-import {
-  DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS,
-  isStudentInitialPasswordReady,
-  type StudentInitialPasswordSettings,
-} from "@/shared/product/students/initialPassword";
 import styles from "./StudentCreateModal.module.css";
 
 interface Props {
@@ -154,15 +148,13 @@ export default function StudentCreateModal({
 }: Props) {
   const slm = useSchoolLevelMode();
   const confirm = useConfirm();
+  const confirmPasswords = useRegistrationPasswordConfirmation();
   const confirmationInFlightRef = useRef(false);
   const [mode, setMode] = useState<RegisterMode>("choice");
   const [busy, setBusy] = useState(false);
-  const [excelPasswordSettings, setExcelPasswordSettings] = useState<StudentInitialPasswordSettings>(
-    () => ({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS }),
-  );
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
   const [parsedExcel, setParsedExcel] = useState<ParseStudentExcelResult | null>(null);
-  const [deletedStudentConflict, setDeletedStudentConflict] = useState<{ student: ClientStudent; formData: StudentCreateForm } | null>(null);
+  const [deletedStudentConflict, setDeletedStudentConflict] = useState<{ student: ClientStudent; formData: StudentCreateForm & RegistrationPasswordChoice } | null>(null);
   const [submitError, setSubmitError] = useState("");
 
   const [form, setForm] = useState<StudentCreateForm>(() =>
@@ -175,7 +167,6 @@ export default function StudentCreateModal({
     setBusy(false);
     confirmationInFlightRef.current = false;
     onBulkProgress?.(null);
-    setExcelPasswordSettings({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS });
     setSelectedExcelFile(null);
     setParsedExcel(null);
     setSubmitError("");
@@ -249,9 +240,13 @@ export default function StudentCreateModal({
       form.grade ? `${form.grade}학년` : "",
     ].filter(Boolean).join(" · ") || "미입력";
     confirmationInFlightRef.current = true;
-    const confirmed = await confirm({
+    const passwordChoice = await confirmPasswords({
       title: "학생 등록 최종 확인",
-      message: "계정과 연락처 정보가 맞는지 확인해 주세요. 비밀번호 값은 화면에 다시 표시하지 않습니다.",
+      message: "계정과 연락처를 확인하고 학생·학부모 비밀번호 방식을 선택해 주세요.",
+      studentPhone: String(form.studentPhone || "").trim(),
+      parentPhone: String(form.parentPhone || "").trim(),
+      studentPassword: form.initialPassword,
+      parentPassword: form.parentInitialPassword,
       review: {
         eyebrow: "학생 명부 등록 검토",
         items: [
@@ -260,8 +255,6 @@ export default function StudentCreateModal({
           { label: "학부모 연락처", value: formatPhone(String(form.parentPhone || "").trim()) },
           { label: "학생 연락처", value: String(form.studentPhone || "").trim() ? formatPhone(String(form.studentPhone).trim()) : "미입력" },
           { label: "학교·학년", value: schoolSummary },
-          { label: "학생 초기 비밀번호", value: form.initialPassword ? "개별 입력" : "학원 설정 적용" },
-          { label: "학부모 초기 비밀번호", value: form.parentInitialPassword ? "개별 입력 · 기존 계정은 유지" : "학원 설정 적용 · 기존 계정은 유지" },
         ],
         note: "지금은 학생 명부와 계정만 준비합니다. 강의 수강과 계정 안내 알림톡은 아직 발생하지 않습니다.",
       },
@@ -269,12 +262,13 @@ export default function StudentCreateModal({
       cancelText: "다시 확인",
     });
     confirmationInFlightRef.current = false;
-    if (!confirmed || busy) return;
+    if (!passwordChoice || busy) return;
 
     setBusy(true);
     try {
       const student = await createStudent({
         ...form,
+        ...passwordChoice,
         noPhone: !String(form.studentPhone || "").trim() || String(form.studentPhone || "").trim().length < 11,
       });
       const expectedLoginId = plannedStudentLoginId(form.psNumber, form.studentPhone);
@@ -295,7 +289,7 @@ export default function StudentCreateModal({
       if (err?.response?.status === 409 && err.response.data?.code === "deleted_student_exists" && err.response.data?.deleted_student) {
         setDeletedStudentConflict({
           student: mapStudent(err.response.data.deleted_student),
-          formData: { ...form },
+          formData: { ...form, ...passwordChoice },
         });
         setBusy(false);
         return;
@@ -346,6 +340,7 @@ export default function StudentCreateModal({
           student_data: { ...deletedStudentConflict.formData },
         }],
         deletedStudentConflict.formData.parentInitialPassword,
+        deletedStudentConflict.formData,
       );
       if (result.restored < 1) {
         const reason = result.failed[0]?.error;
@@ -397,6 +392,7 @@ export default function StudentCreateModal({
           student_data: { ...deletedStudentConflict.formData },
         }],
         deletedStudentConflict.formData.parentInitialPassword,
+        deletedStudentConflict.formData,
       );
       const resolvedStudentId = result.resolved.find((row) => row.state === "created")?.student_id;
       if (!resolvedStudentId) {
@@ -446,23 +442,12 @@ export default function StudentCreateModal({
 
   async function handleExcelRegister() {
     if (busy || confirmationInFlightRef.current || !selectedExcelFile || !parsedExcel) return;
-    if (!isStudentInitialPasswordReady(excelPasswordSettings)) {
-      feedback.error(
-        excelPasswordSettings.mode === "fixed"
-          ? "공통 초기 비밀번호를 4자 이상 입력해 주세요."
-          : "초기 비밀번호 방식을 확인해 주세요.",
-      );
-      return;
-    }
     const eligibleCount = parsedExcel.rows.length;
-    const passwordModeLabel = excelPasswordSettings.mode === "fixed"
-      ? "직접 입력한 공통 비밀번호"
-      : excelPasswordSettings.mode === "tenant"
-        ? "학원 초기 비밀번호 설정 적용"
-        : "학생별 안전한 임시 비밀번호";
     confirmationInFlightRef.current = true;
-    const confirmed = await confirm({
+    const passwordChoice = await confirmPasswords({
       title: "학생 일괄 등록 최종 확인",
+      studentPhoneAvailable: parsedExcel.rows.every((row) => !row.usesIdentifier && /^010\d{8}$/.test(row.studentPhone)),
+      parentPhoneAvailable: parsedExcel.rows.every((row) => /^010\d{8}$/.test(row.parentPhone)),
       message: "파일과 등록 인원을 확인해 주세요. 확인 후 작업박스에서 처리 결과를 볼 수 있습니다.",
       review: {
         eyebrow: "학생 명부 일괄 등록 검토",
@@ -470,7 +455,6 @@ export default function StudentCreateModal({
           { label: "파일", value: selectedExcelFile.name },
           { label: "전체 행", value: `${parsedExcel.rows.length}명` },
           { label: "등록 요청", value: `${eligibleCount}명`, tone: "accent" },
-          { label: "초기 비밀번호", value: passwordModeLabel },
         ],
         note: "학생 명부 등록 요청이며 강의 수강은 만들지 않습니다. 계정 안내 알림톡은 첫 수강 확정 때 별도로 발송됩니다.",
       },
@@ -478,13 +462,13 @@ export default function StudentCreateModal({
       cancelText: "다시 확인",
     });
     confirmationInFlightRef.current = false;
-    if (!confirmed || busy) return;
+    if (!passwordChoice || busy) return;
 
     setBusy(true);
     try {
       const { job_id } = await uploadStudentBulkFromExcel(
         selectedExcelFile,
-        excelPasswordSettings,
+        passwordChoice,
       );
       if (!job_id) {
         feedback.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
@@ -495,7 +479,7 @@ export default function StudentCreateModal({
         job_id,
         "excel_parsing",
         undefined,
-        { expectsCredentialDownload: excelPasswordSettings.mode === "random" },
+        { expectsCredentialDownload: passwordChoice.initialPasswordMode === "random" },
       );
       feedback.success(
         "등록 요청을 받았습니다. 작업박스에서 신규·기존·확인 필요 인원을 확인해 주세요.",
@@ -531,7 +515,6 @@ export default function StudentCreateModal({
         : mode === "excel" && selectedExcelFile
           ? handleExcelRegister
           : undefined;
-  const excelPasswordReady = isStudentInitialPasswordReady(excelPasswordSettings);
   const excelRowCount = parsedExcel?.rows.length ?? 0;
   const invalidExcelStudentPhoneNames = parsedExcel?.rows
     .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
@@ -679,10 +662,7 @@ export default function StudentCreateModal({
               className="ds-input"
               disabled={busy}
             />
-            <InitialAccountPasswords studentPassword={form.initialPassword} parentPassword={form.parentInitialPassword}
-              onStudentChange={(value) => setForm((previous) => ({ ...previous, initialPassword: value }))}
-              onParentChange={(value) => setForm((previous) => ({ ...previous, parentInitialPassword: value }))}
-              disabled={busy} />
+            <p className="modal-hint">초기 비밀번호는 등록 마지막 확인창에서 학생·학부모 각각 선택합니다.</p>
             <div className="modal-phone-row">
               <span className="modal-phone-label">학부모 전화번호 (필수)</span>
               <span className="modal-phone-desc">알림톡·연락 수신용입니다.</span>
@@ -912,11 +892,7 @@ export default function StudentCreateModal({
               </div>
               <span className={styles.excelSectionDescription}>기존 계정의 비밀번호는 바뀌지 않음</span>
             </div>
-            <InitialPasswordMethodSelector
-              value={excelPasswordSettings}
-              onChange={setExcelPasswordSettings}
-              disabled={busy}
-            />
+            <p className="modal-hint">등록 마지막 확인창에서 학생·학부모 각각의 초기 비밀번호 방식을 선택합니다.</p>
           </section>
 
           <aside className={styles.identityGuide} aria-label="기존 학생 확인 규칙">
@@ -960,7 +936,7 @@ export default function StudentCreateModal({
               <Button
                 intent="primary"
                 onClick={handleExcelRegister}
-                disabled={busy || !excelPasswordReady || excelEligibleRowCount === 0}
+                disabled={busy || excelEligibleRowCount === 0}
               >
                 {busy ? "요청 중…" : `${excelEligibleRowCount}명 등록 요청`}
               </Button>

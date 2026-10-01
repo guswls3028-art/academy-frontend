@@ -35,6 +35,9 @@ export type ConfirmOptions = {
   rememberLabel?: string;
   /** 저장 직전 핵심 값을 표처럼 다시 읽게 하는 고위험 작업용 검토표. */
   review?: ConfirmReview;
+  /** 입력이 필요한 최종 확인. 검증 실패 시 확인창을 유지한다. */
+  content?: React.ReactNode;
+  validate?: () => boolean;
 };
 
 type Props = ConfirmOptions & {
@@ -51,6 +54,8 @@ export default function ConfirmDialog({
   rememberKey,
   rememberLabel = "다음부터 묻지 않기",
   review,
+  content,
+  validate,
   onConfirm,
   onCancel,
 }: Props) {
@@ -63,15 +68,17 @@ export default function ConfirmDialog({
   const messageId = useId();
   const reviewId = useId();
   const hasReview = Boolean(review?.items.length);
+  const requiresReview = hasReview || Boolean(content);
 
   const safeConfirm = useCallback(() => {
     if (settledRef.current) return;
+    if (validate && !validate()) return;
     settledRef.current = true;
     if (rememberKey && remember) {
       setLocalItem(rememberKey, "1");
     }
     onConfirm();
-  }, [onConfirm, remember, rememberKey]);
+  }, [onConfirm, remember, rememberKey, validate]);
 
   const safeCancel = useCallback(() => {
     if (settledRef.current) return;
@@ -114,7 +121,7 @@ export default function ConfirmDialog({
       } else if (e.key === "Enter") {
         // 검토표가 있는 안전 확인은 기본 포커스(취소)를 그대로 활성화한다.
         // 연속 Enter 입력이 곧바로 생성 요청까지 통과하지 않게 한다.
-        if (hasReview) return;
+        if (requiresReview) return;
         // input/textarea/select/contenteditable에서는 Enter 무시
         const tag = (e.target as HTMLElement)?.tagName;
         if (
@@ -150,7 +157,7 @@ export default function ConfirmDialog({
       }
     };
     const focusInitialAction = () => {
-      const target = hasReview ? cancelBtnRef.current : confirmBtnRef.current;
+      const target = requiresReview ? cancelBtnRef.current : confirmBtnRef.current;
       target?.focus({ preventScroll: true });
     };
     document.addEventListener("keydown", handler, true);
@@ -180,7 +187,7 @@ export default function ConfirmDialog({
       }
       previouslyFocused?.focus();
     };
-  }, [hasReview, safeCancel, safeConfirm]);
+  }, [requiresReview, safeCancel, safeConfirm]);
 
   const hasOffset = offset.x !== 0 || offset.y !== 0;
   return createPortal(
@@ -205,7 +212,7 @@ export default function ConfirmDialog({
       >
         <div
           ref={cardRef}
-          className={`confirm-dialog__card${hasReview ? " confirm-dialog__card--review" : ""}`}
+          className={`confirm-dialog__card${hasReview ? " confirm-dialog__card--review" : ""}${content ? " confirm-dialog__card--content" : ""}`}
           role="alertdialog"
           aria-modal="true"
           aria-labelledby={titleId}
@@ -243,6 +250,7 @@ export default function ConfirmDialog({
               {review.note && <p className="confirm-dialog__review-note">{review.note}</p>}
             </div>
           )}
+          {content}
           {rememberKey && (
             <label className="confirm-dialog__remember">
               <input

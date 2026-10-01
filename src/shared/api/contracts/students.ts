@@ -2,6 +2,7 @@
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import type { components, paths } from "@/shared/api/generated/schema";
 import type { StudentInitialPasswordSettings } from "@/shared/product/students/initialPassword";
+import type { RegistrationPasswordChoice } from "@/shared/product/students/RegistrationPasswordConfirmation";
 
 /* ===============================
  * Types
@@ -138,10 +139,12 @@ export type StudentFormInput = {
   psNumber?: string;
   gender?: string | null;
   initialPassword?: string;
+  initialPasswordMode?: AccountPasswordMode;
   studentPhone?: string;
   omrCode?: string;
   parentPhone?: string;
   parentInitialPassword?: string;
+  parentInitialPasswordMode?: AccountPasswordMode;
   schoolType?: StudentSchoolType | string | null;
   school?: string | null;
   grade?: string | number | null;
@@ -560,6 +563,8 @@ export async function createStudent(form: StudentFormInput) {
     name,
     ...(initialPassword ? { initial_password: initialPassword } : {}),
     ...(form?.parentInitialPassword ? { parent_initial_password: form.parentInitialPassword } : {}),
+    ...(form?.initialPasswordMode ? { initial_password_mode: form.initialPasswordMode } : {}),
+    ...(form?.parentInitialPasswordMode ? { parent_initial_password_mode: form.parentInitialPasswordMode } : {}),
     parent_phone: parentPhone,
     school_type: schoolType,
     high_school: schoolType === "HIGH" ? (form?.school?.trim() || null) : null,
@@ -634,15 +639,19 @@ export async function bulkCreateStudents(
 /** 학생 엑셀 일괄 등록 — 워커 전담. 파일 업로드 → excel_parsing job → 폴링으로 완료 대기 */
 export async function uploadStudentBulkFromExcel(
   file: File,
-  passwordSettings: StudentInitialPasswordSettings,
+  passwordSettings: StudentInitialPasswordSettings | RegistrationPasswordChoice,
 ): Promise<{ job_id: string; status: string }> {
   const form = new FormData();
   form.append("file", file);
-  form.append("password_mode", passwordSettings.mode);
-  form.append(
-    "initial_password",
-    passwordSettings.mode === "fixed" ? passwordSettings.fixedPassword.trim() : "",
-  );
+  if (!("mode" in passwordSettings)) {
+    form.append("password_mode", passwordSettings.initialPasswordMode ?? "");
+    form.append("initial_password", passwordSettings.initialPassword);
+    form.append("parent_initial_password_mode", passwordSettings.parentInitialPasswordMode ?? "");
+    form.append("parent_initial_password", passwordSettings.parentInitialPassword);
+  } else {
+    form.append("password_mode", passwordSettings.mode);
+    form.append("initial_password", passwordSettings.mode === "fixed" ? passwordSettings.fixedPassword : "");
+  }
   const res = await api.post("/students/bulk_create_from_excel/", form);
   return res.data as { job_id: string; status: string };
 }
@@ -672,7 +681,7 @@ export async function updateStudent(id: number, form: StudentFormInput) {
     payload.parent_phone = normalizePhone(String(form.parentPhone));
   }
   if (form?.parentInitialPassword !== undefined) {
-    payload.parent_initial_password = String(form.parentInitialPassword).trim();
+    payload.parent_initial_password = String(form.parentInitialPassword);
   }
   if (form?.studentPhone !== undefined || form?.noPhone === true) {
     const p = form?.noPhone === true
@@ -735,12 +744,14 @@ export async function bulkDeleteStudents(studentIds: number[]) {
 export async function bulkRestoreStudents(
   studentIds: number[],
   parentInitialPassword?: string,
+  parentInitialPasswordMode?: AccountPasswordMode,
 ) {
   const res = await api.post("/students/bulk_restore/", {
     ids: studentIds,
-    ...(parentInitialPassword?.trim()
-      ? { parent_initial_password: parentInitialPassword.trim() }
+    ...(parentInitialPassword
+      ? { parent_initial_password: parentInitialPassword }
       : {}),
+    ...(parentInitialPasswordMode ? { parent_initial_password_mode: parentInitialPasswordMode } : {}),
   });
   return res.data as BulkRestoreStudentsResult;
 }
@@ -773,10 +784,12 @@ export async function bulkResolveConflicts(
     student_data: Record<string, unknown>;
   }>,
   parentPassword?: string,
+  choice?: Pick<RegistrationPasswordChoice, "initialPasswordMode" | "parentInitialPasswordMode">,
 ) {
   const res = await api.post("/students/bulk_resolve_conflicts/", {
     initial_password: password,
     ...(parentPassword !== undefined ? { parent_initial_password: parentPassword } : {}),
+    ...(choice ? { initial_password_mode: choice.initialPasswordMode, parent_initial_password_mode: choice.parentInitialPasswordMode } : {}),
     resolutions: resolutions.map((r) => ({
       row: r.row,
       student_id: r.student_id,
@@ -797,6 +810,7 @@ export async function bulkResolveConflicts(
  * =============================== */
 
 export interface ClientRegistrationRequest {
+  parentPasswordSelected: boolean;
   id: number;
   status: "pending" | "approved" | "rejected";
   name: string;
@@ -872,6 +886,7 @@ function mapRegistrationRequest(raw: unknown): ClientRegistrationRequest {
     name: safeStr(item.name),
     parentPhone: safeStr(item.parent_phone),
     phone: nullableStr(item.phone),
+    parentPasswordSelected: item.parent_password_selected === true,
     schoolType: nullableStr(item.school_type) ?? "HIGH",
     elementarySchool: nullableStr(item.elementary_school),
     highSchool: nullableStr(item.high_school),
@@ -913,17 +928,18 @@ export async function fetchRegistrationRequests(params?: {
 }
 
 /** 스태프: 가입 신청 승인 */
-export async function approveRegistrationRequest(id: number): Promise<ClientStudent> {
-  const res = await api.post(`/students/registration_requests/${id}/approve/`);
+export async function approveRegistrationRequest(id: number, choice?: RegistrationPasswordChoice): Promise<ClientStudent> {
+  const res = await api.post(`/students/registration_requests/${id}/approve/`, choice ? { parent_initial_password_mode: choice.parentInitialPasswordMode, parent_initial_password: choice.parentInitialPassword } : {});
   return mapStudent(res.data);
 }
 
 /** 스태프: 선택한 삭제 이력 계정을 복구한 뒤 가입 신청 승인 */
 export async function resolveDeletedRegistrationRequest(
   requestId: number,
-  studentId: number
+  studentId: number,
+  choice?: RegistrationPasswordChoice,
 ): Promise<ClientStudent> {
-  const request: DeletedRegistrationResolveRequest = { student_id: studentId };
+  const request: DeletedRegistrationResolveRequest = { student_id: studentId, ...(choice ? { parent_initial_password: choice.parentInitialPassword, parent_initial_password_mode: choice.parentInitialPasswordMode } : {}) };
   const res = await api.post(
     `/students/registration_requests/${requestId}/resolve_deleted/`,
     request
@@ -933,9 +949,10 @@ export async function resolveDeletedRegistrationRequest(
 
 /** 스태프: 가입 신청 일괄 승인 */
 export async function bulkApproveRegistrationRequests(
-  requestIds: number[]
+  requestIds: number[],
+  choice?: RegistrationPasswordChoice,
 ): Promise<{ approved: number; failed: Array<{ id: number; detail: string }> }> {
-  const res = await api.post("/students/registration_requests/bulk_approve/", { ids: requestIds });
+  const res = await api.post("/students/registration_requests/bulk_approve/", { ids: requestIds, ...(choice ? { parent_initial_password_mode: choice.parentInitialPasswordMode, parent_initial_password: choice.parentInitialPassword } : {}) });
   return res.data as { approved: number; failed: Array<{ id: number; detail: string }> };
 }
 
@@ -992,6 +1009,8 @@ export async function submitRegistrationRequest(form: {
   username?: string;
   initialPassword: string;
   passwordConfirmation: string;
+  parentInitialPasswordMode?: AccountPasswordMode;
+  parentInitialPassword?: string;
   parentPhone: string;
   phone?: string;
   schoolType?: "HIGH" | "MIDDLE" | "ELEMENTARY";
@@ -1011,6 +1030,7 @@ export async function submitRegistrationRequest(form: {
     username: String(form.username ?? "").trim() || "",
     initial_password: String(form.initialPassword ?? ""),
     password_confirmation: String(form.passwordConfirmation ?? ""),
+    ...(form.parentInitialPasswordMode ? { parent_initial_password_mode: form.parentInitialPasswordMode, parent_initial_password: form.parentInitialPassword ?? "" } : {}),
     parent_phone: normalizePhone(String(form.parentPhone)),
     phone: null,
     school_type: form.schoolType ?? "HIGH",
@@ -1140,14 +1160,14 @@ export async function createMemo(studentId: number, content: string) {
 
 export type AccountPasswordMode = "phone_last4" | "fixed" | "random";
 export interface AccountPasswordPolicy {
-  student_mode: AccountPasswordMode;
-  parent_mode: AccountPasswordMode;
+  student_mode: AccountPasswordMode | null;
+  parent_mode: AccountPasswordMode | null;
   student_fixed_password: string;
   parent_fixed_password: string;
 }
 export async function fetchAccountPasswordSettings(): Promise<AccountPasswordPolicy> {
   return (await api.get("/students/account-password-settings/")).data;
 }
-export async function saveAccountPasswordSettings(policy: AccountPasswordPolicy): Promise<AccountPasswordPolicy> {
+export async function saveAccountPasswordSettings(policy: Partial<AccountPasswordPolicy>): Promise<AccountPasswordPolicy> {
   return (await api.patch("/students/account-password-settings/", policy)).data;
 }
