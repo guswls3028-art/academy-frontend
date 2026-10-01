@@ -50,11 +50,12 @@ const pageImage = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1120"><rect width="800" height="1120" fill="white"/><text x="60" y="120" font-size="42">1. mobile crop fixture</text><rect x="55" y="160" width="690" height="260" fill="none" stroke="black" stroke-width="3"/></svg>',
 )}`;
 
-async function installMocks(page: Page, options: { failFirstPages?: boolean; failFirstRead?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean } = {}) {
+async function installMocks(page: Page, options: { failFirstPages?: boolean; failPageReads?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean } = {}) {
   const apiRequests: Array<{ method: string; path: string }> = [];
   let pageReads = 0;
   let pagePreparations = 0;
   let pageReadsAllowed = !options.failFirstPages;
+  let pageReadFailures = options.failPageReads === true;
   let releaseRead = () => {};
   const firstRead = new Promise<void>((resolve) => { releaseRead = resolve; });
   const prepared = new Set<number>();
@@ -131,7 +132,7 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
     if (path === `/matchup/documents/${DOC_ID}/pages/` && request.method() === "GET") {
       pageReads += 1;
       if (options.delayFirstRead && pageReads === 1) await firstRead;
-      if (options.failFirstRead && pageReads === 1) {
+      if (pageReadFailures) {
         return json(route, { detail: "temporary read error" }, 503);
       }
       const selected = Number(new URL(request.url()).searchParams.get("page_index") || 0);
@@ -173,7 +174,7 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
     apiRequests,
     getPageReads: () => pageReads,
     getPagePreparations: () => pagePreparations,
-    allowPageReads: () => { pageReadsAllowed = true; },
+    allowPageReads: () => { pageReadsAllowed = true; pageReadFailures = false; },
     releaseRead,
     requestedPages,
   };
@@ -319,6 +320,7 @@ test("390px: page, touch crop, number, save stack in order and preserve unsaved 
     && !/^\/matchup\/problems\/\d+\/similar\/$/.test(path)
   ));
   expect(productMutations).toEqual([
+    { method: "POST", path: `/matchup/documents/${DOC_ID}/pages/` },
     { method: "POST", path: `/matchup/documents/${DOC_ID}/manual-crop/` },
   ]);
   await expectNoDocumentOverflow(page);
@@ -345,12 +347,14 @@ test("390px: preparation failure retries without saving a problem", async ({ pag
 
 test("390px: read failure after preparation can retry and display the saved cache", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const { getPageReads, getPagePreparations, requestedPages } = await installMocks(page, { failFirstRead: true });
+  const { getPageReads, getPagePreparations, allowPageReads, requestedPages } = await installMocks(page, { failPageReads: true });
   await openCropModal(page);
   await expect(page.getByText("페이지 로드 실패")).toBeVisible();
+  expect(getPageReads()).toBe(3);
+  allowPageReads();
   await page.getByRole("button", { name: "페이지 다시 불러오기" }).click();
   await expect(page.getByTestId("matchup-crop-canvas")).toBeVisible();
-  expect(getPageReads()).toBe(2);
+  expect(getPageReads()).toBe(4);
   expect(getPagePreparations()).toBe(2);
   expect(requestedPages).toEqual([0, 0]);
   await expectNoDocumentOverflow(page);
