@@ -26,6 +26,7 @@ async function installTeacherApi(
     failScoreSheetInitially?: boolean;
     subjectivePending?: boolean;
     requireSameAccountHandoff?: boolean;
+    firstStudentAbsent?: boolean;
   } = {},
 ) {
   let pendingStatus: "PENDING" | "COMPLETED" = "PENDING";
@@ -36,6 +37,8 @@ async function installTeacherApi(
   let failResults = options.failResultsInitially ?? false;
   let failScoreSheet = options.failScoreSheetInitially ?? false;
   let scoreDraftPayload: Record<string, unknown> | null = null;
+  let attendanceStatus = options.firstStudentAbsent ? "ABSENT" : "ONLINE";
+  let attendancePayload: Record<string, unknown> | null = null;
 
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -73,6 +76,17 @@ async function installTeacherApi(
       return route.fulfill({ json: {
         count: 1,
         results: [{ id: 71, title: "중3 수학", color: "#2563eb", chip_label: "수", is_active: true }],
+      } });
+    }
+    if (path.endsWith("/lectures/attendance/501/") && request.method() === "PATCH") {
+      attendancePayload = request.postDataJSON() as Record<string, unknown>;
+      attendanceStatus = String(attendancePayload.status);
+      return route.fulfill({ json: { id: 501, status: attendanceStatus } });
+    }
+    if (path.endsWith("/lectures/attendance/")) {
+      return route.fulfill({ json: {
+        count: 1,
+        results: [{ id: 501, enrollment_id: 101, student_name: "김확인", status: attendanceStatus }],
       } });
     }
     if (path.endsWith("/exams/")) {
@@ -119,6 +133,9 @@ async function installTeacherApi(
     }
     if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-correction/`) && request.method() === "PATCH") {
       correctionPayload = request.postDataJSON() as Record<string, unknown>;
+      if (attendanceStatus === "ABSENT") {
+        return route.fulfill({ status: 400, json: { detail: "결석 학생의 오답 상태는 출결 복구 후 변경할 수 있습니다." } });
+      }
       pendingStatus = correctionPayload.completed ? "COMPLETED" : "PENDING";
       return route.fulfill({ json: {
         correction_status: pendingStatus,
@@ -163,7 +180,7 @@ async function installTeacherApi(
           homeworks: [],
         },
         rows: [
-          { enrollment_id: 101, student_name: "김확인", exams: [{ exam_id: EXAM_ID, title: "주간 테스트", pass_score: 60, block: { score: currentScore, max_score: 100, passed: options.subjectivePending ? null : true, grading_status: options.subjectivePending ? "subjective_pending" : null, objective_score: options.subjectivePending ? currentScore : null, subjective_score: null, clinic_required: false, correction_status: pendingStatus } }], homeworks: [], updated_at: "2026-08-18T00:00:00Z" },
+          { enrollment_id: 101, student_name: "김확인", attendance_status: attendanceStatus, assessment_todo_eligible: attendanceStatus !== "ABSENT", exams: [{ exam_id: EXAM_ID, title: "주간 테스트", pass_score: 60, block: { score: currentScore, max_score: 100, passed: options.subjectivePending ? null : true, grading_status: options.subjectivePending ? "subjective_pending" : null, objective_score: options.subjectivePending ? currentScore : null, subjective_score: null, clinic_required: false, correction_status: pendingStatus } }], homeworks: [], updated_at: "2026-08-18T00:00:00Z" },
           { enrollment_id: 102, student_name: "박완료", exams: [{ exam_id: EXAM_ID, title: "주간 테스트", pass_score: 60, block: { score: 80, max_score: 100, passed: true, clinic_required: false, correction_status: "COMPLETED" } }], homeworks: [], updated_at: "2026-08-18T00:00:00Z" },
           { enrollment_id: 103, student_name: "이대기", exams: [{ exam_id: EXAM_ID, title: "주간 테스트", pass_score: 60, block: { score: null, max_score: null, passed: null, clinic_required: false, correction_status: null } }], homeworks: [], updated_at: "2026-08-18T00:00:00Z" },
         ],
@@ -181,12 +198,55 @@ async function installTeacherApi(
       failScoreSheet = false;
     },
     scoreDraftPayload: () => scoreDraftPayload,
+    attendancePayload: () => attendancePayload,
   };
 }
 
 test.describe("교사 모바일 테스트 오답 상태", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock interaction spec.");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
+
+  for (const width of [1366, 390]) {
+    test(`결석 이력 점수는 수정하고 출결 복구 후 오답 상태를 저장한다 (${width}px)`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 844 });
+      const api = await installTeacherApi(page, { firstStudentAbsent: true });
+      await page.goto(`${BASE}/workspace/mobile/scores/${SESSION_ID}?exam=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
+      const control = page.getByRole("button", { name: "김확인 오답 미완료; 눌러서 오답 완료로 변경" });
+      await expect(control).toBeDisabled();
+      await expect(page.getByText("결석으로 오답 상태 변경 제외 · 기존 점수 수정 가능", { exact: false })).toBeVisible();
+      expect(api.correctionPayload()).toBeNull();
+      const input = page.getByRole("textbox", { name: "김확인 합산 점수 입력" });
+      await input.fill("71");
+      await input.blur();
+      await expect.poll(api.scorePayload).toMatchObject({ score: 71, max_score: 100 });
+      await expect(page.getByText("김확인 점수가 저장되었습니다.", { exact: true })).toBeVisible();
+      await expect(input).toHaveValue("71");
+      await expect(control).toBeDisabled();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(input).toHaveValue("71");
+      await expect(control).toBeDisabled();
+      await page.getByRole("link", { name: "출결 확인", exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/workspace/mobile/attendance/${SESSION_ID}$`));
+      await expect(page.getByRole("heading", { name: "출석 체크", exact: true })).toBeVisible();
+      await page.getByText("김확인", { exact: true }).click();
+      await expect(page.getByText("출석 상태", { exact: true })).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`attendance-status-sheet-${width}.png`), fullPage: true });
+      await page.getByRole("button", { name: "온라인", exact: true }).click();
+      await expect.poll(api.attendancePayload).toMatchObject({ status: "ONLINE" });
+      await expect(page.getByText("출석 상태", { exact: true })).toHaveCount(0);
+      await page.goBack();
+      await expect(control).toBeEnabled();
+      await control.click();
+      await expect.poll(api.correctionPayload).toMatchObject({ enrollment_id: 101, completed: true });
+      await expect(page.getByRole("button", { name: "김확인 오답 완료; 눌러서 오답 미완료로 변경" })).toBeEnabled();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(input).toHaveValue("71");
+      await expect(page.getByRole("button", { name: "김확인 오답 완료; 눌러서 오답 미완료로 변경" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "출결 확인", exact: true })).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`absent-correction-recovery-${width}.png`), fullPage: true });
+    });
+  }
 
   test("점수 입력에서 검색·필터·진행률을 보고 학생별 완료 상태를 수정한다", async ({ page }) => {
     const api = await installTeacherApi(page);

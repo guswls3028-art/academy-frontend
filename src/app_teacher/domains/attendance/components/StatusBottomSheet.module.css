@@ -1,7 +1,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: var(--tc-z-bottom-sheet);
+  z-index: calc(var(--tc-z-overlay) + 2);
   background: rgb(0 0 0 / 35%);
 }
 
@@ -10,7 +10,7 @@
   right: 0;
   bottom: 0;
   left: 0;
-  z-index: calc(var(--tc-z-bottom-sheet) + 1);
+  z-index: calc(var(--tc-z-overlay) + 3);
   padding-bottom: calc(var(--tc-safe-bottom) + var(--tc-space-4));
   border-radius: var(--tc-radius-xl) var(--tc-radius-xl) 0 0;
   background: var(--tc-surface);

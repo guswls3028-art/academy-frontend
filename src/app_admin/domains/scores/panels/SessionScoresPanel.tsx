@@ -196,13 +196,23 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const attendanceMap = useMemo(() => {
     const list = attendanceList?.data ?? [];
     const map: Record<number, string> = {};
+    for (const row of allRows) {
+      if (row.attendance_status) map[row.enrollment_id] = row.attendance_status;
+    }
     for (const a of list) {
       const item = a as { enrollment_id?: number; enrollment?: number; status?: string };
       const eid = item?.enrollment_id ?? item?.enrollment;
       if (eid != null && item?.status) map[Number(eid)] = String(item.status);
     }
     return map;
-  }, [attendanceList]);
+  }, [allRows, attendanceList]);
+
+  useEffect(() => {
+    if (!onSelectionChange || selectedEnrollmentIds.length === 0) return;
+    const eligibleIds = new Set(allRows.filter((row) => row.assessment_todo_eligible !== false).map((row) => row.enrollment_id));
+    const next = selectedEnrollmentIds.filter((id) => eligibleIds.has(id));
+    if (next.length !== selectedEnrollmentIds.length) onSelectionChange(next);
+  }, [allRows, onSelectionChange, selectedEnrollmentIds]);
 
   /** enrollment_id → attendance record id (for PATCH API) */
   const attendanceIdMap = useMemo(() => {
@@ -243,8 +253,10 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     const searchedRows = allRows.filter((row) => (
       matchesSessionScoreStudentSearch(row.student_name ?? "", search)
     ));
-    if (summaryColumnMode !== "exam_wrong" || examReviewFilter === "all") return searchedRows;
-    return searchedRows.filter((row) => matchesSessionRowExamReviewFilter(row, examReviewFilter));
+    if (summaryColumnMode !== "exam_wrong") return searchedRows;
+    return searchedRows
+      .filter((row) => row.assessment_todo_eligible !== false)
+      .filter((row) => matchesSessionRowExamReviewFilter(row, examReviewFilter));
   }, [allRows, examReviewFilter, search, summaryColumnMode]);
 
   // 드로어에 항상 최신 rows 데이터를 전달 (쿼리 갱신 시 자동 반영)
