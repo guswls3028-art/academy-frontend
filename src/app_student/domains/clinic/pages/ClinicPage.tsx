@@ -741,8 +741,7 @@ export default function ClinicPage() {
                               ))
                             );
                             const policyBlockedByExisting = !selected && activeBookedSessions.some((activeSession) => (
-                              activeSession.id !== session.id &&
-                              activeSession.id !== changingBooking?.session &&
+                              activeSession.id !== session.id && activeSession.id !== changingBooking?.session &&
                               activeSession.date === session.date &&
                               (
                                 activeSession.allow_multi_slot_booking !== true ||
