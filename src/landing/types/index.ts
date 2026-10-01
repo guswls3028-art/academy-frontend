@@ -1,4 +1,5 @@
 // PATH: src/app_admin/domains/landing/types/index.ts
+import type { MatchupExamCycle } from "@/shared/constants/matchupExamCycle";
 
 export type SectionType = "hero" | "hero_carousel" | "features" | "testimonials" | "about" | "programs" | "faq" | "contact" | "notice" | "hit_reports" | "instructor_profile" | "management_system" | "process_timeline";
 
@@ -91,7 +92,7 @@ export interface HitReportPublicCard {
   submitted_at: string | null;
   created_at: string | null;
   /** Phase #15 (2026-05-12) — 학교별 grouping 메타 */
-  exam_cycle?: "" | "midterm" | "final" | "mock" | "other";
+  exam_cycle?: MatchupExamCycle;
   exam_year?: number;
   subject?: string;
   grade_level?: string;

@@ -231,6 +231,8 @@ export async function createQaFamily(
         phone: studentPhone,
         parent_phone: parentPhone,
         initial_password: QA_STUDENT_PASSWORD,
+        initial_password_mode: "fixed",
+        parent_initial_password_mode: "phone_last4",
         school_type: "HIGH",
         grade: index,
         gender: index % 2 ? "F" : "M",

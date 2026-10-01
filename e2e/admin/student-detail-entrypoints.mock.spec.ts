@@ -138,7 +138,7 @@ async function installApi(
       if (request.method() === "POST") {
         const payload = request.postDataJSON() as { target: "student" | "parent" };
         onAccountGuidance?.(payload.target);
-        return json({ message: "아이디 안내 알림톡을 발송했습니다. 비밀번호는 변경되지 않았습니다." });
+        return json({ message: "로그인 정보 알림톡을 발송했습니다. 안내된 아이디와 비밀번호로 로그인할 수 있습니다." });
       }
       return json({ results: [] });
     }
@@ -241,16 +241,16 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
     name: "테스트학생",
   })).toBeVisible();
   await expect(overlay.getByRole("button", { name: "학생 화면 보기" })).toBeVisible();
-  await expect(overlay.getByRole("button", { name: "아이디 안내 알림톡" })).toBeVisible();
+  await expect(overlay.getByRole("button", { name: "로그인 정보 안내 알림톡" })).toBeVisible();
   await expect(overlay.getByRole("button", { name: "비밀번호 초기화" })).toBeVisible();
 
-  await overlay.getByRole("button", { name: "아이디 안내 알림톡" }).click();
-  await expect(page.getByRole("heading", { name: "아이디 안내 알림톡" })).toBeVisible();
-  await expect(page.getByText("등록된 번호로 로그인 아이디를 안내합니다. 현재 비밀번호와 로그인 상태는 변경되지 않습니다.", { exact: true })).toBeVisible();
+  await overlay.getByRole("button", { name: "로그인 정보 안내 알림톡" }).click();
+  await expect(page.getByRole("heading", { name: "로그인 정보 안내 알림톡" })).toBeVisible();
+  await expect(page.getByText("등록된 번호로 실제 로그인 가능한 아이디와 비밀번호를 안내합니다. 기존 비밀번호는 유지하며, 과거 비밀번호를 확인할 수 없는 계정에는 안내용 로그인 비밀번호를 발급합니다.", { exact: true })).toBeVisible();
   await expect(page.getByRole("radio", { name: "둘 다" })).toBeChecked();
-  await page.getByRole("button", { name: "아이디 안내 보내기" }).click();
+  await page.getByRole("button", { name: "로그인 정보 안내 보내기" }).click();
   await expect.poll(() => guidanceTargets).toEqual(["student", "parent"]);
-  await expect(page.getByRole("heading", { name: "아이디 안내 알림톡" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "로그인 정보 안내 알림톡" })).toHaveCount(0);
   await expect(overlay.getByText("로그인 가능", { exact: true })).toBeVisible();
   await expect(overlay.getByRole("button", {
     name: "현재 관리 중, 관리 대상에서 제외",
@@ -262,8 +262,8 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(overlay.getByRole("button", { name: "정보 수정" })).toBeVisible();
   await expect(overlay.getByRole("tab", { name: "클리닉" })).toBeVisible();
-  await overlay.getByRole("button", { name: "아이디 안내 알림톡" }).click();
-  const guidanceDialog = page.getByRole("dialog").filter({ hasText: "아이디 안내 알림톡" }).last();
+  await overlay.getByRole("button", { name: "로그인 정보 안내 알림톡" }).click();
+  const guidanceDialog = page.getByRole("dialog").filter({ hasText: "로그인 정보 안내 알림톡" }).last();
   await expect(guidanceDialog).toBeVisible();
   await expect.poll(() => guidanceDialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   if (process.env.CAPTURE_STUDENT_DETAIL === "1") {
@@ -417,7 +417,7 @@ test("강의 수강생은 이름순과 동명이인 ID순으로 보인다", asyn
   await expect.poll(visibleNames).toEqual(["가람1 선택", "가람2 선택", "나래 선택"]);
 });
 
-test("교사용 모바일 학생 상세는 아이디 안내와 비밀번호 초기화를 분리한다", async ({ page }) => {
+test("교사용 모바일 학생 상세는 로그인 정보 안내와 비밀번호 초기화를 분리한다", async ({ page }) => {
   await installTenantOneInitScript(page);
   await page.addInitScript((jwt) => {
     localStorage.setItem("access", jwt);
@@ -437,14 +437,14 @@ test("교사용 모바일 학생 상세는 아이디 안내와 비밀번호 초�
   });
 
   await expect(page.getByRole("heading", { name: "학생 상세" })).toBeVisible();
-  await expect(page.getByText("아이디 안내는 현재 비밀번호와 로그인 상태를 변경하지 않습니다.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "아이디 안내", exact: true })).toBeVisible();
+  await expect(page.getByText("로그인 정보 안내는 현재 비밀번호와 로그인 상태를 변경하지 않습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "로그인 정보 안내", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "비밀번호 초기화", exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "아이디 안내", exact: true }).click();
-  const guidanceSheet = page.getByRole("dialog").filter({ hasText: "아이디 안내 알림톡" }).last();
+  await page.getByRole("button", { name: "로그인 정보 안내", exact: true }).click();
+  const guidanceSheet = page.getByRole("dialog").filter({ hasText: "로그인 정보 안내 알림톡" }).last();
   await expect(guidanceSheet).toBeVisible();
-  await expect(guidanceSheet.getByText("비밀번호는 바뀌지 않습니다.", { exact: false })).toBeVisible();
+  await expect(guidanceSheet.getByText("등록된 번호로 실제 로그인 가능한 아이디와 비밀번호를 안내합니다.", { exact: false })).toBeVisible();
   await guidanceSheet.getByRole("button", { name: "둘 다", exact: true }).click();
   await expect.poll(() => guidanceSheet.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   if (process.env.CAPTURE_STUDENT_DETAIL === "1") {
@@ -453,7 +453,7 @@ test("교사용 모바일 학생 상세는 아이디 안내와 비밀번호 초�
       fullPage: true,
     });
   }
-  await guidanceSheet.getByRole("button", { name: "학생·학부모 아이디 안내 보내기" }).click();
+  await guidanceSheet.getByRole("button", { name: "학생·학부모 로그인 정보 안내 보내기" }).click();
   await expect.poll(() => guidanceTargets).toEqual(["student", "parent"]);
   await expect(guidanceSheet).toHaveCount(0);
 
@@ -543,17 +543,19 @@ test("삭제 학생 복원은 누락 학부모 계정에만 명시 비밀번호�
   ).toBe(true);
   await expect(dialog.getByText(/정상 학부모 계정의 비밀번호는 바뀌지 않습니다/)).toBeVisible();
   await dialog.getByRole("button", { name: "복원", exact: true }).click();
+  let confirmation = page.getByRole("alertdialog", { name: "학생 복원 최종 확인" });
+  await confirmation.getByRole("button", { name: "복원", exact: true }).click();
+  await expect(confirmation.getByRole("alert")).toContainText("방식을 선택");
+  expect(restorePayloads).toEqual([]);
+  await confirmation.getByRole("button", { name: "취소", exact: true }).click();
   await expect(dialog).toBeVisible();
-  expect(restorePayloads[0]).toEqual({ ids: [1002] });
-
-  await dialog.getByLabel("누락 학부모 계정 초기 비밀번호 (선택)").fill("teacher-selected-password");
   await dialog.getByRole("button", { name: "복원", exact: true }).click();
-
+  confirmation = page.getByRole("alertdialog", { name: "학생 복원 최종 확인" });
+  await confirmation.getByRole("group", { name: "학부모 초기 비밀번호", exact: true }).getByRole("radio", { name: "직접 입력", exact: true }).check();
+  await confirmation.getByLabel("학부모 직접 입력 비밀번호", { exact: true }).fill("teacher-selected-password");
+  await confirmation.getByRole("button", { name: "복원", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  expect(restorePayloads[1]).toEqual({
-    ids: [1002],
-    parent_initial_password: "teacher-selected-password",
-  });
+  expect(restorePayloads[0]).toEqual({ ids: [1002], parent_initial_password_mode: "fixed", parent_initial_password: "teacher-selected-password" });
 });
 
 test("학생 상세의 클리닉 이력은 해당 날짜와 세션의 출석 화면을 연다", async ({ page }) => {

@@ -14,7 +14,7 @@ import type {
   ClientStudentTag,
   StudentCustomFieldValues,
 } from "@/shared/api/contracts/students";
-import type { StudentInitialPasswordSettings } from "@/shared/product/students/initialPassword";
+import type { RegistrationPasswordChoice } from "@/shared/product/students/RegistrationPasswordConfirmation";
 import {
   fetchAdminStudentGrades,
   type StudentExamGrade,
@@ -160,7 +160,7 @@ export async function exportStudentsExcel() {
 /* ─── 엑셀 벌크 업로드 ─── */
 export async function uploadStudentBulkExcel(
   file: File,
-  passwordSettings: StudentInitialPasswordSettings,
+  passwordSettings: RegistrationPasswordChoice,
 ) {
   return uploadStudentBulkFromExcel(file, passwordSettings);
 }

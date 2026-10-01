@@ -9,6 +9,7 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { teacherCommsQueryKeys } from "../queryKeys";
+import { useRegistrationPasswordConfirmation, type RegistrationPasswordChoice } from "@/shared/product/students/RegistrationPasswordConfirmation";
 
 interface Props {
   requests: RegistrationRequest[];
@@ -90,9 +91,11 @@ function RequestDetail({
   onDone: () => void;
 }) {
   const qc = useQueryClient();
+  const confirmPasswords = useRegistrationPasswordConfirmation();
+  const [confirming, setConfirming] = useState(false);
 
   const approveMut = useMutation({
-    mutationFn: () => approveRegistration(r.id),
+    mutationFn: (choice: RegistrationPasswordChoice) => approveRegistration(r.id, choice),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.registrationRequests });
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.notificationCounts });
@@ -114,7 +117,15 @@ function RequestDetail({
   });
 
   const school = r.high_school || r.middle_school || r.elementary_school || "-";
-  const pending = approveMut.isPending || rejectMut.isPending;
+  const pending = approveMut.isPending || rejectMut.isPending || confirming;
+  const approve = async () => {
+    if (pending) return;
+    setConfirming(true);
+    try {
+      const choice = await confirmPasswords({ title: "가입 승인 최종 확인", message: `${r.name} 학생의 가입 신청의 비밀번호 선택은 유지합니다. 선택이 없다면 신규 학부모 비밀번호를 지정해 주세요.`, confirmText: "승인", studentAlreadySelected: true, parentAlreadySelected: r.parent_password_selected === true, parentPhone: r.parent_phone });
+      if (choice) approveMut.mutate(choice);
+    } finally { setConfirming(false); }
+  };
 
   const rows: [string, string][] = [
     ["이름", r.name],
@@ -165,7 +176,7 @@ function RequestDetail({
           {rejectMut.isPending ? "거절 중…" : "거절"}
         </button>
         <button
-          onClick={() => approveMut.mutate()}
+          onClick={() => { void approve(); }}
           disabled={pending}
           className="flex-1 text-sm font-bold cursor-pointer"
           style={{

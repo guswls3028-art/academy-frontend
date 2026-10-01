@@ -165,7 +165,7 @@ export default function EditStudentModal({
     const parent = String(form.parentPhone || "").trim();
     if (!parent || parent.length !== 11) return "학부모 전화(010 뒤 8자리)를 입력해 주세요.";
     if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010 뒤 8자리 숫자여야 합니다.";
-    const parentPassword = String(form.parentInitialPassword || "").trim();
+    const parentPassword = String(form.parentInitialPassword || "");
     if (parentPassword && parentPassword.length < 4) {
       return "학부모 계정 초기 비밀번호는 4자 이상이어야 합니다.";
     }

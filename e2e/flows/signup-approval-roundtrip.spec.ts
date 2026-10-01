@@ -160,6 +160,10 @@ async function submitSignup(page: Page): Promise<void> {
   }, { timeout: 60_000 });
 
   await page.getByRole("dialog").getByRole("button", { name: "가입 신청" }).click();
+  const confirmation = page.getByRole("alertdialog", { name: "가입 신청 최종 확인" });
+  await expect(confirmation.locator('input[type="radio"]:checked')).toHaveCount(0);
+  await confirmation.getByRole("group", { name: "학부모 초기 비밀번호" }).getByLabel("전화번호 뒤 4자리", { exact: true }).check();
+  await confirmation.getByRole("button", { name: "가입 신청", exact: true }).click();
   const response = await signupResponse;
   const body = await response.json() as { id?: number; status?: string; name?: string; ps_number?: string };
   if (response.status() !== 201) {
@@ -306,8 +310,9 @@ async function approveFromAdminUi(page: Page): Promise<void> {
   await expect(card, "new signup request card").toBeVisible({ timeout: 30_000 });
 
   await card.getByRole("button", { name: "승인" }).click();
-  const confirm = page.locator("[data-confirm-dialog]");
-  await expect(confirm.getByText("승인 확인")).toBeVisible();
+  const confirm = page.getByRole("alertdialog", { name: "가입 승인 최종 확인" });
+  await expect(confirm.getByText("학부모의 가입 신청 비밀번호 선택도 유지합니다.")).toBeVisible();
+  await expect(confirm.locator('input[type="radio"]')).toHaveCount(0);
 
   const approveResponse = page.waitForResponse((response) => {
     return response.request().method() === "POST" &&

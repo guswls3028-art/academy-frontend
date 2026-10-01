@@ -2,6 +2,7 @@
 // 매치업 API — 문서 업로드, 문제 조회, 유사 검색
 
 import api from "@/shared/api/axios";
+import type { MatchupExamCycle } from "@/shared/constants/matchupExamCycle";
 
 // ── Types ──
 
@@ -114,6 +115,8 @@ export type MatchupDocument = {
   category?: string;
   subject: string;
   grade_level: string;
+  exam_cycle: MatchupExamCycle;
+  exam_year: number;
   original_name: string;
   size_bytes: number;
   content_type: string;
@@ -212,6 +215,8 @@ export async function uploadMatchupDocument(payload: {
   intent?: "reference" | "test";
   // Phase 1C — 7-value SSOT (backend strategy router 1순위 신호)
   source_type?: MatchupSourceType;
+  exam_cycle?: MatchupExamCycle;
+  exam_year?: number;
 }): Promise<MatchupDocument> {
   const form = new FormData();
   form.append("file", payload.file);
@@ -222,6 +227,8 @@ export async function uploadMatchupDocument(payload: {
   // source_type 우선, 미지정 시 legacy intent 전송. backend가 정규화 흡수.
   form.append("intent", payload.intent ?? "reference");
   if (payload.source_type) form.append("source_type", payload.source_type);
+  if (payload.exam_cycle !== undefined) form.append("exam_cycle", payload.exam_cycle);
+  if (payload.exam_year !== undefined) form.append("exam_year", String(payload.exam_year));
 
   const { data } = await api.post<MatchupDocument>(
     "/matchup/documents/upload/",
@@ -327,7 +334,7 @@ export async function updateMatchupDocument(
     // Phase 1A: 7-value SSOT (post-upload 보정 UI에서 사용)
     source_type?: MatchupSourceType;
     // Phase #15 (2026-05-12): 학교별 grouping용 회차/연도. 학원장 입력 (선택).
-    exam_cycle?: "" | "midterm" | "final" | "mock" | "other";
+    exam_cycle?: MatchupExamCycle;
     exam_year?: number;
   },
 ): Promise<MatchupDocument> {
@@ -702,10 +709,17 @@ export type DocumentPagesResponse = {
 
 export async function fetchDocumentPages(
   docId: number,
+  options: { pageIndex?: number; signal?: AbortSignal } = {},
 ): Promise<DocumentPagesResponse> {
+  // 원본 렌더·캐시 저장은 POST로 준비한 뒤 읽기 전용 GET으로 조회한다.
+  await api.post(
+    `/matchup/documents/${docId}/pages/`,
+    { page_index: options.pageIndex },
+    { timeout: 60_000, signal: options.signal },
+  );
   const { data } = await api.get<DocumentPagesResponse>(
     `/matchup/documents/${docId}/pages/`,
-    { timeout: 60_000 },
+    { timeout: 60_000, params: { page_index: options.pageIndex }, signal: options.signal },
   );
   return data;
 }

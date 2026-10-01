@@ -90,7 +90,11 @@ async function impersonateYmathOwner(page: Page): Promise<void> {
   }, impersonation.body);
 }
 
-test("학생 엑셀 등록은 명시적 비밀번호만 제공하고 번호 없는 행도 등록한다", async ({ page }) => {
+test("학생 엑셀 등록은 마지막 확인에서 비밀번호를 명시 선택하고 취소하면 저장하지 않는다", async ({ page }) => {
+  let submissionCount = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST" && /\/students\/bulk_create[^/]*\/$/.test(new URL(request.url()).pathname)) submissionCount += 1;
+  });
   await loginViaUI(page, "admin");
 
   const studentMenu = page.getByText("학생", { exact: true }).first();
@@ -117,32 +121,29 @@ test("학생 엑셀 등록은 명시적 비밀번호만 제공하고 번호 없�
   });
 
   const registerButton = dialog.getByRole("button", { name: "등록", exact: true });
-  await expect(dialog.getByRole("radio", { name: "학생 휴대폰 번호 뒤 4자리" })).toHaveCount(0);
-  await expect(dialog.getByRole("radio", { name: "직접 입력" })).toBeChecked();
-  await expect(dialog.getByText("1명도 자동 아이디를 받아 함께 등록됩니다.")).toBeVisible();
-  await expect(registerButton).toBeDisabled();
-
-  const fixedPassword = dialog.getByLabel("공통 초기 비밀번호");
-  await expect(fixedPassword).toBeVisible();
-  await fixedPassword.fill("12");
-  await expect(registerButton).toBeDisabled();
-  await fixedPassword.fill("1234");
-  await expect(registerButton).toBeEnabled();
-
-  await dialog.getByRole("radio", { name: "학생별 안전한 임시 비밀번호" }).check();
-  await expect(dialog.getByText("6자리 임시 비밀번호를 만들고 완료 후 목록을 내려받습니다.")).toBeVisible();
+  await expect(dialog.getByLabel("공통 초기 비밀번호")).toHaveCount(0);
   await expect(registerButton).toBeEnabled();
   await registerButton.click();
   const confirmation = page.getByRole("alertdialog", { name: "학생 일괄 등록 최종 확인" });
   await expect(confirmation.getByText("student-password-options.xlsx", { exact: true })).toBeVisible();
   await expect(confirmation.getByText("1명", { exact: true })).toBeVisible();
-  await expect(confirmation.getByText("학생별 안전한 임시 비밀번호", { exact: true })).toBeVisible();
+  await expect(confirmation.locator('input[type="radio"]:checked')).toHaveCount(0);
   await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
+  const studentChoice = confirmation.getByRole("group", { name: "학생 초기 비밀번호" });
+  await expect(studentChoice.getByLabel("전화번호 뒤 4자리", { exact: true })).toBeDisabled();
+  await studentChoice.getByLabel("직접 입력", { exact: true }).check();
+  await confirmation.getByLabel("학생 직접 입력 비밀번호", { exact: true }).fill("1234");
+  await confirmation.getByRole("group", { name: "학부모 초기 비밀번호" }).getByLabel("전화번호 뒤 4자리", { exact: true }).check();
   await confirmation.getByRole("button", { name: "다시 확인" }).click();
   await expect(dialog).toBeVisible();
+  expect(submissionCount).toBe(0);
 });
 
 test("학생 단건 등록은 계정·연락처 검토 뒤에만 저장한다", async ({ page }) => {
+  let submissionCount = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST" && /\/students\/$/.test(new URL(request.url()).pathname)) submissionCount += 1;
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await loginViaUI(page, "admin");
 
@@ -152,20 +153,23 @@ test("학생 단건 등록은 계정·연락처 검토 뒤에만 저장한다", 
   const dialog = page.getByRole("dialog", { name: "학생 등록" });
   await dialog.getByText("1명만 등록", { exact: true }).click();
   await dialog.getByPlaceholder("이름").fill("최종확인 학생");
-  await dialog.getByPlaceholder("초기 비밀번호").fill("never-show-this-value");
+  await expect(dialog.getByPlaceholder("초기 비밀번호")).toHaveCount(0);
   await dialog.getByLabel("학부모 전화 앞 4자리").fill("70001111");
   await dialog.getByRole("button", { name: "등록", exact: true }).click();
 
   const confirmation = page.getByRole("alertdialog", { name: "학생 등록 최종 확인" });
   await expect(confirmation.getByText("최종확인 학생", { exact: true })).toBeVisible();
   await expect(confirmation.getByText("010-7000-1111", { exact: true })).toBeVisible();
-  await expect(confirmation.getByText("입력 완료", { exact: true })).toBeVisible();
+  await expect(confirmation.locator('input[type="radio"]:checked')).toHaveCount(0);
+  await confirmation.getByRole("group", { name: "학생 초기 비밀번호" }).getByLabel("직접 입력", { exact: true }).check();
+  await confirmation.getByLabel("학생 직접 입력 비밀번호", { exact: true }).fill("never-show-this-value");
+  await confirmation.getByRole("group", { name: "학부모 초기 비밀번호" }).getByLabel("전화번호 뒤 4자리", { exact: true }).check();
   await expect(confirmation).not.toContainText("never-show-this-value");
-  await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
   const overflow = await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await confirmation.getByRole("button", { name: "다시 확인" }).click();
   await expect(dialog).toBeVisible();
+  expect(submissionCount).toBe(0);
 });
 
 test("Ymath 고객 제보 회귀: 소유자 화면에서 Excel 양식과 파일 파싱이 오류 없이 열린다", async ({ page }) => {
