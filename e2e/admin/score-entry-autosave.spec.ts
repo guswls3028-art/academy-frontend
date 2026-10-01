@@ -1391,6 +1391,7 @@ test("같은 과제 셀 경쟁은 conflict로 서버값을 보존하고 내 초�
     await conflict.getByRole("button", { name: "내 점수 다시 적용" }).click();
     await pageB.keyboard.press("Control+s");
     await expect.poll(() => currentHomeworkScores[0]).toBe(88);
+    await pageA.bringToFront();
     await expect(pageA.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 10_000 });
 
     await pageA.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
@@ -1452,6 +1453,7 @@ test("선택만 한 과제 셀은 원격 저장 뒤 옛 version으로 conflict�
     await conflict.getByRole("button", { name: "내 점수 다시 적용" }).click();
     await pageB.keyboard.press("Control+s");
     await expect.poll(() => currentHomeworkScores[0]).toBe(88);
+    await pageA.bringToFront();
     await expect(pageA.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 10_000 });
 
     await pageA.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });

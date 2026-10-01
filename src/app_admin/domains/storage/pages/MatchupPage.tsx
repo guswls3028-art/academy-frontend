@@ -1200,41 +1200,6 @@ export default function MatchupPage() {
     if (node) node.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [selectedProblemId]);
 
-  // ── 빈 상태 ──
-  if (docsError) {
-    return (
-      <EmptyState
-        scope="page"
-        tone="error"
-        title="매치업 문서 목록을 불러오지 못했습니다"
-        description="기존 자료를 빈 저장소로 오인해 중복 업로드하지 않도록 목록을 먼저 복구해 주세요."
-        actions={<Button intent="secondary" onClick={() => void refetchDocuments()}>다시 시도</Button>}
-      />
-    );
-  }
-
-  if (!docsLoading && documents.length === 0) {
-    return (
-      <>
-        <MatchupEmptyState onUpload={openUpload} />
-        {uploadOpen && (
-          <Suspense fallback={null}>
-            <DocumentUploadModal
-              onClose={() => { setUploadOpen(false); setUploadDefaultCategory(""); }}
-              onUpload={handleUpload}
-              intent={uploadIntent}
-              existingTitles={existingTitles}
-              categorySuggestions={categorySuggestions}
-              subjectSuggestions={subjectSuggestions}
-              gradeLevelSuggestions={gradeLevelSuggestions}
-              defaultCategory={uploadDefaultCategory}
-            />
-          </Suspense>
-        )}
-      </>
-    );
-  }
-
   const isFailed = selectedDoc?.status === "failed";
   const selectedSourceType = selectedDoc ? getSourceType(selectedDoc) : null;
   const isNoneDetected = selectedDoc?.status === "done" && (
@@ -1249,6 +1214,23 @@ export default function MatchupPage() {
 
   return (
     <>
+      {docsError && documents.length > 0 && (
+        <div role="alert" className="flex items-center gap-3 p-3 text-sm">
+          <span>문서 목록을 갱신하지 못했습니다. 작업 중인 내용은 유지됩니다.</span>
+          <Button intent="secondary" onClick={() => void refetchDocuments()}>다시 시도</Button>
+        </div>
+      )}
+      {docsError && documents.length === 0 ? (
+        <EmptyState
+          scope="page"
+          tone="error"
+          title="매치업 문서 목록을 불러오지 못했습니다"
+          description="기존 자료를 빈 저장소로 오인해 중복 업로드하지 않도록 목록을 먼저 복구해 주세요."
+          actions={<Button intent="secondary" onClick={() => void refetchDocuments()}>다시 시도</Button>}
+        />
+      ) : !docsLoading && documents.length === 0 ? (
+        <MatchupEmptyState onUpload={openUpload} />
+      ) : (
       <div className={css.root} style={/* eslint-disable-line no-restricted-syntax */ {
         // 좌측 트리가 페이지와 함께 스크롤되지 않도록 페이지 높이로 제한.
         // svh(small viewport height)는 모바일 주소창 표시 상태에서 측정 — iPad/모바일에서
@@ -1275,6 +1257,7 @@ export default function MatchupPage() {
               // Persisted desktop width must never override the shared mobile stack.
               width: isMobile ? "100%" : treeWidth,
               minWidth: isMobile ? 0 : treeWidth,
+              flexShrink: isMobile ? 0 : undefined,
               scrollbarWidth: "none",
               msOverflowStyle: "none",
             }}
@@ -2189,7 +2172,9 @@ export default function MatchupPage() {
           </div>
         </div>
       </div>
+      )}
 
+      {/* 목록의 빈 상태/갱신/오류 전환과 관계없이 업로드 창의 상태를 유지한다. */}
       <Suspense fallback={null}>
         {uploadOpen && (
           <DocumentUploadModal

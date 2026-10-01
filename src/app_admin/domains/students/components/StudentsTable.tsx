@@ -159,7 +159,7 @@ export default function StudentsTable({
   function sortHeader(colKey: string, label: string, w: number) {
     const isAsc = sort === colKey;
     const isDesc = sort === `-${colKey}`;
-    const next = isAsc ? `-${colKey}` : isDesc ? "" : colKey;
+    const next = isAsc ? `-${colKey}` : isDesc ? "name" : colKey;
     const content = (
       <span className="inline-flex items-center justify-center gap-2">
         {label}
