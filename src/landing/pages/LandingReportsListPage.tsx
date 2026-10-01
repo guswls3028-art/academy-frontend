@@ -14,6 +14,7 @@ import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingRoleFab from "../components/LandingRoleFab";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import { fetchPublicHitReportsCached } from "../api/hitReports";
+import { MATCHUP_EXAM_CYCLE_LABELS, MATCHUP_EXAM_CYCLE_ORDER, type MatchupExamCycle } from "@/shared/constants/matchupExamCycle";
 
 // Reports 페이지 nav 톤(PremiumDark 시그니처) — LandingNavBar tokens.
 const REPORTS_NAV_TOKENS: NavBarTokens = {
@@ -91,7 +92,10 @@ export default function LandingReportsListPage() {
   // 검색 + 정렬 (inline 계산 — useMemo 제거로 React #310 잔존 결함 해소, 2026-05-12 cycle 14).
   // reports 갯수 적어 useMemo 효익 작음. 안정성 우선.
   const q = query.trim().toLowerCase();
-  const CYCLE_ORDER: Record<string, number> = { midterm: 1, final: 2, mock: 3, other: 4, "": 5 };
+  const cycleOrder = (cycle: MatchupExamCycle | undefined) => {
+    const index = MATCHUP_EXAM_CYCLE_ORDER.indexOf(cycle || "");
+    return index < 0 ? MATCHUP_EXAM_CYCLE_ORDER.length : index;
+  };
   const filteredReports = (q
     ? reports.filter((r) => (r.doc_title || "").toLowerCase().includes(q) || (r.doc_category || "").toLowerCase().includes(q))
     : reports
@@ -99,12 +103,12 @@ export default function LandingReportsListPage() {
     if (sort === "rate") return b.hit_rate_pct - a.hit_rate_pct;
     if (sort === "count") return b.hit_count - a.hit_count;
     if (sort === "by_school") {
-      // 학교명 가나다 → 연도 DESC → 회차 (midterm/final/mock/other)
+      // 학교명 가나다 → 연도 DESC → 학기별 중간/기말 → 학기 미지정/모의/기타
       const ac = (a.doc_category || "기타").localeCompare(b.doc_category || "기타", "ko");
       if (ac !== 0) return ac;
       const yearDiff = (b.exam_year || 0) - (a.exam_year || 0);
       if (yearDiff !== 0) return yearDiff;
-      return (CYCLE_ORDER[a.exam_cycle || ""] ?? 5) - (CYCLE_ORDER[b.exam_cycle || ""] ?? 5);
+      return cycleOrder(a.exam_cycle) - cycleOrder(b.exam_cycle);
     }
     const ad = a.submitted_at || a.created_at || "";
     const bd = b.submitted_at || b.created_at || "";
@@ -124,15 +128,9 @@ export default function LandingReportsListPage() {
       groupedBySchool.push({ school, items });
     }
   }
-  const cycleLabel = (c: string | undefined): string => {
-    switch (c) {
-      case "midterm": return "중간";
-      case "final": return "기말";
-      case "mock": return "모의";
-      case "other": return "기타";
-      default: return "";
-    }
-  };
+  const cycleLabel = (cycle: MatchupExamCycle | undefined): string => (
+    cycle ? MATCHUP_EXAM_CYCLE_LABELS[cycle] || "" : ""
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: bg, color: textPrimary, fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", letterSpacing: "-0.011em" }}>

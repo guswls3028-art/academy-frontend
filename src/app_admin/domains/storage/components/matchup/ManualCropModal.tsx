@@ -172,9 +172,11 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
   }, []);
 
   const pagesQuery = useQuery({
-    queryKey: storageQueryKeys.matchupDocPages(doc.id),
-    queryFn: () => fetchDocumentPages(doc.id),
+    queryKey: storageQueryKeys.matchupDocPage(doc.id, activePage),
+    queryFn: ({ signal }) => fetchDocumentPages(doc.id, { pageIndex: activePage, signal }),
     staleTime: 5 * 60 * 1000,
+    retry: false,
+    placeholderData: (previous) => previous,
   });
 
   const problemsQuery = useQuery({
@@ -722,7 +724,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                 }}
                 title={`${p.index + 1}페이지`}
               >
-                <img
+                {p.url && <img
                   src={p.url}
                   alt={`Page ${p.index + 1}`}
                   loading="lazy"
@@ -730,7 +732,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                     width: "100%", aspectRatio: `${p.width || 1} / ${p.height || 1.4}`,
                     objectFit: "contain", background: "white",
                   }}
-                />
+                />}
                 <span style={{ fontSize: 10, color: "var(--color-text-muted)", fontWeight: 600 }}>
                   {p.index + 1}
                 </span>
@@ -797,7 +799,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
               padding: "var(--space-3)",
               overflow: "auto",
             }}>
-              {pagesQuery.isLoading ? (
+              {pagesQuery.isLoading || (pagesQuery.isFetching && !activePageData?.url) ? (
                 <div style={{
                   color: "var(--color-text-muted)", fontSize: 13,
                   display: "inline-flex", alignItems: "center", gap: 6,
@@ -817,7 +819,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                     페이지 다시 불러오기
                   </Button>
                 </div>
-              ) : !activePageData ? (
+              ) : !activePageData?.url ? (
                 <div style={{ color: "var(--color-text-muted)", fontSize: 13 }}>
                   페이지가 없습니다.
                 </div>
