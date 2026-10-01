@@ -36,6 +36,7 @@
 | [학생앱 디자인 시스템](../src/app_student/shared/ui/theme/README.md) | 학생·학부모 앱 토큰, 테넌트 테마(공통 브랜드 레이어·토큰 전용 테넌트 파일), 라이트·다크 대비 기준과 테넌트 추가 절차 |
 | [DEV-TENANT-OPERATIONS.md](DEV-TENANT-OPERATIONS.md) | 개발자 콘솔 테넌트·소유자 생성, 기존 계정 승격, 실패 안전 UI 계약 |
 | [TCHUL-PUBLIC-SITE.md](TCHUL-PUBLIC-SITE.md) | tchul 공식 홈페이지의 정보 구조, 매치업 PDF 게시·공유, 반응형·실패 처리 계약 |
+| [MATCHUP-UPLOAD.md](MATCHUP-UPLOAD.md) | 매치업 연속 업로드의 입력·파일·진행 상태 보존과 목록 갱신 실패 복구 |
 | [GODMIN-PUBLIC-SITE.md](GODMIN-PUBLIC-SITE.md) | godmin 전용 통합과학 공개 홈페이지의 진입·로그인·반응형·메타데이터 계약 |
 | [PRODUCT-USAGE-ANALYTICS.md](PRODUCT-USAGE-ANALYTICS.md) | 역할별 화면·CTA·대표 업무 사용 신호와 실패 안전 계약 |
 | [TEACHER-TOOLS.md](TEACHER-TOOLS.md) | 강사 도구함 확장 규칙과 AI 풀이·해설 Beta 상호작용 계약 |
