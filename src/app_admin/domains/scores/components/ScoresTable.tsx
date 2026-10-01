@@ -1119,9 +1119,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   }, [columnWidths.attendance, columnWidths.name, columnWidths.select]);
 
   const selectedSet = useMemo(() => new Set(selectedEnrollmentIds), [selectedEnrollmentIds]);
+  const selectableRows = rows.filter((row) => row.assessment_todo_eligible !== false);
   const allSelected =
-    rows.length > 0 &&
-    rows.every((r) => selectedSet.has(r.enrollment_id));
+    selectableRows.length > 0 &&
+    selectableRows.every((r) => selectedSet.has(r.enrollment_id));
 
   return (
     <div>
@@ -1162,9 +1163,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 <input
                   type="checkbox"
                   checked={allSelected}
+                  disabled={selectableRows.length === 0}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      onSelectionChange(rows.map((r) => r.enrollment_id));
+                      onSelectionChange(selectableRows.map((r) => r.enrollment_id));
                     } else {
                       onSelectionChange([]);
                     }
@@ -1481,6 +1483,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     <input
                       type="checkbox"
                       checked={selectedSet.has(row.enrollment_id)}
+                      disabled={row.assessment_todo_eligible === false}
                       onChange={(e) => {
                         e.stopPropagation();
                         if (e.target.checked) {
@@ -1491,7 +1494,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       }}
                       onClick={(e) => e.stopPropagation()}
                       aria-label={`${row.student_name} 선택`}
-                      className="cursor-pointer"
+                      className="cursor-pointer disabled:cursor-not-allowed"
                     />
                   ) : (
                     <span className="w-4 inline-block" />
@@ -1564,13 +1567,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               key={col.key}
                               className="ds-scores-cell-unassigned min-w-0 text-center align-middle"
                               data-col-type="score"
-                              data-assignment-state="missing"
+                              data-assignment-state={row.assessment_todo_eligible === false ? "absent" : "missing"}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               data-group-parity={groupParity}
-                              title={`${ex.title} 응시 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`}
-                              aria-label={`${row.student_name} · ${ex.title} 응시 대상 미배정`}
+                              title={row.assessment_todo_eligible === false ? "결석으로 현재 응시 대상에서 제외됐습니다" : `${ex.title} 응시 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`}
+                              aria-label={row.assessment_todo_eligible === false ? `${row.student_name} · ${ex.title} 결석 제외` : `${row.student_name} · ${ex.title} 응시 대상 미배정`}
                             >
-                              <Badge variant="soft" tone="warning" size="xs" shape="square">미배정</Badge>
+                              <Badge variant="soft" tone={row.assessment_todo_eligible === false ? "neutral" : "warning"} size="xs" shape="square">{row.assessment_todo_eligible === false ? "결석 제외" : "미배정"}</Badge>
                             </td>
                           );
                         }
@@ -2206,13 +2209,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           <td
                             className="ds-scores-cell-unassigned min-w-0 text-center align-middle"
                             data-col-type="score"
-                            data-assignment-state="missing"
+                            data-assignment-state={row.assessment_todo_eligible === false ? "absent" : "missing"}
                             data-group-parity={hwParity}
                             {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
-                            title={`${hw.title} 제출 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`}
-                            aria-label={`${row.student_name} · ${hw.title} 제출 대상 미배정`}
+                            title={row.assessment_todo_eligible === false ? "결석으로 현재 제출 대상에서 제외됐습니다" : `${hw.title} 제출 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`}
+                            aria-label={row.assessment_todo_eligible === false ? `${row.student_name} · ${hw.title} 결석 제외` : `${row.student_name} · ${hw.title} 제출 대상 미배정`}
                           >
-                            <Badge variant="soft" tone="warning" size="xs" shape="square">미배정</Badge>
+                            <Badge variant="soft" tone={row.assessment_todo_eligible === false ? "neutral" : "warning"} size="xs" shape="square">{row.assessment_todo_eligible === false ? "결석 제외" : "미배정"}</Badge>
                           </td>
                       ) : (
                       <td

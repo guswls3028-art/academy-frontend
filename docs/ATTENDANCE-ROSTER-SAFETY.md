@@ -18,6 +18,19 @@
 - 백엔드 상태·복구 불변조건:
   [`state-transitions.md`](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/state-transitions.md#b19-attendance)
 
+## 결석자의 평가 TODO
+
+교직원이 실제 `ABSENT`로 저장한 학생은 차시 명단과 과거 점수·제출 이력에 계속
+보인다. 아직 수행하지 않은 시험·과제 칸은 `결석 제외`로 표시되고 현재 평가 검토,
+성적표 선택, 미배정 경고 및 시험·과제 일괄 배정에서는 빠진다. `ONLINE`, `PRESENT`,
+출결 미입력 학생은 정상 평가 대상이다. 결석 상태를 영상 또는 현장 상태로 바꾸면
+다시 대상이 되며, 오류가 보이면 출결 탭의 상태를 확인하고 재시도한다. 변경 후
+성적표를 새로고침해도 같은 대상 여부가 유지되어야 한다. 서버의 정확한 데이터·
+클리닉 보존 규칙은 [백엔드 출결 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/attendance.md#실제-결석과-평가-todo)이 소유한다.
+
+`e2e/admin/score-entry-autosave.spec.ts`는 1366px·390px에서 결석자의 명단·빈 칸,
+영상 수강자의 미배정 복구, 재로드 및 배정 API 대상 ID를 검증한다.
+
 ## 수강생 일괄배정
 
 1. 관리자는 전체 학생, 직전 차시 또는 강의 활성 수강생에서 대상을 고른다.

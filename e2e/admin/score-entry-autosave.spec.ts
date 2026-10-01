@@ -24,6 +24,8 @@ type ScoreRouteOptions = {
   nullScoresPassedFalse?: boolean;
   nullHomeworkScoresPassedFalse?: boolean;
   examAssignedRows?: boolean[];
+  attendanceStatuses?: string[];
+  assessmentTodoEligible?: boolean[];
   rowClinicRequired?: boolean[];
   rowNameHighlightClinicTarget?: boolean[];
   rowNameHighlightFollowupRequired?: boolean[];
@@ -149,6 +151,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   draftPuts.length = 0;
   draftCommits.length = 0;
   currentScores = [...(options.initialScores ?? [65, 52])];
+  let examAssignedRows = [...(options.examAssignedRows ?? currentScores.map(() => true))];
   const examMaxScore = options.examMaxScore ?? 100;
   const rowExamMaxScores = options.rowExamMaxScores ?? currentScores.map(() => examMaxScore);
   currentSubjectiveScores = [...(
@@ -239,10 +242,12 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             enrollment_id: 9201 + index,
             student_id: 9301 + index,
             student_name: `자동저장학생${index + 1}`,
+            attendance_status: options.attendanceStatuses?.[index] ?? "PRESENT",
+            assessment_todo_eligible: options.assessmentTodoEligible?.[index] ?? true,
             lecture_title: "자동 저장 검증반",
             lecture_color: "#2563eb",
             lecture_chip_label: "자",
-            exams: [...((options.examAssignedRows?.[index] ?? true) ? [{
+            exams: [...(examAssignedRows[index] ? [{
               exam_id: 9101,
               title: "주간 확인",
               pass_score: 60,
@@ -594,6 +599,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
     if (path.endsWith("/api/v1/exams/9101/enrollments/") && method === "PUT") {
       const body = request.postDataJSON() as { enrollment_ids?: number[] };
       assignmentPuts.push({ path, enrollmentIds: body.enrollment_ids ?? [] });
+      examAssignedRows = examAssignedRows.map((assigned, index) => assigned || (body.enrollment_ids ?? []).includes(9201 + index));
       await route.fulfill({ json: { ok: true } });
       return;
     }
@@ -601,7 +607,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
     if (path.endsWith("/api/v1/homework/assignments/") && method === "PUT") {
       const body = request.postDataJSON() as { enrollment_ids?: number[] };
       assignmentPuts.push({ path, enrollmentIds: body.enrollment_ids ?? [] });
-      homeworkAssignedRows = currentScores.map(() => true);
+      homeworkAssignedRows = homeworkAssignedRows.map((assigned, index) => assigned || (body.enrollment_ids ?? []).includes(9201 + index));
       await route.fulfill({ json: { ok: true } });
       return;
     }
@@ -613,7 +619,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
           results: currentScores.map((_, index) => ({
             id: 9401 + index,
             enrollment_id: 9201 + index,
-            status: "PRESENT",
+            status: options.attendanceStatuses?.[index] ?? "PRESENT",
           })),
         },
       });
@@ -2133,6 +2139,61 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect.poll(() => assignmentPuts.length).toBe(2);
     expect(assignmentPuts.every((request) => request.enrollmentIds.join(",") === "9201,9202")).toBe(true);
     await expect(assignmentNotice).toHaveCount(0);
+  });
+
+  for (const width of [1366, 390]) {
+    test(`결석 제외 학생은 명단에 남고 현재 평가 배정에서는 빠진다 (${width}px)`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await openScores(page, {
+        initialScores: [null, null],
+        examAssignedRows: [false, false],
+        includeHomework: true,
+        homeworkAssignedRows: [false, false],
+        attendanceStatuses: ["ABSENT", "ONLINE"],
+        assessmentTodoEligible: [false, true],
+      });
+      await expect(page.getByText("총 2명", { exact: true })).toBeVisible();
+      const absentRow = page.locator("tbody tr").filter({ hasText: "자동저장학생1" });
+      await expect(absentRow.getByRole("checkbox", { name: "자동저장학생1 선택" })).toBeDisabled();
+      await expect(page.getByRole("cell", { name: "자동저장학생1 · 주간 확인 결석 제외" })).toContainText("결석 제외");
+      await expect(page.getByRole("cell", { name: "자동저장학생1 · 단원 복습 결석 제외" })).toContainText("결석 제외");
+      const notice = page.getByRole("region", { name: "응시·제출 대상 미배정 안내" });
+      await expect(notice).toContainText("1명의 응시·제출 배정이 누락됐습니다");
+      await expect(notice).toContainText("시험 1칸 · 과제 1칸");
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("cell", { name: "자동저장학생1 · 주간 확인 결석 제외" })).toBeVisible();
+      await notice.getByRole("button", { name: "누락 전부 배정" }).click();
+      await expect.poll(() => assignmentPuts.length).toBe(2);
+      expect(assignmentPuts.every((request) => request.enrollmentIds.join(",") === "9202")).toBe(true);
+      await expect(notice).toHaveCount(0);
+      await expect(page.getByRole("cell", { name: "자동저장학생1 · 단원 복습 결석 제외" })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`absent-assessment-${width}.png`), fullPage: true });
+    });
+  }
+
+  test("결석 전 기록된 시험·과제 이력은 보이고 개별 점수 수정도 저장된다", async ({ page }) => {
+    await openScores(page, {
+      initialScores: [75, 85],
+      includeHomework: true,
+      homeworkAssignedRows: [true, true],
+      initialHomeworkScores: [70, 45],
+      attendanceStatuses: ["ABSENT", "ONLINE"],
+      assessmentTodoEligible: [false, true],
+    });
+    const absentRow = page.locator("tbody tr").filter({ hasText: "자동저장학생1" });
+    await expect(absentRow.getByRole("checkbox", { name: "자동저장학생1 선택" })).toBeDisabled();
+    await expect(absentRow.getByRole("cell", { name: "75/100", exact: true })).toBeVisible();
+    await expect(absentRow.getByRole("cell", { name: "70/100", exact: true })).toBeVisible();
+    await ensureScoreEditing(page);
+    const examCell = page.getByRole("textbox", { name: "자동저장학생1 · 주간 확인 점수 입력" });
+    await examCell.fill("81");
+    await page.keyboard.press("Control+s");
+    await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(1);
+    expect(scorePatches[0]).toMatchObject({ score: 81, max_score: 100 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("cell", { name: "81/100", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "70/100", exact: true })).toBeVisible();
   });
 
   test("시험 만점 변경 뒤 모든 학생 셀과 저장이 현재 만점 하나를 사용한다", async ({ page }) => {
