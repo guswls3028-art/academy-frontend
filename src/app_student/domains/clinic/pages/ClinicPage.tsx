@@ -732,7 +732,7 @@ export default function ClinicPage() {
                                 request.session === session.id &&
                                 (request.status === "pending" || request.status === "booked"),
                             );
-                            const policyBlockedBySelection = !selected && selectedSessions.some(
+                            const policyBlockedBySelection = !changingBooking && !selected && selectedSessions.some(
                               (item) => item.date === session.date,
                             ) && (
                               session.allow_multi_slot_booking !== true ||
@@ -740,15 +740,17 @@ export default function ClinicPage() {
                                 item.date === session.date && item.allow_multi_slot_booking !== true
                               ))
                             );
-                            const policyBlockedByExisting = activeBookedSessions.some((activeSession) => (
+                            const policyBlockedByExisting = !selected && activeBookedSessions.some((activeSession) => (
                               activeSession.id !== session.id &&
+                              activeSession.id !== changingBooking?.session &&
                               activeSession.date === session.date &&
                               (
                                 activeSession.allow_multi_slot_booking !== true ||
                                 session.allow_multi_slot_booking !== true
                               )
                             ));
-                            const disabled = full || currentChangingSession || !!activeRequest;
+                            const disabled = full || currentChangingSession || !!activeRequest
+                              || policyBlockedBySelection || policyBlockedByExisting;
                             const remaining = session.booking_mode === "time_range" || session.max_participants == null
                               ? null
                               : Math.max(

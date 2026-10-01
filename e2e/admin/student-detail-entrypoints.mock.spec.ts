@@ -23,6 +23,8 @@ async function installApi(
   onAccountGuidance?: (target: "student" | "parent") => void,
   onPasswordReset?: (payload: Record<string, unknown>) => void,
   onStudentUpdate?: (payload: Record<string, unknown>) => void,
+  onStudentList?: (url: URL) => Record<string, unknown>,
+  onAttendanceMatrix?: () => Record<string, unknown>,
 ) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -108,6 +110,9 @@ async function installApi(
         }],
       });
     }
+    if (path === "/lectures/attendance/matrix/" && onAttendanceMatrix) {
+      return json(onAttendanceMatrix());
+    }
     if (path === "/students/1001/") {
       const payload = request.method() === "PATCH"
         ? request.postDataJSON() as Record<string, unknown>
@@ -147,6 +152,7 @@ async function installApi(
       });
     }
     if (path === "/students/") {
+      if (onStudentList) return json(onStudentList(requestUrl));
       return json({
         count: 1,
         results: [{
@@ -317,6 +323,98 @@ test("학생 목록 행에서 연 상세는 Escape 뒤 같은 학생 행으로 �
 
   await expect(overlay).toHaveCount(0);
   await expect(studentRow).toBeFocused();
+});
+
+test("학생 명부 이름순은 동명이인 ID와 페이지 이동에서도 유지된다", async ({ page }) => {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  const requests: Array<{ ordering: string | null; page: string | null }> = [];
+  const students = [
+    { id: 1001, name: "가람" },
+    { id: 1002, name: "가람" },
+    { id: 1003, name: "나래" },
+    { id: 1004, name: "다온" },
+  ];
+  await installApi(page, undefined, undefined, undefined, (url) => {
+    const ordering = url.searchParams.get("ordering");
+    const pageNumber = Number(url.searchParams.get("page") ?? 1);
+    requests.push({ ordering, page: url.searchParams.get("page") });
+    const ordered = ordering?.startsWith("-") ? [...students].reverse() : students;
+    return {
+      count: students.length,
+      page_size: 2,
+      results: ordered.slice((pageNumber - 1) * 2, pageNumber * 2).map((student) => ({
+        ...student,
+        is_managed: true,
+        enrollments: [],
+        tags: [],
+      })),
+    };
+  });
+
+  await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 45_000 });
+  const rows = page.locator("tr[data-student-detail-trigger]");
+  const visibleIds = () => rows.evaluateAll((items) => (
+    items.map((item) => item.getAttribute("data-student-detail-trigger"))
+  ));
+  const nameHeader = page.getByRole("columnheader", { name: /이름/ });
+  await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+  await expect.poll(visibleIds).toEqual(["1001", "1002"]);
+  await expect.poll(() => requests.at(-1)).toEqual({ ordering: "name,id", page: "1" });
+
+  await page.getByRole("button", { name: "2", exact: true }).click();
+  await expect.poll(visibleIds).toEqual(["1003", "1004"]);
+  await expect.poll(() => requests.at(-1)).toEqual({ ordering: "name,id", page: "2" });
+
+  await nameHeader.click();
+  await expect(nameHeader).toHaveAttribute("aria-sort", "descending");
+  await expect.poll(visibleIds).toEqual(["1004", "1003"]);
+  await expect.poll(() => requests.at(-1)).toEqual({ ordering: "-name,-id", page: "1" });
+  await nameHeader.click();
+  await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+  await expect.poll(visibleIds).toEqual(["1001", "1002"]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+  await expect(rows).toHaveCount(2);
+});
+
+test("강의 수강생은 이름순과 동명이인 ID순으로 보인다", async ({ page }) => {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  await installApi(page, undefined, undefined, undefined, undefined, () => ({
+    lecture: { id: 441, title: "고1 Hyper 특강", color: "#2563eb" },
+    sessions: [],
+    students: [
+      { student_id: 1003, name: "나래", phone: null, parent_phone: null, attendance: {} },
+      { student_id: 1002, name: "가람", phone: null, parent_phone: null, attendance: {} },
+      { student_id: 1001, name: "가람", phone: null, parent_phone: null, attendance: {} },
+    ],
+  }));
+
+  await gotoAndSettle(page, `${BASE}/workspace/lectures/441`, { timeout: 45_000 });
+  const nameHeader = page.getByRole("columnheader", { name: /이름/ });
+  const visibleNames = () => page.locator('tbody tr input[type="checkbox"]').evaluateAll((inputs) => (
+    inputs.map((input) => input.getAttribute("aria-label"))
+  ));
+  await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+  await expect.poll(visibleNames).toEqual(["가람1 선택", "가람2 선택", "나래 선택"]);
+
+  await nameHeader.click();
+  await expect(nameHeader).toHaveAttribute("aria-sort", "descending");
+  await expect.poll(visibleNames).toEqual(["나래 선택", "가람2 선택", "가람1 선택"]);
+  await nameHeader.click();
+  await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+  await expect.poll(visibleNames).toEqual(["가람1 선택", "가람2 선택", "나래 선택"]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+  await expect.poll(visibleNames).toEqual(["가람1 선택", "가람2 선택", "나래 선택"]);
 });
 
 test("교사용 모바일 학생 상세는 아이디 안내와 비밀번호 초기화를 분리한다", async ({ page }) => {

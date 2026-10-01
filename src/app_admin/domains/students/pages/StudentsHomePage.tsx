@@ -56,7 +56,7 @@ export default function StudentsHomePage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [showCustomFields, setShowCustomFields] = useState(false);
-  const [sort, setSort] = useState("-registeredAt");
+  const [sort, setSort] = useState("name");
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -71,7 +71,7 @@ export default function StudentsHomePage() {
   const [showRestoreModal, setShowRestoreModal] = useState(false);
 
   useEffect(() => {
-    setSort(isDeletedTab ? "-deletedAt" : "-registeredAt");
+    setSort("name");
   }, [isDeletedTab]);
 
   useEffect(() => {
