@@ -50,10 +50,17 @@ const pageImage = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1120"><rect width="800" height="1120" fill="white"/><text x="60" y="120" font-size="42">1. mobile crop fixture</text><rect x="55" y="160" width="690" height="260" fill="none" stroke="black" stroke-width="3"/></svg>',
 )}`;
 
-async function installMocks(page: Page, options: { failFirstPages?: boolean } = {}) {
+async function installMocks(page: Page, options: { failFirstPages?: boolean; failPageReads?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean } = {}) {
   const apiRequests: Array<{ method: string; path: string }> = [];
   let pageReads = 0;
+  let pagePreparations = 0;
   let pageReadsAllowed = !options.failFirstPages;
+  let pageReadFailures = options.failPageReads === true;
+  let releaseRead = () => {};
+  const firstRead = new Promise<void>((resolve) => { releaseRead = resolve; });
+  const prepared = new Set<number>();
+  const requestedPages: number[] = [];
+  const savedProblems: Record<string, unknown>[] = [];
 
   await page.addInitScript(({ access, refresh }) => {
     localStorage.setItem("access", access);
@@ -107,33 +114,50 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean } = 
       });
     }
     if (path === "/matchup/documents/" && request.method() === "GET") {
-      return json(route, [documentPayload]);
+      return json(route, [{ ...documentPayload, status: options.failedAnalysis ? "failed" : "done", problem_count: savedProblems.length }]);
     }
     if (path === "/matchup/problems/" && request.method() === "GET") {
-      return json(route, []);
+      return json(route, savedProblems);
     }
-    if (path === `/matchup/documents/${DOC_ID}/pages/` && request.method() === "GET") {
-      pageReads += 1;
+    if (path === `/matchup/documents/${DOC_ID}/pages/` && request.method() === "POST") {
+      pagePreparations += 1;
       if (!pageReadsAllowed) {
         return json(route, { detail: "temporary fixture error" }, 503);
       }
+      const index = Number(request.postDataJSON().page_index ?? 0);
+      prepared.add(index);
+      requestedPages.push(index);
+      return json(route, { prepared: true });
+    }
+    if (path === `/matchup/documents/${DOC_ID}/pages/` && request.method() === "GET") {
+      pageReads += 1;
+      if (options.delayFirstRead && pageReads === 1) await firstRead;
+      if (pageReadFailures) {
+        return json(route, { detail: "temporary read error" }, 503);
+      }
+      const selected = Number(new URL(request.url()).searchParams.get("page_index") || 0);
+      if (!prepared.has(selected)) return json(route, { code: "pages_not_prepared" }, 409);
+      const count = options.multiplePages ? 3 : 1;
       return json(route, {
         doc_id: DOC_ID,
         is_pdf: true,
-        page_count: 1,
-        pages: [{ index: 0, url: pageImage, width: 800, height: 1_120 }],
+        page_count: count,
+        pages: Array.from({ length: count }, (_, index) => ({ index, url: prepared.has(index) ? pageImage : "", width: 800, height: 1_120 })),
       });
     }
     if (path === `/matchup/documents/${DOC_ID}/manual-crop/` && request.method() === "POST") {
-      return json(route, {
+      const payload = request.postDataJSON();
+      const saved = {
         id: 993_902,
         document_id: DOC_ID,
         number: 1,
         text: "",
         image_key: "e2e/manual-crop.png",
-        meta: { manual: true, page_index: 0, bbox_norm: [0.1, 0.1, 0.5, 0.25] },
+        meta: { manual: true, page_index: payload.page_index, bbox_norm: [payload.bbox.x, payload.bbox.y, payload.bbox.w, payload.bbox.h] },
         created_at: "2026-08-25T00:00:00Z",
-      });
+      };
+      savedProblems.push(saved);
+      return json(route, saved);
     }
     if (path === "/matchup/categories/") return json(route, []);
     if (path === "/matchup/hit-reports/board-preview/") {
@@ -149,13 +173,42 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean } = 
   return {
     apiRequests,
     getPageReads: () => pageReads,
-    allowPageReads: () => { pageReadsAllowed = true; },
+    getPagePreparations: () => pagePreparations,
+    allowPageReads: () => { pageReadsAllowed = true; pageReadFailures = false; },
+    releaseRead,
+    requestedPages,
   };
 }
 
+for (const width of [1366, 390]) {
+  test(`${width}px: AI 문항 0개에서도 선택 페이지 준비·자르기·재조회`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { requestedPages } = await installMocks(page, { multiplePages: true, failedAnalysis: true });
+    await openCropModal(page);
+    await expect(page.getByTestId("matchup-crop-canvas")).toBeVisible();
+    await expect(page.getByTestId("matchup-crop-page-thumb")).toHaveCount(3);
+    expect(requestedPages).toEqual([0]);
+    await page.getByTestId("matchup-crop-page-thumb").nth(2).click();
+    const canvas = page.getByTestId("matchup-crop-canvas");
+    await expect(canvas).toBeVisible();
+    expect(requestedPages).toEqual([0, 2]);
+    await drawTouchBox(canvas);
+    await page.getByTestId("matchup-crop-number-input").fill("1");
+    await page.getByTestId("matchup-crop-save-btn").click();
+    await expect(page.getByTestId("matchup-crop-problem-row")).toHaveCount(1);
+    await page.keyboard.press("Escape");
+    await page.reload();
+    await page.getByTestId("matchup-doc-manual-crop-btn").click();
+    await page.getByTestId("matchup-crop-page-thumb").nth(2).click();
+    await expect(page.getByTestId("matchup-crop-problem-row")).toHaveCount(1);
+    await expectNoDocumentOverflow(page);
+    await page.screenshot({ path: `test-results/matchup-manual-pages-${width}.png`, fullPage: true });
+  });
+}
+
 async function openCropModal(page: Page) {
-  await page.goto(`${BASE}/workspace/storage/matchup?docId=${DOC_ID}`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByTestId("matchup-doc-manual-crop-btn")).toBeVisible();
+  await page.goto(`${BASE}/workspace/storage/matchup?docId=${DOC_ID}`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+  await expect(page.getByTestId("matchup-doc-manual-crop-btn")).toBeVisible({ timeout: 30_000 });
   await page.getByTestId("matchup-doc-manual-crop-btn").click();
   await expect(page.getByTestId("matchup-manual-crop-modal")).toBeVisible();
 }
@@ -267,6 +320,7 @@ test("390px: page, touch crop, number, save stack in order and preserve unsaved 
     && !/^\/matchup\/problems\/\d+\/similar\/$/.test(path)
   ));
   expect(productMutations).toEqual([
+    { method: "POST", path: `/matchup/documents/${DOC_ID}/pages/` },
     { method: "POST", path: `/matchup/documents/${DOC_ID}/manual-crop/` },
   ]);
   await expectNoDocumentOverflow(page);
@@ -275,18 +329,59 @@ test("390px: page, touch crop, number, save stack in order and preserve unsaved 
   await expect(page.getByTestId("matchup-doc-manual-crop-btn")).toBeFocused();
 });
 
-test("390px: page load failure has an explicit retry without a product mutation", async ({ page }) => {
+test("390px: preparation failure retries without saving a problem", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const { apiRequests, getPageReads, allowPageReads } = await installMocks(page, { failFirstPages: true });
+  const { apiRequests, getPagePreparations, allowPageReads } = await installMocks(page, { failFirstPages: true });
   await openCropModal(page);
 
   await expect(page.getByText("페이지 로드 실패")).toBeVisible();
   allowPageReads();
   await page.getByRole("button", { name: "페이지 다시 불러오기" }).click();
   await expect(page.getByTestId("matchup-crop-canvas")).toBeVisible();
-  expect(getPageReads()).toBeGreaterThanOrEqual(2);
-  expect(apiRequests.filter(({ method }) => method !== "GET")).toEqual([]);
+  expect(getPagePreparations()).toBe(2);
+  expect(apiRequests.filter(({ method }) => method !== "GET")).toEqual([
+    { method: "POST", path: `/matchup/documents/${DOC_ID}/pages/` },
+    { method: "POST", path: `/matchup/documents/${DOC_ID}/pages/` },
+  ]);
 });
+
+test("390px: read failure after preparation can retry and display the saved cache", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const { getPageReads, getPagePreparations, allowPageReads, requestedPages } = await installMocks(page, { failPageReads: true });
+  await openCropModal(page);
+  await expect(page.getByText("페이지 로드 실패")).toBeVisible();
+  expect(getPageReads()).toBe(3);
+  allowPageReads();
+  await page.getByRole("button", { name: "페이지 다시 불러오기" }).click();
+  await expect(page.getByTestId("matchup-crop-canvas")).toBeVisible();
+  expect(getPageReads()).toBe(4);
+  expect(getPagePreparations()).toBe(2);
+  expect(requestedPages).toEqual([0, 0]);
+  await expectNoDocumentOverflow(page);
+});
+
+for (const width of [1366, 390]) {
+  test(`${width}px: closing cancels a prepared page read and reopening ignores its late response`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { releaseRead, requestedPages, getPageReads } = await installMocks(page, { delayFirstRead: true, multiplePages: true });
+    await openCropModal(page);
+    await expect.poll(getPageReads).toBe(1);
+    const aborted = page.waitForEvent("requestfailed", {
+      predicate: (request) => request.method() === "GET" && new URL(request.url()).pathname.endsWith(`/documents/${DOC_ID}/pages/`),
+    });
+    await page.getByRole("button", { name: "직접 자르기 닫기" }).click();
+    await aborted;
+    releaseRead();
+    await expect(page.getByTestId("matchup-manual-crop-modal")).toHaveCount(0);
+    await page.getByTestId("matchup-doc-manual-crop-btn").click();
+    await expect(page.getByTestId("matchup-crop-canvas")).toBeVisible();
+    await page.getByTestId("matchup-crop-page-thumb").nth(2).click();
+    await expect(page.getByTestId("matchup-crop-canvas")).toBeVisible();
+    expect(requestedPages).toEqual([0, 0, 2]);
+    await expect(page.getByTestId("matchup-crop-problem-row")).toHaveCount(0);
+    await expectNoDocumentOverflow(page);
+  });
+}
 
 test("1366px: existing three-column crop contract remains intact", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 900 });
