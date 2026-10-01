@@ -50,10 +50,13 @@ const pageImage = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1120"><rect width="800" height="1120" fill="white"/><text x="60" y="120" font-size="42">1. mobile crop fixture</text><rect x="55" y="160" width="690" height="260" fill="none" stroke="black" stroke-width="3"/></svg>',
 )}`;
 
-async function installMocks(page: Page, options: { failFirstPages?: boolean; failedAnalysis?: boolean; multiplePages?: boolean } = {}) {
+async function installMocks(page: Page, options: { failFirstPages?: boolean; failFirstRead?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean } = {}) {
   const apiRequests: Array<{ method: string; path: string }> = [];
   let pageReads = 0;
+  let pagePreparations = 0;
   let pageReadsAllowed = !options.failFirstPages;
+  let releaseRead = () => {};
+  const firstRead = new Promise<void>((resolve) => { releaseRead = resolve; });
   const prepared = new Set<number>();
   const requestedPages: number[] = [];
   const savedProblems: Record<string, unknown>[] = [];
@@ -115,14 +118,24 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
     if (path === "/matchup/problems/" && request.method() === "GET") {
       return json(route, savedProblems);
     }
-    if (path === `/matchup/documents/${DOC_ID}/pages/` && request.method() === "GET") {
-      pageReads += 1;
+    if (path === `/matchup/documents/${DOC_ID}/pages/` && request.method() === "POST") {
+      pagePreparations += 1;
       if (!pageReadsAllowed) {
         return json(route, { detail: "temporary fixture error" }, 503);
       }
-      const index = Number(new URL(request.url()).searchParams.get("page_index") || 0);
+      const index = Number(request.postDataJSON().page_index ?? 0);
       prepared.add(index);
       requestedPages.push(index);
+      return json(route, { prepared: true });
+    }
+    if (path === `/matchup/documents/${DOC_ID}/pages/` && request.method() === "GET") {
+      pageReads += 1;
+      if (options.delayFirstRead && pageReads === 1) await firstRead;
+      if (options.failFirstRead && pageReads === 1) {
+        return json(route, { detail: "temporary read error" }, 503);
+      }
+      const selected = Number(new URL(request.url()).searchParams.get("page_index") || 0);
+      if (!prepared.has(selected)) return json(route, { code: "pages_not_prepared" }, 409);
       const count = options.multiplePages ? 3 : 1;
       return json(route, {
         doc_id: DOC_ID,
@@ -159,7 +172,9 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
   return {
     apiRequests,
     getPageReads: () => pageReads,
+    getPagePreparations: () => pagePreparations,
     allowPageReads: () => { pageReadsAllowed = true; },
+    releaseRead,
     requestedPages,
   };
 }
@@ -312,18 +327,57 @@ test("390px: page, touch crop, number, save stack in order and preserve unsaved 
   await expect(page.getByTestId("matchup-doc-manual-crop-btn")).toBeFocused();
 });
 
-test("390px: page load failure has an explicit retry without a product mutation", async ({ page }) => {
+test("390px: preparation failure retries without saving a problem", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const { apiRequests, getPageReads, allowPageReads } = await installMocks(page, { failFirstPages: true });
+  const { apiRequests, getPagePreparations, allowPageReads } = await installMocks(page, { failFirstPages: true });
   await openCropModal(page);
 
   await expect(page.getByText("페이지 로드 실패")).toBeVisible();
   allowPageReads();
   await page.getByRole("button", { name: "페이지 다시 불러오기" }).click();
   await expect(page.getByTestId("matchup-crop-canvas")).toBeVisible();
-  expect(getPageReads()).toBeGreaterThanOrEqual(2);
-  expect(apiRequests.filter(({ method }) => method !== "GET")).toEqual([]);
+  expect(getPagePreparations()).toBe(2);
+  expect(apiRequests.filter(({ method }) => method !== "GET")).toEqual([
+    { method: "POST", path: `/matchup/documents/${DOC_ID}/pages/` },
+    { method: "POST", path: `/matchup/documents/${DOC_ID}/pages/` },
+  ]);
 });
+
+test("390px: read failure after preparation can retry and display the saved cache", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const { getPageReads, getPagePreparations, requestedPages } = await installMocks(page, { failFirstRead: true });
+  await openCropModal(page);
+  await expect(page.getByText("페이지 로드 실패")).toBeVisible();
+  await page.getByRole("button", { name: "페이지 다시 불러오기" }).click();
+  await expect(page.getByTestId("matchup-crop-canvas")).toBeVisible();
+  expect(getPageReads()).toBe(2);
+  expect(getPagePreparations()).toBe(2);
+  expect(requestedPages).toEqual([0, 0]);
+  await expectNoDocumentOverflow(page);
+});
+
+for (const width of [1366, 390]) {
+  test(`${width}px: closing cancels a prepared page read and reopening ignores its late response`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { releaseRead, requestedPages, getPageReads } = await installMocks(page, { delayFirstRead: true, multiplePages: true });
+    await openCropModal(page);
+    await expect.poll(getPageReads).toBe(1);
+    const aborted = page.waitForEvent("requestfailed", {
+      predicate: (request) => request.method() === "GET" && new URL(request.url()).pathname.endsWith(`/documents/${DOC_ID}/pages/`),
+    });
+    await page.getByRole("button", { name: "직접 자르기 닫기" }).click();
+    await aborted;
+    releaseRead();
+    await expect(page.getByTestId("matchup-manual-crop-modal")).toHaveCount(0);
+    await page.getByTestId("matchup-doc-manual-crop-btn").click();
+    await expect(page.getByTestId("matchup-crop-canvas")).toBeVisible();
+    await page.getByTestId("matchup-crop-page-thumb").nth(2).click();
+    await expect(page.getByTestId("matchup-crop-canvas")).toBeVisible();
+    expect(requestedPages).toEqual([0, 0, 2]);
+    await expect(page.getByTestId("matchup-crop-problem-row")).toHaveCount(0);
+    await expectNoDocumentOverflow(page);
+  });
+}
 
 test("1366px: existing three-column crop contract remains intact", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 900 });

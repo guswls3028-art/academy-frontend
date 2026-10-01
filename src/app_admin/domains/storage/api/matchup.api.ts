@@ -711,6 +711,12 @@ export async function fetchDocumentPages(
   docId: number,
   options: { pageIndex?: number; signal?: AbortSignal } = {},
 ): Promise<DocumentPagesResponse> {
+  // 원본 렌더·캐시 저장은 POST로 준비한 뒤 읽기 전용 GET으로 조회한다.
+  await api.post(
+    `/matchup/documents/${docId}/pages/`,
+    { page_index: options.pageIndex },
+    { timeout: 60_000, signal: options.signal },
+  );
   const { data } = await api.get<DocumentPagesResponse>(
     `/matchup/documents/${docId}/pages/`,
     { timeout: 60_000, params: { page_index: options.pageIndex }, signal: options.signal },
