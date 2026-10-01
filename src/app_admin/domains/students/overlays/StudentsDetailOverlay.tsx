@@ -406,7 +406,7 @@ export default function StudentsDetailOverlay({
                     size="sm"
                     onClick={() => setAccountNoticeOpen(true)}
                   >
-                    아이디 안내 알림톡
+                    로그인 정보 안내 알림톡
                   </Button>
                   <Button
                     type="button"

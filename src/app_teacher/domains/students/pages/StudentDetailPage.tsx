@@ -546,11 +546,11 @@ function InfoRow({ label, value, href }: { label: string; value: string; href?: 
 
 function accountNotificationLabel(type: string): string {
   const labels: Record<string, string> = {
-    registration_approved_student: "학생 아이디 안내",
-    registration_approved_parent: "학부모 아이디 안내",
+    registration_approved_student: "학생 로그인 정보 안내",
+    registration_approved_parent: "학부모 로그인 정보 안내",
     password_reset_student: "학생 임시 비밀번호",
     password_reset_parent: "학부모 임시 비밀번호",
-    "account.username_recovery": "아이디 안내",
+    "account.username_recovery": "로그인 정보 안내",
     "account.password_recovery": "임시 비밀번호",
     "account.password_reset": "임시 비밀번호",
   };
@@ -580,7 +580,7 @@ function AccountNotificationCard({ items, onGuide, onReset }: {
             className="text-[11px] font-bold"
             style={{ minHeight: 30, padding: "5px 9px", borderRadius: "var(--tc-radius-sm)", border: 0, background: "var(--tc-primary)", color: "#fff", cursor: "pointer" }}
           >
-            아이디 안내
+            로그인 정보 안내
           </button>
           <button
             type="button"
@@ -593,7 +593,7 @@ function AccountNotificationCard({ items, onGuide, onReset }: {
         </div>
       </div>
       <p className="text-[11px] mt-0 mb-2" style={{ color: "var(--tc-text-muted)" }}>
-        아이디 안내는 현재 비밀번호와 로그인 상태를 변경하지 않습니다.
+        로그인 정보 안내는 현재 비밀번호와 로그인 상태를 변경하지 않습니다.
       </p>
       {items.length === 0 ? (
         <p className="text-sm m-0" style={{ color: "var(--tc-text-muted)" }}>
@@ -668,7 +668,7 @@ function AccountGuidanceSheet({ open, onClose, student }: {
         }
       }
       if (sent > 0) {
-        teacherToast.success(`아이디 안내 알림톡 ${sent}건을 발송했습니다.${failures.length ? ` 실패 ${failures.length}건` : ""}`);
+        teacherToast.success(`로그인 정보 안내 알림톡 ${sent}건을 발송했습니다.${failures.length ? ` 실패 ${failures.length}건` : ""}`);
         qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.accountNotifications(student.id) });
       }
       if (failures.length) teacherToast.error(failures.join(" · "));
@@ -685,12 +685,12 @@ function AccountGuidanceSheet({ open, onClose, student }: {
   ];
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="아이디 안내 알림톡">
+    <BottomSheet open={open} onClose={onClose} title="로그인 정보 안내 알림톡">
       <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-3) 0" }}>
         <div>
           <div className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>{name}</div>
           <p className="text-[12px] mt-1 mb-0" style={{ color: "var(--tc-text-muted)" }}>
-            등록된 번호로 로그인 아이디를 안내합니다. 비밀번호는 바뀌지 않습니다.
+            등록된 번호로 실제 로그인 가능한 아이디와 비밀번호를 안내합니다. 기존 비밀번호는 유지하며, 과거 비밀번호를 확인할 수 없는 계정에는 안내용 로그인 비밀번호를 발급합니다.
           </p>
         </div>
 
@@ -732,7 +732,7 @@ function AccountGuidanceSheet({ open, onClose, student }: {
           className="w-full text-sm font-bold"
           style={{ minHeight: 46, borderRadius: "var(--tc-radius)", border: 0, background: "var(--tc-primary)", color: "#fff", opacity: submitting ? 0.6 : 1, cursor: submitting ? "wait" : "pointer" }}
         >
-          {submitting ? "발송 중…" : `${target === "student" ? "학생" : target === "parent" ? "학부모" : "학생·학부모"} 아이디 안내 보내기`}
+          {submitting ? "발송 중…" : `${target === "student" ? "학생" : target === "parent" ? "학부모" : "학생·학부모"} 로그인 정보 안내 보내기`}
         </button>
       </div>
     </BottomSheet>

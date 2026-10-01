@@ -178,6 +178,8 @@ async function createStudentApi(
     grade: 1,
     gender: "M",
     initial_password: ORIGINAL_PW,
+    initial_password_mode: "fixed",
+    parent_initial_password_mode: "phone_last4",
     memo: `${RUN} adversarial fixture`,
   });
   created.studentIds.add(Number(student.id));
@@ -269,7 +271,6 @@ test.describe.serial("[E2E] 이상행동/업로드 edge fixture 감사", () => {
     await setFirstSwitch(dialog, false);
     await dialog.getByPlaceholder("이름").fill(marker);
     await dialog.getByPlaceholder("로그인 아이디").fill(username);
-    await dialog.getByPlaceholder("초기 비밀번호").fill(ORIGINAL_PW);
     await fillParentPhone(dialog, generatedPhone(201));
     await dialog.getByRole("button", { name: "남자" }).click();
     await dialog.locator("select").nth(1).selectOption("1");
@@ -277,6 +278,10 @@ test.describe.serial("[E2E] 이상행동/업로드 edge fixture 감사", () => {
     await dialog.getByRole("button", { name: "등록", exact: true }).dblclick();
     const confirmation = page.getByRole("alertdialog", { name: "학생 등록 최종 확인" });
     await expect(confirmation).toHaveCount(1);
+    await expect(confirmation.locator('input[type="radio"]:checked')).toHaveCount(0);
+    await confirmation.getByRole("group", { name: "학생 초기 비밀번호" }).getByLabel("직접 입력", { exact: true }).check();
+    await confirmation.getByLabel("학생 직접 입력 비밀번호", { exact: true }).fill(ORIGINAL_PW);
+    await confirmation.getByRole("group", { name: "학부모 초기 비밀번호" }).getByLabel("전화번호 뒤 4자리", { exact: true }).check();
     await confirmation.getByRole("button", { name: "확인하고 등록" }).dblclick();
     await expect(dialog).toBeHidden({ timeout: 30_000 });
 

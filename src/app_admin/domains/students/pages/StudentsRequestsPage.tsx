@@ -29,6 +29,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { useRegistrationPasswordConfirmation, type RegistrationPasswordChoice } from "@/shared/product/students/RegistrationPasswordConfirmation";
 import AdminModal from "@/shared/ui/modal/AdminModal";
 import ModalHeader from "@/shared/ui/modal/ModalHeader";
 import ModalBody from "@/shared/ui/modal/ModalBody";
@@ -250,6 +251,8 @@ function DeletedAccountRecoveryModal({
 export default function StudentsRequestsPage() {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const confirmPasswords = useRegistrationPasswordConfirmation();
+  const approvalConfirmationRef = useRef(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [detailRequest, setDetailRequest] =
     useState<ClientRegistrationRequest | null>(null);
@@ -294,11 +297,11 @@ export default function StudentsRequestsPage() {
   /* ── mutations ── */
 
   const approveMutation = useMutation({
-    mutationFn: (id: number) => approveRegistrationRequest(id),
-    onSuccess: (_data, id) => {
+    mutationFn: ({ id, choice }: { id: number; choice: RegistrationPasswordChoice }) => approveRegistrationRequest(id, choice),
+    onSuccess: (_data, { id }) => {
       finishApproval(id, "승인되었습니다. 학생이 등록되었습니다.");
     },
-    onError: (e: unknown, id) => {
+    onError: (e: unknown, { id }) => {
       const conflict = deletedRegistrationConflictFromError(e);
       const request = pendingList.find((item) => item.id === id) ?? null;
       if (conflict && request) {
@@ -314,8 +317,8 @@ export default function StudentsRequestsPage() {
   });
 
   const resolveDeletedMutation = useMutation({
-    mutationFn: ({ requestId, studentId }: { requestId: number; studentId: number }) =>
-      resolveDeletedRegistrationRequest(requestId, studentId),
+    mutationFn: ({ requestId, studentId, choice }: { requestId: number; studentId: number; choice: RegistrationPasswordChoice }) =>
+      resolveDeletedRegistrationRequest(requestId, studentId, choice),
     onSuccess: (_data, variables) => {
       finishApproval(variables.requestId, "과거 계정과 수강 이력을 복구하고 가입을 승인했습니다.");
     },
@@ -331,7 +334,7 @@ export default function StudentsRequestsPage() {
   });
 
   const bulkApproveMutation = useMutation({
-    mutationFn: (requestIds: number[]) => bulkApproveRegistrationRequests(requestIds),
+    mutationFn: ({ ids, choice }: { ids: number[]; choice: RegistrationPasswordChoice }) => bulkApproveRegistrationRequests(ids, choice),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
       qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
@@ -432,10 +435,21 @@ export default function StudentsRequestsPage() {
   };
 
   const handleBulkApprove = async () => {
-    if (selectedList.length === 0) return;
-    const ok = await confirm({ title: "승인 확인", message: `선택한 ${selectedList.length}건을 승인하시겠습니까?`, confirmText: "승인" });
-    if (!ok) return;
-    bulkApproveMutation.mutate(selectedList.map((r) => r.id));
+    if (!selectedList.length || approvalConfirmationRef.current) return;
+    approvalConfirmationRef.current = true;
+    try {
+      const choice = await confirmPasswords({ title: "가입 승인 최종 확인", message: `선택한 ${selectedList.length}건을 승인합니다. 가입 신청에서 선택한 비밀번호는 유지하며, 선택이 없는 신청의 신규 학부모 비밀번호만 지정합니다.`, confirmText: "승인", studentAlreadySelected: true, parentAlreadySelected: selectedList.every((r) => r.parentPasswordSelected), parentPhoneAvailable: selectedList.every((r) => /^010\d{8}$/.test(r.parentPhone ?? "")) });
+      if (choice) bulkApproveMutation.mutate({ ids: selectedList.map((r) => r.id), choice });
+    } finally { approvalConfirmationRef.current = false; }
+  };
+
+  const handleApprove = async (request: ClientRegistrationRequest) => {
+    if (approvalConfirmationRef.current || approveMutation.isPending) return;
+    approvalConfirmationRef.current = true;
+    try {
+      const choice = await confirmPasswords({ title: "가입 승인 최종 확인", message: `${request.name} 학생의 가입을 승인합니다. 가입 신청의 비밀번호 선택을 유지하며, 선택이 없다면 신규 학부모 비밀번호를 지정합니다.`, confirmText: "승인", studentAlreadySelected: true, parentAlreadySelected: request.parentPasswordSelected, parentPhone: request.parentPhone });
+      if (choice) approveMutation.mutate({ id: request.id, choice });
+    } finally { approvalConfirmationRef.current = false; }
   };
 
   const handleBulkReject = async () => {
@@ -637,7 +651,7 @@ export default function StudentsRequestsPage() {
                 const isSelected = selectedIds.has(r.id);
                 const isApproving =
                   approveMutation.isPending &&
-                  approveMutation.variables === r.id;
+                  approveMutation.variables?.id === r.id;
                 const isRejecting =
                   rejectMutation.isPending &&
                   rejectMutation.variables === r.id;
@@ -704,8 +718,7 @@ export default function StudentsRequestsPage() {
                         disabled={isApproving || isRejecting}
                         onClick={async (e) => {
                           e.stopPropagation();
-                          const ok = await confirm({ title: "승인 확인", message: `${r.name} 학생의 가입을 승인하시겠습니까?`, confirmText: "승인" });
-                          if (ok) approveMutation.mutate(r.id);
+                          await handleApprove(r);
                         }}
                       >
                         <FiUserCheck size={15} />
@@ -745,8 +758,7 @@ export default function StudentsRequestsPage() {
         }}
         onApprove={async () => {
           if (!detailRequest) return;
-          const ok = await confirm({ title: "승인 확인", message: `${detailRequest.name} 학생의 가입을 승인하시겠습니까?`, confirmText: "승인" });
-          if (ok) approveMutation.mutate(detailRequest.id);
+          await handleApprove(detailRequest);
         }}
         onReject={async () => {
           if (!detailRequest) return;
@@ -756,7 +768,7 @@ export default function StudentsRequestsPage() {
         approving={
           approveMutation.isPending &&
           detailRequest != null &&
-          approveMutation.variables === detailRequest.id
+          approveMutation.variables?.id === detailRequest.id
         }
         rejecting={
           rejectMutation.isPending &&
@@ -777,10 +789,12 @@ export default function StudentsRequestsPage() {
           setRecoveryCandidates([]);
           setSelectedRecoveryId(null);
         }}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (!recoveryRequest || !selectedRecoveryId || recoverySubmissionRef.current) return;
           recoverySubmissionRef.current = true;
-          resolveDeletedMutation.mutate({ requestId: recoveryRequest.id, studentId: selectedRecoveryId });
+          const choice = await confirmPasswords({ title: "과거 계정 복구 최종 확인", message: "가입 신청의 비밀번호 선택을 유지하여 계정을 복구합니다. 선택이 없는 신청은 누락 학부모 계정의 비밀번호를 지정합니다.", confirmText: "복구하고 승인", studentAlreadySelected: true, parentAlreadySelected: recoveryRequest.parentPasswordSelected, parentPhone: recoveryRequest.parentPhone });
+          if (choice) resolveDeletedMutation.mutate({ requestId: recoveryRequest.id, studentId: selectedRecoveryId, choice });
+          else recoverySubmissionRef.current = false;
         }}
       />
     </div>

@@ -115,7 +115,13 @@ for (const width of [390, 1366]) {
         });
       });
       const dialog = await openFilledSignup(page);
+      await (async () => {
       await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
+      const passwordChoice = page.getByRole("alertdialog", { name: "가입 신청 최종 확인" });
+      await expect(passwordChoice.getByRole("radio", { checked: true })).toHaveCount(0);
+      await passwordChoice.getByRole("radio", { name: "전화번호 뒤 4자리", exact: true }).check();
+      await passwordChoice.getByRole("button", { name: "가입 신청", exact: true }).click();
+    })();
       const message = outcome === "approved"
         ? "가입이 완료되었습니다. 지금 로그인할 수 있습니다."
         : "신청이 완료되었습니다. 승인 후 로그인해 주세요.";
@@ -204,14 +210,26 @@ for (const response of [
         : { status: 200, json: { id: 913, name: "가입검증학생" } });
     });
     const dialog = await openFilledSignup(page);
-    await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
+    await (async () => {
+      await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
+      const passwordChoice = page.getByRole("alertdialog", { name: "가입 신청 최종 확인" });
+      await expect(passwordChoice.getByRole("radio", { checked: true })).toHaveCount(0);
+      await passwordChoice.getByRole("radio", { name: "전화번호 뒤 4자리", exact: true }).check();
+      await passwordChoice.getByRole("button", { name: "가입 신청", exact: true }).click();
+    })();
     await expect(dialog.getByRole("alert")).toContainText(response.error);
     await expect(dialog.getByText(/완료되었습니다/)).toHaveCount(0);
     await expect(dialog.locator("#signup-username")).toHaveValue("signup-feedback-mock");
     await expect(dialog.locator("#signup-high")).toHaveValue("검증고등학교");
     await expect(dialog.getByRole("button", { name: "가입 신청", exact: true })).toBeEnabled();
     expect(submissions).toBe(1);
-    await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
+    await (async () => {
+      await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
+      const passwordChoice = page.getByRole("alertdialog", { name: "가입 신청 최종 확인" });
+      await expect(passwordChoice.getByRole("radio", { checked: true })).toHaveCount(0);
+      await passwordChoice.getByRole("radio", { name: "전화번호 뒤 4자리", exact: true }).check();
+      await passwordChoice.getByRole("button", { name: "가입 신청", exact: true }).click();
+    })();
     await expect(dialog.getByText("가입이 완료되었습니다. 지금 로그인할 수 있습니다.", { exact: true })).toBeVisible();
     expect(submissions).toBe(2);
   });

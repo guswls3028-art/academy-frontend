@@ -3,7 +3,8 @@ import api from "@/shared/api/axios";
 export type LectureOption = { id: number; title: string };
 export type OpsPreviewRow = {
   row_id: string; name: string; student_phone: string; parent_phone: string;
-  initial_password?: string; initial_password_required: boolean;
+  initial_password?: string; initial_password_mode?: "fixed" | "phone_last4" | "random";
+  parent_initial_password?: string; parent_initial_password_mode?: "fixed" | "phone_last4" | "random"; initial_password_required: boolean;
   school: string; school_type: "ELEMENTARY" | "MIDDLE" | "HIGH"; grade: string;
   selected_lecture_id: number | null; session_order: number | null; remove_enrollment_id: number | null;
   actions: { register_student: boolean; enroll_lecture: boolean; open_video: boolean; send_account_notice: boolean; correct_enrollment: boolean };
@@ -23,7 +24,7 @@ export async function analyzeTeacherOps(images: File[], message: string, previou
   return (await api.post<AnalyzeResult>("/teacher-app/ops-assistant/analyze/", form)).data;
 }
 export async function confirmTeacherOps(token: string, rows: OpsPreviewRow[]) {
-  return (await api.post<ExecutionResult>("/teacher-app/ops-assistant/confirm/", { proposal_token: token, rows: rows.map((row) => ({ row_id: row.row_id, enabled: true, name: row.name, student_phone: row.student_phone, parent_phone: row.parent_phone, initial_password: row.initial_password || "", school: row.school, school_type: row.school_type, grade: row.grade, selected_lecture_id: row.selected_lecture_id, session_order: row.session_order, remove_enrollment_id: row.remove_enrollment_id })) })).data;
+  return (await api.post<ExecutionResult>("/teacher-app/ops-assistant/confirm/", { proposal_token: token, rows: rows.map((row) => ({ row_id: row.row_id, enabled: true, name: row.name, student_phone: row.student_phone, parent_phone: row.parent_phone, initial_password: row.initial_password || "", initial_password_mode: row.initial_password_mode, parent_initial_password: row.parent_initial_password || "", parent_initial_password_mode: row.parent_initial_password_mode, school: row.school, school_type: row.school_type, grade: row.grade, selected_lecture_id: row.selected_lecture_id, session_order: row.session_order, remove_enrollment_id: row.remove_enrollment_id })) })).data;
 }
 export async function fetchTeacherOpsExecution(id: string) {
   return (await api.get<ExecutionResult>(`/teacher-app/ops-assistant/executions/${id}/`)).data;
