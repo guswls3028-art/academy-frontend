@@ -94,6 +94,7 @@ export const routeMockSpecs = [
   "e2e/student/video-forward-skip-budget.mock.spec.ts",
   "e2e/student/numeric-short-answer.spec.ts",
   "e2e/teacher/comms-reply-mobile.mock.spec.ts",
+  "e2e/teacher/message-log-lifecycle.mock.spec.ts",
   "e2e/teacher/mobile-score-correction-status.spec.ts",
   "e2e/teacher/homework-manual-review.mock.spec.ts",
   "e2e/teacher/session-assessment-overview.mock.spec.ts",

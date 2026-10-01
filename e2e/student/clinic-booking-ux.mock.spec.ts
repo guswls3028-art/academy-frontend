@@ -1071,10 +1071,53 @@ test.describe("학생 클리닉 예약 UX", () => {
 
     await onePm.click();
     await fivePm.click();
-    await eightPm.click();
-    await expect(page.getByRole("status")).toContainText("한 타임 전용 일정이 포함되어");
+    await expect(eightPm).toBeDisabled();
+    await expect(eightPm).toContainText("한 타임만 가능");
+    await expect(fivePm).toBeEnabled();
     await expect(fivePm).toHaveAttribute("aria-pressed", "true");
     await expect(eightPm).toHaveAttribute("aria-pressed", "false");
+
+    await fivePm.click();
+    await expect(eightPm).toBeEnabled();
+    await eightPm.click();
+    await page.getByRole("region", { name: "선택한 클리닉 시간" })
+      .getByRole("button", { name: "이 일정 예약하기" }).click();
+    await expect.poll(() => state.bookingPayloads).toEqual([{ session_ids: [205] }]);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    await expect(page.getByRole("region", { name: koreanDateLabel(openDate) })
+      .getByRole("button", { name: /토요일 5시 클리닉/ })).toBeDisabled();
+  });
+
+  test("같은 날 한 타임 예약도 기존 예약을 교체할 때는 다른 시간대로 변경한다", async ({ page }) => {
+    const state = createState();
+    state.bookings[0] = {
+      ...state.bookings[0],
+      session: 205,
+      session_title: "토요일 8시 클리닉",
+      session_date: openDate,
+      session_start_time: "20:00:00",
+      session_location: "3층 자습실",
+    };
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+    await page.getByRole("tab", { name: "내 일정 1" }).click();
+    await page.getByRole("button", { name: "일정 바꾸기" }).click();
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    const replacement = page.getByRole("region", { name: koreanDateLabel(openDate) })
+      .getByRole("button", { name: /토요일 5시 클리닉/ });
+    await expect(replacement).toBeEnabled();
+    await replacement.click();
+    await page.getByRole("button", { name: "이 일정으로 변경하기" }).click();
+
+    await expect.poll(() => state.changePayloads).toEqual([
+      { new_session_id: 202, student_request_memo: "오답노트 지참" },
+    ]);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "내 일정 1" }).click();
+    await expect(page.locator("article").filter({ hasText: "토요일 5시 클리닉" })).toBeVisible();
   });
 
   test("다른 날짜로 옮길 때는 한 타임 전용 일정도 바로 선택할 수 있다", async ({ page }) => {

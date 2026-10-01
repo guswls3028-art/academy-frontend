@@ -403,6 +403,8 @@ test.describe("student video CDN service errors", () => {
   });
 
   test("열린 무료복습이 수업 모드로 바뀌면 즉시 닫고 monitored bootstrap을 다시 받는다", async ({ page }) => {
+    const unexpectedYouTubeRequests = await guardUnmockedYouTubeRequests(page);
+    const youtube = await installYouTubeSdkFixture(page);
     let playbackRequests = 0;
     let releasePolicyDrift!: () => void;
     let releaseProctoredBootstrap!: () => void;
@@ -509,15 +511,24 @@ test.describe("student video CDN service errors", () => {
     await expect(page.getByRole("heading", { name: "정책 전환 재생 영상" })).toBeVisible({
       timeout: 30_000,
     });
+    await expect.poll(async () => (await youtube.snapshot()).players[0]?.ready).toBe(true);
+    expect((await youtube.snapshot()).players[0].controls).toBe(1);
     releasePolicyDrift();
 
     await expect.poll(() => playbackRequests, { timeout: 30_000 }).toBe(2);
     await expect(page.getByText("정책 전환 재생 영상")).toHaveCount(0);
+    await expect.poll(async () => (await youtube.snapshot()).players[0]?.destroyed).toBe(true);
 
     releaseProctoredBootstrap();
 
     await expect(page.getByRole("heading", { name: "정책 전환 재생 영상" })).toBeVisible();
     await expect(page.getByText("온라인 수업 대체")).toHaveCount(1, { timeout: 30_000 });
+    await expect.poll(async () => (await youtube.snapshot()).players[1]?.ready).toBe(true);
+    const players = (await youtube.snapshot()).players;
+    expect(players).toHaveLength(2);
+    expect(players[1].controls).toBe(0);
+    expect(players[1].destroyed).toBe(false);
+    expect(unexpectedYouTubeRequests).toEqual([]);
     expect(playbackRequests).toBe(2);
   });
 });

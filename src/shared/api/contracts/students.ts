@@ -394,6 +394,9 @@ function buildOrdering(sort: string): string | undefined {
   const mapped = ORDERING_MAP[key];
   if (!mapped) return undefined;
 
+  if (mapped === "name") {
+    return isDesc ? "-name,-id" : "name,id";
+  }
   return isDesc ? `-${mapped}` : mapped;
 }
 
