@@ -17,6 +17,7 @@ import {
 import AttendanceCard from "../components/AttendanceCard";
 import StatusBottomSheet from "../components/StatusBottomSheet";
 import { teacherAttendanceQueryKeys } from "../queryKeys";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import styles from "./SwipeAttendancePage.module.css";
 
 const EMPTY_RECORDS: AttendanceListItem[] = [];
@@ -55,6 +56,7 @@ export default function SwipeAttendancePage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) });
       qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) });
+      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sid) });
     },
     onError: (e) => feedback.error(extractApiError(e, "상태 변경 실패")),
   });
@@ -67,6 +69,7 @@ export default function SwipeAttendancePage() {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) });
       qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) });
+      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sid) });
       feedback.success(`${data.updated}명 출석 처리`);
     },
     onError: (e) => feedback.error(extractApiError(e, "전체 출석 실패")),

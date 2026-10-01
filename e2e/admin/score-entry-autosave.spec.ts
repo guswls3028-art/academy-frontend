@@ -2194,6 +2194,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await page.keyboard.press("Control+s");
       await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(1);
       expect(scorePatches[0]).toMatchObject({ score: 81, max_score: 100 });
+      await expect(page.getByRole("status")).toContainText("저장됨");
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(page.getByRole("cell", { name: "81/100", exact: true })).toBeVisible();
       await expect(page.getByRole("cell", { name: "70/100", exact: true })).toBeVisible();

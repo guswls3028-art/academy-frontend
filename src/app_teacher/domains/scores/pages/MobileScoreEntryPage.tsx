@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/scores/pages/MobileScoreEntryPage.tsx
 // 성적 입력 — 모바일 최적화. 숫자 키패드 + 자동 다음 포커스 + 만점/평균 KPI + 즉시 검증
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router";
+import { Link, useParams, useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";
@@ -270,6 +270,11 @@ function ScoreEntryList({
     }
     return map;
   }, [examId, scoreSheet?.rows]);
+  const attendanceExcludedIds = useMemo(() => new Set(
+    (scoreSheet?.rows ?? [])
+      .filter((row) => row.assessment_todo_eligible === false)
+      .map((row) => row.enrollment_id),
+  ), [scoreSheet?.rows]);
 
   // row 식별자 = enrollment_id (admin endpoint schema SSOT)
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
@@ -655,6 +660,7 @@ function ScoreEntryList({
         const isInvalid = !isNaN(draftNum) && (draftNum < 0 || draftNum > maxScore);
         const correctionStatus = correctionByEnrollment.get(enrollmentId)?.correction_status;
         const draftDirty = localScores.has(enrollmentId);
+        const attendanceExcluded = attendanceExcludedIds.has(enrollmentId);
         const reviewSaving = reviewMut.isPending
           && reviewMut.variables?.enrollmentId === enrollmentId;
 
@@ -720,14 +726,19 @@ function ScoreEntryList({
               </div>
             </div>
             <div className={styles.reviewRow}>
-              <span>{draftDirty
+              <span>{attendanceExcluded ? <>
+                결석으로 오답 상태 변경 제외 · 기존 점수 수정 가능
+                <Link className="ml-2 underline underline-offset-2" to={`/workspace/mobile/attendance/${sessionId}`}>
+                  출결 확인
+                </Link>
+              </> : draftDirty
                 ? `점수를 먼저 저장하면 ${wrongCompletionOnly ? "오답 상태" : "최종 판정"}을 바꿀 수 있습니다.`
                 : subjectivePending
                   ? `객관식 ${scoreBlock?.objective_score ?? 0}점 저장됨 · 서술형 입력 후 최종 반영`
                   : wrongCompletionOnly ? "오답 확인 상태" : "원점수 유지 판정"}</span>
               <ReviewStatusControl
                 status={correctionStatus}
-                disabled={draftDirty || reviewSaving || subjectivePending}
+                disabled={attendanceExcluded || draftDirty || reviewSaving || subjectivePending}
                 saving={reviewSaving}
                 studentName={name}
                 wrongCompletionOnly={wrongCompletionOnly}
