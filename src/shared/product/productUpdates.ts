@@ -18,6 +18,20 @@ export const PRODUCT_UPDATE_CADENCE = {
 
 export const PRODUCT_UPDATES: ProductUpdate[] = [
   {
+    id: "2026-10-01-upload-clinic-student-recovery",
+    date: "2026-10-01",
+    title: "업로드와 클리닉·학생 화면 개선",
+    summary: "업로드 중 화면이 닫히는 문제를 줄이고, 클리닉 예약과 학생 화면의 확인 흐름을 다듬었습니다.",
+    audience: ["원장·관리자", "선생님·조교", "학생·학부모"],
+    availability: "기능별 이용 권한에 따라 제공",
+    highlights: [
+      { kind: "fix", text: "매치업에서 여러 파일을 올리는 동안 업로드 창과 입력을 유지하고, 목록 조회 실패 후에도 다시 시도할 수 있도록 수정" },
+      { kind: "improve", text: "클리닉 예약의 겹치는 시간과 선택한 예약을 더 분명하게 표시하고 학생 이름을 가나다순으로 정리" },
+      { kind: "improve", text: "선생님 발송 내역에서 처리 중·공급자 수락·최종 결과를 나누어 확인하도록 표시 개선" },
+      { kind: "improve", text: "학생 화면의 학원 이름과 밝은·어두운 화면 대비를 정리해 작은 화면에서도 읽기 쉽게 개선" },
+    ],
+  },
+  {
     id: "2026-09-28-message-editing-recovery",
     date: "2026-09-28",
     title: "알림톡 문구와 입력 실수 복구 개선",
