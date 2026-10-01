@@ -12124,9 +12124,9 @@ export interface components {
         AccountPasswordModeEnum: "phone_last4" | "fixed" | "random";
         AccountPasswordSettingsSchema: {
             parent_fixed_password?: string;
-            parent_mode?: components["schemas"]["AccountPasswordModeEnum"];
+            parent_mode?: (components["schemas"]["AccountPasswordModeEnum"] | components["schemas"]["NullEnum"]) | null;
             student_fixed_password?: string;
-            student_mode?: components["schemas"]["AccountPasswordModeEnum"];
+            student_mode?: (components["schemas"]["AccountPasswordModeEnum"] | components["schemas"]["NullEnum"]) | null;
         };
         /**
          * @description * `ACTIVE` - ACTIVE
@@ -13096,6 +13096,8 @@ export interface components {
             detail: string;
         };
         DeletedRegistrationResolveRequest: {
+            parent_initial_password?: string;
+            parent_initial_password_mode?: components["schemas"]["AccountPasswordModeEnum"];
             student_id: number;
         };
         /**
@@ -15512,6 +15514,10 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["WorkMonthLock"][];
         };
+        ParentInitialPasswordChoiceRequest: {
+            parent_initial_password?: string;
+            parent_initial_password_mode?: components["schemas"]["AccountPasswordModeEnum"];
+        };
         /**
          * @description * `target` - Target
          *     * `manual` - Manual
@@ -15530,9 +15536,9 @@ export interface components {
         ParticipantStatusEnum: "pending" | "booked" | "attended" | "no_show" | "cancelled" | "rejected";
         PatchedAccountPasswordSettingsSchemaRequest: {
             parent_fixed_password?: string;
-            parent_mode?: components["schemas"]["AccountPasswordModeEnum"];
+            parent_mode?: (components["schemas"]["AccountPasswordModeEnum"] | components["schemas"]["NullEnum"]) | null;
             student_fixed_password?: string;
-            student_mode?: components["schemas"]["AccountPasswordModeEnum"];
+            student_mode?: (components["schemas"]["AccountPasswordModeEnum"] | components["schemas"]["NullEnum"]) | null;
         };
         PatchedAnswerKeyRequest: {
             /** @description key=ExamQuestion.id (string), value=correct answer */
@@ -16320,6 +16326,7 @@ export interface components {
             /** @description 출신중학교 (고등학생 선택 입력) */
             origin_middle_school?: string | null;
             parent_initial_password?: string;
+            parent_initial_password_mode?: components["schemas"]["AccountPasswordModeEnum"];
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             parent_phone?: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
@@ -17089,6 +17096,8 @@ export interface components {
         };
         RegistrationRequestBulkIdsRequest: {
             ids: number[];
+            parent_initial_password?: string;
+            parent_initial_password_mode?: components["schemas"]["AccountPasswordModeEnum"];
         };
         RegistrationRequestBulkRejectResponse: {
             rejected: number;
@@ -17116,6 +17125,8 @@ export interface components {
             name: string;
             /** @default  */
             origin_middle_school: string | null;
+            parent_initial_password?: string;
+            parent_initial_password_mode?: components["schemas"]["AccountPasswordModeEnum"];
             parent_phone: string;
             password_confirmation: string;
             /** @default  */
@@ -17151,6 +17162,7 @@ export interface components {
             readonly name: string;
             /** @description 출신중학교 (고등학생 선택 입력) */
             readonly origin_middle_school: string | null;
+            readonly parent_password_selected: boolean;
             readonly parent_phone: string;
             readonly phone: string | null;
             readonly school_type: string;
@@ -18251,6 +18263,7 @@ export interface components {
             high_school?: string | null;
             high_school_class?: string | null;
             initial_password?: string;
+            initial_password_mode?: components["schemas"]["AccountPasswordModeEnum"];
             is_managed?: boolean;
             major?: string | null;
             memo?: string | null;
@@ -18267,6 +18280,7 @@ export interface components {
             origin_middle_school?: string | null;
             parent?: number | null;
             parent_initial_password?: string;
+            parent_initial_password_mode?: components["schemas"]["AccountPasswordModeEnum"];
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             parent_phone: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
@@ -18732,6 +18746,7 @@ export interface components {
             /** @description 출신중학교 (고등학생 선택 입력) */
             origin_middle_school?: string | null;
             parent_initial_password?: string;
+            parent_initial_password_mode?: components["schemas"]["AccountPasswordModeEnum"];
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             parent_phone: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
@@ -18975,7 +18990,10 @@ export interface components {
             enabled: boolean;
             grade?: string;
             initial_password?: string;
+            initial_password_mode?: components["schemas"]["AccountPasswordModeEnum"];
             name: string;
+            parent_initial_password?: string;
+            parent_initial_password_mode?: components["schemas"]["AccountPasswordModeEnum"];
             parent_phone?: string;
             remove_enrollment_id?: number | null;
             row_id: string;
@@ -36058,7 +36076,13 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ParentInitialPasswordChoiceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ParentInitialPasswordChoiceRequest"];
+                "multipart/form-data": components["schemas"]["ParentInitialPasswordChoiceRequest"];
+            };
+        };
         responses: {
             200: {
                 headers: {

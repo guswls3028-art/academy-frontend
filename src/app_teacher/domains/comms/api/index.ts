@@ -179,7 +179,7 @@ export async function fetchRegistrationRequests(
 }
 
 export async function approveRegistration(id: number, choice: { parentInitialPasswordMode?: string; parentInitialPassword: string }): Promise<void> {
-  await api.post(`/students/registration_requests/${id}/approve/`, { parent_initial_password_mode: choice.parentInitialPasswordMode, parent_initial_password: choice.parentInitialPassword });
+  await api.post(`/students/registration_requests/${id}/approve/`, choice.parentInitialPasswordMode ? { parent_initial_password_mode: choice.parentInitialPasswordMode, parent_initial_password: choice.parentInitialPassword } : {});
 }
 
 export async function rejectRegistration(id: number): Promise<void> {

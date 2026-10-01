@@ -929,7 +929,7 @@ export async function fetchRegistrationRequests(params?: {
 
 /** 스태프: 가입 신청 승인 */
 export async function approveRegistrationRequest(id: number, choice?: RegistrationPasswordChoice): Promise<ClientStudent> {
-  const res = await api.post(`/students/registration_requests/${id}/approve/`, choice ? { parent_initial_password_mode: choice.parentInitialPasswordMode, parent_initial_password: choice.parentInitialPassword } : {});
+  const res = await api.post(`/students/registration_requests/${id}/approve/`, choice?.parentInitialPasswordMode ? { parent_initial_password_mode: choice.parentInitialPasswordMode, parent_initial_password: choice.parentInitialPassword } : {});
   return mapStudent(res.data);
 }
 
@@ -939,7 +939,7 @@ export async function resolveDeletedRegistrationRequest(
   studentId: number,
   choice?: RegistrationPasswordChoice,
 ): Promise<ClientStudent> {
-  const request: DeletedRegistrationResolveRequest = { student_id: studentId, ...(choice ? { parent_initial_password: choice.parentInitialPassword, parent_initial_password_mode: choice.parentInitialPasswordMode } : {}) };
+  const request: DeletedRegistrationResolveRequest = { student_id: studentId, ...(choice?.parentInitialPasswordMode ? { parent_initial_password: choice.parentInitialPassword, parent_initial_password_mode: choice.parentInitialPasswordMode } : {}) };
   const res = await api.post(
     `/students/registration_requests/${requestId}/resolve_deleted/`,
     request
@@ -952,7 +952,7 @@ export async function bulkApproveRegistrationRequests(
   requestIds: number[],
   choice?: RegistrationPasswordChoice,
 ): Promise<{ approved: number; failed: Array<{ id: number; detail: string }> }> {
-  const res = await api.post("/students/registration_requests/bulk_approve/", { ids: requestIds, ...(choice ? { parent_initial_password_mode: choice.parentInitialPasswordMode, parent_initial_password: choice.parentInitialPassword } : {}) });
+  const res = await api.post("/students/registration_requests/bulk_approve/", { ids: requestIds, ...(choice?.parentInitialPasswordMode ? { parent_initial_password_mode: choice.parentInitialPasswordMode, parent_initial_password: choice.parentInitialPassword } : {}) });
   return res.data as { approved: number; failed: Array<{ id: number; detail: string }> };
 }
 

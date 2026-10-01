@@ -21,6 +21,7 @@ function localJwt(): string {
 async function installTeacherStudentPage(
   page: Page,
   onCreateStudent: (payload: Record<string, unknown>) => void,
+  onPolicyUpdate?: (payload: Record<string, unknown>) => void,
 ): Promise<void> {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
@@ -45,7 +46,10 @@ async function installTeacherStudentPage(
     }
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204, body: "" });
     if (path === "/students/account-password-settings/") {
-      if (request.method() === "PATCH") policy = { ...policy, ...request.postDataJSON() };
+      if (request.method() === "PATCH") {
+        onPolicyUpdate?.(request.postDataJSON() as Record<string, unknown>);
+        policy = { ...policy, ...request.postDataJSON() };
+      }
       return route.fulfill({ json: policy });
     }
     if (path === "/students/" && request.method() === "GET") {
@@ -64,6 +68,70 @@ async function installTeacherStudentPage(
 }
 
 test.use({ serviceWorkers: "block" });
+
+for (const width of [390, 1366]) {
+  test(`${width}px 학원 설정은 바꾼 역할만 저장하고 다른 역할 설정을 유지한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const patches: Array<Record<string, unknown>> = [];
+    await installTeacherStudentPage(page, () => {}, (payload) => patches.push(payload));
+    await page.goto(`${BASE}/workspace/settings/organization`, { waitUntil: "commit" });
+    await expect(page.getByText("학생 · 학부모 초기 비밀번호 설정", { exact: true })).toBeVisible({ timeout: 45_000 });
+    await page.getByText("학생 · 학부모 초기 비밀번호 설정", { exact: true }).click();
+    const section = page.locator("details").filter({ hasText: "학생 · 학부모 초기 비밀번호 설정" });
+    await expect(section.getByLabel("학생 초기 비밀번호 방식", { exact: true })).toHaveValue("");
+    await expect(section.getByLabel("학부모 초기 비밀번호 방식", { exact: true })).toHaveValue("");
+    await section.getByLabel("학부모 초기 비밀번호 방식", { exact: true }).selectOption("fixed");
+    await section.getByLabel("학부모 공통 초기 비밀번호", { exact: true }).fill(" parent default ");
+    await section.getByRole("button", { name: "초기 비밀번호 설정 저장", exact: true }).click();
+    await expect(section.getByRole("status")).toContainText("신규 계정부터 적용");
+    expect(patches).toEqual([{ parent_mode: "fixed", parent_fixed_password: " parent default " }]);
+    await page.reload();
+    await page.getByText("학생 · 학부모 초기 비밀번호 설정", { exact: true }).click();
+    await expect(section.getByLabel("학부모 공통 초기 비밀번호", { exact: true })).toHaveValue(" parent default ");
+    await section.getByLabel("학생 초기 비밀번호 방식", { exact: true }).selectOption("random");
+    await section.getByRole("button", { name: "초기 비밀번호 설정 저장", exact: true }).click();
+    await expect(section.getByRole("status")).toContainText("신규 계정부터 적용");
+    expect(patches[1]).toEqual({ student_mode: "random" });
+    await page.reload();
+    await page.getByText("학생 · 학부모 초기 비밀번호 설정", { exact: true }).click();
+    await expect(section.getByLabel("학생 초기 비밀번호 방식", { exact: true })).toHaveValue("random");
+    await expect(section.getByLabel("학부모 공통 초기 비밀번호", { exact: true })).toHaveValue(" parent default ");
+    expect(await section.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: testInfo.outputPath(`organization-password-policy-${width}.png`), fullPage: true });
+  });
+}
+
+for (const width of [390, 1366]) {
+  test(`${width}px 가입 승인은 학생·학부모가 선택한 비밀번호를 다시 지정하지 않는다`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await installTeacherStudentPage(page, () => {});
+    let approved = false;
+    const bodies: Array<Record<string, unknown>> = [];
+    await page.route("**/api/v1/students/registration_requests/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith("/settings/")) return route.fulfill({ json: { auto_approve: false } });
+      if (path.endsWith("/101/approve/")) {
+        bodies.push(route.request().postDataJSON() as Record<string, unknown>);
+        approved = true;
+        return route.fulfill({ json: { id: 101, name: "선택보존학생", ps_number: "chosen-login" } });
+      }
+      return route.fulfill({ json: { count: approved ? 0 : 1, results: approved ? [] : [{ id: 101, name: "선택보존학생", status: "pending", phone: "01070002222", parent_phone: "01070001111", parent_password_selected: true, school_type: "HIGH", high_school: "테스트고", grade: 1, created_at: "2026-10-02T00:00:00Z" }] } });
+    });
+    await page.goto(`${BASE}/workspace/students/requests`, { waitUntil: "commit" });
+    await expect(page.getByRole("button", { name: "승인", exact: true })).toBeVisible({ timeout: 45_000 });
+    await page.getByRole("button", { name: "승인", exact: true }).click();
+    const confirmation = page.getByRole("alertdialog", { name: "가입 승인 최종 확인" });
+    await expect(confirmation.getByRole("radio")).toHaveCount(0);
+    await expect(confirmation.getByText("학부모의 가입 신청 비밀번호 선택도 유지합니다.")).toBeVisible();
+    expect(bodies).toEqual([]);
+    expect(await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    await confirmation.getByRole("button", { name: "승인", exact: true }).click();
+    await expect.poll(() => bodies).toEqual([{}]);
+    await expect(page.getByText("대기 중인 가입 신청이 없습니다")).toBeVisible();
+    await page.reload();
+    await expect(page.getByText("대기 중인 가입 신청이 없습니다")).toBeVisible({ timeout: 45_000 });
+  });
+}
 
 for (const width of [390, 1366]) {
 test(`${width}px 선생님 등록은 학생·학부모 비밀번호와 로그인 ID를 유지한다`, async ({ page }, testInfo) => {
