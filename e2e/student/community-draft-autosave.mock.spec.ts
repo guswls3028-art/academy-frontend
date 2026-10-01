@@ -80,6 +80,12 @@ async function installStudentApi(
       const results = posts.filter((post) => post.created_by === selectedId && (!postType || post.post_type === postType));
       return json({ count: results.length, next: null, previous: null, results });
     }
+    const postDetail = path.match(/\/community\/posts\/(\d+)\/$/);
+    if (postDetail && request.method() === "GET") {
+      const selectedId = Number(request.headers()["x-student-id"] || 12);
+      const post = posts.find((item) => item.id === Number(postDetail[1]) && item.created_by === selectedId);
+      return post ? json(post) : json({ detail: "게시물을 찾을 수 없습니다." }, 404);
+    }
     if (path.endsWith("/community/posts/") && request.method() === "POST") {
       if (state.failSubmit) return json({ detail: "질문 전송 실패" }, 503);
       const body = request.postDataJSON() as Record<string, unknown>;
@@ -204,6 +210,87 @@ test.describe("학생 커뮤니티 durable draft", () => {
     await page.getByRole("button", { name: "상담", exact: true }).click();
     await page.getByRole("button", { name: "상담 신청하기", exact: true }).click();
     await expect(page.getByPlaceholder("예: 진로 상담, 학습 방법 상담")).toHaveValue("진로 상담 초안");
+  });
+
+  for (const width of [1366, 390]) {
+    test(`${width}px: 강조·목록·링크 HTML을 초안과 게시글에 저장하고 재열어 확인한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      const { writeHeaders } = await installStudentApi(page);
+      await openForm(page, "QnA");
+      await page.getByPlaceholder("질문 제목").fill("서식 왕복 질문");
+      const editor = page.locator(".ProseMirror");
+      await editor.fill("강조 문장");
+      await editor.press("Control+a");
+      await page.getByTitle("굵게 (Ctrl+B)").click();
+      await expect(editor.locator("strong")).toHaveText("강조 문장");
+      await editor.press("End");
+      await editor.press("Enter");
+      await page.getByTitle("글머리 기호").click();
+      await page.keyboard.insertText("참고 링크");
+      await editor.press("Shift+Home");
+      page.once("dialog", (dialog) => dialog.accept("https://example.com/study"));
+      await page.getByTitle("링크 삽입/수정").click();
+      await expect(editor.locator('ul a[href="https://example.com/study"]')).toHaveText("참고 링크");
+
+      await flushPageDraft(page);
+      const firstDraft = String((await readDraft(page, QNA_KEY))?.data?.content ?? "");
+      expect(firstDraft).toContain("<strong>강조 문장</strong>");
+      expect(firstDraft).toMatch(/<ul[ >]/);
+      expect(firstDraft).toContain('href="https://example.com/study"');
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "QnA", exact: true }).click();
+      await page.getByRole("button", { name: "질문하기", exact: true }).click();
+      await expect(editor.locator("strong")).toHaveText("강조 문장");
+      await expect(editor.locator('ul a[href="https://example.com/study"]')).toHaveText("참고 링크");
+      await editor.press("Control+End");
+      await page.keyboard.insertText(" 수정");
+      await page.getByRole("button", { name: "질문 보내기", exact: true }).click();
+      await expect.poll(() => writeHeaders.length).toBe(1);
+      const submitted = String(writeHeaders[0].body.content);
+      expect(submitted).toContain("<strong>강조 문장</strong>");
+      expect(submitted).toMatch(/<ul[ >]/);
+      expect(submitted).toContain('href="https://example.com/study"');
+      expect(submitted).toContain("수정");
+      await expect.poll(() => readDraft(page, QNA_KEY)).toBeNull();
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "QnA", exact: true }).click();
+      await page.getByRole("button", { name: /서식 왕복 질문/ }).click();
+      const saved = page.locator(".community-html-content");
+      await expect(saved.locator("strong")).toHaveText("강조 문장");
+      await expect(saved.locator('ul a[href="https://example.com/study"]')).toContainText("참고 링크");
+      await expect(saved).toContainText("수정");
+    });
+  }
+
+  test("위험한 URL과 data URL을 담은 초안은 편집·제출 시 안전한 HTML만 남긴다", async ({ page }) => {
+    const { writeHeaders } = await installStudentApi(page);
+    await page.addInitScript((key) => {
+      localStorage.setItem(key, JSON.stringify({
+        version: 1,
+        savedAt: Date.now(),
+        data: {
+          title: "외부 서식 초안",
+          categoryLabel: "",
+          content: '<p>본문 <a href="javascript:alert(1)">위험 링크</a><img src="data:image/png;base64,AAAA"><script>window.__unsafeDraft = true</script></p>',
+        },
+      }));
+    }, QNA_KEY);
+    await openForm(page, "QnA");
+    const editor = page.locator(".ProseMirror");
+    await expect(editor).toContainText("본문");
+    await expect(editor.locator('a[href^="javascript:"], a[href^="data:"], img[src^="data:"], script')).toHaveCount(0);
+    expect(await page.evaluate(() => (window as Window & { __unsafeDraft?: boolean }).__unsafeDraft ?? false)).toBe(false);
+    await editor.press("Control+End");
+    await page.keyboard.insertText(" 안전한 수정");
+    await flushPageDraft(page);
+    const draftHtml = String((await readDraft(page, QNA_KEY))?.data?.content ?? "");
+    expect(draftHtml).toContain("안전한 수정");
+    expect(draftHtml).not.toMatch(/javascript:|data:image|<script/i);
+    await page.getByRole("button", { name: "질문 보내기", exact: true }).click();
+    await expect.poll(() => writeHeaders.length).toBe(1);
+    expect(String(writeHeaders[0].body.content)).not.toMatch(/javascript:|data:image|<script/i);
   });
 
   test("저장소 실패를 숨기지 않고 복구 후 명시적으로 다시 저장한다", async ({ page }) => {

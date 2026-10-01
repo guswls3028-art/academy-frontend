@@ -169,6 +169,9 @@ Ctrl/⌘+Z, Ctrl/⌘+Shift+Z, Ctrl+Y와 실행 취소·다시 실행 버튼을 �
 편집 뒤에 미리보기가 오도록 유지한다. 미리보기 텍스트는 가로 스크롤 없이 줄바꿈한다.
 변수 목록은 별도 스크롤 영역에 가두지 않고 모달 본문과 함께 스크롤한다.
 본문 편집과 수신자 확인, 저장·발송 버튼에 접근할 수 있어야 한다.
+안내문은 `#{변수}`가 포함된 일반 텍스트를 API에 저장한다. 편집기 내부의
+Tiptap JSON 노드는 저장 형식이 아니며, 의존성 갱신 뒤에도 기존 문구의 변수·
+줄바꿈·실행 취소와 저장 후 재열기 결과를 유지한다.
 검증은 `message-template-editor.mock.spec.ts`의 블록·단축키·clipboard·저장/재조회,
 `score-alimtalk-personalization.mock.spec.ts`의 학생별 미리보기/발송·실패 복구,
 `score-alimtalk-payload-vars.spec.ts`의 완료 판정과 실제 치환 본문을 사용한다.
