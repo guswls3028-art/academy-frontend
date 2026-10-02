@@ -240,6 +240,11 @@ export default function AdminOmrBatchUploadBox({
 
   const onPickFiles = (files: File[]) => {
     if (!files.length || resumeUploadBlocked) return;
+    const emptyFileCount = files.filter((file) => file.size <= 0).length;
+    if (emptyFileCount > 0) {
+      setNotice(`빈 파일 ${emptyFileCount}개가 있어 선택을 중단했습니다.`);
+      return;
+    }
     setNotice(null);
     const selectionLimit = resumeOrdinals.length > 0 ? resumeOrdinals.length : MAX_FILES;
     const usedOrdinals = new Set(items.map((item) => item.ordinal));
@@ -457,6 +462,8 @@ export default function AdminOmrBatchUploadBox({
           hintText="사진 또는 1페이지 PDF · 여러 장 선택 가능"
           disabled={busy || loadingResume || resumeUploadBlocked}
           onFilesSelect={onPickFiles}
+          onInvalidFile={setNotice}
+          rejectMixedInvalid
         />
       </fieldset>
 
