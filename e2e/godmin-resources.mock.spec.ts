@@ -57,6 +57,7 @@ const documentServer = createServer((request, response) => {
   response.end(bytes);
 });
 test.beforeAll(async () => {
+  if (!["localhost", "127.0.0.1"].includes(new URL(BASE).hostname)) throw new Error("Resource fixture requires a loopback checkout origin");
   await new Promise<void>((resolve) => documentServer.listen(0, "127.0.0.1", resolve));
   const address = documentServer.address();
   if (!address || typeof address === "string") throw new Error("QA document server failed");
@@ -77,7 +78,7 @@ async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolea
       return Reflect.apply(nativeOpen, this, [method, target, ...rest]);
     };
   }, { origin: new URL(documentUrl).origin });
-  await page.context().route(/\/api\/v1\//, async (route) => {
+  await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url()); const path = url.pathname;
     if (url.origin === new URL(documentUrl).origin) return route.continue();
     const headers = { "Access-Control-Allow-Origin": new URL(BASE).origin, "Access-Control-Allow-Credentials": "true" };
