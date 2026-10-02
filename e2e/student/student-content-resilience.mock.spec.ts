@@ -759,6 +759,23 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await expect(page.getByRole("button", { name: "자료실", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: "커뮤니티 처음으로", exact: true })).toHaveCSS("border-top-width", "1px");
 
+    const tabs = page.getByRole("group", { name: "커뮤니티 메뉴" });
+    await tabs.getByRole("button", { name: "자료실", exact: true }).focus();
+    await page.keyboard.press("Home");
+    await expect(tabs.getByRole("button", { name: "공지사항", exact: true })).toBeFocused();
+    await expect(page).toHaveURL(/\/student\/community\?tab=notice$/);
+    await page.keyboard.press("End");
+    await expect(tabs.getByRole("button", { name: "상담", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await expect(tabs.getByRole("button", { name: "공지사항", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
+    await expect(tabs.getByRole("button", { name: "상담", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
+    await expect(tabs.getByRole("button", { name: "QnA", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("ArrowLeft");
+    await expect(tabs.getByRole("button", { name: "자료실", exact: true })).toBeFocused();
+    await expect(tabs.getByRole("button", { name: "자료실", exact: true })).toHaveAttribute("tabindex", "0");
+
     await page.getByRole("button", { name: "QnA", exact: true }).click();
     await expect(page).toHaveURL(/\/student\/community\?tab=qna$/);
     await page.getByRole("button", { name: "질문하기", exact: true }).click();
