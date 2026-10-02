@@ -52,6 +52,9 @@ type MockState = {
   guidedQuestionCount?: number;
   guidedQuestionScores?: Record<number, number>;
   answerKeySaves?: Array<Record<string, unknown>>;
+  answerKeyReadMode?: "normal" | "empty" | "error" | "wrong-owner";
+  answerKeyWriteFailure?: boolean;
+  answerKeyWriteCount?: number;
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
   homeworkAssignmentIds?: number[];
   homeworkAssignmentPuts?: number[][];
@@ -343,9 +346,16 @@ async function installApi(page: Page, state: MockState) {
       }
       if (path === "/exams/9971/explanations/" && method === "GET") return json([]);
       if (path === "/exams/answer-keys/" && method === "GET") {
+        if (state.answerKeyReadMode === "error" && state.answerKeySaves?.length) return json({ detail: "readback unavailable" }, 503);
+        if (state.answerKeyReadMode === "empty") return json([]);
+        if (state.answerKeyReadMode === "wrong-owner" && state.answerKeySaves?.length) {
+          return json(state.answerKeySaves.map((payload, index) => ({ id: 99712 + index, ...payload, exam: 1234 })));
+        }
         return json((state.answerKeySaves ?? []).map((payload, index) => ({ id: 99712 + index, ...payload })));
       }
       if (path === "/exams/answer-keys/" && method === "POST") {
+        state.answerKeyWriteCount = (state.answerKeyWriteCount ?? 0) + 1;
+        if (state.answerKeyWriteFailure) return json({ detail: "write unavailable" }, 503);
         const payload = request.postDataJSON() as Record<string, unknown>;
         state.answerKeySaves ??= [];
         state.answerKeySaves.push(payload);
@@ -353,6 +363,13 @@ async function installApi(page: Page, state: MockState) {
           id: 99712, ...payload,
           regrade: [{ exam_id: 9971, total: 0, graded: 0, skipped: 0, failed: [], needs_review: [] }],
         }, 201);
+      }
+      if (path === "/exams/answer-keys/99712/" && method === "PUT") {
+        state.answerKeyWriteCount = (state.answerKeyWriteCount ?? 0) + 1;
+        if (state.answerKeyWriteFailure) return json({ detail: "write unavailable" }, 503);
+        const payload = request.postDataJSON() as Record<string, unknown>;
+        state.answerKeySaves = [payload];
+        return json({ id: 99712, ...payload, regrade: [{ exam_id: 9971, graded: 0, failed: [], needs_review: [] }] });
       }
       if (path === "/exams/9971/omr/defaults/" && method === "GET") {
         const choiceCount = state.guidedQuestionCount ?? 1;
@@ -1125,6 +1142,92 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   expect(pickerBox!.width).toBeGreaterThan(330);
   expect(pickerBox!.x + pickerBox!.width).toBeLessThanOrEqual(390);
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+});
+
+async function openGuidedAnswerDialog(page: import("@playwright/test").Page, state: MockState) {
+  await openLecture(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/scores`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "시험 추가", exact: true }).first().click();
+  await page.getByText("시험 설정해서 만들기", { exact: true }).click();
+  await page.getByLabel("시험명").fill("정답 저장 확인 시험");
+  await page.getByRole("button", { name: "시험 만들기", exact: true }).click();
+  const dialog = page.getByRole("dialog").filter({ hasText: "2. 답안 등록" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("spinbutton", { name: "전체 문항 수" }).fill("1");
+  await dialog.getByRole("button", { name: "유형 저장" }).click();
+  await expect.poll(() => state.guidedQuestionsInitialized).toBe(true);
+  return dialog;
+}
+
+test("정답 저장 응답 뒤 빈 재조회는 성공 처리하지 않고 입력을 보존하며 GET 재시도만 허용한다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉", patchTitles: [], guidedExamFlow: true,
+    guidedQuestionCount: 1, createdExamPayloads: [], examSessionEnrollmentRows: [],
+    answerKeySaves: [], answerKeyReadMode: "empty",
+  };
+  await page.setViewportSize({ width: 1366, height: 900 });
+  const dialog = await openGuidedAnswerDialog(page, state);
+  await dialog.getByRole("checkbox", { name: "1번 1번 선택지" }).click();
+  await dialog.getByRole("checkbox", { name: "1번 4번 선택지" }).click();
+  await dialog.getByRole("button", { name: "만점에 맞게 균등 배점" }).click();
+  await dialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("입력은 유지됩니다");
+  await expect(dialog.getByRole("checkbox", { name: "1번 1번 선택지" })).toBeChecked();
+  await expect(dialog.getByRole("checkbox", { name: "1번 4번 선택지" })).toBeChecked();
+  await expect(page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" })).toHaveCount(0);
+  expect(state.answerKeyWriteCount).toBe(1);
+  state.answerKeyReadMode = "error";
+  await dialog.getByRole("button", { name: "저장 상태 확인" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("readback unavailable");
+  expect(state.answerKeyWriteCount).toBe(1);
+  state.answerKeyReadMode = "normal";
+  await dialog.getByRole("button", { name: "저장 상태 확인" }).click();
+  await expect(page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" })).toBeVisible();
+  expect(state.answerKeyWriteCount).toBe(1);
+  expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "1,4" } });
+});
+
+test("기존 정답 수정은 구조 소유자와 복수 정답·기본점수 재조회가 일치할 때만 완료한다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉", patchTitles: [], guidedExamFlow: true,
+    guidedQuestionCount: 1, createdExamPayloads: [], examSessionEnrollmentRows: [],
+    answerKeySaves: [{ exam: 9971, answers: { "99711": "1", __score_adjustment__: { objective: 0.1 } } }],
+  };
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dialog = await openGuidedAnswerDialog(page, state);
+  await dialog.getByRole("checkbox", { name: "1번 4번 선택지" }).click();
+  await dialog.getByRole("button", { name: "만점에 맞게 균등 배점" }).click();
+  state.answerKeyReadMode = "wrong-owner";
+  await dialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("시험 소유자와 일치하지 않습니다");
+  expect(state.answerKeyWriteCount).toBe(1);
+  state.answerKeyReadMode = "normal";
+  await dialog.getByRole("button", { name: "저장 상태 확인" }).click();
+  await expect(page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" })).toBeVisible();
+  expect(state.answerKeyWriteCount).toBe(1);
+  expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "1,4", __score_adjustment__: { objective: 0.1 } } });
+});
+
+test("정답 쓰기 실패는 초안을 유지하고 미저장 닫기는 취소할 수 있다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉", patchTitles: [], guidedExamFlow: true,
+    guidedQuestionCount: 1, createdExamPayloads: [], examSessionEnrollmentRows: [],
+    answerKeySaves: [], answerKeyWriteFailure: true,
+  };
+  await page.setViewportSize({ width: 390, height: 844 });
+  const dialog = await openGuidedAnswerDialog(page, state);
+  await dialog.getByRole("checkbox", { name: "1번 3번 선택지" }).click();
+  await dialog.getByRole("button", { name: "만점에 맞게 균등 배점" }).click();
+  await dialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
+  await expect(dialog.getByRole("checkbox", { name: "1번 3번 선택지" })).toBeChecked();
+  await dialog.getByRole("button", { name: "나중에" }).click();
+  await expect(page.getByRole("button", { name: "입력 버리고 닫기" })).toBeVisible();
+  await page.getByRole("button", { name: "취소", exact: true }).last().click();
+  await expect(dialog).toBeVisible();
+  state.answerKeyWriteFailure = false;
+  await dialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
+  await expect(page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" })).toBeVisible();
+  expect(state.answerKeyWriteCount).toBe(2);
 });
 
 test("성적 탭의 첫 시험 안내에서 현재 가이드의 해당 단계가 열린다", async ({ page }, testInfo) => {
