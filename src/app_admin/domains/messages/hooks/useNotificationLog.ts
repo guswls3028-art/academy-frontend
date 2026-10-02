@@ -13,10 +13,10 @@ export function useNotificationLog(params?: NotificationLogParams) {
   const { user } = useAuth();
   const exactRequest = params?.request_id !== undefined;
   return useQuery({
-    queryKey: [
-      ...messageQueryKeys.logList(params ?? {}),
-      resolveTenantCodeString(), user?.id, user?.tenantRole,
-    ],
+    queryKey: messageQueryKeys.withViewerScope(
+      messageQueryKeys.logList(params ?? {}),
+      [resolveTenantCodeString(), user?.id, user?.tenantRole],
+    ),
     queryFn: () => fetchNotificationLog(params),
     staleTime: exactRequest ? 0 : 30 * 1000,
     refetchOnMount: exactRequest ? "always" : true,

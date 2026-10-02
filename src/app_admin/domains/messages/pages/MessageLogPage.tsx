@@ -302,13 +302,13 @@ function LogDetailModal({
 }) {
   const viewerScope = useLogViewerScope();
   const detailQ = useQuery({
-    queryKey: [...messageQueryKeys.logDetail(item?.id ?? 0), ...viewerScope],
+    queryKey: messageQueryKeys.withViewerScope(messageQueryKeys.logDetail(item?.id ?? 0), viewerScope),
     queryFn: () => fetchNotificationLogDetail(item!.id),
     enabled: open && Boolean(item),
     staleTime: 30 * 1000,
   });
   const providerQ = useQuery({
-    queryKey: [...messageQueryKeys.logProviderDelivery(item?.id ?? 0), ...viewerScope],
+    queryKey: messageQueryKeys.withViewerScope(messageQueryKeys.logProviderDelivery(item?.id ?? 0), viewerScope),
     queryFn: () => fetchNotificationLogDetail(item!.id, { verify_provider: true }),
     enabled: false,
     retry: false,
@@ -499,13 +499,13 @@ export default function MessageLogPage() {
     status: statusFilter === "all" ? undefined : statusFilter,
   });
   const { data: scheduledData } = useQuery({
-    queryKey: [...messageQueryKeys.scheduledPending, ...viewerScope],
+    queryKey: messageQueryKeys.withViewerScope(messageQueryKeys.scheduledPending, viewerScope),
     queryFn: () => fetchScheduledNotifications({ status: "pending", page_size: 50 }),
     enabled: !requestMode,
     staleTime: 10 * 1000,
   });
   const { data: operationsStatus, isLoading: operationsLoading } = useQuery({
-    queryKey: [...messageQueryKeys.operationsStatus, ...viewerScope],
+    queryKey: messageQueryKeys.withViewerScope(messageQueryKeys.operationsStatus, viewerScope),
     queryFn: fetchMessagingOperationsStatus,
     enabled: !requestMode,
     staleTime: 15 * 1000,
