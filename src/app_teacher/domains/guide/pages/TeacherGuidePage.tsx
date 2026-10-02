@@ -64,7 +64,7 @@ const JOURNEY: JourneyStep[] = [
   },
   {
     title: "클리닉 운영",
-    place: "클리닉 → 날짜·세션 선택 → 참가자 추가",
+    place: "클리닉 → 날짜·세션 선택 → 학생 추가",
     action: "필요한 날짜에 클리닉 세션을 만들거나 열고 대상 학생을 배정합니다. 출석·진행 상태는 실제 참석에 맞춰 기록합니다.",
     result: "세션 참가자 목록과 학생 상세의 클리닉 이력에서 반영 상태를 확인합니다.",
     path: "/workspace/mobile/clinic",
