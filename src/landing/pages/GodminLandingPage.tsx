@@ -82,6 +82,7 @@ export default function GodminLandingPage() {
           <a href="#philosophy">수업 철학</a>
           <a href="#system">학습 관리</a>
           <a href="#teacher">신민T</a>
+          <Link to="/landing/resources">자료게시판</Link>
         </nav>
         <Link className={styles.headerLogin} to="/login/godmin">로그인</Link>
       </header>
@@ -107,6 +108,7 @@ export default function GodminLandingPage() {
                 <ArrowIcon />
               </Link>
               <a className={styles.secondaryAction} href="#philosophy">수업 방식 보기</a>
+              <Link className={styles.secondaryAction} to="/landing/resources">매치업 · 분석자료</Link>
             </div>
             <dl className={styles.heroFacts} aria-label="신민 선생님 주요 경력">
               <div><dt>13+ YEARS</dt><dd>통합과학 강의 경력</dd></div>

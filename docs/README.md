@@ -4,6 +4,7 @@
 
 | 문서 | 내용 |
 |------|------|
+| [PUBLIC-RESOURCE-BOARD.md](PUBLIC-RESOURCE-BOARD.md) | godmin 공개 자료게시판·게시자·파일·오류 복구·PC/모바일 검증 |
 | [ROUTING.md](ROUTING.md) | 공개 URL 네이밍, 권한 분리, 기존 경로 호환 규칙 |
 | [API-CONTRACTS.md](API-CONTRACTS.md) | 백엔드 OpenAPI 고정 SHA와 생성 TypeScript 타입 드리프트 계약 |
 | [VIDEO-DIRECT-ACCESS.md](VIDEO-DIRECT-ACCESS.md) | 수강 등록 없이 영상 1개만 여는 관리자 승인·회수와 학생 무쓰기 재생 계약 |
