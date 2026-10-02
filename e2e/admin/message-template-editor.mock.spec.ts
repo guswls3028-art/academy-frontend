@@ -115,7 +115,7 @@ test.describe("안내문 변수 편집", () => {
       await page.keyboard.press("Control+End");
       await page.keyboard.insertText(" 복제한 한글 안내");
       await modal.getByRole("button", { name: "취소", exact: true }).click();
-      const closeConfirm = page.getByRole("dialog", { name: "수정한 문구를 닫을까요?" });
+      const closeConfirm = page.getByRole("alertdialog", { name: "수정한 문구를 닫을까요?" });
       await expect(closeConfirm).toBeVisible();
       await closeConfirm.getByRole("button", { name: "계속 편집", exact: true }).click();
       await expect(editor).toContainText("복제한 한글 안내");
@@ -137,6 +137,18 @@ test.describe("안내문 변수 편집", () => {
       await expect(page.getByRole("dialog", { name: "문구 수정", exact: true })
         .getByRole("textbox", { name: "안내문", exact: true })).not.toContainText("복제한 한글 안내");
       expect(writes).toHaveLength(1);
+      if (width === 390) {
+        await page.getByRole("dialog", { name: "문구 수정", exact: true })
+          .getByRole("button", { name: "취소", exact: true }).click();
+        await page.goto(`${getBaseUrl("admin")}/workspace/mobile/message-templates`, { waitUntil: "domcontentloaded" });
+        await expect(page.getByRole("heading", { name: "알림톡 문구", exact: true })).toBeVisible();
+        await page.getByRole("button", { name: "복사 - 수업 결과 검증 문구 편집", exact: true }).click();
+        const teacherEditor = page.getByRole("dialog", { name: "문구 편집", exact: true })
+          .getByRole("textbox", { name: "본문", exact: true });
+        await expect(teacherEditor).toContainText("복제한 한글 안내");
+        await expect(teacherEditor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+        expect(writes).toHaveLength(1);
+      }
     });
   }
 

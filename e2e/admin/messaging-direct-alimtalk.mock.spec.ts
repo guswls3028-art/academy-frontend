@@ -218,7 +218,7 @@ for (const action of ["delete", "duplicate"] as const) {
     await picker.getByRole("button", { name: "더보기", exact: true }).click();
     await picker.getByRole("button", { name: action === "delete" ? "삭제" : "다른 이름으로 복제", exact: true }).click();
     if (action === "delete") {
-      await page.getByRole("dialog", { name: "문구 삭제", exact: true })
+      await page.getByRole("alertdialog", { name: "문구 삭제", exact: true })
         .getByRole("button", { name: "삭제", exact: true }).click();
       await expect(picker.getByText(saved.name, { exact: true })).toHaveCount(0);
     } else {
