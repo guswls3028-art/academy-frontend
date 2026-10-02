@@ -168,3 +168,20 @@ trace, HTML report로 남는다.
 4. 운영 read-only, 폐쇄 proxy route mock, 통제 쓰기 중 정확히 필요한 suite에만 등록한다.
 5. 일회성 재현 spec은 결함을 닫은 뒤 유지되는 회귀 계약으로 일반화하거나
    삭제한다. 날짜성 파일, screenshot dump, 실행 보고서를 남기지 않는다.
+
+### 초기 계정 등록: 격리 개발 후보 필수 7건
+
+`playwright.development-release.config.ts`에
+`student/student-parent-registration-realuse.spec.ts` 7건을 포함한다.
+`run-development-release-canary.mjs`는 기존 23건과 이 7건, 총 30건의 성공·skip 0을
+요구한다. 기존 운영 대상 13건을 URL만 바꿔 재실행한 결과와 구분한다.
+학원 SSOT 부분 저장, 직접 입력, 각자 전화 뒤 4자리, 랜덤 6자리, 번호 없는 학생의
+실패 후 성공, 기존 학부모 보존·삭제/복원, 공개 가입 선택 보존·승인 흐름을 다룬다.
+직접 입력/전화 방식은 실제 두 역할의 UI 로그인·reload를 검증한다. 랜덤 원문은
+후보 서버 안에서만 복호화·대조·token/me 인증하고 boolean 결과만 수신한다.
+probe unavailable/fail/잘못된 schema는 실패이며 reset/skip/fallback으로 우회하지 않는다.
+Node builtin probe 회귀는 `scripts/tests/development-release-canary.test.mjs`에 있다.
+비공개 localhost capability는 runner 자식 환경 안에서만 생성·전달한다.
+운영 쓰기/실발송 0, exact owned qa-* graph, fixture 정리 후 runner 전체 cleanup 0을
+유지한다. 소스 unit·문법·discovery 통과와 실제 candidate 7건 실행은 별개 증거다.
+상세 화면 계약은 `docs/ACCOUNT-CREDENTIAL-FLOWS.md`를 따른다.

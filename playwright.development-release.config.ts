@@ -7,6 +7,7 @@ export default defineConfig({
     "flows/qna-roundtrip.spec.ts",
     "flows/clinic-roundtrip.spec.ts",
     "student/student-parent-account-realuse.spec.ts",
+    "student/student-parent-registration-realuse.spec.ts",
     "student/student-parent-assessment-realuse.spec.ts",
     "student/student-clinic-required-cancel-realuse.spec.ts",
     "student/student-parent-clinic-realuse.spec.ts",
