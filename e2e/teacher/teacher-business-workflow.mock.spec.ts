@@ -339,7 +339,7 @@ test("교사 화면에서 직보를 보강으로 추가하고 새로고침 후�
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByText("직보", { exact: true })).toBeVisible();
     await expect(page.getByText("1차시", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: /직보/ }).locator("span:has(svg)").click();
+    await page.getByRole("button", { name: "차시 수정: 직보", exact: true }).click();
     await page.getByPlaceholder("예: 토요일 심화 클리닉").fill("직보 심화");
     await page.getByRole("button", { name: "수정", exact: true }).click();
     await expect.poll(() => sessionPatches).toHaveLength(1);
