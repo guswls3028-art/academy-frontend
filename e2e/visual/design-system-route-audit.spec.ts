@@ -79,6 +79,10 @@ const ADMIN_ROUTES = [
   "/workspace/profile/expense",
 ] as const;
 
+const EXPECTED_REDIRECTS: Readonly<Record<string, string>> = {
+  "/workspace/clinic/bookings": "/workspace/clinic/operations?panel=unresolved",
+};
+
 const STUDENT_ROUTES = [
   "/student/dashboard",
   "/student/video",
@@ -375,6 +379,7 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
       url: location.href,
       origin: location.origin,
       pathname: location.pathname.replace(/\/+$/, "") || "/",
+      search: location.search,
       title: document.title,
       bodyFont,
       badControls,
@@ -393,10 +398,14 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
     errorTextPatterns: [...ERROR_TEXT_PATTERNS],
   });
 
-  const expectedUrl = new URL(route, base);
+  const expectedRoute = EXPECTED_REDIRECTS[route] ?? route;
+  const expectedUrl = new URL(expectedRoute, base);
   const expectedPathname = expectedUrl.pathname.replace(/\/+$/, "") || "/";
   expect.soft(snapshot.origin, `${route} changed origin while rendering`).toBe(expectedUrl.origin);
   expect.soft(snapshot.pathname, `${route} redirected to ${snapshot.url}`).toBe(expectedPathname);
+  if (expectedRoute !== route) {
+    expect.soft(snapshot.search, `${route} redirected with the wrong query`).toBe(expectedUrl.search);
+  }
   expect.soft(snapshot.bodyTextLength, `${route} rendered empty at ${snapshot.url}`).toBeGreaterThan(8);
   expect.soft(snapshot.errorTextMatches, `${route} rendered an error-like page at ${snapshot.url}`).toEqual([]);
   expect.soft(snapshot.missingTokens, `${route} missing design tokens`).toEqual([]);
