@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -14,9 +15,15 @@ type Props = {
   homeworkId: number;
   file: HomeworkSubmissionMediaFile | null;
   onClose: () => void;
+  onViewed?: (fileId: string) => void;
 };
 
-export default function HomeworkMediaPreviewModal({ open, homeworkId, file, onClose }: Props) {
+export default function HomeworkMediaPreviewModal({ open, homeworkId, file, onClose, onViewed }: Props) {
+  const [openedPdfId, setOpenedPdfId] = useState<string | null>(null);
+  const close = () => {
+    setOpenedPdfId(null);
+    onClose();
+  };
   const previewQ = useQuery({
     queryKey: QUERY_KEYS.HOMEWORK_MEDIA_PREVIEW(homeworkId, file?.id),
     queryFn: () => fetchHomeworkMediaPreview(homeworkId, file!.id),
@@ -26,11 +33,11 @@ export default function HomeworkMediaPreviewModal({ open, homeworkId, file, onCl
   });
 
   return (
-    <AdminModal open={open} onClose={onClose} type="inspect" width={MODAL_WIDTH.xwide}>
+    <AdminModal open={open} onClose={close} type="inspect" width={MODAL_WIDTH.xwide}>
       <ModalHeader
         type="inspect"
         title={file?.original_filename || "과제 파일 미리보기"}
-        description={file ? `${file.media_kind === "video" ? "동영상" : "사진"} · 파일 ${file.position + 1}` : undefined}
+        description={file ? `${file.mime_type === "application/pdf" ? "PDF" : file.media_kind === "video" ? "동영상" : "사진"} · 파일 ${file.position + 1}` : undefined}
       />
       <ModalBody>
         <div className={styles.previewBody}>
@@ -41,17 +48,34 @@ export default function HomeworkMediaPreviewModal({ open, homeworkId, file, onCl
               <Button type="button" intent="ghost" size="sm" onClick={() => previewQ.refetch()}>다시 시도</Button>
             </div>
           )}
-          {previewQ.data && file?.media_kind === "image" && (
-            <img src={previewQ.data.url} alt={`${file.original_filename} 과제 제출 미리보기`} />
+          {previewQ.data && file?.mime_type === "application/pdf" && (
+            <div className={styles.previewState}>
+              <span>기존 PDF 파일은 새 창에서 원본을 확인해 주세요.</span>
+              <a
+                className={styles.pdfLink}
+                href={previewQ.data.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpenedPdfId(file.id)}
+              >
+                PDF 원본 열기
+              </a>
+              <Button type="button" intent="secondary" size="sm" disabled={openedPdfId !== file.id} onClick={() => onViewed?.(file.id)}>
+                열람 확인
+              </Button>
+            </div>
           )}
-          {previewQ.data && file?.media_kind === "video" && (
-            <video src={previewQ.data.url} controls playsInline preload="metadata">
+          {previewQ.data && file?.media_kind === "image" && file.mime_type !== "application/pdf" && (
+            <img src={previewQ.data.url} alt={`${file.original_filename} 과제 제출 미리보기`} onLoad={() => onViewed?.(file.id)} />
+          )}
+          {previewQ.data && file?.media_kind === "video" && file.mime_type !== "application/pdf" && (
+            <video src={previewQ.data.url} controls playsInline preload="metadata" onLoadedMetadata={() => onViewed?.(file.id)}>
               브라우저에서 이 동영상을 재생할 수 없습니다.
             </video>
           )}
         </div>
       </ModalBody>
-      <ModalFooter right={<Button type="button" intent="secondary" size="xl" onClick={onClose}>닫기</Button>} />
+      <ModalFooter right={<Button type="button" intent="secondary" size="xl" onClick={close}>닫기</Button>} />
     </AdminModal>
   );
 }
