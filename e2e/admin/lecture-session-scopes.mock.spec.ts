@@ -52,7 +52,7 @@ type MockState = {
   guidedQuestionCount?: number;
   guidedQuestionScores?: Record<number, number>;
   answerKeySaves?: Array<Record<string, unknown>>;
-  answerKeyReadMode?: "normal" | "empty" | "error" | "wrong-owner";
+  answerKeyReadMode?: "normal" | "empty" | "error" | "wrong-owner" | "changed-answer";
   answerKeyWriteFailure?: boolean;
   answerKeyWriteCount?: number;
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
@@ -350,6 +350,12 @@ async function installApi(page: Page, state: MockState) {
         if (state.answerKeyReadMode === "empty") return json([]);
         if (state.answerKeyReadMode === "wrong-owner" && state.answerKeySaves?.length) {
           return json(state.answerKeySaves.map((payload, index) => ({ id: 99712 + index, ...payload, exam: 1234 })));
+        }
+        if (state.answerKeyReadMode === "changed-answer" && state.answerKeySaves?.length) {
+          return json(state.answerKeySaves.map((payload, index) => ({
+            id: 99712 + index, ...payload,
+            answers: { ...(payload.answers as Record<string, unknown>), "99711": "1|4" },
+          })));
         }
         return json((state.answerKeySaves ?? []).map((payload, index) => ({ id: 99712 + index, ...payload })));
       }
@@ -1179,6 +1185,10 @@ test("정답 저장 응답 뒤 빈 재조회는 성공 처리하지 않고 입�
   state.answerKeyReadMode = "error";
   await dialog.getByRole("button", { name: "저장 상태 확인" }).click();
   await expect(dialog.getByRole("alert")).toContainText("readback unavailable");
+  expect(state.answerKeyWriteCount).toBe(1);
+  state.answerKeyReadMode = "changed-answer";
+  await dialog.getByRole("button", { name: "저장 상태 확인" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("입력값 또는 시험 소유자와 일치하지 않습니다");
   expect(state.answerKeyWriteCount).toBe(1);
   state.answerKeyReadMode = "normal";
   await dialog.getByRole("button", { name: "저장 상태 확인" }).click();

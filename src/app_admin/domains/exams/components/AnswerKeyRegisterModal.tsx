@@ -317,11 +317,10 @@ type PendingAnswerKeyVerification = {
 
 function answerKeyMatches(saved: AnswerKey, expected: PendingAnswerKeyVerification): boolean {
   if (saved.id !== expected.keyId || saved.exam !== expected.ownerId) return false;
-  const actual = normalizeAnswers(saved.answers);
-  const wanted = normalizeAnswers(expected.answers);
-  const keys = Object.keys(wanted).sort();
-  return Object.keys(actual).sort().join("|") === keys.join("|")
-    && keys.every((key) => actual[key] === wanted[key])
+  const actualKeys = Object.keys(saved.answers).filter((key) => key !== SCORE_ADJUSTMENT_KEY).sort();
+  const expectedKeys = Object.keys(expected.answers).filter((key) => key !== SCORE_ADJUSTMENT_KEY).sort();
+  return actualKeys.join("|") === expectedKeys.join("|")
+    && expectedKeys.every((key) => JSON.stringify(saved.answers[key]) === JSON.stringify(expected.answers[key]))
     && JSON.stringify(parseScoreAdjustment(saved.answers)) === JSON.stringify(parseScoreAdjustment(expected.answers));
 }
 
