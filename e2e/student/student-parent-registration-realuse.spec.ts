@@ -243,8 +243,10 @@ test("existing Parent: a new child's choice preserves the exact existing Parent 
   await probe(secondFamily.students[0].id, "compare", "fixed");
   expect((await expectApi<{ id: number }>(request, "GET", "/core/me/", parentBefore.access)).id).toBe(identityBefore.id);
   await proveFamily(page, request, secondFamily);
+  await probe(secondFamily.students[0].id, "snapshot", "fixed");
   await expectApi(request, "POST", "/students/bulk_delete/", admin, { ids: [secondFamily.students[0].id] }, [200, 204]);
   await expectApi(request, "POST", "/students/bulk_restore/", admin, { ids: [secondFamily.students[0].id] }, [200]);
+  await probe(secondFamily.students[0].id, "compare", "fixed");
   await proveFamily(page, request, secondFamily, 1366);
 });
 
