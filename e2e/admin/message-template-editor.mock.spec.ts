@@ -27,6 +27,7 @@ async function openTemplateEditor(page: Page, openEditor = true, initialBody = "
     updated_at: "2026-09-20T00:00:00Z",
   };
   const writes: Record<string, unknown>[] = [];
+  const copies: typeof saved[] = [];
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/v1/core/subscription/") {
@@ -36,8 +37,14 @@ async function openTemplateEditor(page: Page, openEditor = true, initialBody = "
       writes.push(payload);
       saved = { ...saved, ...payload };
       await route.fulfill({ json: saved });
+    } else if (path === "/api/v1/messaging/templates/" && route.request().method() === "POST") {
+      const payload = route.request().postDataJSON() as Record<string, unknown>;
+      writes.push(payload);
+      const created = { ...saved, ...payload, id: 994 + copies.length };
+      copies.push(created);
+      await route.fulfill({ json: created });
     } else if (path === "/api/v1/messaging/templates/") {
-      await route.fulfill({ json: [saved,
+      await route.fulfill({ json: [saved, ...copies,
         { ...saved, id: 992, name: "기본 성적 예시", is_system: true },
         { ...saved, id: 993, name: "연결된 성적 공개", is_system: true },
       ] });
@@ -59,6 +66,92 @@ async function openTemplateEditor(page: Page, openEditor = true, initialBody = "
 }
 
 test.describe("안내문 변수 편집", () => {
+  test("복제 초안 저장 실패 후 입력을 유지하고 재시도하면 원본을 보존한다", async ({ page }) => {
+    const writes = await openTemplateEditor(page, false);
+    let attempts = 0;
+    await page.route("**/api/v1/messaging/templates/", async (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      attempts++;
+      if (attempts === 1) return route.fulfill({ status: 503, json: { detail: "temporary failure" } });
+      return route.fallback();
+    });
+    await page.getByRole("button", { name: "복제", exact: true }).first().click();
+    const modal = page.getByRole("dialog", { name: "문구 추가", exact: true });
+    const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+    await editor.click();
+    await page.keyboard.press("Control+End");
+    await page.keyboard.insertText(" 실패 후 다시 저장");
+    await modal.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.getByText("저장에 실패했습니다.", { exact: true })).toBeVisible();
+    await expect(editor).toContainText("실패 후 다시 저장");
+    expect(writes).toHaveLength(0);
+    await modal.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(modal).toBeHidden();
+    expect(attempts).toBe(2);
+    expect(writes).toHaveLength(1);
+    await page.getByText("수업 결과 검증 문구", { exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "문구 수정", exact: true })
+      .getByRole("textbox", { name: "안내문", exact: true })).not.toContainText("실패 후 다시 저장");
+  });
+
+  for (const width of [1100, 1366, 390]) {
+    test(`${width}px 복제 취소는 저장하지 않고 편집한 초안은 한 번만 저장한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const writes = await openTemplateEditor(page, false);
+      const duplicate = page.getByRole("button", { name: "복제", exact: true }).first();
+      const modal = page.getByRole("dialog", { name: "문구 추가", exact: true });
+      await duplicate.click();
+      await expect(modal).toBeVisible();
+      await expect(modal.getByPlaceholder("예: 출석 안내, 시험 일정 공지")).toHaveValue("복사 - 수업 결과 검증 문구");
+      expect(writes).toHaveLength(0);
+      await modal.getByRole("button", { name: "취소", exact: true }).click();
+      await expect(modal).toBeHidden();
+      expect(writes).toHaveLength(0);
+      await expect(page.getByText("복사 - 수업 결과 검증 문구", { exact: true })).toHaveCount(0);
+
+      await duplicate.click();
+      const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+      await editor.click();
+      await page.keyboard.press("Control+End");
+      await page.keyboard.insertText(" 복제한 한글 안내");
+      await modal.getByRole("button", { name: "취소", exact: true }).click();
+      const closeConfirm = page.getByRole("alertdialog", { name: "수정한 문구를 닫을까요?" });
+      await expect(closeConfirm).toBeVisible();
+      await closeConfirm.getByRole("button", { name: "계속 편집", exact: true }).click();
+      await expect(editor).toContainText("복제한 한글 안내");
+      await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+      expect(writes).toHaveLength(0);
+      await expect.poll(() => modal.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`template-copy-draft-${width}.png`) });
+      await modal.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(modal).toBeHidden();
+      expect(writes).toHaveLength(1);
+      expect(writes[0].body).toBe("한글 안내 #{시험총점} 복제한 한글 안내");
+      await expect(page.getByText("복사 - 수업 결과 검증 문구", { exact: true })).toBeVisible();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByText("복사 - 수업 결과 검증 문구", { exact: true }).click();
+      await expect(page.getByRole("dialog", { name: "문구 수정", exact: true })
+        .getByRole("textbox", { name: "안내문", exact: true })).toContainText("복제한 한글 안내");
+      await page.getByRole("button", { name: "취소", exact: true }).click();
+      await page.getByText("수업 결과 검증 문구", { exact: true }).click();
+      await expect(page.getByRole("dialog", { name: "문구 수정", exact: true })
+        .getByRole("textbox", { name: "안내문", exact: true })).not.toContainText("복제한 한글 안내");
+      expect(writes).toHaveLength(1);
+      if (width === 390) {
+        await page.getByRole("dialog", { name: "문구 수정", exact: true })
+          .getByRole("button", { name: "취소", exact: true }).click();
+        await page.goto(`${getBaseUrl("admin")}/workspace/mobile/message-templates`, { waitUntil: "domcontentloaded" });
+        await expect(page.getByRole("heading", { name: "알림톡 문구", exact: true })).toBeVisible();
+        await page.getByRole("button", { name: "복사 - 수업 결과 검증 문구 편집", exact: true }).click();
+        const teacherEditor = page.getByRole("dialog", { name: "문구 편집", exact: true })
+          .getByRole("textbox", { name: "본문", exact: true });
+        await expect(teacherEditor).toContainText("복제한 한글 안내");
+        await expect(teacherEditor.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+        expect(writes).toHaveLength(1);
+      }
+    });
+  }
+
   test("삭제한 제공 문구는 선택한 항목만 복원하고 실패해도 선택을 유지한다", async ({ page }) => {
     await openTemplateEditor(page, false);
     await page.setViewportSize({ width: 390, height: 844 });

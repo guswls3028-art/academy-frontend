@@ -8,6 +8,7 @@ import { Input } from "antd";
 import { FiAlertCircle } from "react-icons/fi";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import KakaoAlimtalkPreview from "@/shared/ui/notifications/KakaoAlimtalkPreview";
 import {
   getBlocksForCategory,
@@ -31,6 +32,7 @@ import AlimtalkTemplateInfoPanel, {
   renderAlimtalkFullPreview,
 } from "./AlimtalkTemplateInfoPanel";
 import type { MessageTemplateItem, MessageTemplatePayload } from "../api/messages.api";
+import { buildDuplicateTemplateName } from "../utils/templateCopyName";
 
 import "../styles/templateEditor.css";
 
@@ -39,6 +41,7 @@ export type TemplateEditModalProps = {
   onClose: () => void;
   category: TemplateCategory;
   initial?: MessageTemplateItem | null;
+  copy?: boolean;
   onSubmit: (payload: MessageTemplatePayload) => void;
   isPending?: boolean;
   zIndex?: number;
@@ -55,6 +58,7 @@ export default function TemplateEditModal({
   onClose,
   category,
   initial = null,
+  copy = false,
   onSubmit,
   isPending = false,
   zIndex,
@@ -63,6 +67,7 @@ export default function TemplateEditModal({
   isDeleting = false,
   trigger,
 }: TemplateEditModalProps) {
+  const confirm = useConfirm();
   const { data: academyName = "", isError: isAcademyError, refetch: refetchAcademy } = useMessageAcademyName(open);
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
@@ -75,18 +80,32 @@ export default function TemplateEditModal({
   const [individualExpanded, setIndividualExpanded] = useState(false);
   const individualRegionId = useId();
   const blocks = getBlocksForCategory(selectedCategory);
-  const isSystem = !!initial?.is_system;
+  const isSystem = !!initial?.is_system && !copy;
+  const initialName = copy ? buildDuplicateTemplateName(initial?.name ?? "") : initial?.name ?? "";
 
   useEffect(() => {
     if (open) {
-      setName(initial?.name ?? "");
+      setName(initialName);
       setSubject(initial?.subject ?? "");
       setBody(stripInternalAlimtalkMemoToken(initial?.body ?? ""));
       setSelectedCategory(initial?.category ?? category);
       setConfirmDelete(false);
       setIndividualExpanded((initial?.category ?? category) === "grades");
     }
-  }, [open, initial?.id, initial?.name, initial?.subject, initial?.body, initial?.category, category]);
+  }, [open, copy, initialName, initial?.id, initial?.subject, initial?.body, initial?.category, category]);
+
+  const changed = !isSystem && (name !== initialName
+    || subject !== (initial?.subject ?? "")
+    || body !== stripInternalAlimtalkMemoToken(initial?.body ?? ""));
+  const requestClose = async () => {
+    if (isPending || isDeleting) return;
+    if (changed && !await confirm({
+      title: "수정한 문구를 닫을까요?",
+      message: "아직 저장하지 않은 내용이 있습니다. 계속 편집하면 입력한 내용을 유지할 수 있습니다.",
+      confirmText: "저장하지 않고 닫기", cancelText: "계속 편집",
+    })) return;
+    onClose();
+  };
 
   const insertBlock = useCallback(
     (insertText: string) => {
@@ -111,11 +130,11 @@ export default function TemplateEditModal({
 
   if (!open) return null;
 
-  const title = isSystem ? "기본 문구 보기" : initial ? "문구 수정" : "문구 추가";
-  const fieldsDisabled = isPending || isSystem;
+  const title = isSystem ? "기본 문구 보기" : initial && !copy ? "문구 수정" : "문구 추가";
+  const fieldsDisabled = isPending || isDeleting || isSystem;
 
   return (
-    <AdminModal open={open} onClose={onClose} width={1160} className="message-template-edit-modal" zIndex={zIndex} onEnterConfirm={!isPending && !isSystem ? handleSubmit : undefined}>
+    <AdminModal open={open} onClose={() => void requestClose()} width={1160} className="message-template-edit-modal" zIndex={zIndex} onEnterConfirm={!fieldsDisabled ? handleSubmit : undefined}>
       <ModalHeader title={title} />
       <ModalBody>
         <div className="template-editor flex gap-5">
@@ -222,7 +241,7 @@ export default function TemplateEditModal({
                     : "본문"}
                 </label>
                 <MessageBodyEditor
-                  key={`${open}:${initial?.id ?? "new"}`}
+                  key={`${open}:${initial?.id ?? "new"}:${copy}`}
                   ref={bodyEditorRef}
                   placeholder={
                     alimtalkType && !bodyEditableInEnvelope
@@ -320,7 +339,7 @@ export default function TemplateEditModal({
       </ModalBody>
       <ModalFooter
         left={
-          initial && onDelete && !initial.is_system ? (
+          initial && !copy && onDelete && (initial.can_delete ?? !initial.is_system) ? (
             confirmDelete ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 13, color: "var(--color-status-danger, #dc2626)" }}>
@@ -358,7 +377,7 @@ export default function TemplateEditModal({
         }
         right={
           <>
-            <Button intent="secondary" onClick={onClose} disabled={isPending || isDeleting}>
+            <Button intent="secondary" onClick={() => void requestClose()} disabled={isPending || isDeleting}>
               {isSystem ? "닫기" : "취소"}
             </Button>
             {isSystem && initial && onDuplicate && (
@@ -372,7 +391,7 @@ export default function TemplateEditModal({
                 onClick={handleSubmit}
                 disabled={!name.trim() || !body.trim() || isPending || isDeleting}
               >
-                {isPending ? "저장 중…" : initial ? "수정" : "저장"}
+                {isPending ? "저장 중…" : initial && !copy ? "수정" : "저장"}
               </Button>
             )}
           </>
