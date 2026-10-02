@@ -1,7 +1,10 @@
 // PATH: src/app_admin/domains/messages/pages/MessageLogPage.tsx
 // 알림톡 발송 기록 — provider lifecycle와 보안 projection을 그대로 설명한다.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
+import useAuth from "@/auth/hooks/useAuth";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -52,6 +55,11 @@ type DeliveryState = {
 };
 
 const PAGE_SIZE = 30;
+
+function useLogViewerScope() {
+  const { user } = useAuth();
+  return [resolveTenantCodeString(), user?.id, user?.tenantRole] as const;
+}
 
 const FILTER_OPTIONS: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "전체" },
@@ -292,14 +300,15 @@ function LogDetailModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const viewerScope = useLogViewerScope();
   const detailQ = useQuery({
-    queryKey: messageQueryKeys.logDetail(item?.id ?? 0),
+    queryKey: [...messageQueryKeys.logDetail(item?.id ?? 0), ...viewerScope],
     queryFn: () => fetchNotificationLogDetail(item!.id),
     enabled: open && Boolean(item),
     staleTime: 30 * 1000,
   });
   const providerQ = useQuery({
-    queryKey: messageQueryKeys.logProviderDelivery(item?.id ?? 0),
+    queryKey: [...messageQueryKeys.logProviderDelivery(item?.id ?? 0), ...viewerScope],
     queryFn: () => fetchNotificationLogDetail(item!.id, { verify_provider: true }),
     enabled: false,
     retry: false,
@@ -469,22 +478,36 @@ function PaginationBar({
 export default function MessageLogPage() {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestId = searchParams.has("request_id") ? (searchParams.get("request_id") ?? "") : undefined;
+  const requestMode = requestId !== undefined;
+  const viewerScope = useLogViewerScope();
+  const viewerKey = JSON.stringify(viewerScope);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedItem, setSelectedItem] = useState<NotificationLogItem | null>(null);
-  const { data, isLoading, isError, refetch } = useNotificationLog({
+  const [selectedRecord, setSelectedRecord] = useState<{ item: NotificationLogItem; viewerKey: string } | null>(null);
+  const selectedItem = selectedRecord?.viewerKey === viewerKey ? selectedRecord.item : null;
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedRecord(null);
+    setStatusFilter("all");
+  }, [requestId]);
+  const { data, isLoading, isError, isFetching, refetch } = useNotificationLog({
+    request_id: requestId,
     page: currentPage,
     page_size: PAGE_SIZE,
     status: statusFilter === "all" ? undefined : statusFilter,
   });
   const { data: scheduledData } = useQuery({
-    queryKey: messageQueryKeys.scheduledPending,
+    queryKey: [...messageQueryKeys.scheduledPending, ...viewerScope],
     queryFn: () => fetchScheduledNotifications({ status: "pending", page_size: 50 }),
+    enabled: !requestMode,
     staleTime: 10 * 1000,
   });
   const { data: operationsStatus, isLoading: operationsLoading } = useQuery({
-    queryKey: messageQueryKeys.operationsStatus,
+    queryKey: [...messageQueryKeys.operationsStatus, ...viewerScope],
     queryFn: fetchMessagingOperationsStatus,
+    enabled: !requestMode,
     staleTime: 15 * 1000,
     refetchInterval: 30 * 1000,
   });
@@ -498,10 +521,18 @@ export default function MessageLogPage() {
     onError: () => feedback.error("예약 발송 취소에 실패했습니다."),
   });
 
-  const results = data?.results ?? [];
+  const requestTrace = data?.request_trace;
+  const trace = requestMode && requestTrace?.request_id === requestId?.toLowerCase() ? (requestTrace ?? null) : null;
+  const results = requestMode && !trace ? [] : (data?.results ?? []);
   const pendingScheduled = scheduledData?.results ?? [];
-  const count = data?.count ?? 0;
+  const count = requestMode && !trace ? 0 : (data?.count ?? 0);
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
+
+  const clearRequestFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("request_id");
+    setSearchParams(next);
+  };
 
   const handleCancelScheduled = async (item: ScheduledNotificationItem) => {
     const ok = await confirm({
@@ -519,10 +550,10 @@ export default function MessageLogPage() {
       <header className={styles.header}>
         <div>
           <span className={styles.eyebrow}>카카오 알림톡 · 발송 기록</span>
-          <h1 className={styles.title}>발송 내역</h1>
+          <h1 className={styles.title}>{requestMode ? "이번 발송 결과" : "발송 내역"}</h1>
           <p className={styles.description}>
-            알림톡 요청이 어디까지 처리됐는지 확인합니다.
-            {!isLoading && <span className={styles.countText}>총 {count.toLocaleString()}건</span>}
+            {requestMode ? "선택한 발송의 접수와 처리 상태를 확인합니다." : "알림톡 요청이 어디까지 처리됐는지 확인합니다."}
+            {!isLoading && (!requestMode || trace) && <span className={styles.countText}>{requestMode ? "발송 기록" : "총"} {count.toLocaleString()}건</span>}
           </p>
         </div>
         <div className={styles.filterGroup} aria-label="발송 상태 필터">
@@ -541,9 +572,39 @@ export default function MessageLogPage() {
         </div>
       </header>
 
-      <OperationsStrip status={operationsStatus} loading={operationsLoading} />
+      {requestMode && (
+        <section className={styles.operationsStrip} aria-label="이번 발송 접수 요약">
+          <div className={styles.operationsLead}>
+            <span className={styles.operationsIcon} aria-hidden><MessageCircle size={ICON.sm} /></span>
+            <span>
+              <strong>{isLoading ? "이번 발송을 확인하고 있습니다" : trace ? "이번 요청의 접수·처리 현황" : "이번 발송을 확인할 수 없습니다"}</strong>
+              <small>접수와 실제 수신은 별도로 확인합니다.</small>
+            </span>
+          </div>
+          {trace && !isError && (
+            <div className={styles.operationsFacts}>
+              <span><strong>{trace.accepted_count.toLocaleString()}</strong> 요청 접수</span>
+              <span><strong>{trace.enqueued.toLocaleString()}</strong> 발송 처리 시작</span>
+              <span><strong>{trace.scheduled.toLocaleString()}</strong> 처리 대기</span>
+            </div>
+          )}
+          <div className={styles.operationsRisks}>
+            {trace && !isError && <span>
+              공급사 접수 {trace.provider_accepted_count}건 · 공급사 처리 중 {trace.provider_pending_count}건 · 실패 {trace.provider_failed_count}건 · 결과 확인 필요 {trace.provider_ambiguous_count}건 · 취소 {trace.cancelled_count}건 · 번호 없음 {trace.skipped_no_phone}건
+            </span>}
+            {trace && !isError && <Badge tone="neutral" size="sm">
+              {trace.delivered_count === null ? "수신 결과 미확인" : `수신 확인 ${trace.delivered_count}건`}
+            </Badge>}
+            <Button intent="secondary" size="sm" disabled={isFetching} onClick={() => void refetch()}>
+              {isFetching ? "확인 중…" : "결과 새로 확인"}
+            </Button>
+            <Button intent="ghost" size="sm" onClick={clearRequestFilter}>전체 발송 내역 보기</Button>
+          </div>
+        </section>
+      )}
+      {!requestMode && <OperationsStrip status={operationsStatus} loading={operationsLoading} />}
 
-      {pendingScheduled.length > 0 && (
+      {!requestMode && pendingScheduled.length > 0 && (
         <section className={styles.scheduledPanel} aria-label="예약 발송">
           <div className={styles.scheduledHeader}>
             <div><strong>예약 발송</strong><span>발송 전 예약만 표시합니다.</span></div>
@@ -559,7 +620,7 @@ export default function MessageLogPage() {
 
       {isError ? (
         <EmptyState
-          title="발송 내역을 불러오지 못했습니다"
+          title={requestMode ? "이번 발송 결과를 불러오지 못했습니다" : "발송 내역을 불러오지 못했습니다"}
           description="기록이 없는 것으로 표시하지 않았습니다. 잠시 후 다시 시도해 주세요."
           tone="error"
           scope="panel"
@@ -571,8 +632,12 @@ export default function MessageLogPage() {
         </div>
       ) : results.length === 0 ? (
         <EmptyState
-          title={statusFilter === "all" ? "발송 내역이 없습니다" : `${FILTER_OPTIONS.find((item) => item.key === statusFilter)?.label} 기록이 없습니다`}
-          description={statusFilter === "all" ? "알림톡을 발송하면 처리 결과가 이곳에 기록됩니다." : "다른 상태 필터를 선택해 보세요."}
+          title={requestMode ? (trace ? "아직 표시할 발송 기록이 없습니다" : "이번 발송을 확인할 수 없습니다")
+            : statusFilter === "all" ? "발송 내역이 없습니다" : `${FILTER_OPTIONS.find((item) => item.key === statusFilter)?.label} 기록이 없습니다`}
+          description={requestMode
+            ? trace ? "접수 현황은 위 요약에서 확인할 수 있습니다. 다른 상태 필터를 선택하거나 결과를 새로 확인해 주세요."
+              : "현재 계정에서 확인 가능한 접수 결과가 없습니다. 기록 없음이나 발송 실패로 단정할 수 없습니다."
+            : statusFilter === "all" ? "알림톡을 발송하면 처리 결과가 이곳에 기록됩니다." : "다른 상태 필터를 선택해 보세요."}
           tone="empty"
           scope="panel"
         />
@@ -583,14 +648,14 @@ export default function MessageLogPage() {
               <span>기록 시각</span><span>처리 상태</span><span>수신자</span><span>알림 종류</span><span>차감</span><span />
             </div>
             <div className={styles.logList}>
-              {results.map((item) => <LogRow key={item.id} item={item} onClick={() => setSelectedItem(item)} />)}
+              {results.map((item) => <LogRow key={item.id} item={item} onClick={() => setSelectedRecord({ item, viewerKey })} />)}
             </div>
           </section>
           <PaginationBar currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </>
       )}
 
-      <LogDetailModal item={selectedItem} open={Boolean(selectedItem)} onClose={() => setSelectedItem(null)} />
+      <LogDetailModal item={selectedItem} open={Boolean(selectedItem)} onClose={() => setSelectedRecord(null)} />
     </div>
   );
 }

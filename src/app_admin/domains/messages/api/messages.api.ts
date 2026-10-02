@@ -94,6 +94,8 @@ export interface NotificationLogItem {
 }
 
 export interface NotificationLogParams {
+  /** Exact manual-send receipt; authorization remains server-side. */
+  request_id?: string;
   page?: number;
   page_size?: number;
   status?: "success" | "failure" | "sent" | "active" | "attention" | "failed";
@@ -104,6 +106,23 @@ export interface NotificationLogParams {
 export interface NotificationLogResponse {
   results: NotificationLogItem[];
   count: number;
+  request_trace?: ManualSendRequestTrace | null;
+}
+
+export interface ManualSendRequestTrace {
+  request_id: string;
+  accepted_count: number;
+  enqueued: number;
+  scheduled: number;
+  enqueue_failed: number;
+  cancelled_count: number;
+  skipped_no_phone: number;
+  provider_accepted_count: number;
+  provider_pending_count: number;
+  provider_failed_count: number;
+  provider_ambiguous_count: number;
+  /** Provider acceptance does not establish delivery. */
+  delivered_count: number | null;
 }
 
 export type ScheduledNotificationStatus = "pending" | "dispatching" | "sent" | "failed" | "cancelled";
@@ -438,6 +457,8 @@ export type SendToType = "student" | "parent";
 export type MessageMode = "alimtalk";
 
 export interface SendMessagePayload {
+  /** One immutable draft across parent/student scopes and explicit retries. */
+  client_request_id?: string;
   student_ids?: number[];
   send_to: SendToType;
   /** alimtalk */
@@ -461,6 +482,10 @@ export interface SendMessagePayload {
 
 export interface SendMessageResponse {
   detail: string;
+  request_id?: string;
+  replayed?: boolean;
+  accepted_count?: number;
+  cancelled_count?: number;
   enqueued: number;
   scheduled?: number;
   enqueue_failed?: number;
