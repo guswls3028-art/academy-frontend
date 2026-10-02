@@ -3,6 +3,9 @@ import { Navigate, Route, Routes, useLocation } from "react-router";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { resolveTenantCode } from "@/shared/tenant";
 
+const PublicResourcesPage = lazy(() => import("@/landing/pages/PublicResourcesPage"));
+const PublicResourceDetailPage = lazy(() => import("@/landing/pages/PublicResourceDetailPage"));
+const PublicResourceWritePage = lazy(() => import("@/landing/pages/PublicResourceWritePage"));
 const PublicLandingPage = lazy(() => import("@/landing/pages/PublicLandingPage"));
 const GodminLandingPage = lazy(() => import("@/landing/pages/GodminLandingPage"));
 const LandingReportDetailPage = lazy(() => import("@/landing/pages/LandingReportDetailPage"));
@@ -45,6 +48,10 @@ export default function LandingRouter() {
 
   return (
     <Routes>
+      <Route path="resources" element={<PublicResourcesPage />} />
+      <Route path="resources/write" element={<PublicResourceWritePage key="create" />} />
+      <Route path="resources/:id" element={<PublicResourceDetailPage />} />
+      <Route path="resources/:id/edit" element={<PublicResourceWritePage key="edit" />} />
       <Route index element={isGodmin ? <GodminLandingPage /> : <PublicLandingPage />} />
       <Route path="reports" element={<LandingReportsListPage />} />
       <Route path="reports/:reportId" element={<LandingReportDetailPage />} />

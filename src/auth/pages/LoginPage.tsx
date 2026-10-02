@@ -255,7 +255,7 @@ export default function LoginPage() {
               {pending ? "로그인 중..." : "로그인"}
             </button>
             <div className={styles.links}>
-              {hasLanding && (
+              {(hasLanding || tenantCode === "godmin") && (
                 <Link to="/landing" className={styles.link}>
                   홈페이지
                 </Link>
