@@ -2011,7 +2011,7 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers twenty-one enabled cases without executing any API test", () => {
+test("development config discovers thirty enabled cases including seven registrations without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
     "--config=playwright.development-release.config.ts", "--list"], {
@@ -2024,17 +2024,20 @@ test("development config discovers twenty-one enabled cases without executing an
   });
   const report = JSON.parse(output);
   let discovered = 0;
+  let registrations = 0;
   const visit = (suite) => {
     for (const spec of suite.specs || []) for (const test of spec.tests) {
       assert.equal(test.expectedStatus, "passed");
       assert.ok(!test.annotations?.some((annotation) => annotation.type === "skip"));
       assert.deepEqual(test.results, [], "--list must not run synthetic API scenarios");
       discovered += 1;
+      if (spec.file.endsWith("student-parent-registration-realuse.spec.ts")) registrations += 1;
     }
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 23);
+  assert.equal(discovered, 30);
+  assert.equal(registrations, 7);
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);

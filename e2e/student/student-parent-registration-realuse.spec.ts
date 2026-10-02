@@ -74,8 +74,8 @@ async function saveRegistration(page: Page, confirmation: Locator, row: ReturnTy
   expect(response.status(), "synthetic registration status").toBe(201);
   const student = await response.json() as QaStudent;
   families.push({ scenarioKey: row.key, parentPhone: row.parentPhone,
-    parentPassword: parentPassword ?? (kind === "phone_last4" ? row.parentPhone.slice(-4) : direct),
-    students: [{ ...student, password: kind === "phone_last4" ? row.phone.slice(-4) : direct }] });
+    parentPassword: parentPassword ?? (kind === "random" ? "" : kind === "phone_last4" ? row.parentPhone.slice(-4) : direct),
+    students: [{ ...student, password: kind === "random" ? "" : kind === "phone_last4" ? row.phone.slice(-4) : direct }] });
   expect(student.name).toBe(row.name);
   expect(student.ps_number === (withPhone ? row.phone : row.username)).toBe(true);
   await expect(confirmation).not.toBeVisible();
@@ -88,6 +88,7 @@ async function proveFamily(page: Page, request: APIRequestContext, family: QaFam
     const student = family.students[0];
     const username = role === "student" ? student.ps_number : family.parentPhone;
     const password = role === "student" ? student.password : family.parentPassword;
+    expect(Boolean(password), "UI login requires a known assigned credential; random values stay inside the candidate probe").toBe(true);
     const tokens = await loginApi(request, username, password);
     const me = await expectApi<{ tenantRole: string }>(request, "GET", "/core/me/", tokens.access);
     expect(me.tenantRole).toBe(role);
