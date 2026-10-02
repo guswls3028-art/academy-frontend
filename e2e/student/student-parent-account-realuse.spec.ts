@@ -112,10 +112,18 @@ async function verifySignupAndApproval(page: Page, request: APIRequestContext): 
         body: await page.screenshot({ fullPage: true }), contentType: "image/png",
       });
       await dialog.locator("#signup-pw-confirm").fill(QA_STUDENT_PASSWORD);
+      await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
+      const passwordChoice = page.getByRole("alertdialog", { name: "가입 신청 최종 확인" });
+      await expect(passwordChoice).toBeVisible();
+      await expect(passwordChoice.getByText("학생 비밀번호는 유지합니다.", { exact: true })).toBeVisible();
+      const parentPassword = passwordChoice.getByRole("group", { name: "학부모 초기 비밀번호", exact: true });
+      await expect(parentPassword.getByRole("radio", { checked: true })).toHaveCount(0);
+      await parentPassword.getByRole("radio", { name: "직접 입력", exact: true }).check();
+      await parentPassword.getByLabel("학부모 직접 입력 비밀번호", { exact: true }).fill(QA_STUDENT_PASSWORD);
       const submitted = page.waitForResponse((response) => (
         response.request().method() === "POST" && response.url().endsWith("/students/registration_requests/")
       ));
-      await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
+      await passwordChoice.getByRole("button", { name: "가입 신청", exact: true }).click();
       const response = await submitted;
       expect(response.status(),
         `POST /students/registration_requests/ returned ${response.status()}`,
