@@ -14,9 +14,10 @@ type Props = {
   homeworkId: number;
   file: HomeworkSubmissionMediaFile | null;
   onClose: () => void;
+  onViewed?: (fileId: string) => void;
 };
 
-export default function HomeworkMediaPreviewModal({ open, homeworkId, file, onClose }: Props) {
+export default function HomeworkMediaPreviewModal({ open, homeworkId, file, onClose, onViewed }: Props) {
   const previewQ = useQuery({
     queryKey: QUERY_KEYS.HOMEWORK_MEDIA_PREVIEW(homeworkId, file?.id),
     queryFn: () => fetchHomeworkMediaPreview(homeworkId, file!.id),
@@ -30,7 +31,7 @@ export default function HomeworkMediaPreviewModal({ open, homeworkId, file, onCl
       <ModalHeader
         type="inspect"
         title={file?.original_filename || "과제 파일 미리보기"}
-        description={file ? `${file.media_kind === "video" ? "동영상" : "사진"} · 파일 ${file.position + 1}` : undefined}
+        description={file ? `${file.mime_type === "application/pdf" ? "PDF" : file.media_kind === "video" ? "동영상" : "사진"} · 파일 ${file.position + 1}` : undefined}
       />
       <ModalBody>
         <div className={styles.previewBody}>
@@ -41,11 +42,18 @@ export default function HomeworkMediaPreviewModal({ open, homeworkId, file, onCl
               <Button type="button" intent="ghost" size="sm" onClick={() => previewQ.refetch()}>다시 시도</Button>
             </div>
           )}
-          {previewQ.data && file?.media_kind === "image" && (
-            <img src={previewQ.data.url} alt={`${file.original_filename} 과제 제출 미리보기`} />
+          {previewQ.data && file?.mime_type === "application/pdf" && (
+            <iframe
+              src={previewQ.data.url}
+              title={`${file.original_filename} 과제 제출 미리보기`}
+              onLoad={() => onViewed?.(file.id)}
+            />
           )}
-          {previewQ.data && file?.media_kind === "video" && (
-            <video src={previewQ.data.url} controls playsInline preload="metadata">
+          {previewQ.data && file?.media_kind === "image" && file.mime_type !== "application/pdf" && (
+            <img src={previewQ.data.url} alt={`${file.original_filename} 과제 제출 미리보기`} onLoad={() => onViewed?.(file.id)} />
+          )}
+          {previewQ.data && file?.media_kind === "video" && file.mime_type !== "application/pdf" && (
+            <video src={previewQ.data.url} controls playsInline preload="metadata" onLoadedMetadata={() => onViewed?.(file.id)}>
               브라우저에서 이 동영상을 재생할 수 없습니다.
             </video>
           )}
