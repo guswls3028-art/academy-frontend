@@ -162,7 +162,7 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
           },
           {
             id: "9912",
-            legacy: false,
+            legacy: options.reviewPdf ?? false,
             position: 1,
             original_filename: options.reviewPdf ? "풀이 자료.pdf" : options.reviewImagesOnly ? "풀이 뒷면.jpg" : "풀이 설명.mp4",
             media_kind: options.reviewImagesOnly || options.reviewPdf ? "image" : "video",
@@ -208,7 +208,7 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
       return json({ url: `data:image/svg+xml,${svg}`, media_kind: "image", mime_type: "image/jpeg", original_filename: "풀이 뒷면.jpg", expires_in: 600 });
     }
     if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/media/9912/preview/` && options.reviewPdf) {
-      return json({ url: "data:application/pdf;base64,JVBERi0xLjQKJUVPRg==", media_kind: "image", mime_type: "application/pdf", original_filename: "풀이 자료.pdf", expires_in: 600 });
+      return json({ url: `${BASE}/__homework_pdf_fixture.pdf`, media_kind: "image", mime_type: "application/pdf", original_filename: "풀이 자료.pdf", expires_in: 600 });
     }
     if (path === "/enrollments/" || path === "/enrollments/session-enrollments/") return json([]);
     if (path === "/staffs/currently-working/") return json([]);
@@ -344,6 +344,7 @@ test("기존 PDF 제출 파일은 새 창 원본 열기와 명시 열람 확인�
   await expect(pdfLink).toBeVisible();
   await expect(dialog.getByRole("button", { name: "열람 확인" })).toBeDisabled();
   const [popup] = await Promise.all([page.waitForEvent("popup"), pdfLink.click()]);
+  await expect(popup).toHaveURL(/__homework_pdf_fixture\.pdf$/);
   await popup.close();
   await dialog.getByRole("button", { name: "열람 확인" }).click();
   await dialog.getByRole("button", { name: "닫기" }).click();
