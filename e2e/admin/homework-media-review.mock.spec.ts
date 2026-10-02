@@ -274,7 +274,7 @@ test("관리자 PC에서 모든 제출 파일 확인 후 저장·새로고침·�
   await openSubmissionReview(page);
 
   const complete = page.getByRole("button", { name: "직접 확인 완료" });
-  await expect(page.getByText("확인 대기").first().locator("..")).toContainText("1");
+  await expect(page.locator('[aria-label="제출 요약"] > div').filter({ hasText: "확인 대기" })).toContainText("1");
   await expect(complete).toBeDisabled();
   for (const filename of ["풀이 앞면.jpg", "풀이 뒷면.jpg"]) {
     await page.locator('[class*="fileRow"]').filter({ hasText: filename }).getByRole("button", { name: "미리보기" }).click();
@@ -286,7 +286,7 @@ test("관리자 PC에서 모든 제출 파일 확인 후 저장·새로고침·�
   await expect(complete).toBeEnabled();
   await complete.click();
   await page.getByRole("button", { name: "확인 완료", exact: true }).click();
-  await expect(page.getByText("확인 완료").first().locator("..")).toContainText("1");
+  await expect(page.locator('[aria-label="제출 요약"] > div').filter({ hasText: "확인 완료" })).toContainText("1");
   expect(api.reviewPosts()).toBe(1);
   expect(api.lastReviewPayload()).toMatchObject({
     enrollment_id: 9902, source_type: "homework", source_id: HOMEWORK_ID,
@@ -299,7 +299,7 @@ test("관리자 PC에서 모든 제출 파일 확인 후 저장·새로고침·�
   await expect(cancel).toBeEnabled();
   await cancel.click();
   await page.getByRole("button", { name: "확인 취소", exact: true }).click();
-  await expect(page.getByText("확인 대기").first().locator("..")).toContainText("1");
+  await expect(page.locator('[aria-label="제출 요약"] > div').filter({ hasText: "확인 대기" })).toContainText("1");
   expect(api.reviewPosts()).toBe(2);
   expect(api.lastReviewPayload()).toMatchObject({ completed: false, expected_updated_at: "2026-08-23T03:30:00Z" });
 
@@ -327,19 +327,27 @@ test("관리자 PC 검수의 동시 수정 충돌을 표시하고 최신 상태�
   await page.getByRole("button", { name: "최신 상태 확인" }).click();
   await page.getByRole("button", { name: "직접 확인 완료" }).click();
   await page.getByRole("button", { name: "확인 완료", exact: true }).click();
-  await expect(page.getByText("확인 완료").first().locator("..")).toContainText("1");
+  await expect(page.locator('[aria-label="제출 요약"] > div').filter({ hasText: "확인 완료" })).toContainText("1");
   expect(api.reviewPosts()).toBe(2);
   expect(api.lastReviewPayload()).toMatchObject({ completed: true, expected_updated_at: "2026-08-23T03:25:00Z" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
-test("기존 PDF 제출 파일은 이미지로 취급하지 않고 문서 미리보기로 연다", async ({ page }) => {
+test("기존 PDF 제출 파일은 새 창 원본 열기와 명시 열람 확인을 제공한다", async ({ page }) => {
   await installApi(page, "submitted", false, { reviewPdf: true });
   await openSubmissionReview(page);
   const pdfRow = page.locator('[class*="fileRow"]').filter({ hasText: "풀이 자료.pdf" });
   await expect(pdfRow).toContainText("PDF");
   await pdfRow.getByRole("button", { name: "미리보기" }).click();
-  await expect(page.getByRole("dialog").filter({ hasText: "풀이 자료.pdf" }).getByTitle("풀이 자료.pdf 과제 제출 미리보기")).toBeVisible();
+  const dialog = page.getByRole("dialog").filter({ hasText: "풀이 자료.pdf" });
+  const pdfLink = dialog.getByRole("link", { name: "PDF 원본 열기" });
+  await expect(pdfLink).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "열람 확인" })).toBeDisabled();
+  const [popup] = await Promise.all([page.waitForEvent("popup"), pdfLink.click()]);
+  await popup.close();
+  await dialog.getByRole("button", { name: "열람 확인" }).click();
+  await dialog.getByRole("button", { name: "닫기" }).click();
+  await expect(page.getByText("제출 파일 1/2개를 열었습니다.")).toBeVisible();
 });
 
 test("신규 조교가 계정 안내 확인 후 모바일 과제 파일을 열고 새로고침해도 확인한다", async ({ page }, testInfo) => {

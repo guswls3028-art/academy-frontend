@@ -286,18 +286,19 @@
 }
 
 .previewBody img,
-.previewBody video,
-.previewBody iframe {
+.previewBody video {
   display: block;
   max-width: 100%;
   max-height: min(70vh, 680px);
   object-fit: contain;
 }
 
-.previewBody iframe {
-  width: 100%;
-  min-height: min(70vh, 680px);
-  border: 0;
+
+.pdfLink {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .previewBody video {
