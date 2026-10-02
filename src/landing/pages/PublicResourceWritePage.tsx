@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 import ResourceLayout, { ResourceFailure } from "../components/ResourceLayout";
 import { discardResourceFile, getResource, resourceError, resourceSize, saveResource, uploadResource, type ResourceCategory, type ResourceFile } from "../api/publicResources";
 import { useResourcePublisher } from "../hooks/useResourcePublisher";
@@ -11,7 +12,7 @@ export default function PublicResourceWritePage() {
   const [files, setFiles] = useState<ResourceFile[]>([]); const [loading, setLoading] = useState(!!id);
   const [loadError, setLoadError] = useState(""); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   const [retry, setRetry] = useState(0); const busyRef = useRef(false); const pending = useRef(new Set<string>());
-  const saved = useRef(false); const disposed = useRef(false); const requestId = useRef(crypto.randomUUID());
+  const saved = useRef(false); const disposed = useRef(false); const [requestId] = useState(createRandomUuid);
   useEffect(() => {
     disposed.current = false;
     const pendingUploads = pending.current;
@@ -58,7 +59,7 @@ export default function PublicResourceWritePage() {
     if (!title.trim() || !files.length) { setError("제목과 첨부 파일을 확인해주세요."); return; }
     busyRef.current = true; setBusy(true); setError("");
     try {
-      const post = await saveResource({ request_id: requestId.current, title: title.trim(), category, content, file_ids: files.map((file) => file.id) }, id);
+      const post = await saveResource({ request_id: requestId, title: title.trim(), category, content, file_ids: files.map((file) => file.id) }, id);
       saved.current = true; pending.current.clear(); navigate(`/landing/resources/${post.id}`, { replace: true });
     } catch (failure) { setError(resourceError(failure, "게시하지 못했습니다. 입력한 내용은 유지됩니다. 다시 시도해주세요.")); }
     finally { busyRef.current = false; setBusy(false); }

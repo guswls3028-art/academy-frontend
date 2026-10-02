@@ -21,8 +21,10 @@ academy-backend `docs/domain/public-resource-board.md`.
 
 Uploading does not publish. The publisher selects a category, title, optional
 description and 1–5 files (each nonempty, up to 30 MiB). Local extension/size
-checks are supplemented by server format checks. Successful uploads remain in
-the form if a subsequent file fails. `게시하기` is explicit public publication;
+checks are supplemented by server format checks. Upload requests allow 120 seconds
+for slow transfers; request IDs use the shared secure UUID fallback for supported
+browsers without `randomUUID`. Successful uploads remain in the form if a subsequent
+file fails. `게시하기` is explicit public publication;
 network retries preserve the request UUID and input. Editing retains existing
 attachments, including those originally uploaded by the other publisher. File
 removal and cancellation clean the current uploader's pending files; failure

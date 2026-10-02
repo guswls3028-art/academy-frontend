@@ -141,6 +141,7 @@ for (const width of [1366, 390]) {
 }
 
 test("empty categories and anonymous direct write have clear recovery", async ({ page }) => {
+  await page.addInitScript(() => { Object.defineProperty(crypto, "randomUUID", { configurable: true, value: undefined }); });
   await prepare(page, { empty: true }); await page.goto(`${BASE}/landing/resources`);
   await expect(page.getByText("아직 등록된 자료가 없습니다", { exact: true })).toHaveCount(2);
   await page.goto(`${BASE}/landing/resources/write`);

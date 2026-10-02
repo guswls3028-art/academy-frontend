@@ -24,7 +24,7 @@ export async function resourceCapability(): Promise<boolean> {
 }
 export async function uploadResource(file: File): Promise<ResourceFile> {
   const form = new FormData(); form.append("file", file);
-  return (await api.post<ResourceFile>("/landing-public/uploads/resource/", form)).data;
+  return (await api.post<ResourceFile>("/landing-public/uploads/resource/", form, { timeout: 120_000 })).data;
 }
 export async function discardResourceFile(id: string): Promise<void> {
   await api.delete(`/landing-public/resource-files/${id}/`);
