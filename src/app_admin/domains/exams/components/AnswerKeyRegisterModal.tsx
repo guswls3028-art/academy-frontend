@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { fetchQuestionsByExam, type ExamQuestion } from "../api/question.api";
 import { initExamQuestions } from "../api/questionInit.api";
@@ -303,6 +304,26 @@ function normalizeAnswers(input: Record<string, AnswerKeyValue>) {
   return out;
 }
 
+type PendingAnswerKeyVerification = {
+  keyId: number;
+  ownerId: number;
+  answers: Record<string, AnswerKeyValue>;
+  questionScores: Record<number, number>;
+  questionTypes: Record<number, QuestionKind>;
+  regrade?: Array<{ failed: Array<unknown>; needs_review?: Array<unknown> }>;
+  regradeFailed?: boolean;
+  draftFingerprint: string;
+};
+
+function answerKeyMatches(saved: AnswerKey, expected: PendingAnswerKeyVerification): boolean {
+  if (saved.id !== expected.keyId || saved.exam !== expected.ownerId) return false;
+  const actualKeys = Object.keys(saved.answers).filter((key) => key !== SCORE_ADJUSTMENT_KEY).sort();
+  const expectedKeys = Object.keys(expected.answers).filter((key) => key !== SCORE_ADJUSTMENT_KEY).sort();
+  return actualKeys.join("|") === expectedKeys.join("|")
+    && expectedKeys.every((key) => JSON.stringify(saved.answers[key]) === JSON.stringify(expected.answers[key]))
+    && JSON.stringify(parseScoreAdjustment(saved.answers)) === JSON.stringify(parseScoreAdjustment(expected.answers));
+}
+
 export default function AnswerKeyRegisterModal({
   open,
   onClose,
@@ -320,6 +341,7 @@ export default function AnswerKeyRegisterModal({
   const [downloaded, setDownloaded] = useState(false);
   const { data: exam } = useAdminExam(examId);
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [ensuredExamId, setEnsuredExamId] = useState<number | null>(null);
   const [ensureAttemptedExamId, setEnsureAttemptedExamId] = useState<number | null>(null);
@@ -415,6 +437,8 @@ export default function AnswerKeyRegisterModal({
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [answerKeyHydrated, setAnswerKeyHydrated] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
+  const [pendingVerification, setPendingVerification] = useState<PendingAnswerKeyVerification | null>(null);
+  const [verificationError, setVerificationError] = useState("");
   /** 문항별 점수 드래프트 (문항 반영 시 초기값은 question.score) */
   const [scoreDraft, setScoreDraft] = useState<Record<number, number>>({});
   const [scoreAdjustmentDraft, setScoreAdjustmentDraft] = useState<ScoreAdjustmentDraft>({
@@ -462,6 +486,8 @@ export default function AnswerKeyRegisterModal({
     setExplanationDraft({});
     setExplanationSaveBusy(false);
     setSaveBusy(false);
+    setPendingVerification(null);
+    setVerificationError("");
     choiceBubbleRefs.current = [];
     essayInputRefs.current = [];
   }, [initialTab]);
@@ -503,6 +529,7 @@ export default function AnswerKeyRegisterModal({
     [sortedQuestions, scoreDraft]
   );
   const canEditStructure = canEditQuestions && structureReady;
+  const draftFingerprint = JSON.stringify([draft, scoreDraft, scoreAdjustmentDraft, questionTypes]);
   const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.objective;
   const essayTotalScore = essayQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.subjective;
   const totalScore = questionTotalScore + scoreAdjustmentDraft.objective + scoreAdjustmentDraft.subjective;
@@ -879,7 +906,83 @@ export default function AnswerKeyRegisterModal({
     handleApply();
   };
 
+  const finishVerifiedSave = async (snapshot: PendingAnswerKeyVerification) => {
+    if (snapshot.regradeFailed) {
+      setVerificationError("정답과 배점은 확인됐지만 재채점이 실패했습니다. 시험 결과에서 전체 재채점을 확인해 주세요.");
+      feedback.warning("정답은 저장됐지만 재채점은 확인되지 않았습니다.");
+      return;
+    }
+    setPendingVerification(null);
+    setVerificationError("");
+    await Promise.allSettled([
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) }),
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) }),
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamSummary(examId) }),
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestionStats(examId) }),
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.sessionScoresRoot() }),
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.clinicTargetsRoot() }),
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminSubmissions }),
+      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminPendingSubmissions }),
+    ]);
+    if (draftFingerprint !== snapshot.draftFingerprint) {
+      feedback.warning("이전 입력의 저장은 확인됐습니다. 이후 변경한 내용은 다시 저장해 주세요.");
+      return;
+    }
+    const regrade = snapshot.regrade;
+    const reviewCount = regrade?.reduce((total, item) => total + (item.needs_review?.length ?? 0), 0) ?? 0;
+    const failedCount = regrade?.reduce((total, item) => total + item.failed.length, 0) ?? 0;
+    feedback.clear();
+    if (!regrade) {
+      feedback.success(canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다.");
+    } else if (failedCount > 0) {
+      feedback.warning(`답안과 배점을 저장했습니다. 재채점 실패 ${failedCount}건은 시험 결과에서 확인해 주세요.`);
+    } else if (reviewCount > 0) {
+      feedback.successWithAction({
+        message: `정답 저장·자동 재채점 완료 · 확인 대상 ${reviewCount}건`,
+        description: "시험 결과에서 학생 답안을, 상단 OMR 검토에서 미식별 스캔을 확인해 주세요.",
+        action: { label: "시험 결과 열기", onClick: () => navigate(`/workspace/exams/${examId}?examTab=results`) },
+        duration: 12,
+      });
+    } else {
+      feedback.success(canEditQuestions ? "저장·재채점되었습니다." : "정답을 저장하고 기존 성적을 재채점했습니다.");
+    }
+    onSaved?.();
+  };
+
+  const verifySavedKey = async (snapshot: PendingAnswerKeyVerification) => {
+    setSaveBusy(true);
+    try {
+      // A successful write response is not proof that the effective exam can read the key.
+      const response = await fetchAnswerKeyByExam(examId);
+      const saved = answerKeysFromResponse(response).find((key) => key.id === snapshot.keyId);
+      if (!saved || !answerKeyMatches(saved, snapshot)) {
+        throw new Error("저장된 정답이 입력값 또는 시험 소유자와 일치하지 않습니다.");
+      }
+      if (Object.keys(snapshot.questionScores).length || Object.keys(snapshot.questionTypes).length) {
+        const { data: persistedQuestions } = await fetchQuestionsByExam(examId);
+        const questionById = new Map(persistedQuestions.map((question) => [question.id, question]));
+        for (const [id, score] of Object.entries(snapshot.questionScores)) {
+          if (Number(questionById.get(Number(id))?.score) !== score) throw new Error("저장된 문항 배점이 입력값과 일치하지 않습니다.");
+        }
+        for (const [id, kind] of Object.entries(snapshot.questionTypes)) {
+          if (questionById.get(Number(id))?.question_kind !== kind) throw new Error("저장된 문항 유형이 입력값과 일치하지 않습니다.");
+        }
+        qc.setQueryData(adminExamsQueryKeys.examQuestions(examId), persistedQuestions);
+      }
+      qc.setQueryData(adminExamsQueryKeys.answerKey(examId), response);
+      await finishVerifiedSave(snapshot);
+    } catch (error: unknown) {
+      const detail = extractApiError(error, "저장 상태 조회 실패");
+      setVerificationError(`${detail} 입력은 유지됩니다. 서버 저장 상태를 다시 확인해 주세요.`);
+      feedback.warning("저장 요청 후 서버 확인에 실패했습니다. 다시 저장하지 말고 저장 상태를 확인해 주세요.");
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
   const handleSave = async () => {
+    if (saveBusy || pendingVerification) return;
     if (!canEditStructure) {
       feedback.info("시험 구조가 준비되지 않아 아직 수정할 수 없습니다.");
       return;
@@ -963,45 +1066,28 @@ export default function AnswerKeyRegisterModal({
       const savedKey = !answerKey
         ? await createAnswerKey({ exam: targetExamId, answers: answersPayload })
         : await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: answersPayload });
-      const regrade = savedKey.data.regrade ?? (toPatch.length > 0 ? [await recalculateExam(examId)] : undefined);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) }),
-        ...(toPatch.length > 0 ? [qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) })] : []),
-      ]);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
-        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamSummary(examId) }),
-        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestionStats(examId) }),
-        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.sessionScoresRoot() }),
-        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.clinicTargetsRoot() }),
-        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminSubmissions }),
-        qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminPendingSubmissions }),
-      ]);
-      const reviewCount = regrade?.reduce((total, item) => total + (item.needs_review?.length ?? 0), 0) ?? 0;
-      const failedCount = regrade?.reduce((total, item) => total + item.failed.length, 0) ?? 0;
-      feedback.clear();
-      if (!regrade) {
-        feedback.success(
-          canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
-        );
-      } else if (failedCount > 0) {
-        feedback.warning(`답안과 배점을 저장했습니다. 재채점 실패 ${failedCount}건은 시험 결과에서 확인해 주세요.`);
-      } else if (reviewCount > 0) {
-        feedback.successWithAction({
-          message: `정답 저장·자동 재채점 완료 · 확인 대상 ${reviewCount}건`,
-          description: "시험 결과에서 학생 답안을, 상단 OMR 검토에서 미식별 스캔을 확인해 주세요.",
-          action: {
-            label: "시험 결과 열기",
-            onClick: () => navigate(`/workspace/exams/${examId}?examTab=results`),
-          },
-          duration: 12,
-        });
-      } else {
-        feedback.success(
-          canEditQuestions ? "저장·재채점되었습니다." : "정답을 저장하고 기존 성적을 재채점했습니다."
-        );
+      const snapshot: PendingAnswerKeyVerification = {
+        keyId: savedKey.data.id,
+        ownerId: effectiveStructureOwnerId,
+        answers: answersPayload,
+        questionScores: Object.fromEntries(toPatch.map((question) => [question.id, scoreDraft[question.id] ?? question.score ?? 0])),
+        questionTypes: shouldPersistQuestionTypes
+          ? Object.fromEntries(sortedQuestions.map((question, index) => [question.id, questionTypes[index]]))
+          : {},
+        regrade: savedKey.data.regrade,
+        draftFingerprint,
+      };
+      setPendingVerification(snapshot);
+      if (!snapshot.regrade && toPatch.length > 0) {
+        try {
+          snapshot.regrade = [await recalculateExam(examId)];
+        } catch (error: unknown) {
+          snapshot.regradeFailed = true;
+          setVerificationError(`${extractApiError(error, "재채점 실패")} 저장 상태도 아직 확인되지 않았습니다. 입력은 유지됩니다.`);
+          feedback.warning("정답 저장 요청 후 재채점 또는 저장 상태를 확인하지 못했습니다.");
+        }
       }
-      onSaved?.();
+      await verifySavedKey(snapshot);
     } catch (error: unknown) {
       const detail = extractApiError(error, "저장 실패");
       if (patchedScoreCount > 0) {
@@ -1074,6 +1160,32 @@ export default function AnswerKeyRegisterModal({
     }
   };
 
+  const hasUnsavedInput = Boolean(pendingVerification)
+    || (answerKeyHydrated && (
+      JSON.stringify(normalizeAnswers(draft)) !== JSON.stringify(normalizeAnswers(answerKey?.answers ?? {}))
+      || JSON.stringify(scoreAdjustmentDraft) !== JSON.stringify(parseScoreAdjustment(answerKey?.answers ?? {}))
+    ))
+    || sortedQuestions.some((question, index) =>
+      (scoreDraft[question.id] ?? question.score ?? 0) !== (question.score ?? 0)
+      || (questionTypes[index] !== undefined && questionTypes[index] !== question.question_kind)
+    )
+    || Object.values(explanationDraft).some((item) => item.dirty)
+    || (choiceCountInput !== "" && choiceCountInput !== choiceCount)
+    || (essayCountInput !== "" && essayCountInput !== essayCount)
+    || (totalCountInput !== "" && totalCountInput !== sortedQuestions.length);
+  const handleClose = async () => {
+    if (saveBusy || explanationSaveBusy || initMut.isPending) {
+      feedback.info("저장 처리가 끝난 뒤 닫아 주세요.");
+      return;
+    }
+    if (hasUnsavedInput && !(await confirm({
+      title: "입력 내용을 닫을까요?",
+      message: "확인되지 않거나 저장하지 않은 입력이 있습니다. 닫으면 이 화면의 입력이 사라집니다.",
+      confirmText: "입력 버리고 닫기",
+    }))) return;
+    onClose();
+  };
+
   if (!open) return null;
 
   const hasQuestions = questions.length > 0;
@@ -1081,11 +1193,11 @@ export default function AnswerKeyRegisterModal({
   return (
     <AdminModal
       open
-      onClose={onClose}
+      onClose={() => { void handleClose(); }}
       type="action"
       width={MODAL_WIDTH.answerKey}
       onEnterConfirm={
-        activeTab === "answer" && hasQuestions && answerKeyHydrated && canEditStructure && !saveBusy && !initMut.isPending
+        activeTab === "answer" && hasQuestions && answerKeyHydrated && canEditStructure && !saveBusy && !pendingVerification && !initMut.isPending
           ? handleSave
           : undefined
       }
@@ -1147,6 +1259,16 @@ export default function AnswerKeyRegisterModal({
                   </Button>
                 </>
               ) : "답안을 불러오는 중입니다."}
+            </div>
+          )}
+          {structureReady && activeTab === "answer" && pendingVerification && (
+            <div className="answer-key-empty" role="alert">
+              <p>{verificationError || "저장 요청을 처리했습니다. 서버에 저장된 정답을 확인하는 중입니다."}</p>
+              {verificationError && (
+                <Button intent="secondary" size="sm" disabled={saveBusy} onClick={() => { void verifySavedKey(pendingVerification); }}>
+                  저장 상태 확인
+                </Button>
+              )}
             </div>
           )}
           {structureReady && activeTab === "answer" && (!hasQuestions || answerKeyHydrated) && (
@@ -1643,14 +1765,14 @@ export default function AnswerKeyRegisterModal({
             : null}
         right={
           <>
-            <Button intent="secondary" onClick={onClose}>
+            <Button intent="secondary" onClick={() => { void handleClose(); }}>
               {flowStep === "answer" ? "나중에" : flowStep === "print" ? "설정 화면으로" : "취소"}
             </Button>
             {activeTab === "answer" && hasQuestions && answerKeyHydrated && (
               <Button
                 intent="primary"
                 onClick={handleSave}
-                disabled={saveBusy || initMut.isPending || !canEditStructure}
+                disabled={saveBusy || Boolean(pendingVerification) || initMut.isPending || !canEditStructure}
                 loading={saveBusy}
               >
                 {flowStep === "answer" ? "답안 저장하고 다음" : `저장 (총 ${formatScore(totalScore)}점)`}
