@@ -23,6 +23,7 @@ const digest = createHash("sha256").update(QA_TENANT).digest("hex");
 const prefix = `qa-account-registration-${digest.slice(0, 12)}-`;
 const direct = " synthetic initial 42 ";
 let admin = "";
+let cleanupAuthorized = false;
 let families: QaFamily[] = [];
 let boundary: { assertClean: () => void };
 let guards: ReturnType<typeof attachStrictBrowserGuards>;
@@ -130,14 +131,18 @@ async function probe(studentId: number, mode: "verify" | "snapshot" | "compare",
 }
 
 test.beforeEach(async ({ page, request }) => {
+  cleanupAuthorized = false;
+  families = [];
   boundary = await installQaStudentParentBoundary(page, request);
   guards = attachStrictBrowserGuards(page);
   admin = (await loginAdmin(request)).access;
-  families = [];
+  cleanupAuthorized = true;
   await staffLogin(page);
 });
 
 test.afterEach(async ({ request }) => {
+  // A rejected runtime or failed admin login must never issue cleanup requests.
+  if (!cleanupAuthorized) return;
   try {
     // The exact disposable prefix also catches a persisted POST whose browser response failed.
     const listing = await expectApi<{ results: QaStudent[] }>(request, "GET", `/students/?search=${prefix}&page_size=100`, admin);
