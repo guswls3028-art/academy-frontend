@@ -195,7 +195,7 @@ export default function LectureDetailPage() {
               const regularOrder = getRegularOrder(s);
               const badge = isSupplementSession(s) ? "보" : regularOrder ?? s.order;
               return (
-                <button
+                <div
                   key={s.id}
                   onClick={() => navigate(`/workspace/mobile/classes/${lectureId}/sessions/${s.id}`)}
                   className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
@@ -205,33 +205,44 @@ export default function LectureDetailPage() {
                     border: "1px solid var(--tc-border)",
                   }}
                 >
-                  <span
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
-                    style={{
-                      background: "var(--tc-primary-bg)",
-                      color: "var(--tc-primary)",
-                    }}
+                  <button
+                    type="button"
+                    className="flex flex-1 min-w-0 min-h-11 items-center gap-3 text-left cursor-pointer border-0 bg-transparent p-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2"
                   >
-                    {badge}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
-                      {formatSessionLabel(s)}
+                    <span
+                      className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
+                      style={{
+                        background: "var(--tc-primary-bg)",
+                        color: "var(--tc-primary)",
+                      }}
+                    >
+                      {badge}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold truncate" style={{ color: "var(--tc-text)" }}>
+                        {formatSessionLabel(s)}
+                      </div>
+                      <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+                        {s.date || "날짜 미정"}
+                        {s.section_label ? ` · ${s.section_label}` : ""}
+                      </div>
                     </div>
-                    <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
-                      {s.date || "날짜 미정"}
-                      {s.section_label ? ` · ${s.section_label}` : ""}
-                    </div>
-                  </div>
+                  </button>
                   {/* 편집 1개만 inline 노출. 삭제는 편집 시트 내부에서 처리 (손가락 미스 → 데이터 손실 방지) */}
                   <div className="flex items-center gap-1 shrink-0">
-                    <span onClick={(e) => { e.stopPropagation(); setEditSession(s); setSessionFormOpen(true); }}
-                      className="flex p-2 cursor-pointer" style={{ color: "var(--tc-text-muted)" }}>
+                    <button
+                      type="button"
+                      aria-label={`차시 수정: ${formatSessionLabel(s)}`}
+                      title={`차시 수정: ${formatSessionLabel(s)}`}
+                      onClick={(e) => { e.stopPropagation(); e.currentTarget.focus(); setEditSession(s); setSessionFormOpen(true); }}
+                      className="flex min-h-11 min-w-11 items-center justify-center p-2 cursor-pointer rounded-lg border-0 bg-transparent focus-visible:outline-2 focus-visible:outline-offset-2"
+                      style={{ color: "var(--tc-text-muted)" }}
+                    >
                       <Pencil size={ICON.md} />
-                    </span>
+                    </button>
                     <ChevronRight />
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
