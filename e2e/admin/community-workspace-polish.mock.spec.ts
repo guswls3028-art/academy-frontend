@@ -6,6 +6,7 @@ import {
   deleteCommunityPost,
   deleteCommunityPostAttachment,
   type CommunityHttpClient,
+  type PostAttachment,
 } from "@/shared/api/contracts/community";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
@@ -25,6 +26,7 @@ const IPAD_PROFILE = {
 const IMAGE_DATA_URL = `data:image/svg+xml;base64,${Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200"><rect width="100%" height="100%" fill="#f8f4ea"/><text x="70" y="130" font-size="56">20. 자연선택 문제</text><path d="M120 800 Q300 350 480 800 T840 800" fill="none" stroke="#222" stroke-width="18"/></svg>',
 ).toString("base64")}`;
+const qnaAttachmentsByPage = new WeakMap<Page, PostAttachment[]>();
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -81,7 +83,7 @@ async function installApi(page: Page) {
         session_title: null,
       },
     }],
-    attachments: [{
+    attachments: qnaAttachmentsByPage.get(page) ?? [{
       id: 79,
       original_name: "20번-문제.jpg",
       size_bytes: 283400,
@@ -331,6 +333,64 @@ test.describe("커뮤니티 QnA 작업대", () => {
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
+  });
+
+  test("QnA 이미지와 PDF를 모두 보여주고 권한 확인 다운로드·깨진 미리보기를 복구한다", async ({ page }) => {
+    const created_at = "2026-08-23T01:21:00Z";
+    qnaAttachmentsByPage.set(page, [
+      { id: 79, original_name: "20번-문제.jpg", size_bytes: 283400, content_type: "image/jpeg", created_at, download_url: IMAGE_DATA_URL },
+      { id: 80, original_name: "수업-자료.pdf", size_bytes: 92000, content_type: "application/pdf", created_at },
+      { id: 81, original_name: "복구-문제.jpg", size_bytes: 81200, content_type: "image/jpeg", created_at, download_url: `${BASE}/broken-image/81` },
+    ]);
+    let allowPdf = false;
+    let pdfRequests = 0;
+    await page.route(`**/api/v1/community/posts/${QUESTION_ID}/attachments/80/download/`, async (route) => {
+      pdfRequests += 1;
+      expect(route.request().headers()["x-tenant-code"]).toBe("hakwonplus");
+      await route.fulfill({
+        status: allowPdf ? 200 : 403,
+        headers: CORS_HEADERS,
+        contentType: "application/json",
+        body: JSON.stringify(allowPdf ? { url: `${BASE}/qna-pdf/80`, original_name: "수업-자료.pdf" } : { detail: "다운로드 권한이 없습니다." }),
+      });
+    });
+    await page.route(`**/api/v1/community/posts/${QUESTION_ID}/attachments/81/download/`, (route) => route.fulfill({
+      status: 200, headers: CORS_HEADERS, contentType: "application/json",
+      body: JSON.stringify({ url: IMAGE_DATA_URL, original_name: "복구-문제.jpg" }),
+    }));
+    await page.route("**/broken-image/81", (route) => route.fulfill({ status: 404, body: "" }));
+    await page.route("**/qna-pdf/80", (route) => route.fulfill({
+      status: 200,
+      headers: { "content-disposition": 'attachment; filename="class-material.pdf"' },
+      contentType: "application/pdf",
+      body: "%PDF-1.4\n%%EOF",
+    }));
+
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
+    const reference = page.getByRole("region", { name: "학생 질문 자료" });
+    await expect(reference.locator(".qna-inbox__pane-caption")).toContainText("이미지 2장 · 파일 1개");
+    const pdf = reference.getByRole("region", { name: "첨부파일" });
+    await expect(pdf).toContainText("수업-자료.pdf");
+    await pdf.getByRole("button", { name: "다운로드" }).click();
+    await expect(pdf.getByRole("alert")).toContainText("다시 시도");
+    allowPdf = true;
+    const downloadPromise = page.waitForEvent("download");
+    await pdf.getByRole("button", { name: "다운로드" }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.pdf$/);
+    expect(pdfRequests).toBe(2);
+    await page.reload();
+    await expect(page.getByRole("region", { name: "첨부파일" })).toContainText("수업-자료.pdf");
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const recovery = page.getByRole("region", { name: "미리보기 복구" });
+    await expect(recovery).toContainText("복구-문제.jpg");
+    await recovery.getByRole("button", { name: "다시 보기" }).click();
+    await expect(recovery).toHaveCount(0);
+    await page.getByRole("button", { name: "2번째 이미지 복구-문제.jpg" }).click();
+    await expect(page.getByRole("img", { name: "복구-문제.jpg" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   });
 
   test("데스크톱 공지 이미지를 본문 data URL이 아닌 첨부파일로 저장한다", async ({ page }) => {
