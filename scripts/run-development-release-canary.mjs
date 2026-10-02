@@ -33,6 +33,7 @@ const FLOW_COUNTS = {
   "qna-roundtrip.spec.ts": 4,
   "clinic-roundtrip.spec.ts": 4,
   "student-parent-account-realuse.spec.ts": 1,
+  "student-parent-registration-realuse.spec.ts": 7,
   "student-parent-assessment-realuse.spec.ts": 1,
   "student-clinic-required-cancel-realuse.spec.ts": 1,
   "student-parent-clinic-realuse.spec.ts": 1,
@@ -1013,11 +1014,82 @@ export function artifactFingerprint(directory) {
   return sha(canonical(entries.sort(([a], [b]) => a.localeCompare(b))));
 }
 
-function serveArtifact(directory, playbackBoundary) {
+export function accountProbeParameters(common, tenantId, input) {
+  assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0);
+  assert.ok(input && typeof input === "object" && !Array.isArray(input));
+  assert.equal(Object.keys(input).sort().join(","), "kind,mode,studentId");
+  assert.ok(Number.isSafeInteger(input.studentId) && input.studentId > 0);
+  assert.ok(["verify", "snapshot", "compare"].includes(input.mode));
+  assert.ok(["fixed", "phone_last4", "random"].includes(input.kind));
+  return { ...common, Action: ["AccountProbe"], TenantId: [String(tenantId)],
+    AccountStudentId: [String(input.studentId)], AccountProbeMode: [input.mode], AccountProbeKind: [input.kind] };
+}
+
+export function assertAccountProbeProof(proof, scope, input) {
+  const keys = ["schema", "scope_sha256", "mode", "kind", "credentials_valid", "token_me_valid", "role_count",
+    "random_format_valid", "parent_hash_preserved", "business_mutations", "auth_observation_writes_allowed", "snapshot_count"];
+  assert.ok(proof && typeof proof === "object" && !Array.isArray(proof));
+  assert.equal(Object.keys(proof).sort().join(","), [...keys].sort().join(","));
+  assert.equal(proof.schema, "account-registration-development/v1");
+  assert.match(scope, /^[a-f0-9]{64}$/);
+  assert.equal(proof.scope_sha256, scope);
+  assert.equal(proof.mode, input.mode); assert.equal(proof.kind, input.kind);
+  assert.equal(proof.credentials_valid, true); assert.equal(proof.token_me_valid, true);
+  assert.equal(proof.role_count, 2); assert.equal(proof.business_mutations, 0);
+  assert.equal(proof.auth_observation_writes_allowed, true);
+  assert.equal(proof.random_format_valid, input.kind === "random" && input.mode === "verify");
+  assert.equal(proof.parent_hash_preserved, input.mode === "compare" ? true : null);
+  assert.equal(proof.snapshot_count, input.mode === "snapshot" ? 1 : 0);
+  return Object.fromEntries(keys.map((key) => [key, proof[key]]));
+}
+
+export function createAccountProbeHandler(boundary) {
+  let active = false;
+  return async (request, response) => {
+    let acquired = false;
+    try {
+      assert.equal(request.url, "/__qa__/account-registration");
+      assert.equal(request.method, "POST");
+      assert.equal(request.headers.host, "localhost:4173");
+      assert.equal(request.headers["content-type"], "application/json");
+      assert.equal(request.headers.origin ?? WEB_ORIGIN, WEB_ORIGIN);
+      const supplied = Buffer.from(request.headers.authorization ?? "");
+      const expected = Buffer.from(`Bearer ${boundary.capability}`);
+      assert.equal(supplied.length, expected.length);
+      assert.ok(crypto.timingSafeEqual(supplied, expected));
+      assert.equal(active, false, "Account probe must be sequential");
+      let size = 0;
+      const chunks = [];
+      for await (const chunk of request) {
+        size += chunk.length;
+        assert.ok(size <= 256, "Account probe input too large");
+        chunks.push(chunk);
+      }
+      const input = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)));
+      accountProbeParameters({}, boundary.tenantId, input);
+      active = true;
+      acquired = true;
+      const proof = assertAccountProbeProof(await boundary.execute(input), boundary.scope, input);
+      response.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+      response.end(JSON.stringify(proof));
+    } catch {
+      boundary.onFailure("account-probe-failed");
+      response.writeHead(502, { "content-type": "application/json", "cache-control": "no-store" });
+      response.end('{"error":"ACCOUNT_PROBE_FAILED"}');
+    } finally { if (acquired) active = false; }
+  };
+}
+
+function serveArtifact(directory, playbackBoundary, accountBoundary) {
   const playbackProxy = createPlaybackEndProxy(playbackBoundary);
+  const accountProbe = createAccountProbeHandler(accountBoundary);
   const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
     ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp" };
   const server = http.createServer((request, response) => {
+    if (request.url?.startsWith("/__qa__/account-registration")) {
+      void accountProbe(request, response);
+      return;
+    }
     if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH) || request.url?.startsWith(SCORE_EXIT_PROXY_PATH)) {
       playbackProxy.handle(request, response);
       return;
@@ -1374,9 +1446,24 @@ export async function run() {
     const tunnel = session(PORT_DOCUMENT);
     await waitPort(18000, () => interrupted);
     remember(tunnel);
+    const accountCapability = crypto.randomBytes(32).toString("hex");
+    const accountScope = sha(JSON.stringify([tenant, scenario.tenant_id, manifest.releaseImageTag, manifest.images["academy-api"].digest]));
     server = await serveArtifact(path.join(bundle, "dist"), {
       apiOrigin: API_ORIGIN, webOrigin: WEB_ORIGIN, tenantCodes: [tenant, crossTenant],
       onFailure: (code) => failures.push(`development native playback proxy failed [${code}]`),
+    }, {
+      capability: accountCapability, tenantId: scenario.tenant_id, scope: accountScope,
+      onFailure: (code) => failures.push(`development account probe failed [${code}]`),
+      execute: async (input) => {
+        const process = session(QA_DOCUMENT, accountProbeParameters(common, scenario.tenant_id, input));
+        const result = await process.done;
+        remember(process);
+        assert.equal(interrupted, false, "Development run interrupted");
+        assert.equal(result.code, 0, "Required account probe command failed");
+        const lines = result.stdout.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.startsWith("{"));
+        assert.equal(lines.length, 1, "Account probe must return exactly one sanitized result");
+        return assertAccountProbeProof(JSON.parse(lines[0]), accountScope, input);
+      },
     });
     const secret = aws(["ssm", "get-parameter", "--name", PASSWORD_PARAMETER, "--with-decryption"]);
     assert.equal(secret.Parameter.Name, PASSWORD_PARAMETER);
@@ -1386,6 +1473,7 @@ export async function run() {
       env: { ...process.env, E2E_BASE_URL: WEB_ORIGIN, E2E_API_URL: API_ORIGIN, API_BASE_URL: API_ORIGIN,
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
         E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",
+        E2E_ACCOUNT_PROBE_CAPABILITY: accountCapability,
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
         E2E_CROSS_TENANT_CODE: crossTenant,
         E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_TENANT_ID: String(scenario.tenant_id),

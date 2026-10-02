@@ -303,3 +303,26 @@ Excel 등록도 전원 본인 번호가 있을 때만 전화번호 방식을 선
 검증은 관리자/강사 1366·390px에서 미선택 요청0, 취소/복귀, 3방식, 직접 입력 보기·원문,
 설정 저장 후 다시 열기와 역할별 부분 PATCH, 실제 요청값·등록 결과·backend JWT 로그인을 확인한다.
 공용 채널·템플릿의 승인 절차는 [메시징 정책](../../backend/docs/ssot/messaging-policy.md)을 따른다.
+
+## 등록 자격증명 후보 검증
+
+`e2e/student/student-parent-registration-realuse.spec.ts`의 필수 7건은 일회용
+`qa-ymath-realuse-fe-*` 개발 테넌트에서 실제 화면·API로 실행한다. 학원 기본값의
+학생/학부모 부분 저장과 reload, 직접 입력 원문 보존, 각자의 전화 뒤 4자리,
+서버 랜덤 6자리, 번호 없는 학생의 오류·취소·재선택, 기존 학부모 해시 보존과
+삭제/복원, 공개 가입 신청의 선택 유지와 관리자 승인을 검증한다.
+기본값을 저장해도 등록 마지막 확인창의 라디오 선택은 0개에서 시작한다.
+직접 입력·전화번호 방식은 두 역할 모두 실제 UI 로그인과 화면 reload까지 확인한다.
+랜덤 방식은 생성값을 테스트 프로세스로 내보내지 않고 후보 컨테이너 안에서
+원문/해시 대조와 실제 loopback token·me 인증을 확인한다. 이 결과를 랜덤 비밀번호의
+브라우저 직접 입력 검증으로 표현하지 않는다. 비밀번호 재설정으로 성공을 만들지 않는다.
+
+같은 immutable 개발 후보의 runner가 localhost 전용 capability 인증을 통해
+고정 SSM `AccountProbe`를 호출한다. 인자·역할·소유권·release/digest가 맞지 않거나
+probe가 없거나 실패하거나 결과 schema가 틀리면 필수 검증이 실패한다.
+결과에는 성공 여부·개수·범위 해시만 포함한다. trace/video/screenshot은 끄며
+등록 fixture 정리와 개발 runner 전체 테넌트/인증 관찰 잔여 0 확인을 모두 요구한다.
+설정 변경은 disposable 테넌트 수명 안에서만 허용하며 미설정을 null PATCH로
+되돌리지 않는다. 운영 13건의 Ymath/실발송/운영 쓰기 조건은 유지한다.
+서버 검증·관찰 데이터 정리 소유자는 backend
+`docs/operations/persistent-development-runtime.md`의 계정 검증 절이다.
