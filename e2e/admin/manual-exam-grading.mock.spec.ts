@@ -95,6 +95,7 @@ type InstallApiOptions = {
   };
   resultRows?: Array<Record<string, unknown>>;
   submissionRows?: Array<Record<string, unknown>>;
+  omrBatches?: Array<Record<string, unknown>>;
   examCloseAt?: string | null;
   failFirstRotateRescan?: boolean;
 };
@@ -377,6 +378,10 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         lecture_chip_label: "수2",
         already_matched: false,
       }]);
+      return;
+    }
+    if (path === "/submissions/submissions/omr/batches/" && method === "GET") {
+      await json(options.omrBatches ?? []);
       return;
     }
     if (path === "/storage/inventory/presign/" && method === "POST") {
@@ -1838,6 +1843,8 @@ test.describe("문항별 직접 채점", () => {
         await expect(page.getByRole("button", { name: "마지막 변경 실행 취소" })).toBeVisible();
         await expect(page.getByRole("button", { name: "마지막 변경 다시 실행" })).toBeVisible();
 
+        await page.clock.install();
+        await page.clock.pauseAt(new Date());
         const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
         const firstCell = studentRow.locator('[data-row-index="0"][data-column-index="0"]');
         await firstCell.press("o");
@@ -1858,6 +1865,14 @@ test.describe("문항별 직접 채점", () => {
         await expect.poll(() => page.locator("html").getAttribute("data-save-shortcut-prevented")).toBe("true");
         await expect.poll(() => apiState.applied).toBe(true);
         await expect.poll(() => apiState.postedRows.length).toBe(1);
+        await page.clock.runFor(500);
+        expect(apiState.postedRows).toHaveLength(1);
+        await page.clock.resume();
+        await page.reload();
+        await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+        await expect(page.getByRole("row").filter({ hasText: "김학생" }).locator('[data-row-index="0"][data-column-index="0"]'))
+          .toHaveAccessibleName("김학생 1번 O");
+        expect(apiState.postedRows).toHaveLength(1);
       });
     }
   });
@@ -2126,6 +2141,78 @@ test.describe("문항별 직접 채점", () => {
 
     expect(apiState.manualEditPostCount).toBe(0);
     expect(apiState.inventoryPresignCount).toBe(0);
+  });
+
+  test("제출관리 OMR 원장은 선택한 10장의 실패 상태와 재접수 경로를 유지한다", async ({ page }) => {
+    const batchId = "11111111-2222-4333-8444-555555555555";
+    const statuses = [
+      "completed", "completed", "completed", "completed",
+      "processing", "processing", "received", "needs_identification", "failed", "superseded",
+    ] as const;
+    await installApi(page, {
+      gradingMode: "choice",
+      editable: false,
+      omrBatches: [{
+        id: batchId,
+        exam_id: EXAM_ID,
+        session_id: SESSION_ID,
+        lecture_id: LECTURE_ID,
+        total_count: 10,
+        counts: {
+          pending_admission: 0,
+          received: 1,
+          duplicate: 0,
+          processing: 2,
+          completed: 4,
+          needs_identification: 1,
+          failed: 1,
+          superseded: 1,
+        },
+        pending_admission_ordinals: [],
+        failed_ordinals: [9],
+        admission_failed_ordinals: [9],
+        duplicate_ordinals: [],
+        items: statuses.map((status, index) => ({
+          id: `${batchId}:${index + 1}`,
+          ordinal: index + 1,
+          admission_status: status === "failed" ? "failed" : "received",
+          status,
+          submission_id: status === "failed" ? null : 2000 + index,
+          submission_status: status === "failed" ? null : status === "completed" ? "done" : status,
+          identifier_status: status === "needs_identification" ? "no_match" : null,
+          failure_code: status === "failed" ? "empty_file" : null,
+          failure_message: status === "failed" ? "빈 파일은 접수할 수 없습니다." : null,
+        })),
+        terminal: true,
+        overall_status: "failed",
+        completion_notice_claimed: false,
+        created_at: "2026-09-05T10:55:30+09:00",
+        updated_at: "2026-09-05T10:55:38+09:00",
+      }],
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(
+      page,
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+    );
+    await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+
+    const ledger = page.getByRole("region", { name: "OMR 업로드 원장" });
+    await expect(ledger.getByText("OMR 10장", { exact: true })).toBeVisible();
+    await expect(ledger.getByTestId("omr-ledger-item")).toHaveCount(10);
+    await expect(ledger.getByText("답안지 9", { exact: true })).toBeVisible();
+    await expect(ledger.getByText("빈 파일은 접수할 수 없습니다.", { exact: true })).toBeVisible();
+    expect(await ledger.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+    const reloadedLedger = page.getByRole("region", { name: "OMR 업로드 원장" });
+    await expect(reloadedLedger.getByTestId("omr-ledger-item")).toHaveCount(10);
+    await reloadedLedger.getByRole("button", { name: "미접수 파일 다시 선택" }).click();
+    await expect(page).toHaveURL(new RegExp(
+      `/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores\\?omrRetryBatchId=${batchId}&omrRetryExamId=${EXAM_ID}$`,
+    ));
   });
 
   test("이미 매칭된 검토 대상은 현재 학생을 그대로 확정해 점수를 표시한다", async ({ page }) => {

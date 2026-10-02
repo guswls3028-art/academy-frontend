@@ -36,6 +36,28 @@ export type OmrUploadBatchCounts = {
   superseded: number;
 };
 
+export type OmrUploadBatchItemStatus =
+  | "pending_admission"
+  | "received"
+  | "duplicate"
+  | "processing"
+  | "completed"
+  | "needs_identification"
+  | "failed"
+  | "superseded";
+
+export type OmrUploadBatchItemSummary = {
+  id: string;
+  ordinal: number;
+  admission_status: "pending" | "received" | "duplicate" | "failed";
+  status: OmrUploadBatchItemStatus;
+  submission_id: number | null;
+  submission_status: SubmissionStatus | null;
+  identifier_status: string | null;
+  failure_code: string | null;
+  failure_message: string | null;
+};
+
 export type OmrUploadBatchSummary = {
   id: string;
   exam_id: number;
@@ -47,6 +69,8 @@ export type OmrUploadBatchSummary = {
   failed_ordinals: number[];
   admission_failed_ordinals: number[];
   duplicate_ordinals: number[];
+  /** Present after the backend ledger response is deployed. */
+  items?: OmrUploadBatchItemSummary[];
   terminal: boolean;
   overall_status: "receiving" | "processing" | "completed" | "needs_identification" | "failed";
   /** OMR 처리와 별개인 최종 채점 상태. 이전 서버 응답도 허용한다. */
@@ -370,7 +394,10 @@ export async function initializeOmrUploadBatchApi(input: {
 
 export async function listOmrUploadBatchesApi(): Promise<OmrUploadBatchSummary[]> {
   const res = await api.get("/submissions/submissions/omr/batches/");
-  return Array.isArray(res.data) ? res.data as OmrUploadBatchSummary[] : [];
+  if (!Array.isArray(res.data)) {
+    throw new Error("OMR 업로드 원장 응답이 올바르지 않습니다.");
+  }
+  return res.data as OmrUploadBatchSummary[];
 }
 
 export async function fetchOmrUploadBatchApi(batchId: string): Promise<OmrUploadBatchSummary> {
