@@ -10,7 +10,7 @@ function jwt(lifetimeSeconds = 3600) {
   return `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp: Math.floor(Date.now() / 1000) + lifetimeSeconds, tenant_code: "hakwonplus", user_id: 12 })}.sig`;
 }
 
-async function setup(page: Page, holdSubmission = false) {
+async function setup(page: Page, holdSubmission = false, narrow = false) {
   const captured: Array<{ names: string[]; mode: string; order: number[]; dimensions: Array<[number, number]>; aspectRatio: string }> = [];
   let releaseSubmission: () => void = () => undefined;
   const submissionGate = holdSubmission ? new Promise<void>((resolve) => { releaseSubmission = resolve; }) : Promise.resolve();
@@ -46,7 +46,8 @@ async function setup(page: Page, holdSubmission = false) {
     if (["/api/v1/jobs/manual-ppt-job/progress/", "/api/v1/jobs/manual-ppt-job/"].includes(url.pathname)) {
       await route.fulfill({ json: {
         job_id: "manual-ppt-job", job_type: "ppt_generation", status: "DONE",
-        result: { download_url: "data:application/octet-stream;base64,UEs=", filename: "manual.pptx", slide_count: 2, size_bytes: 2 },
+        result: { download_url: "data:application/octet-stream;base64,UEs=", filename: "manual.pptx", slide_count: 2, size_bytes: 2,
+          ...(narrow ? { readability_warning: { narrow_slide_count: 1, slide_numbers: [1] } } : {}) },
       } });
       return;
     }
@@ -81,7 +82,7 @@ for (const width of [1366, 390]) {
   test(`PDF 수동 영역을 순서대로 PPT로 제출한다 (${width}px)`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 850 });
-    const { captured } = await setup(page);
+    const { captured } = await setup(page, false, width === 390);
     await selectRegions(page);
     await page.getByRole("button", { name: "PPT 생성 및 다운로드" }).click();
     await expect.poll(() => captured).toHaveLength(1);
@@ -93,6 +94,8 @@ for (const width of [1366, 390]) {
     expect(captured[0].dimensions).toHaveLength(2);
     expect(captured[0].dimensions[1][0]).toBeLessThan(captured[0].dimensions[0][0]);
     expect(captured[0].dimensions[1][1]).toBeLessThan(captured[0].dimensions[0][1]);
+    if (width === 390) await expect(page.getByText(/좁게 배치된 슬라이드 1장 \(예: 1번\)/).first()).toBeVisible();
+    else await expect(page.getByText(/좁게 배치된 슬라이드/)).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
   });
 }

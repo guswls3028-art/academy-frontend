@@ -29,7 +29,15 @@ import { renderCropFiles } from "../manualPdfCrop";
 import { usePptDraftState, usePptSession, type InputMode, type SortMode } from "../usePptSession";
 import styles from "./PptGeneratorPage.module.css";
 
-type RecoveryJob = { reference: PptJobReference; status: "checking" | "pending" | "done" | "error"; message?: string; slideCount?: number; retryable?: boolean };
+type RecoveryJob = { reference: PptJobReference; status: "checking" | "pending" | "done" | "error"; message?: string; slideCount?: number; readabilityWarning?: string; retryable?: boolean };
+
+function readabilityWarningText(data: PptGenerateResponse): string {
+  const warning = data.readability_warning;
+  if (!warning || warning.narrow_slide_count < 1) return "";
+  const slideNumbers = warning.slide_numbers.filter((number) => Number.isInteger(number) && number > 0).slice(0, 12);
+  const slideLabel = slideNumbers.length ? ` (예: ${slideNumbers.join(", ")}번)` : "";
+  return `좁게 배치된 슬라이드 ${warning.narrow_slide_count}장${slideLabel}: 글자가 작게 보일 수 있으니 다운로드한 PPT를 확인하세요. 원본에 그림 대신 '삽입 위치'만 있다면 그림이 포함된 원본으로 다시 만들고, 잘못 잘린 문항은 '직접 자르기'로 조정하세요.`;
+}
 
 function recoveryIssueMessage(issue: PptRecoveryIssue): string {
   if (issue === "scope_changed") return "이전 작업은 현재 계정이나 학원에서 복구할 수 없습니다.";
@@ -111,6 +119,7 @@ export default function PptGeneratorPage() {
   const session = usePptSession();
   const [recoveryJobs, setRecoveryJobs] = useState<RecoveryJob[]>([]);
   const [recoveryNotice, setRecoveryNotice] = useState("");
+  const [latestReadabilityWarning, setLatestReadabilityWarning] = useState("");
   const [recoveryNonce, setRecoveryNonce] = usePptDraftState("recoveryNonce");
   const recoveryIdentityRef = useRef("");
 
@@ -119,6 +128,7 @@ export default function PptGeneratorPage() {
     if (!userId || !tenantScope || !session.isCurrent()) {
       setRecoveryJobs([]);
       setRecoveryNotice("");
+      setLatestReadabilityWarning("");
       recoveryIdentityRef.current = "";
       return;
     }
@@ -126,6 +136,7 @@ export default function PptGeneratorPage() {
     if (recoveryIdentityRef.current !== identity) {
       recoveryIdentityRef.current = identity;
       setRecoveryNotice("");
+      setLatestReadabilityWarning("");
     }
     const { references, issue } = loadPptJobReferences(tenantScope, userId);
     // Reading removes unsafe/expired refs; a second effect pass must keep that guidance visible.
@@ -150,7 +161,7 @@ export default function PptGeneratorPage() {
         const job = await getPptJobStatus(reference.jobId, controller.signal, session.requestConfig());
         if (!active || !session.isCurrent()) return;
         if (job.status === "DONE" && job.result?.download_url && job.result.filename) {
-          update(reference.jobId, { status: "done", message: "완료된 PPT를 다시 다운로드할 수 있습니다.", slideCount: job.result.slide_count });
+          update(reference.jobId, { status: "done", message: "완료된 PPT를 다시 다운로드할 수 있습니다.", slideCount: job.result.slide_count, readabilityWarning: readabilityWarningText(job.result) });
         } else if (["PENDING", "VALIDATING", "RUNNING", "RETRYING"].includes(job.status)) {
           update(reference.jobId, { status: "pending", message: "PPT를 만드는 중입니다. 이 페이지를 새로고침해도 작업은 이어집니다." });
           const timer = window.setTimeout(() => {
@@ -216,11 +227,13 @@ export default function PptGeneratorPage() {
   // 모드 전환
   const handleModeChange = useCallback((newMode: InputMode) => {
     setMode(newMode);
+    setLatestReadabilityWarning("");
   }, [setMode]);
 
   const handlePdfSelect = useCallback((file: File | null) => {
     setPdfFile(file);
     setManualRegions([]);
+    setLatestReadabilityWarning("");
   }, [setPdfFile, setManualRegions]);
 
   // 이미지 추가
@@ -448,12 +461,15 @@ export default function PptGeneratorPage() {
     onError: handleGenerateError,
   });
 
-  function handleGenerateSuccess(data: { slide_count: number; size_bytes: number; download_url: string; filename: string; mode?: "question" | "page" }) {
+  function handleGenerateSuccess(data: PptGenerateResponse) {
     if (!session.isCurrent()) return;
     setGenerating(false);
     setProgressPct(null);
     setProgressLabel("");
+    const readabilityWarning = readabilityWarningText(data);
+    setLatestReadabilityWarning(readabilityWarning);
     feedback.success(`PPT 생성 완료 (${data.slide_count}장, ${formatBytes(data.size_bytes)})`);
+    if (readabilityWarning) feedback.warning(readabilityWarning);
     if (data.mode === "page") {
       feedback.info("문항을 찾지 못한 쪽은 원본 페이지로 넣었습니다. 결과를 확인하고 필요하면 '직접 자르기'에서 영역을 골라 다시 만드세요.");
     }
@@ -487,6 +503,7 @@ export default function PptGeneratorPage() {
       return;
     }
     if (!session.claim()) return;
+    setLatestReadabilityWarning("");
     if (mode === "image") {
       imageGenerateMutation.mutate();
     } else if (pdfWorkflow === "manual") {
@@ -702,6 +719,8 @@ export default function PptGeneratorPage() {
           )}
         </button>
 
+        {latestReadabilityWarning && <p className={styles.readabilityWarning} role="alert">{latestReadabilityWarning}</p>}
+
         {(recoveryJobs.length > 0 || recoveryNotice) && (
           <section className={styles.recoveryPanel} aria-label="이전 PPT 작업">
             <h3>이전 PPT 작업</h3>
@@ -710,6 +729,7 @@ export default function PptGeneratorPage() {
               <div className={styles.recoveryJob} key={job.reference.jobId}>
                 <strong>{job.reference.label}</strong>
                 <p role="status">{job.message || "작업 상태를 확인하는 중입니다..."}</p>
+                {job.readabilityWarning && <p className={styles.readabilityWarning} role="alert">{job.readabilityWarning}</p>}
                 {job.status === "done" && (
                   <button type="button" onClick={() => { void handleRecoveredDownload(job.reference); }}>
                     완료된 PPT 다운로드{job.slideCount ? ` (${job.slideCount}장)` : ""}
