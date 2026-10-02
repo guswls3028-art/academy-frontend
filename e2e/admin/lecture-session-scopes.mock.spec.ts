@@ -1185,6 +1185,18 @@ test("정답 저장 응답 뒤 빈 재조회는 성공 처리하지 않고 입�
   await expect(page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" })).toBeVisible();
   expect(state.answerKeyWriteCount).toBe(1);
   expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "1,4" } });
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams?examId=9971`, { waitUntil: "domcontentloaded" });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const settings = page.locator("#assessment-policy > details");
+    await expect(settings).toBeVisible();
+    if ((await settings.getAttribute("open")) === null) await settings.locator(":scope > summary").click();
+    await page.getByRole("button", { name: "문항·답안 확인" }).click();
+    const reopened = page.getByRole("dialog").filter({ hasText: "답안 등록" });
+    await expect(reopened.getByRole("checkbox", { name: "1번 1번 선택지" })).toBeChecked();
+    await expect(reopened.getByRole("checkbox", { name: "1번 4번 선택지" })).toBeChecked();
+    await reopened.getByRole("button", { name: "취소" }).click();
+    if (attempt === 0) await page.reload({ waitUntil: "domcontentloaded" });
+  }
 });
 
 test("기존 정답 수정은 구조 소유자와 복수 정답·기본점수 재조회가 일치할 때만 완료한다", async ({ page }) => {
