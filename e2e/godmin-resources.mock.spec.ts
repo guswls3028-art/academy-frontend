@@ -24,15 +24,34 @@ function pdfBytes() {
 // Native browser downloads do not reliably use Page.route interception.
 // Serve the generated fixture over real loopback HTTP and verify its bytes.
 let documentUrl = "";
-let resourceScenario: { empty?: boolean; paged?: boolean; unavailable: boolean } = { unavailable: false };
+type ResourceScenario = { empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource };
+let resourceScenario: ResourceScenario = { unavailable: false };
+let uploadBody = Buffer.alloc(0); const createPayloads: Array<{ request_id: string; title: string; category: string; content: string; file_ids: string[] }> = [];
 const documentServer = createServer((request, response) => {
   const url = new URL(request.url || "/", "http://127.0.0.1");
   const cors = { "Access-Control-Allow-Origin": request.headers.origin || "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": request.headers["access-control-request-headers"] || "content-type, x-tenant-code, authorization" };
   if (request.method === "OPTIONS") { response.writeHead(204, cors); response.end(); return; }
+  if (url.pathname === "/api/v1/core/me/") {
+    response.writeHead(200, { ...cors, "Content-Type": "application/json" });
+    response.end(JSON.stringify({ id: resourceScenario.actorId || 501, username: "qa-resource-publisher", name: "QA 게시자", is_staff: true, is_superuser: false, tenantRole: "owner", must_change_password: false, first_login_guide_required: false })); return;
+  }
+  if (url.pathname === "/api/v1/landing-public/uploads/resource/" && request.method === "POST") {
+    const chunks: Buffer[] = []; request.on("data", (chunk: Buffer) => chunks.push(chunk)); request.on("end", () => {
+      uploadBody = Buffer.concat(chunks); response.writeHead(201, { ...cors, "Content-Type": "application/json" });
+      response.end(JSON.stringify({ ...resource.files[0], id: "07b9f486-cbef-427a-a5fd-5f5ae269b143", size: pdfBytes().length }));
+    }); return;
+  }
+  if (url.pathname.endsWith("/resources/") && request.method === "POST") {
+    const chunks: Buffer[] = []; request.on("data", (chunk: Buffer) => chunks.push(chunk)); request.on("end", () => {
+      const input = JSON.parse(Buffer.concat(chunks).toString()) as typeof createPayloads[number]; createPayloads.push(input);
+      resourceScenario.post = { ...resource, title: input.title, content: input.content, files: [{ ...resource.files[0], id: input.file_ids[0] }] };
+      response.writeHead(201, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify(resourceScenario.post));
+    }); return;
+  }
   if (url.pathname.startsWith("/api/v1/landing-public/")) {
     let body: unknown = { detail: "Closed resource fixture: unmatched API" }; let status = 404;
-    if (url.pathname.endsWith("/resources/capabilities/")) { body = { can_publish: false }; status = 200; }
-    else if (url.pathname.endsWith("/resources/901/")) { body = resource; status = 200; }
+    if (url.pathname.endsWith("/resources/capabilities/")) { body = { can_publish: Boolean(resourceScenario.publisher) }; status = 200; }
+    else if (url.pathname.endsWith("/resources/901/")) { body = resourceScenario.post || resource; status = 200; }
     else if (url.pathname.includes("/resource-files/")) { body = { url: documentUrl, expires_in: 300 }; status = 200; }
     else if (url.pathname.endsWith("/resources/")) {
       if (resourceScenario.unavailable && url.searchParams.get("category") === "matchup") { body = { detail: "qa transient failure" }; status = 503; }
@@ -65,16 +84,21 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await new Promise<void>((resolve, reject) => documentServer.close((error) => error ? reject(error) : resolve())); });
 
-async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolean; paged?: boolean } = {}) {
+async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number } = {}) {
   await page.addInitScript(() => { localStorage.setItem("tenant_code", "godmin"); sessionStorage.setItem("tenantCode", "godmin"); });
-  resourceScenario = { ...options, unavailable: Boolean(options.failOnce) };
+  resourceScenario = { ...options, unavailable: Boolean(options.failOnce) }; uploadBody = Buffer.alloc(0); createPayloads.length = 0;
+  if (options.publisher) {
+    const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+    const jwt = `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "godmin", user_id: options.actorId || 501 })}.sig`;
+    await page.addInitScript((token) => { localStorage.setItem("access", token); localStorage.setItem("refresh", `${token}-refresh`); }, jwt);
+  }
   // Use physical loopback HTTP for resource XHRs on both engines. WebKit's
   // interception does not cover these requests in the Linux browser runtime.
   await page.addInitScript(({ origin }) => {
     const nativeOpen = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function(method, value, ...rest) {
       const url = new URL(String(value), location.href);
-      const target = url.pathname.startsWith("/api/v1/landing-public/") ? `${origin}${url.pathname}${url.search}` : value;
+      const target = (url.pathname.startsWith("/api/v1/landing-public/") || url.pathname === "/api/v1/core/me/") ? `${origin}${url.pathname}${url.search}` : value;
       return Reflect.apply(nativeOpen, this, [method, target, ...rest]);
     };
   }, { origin: new URL(documentUrl).origin });
@@ -171,3 +195,27 @@ test("paging keeps a concurrently shifted post unique", async ({ page }) => {
   await expect(matchup.getByRole("heading", { name: "QA 자료 920", exact: true })).toHaveCount(1);
   await expect(matchup.getByRole("button", { name: "자료 더 보기", exact: true })).toHaveCount(0);
 });
+
+for (const [width, actorId] of [[1366, 501], [390, 502]] as const) {
+  test(`publisher ${actorId} uploads actual multipart PDF and publishes then reloads at ${width}px`, async ({ page }) => {
+    await prepare(page, { publisher: true, actorId }); await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/landing/resources`);
+    await page.getByRole("link", { name: "자료 올리기", exact: true }).click();
+    await page.getByLabel("제목", { exact: true }).fill("QA 교정 보고서");
+    await page.getByLabel("설명", { exact: true }).fill("공개 게시 전 원본 확인");
+    const input = page.getByLabel("첨부 자료", { exact: true });
+    await input.setInputFiles({ name: "wrong.exe", mimeType: "application/octet-stream", buffer: pdfBytes() });
+    await expect(page.getByText("비어 있지 않은 30MB 이하의 PDF·HWP·HWPX 파일을 선택해주세요.", { exact: true })).toBeVisible();
+    expect(uploadBody.length).toBe(0);
+    await input.setInputFiles({ name: resource.files[0].filename, mimeType: "application/pdf", buffer: pdfBytes() });
+    await expect(page.getByText(resource.files[0].filename, { exact: true })).toBeVisible();
+    expect(uploadBody.includes(pdfBytes())).toBe(true);
+    await page.getByRole("button", { name: "게시하기", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "QA 교정 보고서", exact: true })).toBeVisible();
+    expect(createPayloads).toHaveLength(1);
+    expect(createPayloads[0].request_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(createPayloads[0].file_ids).toEqual(["07b9f486-cbef-427a-a5fd-5f5ae269b143"]);
+    await page.reload(); await expect(page.getByRole("heading", { name: "QA 교정 보고서", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  });
+}
