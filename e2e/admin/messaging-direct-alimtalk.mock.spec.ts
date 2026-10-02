@@ -179,6 +179,67 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
 
 test.use({ serviceWorkers: "block" });
 
+for (const action of ["delete", "duplicate"] as const) {
+  test(`발송창 ${action} 후 돌아온 문구 관리에는 이전 캐시가 남지 않는다`, async ({ page }) => {
+    const state = await installMocks(page);
+    await page.clock.setFixedTime(new Date());
+    const saved = {
+      id: 891, name: "캐시 검증 안내문", category: "default", subject: "",
+      body: "#{학생이름} 학생의 저장 안내입니다.", is_system: false, is_user_default: false,
+      can_delete: true, created_at: "2026-10-02T00:00:00Z", updated_at: "2026-10-02T00:00:00Z",
+    };
+    let rows = [saved];
+    const mutations: string[] = [];
+    await page.route("**/api/v1/messaging/templates/**", async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (request.method() === "DELETE") {
+        mutations.push("delete");
+        rows = [];
+        return route.fulfill({ status: 204 });
+      }
+      if (path.endsWith("/duplicate/") && request.method() === "POST") {
+        mutations.push("duplicate");
+        const copy = { ...saved, id: 892, name: "복사 - 캐시 검증 안내문" };
+        rows = [saved, copy];
+        return route.fulfill({ json: copy });
+      }
+      if (request.method() === "GET") return route.fulfill({ json: rows });
+      return route.fallback();
+    });
+    await gotoAndSettle(page, `${BASE}/workspace/message/templates`, { timeout: 30_000 });
+    await expect(page.getByText(saved.name, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
+    await page.getByRole("checkbox", { name: "김알림 선택" }).check();
+    await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
+    const compose = page.getByRole("dialog").filter({ hasText: "알림톡 발송" });
+    await compose.getByRole("button", { name: /^(다른 문구 선택|문구 선택)$/ }).click();
+    const picker = page.locator(".tpl-picker-modal");
+    await picker.getByRole("button", { name: "더보기", exact: true }).click();
+    await picker.getByRole("button", { name: action === "delete" ? "삭제" : "다른 이름으로 복제", exact: true }).click();
+    if (action === "delete") {
+      await page.getByRole("alertdialog", { name: "문구 삭제", exact: true })
+        .getByRole("button", { name: "삭제", exact: true }).click();
+      await expect(picker.getByText(saved.name, { exact: true })).toHaveCount(0);
+    } else {
+      await expect(picker.getByText("복사 - 캐시 검증 안내문", { exact: true })).toBeVisible();
+    }
+    await page.keyboard.press("Escape");
+    await expect(picker).toBeHidden();
+    await compose.getByRole("button", { name: "취소", exact: true }).click();
+    await page.goBack();
+    await expect(page.getByRole("heading", { name: "알림톡 문구 만들기·수정" })).toBeVisible();
+    const expectedName = action === "delete" ? saved.name : "복사 - 캐시 검증 안내문";
+    if (action === "delete") await expect(page.getByText(expectedName, { exact: true })).toHaveCount(0);
+    else await expect(page.getByText(expectedName, { exact: true })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    if (action === "delete") await expect(page.getByText(expectedName, { exact: true })).toHaveCount(0);
+    else await expect(page.getByText(expectedName, { exact: true })).toBeVisible();
+    expect(mutations).toEqual([action]);
+    expect(state.requests.filter(({ method, path }) => method === "POST" && path === "/messaging/send/")).toEqual([]);
+  });
+}
+
 test("메시지 화면에서 학생 선택과 알림톡 발송창까지 정확한 경로로 이어진다", async ({ page }) => {
   const state = await installMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });

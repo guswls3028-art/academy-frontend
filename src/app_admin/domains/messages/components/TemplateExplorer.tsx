@@ -43,7 +43,6 @@ import {
 } from "../constants/alimtalkEnvelope";
 import { koreanDateText } from "@/shared/utils/displayText";
 import { messageQueryKeys } from "../queryKeys";
-import { buildDuplicateTemplateName } from "../utils/templateCopyName";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import "../styles/templateEditor.css";
 
@@ -212,7 +211,7 @@ const CATEGORY_DESCRIPTIONS: Record<MessageTemplateCategory, string> = {
 
 export type ModalOpenState =
   | "create"
-  | { template: MessageTemplateItem; mode: "view" | "edit" }
+  | { template: MessageTemplateItem; mode: "view" | "edit" | "copy" }
   | null;
 
 export default function TemplateExplorer() {
@@ -300,16 +299,8 @@ export default function TemplateExplorer() {
     },
   });
 
-  const handleDuplicate = async (t: MessageTemplateItem) => {
-    try {
-      const copy = await createMut.mutateAsync({
-        category: t.category,
-        name: buildDuplicateTemplateName(t.name),
-        subject: t.subject ?? "",
-        body: t.body,
-      });
-      setModalOpen({ template: copy, mode: "edit" });
-    } catch { /* createMut reports the error */ }
+  const handleDuplicate = (template: MessageTemplateItem) => {
+    setModalOpen({ template, mode: "copy" });
   };
 
   const handleSetDefault = async (template: MessageTemplateItem) => {
@@ -325,6 +316,7 @@ export default function TemplateExplorer() {
   const isCreate = modalOpen === "create";
   const isEditOrView = modalOpen !== null && modalOpen !== "create";
   const editing = isEditOrView ? modalOpen.template : null;
+  const copying = isEditOrView && modalOpen.mode === "copy";
   const modalCategory = editing ? editing.category : activeCategory;
 
   const renderTemplateCard = (t: MessageTemplateItem) => {
@@ -693,8 +685,9 @@ export default function TemplateExplorer() {
         onClose={() => setModalOpen(null)}
         category={modalCategory}
         initial={editing ?? undefined}
+        copy={copying}
         onSubmit={(payload) => {
-          if (editing) {
+          if (editing && !copying) {
             updateMut.mutate({ id: editing.id, payload });
           } else {
             createMut.mutate(payload);

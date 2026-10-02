@@ -844,6 +844,7 @@ export default function SendMessageModal({
     try {
       const dup = await duplicateMessageTemplate(id);
       setTemplates((prev) => [dup, ...prev]);
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
       feedback.success(`"${dup.name}" 문구가 복제되었습니다.`);
     } catch {
       feedback.error("문구 복제에 실패했습니다.");
@@ -864,6 +865,9 @@ export default function SendMessageModal({
     try {
       await deleteMessageTemplate(id);
       setTemplates((prev) => prev.filter((t) => t.id !== id));
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.suppressedDefaults });
       if (selectedTemplateId === id) {
         setSelectedTemplateId(null);
         setTemplateBodySnapshot(null);
