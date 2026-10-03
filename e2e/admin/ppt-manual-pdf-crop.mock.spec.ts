@@ -4,6 +4,22 @@ import { getBaseUrl } from "../helpers/auth";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 const pdf = path.resolve("e2e/fixtures/test-invert-3p.pdf");
+const adminReadFixtures: Record<string, unknown> = {
+  "/api/v1/staffs/me/": { is_authenticated: true, is_staff: true, is_superuser: true, is_payroll_manager: false },
+  "/api/v1/staffs/currently-working/": [],
+  "/api/v1/clinic/participants/": { count: 0, next: null, previous: null, results: [] },
+  "/api/v1/community/admin/posts/": { count: 0, next: null, previous: null, results: [] },
+  "/api/v1/students/registration_requests/": { count: 0, next: null, previous: null, results: [] },
+  "/api/v1/submissions/submissions/pending/": [],
+  "/api/v1/results/admin/teacher-dashboard-counts/": { video_failed: 0 },
+  "/api/v1/community/admin/reports/pending-count/": { count: 0 },
+  "/api/v1/community/notifications/unread-count/": { count: 0 },
+  "/api/v1/lectures/attendance/arrival-overview/": {
+    generated_at: "2026-10-03T00:00:00Z", today: "2026-10-03", tomorrow: "2026-10-04",
+    range_end: "2026-10-10", range_days: 7, soon_window_minutes: 60,
+    summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 }, items: [],
+  },
+};
 
 function jwt(lifetimeSeconds = 3600) {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -23,6 +39,14 @@ async function setup(page: Page, holdSubmission = false) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
+    if (request.method() === "GET" && adminReadFixtures[url.pathname] !== undefined) {
+      await route.fulfill({ json: adminReadFixtures[url.pathname] });
+      return;
+    }
+    if (url.pathname === "/api/v1/tools/omr/preview/" && request.method() === "POST") {
+      await route.fulfill({ contentType: "text/html", body: "<!doctype html><html><body>OMR preview</body></html>" });
+      return;
+    }
     if (url.pathname === "/api/v1/tools/ppt/generate/" && request.method() === "POST") {
       const buffer = request.postDataBuffer() ?? Buffer.alloc(0);
       const body = buffer.toString("latin1");
@@ -148,8 +172,13 @@ test("PPT 화면을 떠나면 파일과 선택 영역을 정리한다", async ({
   await selectRegions(page);
   await page.getByRole("tab", { name: "OMR 생성" }).click();
   await expect(page).toHaveURL(/\/workspace\/tools\/omr/);
+  await expect(page.getByRole("tab", { name: "OMR 생성" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("region", { name: "OMR 답안지 설정" })).toBeVisible();
   await page.getByRole("tab", { name: "PPT 생성" }).click();
+  await expect(page).toHaveURL(/\/workspace\/tools\/ppt/);
+  await expect(page.getByRole("tab", { name: "PPT 생성" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("button", { name: "이미지", exact: true })).toHaveAttribute("data-active", "true");
+  await expect(page.getByText("test-invert-3p.pdf", { exact: true })).toHaveCount(0);
   await expect(page.getByTestId("ppt-crop-region")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "PPT 생성 및 다운로드" })).toBeDisabled();
   expect(captured).toHaveLength(0);
