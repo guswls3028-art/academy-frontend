@@ -16,6 +16,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { Input } from "antd";
 import { Check, AlertCircle, AlertTriangle, Edit3, Tag, Shield, CalendarClock } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
@@ -25,6 +26,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import KakaoAlimtalkPreview from "@/shared/ui/notifications/KakaoAlimtalkPreview";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 import {
   compactGradesPayloadVars,
   compactGradesPerStudentPayloadVars,
@@ -42,6 +44,7 @@ import {
   type SendPreflightIssue,
   type SendPreflightResponse,
   type SendToType,
+  type SendMessagePayload,
 } from "../api/messages.api";
 import { messageQueryKeys } from "../queryKeys";
 import {
@@ -114,6 +117,22 @@ function extractVars(body: string): string[] {
 
 type VarStatus = { name: string; status: "auto" | "provided" | "missing"; value?: string };
 type SendTiming = "now" | "scheduled";
+type SendAttempt = {
+  requestId: string;
+  draftKey: string;
+  payloads: SendMessagePayload[];
+  completed: boolean;
+};
+
+function sendDraftKey(payloads: SendMessagePayload[]): string {
+  return JSON.stringify(payloads.map((payload) => ({
+    ...payload,
+    student_ids: [...(payload.student_ids ?? [])].sort((a, b) => a - b),
+  })), (_key, value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+    return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)));
+  });
+}
 type ConfirmPreviewRecipient = {
   studentId: number;
   studentName: string;
@@ -289,6 +308,7 @@ export default function SendMessageModal({
   recomputePerStudentVarsRef,
 }: SendMessageModalProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
   const { data: academyName = "" } = useMessageAcademyName(open);
@@ -305,6 +325,8 @@ export default function SendMessageModal({
   const [sendTiming, setSendTiming] = useState<SendTiming>("now");
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledLocalValue);
   const sendingRef = useRef(false);
+  const [sendAttempt, setSendAttempt] = useState<SendAttempt | null>(null);
+  const [sendAttemptError, setSendAttemptError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saveTemplateName, setSaveTemplateName] = useState("");
@@ -404,25 +426,50 @@ export default function SendMessageModal({
     return true;
   })();
   const sendTargetKey = sendToTargets.join("|");
-  const preflightKey = useMemo(() => JSON.stringify({
+  const buildSendPayload = useCallback((sendTo: SendToType): Parameters<typeof sendMessage>[0] => {
+    const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
+    payload.student_ids = studentIds;
+    if (selectedTemplateId) payload.template_id = selectedTemplateId;
+    if (effectiveBlockCategory) payload.block_category = effectiveBlockCategory;
+    const currentBody = body.trim();
+    payload.raw_body = currentBody;
+    if (subject.trim()) payload.raw_subject = subject.trim();
+    const computedPerStudentVars = recomputePerStudentVarsRef?.current
+      ? recomputePerStudentVarsRef.current(currentBody)
+      : alimtalkExtraVarsPerStudent;
+    const perStudentVars = effectiveBlockCategory === "grades"
+      ? compactGradesPerStudentPayloadVars(currentBody, computedPerStudentVars)
+      : computedPerStudentVars;
+    const payloadExtraVars = effectiveBlockCategory === "grades"
+      ? compactGradesPayloadVars(
+          currentBody,
+          alimtalkExtraVars,
+          Boolean(perStudentVars && Object.keys(perStudentVars).length > 0),
+        )
+      : alimtalkExtraVars;
+    if (payloadExtraVars) payload.alimtalk_extra_vars = payloadExtraVars;
+    if (scheduledSendAtIso) payload.scheduled_send_at = scheduledSendAtIso;
+    if (perStudentVars && Object.keys(perStudentVars).length > 0) {
+      payload.alimtalk_extra_vars_per_student = perStudentVars;
+    }
+    return payload;
+  }, [
     alimtalkExtraVars,
+    alimtalkExtraVarsPerStudent,
     body,
-    blockCategory: effectiveBlockCategory,
-    scheduledSendAtIso,
-    selectedTemplateId,
-    sendTargetKey,
-    studentIds,
-    subject,
-  }), [
-    alimtalkExtraVars,
     effectiveBlockCategory,
-    body,
+    recomputePerStudentVarsRef,
     scheduledSendAtIso,
     selectedTemplateId,
-    sendTargetKey,
     studentIds,
     subject,
   ]);
+
+
+  const currentPayloads = sendToTargets.map(buildSendPayload);
+  const preflightKey = sendDraftKey(currentPayloads);
+  const canRetryAttempt = Boolean(sendAttempt && !sendAttempt.completed
+    && sendAttempt.draftKey === preflightKey && !sending);
   const expectedPreflightCount = sendToTargets.length;
   const apiPreflightBlockers = preflightResults.flatMap((result) => result.blockers);
   const preflightWarnings = preflightResults.flatMap((result) => result.warnings);
@@ -476,44 +523,6 @@ export default function SendMessageModal({
     && preflightPreviewReady
     && preflightBlockers.length === 0;
 
-  const buildSendPayload = useCallback((sendTo: SendToType): Parameters<typeof sendMessage>[0] => {
-    const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
-    payload.student_ids = studentIds;
-    if (selectedTemplateId) payload.template_id = selectedTemplateId;
-    if (effectiveBlockCategory) payload.block_category = effectiveBlockCategory;
-    const currentBody = body.trim();
-    payload.raw_body = currentBody;
-    if (subject.trim()) payload.raw_subject = subject.trim();
-    const computedPerStudentVars = recomputePerStudentVarsRef?.current
-      ? recomputePerStudentVarsRef.current(currentBody)
-      : alimtalkExtraVarsPerStudent;
-    const perStudentVars = effectiveBlockCategory === "grades"
-      ? compactGradesPerStudentPayloadVars(currentBody, computedPerStudentVars)
-      : computedPerStudentVars;
-    const payloadExtraVars = effectiveBlockCategory === "grades"
-      ? compactGradesPayloadVars(
-          currentBody,
-          alimtalkExtraVars,
-          Boolean(perStudentVars && Object.keys(perStudentVars).length > 0),
-        )
-      : alimtalkExtraVars;
-    if (payloadExtraVars) payload.alimtalk_extra_vars = payloadExtraVars;
-    if (scheduledSendAtIso) payload.scheduled_send_at = scheduledSendAtIso;
-    if (perStudentVars && Object.keys(perStudentVars).length > 0) {
-      payload.alimtalk_extra_vars_per_student = perStudentVars;
-    }
-    return payload;
-  }, [
-    alimtalkExtraVars,
-    alimtalkExtraVarsPerStudent,
-    body,
-    effectiveBlockCategory,
-    recomputePerStudentVarsRef,
-    scheduledSendAtIso,
-    selectedTemplateId,
-    studentIds,
-    subject,
-  ]);
 
   const blocks = useMemo(() => getBlocksForCategory(effectiveBlockCategory), [effectiveBlockCategory]);
 
@@ -668,6 +677,8 @@ export default function SendMessageModal({
     setConfirmPreviewStudentId(null);
     setConfirmRecipientsExpanded(false);
     sendingRef.current = false;
+    setSendAttempt(null);
+    setSendAttemptError(null);
   }, [open, blockCategory, initialBody, initialTemplateId, initialLetterPresetId]);
 
   // 자동 선택: 본 테넌트 양식 (카테고리 일치) > 시스템 기본.
@@ -889,75 +900,91 @@ export default function SendMessageModal({
     setShowConfirm(true);
   };
 
-  const handleSend = async () => {
-    if (!canSend || sendingRef.current) return;
+  const viewRequestResult = (requestId: string) => {
+    navigate(`/workspace/message/log?request_id=${encodeURIComponent(requestId)}`);
+  };
+
+  const handleSend = async (retryAttempt = false) => {
+    if (sendingRef.current || (retryAttempt ? !canRetryAttempt : !canSend)) return;
+    const attempt: SendAttempt = sendAttempt && !sendAttempt.completed
+      && sendAttempt.draftKey === preflightKey
+      ? sendAttempt
+      : {
+          requestId: createRandomUuid(),
+          draftKey: preflightKey,
+          // Props may change during an async call. Retry exactly what was confirmed.
+          payloads: JSON.parse(JSON.stringify(currentPayloads)) as SendMessagePayload[],
+          completed: false,
+        };
+    setSendAttempt(attempt);
+    setSendAttemptError(null);
     sendingRef.current = true;
     setSending(true);
     setShowConfirm(false);
-    const taskId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const taskId = `msg-${attempt.requestId}-${Date.now()}`;
     asyncStatusStore.addWorkerJob(sendTiming === "scheduled" ? "알림톡 예약 접수" : "알림톡 발송 접수", taskId, "messaging");
-    let totalEnqueued = 0;
+    let totalAccepted = 0;
     let totalScheduled = 0;
     let totalSkipped = 0;
     let totalEnqueueFailed = 0;
-    const completedTargetLabels: string[] = [];
     try {
       let completedCalls = 0;
-      const totalCalls = sendToTargets.length;
-
-      const targets = sendToTargets;
       await runTrackedTask("messaging.alimtalk.request", async () => {
-        for (const sendTo of targets) {
-          const res = await sendMessage(buildSendPayload(sendTo));
-          totalEnqueued += res.enqueued ?? 0;
+        for (const payload of attempt.payloads) {
+          const res = await sendMessage({ ...payload, client_request_id: attempt.requestId });
+          if (res.request_id && res.request_id !== attempt.requestId) {
+            throw new Error("발송 응답을 이번 요청과 연결하지 못했습니다.");
+          }
+          // Additive fields preserve compatibility with the previous response shape.
+          totalAccepted += res.accepted_count ?? ((res.enqueued ?? 0) + (res.scheduled ?? 0));
           totalScheduled += res.scheduled ?? 0;
           totalSkipped += res.skipped_no_phone ?? 0;
           totalEnqueueFailed += res.enqueue_failed ?? 0;
-          completedTargetLabels.push(formatSendTargetLabel(sendTo));
           completedCalls++;
-          asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / totalCalls) * 90));
+          asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / attempt.payloads.length) * 90));
         }
       });
 
-      const sendToLabel = sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
-      const accepted = totalEnqueued + totalScheduled;
-      if (totalEnqueueFailed > 0) {
-        feedback.warning(
-          `${sendToLabel} 알림톡 ${accepted}건은 접수됐지만 ${totalEnqueueFailed}건은 발송 요청을 접수하지 못했습니다. 중복 발송을 막기 위해 발송 내역을 확인한 뒤 다시 시도해 주세요.`,
-        );
-        asyncStatusStore.completeTask(taskId, "error", `부분 실패 ${totalEnqueueFailed}건`);
+      if (totalAccepted === 0) {
+        const detail = totalSkipped > 0
+          ? "전화번호가 없어 접수할 수 있는 대상이 없습니다."
+          : "발송 접수가 확인되지 않았습니다. 이번 발송 결과를 확인해 주세요.";
+        setSendAttemptError(detail);
+        feedback.warning(detail);
+        asyncStatusStore.completeTask(taskId, "error", "발송 접수 미확인");
         return;
       }
-      if (accepted > 0) {
-        const skippedNote = totalSkipped > 0 ? ` (전화번호 없음 ${totalSkipped}건 제외)` : "";
-        const actionLabel = sendTiming === "scheduled"
-          ? `${formatScheduleLabel(scheduledSendAtIso)} 예약 접수`
-          : "발송 접수";
-        feedback.success(`${sendToLabel} 알림톡 ${accepted}건 ${actionLabel}${skippedNote} — 실제 성공·실패는 발송 내역에서 확인하세요.`);
-        asyncStatusStore.setTaskLabel(taskId, sendTiming === "scheduled" ? "알림톡 예약 접수 완료" : "알림톡 발송 접수 완료");
-        asyncStatusStore.completeTask(taskId, "success");
-      } else {
-        const hint = totalSkipped > 0
-          ? `${sendToLabel} 대상 중 전화번호가 없어 발송할 수 있는 건이 없습니다.`
-          : `${sendToLabel} 알림톡 발송 요청이 접수되지 않았습니다. 알림톡 연동과 수신 번호를 확인해 주세요.`;
-        feedback.warning(hint);
-        asyncStatusStore.completeTask(taskId, "error", "발송 접수 0건");
-      }
+      setSendAttempt({ ...attempt, completed: true });
+      const sendToLabel = attempt.payloads.length === 2 ? "학부모·학생"
+        : formatSendTargetLabel(attempt.payloads[0].send_to);
+      const actionLabel = sendTiming === "scheduled"
+        ? `${formatScheduleLabel(scheduledSendAtIso)} 예약 접수` : "발송 접수";
+      const notes = [
+        totalScheduled > 0 ? `처리 대기 ${totalScheduled}건` : "",
+        totalEnqueueFailed > 0 ? `처리 재확인 ${totalEnqueueFailed}건` : "",
+        totalSkipped > 0 ? `전화번호 없음 ${totalSkipped}건 제외` : "",
+        "실제 수신 여부는 아직 확인되지 않았습니다.",
+      ].filter(Boolean).join(" · ");
+      feedback.successWithAction({
+        message: `${sendToLabel} 알림톡 ${totalAccepted}건 ${actionLabel}`,
+        description: notes,
+        action: { label: "이번 발송 결과 보기", onClick: () => viewRequestResult(attempt.requestId) },
+      });
+      asyncStatusStore.setTaskLabel(taskId, `${sendToLabel} 알림톡 ${totalAccepted}건 접수`);
+      asyncStatusStore.completeTask(taskId, "success");
       onClose();
-    } catch (e: unknown) {
-      const msg = e && typeof e === "object" && "response" in e
-        ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail : null;
-      const errMsg = (msg && typeof msg === "string" ? msg : "발송 요청에 실패했습니다.") as string;
-      asyncStatusStore.completeTask(taskId, "error", errMsg);
-      const accepted = totalEnqueued + totalScheduled;
-      if (accepted > 0) {
-        const completed = completedTargetLabels.join("·");
-        feedback.warning(
-          `${completed || "일부 대상"} ${accepted}건 접수 후 다음 요청이 실패했습니다. 중복 발송을 막기 위해 발송 내역을 확인하세요. (${errMsg})`,
-        );
-      } else {
-        feedback.error(errMsg);
+    } catch (error: unknown) {
+      const detail = extractApiError(error, "발송 응답을 확인하지 못했습니다.");
+      const errorData = error && typeof error === "object" && "response" in error
+        ? (error as { response?: { data?: { accepted_count?: number; request_id?: string } } }).response?.data
+        : undefined;
+      if (errorData?.request_id === attempt.requestId && typeof errorData.accepted_count === "number") {
+        totalAccepted += errorData.accepted_count;
       }
+      const notice = `${totalAccepted > 0 ? `확인된 접수 ${totalAccepted}건. ` : ""}${detail} 응답이 끊긴 대상은 이미 접수됐을 수 있습니다. 이번 결과를 확인하거나 같은 요청으로 재시도해 주세요.`;
+      setSendAttemptError(notice);
+      feedback.warning(notice);
+      asyncStatusStore.completeTask(taskId, "error", detail);
     } finally {
       queryClient.invalidateQueries({ queryKey: messageQueryKeys.info });
       queryClient.invalidateQueries({ queryKey: messageQueryKeys.log });
@@ -1488,6 +1515,24 @@ export default function SendMessageModal({
             </div>
           </div>
         </div>
+        {sendAttempt && sendAttemptError && (
+          <section className="send-modal__schedule-note" role="status" aria-label="이번 발송 확인">
+            <strong>이번 발송을 확인해 주세요</strong>
+            <span>{sendAttemptError}</span>
+            {sendAttempt.draftKey !== preflightKey && (
+              <span>내용이나 대상이 바뀌었습니다. 새 발송 전에 이전 결과를 확인해 주세요.</span>
+            )}
+            <div className="send-modal__footer-right">
+              <Button intent="secondary" size="sm" disabled={sending} onClick={() => {
+                onClose();
+                viewRequestResult(sendAttempt.requestId);
+              }}>이번 발송 결과 보기</Button>
+              <Button intent="primary" size="sm" disabled={!canRetryAttempt} onClick={() => void handleSend(true)}>
+                같은 요청으로 재시도
+              </Button>
+            </div>
+          </section>
+        )}
       </ModalBody>
 
       {/* ─── 발송 확인 오버레이 ─── */}
@@ -1644,7 +1689,7 @@ export default function SendMessageModal({
               <Button intent="secondary" onClick={() => setShowConfirm(false)} className="send-modal__confirm-back-btn">
                 돌아가기
               </Button>
-              <Button intent="primary" onClick={handleSend} disabled={sending} className="send-modal__confirm-send-btn">
+              <Button intent="primary" onClick={() => void handleSend()} disabled={sending} className="send-modal__confirm-send-btn">
                 {sending ? "발송 중…" : sendTiming === "scheduled" ? "예약하기" : "발송하기"}
               </Button>
             </div>
