@@ -164,7 +164,7 @@ export async function loginApi(
         : 5;
     await new Promise((resolve) => setTimeout(resolve, Math.min(waitSeconds, 75) * 1000));
   }
-  throw new Error(`POST /token/ returned ${lastStatus}: synthetic account login failed`);
+  throw new Error(`POST /api/v1/token/ returned ${lastStatus}: synthetic account login failed`);
 }
 
 export async function loginAdmin(request: APIRequestContext): Promise<QaTokens> {

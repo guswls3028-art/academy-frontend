@@ -107,6 +107,8 @@ const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
   "/clinic/participants/",
   "/clinic/sessions/",
   "/lectures/lectures/",
+  "/lectures/sessions/",
+  "/students/",
   "/students/bulk_delete/",
   "/students/bulk_permanent_delete/",
 ]);

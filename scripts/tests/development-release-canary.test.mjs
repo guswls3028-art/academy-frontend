@@ -496,6 +496,23 @@ test("transport truth preserves ordered reported errors but never interprets arb
   assert.throws(() => assertReleaseSummary(report), /./);
 });
 
+test("fixture API failures preserve status while dropping bodies and unknown paths", () => {
+  const report = contextReport([], "omr-review-realuse.spec.ts");
+  report.suites[0].specs[0].tests[0].results[0].errors = [
+    { message: "POST /api/v1/token/ returned 401: secret-body" },
+    { message: "POST /lectures/sessions/?private=secret-query returned 400: secret-body" },
+    { message: "POST /students/ returned 400: secret-body" },
+    { message: "POST /private-account/ returned 403: secret-body" },
+  ];
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.deepEqual(observed.reportedTestErrors.map((item) => item.receivedStatus), [401, 400, 400, null]);
+  assert.deepEqual(observed.failureDiagnostics.map((item) => [item.pathTemplate, item.status]), [
+    ["/api/v1/token/", 401], ["/lectures/sessions/", 400], ["/students/", 400],
+  ]);
+  assert.doesNotMatch(JSON.stringify(observed), /secret-body|secret-query|private-account/);
+  assert.throws(() => assertReleaseSummary(report), /./);
+});
+
 test("transport truth rejects unsafe markers and accepts old snapshots without guessing missing counters", () => {
   const marker = { schema: "release-test-failure/v1", phase: "video-primary", kind: "assertion", expectedStatus: null, receivedStatus: null };
   const invalid = [
