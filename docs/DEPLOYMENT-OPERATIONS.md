@@ -389,6 +389,14 @@ upstream commit·패치·회귀검사·OS별 실행 파일 digest를 고정하�
 `확인` 동작으로 완료한 뒤 공지·Q&A·클리닉 흐름을 계속한다. 이 완료 쓰기는
 `qa-ymath-realuse-*` 개발 tenant에서만 허용되며 운영 read-only 실행에는 적용하지 않는다.
 
+실사용 fixture도 학생과 학부모의 초기 비밀번호 선택을 구분한다. 학생·학부모 공통
+helper가 `phone_last4`로 만든 부모는 합성 전화번호의 뒤 4자리로 로그인하고, 같은
+값을 후속 화면과 부분 생성 실패의 cleanup에 전달한다. OMR fixture처럼 고정된 개발
+비밀번호를 쓰는 부모는 생성 요청에 `fixed`와 해당 값을 명시한다. 기존 부모의
+비밀번호를 덮어써 테스트를 통과시키지 않는다. 로그인·OMR API 실패는
+`METHOD /path returned <status>` 형식으로 기록해 기존 안전한 reporter가 상태와
+허용된 경로만 추출하도록 하며, 계정명·비밀번호·원문 응답을 오류 문구에 넣지 않는다.
+
 같은 카나리는 기본값이 꺼진 backend `SyntheticLongVideo=true` 분기를 명시적으로 선택해
 학생 2명, 강의 2개별 session 1개(`session_ids` 2개), 900초 READY 영상 metadata만 만든다.
 학생·학부모 자녀 격리 시나리오는 `linkedStudents` 배열 순서를 기본 자녀 계약으로

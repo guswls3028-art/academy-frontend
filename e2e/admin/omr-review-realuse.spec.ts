@@ -135,7 +135,7 @@ async function expectApi<TBody = any>(
   const out = await apiFetch<TBody>(request, method, path, token, data);
   expect(
     okStatuses,
-    `${method} ${path} -> ${out.status} ${JSON.stringify(out.body)}`,
+    `${method} ${path} returned ${out.status}`,
   ).toContain(out.status);
   return out.body;
 }
@@ -931,6 +931,8 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       school_type: "HIGH",
       grade: 1,
       initial_password: STUDENT_PASS,
+      parent_initial_password_mode: "fixed",
+      parent_initial_password: STUDENT_PASS,
       memo: "E2E OMR canary. 계정 안내 필수 발송 정책과 함께 OMR 업로드/검토 검증용.",
     });
     created.studentId = Number(student.id);
