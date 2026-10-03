@@ -29,8 +29,16 @@ let resourceScenario: ResourceScenario = { unavailable: false };
 let uploadBody = Buffer.alloc(0); const createPayloads: Array<{ request_id: string; title: string; category: string; content: string; file_ids: string[] }> = [];
 const documentServer = createServer((request, response) => {
   const url = new URL(request.url || "/", "http://127.0.0.1");
-  const cors = { "Access-Control-Allow-Origin": request.headers.origin || "*", "Access-Control-Allow-Methods": "GET, OPTIONS", "Access-Control-Allow-Headers": request.headers["access-control-request-headers"] || "content-type, x-tenant-code, authorization" };
+  const cors = { "Access-Control-Allow-Origin": new URL(BASE).origin, "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": request.headers["access-control-request-headers"] || "content-type, x-tenant-code, authorization" };
   if (request.method === "OPTIONS") { response.writeHead(204, cors); response.end(); return; }
+  if (url.pathname === "/api/v1/core/program/" && request.method === "GET") {
+    response.writeHead(200, { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" });
+    response.end(JSON.stringify({ tenantCode: "godmin", display_name: "신과함께", ui_config: { login_title: "신과함께" }, feature_flags: {}, is_active: true })); return;
+  }
+  if (url.pathname === "/api/v1/core/landing/has-published/" && request.method === "GET") {
+    response.writeHead(200, { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" });
+    response.end(JSON.stringify({ has_published: false })); return;
+  }
   if (url.pathname === "/api/v1/core/me/") {
     response.writeHead(200, { ...cors, "Content-Type": "application/json" });
     response.end(JSON.stringify({ id: resourceScenario.actorId || 501, username: "qa-resource-publisher", name: "QA 게시자", is_staff: true, is_superuser: false, tenantRole: "owner", must_change_password: false, first_login_guide_required: false })); return;
@@ -92,18 +100,18 @@ async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolea
     const jwt = `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "godmin", user_id: options.actorId || 501 })}.sig`;
     await page.addInitScript((token) => { localStorage.setItem("access", token); localStorage.setItem("refresh", `${token}-refresh`); }, jwt);
   }
-  // Use physical loopback HTTP for resource XHRs on both engines. WebKit's
+  // Use physical loopback HTTP for bootstrap and resource XHRs on both engines. WebKit's
   // interception does not cover these requests in the Linux browser runtime.
   await page.addInitScript(({ origin }) => {
     const nativeOpen = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function(method, value, ...rest) {
       const url = new URL(String(value), location.href);
-      const target = (url.pathname.startsWith("/api/v1/landing-public/") || url.pathname === "/api/v1/core/me/") ? `${origin}${url.pathname}${url.search}` : value;
+      const target = (url.pathname.startsWith("/api/v1/landing-public/") || ["/api/v1/core/me/", "/api/v1/core/program/", "/api/v1/core/landing/has-published/"].includes(url.pathname)) ? `${origin}${url.pathname}${url.search}` : value;
       return Reflect.apply(nativeOpen, this, [method, target, ...rest]);
     };
   }, { origin: new URL(documentUrl).origin });
   await page.route("**/api/v1/**", async (route) => {
-    const url = new URL(route.request().url()); const path = url.pathname;
+    const url = new URL(route.request().url());
     if (url.origin === new URL(documentUrl).origin) return route.continue();
     const headers = { "Access-Control-Allow-Origin": new URL(BASE).origin, "Access-Control-Allow-Credentials": "true" };
     if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: {
@@ -111,8 +119,6 @@ async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolea
       "Access-Control-Allow-Headers": route.request().headers()["access-control-request-headers"] || "content-type, x-tenant-code, authorization",
     } });
     const json = (body: unknown, status = 200) => route.fulfill({ status, headers, contentType: "application/json", body: JSON.stringify(body) });
-    if (path.includes("/core/program/")) return json({ tenantCode: "godmin", display_name: "신과함께", ui_config: { login_title: "신과함께" }, feature_flags: {}, is_active: true });
-    if (path.includes("/core/landing/has-published/")) return json({ has_published: false });
     return json({ detail: "Closed resource-board mock: unmatched API" }, 404);
   });
   return () => { resourceScenario.unavailable = false; };
