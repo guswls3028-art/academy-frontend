@@ -833,7 +833,9 @@ test("student-parent real-use creation follows mandatory account notice policy",
   assert.doesNotMatch(source, /send_welcome_message:\s*false/);
   assert.doesNotMatch(source, /core\/change-password/);
   assert.match(source, /await loginApi\(request, student\.ps_number, student\.password\)/);
-  assert.match(source, /await loginApi\(request, parentPhone, QA_STUDENT_PASSWORD\)/);
+  assert.match(source, /parent_initial_password_mode:\s*"phone_last4"/);
+  assert.match(source, /const parentPassword = parentPhone\.slice\(-4\)/);
+  assert.match(source, /await loginApi\(request, parentPhone, parentPassword\)/);
 });
 
 test("student-parent real-use selects the intended child and uses supported clinic cleanup", () => {
