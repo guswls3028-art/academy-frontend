@@ -1142,6 +1142,13 @@ async function waitPort(port, interrupted) {
   throw new Error("Owned development tunnel did not become ready");
 }
 
+export function assertOfficialReleaseContext(env) {
+  assert.equal(env.GITHUB_ACTIONS, "true", "Official CI only; no implicit local synthetic run");
+  assert.ok(["push", "workflow_dispatch"].includes(env.GITHUB_EVENT_NAME), "Only main delivery events may run release QA");
+  assert.equal(env.GITHUB_REF, "refs/heads/main");
+  assert.match(env.GITHUB_SHA || "", /^[a-f0-9]{40}$/);
+}
+
 export async function run() {
   const evidencePath = path.join(ROOT, "test-results/development-release.json");
   const persistEvidence = (evidence) => {
@@ -1164,10 +1171,7 @@ export async function run() {
   let portTransport;
   const evidence = await runPreflightStages([
     ["process", () => {
-      assert.equal(process.env.GITHUB_ACTIONS, "true", "Official CI only; no implicit local synthetic run");
-      assert.equal(process.env.GITHUB_EVENT_NAME, "push");
-      assert.equal(process.env.GITHUB_REF, "refs/heads/main");
-      assert.match(process.env.GITHUB_SHA || "", /^[a-f0-9]{40}$/);
+      assertOfficialReleaseContext(process.env);
       portTransport = binarySafeSsmEnvironment(process.env.ACADEMY_SSM_TOOLCHAIN_DIR);
       identity = aws(["sts", "get-caller-identity"]);
       assert.equal(identity.Account, ACCOUNT);

@@ -16,13 +16,22 @@
 
 ## 1. 배포 순서
 
+필수 품질 CI는 모든 PR/main push에서 유지한다. `scripts/release-required.mjs`는
+정확한 변경 목록이 루트 `AGENTS.md`/`README.md`, `docs/`의 Markdown 또는
+`.agents/skills/<name>/SKILL.md`만 포함할 때 preview·개발 실사용·운영 배포를
+생략한다. 실행 코드, 테스트, 정책 JSON, 설정과 workflow는 항상 배포 검증 대상이다.
+비교 revision을 읽지 못하거나 변경 목록이 비어 있으면 전체 배포 경로를 유지한다.
+실패 뒤 재개는 현재 main의 `Frontend Quality Gate`를 `workflow_dispatch`로 실행한다.
+이 명시적 재실행은 문서 분류와 관계없이 전체 동일 산출물 검증·승인·rollback을
+다시 거치며, 이전 run의 실패나 건너뜀을 성공으로 취급하지 않는다.
+
 1. PR에서 Hangul companion, typecheck, API/E2E safety guard, 변경 파일 strict
    lint, route/PWA contract, build를 통과한다.
 2. 같은 build artifact를 `preview` GitHub Environment와
    `CLOUDFLARE_PREVIEW_API_TOKEN`으로 Cloudflare Pages preview에 direct
    upload한다. preview revision, Functions bundle, 핵심 route와 lazy asset을
    검증한다.
-3. `main` push에서는 동일 `deploy-bundle`로 `scripts/run-development-release-canary.mjs`와
+3. 배포 대상 `main` push 또는 main의 수동 재실행에서는 동일 `deploy-bundle`로 `scripts/run-development-release-canary.mjs`와
    `e2e/suites.mjs`에 등록된 개발 real-use 전체 및 exact tenant/user
    cleanup0을 `development-canary` job에서 먼저 통과한다. 이 job의 success 없이는
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
@@ -33,6 +42,10 @@
    QA scope로 전체 실사용을 검증한다. 보안 한도·캐시를 변경하거나 실패한 POST를
    재전송하지 않는다. 가입 응답 검사는 정확한 200/201 조건을 유지하며, 실패
    진단에는 응답의 HTTP 상태만 남기고 원문 응답·계정 정보는 게시하지 않는다.
+   가입 실사용 검사는 유효한 입력 후 `가입 신청 최종 확인`에서 학부모 초기
+   비밀번호 방식을 명시적으로 선택하고 최종 신청을 누른 뒤 정확한 응답을 기다린다.
+   첫 신청 버튼이 최종 POST를 보낸다고 가정하지 않으며 수동·자동 승인과 이후
+   학생·학부모 로그인 검증을 모두 유지한다.
 4. 기존 운영 deployment id/version과 Pages production
    ownership을 읽고 rollback baseline으로 고정한다.
 5. `production` GitHub Environment의 승인 뒤 같은 artifact를

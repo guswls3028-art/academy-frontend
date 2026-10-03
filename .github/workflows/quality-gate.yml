@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: frontend-quality-${{ github.ref }}
@@ -35,6 +36,8 @@ jobs:
     name: Typecheck + Lint + Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      release_required: ${{ steps.release-scope.outputs.required }}
     env:
       # Cloudflare Git builds expose the same commit as CF_PAGES_COMMIT_SHA.
       # Using a shared commit version keeps dual build outputs deterministic.
@@ -50,6 +53,10 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Classify release inputs
+        id: release-scope
+        run: node scripts/release-required.mjs
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --shamefully-hoist
@@ -172,10 +179,14 @@ jobs:
     timeout-minutes: 15
     needs: [quality-check, hangul-companion-check]
     if: >-
-      github.event_name == 'push'
-      || (
-        github.event.pull_request.head.repo.full_name == github.repository
-        && github.event.pull_request.user.login != 'dependabot[bot]'
+      needs.quality-check.outputs.release_required == 'true'
+      && (
+        ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main')
+        || (
+          github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && github.event.pull_request.user.login != 'dependabot[bot]'
+        )
       )
 
     steps:
@@ -356,7 +367,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: [quality-check, hangul-companion-check, candidate-preview]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
+      && needs.quality-check.outputs.release_required == 'true'
     permissions:
       contents: read
       id-token: write
@@ -415,7 +429,9 @@ jobs:
     timeout-minutes: 25
     needs: [quality-check, hangul-companion-check, candidate-preview, development-canary]
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
+      && needs.quality-check.outputs.release_required == 'true'
       && needs.development-canary.result == 'success'
     outputs:
       baseline_deployment_id: ${{ steps.production-baseline.outputs.deployment_id }}
@@ -842,7 +858,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [deploy]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
     env:
       # Existing production accounts only; no synthetic business rows.
       E2E_TENANT_CODE: hakwonplus

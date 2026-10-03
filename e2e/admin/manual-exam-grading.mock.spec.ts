@@ -120,6 +120,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let failNextManualApply = false;
   let failManualSheetGetAfterPostCount: number | null = null;
   let nextManualApplyDelayMs = 0;
+  let nextManualApplyGate: Promise<void> | null = null;
   const manualSheetGetEvents: Array<{ applied: boolean; failureArmed: boolean }> = [];
   let gradingMode = options.gradingMode ?? "written";
   let manualGradingMethod =
@@ -776,6 +777,20 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         }>;
       };
       postedRows.push(body);
+      if (manualGradingMethod === "correctness") {
+        const errors = (body.rows ?? []).flatMap((row, rowIndex) => {
+          if (row.attendance === "absent") return [];
+          return Object.entries(row.cells ?? {}).flatMap(([questionId, cell]) =>
+            cell.state === "correct" || cell.state === "incorrect" || cell.state === "review"
+              ? []
+              : [{ row: rowIndex + 1, field: `question_${questionId}`, message: "정오를 입력해 주세요." }]
+          );
+        });
+        if (errors.length > 0) {
+          await json({ ok: false, applied: false, errors, rows: [], matched_count: 0 }, body.apply ? 400 : 200);
+          return;
+        }
+      }
       if (options.validateScoreBounds && manualGradingMethod === "score") {
         const errors = (body.rows ?? []).flatMap((row, rowIndex) => {
           if (row.attendance === "absent") return [];
@@ -798,6 +813,11 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         const delay = nextManualApplyDelayMs;
         nextManualApplyDelayMs = 0;
         await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+      if (body.apply === true && nextManualApplyGate) {
+        const gate = nextManualApplyGate;
+        nextManualApplyGate = null;
+        await gate;
       }
       if (body.apply === true && failNextManualApply) {
         failNextManualApply = false;
@@ -967,6 +987,11 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     },
     delayNextManualApply(delayMs = 700) {
       nextManualApplyDelayMs = delayMs;
+    },
+    holdNextManualApply() {
+      let release!: () => void;
+      nextManualApplyGate = new Promise<void>((resolve) => { release = resolve; });
+      return release;
     },
     examPatches,
     postedRows,
@@ -1215,6 +1240,8 @@ test.describe("문항별 직접 채점", () => {
     const cells = studentRow.locator("[data-manual-grade-cell]");
     await expect(cells).toHaveCount(2);
     await cells.nth(0).press("o");
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("미저장 · 빈칸 입력 필요");
+    expect(apiState.postedRows).toHaveLength(0);
     await cells.nth(1).press("x");
 
     await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
@@ -1242,8 +1269,68 @@ test.describe("문항별 직접 채점", () => {
     await expect(reloadedRow.getByRole("button", { name: "X" })).toHaveCount(1);
   });
 
+  for (const width of [1100, 390]) {
+    test(`${width}px 저장 중 되돌린 빈칸은 미저장으로 유지하고 완성한 행만 다시 저장한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const apiState = await installApi(page);
+      const releaseApply = apiState.holdNextManualApply();
+      await page.goto(
+        `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+        { waitUntil: "domcontentloaded" },
+      );
+      await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+      const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
+      const cells = studentRow.locator("[data-manual-grade-cell]");
+      const status = page.getByRole("status", { name: "정오 자동 저장 상태" });
+
+      try {
+        await page.getByRole("button", { name: "빈칸 2칸 O로", exact: true }).click();
+        await expect.poll(() => apiState.postedRows.length).toBe(1);
+        await page.keyboard.press("Control+z");
+        await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
+      } finally {
+        releaseApply();
+      }
+
+      await expect(status).toContainText("미저장 · 빈칸 입력 필요");
+      expect(apiState.postedRows).toHaveLength(1);
+      await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
+      await expect.poll(() => page.evaluate(() => {
+        const event = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+      })).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath("incomplete-draft.png"), fullPage: true });
+
+      await page.getByRole("tab", { name: "운영", exact: true }).click();
+      await expect(page.getByText("저장하지 않은 설정이 있습니다", { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "계속 편집", exact: true }).click();
+      await cells.nth(0).press("o");
+      await expect(status).toContainText("미저장 · 빈칸 입력 필요");
+      expect(apiState.postedRows).toHaveLength(1);
+      await cells.nth(1).press("0");
+      await expect(status).toContainText("저장됨");
+      expect(apiState.postedRows).toHaveLength(2);
+      expect(apiState.postedRows[1]).toEqual(expect.objectContaining({
+        apply: true,
+        rows: [expect.objectContaining({
+          expected_version: "version-1",
+          cells: {
+            [String(QUESTION_IDS[0])]: { state: "correct" },
+            [String(QUESTION_IDS[1])]: { state: "review" },
+          },
+        })],
+      }));
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+      await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
+      await expect(studentRow.getByRole("button", { name: "오답노트" })).toHaveCount(1);
+      await page.screenshot({ path: testInfo.outputPath("completed-reloaded.png"), fullPage: true });
+    });
+  }
+
   test("저장 중 새 generation을 보존하고 최신 version으로 직렬 저장한다", async ({ page }) => {
-    const apiState = await installApi(page);
+    const apiState = await installApi(page, { initialStates: ["incorrect", "correct"] });
     apiState.delayNextManualApply();
 
     await page.goto(
@@ -1282,7 +1369,7 @@ test.describe("문항별 직접 채점", () => {
   });
 
   test("commit 뒤 sheet 확인 실패는 POST를 재생하지 않고 조회만 재시도한다", async ({ page }) => {
-    const apiState = await installApi(page);
+    const apiState = await installApi(page, { initialStates: ["incorrect", "incorrect"] });
 
     await page.goto(
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
@@ -1308,7 +1395,7 @@ test.describe("문항별 직접 채점", () => {
   });
 
   test("비커밋 apply 충돌 뒤 재시도는 최신 정오와 갱신 version을 보존한다", async ({ page }) => {
-    const apiState = await installApi(page);
+    const apiState = await installApi(page, { initialStates: ["incorrect", "incorrect"] });
 
     await page.goto(
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
@@ -1362,10 +1449,19 @@ test.describe("문항별 직접 채점", () => {
       hasText: "7월 진단평가 정오 직접입력",
     });
     await dialog.locator("[data-manual-grade-cell]").first().press("o");
+    await expect(dialog.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("미저장 · 빈칸 입력 필요");
+    await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
+    await expect(page.getByText("정오 자동 저장 또는 배점 확정을 마친 뒤 닫아 주세요.", { exact: true })).toBeVisible();
+    await expect(dialog).toBeVisible();
+    expect(apiState.postedRows).toHaveLength(0);
+    await dialog.locator("[data-manual-grade-cell]").nth(1).press("x");
     await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveCount(0);
     await expect.poll(() => apiState.postedRows.length).toBe(1);
+    await chooseExamHeaderAction(page, "정오표 작성");
+    await expect(dialog.locator("[data-manual-grade-cell]").nth(0)).toHaveAccessibleName("김학생 1번 O");
+    await expect(dialog.locator("[data-manual-grade-cell]").nth(1)).toHaveAccessibleName("김학생 2번 X");
   });
 
   test("문제지와 해설을 형식 제한 없이 각각 선택한다", async ({ page }) => {
@@ -1582,8 +1678,17 @@ test.describe("문항별 직접 채점", () => {
 
     await page.getByRole("button", { name: "빈칸 2칸 O로", exact: true }).click();
     await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(2);
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
+    const filledRequestCount = apiState.postedRows.length;
+    await page.clock.install();
+    await page.clock.pauseAt(new Date());
     await page.keyboard.press("Control+z");
     await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
+    await page.clock.runFor(500);
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("미저장 · 빈칸 입력 필요");
+    expect(apiState.postedRows).toHaveLength(filledRequestCount);
+    await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
+    await page.clock.resume();
 
     await cells.nth(0).press("o");
     await studentRow.getByRole("button", { name: "미입력" }).press("0");
@@ -1852,6 +1957,7 @@ test.describe("문항별 직접 채점", () => {
         await expect(firstCell).toHaveAccessibleName("김학생 1번 미입력");
         await page.keyboard.press(`${shortcut.modifier}+Shift+z`);
         await expect(firstCell).toHaveAccessibleName("김학생 1번 O");
+        await studentRow.locator('[data-row-index="0"][data-column-index="1"]').press("x");
 
         await page.evaluate(() => {
           window.addEventListener("keydown", (event) => {
