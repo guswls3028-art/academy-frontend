@@ -77,7 +77,7 @@ export type ManualExamGradingGridHandle = {
   flushPending: () => Promise<boolean>;
 };
 
-type CorrectnessAutosaveStatus = "pending" | "saving" | "saved" | "failed";
+type CorrectnessAutosaveStatus = "incomplete" | "pending" | "saving" | "saved" | "failed";
 
 type CorrectnessAutosaveRecord = {
   enrollmentId: number;
@@ -317,6 +317,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   const autosaveSummary = useMemo(() => {
     const rows = Object.values(autosaveRows);
     return {
+      incomplete: rows.filter((row) => row.status === "incomplete").length,
       pending: rows.filter((row) => row.status === "pending").length,
       saving: rows.filter((row) => row.status === "saving").length,
       failed: rows.filter((row) => row.status === "failed").length,
@@ -330,6 +331,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     };
   }, [autosaveRows]);
   const hasAutosavePending =
+    autosaveSummary.incomplete > 0 ||
     autosaveSummary.pending > 0 ||
     autosaveSummary.saving > 0 ||
     autosaveSummary.failed > 0;
@@ -518,6 +520,14 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
           continue;
         }
 
+        // Undo/delete can leave a newer incomplete draft while a save is in flight.
+        // Present rows require a valid mark in every editable correctness cell.
+        if (!isCorrectnessRowComplete(draftRow)) {
+          record.status = "incomplete";
+          publishAutosaveRows();
+          continue;
+        }
+
         const sentGeneration = record.generation;
         const sentRow = cloneRow(draftRow);
         record.lastSentGeneration = sentGeneration;
@@ -597,9 +607,10 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       };
       record.generation += 1;
       if (record.status !== "saving" && record.status !== "failed") {
-        record.status = "pending";
+        const draftRow = draftRowsRef.current.find((row) => row.enrollment_id === enrollmentId);
+        record.status = draftRow && !isCorrectnessRowComplete(draftRow) ? "incomplete" : "pending";
         record.error = null;
-        shouldSchedule = true;
+        shouldSchedule ||= record.status === "pending";
       }
       autosaveRecordsRef.current.set(enrollmentId, record);
     }
@@ -743,13 +754,15 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       ? `${autosaveSummary.saving}명 저장 중`
       : autosaveSummary.pending > 0
         ? `${autosaveSummary.pending}명 저장 대기`
-        : autosaveSummary.lastSavedAt != null
-          ? `저장됨 ${new Date(autosaveSummary.lastSavedAt).toLocaleTimeString("ko-KR", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })}`
-          : "정오 변경 즉시 자동 저장";
+        : autosaveSummary.incomplete > 0
+          ? `${autosaveSummary.incomplete}명 미저장 · 빈칸 입력 필요`
+          : autosaveSummary.lastSavedAt != null
+            ? `저장됨 ${new Date(autosaveSummary.lastSavedAt).toLocaleTimeString("ko-KR", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}`
+            : "학생별 정오 입력 완료 후 자동 저장";
 
   const applyTableScale = useCallback((nextScale: number, persist = true) => {
     const scale = getClosestTableScale(nextScale);
@@ -1655,7 +1668,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
                 : data.grading_mode === "mixed"
                   ? "OMR 문항은 잠그고 직접 채점 문항만 입력해 함께 확정합니다."
                   : data.manual_grading_method === "correctness"
-                    ? "정오를 바꾸면 학생별 점수와 상태를 함께 자동 저장합니다."
+                    ? "학생별로 빈칸을 모두 채우면 점수와 상태를 함께 자동 저장합니다."
                     : "문항별 점수를 입력한 뒤 한 번에 확인하고 성적을 확정합니다."}
             </p>
             <div className={styles.workspaceStats} aria-label="채점표 구성">
@@ -2165,7 +2178,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
         <footer className={styles.footer}>
           <span>
             {data.manual_grading_method === "correctness" && !explicitDirty
-              ? "정오 변경은 학생별 점수·상태와 함께 한 번의 저장으로 반영됩니다."
+              ? "정오를 모두 입력한 학생부터 점수·상태와 함께 자동 저장됩니다."
               : "확인 단계에서는 통계가 바뀌지 않습니다. 성적 확정 시에만 한 번에 반영됩니다."}
           </span>
           {data.manual_grading_method === "correctness" && !explicitDirty ? (
@@ -2178,7 +2191,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
               >
                 실패 {autosaveSummary.failed}명 다시 저장
               </Button>
-            ) : hasAutosavePending ? (
+            ) : autosaveSummary.pending > 0 || autosaveSummary.saving > 0 ? (
               <Button
                 type="button"
                 intent="secondary"
@@ -2187,6 +2200,8 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
               >
                 지금 저장
               </Button>
+            ) : autosaveSummary.incomplete > 0 ? (
+              <span>빈칸을 O·X·오답노트로 채워 주세요. 초기화하면 마지막 저장 상태로 돌아갑니다.</span>
             ) : (
               <span className={styles.autosaveFooterSaved}>{autosaveStatusText}</span>
             )
@@ -2296,6 +2311,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
                 saveState.status === "failed" ? styles.rowSaveStateFailed : ""
               }`}
             >
+              {saveState.status === "incomplete" && "미저장 · 빈칸"}
               {saveState.status === "pending" && "저장 대기"}
               {saveState.status === "saving" && "저장 중"}
               {saveState.status === "saved" && "저장됨"}
@@ -2657,6 +2673,13 @@ function ScoreCell({
         오답노트
       </button>
     </div>
+  );
+}
+
+function isCorrectnessRowComplete(row: ManualGradeRow): boolean {
+  return row.is_not_submitted || Object.values(row.cells).every((cell) =>
+    !cell.editable || cell.entry_method !== "correctness" ||
+    cell.state === "correct" || cell.state === "incorrect" || cell.state === "review"
   );
 }
 
