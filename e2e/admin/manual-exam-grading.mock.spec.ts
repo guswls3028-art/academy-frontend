@@ -1680,8 +1680,9 @@ test.describe("문항별 직접 채점", () => {
     await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(2);
     await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
     const filledRequestCount = apiState.postedRows.length;
-    await page.clock.install();
-    await page.clock.pauseAt(new Date());
+    const pausedAt = await page.evaluate(() => Date.now());
+    await page.clock.install({ time: pausedAt - 60 * 60 * 1000 });
+    await page.clock.pauseAt(pausedAt);
     await page.keyboard.press("Control+z");
     await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
     await page.clock.runFor(500);
@@ -1948,8 +1949,9 @@ test.describe("문항별 직접 채점", () => {
         await expect(page.getByRole("button", { name: "마지막 변경 실행 취소" })).toBeVisible();
         await expect(page.getByRole("button", { name: "마지막 변경 다시 실행" })).toBeVisible();
 
-        await page.clock.install();
-        await page.clock.pauseAt(new Date());
+        const pausedAt = await page.evaluate(() => Date.now());
+        await page.clock.install({ time: pausedAt - 60 * 60 * 1000 });
+        await page.clock.pauseAt(pausedAt);
         const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
         const firstCell = studentRow.locator('[data-row-index="0"][data-column-index="0"]');
         await firstCell.press("o");
