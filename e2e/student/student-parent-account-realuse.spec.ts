@@ -138,11 +138,16 @@ async function verifySignupAndApproval(page: Page, request: APIRequestContext): 
         await adminPage.reload({ waitUntil: "domcontentloaded" });
         await adminPage.locator(".students-requests__card").filter({ hasText: name }).click();
         await adminPage.getByRole("dialog").filter({ hasText: "가입 신청 상세" }).getByRole("button", { name: "승인", exact: true }).click();
-        const approved = adminPage.waitForResponse((result) => (
-          result.request().method() === "POST" && result.url().endsWith(`/registration_requests/${requestId}/approve/`)
-        ));
-        await adminPage.getByRole("alertdialog", { name: "승인 확인" }).getByRole("button", { name: "승인", exact: true }).click();
-        const approvalResponse = await approved;
+        const approvalDialog = adminPage.getByRole("alertdialog", { name: "가입 승인 최종 확인", exact: true });
+        await expect(approvalDialog).toBeVisible();
+        await expect(approvalDialog.getByText("학생 비밀번호는 유지합니다.", { exact: true })).toBeVisible();
+        await expect(approvalDialog.getByText("학부모의 가입 신청 비밀번호 선택도 유지합니다.", { exact: true })).toBeVisible();
+        const [approvalResponse] = await Promise.all([
+          adminPage.waitForResponse((result) => (
+            result.request().method() === "POST" && result.url().endsWith(`/registration_requests/${requestId}/approve/`)
+          )),
+          approvalDialog.getByRole("button", { name: "승인", exact: true }).click(),
+        ]);
         expect(approvalResponse.status()).toBe(200);
         student = await approvalResponse.json() as typeof student;
       }

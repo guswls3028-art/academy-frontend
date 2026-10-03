@@ -397,6 +397,10 @@ helper가 `phone_last4`로 만든 부모는 합성 전화번호의 뒤 4자리�
 `METHOD /path returned <status>` 형식으로 기록해 기존 안전한 reporter가 상태와
 허용된 경로만 추출하도록 하며, 계정명·비밀번호·원문 응답을 오류 문구에 넣지 않는다.
 
+수동 가입 승인은 현재 `가입 승인 최종 확인` 창에서 신청자가 선택한 학생·학부모
+비밀번호의 보존을 확인한다. 확인 창이 보인 뒤 승인 응답 대기와 클릭을 함께 await해,
+선택자 실패가 남아 있는 응답 Promise의 오류나 정리 오류로 가려지지 않게 한다.
+
 같은 카나리는 기본값이 꺼진 backend `SyntheticLongVideo=true` 분기를 명시적으로 선택해
 학생 2명, 강의 2개별 session 1개(`session_ids` 2개), 900초 READY 영상 metadata만 만든다.
 학생·학부모 자녀 격리 시나리오는 `linkedStudents` 배열 순서를 기본 자녀 계약으로
