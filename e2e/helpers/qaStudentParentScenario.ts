@@ -142,7 +142,7 @@ export async function loginApi(
   username: string,
   password: string,
 ): Promise<QaTokens> {
-  let lastFailure = "";
+  let lastStatus = 0;
   for (let attempt = 0; attempt < TOKEN_MAX_ATTEMPTS; attempt += 1) {
     const response = await request.post(`${QA_API}/api/v1/token/`, {
       headers: headers(),
@@ -152,7 +152,7 @@ export async function loginApi(
     if (response.status() === 200) return await response.json() as QaTokens;
 
     const responseText = await response.text();
-    lastFailure = `${response.status()} ${responseText}`;
+    lastStatus = response.status();
     if (response.status() !== 429 || attempt === TOKEN_MAX_ATTEMPTS - 1) break;
 
     const retryAfter = Number.parseInt(response.headers()["retry-after"] || "", 10);
@@ -164,7 +164,7 @@ export async function loginApi(
         : 5;
     await new Promise((resolve) => setTimeout(resolve, Math.min(waitSeconds, 75) * 1000));
   }
-  throw new Error(`login failed for synthetic ${QA_TENANT} account: ${lastFailure}`);
+  throw new Error(`POST /token/ returned ${lastStatus}: synthetic account login failed`);
 }
 
 export async function loginAdmin(request: APIRequestContext): Promise<QaTokens> {
@@ -217,6 +217,7 @@ export async function createQaFamily(
 ): Promise<QaFamily> {
   const slug = stableDigits(`${QA_TENANT}:${scenarioKey}`, 8);
   const parentPhone = `010${slug}`;
+  const parentPassword = parentPhone.slice(-4);
   const students: QaStudent[] = [];
 
   try {
@@ -249,7 +250,7 @@ export async function createQaFamily(
         await cleanupQaFamily(request, adminAccess, {
           scenarioKey,
           parentPhone,
-          parentPassword: QA_STUDENT_PASSWORD,
+          parentPassword,
           students,
         });
       } catch (cleanupError) {
@@ -266,13 +267,13 @@ export async function createQaFamily(
     for (const student of students) {
       await loginApi(request, student.ps_number, student.password);
     }
-    await loginApi(request, parentPhone, QA_STUDENT_PASSWORD);
+    await loginApi(request, parentPhone, parentPassword);
   } catch (stabilizationError) {
     try {
       await cleanupQaFamily(request, adminAccess, {
         scenarioKey,
         parentPhone,
-        parentPassword: QA_STUDENT_PASSWORD,
+        parentPassword,
         students,
       });
     } catch (cleanupError) {
@@ -287,7 +288,7 @@ export async function createQaFamily(
   return {
     scenarioKey,
     parentPhone,
-    parentPassword: QA_STUDENT_PASSWORD,
+    parentPassword,
     students,
   };
 }
