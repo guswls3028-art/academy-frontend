@@ -539,7 +539,7 @@ identity/scope 및 runtime assertion보다 먼저 기존 `persistEvidence` 경�
 exact scope/echo, aggregate 추가 영상, malformed/raw 값 거부와 실패 전 저장을 검증한다.
 기존 공식 `development-release-canary.test.mjs` 진입점이 이 회귀를 import하므로
 별도 workflow나 수동 실행에만 의존하지 않는다.
-관측의 유무는 클리닉·OMR 통합 후보의 21개 실사용, 690초 재생 또는 cleanup0 조건을 대체하지 않는다.
+관측의 유무는 `e2e/suites.mjs`의 `developmentRealUseCases`가 정한 전체 필수 실사용, 690초 재생 또는 cleanup0 조건을 대체하지 않는다.
 
 장시간 재생 실패는 추가로 설정 timeout, test/result 상태, result 수, 실행 시간, 오류 수와
 실패한 response 관측 종류(`bootstrap`, `access`, `session-list`, `renewal`, `progress`, `other`) 및
