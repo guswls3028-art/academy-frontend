@@ -92,6 +92,7 @@ test.describe("Production canary", () => {
 
     expect(page.url()).toMatch(/\/(workspace|dev)(\/|$)/);
     await expect(page.locator("nav, [class*='sidebar'], [class*='header'], main").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "오늘 처리할 일", exact: true })).toBeVisible();
     await expect(page.locator("text=Not Found")).not.toBeVisible();
 
     await page.goto(`${BASE}/admin/dashboard?compat=1#legacy-full`, {
@@ -102,6 +103,7 @@ test.describe("Production canary", () => {
       `${BASE}/workspace/dashboard?compat=1#legacy-full`,
       { timeout: 15_000 },
     );
+    await expect(page.getByRole("heading", { name: "오늘 처리할 일", exact: true })).toBeVisible();
 
     await page.goto(`${BASE}/teacher/classes?compat=1#legacy-mobile`, {
       waitUntil: "domcontentloaded",
@@ -111,6 +113,12 @@ test.describe("Production canary", () => {
       `${BASE}/workspace/mobile/classes?compat=1#legacy-mobile`,
       { timeout: 15_000 },
     );
+    // The redirect URL arrives before lazy route chunks and the lecture query.
+    // Keep the context alive until the destination is usable; teardown must not
+    // manufacture blocked static-asset errors or hide an unfinished route.
+    await expect(page.getByRole("heading", { name: "강의 관리", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^강의목록 \(\d+\)$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "강의 추가", exact: true })).toBeEnabled();
     await expect(page.locator("text=Not Found")).not.toBeVisible();
     guard.assertClean();
   });
