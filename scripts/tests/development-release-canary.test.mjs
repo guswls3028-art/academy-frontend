@@ -7,6 +7,7 @@ import { chromium } from "@playwright/test";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { EventEmitter } from "node:events";
+import { developmentRealUseCases } from "../../e2e/suites.mjs";
 import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 import * as runner from "../run-development-release-canary.mjs";
 import "./release-video-scope.test.mjs";
@@ -871,8 +872,9 @@ test("development canary seals required-student two-slot self-cancellation and m
   const config = readFileSync(new URL("../../playwright.development-release.config.ts", import.meta.url), "utf8");
   const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
 
-  assert.match(config, new RegExp(specName.replaceAll(".", "\\.")));
-  assert.match(runnerSource, new RegExp(`"${specName}": 1`));
+  assert.match(config, /testMatch: Object\.keys\(developmentRealUseCases\)/);
+  assert.match(runnerSource, /Object\.entries\(developmentRealUseCases\)/);
+  assert.equal(developmentRealUseCases[`student/${specName}`], 1);
   for (const required of [
     "/student/exams/${created.examId}/submit/",
     "/results/admin/clinic-targets/",
@@ -1937,7 +1939,7 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers twenty-one enabled cases without executing any API test", () => {
+test("development config discovers every required case without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
     "--config=playwright.development-release.config.ts", "--list"], {
@@ -1950,17 +1952,22 @@ test("development config discovers twenty-one enabled cases without executing an
   });
   const report = JSON.parse(output);
   let discovered = 0;
+  const counts = {};
   const visit = (suite) => {
     for (const spec of suite.specs || []) for (const test of spec.tests) {
       assert.equal(test.expectedStatus, "passed");
       assert.ok(!test.annotations?.some((annotation) => annotation.type === "skip"));
       assert.deepEqual(test.results, [], "--list must not run synthetic API scenarios");
       discovered += 1;
+      const file = String(spec.file || suite.file).split(/[\\/]/).at(-1);
+      counts[file] = (counts[file] || 0) + 1;
     }
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
   assert.equal(discovered, 23);
+  assert.deepEqual(counts, Object.fromEntries(Object.entries(developmentRealUseCases)
+    .map(([file, count]) => [file.split("/").at(-1), count])), "collection must match the same release inventory by file");
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);
@@ -2284,7 +2291,7 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(runnerSource, /E2E_STUDENT2_USER: "ymath-qa-student-02"/);
   assert.match(runnerSource, /E2E_LONG_VIDEO_ID: String\(scenario\.synthetic_long_video\.video_id\)/);
   assert.match(runnerSource, /E2E_LONG_VIDEO_TENANT_ID: String\(scenario\.tenant_id\)/);
-  assert.match(configSource, /student\/video-playback-renewal\.realuse\.spec\.ts/);
+  assert.equal(developmentRealUseCases["student/video-playback-renewal.realuse.spec.ts"], 1);
   assert.match(configSource, /timeout: 17 \* 60_000/);
   for (const required of ["690", "390", "500", "1366", "390", "reload", "playback/end/", "media/playback/renew/"]) {
     assert.match(specSource, new RegExp(required.replace("/", "\\/")));

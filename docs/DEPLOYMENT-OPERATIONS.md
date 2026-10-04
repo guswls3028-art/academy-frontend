@@ -26,7 +26,10 @@
 다시 거치며, 이전 run의 실패나 건너뜀을 성공으로 취급하지 않는다.
 
 1. PR에서 Hangul companion, typecheck, API/E2E safety guard, 변경 파일 strict
-   lint, route/PWA contract, build를 통과한다.
+   lint, route/PWA contract, 개발 real-use suite의 `--list` 수집, build를 통과한다.
+   수집 단계는 잘못된 import/config를 후보 배포 전에 발견하기 위한 것으로,
+   아래 실제 실행·cleanup 검증을 대체하지 않는다. PR E2E 경로에는 `src`뿐 아니라
+   `public`·`functions`, lockfile, 개발 real-use config/runner도 포함한다.
 2. 같은 build artifact를 `preview` GitHub Environment와
    `CLOUDFLARE_PREVIEW_API_TOKEN`으로 Cloudflare Pages preview에 direct
    upload한다. preview revision, Functions bundle, 핵심 route와 lazy asset을
@@ -35,6 +38,9 @@
    `e2e/suites.mjs`에 등록된 개발 real-use 전체 및 exact tenant/user
    cleanup0을 `development-canary` job에서 먼저 통과한다. 이 job의 success 없이는
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
+   파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
+   Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
+   현재 13개 파일·23건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
 
    공개 비밀번호 찾기와 가입 요청은 개발 API에서도 동일 IP의
    `AlimtalkEndpointThrottle` 시간당 5회 한도를 공유한다. 연속 후보 검증에서
@@ -683,7 +689,7 @@ parser 테스트가 소유한다. snapshot 복사·중복/역순 교체·상한�
 두 종료 순서·listener 해제, canonical clinic/OPTIONS, mutation 재전송 0 및 기존
 500ms 조회 재시도 정책을 검증한다. 로컬 선택 테스트는 공식 real-use gate가 아니다.
 
-로컬 child 제한은 QA operation 240초, tunnel 35분, tests 30분이다. timeout은 TERM 후
+로컬 child 제한은 QA operation 240초, tests 50분, tunnel은 tests보다 5분 긴 55분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
 20초 제한이다. SIGINT/SIGTERM은 작업 중 child를 중단하여 finally를 시도하고 무조건
 실패 처리한다. 정리 중 추가 신호는 새 작업을 시작하지 않으며 cleanup 완료를 기다린다.
@@ -693,7 +699,7 @@ test child를 기다리는 동안 runner는 60초마다 내용 없는 진행 신
 열어 두되 어떤 byte도 쓰지 않는다. Session Manager plugin이 닫힌 stdin의 EOF를 정상
 종료로 오인해 원격 JSON 전에 끝나는 것을 막기 위한 경계이며, 다른 child의 stdin은 계속
 닫혀 있다. stderr 폐기, 메모리 전용 raw stdout, allowlist 증거 규칙은 바꾸지 않는다.
-job timeout은 40분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
+job timeout은 60분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
 
 GitHub 강제 취소의 짧은 grace, SIGKILL, runner/host 소실, IAM·네트워크 상실에서는
 finally 실행·evidence 업로드·tenant cleanup을 보장할 수 없다. 미완료 파일이 있으면

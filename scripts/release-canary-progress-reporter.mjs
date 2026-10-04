@@ -1,16 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { developmentRealUseCases } from "../e2e/suites.mjs";
 
 const output = fileURLToPath(new URL("../test-results/development-release-progress.json", import.meta.url));
-const allowed = new Set([
-  "notice-roundtrip.spec.ts", "qna-roundtrip.spec.ts", "clinic-roundtrip.spec.ts",
-  "student-parent-account-realuse.spec.ts", "student-parent-assessment-realuse.spec.ts",
-  "student-clinic-required-cancel-realuse.spec.ts", "student-parent-clinic-realuse.spec.ts",
-  "student-parent-community-realuse.spec.ts", "student-parent-homework-realuse.spec.ts",
-  "student-parent-learning-realuse.spec.ts", "student-parent-storage-realuse.spec.ts",
-  "omr-review-realuse.spec.ts", "video-playback-renewal.realuse.spec.ts",
-]);
+const allowed = new Set(Object.keys(developmentRealUseCases).map((file) => path.basename(file)));
 const statuses = new Set(["passed", "failed", "timedOut", "skipped", "interrupted"]);
 
 // This diagnostic is not acceptance evidence. The complete JSON report and
