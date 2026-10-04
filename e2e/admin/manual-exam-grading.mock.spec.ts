@@ -3007,6 +3007,48 @@ test.describe("문항별 직접 채점", () => {
   }
 
   for (const width of [1366, 390]) {
+    test(`시험 작업 메뉴가 열리는 중에도 클릭 위치를 유지한다 ${width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await installApi(page, { manualGradingMethod: "score" });
+      await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "domcontentloaded" });
+      // Hold the real entrance motion at its first frame, then finish it between
+      // pointer down/up. A scaling popup used to move the action out of the click.
+      const motionHold = await page.addStyleTag({ content: ".ant-popover { animation-play-state: paused !important; }" });
+      const trigger = page.getByRole("button", { name: "7월 진단평가 작업 선택" });
+      await expect(trigger).toBeVisible();
+      await trigger.click();
+      const menu = page.getByRole("menu", { name: "7월 진단평가 작업 선택" });
+      await expect(menu).toBeVisible();
+      await expect.poll(() => menu.evaluate((element) => element.closest(".ant-popover")!.getAnimations().length)).toBe(1);
+      await menu.evaluate((element) => {
+        for (const animation of element.closest(".ant-popover")!.getAnimations()) animation.currentTime = 1;
+      });
+      const action = menu.getByRole("menuitem", { name: /^문항별 점수 입력/ });
+      const before = await action.boundingBox();
+      expect(before).not.toBeNull();
+      await page.mouse.move(before!.x + before!.width / 2, before!.y + before!.height / 2);
+      await page.mouse.down();
+      await menu.evaluate(async (element) => {
+        for (const animation of element.closest(".ant-popover")!.getAnimations()) animation.finish();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      });
+      const after = await action.boundingBox();
+      await page.mouse.up();
+      expect(after).not.toBeNull();
+      expect(Math.abs(after!.x - before!.x)).toBeLessThan(1);
+      expect(Math.abs(after!.y - before!.y)).toBeLessThan(1);
+      expect(Math.abs(after!.width - before!.width)).toBeLessThan(1);
+      const dialog = page.getByRole("dialog").filter({ hasText: "7월 진단평가 문항별 점수 입력" });
+      await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(2);
+      await testInfo.attach(`exam-action-open-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await motionHold.evaluate((element) => element.remove());
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await chooseExamHeaderAction(page, "문항별 점수 입력");
+      await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(2);
+    });
+
     test(`직접 고친 미세 배점을 점수와 함께 저장하고 재조회한다 ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       const apiState = await installApi(page, {
