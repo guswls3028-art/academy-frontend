@@ -9,6 +9,7 @@ import {
   criticalStateTransitionSpecs,
   e2eGateSpecs,
   routeMockSpecs,
+  developmentRealUseCases,
 } from "../../e2e/suites.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -171,6 +172,29 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:mock --reporter=github,html/);
   assert.match(prGateConfig, /workers: process\.env\.CI \? 3 : 2/);
   assert.match(prGateConfig, /retries: 0/);
+});
+
+test("runtime assets, lockfile and development gate inputs trigger PR E2E", () => {
+  const paths = e2eWorkflow.match(/  pull_request:[\s\S]*?    paths:\r?\n([\s\S]*?)(?=\r?\n\S)/)?.[1] ?? "";
+  for (const input of [
+    "public/**", "functions/**", "pnpm-lock.yaml",
+    "playwright.development-release.config.ts", "scripts/run-development-release-canary.mjs",
+  ]) {
+    assert.ok(paths.includes(`- "${input}"`), `PR E2E must cover ${input}`);
+  }
+});
+
+test("development inventory preserves all required real-use cases and unique files", () => {
+  const entries = Object.entries(developmentRealUseCases);
+  assert.equal(entries.length, 13);
+  assert.equal(entries.reduce((sum, [, count]) => sum + count, 0), 23);
+  assert.equal(new Set(entries.map(([file]) => path.basename(file))).size, entries.length);
+  for (const [file, count] of entries) {
+    assert.ok(Number.isSafeInteger(count) && count > 0);
+    assert.ok(fs.existsSync(path.join(e2eRoot, file)), `Missing development spec: ${file}`);
+  }
+  assert.equal(developmentRealUseCases["admin/omr-review-realuse.spec.ts"], 3);
+  assert.equal(developmentRealUseCases["student/video-playback-renewal.realuse.spec.ts"], 1);
 });
 
 test("production auth retries only throttle and transport failures within one bounded owner", () => {

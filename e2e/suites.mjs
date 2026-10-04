@@ -153,3 +153,21 @@ export const controlledWriteSpecs = [
   "e2e/student/student-parent-learning-realuse.spec.ts",
   "e2e/student/student-parent-storage-realuse.spec.ts",
 ];
+
+// Relative to the development config's e2e testDir. This is the shared
+// inventory for collection, executed-result acceptance and safe progress.
+export const developmentRealUseCases = Object.freeze({
+  "flows/notice-roundtrip.spec.ts": 3,
+  "flows/qna-roundtrip.spec.ts": 4,
+  "flows/clinic-roundtrip.spec.ts": 4,
+  "student/student-parent-account-realuse.spec.ts": 1,
+  "student/student-parent-assessment-realuse.spec.ts": 1,
+  "student/student-clinic-required-cancel-realuse.spec.ts": 1,
+  "student/student-parent-clinic-realuse.spec.ts": 1,
+  "student/student-parent-community-realuse.spec.ts": 1,
+  "student/student-parent-homework-realuse.spec.ts": 1,
+  "student/student-parent-learning-realuse.spec.ts": 1,
+  "student/student-parent-storage-realuse.spec.ts": 1,
+  "admin/omr-review-realuse.spec.ts": 3,
+  "student/video-playback-renewal.realuse.spec.ts": 1,
+});

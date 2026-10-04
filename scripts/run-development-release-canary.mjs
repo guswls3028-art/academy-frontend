@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "./release-playback-end-proxy.mjs";
 import { binarySafeSsmEnvironment } from "./binary-safe-ssm.mjs";
+import { developmentRealUseCases } from "../e2e/suites.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REGION = "ap-northeast-2";
@@ -28,21 +29,9 @@ const REAL_USE_SUITE_TIMEOUT_MS = 50 * 60_000;
 const TUNNEL_TIMEOUT_MS = REAL_USE_SUITE_TIMEOUT_MS + 5 * 60_000;
 const WEB_ORIGIN = "http://localhost:4173";
 const API_ORIGIN = "http://127.0.0.1:18000";
-const FLOW_COUNTS = {
-  "notice-roundtrip.spec.ts": 3,
-  "qna-roundtrip.spec.ts": 4,
-  "clinic-roundtrip.spec.ts": 4,
-  "student-parent-account-realuse.spec.ts": 1,
-  "student-parent-assessment-realuse.spec.ts": 1,
-  "student-clinic-required-cancel-realuse.spec.ts": 1,
-  "student-parent-clinic-realuse.spec.ts": 1,
-  "student-parent-community-realuse.spec.ts": 1,
-  "student-parent-homework-realuse.spec.ts": 1,
-  "student-parent-learning-realuse.spec.ts": 1,
-  "student-parent-storage-realuse.spec.ts": 1,
-  "omr-review-realuse.spec.ts": 3,
-  "video-playback-renewal.realuse.spec.ts": 1,
-};
+const FLOW_COUNTS = Object.freeze(Object.fromEntries(
+  Object.entries(developmentRealUseCases).map(([file, count]) => [path.basename(file), count]),
+));
 const LONG_VIDEO_CHECKPOINT_STAGES = [
   "context-created", "routes-installed", "authenticated", "navigated",
   "bootstrap-observed", "access-observed", "playlist-observed", "video-mounted",
