@@ -3040,13 +3040,17 @@ test.describe("문항별 직접 채점", () => {
       expect(Math.abs(after!.width - before!.width)).toBeLessThan(1);
       const dialog = page.getByRole("dialog").filter({ hasText: "7월 진단평가 문항별 점수 입력" });
       await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(2);
-      await testInfo.attach(`exam-action-open-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+      await expect(dialog.locator("input[data-manual-grade-cell]").first()).toBeInViewport();
+      const screenshotPath = testInfo.outputPath(`exam-action-open-${width}.png`);
+      await dialog.screenshot({ path: screenshotPath });
+      await testInfo.attach(`exam-action-open-${width}`, { path: screenshotPath, contentType: "image/png" });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await motionHold.evaluate((element) => element.remove());
       await dialog.getByRole("button", { name: "닫기", exact: true }).click();
       await page.emulateMedia({ reducedMotion: "reduce" });
       await chooseExamHeaderAction(page, "문항별 점수 입력");
       await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(2);
+      await expect(dialog.locator("input[data-manual-grade-cell]").first()).toBeInViewport();
     });
 
     test(`직접 고친 미세 배점을 점수와 함께 저장하고 재조회한다 ${width}px`, async ({ page }) => {
