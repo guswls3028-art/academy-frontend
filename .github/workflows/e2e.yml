@@ -186,9 +186,9 @@ jobs:
         run: pnpm install --frozen-lockfile --shamefully-hoist
 
       - name: Install Playwright
-        # The mandatory WebKit gate needs native libraries that are not present
-        # on every ubuntu-latest image. Install the exact browser dependencies.
-        run: pnpm exec playwright install --with-deps chromium webkit
+        # Every shard uses Chromium; only shard 1 runs the mandatory WebKit gate.
+        # Keep native dependencies for each browser that the shard actually runs.
+        run: pnpm exec playwright install --with-deps chromium ${{ matrix.shard == 1 && 'webkit' || '' }}
 
       - name: Guard production E2E safety boundaries
         run: pnpm guard:e2e-safety
