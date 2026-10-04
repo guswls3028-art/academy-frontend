@@ -153,6 +153,8 @@ chain으로 직렬 실행한다. 별도 세 job은 API proxy를 `http://127.0.0.
 route-mock 전체 목록을 Playwright의 `--shard=1/3`, `2/3`, `3/3`으로 나눈다.
 각 실행기는 기존 최대 3 worker를 유지하고, 한 shard가 실패해도 나머지 검사를
 취소하지 않는다. shard 1은 WebKit, production bundle smoke와 theme 검증도 수행한다.
+모든 shard는 Chromium과 해당 native 의존성을 설치하고, WebKit과 그 native 의존성은
+실제로 iPhone 검증을 실행하는 shard 1에만 설치해 나머지 두 job의 불필요한 설치를 줄인다.
 필수 check 이름 `E2E closed-proxy route mocks`는 세 shard의 결과를 합치며,
 실패·취소·건너뜀 중 하나라도 있으면 통과하지 않는다. 테스트 목록·재시도·쓰기
 경계는 그대로이고 report/server-log는 shard 번호로 구분해 보존한다.
