@@ -959,18 +959,26 @@ export function assertManifest(manifest) {
   assert.match(manifest.images?.["academy-api"]?.digest, /^sha256:[a-f0-9]{64}$/);
 }
 
-export function assertActiveInstance(instances, manifest) {
-  assertManifest(manifest);
-  assert.equal(instances.length, 1, "Exactly one active development instance is required");
-  const instance = instances[0];
+export function assertDevelopmentInstanceIdentity(instance) {
   const tags = Object.fromEntries((instance.Tags || []).map(({ Key, Value }) => [Key, Value]));
   for (const [key, value] of Object.entries({ Name: "academy-v1-api-development", ManagedBy: "academy-api-development",
-    Environment: "development", Lifecycle: "active", ReleaseId: manifest.releaseImageTag, VerifiedReleaseId: manifest.releaseImageTag })) {
+    Environment: "development", Lifecycle: "active" })) {
     assert.equal(tags[key], value, `Wrong development ${key}`);
   }
   assert.equal(instance.State?.Name, "running");
   assert.equal(instance.IamInstanceProfile?.Arn, `arn:aws:iam::${ACCOUNT}:instance-profile/academy-api-development`);
   assert.match(instance.InstanceId, /^i-[a-f0-9]+$/);
+}
+
+export function assertActiveInstance(instances, manifest) {
+  assertManifest(manifest);
+  assert.equal(instances.length, 1, "Exactly one active development instance is required");
+  const instance = instances[0];
+  assertDevelopmentInstanceIdentity(instance);
+  const tags = Object.fromEntries((instance.Tags || []).map(({ Key, Value }) => [Key, Value]));
+  for (const key of ["ReleaseId", "VerifiedReleaseId"]) {
+    assert.equal(tags[key], manifest.releaseImageTag, `Wrong development ${key}`);
+  }
   return instance;
 }
 

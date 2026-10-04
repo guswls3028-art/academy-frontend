@@ -375,6 +375,17 @@ ProductUsageEvent/DailyActor 변화 0임을 검사한다. 도메인 설명은 ba
 `docs/domain/student-support-audit.md`, 환경/IAM 경계는
 `docs/operations/persistent-development-runtime.md`가 소유한다.
 
+공식 main 배포는 먼저 `backend-readiness`에서 backend의 진행 중인 main release run과
+successful manifest·active development host를 읽는다. 진행 중인 release만 최대
+45분 동안 30초 간격으로 기다린다. 최신 run이 취소됐어도 이전 active run을 확인한다.
+잘못된 host identity/IAM, 읽기 오류, 종료된
+release와 manifest/host 불일치는 즉시 실패한다. 대기는 별도 job과 임시 인증으로
+수행해 real-use의 60분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
+최신 immutable backend revision, IAM, SSM 문서, host를 다시 검사하므로 대기 중
+성공한 관측으로 이후 검증을 생략하지 않는다. 관측은 PII 없는
+`backend-readiness-evidence`에 남긴다. 대기 이후 새 release가 시작되어 다시
+불일치하면 기존 preflight가 실패하며 QA나 운영 승격을 강행하지 않는다.
+
 `scripts/run-development-release-canary.mjs`는 공식 main CI/OIDC에서만 실행된다.
 public backend main을 immutable SHA로 resolve하여 successful manifest와 고정 SSM
 document 내용 및 host parameter deny를 읽고, unique active 인스턴스의 release/digest,

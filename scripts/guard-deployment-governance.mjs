@@ -55,6 +55,8 @@ for (const required of [
   "node scripts/release-required.mjs",
   "workflow_dispatch:",
   "node scripts/run-development-release-canary.mjs",
+  "node scripts/wait-development-backend.mjs",
+  "needs: [quality-check, hangul-companion-check, candidate-preview, backend-readiness]",
   "E2E_RELEASE_API_MODE: readonly",
   'E2E_ALLOW_PRODUCTION_WRITES: "0"',
 ]) {

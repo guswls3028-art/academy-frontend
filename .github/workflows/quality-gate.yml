@@ -362,11 +362,49 @@ jobs:
             exit 1
           fi
 
+  backend-readiness:
+    name: Wait for verified backend development baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    needs: [quality-check, hangul-companion-check, candidate-preview]
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
+      && needs.quality-check.outputs.release_required == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: Assume read-only readiness use of development QA role
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: arn:aws:iam::809466760795:role/academy-frontend-development-qa
+          role-session-name: academy-fe-qa-${{ github.run_id }}-${{ github.run_attempt }}
+          role-duration-seconds: 3600
+          aws-region: ap-northeast-2
+          allowed-account-ids: 809466760795
+      - name: Wait for backend rollout and matching successful manifest
+        run: node scripts/wait-development-backend.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Upload backend readiness evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: backend-readiness-evidence
+          path: test-results/backend-readiness.json
+          retention-days: 14
+          if-no-files-found: error
+
   development-canary:
     name: Same-artifact isolated development real-use
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    needs: [quality-check, hangul-companion-check, candidate-preview]
+    needs: [quality-check, hangul-companion-check, candidate-preview, backend-readiness]
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
       && github.ref == 'refs/heads/main'

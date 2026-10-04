@@ -187,6 +187,7 @@ export default function ExamHeaderActionMenu({
         onOpenChange={setMenuOpen}
         arrow={false}
         overlayClassName={styles.popover}
+        motion={{ motionName: "academy-exam-menu-fade" }}
       >
         <button
           type="button"

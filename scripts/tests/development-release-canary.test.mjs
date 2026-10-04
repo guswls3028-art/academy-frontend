@@ -17,6 +17,7 @@ import "./release-homework-image-boundary.test.mjs";
 import "./release-community-image-boundary.test.mjs";
 import "./binary-safe-ssm.test.mjs";
 import "./release-canary-progress.test.mjs";
+import "./development-backend-readiness.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
