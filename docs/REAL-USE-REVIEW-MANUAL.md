@@ -90,6 +90,12 @@ spec 전체의 trace, video, screenshot 저장은 비활성화한다.
 | L0 빠른 회귀 | PR 로그인/read-only/mock와 배포 동일 artifact 개발 canary | PR/매 배포 | PR gate; development 성공/cleanup zero; 운영 조회와 rollback 결과 |
 | L1 실사용 canary | 격리 development 핵심 한 바퀴 | 큰 UI/도메인 변경 전후 | 실제 CTA 생성·저장, 학생/관리자 반영, reload, cleanup zero |
 | L2 상품성 리뷰 | UI/UX, 초심자, 비의도 사용 | 출시 전/큰 화면 개편 후 | 스크린샷과 판정표, P0/P1/P2 이슈 분류 |
+
+운영 조회 전용 `production-canary.spec.ts`의 관리자 검사는 로그인과 기존 주소
+리다이렉트 뒤 실제 목적지 화면까지 기다린다. 대시보드의 `오늘 처리할 일`, 모바일
+강의 관리의 제목·숫자가 채워진 강의목록 탭·활성 강의 추가 버튼을 확인한다.
+주소 변경만으로 성공 처리하거나 조회 중 컨텍스트를 닫지 않는다. 로딩 실패는
+검사 실패로 남기며, 정적 파일 오류를 teardown 예외로 숨기지 않는다.
 | L3 운영 통합 | worker/장시간 영상과 별도 배정된 provider 검증 | 관련 경계 변경 후 | worker 최종 상태·실제 재생; 실발송은 별도 범위·승인 증거 |
 
 다음 운영 쓰기 경로는 별도로 명시 배정된 통제 canary에만 적용하며 일반 실사용
