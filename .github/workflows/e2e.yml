@@ -186,9 +186,9 @@ jobs:
         run: pnpm install --frozen-lockfile --shamefully-hoist
 
       - name: Install Playwright
-        # Every shard uses Chromium; only shard 1 runs the mandatory WebKit gate.
+        # Every shard uses Chromium; only shard 3 runs the mandatory WebKit gate.
         # Keep native dependencies for each browser that the shard actually runs.
-        run: pnpm exec playwright install --with-deps chromium ${{ matrix.shard == 1 && 'webkit' || '' }}
+        run: pnpm exec playwright install --with-deps chromium ${{ matrix.shard == 3 && 'webkit' || '' }}
 
       - name: Guard production E2E safety boundaries
         run: pnpm guard:e2e-safety
@@ -217,7 +217,7 @@ jobs:
         run: pnpm test:e2e:gate:mock --reporter=github,html --shard=${{ matrix.shard }}/3
 
       - name: Run mandatory iPhone WebKit closed-proxy gate
-        if: matrix.shard == 1
+        if: matrix.shard == 3
         env:
           E2E_BASE_URL: http://127.0.0.1:5174
           E2E_LOCAL_BASE_URL: http://127.0.0.1:5174
@@ -227,11 +227,11 @@ jobs:
         run: pnpm test:e2e:gate:iphone-webkit --reporter=github,list
 
       - name: Build production bundle
-        if: matrix.shard == 1
+        if: matrix.shard == 3
         run: pnpm build
 
       - name: Start production bundle preview
-        if: matrix.shard == 1
+        if: matrix.shard == 3
         run: |
           pnpm preview --host 127.0.0.1 --port 4173 --strictPort > /tmp/academy-vite-preview.log 2>&1 &
           for attempt in $(seq 1 60); do
@@ -244,7 +244,7 @@ jobs:
           exit 1
 
       - name: Run production bundle runtime smoke
-        if: matrix.shard == 1
+        if: matrix.shard == 3
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           E2E_STRICT: strict
@@ -253,7 +253,7 @@ jobs:
         run: pnpm test:e2e:bundle-smoke
 
       - name: Verify shared control states across all themes
-        if: matrix.shard == 1
+        if: matrix.shard == 3
         env:
           THEME_AUDIT_BASE_URL: http://127.0.0.1:4173
           E2E_STRICT: strict

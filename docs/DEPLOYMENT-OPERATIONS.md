@@ -158,9 +158,9 @@ read-only·WebKit·개발 실사용·수동 UI 검증의 기록 정책과 실행
 `retain-on-failure` 영상도 매번 녹화한 뒤 성공분을 삭제하므로 이 비용을 피한다.
 기록 옵션의 의미는 [Playwright 정본](https://playwright.dev/docs/test-use-options#recording-options)을 따른다.
 각 실행기는 기존 최대 3 worker를 유지하고, 한 shard가 실패해도 나머지 검사를
-취소하지 않는다. shard 1은 WebKit, production bundle smoke와 theme 검증도 수행한다.
+취소하지 않는다. shard 3은 WebKit, production bundle smoke와 theme 검증도 수행한다.
 모든 shard는 Chromium과 해당 native 의존성을 설치하고, WebKit과 그 native 의존성은
-실제로 iPhone 검증을 실행하는 shard 1에만 설치해 나머지 두 job의 불필요한 설치를 줄인다.
+실제로 iPhone 검증을 실행하는 shard 3에만 설치해 나머지 두 job의 불필요한 설치를 줄인다.
 필수 check 이름 `E2E closed-proxy route mocks`는 세 shard의 결과를 합치며,
 실패·취소·건너뜀 중 하나라도 있으면 통과하지 않는다. 테스트 목록·재시도·쓰기
 경계는 그대로이고 report/server-log는 shard 번호로 구분해 보존한다.
