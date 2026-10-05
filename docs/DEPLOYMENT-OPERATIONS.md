@@ -25,7 +25,7 @@
 이 명시적 재실행은 문서 분류와 관계없이 전체 동일 산출물 검증·승인·rollback을
 다시 거치며, 이전 run의 실패나 건너뜀을 성공으로 취급하지 않는다.
 
-1. PR에서 Hangul companion, typecheck, API/E2E safety guard, 변경 파일 strict
+1. PR에서 Hangul companion, typecheck, API/E2E safety guard, 전체 저장소 strict
    lint, route/PWA contract, 개발 real-use suite의 `--list` 수집, build를 통과한다.
    수집 단계는 잘못된 import/config를 후보 배포 전에 발견하기 위한 것으로,
    아래 실제 실행·cleanup 검증을 대체하지 않는다. PR E2E 경로에는 `src`뿐 아니라
@@ -99,20 +99,19 @@ Cloudflare Git production auto-deploy는 direct-upload workflow와 경쟁하면 
 된다. workflow는 project source 설정과 reserved production branch 부재를
 readback하며, drift이면 upload 전에 실패한다.
 
-### 변경 파일 strict lint
+### 전체 저장소 strict lint
 
-`scripts/lint-changed-files.mjs`는 기존 ESLint 설정으로 변경된 `.ts`/`.tsx`를
-경고 0건 기준으로 검사한다. `src`·`e2e`와 함께 루트 설정·`functions`도 포함한다.
-PR은 이벤트의 정확한 base SHA와 검사 중인 merge SHA, push는 `before`와 현재
-SHA를 비교해 여러 커밋을 한 번에 올려도 앞선 변경을 놓치지 않는다. 수동 실행은
-현재 SHA의 첫 부모와 비교한다. checkout SHA 불일치, 잘못된 이벤트/revision,
-Git 조회 실패는 검사 실패이며, 성공한 비교에 대상 파일이 없을 때만 건너뛴다.
+로컬과 CI의 단일 진입점 `pnpm lint`는 기존 ESLint 설정으로 전체 저장소를
+검사하며 오류와 경고가 모두 0건이어야 성공한다. CI는 오류를 경고로 바꾸거나
+실패를 무시하지 않는다. 파일 이름 변경, 여러 커밋 push, Git 비교 실패와 관계없이
+현재 checkout의 모든 ESLint 대상 파일을 검사한다. 기존 생성물 제외 경로는 유지한다.
 
-이름 변경은 새 경로를 검사하고 삭제된 파일은 제외한다. NUL 구분과 ESLint의
-literal path 입력으로 공백·한글·glob 문자가 들어간 파일명도 그대로 처리한다.
-변경하지 않은 기존 lint 부채는 계속 전체 저장소의 warning-only 결과에 남기며
-신규 변경의 통과 근거로 사용하지 않는다. 회귀 검사는 임시 Git 저장소와 실제
-ESLint로 오류·경고 차단, 정상 변경 성공, 누락된 이력과 경로 처리를 검증한다.
+현재 전체 lint는 오류 0·경고 0이므로 과거 부채를 우회하던 변경 파일 선별기와
+그 전용 테스트를 제거했다. 별도 Git 이력 조회나 경로 전달 계층은 필요하지 않다.
+실패하면 표시된 소스·설정을 수정하고 `pnpm lint`를 다시 실행한다. 검사 규칙을
+끄거나 불필요한 코드를 숨겨 통과시키지 않는다. 전체 정상 실행과 임시 오류·경고
+각각의 비정상 종료를 확인했으며, 애플리케이션의 기능 검증은 기존 CI/E2E와 동일
+산출물 개발 실사용·cleanup0·운영 검증이 계속 담당한다.
 
 ## 2. 권한과 secret
 

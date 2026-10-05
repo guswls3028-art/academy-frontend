@@ -82,11 +82,11 @@ function installChunkReloadHandler() {
 installChunkReloadHandler();
 
 // ── Sentry 초기화 (production only) ──
-const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined;
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 
-if (SENTRY_DSN && import.meta.env.PROD) {
+if (sentryDsn && import.meta.env.PROD) {
   Sentry.init({
-    dsn: SENTRY_DSN,
+    dsn: sentryDsn,
     environment: import.meta.env.MODE || "production",
     release: `academy-frontend@${import.meta.env.VITE_GIT_SHA || "unknown"}`,
     integrations: [

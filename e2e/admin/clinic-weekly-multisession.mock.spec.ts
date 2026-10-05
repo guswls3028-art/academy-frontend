@@ -1109,6 +1109,7 @@ test("월말을 건넌 이전 주 일정을 개별·전체 선택하고 같은 �
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "이전 주 복사", exact: true }).click();
   await expect(dialog).toBeVisible();
+  await expect(dialog).not.toHaveClass(/ant-zoom-appear/);
   await dialog.getByRole("button", { name: "전체 선택 (2건)", exact: true }).click();
   await expect(dialog.getByRole("button", { name: "2건 불러오기", exact: true })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

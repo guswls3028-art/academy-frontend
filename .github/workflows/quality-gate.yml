@@ -46,8 +46,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Strict lint compares exact event revisions, including multi-commit pushes.
-          fetch-depth: 0
+          # Release classification reads the previous event revision when available.
+          fetch-depth: 50
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -96,17 +96,8 @@ jobs:
       - name: Generated API type drift
         run: pnpm api-types:check
 
-      # warning-only: 기존 lint 에러 존재. 점진 수정 후 차단으로 승격 예정.
-      - name: Lint (warning-only, full repo)
-        run: pnpm lint || echo "::warning::Lint errors found"
-        continue-on-error: true
-
-      # Keep unchanged lint debt isolated; every changed TypeScript path must pass.
-      - name: Strict lint regression tests
-        run: node --test scripts/tests/lint-changed-files.test.mjs
-
-      - name: Lint changed files (strict)
-        run: node scripts/lint-changed-files.mjs
+      - name: Lint (strict, full repo)
+        run: pnpm lint
 
       - name: Wrong-note async lifecycle contract
         run: |
