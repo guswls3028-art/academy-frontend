@@ -4,6 +4,7 @@
 
 | 문서 | 내용 |
 |------|------|
+| [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) | 관리자·교사 테마, 토큰 계층, 공용 컨트롤, 미리보기·저장·반응형 검증 |
 | [PUBLIC-RESOURCE-BOARD.md](PUBLIC-RESOURCE-BOARD.md) | godmin 공개 자료게시판·게시자·파일·오류 복구·PC/모바일 검증 |
 | [ROUTING.md](ROUTING.md) | 공개 URL 네이밍, 권한 분리, 기존 경로 호환 규칙 |
 | [API-CONTRACTS.md](API-CONTRACTS.md) | 백엔드 OpenAPI 고정 SHA와 생성 TypeScript 타입 드리프트 계약 |
@@ -74,63 +75,7 @@ Actions 공급망과 배포 검증은 [배포 운영 계약](DEPLOYMENT-OPERATIO
 
 상세 구조·실행 방법·환경변수: [`frontend/e2e/README.md`](../e2e/README.md)
 
-### 테마와 공용 컨트롤 계약
-
-관리자·교사 앱의 12개 테마는 색상만 바꾸며 버튼·탭·선택 컨트롤의 의미와 상태,
-조작 방식은 동일하게 유지한다. 테마 선택 진입점은
-`/workspace/settings/appearance`이고 선택값은 브라우저에 저장되어 재방문
-시 복원된다.
-
-이 절은 **지켜야 할 의도**를 적는다. 정확한 임계값과 통과 조건은
-`e2e/visual/theme-control-states.spec.ts`가 소유하며, 문서와 spec이 어긋나면
-spec이 기준이다. 개별 결함을 발견하면 금지 문장을 여기에 덧붙이기보다 spec의
-단언으로 옮겨 회귀를 막는다. 아래 원칙으로 설명되지 않는 새 제약만 문서에
-추가한다.
-
-**역할과 표면** — 주요 작업은 공용 `Button`, 상태·필터 선택은
-`SelectionButton`, 읽기 전용 표시는 `Badge`가 맡는다. 한 컨트롤은 하나의
-표면만 가진다. 라벨을 다시 배지나 색상 면으로 감싸거나 컨트롤 안에 또 다른
-컨트롤 표면을 넣지 않는다.
-
-**상태 구분** — 기본·호버·선택·포커스·비활성이 서로 구별되어야 한다. 선택은
-바깥 윤곽과 강조색으로, 호버는 배경·테두리 변화로 드러낸다. 키보드 포커스는
-선택 윤곽과 구분되는 외곽 링으로 표시한다. 불투명도 감소와 비활성 커서는
-실제 비활성 상태에만 쓴다.
-
-**대비** — 선택 여부와 무관하게 활성 라벨은 읽히는 대비를 유지한다. 공용
-컴포넌트는 밝은 배경을 전제로 한 색을 가질 수 있으므로, 어두운 테마는 그
-표면의 글자·배경·테두리를 테마에서 다시 정의할 책임을 진다.
-
-**한국어 라벨과 폭** — 작업·선택 라벨은 한 줄로 유지한다. 공간이 부족하면
-그룹을 줄바꿈하거나 명시적인 가로 스크롤로 풀고 글자를 쪼개지 않는다. 폭
-배치는 소유 모듈의 CSS에서 해결하며 전역 반응형 CSS로 덮어쓰지 않는다.
-
-**장식** — 장식은 구조를 이루는 요소까지만 둔다. 내용이 없으면 껍데기를 그리지
-않고, 맥락 없이 떠 있는 요소는 배경에 남기지 않는다. 짧은 상태 전환 모션은
-조작을 돕는 선에서만 쓰고 reduced-motion 설정을 존중한다.
-
-소유 구현은 `src/styles/design-system/colors/themes/index.css`,
-`src/shared/ui/ds/Button.tsx`, `src/shared/ui/ds/SelectionButton.tsx`,
-`src/styles/design-system/patterns/button.css`,
-`src/styles/design-system/patterns/segment-control.css`,
-`src/styles/design-system/ds/tabs.css`, `src/auth/themes/`에 있다. 공용 목록
-툴바의 모바일 액션 배치는 `DomainListToolbar.module.css`가 소유한다. 새 테마도
-기존 테마와 같은 상태·대비 검증을 통과해야 한다.
-
-검증은 `e2e/visual/theme-control-states.spec.ts`의 12개 테마 상태 검사와
-실제 적용 화면의 1100px·1366px·390px 조작 검사를 함께 수행한다. 선택 전후
-라벨 대비, 단일 표면과 바깥 윤곽, 호버·포커스·비활성 구분, 한 줄 라벨과 그룹
-배치를 확인한다. CSS 검사만으로 저장 성공을 판정하지 않으며, 적용 화면에서
-클릭 → 결과 → 새로고침 후 유지 및 실패 안내·재시도를 확인한다. 출결 적용
-범위와 회귀 항목은 [출결 원장 안전 계약](ATTENDANCE-ROSTER-SAFETY.md)이
-소유한다. 아래 명령과 검수 항목은 검증 절차이며 통과 기록을 뜻하지 않는다.
-`.github/workflows/e2e.yml`의 PR gate도 이미 빌드한 preview에서 같은 12개 테마
-검사를 실행하며, 실패하면 병합 검증을 통과하지 못한다.
-
-```powershell
-pnpm build
-pnpm exec playwright test --config playwright.theme.config.ts --project=chromium --reporter=list
-```
+테마·토큰·공용 컨트롤과 검증은 [디자인 시스템](DESIGN-SYSTEM.md)이 소유한다.
 
 ## 스크립트 구조
 

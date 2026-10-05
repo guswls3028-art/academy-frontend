@@ -3,6 +3,8 @@
 @import "./density/index.css";
 @import "./typography/index.css";
 @import "./surface/slots.css";
+/* Theme overrides follow every foundation default; components only consume tokens. */
+@import "./colors/themes/index.css";
 @import "./ds/input.css";
 @import "./ds/action-bar.css";
 @import "./ds/panel.css";

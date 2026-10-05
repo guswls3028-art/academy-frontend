@@ -1,7 +1,8 @@
 /* PATH: src/styles/design-system/colors/role/text.css */
 /* Text Role Tokens (FIXED) */
 
-:root {
+:root,
+.theme-preview {
   --color-text-primary:    var(--scale-Neutral900);
   --color-text-secondary:  var(--scale-Neutral700);
   --color-text-tertiary:   var(--scale-Neutral600);

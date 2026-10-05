@@ -1,149 +1,36 @@
-/* eslint-disable no-restricted-syntax -- legacy theme preview layout uses tokenized inline styles; this change only centralizes theme state. */
-// PATH: src/app_admin/domains/settings/pages/AppearancePage.tsx
-// 설정 > 테마 — 그룹 헤더 프리미엄 UI (인터페이스 밀도 옵션 제거)
-
 import { useMemo } from "react";
 import { FiSun, FiMoon, FiStar } from "react-icons/fi";
-
 import { useTheme } from "@/shared/contexts/ThemeContext";
-import { THEMES, type ThemeKey, type ThemeMeta } from "../constants/themes";
-import ThemeCard from "../components/ThemeCard";
-
-import "@/styles/design-system/colors/preview-theme.css";
-import "@/styles/design-system/colors/preview-scope.css";
+import { THEMES } from "../constants/themes";
+import ThemeGrid from "../components/ThemeGrid";
 import s from "../components/SettingsSection.module.css";
 
-// ── Theme group config ───────────────────────────────────────────────────────
-type GroupConfig = {
-  id: string;
-  label: string;
-  description: string;
-  icon: React.ElementType;
-  themes: ThemeMeta[];
-};
-
-// ── Theme group section ──────────────────────────────────────────────────────
-function ThemeGroupSection({
-  group,
-  currentTheme,
-  onSelect,
-}: {
-  group: GroupConfig;
-  currentTheme: ThemeKey;
-  onSelect: (key: ThemeKey) => void;
-}) {
-  const Icon = group.icon;
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 10,
-        }}
-      >
-        <Icon
-          size={14}
-          style={{ color: "var(--color-text-muted)", flexShrink: 0 }}
-          aria-hidden
-        />
-        <span
-          style={{
-            fontSize: 14,
-            fontWeight: 700,
-            color: "var(--color-text-secondary)",
-            letterSpacing: "0.02em",
-          }}
-        >
-          {group.label}
-        </span>
-        <span
-          style={{
-            fontSize: 14,
-            fontWeight: 500,
-            color: "var(--color-text-muted)",
-          }}
-        >
-          — {group.description}
-        </span>
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 8,
-        }}
-      >
-        {group.themes.map((t) => (
-          <ThemeCard
-            key={t.key}
-            theme={t}
-            selected={t.key === currentTheme}
-            previewed={t.key === currentTheme}
-            dirty={false}
-            onSelect={() => onSelect(t.key)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Page ─────────────────────────────────────────────────────────────────────
 export default function AppearancePage() {
   const { theme: currentTheme, setTheme } = useTheme();
-
-  const groups: GroupConfig[] = useMemo(
-    () => [
-      {
-        id: "WHITE",
-        label: "라이트",
-        description: "밝은 배경 테마",
-        icon: FiSun,
-        themes: THEMES.filter((t) => t.group === "WHITE"),
-      },
-      {
-        id: "DARK",
-        label: "다크",
-        description: "어두운 배경 테마",
-        icon: FiMoon,
-        themes: THEMES.filter((t) => t.group === "DARK"),
-      },
-      {
-        id: "BRAND",
-        label: "브랜드",
-        description: "브랜드 컬러 기반 테마",
-        icon: FiStar,
-        themes: THEMES.filter((t) => t.group === "BRAND"),
-      },
-    ],
-    []
-  );
-
-  const handleSelect = (key: ThemeKey) => {
-    setTheme(key);
-  };
+  const groups = useMemo(() => [
+    { id: "WHITE", label: "라이트", description: "밝은 배경 테마", icon: FiSun },
+    { id: "DARK", label: "다크", description: "어두운 배경 테마", icon: FiMoon },
+    { id: "BRAND", label: "브랜드", description: "브랜드 컬러 기반 테마", icon: FiStar },
+  ].map((group) => ({ ...group, themes: THEMES.filter((theme) => theme.group === group.id) })), []);
 
   return (
     <div className={s.page}>
-      {/* Header */}
       <div className={s.sectionHeader}>
         <h2 className={s.sectionTitle}>테마</h2>
         <p className={s.sectionDescription}>
           선택한 테마가 즉시 적용됩니다. 브라우저에 저장되므로 다음 방문 시에도 유지됩니다.
         </p>
       </div>
-
-      {/* Theme groups */}
       <section className={s.section}>
-        {groups.map((group) => (
-          <ThemeGroupSection
-            key={group.id}
-            group={group}
-            currentTheme={currentTheme}
-            onSelect={handleSelect}
-          />
+        {groups.map(({ id, label, description, icon: Icon, themes }) => (
+          <section key={id} className={s.themeGroup} aria-labelledby={`theme-group-${id}`}>
+            <h3 id={`theme-group-${id}`} className={s.themeGroupTitle}>
+              <Icon size={14} aria-hidden="true" />
+              <span>{label}</span>
+              <span className={s.themeGroupDescription}>{description}</span>
+            </h3>
+            <ThemeGrid themes={themes} currentTheme={currentTheme} onSelect={setTheme} />
+          </section>
         ))}
       </section>
     </div>
