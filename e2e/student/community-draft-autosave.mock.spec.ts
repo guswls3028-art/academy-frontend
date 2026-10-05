@@ -560,6 +560,39 @@ test.describe("학생 커뮤니티 durable draft", () => {
     } finally { release(); await second.close(); }
   });
 
+  test("글 저장 응답 중 자녀가 바뀌면 원래 자녀에서만 첨부를 복구한다", async ({ page }) => {
+    let release!: () => void;
+    const responseReady = new Promise<void>((resolve) => { release = resolve; });
+    const harness = await installStudentApi(page, { parent: true, beforePostResponse: () => responseReady });
+    const firstKey = `student-community-draft:qna:student-12:hakwonplus:user:${AUTH_USER_ID}`;
+    const siblingKey = `student-community-draft:qna:student-13:hakwonplus:user:${AUTH_USER_ID}`;
+    await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded" });
+    const children = page.getByRole("tablist", { name: "자녀 선택" });
+    await children.getByRole("tab", { name: "김하늘" }).click();
+    await page.getByRole("region", { name: "학부모 주요 확인" }).getByRole("link", { name: /^질문하기/ }).click();
+    await page.getByPlaceholder("질문 제목").fill("하늘이 첨부 복구");
+    await page.locator(".ProseMirror").fill("응답이 늦어도 자녀를 섞지 않습니다.");
+    const file = { name: "scope.png", mimeType: "image/png", buffer: Buffer.from("scope") };
+    await page.locator(".community-file-picker__input").setInputFiles(file);
+    try {
+      await page.getByRole("button", { name: "질문 보내기", exact: true }).click();
+      await expect.poll(() => harness.posts.length).toBe(1);
+      await children.getByRole("tab", { name: "김바다" }).click();
+      release();
+      await expect.poll(async () => (await readDraft(page, firstKey))?.data.pendingUpload?.postId).toBe(harness.posts[0].id);
+      expect(harness.attachmentAttempts).toHaveLength(0);
+      expect(await readDraft(page, siblingKey)).toBeNull();
+      await children.getByRole("tab", { name: "김하늘" }).click();
+      await openForm(page, "QnA");
+      await expect(page.getByPlaceholder("질문 제목")).toHaveValue("하늘이 첨부 복구");
+      await page.locator(".community-file-picker__input").setInputFiles(file);
+      await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
+      await expect.poll(() => readDraft(page, firstKey)).toBeNull();
+      expect(harness.posts).toHaveLength(1);
+      expect(harness.attachmentAttempts).toMatchObject([{ postId: harness.posts[0].id, studentId: "12" }]);
+    } finally { release(); }
+  });
+
   test("API 실패에는 초안을 유지하고 등록 성공 뒤에만 제거한다", async ({ page }) => {
     const state = { failSubmit: true };
     await installStudentApi(page, state);
