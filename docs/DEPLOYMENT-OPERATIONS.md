@@ -99,6 +99,21 @@ Cloudflare Git production auto-deploy는 direct-upload workflow와 경쟁하면 
 된다. workflow는 project source 설정과 reserved production branch 부재를
 readback하며, drift이면 upload 전에 실패한다.
 
+### 변경 파일 strict lint
+
+`scripts/lint-changed-files.mjs`는 기존 ESLint 설정으로 변경된 `.ts`/`.tsx`를
+경고 0건 기준으로 검사한다. `src`·`e2e`와 함께 루트 설정·`functions`도 포함한다.
+PR은 이벤트의 정확한 base SHA와 검사 중인 merge SHA, push는 `before`와 현재
+SHA를 비교해 여러 커밋을 한 번에 올려도 앞선 변경을 놓치지 않는다. 수동 실행은
+현재 SHA의 첫 부모와 비교한다. checkout SHA 불일치, 잘못된 이벤트/revision,
+Git 조회 실패는 검사 실패이며, 성공한 비교에 대상 파일이 없을 때만 건너뛴다.
+
+이름 변경은 새 경로를 검사하고 삭제된 파일은 제외한다. NUL 구분과 ESLint의
+literal path 입력으로 공백·한글·glob 문자가 들어간 파일명도 그대로 처리한다.
+변경하지 않은 기존 lint 부채는 계속 전체 저장소의 warning-only 결과에 남기며
+신규 변경의 통과 근거로 사용하지 않는다. 회귀 검사는 임시 Git 저장소와 실제
+ESLint로 오류·경고 차단, 정상 변경 성공, 누락된 이력과 경로 처리를 검증한다.
+
 ## 2. 권한과 secret
 
 전역 Cloudflare API key와 `CLOUDFLARE_EMAIL`은 사용하지 않는다.
