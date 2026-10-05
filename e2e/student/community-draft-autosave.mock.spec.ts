@@ -632,7 +632,10 @@ test.describe("학생 커뮤니티 durable draft", () => {
         const original = await readDraft(page, draftKey);
         expect(original.data.pendingUpload.postId).toBe(harness.posts[0].id);
         expect(original.data.pendingUpload.requestKey).toBeTruthy();
-        await page.screenshot({ path: testInfo.outputPath(`upload-recovery-${width}.png`), fullPage: true });
+        await expect(page.locator(".community-upload-recovery")).toHaveCSS("opacity", "1");
+        await page.screenshot({ path: testInfo.outputPath(`upload-recovery-${width}.png`), fullPage: true, animations: "disabled" });
+        await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath(`upload-retry-${width}.png`), fullPage: true, animations: "disabled" });
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
         await page.reload();
