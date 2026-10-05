@@ -2073,15 +2073,53 @@ test.describe("문항별 직접 채점", () => {
     await expect(omrDialog.getByRole("button", { name: "OMR 답안 등록" })).toBeVisible();
     await expect(omrDialog.getByText("등록된 OMR 답안이 없습니다.", { exact: true })).toBeVisible();
 
+    // Exercise the entry transition itself, without relying on CI frame timing.
+    const motionStyle = await page.addStyleTag({ content: ".admin-modal { animation-duration: 4s !important; animation-delay: -1s !important; animation-play-state: paused !important; }" });
     await omrDialog.getByRole("button", { name: "OMR 답안 등록" }).click();
     const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
     await expect(uploadDialog).toBeVisible();
     await expect(uploadDialog.getByText("7월 진단평가", { exact: true })).toBeVisible();
     await expect(uploadDialog.getByText("스캔 파일 선택", { exact: true })).toBeVisible();
+    const closeBounds = await uploadDialog.evaluate((dialog) => {
+      const panel = dialog.closest(".admin-modal") ?? dialog;
+      const animations = panel.getAnimations().filter((animation) =>
+        Number(animation.effect?.getTiming().duration) > 0);
+      const close = Array.from(dialog.querySelectorAll("button")).find((button) => button.textContent?.trim() === "닫기")!;
+      const at = (fraction: number) => {
+        for (const animation of animations) {
+          animation.pause();
+          animation.currentTime = Number(animation.effect!.getTiming().duration) * fraction;
+        }
+        const { x, y, width, height } = close.getBoundingClientRect();
+        return { x, y, width, height };
+      };
+      const early = at(0.25);
+      const late = at(0.75);
+      for (const animation of animations) animation.play();
+      return { count: animations.length, early, late };
+    });
+    expect(closeBounds.count).toBeGreaterThan(0);
+    expect(closeBounds.early).toEqual(closeBounds.late);
+    await motionStyle.evaluate((style) => style.remove());
+    await test.info().attach("omr-upload-desktop", {
+      body: await page.screenshot({ animations: "disabled" }), contentType: "image/png",
+    });
     await uploadDialog.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(omrDialog).toBeVisible();
     await expect(page.getByRole("heading", { name: "OMR 자동채점 결과" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "입력 내용 확인", exact: true })).toHaveCount(0);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await omrDialog.getByRole("button", { name: "OMR 답안 등록" }).click();
+    await expect(uploadDialog).toBeVisible();
+    const mobileBounds = await uploadDialog.boundingBox();
+    expect(mobileBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(mobileBounds!.x + mobileBounds!.width).toBeLessThanOrEqual(390);
+    await test.info().attach("omr-upload-390", {
+      body: await page.screenshot({ animations: "disabled" }), contentType: "image/png",
+    });
+    await uploadDialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(omrDialog).toBeVisible();
   });
 
   test("제출 목록은 안전한 미리보기와 식별 대상 직접 검토·표시 회전을 제공한다", async ({ page }) => {

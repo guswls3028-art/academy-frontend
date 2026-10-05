@@ -721,6 +721,11 @@
   background: var(--scores-ui-border);
 }
 
+/* Keep upload/close hit targets fixed while AntD fades the dialog in/out. */
+.admin-modal.scores-omr-upload-modal {
+  transform: none !important;
+}
+
 .scores-omr-modal__body {
   flex: 1;
   min-height: 0;
