@@ -173,6 +173,8 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   assert.match(prGateConfig, /workers: process\.env\.CI \? 3 : 2/);
   assert.match(prGateConfig, /retries: 0/);
   assert.doesNotMatch(prGateConfig, /fullyParallel:\s*true/);
+  assert.match(prGateConfig, /name: "pr-route-mocks",[\s\S]*?screenshot: "only-on-failure",[\s\S]*?trace: "retain-on-failure",[\s\S]*?video: "off"/);
+  assert.equal((prGateConfig.match(/video: "off"/g) || []).length, 1);
 });
 
 test("runtime assets, lockfile and development gate inputs trigger PR E2E", () => {

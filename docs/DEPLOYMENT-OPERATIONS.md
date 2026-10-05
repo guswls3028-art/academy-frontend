@@ -151,12 +151,12 @@ PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency
 chain으로 직렬 실행한다. 별도 세 job은 API proxy를 `http://127.0.0.1:9`로 닫고
 route-mock 전체 목록을 Playwright의 `--shard=1/3`, `2/3`, `3/3`으로 나눈다.
-전체 project의 `fullyParallel`은 켜지 않는다. 실행 시간이 큰
-`score-entry-autosave.spec.ts`와 `storage-mobile-inventory-move.mock.spec.ts`만
-`test.describe.configure({ mode: "parallel" })`로 파일 안의 독립 테스트를 분산한다.
-각 worker는 자기 mock 상태를 소유한다. 운영 read-only dependency chain과 통제 쓰기
-development suite의 실행 순서는 바꾸지 않는다. 분산 변경 시 전체 목록과 세 shard
-목록의 합집합이 같고 중복이 없는지 확인한다.
+route-mock project는 실패 시 자동 screenshot과 첫 실패 trace를 보존하고,
+성공 후 자동 screenshot과 매 실행의 화면 녹화는 생략한다. 각 테스트가 직접
+촬영하는 UI 증거는 그대로 남긴다. 이 정책은 mock project에만 적용하며 운영
+read-only·WebKit·개발 실사용·수동 UI 검증의 기록 정책과 실행 순서는 유지한다.
+`retain-on-failure` 영상도 매번 녹화한 뒤 성공분을 삭제하므로 이 비용을 피한다.
+기록 옵션의 의미는 [Playwright 정본](https://playwright.dev/docs/test-use-options#recording-options)을 따른다.
 각 실행기는 기존 최대 3 worker를 유지하고, 한 shard가 실패해도 나머지 검사를
 취소하지 않는다. shard 1은 WebKit, production bundle smoke와 theme 검증도 수행한다.
 모든 shard는 Chromium과 해당 native 의존성을 설치하고, WebKit과 그 native 의존성은

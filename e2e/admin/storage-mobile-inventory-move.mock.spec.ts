@@ -2,9 +2,6 @@ import { expect, test, type Page, type Route } from "../fixtures/strictTest";
 import { QueryClient } from "@tanstack/react-query";
 import { readTeacherInventoryQueryGuard, teacherStorageQueryKeys } from "../../src/app_teacher/domains/storage/queryKeys";
 
-// Inventory harnesses belong to each test; parallel workers do not share them.
-test.describe.configure({ mode: "parallel" });
-
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
 
 type WorkspaceRole = "owner" | "admin" | "teacher" | "staff" | "student" | "parent";

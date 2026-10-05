@@ -45,7 +45,14 @@ export default defineConfig({
       name: "pr-route-mocks",
       testMatch: routeMockSpecs.map(matchSpec),
       dependencies: [`pr-readonly-${productionReadOnlySpecs.length}`],
-      use: chromium,
+      use: {
+        ...chromium,
+        // Keep first-failure diagnostics without encoding discarded videos
+        // or taking a second automatic screenshot after every successful test.
+        screenshot: "only-on-failure",
+        trace: "retain-on-failure",
+        video: "off",
+      },
     },
     {
       name: "pr-iphone-webkit",
