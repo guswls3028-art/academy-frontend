@@ -172,6 +172,8 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:mock --reporter=github,html/);
   assert.match(prGateConfig, /workers: process\.env\.CI \? 3 : 2/);
   assert.match(prGateConfig, /retries: 0/);
+  assert.match(prGateConfig, /name: "pr-route-mocks",[\s\S]*?fullyParallel: true,[\s\S]*?testMatch: routeMockSpecs/);
+  assert.equal((prGateConfig.match(/fullyParallel: true/g) || []).length, 1);
 });
 
 test("runtime assets, lockfile and development gate inputs trigger PR E2E", () => {

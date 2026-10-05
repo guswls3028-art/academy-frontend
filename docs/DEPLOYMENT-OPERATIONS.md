@@ -151,6 +151,11 @@ PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency
 chain으로 직렬 실행한다. 별도 세 job은 API proxy를 `http://127.0.0.1:9`로 닫고
 route-mock 전체 목록을 Playwright의 `--shard=1/3`, `2/3`, `3/3`으로 나눈다.
+`pr-route-mocks` project만 `fullyParallel: true`로 설정해 큰 파일 안의 테스트도
+개별 단위로 분산한다. 테스트는 독립 browser/fixture 상태를 소유해야 하며,
+`beforeAll` 자원은 각 worker에서 생성·정리한다. 운영 read-only dependency chain과
+통제 쓰기 development suite의 실행 순서는 바꾸지 않는다. 분산 변경 시 전체 목록과
+세 shard 목록의 합집합이 같고 중복이 없는지 확인한다.
 각 실행기는 기존 최대 3 worker를 유지하고, 한 shard가 실패해도 나머지 검사를
 취소하지 않는다. shard 1은 WebKit, production bundle smoke와 theme 검증도 수행한다.
 모든 shard는 Chromium과 해당 native 의존성을 설치하고, WebKit과 그 native 의존성은

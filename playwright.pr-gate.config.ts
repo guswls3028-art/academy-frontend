@@ -43,6 +43,9 @@ export default defineConfig({
     ...readOnlyProjects,
     {
       name: "pr-route-mocks",
+      // These closed-proxy tests own their browser/fixture state. Split large
+      // files across workers/shards without raising the three-worker CPU cap.
+      fullyParallel: true,
       testMatch: routeMockSpecs.map(matchSpec),
       dependencies: [`pr-readonly-${productionReadOnlySpecs.length}`],
       use: chromium,
