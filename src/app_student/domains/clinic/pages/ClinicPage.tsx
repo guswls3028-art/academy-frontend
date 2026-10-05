@@ -82,12 +82,13 @@ export default function ClinicPage() {
     refetch: refetchSessions,
   } = useQuery({
     queryKey: studentClinicQueryKeys.availableSessionsOnDate(today),
-    queryFn: () => {
+    queryFn: ({ signal }) => {
       const from = new Date(`${today}T00:00:00`);
       const to = new Date(from);
       to.setDate(to.getDate() + 60);
       from.setDate(from.getDate() - 1);
       return fetchAvailableClinicSessions({
+        signal,
         date_from: `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, "0")}-${String(from.getDate()).padStart(2, "0")}`,
         date_to: `${to.getFullYear()}-${String(to.getMonth() + 1).padStart(2, "0")}-${String(to.getDate()).padStart(2, "0")}`,
       });

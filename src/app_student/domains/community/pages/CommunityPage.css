@@ -822,3 +822,21 @@
 .community-skeleton-item--3 {
   opacity: 0.6;
 }
+
+.community-upload-recovery {
+  overflow-wrap: anywhere;
+  animation: community-upload-recovery-in 160ms ease-out;
+}
+
+.community-upload-recovery p {
+  margin: var(--stu-space-2) 0;
+}
+
+@keyframes community-upload-recovery-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .community-upload-recovery { animation: none; }
+}

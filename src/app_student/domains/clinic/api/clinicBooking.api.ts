@@ -3,6 +3,11 @@ import type { ClinicBookingAvailability } from "@/shared/ui/clinic/ClinicActualT
 // 학생 앱 클리닉 예약 API
 
 import api from "@student/shared/api/student.api";
+import { CanceledError } from "axios";
+import sharedApi, { createAuthSessionBoundConfig, getAccessToken } from "@/shared/api/axios";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
+import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 /** DRF Paginated wrapper — list endpoint 가 page_size param 으로 응답할 때. */
@@ -138,6 +143,97 @@ function normalizeClinicBookingRequest(request: ClinicBookingRequest): ClinicBoo
   };
 }
 
+/** Keep every page in one auth/tenant/child scope and publish only a complete list. */
+async function fetchClinicPages<T extends { id: number }>(
+  path: "/clinic/sessions/" | "/clinic/participants/",
+  params: Record<string, string | number>,
+  signal?: AbortSignal,
+): Promise<T[]> {
+  const studentId = getParentStudentId();
+  const tenant = getTenantCodeForApiRequest();
+  const generation = readAuthTokenEnvelopeSafely()?.generation ?? null;
+  // Support-preview windows may use an access token without a normal auth envelope.
+  const unboundAccess = generation === null ? getAccessToken() : null;
+  const assertScope = () => {
+    if (signal?.aborted || getParentStudentId() !== studentId
+      || getTenantCodeForApiRequest() !== tenant
+      || (readAuthTokenEnvelopeSafely()?.generation ?? null) !== generation
+      || (generation === null && getAccessToken() !== unboundAccess)) {
+      throw new CanceledError("조회 대상이 변경되었습니다. 클리닉 정보를 다시 불러와 주세요.");
+    }
+  };
+  const endpoint = new URL(
+    `${(sharedApi.defaults.baseURL ?? "/api/v1").replace(/\/$/, "")}${path}`,
+    window.location.origin,
+  );
+  const rows: T[] = [];
+  const seenIds = new Set<number>();
+  let expectedCount: number | undefined;
+
+  // DRF page-number pagination; refuse a runaway or inconsistent list, never truncate it.
+  for (let page = 1; page <= 500; page += 1) {
+    assertScope();
+    const config = generation === null
+      ? { signal }
+      : createAuthSessionBoundConfig(generation, signal, tenant ?? undefined);
+    const { data } = await api.get<T[] | Paginated<T>>(path, {
+      ...config,
+      params: { ...params, page },
+      headers: { "X-Student-Id": studentId === null ? false : String(studentId) },
+    });
+    assertScope();
+
+    const legacyArray = Array.isArray(data);
+    if (legacyArray ? page !== 1 : !data || !Array.isArray(data.results)) {
+      throw new Error("클리닉 목록 응답 형식이 올바르지 않습니다.");
+    }
+    const pageRows = legacyArray ? data : data.results!;
+    const next = legacyArray ? null : data.next;
+    const count = legacyArray ? undefined : data.count;
+    if (count !== undefined) {
+      if (!Number.isSafeInteger(count) || count < 0
+        || (expectedCount !== undefined && count !== expectedCount)) {
+        throw new Error("클리닉 목록의 전체 개수가 일치하지 않습니다.");
+      }
+      expectedCount = count;
+    }
+    for (const row of pageRows) {
+      if (!row || !Number.isSafeInteger(row.id) || row.id <= 0 || seenIds.has(row.id)) {
+        throw new Error("클리닉 목록에 잘못되거나 중복된 항목이 있습니다.");
+      }
+      seenIds.add(row.id);
+      rows.push(row);
+    }
+    if (next === null || next === undefined) {
+      // Older counted single-page envelopes omit next; their count must prove completeness.
+      if ((next === undefined && (page !== 1 || count === undefined))
+        || (expectedCount !== undefined && rows.length !== expectedCount)) {
+        throw new Error("클리닉 목록을 모두 불러오지 못했습니다. 다시 시도해 주세요.");
+      }
+      return rows;
+    }
+    if (typeof next !== "string" || !next.trim() || pageRows.length === 0
+      || (expectedCount !== undefined && rows.length >= expectedCount)) {
+      throw new Error("클리닉 페이지 연결이 올바르지 않습니다.");
+    }
+    const nextUrl = new URL(next, endpoint);
+    const pageValues = nextUrl.searchParams.getAll("page");
+    if (nextUrl.origin !== endpoint.origin || nextUrl.pathname !== endpoint.pathname
+      || nextUrl.username || nextUrl.password || nextUrl.hash
+      || pageValues.length !== 1 || !/^[1-9]\d*$/.test(pageValues[0])
+      || Number(pageValues[0]) !== page + 1) {
+      throw new Error("클리닉 페이지 연결이 올바르지 않습니다.");
+    }
+    for (const [key, value] of nextUrl.searchParams) {
+      if (key !== "page" && (!Object.prototype.hasOwnProperty.call(params, key) || String(params[key]) !== value)) {
+        throw new Error("클리닉 페이지의 조회 범위가 변경되었습니다.");
+      }
+    }
+    // Only the verified page number advances. Never send next's URL or filters to the client.
+  }
+  throw new Error("클리닉 목록이 너무 많아 모두 불러오지 못했습니다. 다시 시도해 주세요.");
+}
+
 /**
  * 예약 가능한 클리닉 세션 목록 조회
  * GET /clinic/sessions/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
@@ -146,6 +242,7 @@ function normalizeClinicBookingRequest(request: ClinicBookingRequest): ClinicBoo
 export async function fetchAvailableClinicSessions(params?: {
   date_from?: string;
   date_to?: string;
+  signal?: AbortSignal;
 }): Promise<ClinicSession[]> {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -157,19 +254,15 @@ export async function fetchAvailableClinicSessions(params?: {
   const dateFrom = params?.date_from || todayStr;
   const dateTo = params?.date_to || futureStr;
 
-  const res = await api.get<ClinicSession[] | Paginated<ClinicSession>>("/clinic/sessions/", {
-    params: {
+  const sessions = await fetchClinicPages<ClinicSession>(
+    "/clinic/sessions/",
+    {
       date_from: dateFrom,
       date_to: dateTo,
       page_size: 200,
     },
-  });
-
-  const sessions: ClinicSession[] = Array.isArray(res.data)
-    ? res.data
-    : Array.isArray(res.data?.results)
-    ? res.data.results
-    : [];
+    params?.signal,
+  );
 
   return sessions.map(normalizeClinicSession);
 }
@@ -179,17 +272,12 @@ export async function fetchAvailableClinicSessions(params?: {
  * GET /clinic/participants/
  * 백엔드에서 자동으로 현재 로그인한 학생의 예약만 반환
  */
-export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingRequest[]> {
-  const res = await api.get<ClinicParticipantRaw[] | Paginated<ClinicParticipantRaw>>(
+export async function fetchMyClinicBookingRequests(options?: { signal?: AbortSignal }): Promise<ClinicBookingRequest[]> {
+  const participants = await fetchClinicPages<ClinicParticipantRaw>(
     "/clinic/participants/",
-    { params: { page_size: 200 } },
+    { page_size: 200 },
+    options?.signal,
   );
-
-  const participants: ClinicParticipantRaw[] = Array.isArray(res.data)
-    ? res.data
-    : Array.isArray(res.data?.results)
-    ? res.data.results
-    : [];
 
   // 예약 신청 상태인 것만 필터링 (pending, booked 등)
   return participants

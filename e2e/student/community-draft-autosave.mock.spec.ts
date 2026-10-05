@@ -22,10 +22,12 @@ function fakeJwt(): string {
 
 async function installStudentApi(
   page: Page,
-  state: { failSubmit?: boolean; failAttachment?: boolean; parent?: boolean } = {},
+  state: { failSubmit?: boolean; failAttachment?: boolean; commitAttachmentThenFail?: boolean; parent?: boolean } = {},
 ) {
   const token = fakeJwt();
   const posts: Array<Record<string, unknown>> = [];
+  const attachmentAttempts: Array<{ postId: number; key: string; studentId?: string }> = [];
+  const batches = new Map<string, Array<Record<string, unknown>>>();
   const writeHeaders: Array<{ studentId?: string; body: Record<string, unknown> }> = [];
   await page.addInitScript(({ jwt }) => {
     localStorage.setItem("access", jwt);
@@ -106,12 +108,27 @@ async function installStudentApi(
       return json(post, 201);
     }
     if (path.endsWith("/attachments/") && request.method() === "POST") {
+      const body = request.postDataBuffer()?.toString("utf8") ?? "";
+      const key = body.match(/name="idempotency_key"\r\n\r\n([^\r\n]+)/)?.[1] ?? "";
+      const postId = Number(path.match(/posts\/(\d+)\/attachments/)?.[1]);
+      attachmentAttempts.push({ postId, key, studentId: request.headers()["x-student-id"] });
       if (state.failAttachment) return json({ detail: "첨부 업로드 실패" }, 503);
-      return json([], 201);
+      const batchKey = `${postId}:${key}`;
+      const attachments = batches.get(batchKey) ?? [...body.matchAll(/filename="([^"]+)"/g)].map((match, index) => ({
+        id: 500 + index, original_name: match[1], content_type: "image/png", size_bytes: 11,
+      }));
+      batches.set(batchKey, attachments);
+      const post = posts.find((item) => item.id === postId);
+      if (post) post.attachments = attachments;
+      if (state.commitAttachmentThenFail) {
+        state.commitAttachmentThenFail = false;
+        return json({ detail: "첨부 결과 응답 유실" }, 503);
+      }
+      return json(attachments, 201);
     }
     return json({ count: 0, next: null, previous: null, results: [] });
   });
-  return { writeHeaders };
+  return { writeHeaders, posts, attachmentAttempts };
 }
 
 async function openForm(page: Page, tab: "QnA" | "상담") {
@@ -532,22 +549,82 @@ test.describe("학생 커뮤니티 durable draft", () => {
     await expect.poll(() => readDraft(page, QNA_KEY)).toBeNull();
   });
 
-  test("게시글 성공 후 첨부 업로드만 실패해도 제출된 초안은 제거한다", async ({ page }) => {
-    const state = { failAttachment: true };
-    await installStudentApi(page, state);
-    await openForm(page, "QnA");
-    await page.getByPlaceholder("질문 제목").fill("첨부 부분 실패 초안");
-    await page.locator(".ProseMirror").fill("게시글은 이미 생성되었습니다.");
-    await page.locator(".community-file-picker__input").setInputFiles({
-      name: "partial.png",
-      mimeType: "image/png",
-      buffer: Buffer.from("partial-file"),
-    });
-    await flushPageDraft(page);
-    expect(await readDraftTitle(page)).toBe("첨부 부분 실패 초안");
+  for (const width of [1366, 390]) {
+    for (const tab of ["QnA", "상담"] as const) {
+      test(`${width}px ${tab}: 첨부 실패를 reload 후 같은 글·키로 복구한다`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 844 });
+        const state = { failAttachment: true };
+        const harness = await installStudentApi(page, state);
+        const draftKey = tab === "QnA" ? QNA_KEY : COUNSEL_KEY;
+        const titleInput = page.getByPlaceholder(tab === "QnA" ? "질문 제목" : "예: 진로 상담, 학습 방법 상담");
+        const submitLabel = tab === "QnA" ? "질문 보내기" : "상담 신청하기";
+        const file = { name: "partial.png", mimeType: "image/png", buffer: Buffer.from("partial-file") };
+        await openForm(page, tab);
+        await titleInput.fill("첨부 복구 질문");
+        await page.locator(".ProseMirror").fill("이미 저장한 글의 첨부만 복구합니다.");
+        await page.locator(".community-file-picker__input").setInputFiles(file);
+        await page.getByRole("button", { name: submitLabel, exact: true }).click();
+        await expect(page.getByRole("alert")).toContainText("첨부 업로드 실패");
+        await expect(titleInput).toHaveAttribute("readonly", "");
+        expect(harness.posts).toHaveLength(1);
+        const original = await readDraft(page, draftKey);
+        expect(original.data.pendingUpload.postId).toBe(harness.posts[0].id);
+        expect(original.data.pendingUpload.requestKey).toBeTruthy();
+        await page.screenshot({ path: testInfo.outputPath(`upload-recovery-${width}.png`), fullPage: true });
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
+        await page.reload();
+        await openForm(page, tab);
+        await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeDisabled();
+        await expect(titleInput).toHaveValue("첨부 복구 질문");
+        await page.locator(".community-file-picker__input").setInputFiles(file);
+        state.failAttachment = false;
+        await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
+        await expect.poll(() => readDraft(page, draftKey)).toBeNull();
+        await expect(page.getByText("첨부 복구 질문", { exact: true })).toBeVisible();
+        expect(harness.posts).toHaveLength(1);
+        expect(harness.posts[0].attachments).toHaveLength(1);
+        expect(harness.attachmentAttempts).toHaveLength(2);
+        expect(harness.attachmentAttempts[0].key).toBe(original.data.pendingUpload.requestKey);
+        expect(harness.attachmentAttempts[1]).toEqual(harness.attachmentAttempts[0]);
+      });
+    }
+  }
+
+  test("첨부 응답 유실 뒤 10개 파일을 중복 없이 재시도한다", async ({ page }) => {
+    const state = { commitAttachmentThenFail: true };
+    const harness = await installStudentApi(page, state);
+    await openForm(page, "QnA");
+    await page.getByPlaceholder("질문 제목").fill("열 개 첨부 응답 유실");
+    await page.locator(".ProseMirror").fill("파일 수와 멱등성 키를 유지합니다.");
+    const files = Array.from({ length: 10 }, (_, index) => ({
+      name: `question-${index}.png`, mimeType: "image/png", buffer: Buffer.from(`file-${index}`),
+    }));
+    await page.locator(".community-file-picker__input").setInputFiles(files);
     await page.getByRole("button", { name: "질문 보내기", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("첨부 결과 응답 유실");
+    expect((await readDraft(page, QNA_KEY)).data.pendingUpload.attachments).toHaveLength(10);
+    expect(harness.posts[0].attachments).toHaveLength(10);
+    await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
     await expect.poll(() => readDraft(page, QNA_KEY)).toBeNull();
+    expect(harness.posts).toHaveLength(1);
+    expect(harness.posts[0].attachments).toHaveLength(10);
+    expect(harness.attachmentAttempts[1]).toEqual(harness.attachmentAttempts[0]);
+  });
+
+  test("첨부 복구를 명시적으로 끝내도 저장한 글을 삭제하거나 다시 만들지 않는다", async ({ page }) => {
+    const harness = await installStudentApi(page, { failAttachment: true });
+    await openForm(page, "QnA");
+    await page.getByPlaceholder("질문 제목").fill("저장된 본문 유지");
+    await page.locator(".ProseMirror").fill("첨부 재시도만 종료합니다.");
+    await page.locator(".community-file-picker__input").setInputFiles({ name: "partial.png", mimeType: "image/png", buffer: Buffer.from("file") });
+    await page.getByRole("button", { name: "질문 보내기", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("첨부 업로드 실패");
+    await page.getByRole("button", { name: "저장된 내용으로 마치기", exact: true }).click();
+    await expect.poll(() => readDraft(page, QNA_KEY)).toBeNull();
+    await expect(page.getByText("저장된 본문 유지", { exact: true })).toBeVisible();
+    expect(harness.posts).toHaveLength(1);
+    expect(harness.attachmentAttempts).toHaveLength(1);
   });
 
   for (const width of [1366, 390]) {

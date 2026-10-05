@@ -41,7 +41,7 @@ type DurableDraftResult<T> = {
   keepCurrentDraft: () => void;
   clearDraft: () => void;
   markSubmitted: () => void;
-  flush: () => void;
+  flush: (snapshot?: T) => void;
   retrySave: () => void;
 };
 
@@ -149,8 +149,10 @@ export function useDurableDraft<T>({
     }
   }, [clearTimers, failStorage]);
 
-  const flush = useCallback(() => {
+  const flush = useCallback((snapshot?: T) => {
     clearTimers();
+    // A server-confirmed transition must survive navigation before React renders.
+    if (snapshot !== undefined) valueRef.current = snapshot;
     if (!suppressFlushRef.current && !conflictRef.current) writeValue(valueRef.current);
   }, [clearTimers, writeValue]);
 
