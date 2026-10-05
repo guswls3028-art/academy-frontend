@@ -13,6 +13,10 @@
   --ui-work-border:      var(--color-border-divider);
   --ui-work-header-bg:   var(--bg-surface-soft);
 
+  /* PRIMARY / HERO */
+  --ui-hero-bg: var(--layer-focus-bg);
+  --ui-hero-border: var(--color-border-selected);
+
   /* META */
   --ui-meta-bg:     var(--layer-card-bg);
   --ui-meta-border: var(--color-border-divider);

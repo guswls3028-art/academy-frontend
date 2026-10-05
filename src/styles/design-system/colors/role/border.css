@@ -1,7 +1,8 @@
 /* PATH: src/styles/design-system/colors/role/border.css */
 /* Border Role Tokens (FIXED) */
 
-:root {
+:root,
+.theme-preview {
   --color-border-default:  var(--scale-Neutral300);
   --color-border-strong:   var(--scale-Neutral500);
   --color-border-subtle:   var(--scale-Neutral200);

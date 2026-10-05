@@ -7,9 +7,6 @@ import { useTheme } from "@/shared/contexts/ThemeContext";
 import ThemeGrid from "../components/ThemeGrid";
 import { THEMES } from "../constants/themes";
 
-// ✅ preview tokens (SSOT)
-import "@/styles/design-system/colors/preview-theme.css";
-import "@/styles/design-system/colors/preview-scope.css";
 
 export default function SettingsPage() {
   const { theme: currentTheme, setTheme } = useTheme();
@@ -58,7 +55,6 @@ export default function SettingsPage() {
             <ThemeGrid
               themes={THEMES}
               currentTheme={currentTheme}
-              previewTheme={currentTheme}
               onSelect={setTheme}
             />
           </div>

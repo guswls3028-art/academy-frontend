@@ -33,7 +33,7 @@ function Icon({ tone }: { tone: EmptyStateTone }) {
 }
 
 export default function EmptyState({
-  title = "데이터가 없습니다",
+  title,
   description,
   tone = "empty",
   scope = "panel",
@@ -44,6 +44,7 @@ export default function EmptyState({
   className,
 }: EmptyStateProps) {
   const isError = tone === "error";
+  const resolvedTitle = title ?? (tone === "loading" ? "불러오는 중입니다" : isError ? "불러오지 못했습니다" : "데이터가 없습니다");
 
   const content = (
     <div
@@ -61,7 +62,7 @@ export default function EmptyState({
         </div>
       )}
 
-      <div className="ds-empty__title">{title}</div>
+      <div className="ds-empty__title">{resolvedTitle}</div>
       {!!description && <div className="ds-empty__description">{description}</div>}
       {!!actions && <div className="ds-empty__actions">{actions}</div>}
       {!!extra && <div className="ds-empty__extra">{extra}</div>}

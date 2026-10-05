@@ -1,36 +1,24 @@
-// PATH: src/app_admin/domains/settings/components/ThemeGrid.tsx
 import type { ThemeKey, ThemeMeta } from "../constants/themes";
 import ThemeCard from "./ThemeCard";
 import styles from "./ThemeGrid.module.css";
 
 type Props = {
   themes: ThemeMeta[];
-  currentTheme: ThemeKey; // server current
-  previewTheme: ThemeKey; // ui preview
+  currentTheme: ThemeKey;
   isApplying?: boolean;
   onSelect: (key: ThemeKey) => void;
 };
 
-export default function ThemeGrid({
-  themes,
-  currentTheme,
-  previewTheme,
-  isApplying,
-  onSelect,
-}: Props) {
-  const dirty = previewTheme !== currentTheme;
-
+export default function ThemeGrid({ themes, currentTheme, isApplying, onSelect }: Props) {
   return (
     <div className={styles.grid}>
-      {themes.map((t) => (
+      {themes.map((theme) => (
         <ThemeCard
-          key={t.key}
-          theme={t}
-          selected={t.key === currentTheme}
-          previewed={t.key === previewTheme}
-          dirty={dirty}
+          key={theme.key}
+          theme={theme}
+          selected={theme.key === currentTheme}
           disabled={isApplying}
-          onSelect={() => onSelect(t.key)}
+          onSelect={() => onSelect(theme.key)}
         />
       ))}
     </div>

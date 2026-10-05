@@ -1,7 +1,0 @@
-/* PATH: src/styles/design-system/surface/card.css */
-/* Card Surface — KPI / List / Board */
-
-:root {
-  --surface-card-bg: var(--color-bg-surface);
-  --surface-card-soft-bg: var(--color-bg-surface-hover);
-}

@@ -8,7 +8,8 @@
 /* ---------------------------------------------------------
    Base mapping (fallback)
 --------------------------------------------------------- */
-:root {
+:root,
+.theme-preview {
   /* Layout Area */
   --layout-canvas-bg: var(--color-bg-canvas);
   --layout-page-bg: color-mix(in srgb, var(--color-bg-canvas) 92%, var(--color-bg-surface));
