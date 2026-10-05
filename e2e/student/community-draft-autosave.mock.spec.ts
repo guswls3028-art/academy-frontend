@@ -145,7 +145,11 @@ async function openForm(page: Page, tab: "QnA" | "상담") {
 }
 
 async function flushPageDraft(page: Page) {
-  await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+  await page.evaluate(() => {
+    // The harness continues editing this document after checking its exit flush.
+    window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true }));
+    window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+  });
 }
 
 async function readDraft(page: Page, key: string) {

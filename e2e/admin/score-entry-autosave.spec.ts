@@ -1073,16 +1073,20 @@ for (const width of [1366, 390]) {
         await page.waitForTimeout(200);
         expect(exits()).toHaveLength(0);
       } finally {
+        // Resume this harness document after the synthetic exit assertion.
+        await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: false })));
         releaseHeldPresenceDraftPut?.();
       }
       await expect.poll(() => currentServerActiveCell?.enrollmentId).toBe(9202);
       await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true })));
+      await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
       await input.fill("21");
       await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false })));
       // eslint-disable-next-line no-restricted-syntax -- dirty cell and bfcache exit must not schedule a release.
       await page.waitForTimeout(200);
       expect(exits()).toHaveLength(0);
       await expect(input).toHaveText("21");
+      await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: false })));
       await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
       await expect.poll(() => currentHomeworkScores[1]).toBe(21);
       await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();

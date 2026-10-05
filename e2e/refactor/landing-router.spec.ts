@@ -344,7 +344,10 @@ test.describe("landing route island", () => {
       mimeType: "image/png",
       buffer: Buffer.from("landing-bytes"),
     });
-    await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+    await page.evaluate(() => {
+      window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true }));
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+    });
 
     await expect.poll(() => page.evaluate(() => {
       const raw = localStorage.getItem("landing-community-draft:board:dnb:user:12");
@@ -390,7 +393,11 @@ test.describe("landing route island", () => {
     const title = page.getByTestId("landing-community-write-title");
     await title.fill("이전 저장본");
     await page.getByTestId("landing-community-write-content").fill("빠른 제출 본문");
-    await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+    await page.evaluate(() => {
+      // Resume the simulated cached document before submitting through its API.
+      window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true }));
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+    });
     expect(await page.evaluate((draftKey) => JSON.parse(localStorage.getItem(draftKey) || "null")?.data.title, key)).toBe("이전 저장본");
     const now = Date.now();
     await page.clock.install({ time: now });
