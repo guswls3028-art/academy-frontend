@@ -9,6 +9,7 @@ import LectureExamGroup, { type ExamGroup } from "./LectureExamGroup";
 import LectureHwGroup, { type HwGroup } from "./LectureHwGroup";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "../api/grades.api";
 import styles from "./GradesHomeTab.module.css";
+import { gradeLectureKey } from "../utils/gradeStats";
 
 type SubTab = "exams" | "homework";
 type SortMode = "lecture" | "recent";
@@ -17,14 +18,12 @@ type HomeworkSortMode = "session_desc" | "session_asc" | "recent";
 type HomeworkStatusFilter = "all" | "todo" | "done";
 type HomeworkSessionScope = "all" | "REGULAR" | "SUPPLEMENT";
 
-const UNGROUPED_KEY = "__ungrouped__";
-
 /* ── Grouping helpers ── */
 
 function groupExams(exams: MyExamGradeSummary[]): ExamGroup[] {
   const map = new Map<string, MyExamGradeSummary[]>();
   for (const e of exams) {
-    const key = e.lecture_title ?? UNGROUPED_KEY;
+    const key = gradeLectureKey(e);
     const arr = map.get(key);
     if (arr) arr.push(e);
     else map.set(key, [e]);
@@ -37,12 +36,7 @@ function groupExams(exams: MyExamGradeSummary[]): ExamGroup[] {
   }
   const groups: ExamGroup[] = [];
   for (const [key, items] of map) {
-    if (key === UNGROUPED_KEY) continue;
-    groups.push({ key, label: key, exams: items, avgPct: calcAvgPct(items) });
-  }
-  const ungrouped = map.get(UNGROUPED_KEY);
-  if (ungrouped) {
-    groups.push({ key: UNGROUPED_KEY, label: "기타 시험", exams: ungrouped, avgPct: calcAvgPct(ungrouped) });
+    groups.push({ key, label: items[0].lecture_title ?? "기타 시험", exams: items, avgPct: calcAvgPct(items) });
   }
   return groups;
 }
@@ -50,27 +44,18 @@ function groupExams(exams: MyExamGradeSummary[]): ExamGroup[] {
 function groupHomeworks(homeworks: MyHomeworkGradeSummary[]): HwGroup[] {
   const map = new Map<string, MyHomeworkGradeSummary[]>();
   for (const h of homeworks) {
-    const key = h.lecture_title ?? UNGROUPED_KEY;
+    const key = gradeLectureKey(h);
     const arr = map.get(key);
     if (arr) arr.push(h);
     else map.set(key, [h]);
   }
   const groups: HwGroup[] = [];
   for (const [key, items] of map) {
-    if (key === UNGROUPED_KEY) continue;
     const withMax = items.filter((h) => h.score != null && h.max_score != null && h.max_score > 0);
     const avgPct = withMax.length > 0
       ? Math.round(withMax.reduce((s, h) => s + (h.score! / h.max_score!) * 100, 0) / withMax.length)
       : null;
-    groups.push({ key, label: key, homeworks: items, avgPct });
-  }
-  const ungrouped = map.get(UNGROUPED_KEY);
-  if (ungrouped) {
-    const withMax = ungrouped.filter((h) => h.score != null && h.max_score != null && h.max_score > 0);
-    const avgPct = withMax.length > 0
-      ? Math.round(withMax.reduce((s, h) => s + (h.score! / h.max_score!) * 100, 0) / withMax.length)
-      : null;
-    groups.push({ key: UNGROUPED_KEY, label: "기타 과제", homeworks: ungrouped, avgPct });
+    groups.push({ key, label: items[0].lecture_title ?? "기타 과제", homeworks: items, avgPct });
   }
   return groups;
 }

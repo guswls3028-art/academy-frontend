@@ -1,4 +1,3 @@
-import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
@@ -86,8 +85,8 @@ export function isStudentCommunityDraftEmpty(value: StudentCommunityDraftData): 
     && !value.pendingUpload;
 }
 
-export function communityDraftStorageKey(kind: "qna" | "counsel", userId: number | undefined, parent: boolean): string | null {
-  const childScope = parent ? `:student-${getParentStudentId() ?? "unselected"}` : "";
+export function communityDraftStorageKey(kind: "qna" | "counsel", userId: number | undefined, parent: boolean, childId: number | null): string | null {
+  const childScope = parent ? `:student-${childId ?? "unselected"}` : "";
   return getTenantUserLocalKey(`student-community-draft:${kind}${childScope}`, userId);
 }
 

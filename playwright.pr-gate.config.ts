@@ -60,6 +60,7 @@ export default defineConfig({
         matchSpec("e2e/godmin-resources.mock.spec.ts"),
         matchSpec("e2e/auth/iphone-safari-login.mock.spec.ts"),
         matchSpec("e2e/auth/safari-browser-support.mock.spec.ts"),
+        matchSpec("e2e/shared/api-document-exit.mock.spec.ts"),
         matchSpec("e2e/admin/community-workspace-polish.mock.spec.ts"),
       ],
       dependencies: [],

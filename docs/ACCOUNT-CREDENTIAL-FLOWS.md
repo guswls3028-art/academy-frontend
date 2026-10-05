@@ -191,6 +191,11 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 - dev impersonation은 원래 token pair를 공용 backup envelope에 보존하고, 시작과 복귀
   모두 fresh generation으로 게시한다. 복귀 뒤 impersonation 이전 generation의 지연
   응답이나 replay는 다시 유효해지지 않는다.
+- 새로고침·로그아웃 이동으로 `pagehide`가 발생하면 일반 API 요청은 토큰 갱신 대기
+  이후에도 전송 전에 취소한다. BFCache의 `pageshow` 이후 새 요청은 허용하지만,
+  떠난 문서 세대에서 대기하던 요청은 되살리지 않는다. 이 취소로 인증 정보를 지우지
+  않으며, 명시적으로 검증된 영상 재생 종료 keepalive와 빈 점수 초안 해제는 유지한다.
+  `e2e/shared/api-document-exit.mock.spec.ts`가 Chromium·WebKit에서 이 경계를 검증한다.
 - `must_change_password=true`는 owner·student·parent의 권장 UI 상태일 뿐이다.
   프론트는 허용된 원래 화면을 먼저 렌더링하고 모달에
   `위험을 이해했고 나중에` 선택을 제공한다. 직원 역할에는 이 모달을 표시하지

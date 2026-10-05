@@ -5,6 +5,7 @@ import {
   calculateHomeworkStats,
   calculateWeakestLecture,
   getExamPassStatus,
+  gradeLectureKey,
 } from "../../src/app_student/domains/grades/utils/gradeStats.ts";
 
 const exam = (overrides = {}) => ({
@@ -110,13 +111,13 @@ test("weakest lecture excludes unjudged scores from its pass denominator", () =>
     exam({ total_score: 10 }),
     exam({ total_score: 20 }),
     exam({ total_score: 60, is_pass: true }),
-    exam({ total_score: 90, is_pass: true, lecture_title: "영어" }),
+    exam({ total_score: 90, is_pass: true, lecture_title: "영어", enrollment_id: 2 }),
   ];
   assert.deepEqual(calculateWeakestLecture(exams, false), { name: "수학", avg: 30, passRate: 100 });
 });
 
 test("weakest lecture retains low scores with an unknown judgment or a real failure", () => {
-  const otherLecture = exam({ total_score: 90, is_pass: true, lecture_title: "영어" });
+  const otherLecture = exam({ total_score: 90, is_pass: true, lecture_title: "영어", enrollment_id: 2 });
   assert.deepEqual(calculateWeakestLecture([exam({ total_score: 0 }), otherLecture], false), {
     name: "수학", avg: 0, passRate: null,
   });
@@ -128,7 +129,7 @@ test("weakest lecture shares remediated and correction-status judgments with the
   const exams = [
     exam({ total_score: 20, achievement: "REMEDIATED", is_pass: false, correction_status: "COMPLETED" }),
     exam({ total_score: 30, correction_status: null }),
-    exam({ total_score: 90, lecture_title: "영어", correction_status: "NOT_REQUIRED" }),
+    exam({ total_score: 90, lecture_title: "영어", correction_status: "NOT_REQUIRED", enrollment_id: 2 }),
   ];
   assert.equal(calculateWeakestLecture(exams, false).passRate, 100);
   assert.equal(calculateWeakestLecture(exams, true).passRate, 100);
@@ -138,4 +139,20 @@ test("empty inputs keep summary sections absent", () => {
   assert.equal(calculateExamStats([], false), null);
   assert.equal(calculateHomeworkStats([]), null);
   assert.equal(calculateWeakestLecture([], false), null);
+});
+
+test("same-title lectures keep independent averages and weakness judgments", () => {
+  const exams = [
+    exam({ lecture_id: 1, total_score: 20, is_pass: false }),
+    exam({ lecture_id: 2, enrollment_id: 2, total_score: 100, is_pass: true }),
+  ];
+  assert.deepEqual(calculateWeakestLecture(exams, false), { name: "수학", avg: 20, passRate: 0 });
+  assert.notEqual(gradeLectureKey(exams[0]), gradeLectureKey(exams[1]));
+  assert.equal(gradeLectureKey(exams[0]), gradeLectureKey(homework({ lecture_id: 1 })));
+});
+
+test("legacy grades use enrollment identity and renamed lecture labels do not split a course", () => {
+  assert.notEqual(gradeLectureKey(exam()), gradeLectureKey(exam({ enrollment_id: 2 })));
+  const exams = [exam({ lecture_id: 1, total_score: 20 }), exam({ lecture_id: 1, lecture_title: "새 이름", total_score: 40 })];
+  assert.equal(calculateWeakestLecture(exams, false), null);
 });

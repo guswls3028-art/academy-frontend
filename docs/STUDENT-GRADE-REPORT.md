@@ -148,6 +148,14 @@ YMath의 초기 구성은 `score_trend`, `score_comparison`, `lecture_average`�
 
 ## 구현과 검증
 
+시험·과제 목록, 약점 강좌와 강좌별 평균은 표시 이름 대신 `lecture_id`로 묶는다.
+공백·서식 정리 후 이름이 같아진 다른 강좌의 성적도 합치지 않으며, 구응답은
+`enrollment_id`로 구분한다. 원문 이름의 tenant 내 유일성은 서버가 계속 보장한다.
+서버 분석의 두 ID가 없는 구응답도 렌더링을 유지한다. 묶음 평균은 서로 다른 만점을
+백분율로 환산한 값이므로 `평균 득점률 %`로 표시하고 개별 원점수/만점은 보존한다.
+동명 강좌와 만점 차이, 재조회, 데스크톱·390px은 `student-score-trend.spec.ts`,
+약점 통계와 구응답 호환은 `scripts/tests/grade-stats.test.mjs`에서 검증한다.
+
 - 설정 계약: `src/shared/api/contracts/studentGradeReportLayout.ts`
 - 구성 편집기: `src/shared/ui/assessment/StudentGradeReportLayoutEditor.tsx`
 - 학생 목록 상태: `src/app_student/domains/grades/components/LectureExamGroup.tsx`

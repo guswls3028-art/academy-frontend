@@ -6,6 +6,7 @@ import axios, {
   AxiosRequestConfig,
   AxiosResponse,
   type AxiosHeaderValue,
+  type InternalAxiosRequestConfig,
 } from "axios";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
@@ -41,6 +42,7 @@ type RetryConfig = ApiRequestConfig & {
   _transientRetryCount?: number;
   _authGeneration?: string | null;
   _expectedTenant?: string;
+  _documentGeneration?: number;
 };
 
 /** AllowAny 엔드포인트(예: /core/program/) 호출 시 만료 토큰 401 방지 */
@@ -92,6 +94,27 @@ type AuthAccessResult = {
 type HeaderSeed = AxiosHeaders | Record<string, AxiosHeaderValue> | string | undefined;
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();
+
+let documentGeneration = 0;
+let documentExited = false;
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => {
+    documentExited = true;
+    documentGeneration += 1;
+  });
+  window.addEventListener("pageshow", () => { documentExited = false; });
+}
+
+function requireActiveRequestDocument(config: InternalAxiosRequestConfig): void {
+  const retryConfig = config as RetryConfig;
+  // Playback completion has a separately validated keepalive transport below.
+  if (retryConfig.playbackUnload === true) return;
+  if (documentExited || (retryConfig._documentGeneration !== undefined
+    && retryConfig._documentGeneration !== documentGeneration)) {
+    throw new axios.CanceledError("Request document has exited.", config);
+  }
+  retryConfig._documentGeneration = documentGeneration;
+}
 
 export function getAccessToken(): string | null {
   if (isStudentSupportWindow()) return getStudentSupportAccessToken();
@@ -408,6 +431,7 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(async (config) => {
   const cfg = config;
   const retryCfg = cfg as RetryConfig;
+  requireActiveRequestDocument(cfg);
   const unloading = retryCfg.playbackUnload === true;
   if (retryCfg.playbackUnload !== undefined) {
     if (retryCfg.playbackUnload !== true || String(cfg.method).toLowerCase() !== "post"
@@ -464,6 +488,10 @@ api.interceptors.request.use(async (config) => {
       }
     }
   }
+
+  // The token await can resume after pagehide, including after a BFCache restore.
+  // Do not let an old document start XHR against a discarded WebKit context.
+  requireActiveRequestDocument(cfg);
 
   // Optional operational headers
   setRequestHeader(cfg, "X-Client", "academyfront");

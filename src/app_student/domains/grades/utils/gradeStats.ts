@@ -1,5 +1,9 @@
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "../api/grades.api";
 
+export function gradeLectureKey(grade: Pick<MyExamGradeSummary, "lecture_id" | "enrollment_id">): string {
+  return grade.lecture_id != null ? `lecture:${grade.lecture_id}` : `enrollment:${grade.enrollment_id}`;
+}
+
 // 원점수와 최종 판정은 독립적이다. 미판정을 불합격으로 집계하지 않는다.
 export function getExamPassStatus(exam: MyExamGradeSummary, wrongCompletionOnly: boolean): boolean | null {
   if (exam.achievement === "NOT_SUBMITTED" || exam.meta_status === "NOT_SUBMITTED") return null;
@@ -51,11 +55,11 @@ export function calculateHomeworkStats(homeworks: MyHomeworkGradeSummary[]) {
 }
 
 export function calculateWeakestLecture(exams: MyExamGradeSummary[], wrongCompletionOnly: boolean) {
-  const byLecture = new Map<string, { judged: number; pass: number; scores: number[] }>();
+  const byLecture = new Map<string, { name: string; judged: number; pass: number; scores: number[] }>();
   for (const exam of exams) {
     if (!exam.lecture_title || exam.total_score == null || exam.max_score <= 0) continue;
-    const key = exam.lecture_title;
-    if (!byLecture.has(key)) byLecture.set(key, { judged: 0, pass: 0, scores: [] });
+    const key = gradeLectureKey(exam);
+    if (!byLecture.has(key)) byLecture.set(key, { name: exam.lecture_title, judged: 0, pass: 0, scores: [] });
     const entry = byLecture.get(key)!;
     const status = getExamPassStatus(exam, wrongCompletionOnly);
     if (status != null) entry.judged += 1;
@@ -63,9 +67,9 @@ export function calculateWeakestLecture(exams: MyExamGradeSummary[], wrongComple
     entry.scores.push((exam.total_score / exam.max_score) * 100);
   }
   if (byLecture.size < 2) return null;
-  const lectureStats = Array.from(byLecture.entries())
-    .map(([name, data]) => ({
-      name: name.length > 8 ? name.slice(0, 8) + "\u2026" : name,
+  const lectureStats = Array.from(byLecture.values())
+    .map((data) => ({
+      name: data.name.length > 8 ? data.name.slice(0, 8) + "\u2026" : data.name,
       avg: Math.round(data.scores.reduce((sum, value) => sum + value, 0) / data.scores.length),
       passRate: data.judged > 0 ? Math.round((data.pass / data.judged) * 100) : null,
     }))

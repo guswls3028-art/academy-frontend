@@ -145,7 +145,7 @@ function LectureGroupHeader({ label, count, avgPct }: { label: string; count: nu
       <div className={styles.groupTitleBlock}>
         <div className={styles.groupTitle}>{label}</div>
         <div className={`stu-muted ${styles.groupMeta}`}>
-          {count}건{avgPct != null ? ` · 평균 ${avgPct}점` : ""}
+          {count}건{avgPct != null ? ` · 평균 득점률 ${avgPct}%` : ""}
         </div>
       </div>
     </div>

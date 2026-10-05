@@ -739,6 +739,13 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const { user } = useAuth();
   const profileQ = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
   const profile = profileQ.data;
+  const [draftChildId] = useState(getParentStudentId);
+  const draftStorageKeyRef = useRef<string | null>(null);
+  // A late submit response still belongs to the form's original owner, even
+  // between a child-header change and this form's route unmount.
+  if (draftStorageKeyRef.current == null && profile) {
+    draftStorageKeyRef.current = communityDraftStorageKey("qna", user?.id, Boolean(profile.isParentReadOnly), draftChildId);
+  }
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]); // 파일 객체는 직렬화 불가 — 보존 안 함
@@ -762,7 +769,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
     pendingUpload,
   }), [attachmentMeta, attachmentReselectRequired, categoryLabel, content, pendingUpload, title]);
   const qnaDraft = useDurableDraft({
-    storageKey: communityDraftStorageKey("qna", user?.id, Boolean(profile?.isParentReadOnly)),
+    storageKey: draftStorageKeyRef.current,
     value: qnaDraftValue,
     isEmpty: isStudentCommunityDraftEmpty,
     isValid: isStudentCommunityDraftData,
@@ -802,6 +809,9 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const mutation = useMutation({
     mutationFn: async () => {
       if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
+      if (getParentStudentId() !== draftChildId) {
+        throw new Error("자녀 선택이 변경되었습니다. 원래 자녀의 작성 화면에서 다시 제출해 주세요.");
+      }
       let pending = pendingUploadRef.current;
       const post = pending ? { id: pending.postId } : await submitQuestion(title.trim(), content.trim(), profile.id, categoryLabel || null);
       if (files.length > 0 && !pending) {
@@ -1234,6 +1244,11 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const { user } = useAuth();
   const profileQ = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
   const profile = profileQ.data;
+  const [draftChildId] = useState(getParentStudentId);
+  const draftStorageKeyRef = useRef<string | null>(null);
+  if (draftStorageKeyRef.current == null && profile) {
+    draftStorageKeyRef.current = communityDraftStorageKey("counsel", user?.id, Boolean(profile.isParentReadOnly), draftChildId);
+  }
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -1257,7 +1272,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
     pendingUpload,
   }), [attachmentMeta, attachmentReselectRequired, categoryLabel, content, pendingUpload, title]);
   const counselDraft = useDurableDraft({
-    storageKey: communityDraftStorageKey("counsel", user?.id, Boolean(profile?.isParentReadOnly)),
+    storageKey: draftStorageKeyRef.current,
     value: counselDraftValue,
     isEmpty: isStudentCommunityDraftEmpty,
     isValid: isStudentCommunityDraftData,
@@ -1287,6 +1302,9 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
+      if (getParentStudentId() !== draftChildId) {
+        throw new Error("자녀 선택이 변경되었습니다. 원래 자녀의 작성 화면에서 다시 제출해 주세요.");
+      }
       let pending = pendingUploadRef.current;
       const post = pending ? { id: pending.postId } : await submitCounselRequest(title.trim(), content.trim(), profile.id, categoryLabel || null);
       if (files.length > 0 && !pending) {
