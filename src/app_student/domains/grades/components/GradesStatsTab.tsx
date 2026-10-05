@@ -290,8 +290,8 @@ function LectureAverageSection({ analytics }: { analytics: MyGradesAnalytics }) 
         <span className={styles.analyticsMeta}>강좌별 득점률</span>
       </div>
       <div className={styles.analyticsList}>
-        {analytics.lecture_breakdown.slice(0, 4).map((row) => (
-          <div key={row.lecture_title} className={styles.barRow}>
+        {analytics.lecture_breakdown.slice(0, 4).map((row, index) => (
+          <div key={row.lecture_id != null ? `lecture:${row.lecture_id}` : row.enrollment_id != null ? `enrollment:${row.enrollment_id}` : `legacy:${index}`} className={styles.barRow}>
             <span>{row.lecture_title}</span>
             <svg className={styles.barTrack} viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
               <rect className={styles.barTrackBg} width="100" height="8" rx="4" />

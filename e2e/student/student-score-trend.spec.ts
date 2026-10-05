@@ -489,7 +489,7 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
 
   test("약점 강좌는 미판정을 제외하고 실제 실패만 합격률 경고에 포함한다", async ({ page }) => {
     const mathExam: MyExamGradeSummary = { ...unscoredExam, total_score: 10, achievement: null, meta_status: null };
-    const englishExam: MyExamGradeSummary = { ...mathExam, exam_id: 905, lecture_title: "영어", total_score: 90, is_pass: true };
+    const englishExam: MyExamGradeSummary = { ...mathExam, exam_id: 905, enrollment_id: 202, lecture_title: "영어", total_score: 90, is_pass: true };
     const summary: Partial<MyGradesSummary> = {
       exams: [
         mathExam,
@@ -518,6 +518,38 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(weakness).toContainText("합격률도 0%입니다.");
   });
+
+  for (const width of [390, 1366]) {
+    test(`동명 강좌의 시험·과제와 평균은 합쳐지지 않는다 ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await installApi(page, "student", {
+        studentPoints: [], wrongCompletionOnly: false,
+        gradeSummary: {
+          exams: [
+            { ...unscoredExam, lecture_id: 501, title: "첫 강좌 시험", total_score: 10, max_score: 50, achievement: "FAIL", meta_status: null, is_pass: false },
+            { ...unscoredExam, exam_id: 903, enrollment_id: 202, lecture_id: 502, lecture_title: "<b>수학</b>", title: "둘째 강좌 시험", total_score: 100, achievement: "PASS", meta_status: null, is_pass: true },
+          ],
+          homeworks: [
+            { ...unscoredHomework, lecture_id: 501, title: "첫 강좌 과제", score: 10, max_score: 50, passed: false },
+            { ...unscoredHomework, homework_id: 903, enrollment_id: 202, lecture_id: 502, lecture_title: "<b>수학</b>", title: "둘째 강좌 과제", score: 100, passed: true },
+          ],
+        },
+      });
+      await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByText("수학", { exact: true })).toHaveCount(2);
+      await expect(page.getByText("1건 · 평균 득점률 20%", { exact: true })).toBeVisible();
+      await expect(page.getByText("1건 · 평균 득점률 100%", { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "과제 현황 2" }).click();
+      await expect(page.getByText("수학", { exact: true })).toHaveCount(2);
+      await expect(page.getByText("1건 · 평균 득점률 20%", { exact: true })).toBeVisible();
+      await expect(page.getByText("1건 · 평균 득점률 100%", { exact: true })).toBeVisible();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByText("첫 강좌 과제", { exact: true })).toBeVisible();
+      await expect(page.getByText("수학", { exact: true })).toHaveCount(2);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+      await page.screenshot({ path: `test-results/assessment-groups/homework-${width}.png`, fullPage: true });
+    });
+  }
 
   test("학생은 강좌별 성장선과 등수 우선 지표를 확인한다", async ({ page }) => {
     const firstLectureTitle = "[26년 여름방학] 고1 Hyper 정규반 공통수학2 Routine";
@@ -632,7 +664,7 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(completedCard).not.toContainText(/PASS|보강\s?합격|합격/);
     await expect(pendingCard).not.toContainText(/PASS|보강\s?합격|합격/);
     await expect(waitingCard).not.toContainText(/PASS|보강\s?합격|합격/);
-    await expect(completedCard).toContainText("7, 9번");
+    await expect(completedCard).toContainText("7번, 9번");
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 
     await pendingCard.click();

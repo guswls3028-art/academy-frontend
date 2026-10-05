@@ -24,7 +24,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
         <div className={styles.groupTitleBlock}>
           <div className={styles.groupTitle}>{group.label}</div>
           <div className={`stu-muted ${styles.groupMeta}`}>
-            {group.homeworks.length}건{group.avgPct != null ? ` · 평균 ${group.avgPct}점` : ""}
+            {group.homeworks.length}건{group.avgPct != null ? ` · 평균 득점률 ${group.avgPct}%` : ""}
           </div>
         </div>
       </div>

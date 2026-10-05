@@ -29,6 +29,7 @@ export type MyExamGradeSummary = {
   meta_status?: string | null;  // "NOT_SUBMITTED" = 미응시
   retake_count?: number;
   session_title: string | null;
+  lecture_id?: number | null;
   lecture_title: string | null;
   submitted_at: string | null;
   // 석차 정보
@@ -151,6 +152,8 @@ export type MyGradesAnalytics = {
     cohort_size: number | null;
   }>;
   lecture_breakdown: Array<{
+    lecture_id?: number | null;
+    enrollment_id?: number | null;
     lecture_title: string;
     exam_count: number;
     avg_score_pct: number | null;

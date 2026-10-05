@@ -51,6 +51,10 @@ type CreatedState = {
   homeworkId?: number;
   staffId?: number;
   enrollmentId?: number;
+  duplicateLectureId?: number;
+  duplicateSessionId?: number;
+  duplicateEnrollmentId?: number;
+  duplicateHomeworkId?: number;
   sessionEnrollmentIds: number[];
 };
 
@@ -104,12 +108,16 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     }
   };
   if (created.homeworkId) await remove("DELETE", `/homeworks/${created.homeworkId}/`);
+  if (created.duplicateHomeworkId) await remove("DELETE", `/homeworks/${created.duplicateHomeworkId}/`);
   for (const id of created.sessionEnrollmentIds) {
     await remove("DELETE", `/enrollments/session-enrollments/${id}/`);
   }
   if (created.enrollmentId) await remove("DELETE", `/enrollments/${created.enrollmentId}/`);
+  if (created.duplicateEnrollmentId) await remove("DELETE", `/enrollments/${created.duplicateEnrollmentId}/`);
   if (created.sessionId) await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
+  if (created.duplicateSessionId) await remove("DELETE", `/lectures/sessions/${created.duplicateSessionId}/`);
   if (created.lectureId) await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
+  if (created.duplicateLectureId) await remove("DELETE", `/lectures/lectures/${created.duplicateLectureId}/`);
   if (created.staffId) await remove("DELETE", `/staffs/${created.staffId}/`);
   // Staff deletion deactivates membership; the exact qa-* tenant teardown owns
   // the remaining synthetic User/token/audit cleanup and its zero-residue proof.
@@ -118,6 +126,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     ...(created.homeworkId ? [[`homework ${created.homeworkId}`, `/homeworks/${created.homeworkId}/`] as const] : []),
     ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
     ...(created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
+    ...(created.duplicateHomeworkId ? [["duplicate homework", `/homeworks/${created.duplicateHomeworkId}/`] as const] : []),
+    ...(created.duplicateSessionId ? [["duplicate session", `/lectures/sessions/${created.duplicateSessionId}/`] as const] : []),
+    ...(created.duplicateLectureId ? [["duplicate lecture", `/lectures/lectures/${created.duplicateLectureId}/`] as const] : []),
     ...(created.staffId ? [[`staff ${created.staffId}`, `/staffs/${created.staffId}/`] as const] : []),
   ]) {
     const residue = await api(request, "GET", path, created.adminAccess);
@@ -176,6 +187,40 @@ async function seedHomework(request: APIRequestContext, adminAccess: string, fam
     { enrollment_ids: [created.enrollmentId] },
     [200],
   );
+}
+
+async function seedSameTitleLecture(request: APIRequestContext): Promise<void> {
+  const token = created.adminAccess;
+  const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", token, {
+    title: lectureTitle.replace("QA ", "QA  "), name: "QA동명강좌", subject: "수학", start_date: todayKst, is_active: true,
+  });
+  created.duplicateLectureId = lecture.id;
+  const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", token, {
+    lecture: lecture.id, title: `QA 동명 강좌 차시 ${runStamp}`, date: todayKst, order: 1,
+  });
+  created.duplicateSessionId = session.id;
+  const enrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/bulk_create/", token, {
+    lecture: lecture.id, students: [created.family!.students[0].id],
+  });
+  created.duplicateEnrollmentId = enrollments[0].id;
+  const sessionEnrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/session-enrollments/bulk_create/", token, {
+    session: session.id, enrollments: [created.duplicateEnrollmentId],
+  });
+  created.sessionEnrollmentIds.push(...sessionEnrollments.map((row) => row.id));
+  const homework = await expectApi<{ id: number }>(request, "POST", "/homeworks/", token, {
+    session: session.id, session_id: session.id, title: `QA 동명 강좌 과제 ${runStamp}`,
+  });
+  created.duplicateHomeworkId = homework.id;
+  await expectApi(request, "PUT", `/homework/assignments/?homework_id=${homework.id}`, token, {
+    enrollment_ids: [created.duplicateEnrollmentId],
+  }, [200]);
+}
+
+async function assertSeparateHomeworkGroups(page: Page): Promise<void> {
+  await expect(page.getByText(lectureTitle, { exact: true })).toHaveCount(2);
+  await expect(page.getByText("1건 · 평균 득점률 92%", { exact: true })).toBeVisible();
+  await expect(page.getByText(`QA 동명 강좌 과제 ${runStamp}`, { exact: true })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
 }
 
 type HomeworkGradingPhase = "navigation" | "options" | "editing" | "save" | "reload";
@@ -548,14 +593,17 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await assertNoHorizontalOverflow(page);
 
     await gradeHomework(page, request, staffUsername, student.password, staffTokens.access);
+    await seedSameTitleLecture(request);
     await waitForHomeworkSummary(request, parentTokens.access, (row) => row.score === 92, student.id);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
     await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible();
+    await assertSeparateHomeworkGroups(page);
 
     await reloadStudentApp(page);
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
+    await assertSeparateHomeworkGroups(page);
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
@@ -576,6 +624,10 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible();
 
     await page.setViewportSize({ width: 1366, height: 900 });
+    await assertSeparateHomeworkGroups(page);
+    await test.info().attach("same-title-homework-groups-1366", {
+      body: await page.screenshot({ fullPage: true }), contentType: "image/png",
+    });
     await assertNoHorizontalOverflow(page);
     boundary.assertClean();
     browser.assertZeroDefects();
