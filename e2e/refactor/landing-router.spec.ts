@@ -380,6 +380,28 @@ test.describe("landing route island", () => {
     )).toBeLessThanOrEqual(1);
   });
 
+  test("clears the exact submitted landing draft before its debounce fires", async ({ page }) => {
+    await authenticateLandingUser(page);
+    const key = "landing-community-draft:board:dnb:user:12";
+    const post = { id: 901, post_type: "board", title: "빠른 제출", content: "빠른 제출 본문", attachments: [], replies: [], created_at: "2026-10-05T00:00:00Z" };
+    await page.route("**/api/v1/community/posts/", (route) => route.fulfill({ status: 201, json: post }));
+    await page.route("**/api/v1/landing-public/**/901/**", (route) => route.fulfill({ json: post }));
+    await page.goto(`${BASE}/landing/community/board/write`, { waitUntil: "domcontentloaded" });
+    const title = page.getByTestId("landing-community-write-title");
+    await title.fill("이전 저장본");
+    await page.getByTestId("landing-community-write-content").fill("빠른 제출 본문");
+    await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+    expect(await page.evaluate((draftKey) => JSON.parse(localStorage.getItem(draftKey) || "null")?.data.title, key)).toBe("이전 저장본");
+    const now = Date.now();
+    await page.clock.install({ time: now });
+    await page.clock.pauseAt(now + 1000);
+    await title.fill("빠른 제출");
+    expect(await page.evaluate((draftKey) => JSON.parse(localStorage.getItem(draftKey) || "null")?.data.title, key)).toBe("이전 저장본");
+    await page.locator("form").evaluate((element) => (element as HTMLFormElement).requestSubmit());
+    await expect.poll(() => page.evaluate((draftKey) => localStorage.getItem(draftKey), key)).toBeNull();
+    await expect(page).toHaveURL(/\/landing\/community\/board\/posts\/901$/);
+  });
+
   test("does not import a versionless value from the exact scoped draft key", async ({ page }) => {
     await authenticateLandingUser(page);
     await page.addInitScript(() => {

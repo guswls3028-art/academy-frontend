@@ -274,11 +274,12 @@ export default function LandingCommunityWritePage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting) return;
+    if (submitting || draft.newerDraft) return;
     setErr(null);
     if (!title.trim()) { setErr("제목을 입력해주세요."); return; }
     if (!content.trim()) { setErr("내용을 입력해주세요."); return; }
     if (!allowedBoards.includes(selectedBoard)) { setErr("선택한 게시판에 글을 쓸 권한이 없습니다."); return; }
+    draft.flush();
     setSubmitting(true);
     try {
       // markdown → HTML 변환(#13). backend sanitize_html이 위험 태그 차단.
@@ -346,15 +347,15 @@ export default function LandingCommunityWritePage() {
               {draft.errorMessage && (
                 <div role="alert" style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)", color: "#fca5a5", fontSize: 12.5, fontWeight: 600, lineHeight: 1.5, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                   <span>{draft.errorMessage}</span>
-                  <button type="button" onClick={draft.retrySave} style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: gold, color: "#0A0E1A", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>다시 저장</button>
+                  <button type="button" disabled={submitting} onClick={draft.retrySave} style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: gold, color: "#0A0E1A", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>다시 저장</button>
                 </div>
               )}
               {draft.newerDraft && (
                 <div role="alert" style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(212,160,76,0.10)", border: "1px solid rgba(212,160,76,0.25)", color: gold, fontSize: 12.5, fontWeight: 600, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                   <span>다른 탭에서 더 최신 초안이 저장되었습니다.</span>
                   <span style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    <button type="button" onClick={draft.acceptNewerDraft} style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: gold, color: "#0A0E1A", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>다른 탭 초안 불러오기</button>
-                    <button type="button" onClick={draft.keepCurrentDraft} style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>현재 내용 유지</button>
+                    <button type="button" disabled={submitting} onClick={draft.acceptNewerDraft} style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: gold, color: "#0A0E1A", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>다른 탭 초안 불러오기</button>
+                    <button type="button" disabled={submitting} onClick={draft.keepCurrentDraft} style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>현재 내용 유지</button>
                   </span>
                 </div>
               )}
@@ -364,7 +365,7 @@ export default function LandingCommunityWritePage() {
               {draftRestored && (
                 <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(212,160,76,0.10)", border: "1px solid rgba(212,160,76,0.25)", color: gold, fontSize: 12, fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
                   <span>✓ 이전에 저장된 작성 내용을 복구했어요.</span>
-                  <button type="button" onClick={() => {
+                  <button type="button" disabled={submitting} onClick={() => {
                     draft.clearDraft();
                     setTitle(""); setContent(""); setSelectedBoard(initialBoard); setDraftRestored(false);
                     setIsPinned(false); setIsUrgent(false); setFiles([]); setRestoredAttachmentMeta([]); setAttachmentReselectRequired(false);
@@ -516,7 +517,7 @@ export default function LandingCommunityWritePage() {
                 <button type="button" onClick={() => navigate(`/landing/community/${initialBoard}`)} disabled={submitting}
                   style={{ padding: "11px 22px", borderRadius: 10, background: "transparent", border: `1px solid ${border}`, color: textSecondary, fontSize: 14, fontWeight: 600, cursor: submitting ? "not-allowed" : "pointer" }}
                 >취소</button>
-                <button type="submit" disabled={submitting || !title.trim() || !content.trim()}
+                <button type="submit" disabled={submitting || draft.newerDraft != null || !title.trim() || !content.trim()}
                   data-testid="landing-community-write-submit"
                   style={{
                     padding: "11px 26px", borderRadius: 10, border: "none",
