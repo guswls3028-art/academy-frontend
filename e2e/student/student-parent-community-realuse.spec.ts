@@ -76,7 +76,7 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await page.locator(".ProseMirror").fill("선택한 자녀의 학습 질문입니다.");
     const attachment = {
       name: "qa-community-recovery.png", mimeType: "image/png",
-      buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZ5kAAAAASUVORK5CYII=", "base64"),
+      buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
     };
     let rejectFirstUpload = true;
     await page.route("**/api/v1/community/posts/*/attachments/", async (route) => {
