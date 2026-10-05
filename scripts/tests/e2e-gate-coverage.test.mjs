@@ -191,14 +191,15 @@ test("runtime assets, lockfile and development gate inputs trigger PR E2E", () =
 
 test("development inventory preserves all required real-use cases and unique files", () => {
   const entries = Object.entries(developmentRealUseCases);
-  assert.equal(entries.length, 13);
-  assert.equal(entries.reduce((sum, [, count]) => sum + count, 0), 23);
+  assert.equal(entries.length, 14);
+  assert.equal(entries.reduce((sum, [, count]) => sum + count, 0), 24);
   assert.equal(new Set(entries.map(([file]) => path.basename(file))).size, entries.length);
   for (const [file, count] of entries) {
     assert.ok(Number.isSafeInteger(count) && count > 0);
     assert.ok(fs.existsSync(path.join(e2eRoot, file)), `Missing development spec: ${file}`);
   }
   assert.equal(developmentRealUseCases["admin/omr-review-realuse.spec.ts"], 3);
+  assert.equal(developmentRealUseCases["admin/fees-overdue-realuse.spec.ts"], 1);
   assert.equal(developmentRealUseCases["student/video-playback-renewal.realuse.spec.ts"], 1);
 });
 

@@ -74,6 +74,22 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       .getByRole("link", { name: /^질문하기/ }).click();
     await page.getByPlaceholder("질문 제목").fill(qnaTitle);
     await page.locator(".ProseMirror").fill("선택한 자녀의 학습 질문입니다.");
+    const attachment = {
+      name: "qa-community-recovery.png", mimeType: "image/png",
+      buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jZ5kAAAAASUVORK5CYII=", "base64"),
+    };
+    let rejectFirstUpload = true;
+    await page.route("**/api/v1/community/posts/*/attachments/", async (route) => {
+      if (rejectFirstUpload && route.request().method() === "POST") {
+        rejectFirstUpload = false;
+        // Simulate an outage before dispatch; every real request still passes
+        // through the context's isolated-development boundary via fallback.
+        await route.fulfill({ status: 503, json: { detail: "QA 첨부 연결 일시 실패" } });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.locator(".community-file-picker__input").setInputFiles(attachment);
     const qnaResponsePromise = page.waitForResponse((response) => (
       response.request().method() === "POST"
       && new URL(response.url()).pathname.endsWith("/api/v1/community/posts/")
@@ -85,7 +101,26 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     const qna = await qnaResponse.json() as { id: number; created_by: number; author_role?: string; post_type: string };
     expect(qna).toMatchObject({ created_by: primary.id, author_role: "parent", post_type: "qna" });
     postIds.push(qna.id);
+    await expect(page.getByRole("alert")).toContainText("QA 첨부 연결 일시 실패");
+    await assertNoHorizontalOverflow(page);
+    await reloadStudentApp(page);
+    await openCommunityTab(page, "QnA");
+    await page.getByRole("button", { name: "질문하기", exact: true }).click();
+    await expect(page.getByPlaceholder("질문 제목")).toHaveValue(qnaTitle);
+    await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeDisabled();
+    await page.locator(".community-file-picker__input").setInputFiles(attachment);
+    const uploadResponsePromise = page.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname.endsWith(`/api/v1/community/posts/${qna.id}/attachments/`));
+    await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
+    const uploaded = await uploadResponsePromise;
+    expect(uploaded.status()).toBe(201);
+    expect(uploaded.request().headers()["x-student-id"]).toBe(String(primary.id));
+    expect(await uploaded.json()).toMatchObject([{ original_name: attachment.name }]);
     await expect(page.getByText(qnaTitle, { exact: true })).toBeVisible();
+    const persisted = await api<{ attachments: Array<{ original_name: string }> }>(request, "GET", `/community/posts/${qna.id}/`, adminAccess);
+    expect(persisted.status).toBe(200);
+    expect(persisted.body.attachments).toHaveLength(1);
+    expect(persisted.body.attachments[0].original_name).toBe(attachment.name);
 
     await openCommunityTab(page, "상담");
     await page.getByRole("button", { name: "상담 신청하기", exact: true }).click();

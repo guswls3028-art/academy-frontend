@@ -73,8 +73,12 @@ export async function fetchMyActivity(days = 30): Promise<MyActivityResponse> {
 }
 
 /** 첨부파일 업로드 */
-export async function uploadPostAttachments(postId: number, files: File[]): Promise<PostAttachment[]> {
-  return uploadCommunityPostAttachments(studentApi, postId, files);
+export async function uploadPostAttachments(postId: number, files: File[], idempotencyKey?: string): Promise<PostAttachment[]> {
+  const attachments = await uploadCommunityPostAttachments(studentApi, postId, files, idempotencyKey);
+  if (attachments.length !== files.length) {
+    throw new Error("첨부파일 등록 결과를 확인하지 못했습니다. 같은 파일로 다시 시도해 주세요.");
+  }
+  return attachments;
 }
 
 /** 첨부파일 다운로드 URL */

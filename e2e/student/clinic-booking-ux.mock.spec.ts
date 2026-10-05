@@ -49,6 +49,10 @@ type MockState = {
   availability?: Record<number, Record<string, unknown>>;
   availabilityDelayMs?: number;
   cancelNotificationFailed?: number;
+  clinicPagination?: {
+    requests: { sessions: number[]; participants: number[] };
+    fail?: "sessions" | "participants";
+  };
 };
 
 type IdcardMockControl = {
@@ -184,6 +188,24 @@ function createState(): MockState {
   };
 }
 
+function createPaginatedState(): MockState {
+  const state = createState();
+  state.sessions = [
+    ...Array.from({ length: 200 }, (_, index) => ({
+      ...sessions[0], id: 1000 + index, date: dateAfter(50), title: `나중 일정 ${index + 1}`,
+    })),
+    ...[...sessions].sort((left, right) => right.date.localeCompare(left.date)),
+  ];
+  state.bookings = [
+    ...Array.from({ length: 200 }, (_, index) => ({
+      ...state.bookings[0], id: 2000 + index, status: "no_show", student_request_memo: "",
+    })),
+    ...state.bookings.map((booking) => ({ ...booking, created_at: "2025-01-01T00:00:00Z" })),
+  ];
+  state.clinicPagination = { requests: { sessions: [], participants: [] } };
+  return state;
+}
+
 function validIdcardBookings(state: MockState) {
   const today = dateAfter(0);
   return state.bookings.flatMap((booking) => {
@@ -265,7 +287,28 @@ async function installApi(
         must_change_password: false,
       });
     }
-    if (path === "/clinic/sessions/" && method === "GET") return json(sessionRows);
+    if ((path === "/clinic/sessions/" || path === "/clinic/participants/") && method === "GET") {
+      const kind = path === "/clinic/sessions/" ? "sessions" : "participants";
+      const rows = kind === "sessions" ? sessionRows : state.bookings;
+      if (!state.clinicPagination) {
+        return json(kind === "sessions" ? rows : { count: rows.length, results: rows });
+      }
+      const url = new URL(request.url());
+      const pageNumber = Number(url.searchParams.get("page") ?? 1);
+      const pageSize = Number(url.searchParams.get("page_size") ?? 200);
+      state.clinicPagination.requests[kind].push(pageNumber);
+      if (pageNumber === 2 && state.clinicPagination.fail === kind) {
+        return json({ detail: "다음 페이지 조회 실패" }, 400);
+      }
+      const end = pageNumber * pageSize;
+      url.searchParams.set("page", String(pageNumber + 1));
+      return json({
+        count: rows.length,
+        results: rows.slice(end - pageSize, end),
+        next: end < rows.length ? url.href : null,
+        previous: null,
+      });
+    }
     const availabilityMatch = path.match(/^\/clinic\/sessions\/(\d+)\/availability\/$/);
     if (availabilityMatch && method === "GET") {
       const sessionId = Number(availabilityMatch[1]);
@@ -273,9 +316,6 @@ async function installApi(
         await new Promise((resolve) => setTimeout(resolve, state.availabilityDelayMs));
       }
       return json(state.availability?.[sessionId] ?? { detail: "not found" }, state.availability?.[sessionId] ? 200 : 404);
-    }
-    if (path === "/clinic/participants/" && method === "GET") {
-      return json({ count: state.bookings.length, results: state.bookings });
     }
     if (path === "/clinic/participants/bulk-create/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
@@ -537,6 +577,61 @@ test.describe("학생 클리닉 예약 UX", () => {
 
     await expect(page).toHaveURL(/\/login(?:\?|$)/);
   });
+
+  for (const width of [1366, 390]) {
+    test(`페이지네이션: 첫 200개 밖 가까운 일정과 기존 예약을 복원하고 예약 후 reload한다 (${width}px)`, async ({ page }) => {
+      const state = createPaginatedState();
+      await page.setViewportSize({ width, height: 900 });
+      await seed(page);
+      await installApi(page, state);
+      await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+      await expect(page.getByRole("heading", { name: "열린 일정" })).toBeVisible();
+      expect(state.clinicPagination!.requests.sessions).toContain(2);
+      expect(state.clinicPagination!.requests.participants).toContain(2);
+      await expect(page.getByTestId(`clinic-calendar-day-${bookedDate}`)).toBeVisible();
+      await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+      const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
+      await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
+      await page.getByLabel("희망 시작 시간").fill("17:30");
+      await page.getByLabel("희망 종료 시간").fill("18:00");
+      await page.getByLabel("학원에 전할 내용 (선택)").fill("페이지 확인 후 예약");
+      await page.getByRole("button", { name: "이 일정 예약하기" }).click();
+      await expect.poll(() => state.bookingPayloads.map((payload) => payload.session_ids)).toEqual([[202]]);
+      await expect(page.getByRole("status")).toContainText("예약 신청이 접수되었습니다.");
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("tab", { name: "내 일정 2", exact: true }).click();
+      await expect(page.locator("article").filter({ hasText: "대수 오답 클리닉" })).toContainText("오답노트 지참");
+      await expect(page.locator("article").filter({ hasText: "토요일 5시 클리닉" })).toContainText("페이지 확인 후 예약");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    });
+
+    for (const failingList of ["sessions", "participants"] as const) {
+      test(`페이지네이션: ${failingList}의 두 번째 페이지 실패는 부분 목록을 숨기고 재시도로 복구한다 (${width}px)`, async ({ page }) => {
+        const state = createPaginatedState();
+        state.clinicPagination!.fail = failingList;
+        await page.setViewportSize({ width, height: 900 });
+        await seed(page);
+        await installApi(page, state);
+        await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+        await expect(page.getByText("클리닉 정보를 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByRole("heading", { name: "열린 일정" })).not.toBeVisible();
+        expect(state.clinicPagination!.requests[failingList]).toContain(2);
+        const previousStarts = state.clinicPagination!.requests[failingList].filter((number) => number === 1).length;
+        state.clinicPagination!.fail = undefined;
+        await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+
+        await expect(page.getByRole("heading", { name: "열린 일정" })).toBeVisible();
+        expect(state.clinicPagination!.requests[failingList].filter((number) => number === 1).length).toBeGreaterThan(previousStarts);
+        await expect(page.getByTestId(`clinic-calendar-day-${openDate}`)).toBeVisible();
+        await page.getByRole("tab", { name: "내 일정 1", exact: true }).click();
+        await expect(page.locator("article").filter({ hasText: "대수 오답 클리닉" })).toContainText("오답노트 지참");
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      });
+    }
+  }
 
   test("실제 개설 날짜와 수업 정보를 날짜표 중심으로 보여준다", async ({ page }) => {
     const state = createState();

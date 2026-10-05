@@ -41,7 +41,7 @@ type DurableDraftResult<T> = {
   keepCurrentDraft: () => void;
   clearDraft: () => void;
   markSubmitted: () => void;
-  flush: () => void;
+  flush: (snapshot?: T) => void;
   retrySave: () => void;
 };
 
@@ -149,10 +149,13 @@ export function useDurableDraft<T>({
     }
   }, [clearTimers, failStorage]);
 
-  const flush = useCallback(() => {
+  const flush = useCallback((snapshot?: T) => {
+    if (storageKeyRef.current !== storageKey) return;
     clearTimers();
+    // A server-confirmed transition must survive navigation before React renders.
+    if (snapshot !== undefined) valueRef.current = snapshot;
     if (!suppressFlushRef.current && !conflictRef.current) writeValue(valueRef.current);
-  }, [clearTimers, writeValue]);
+  }, [clearTimers, storageKey, writeValue]);
 
   useEffect(() => {
     storageKeyRef.current = storageKey;
@@ -268,9 +271,20 @@ export function useDurableDraft<T>({
   }, [clearTimers, failStorage]);
 
   const markSubmitted = useCallback(() => {
+    if (storageKeyRef.current !== storageKey) return;
     suppressFlushRef.current = true;
-    clearDraft();
-  }, [clearDraft]);
+    clearTimers();
+    try {
+      const raw = storageKey ? requireLocalItem(storageKey) : null;
+      const stored = raw ? readStoredDraft(raw, isValidRef.current, ttlRef.current) : null;
+      // A delayed response must not delete another tab's saved work, including
+      // when that tab's storage event has not arrived yet.
+      if (!raw || (stored && stored.savedAt === lastSeenSavedAtRef.current
+        && JSON.stringify(stored.data) === JSON.stringify(valueRef.current))) clearDraft();
+    } catch {
+      failStorage();
+    }
+  }, [clearDraft, clearTimers, failStorage, storageKey]);
 
   const retrySave = useCallback(() => {
     if (conflictRef.current) return;

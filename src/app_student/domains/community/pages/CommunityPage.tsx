@@ -23,7 +23,6 @@ import { richHtmlToPlainText, richHtmlToPreviewText } from "@/shared/utils/richH
 import { formatCompactFileSize as formatAttachmentSize } from "@/shared/utils/fileSize";
 import useAuth from "@/auth/hooks/useAuth";
 import { useDurableDraft, type DurableDraftStatus } from "@/shared/hooks/useDurableDraft";
-import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { fetchVideoMe } from "@student/domains/video/api/video.api";
@@ -47,6 +46,13 @@ import {
   type Answer,
 } from "../api/community.api";
 import { studentCommunityQueryKeys } from "../queryKeys";
+import { isApiErrorStatus } from "@/shared/api/axios";
+import { createClientRequestKey } from "@/shared/api/contracts/community";
+import {
+  communityDraftStorageKey, isStudentCommunityDraftData, isStudentCommunityDraftEmpty,
+  matchesPendingAttachments, toDraftAttachmentMeta,
+  type DraftAttachmentMeta, type PendingCommunityUpload, type StudentCommunityDraftData,
+} from "../communityDraft";
 import "./CommunityHub.css";
 import "./CommunityPage.css";
 
@@ -664,67 +670,6 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
 }
 
 // ─── QnA Form ───
-type StudentCommunityDraftData = {
-  title: string;
-  content: string;
-  categoryLabel: string;
-  hadAttachments?: boolean;
-  attachments?: DraftAttachmentMeta[];
-};
-
-type DraftAttachmentMeta = {
-  name: string;
-  size: number;
-  type: string;
-};
-
-function isDraftAttachmentMeta(value: unknown): value is DraftAttachmentMeta {
-  if (!value || typeof value !== "object") return false;
-  const attachment = value as Record<string, unknown>;
-  return typeof attachment.name === "string"
-    && attachment.name.length <= 120
-    && typeof attachment.size === "number"
-    && Number.isFinite(attachment.size)
-    && attachment.size >= 0
-    && typeof attachment.type === "string"
-    && attachment.type.length <= 100;
-}
-
-function toDraftAttachmentMeta(files: File[]): DraftAttachmentMeta[] {
-  return files.slice(0, 5).map((file) => ({
-    name: file.name.trim().slice(0, 120),
-    size: Math.max(0, Math.round(file.size)),
-    type: file.type.trim().slice(0, 100),
-  }));
-}
-
-function isStudentCommunityDraftData(value: unknown): value is StudentCommunityDraftData {
-  if (!value || typeof value !== "object") return false;
-  const draft = value as Record<string, unknown>;
-  return typeof draft.title === "string"
-    && typeof draft.content === "string"
-    && typeof draft.categoryLabel === "string"
-    && (draft.hadAttachments == null || typeof draft.hadAttachments === "boolean")
-    && (draft.attachments == null || (
-      Array.isArray(draft.attachments)
-      && draft.attachments.length <= 5
-      && draft.attachments.every(isDraftAttachmentMeta)
-    ));
-}
-
-function isStudentCommunityDraftEmpty(value: StudentCommunityDraftData): boolean {
-  return !value.title.trim()
-    && !richHtmlToPlainText(value.content).trim()
-    && !value.categoryLabel.trim()
-    && !value.hadAttachments
-    && !(value.attachments?.length);
-}
-
-function communityDraftStorageKey(kind: "qna" | "counsel", userId: number | undefined, parent: boolean): string | null {
-  const childScope = parent ? `:student-${getParentStudentId() ?? "unselected"}` : "";
-  return getTenantUserLocalKey(`student-community-draft:${kind}${childScope}`, userId);
-}
-
 function draftStatusText(status: DurableDraftStatus, savedAt: number | null): string | null {
   if (status === "saving") return "이 브라우저에 초안 저장 중…";
   if (status === "saved") {
@@ -744,6 +689,7 @@ function CommunityDraftNotice({
   onRetry,
   onAcceptNewer,
   onKeepCurrent,
+  busy,
 }: {
   status: DurableDraftStatus;
   savedAt: number | null;
@@ -754,6 +700,7 @@ function CommunityDraftNotice({
   onRetry: () => void;
   onAcceptNewer: () => void;
   onKeepCurrent: () => void;
+  busy: boolean;
 }) {
   const statusText = draftStatusText(status, savedAt);
   return (
@@ -762,7 +709,7 @@ function CommunityDraftNotice({
         <div role="alert" className="community-draft-notice community-draft-notice--error">
           <span>{errorMessage}</span>
           <div className="community-draft-notice__actions">
-            <button type="button" className="stu-btn stu-btn--secondary" onClick={onRetry}>다시 저장</button>
+            <button type="button" className="stu-btn stu-btn--secondary" disabled={busy} onClick={onRetry}>다시 저장</button>
           </div>
         </div>
       )}
@@ -770,8 +717,8 @@ function CommunityDraftNotice({
         <div role="alert" className="community-draft-notice community-draft-notice--newer">
           <span>다른 탭에서 더 최신 초안이 저장되었습니다.</span>
           <div className="community-draft-notice__actions">
-            <button type="button" className="stu-btn stu-btn--secondary" onClick={onAcceptNewer}>다른 탭 초안 불러오기</button>
-            <button type="button" className="stu-btn stu-btn--ghost" onClick={onKeepCurrent}>현재 내용 유지</button>
+            <button type="button" className="stu-btn stu-btn--secondary" disabled={busy} onClick={onAcceptNewer}>다른 탭 초안 불러오기</button>
+            <button type="button" className="stu-btn stu-btn--ghost" disabled={busy} onClick={onKeepCurrent}>현재 내용 유지</button>
           </div>
         </div>
       )}
@@ -798,6 +745,10 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const [categoryLabel, setCategoryLabel] = useState("");
   const [attachmentReselectRequired, setAttachmentReselectRequired] = useState(false);
   const [restoredAttachmentMeta, setRestoredAttachmentMeta] = useState<DraftAttachmentMeta[]>([]);
+  const [pendingUpload, setPendingUpload] = useState<PendingCommunityUpload | null>(null);
+  const pendingUploadRef = useRef<PendingCommunityUpload | null>(null);
+  const submittingRef = useRef(false);
+  const submittedChildRef = useRef<number | null>(null);
   const attachmentMeta = useMemo(
     () => (files.length > 0 ? toDraftAttachmentMeta(files) : restoredAttachmentMeta),
     [files, restoredAttachmentMeta],
@@ -808,7 +759,8 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
     categoryLabel,
     hadAttachments: attachmentMeta.length > 0 || attachmentReselectRequired,
     attachments: attachmentMeta,
-  }), [attachmentMeta, attachmentReselectRequired, categoryLabel, content, title]);
+    pendingUpload,
+  }), [attachmentMeta, attachmentReselectRequired, categoryLabel, content, pendingUpload, title]);
   const qnaDraft = useDurableDraft({
     storageKey: communityDraftStorageKey("qna", user?.id, Boolean(profile?.isParentReadOnly)),
     value: qnaDraftValue,
@@ -819,8 +771,10 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
       setContent(draft.content);
       setCategoryLabel(draft.categoryLabel);
       setFiles([]);
-      setRestoredAttachmentMeta(draft.attachments ?? []);
-      setAttachmentReselectRequired(Boolean(draft.hadAttachments || draft.attachments?.length));
+      setRestoredAttachmentMeta(draft.pendingUpload?.attachments ?? draft.attachments ?? []);
+      pendingUploadRef.current = draft.pendingUpload ?? null;
+      setPendingUpload(draft.pendingUpload ?? null);
+      setAttachmentReselectRequired(Boolean(draft.pendingUpload || draft.hadAttachments || draft.attachments?.length));
     },
   });
   const qnaPendingDraft = qnaDraft.pendingDraft;
@@ -834,41 +788,63 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const hasLectureOptions = lectureOptions.length > 0;
 
   useEffect(() => {
-    if (videoMe && !hasLectureOptions && categoryLabel) {
+    if (!pendingUpload && videoMe && !hasLectureOptions && categoryLabel) {
       setCategoryLabel("");
     }
-  }, [videoMe, hasLectureOptions, categoryLabel]);
+  }, [videoMe, hasLectureOptions, categoryLabel, pendingUpload]);
+
+  const rememberUpload = (pending: PendingCommunityUpload) => {
+    pendingUploadRef.current = pending;
+    setPendingUpload(pending);
+    qnaDraft.flush({ ...qnaDraftValue, pendingUpload: pending });
+  };
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
-      const post = await submitQuestion(title.trim(), content.trim(), profile.id, categoryLabel || null);
-      if (files.length > 0) {
+      let pending = pendingUploadRef.current;
+      const post = pending ? { id: pending.postId } : await submitQuestion(title.trim(), content.trim(), profile.id, categoryLabel || null);
+      if (files.length > 0 && !pending) {
+        pending = { postId: post.id, requestKey: createClientRequestKey(), attachments: toDraftAttachmentMeta(files) };
+        rememberUpload(pending);
+        void qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.qnaQuestions });
+      }
+      if (pending) {
+        if (getParentStudentId() !== submittedChildRef.current) {
+          throw new Error("자녀 선택이 변경되었습니다. 원래 자녀의 작성 화면에서 첨부를 다시 시도해 주세요.");
+        }
+        if (pending.canReplace && files.length > 0) {
+          pending = { postId: pending.postId, requestKey: createClientRequestKey(), attachments: toDraftAttachmentMeta(files) };
+          rememberUpload(pending);
+        }
+        if (!matchesPendingAttachments(files, pending)) {
+          throw new Error("처음 선택한 첨부파일을 같은 순서로 다시 선택해 주세요.");
+        }
         try {
-          await uploadPostAttachments(post.id, files);
-        } catch {
-          // 게시글은 생성됨 — 첨부파일만 실패. 목록 갱신 후 사용자에게 알림.
-          qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.qnaQuestions });
-          const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
-          studentToast.info("질문은 등록되었으나 첨부파일 업로드에 실패했습니다.");
-          onSuccess();
-          return post;
+          await uploadPostAttachments(pending.postId, files, pending.requestKey);
+        } catch (error) {
+          // The attachment endpoint validates every file before writes; only its
+          // explicit 400 rejection permits replacing a batch with a fresh key.
+          if (isApiErrorStatus(error, 400)) rememberUpload({ ...pending, canReplace: true });
+          throw error;
         }
       }
       return post;
     },
     onSuccess: async () => {
+      qnaDraft.markSubmitted();
       qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.qnaQuestions });
       qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.notificationCounts });
       const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
+      if (getParentStudentId() !== submittedChildRef.current) return;
       studentToast.success("질문이 등록되었습니다.");
-      qnaDraft.markSubmitted();
       onSuccess();
     },
     onError: (err: unknown) => {
       const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
       if (code === "profile_required") qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.me });
     },
+    onSettled: () => { submittingRef.current = false; },
   });
 
   const errorMsg = mutation.error
@@ -879,7 +855,8 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
     : null;
 
   const contentText = richHtmlToPlainText(content);
-  const canSubmit = title.trim().length > 0 && contentText.length > 0 && profile?.id != null;
+  const canSubmit = title.trim().length > 0 && contentText.length > 0 && profile?.id != null
+    && !qnaDraft.newerDraft && (!pendingUpload || (pendingUpload.canReplace ? files.length > 0 : matchesPendingAttachments(files, pendingUpload)));
 
   if (profileQ.isLoading) {
     return <StudentPageShell title="질문 보내기" onBack={onBack}><Loading /></StudentPageShell>;
@@ -915,7 +892,18 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           onRetry={qnaDraft.retrySave}
           onAcceptNewer={qnaDraft.acceptNewerDraft}
           onKeepCurrent={qnaDraft.keepCurrentDraft}
+          busy={mutation.isPending}
         />
+        {pendingUpload && (
+          <div role="status" className="community-draft-notice community-upload-recovery">
+            <strong>글은 저장되었고 첨부파일 등록이 남아 있습니다.</strong>
+            <p>{pendingUpload.canReplace ? "첨부파일이 등록되기 전에 거부되었습니다. 안내에 맞게 파일을 바꾼 뒤 다시 시도해 주세요." : <>새 글을 만들지 않고 첨부만 다시 시도합니다. 새로고침했다면 다음 파일을 같은 순서로 선택해 주세요: {pendingUpload.attachments.map((file) => file.name).join(", ")}</>}</p>
+            <button type="button" className="stu-btn stu-btn--ghost" disabled={mutation.isPending}
+              onClick={() => { qnaDraft.markSubmitted(); onSuccess(); }}>
+              저장된 내용으로 마치기
+            </button>
+          </div>
+        )}
         {errorMsg && (
           <div role="alert" className="community-alert">
             {errorMsg}
@@ -925,7 +913,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           <span className="community-label">
             제목 <span className="community-required" aria-hidden>*</span>
           </span>
-          <input type="text" placeholder="질문 제목" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input community-input-full" required />
+          <input type="text" placeholder="질문 제목" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input community-input-full" readOnly={mutation.isPending || pendingUpload != null} required />
         </label>
         <label className="community-field">
           <span className="community-label">강의 (선택)</span>
@@ -933,7 +921,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
             value={hasLectureOptions ? categoryLabel : ""}
             onChange={(e) => setCategoryLabel(e.target.value)}
             className="stu-input community-input-full"
-            disabled={!hasLectureOptions}
+            disabled={!hasLectureOptions || mutation.isPending || pendingUpload != null}
           >
             {hasLectureOptions ? (
               <>
@@ -954,9 +942,10 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           <span className="community-label">
             내용 <span className="community-required" aria-hidden>*</span>
           </span>
-          <RichTextEditor value={content} onChange={setContent} placeholder="질문 내용을 적어 주세요." minHeight={200} compact />
+          <RichTextEditor value={content} onChange={setContent} placeholder="질문 내용을 적어 주세요." minHeight={200} compact readOnly={mutation.isPending || pendingUpload != null} />
         </div>
         <FilePickerSection
+          disabled={mutation.isPending}
           files={files}
           onChange={(nextFiles) => {
             setFiles(nextFiles);
@@ -967,10 +956,10 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
         <button
           type="button"
           disabled={!canSubmit || mutation.isPending}
-          onClick={() => { if (canSubmit && !mutation.isPending) mutation.mutate(); }}
+          onClick={() => { if (canSubmit && !mutation.isPending && !submittingRef.current) { qnaDraft.flush(); submittingRef.current = true; submittedChildRef.current = getParentStudentId(); mutation.mutate(); } }}
           className="stu-btn stu-btn--primary community-submit"
         >
-          {mutation.isPending ? "보내는 중…" : "질문 보내기"}
+          {mutation.isPending ? "보내는 중…" : pendingUpload ? "첨부 다시 시도" : "질문 보내기"}
         </button>
       </div>
     </StudentPageShell>
@@ -1251,6 +1240,10 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const [categoryLabel, setCategoryLabel] = useState("");
   const [attachmentReselectRequired, setAttachmentReselectRequired] = useState(false);
   const [restoredAttachmentMeta, setRestoredAttachmentMeta] = useState<DraftAttachmentMeta[]>([]);
+  const [pendingUpload, setPendingUpload] = useState<PendingCommunityUpload | null>(null);
+  const pendingUploadRef = useRef<PendingCommunityUpload | null>(null);
+  const submittingRef = useRef(false);
+  const submittedChildRef = useRef<number | null>(null);
   const attachmentMeta = useMemo(
     () => (files.length > 0 ? toDraftAttachmentMeta(files) : restoredAttachmentMeta),
     [files, restoredAttachmentMeta],
@@ -1261,7 +1254,8 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
     categoryLabel,
     hadAttachments: attachmentMeta.length > 0 || attachmentReselectRequired,
     attachments: attachmentMeta,
-  }), [attachmentMeta, attachmentReselectRequired, categoryLabel, content, title]);
+    pendingUpload,
+  }), [attachmentMeta, attachmentReselectRequired, categoryLabel, content, pendingUpload, title]);
   const counselDraft = useDurableDraft({
     storageKey: communityDraftStorageKey("counsel", user?.id, Boolean(profile?.isParentReadOnly)),
     value: counselDraftValue,
@@ -1272,8 +1266,10 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
       setContent(draft.content);
       setCategoryLabel(draft.categoryLabel);
       setFiles([]);
-      setRestoredAttachmentMeta(draft.attachments ?? []);
-      setAttachmentReselectRequired(Boolean(draft.hadAttachments || draft.attachments?.length));
+      setRestoredAttachmentMeta(draft.pendingUpload?.attachments ?? draft.attachments ?? []);
+      pendingUploadRef.current = draft.pendingUpload ?? null;
+      setPendingUpload(draft.pendingUpload ?? null);
+      setAttachmentReselectRequired(Boolean(draft.pendingUpload || draft.hadAttachments || draft.attachments?.length));
     },
   });
   const counselPendingDraft = counselDraft.pendingDraft;
@@ -1282,35 +1278,58 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
     if (counselPendingDraft) restoreCounselPendingDraft();
   }, [counselPendingDraft, restoreCounselPendingDraft]);
 
+  const rememberUpload = (pending: PendingCommunityUpload) => {
+    pendingUploadRef.current = pending;
+    setPendingUpload(pending);
+    counselDraft.flush({ ...counselDraftValue, pendingUpload: pending });
+  };
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
-      const post = await submitCounselRequest(title.trim(), content.trim(), profile.id, categoryLabel || null);
-      if (files.length > 0) {
+      let pending = pendingUploadRef.current;
+      const post = pending ? { id: pending.postId } : await submitCounselRequest(title.trim(), content.trim(), profile.id, categoryLabel || null);
+      if (files.length > 0 && !pending) {
+        pending = { postId: post.id, requestKey: createClientRequestKey(), attachments: toDraftAttachmentMeta(files) };
+        rememberUpload(pending);
+        void qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.counselRequests });
+      }
+      if (pending) {
+        if (getParentStudentId() !== submittedChildRef.current) {
+          throw new Error("자녀 선택이 변경되었습니다. 원래 자녀의 작성 화면에서 첨부를 다시 시도해 주세요.");
+        }
+        if (pending.canReplace && files.length > 0) {
+          pending = { postId: pending.postId, requestKey: createClientRequestKey(), attachments: toDraftAttachmentMeta(files) };
+          rememberUpload(pending);
+        }
+        if (!matchesPendingAttachments(files, pending)) {
+          throw new Error("처음 선택한 첨부파일을 같은 순서로 다시 선택해 주세요.");
+        }
         try {
-          await uploadPostAttachments(post.id, files);
-        } catch {
-          qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.counselRequests });
-          const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
-          studentToast.info("상담 요청은 등록되었으나 첨부파일 업로드에 실패했습니다.");
-          onSuccess();
-          return post;
+          await uploadPostAttachments(pending.postId, files, pending.requestKey);
+        } catch (error) {
+          // The attachment endpoint validates every file before writes; only its
+          // explicit 400 rejection permits replacing a batch with a fresh key.
+          if (isApiErrorStatus(error, 400)) rememberUpload({ ...pending, canReplace: true });
+          throw error;
         }
       }
       return post;
     },
     onSuccess: async () => {
+      counselDraft.markSubmitted();
       qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.counselRequests });
       qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.notificationCounts });
       const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
+      if (getParentStudentId() !== submittedChildRef.current) return;
       studentToast.success("상담 요청이 등록되었습니다.");
-      counselDraft.markSubmitted();
       onSuccess();
     },
     onError: (err: unknown) => {
       const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
       if (code === "profile_required") qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.me });
     },
+    onSettled: () => { submittingRef.current = false; },
   });
 
   const errorMsg = mutation.error
@@ -1321,7 +1340,8 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
     : null;
 
   const counselContentText = richHtmlToPlainText(content);
-  const canSubmit = title.trim().length > 0 && counselContentText.length > 0 && profile?.id != null;
+  const canSubmit = title.trim().length > 0 && counselContentText.length > 0 && profile?.id != null
+    && !counselDraft.newerDraft && (!pendingUpload || (pendingUpload.canReplace ? files.length > 0 : matchesPendingAttachments(files, pendingUpload)));
 
   if (profileQ.isLoading) {
     return <StudentPageShell title="상담 신청" onBack={onBack}><Loading /></StudentPageShell>;
@@ -1357,7 +1377,18 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           onRetry={counselDraft.retrySave}
           onAcceptNewer={counselDraft.acceptNewerDraft}
           onKeepCurrent={counselDraft.keepCurrentDraft}
+          busy={mutation.isPending}
         />
+        {pendingUpload && (
+          <div role="status" className="community-draft-notice community-upload-recovery">
+            <strong>글은 저장되었고 첨부파일 등록이 남아 있습니다.</strong>
+            <p>{pendingUpload.canReplace ? "첨부파일이 등록되기 전에 거부되었습니다. 안내에 맞게 파일을 바꾼 뒤 다시 시도해 주세요." : <>새 글을 만들지 않고 첨부만 다시 시도합니다. 새로고침했다면 다음 파일을 같은 순서로 선택해 주세요: {pendingUpload.attachments.map((file) => file.name).join(", ")}</>}</p>
+            <button type="button" className="stu-btn stu-btn--ghost" disabled={mutation.isPending}
+              onClick={() => { counselDraft.markSubmitted(); onSuccess(); }}>
+              저장된 내용으로 마치기
+            </button>
+          </div>
+        )}
         {errorMsg && (
           <div role="alert" className="community-alert">
             {errorMsg}
@@ -1367,11 +1398,11 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           <span className="community-label">
             상담 제목 <span className="community-required" aria-hidden>*</span>
           </span>
-          <input type="text" placeholder="예: 진로 상담, 학습 방법 상담" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input community-input-full" required />
+          <input type="text" placeholder="예: 진로 상담, 학습 방법 상담" value={title} onChange={(e) => setTitle(e.target.value)} className="stu-input community-input-full" readOnly={mutation.isPending || pendingUpload != null} required />
         </label>
         <label className="community-field">
           <span className="community-label">상담 분야 (선택)</span>
-          <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input community-input-full">
+          <select value={categoryLabel} onChange={(e) => setCategoryLabel(e.target.value)} className="stu-input community-input-full" disabled={mutation.isPending || pendingUpload != null}>
             <option value="">선택 안 함</option>
             {COUNSEL_CATEGORIES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -1380,9 +1411,10 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           <span className="community-label">
             상담 내용 <span className="community-required" aria-hidden>*</span>
           </span>
-          <RichTextEditor value={content} onChange={setContent} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} compact />
+          <RichTextEditor value={content} onChange={setContent} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} compact readOnly={mutation.isPending || pendingUpload != null} />
         </div>
         <FilePickerSection
+          disabled={mutation.isPending}
           files={files}
           onChange={(nextFiles) => {
             setFiles(nextFiles);
@@ -1393,10 +1425,10 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
         <button
           type="button"
           disabled={!canSubmit || mutation.isPending}
-          onClick={() => { if (canSubmit && !mutation.isPending) mutation.mutate(); }}
+          onClick={() => { if (canSubmit && !mutation.isPending && !submittingRef.current) { counselDraft.flush(); submittingRef.current = true; submittedChildRef.current = getParentStudentId(); mutation.mutate(); } }}
           className="stu-btn stu-btn--primary community-submit"
         >
-          {mutation.isPending ? "신청 중…" : "상담 신청하기"}
+          {mutation.isPending ? "신청 중…" : pendingUpload ? "첨부 다시 시도" : "상담 신청하기"}
         </button>
       </div>
     </StudentPageShell>
@@ -1670,9 +1702,11 @@ const MAX_FILES = 10;
 function FilePickerSection({
   files,
   onChange,
+  disabled = false,
 }: {
   files: File[];
   onChange: (files: File[]) => void;
+  disabled?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [warn, setWarn] = useState<string | null>(null);
@@ -1692,6 +1726,7 @@ function FilePickerSection({
   };
 
   const handleAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return;
     const newFiles = e.target.files;
     if (!newFiles) return;
     const incoming = Array.from(newFiles);
@@ -1708,7 +1743,7 @@ function FilePickerSection({
   };
 
   const handleRemove = (idx: number) => {
-    onChange(files.filter((_, i) => i !== idx));
+    if (!disabled) onChange(files.filter((_, i) => i !== idx));
   };
 
   return (
@@ -1726,7 +1761,7 @@ function FilePickerSection({
           type="button"
           className="stu-btn stu-btn--ghost stu-btn--sm"
           onClick={() => inputRef.current?.click()}
-          disabled={files.length >= MAX_FILES}
+          disabled={disabled || files.length >= MAX_FILES}
         >
           + 파일 추가
         </button>
@@ -1734,6 +1769,7 @@ function FilePickerSection({
           ref={(el) => { inputRef.current = el; }}
           type="file"
           multiple
+          disabled={disabled}
           className="community-file-picker__input"
           onChange={handleAdd}
         />
@@ -1758,6 +1794,7 @@ function FilePickerSection({
                 type="button"
                 onClick={() => handleRemove(i)}
                 aria-label={`${f.name} 제거`}
+                disabled={disabled}
                 className="community-file-remove"
                 title="제거"
               >
