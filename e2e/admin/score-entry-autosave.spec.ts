@@ -5,6 +5,10 @@ import { realMessagingSkipReason } from "../helpers/safety";
 import { createScoreExitReceiver } from "../helpers/scoreExitReceiver";
 import { writeFile } from "node:fs/promises";
 
+// Each worker owns its mock state. Split this large suite without enabling
+// parallel mode for unrelated files or increasing the CI worker cap.
+test.describe.configure({ mode: "parallel" });
+
 type ScoreRouteOptions = {
   initialScores?: Array<number | null>;
   examMaxScore?: number;
