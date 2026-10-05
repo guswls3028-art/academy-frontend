@@ -49,7 +49,7 @@
     "api-types:generate": "node scripts/generate-api-types.mjs",
     "api-types:check": "node scripts/generate-api-types.mjs --check",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:canary": "playwright test e2e/smoke/production-canary.spec.ts --project=chromium --reporter=list",
