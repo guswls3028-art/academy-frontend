@@ -22,7 +22,7 @@ function fakeJwt(): string {
 
 async function installStudentApi(
   page: Page,
-  state: { failSubmit?: boolean; failAttachment?: boolean; commitAttachmentThenFail?: boolean; parent?: boolean } = {},
+  state: { failSubmit?: boolean; failAttachment?: boolean; rejectAttachment?: boolean; commitAttachmentThenFail?: boolean; parent?: boolean; beforePostResponse?: () => Promise<void> } = {},
 ) {
   const token = fakeJwt();
   const posts: Array<Record<string, unknown>> = [];
@@ -105,6 +105,7 @@ async function installStudentApi(
         attachments: [],
       };
       posts.push(post);
+      await state.beforePostResponse?.();
       return json(post, 201);
     }
     if (path.endsWith("/attachments/") && request.method() === "POST") {
@@ -112,6 +113,7 @@ async function installStudentApi(
       const key = body.match(/name="idempotency_key"\r\n\r\n([^\r\n]+)/)?.[1] ?? "";
       const postId = Number(path.match(/posts\/(\d+)\/attachments/)?.[1]);
       attachmentAttempts.push({ postId, key, studentId: request.headers()["x-student-id"] });
+      if (state.rejectAttachment) return json({ detail: "허용되지 않는 첨부파일입니다." }, 400);
       if (state.failAttachment) return json({ detail: "첨부 업로드 실패" }, 503);
       const batchKey = `${postId}:${key}`;
       const attachments = batches.get(batchKey) ?? [...body.matchAll(/filename="([^"]+)"/g)].map((match, index) => ({
@@ -531,6 +533,33 @@ test.describe("학생 커뮤니티 durable draft", () => {
     await second.close();
   });
 
+  test("늦게 끝난 제출은 다른 탭의 새 초안을 삭제하지 않는다", async ({ page, context }) => {
+    let release!: () => void;
+    const responseReady = new Promise<void>((resolve) => { release = resolve; });
+    const harness = await installStudentApi(page, { beforePostResponse: () => responseReady });
+    await openForm(page, "QnA");
+    await page.getByPlaceholder("질문 제목").fill("전송 중인 질문");
+    await page.locator(".ProseMirror").fill("서버 응답을 기다립니다.");
+    await flushPageDraft(page);
+    const second = await context.newPage();
+    await installStudentApi(second);
+    await openForm(second, "QnA");
+    try {
+      await page.getByRole("button", { name: "질문 보내기", exact: true }).click();
+      await expect.poll(() => harness.posts.length).toBe(1);
+      await second.getByPlaceholder("질문 제목").fill("다른 탭의 새 질문");
+      await flushPageDraft(second);
+      await expect(page.getByRole("alert")).toContainText("다른 탭에서 더 최신 초안");
+      await expect(page.getByRole("button", { name: "다른 탭 초안 불러오기" })).toBeDisabled();
+      release();
+      await expect(page.getByText("전송 중인 질문", { exact: true })).toBeVisible();
+      expect((await readDraft(second, QNA_KEY)).data.title).toBe("다른 탭의 새 질문");
+      await second.reload();
+      await openForm(second, "QnA");
+      await expect(second.getByPlaceholder("질문 제목")).toHaveValue("다른 탭의 새 질문");
+    } finally { release(); await second.close(); }
+  });
+
   test("API 실패에는 초안을 유지하고 등록 성공 뒤에만 제거한다", async ({ page }) => {
     const state = { failSubmit: true };
     await installStudentApi(page, state);
@@ -610,6 +639,29 @@ test.describe("학생 커뮤니티 durable draft", () => {
     expect(harness.posts).toHaveLength(1);
     expect(harness.posts[0].attachments).toHaveLength(10);
     expect(harness.attachmentAttempts[1]).toEqual(harness.attachmentAttempts[0]);
+  });
+
+  test("등록 전 거부된 파일을 바꿔도 같은 글에서 복구한다", async ({ page }) => {
+    const state = { rejectAttachment: true };
+    const harness = await installStudentApi(page, state);
+    await openForm(page, "상담");
+    await page.getByPlaceholder("예: 진로 상담, 학습 방법 상담").fill("첨부 형식 수정");
+    await page.locator(".ProseMirror").fill("거부된 파일만 교체합니다.");
+    await page.locator(".community-file-picker__input").setInputFiles({ name: "invalid.png", mimeType: "image/png", buffer: Buffer.from("invalid") });
+    await page.getByRole("button", { name: "상담 신청하기", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("허용되지 않는 첨부파일");
+    expect((await readDraft(page, COUNSEL_KEY)).data.pendingUpload.canReplace).toBe(true);
+    await page.reload();
+    await openForm(page, "상담");
+    state.rejectAttachment = false;
+    await page.locator(".community-file-picker__input").setInputFiles({ name: "valid.png", mimeType: "image/png", buffer: Buffer.from("valid") });
+    await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
+    await expect.poll(() => readDraft(page, COUNSEL_KEY)).toBeNull();
+    expect(harness.posts).toHaveLength(1);
+    expect(harness.posts[0].attachments).toMatchObject([{ original_name: "valid.png" }]);
+    expect(harness.attachmentAttempts).toHaveLength(2);
+    expect(harness.attachmentAttempts[1].postId).toBe(harness.attachmentAttempts[0].postId);
+    expect(harness.attachmentAttempts[1].key).not.toBe(harness.attachmentAttempts[0].key);
   });
 
   test("첨부 복구를 명시적으로 끝내도 저장한 글을 삭제하거나 다시 만들지 않는다", async ({ page }) => {

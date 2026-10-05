@@ -689,6 +689,7 @@ function CommunityDraftNotice({
   onRetry,
   onAcceptNewer,
   onKeepCurrent,
+  busy,
 }: {
   status: DurableDraftStatus;
   savedAt: number | null;
@@ -699,6 +700,7 @@ function CommunityDraftNotice({
   onRetry: () => void;
   onAcceptNewer: () => void;
   onKeepCurrent: () => void;
+  busy: boolean;
 }) {
   const statusText = draftStatusText(status, savedAt);
   return (
@@ -707,7 +709,7 @@ function CommunityDraftNotice({
         <div role="alert" className="community-draft-notice community-draft-notice--error">
           <span>{errorMessage}</span>
           <div className="community-draft-notice__actions">
-            <button type="button" className="stu-btn stu-btn--secondary" onClick={onRetry}>다시 저장</button>
+            <button type="button" className="stu-btn stu-btn--secondary" disabled={busy} onClick={onRetry}>다시 저장</button>
           </div>
         </div>
       )}
@@ -715,8 +717,8 @@ function CommunityDraftNotice({
         <div role="alert" className="community-draft-notice community-draft-notice--newer">
           <span>다른 탭에서 더 최신 초안이 저장되었습니다.</span>
           <div className="community-draft-notice__actions">
-            <button type="button" className="stu-btn stu-btn--secondary" onClick={onAcceptNewer}>다른 탭 초안 불러오기</button>
-            <button type="button" className="stu-btn stu-btn--ghost" onClick={onKeepCurrent}>현재 내용 유지</button>
+            <button type="button" className="stu-btn stu-btn--secondary" disabled={busy} onClick={onAcceptNewer}>다른 탭 초안 불러오기</button>
+            <button type="button" className="stu-btn stu-btn--ghost" disabled={busy} onClick={onKeepCurrent}>현재 내용 유지</button>
           </div>
         </div>
       )}
@@ -890,6 +892,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           onRetry={qnaDraft.retrySave}
           onAcceptNewer={qnaDraft.acceptNewerDraft}
           onKeepCurrent={qnaDraft.keepCurrentDraft}
+          busy={mutation.isPending}
         />
         {pendingUpload && (
           <div role="status" className="community-draft-notice community-upload-recovery">
@@ -953,7 +956,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
         <button
           type="button"
           disabled={!canSubmit || mutation.isPending}
-          onClick={() => { if (canSubmit && !mutation.isPending && !submittingRef.current) { submittingRef.current = true; submittedChildRef.current = getParentStudentId(); mutation.mutate(); } }}
+          onClick={() => { if (canSubmit && !mutation.isPending && !submittingRef.current) { qnaDraft.flush(); submittingRef.current = true; submittedChildRef.current = getParentStudentId(); mutation.mutate(); } }}
           className="stu-btn stu-btn--primary community-submit"
         >
           {mutation.isPending ? "보내는 중…" : pendingUpload ? "첨부 다시 시도" : "질문 보내기"}
@@ -1374,6 +1377,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           onRetry={counselDraft.retrySave}
           onAcceptNewer={counselDraft.acceptNewerDraft}
           onKeepCurrent={counselDraft.keepCurrentDraft}
+          busy={mutation.isPending}
         />
         {pendingUpload && (
           <div role="status" className="community-draft-notice community-upload-recovery">
@@ -1421,7 +1425,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
         <button
           type="button"
           disabled={!canSubmit || mutation.isPending}
-          onClick={() => { if (canSubmit && !mutation.isPending && !submittingRef.current) { submittingRef.current = true; submittedChildRef.current = getParentStudentId(); mutation.mutate(); } }}
+          onClick={() => { if (canSubmit && !mutation.isPending && !submittingRef.current) { counselDraft.flush(); submittingRef.current = true; submittedChildRef.current = getParentStudentId(); mutation.mutate(); } }}
           className="stu-btn stu-btn--primary community-submit"
         >
           {mutation.isPending ? "신청 중…" : pendingUpload ? "첨부 다시 시도" : "상담 신청하기"}
