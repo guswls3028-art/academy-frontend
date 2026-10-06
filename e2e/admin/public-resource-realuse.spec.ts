@@ -86,8 +86,14 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
           await page.goto(`${QA_BASE}/landing/resources/${posts[0].id}`);
           await page.getByRole("link", { name: "수정", exact: true }).click();
           await page.getByRole("textbox", { name: "본문", exact: true }).fill("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.");
+          const edited = page.waitForResponse((response) => response.request().method() === "PATCH"
+            && new URL(response.url()).pathname === `/api/v1/landing-public/resources/${posts[0].id}/`);
           await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
-          await expect(page.getByText("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.", { exact: true })).toBeVisible();
+          expect((await edited).status()).toBe(200);
+          // The editor textarea and preview contain the same text before navigation.
+          // Verify the saved article, never the draft or its preview.
+          await expect(page).toHaveURL(`${QA_BASE}/landing/resources/${posts[0].id}`);
+          await expect(page.getByRole("article").getByText("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.", { exact: true })).toBeVisible();
         }
         const visitor = await open(width);
         await visitor.goto(`${QA_BASE}/landing/resources/${post.id}`);

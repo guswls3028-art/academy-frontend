@@ -94,6 +94,9 @@ conversion or production completion.
 QA seed's two publishers. Its exact-artifact development journey verifies private
 file-only publication with an empty optional body, private preview, anonymous reload, all three PDF pages with enlargement, complete Hangul pages, original bytes, second-publisher edit,
 deletion/link revocation and tenant/user/storage-zero cleanup at both sizes.
+Edit verification requires a successful PATCH and navigation to the saved article,
+then scopes body assertions to that article so editor text and preview cannot be
+mistaken for a saved result. Anonymous reload still verifies persistence.
 Fixture provenance lives in `e2e/fixtures/documents/README.md`.
 
 The release browser boundary accepts an asset only after the exact QA tenant's API
