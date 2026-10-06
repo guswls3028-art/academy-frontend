@@ -310,7 +310,14 @@ for (const [width, actorId] of [[1366, 501], [390, 502]] as const) {
     expect(createPayloads[0].content).toBe("");
     expect(createPayloads[0].request_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(createPayloads[0].file_ids).toEqual(["07b9f486-cbef-427a-a5fd-5f5ae269b143"]);
+    const publishedDocument = page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true });
+    await publishedDocument.scrollIntoViewIfNeeded();
+    await expect(publishedDocument.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+    await expect(page.getByRole("link", { name: "수정", exact: true })).toBeVisible();
     await page.reload(); await expect(page.getByRole("heading", { name: "QA 교정 보고서", exact: true })).toBeVisible();
+    await publishedDocument.scrollIntoViewIfNeeded();
+    await expect(publishedDocument.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+    await expect(page.getByRole("link", { name: "수정", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   });
 }

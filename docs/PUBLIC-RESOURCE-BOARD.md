@@ -97,6 +97,8 @@ deletion/link revocation and tenant/user/storage-zero cleanup at both sizes.
 Edit verification requires a successful PATCH and navigation to the saved article,
 then scopes body assertions to that article so editor text and preview cannot be
 mistaken for a saved result. Anonymous reload still verifies persistence.
+File-only publish/reload checks wait for the uploaded PDF to render before reload
+and teardown, verifying the complete reading journey without interrupting pending imports.
 Fixture provenance lives in `e2e/fixtures/documents/README.md`.
 
 The release browser boundary accepts an asset only after the exact QA tenant's API
