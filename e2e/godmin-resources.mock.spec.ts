@@ -406,3 +406,28 @@ test("delete retry after a lost acknowledgement returns to the persisted empty b
   await page.reload();
   await expect(page.getByText("아직 등록된 자료가 없습니다", { exact: true })).toHaveCount(2);
 });
+
+for (const width of [1366, 390]) {
+  test(`saved descriptions remain addressable through edit and reload at ${width}px`, async ({ page }, testInfo) => {
+    await prepare(page, { publisher: true, actorId: 502 });
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/landing/resources/901/edit`);
+    await expect(page.getByLabel("제목", { exact: true })).toHaveValue(LONG_TITLE);
+    await expect(page.getByRole("textbox", { name: "설명", exact: true })).toHaveValue(resource.content);
+    await page.getByLabel("분류", { exact: true }).selectOption("analysis");
+    const description = "다른 게시자가 기존 원본을 보존하며 설명을 수정했습니다.";
+    await page.getByRole("textbox", { name: "설명", exact: true }).fill(description);
+    await expect(page.getByRole("textbox", { name: "설명", exact: true })).toHaveValue(description);
+    await expect(page.getByLabel("첨부 자료", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
+    await expect(page.getByText(description, { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByText(description, { exact: true })).toBeVisible();
+    for (const file of resource.files) await expect(page.getByText(file.filename, { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "수정", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "설명", exact: true })).toHaveValue(description);
+    await expect(page.getByLabel("분류", { exact: true })).toHaveValue("analysis");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: testInfo.outputPath(`saved-description-${width}.png`), fullPage: true });
+  });
+}

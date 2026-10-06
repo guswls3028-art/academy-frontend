@@ -85,3 +85,10 @@ The isolated browser journey initializes tenant storage only on its exact web
 origin, never on opaque initial documents. Teardown records every context failure
 as a failing soft assertion so cleanup continues and the original workflow failure
 is not replaced by a later browser-check exception.
+
+Prefilled-description checks locate the textbox by its accessible role and name
+(`설명`): exact wrapping-label text may also include the textarea DOM content.
+The existing editor markup and visible names stay intact. Regression checks edit
+a nonempty saved description at desktop/390px, reopen it with attachments retained,
+and the isolated real-use journey reloads the other publisher's edit anonymously
+before downloading the preserved original again.
