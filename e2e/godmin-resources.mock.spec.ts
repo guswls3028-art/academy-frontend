@@ -420,7 +420,10 @@ for (const width of [1366, 390]) {
     await expect(page.getByRole("textbox", { name: "설명", exact: true })).toHaveValue(description);
     await expect(page.getByLabel("첨부 자료", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
-    await expect(page.getByText(description, { exact: true })).toBeVisible();
+    // The textarea also matches getByText; wait for the saved detail before reload.
+    await expect(page).toHaveURL(`${BASE}/landing/resources/901`);
+    await expect(page.getByRole("article").getByText(description, { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "수정", exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByText(description, { exact: true })).toBeVisible();
     for (const file of resource.files) await expect(page.getByText(file.filename, { exact: true })).toBeVisible();
