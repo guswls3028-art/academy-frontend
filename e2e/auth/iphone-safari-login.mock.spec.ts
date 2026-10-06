@@ -1123,3 +1123,35 @@ for (const staleError of ["403", "404", "network"] as const) {
     expect(activeB).toMatchObject({ access: accountB.access, refresh: accountB.refresh });
   });
 }
+
+test("login rate limiting stays visible until an explicit retry", async ({ page }, testInfo) => {
+  const state = await stubLoginFlow(page, "student");
+  let attempts = 0;
+  await page.route("**/api/v1/token/", async (route) => {
+    attempts++;
+    if (attempts === 1) return route.fulfill({ status: 429, headers: { "Retry-After": "1" },
+      contentType: "application/json", body: JSON.stringify({ detail: "Request was throttled." }) });
+    await route.fallback();
+  });
+  await openLogin(page);
+  await page.getByTestId("login-username").fill("student.id-20");
+  await page.getByTestId("login-password").fill("Case-Sensitive-Pw");
+  await page.getByTestId("login-submit").click();
+  await expect(page.getByRole("form", { name: "로그인 폼" }).getByRole("alert")).toBeVisible();
+  await expect(page.getByTestId("login-submit")).toBeEnabled();
+  await expect(page.getByRole("alert")).toContainText("1초 후 다시 시도");
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(page.getByRole("alert")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: testInfo.outputPath(`login-rate-limit-${width}.png`) });
+  }
+  await page.clock.install();
+  await page.clock.runFor(2000);
+  expect(attempts).toBe(1);
+  expect(state.requests).toHaveLength(0);
+  await page.getByTestId("login-submit").click();
+  await expect(page).toHaveURL(/\/student(?:\/|$)/);
+  expect(attempts).toBe(2);
+  await expect.poll(() => readAuthSession(page)).toMatchObject({ access: state.access, refresh: state.refresh });
+});

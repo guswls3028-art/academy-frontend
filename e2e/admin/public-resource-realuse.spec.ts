@@ -40,7 +40,10 @@ test.describe.serial("[real-use] 공개 자료 원본 공유", () => {
     async function open(width: number) {
       const context = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block" });
       const guard = await installReleaseContextGuard(context, boundary);
-      await context.addInitScript((tenant) => { localStorage.setItem("tenant_code", tenant); sessionStorage.setItem("tenantCode", tenant); }, QA_TENANT);
+      await context.addInitScript(({ tenant, origin }) => {
+        if (location.origin !== origin) return;
+        localStorage.setItem("tenant_code", tenant); sessionStorage.setItem("tenantCode", tenant);
+      }, { tenant: QA_TENANT, origin: new URL(QA_BASE).origin });
       const page = await context.newPage(); const strict = attachStrictBrowserGuards(page);
       contexts.push({ context, guard, strict }); return page;
     }
@@ -105,7 +108,9 @@ test.describe.serial("[real-use] 공개 자료 원본 공유", () => {
         expect((await api(request, "GET", `/landing-public/resources/${post.id}/`, "")).status).toBe(404);
       }
       for (const { context, guard, strict } of contexts) {
-        await guard.beginClose(); await context.close(); guard.assertClean(); strict.assertZeroDefects();
+        await guard.beginClose(); await context.close();
+        expect.soft(() => guard.assertClean()).not.toThrow();
+        expect.soft(() => strict.assertZeroDefects()).not.toThrow();
       }
       // Soft-deleted original objects are preserved by product policy. The owning
       // scenario cleanup purges only this disposable tenant and proves R2/user zero.
