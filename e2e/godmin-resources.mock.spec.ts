@@ -126,7 +126,7 @@ const documentServer = createServer((request, response) => {
         body = { status: "ready", mode: "pages", blocks: [], pdf_url: documentUrl };
       } else if (resourceScenario.readerFailure) body = { status: "failed", message: "본문을 준비하지 못했습니다. 원본은 보존됩니다." };
       else body = file?.reader_status === "unsupported" ? { status: "unsupported" }
-        : { status: "ready", mode: "pages", blocks: [], pdf_url: `${documentUrl}?file=${id}` }; status = 200;
+        : { status: "ready", mode: "pages", blocks: [], pdf_url: `${documentUrl}?reader=${id}` }; status = 200;
     }
     else if (url.pathname.includes("/resource-files/")) { body = { url: `${documentUrl}?file=${url.pathname.split("/").filter(Boolean).at(-1)}`, expires_in: 300 }; status = 200; }
     else if (url.pathname.endsWith("/resources/")) {
@@ -143,6 +143,7 @@ const documentServer = createServer((request, response) => {
     response.writeHead(status, { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" }); response.end(JSON.stringify(body)); return;
   }
   if (url.pathname !== "/qa-resource.pdf") { response.writeHead(404); response.end(); return; }
+  // Reader PDFs are derived output; only original-download URLs return uploaded source bytes.
   const original = uploaded.get(url.searchParams.get("file") || "");
   const bytes = original?.bytes || pdfBytes();
   response.writeHead(200, {
@@ -492,8 +493,16 @@ test("failed reader retries through pending and publishes the recovered body", a
   await expect(publish).toBeEnabled();
   await publish.click();
   await page.waitForURL(/\/landing\/resources\/901$/);
+  // Verify the saved result before reloading; navigation alone leaves its reads in flight.
+  const savedTitle = page.getByRole("heading", { name: "재시도한 한글 분석", exact: true });
+  const savedDocument = page.getByRole("region", { name: "qa.hwpx 본문", exact: true });
+  await expect(savedTitle).toBeVisible();
+  await expect(page.getByRole("link", { name: "수정", exact: true })).toBeVisible();
+  await expect(savedDocument.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1);
   await page.reload();
-  await expect(page.getByRole("heading", { name: "재시도한 한글 분석", exact: true })).toBeVisible();
+  await expect(savedTitle).toBeVisible();
+  await expect(page.getByRole("link", { name: "수정", exact: true })).toBeVisible();
+  await expect(savedDocument.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1);
   expect(createPayloads).toHaveLength(1);
   expect(cleaned).toHaveLength(0);
 });
