@@ -285,6 +285,8 @@ for (const width of [1366, 390]) {
   test(`arbitrary originals publish and download byte-for-byte at ${width}px`, async ({ page }, testInfo) => {
     await prepare(page, { publisher: true }); await page.setViewportSize({ width, height: 900 });
     await page.goto(`${BASE}/landing/resources/write`);
+    const category = width === 390 ? "analysis" : "matchup";
+    await page.getByLabel("분류", { exact: true }).selectOption(category);
     await page.getByLabel("제목", { exact: true }).fill("모든 형식의 원본 자료");
     const originals = ["분석.xlsx", "발표.pptx", "원본.zip", "README", "자료.아주긴확장자"].map((name) => ({ name, mimeType: "application/octet-stream", buffer: Buffer.from(`QA original ${name}`) }));
     await page.getByLabel("첨부 자료", { exact: true }).setInputFiles(originals);
@@ -292,6 +294,7 @@ for (const width of [1366, 390]) {
     await expect(page.getByText(originals[4].name, { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "게시하기", exact: true }).click();
     await expect(page.getByRole("heading", { name: "모든 형식의 원본 자료", exact: true })).toBeVisible();
+    expect(createPayloads[0].category).toBe(category);
     await page.reload();
     for (const [index, original] of originals.entries()) {
       const downloadPromise = page.waitForEvent("download");

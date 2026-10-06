@@ -19,6 +19,10 @@ display names do not grant permission. Only the two configured active publisher 
 failure has an explicit retry. Backend policy and exact IDs are owned by
 academy-backend `docs/domain/public-resource-board.md`.
 
+The category selector has the explicit accessible name `분류`, matching its visible
+label without including option text. Desktop and mobile checks select both categories
+and verify the submitted category before anonymous download/reload.
+
 Uploading does not publish. The publisher selects a category, title, optional
 description and 1–5 files (each nonempty, up to 30 MiB). The file picker accepts
 all formats, including Office/ZIP/images/custom suffixes and extensionless files.

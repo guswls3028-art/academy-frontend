@@ -117,7 +117,7 @@ export default function PublicResourceWritePage() {
     {publisher.state === "allowed" && loading && <p role="status">수정할 자료를 불러오는 중입니다…</p>}
     {loadError && <ResourceFailure message={loadError} onRetry={() => setRetry((value) => value + 1)} />}
     {publisher.state === "allowed" && !loading && !loadError && <form className={styles.form} onSubmit={(event) => void submit(event)}>
-      <label>분류<select value={category} disabled={busy} onChange={(event) => setCategory(event.target.value as ResourceCategory)}><option value="matchup">매치업</option><option value="analysis">분석자료</option></select></label>
+      <label>분류<select aria-label="분류" value={category} disabled={busy} onChange={(event) => setCategory(event.target.value as ResourceCategory)}><option value="matchup">매치업</option><option value="analysis">분석자료</option></select></label>
       <label>제목<input required maxLength={200} value={title} disabled={busy} onChange={(event) => setTitle(event.target.value)} placeholder="자료 제목을 입력해주세요" /></label>
       <label>설명<textarea maxLength={20000} rows={6} value={content} disabled={busy} onChange={(event) => setContent(event.target.value)} placeholder="자료에 대한 안내를 적어주세요 (선택)" /></label>
       <div className={styles.upload}><label>첨부 자료<input type="file" multiple disabled={busy || files.length >= 5} onChange={(event) => { void addFiles(event.target.files); event.target.value = ""; }} /></label>
