@@ -40,8 +40,8 @@ Editing sends the loaded revision. A conflicting edit preserves the local input,
 offers the latest public post in a new tab, and allows explicitly confirmed
 cleanup/reload before editing again; it never silently overwrites a newer post.
 PDF retry remounts the renderer even if signing returns the same URL, and preview
-can be closed. Failed list pagination retries the same page while retaining prior
-results. The header/title use the current tenant program name, with a neutral
+can be closed. Failed list pagination restarts from the first page so concurrent
+deletions cannot trap a reader on a vanished page. The header/title use the current tenant program name, with a neutral
 loading fallback; the shared homepage menu also links to this resource board.
 Existing older boards, publisher policies and saved homepage content are preserved.
 
