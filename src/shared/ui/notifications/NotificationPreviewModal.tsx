@@ -2,6 +2,7 @@
 // 수동 알림 발송 미리보기 모달 — preview → confirm 2단계
 // 출결(session 기반) + 범용(student_ids 기반) 모두 지원
 import React, { useState } from "react";
+import { Link } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 import AdminModal from "@/shared/ui/modal/AdminModal";
 import ModalHeader from "@/shared/ui/modal/ModalHeader";
@@ -9,7 +10,6 @@ import ModalBody from "@/shared/ui/modal/ModalBody";
 import ModalFooter from "@/shared/ui/modal/ModalFooter";
 import { Button } from "@/shared/ui/ds";
 import StudentNameWithLectureChip, { type LectureInfo } from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   previewAttendanceNotification,
@@ -82,6 +82,15 @@ function handleRecipientRadioKeyDown(event: React.KeyboardEvent<HTMLButtonElemen
 }
 
 export default function NotificationPreviewModal(props: Props) {
+  if (!props.open) return null;
+  const requestKey = JSON.stringify(props.mode === "attendance"
+    ? [props.mode, props.sessionId, props.notificationType, props.sendTo]
+    : [props.mode, props.trigger, props.studentIds, props.sendTo, props.context, props.contextSource, props.contextPerStudent]);
+  // A new input starts a new review. Late responses belong to the old session.
+  return <NotificationPreviewSession key={requestKey} {...props} />;
+}
+
+function NotificationPreviewSession(props: Props) {
   const { open, onClose, sendTo = "parent" } = props;
   const [preview, setPreview] = useState<NotificationPreviewPayload | null>(null);
   const [agreed, setAgreed] = useState(false);
@@ -89,6 +98,16 @@ export default function NotificationPreviewModal(props: Props) {
   const [confirmResult, setConfirmResult] = useState<NotificationConfirmResult | null>(null);
   const [selectedPreviewStudentId, setSelectedPreviewStudentId] = useState<number | null>(null);
   const [recipientsExpanded, setRecipientsExpanded] = useState(false);
+  const receiptRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (confirmed) receiptRef.current?.scrollIntoView({ block: "nearest" });
+  }, [confirmed]);
+  const activeRef = React.useRef(true);
+  const confirmingRef = React.useRef(false);
+  React.useEffect(() => {
+    activeRef.current = true;
+    return () => { activeRef.current = false; };
+  }, []);
 
   const label =
     props.label ||
@@ -116,15 +135,13 @@ export default function NotificationPreviewModal(props: Props) {
       });
     },
     onSuccess: (data) => {
+      if (!activeRef.current) return;
       setPreview(data);
       setAgreed(false);
       setConfirmed(false);
       setConfirmResult(null);
       setSelectedPreviewStudentId(null);
       setRecipientsExpanded(false);
-    },
-    onError: (err: unknown) => {
-      feedback.error(extractApiError(err, "미리보기를 불러오는데 실패했습니다."));
     },
   });
 
@@ -135,33 +152,39 @@ export default function NotificationPreviewModal(props: Props) {
       return confirmManualNotification(token);
     },
     onSuccess: (data) => {
+      if (!activeRef.current) return;
       setConfirmed(true);
       setConfirmResult(data);
       props.onConfirmed?.(data);
-      feedback.success(`${data.sent_count}건 발송 완료`);
     },
-    onError: (err: unknown) => {
-      feedback.error(extractApiError(err, "발송에 실패했습니다."));
-    },
+    onSettled: () => { confirmingRef.current = false; },
   });
 
+  const previewStartedRef = React.useRef(false);
   React.useEffect(() => {
-    if (open) {
-      previewMutation.mutate();
-    } else {
-      setPreview(null);
-      setAgreed(false);
-      setConfirmed(false);
-      setConfirmResult(null);
-      setSelectedPreviewStudentId(null);
-      setRecipientsExpanded(false);
-    }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (previewStartedRef.current) return;
+    previewStartedRef.current = true;
+    previewMutation.mutate();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleConfirm = () => {
-    if (!preview?.preview_token || confirmed) return;
+    if (!preview?.preview_token || confirmed || !agreed || confirmingRef.current) return;
+    confirmingRef.current = true;
     confirmMutation.mutate(preview.preview_token);
   };
+
+  const reloadPreview = () => {
+    if (confirmingRef.current) return;
+    setPreview(null);
+    setAgreed(false);
+    confirmMutation.reset();
+    previewMutation.mutate();
+  };
+  const close = () => { if (!confirmingRef.current) onClose(); };
+  const confirmationErrorCode = (confirmMutation.error as { response?: { data?: { code?: string } } } | null)?.response?.data?.code;
+  const needsFreshPreview = confirmationErrorCode === "preview_expired" || confirmationErrorCode === "preview_changed";
+  const acceptedCount = confirmResult
+    ? confirmResult.accepted_count ?? confirmResult.sent_count + (confirmResult.pending_count ?? 0) : 0;
 
   const sendable = preview?.recipients?.filter((r) => !r.excluded) ?? [];
   const excluded = preview?.recipients?.filter((r) => r.excluded) ?? [];
@@ -172,7 +195,7 @@ export default function NotificationPreviewModal(props: Props) {
     ?? null;
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.wide}>
+    <AdminModal open={open} onClose={close} closeDisabled={confirmMutation.isPending} type="action" width={MODAL_WIDTH.wide}>
       <ModalHeader
         title={`${label} 발송`}
         description="대상, 수신 번호, 알림톡 내용을 확인한 뒤 발송합니다."
@@ -183,6 +206,28 @@ export default function NotificationPreviewModal(props: Props) {
           <div className="notification-preview__loading">미리보기를 준비하고 있습니다.</div>
         )}
 
+        {previewMutation.isError && (
+          <div className="notification-preview__error" role="alert">
+            <strong>미리보기를 불러오지 못했습니다.</strong>
+            <span>{extractApiError(previewMutation.error, "잠시 후 다시 확인해 주세요.")}</span>
+            <Button intent="secondary" size="sm" onClick={reloadPreview}>미리보기 다시 불러오기</Button>
+          </div>
+        )}
+        {confirmMutation.isError && (
+          <div className="notification-preview__error" role="alert">
+            <strong>발송 접수 결과를 확인해 주세요.</strong>
+            <span>{extractApiError(confirmMutation.error, "응답이 끊겼지만 요청은 접수됐을 수 있습니다.")}</span>
+            {needsFreshPreview ? (
+              <Button intent="secondary" size="sm" onClick={reloadPreview}>미리보기 다시 불러오기</Button>
+            ) : (
+              <>
+                <span>같은 요청으로 다시 확인하면 이미 접수된 메시지는 새로 보내지 않습니다.</span>
+                <Button intent="secondary" size="sm" onClick={handleConfirm} disabled={confirmMutation.isPending}>같은 요청으로 다시 확인</Button>
+                <Link to="/workspace/message/log">발송 기록 보기</Link>
+              </>
+            )}
+          </div>
+        )}
         {preview && (
           <div className="notification-preview">
             {/* 세션 정보 (출결 모드) */}
@@ -338,8 +383,12 @@ export default function NotificationPreviewModal(props: Props) {
 
             {/* 발송 완료 */}
             {confirmed && confirmResult && (
-              <div className="notification-preview__done">
-                <strong>{confirmResult.sent_count}건 발송 완료</strong>
+              <div ref={receiptRef} className="notification-preview__done" role="status"
+                data-warning={acceptedCount === 0 || confirmResult.failed_count > 0 || confirmResult.blocked_count > 0}>
+                <strong>알림톡 {acceptedCount}건 접수</strong>
+                {(confirmResult.pending_count ?? 0) > 0 && <span>처리 대기 {confirmResult.pending_count}건</span>}
+                <span>실제 수신 여부는 아직 확인되지 않았습니다. 발송 기록에서 처리 상태를 확인해 주세요.</span>
+                <Link to="/workspace/message/log">발송 기록 보기</Link>
                 <span>배치 {confirmResult.batch_id.slice(0, 8)}</span>
                 {(confirmResult.failed_count > 0 || confirmResult.blocked_count > 0) && (
                   <span>
@@ -354,7 +403,7 @@ export default function NotificationPreviewModal(props: Props) {
       <ModalFooter
         right={
           <div className="flex gap-2">
-            <Button type="button" intent="secondary" size="sm" onClick={onClose}>
+            <Button type="button" intent="secondary" size="sm" onClick={close} disabled={confirmMutation.isPending}>
               {confirmed ? "닫기" : "취소"}
             </Button>
             {preview && sendableCount > 0 && !confirmed && (
@@ -363,7 +412,7 @@ export default function NotificationPreviewModal(props: Props) {
                 intent="primary"
                 size="sm"
                 onClick={handleConfirm}
-                disabled={!agreed || confirmMutation.isPending}
+                disabled={!agreed || confirmMutation.isPending || !preview.preview_token || needsFreshPreview}
               >
                 {confirmMutation.isPending ? "발송 중..." : `${sendableCount}건 발송`}
               </Button>
