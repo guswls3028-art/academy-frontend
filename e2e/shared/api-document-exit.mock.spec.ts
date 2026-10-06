@@ -71,10 +71,11 @@ test("logout cancels queued reads before pagehide and a new login can request ag
     markSessionEnding();
     const queued = await pending;
     const late = await api.get("/student/me/").then(() => "sent", (error: { code?: string }) => error.code);
+    const login = await api.post("/token/", { username: "test-relogin", password: "test-only" });
     resetSessionEnding();
     const restored = await api.get("/student/me/");
-    return { queued, late, restored: restored.status };
+    return { queued, late, login: login.status, restored: restored.status };
   });
-  expect(result).toEqual({ queued: "ERR_CANCELED", late: "ERR_CANCELED", restored: 200 });
-  expect(requests).toEqual(["/api/v1/student/me/"]);
+  expect(result).toEqual({ queued: "ERR_CANCELED", late: "ERR_CANCELED", login: 200, restored: 200 });
+  expect(requests).toEqual(["/api/v1/token/", "/api/v1/student/me/"]);
 });
