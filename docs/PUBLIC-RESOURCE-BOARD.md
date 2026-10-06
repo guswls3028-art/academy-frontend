@@ -1,94 +1,110 @@
-# Public resource-sharing board
+# Public board with whole-file reading
 
 The existing godmin homepage keeps its saved configuration and layout. Its menu
-links to `/landing/resources`, a two-column desktop board (matchup / analysis),
-stacked at 390px. Login places `홈페이지` immediately left of `아이디 찾기`.
-GodminLandingPage is the existing dedicated public homepage. Its route does not
-depend on the generic LandingPage draft being published; that draft is preserved.
+links to `/landing/resources`. The shared homepage exposes the same isolated board
+for tchul and later tenants. Login places `홈페이지` immediately left of `아이디 찾기`;
+GodminLandingPage remains independent of the generic unpublished landing draft.
 
-Anyone, including unauthenticated visitors, may open a category, read a post,
-reload it, render PDF through the established PDFJS component and download the
-original files of any format. Header login remembers the board return path. Downloads obtain a fresh link on each click.
-Non-PDF files show a compatible-program instruction; the service does not execute
-or promise a browser preview for arbitrary originals. Loading, empty, not-found, connection,
-validation and action failures have visible states; connection errors can retry.
+Teachers finish and edit documents on their own computers, then upload each complete file. The homepage replaces their cafe publishing workflow; it does not author or restructure their reports.
 
-The server capability endpoint controls publishing affordances; client roles or
-display names do not grant permission. Only the two configured active publisher accounts in the resolved tenant may upload/create/edit/delete. `/resources/write` and
-`/:id/edit` show a clear unauthorized state for other accounts. Capability
-failure has an explicit retry. Backend policy and exact IDs are owned by
+Visitors browse a familiar single-column post list with a title, optional excerpt, author/date and compact 전체/매치업/분석자료 filters; long
+titles/excerpts are clamped while the detail preserves the full text. The reading
+journey is article → authored body → automatically opened reports → optional
+collapsed original files. It replaces the earlier download-first board because
+analysis and matchup publications must also work for outside promotional readers.
+Header/title use the resolved tenant's program name with a neutral loading state.
+A single layout owner updates the article/tenant browser title without a late brand request overwriting it, offers link copying and a return to other
+articles. Login preserves the board return path.
+
+## Reading and recovery
+
+Anyone, including an unauthenticated visitor, can read and reload a published
+article. No separate PDF-preview click is required. PDF and DOCX/XLSX/PPTX open
+as page-preserving documents through the established PDFJS component. Visible
+pages render lazily and release offscreen canvases; zoom spans 100–300% with
+keyboard-accessible horizontal scrolling. Extracted PDF text is available to
+assistive technology. Retry remounts PDFJS even when a refreshed signature is equal. Lazy imports cannot start a detached PDF worker after navigation; cleanup handles cancellation. Each canvas stays within 16 million pixels and an 8192-pixel edge while preserving CSS zoom.
+
+HWP/HWPX and Office documents automatically display their original pages, including
+tables, images and formulas, through the same inline PDF viewer. There is no
+alternate article schema, formula editor or mode switch for the teacher to learn.
+PNG/JPEG/WebP/GIF and UTF-8 text also read inline. Original downloads remain an
+optional collapsed section after the displayed document.
+
+Loading, empty, not-found, connection, validation, malformed-reader and conversion
+failures are visible. A reader failure offers retry; PDF/image link failures fetch
+new URLs. Pending conversion polls with bounded backoff. Failed pagination restarts
+from page one so concurrent deletion cannot trap readers on a vanished page.
+Unsupported auxiliary originals require authored body; a ZIP is not shown as an
+empty successful report. The format/size/page and conversion policy is owned by
 academy-backend `docs/domain/public-resource-board.md`.
 
-The category selector has the explicit accessible name `분류`, matching its visible
-label without including option text. Desktop and mobile checks select both categories
-and verify the submitted category before anonymous download/reload.
+## Publishing and conflict handling
 
-Uploading does not publish. The publisher selects a category, title, optional
-description and 1–5 files (each nonempty, up to 30 MiB). The file picker accepts
-all formats, including Office/ZIP/images/custom suffixes and extensionless files.
-Local size checks are supplemented by server size/name/document integrity checks. Upload requests allow 120 seconds
-for slow transfers; request IDs use the shared secure UUID fallback for supported
-browsers without `randomUUID`. Successful uploads remain in the form if a subsequent
-file fails. `게시하기` is explicit public publication;
-network retries preserve the request UUID and input. Editing retains existing
-attachments, including those originally uploaded by the other publisher. File
-removal and cancellation clean the current uploader's pending files; failure
-leaves an explicit retry with the form intact. Successfully cleaned attachments
-disappear immediately even if a later cleanup fails. A file awaiting cleanup is
-marked visibly and cannot be published until its cleanup retry succeeds; another
-original can then be uploaded. Upload progress names the active file and count. Attached manual documents are
-retained privately when removed or their post is deleted. Browser close/offline
-cleanup is best effort; server recovery retains private pending metadata.
+The server capability endpoint controls affordances. Only the two configured,
+active publisher accounts in the resolved tenant may upload/create/edit/delete;
+client role labels and names do not grant access. Write/edit routes show an
+unauthorized state to others. Capability failure has retry. Existing board
+permissions, older community boards and saved homepage configuration are preserved.
 
-Editing sends the loaded revision. A conflicting edit preserves the local input,
-offers the latest public post in a new tab, and allows explicitly confirmed
-cleanup/reload before editing again; it never silently overwrites a newer post.
-PDF retry remounts the renderer even if signing returns the same URL, and preview
-can be closed. Failed list pagination restarts from the first page so concurrent
-deletions cannot trap a reader on a vanished page. The header/title use the current tenant program name, with a neutral
-loading fallback; the shared homepage menu also links to this resource board.
-Existing older boards, publisher policies and saved homepage content are preserved.
+The writer chooses the accessible `분류` selector, a title, optional `본문` and 0–5 complete originals
+(each nonempty, at most 30 MiB). Text-only posts need a body. The picker accepts all
+formats; server validation remains authoritative. Uploading stays private. The
+same reader previews the complete file before publication, inside a focusable bounded
+viewport after the publish action, so a long report never forces scrolling to its end before publication. Up/down controls persist
+report order. Supported reports must prepare successfully; a failed report can be
+retried or replaced, with input and original preserved. `게시하기` explicitly makes
+the resulting article and reports visible without login.
 
-Desktop and 390px checks include long Hangul names, multiple attachments,
-keyboard focus, touch targets, reduced motion, both categories, uploader success,
-anonymous reload/download bytes/PDF canvas, permission errors, failed upload,
-cancel, edit and deletion. Exact-artifact isolated development, required frontend
-gates and zero disposable QA rows/storage keys are required before promotion.
-Production checks are observational and must preserve customer data.
+Upload requests allow 120 seconds for slow transfers. Request UUIDs use the shared
+secure fallback on browsers without `randomUUID`. Successful earlier uploads stay
+in the form after a later failure. Network retry retains UUID/input. Editing keeps
+attachments originally supplied by the other publisher. Removing/cancelling the
+current uploader's pending file cleans its original and prepared reader assets;
+partial cleanup removes only successful items and leaves explicit retry for the
+remainder. An item awaiting cleanup cannot publish. Other pending items can still
+be retained. Detached manual files/deleted posts stay private, never auto-deleted.
+Closing/offline cleanup remains best effort with private server recovery metadata.
 
-The deployment canary `admin/public-resource-realuse.spec.ts` uses the two
-synthetic publishers created by the backend isolated QA seed. Its browser boundary
-accepts a file GET only after the current QA API returns that exact UUID's signed
-URL, restricted to the development bucket, exact QA tenant path, host-only signature
-and 300-second expiry. Application credentials never accompany R2 requests;
-redirects and missing preview CORS are failures. Byte comparisons, anonymous
-reload, retained-attachment editing and delete/link revocation precede the owning
-scenario's exact tenant/user/storage-zero cleanup.
+Editing submits the loaded revision. A conflict preserves local input, opens the
+latest public post in a separate tab and offers explicitly confirmed cleanup/reload.
+It never silently overwrites a newer post. After a lost create response, a changed
+retry's 409 identifies only that author's existing published post/revision/files.
+The editor keeps its draft and shows published title/body/names for comparison,
+then continues as a versioned edit. Published originals stop being pending cleanup.
+Another subsequent edit still conflicts normally; no duplicate post is created.
 
-If a create response is lost and the author retries the same request UUID with
-changed input, HTTP 409 identifies only that author's already-published post,
-current revision and attached IDs. The editor retains the current input, stops
-treating published originals as pending cleanup, and continues as a versioned
-edit of that post. It never creates a duplicate or discards the authored changes.
-The recovery response also shows the currently published title, body and filenames
-for explicit comparison before applying the retained draft. A concurrent edit after
-that snapshot still receives the ordinary revision conflict.
-Pending cleanup treats HTTP 404 as already unavailable for cleanup (including
-already-published originals), so a lost delete/publish acknowledgement cannot
-trap cancellation. Permission and storage failures still remain visible/retryable.
+Pending cleanup and repeated confirmed post deletion treat 404 as already
+unavailable, avoiding cancellation traps after a lost acknowledgement. Permission
+and storage/service failures stay visible and retryable without silently clearing
+the draft/public view. A saved body is located in tests by textbox role and exact
+accessible name `본문`; wrapping-label text can include textarea contents.
 
-If a delete response is lost, repeating the confirmed deletion treats HTTP 404 as
-already unavailable and returns to the board. Authorization and service failures
-remain visible; the draft or public view is not silently cleared on those errors.
+## Verification
 
-The isolated browser journey initializes tenant storage only on its exact web
-origin, never on opaque initial documents. Teardown records every context failure
-as a failing soft assertion so cleanup continues and the original workflow failure
-is not replaced by a later browser-check exception.
+Mock browser checks exercise desktop/390px reading, automatically opened PDF,
+complete Hangul document pages, long names, tenant branding, both publishers,
+categories, original byte downloads, partial cleanup, saved body editing, lost
+responses, conflicts and failed conversion → pending retry → ready → publication.
+Useful hover/focus feedback, touch targets, reduced motion and overflow checks
+remain part of the affected journey. Mock success does not establish native
+conversion or production completion.
 
-Prefilled-description checks locate the textbox by its accessible role and name
-(`설명`): exact wrapping-label text may also include the textarea DOM content.
-The existing editor markup and visible names stay intact. Regression checks edit
-a nonempty saved description at desktop/390px, reopen it with attachments retained,
-and the isolated real-use journey reloads the other publisher's edit anonymously
-before downloading the preserved original again.
+`admin/public-resource-realuse.spec.ts` uses synthetic documents and the isolated
+QA seed's two publishers. Its exact-artifact development journey verifies private
+file-only publication with an empty optional body, private preview, anonymous reload, all three PDF pages with enlargement, complete Hangul pages, original bytes, second-publisher edit,
+deletion/link revocation and tenant/user/storage-zero cleanup at both sizes.
+Fixture provenance lives in `e2e/fixtures/documents/README.md`.
+
+The release browser boundary accepts an asset only after the exact QA tenant's API
+returns its URL. Original UUIDs and derived generation UUIDs must match the current
+development bucket/tenant/file path, exact R2 origin, host-only signature and
+300-second expiry. Derived names are bounded image-N.webp/png/gif or pages.pdf.
+Application credentials never accompany storage requests; redirects/missing CORS
+fail. Real-use origin storage initialization never touches opaque documents.
+Teardown records each context error as a failing soft assertion while continuing
+cleanup, retaining the original workflow failure.
+
+Required frontend gates, backend candidate runtime, same-artifact development
+canary and cleanup zero precede promotion. Production observation preserves all
+customer content and uses no synthetic posts.

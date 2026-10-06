@@ -42,6 +42,18 @@ function isExactDevelopmentResourceDownload(boundary: ReleaseBoundary, rawUrl: s
     && hasExactHostSignature(target, 300);
 }
 
+function isExactDevelopmentResourceReaderAsset(boundary: ReleaseBoundary, rawUrl: string, fileId: string): boolean {
+  if (isExactDevelopmentResourceDownload(boundary, rawUrl, fileId)) return true;
+  if (boundary.mode !== "development" || !UUID.test(fileId) || !Number.isSafeInteger(boundary.omrR2TenantId)
+    || Number(boundary.omrR2TenantId) < 1) return false;
+  const target = new URL(rawUrl);
+  const prefix = `/academy-development-artifacts/landing-public/resources/${boundary.omrR2TenantId}/${fileId}/reader/`;
+  return target.origin === DEVELOPMENT_OMR_R2_ORIGIN && !target.username && !target.password && !target.hash
+    && rawUrl === `${target.origin}${target.pathname}${target.search}` && target.pathname.startsWith(prefix)
+    && /^[0-9a-f-]{36}\/(?:image-\d+\.(?:webp|gif|png)|pages\.pdf)$/.test(target.pathname.slice(prefix.length))
+    && UUID.test(target.pathname.slice(prefix.length).split("/")[0]) && hasExactHostSignature(target, 300);
+}
+
 function isExactDevelopmentOmrImage(boundary: ReleaseBoundary, rawUrl: string, method: string): boolean {
   if (boundary.mode !== "development" || method !== "GET"
     || !Number.isSafeInteger(boundary.omrR2TenantId) || Number(boundary.omrR2TenantId) < 1) return false;
@@ -494,6 +506,7 @@ const SAFE_REQUEST_TRANSPORT_STATIC_PATHS = new Set([
 const SAFE_REQUEST_TRANSPORT_PATH_SHAPES: Array<[RegExp, string]> = [
   [/^\/api\/v1\/landing-public\/resources\/[1-9][0-9]*\/$/, "/api/v1/landing-public/resources/:id/"],
   [/^\/api\/v1\/landing-public\/resource-files\/[0-9a-f-]{36}\/$/, "/api/v1/landing-public/resource-files/:id/"],
+  [/^\/api\/v1\/landing-public\/resource-files\/[0-9a-f-]{36}\/reader\/$/, "/api/v1/landing-public/resource-files/:id/reader/"],
   [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/$/, "/api/v1/clinic/participants/:id/"],
   [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/set_status\/$/, "/api/v1/clinic/participants/:id/set_status/"],
   [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/change-booking\/$/, "/api/v1/clinic/participants/:id/change-booking/"],
@@ -1102,6 +1115,31 @@ export async function installReleaseContextGuard(
           const payload = await response.json();
           if (payload?.expires_in === 300 && typeof payload.url === "string"
             && isExactDevelopmentResourceDownload(boundary, payload.url, resourceFile[1])) resourceDownloadUrls.add(payload.url);
+        }
+        const resourceReader = /^\/api\/v1\/landing-public\/resource-files\/([0-9a-f-]{36})\/reader\/$/.exec(resourceTarget.pathname);
+        if (boundary.mode === "development" && ["GET", "POST"].includes(request.method()) && resourceReader
+          && !resourceTarget.search && response.status() === 200 && headers["x-tenant-code"] === boundary.tenantCode
+          && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
+          const payload = await response.json();
+          if (payload?.status === "ready") {
+            const urls: string[] = [];
+            if (typeof payload.pdf_url === "string") urls.push(payload.pdf_url);
+            let visited = 0;
+            function visit(value: unknown, depth = 0) {
+              if (depth > 48 || ++visited > 50000) throw new Error("Resource reader QA manifest limit");
+              if (Array.isArray(value)) { for (const item of value) visit(item, depth + 1); }
+              else if (value && typeof value === "object") {
+                const block = value as { kind?: unknown; url?: unknown; rows?: unknown };
+                if (block.kind === "image" && typeof block.url === "string") urls.push(block.url);
+                else if (block.kind === "table") visit(block.rows, depth + 1);
+              }
+            }
+            visit(payload.blocks);
+            for (const url of urls) {
+              if (!isExactDevelopmentResourceReaderAsset(boundary, url, resourceReader[1])) throw new Error("Resource reader asset escaped exact development scope");
+              resourceDownloadUrls.add(url);
+            }
+          }
         }
         const homeworkPreview = /^\/api\/v1\/submissions\/submissions\/homework\/([1-9][0-9]*)\/media\/([1-9][0-9]*)\/preview\/$/.exec(new URL(upstream).pathname);
         if (boundary.mode === "development" && request.method() === "GET" && homeworkPreview

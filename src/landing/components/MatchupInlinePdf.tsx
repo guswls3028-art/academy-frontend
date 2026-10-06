@@ -6,6 +6,9 @@ import styles from "./MatchupInlinePdf.module.css";
 type MatchupInlinePdfProps = {
   url: string;
   title: string;
+  onRetry?: () => void;
+  accessibleText?: boolean;
+  maxPages?: number;
 };
 
 type PageStatus = "waiting" | "rendering" | "ready" | "error";
@@ -14,15 +17,20 @@ function PdfPage({
   pdf,
   pageNumber,
   title,
+  onRetry,
+  accessibleText,
 }: {
   pdf: PDFDocumentProxy;
   pageNumber: number;
   title: string;
+  onRetry?: () => void;
+  accessibleText?: boolean;
 }) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [nearViewport, setNearViewport] = useState(false);
   const [surfaceWidth, setSurfaceWidth] = useState(0);
+  const [pageText, setPageText] = useState("");
   const [status, setStatus] = useState<PageStatus>("waiting");
 
   useEffect(() => {
@@ -76,6 +84,7 @@ function PdfPage({
 
         const baseViewport = page.getViewport({ scale: 1 });
         const nextPageRatio = baseViewport.height / baseViewport.width;
+        if (!Number.isFinite(nextPageRatio) || nextPageRatio <= 0) throw new Error("Invalid document page size");
         if (surfaceRef.current) {
           surfaceRef.current.style.aspectRatio = `${baseViewport.width} / ${baseViewport.height}`;
         }
@@ -84,7 +93,12 @@ function PdfPage({
         // 모바일 고밀도 화면에서는 글자가 흐려지지 않도록 충분한 배율을 쓰고,
         // 화면에서 멀어진 canvas는 위에서 비워 긴 보고서의 메모리 누적을 막는다.
         const pixelRatio = Math.min(window.devicePixelRatio || 1, surfaceWidth >= 700 ? 1.5 : 2.5);
-        const viewport = page.getViewport({ scale: cssScale * pixelRatio });
+        // Preserve zoomed CSS size while bounding each canvas allocation,
+        // including unusually tall pages and high-density mobile screens.
+        const rasterScale = Math.min(cssScale * pixelRatio,
+          Math.sqrt(16_000_000 / (baseViewport.width * baseViewport.height)),
+          8192 / baseViewport.width, 8192 / baseViewport.height);
+        const viewport = page.getViewport({ scale: rasterScale });
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -96,6 +110,10 @@ function PdfPage({
         renderTask = page.render({ canvas, viewport, background: "#ffffff" });
         await renderTask.promise;
         if (!disposed) setStatus("ready");
+        if (accessibleText && !disposed) {
+          const content = await page.getTextContent();
+          if (!disposed) setPageText(content.items.map((item) => "str" in item ? `${item.str}${item.hasEOL ? "\n" : " "}` : "").join(""));
+        }
       } catch (error) {
         if (disposed || (error as { name?: string }).name === "RenderingCancelledException") return;
         setStatus("error");
@@ -108,7 +126,7 @@ function PdfPage({
       renderTask?.cancel();
       page?.cleanup();
     };
-  }, [nearViewport, pageNumber, pdf, surfaceWidth]);
+  }, [accessibleText, nearViewport, pageNumber, pdf, surfaceWidth]);
 
   return (
     <section
@@ -132,9 +150,10 @@ function PdfPage({
         {status === "error" && (
           <div className={styles.pageError} role="alert">
             <strong>{pageNumber}쪽을 표시하지 못했습니다</strong>
-            <span>위의 원본 PDF 다운로드를 이용해주세요.</span>
+            <span>{onRetry ? "본문을 다시 불러오면 이어서 읽을 수 있습니다." : "위의 원본 PDF 다운로드를 이용해주세요."}</span>{onRetry && <button type="button" onClick={onRetry}>본문 다시 불러오기</button>}
           </div>
         )}
+        {pageText && <p className={styles.accessibleText}>{pageText}</p>}
         <canvas
           ref={canvasRef}
           className={styles.canvas}
@@ -146,7 +165,7 @@ function PdfPage({
   );
 }
 
-export default function MatchupInlinePdf({ url, title }: MatchupInlinePdfProps) {
+export default function MatchupInlinePdf({ url, title, onRetry, accessibleText, maxPages }: MatchupInlinePdfProps) {
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState(false);
 
@@ -159,10 +178,14 @@ export default function MatchupInlinePdf({ url, title }: MatchupInlinePdfProps) 
       setError(false);
       try {
         const pdfjs = await import("pdfjs-dist");
+        // Navigation may finish while this lazy import is loading. Do not start
+        // a detached worker/fetch after its owning reader has unmounted.
+        if (disposed) return;
         pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
         loadingTask = pdfjs.getDocument({ url });
         const loaded = await loadingTask.promise;
         if (disposed) return;
+        if (maxPages && loaded.numPages > maxPages) throw new Error("Document page limit");
         setPdf(loaded);
       } catch {
         if (!disposed) setError(true);
@@ -172,15 +195,15 @@ export default function MatchupInlinePdf({ url, title }: MatchupInlinePdfProps) 
     void load();
     return () => {
       disposed = true;
-      void loadingTask?.destroy();
+      void loadingTask?.destroy().catch(() => undefined);
     };
-  }, [url]);
+  }, [url, maxPages]);
 
   if (error) {
     return (
       <div className={styles.documentError} role="alert" data-testid="matchup-inline-pdf-error">
         <strong>본문을 바로 표시하지 못했습니다</strong>
-        <span>원본은 위의 PDF 다운로드 버튼에서 확인할 수 있습니다.</span>
+        <span>{onRetry ? "연결을 확인한 뒤 본문을 다시 불러와주세요." : "원본은 위의 PDF 다운로드 버튼에서 확인할 수 있습니다."}</span>{onRetry && <button type="button" onClick={onRetry}>본문 다시 불러오기</button>}
       </div>
     );
   }
@@ -206,7 +229,7 @@ export default function MatchupInlinePdf({ url, title }: MatchupInlinePdfProps) 
       </div>
       <div className={styles.pages}>
         {Array.from({ length: pdf.numPages }, (_, index) => (
-          <PdfPage key={index + 1} pdf={pdf} pageNumber={index + 1} title={title} />
+          <PdfPage key={index + 1} pdf={pdf} pageNumber={index + 1} title={title} onRetry={onRetry} accessibleText={accessibleText} />
         ))}
       </div>
     </div>

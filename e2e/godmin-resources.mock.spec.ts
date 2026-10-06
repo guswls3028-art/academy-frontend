@@ -8,7 +8,7 @@ const LONG_TITLE = "한글 자료 제목과 아주 긴 설명 ".repeat(8).trim()
 const resource = {
   id: 901, category: "matchup", title: LONG_TITLE, content: "학생과 학부모님께 공개하는 학습 자료입니다.\n줄바꿈도 그대로 표시합니다.",
   author_display_name: "신민", created_at: "2026-10-02T01:00:00Z", updated_at: "2026-10-02T01:00:00Z",
-  files: [{ id: "f-pdf", filename: "교정한 매치업 보고서.PDF", extension: "pdf", size: 2048 }, { id: "f-hwp", filename: "분석 자료.HWP", extension: "hwp", size: 4096 }, { id: "f-hwpx", filename: "가공한 분석자료.HWPX", extension: "hwpx", size: 4096 }],
+  files: [{ id: "f-pdf", filename: "교정한 매치업 보고서.PDF", extension: "pdf", size: 2048, reader_status: "ready" }, { id: "f-hwp", filename: "분석 자료.HWP", extension: "hwp", size: 4096, reader_status: "ready" }, { id: "f-hwpx", filename: "가공한 분석자료.HWPX", extension: "hwpx", size: 4096, reader_status: "ready" }],
 };
 
 function pdfBytes() {
@@ -24,7 +24,7 @@ function pdfBytes() {
 // Native browser downloads do not reliably use Page.route interception.
 // Serve the generated fixture over real loopback HTTP and verify its bytes.
 let documentUrl = "";
-type ResourceScenario = { empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string };
+type ResourceScenario = { readerFailure?: boolean; readerPending?: boolean; empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string };
 let resourceScenario: ResourceScenario = { unavailable: false };
 const uploaded = new Map<string, { file: typeof resource.files[number]; bytes: Buffer }>();
 let uploadCount = 0; let deleteCount = 0;
@@ -53,7 +53,7 @@ const documentServer = createServer((request, response) => {
       const filename = /filename="([^"]+)"/.exec(uploadBody.toString())?.[1] || "unknown";
       const start = uploadBody.indexOf("\r\n\r\n") + 4;
       const bytes = uploadBody.subarray(start, uploadBody.lastIndexOf("\r\n--"));
-      const file = { id: `07b9f486-cbef-427a-a5fd-5f5ae269b${143 + uploadCount++}`, filename, extension: filename.includes(".") ? filename.split(".").at(-1)!.toLowerCase() : "", size: bytes.length };
+      const file = { id: `07b9f486-cbef-427a-a5fd-5f5ae269b${143 + uploadCount++}`, filename, extension: filename.includes(".") ? filename.split(".").at(-1)!.toLowerCase() : "", size: bytes.length, reader_status: /\.(pdf|hwp|hwpx|txt|md|png|jpe?g|webp)$/i.test(filename) ? "ready" : "unsupported" };
       uploaded.set(file.id, { file, bytes });
       response.end(JSON.stringify(file));
     }); return;
@@ -115,15 +115,28 @@ const documentServer = createServer((request, response) => {
     let body: unknown = { detail: "Closed resource fixture: unmatched API" }; let status = 404;
     if (url.pathname.endsWith("/resources/capabilities/")) { body = { can_publish: Boolean(resourceScenario.publisher) }; status = 200; }
     else if (url.pathname.endsWith("/resources/901/")) { body = resourceScenario.post || resource; status = 200; }
+    else if (/\/resource-files\/[^/]+\/reader\/$/.test(url.pathname)) {
+      const id = url.pathname.split("/").filter(Boolean).at(-2)!;
+      const file = uploaded.get(id)?.file || resource.files.find((item) => item.id === id);
+      if (request.method === "POST" && resourceScenario.readerFailure) {
+        resourceScenario.readerFailure = false; resourceScenario.readerPending = true;
+        body = { status: "pending" };
+      } else if (resourceScenario.readerPending) {
+        resourceScenario.readerPending = false;
+        body = { status: "ready", mode: "pages", blocks: [], pdf_url: documentUrl };
+      } else if (resourceScenario.readerFailure) body = { status: "failed", message: "본문을 준비하지 못했습니다. 원본은 보존됩니다." };
+      else body = file?.reader_status === "unsupported" ? { status: "unsupported" }
+        : { status: "ready", mode: "pages", blocks: [], pdf_url: `${documentUrl}?file=${id}` }; status = 200;
+    }
     else if (url.pathname.includes("/resource-files/")) { body = { url: `${documentUrl}?file=${url.pathname.split("/").filter(Boolean).at(-1)}`, expires_in: 300 }; status = 200; }
     else if (url.pathname.endsWith("/resources/")) {
-      if (resourceScenario.unavailable && url.searchParams.get("category") === "matchup") { body = { detail: "qa transient failure" }; status = 503; }
-      else if (resourceScenario.paged && url.searchParams.get("category") === "matchup") {
+      if (resourceScenario.unavailable && url.searchParams.get("category") !== "analysis") { body = { detail: "qa transient failure" }; status = 503; }
+      else if (resourceScenario.paged && url.searchParams.get("category") !== "analysis") {
         const secondPage = url.searchParams.get("page") === "2";
         const ids = secondPage ? [920, 921] : Array.from({ length: 20 }, (_, index) => 901 + index);
         body = { count: 21, next: secondPage ? null : "?page=2", previous: null, results: ids.map((id) => ({ ...resource, id, title: `QA 자료 ${id}` })) }; status = 200;
       } else {
-        const results = resourceScenario.empty ? [] : [{ ...resource, category: url.searchParams.get("category"), id: url.searchParams.get("category") === "analysis" ? 902 : 901 }];
+        const results = resourceScenario.empty ? [] : [{ ...resource, category: url.searchParams.get("category") || "matchup", id: url.searchParams.get("category") === "analysis" ? 902 : 901 }];
         body = { count: results.length, next: null, previous: null, results }; status = 200;
       }
     }
@@ -148,7 +161,7 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await new Promise<void>((resolve, reject) => documentServer.close((error) => error ? reject(error) : resolve())); });
 
-async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string } = {}) {
+async function prepare(page: Page, options: { readerFailure?: boolean; readerPending?: boolean; empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string } = {}) {
   await page.addInitScript((tenant) => { localStorage.setItem("tenant_code", tenant); sessionStorage.setItem("tenantCode", tenant); }, options.tenant || "godmin");
   resourceScenario = { ...options, unavailable: Boolean(options.failOnce) }; uploadBody = Buffer.alloc(0); createPayloads.length = 0; uploaded.clear(); uploadCount = 0; deleteCount = 0; cleaned.length = 0; patchPayloads.length = 0;
   if (options.publisher) {
@@ -185,22 +198,35 @@ for (const width of [1366, 390]) {
     await prepare(page); await page.setViewportSize({ width, height: 900 });
     await page.goto(`${BASE}/landing`);
     await page.getByRole("link", { name: "매치업 · 분석자료", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "매치업 · 분석자료", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "매치업", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "분석자료", exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: "자료 올리기", exact: true })).toHaveCount(0);
-    const matchup = await page.getByRole("heading", { name: "매치업", exact: true }).boundingBox();
-    const analysis = await page.getByRole("heading", { name: "분석자료", exact: true }).boundingBox();
-    expect(matchup).not.toBeNull(); expect(analysis).not.toBeNull();
-    if (width === 1366) expect(Math.abs((matchup?.y ?? 0) - (analysis?.y ?? 0))).toBeLessThan(2);
-    else expect(analysis?.y ?? 0).toBeGreaterThan(matchup?.y ?? 0);
+    await expect(page.getByRole("heading", { name: "게시판", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "매치업", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "분석자료", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "글 올리기", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "분석자료", exact: true }).click();
+    await expect(page.getByRole("button", { name: "분석자료", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "매치업", exact: true }).click();
     await page.screenshot({ path: testInfo.outputPath(`resources-${width}.png`), fullPage: true });
     await page.getByRole("link", { name: LONG_TITLE }).first().click();
     await expect(page.getByRole("heading", { level: 1, name: LONG_TITLE })).toBeVisible();
-    await expect(page.getByText("PDF 외 자료는 원본을 내려받아 해당 형식을 지원하는 프로그램에서 열어주세요.")).toBeVisible();
     await page.reload(); await expect(page.getByRole("heading", { level: 1, name: LONG_TITLE })).toBeVisible();
-    await page.getByRole("button", { name: "PDF 미리보기", exact: true }).click();
-    await expect(page.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 90_000 });
+    await expect(page).toHaveTitle(`${LONG_TITLE} | 신과함께`);
+    await expect(page.getByRole("button", { name: "PDF 미리보기", exact: true })).toHaveCount(0);
+    await page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true }).scrollIntoViewIfNeeded();
+    for (const file of resource.files) {
+      const document = page.getByRole("region", { name: `${file.filename} 본문`, exact: true });
+      await document.scrollIntoViewIfNeeded();
+      await expect(document.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 90_000 });
+    }
+    const reader = page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true });
+    await reader.scrollIntoViewIfNeeded();
+    for (let zoom = 100; zoom < 300; zoom += 25) await reader.getByRole("button", { name: "문서 확대", exact: true }).click();
+    await expect(reader.getByRole("button", { name: "문서 확대", exact: true })).toBeDisabled();
+    await expect(reader.locator('[data-render-status="ready"]')).toHaveCount(1);
+    const pixels = await reader.locator("canvas").evaluate((canvas) => (canvas as HTMLCanvasElement).width * (canvas as HTMLCanvasElement).height);
+    expect(pixels).toBeGreaterThan(1); expect(pixels).toBeLessThanOrEqual(16_000_000);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    for (let zoom = 300; zoom > 100; zoom -= 25) await reader.getByRole("button", { name: "문서 축소", exact: true }).click();
+    await page.getByText("원본 파일 · 3개", { exact: true }).click();
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "원본 다운로드", exact: true }).first().click();
     const download = await downloadPromise; expect(await download.failure()).toBeNull();
@@ -229,7 +255,7 @@ for (const width of [1366, 390]) {
 test("empty categories and anonymous direct write have clear recovery", async ({ page }) => {
   await page.addInitScript(() => { Object.defineProperty(crypto, "randomUUID", { configurable: true, value: undefined }); });
   await prepare(page, { empty: true }); await page.goto(`${BASE}/landing/resources`);
-  await expect(page.getByText("아직 등록된 자료가 없습니다", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("아직 등록된 글이 없습니다", { exact: true })).toHaveCount(1);
   await page.goto(`${BASE}/landing/resources/write`);
   await expect(page.getByText("지정된 두 게시자만 자료를 올릴 수 있습니다.")).toBeVisible();
   await expect(page.getByRole("button", { name: "게시하기", exact: true })).toHaveCount(0);
@@ -237,34 +263,36 @@ test("empty categories and anonymous direct write have clear recovery", async ({
   await expect(page).toHaveURL(/\/landing\/resources$/);
 });
 
-test("a failed public list keeps the other category usable and retries successfully", async ({ page }) => {
+test("a failed public list can switch categories and retry successfully", async ({ page }) => {
   const recover = await prepare(page, { failOnce: true }); await page.goto(`${BASE}/landing/resources`);
-  await expect(page.getByRole("alert")).toContainText("자료를 불러오지 못했습니다.");
+  await expect(page.getByRole("alert")).toContainText("글을 불러오지 못했습니다.");
+  await page.getByRole("button", { name: "분석자료", exact: true }).click();
   await expect(page.getByRole("heading", { name: LONG_TITLE })).toHaveCount(1);
-  recover();
+  await page.getByRole("button", { name: "전체", exact: true }).click();
+  await expect(page.getByRole("alert")).toBeVisible(); recover();
   await page.getByRole("button", { name: "다시 시도", exact: true }).click();
-  await expect(page.getByRole("heading", { name: LONG_TITLE })).toHaveCount(2);
+  await expect(page.getByRole("heading", { name: LONG_TITLE })).toHaveCount(1);
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
 
 test("paging keeps a concurrently shifted post unique", async ({ page }) => {
   await prepare(page, { paged: true }); await page.goto(`${BASE}/landing/resources`);
-  const matchup = page.getByRole("region", { name: "매치업", exact: true });
-  await expect(matchup.getByRole("heading", { level: 3 })).toHaveCount(20);
-  await matchup.getByRole("button", { name: "자료 더 보기", exact: true }).click();
-  await expect(matchup.getByRole("heading", { level: 3 })).toHaveCount(21);
+  const matchup = page.getByRole("region", { name: "게시글 목록", exact: true });
+  await expect(matchup.getByRole("heading", { level: 2 })).toHaveCount(20);
+  await matchup.getByRole("button", { name: "글 더 보기", exact: true }).click();
+  await expect(matchup.getByRole("heading", { level: 2 })).toHaveCount(21);
   await expect(matchup.getByRole("heading", { name: "QA 자료 920", exact: true })).toHaveCount(1);
-  await expect(matchup.getByRole("button", { name: "자료 더 보기", exact: true })).toHaveCount(0);
+  await expect(matchup.getByRole("button", { name: "글 더 보기", exact: true })).toHaveCount(0);
 });
 
 for (const [width, actorId] of [[1366, 501], [390, 502]] as const) {
-  test(`publisher ${actorId} uploads actual multipart PDF and publishes then reloads at ${width}px`, async ({ page }) => {
+  test(`publisher ${actorId} uploads actual multipart PDF and publishes then reloads at ${width}px`, async ({ page }, testInfo) => {
     await prepare(page, { publisher: true, actorId }); await page.setViewportSize({ width, height: 900 });
     await page.goto(`${BASE}/landing/resources`);
-    await page.getByRole("link", { name: "자료 올리기", exact: true }).click();
+    await page.getByRole("link", { name: "글 올리기", exact: true }).click();
     await page.getByLabel("제목", { exact: true }).fill("QA 교정 보고서");
-    await page.getByLabel("설명", { exact: true }).fill("공개 게시 전 원본 확인");
+    await expect(page.getByRole("textbox", { name: "본문", exact: true })).toHaveValue("");
     const input = page.getByLabel("첨부 자료", { exact: true });
     await input.setInputFiles({ name: "empty.xlsx", mimeType: "application/octet-stream", buffer: Buffer.alloc(0) });
     await expect(page.getByText("비어 있지 않은 30MB 이하의 파일을 선택해주세요.", { exact: true })).toBeVisible();
@@ -272,9 +300,13 @@ for (const [width, actorId] of [[1366, 501], [390, 502]] as const) {
     await input.setInputFiles({ name: resource.files[0].filename, mimeType: "application/pdf", buffer: pdfBytes() });
     await expect(page.getByText(resource.files[0].filename, { exact: true })).toBeVisible();
     expect(uploadBody.includes(pdfBytes())).toBe(true);
+    await expect(page.getByRole("button", { name: "게시하기", exact: true })).toBeEnabled();
+    await page.getByRole("heading", { name: "글 올리기", exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`file-only-writer-${width}.png`) });
     await page.getByRole("button", { name: "게시하기", exact: true }).click();
     await expect(page.getByRole("heading", { name: "QA 교정 보고서", exact: true })).toBeVisible();
     expect(createPayloads).toHaveLength(1);
+    expect(createPayloads[0].content).toBe("");
     expect(createPayloads[0].request_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(createPayloads[0].file_ids).toEqual(["07b9f486-cbef-427a-a5fd-5f5ae269b143"]);
     await page.reload(); await expect(page.getByRole("heading", { name: "QA 교정 보고서", exact: true })).toBeVisible();
@@ -288,6 +320,7 @@ for (const width of [1366, 390]) {
     const category = width === 390 ? "analysis" : "matchup";
     await page.getByLabel("분류", { exact: true }).selectOption(category);
     await page.getByLabel("제목", { exact: true }).fill("모든 형식의 원본 자료");
+    await page.getByRole("textbox", { name: "본문", exact: true }).fill("방문자가 바로 읽는 분석 내용입니다.");
     const originals = ["분석.xlsx", "발표.pptx", "원본.zip", "README", "자료.아주긴확장자"].map((name) => ({ name, mimeType: "application/octet-stream", buffer: Buffer.from(`QA original ${name}`) }));
     await page.getByLabel("첨부 자료", { exact: true }).setInputFiles(originals);
     await expect(page.getByRole("button", { name: "게시하기", exact: true })).toBeEnabled();
@@ -296,6 +329,7 @@ for (const width of [1366, 390]) {
     await expect(page.getByRole("heading", { name: "모든 형식의 원본 자료", exact: true })).toBeVisible();
     expect(createPayloads[0].category).toBe(category);
     await page.reload();
+    await page.getByText("원본 파일 · 5개", { exact: true }).click();
     for (const [index, original] of originals.entries()) {
       const downloadPromise = page.waitForEvent("download");
       await page.getByRole("button", { name: "원본 다운로드", exact: true }).nth(index).click();
@@ -313,6 +347,7 @@ test("partial cancel removes only cleaned files and allows retry without missing
   await prepare(page, { publisher: true, cleanupFailure: true });
   await page.goto(`${BASE}/landing/resources/write`);
   await page.getByLabel("제목", { exact: true }).fill("정리 실패 중에도 보존할 내용");
+    await page.getByRole("textbox", { name: "본문", exact: true }).fill("방문자가 바로 읽는 분석 내용입니다.");
   await page.getByLabel("첨부 자료", { exact: true }).setInputFiles(["first.xlsx", "second.pptx"].map((name) => ({ name, mimeType: "application/octet-stream", buffer: Buffer.from("QA original") })));
   await expect(page.getByText("second.pptx", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "← 돌아가기", exact: true }).click();
@@ -350,7 +385,7 @@ test("conflicting edit retains draft, reloads latest explicitly, and saves with 
 
 test("tchul uses the current tenant brand on the shared public board", async ({ page }) => {
   await prepare(page, { tenant: "tchul" }); await page.goto(`${BASE}/landing/resources`);
-  await expect(page.getByRole("link", { name: "천안학원 공개 자료게시판" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "천안학원 게시판" })).toBeVisible();
   await expect(page.getByText("신과함께", { exact: true })).toHaveCount(0);
 });
 
@@ -358,6 +393,7 @@ test("lost publish acknowledgement recovers as an edit without duplicate posts o
   await prepare(page, { publisher: true, lostPublishResponse: true });
   await page.goto(`${BASE}/landing/resources/write`);
   await page.getByLabel("제목", { exact: true }).fill("최초 게시 내용");
+    await page.getByRole("textbox", { name: "본문", exact: true }).fill("방문자가 바로 읽는 분석 내용입니다.");
   await page.getByLabel("첨부 자료", { exact: true }).setInputFiles({ name: "original.xlsx", mimeType: "application/octet-stream", buffer: Buffer.from("original") });
   await expect(page.getByText("original.xlsx", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "게시하기", exact: true }).click();
@@ -370,7 +406,7 @@ test("lost publish acknowledgement recovers as an edit without duplicate posts o
   await expect(page.getByLabel("제목", { exact: true })).toHaveValue("응답 유실 뒤 수정할 내용");
   await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
   await expect(page.getByRole("heading", { name: "응답 유실 뒤 수정할 내용", exact: true })).toBeVisible();
-  await page.reload(); await expect(page.getByText("original.xlsx", { exact: true })).toBeVisible();
+  await page.reload(); await page.getByText("원본 파일 · 1개", { exact: true }).click(); await expect(page.getByText("original.xlsx", { exact: true })).toBeVisible();
   expect(createPayloads).toHaveLength(2); expect(createPayloads[0].request_id).toBe(createPayloads[1].request_id);
   expect(patchPayloads).toHaveLength(1); expect(cleaned).toHaveLength(0);
 });
@@ -379,6 +415,7 @@ test("cancel after a lost publish response preserves published originals and ret
   await prepare(page, { publisher: true, lostPublishResponse: true });
   await page.goto(`${BASE}/landing/resources/write`);
   await page.getByLabel("제목", { exact: true }).fill("이미 게시된 원본 보존");
+    await page.getByRole("textbox", { name: "본문", exact: true }).fill("방문자가 바로 읽는 분석 내용입니다.");
   await page.getByLabel("첨부 자료", { exact: true }).setInputFiles({ name: "published.zip", mimeType: "application/octet-stream", buffer: Buffer.from("original") });
   await expect(page.getByText("published.zip", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "게시하기", exact: true }).click();
@@ -388,6 +425,7 @@ test("cancel after a lost publish response preserves published originals and ret
   expect(cleaned).toHaveLength(0);
   await page.getByRole("link", { name: LONG_TITLE }).first().click();
   await expect(page.getByRole("heading", { name: "이미 게시된 원본 보존", exact: true })).toBeVisible();
+  await page.getByText("원본 파일 · 1개", { exact: true }).click();
   await expect(page.getByText("published.zip", { exact: true })).toBeVisible();
 });
 
@@ -401,10 +439,10 @@ test("delete retry after a lost acknowledgement returns to the persisted empty b
   await expect(page.getByRole("heading", { name: LONG_TITLE, exact: true })).toBeVisible();
   await page.getByRole("button", { name: "삭제", exact: true }).click();
   await expect(page).toHaveURL(/\/landing\/resources$/);
-  await expect(page.getByText("아직 등록된 자료가 없습니다", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("아직 등록된 글이 없습니다", { exact: true })).toHaveCount(1);
   expect(deleteCount).toBe(2);
   await page.reload();
-  await expect(page.getByText("아직 등록된 자료가 없습니다", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("아직 등록된 글이 없습니다", { exact: true })).toHaveCount(1);
 });
 
 for (const width of [1366, 390]) {
@@ -413,11 +451,11 @@ for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${BASE}/landing/resources/901/edit`);
     await expect(page.getByLabel("제목", { exact: true })).toHaveValue(LONG_TITLE);
-    await expect(page.getByRole("textbox", { name: "설명", exact: true })).toHaveValue(resource.content);
+    await expect(page.getByRole("textbox", { name: "본문", exact: true })).toHaveValue(resource.content);
     await page.getByLabel("분류", { exact: true }).selectOption("analysis");
     const description = "다른 게시자가 기존 원본을 보존하며 설명을 수정했습니다.";
-    await page.getByRole("textbox", { name: "설명", exact: true }).fill(description);
-    await expect(page.getByRole("textbox", { name: "설명", exact: true })).toHaveValue(description);
+    await page.getByRole("textbox", { name: "본문", exact: true }).fill(description);
+    await expect(page.getByRole("textbox", { name: "본문", exact: true })).toHaveValue(description);
     await expect(page.getByLabel("첨부 자료", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
     // The textarea also matches getByText; wait for the saved detail before reload.
@@ -426,11 +464,36 @@ for (const width of [1366, 390]) {
     await expect(page.getByRole("link", { name: "수정", exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByText(description, { exact: true })).toBeVisible();
+    await page.getByText("원본 파일 · 3개", { exact: true }).click();
     for (const file of resource.files) await expect(page.getByText(file.filename, { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "수정", exact: true }).click();
-    await expect(page.getByRole("textbox", { name: "설명", exact: true })).toHaveValue(description);
+    await expect(page.getByRole("textbox", { name: "본문", exact: true })).toHaveValue(description);
     await expect(page.getByLabel("분류", { exact: true })).toHaveValue("analysis");
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
     await page.screenshot({ path: testInfo.outputPath(`saved-description-${width}.png`), fullPage: true });
   });
 }
+
+
+test("failed reader retries through pending and publishes the recovered body", async ({ page }) => {
+  await prepare(page, { publisher: true, readerFailure: true });
+  await page.goto(`${BASE}/landing/resources/write`);
+  await page.getByLabel("제목", { exact: true }).fill("재시도한 한글 분석");
+  await page.getByLabel("첨부 자료", { exact: true }).setInputFiles({ name: "qa.hwpx", mimeType: "application/octet-stream", buffer: Buffer.from("QA report") });
+  const preview = page.getByRole("region", { name: "방문자 읽기 화면", exact: true });
+  await expect(preview.getByText("본문을 준비하지 못했습니다. 원본은 보존됩니다.", { exact: true })).toBeVisible();
+  const publish = page.getByRole("button", { name: "게시하기", exact: true });
+  await expect(publish).toBeDisabled();
+  await preview.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(preview.getByText("첨부 파일을 준비하고 있습니다. 완료되면 자동으로 표시됩니다.", { exact: true })).toBeVisible();
+  await expect(publish).toBeDisabled();
+  await preview.scrollIntoViewIfNeeded();
+  await expect(preview.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 30_000 });
+  await expect(publish).toBeEnabled();
+  await publish.click();
+  await page.waitForURL(/\/landing\/resources\/901$/);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "재시도한 한글 분석", exact: true })).toBeVisible();
+  expect(createPayloads).toHaveLength(1);
+  expect(cleaned).toHaveLength(0);
+});

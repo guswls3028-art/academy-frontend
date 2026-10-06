@@ -14,26 +14,27 @@ test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 type Post = { id: number; title: string; files: Array<{ id: string; filename: string }> };
 
-test.describe.serial("[real-use] 공개 자료 원본 공유", () => {
+test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
   test.describe.configure({ retries: 0 });
   test.skip(!STUDENT_PARENT_REALUSE_ENABLED, "Requires the exact isolated development release boundary.");
-  test("two publishers → PDF/HWPX/Office/original upload → anonymous download/reload → cross-publisher edit/delete", async ({ browser, request }, testInfo) => {
+  test("two publishers → PDF/HWPX/Office/original upload → anonymous article reading/reload/download → cross-publisher edit/delete", async ({ browser, request }, testInfo) => {
     assertQaStudentParentRuntime();
     const boundary = releaseBoundaryFromEnv(process.env)!;
     installReleaseRequestGuard(request, boundary);
     const access = (await loginAdmin(request)).access;
-    const document = await PDFDocument.create(); const pdfPage = document.addPage([595, 842]);
-    pdfPage.drawText("QA PUBLIC RESOURCE", { x: 40, y: 750, font: await document.embedFont(StandardFonts.Helvetica) });
-    const hwpx = new JSZip(); hwpx.file("mimetype", "application/hwp+zip");
-    hwpx.file("Contents/content.hpf", "<package/>"); hwpx.file("Contents/header.xml", "<head/>"); hwpx.file("Contents/section0.xml", "<sec/>");
+    const document = await PDFDocument.create();
+    const font = await document.embedFont(StandardFonts.Helvetica);
+    for (let page = 1; page <= 3; page += 1) {
+      document.addPage([595, 842]).drawText(`QA PUBLIC RESOURCE PAGE ${page} OF 3`, { x: 40, y: 750, font });
+    }
     const workbook = new ExcelJS.Workbook(); workbook.addWorksheet("QA").addRow(["QA analysis", 90]);
     const archive = new JSZip(); archive.file("analysis.txt", "QA original analysis");
     const originals = [
       { name: "공개 보고서.PDF", mimeType: "application/pdf", buffer: Buffer.from(await document.save()) },
-      { name: "한글 자료.hwpx", mimeType: "application/octet-stream", buffer: await hwpx.generateAsync({ type: "nodebuffer" }) },
+      { name: "한글 수식.hwp", mimeType: "application/octet-stream", buffer: await readFile(new URL("../fixtures/documents/public-resource-equation.hwp", import.meta.url)) },
+      { name: "한글 자료.hwpx", mimeType: "application/octet-stream", buffer: await readFile(new URL("../fixtures/documents/public-resource-report.hwpx", import.meta.url)) },
       { name: "분석표.xlsx", mimeType: "application/octet-stream", buffer: Buffer.from(await workbook.xlsx.writeBuffer()) },
       { name: "묶음 자료.zip", mimeType: "application/octet-stream", buffer: await archive.generateAsync({ type: "nodebuffer" }) },
-      { name: "README", mimeType: "text/plain", buffer: Buffer.from("QA extensionless original") },
     ];
     const posts: Post[] = [];
     const contexts: Array<{ context: Awaited<ReturnType<typeof browser.newContext>>; guard: Awaited<ReturnType<typeof installReleaseContextGuard>>; strict: ReturnType<typeof attachStrictBrowserGuards> }> = [];
@@ -58,13 +59,20 @@ test.describe.serial("[real-use] 공개 자료 원본 공유", () => {
         await expect(page).toHaveURL(/\/landing\/resources$/, { timeout: 45_000 });
         await acknowledgeInitialAccountPromptsIfVisible(page);
         await page.goto(`${QA_BASE}/landing/resources`);
-        await page.getByRole("link", { name: "자료 올리기", exact: true }).click();
+        await page.getByRole("link", { name: "글 올리기", exact: true }).click();
         await page.getByLabel("분류", { exact: true }).selectOption(index ? "analysis" : "matchup");
         const title = `QA 자료 공유 ${width}`;
         await page.getByLabel("제목", { exact: true }).fill(title);
-        await page.getByRole("textbox", { name: "설명", exact: true }).fill("로그인 없이 원본을 내려받는 합성 자료입니다.");
+        // A complete file is sufficient: no splitting, retyping or custom form.
+        if (index) await page.getByRole("textbox", { name: "본문", exact: true }).fill("로그인 없이 읽는 첨부 보고서입니다.");
         await page.getByLabel("첨부 자료", { exact: true }).setInputFiles(originals);
-        await expect(page.getByText("README", { exact: true })).toBeVisible({ timeout: 90_000 });
+        await expect(page.getByText("묶음 자료.zip", { exact: true })).toBeVisible({ timeout: 90_000 });
+        await expect(page.getByRole("button", { name: "게시하기", exact: true })).toBeEnabled({ timeout: 180_000 });
+        const preview = page.getByRole("region", { name: "방문자 읽기 화면", exact: true });
+        await expect(page.getByRole("textbox", { name: "본문", exact: true })).toHaveValue(index ? "로그인 없이 읽는 첨부 보고서입니다." : "");
+        const previewDocument = preview.getByRole("region", { name: "공개 보고서.PDF 본문", exact: true });
+        await previewDocument.scrollIntoViewIfNeeded();
+        await expect(previewDocument.getByTestId("matchup-pdf-page")).toHaveCount(3, { timeout: 60_000 });
         const published = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/landing-public/resources/");
         await page.getByRole("button", { name: "게시하기", exact: true }).click();
         const response = await published; expect(response.status()).toBe(201);
@@ -74,7 +82,7 @@ test.describe.serial("[real-use] 공개 자료 원본 공유", () => {
         if (index) {
           await page.goto(`${QA_BASE}/landing/resources/${posts[0].id}`);
           await page.getByRole("link", { name: "수정", exact: true }).click();
-          await page.getByRole("textbox", { name: "설명", exact: true }).fill("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.");
+          await page.getByRole("textbox", { name: "본문", exact: true }).fill("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.");
           await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
           await expect(page.getByText("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.", { exact: true })).toBeVisible();
         }
@@ -82,8 +90,33 @@ test.describe.serial("[real-use] 공개 자료 원본 공유", () => {
         await visitor.goto(`${QA_BASE}/landing/resources/${post.id}`);
         await expect(visitor.getByRole("link", { name: "수정", exact: true })).toHaveCount(0);
         await visitor.reload(); await expect(visitor.getByRole("heading", { name: title, exact: true })).toBeVisible();
-        await visitor.getByRole("button", { name: "PDF 미리보기", exact: true }).click();
-        await expect(visitor.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+        await expect(visitor.getByRole("button", { name: "PDF 미리보기", exact: true })).toHaveCount(0);
+        const pdf = visitor.getByRole("region", { name: "공개 보고서.PDF 본문", exact: true });
+        await pdf.scrollIntoViewIfNeeded();
+        await expect(pdf.getByTestId("matchup-pdf-page")).toHaveCount(3, { timeout: 60_000 });
+        for (let pageIndex = 0; pageIndex < 3; pageIndex += 1) {
+          const documentPage = pdf.getByTestId("matchup-pdf-page").nth(pageIndex);
+          await documentPage.scrollIntoViewIfNeeded();
+          await expect(documentPage).toHaveAttribute("data-render-status", "ready", { timeout: 60_000 });
+          await expect(pdf).toContainText(`QA PUBLIC RESOURCE PAGE ${pageIndex + 1} OF 3`);
+        }
+        await pdf.getByRole("button", { name: "문서 확대", exact: true }).click();
+        await expect(pdf.locator("output")).toHaveText("125%");
+        await assertNoHorizontalOverflow(visitor);
+        await pdf.getByRole("button", { name: "문서 축소", exact: true }).click();
+        const hangul = visitor.getByRole("region", { name: "한글 자료.hwpx 본문", exact: true });
+        await hangul.scrollIntoViewIfNeeded();
+        await expect(hangul.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+        await expect(hangul).toContainText("산화와 환원");
+        await expect(hangul).toContainText("85%");
+        const equation = visitor.getByRole("region", { name: "한글 수식.hwp 본문", exact: true });
+        await equation.scrollIntoViewIfNeeded();
+        await expect(equation.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+        const spreadsheet = visitor.getByRole("region", { name: "분석표.xlsx 본문", exact: true });
+        await spreadsheet.scrollIntoViewIfNeeded();
+        await expect(spreadsheet.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+        await expect(spreadsheet).toContainText("QA analysis");
+        await visitor.getByText("원본 파일 · 5개", { exact: true }).click();
         for (const original of originals) {
           const row = visitor.getByText(original.name, { exact: true }).first().locator("..").locator("..");
           const downloading = visitor.waitForEvent("download");
@@ -97,6 +130,7 @@ test.describe.serial("[real-use] 공개 자료 원본 공유", () => {
           await visitor.reload();
           await expect(visitor.getByText("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.", { exact: true })).toBeVisible();
           await expect(visitor.getByRole("link", { name: "수정", exact: true })).toHaveCount(0);
+          await visitor.getByText("원본 파일 · 5개", { exact: true }).click();
           for (const original of originals) await expect(visitor.getByText(original.name, { exact: true }).first()).toBeVisible();
           const original = originals[0];
           const row = visitor.getByText(original.name, { exact: true }).first().locator("..").locator("..");
