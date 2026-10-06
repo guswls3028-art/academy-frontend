@@ -141,7 +141,6 @@ export default defineConfig(({ mode }) => {
                   if (normalized.includes("recharts") || normalized.includes("/d3-")) return "vendor-charts";
                   if (normalized.includes("pdfjs-dist")) return "vendor-pdfjs";
                   if (normalized.includes("pdf-lib")) return "vendor-pdf-lib";
-                  if (normalized.includes("/katex/")) return "vendor-katex";
                   if (normalized.includes("/html2canvas/")) return "vendor-html-canvas";
                   if (normalized.includes("/jspdf/")) return "vendor-pdf-generate";
                   if (normalized.includes("hls.js")) return "vendor-hls";

@@ -1,12 +1,13 @@
-# Public articles and inline report reading
+# Public board with whole-file reading
 
 The existing godmin homepage keeps its saved configuration and layout. Its menu
 links to `/landing/resources`. The shared homepage exposes the same isolated board
 for tchul and later tenants. Login places `홈페이지` immediately left of `아이디 찾기`;
 GodminLandingPage remains independent of the generic unpublished landing draft.
 
-Visitors browse article cards with a title, body excerpt, author/date and compact
-전체/매치업/분석자료 filters. Cards use two desktop columns and one at 390px; long
+Teachers finish and edit documents on their own computers, then upload each complete file. The homepage replaces their cafe publishing workflow; it does not author or restructure their reports.
+
+Visitors browse a familiar single-column post list with a title, optional excerpt, author/date and compact 전체/매치업/분석자료 filters; long
 titles/excerpts are clamped while the detail preserves the full text. The reading
 journey is article → authored body → automatically opened reports → optional
 collapsed original files. It replaces the earlier download-first board because
@@ -24,13 +25,11 @@ pages render lazily and release offscreen canvases; zoom spans 100–300% with
 keyboard-accessible horizontal scrolling. Extracted PDF text is available to
 assistive technology. Retry remounts PDFJS even when a refreshed signature is equal. Lazy imports cannot start a detached PDF worker after navigation; cleanup handles cancellation. Each canvas stays within 16 million pixels and an 8192-pixel edge while preserving CSS zoom.
 
-HWP/HWPX normally display responsive paragraphs, tables, reencoded raster images
-and KaTeX formulas. `원문 쪽 보기` retains page layout; `편하게 읽기` returns to the
-responsive view. Complicated structures automatically use complete page mode.
-KaTeX has trust disabled and bounded expansion; neither document HTML nor scripts
-are injected. PNG/JPEG/WebP/GIF and UTF-8 text also read inline. Tables scroll within
-the article rather than stretching the page. Original downloads live in the final
-collapsed `원본 파일` section and obtain a fresh link per click.
+HWP/HWPX and Office documents automatically display their original pages, including
+tables, images and formulas, through the same inline PDF viewer. There is no
+alternate article schema, formula editor or mode switch for the teacher to learn.
+PNG/JPEG/WebP/GIF and UTF-8 text also read inline. Original downloads remain an
+optional collapsed section after the displayed document.
 
 Loading, empty, not-found, connection, validation, malformed-reader and conversion
 failures are visible. A reader failure offers retry; PDF/image link failures fetch
@@ -48,11 +47,11 @@ client role labels and names do not grant access. Write/edit routes show an
 unauthorized state to others. Capability failure has retry. Existing board
 permissions, older community boards and saved homepage configuration are preserved.
 
-The writer chooses the accessible `분류` selector, a title, `본문` and 0–5 originals
+The writer chooses the accessible `분류` selector, a title, optional `본문` and 0–5 complete originals
 (each nonempty, at most 30 MiB). Text-only posts need a body. The picker accepts all
 formats; server validation remains authoritative. Uploading stays private. The
-same reader previews the article before publication, inside a focusable bounded
-viewport so long reports do not bury the publish action. Up/down controls persist
+same reader previews the complete file before publication, inside a focusable bounded
+viewport after the publish action, so a long report never forces scrolling to its end before publication. Up/down controls persist
 report order. Supported reports must prepare successfully; a failed report can be
 retried or replaced, with input and original preserved. `게시하기` explicitly makes
 the resulting article and reports visible without login.
@@ -84,7 +83,7 @@ accessible name `본문`; wrapping-label text can include textarea contents.
 ## Verification
 
 Mock browser checks exercise desktop/390px reading, automatically opened PDF,
-responsive Hangul text/table/formula, long names, tenant branding, both publishers,
+complete Hangul document pages, long names, tenant branding, both publishers,
 categories, original byte downloads, partial cleanup, saved body editing, lost
 responses, conflicts and failed conversion → pending retry → ready → publication.
 Useful hover/focus feedback, touch targets, reduced motion and overflow checks
@@ -93,8 +92,7 @@ conversion or production completion.
 
 `admin/public-resource-realuse.spec.ts` uses synthetic documents and the isolated
 QA seed's two publishers. Its exact-artifact development journey verifies private
-preview, publication, anonymous reload, real PDF canvas, Hangul paragraphs/table/
-image/formula, original-page switching, original bytes, second-publisher edit,
+file-only publication with an empty optional body, private preview, anonymous reload, all three PDF pages with enlargement, complete Hangul pages, original bytes, second-publisher edit,
 deletion/link revocation and tenant/user/storage-zero cleanup at both sizes.
 Fixture provenance lives in `e2e/fixtures/documents/README.md`.
 

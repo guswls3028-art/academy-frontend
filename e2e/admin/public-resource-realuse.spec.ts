@@ -22,8 +22,11 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
     const boundary = releaseBoundaryFromEnv(process.env)!;
     installReleaseRequestGuard(request, boundary);
     const access = (await loginAdmin(request)).access;
-    const document = await PDFDocument.create(); const pdfPage = document.addPage([595, 842]);
-    pdfPage.drawText("QA PUBLIC RESOURCE", { x: 40, y: 750, font: await document.embedFont(StandardFonts.Helvetica) });
+    const document = await PDFDocument.create();
+    const font = await document.embedFont(StandardFonts.Helvetica);
+    for (let page = 1; page <= 3; page += 1) {
+      document.addPage([595, 842]).drawText(`QA PUBLIC RESOURCE PAGE ${page} OF 3`, { x: 40, y: 750, font });
+    }
     const workbook = new ExcelJS.Workbook(); workbook.addWorksheet("QA").addRow(["QA analysis", 90]);
     const archive = new JSZip(); archive.file("analysis.txt", "QA original analysis");
     const originals = [
@@ -60,14 +63,16 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
         await page.getByLabel("분류", { exact: true }).selectOption(index ? "analysis" : "matchup");
         const title = `QA 자료 공유 ${width}`;
         await page.getByLabel("제목", { exact: true }).fill(title);
-        await page.getByRole("textbox", { name: "본문", exact: true }).fill("로그인 없이 본문에서 바로 읽는 합성 분석 보고서입니다.");
+        // A complete file is sufficient: no splitting, retyping or custom form.
+        if (index) await page.getByRole("textbox", { name: "본문", exact: true }).fill("로그인 없이 읽는 첨부 보고서입니다.");
         await page.getByLabel("첨부 자료", { exact: true }).setInputFiles(originals);
         await expect(page.getByText("묶음 자료.zip", { exact: true })).toBeVisible({ timeout: 90_000 });
         await expect(page.getByRole("button", { name: "게시하기", exact: true })).toBeEnabled({ timeout: 180_000 });
         const preview = page.getByRole("region", { name: "방문자 읽기 화면", exact: true });
-        await expect(preview.getByText("산화와 환원", { exact: true })).toBeVisible();
-        await expect(preview.locator(".katex")).toHaveCount(2);
-        await expect(preview.getByRole("img", { name: "보고서에 포함된 그림" })).toBeVisible();
+        await expect(page.getByRole("textbox", { name: "본문", exact: true })).toHaveValue(index ? "로그인 없이 읽는 첨부 보고서입니다." : "");
+        const previewDocument = preview.getByRole("region", { name: "공개 보고서.PDF 본문", exact: true });
+        await previewDocument.scrollIntoViewIfNeeded();
+        await expect(previewDocument.getByTestId("matchup-pdf-page")).toHaveCount(3, { timeout: 60_000 });
         const published = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/landing-public/resources/");
         await page.getByRole("button", { name: "게시하기", exact: true }).click();
         const response = await published; expect(response.status()).toBe(201);
@@ -86,20 +91,27 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
         await expect(visitor.getByRole("link", { name: "수정", exact: true })).toHaveCount(0);
         await visitor.reload(); await expect(visitor.getByRole("heading", { name: title, exact: true })).toBeVisible();
         await expect(visitor.getByRole("button", { name: "PDF 미리보기", exact: true })).toHaveCount(0);
-        await visitor.getByRole("region", { name: "공개 보고서.PDF 본문", exact: true }).scrollIntoViewIfNeeded();
-        await expect(visitor.getByRole("region", { name: "공개 보고서.PDF 본문", exact: true }).locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+        const pdf = visitor.getByRole("region", { name: "공개 보고서.PDF 본문", exact: true });
+        await pdf.scrollIntoViewIfNeeded();
+        await expect(pdf.getByTestId("matchup-pdf-page")).toHaveCount(3, { timeout: 60_000 });
+        for (let pageIndex = 0; pageIndex < 3; pageIndex += 1) {
+          const documentPage = pdf.getByTestId("matchup-pdf-page").nth(pageIndex);
+          await documentPage.scrollIntoViewIfNeeded();
+          await expect(documentPage).toHaveAttribute("data-render-status", "ready", { timeout: 60_000 });
+          await expect(pdf).toContainText(`QA PUBLIC RESOURCE PAGE ${pageIndex + 1} OF 3`);
+        }
+        await pdf.getByRole("button", { name: "문서 확대", exact: true }).click();
+        await expect(pdf.locator("output")).toHaveText("125%");
+        await assertNoHorizontalOverflow(visitor);
+        await pdf.getByRole("button", { name: "문서 축소", exact: true }).click();
         const hangul = visitor.getByRole("region", { name: "한글 자료.hwpx 본문", exact: true });
-        await expect(hangul.getByText("산화와 환원", { exact: true })).toBeVisible();
-        await expect(hangul.getByText("85%", { exact: true })).toBeVisible();
-        const illustration = hangul.getByRole("img", { name: "보고서에 포함된 그림" });
-        await illustration.scrollIntoViewIfNeeded();
-        await expect.poll(() => illustration.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+        await hangul.scrollIntoViewIfNeeded();
+        await expect(hangul.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+        await expect(hangul).toContainText("산화와 환원");
+        await expect(hangul).toContainText("85%");
         const equation = visitor.getByRole("region", { name: "한글 수식.hwp 본문", exact: true });
-        await expect(equation.locator(".katex")).toHaveCount(2);
-        await equation.getByRole("button", { name: "원문 쪽 보기", exact: true }).click();
         await equation.scrollIntoViewIfNeeded();
         await expect(equation.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
-        await equation.getByRole("button", { name: "편하게 읽기", exact: true }).click();
         const spreadsheet = visitor.getByRole("region", { name: "분석표.xlsx 본문", exact: true });
         await spreadsheet.scrollIntoViewIfNeeded();
         await expect(spreadsheet.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });

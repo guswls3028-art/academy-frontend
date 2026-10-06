@@ -1,37 +1,14 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { prepareResourceReader, readResourceFile, resourceError, type ReaderBlock, type ResourceFile, type ResourceReader, type ReaderStatus } from "../api/publicResources";
 import MatchupInlinePdf from "./MatchupInlinePdf";
 import { ResourceFailure } from "./ResourceLayout";
 import styles from "../pages/PublicResources.module.css";
 
-const ResourceFormula = lazy(() => import("./ResourceFormula"));
-
 function Blocks({ blocks, onError }: { blocks: ReaderBlock[]; onError: () => void }) {
-  const result: ReactNode[] = [];
-  for (let index = 0; index < blocks.length; index += 1) {
-    const block = blocks[index]; const key = index;
-    if (block.kind === "paragraph") {
-      const inline: ReactNode[] = [block.text];
-      // DocLang separates equations from adjacent text. Keep those sentences
-      // flowing on narrow screens instead of splitting every chemical formula.
-      while (blocks[index + 1]?.kind === "formula") {
-        const formula = blocks[++index];
-        if (formula.kind === "formula") inline.push(<Suspense key={index} fallback={<span>{formula.text}</span>}><ResourceFormula text={formula.text} /></Suspense>);
-        const after = blocks[index + 1];
-        if (after?.kind === "paragraph") { inline.push(after.text); index += 1; } else break;
-      }
-      result.push(<p key={key}>{inline}</p>);
-    } else if (block.kind === "formula") {
-      result.push(<div className={styles.formula} key={key}><Suspense fallback={<span>{block.text}</span>}><ResourceFormula text={block.text} /></Suspense></div>);
-    } else if (block.kind === "image") {
-      result.push(<figure key={key}><img src={block.url} width={block.width} height={block.height} alt="보고서에 포함된 그림" loading="lazy" decoding="async" onError={onError} /></figure>);
-    } else if (block.kind === "table") {
-      result.push(<div className={styles.tableViewport} tabIndex={0} role="region" aria-label="보고서 표. 넓은 표는 좌우로 이동해 읽을 수 있습니다." key={key}>
-        <table><tbody>{block.rows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex}><Blocks blocks={cell} onError={onError} /></td>)}</tr>)}</tbody></table>
-      </div>);
-    }
-  }
-  return <>{result}</>;
+  return <>{blocks.map((block, index) => block.kind === "paragraph"
+    ? <p key={index}>{block.text}</p>
+    : <figure key={index}><img src={block.url} width={block.width} height={block.height} alt="첨부 이미지" loading="lazy" decoding="async" onError={onError} /></figure>)}</>;
+
 }
 
 export default function ResourceDocumentReader({ file, preview = false, onStatus }: {
@@ -39,7 +16,7 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
 }) {
   const [reader, setReader] = useState<ResourceReader | null>(null);
   const [error, setError] = useState(""); const [retry, setRetry] = useState(0);
-  const [original, setOriginal] = useState(false); const [zoom, setZoom] = useState(100);
+  const [zoom, setZoom] = useState(100);
   const [nearViewport, setNearViewport] = useState(false);
   const surface = useRef<HTMLElement>(null); const statusCallback = useRef(onStatus);
   statusCallback.current = onStatus;
@@ -79,27 +56,23 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
   }, [file.id, preview, retry]);
 
   if (reader?.status === "unsupported") return null;
-  const showPages = reader?.mode === "pages" || original;
+  const showPages = reader?.mode === "pages";
   function reload() { setRetry((value) => value + 1); }
   return <section ref={surface} className={styles.documentReader} aria-label={`${file.filename} 본문`}>
     <div className={styles.readerHeading}><h2>{file.filename.replace(/\.[^.]+$/, "") || file.filename}</h2>
-      {reader?.status === "ready" && reader.pdf_url && reader.mode === "article" && <div className={styles.readerModes} aria-label="읽기 방식">
-        <button type="button" aria-pressed={!original} onClick={() => setOriginal(false)}>편하게 읽기</button>
-        <button type="button" aria-pressed={original} onClick={() => setOriginal(true)}>원문 쪽 보기</button>
-      </div>}
     </div>
     {error && <ResourceFailure message={error} onRetry={reload} />}
     {!error && !reader && <p role="status" className={styles.state}>본문을 불러오는 중입니다…</p>}
-    {reader?.status === "pending" && <p role="status" className={styles.state}>문서 본문을 준비하고 있습니다. 글을 작성하는 동안 자동으로 갱신됩니다.</p>}
+    {reader?.status === "pending" && <p role="status" className={styles.state}>첨부 파일을 준비하고 있습니다. 완료되면 자동으로 표시됩니다.</p>}
     {(reader?.status === "failed" || reader?.status === "unprepared") && <ResourceFailure message={reader.message || "본문을 아직 준비하지 못했습니다."} onRetry={reload} />}
     {reader?.status === "ready" && !showPages && <div className={styles.readableBody}><Blocks blocks={reader.blocks || []} onError={() => setError("본문의 그림을 불러오지 못했습니다. 다시 불러오면 이어서 읽을 수 있습니다.")} /></div>}
     {reader?.status === "ready" && showPages && reader.pdf_url && <>
       <div className={styles.readerTools} aria-label="문서 확대">
-        <span>아래로 이어서 읽기</span>
+        <span>아래로 내려 문서 전체 읽기</span>
         <button type="button" disabled={zoom === 100} onClick={() => setZoom((value) => Math.max(100, value - 25))} aria-label="문서 축소">−</button>
         <output aria-live="polite">{zoom}%</output>
         <button type="button" disabled={zoom === 300} onClick={() => setZoom((value) => Math.min(300, value + 25))} aria-label="문서 확대">+</button>
-        <button type="button" onClick={reload}>본문 다시 불러오기</button>
+        <button type="button" onClick={reload}>다시 불러오기</button>
       </div>
       <div className={styles.documentViewport} tabIndex={zoom > 100 ? 0 : undefined} role="region" aria-label="문서 본문. 확대하면 좌우로 이동할 수 있습니다.">
         <div className={styles[`zoom${zoom}`]}>

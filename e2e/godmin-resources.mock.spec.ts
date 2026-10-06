@@ -123,15 +123,10 @@ const documentServer = createServer((request, response) => {
         body = { status: "pending" };
       } else if (resourceScenario.readerPending) {
         resourceScenario.readerPending = false;
-        body = { status: "ready", mode: "article", blocks: [{ kind: "paragraph", text: "다시 준비한 분석 본문" }] };
+        body = { status: "ready", mode: "pages", blocks: [], pdf_url: documentUrl };
       } else if (resourceScenario.readerFailure) body = { status: "failed", message: "본문을 준비하지 못했습니다. 원본은 보존됩니다." };
       else body = file?.reader_status === "unsupported" ? { status: "unsupported" }
-        : file?.extension === "pdf" ? { status: "ready", mode: "pages", blocks: [], pdf_url: `${documentUrl}?file=${id}` }
-        : { status: "ready", mode: "article", pdf_url: documentUrl, blocks: [
-          { kind: "paragraph", text: "다운로드 없이 읽는 한글 분석 본문" },
-          { kind: "table", rows: [[[{ kind: "paragraph", text: "단원" }], [{ kind: "paragraph", text: "적중률" }]], [[{ kind: "paragraph", text: "물질의 변화" }], [{ kind: "paragraph", text: "85%" }]]] },
-          { kind: "paragraph", text: "농도 비는 " }, { kind: "formula", text: "\\frac{x+1}{2}" }, { kind: "paragraph", text: "입니다." },
-        ] }; status = 200;
+        : { status: "ready", mode: "pages", blocks: [], pdf_url: `${documentUrl}?file=${id}` }; status = 200;
     }
     else if (url.pathname.includes("/resource-files/")) { body = { url: `${documentUrl}?file=${url.pathname.split("/").filter(Boolean).at(-1)}`, expires_in: 300 }; status = 200; }
     else if (url.pathname.endsWith("/resources/")) {
@@ -203,7 +198,7 @@ for (const width of [1366, 390]) {
     await prepare(page); await page.setViewportSize({ width, height: 900 });
     await page.goto(`${BASE}/landing`);
     await page.getByRole("link", { name: "매치업 · 분석자료", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "매치업 · 분석자료", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "게시판", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "매치업", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "분석자료", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "글 올리기", exact: true })).toHaveCount(0);
@@ -217,10 +212,13 @@ for (const width of [1366, 390]) {
     await expect(page).toHaveTitle(`${LONG_TITLE} | 신과함께`);
     await expect(page.getByRole("button", { name: "PDF 미리보기", exact: true })).toHaveCount(0);
     await page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true }).scrollIntoViewIfNeeded();
-    await expect(page.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 90_000 });
-    await expect(page.getByText("다운로드 없이 읽는 한글 분석 본문", { exact: true })).toHaveCount(2);
-    await expect(page.getByRole("table")).toHaveCount(2);
+    for (const file of resource.files) {
+      const document = page.getByRole("region", { name: `${file.filename} 본문`, exact: true });
+      await document.scrollIntoViewIfNeeded();
+      await expect(document.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 90_000 });
+    }
     const reader = page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true });
+    await reader.scrollIntoViewIfNeeded();
     for (let zoom = 100; zoom < 300; zoom += 25) await reader.getByRole("button", { name: "문서 확대", exact: true }).click();
     await expect(reader.getByRole("button", { name: "문서 확대", exact: true })).toBeDisabled();
     await expect(reader.locator('[data-render-status="ready"]')).toHaveCount(1);
@@ -289,12 +287,12 @@ test("paging keeps a concurrently shifted post unique", async ({ page }) => {
 });
 
 for (const [width, actorId] of [[1366, 501], [390, 502]] as const) {
-  test(`publisher ${actorId} uploads actual multipart PDF and publishes then reloads at ${width}px`, async ({ page }) => {
+  test(`publisher ${actorId} uploads actual multipart PDF and publishes then reloads at ${width}px`, async ({ page }, testInfo) => {
     await prepare(page, { publisher: true, actorId }); await page.setViewportSize({ width, height: 900 });
     await page.goto(`${BASE}/landing/resources`);
     await page.getByRole("link", { name: "글 올리기", exact: true }).click();
     await page.getByLabel("제목", { exact: true }).fill("QA 교정 보고서");
-    await page.getByRole("textbox", { name: "본문", exact: true }).fill("공개 게시 전 원본 확인");
+    await expect(page.getByRole("textbox", { name: "본문", exact: true })).toHaveValue("");
     const input = page.getByLabel("첨부 자료", { exact: true });
     await input.setInputFiles({ name: "empty.xlsx", mimeType: "application/octet-stream", buffer: Buffer.alloc(0) });
     await expect(page.getByText("비어 있지 않은 30MB 이하의 파일을 선택해주세요.", { exact: true })).toBeVisible();
@@ -302,9 +300,13 @@ for (const [width, actorId] of [[1366, 501], [390, 502]] as const) {
     await input.setInputFiles({ name: resource.files[0].filename, mimeType: "application/pdf", buffer: pdfBytes() });
     await expect(page.getByText(resource.files[0].filename, { exact: true })).toBeVisible();
     expect(uploadBody.includes(pdfBytes())).toBe(true);
+    await expect(page.getByRole("button", { name: "게시하기", exact: true })).toBeEnabled();
+    await page.getByRole("heading", { name: "글 올리기", exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`file-only-writer-${width}.png`) });
     await page.getByRole("button", { name: "게시하기", exact: true }).click();
     await expect(page.getByRole("heading", { name: "QA 교정 보고서", exact: true })).toBeVisible();
     expect(createPayloads).toHaveLength(1);
+    expect(createPayloads[0].content).toBe("");
     expect(createPayloads[0].request_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(createPayloads[0].file_ids).toEqual(["07b9f486-cbef-427a-a5fd-5f5ae269b143"]);
     await page.reload(); await expect(page.getByRole("heading", { name: "QA 교정 보고서", exact: true })).toBeVisible();
@@ -383,7 +385,7 @@ test("conflicting edit retains draft, reloads latest explicitly, and saves with 
 
 test("tchul uses the current tenant brand on the shared public board", async ({ page }) => {
   await prepare(page, { tenant: "tchul" }); await page.goto(`${BASE}/landing/resources`);
-  await expect(page.getByRole("link", { name: "천안학원 매치업 · 분석 노트" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "천안학원 게시판" })).toBeVisible();
   await expect(page.getByText("신과함께", { exact: true })).toHaveCount(0);
 });
 
@@ -483,9 +485,10 @@ test("failed reader retries through pending and publishes the recovered body", a
   const publish = page.getByRole("button", { name: "게시하기", exact: true });
   await expect(publish).toBeDisabled();
   await preview.getByRole("button", { name: "다시 시도", exact: true }).click();
-  await expect(preview.getByText("문서 본문을 준비하고 있습니다. 글을 작성하는 동안 자동으로 갱신됩니다.", { exact: true })).toBeVisible();
+  await expect(preview.getByText("첨부 파일을 준비하고 있습니다. 완료되면 자동으로 표시됩니다.", { exact: true })).toBeVisible();
   await expect(publish).toBeDisabled();
-  await expect(preview.getByText("다시 준비한 분석 본문", { exact: true })).toBeVisible();
+  await preview.scrollIntoViewIfNeeded();
+  await expect(preview.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 30_000 });
   await expect(publish).toBeEnabled();
   await publish.click();
   await page.waitForURL(/\/landing\/resources\/901$/);

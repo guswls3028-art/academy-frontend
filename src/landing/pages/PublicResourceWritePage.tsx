@@ -135,9 +135,9 @@ export default function PublicResourceWritePage() {
     {publisher.state === "allowed" && !loading && !loadError && <form className={styles.form} onSubmit={(event) => void submit(event)}>
       <label>분류<select aria-label="분류" value={category} disabled={busy} onChange={(event) => setCategory(event.target.value as ResourceCategory)}><option value="matchup">매치업</option><option value="analysis">분석자료</option></select></label>
       <label>제목<input required maxLength={200} value={title} disabled={busy} onChange={(event) => setTitle(event.target.value)} placeholder="자료 제목을 입력해주세요" /></label>
-      <label>본문<textarea maxLength={20000} rows={9} value={content} disabled={busy} onChange={(event) => setContent(event.target.value)} placeholder="분석의 배경, 핵심 내용과 학습 방향을 적어주세요. 문서의 내용은 아래에 이어서 표시됩니다." /></label>
+      <label>본문 <span className={styles.hint}>(선택)</span><textarea aria-label="본문" maxLength={20000} rows={3} value={content} disabled={busy} onChange={(event) => setContent(event.target.value)} placeholder="덧붙일 설명이 있을 때만 작성하세요. 완성한 파일은 아래에 그대로 첨부하면 됩니다." /></label>
       <div className={styles.upload}><label>첨부 자료<input type="file" multiple disabled={busy || files.length >= 5} onChange={(event) => { void addFiles(event.target.files); event.target.value = ""; }} /></label>
-        <p className={styles.hint}>PDF·한글(HWP/HWPX)·Word·엑셀·PPT·이미지·텍스트는 본문에서 바로 읽을 수 있습니다. 그 외 파일은 본문에 딸린 원본 자료로 보관됩니다. 파일당 30MB, 최대 5개, 문서는 100쪽까지. 발행 전에는 공개되지 않습니다.</p>
+        <p className={styles.hint}>완성한 파일을 통째로 올려주세요. PDF·한글(HWP/HWPX)·Word·엑셀·PPT·이미지·텍스트는 글 안에서 바로 보입니다. 파일당 30MB, 최대 5개, 문서 100쪽까지. 그 외 파일은 원본으로 첨부됩니다.</p>
         {files.map((file, index) => <div key={file.id} className={styles.file}><div><strong>{file.filename}</strong><span>{resourceSize(file.size)}{cleanupIds.includes(file.id) ? " · 첨부 정리 필요" : ""}</span></div><div className={styles.fileOrder}><button type="button" disabled={busy || index === 0} onClick={() => moveFile(file.id, -1)} aria-label={`${file.filename} 위로`}>↑</button><button type="button" disabled={busy || index === files.length - 1} onClick={() => moveFile(file.id, 1)} aria-label={`${file.filename} 아래로`}>↓</button><button type="button" disabled={busy} onClick={() => void removeFile(file)} aria-label={`${file.filename} 첨부 취소`}>{cleanupIds.includes(file.id) ? "첨부 취소 다시 시도" : "첨부 취소"}</button></div></div>)}
       </div>
       {progress && <p className={styles.hint} role="status" aria-live="polite">{progress}</p>}
@@ -145,15 +145,15 @@ export default function PublicResourceWritePage() {
       {publishedSummary && <details className={styles.recovery} open><summary>이미 게시된 내용과 비교</summary><strong>{publishedSummary.title}</strong><p>{publishedSummary.content || "작성한 본문 없음"}</p><ul>{publishedSummary.filenames.map((filename, index) => <li key={`${index}-${filename}`}>{filename}</li>)}</ul><p>아래 게시 버튼은 현재 입력한 내용으로 이 글을 수정합니다. 최신 게시 내용과 비교한 뒤 반영해주세요.</p><Link to={`/landing/resources/${targetId}`} target="_blank" rel="noopener">게시된 자료 보기 (새 창)</Link></details>}
       {conflict && <div className={styles.actions}><Link to={`/landing/resources/${targetId}`} target="_blank" rel="noopener">최신 게시물 확인 (새 창)</Link><button type="button" disabled={busy} onClick={() => void reloadLatest()}>최신 내용으로 다시 편집</button></div>}
       {!!cleanupIds.length && <p className={styles.hint}>정리가 끝나지 않은 첨부는 게시할 수 없습니다. 첨부 취소를 다시 시도해주세요.</p>}
-      <section className={styles.editorPreview} tabIndex={0} aria-label="방문자 읽기 화면">
-        <h2>방문자에게 보이는 본문</h2>
-        <p className={styles.hint}>내용과 문서 순서를 확인한 뒤 발행해주세요. 표·수식의 편집 모양은 원문 쪽 보기로도 확인할 수 있습니다.</p>
-        {content && <div className={styles.articleIntro}>{content.split(/\n\s*\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
-        {files.filter((file) => file.reader_status !== "unsupported").map((file) => <ResourceDocumentReader key={file.id} file={file} preview onStatus={updateReaderStatus} />)}
-        {preparing && <p role="status" className={styles.hint}>문서 본문 준비가 끝나면 게시할 수 있습니다. 실패한 문서는 다시 준비하거나 교체해주세요.</p>}
-      </section>
       <p className={styles.hint}>게시하면 로그인하지 않은 방문자도 글과 보고서를 바로 읽을 수 있습니다.</p>
       <button className={styles.primary} type="submit" disabled={busy || !!cleanupIds.length || conflict || preparing}>{busy ? "처리 중…" : targetId ? "수정 내용 게시" : "게시하기"}</button>
+      <section className={styles.editorPreview} tabIndex={0} aria-label="방문자 읽기 화면">
+        <h2>첨부 파일 미리보기</h2>
+        <p className={styles.hint}>파일을 나누거나 내용을 다시 작성할 필요가 없습니다. 아래 문서가 그대로 게시됩니다.</p>
+        {content && <div className={styles.articleIntro}>{content.split(/\n\s*\n/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>}
+        {files.filter((file) => file.reader_status !== "unsupported").map((file) => <ResourceDocumentReader key={file.id} file={file} preview onStatus={updateReaderStatus} />)}
+        {preparing && <p role="status" className={styles.hint}>첨부 파일을 준비하고 있습니다. 완료되면 게시하기 버튼을 누르세요.</p>}
+      </section>
     </form>}
   </ResourceLayout>;
 }
