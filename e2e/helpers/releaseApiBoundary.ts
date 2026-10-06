@@ -32,6 +32,16 @@ function isExactDevelopmentPptDownload(
   return hasExactHostSignature(unsigned, 3600);
 }
 
+function isExactDevelopmentResourceDownload(boundary: ReleaseBoundary, rawUrl: string, fileId: string): boolean {
+  if (boundary.mode !== "development" || !UUID.test(fileId) || !Number.isSafeInteger(boundary.omrR2TenantId)
+    || Number(boundary.omrR2TenantId) < 1) return false;
+  const target = new URL(rawUrl);
+  return target.origin === DEVELOPMENT_OMR_R2_ORIGIN && !target.username && !target.password && !target.hash
+    && rawUrl === `${target.origin}${target.pathname}${target.search}`
+    && target.pathname === `/academy-development-artifacts/landing-public/resources/${boundary.omrR2TenantId}/${fileId}`
+    && hasExactHostSignature(target, 300);
+}
+
 function isExactDevelopmentOmrImage(boundary: ReleaseBoundary, rawUrl: string, method: string): boolean {
   if (boundary.mode !== "development" || method !== "GET"
     || !Number.isSafeInteger(boundary.omrR2TenantId) || Number(boundary.omrR2TenantId) < 1) return false;
@@ -451,6 +461,9 @@ const installedContextGuards = new WeakMap<BrowserContext, {
 let nextContextOrdinal = 0;
 
 const SAFE_REQUEST_TRANSPORT_STATIC_PATHS = new Set([
+  "/api/v1/landing-public/resources/",
+  "/api/v1/landing-public/resources/capabilities/",
+  "/api/v1/landing-public/uploads/resource/",
   "/api/v1/clinic/idcard/",
   "/api/v1/clinic/participants/",
   "/api/v1/clinic/participants/bulk-create/",
@@ -479,6 +492,8 @@ const SAFE_REQUEST_TRANSPORT_STATIC_PATHS = new Set([
   "/students/bulk_permanent_delete/",
 ]);
 const SAFE_REQUEST_TRANSPORT_PATH_SHAPES: Array<[RegExp, string]> = [
+  [/^\/api\/v1\/landing-public\/resources\/[1-9][0-9]*\/$/, "/api/v1/landing-public/resources/:id/"],
+  [/^\/api\/v1\/landing-public\/resource-files\/[0-9a-f-]{36}\/$/, "/api/v1/landing-public/resource-files/:id/"],
   [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/$/, "/api/v1/clinic/participants/:id/"],
   [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/set_status\/$/, "/api/v1/clinic/participants/:id/set_status/"],
   [/^\/api\/v1\/clinic\/participants\/[1-9][0-9]*\/change-booking\/$/, "/api/v1/clinic/participants/:id/change-booking/"],
@@ -816,6 +831,7 @@ export async function installReleaseContextGuard(
   const defects: string[] = [];
   const homeworkPreviewUrls = new Set<string>();
   const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
+  const resourceDownloadUrls = new Set<string>();
   const acceptedPptJobs = new Set<string>();
   const pptDownloadUrls = new Map<string, { url: string; filename: string }>();
   const communityAttachments = new Map<string, { contentType: string; originalName: string }>();
@@ -921,6 +937,25 @@ export async function installReleaseContextGuard(
           recordRouteTransport(request, upstream, "terminal", error, "route-fulfill");
           await reject("fulfill-transport");
         }
+        return;
+      }
+      if (request.method() === "GET" && resourceDownloadUrls.has(upstream)
+        && ["document", "other", "fetch", "xhr"].includes(request.resourceType())) {
+        const headers = await request.allHeaders();
+        if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
+          .some((key) => headers[key])) { await reject("credentials"); return; }
+        const preview = ["fetch", "xhr"].includes(request.resourceType());
+        const response = await route.fetch({ url: upstream, method: "GET",
+          headers: { accept: "*/*", ...(preview ? { origin: boundary.webOrigin } : {}) }, maxRedirects: 0 });
+        if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
+        const body = await response.body();
+        if (response.status() !== 200 || !body.length || body.length > 30 * 1024 * 1024
+          || !["application/pdf", "application/x-hwp", "application/hwp+zip", "application/octet-stream"].includes(response.headers()["content-type"]?.split(";")[0].trim().toLowerCase())
+          || !response.headers()["content-disposition"]?.startsWith("attachment;")) { await reject("transport"); return; }
+        if (preview && !["*", boundary.webOrigin].includes(response.headers()["access-control-allow-origin"])) {
+          await reject("cors"); return;
+        }
+        await route.fulfill({ response, body });
         return;
       }
       const pptDownload = request.method() === "GET"
@@ -1058,6 +1093,15 @@ export async function installReleaseContextGuard(
             && isExactDevelopmentPptDownload(boundary, payload.result.download_url, payload.result.filename)) {
             pptDownloadUrls.set(pptStatus[1], { url: payload.result.download_url, filename: payload.result.filename });
           }
+        }
+        const resourceTarget = new URL(upstream);
+        const resourceFile = /^\/api\/v1\/landing-public\/resource-files\/([0-9a-f-]{36})\/$/.exec(resourceTarget.pathname);
+        if (boundary.mode === "development" && request.method() === "GET" && resourceFile
+          && !resourceTarget.search && response.status() === 200 && headers["x-tenant-code"] === boundary.tenantCode
+          && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
+          const payload = await response.json();
+          if (payload?.expires_in === 300 && typeof payload.url === "string"
+            && isExactDevelopmentResourceDownload(boundary, payload.url, resourceFile[1])) resourceDownloadUrls.add(payload.url);
         }
         const homeworkPreview = /^\/api\/v1\/submissions\/submissions\/homework\/([1-9][0-9]*)\/media\/([1-9][0-9]*)\/preview\/$/.exec(new URL(upstream).pathname);
         if (boundary.mode === "development" && request.method() === "GET" && homeworkPreview

@@ -12,6 +12,10 @@ export default function PublicResourceWritePage() {
   const [files, setFiles] = useState<ResourceFile[]>([]); const [loading, setLoading] = useState(!!id);
   const [loadError, setLoadError] = useState(""); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   const [retry, setRetry] = useState(0); const busyRef = useRef(false); const pending = useRef(new Set<string>());
+  const [version, setVersion] = useState<string>();
+  const [conflict, setConflict] = useState(false);
+  const [cleanupIds, setCleanupIds] = useState<string[]>([]);
+  const [progress, setProgress] = useState("");
   const saved = useRef(false); const disposed = useRef(false); const [requestId] = useState(createRandomUuid);
   useEffect(() => {
     disposed.current = false;
@@ -21,7 +25,7 @@ export default function PublicResourceWritePage() {
   useEffect(() => {
     if (!id || publisher.state !== "allowed") return;
     let cancelled = false; setLoading(true); setLoadError("");
-    getResource(id).then((post) => { if (!cancelled) { setTitle(post.title); setCategory(post.category); setContent(post.content); setFiles(post.files); } })
+    getResource(id).then((post) => { if (!cancelled) { setTitle(post.title); setCategory(post.category); setContent(post.content); setFiles(post.files); setVersion(post.updated_at); setConflict(false); } })
       .catch((failure) => { if (!cancelled) setLoadError(resourceError(failure, "수정할 자료를 불러오지 못했습니다.")); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -30,38 +34,57 @@ export default function PublicResourceWritePage() {
     if (!selected || busyRef.current) return;
     const queue = Array.from(selected);
     if (files.length + queue.length > 5) { setError("파일은 최대 5개까지 첨부할 수 있습니다."); return; }
-    if (queue.some((file) => !/\.(pdf|hwp|hwpx)$/i.test(file.name) || file.size === 0 || file.size > 30 * 1024 * 1024)) { setError("비어 있지 않은 30MB 이하의 PDF·HWP·HWPX 파일을 선택해주세요."); return; }
+    if (queue.some((file) => file.size === 0 || file.size > 30 * 1024 * 1024)) { setError("비어 있지 않은 30MB 이하의 파일을 선택해주세요."); return; }
     busyRef.current = true; setBusy(true); setError("");
     try {
       for (const source of queue) {
-        const file = await uploadResource(source);
+        const prefix = `${queue.indexOf(source) + 1}/${queue.length} · ${source.name}`;
+        setProgress(`${prefix} 업로드 중…`);
+        const file = await uploadResource(source, (percent) => { if (!disposed.current) setProgress(`${prefix} ${percent}%${percent === 100 ? " · 파일 확인 중…" : ""}`); });
         pending.current.add(file.id);
         if (disposed.current) { await discardResourceFile(file.id); pending.current.delete(file.id); break; }
         setFiles((previous) => [...previous, file]);
       }
     } catch (failure) { if (!disposed.current) setError(resourceError(failure, "파일을 올리지 못했습니다. 이미 올라간 파일은 유지됩니다.")); }
-    finally { busyRef.current = false; if (!disposed.current) setBusy(false); }
+    finally { busyRef.current = false; if (!disposed.current) { setBusy(false); setProgress(""); } }
   }
   async function removeFile(file: ResourceFile) {
     if (busyRef.current) return; busyRef.current = true; setBusy(true); setError("");
-    try { if (pending.current.has(file.id)) { await discardResourceFile(file.id); pending.current.delete(file.id); } setFiles((previous) => previous.filter((value) => value.id !== file.id)); }
+    try { if (pending.current.has(file.id)) { setCleanupIds((ids) => [...new Set([...ids, file.id])]); await discardResourceFile(file.id); pending.current.delete(file.id); setCleanupIds((ids) => ids.filter((value) => value !== file.id)); } setFiles((previous) => previous.filter((value) => value.id !== file.id)); }
     catch (failure) { setError(resourceError(failure, "첨부를 정리하지 못했습니다. 다시 시도해주세요.")); }
+    finally { busyRef.current = false; setBusy(false); }
+  }
+  async function cleanPending() {
+    for (const fileId of pending.current) {
+      setCleanupIds((ids) => [...new Set([...ids, fileId])]);
+      await discardResourceFile(fileId);
+      pending.current.delete(fileId);
+      setFiles((previous) => previous.filter((file) => file.id !== fileId));
+      setCleanupIds((ids) => ids.filter((value) => value !== fileId));
+    }
+  }
+  async function reloadLatest() {
+    if (busyRef.current || !window.confirm("입력한 수정 내용과 새 첨부를 정리하고 최신 게시물을 불러올까요?")) return;
+    busyRef.current = true; setBusy(true); setError("");
+    try { await cleanPending(); setRetry((value) => value + 1); }
+    catch (failure) { setError(resourceError(failure, "첨부를 정리하지 못했습니다. 입력은 유지됩니다. 다시 시도해주세요.")); }
     finally { busyRef.current = false; setBusy(false); }
   }
   async function cancel() {
     if (busyRef.current) return; busyRef.current = true; setBusy(true); setError("");
-    try { for (const fileId of pending.current) { await discardResourceFile(fileId); pending.current.delete(fileId); } navigate(id ? `/landing/resources/${id}` : "/landing/resources"); }
+    try { await cleanPending(); navigate(id ? `/landing/resources/${id}` : "/landing/resources"); }
     catch (failure) { setError(resourceError(failure, "첨부 정리가 끝나지 않았습니다. 돌아가기를 다시 눌러주세요.")); }
     finally { busyRef.current = false; setBusy(false); }
   }
   async function submit(event: FormEvent) {
     event.preventDefault(); if (busyRef.current) return;
+    if (cleanupIds.length) { setError("정리 중인 첨부의 취소를 다시 시도한 뒤 게시해주세요."); return; }
     if (!title.trim() || !files.length) { setError("제목과 첨부 파일을 확인해주세요."); return; }
     busyRef.current = true; setBusy(true); setError("");
     try {
-      const post = await saveResource({ request_id: requestId, title: title.trim(), category, content, file_ids: files.map((file) => file.id) }, id);
+      const post = await saveResource({ request_id: requestId, ...(id && version ? { expected_updated_at: version } : {}), title: title.trim(), category, content, file_ids: files.map((file) => file.id) }, id);
       saved.current = true; pending.current.clear(); navigate(`/landing/resources/${post.id}`, { replace: true });
-    } catch (failure) { setError(resourceError(failure, "게시하지 못했습니다. 입력한 내용은 유지됩니다. 다시 시도해주세요.")); }
+    } catch (failure) { setConflict((failure as { response?: { status?: number } })?.response?.status === 409); setError(resourceError(failure, "게시하지 못했습니다. 입력한 내용은 유지됩니다. 다시 시도해주세요.")); }
     finally { busyRef.current = false; setBusy(false); }
   }
   return <ResourceLayout>
@@ -76,13 +99,16 @@ export default function PublicResourceWritePage() {
       <label>분류<select value={category} disabled={busy} onChange={(event) => setCategory(event.target.value as ResourceCategory)}><option value="matchup">매치업</option><option value="analysis">분석자료</option></select></label>
       <label>제목<input required maxLength={200} value={title} disabled={busy} onChange={(event) => setTitle(event.target.value)} placeholder="자료 제목을 입력해주세요" /></label>
       <label>설명<textarea maxLength={20000} rows={6} value={content} disabled={busy} onChange={(event) => setContent(event.target.value)} placeholder="자료에 대한 안내를 적어주세요 (선택)" /></label>
-      <div className={styles.upload}><label>첨부 자료<input type="file" accept=".pdf,.hwp,.hwpx" multiple disabled={busy || files.length >= 5} onChange={(event) => { void addFiles(event.target.files); event.target.value = ""; }} /></label>
-        <p className={styles.hint}>PDF·HWP·HWPX / 파일당 30MB / 최대 5개. 올린 파일은 게시하기 전까지 공개되지 않습니다.</p>
-        {files.map((file) => <div key={file.id} className={styles.file}><div><strong>{file.filename}</strong><span>{resourceSize(file.size)}</span></div><button type="button" disabled={busy} onClick={() => void removeFile(file)}>첨부 취소</button></div>)}
+      <div className={styles.upload}><label>첨부 자료<input type="file" multiple disabled={busy || files.length >= 5} onChange={(event) => { void addFiles(event.target.files); event.target.value = ""; }} /></label>
+        <p className={styles.hint}>PDF·한글·엑셀·PPT·이미지·압축파일 등 모든 형식 / 파일당 30MB / 최대 5개. 올린 파일은 게시하기 전까지 공개되지 않습니다.</p>
+        {files.map((file) => <div key={file.id} className={styles.file}><div><strong>{file.filename}</strong><span>{resourceSize(file.size)}{cleanupIds.includes(file.id) ? " · 첨부 정리 필요" : ""}</span></div><button type="button" disabled={busy} onClick={() => void removeFile(file)} aria-label={`${file.filename} 첨부 취소`}>{cleanupIds.includes(file.id) ? "첨부 취소 다시 시도" : "첨부 취소"}</button></div>)}
       </div>
+      {progress && <p className={styles.hint} role="status" aria-live="polite">{progress}</p>}
       {error && <ResourceFailure message={error} />}
+      {conflict && <div className={styles.actions}><Link to={`/landing/resources/${id}`} target="_blank" rel="noopener">최신 게시물 확인 (새 창)</Link><button type="button" disabled={busy} onClick={() => void reloadLatest()}>최신 내용으로 다시 편집</button></div>}
+      {!!cleanupIds.length && <p className={styles.hint}>정리가 끝나지 않은 첨부는 게시할 수 없습니다. 첨부 취소를 다시 시도해주세요.</p>}
       <p className={styles.hint}>게시하면 로그인하지 않은 방문자도 본문과 첨부 파일을 볼 수 있습니다.</p>
-      <button className={styles.primary} type="submit" disabled={busy}>{busy ? "처리 중…" : id ? "수정 내용 게시" : "게시하기"}</button>
+      <button className={styles.primary} type="submit" disabled={busy || !!cleanupIds.length || conflict}>{busy ? "처리 중…" : id ? "수정 내용 게시" : "게시하기"}</button>
     </form>}
   </ResourceLayout>;
 }

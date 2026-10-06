@@ -139,6 +139,7 @@ export const e2eGateSpecs = [
 ];
 
 export const controlledWriteSpecs = [
+  "e2e/admin/public-resource-realuse.spec.ts",
   "e2e/admin/alimtalk-withdrawal-realuse.spec.ts",
   "e2e/admin/fees-overdue-realuse.spec.ts",
   "e2e/flows/signup-approval-roundtrip.spec.ts",
@@ -162,6 +163,7 @@ export const controlledWriteSpecs = [
 // Relative to the development config's e2e testDir. This is the shared
 // inventory for collection, executed-result acceptance and safe progress.
 export const developmentRealUseCases = Object.freeze({
+  "admin/public-resource-realuse.spec.ts": 1,
   "admin/alimtalk-withdrawal-realuse.spec.ts": 1,
   "admin/fees-overdue-realuse.spec.ts": 1,
   "flows/notice-roundtrip.spec.ts": 3,

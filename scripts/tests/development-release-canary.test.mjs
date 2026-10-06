@@ -15,6 +15,7 @@ import "./release-native-keepalive.test.mjs";
 import "./release-omr-image-boundary.test.mjs";
 import "./release-homework-image-boundary.test.mjs";
 import "./release-community-image-boundary.test.mjs";
+import "./release-resource-download-boundary.test.mjs";
 import "./binary-safe-ssm.test.mjs";
 import "./release-canary-progress.test.mjs";
 import "./development-backend-readiness.test.mjs";
@@ -1498,7 +1499,7 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 25, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 26, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 4,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
       "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
@@ -1508,6 +1509,7 @@ function completeFlowReport() {
       "omr-review-realuse.spec.ts": 3,
       "fees-overdue-realuse.spec.ts": 1,
       "alimtalk-withdrawal-realuse.spec.ts": 1,
+      "public-resource-realuse.spec.ts": 1,
       "video-playback-renewal.realuse.spec.ts": 1 }).map(([file, count]) => ({
       file, specs: Array.from({ length: count }, () => ({ file, tests: [{ expectedStatus: "passed", status: "expected", results: [{ status: "passed" }] }] })),
     })),
@@ -1968,7 +1970,7 @@ test("development config discovers every required case without executing any API
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 25);
+  assert.equal(discovered, 26);
   assert.deepEqual(counts, Object.fromEntries(Object.entries(developmentRealUseCases)
     .map(([file, count]) => [file.split("/").at(-1), count])), "collection must match the same release inventory by file");
   // Playwright's --list reporter counts all unexecuted cases as skipped. These

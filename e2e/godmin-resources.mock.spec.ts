@@ -24,16 +24,20 @@ function pdfBytes() {
 // Native browser downloads do not reliably use Page.route interception.
 // Serve the generated fixture over real loopback HTTP and verify its bytes.
 let documentUrl = "";
-type ResourceScenario = { empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource };
+type ResourceScenario = { empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource; cleanupFailure?: boolean; conflict?: boolean; tenant?: string };
 let resourceScenario: ResourceScenario = { unavailable: false };
+const uploaded = new Map<string, { file: typeof resource.files[number]; bytes: Buffer }>();
+let uploadCount = 0;
+const cleaned: string[] = [];
+const patchPayloads: Array<{ expected_updated_at?: string; title: string }> = [];
 let uploadBody = Buffer.alloc(0); const createPayloads: Array<{ request_id: string; title: string; category: string; content: string; file_ids: string[] }> = [];
 const documentServer = createServer((request, response) => {
   const url = new URL(request.url || "/", "http://127.0.0.1");
-  const cors = { "Access-Control-Allow-Origin": new URL(BASE).origin, "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": request.headers["access-control-request-headers"] || "content-type, x-tenant-code, authorization" };
+  const cors = { "Access-Control-Allow-Origin": new URL(BASE).origin, "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS", "Access-Control-Allow-Headers": request.headers["access-control-request-headers"] || "content-type, x-tenant-code, authorization" };
   if (request.method === "OPTIONS") { response.writeHead(204, cors); response.end(); return; }
   if (url.pathname === "/api/v1/core/program/" && request.method === "GET") {
     response.writeHead(200, { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" });
-    response.end(JSON.stringify({ tenantCode: "godmin", display_name: "신과함께", ui_config: { login_title: "신과함께" }, feature_flags: {}, is_active: true })); return;
+    response.end(JSON.stringify({ tenantCode: resourceScenario.tenant || "godmin", display_name: resourceScenario.tenant === "tchul" ? "천안학원" : "신과함께", ui_config: {}, feature_flags: {}, is_active: true })); return;
   }
   if (url.pathname === "/api/v1/core/landing/has-published/" && request.method === "GET") {
     response.writeHead(200, { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" });
@@ -46,21 +50,47 @@ const documentServer = createServer((request, response) => {
   if (url.pathname === "/api/v1/landing-public/uploads/resource/" && request.method === "POST") {
     const chunks: Buffer[] = []; request.on("data", (chunk: Buffer) => chunks.push(chunk)); request.on("end", () => {
       uploadBody = Buffer.concat(chunks); response.writeHead(201, { ...cors, "Content-Type": "application/json" });
-      response.end(JSON.stringify({ ...resource.files[0], id: "07b9f486-cbef-427a-a5fd-5f5ae269b143", size: pdfBytes().length }));
+      const filename = /filename="([^"]+)"/.exec(uploadBody.toString())?.[1] || "unknown";
+      const start = uploadBody.indexOf("\r\n\r\n") + 4;
+      const bytes = uploadBody.subarray(start, uploadBody.lastIndexOf("\r\n--"));
+      const file = { id: `07b9f486-cbef-427a-a5fd-5f5ae269b${143 + uploadCount++}`, filename, extension: filename.includes(".") ? filename.split(".").at(-1)!.toLowerCase() : "", size: bytes.length };
+      uploaded.set(file.id, { file, bytes });
+      response.end(JSON.stringify(file));
     }); return;
   }
   if (url.pathname.endsWith("/resources/") && request.method === "POST") {
     const chunks: Buffer[] = []; request.on("data", (chunk: Buffer) => chunks.push(chunk)); request.on("end", () => {
       const input = JSON.parse(Buffer.concat(chunks).toString()) as typeof createPayloads[number]; createPayloads.push(input);
-      resourceScenario.post = { ...resource, title: input.title, content: input.content, files: [{ ...resource.files[0], id: input.file_ids[0] }] };
+      resourceScenario.post = { ...resource, title: input.title, content: input.content, files: input.file_ids.map((id) => uploaded.get(id)?.file || resource.files.find((file) => file.id === id)!) };
       response.writeHead(201, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify(resourceScenario.post));
     }); return;
+  }
+  if (url.pathname.endsWith("/resources/901/") && request.method === "PATCH") {
+    const chunks: Buffer[] = []; request.on("data", (chunk: Buffer) => chunks.push(chunk)); request.on("end", () => {
+      const input = JSON.parse(Buffer.concat(chunks).toString()); patchPayloads.push(input);
+      if (resourceScenario.conflict) {
+        resourceScenario.conflict = false;
+        resourceScenario.post = { ...resource, title: "다른 게시자의 최신 내용", updated_at: "2026-10-06T01:00:00Z" };
+        response.writeHead(409, { ...cors, "Content-Type": "application/json" });
+        response.end(JSON.stringify({ detail: "다른 게시자가 이 자료를 수정했습니다. 입력한 내용은 유지됩니다." })); return;
+      }
+      resourceScenario.post = { ...resource, ...input, files: resource.files.filter((file) => input.file_ids.includes(file.id)), updated_at: "2026-10-06T02:00:00Z" };
+      response.writeHead(200, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify(resourceScenario.post));
+    }); return;
+  }
+  if (url.pathname.includes("/resource-files/") && request.method === "DELETE") {
+    const id = url.pathname.split("/").filter(Boolean).at(-1)!;
+    if (resourceScenario.cleanupFailure && cleaned.length === 1) {
+      resourceScenario.cleanupFailure = false;
+      response.writeHead(503, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify({ detail: "QA 첨부 정리 일시 실패" })); return;
+    }
+    cleaned.push(id); uploaded.delete(id); response.writeHead(204, cors); response.end(); return;
   }
   if (url.pathname.startsWith("/api/v1/landing-public/")) {
     let body: unknown = { detail: "Closed resource fixture: unmatched API" }; let status = 404;
     if (url.pathname.endsWith("/resources/capabilities/")) { body = { can_publish: Boolean(resourceScenario.publisher) }; status = 200; }
     else if (url.pathname.endsWith("/resources/901/")) { body = resourceScenario.post || resource; status = 200; }
-    else if (url.pathname.includes("/resource-files/")) { body = { url: documentUrl, expires_in: 300 }; status = 200; }
+    else if (url.pathname.includes("/resource-files/")) { body = { url: `${documentUrl}?file=${url.pathname.split("/").filter(Boolean).at(-1)}`, expires_in: 300 }; status = 200; }
     else if (url.pathname.endsWith("/resources/")) {
       if (resourceScenario.unavailable && url.searchParams.get("category") === "matchup") { body = { detail: "qa transient failure" }; status = 503; }
       else if (resourceScenario.paged && url.searchParams.get("category") === "matchup") {
@@ -75,10 +105,11 @@ const documentServer = createServer((request, response) => {
     response.writeHead(status, { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" }); response.end(JSON.stringify(body)); return;
   }
   if (url.pathname !== "/qa-resource.pdf") { response.writeHead(404); response.end(); return; }
-  const bytes = pdfBytes();
+  const original = uploaded.get(url.searchParams.get("file") || "");
+  const bytes = original?.bytes || pdfBytes();
   response.writeHead(200, {
-    "Content-Type": "application/pdf", "Content-Length": bytes.length,
-    "Content-Disposition": `attachment; filename="document.pdf"; filename*=UTF-8''${encodeURIComponent(resource.files[0].filename)}`,
+    "Content-Type": original ? "application/octet-stream" : "application/pdf", "Content-Length": bytes.length,
+    "Content-Disposition": `attachment; filename="document.pdf"; filename*=UTF-8''${encodeURIComponent(original?.file.filename || resource.files[0].filename)}`,
     "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store",
   });
   response.end(bytes);
@@ -92,9 +123,9 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await new Promise<void>((resolve, reject) => documentServer.close((error) => error ? reject(error) : resolve())); });
 
-async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number } = {}) {
-  await page.addInitScript(() => { localStorage.setItem("tenant_code", "godmin"); sessionStorage.setItem("tenantCode", "godmin"); });
-  resourceScenario = { ...options, unavailable: Boolean(options.failOnce) }; uploadBody = Buffer.alloc(0); createPayloads.length = 0;
+async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number; cleanupFailure?: boolean; conflict?: boolean; tenant?: string } = {}) {
+  await page.addInitScript((tenant) => { localStorage.setItem("tenant_code", tenant); sessionStorage.setItem("tenantCode", tenant); }, options.tenant || "godmin");
+  resourceScenario = { ...options, unavailable: Boolean(options.failOnce) }; uploadBody = Buffer.alloc(0); createPayloads.length = 0; uploaded.clear(); uploadCount = 0; cleaned.length = 0; patchPayloads.length = 0;
   if (options.publisher) {
     const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
     const jwt = `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "godmin", user_id: options.actorId || 501 })}.sig`;
@@ -141,7 +172,7 @@ for (const width of [1366, 390]) {
     await page.screenshot({ path: testInfo.outputPath(`resources-${width}.png`), fullPage: true });
     await page.getByRole("link", { name: LONG_TITLE }).first().click();
     await expect(page.getByRole("heading", { level: 1, name: LONG_TITLE })).toBeVisible();
-    await expect(page.getByText("HWP·HWPX는 내려받은 뒤 한글 또는 호환 프로그램에서 열어주세요.")).toBeVisible();
+    await expect(page.getByText("PDF 외 자료는 원본을 내려받아 해당 형식을 지원하는 프로그램에서 열어주세요.")).toBeVisible();
     await page.reload(); await expect(page.getByRole("heading", { level: 1, name: LONG_TITLE })).toBeVisible();
     await page.getByRole("button", { name: "PDF 미리보기", exact: true }).click();
     await expect(page.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 90_000 });
@@ -210,8 +241,8 @@ for (const [width, actorId] of [[1366, 501], [390, 502]] as const) {
     await page.getByLabel("제목", { exact: true }).fill("QA 교정 보고서");
     await page.getByLabel("설명", { exact: true }).fill("공개 게시 전 원본 확인");
     const input = page.getByLabel("첨부 자료", { exact: true });
-    await input.setInputFiles({ name: "wrong.exe", mimeType: "application/octet-stream", buffer: pdfBytes() });
-    await expect(page.getByText("비어 있지 않은 30MB 이하의 PDF·HWP·HWPX 파일을 선택해주세요.", { exact: true })).toBeVisible();
+    await input.setInputFiles({ name: "empty.xlsx", mimeType: "application/octet-stream", buffer: Buffer.alloc(0) });
+    await expect(page.getByText("비어 있지 않은 30MB 이하의 파일을 선택해주세요.", { exact: true })).toBeVisible();
     expect(uploadBody.length).toBe(0);
     await input.setInputFiles({ name: resource.files[0].filename, mimeType: "application/pdf", buffer: pdfBytes() });
     await expect(page.getByText(resource.files[0].filename, { exact: true })).toBeVisible();
@@ -225,3 +256,72 @@ for (const [width, actorId] of [[1366, 501], [390, 502]] as const) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   });
 }
+for (const width of [1366, 390]) {
+  test(`arbitrary originals publish and download byte-for-byte at ${width}px`, async ({ page }, testInfo) => {
+    await prepare(page, { publisher: true }); await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/landing/resources/write`);
+    await page.getByLabel("제목", { exact: true }).fill("모든 형식의 원본 자료");
+    const originals = ["분석.xlsx", "발표.pptx", "원본.zip", "README", "자료.아주긴확장자"].map((name) => ({ name, mimeType: "application/octet-stream", buffer: Buffer.from(`QA original ${name}`) }));
+    await page.getByLabel("첨부 자료", { exact: true }).setInputFiles(originals);
+    await expect(page.getByRole("button", { name: "게시하기", exact: true })).toBeEnabled();
+    await expect(page.getByText(originals[4].name, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "게시하기", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "모든 형식의 원본 자료", exact: true })).toBeVisible();
+    await page.reload();
+    for (const [index, original] of originals.entries()) {
+      const downloadPromise = page.waitForEvent("download");
+      await page.getByRole("button", { name: "원본 다운로드", exact: true }).nth(index).click();
+      const download = await downloadPromise; expect(await download.failure()).toBeNull();
+      expect(download.suggestedFilename()).toBe(original.name);
+      expect(await readFile((await download.path())!)).toEqual(original.buffer);
+    }
+    await expect(page.getByRole("button", { name: "PDF 미리보기", exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: testInfo.outputPath(`all-formats-${width}.png`), fullPage: true });
+  });
+}
+
+test("partial cancel removes only cleaned files and allows retry without missing attachments", async ({ page }) => {
+  await prepare(page, { publisher: true, cleanupFailure: true });
+  await page.goto(`${BASE}/landing/resources/write`);
+  await page.getByLabel("제목", { exact: true }).fill("정리 실패 중에도 보존할 내용");
+  await page.getByLabel("첨부 자료", { exact: true }).setInputFiles(["first.xlsx", "second.pptx"].map((name) => ({ name, mimeType: "application/octet-stream", buffer: Buffer.from("QA original") })));
+  await expect(page.getByText("second.pptx", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "← 돌아가기", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("QA 첨부 정리 일시 실패");
+  await expect(page.getByText("first.xlsx", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("second.pptx", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("제목", { exact: true })).toHaveValue("정리 실패 중에도 보존할 내용");
+  await expect(page.getByRole("button", { name: "게시하기", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "second.pptx 첨부 취소", exact: true }).click();
+  await expect(page.getByText("second.pptx", { exact: true })).toHaveCount(0);
+  await page.getByLabel("첨부 자료", { exact: true }).setInputFiles({ name: "replacement.zip", mimeType: "application/octet-stream", buffer: Buffer.from("replacement") });
+  await expect(page.getByText("replacement.zip", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "게시하기", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "정리 실패 중에도 보존할 내용", exact: true })).toBeVisible();
+  expect(createPayloads[0].file_ids).toHaveLength(1); expect(cleaned).toHaveLength(2);
+});
+
+test("conflicting edit retains draft, reloads latest explicitly, and saves with current version", async ({ page }) => {
+  await prepare(page, { publisher: true, conflict: true });
+  await page.goto(`${BASE}/landing/resources/901/edit`);
+  await page.getByLabel("제목", { exact: true }).fill("보존할 수정 초안");
+  await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("다른 게시자가");
+  await expect(page.getByLabel("제목", { exact: true })).toHaveValue("보존할 수정 초안");
+  expect(patchPayloads[0].expected_updated_at).toBe(resource.updated_at);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "최신 내용으로 다시 편집", exact: true }).click();
+  await expect(page.getByLabel("제목", { exact: true })).toHaveValue("다른 게시자의 최신 내용");
+  await page.getByLabel("제목", { exact: true }).fill("최신 내용을 반영한 수정");
+  await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "최신 내용을 반영한 수정", exact: true })).toBeVisible();
+  expect(patchPayloads[1].expected_updated_at).toBe("2026-10-06T01:00:00Z");
+  await page.reload(); await expect(page.getByRole("heading", { name: "최신 내용을 반영한 수정", exact: true })).toBeVisible();
+});
+
+test("tchul uses the current tenant brand on the shared public board", async ({ page }) => {
+  await prepare(page, { tenant: "tchul" }); await page.goto(`${BASE}/landing/resources`);
+  await expect(page.getByRole("link", { name: "천안학원 공개 자료게시판" })).toBeVisible();
+  await expect(page.getByText("신과함께", { exact: true })).toHaveCount(0);
+});
