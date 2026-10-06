@@ -1205,14 +1205,22 @@ test("일시적인 셀 점유 충돌 뒤 정상 presence가 오면 편집 잠금
   const firstStudent = page.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
   const secondStudent = page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" });
 
-  holdNextPresenceDraftPut = true;
   await secondStudent.click();
-  await expect.poll(() => heldPresenceDraftPutStarted).toBe(true);
-
+  await expect.poll(() => currentServerActiveCell).toEqual(expect.objectContaining({ enrollmentId: 9202 }));
   failNextPresenceDraftPut = true;
   await firstStudent.click();
+  // Observe the intended conflict before moving again: consecutive clicks can
+  // be coalesced before the presence effect observes the intermediate cell.
+  await expect.poll(() => presenceConflictCells).toContainEqual(expect.objectContaining({ enrollmentId: 9201 }));
+  await expect(saveAndLock).toBeDisabled();
   await secondStudent.click();
   await expect(saveAndLock).toBeEnabled();
+
+  holdNextPresenceDraftPut = true;
+  await firstStudent.click();
+  await expect.poll(() => heldPresenceDraftPutStarted).toBe(true);
+  await secondStudent.click();
+  await expect(page.locator('[data-score-cell="homework:9202:9151"]')).toHaveClass(/ds-scores-cell-active/);
   await saveAndLock.click();
 
   // eslint-disable-next-line no-restricted-syntax -- release 부재를 검증하는 failure-first bounded window.
@@ -1224,7 +1232,7 @@ test("일시적인 셀 점유 충돌 뒤 정상 presence가 오면 편집 잠금
   expect(presenceConflictCells).toContainEqual(expect.objectContaining({ enrollmentId: 9201 }));
   expect(currentDraft).toEqual([]);
   expect(currentServerActiveCell).toBeNull();
-  expect(serverDraftMutationOrder.slice(-3)).toEqual(["put:9202", "put:9202", "release"]);
+  expect(serverDraftMutationOrder.slice(-3)).toEqual(["put:9201", "put:9202", "release"]);
   expect(serverDraftMutationOrder.at(-1)).toBe("release");
 });
 
