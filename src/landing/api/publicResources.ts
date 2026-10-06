@@ -40,7 +40,13 @@ export async function resourceFileLink(id: string): Promise<string> {
 export async function saveResource(data: ResourceWrite, id?: string): Promise<ResourcePost> {
   return (id ? await api.patch<ResourcePost>(`${base}${id}/`, data) : await api.post<ResourcePost>(base, data)).data;
 }
-export async function deleteResource(id: number): Promise<void> { await api.delete(`${base}${id}/`); }
+export async function deleteResource(id: number): Promise<void> {
+  try { await api.delete(`${base}${id}/`); }
+  catch (error) {
+    // The original DELETE may have completed before its response was lost.
+    if ((error as { response?: { status?: number } })?.response?.status !== 404) throw error;
+  }
+}
 
 export function resourceError(error: unknown, fallback: string): string {
   const data = (error as { response?: { data?: unknown } })?.response?.data;
