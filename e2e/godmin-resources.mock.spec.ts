@@ -24,10 +24,10 @@ function pdfBytes() {
 // Native browser downloads do not reliably use Page.route interception.
 // Serve the generated fixture over real loopback HTTP and verify its bytes.
 let documentUrl = "";
-type ResourceScenario = { empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource; cleanupFailure?: boolean; conflict?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string };
+type ResourceScenario = { empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string };
 let resourceScenario: ResourceScenario = { unavailable: false };
 const uploaded = new Map<string, { file: typeof resource.files[number]; bytes: Buffer }>();
-let uploadCount = 0;
+let uploadCount = 0; let deleteCount = 0;
 const cleaned: string[] = [];
 const patchPayloads: Array<{ expected_updated_at?: string; title: string }> = [];
 let uploadBody = Buffer.alloc(0); const createPayloads: Array<{ request_id: string; title: string; category: string; content: string; file_ids: string[] }> = [];
@@ -72,6 +72,20 @@ const documentServer = createServer((request, response) => {
       }
       response.writeHead(201, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify(resourceScenario.post));
     }); return;
+  }
+  if (url.pathname.endsWith("/resources/901/") && request.method === "DELETE") {
+    deleteCount++;
+    if (resourceScenario.deleted) {
+      response.writeHead(404, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify({ detail: "Not found" })); return;
+    }
+    resourceScenario.deleted = true; resourceScenario.empty = true;
+    if (resourceScenario.lostDeleteResponse) {
+      response.writeHead(503, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify({ detail: "QA 삭제 응답 확인 실패" })); return;
+    }
+    response.writeHead(204, cors); response.end(); return;
+  }
+  if (url.pathname.endsWith("/resources/901/") && request.method === "GET" && resourceScenario.deleted) {
+    response.writeHead(404, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify({ detail: "Not found" })); return;
   }
   if (url.pathname.endsWith("/resources/901/") && request.method === "PATCH") {
     const chunks: Buffer[] = []; request.on("data", (chunk: Buffer) => chunks.push(chunk)); request.on("end", () => {
@@ -134,9 +148,9 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await new Promise<void>((resolve, reject) => documentServer.close((error) => error ? reject(error) : resolve())); });
 
-async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number; cleanupFailure?: boolean; conflict?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string } = {}) {
+async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string } = {}) {
   await page.addInitScript((tenant) => { localStorage.setItem("tenant_code", tenant); sessionStorage.setItem("tenantCode", tenant); }, options.tenant || "godmin");
-  resourceScenario = { ...options, unavailable: Boolean(options.failOnce) }; uploadBody = Buffer.alloc(0); createPayloads.length = 0; uploaded.clear(); uploadCount = 0; cleaned.length = 0; patchPayloads.length = 0;
+  resourceScenario = { ...options, unavailable: Boolean(options.failOnce) }; uploadBody = Buffer.alloc(0); createPayloads.length = 0; uploaded.clear(); uploadCount = 0; deleteCount = 0; cleaned.length = 0; patchPayloads.length = 0;
   if (options.publisher) {
     const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
     const jwt = `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "godmin", user_id: options.actorId || 501 })}.sig`;
@@ -372,4 +386,20 @@ test("cancel after a lost publish response preserves published originals and ret
   await page.getByRole("link", { name: LONG_TITLE }).first().click();
   await expect(page.getByRole("heading", { name: "이미 게시된 원본 보존", exact: true })).toBeVisible();
   await expect(page.getByText("published.zip", { exact: true })).toBeVisible();
+});
+
+test("delete retry after a lost acknowledgement returns to the persisted empty board", async ({ page }) => {
+  await prepare(page, { publisher: true, lostDeleteResponse: true });
+  await page.goto(`${BASE}/landing/resources/901`);
+  await expect(page.getByRole("heading", { name: LONG_TITLE, exact: true })).toBeVisible();
+  page.on("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "삭제", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("QA 삭제 응답 확인 실패");
+  await expect(page.getByRole("heading", { name: LONG_TITLE, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "삭제", exact: true }).click();
+  await expect(page).toHaveURL(/\/landing\/resources$/);
+  await expect(page.getByText("아직 등록된 자료가 없습니다", { exact: true })).toHaveCount(2);
+  expect(deleteCount).toBe(2);
+  await page.reload();
+  await expect(page.getByText("아직 등록된 자료가 없습니다", { exact: true })).toHaveCount(2);
 });

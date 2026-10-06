@@ -72,3 +72,7 @@ that snapshot still receives the ordinary revision conflict.
 Pending cleanup treats HTTP 404 as already unavailable for cleanup (including
 already-published originals), so a lost delete/publish acknowledgement cannot
 trap cancellation. Permission and storage failures still remain visible/retryable.
+
+If a delete response is lost, repeating the confirmed deletion treats HTTP 404 as
+already unavailable and returns to the board. Authorization and service failures
+remain visible; the draft or public view is not silently cleared on those errors.
