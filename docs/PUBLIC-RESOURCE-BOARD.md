@@ -100,6 +100,12 @@ The release browser boundary accepts an asset only after the exact QA tenant's A
 returns its URL. Original UUIDs and derived generation UUIDs must match the current
 development bucket/tenant/file path, exact R2 origin, host-only signature and
 300-second expiry. Derived names are bounded image-N.webp/png/gif or pages.pdf.
+Original downloads retain their 30 MiB cap and attachment disposition, including
+original PDF previews. Derived PDFs and images are registered separately: their
+native MIME and byte signature must match the exact manifest asset, with the
+backend's 60 MiB derived-output cap. They need no attachment disposition and only
+use reader fetch/image requests. This prevents the QA proxy from rejecting valid
+inline documents while preserving original-download and tenant boundaries.
 Application credentials never accompany storage requests; redirects/missing CORS
 fail. Real-use origin storage initialization never touches opaque documents.
 Teardown records each context error as a failing soft assertion while continuing
