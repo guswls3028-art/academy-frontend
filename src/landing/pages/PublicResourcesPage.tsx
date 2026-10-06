@@ -23,7 +23,7 @@ function ResourceColumn({ category, title, description }: { category: ResourceCa
     <p className={styles.description}>{description}</p>
     {data?.results.map((post) => <Link to={`/landing/resources/${post.id}`} key={post.id} className={styles.post}>
       <h3>{post.title}</h3><div className={styles.meta}><span>{post.author_display_name}</span><time dateTime={post.created_at}>{new Date(post.created_at).toLocaleDateString("ko-KR")}</time></div>
-      <div className={styles.formats}>{[...new Set(post.files.map((file) => file.extension))].map((extension) => <span key={extension}>{extension.toUpperCase()}</span>)}<small>첨부 {post.files.length}개</small></div>
+      <div className={styles.formats}>{[...new Set(post.files.map((file) => file.extension))].map((extension) => <span key={extension}>{extension.toUpperCase() || "파일"}</span>)}<small>첨부 {post.files.length}개</small></div>
     </Link>)}
     {loading && <p className={styles.state} role="status">자료를 불러오는 중입니다…</p>}
     {error && <ResourceFailure message="자료를 불러오지 못했습니다." onRetry={() => { if (page > 1) { setPage(1); setData(null); } setRetry((value) => value + 1); }} />}

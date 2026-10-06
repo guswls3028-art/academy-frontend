@@ -59,3 +59,16 @@
   .fileActions button { flex: 1; }.upload { padding: 16px 12px; }.footer { padding: 20px 18px; }
 }
 @media (prefers-reduced-motion: reduce) { .post { transition: none; }.post:hover { transform: none; } }
+
+.brand { min-width: 0; overflow-wrap: anywhere; }
+.header nav { flex-shrink: 0; }
+.formats span { max-width: 100%; overflow-wrap: anywhere; }
+.primary, .shell button { transition: background-color .15s ease, opacity .15s ease; }
+.primary:hover:not(:disabled) { background: #10654f; }
+.shell button:disabled { cursor: not-allowed; }
+.previewHead { flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) { .primary, .shell button { transition: none; } }
+
+.recovery { padding: 16px; margin: 16px 0; border: 1px solid #ccdfd3; border-radius: 12px; font-size: 14px; overflow-wrap: anywhere; }
+.recovery summary { cursor: pointer; margin-bottom: 12px; font-weight: 700; }
+.recovery p { white-space: pre-wrap; line-height: 1.7; }

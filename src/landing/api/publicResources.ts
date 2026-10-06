@@ -1,13 +1,13 @@
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
 export type ResourceCategory = "matchup" | "analysis";
-export interface ResourceFile { id: string; filename: string; extension: "pdf" | "hwp" | "hwpx"; size: number }
+export interface ResourceFile { id: string; filename: string; extension: string; size: number }
 export interface ResourcePost {
   id: number; category: ResourceCategory; title: string; content: string;
   author_display_name: string; created_at: string; updated_at: string; files: ResourceFile[];
 }
 export interface ResourceWrite {
-  request_id?: string; title: string; category: ResourceCategory; content: string; file_ids: string[];
+  request_id?: string; expected_updated_at?: string; title: string; category: ResourceCategory; content: string; file_ids: string[];
 }
 export interface ResourcePage { count: number; results: ResourcePost[]; next: string | null }
 const base = "/landing-public/resources/";
@@ -22,12 +22,17 @@ export async function getResource(id: string): Promise<ResourcePost> {
 export async function resourceCapability(): Promise<boolean> {
   return (await api.get<{ can_publish: boolean }>(`${base}capabilities/`)).data.can_publish;
 }
-export async function uploadResource(file: File): Promise<ResourceFile> {
+export async function uploadResource(file: File, onProgress?: (percent: number) => void): Promise<ResourceFile> {
   const form = new FormData(); form.append("file", file);
-  return (await api.post<ResourceFile>("/landing-public/uploads/resource/", form, { timeout: 120_000 })).data;
+  return (await api.post<ResourceFile>("/landing-public/uploads/resource/", form, { timeout: 120_000, onUploadProgress: (event) => { if (event.total) onProgress?.(Math.round(event.loaded * 100 / event.total)); } })).data;
 }
 export async function discardResourceFile(id: string): Promise<void> {
-  await api.delete(`/landing-public/resource-files/${id}/`);
+  try { await api.delete(`/landing-public/resource-files/${id}/`); }
+  catch (error) {
+    // A lost delete response, or an already-published upload, leaves no pending
+    // object available for cleanup. Never attempt to remove an attached original.
+    if ((error as { response?: { status?: number } })?.response?.status !== 404) throw error;
+  }
 }
 export async function resourceFileLink(id: string): Promise<string> {
   return (await api.get<{ url: string }>(`/landing-public/resource-files/${id}/`, { skipAuth: true } as ApiRequestConfig)).data.url;
@@ -40,6 +45,7 @@ export async function deleteResource(id: number): Promise<void> { await api.dele
 export function resourceError(error: unknown, fallback: string): string {
   const data = (error as { response?: { data?: unknown } })?.response?.data;
   if (typeof data === "object" && data !== null) {
+    if ("detail" in data && typeof data.detail === "string") return data.detail;
     const values = Object.values(data).flat().filter((value): value is string => typeof value === "string");
     if (values.length) return values.slice(0, 3).join(" ");
   }

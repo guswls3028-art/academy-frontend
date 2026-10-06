@@ -177,6 +177,7 @@ function buildMenuCategories(sections: LandingSection[], isOwner: boolean = fals
   // 자동 생성 보고서와 별개로, PC에서 교정한 PDF를 일반 게시글처럼 올리는 흐름이 핵심이다.
   {
     const matchupItems: NavMenuItem[] = [
+      { key: "public_resources", label: "매치업 · 분석자료", kind: "route", target: "/landing/resources", badge: "자료" },
       { key: "matchup_board", label: "매치업 자료실", kind: "route", target: "/landing/matchup-board", badge: "PDF" },
       { key: "problem_analysis", label: "시험 분석 노트", kind: "route", target: "/landing/analysis", badge: "리포트" },
     ];
@@ -282,7 +283,9 @@ export function LandingNavBar({ config, sections, tokens, brandMark, topNavVaria
   const isInlineActive = (entry: { key: string; item: NavMenuItem }) => {
     const item = entry.item;
     if (entry.key === "matchup") {
-      return location.pathname === "/landing/reports"
+      return location.pathname === "/landing/resources"
+          || location.pathname.startsWith("/landing/resources/")
+          || location.pathname === "/landing/reports"
         || location.pathname.startsWith("/landing/reports/")
         || location.pathname === "/landing/matchup-board"
         || location.pathname.startsWith("/landing/matchup-board/")
