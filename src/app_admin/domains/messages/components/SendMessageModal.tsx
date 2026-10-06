@@ -328,6 +328,8 @@ export default function SendMessageModal({
   const [sendAttempt, setSendAttempt] = useState<SendAttempt | null>(null);
   const [sendAttemptError, setSendAttemptError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
+  const [templatesRetry, setTemplatesRetry] = useState(0);
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saveTemplateName, setSaveTemplateName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -348,6 +350,8 @@ export default function SendMessageModal({
   const [confirmRecipientsExpanded, setConfirmRecipientsExpanded] = useState(false);
   const bodyEditorRef = useRef<MessageBodyEditorHandle>(null);
   const prevOpenRef = useRef(false);
+  const currentDraftRef = useRef({ body, selectedTemplateId, selectedPresetId, alimtalkFreeForm });
+  currentDraftRef.current = { body, selectedTemplateId, selectedPresetId, alimtalkFreeForm };
 
   // ─── Derived ───
   const studentIds = initialStudentIds;
@@ -653,6 +657,13 @@ export default function SendMessageModal({
     prevOpenRef.current = open;
     if (!justOpened) return;
     const initialDisplayBody = stripInternalAlimtalkMemoToken(initialBody ?? "");
+    currentDraftRef.current = {
+      body: initialDisplayBody,
+      selectedTemplateId: initialTemplateId ?? null,
+      selectedPresetId: initialLetterPresetId ?? null,
+      alimtalkFreeForm: Boolean(initialBody && !initialTemplateId && !initialLetterPresetId),
+    };
+    setTemplatesError(null);
     setSubject("");
     setBody(initialDisplayBody);
     setSelectedTemplateId(initialTemplateId ?? null);
@@ -688,10 +699,12 @@ export default function SendMessageModal({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    setTemplatesError(null);
     fetchMessageTemplates().then((list) => {
       if (cancelled) return;
       setTemplates(list);
-      if (!selectedTemplateId && !selectedPresetId && !initialBody) {
+      const draft = currentDraftRef.current;
+      if (!draft.selectedTemplateId && !draft.selectedPresetId && !draft.body && !draft.alimtalkFreeForm) {
         const match = pickAutoSelectTemplate(list, effectiveBlockCategory);
         if (match) {
           const nextBody = stripInternalAlimtalkMemoToken(match.body);
@@ -721,9 +734,11 @@ export default function SendMessageModal({
           }
         }
       }
-    }).catch(() => { if (!cancelled) setTemplates([]); });
+    }).catch((error: unknown) => {
+      if (!cancelled) setTemplatesError(extractApiError(error, "저장 문구를 불러오지 못했습니다."));
+    });
     return () => { cancelled = true; };
-  }, [open, effectiveBlockCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, effectiveBlockCategory, templatesRetry]);
 
   // ─── Actions ───
   const insertBlock = useCallback((insertText: string) => {
@@ -1312,6 +1327,15 @@ export default function SendMessageModal({
             )}
 
             {/* ── 양식 바 — 양식 정보 + 저장 액션 + 변경 액션 (학원장 호소 2026-05-13: 칸 효율 통합) ── */}
+            {templatesError && (
+              <div className="send-modal__preflight-issue" data-tone="error" role="alert">
+                <AlertCircle size={ICON.sm} aria-hidden />
+                <span>{templatesError} 작성 중인 내용은 유지됩니다.</span>
+                <Button intent="ghost" size="sm" onClick={() => setTemplatesRetry((value) => value + 1)}>
+                  문구 다시 불러오기
+                </Button>
+              </div>
+            )}
             <div className="send-modal__tpl-bar">
               {selectedTemplate && isSystemTpl(selectedTemplate) ? (
                 <Shield size={ICON.sm} className="send-modal__icon-info" />

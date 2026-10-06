@@ -622,3 +622,175 @@ test("이번 발송: 잘못된 UUID는 조회 오류를 보여주고 전체 내�
   await expect(page.getByText("발송 내역이 없습니다", { exact: true })).toBeVisible();
   expect(state.sends).toEqual([]);
 });
+
+
+for (const width of [1366, 390]) {
+  test(`늦은 문구 조회가 작성 중인 안내문을 덮어쓰지 않는다 ${width}px`, async ({ page }, testInfo) => {
+    await installMocks(page);
+    await page.setViewportSize({ width, height: 900 });
+    let releaseTemplates!: () => void;
+    const delayed = new Promise<void>((resolve) => { releaseTemplates = resolve; });
+    await page.route("**/api/v1/messaging/templates/**", async (route) => {
+      await delayed;
+      await route.fulfill({ json: [{ id: 990, name: "늦게 도착한 기본 문구", category: "attendance",
+        body: "기본 안내", is_system: false, is_user_default: true, alimtalk_readiness: "ready" }] });
+    });
+    await gotoAndSettle(page, `${BASE}/workspace/students/home?compose=alimtalk`, { timeout: 30_000 });
+    await page.getByRole("checkbox", { name: "김알림 선택" }).check();
+    await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
+    const compose = page.getByRole("dialog").filter({ hasText: "알림톡 발송" });
+    const editor = compose.getByRole("textbox", { name: "안내문", exact: true });
+    await editor.fill("직접 작성 중인 안내문을 보존해 주세요.");
+    releaseTemplates();
+    await expect.poll(() => page.locator(".send-modal__tpl-bar").textContent()).not.toBeNull();
+    await expect(editor).toHaveText("직접 작성 중인 안내문을 보존해 주세요.");
+    await expect(compose.getByRole("button", { name: /보낼 내용 확인/ })).toBeEnabled();
+    await page.screenshot({ path: testInfo.outputPath(`compose-draft-${width}.png`) });
+    await expectNoHorizontalOverflow(page);
+  });
+}
+
+
+for (const width of [1366, 390]) {
+  test(`퇴원 안내 조회 재시도와 응답 유실 복구는 완료로 오인시키지 않는다 ${width}px`, async ({ page }, testInfo) => {
+    await installMocks(page);
+    await page.setViewportSize({ width, height: 900 });
+    let previewCount = 0;
+    const confirmations: string[] = [];
+    const token = "a164b6b4-8027-434d-86ea-1a9dff812249";
+    await page.route("**/api/v1/students/bulk_delete/**", (route) => route.fulfill({ json: { deleted: 1 } }));
+    await page.route("**/api/v1/messaging/manual-notification/preview/**", (route) => {
+      previewCount++;
+      if (previewCount === 1) return route.fulfill({ status: 503, json: { detail: "미리보기 일시 오류" } });
+      return route.fulfill({ json: {
+        preview_token: token, total_count: 1, excluded_count: 0, session_title: "", lecture_title: "",
+        message_preview: "퇴원 처리 안내", recipients: [{ student_id: 41, student_name: "김알림",
+          phone: "010****4444", status: "", excluded: false, message_body: "퇴원 안내",
+          full_message_body: "안녕하세요, 합성 학원입니다. 김알림 학생의 퇴원 처리가 완료되었습니다." }],
+      } });
+    });
+    await page.route("**/api/v1/messaging/manual-notification/confirm/**", (route) => {
+      confirmations.push(route.request().postDataJSON().preview_token);
+      if (confirmations.length === 1) return route.fulfill({ status: 504, json: { detail: "접수 응답 확인 지연" } });
+      return route.fulfill({ json: { batch_id: token, sent_count: 0, accepted_count: 1,
+        pending_count: 1, failed_count: 0, blocked_count: 0 } });
+    });
+    await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 30_000 });
+    await page.getByRole("checkbox", { name: "김알림 선택" }).check();
+    await page.getByRole("button", { name: "삭제", exact: true }).click();
+    await page.getByRole("alertdialog").filter({ hasText: "학생 삭제" }).getByRole("button", { name: "삭제", exact: true }).click();
+    const modal = page.getByRole("dialog").filter({ hasText: "퇴원 처리 완료 안내 발송" });
+    await expect(modal.getByRole("alert")).toContainText("미리보기 일시 오류");
+    await modal.getByRole("button", { name: "미리보기 다시 불러오기" }).click();
+    await expect(modal.locator(".notification-preview__kakao-pane")).toContainText("김알림 학생");
+    await modal.getByRole("checkbox").check();
+    await modal.getByRole("button", { name: "1건 발송", exact: true }).click();
+    await expect(modal.getByRole("alert")).toContainText("접수 응답 확인 지연");
+    await modal.getByRole("button", { name: "같은 요청으로 다시 확인" }).click();
+    await expect(modal.getByRole("status")).toContainText("알림톡 1건 접수");
+      await expect(modal.getByRole("status")).toBeInViewport();
+    await expect(modal.getByRole("status")).toContainText("처리 대기 1건");
+    await expect(modal.getByRole("status")).not.toContainText("발송 완료");
+    expect(confirmations).toEqual([token, token]);
+    expect(previewCount).toBe(2);
+    await page.screenshot({ path: testInfo.outputPath(`withdrawal-recovery-${width}.png`) });
+    await expectNoHorizontalOverflow(page);
+    await modal.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(modal).toBeHidden();
+  });
+}
+
+
+async function openWithdrawalNotice(page: Page) {
+  await page.getByRole("checkbox", { name: "김알림 선택" }).check();
+  await page.getByRole("button", { name: "삭제", exact: true }).click();
+  await page.getByRole("alertdialog").filter({ hasText: "학생 삭제" }).getByRole("button", { name: "삭제", exact: true }).click();
+  return page.getByRole("dialog").filter({ hasText: "퇴원 처리 완료 안내 발송" });
+}
+
+test("만료된 미리보기는 재확인 후 다시 동의하고 차단만 된 응답을 성공으로 표시하지 않는다", async ({ page }, testInfo) => {
+  await installMocks(page);
+  await page.setViewportSize({ width: 390, height: 900 });
+  let previewCount = 0;
+  const confirmations: string[] = [];
+  await page.route("**/api/v1/students/bulk_delete/**", (route) => route.fulfill({ json: { deleted: 1 } }));
+  await page.route("**/api/v1/messaging/manual-notification/preview/**", (route) => {
+    previewCount++;
+    return route.fulfill({ json: { preview_token: `preview-${previewCount}`, total_count: 1, excluded_count: 0,
+      session_title: "", lecture_title: "", message_preview: "퇴원 안내", recipients: [{ student_id: 41,
+        student_name: "김알림", phone: "010****4444", status: "", excluded: false,
+        message_body: "퇴원 안내", full_message_body: "김알림 학생의 퇴원 처리 안내입니다." }] } });
+  });
+  await page.route("**/api/v1/messaging/manual-notification/confirm/**", (route) => {
+    confirmations.push(route.request().postDataJSON().preview_token);
+    return confirmations.length === 1
+      ? route.fulfill({ status: 400, json: { code: "preview_expired", detail: "미리보기가 만료되었습니다." } })
+      : route.fulfill({ json: { batch_id: "qa-blocked-batch", sent_count: 0, accepted_count: 0,
+        pending_count: 0, blocked_count: 1, failed_count: 0 } });
+  });
+  await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 30_000 });
+  const modal = await openWithdrawalNotice(page);
+  await modal.getByRole("checkbox").check();
+  await modal.getByRole("button", { name: "1건 발송", exact: true }).click();
+  await modal.getByRole("button", { name: "미리보기 다시 불러오기" }).click();
+  await expect(modal.getByRole("checkbox")).not.toBeChecked();
+  await expect(modal.getByRole("button", { name: "1건 발송", exact: true })).toBeDisabled();
+  await modal.getByRole("checkbox").check();
+  await modal.getByRole("button", { name: "1건 발송", exact: true }).click();
+  await expect(modal.getByRole("status")).toContainText("알림톡 0건 접수");
+  await expect(modal.getByRole("status")).toContainText("차단 1건");
+  await expect(modal.getByRole("status")).toHaveAttribute("data-warning", "true");
+  expect(confirmations).toEqual(["preview-1", "preview-2"]);
+  await page.screenshot({ path: testInfo.outputPath("withdrawal-blocked-390.png") });
+  await expectNoHorizontalOverflow(page);
+  await modal.getByRole("link", { name: "발송 기록 보기" }).click();
+  await expect(page).toHaveURL(/\/workspace\/message\/log$/);
+});
+
+test("닫은 알림창의 늦은 미리보기는 다시 연 창을 덮어쓰지 않는다", async ({ page }) => {
+  await installMocks(page);
+  let previewCount = 0;
+  let releaseOld!: () => void;
+  const oldResponse = new Promise<void>((resolve) => { releaseOld = resolve; });
+  await page.route("**/api/v1/students/bulk_delete/**", (route) => route.fulfill({ json: { deleted: 1 } }));
+  await page.route("**/api/v1/messaging/manual-notification/preview/**", async (route) => {
+    const sequence = ++previewCount;
+    if (sequence === 1) await oldResponse;
+    await route.fulfill({ json: { preview_token: `preview-${sequence}`, total_count: 1, excluded_count: 0,
+      session_title: "", lecture_title: "", message_preview: "퇴원 안내", recipients: [{ student_id: 41,
+        student_name: "김알림", phone: "010****4444", status: "", excluded: false,
+        message_body: "퇴원 안내", full_message_body: sequence === 1 ? "과거 창의 안내" : "새 창의 최신 안내" }] } });
+  });
+  await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 30_000 });
+  const first = await openWithdrawalNotice(page);
+  await expect.poll(() => previewCount).toBe(1);
+  await first.getByRole("button", { name: "취소", exact: true }).click();
+  await expect(first).toBeHidden();
+  const second = await openWithdrawalNotice(page);
+  await expect(second).toContainText("새 창의 최신 안내");
+  const oldArrived = page.waitForResponse((response) => response.url().includes("manual-notification/preview/"));
+  releaseOld();
+  await oldArrived;
+  await expect(second).not.toContainText("과거 창의 안내");
+  await expect(second).toContainText("새 창의 최신 안내");
+});
+
+test("저장 문구 조회 오류를 재시도해도 직접 작성한 초안은 보존된다", async ({ page }) => {
+  await installMocks(page);
+  let available = false;
+  await page.route("**/api/v1/messaging/templates/**", (route) => available
+    ? route.fulfill({ json: [] })
+    : route.fulfill({ status: 503, json: { detail: "저장 문구 조회 오류" } }));
+  await gotoAndSettle(page, `${BASE}/workspace/students/home?compose=alimtalk`, { timeout: 30_000 });
+  await page.getByRole("checkbox", { name: "김알림 선택" }).check();
+  await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
+  const modal = page.getByRole("dialog").filter({ hasText: "알림톡 발송" });
+  await expect(modal.getByRole("alert")).toContainText("저장 문구 조회 오류");
+  const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+  await editor.fill("조회 오류 중 작성한 안내문");
+  available = true;
+  await modal.getByRole("button", { name: "문구 다시 불러오기" }).click();
+  await expect(modal.getByRole("alert")).toBeHidden();
+  await expect(editor).toHaveText("조회 오류 중 작성한 안내문");
+  await expect(modal.getByRole("button", { name: /보낼 내용 확인/ })).toBeEnabled();
+});

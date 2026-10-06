@@ -26,7 +26,10 @@ export interface NotificationPreviewPayload {
 
 export interface NotificationConfirmResult {
   batch_id: string;
+  /** Legacy SQS admission count; not provider delivery. */
   sent_count: number;
+  accepted_count?: number;
+  pending_count?: number;
   failed_count: number;
   blocked_count: number;
 }
