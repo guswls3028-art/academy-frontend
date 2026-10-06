@@ -1450,6 +1450,8 @@ test("선택만 한 과제 셀은 원격 저장 뒤 옛 version으로 conflict�
     await pageAInput.fill("77");
     await pageA.keyboard.press("Control+s");
     await expect.poll(() => currentHomeworkScores[0]).toBe(77);
+    // A has finished editing this cell; B deliberately keeps its observed version.
+    await pageA.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" }).click();
     await expect.poll(() => pageBObservedHomeworkScore, { timeout: 10_000 }).toBe(77);
     await expect(pageBInput).toHaveText("10");
 

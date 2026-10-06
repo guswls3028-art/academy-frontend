@@ -30,7 +30,7 @@ function isTransientLoginError(err: unknown): boolean {
   if (!isApiError(err)) return false;
   const status = err.response?.status;
   if (typeof status === "number") {
-    return [408, 429, 500, 502, 503, 504].includes(status);
+    return [408, 500, 502, 503, 504].includes(status);
   }
   const code = String(err.code || "");
   const message = String(err.message || "");
@@ -68,7 +68,7 @@ export const login = async (username: string, password: string) => {
     res = await postLoginWithTransientRetry(body);
   } catch (err: unknown) {
     const ax = err as {
-      response?: { status?: number; data?: { detail?: string | string[] | Record<string, unknown> } };
+      response?: { status?: number; headers?: Record<string, unknown>; data?: { detail?: string | string[] | Record<string, unknown> } };
       code?: string;
     };
     const status = ax?.response?.status;
@@ -79,6 +79,12 @@ export const login = async (username: string, password: string) => {
     // 5xx는 서버 측 이슈 — "비밀번호 확인" 오안내를 피한다
     if (typeof status === "number" && status >= 500) {
       throw new Error("서버에 일시적 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+    // Rate limits require the server's wait, not a rapid automatic credential replay.
+    if (status === 429) {
+      const seconds = Number(ax.response?.headers?.["retry-after"]);
+      const wait = Number.isFinite(seconds) && seconds > 0 ? `${Math.ceil(seconds)}초 후` : "잠시 후";
+      throw new Error(`로그인 요청이 많습니다. ${wait} 다시 시도해 주세요.`);
     }
     // 401/400 = 자격 증명 오류 — username enumeration 방지 + 사용자 친화 문구
     if (status === 401 || status === 400) {

@@ -76,3 +76,8 @@ trap cancellation. Permission and storage failures still remain visible/retryabl
 If a delete response is lost, repeating the confirmed deletion treats HTTP 404 as
 already unavailable and returns to the board. Authorization and service failures
 remain visible; the draft or public view is not silently cleared on those errors.
+
+The isolated browser journey initializes tenant storage only on its exact web
+origin, never on opaque initial documents. Teardown records every context failure
+as a failing soft assertion so cleanup continues and the original workflow failure
+is not replaced by a later browser-check exception.
