@@ -2,9 +2,10 @@
 import { expect, test } from "../fixtures/strictTest";
 import {
   api, expectApi, assertNoHorizontalOverflow, assertQaStudentParentRuntime,
-  cleanupQaFamily, createQaFamily, installQaStudentParentBoundary, loginAdmin, loginThroughUi,
-  QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_BASE, STUDENT_PARENT_REALUSE_ENABLED, type QaFamily,
+  cleanupQaFamily, createQaFamily, installQaStudentParentBoundary, loginAdmin,
+  QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_BASE, QA_TENANT, STUDENT_PARENT_REALUSE_ENABLED, type QaFamily,
 } from "../helpers/qaStudentParentScenario";
+import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
 
@@ -53,7 +54,12 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       trigger: "withdrawal_complete", template_id: templateId, enabled: false, message_mode: "alimtalk",
     }] });
     configured = true;
-    await loginThroughUi(page, QA_ADMIN_USER, QA_ADMIN_PASSWORD);
+    await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`, { timeout: 45_000 });
+    await page.getByTestId("login-username").fill(QA_ADMIN_USER);
+    await page.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
+    await page.getByTestId("login-submit").click();
+    await expect(page).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+    await acknowledgeInitialAccountPromptsIfVisible(page);
 
     for (const [index, width] of [1366, 390].entries()) {
       const student = family.students[index];
