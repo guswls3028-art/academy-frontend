@@ -505,14 +505,15 @@ test("fixture API failures preserve status while dropping bodies and unknown pat
     { message: "POST /api/v1/token/ returned 401: secret-body" },
     { message: "POST /lectures/sessions/?private=secret-query returned 400: secret-body" },
     { message: "POST /students/ returned 400: secret-body" },
+    { message: "POST /students/registration_requests/ returned 429: private-family secret-body" },
     { message: "POST /private-account/ returned 403: secret-body" },
   ];
   const observed = observeReleaseTestResult(JSON.stringify(report));
-  assert.deepEqual(observed.reportedTestErrors.map((item) => item.receivedStatus), [401, 400, 400, null]);
+  assert.deepEqual(observed.reportedTestErrors.map((item) => item.receivedStatus), [401, 400, 400, 429, null]);
   assert.deepEqual(observed.failureDiagnostics.map((item) => [item.pathTemplate, item.status]), [
-    ["/api/v1/token/", 401], ["/lectures/sessions/", 400], ["/students/", 400],
+    ["/api/v1/token/", 401], ["/lectures/sessions/", 400], ["/students/", 400], ["/students/registration_requests/", 429],
   ]);
-  assert.doesNotMatch(JSON.stringify(observed), /secret-body|secret-query|private-account/);
+  assert.doesNotMatch(JSON.stringify(observed), /secret-body|secret-query|private-account|private-family/);
   assert.throws(() => assertReleaseSummary(report), /./);
 });
 
