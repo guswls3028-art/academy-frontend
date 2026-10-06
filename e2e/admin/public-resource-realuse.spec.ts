@@ -105,7 +105,7 @@ test.describe.serial("[real-use] 공개 자료 원본 공유", () => {
         expect((await api(request, "GET", `/landing-public/resources/${post.id}/`, "")).status).toBe(404);
       }
       for (const { context, guard, strict } of contexts) {
-        await guard.beginClose(); await context.close(); guard.assertClean(); strict.assertClean();
+        await guard.beginClose(); await context.close(); guard.assertClean(); strict.assertZeroDefects();
       }
       // Soft-deleted original objects are preserved by product policy. The owning
       // scenario cleanup purges only this disposable tenant and proves R2/user zero.

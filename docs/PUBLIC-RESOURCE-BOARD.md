@@ -60,3 +60,15 @@ and 300-second expiry. Application credentials never accompany R2 requests;
 redirects and missing preview CORS are failures. Byte comparisons, anonymous
 reload, retained-attachment editing and delete/link revocation precede the owning
 scenario's exact tenant/user/storage-zero cleanup.
+
+If a create response is lost and the author retries the same request UUID with
+changed input, HTTP 409 identifies only that author's already-published post,
+current revision and attached IDs. The editor retains the current input, stops
+treating published originals as pending cleanup, and continues as a versioned
+edit of that post. It never creates a duplicate or discards the authored changes.
+The recovery response also shows the currently published title, body and filenames
+for explicit comparison before applying the retained draft. A concurrent edit after
+that snapshot still receives the ordinary revision conflict.
+Pending cleanup treats HTTP 404 as already unavailable for cleanup (including
+already-published originals), so a lost delete/publish acknowledgement cannot
+trap cancellation. Permission and storage failures still remain visible/retryable.

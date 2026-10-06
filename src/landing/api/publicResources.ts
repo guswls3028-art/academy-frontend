@@ -27,7 +27,12 @@ export async function uploadResource(file: File, onProgress?: (percent: number) 
   return (await api.post<ResourceFile>("/landing-public/uploads/resource/", form, { timeout: 120_000, onUploadProgress: (event) => { if (event.total) onProgress?.(Math.round(event.loaded * 100 / event.total)); } })).data;
 }
 export async function discardResourceFile(id: string): Promise<void> {
-  await api.delete(`/landing-public/resource-files/${id}/`);
+  try { await api.delete(`/landing-public/resource-files/${id}/`); }
+  catch (error) {
+    // A lost delete response, or an already-published upload, leaves no pending
+    // object available for cleanup. Never attempt to remove an attached original.
+    if ((error as { response?: { status?: number } })?.response?.status !== 404) throw error;
+  }
 }
 export async function resourceFileLink(id: string): Promise<string> {
   return (await api.get<{ url: string }>(`/landing-public/resource-files/${id}/`, { skipAuth: true } as ApiRequestConfig)).data.url;
@@ -40,6 +45,7 @@ export async function deleteResource(id: number): Promise<void> { await api.dele
 export function resourceError(error: unknown, fallback: string): string {
   const data = (error as { response?: { data?: unknown } })?.response?.data;
   if (typeof data === "object" && data !== null) {
+    if ("detail" in data && typeof data.detail === "string") return data.detail;
     const values = Object.values(data).flat().filter((value): value is string => typeof value === "string");
     if (values.length) return values.slice(0, 3).join(" ");
   }

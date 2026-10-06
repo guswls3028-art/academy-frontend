@@ -24,7 +24,7 @@ function pdfBytes() {
 // Native browser downloads do not reliably use Page.route interception.
 // Serve the generated fixture over real loopback HTTP and verify its bytes.
 let documentUrl = "";
-type ResourceScenario = { empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource; cleanupFailure?: boolean; conflict?: boolean; tenant?: string };
+type ResourceScenario = { empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource; cleanupFailure?: boolean; conflict?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string };
 let resourceScenario: ResourceScenario = { unavailable: false };
 const uploaded = new Map<string, { file: typeof resource.files[number]; bytes: Buffer }>();
 let uploadCount = 0;
@@ -61,7 +61,15 @@ const documentServer = createServer((request, response) => {
   if (url.pathname.endsWith("/resources/") && request.method === "POST") {
     const chunks: Buffer[] = []; request.on("data", (chunk: Buffer) => chunks.push(chunk)); request.on("end", () => {
       const input = JSON.parse(Buffer.concat(chunks).toString()) as typeof createPayloads[number]; createPayloads.push(input);
+      if (resourceScenario.publishedRequest === input.request_id && resourceScenario.post) {
+        response.writeHead(409, { ...cors, "Content-Type": "application/json" });
+        response.end(JSON.stringify({ detail: "앞선 요청으로 이미 게시된 자료입니다. 입력한 변경 내용은 유지됩니다.", post_id: resourceScenario.post.id, updated_at: resourceScenario.post.updated_at, file_ids: resourceScenario.post.files.map((file) => file.id), published_title: resourceScenario.post.title, published_content: resourceScenario.post.content, published_filenames: resourceScenario.post.files.map((file) => file.filename) })); return;
+      }
       resourceScenario.post = { ...resource, title: input.title, content: input.content, files: input.file_ids.map((id) => uploaded.get(id)?.file || resource.files.find((file) => file.id === id)!) };
+      if (resourceScenario.lostPublishResponse) {
+        resourceScenario.lostPublishResponse = false; resourceScenario.publishedRequest = input.request_id;
+        response.writeHead(503, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify({ detail: "QA 게시 응답 확인 실패" })); return;
+      }
       response.writeHead(201, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify(resourceScenario.post));
     }); return;
   }
@@ -74,12 +82,15 @@ const documentServer = createServer((request, response) => {
         response.writeHead(409, { ...cors, "Content-Type": "application/json" });
         response.end(JSON.stringify({ detail: "다른 게시자가 이 자료를 수정했습니다. 입력한 내용은 유지됩니다." })); return;
       }
-      resourceScenario.post = { ...resource, ...input, files: resource.files.filter((file) => input.file_ids.includes(file.id)), updated_at: "2026-10-06T02:00:00Z" };
+      resourceScenario.post = { ...resource, ...input, files: input.file_ids.map((id: string) => uploaded.get(id)?.file || resource.files.find((file) => file.id === id)!), updated_at: "2026-10-06T02:00:00Z" };
       response.writeHead(200, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify(resourceScenario.post));
     }); return;
   }
   if (url.pathname.includes("/resource-files/") && request.method === "DELETE") {
     const id = url.pathname.split("/").filter(Boolean).at(-1)!;
+    if (!uploaded.has(id) || resourceScenario.post?.files.some((file) => file.id === id)) {
+      response.writeHead(404, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify({ detail: "No pending upload" })); return;
+    }
     if (resourceScenario.cleanupFailure && cleaned.length === 1) {
       resourceScenario.cleanupFailure = false;
       response.writeHead(503, { ...cors, "Content-Type": "application/json" }); response.end(JSON.stringify({ detail: "QA 첨부 정리 일시 실패" })); return;
@@ -123,7 +134,7 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => { await new Promise<void>((resolve, reject) => documentServer.close((error) => error ? reject(error) : resolve())); });
 
-async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number; cleanupFailure?: boolean; conflict?: boolean; tenant?: string } = {}) {
+async function prepare(page: Page, options: { empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number; cleanupFailure?: boolean; conflict?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string } = {}) {
   await page.addInitScript((tenant) => { localStorage.setItem("tenant_code", tenant); sessionStorage.setItem("tenantCode", tenant); }, options.tenant || "godmin");
   resourceScenario = { ...options, unavailable: Boolean(options.failOnce) }; uploadBody = Buffer.alloc(0); createPayloads.length = 0; uploaded.clear(); uploadCount = 0; cleaned.length = 0; patchPayloads.length = 0;
   if (options.publisher) {
@@ -324,4 +335,41 @@ test("tchul uses the current tenant brand on the shared public board", async ({ 
   await prepare(page, { tenant: "tchul" }); await page.goto(`${BASE}/landing/resources`);
   await expect(page.getByRole("link", { name: "천안학원 공개 자료게시판" })).toBeVisible();
   await expect(page.getByText("신과함께", { exact: true })).toHaveCount(0);
+});
+
+test("lost publish acknowledgement recovers as an edit without duplicate posts or deleted originals", async ({ page }) => {
+  await prepare(page, { publisher: true, lostPublishResponse: true });
+  await page.goto(`${BASE}/landing/resources/write`);
+  await page.getByLabel("제목", { exact: true }).fill("최초 게시 내용");
+  await page.getByLabel("첨부 자료", { exact: true }).setInputFiles({ name: "original.xlsx", mimeType: "application/octet-stream", buffer: Buffer.from("original") });
+  await expect(page.getByText("original.xlsx", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "게시하기", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("QA 게시 응답 확인 실패");
+  await page.getByLabel("제목", { exact: true }).fill("응답 유실 뒤 수정할 내용");
+  await page.getByRole("button", { name: "게시하기", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("앞선 요청으로 이미 게시된");
+  await expect(page.getByRole("alert")).not.toContainText("2026-");
+  await expect(page.locator("details").filter({ hasText: "이미 게시된 내용과 비교" })).toContainText("최초 게시 내용");
+  await expect(page.getByLabel("제목", { exact: true })).toHaveValue("응답 유실 뒤 수정할 내용");
+  await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "응답 유실 뒤 수정할 내용", exact: true })).toBeVisible();
+  await page.reload(); await expect(page.getByText("original.xlsx", { exact: true })).toBeVisible();
+  expect(createPayloads).toHaveLength(2); expect(createPayloads[0].request_id).toBe(createPayloads[1].request_id);
+  expect(patchPayloads).toHaveLength(1); expect(cleaned).toHaveLength(0);
+});
+
+test("cancel after a lost publish response preserves published originals and returns to the board", async ({ page }) => {
+  await prepare(page, { publisher: true, lostPublishResponse: true });
+  await page.goto(`${BASE}/landing/resources/write`);
+  await page.getByLabel("제목", { exact: true }).fill("이미 게시된 원본 보존");
+  await page.getByLabel("첨부 자료", { exact: true }).setInputFiles({ name: "published.zip", mimeType: "application/octet-stream", buffer: Buffer.from("original") });
+  await expect(page.getByText("published.zip", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "게시하기", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("QA 게시 응답 확인 실패");
+  await page.getByRole("button", { name: "← 돌아가기", exact: true }).click();
+  await expect(page).toHaveURL(/\/landing\/resources$/);
+  expect(cleaned).toHaveLength(0);
+  await page.getByRole("link", { name: LONG_TITLE }).first().click();
+  await expect(page.getByRole("heading", { name: "이미 게시된 원본 보존", exact: true })).toBeVisible();
+  await expect(page.getByText("published.zip", { exact: true })).toBeVisible();
 });

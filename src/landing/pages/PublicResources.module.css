@@ -68,3 +68,7 @@
 .shell button:disabled { cursor: not-allowed; }
 .previewHead { flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) { .primary, .shell button { transition: none; } }
+
+.recovery { padding: 16px; margin: 16px 0; border: 1px solid #ccdfd3; border-radius: 12px; font-size: 14px; overflow-wrap: anywhere; }
+.recovery summary { cursor: pointer; margin-bottom: 12px; font-weight: 700; }
+.recovery p { white-space: pre-wrap; line-height: 1.7; }
