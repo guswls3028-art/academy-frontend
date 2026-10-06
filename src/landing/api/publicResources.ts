@@ -1,7 +1,16 @@
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
 export type ResourceCategory = "matchup" | "analysis";
-export interface ResourceFile { id: string; filename: string; extension: string; size: number }
+export type ReaderStatus = "unprepared" | "pending" | "ready" | "failed" | "unsupported";
+export interface ResourceFile { id: string; filename: string; extension: string; size: number; reader_status: ReaderStatus }
+export type ReaderBlock = { kind: "paragraph" | "formula"; text: string } | { kind: "image"; url: string; width: number; height: number } | { kind: "table"; rows: ReaderBlock[][][] };
+export interface ResourceReader { status: ReaderStatus; message?: string; mode?: "article" | "pages"; blocks?: ReaderBlock[]; pdf_url?: string; pages?: number }
+export async function readResourceFile(id: string, preview = false): Promise<ResourceReader> {
+  return (await api.get<ResourceReader>(`/landing-public/resource-files/${id}/reader/`, { skipAuth: !preview } as ApiRequestConfig)).data;
+}
+export async function prepareResourceReader(id: string): Promise<ResourceReader> {
+  return (await api.post<ResourceReader>(`/landing-public/resource-files/${id}/reader/`)).data;
+}
 export interface ResourcePost {
   id: number; category: ResourceCategory; title: string; content: string;
   author_display_name: string; created_at: string; updated_at: string; files: ResourceFile[];
@@ -12,7 +21,7 @@ export interface ResourceWrite {
 export interface ResourcePage { count: number; results: ResourcePost[]; next: string | null }
 const base = "/landing-public/resources/";
 
-export async function listResources(category: ResourceCategory, page = 1): Promise<ResourcePage> {
+export async function listResources(category?: ResourceCategory, page = 1): Promise<ResourcePage> {
   const { data } = await api.get<ResourcePage | ResourcePost[]>(base, { params: { category, page }, skipAuth: true } as ApiRequestConfig);
   return Array.isArray(data) ? { count: data.length, results: data, next: null } : data;
 }
