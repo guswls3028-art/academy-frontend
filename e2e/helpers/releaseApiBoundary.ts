@@ -845,6 +845,7 @@ export async function installReleaseContextGuard(
   const homeworkPreviewUrls = new Set<string>();
   const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
   const resourceDownloadUrls = new Set<string>();
+  const resourceReaderUrls = new Map<string, string>();
   const acceptedPptJobs = new Set<string>();
   const pptDownloadUrls = new Map<string, { url: string; filename: string }>();
   const communityAttachments = new Map<string, { contentType: string; originalName: string }>();
@@ -952,19 +953,35 @@ export async function installReleaseContextGuard(
         }
         return;
       }
-      if (request.method() === "GET" && resourceDownloadUrls.has(upstream)
-        && ["document", "other", "fetch", "xhr"].includes(request.resourceType())) {
+      const readerContentType = resourceReaderUrls.get(upstream);
+      const resourceTypes = readerContentType
+        ? (readerContentType.startsWith("image/") ? ["image", "fetch", "xhr"] : ["fetch", "xhr"])
+        : ["document", "other", "fetch", "xhr"];
+      if (request.method() === "GET" && (resourceDownloadUrls.has(upstream) || readerContentType)
+        && resourceTypes.includes(request.resourceType())) {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
           .some((key) => headers[key])) { await reject("credentials"); return; }
-        const preview = ["fetch", "xhr"].includes(request.resourceType());
+        const preview = Boolean(readerContentType) || ["fetch", "xhr"].includes(request.resourceType());
         const response = await route.fetch({ url: upstream, method: "GET",
           headers: { accept: "*/*", ...(preview ? { origin: boundary.webOrigin } : {}) }, maxRedirects: 0 });
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
         const body = await response.body();
-        if (response.status() !== 200 || !body.length || body.length > 30 * 1024 * 1024
-          || !["application/pdf", "application/x-hwp", "application/hwp+zip", "application/octet-stream"].includes(response.headers()["content-type"]?.split(";")[0].trim().toLowerCase())
-          || !response.headers()["content-disposition"]?.startsWith("attachment;")) { await reject("transport"); return; }
+        const actualType = response.headers()["content-type"]?.split(";")[0].trim().toLowerCase();
+        // Derived reader assets have no download disposition. Keep original-download
+        // checks intact and bind each derived response to its manifest's exact format.
+        const readerSignatureMatches = !readerContentType || (readerContentType === "application/pdf"
+          ? body.subarray(0, 5).toString("ascii") === "%PDF-"
+          : readerContentType === "image/png"
+            ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((byte, index) => body[index] === byte)
+            : readerContentType === "image/gif"
+              ? ["GIF87a", "GIF89a"].includes(body.subarray(0, 6).toString("ascii"))
+              : body.subarray(0, 4).toString("ascii") === "RIFF" && body.subarray(8, 12).toString("ascii") === "WEBP");
+        if (response.status() !== 200 || !body.length || body.length > (readerContentType ? 60 : 30) * 1024 * 1024
+          || !readerSignatureMatches
+          || (readerContentType ? actualType !== readerContentType
+            : !["application/pdf", "application/x-hwp", "application/hwp+zip", "application/octet-stream"].includes(actualType)
+              || !response.headers()["content-disposition"]?.startsWith("attachment;"))) { await reject("transport"); return; }
         if (preview && !["*", boundary.webOrigin].includes(response.headers()["access-control-allow-origin"])) {
           await reject("cors"); return;
         }
@@ -1137,7 +1154,13 @@ export async function installReleaseContextGuard(
             visit(payload.blocks);
             for (const url of urls) {
               if (!isExactDevelopmentResourceReaderAsset(boundary, url, resourceReader[1])) throw new Error("Resource reader asset escaped exact development scope");
-              resourceDownloadUrls.add(url);
+              if (isExactDevelopmentResourceDownload(boundary, url, resourceReader[1])) resourceDownloadUrls.add(url);
+              else {
+                const types: Record<string, string> = { pdf: "application/pdf", png: "image/png", webp: "image/webp", gif: "image/gif" };
+                const type = types[new URL(url).pathname.split(".").at(-1) ?? ""];
+                if (!type) throw new Error("Resource reader format is outside exact development scope");
+                resourceReaderUrls.set(url, type);
+              }
             }
           }
         }
