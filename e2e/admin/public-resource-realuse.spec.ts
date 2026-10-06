@@ -27,7 +27,10 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
     for (let page = 1; page <= 3; page += 1) {
       document.addPage([595, 842]).drawText(`QA PUBLIC RESOURCE PAGE ${page} OF 3`, { x: 40, y: 750, font });
     }
-    const workbook = new ExcelJS.Workbook(); workbook.addWorksheet("QA").addRow(["QA analysis", 90]);
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("QA");
+    sheet.columns = [{ width: 24 }, { width: 12 }];
+    sheet.addRow(["QA analysis", 90]);
     const archive = new JSZip(); archive.file("analysis.txt", "QA original analysis");
     const originals = [
       { name: "공개 보고서.PDF", mimeType: "application/pdf", buffer: Buffer.from(await document.save()) },
@@ -107,7 +110,8 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
         const hangul = visitor.getByRole("region", { name: "한글 자료.hwpx 본문", exact: true });
         await hangul.scrollIntoViewIfNeeded();
         await expect(hangul.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
-        await expect(hangul).toContainText("산화와 환원");
+        // PDF text layers may omit spaces while the original page remains correctly laid out.
+        await expect.poll(async () => (await hangul.textContent())?.replace(/\s/g, "")).toContain("산화와환원");
         await expect(hangul).toContainText("85%");
         const equation = visitor.getByRole("region", { name: "한글 수식.hwp 본문", exact: true });
         await equation.scrollIntoViewIfNeeded();
