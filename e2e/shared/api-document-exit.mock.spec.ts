@@ -58,3 +58,23 @@ test("exit cancels ordinary reads but retains the explicit playback completion r
   expect(result).toEqual({ ordinary: "ERR_CANCELED", playback: 200 });
   expect(requests).toEqual(["/api/v1/media/playback/end/"]);
 });
+
+test("logout cancels queued reads before pagehide and a new login can request again", async ({ page }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/v1/")) requests.push(new URL(request.url()).pathname);
+  });
+  const result = await page.evaluate(async () => {
+    const { default: api, markSessionEnding, resetSessionEnding } = await new Function("return import('/src/shared/api/axios.ts')")();
+    const pending = api.get("/student/me/").then(() => "sent", (error: { code?: string }) => error.code);
+    await Promise.resolve();
+    markSessionEnding();
+    const queued = await pending;
+    const late = await api.get("/student/me/").then(() => "sent", (error: { code?: string }) => error.code);
+    resetSessionEnding();
+    const restored = await api.get("/student/me/");
+    return { queued, late, restored: restored.status };
+  });
+  expect(result).toEqual({ queued: "ERR_CANCELED", late: "ERR_CANCELED", restored: 200 });
+  expect(requests).toEqual(["/api/v1/student/me/"]);
+});

@@ -109,7 +109,7 @@ function requireActiveRequestDocument(config: InternalAxiosRequestConfig): void 
   const retryConfig = config as RetryConfig;
   // Playback completion has a separately validated keepalive transport below.
   if (retryConfig.playbackUnload === true) return;
-  if (documentExited || (retryConfig._documentGeneration !== undefined
+  if (isSessionEnding || documentExited || (retryConfig._documentGeneration !== undefined
     && retryConfig._documentGeneration !== documentGeneration)) {
     throw new axios.CanceledError("Request document has exited.", config);
   }

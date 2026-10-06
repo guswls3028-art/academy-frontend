@@ -117,6 +117,17 @@ reference-count 예산 안에서 우회할 수 없다. 일반 브라우저 취�
 일치할 때만 적용한다. 로그아웃 뒤 새 generation, 다른 tenant 또는 다른 user의
 marker를 이어받지 않으며, 저장소를 읽을 수 없으면 변경 권장을 다시 표시한다.
 
+## Logout request boundary
+
+일반 로그아웃은 인증 저장소 정리가 성공한 뒤 세션 종료 상태를 표시하고 화면을
+전환한다. `pagehide` 전에도 대기 중이거나 늦게 시작한 일반 API 요청은 취소해
+이전 화면의 프로필 조회가 WebKit의 종료 중인 문서에서 실행되지 않게 한다.
+저장소 정리가 실패하면 기존 오류를 유지하고 정상 로그아웃으로 처리하지 않는다.
+새 로그인은 세션 종료 상태를 초기화하여 정상 요청을 재개한다. 기존 영상 종료의
+명시적 keepalive 경로와 다른 탭의 인증·캐시 폐기는 유지한다.
+`api-document-exit.mock.spec.ts`에서 종료 전 취소·새 세션 복구를 검증하고,
+`iphone-safari-login.mock.spec.ts`에서 실제 두 탭 로그아웃 흐름을 검증한다.
+
 ## Verification
 
 ```powershell

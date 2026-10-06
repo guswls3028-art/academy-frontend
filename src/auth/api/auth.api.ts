@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/auth/api/auth.ts
-import api, { clearTokens, isApiError, resetSessionEnding } from "@/shared/api/axios";
+import api, { clearTokens, isApiError, markSessionEnding, resetSessionEnding } from "@/shared/api/axios";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import {
   closeStudentSupportWindow,
@@ -113,5 +113,7 @@ export const logout = () => {
     return;
   }
   clearTokens();
+  // Stop queued reads before navigation emits pagehide (notably WebKit).
+  markSessionEnding();
   window.location.href = "/";
 };
