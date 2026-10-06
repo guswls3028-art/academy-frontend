@@ -62,7 +62,7 @@ test.describe.serial("[real-use] 공개 자료 원본 공유", () => {
         await page.getByLabel("분류", { exact: true }).selectOption(index ? "analysis" : "matchup");
         const title = `QA 자료 공유 ${width}`;
         await page.getByLabel("제목", { exact: true }).fill(title);
-        await page.getByLabel("설명", { exact: true }).fill("로그인 없이 원본을 내려받는 합성 자료입니다.");
+        await page.getByRole("textbox", { name: "설명", exact: true }).fill("로그인 없이 원본을 내려받는 합성 자료입니다.");
         await page.getByLabel("첨부 자료", { exact: true }).setInputFiles(originals);
         await expect(page.getByText("README", { exact: true })).toBeVisible({ timeout: 90_000 });
         const published = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/landing-public/resources/");
@@ -74,7 +74,7 @@ test.describe.serial("[real-use] 공개 자료 원본 공유", () => {
         if (index) {
           await page.goto(`${QA_BASE}/landing/resources/${posts[0].id}`);
           await page.getByRole("link", { name: "수정", exact: true }).click();
-          await page.getByLabel("설명", { exact: true }).fill("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.");
+          await page.getByRole("textbox", { name: "설명", exact: true }).fill("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.");
           await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
           await expect(page.getByText("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.", { exact: true })).toBeVisible();
         }
@@ -85,6 +85,20 @@ test.describe.serial("[real-use] 공개 자료 원본 공유", () => {
         await visitor.getByRole("button", { name: "PDF 미리보기", exact: true }).click();
         await expect(visitor.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
         for (const original of originals) {
+          const row = visitor.getByText(original.name, { exact: true }).first().locator("..").locator("..");
+          const downloading = visitor.waitForEvent("download");
+          await row.getByRole("button", { name: "원본 다운로드", exact: true }).click();
+          const download = await downloading; expect(await download.failure()).toBeNull();
+          expect(download.suggestedFilename()).toBe(original.name);
+          expect(await readFile((await download.path())!)).toEqual(original.buffer);
+        }
+        if (index) {
+          await visitor.goto(`${QA_BASE}/landing/resources/${posts[0].id}`);
+          await visitor.reload();
+          await expect(visitor.getByText("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.", { exact: true })).toBeVisible();
+          await expect(visitor.getByRole("link", { name: "수정", exact: true })).toHaveCount(0);
+          for (const original of originals) await expect(visitor.getByText(original.name, { exact: true }).first()).toBeVisible();
+          const original = originals[0];
           const row = visitor.getByText(original.name, { exact: true }).first().locator("..").locator("..");
           const downloading = visitor.waitForEvent("download");
           await row.getByRole("button", { name: "원본 다운로드", exact: true }).click();
