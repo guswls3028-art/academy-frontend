@@ -2544,6 +2544,39 @@ test.describe("직원 운영 계약", () => {
     });
   });
 
+  for (const width of [1366, 390]) {
+    test(`${width}px 실제 소수초 출퇴근은 읽을 수 있고 메모 수정이 원래 시간·금액을 보존한다`, async ({ page }) => {
+      const record: Record<string, unknown> = {
+        id: 402, staff: 1, staff_name: "김조교", work_type: 21, work_type_name: "채점",
+        date: "2026-08-21", start_time: "14:00:00.123456", end_time: "14:00:45.987654",
+        break_minutes: 0, meal_minutes: 0, work_hours: "2.00", amount: 24719,
+        resolved_hourly_wage: 12000, adjustment_amount: 0, is_manually_edited: true, memo: "직접 확정",
+      };
+      let saved: Record<string, unknown> | undefined;
+      await mockStaffApi(page, { workRecords: [record], onWorkRecordPatch: (_id, body) => {
+        saved = body;
+        Object.assign(record, body);
+      } });
+      await page.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(page, `${BASE}/workspace/staff/attendance?staffId=1&year=2026&month=8`);
+      const row = page.getByTestId("staff-work-record-402");
+      await row.getByRole("button", { name: "수정", exact: true }).click();
+      const edit = page.getByRole("dialog", { name: "근무 기록 수정" });
+      await expect(edit.getByLabel("시작 시간 *", { exact: true })).toHaveValue("14:00");
+      await expect(edit.getByLabel("종료 시간 *", { exact: true })).toHaveValue("14:00");
+      await edit.getByLabel("메모", { exact: true }).fill("확정 금액 설명 추가");
+      await edit.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(edit).toBeHidden();
+      expect(saved).toMatchObject({ start_time: "14:00:00.123456", end_time: "14:00:45.987654", memo: "확정 금액 설명 추가" });
+      expect(saved).not.toHaveProperty("amount");
+      expect(saved).not.toHaveProperty("work_hours");
+      await page.reload();
+      await expect(row).toContainText("24,719");
+      await expect(row).toContainText("근무 2.00시간");
+      await expect(row).toContainText("확정 금액 설명 추가");
+    });
+  }
+
   test("과거 월 근무기록 추가는 월 1일을 자동 입력하지 않고 실제 날짜를 명시 선택한다", async ({ page }) => {
     await page.clock.install({ time: new Date("2026-09-10T12:00:00+09:00") });
     let createdBody: Record<string, unknown> | null = null;

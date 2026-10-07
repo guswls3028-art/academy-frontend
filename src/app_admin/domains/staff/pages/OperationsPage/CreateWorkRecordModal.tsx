@@ -24,6 +24,11 @@ type Props = {
   initial?: WorkRecord | null;
 };
 
+function clockSeconds(value: string) {
+  const [hours, minutes, seconds = "0"] = value.split(":");
+  return Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds);
+}
+
 export default function CreateWorkRecordModal({ open, onClose, initial = null }: Props) {
   const { staffId, range, writeBlocked } = useWorkMonth();
   const selectedMonth = range.from.slice(0, 7);
@@ -85,9 +90,10 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
       feedback.warning("현재 선택한 월 안의 날짜를 선택해 주세요.");
       return;
     }
+    const clockDifference = clockSeconds(form.end_time) - clockSeconds(form.start_time);
     const invalidEnd = form.end_date
-      ? new Date(`${form.end_date}T${form.end_time}`) <= new Date(`${form.date}T${form.start_time}`)
-      : form.end_time.slice(0, 5) === form.start_time.slice(0, 5);
+      ? form.end_date < form.date || (form.end_date === form.date && clockDifference <= 0)
+      : clockDifference === 0;
     if (invalidEnd) {
       feedback.warning("종료 일시는 시작 일시보다 늦어야 합니다. 다른 날 퇴근했다면 종료 날짜를 선택하세요.");
       return;
@@ -98,6 +104,7 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
       return;
     }
     if (createM.isPending || patchM.isPending) return;
+    // Native time inputs show minutes; untouched server seconds remain in form state.
     const payload = {
         work_type: form.work_type,
         date: form.date,
@@ -191,7 +198,7 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
                 id="work-record-start-time"
                 type="time"
                 className="ds-input"
-                value={form.start_time}
+                value={form.start_time.slice(0, 5)}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, start_time: e.target.value }))
                 }
@@ -203,7 +210,7 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
                 id="work-record-end-time"
                 type="time"
                 className="ds-input"
-                value={form.end_time}
+                value={form.end_time.slice(0, 5)}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, end_time: e.target.value }))
                 }

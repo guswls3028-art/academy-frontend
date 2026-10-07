@@ -13,7 +13,7 @@ test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
 type Staff = { id: number; name: string; is_active: boolean };
-type RecordRow = { id: number; end_date: string; end_time: string; amount: number; resolved_hourly_wage: number };
+type RecordRow = { id: number; date: string; start_time: string; work_hours: string; end_date: string; end_time: string; amount: number; resolved_hourly_wage: number };
 type OverviewRow = { staff_id: number; work_amount: number; reference_deduction_total: number;
   reference_net_work_amount: number; approved_expense_amount: number; reference_transfer_amount: number;
   settlement_status: string; is_active: boolean };
@@ -78,6 +78,20 @@ test.describe("[real-use] 직원 계정·근태·급여", () => {
     expect(ended.status).toBe(200);
     expect(ended.body.end_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(ended.body.resolved_hourly_wage).toBe(12345);
+    const [clockYear, clockMonth] = ended.body.date.split("-");
+    await gotoAndSettle(page, `${QA_BASE}/workspace/staff/attendance?staffId=${first.body.id}&year=${clockYear}&month=${Number(clockMonth)}`);
+    const clockRow = page.getByTestId(`staff-work-record-${started.body.id}`);
+    await clockRow.getByRole("button", { name: "수정", exact: true }).click();
+    const clockEdit = page.getByRole("dialog", { name: "근무 기록 수정" });
+    await expect(clockEdit.getByLabel("시작 시간 *", { exact: true })).toHaveValue(ended.body.start_time.slice(0, 5));
+    await expect(clockEdit.getByLabel("종료 시간 *", { exact: true })).toHaveValue(ended.body.end_time.slice(0, 5));
+    await clockEdit.getByLabel("메모", { exact: true }).fill("QA 실제 출퇴근 시각 보존");
+    await clockEdit.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(clockEdit).toBeHidden();
+    const preservedClock = await api<RecordRow>(request, "GET", `/staffs/work-records/${started.body.id}/`, admin);
+    expect(preservedClock.status).toBe(200);
+    expect(preservedClock.body).toMatchObject({ start_time: ended.body.start_time, end_time: ended.body.end_time,
+      end_date: ended.body.end_date, work_hours: ended.body.work_hours, amount: ended.body.amount });
     // Remove only this exact synthetic clock record before deterministic monthly arithmetic.
     expect((await api(request, "DELETE", `/staffs/work-records/${started.body.id}/`, admin)).status).toBe(204);
 
