@@ -26,7 +26,7 @@ export default function AttendanceSummaryCard({
           unit="원"
         />
         <Item
-          label="최종 이체 참고액"
+          label="이체 예정액"
           value={summary.reference_transfer_amount.toLocaleString()}
           unit="원"
           tone="primary"
@@ -35,17 +35,17 @@ export default function AttendanceSummaryCard({
       <dl className={`mt-4 grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 border-t pt-4 text-sm tabular-nums ${styles.summaryBreakdown}`}>
         <dt>근무 공제 전</dt>
         <dd className="font-semibold">{summary.total_amount.toLocaleString()}원</dd>
-        <dt>3.3% 적용 시 참고 공제</dt>
+        <dt>기본 공제 3.3%</dt>
         <dd className="font-semibold">-{summary.reference_deduction_total.toLocaleString()}원</dd>
         <dt className="text-xs text-slate-500">사업소득세 3% + 지방소득세 0.3%</dt>
         <dd className="text-xs text-slate-500">{summary.reference_business_income_tax.toLocaleString()}원 + {summary.reference_local_income_tax.toLocaleString()}원</dd>
-        <dt>공제 후 근무 참고액</dt>
+        <dt>공제 후 급여</dt>
         <dd className="font-semibold">{summary.reference_net_work_amount.toLocaleString()}원</dd>
         <dt>승인 환급비</dt>
         <dd className="font-semibold">+{summary.approved_expense_amount.toLocaleString()}원</dd>
       </dl>
       <p className="mt-3 text-xs leading-relaxed text-slate-500">
-        3.3% 적용 시 비교를 위한 참고값입니다. 실제 공제 적용 여부와 지급액은 계약·세무 확인 후 확정하세요.
+        기본 공제 3.3%를 원 단위 반올림합니다. 승인 환급은 공제 없이 더하며, 이체 예정액은 송금 완료를 뜻하지 않습니다.
       </p>
     </Panel>
   );

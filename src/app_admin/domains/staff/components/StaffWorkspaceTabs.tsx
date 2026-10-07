@@ -7,7 +7,7 @@ const TABS = [
   { key: "attendance", label: "근태", path: "/workspace/staff/attendance" },
   { key: "expenses", label: "비용/경비", path: "/workspace/staff/expenses" },
   { key: "month-lock", label: "월 마감", path: "/workspace/staff/month-lock" },
-  { key: "payroll-snapshot", label: "정산 참고", path: "/workspace/staff/payroll-snapshot" },
+  { key: "payroll-snapshot", label: "급여 정산", path: "/workspace/staff/payroll-snapshot" },
   { key: "reports", label: "리포트", path: "/workspace/staff/reports" },
 ];
 

@@ -1,4 +1,6 @@
 /** Disposable staff accounts and payroll facts in the isolated development tenant. */
+import { readFile } from "node:fs/promises";
+import ExcelJS from "exceljs";
 import { test, expect } from "../fixtures/strictTest";
 import {
   api, assertNoHorizontalOverflow, assertQaStudentParentRuntime,
@@ -137,6 +139,8 @@ test.describe("[real-use] 직원 계정·근태·급여", () => {
       for (const value of ["308,625원", "10,185원", "298,440원", "2,500원", "300,940원"]) {
         await expect(staffRow).toContainText(value);
       }
+      await expect(payroll).toContainText("기본 공제 3.3%");
+      await expect(payroll).toContainText("이체 예정액");
       await assertNoHorizontalOverflow(page);
       await page.screenshot({ path: testInfo.outputPath(`staff-payroll-${width}.png`) });
     }
@@ -150,6 +154,30 @@ test.describe("[real-use] 직원 계정·근태·급여", () => {
     await page.reload();
     const closed = await api<{ rows: OverviewRow[] }>(request, "GET", "/staffs/payroll-overview/?year=2026&month=8", admin);
     expect(closed.body.rows.find((row) => row.staff_id === first.body.id)).toMatchObject({ settlement_status: "CLOSED", work_amount: 308625 });
+    await page.getByRole("tab", { name: "급여 정산 탭", exact: true }).click();
+    await expect(page.getByText("기본 공제 3.3%", { exact: true }).last()).toBeVisible();
+    await expect(page.getByText("300,940원", { exact: true }).last()).toBeVisible();
+    const pdfPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "PDF 명세", exact: true }).click();
+    const pdf = await pdfPromise;
+    const pdfPath = testInfo.outputPath("payroll.pdf");
+    await pdf.saveAs(pdfPath);
+    expect((await readFile(pdfPath)).subarray(0, 5).toString()).toBe("%PDF-");
+    await page.getByRole("tab", { name: "리포트 탭", exact: true }).click();
+    await expect(page.getByText("이체 예정액", { exact: true }).last()).toBeVisible();
+    const excelPromise = page.waitForEvent("download", { timeout: 120_000 });
+    await page.getByRole("button", { name: "XLSX", exact: true }).click();
+    const excel = await excelPromise;
+    const excelPath = testInfo.outputPath("payroll.xlsx");
+    await excel.saveAs(excelPath);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(excelPath);
+    const sheet = workbook.worksheets[0];
+    const exported = sheet.getRows(2, sheet.rowCount - 1)?.find((row) => row.getCell(1).value === firstName);
+    expect(exported).toBeDefined();
+    expect([5, 6, 7, 8, 9].map((column) => exported!.getCell(column).value))
+      .toEqual([308625, 10185, 298440, 2500, 300940]);
+    await assertNoHorizontalOverflow(page);
     expect((await api(request, "PATCH", `/staffs/work-records/${record.body.id}/`, admin, { end_date: "2026-08-20" })).status).toBe(400);
     expect((await api(request, "PATCH", `/staffs/${first.body.id}/`, admin, { is_active: false })).status).toBe(200);
     const retired = await api<{ rows: OverviewRow[] }>(request, "GET", "/staffs/payroll-overview/?year=2026&month=8", admin);

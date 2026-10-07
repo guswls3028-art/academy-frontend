@@ -35,7 +35,7 @@ async function expectWorkspaceTabsLayout(page: Page, expectedRows: number) {
     contentType: "application/json",
   });
   await page.screenshot({ path: test.info().outputPath(`staff-workspace-tabs-${width}.png`) });
-  expect(layout.map((tab) => tab.label)).toEqual(["근태", "비용/경비", "월 마감", "정산 참고", "리포트"]);
+  expect(layout.map((tab) => tab.label)).toEqual(["근태", "비용/경비", "월 마감", "급여 정산", "리포트"]);
   for (const tab of layout) {
     expect(tab.textLines, `${tab.label} is readable on one line`).toBe(1);
     expect(tab.textFits, `${tab.label} text stays inside its button`).toBe(true);
@@ -696,6 +696,45 @@ test.describe("직원 운영 계약", () => {
     expect(calls).toEqual([1, 3, 3]);
   });
 
+  test("마감 급여와 이력의 기본 공제·이체 예정액 및 다운로드 실패 재시도를 표시한다", async ({ page }) => {
+    await mockStaffApi(page);
+    await page.route("**/api/v1/staffs/payroll-snapshots/**", async (route) => {
+      if (route.request().method() === "POST") {
+        return route.fulfill({ status: 400, json: { detail: "정산 파일 생성에 실패했습니다. 다시 시도해 주세요." } });
+      }
+      return route.fulfill({ json: { count: 1, next: null, previous: null, results: [{
+        id: 51, staff: 1, staff_name: "김조교", year: 2026, month: 8, work_hours: "25.00",
+        work_amount: 308625, approved_expense_amount: 2500, total_amount: 311125,
+        default_deduction: { business_income_tax: 9259, local_income_tax: 926,
+          deduction_total: 10185, net_work_amount: 298440, transfer_amount: 300940 },
+        generated_by_name: "원장", created_at: "2026-09-01T00:00:00Z",
+      }] } });
+    });
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(page, `${BASE}/workspace/staff/payroll-snapshot?staffId=1&year=2026&month=8`);
+      await expect(page.getByText("기본 공제 3.3%", { exact: true }).last()).toBeVisible();
+      for (const amount of ["-10,185원", "298,440원", "300,940원"]) {
+        await expect(page.getByText(amount, { exact: true }).last()).toBeVisible();
+      }
+      await page.reload();
+      await expect(page.getByText("300,940원", { exact: true }).last()).toBeVisible();
+      await page.screenshot({ path: test.info().outputPath(`deduction-snapshot-${width}.png`), fullPage: true });
+      await page.getByRole("tab", { name: "리포트 탭", exact: true }).click();
+      await expect(page.getByText("이체 예정액", { exact: true }).last()).toBeVisible();
+      await expect(page.getByText("300,940원", { exact: true }).last()).toBeVisible();
+      const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+      expect(documentWidth).toBeLessThanOrEqual(width);
+      await page.screenshot({ path: test.info().outputPath(`deduction-history-${width}.png`), fullPage: true });
+    }
+    const xlsx = page.getByRole("button", { name: "XLSX", exact: true });
+    await xlsx.click();
+    await expect(page.getByText("정산 파일 생성에 실패했습니다. 다시 시도해 주세요.", { exact: true }).last()).toBeVisible();
+    await expect(xlsx).toBeEnabled();
+    await xlsx.click();
+    await expect(xlsx).toBeEnabled();
+  });
+
   test("급여 첫 화면에서 전 직원의 합계와 검토 항목을 바로 비교한다", async ({ page }) => {
     await mockStaffApi(page);
     await page.setViewportSize({ width: 1366, height: 900 });
@@ -709,17 +748,17 @@ test.describe("직원 운영 계약", () => {
     await expect(overview.getByRole("button", { name: "다음 달" })).toContainText("다음");
     await expect(overview.getByText("342,000원", { exact: true }).first()).toBeVisible();
     const monthTotals = overview.getByRole("region", { name: "월 급여 합계" });
-    await expect(monthTotals).toContainText("참고 공제 −11,286원 (3.3%)");
+    await expect(monthTotals).toContainText("기본 공제 −11,286원 (3.3%)");
     await expect(monthTotals).toContainText("330,714원");
     await expect(monthTotals).toContainText("승인 환급 18,000원");
-    await expect(overview.getByText("3.3% 적용 시 참고").first()).toBeVisible();
+    await expect(overview.getByText("기본 공제 3.3%").first()).toBeVisible();
     const reviewMetric = overview.getByText("확인 필요 인원", { exact: true }).locator("..");
     await expect(reviewMetric.getByText("1명", { exact: true })).toBeVisible();
     await expect(reviewMetric).toContainText("기록 점검 0건");
     await expect(reviewMetric).toContainText("비용 대기 30,000원");
     const overviewTable = overview.getByRole("table");
-    await expect(overviewTable.getByRole("columnheader", { name: "참고 공제 3.3%" })).toBeVisible();
-    await expect(overviewTable.getByRole("columnheader", { name: "공제 후 참고", exact: true })).toBeVisible();
+    await expect(overviewTable.getByRole("columnheader", { name: "기본 공제 3.3%" })).toBeVisible();
+    await expect(overviewTable.getByRole("columnheader", { name: "공제 후 급여", exact: true })).toBeVisible();
     await expect(overviewTable.getByText("비용 대기 1건")).toBeVisible();
     await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
     await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toBeVisible();
@@ -759,8 +798,8 @@ test.describe("직원 운영 계약", () => {
     const kimPayrollCard = mobileOverview.getByRole("button", { name: /김조교/ });
     await expect(kimPayrollCard).toContainText("재직");
     await expect(kimPayrollCard).toContainText("승인 환급");
-    await expect(kimPayrollCard).toContainText("참고 공제 3.3%");
-    await expect(kimPayrollCard).toContainText("공제 후 참고");
+    await expect(kimPayrollCard).toContainText("기본 공제 3.3%");
+    await expect(kimPayrollCard).toContainText("공제 후 급여");
     await expect(kimPayrollCard).toContainText("12,000원");
     await expect(mobileOverview.getByRole("button", { name: /이퇴사/ })).toContainText("퇴사");
     const mobileControlReadback = await mobileOverview.evaluate((node) => {
@@ -932,7 +971,7 @@ test.describe("직원 운영 계약", () => {
     const detailRoutes = [
       ["근태", "/workspace/staff/attendance"],
       ["월 마감", "/workspace/staff/month-lock"],
-      ["정산 참고", "/workspace/staff/payroll-snapshot"],
+      ["급여 정산", "/workspace/staff/payroll-snapshot"],
       ["리포트", "/workspace/staff/reports"],
       ["비용/경비", "/workspace/staff/expenses"],
     ] as const;
@@ -1234,12 +1273,12 @@ test.describe("직원 운영 계약", () => {
     });
 
     const overview = page.getByTestId("staff-payroll-overview");
-    const headlineTotal = overview.getByText("최종 이체 참고 총액", { exact: true }).locator("..");
+    const headlineTotal = overview.getByText("이체 예정 총액", { exact: true }).locator("..");
     const reviewTotal = overview.getByText("확인 필요 인원", { exact: true }).locator("..");
     await expect(headlineTotal).toContainText("263,613,302원");
     const allTotals = overview.getByRole("region", { name: "월 급여 합계" });
     await expect(allTotals).toContainText("270,370,200원");
-    await expect(allTotals).toContainText("참고 공제 −8,922,198원 (3.3%)");
+    await expect(allTotals).toContainText("기본 공제 −8,922,198원 (3.3%)");
     await expect(headlineTotal).toContainText("승인 환급 2,165,300원");
     await expect(reviewTotal).toContainText("7명");
     await expect(overview.getByRole("searchbox", { name: "직원 이름 검색" })).toBeVisible();
@@ -1380,7 +1419,7 @@ test.describe("직원 운영 계약", () => {
     await expect(longNameRow).toContainText("중복 의심 1건");
     await expect(longNameRow.getByText("공제 전", { exact: true }).locator("..")).toContainText("12,345,678원");
     await expect(longNameRow.getByText("승인 환급", { exact: true }).locator("..")).toContainText("98,765원");
-    await expect(longNameRow).toContainText("최종 이체 참고");
+    await expect(longNameRow).toContainText("이체 예정액");
     await expect(longNameRow).toContainText("12,037,036원");
     await longNameRow.evaluate((element) => element.scrollIntoView({ block: "center" }));
 

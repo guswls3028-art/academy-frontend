@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/staff/components/PayrollSummaryCard.tsx
-// 정산 KPI 배너 — 저장된 금액과 서버가 산출한 3.3% 비교 참고값만 표시한다.
+// 정산 KPI 배너 — 저장된 금액과 서버가 산출한 기본 공제 3.3% 계산값만 표시한다.
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffSummaryByRange } from "../api/staff.detail.api";
@@ -89,9 +89,9 @@ export function PayrollSummaryCard() {
           sub="기록된 시간·단가 기준"
         />
         <KpiBox
-          label="최종 이체 참고액"
+          label="이체 예정액"
           value={`${s.reference_transfer_amount.toLocaleString()}원`}
-          sub="3.3% 적용 시 참고 · 환급 포함"
+          sub="기본 공제 3.3% · 환급 포함"
           accent
         />
       </div>
@@ -104,17 +104,17 @@ export function PayrollSummaryCard() {
         <div className={styles.detailBody}>
           <DetailRow label="총 근무시간" value={`${workHours.toFixed(1)} h`} />
           <DetailRow label="근무 공제 전 총액" value={`${baseWage.toLocaleString()}원`} />
-          <DetailRow label="사업소득세 3% 참고" value={`-${s.reference_business_income_tax.toLocaleString()}원`} />
-          <DetailRow label="지방소득세 0.3% 참고" value={`-${s.reference_local_income_tax.toLocaleString()}원`} />
-          <DetailRow label="3.3% 적용 시 참고 공제" value={`-${s.reference_deduction_total.toLocaleString()}원`} />
-          <DetailRow label="공제 후 근무 참고액" value={`${s.reference_net_work_amount.toLocaleString()}원`} />
+          <DetailRow label="사업소득세 3%" value={`-${s.reference_business_income_tax.toLocaleString()}원`} />
+          <DetailRow label="지방소득세 0.3%" value={`-${s.reference_local_income_tax.toLocaleString()}원`} />
+          <DetailRow label="기본 공제 3.3%" value={`-${s.reference_deduction_total.toLocaleString()}원`} />
+          <DetailRow label="공제 후 급여" value={`${s.reference_net_work_amount.toLocaleString()}원`} />
           <DetailRow label="승인 선결제 환급" value={`+${allowance.toLocaleString()}원`} />
           <div className={styles.netRow}>
-            <span className={styles.netLabel}>최종 이체 참고액</span>
+            <span className={styles.netLabel}>이체 예정액</span>
             <span className={styles.netValue}>{s.reference_transfer_amount.toLocaleString()}원</span>
           </div>
           <p className={styles.kpiSub}>
-            3.3% 적용을 자동 판정한 값이 아닙니다. 실제 공제 적용 여부와 지급액은 계약 형태와 세무 내역을 확인해 확정하세요. 공제 전 정산 합계는 {settlementTotal.toLocaleString()}원입니다.
+            기본 공제 3.3%를 원 단위 반올림합니다. 승인 환급은 공제 없이 더하며, 이체 예정액은 송금 완료를 뜻하지 않습니다. 공제 전 정산 합계는 {settlementTotal.toLocaleString()}원입니다.
           </p>
         </div>
       </details>

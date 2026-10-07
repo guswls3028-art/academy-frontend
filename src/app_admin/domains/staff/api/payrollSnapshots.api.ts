@@ -13,6 +13,13 @@ export type PayrollSnapshot = {
   work_amount: number;
   approved_expense_amount: number;
   total_amount: number;
+  default_deduction: {
+    business_income_tax: number;
+    local_income_tax: number;
+    deduction_total: number;
+    net_work_amount: number;
+    transfer_amount: number;
+  };
   generated_by: number | null;
   generated_by_name: string | null;
   created_at: string;
