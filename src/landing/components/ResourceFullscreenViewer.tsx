@@ -28,6 +28,7 @@ export default function ResourceFullscreenViewer({ pages, title, attempt, error,
   const keyboard = useRef(false);
   const close = useRef(onClose); close.current = onClose;
   const touch = useRef<{ x: number; y: number } | null>(null);
+  const ignoreClickUntil = useRef(0);
   const current = Math.min(index, Math.max(0, (pages?.length || 1) - 1));
   const page = pages?.[current];
 
@@ -115,6 +116,12 @@ export default function ResourceFullscreenViewer({ pages, title, attempt, error,
     else close.current();
   }, [historyKey]);
 
+  function toggleControls() {
+    keyboard.current = false;
+    if (!controlsVisible || status !== "ready" || error) showControls();
+    else { window.clearTimeout(controlsTimer.current); setControlsVisible(false); }
+  }
+
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       keyboard.current = true; showControls();
@@ -148,21 +155,23 @@ export default function ResourceFullscreenViewer({ pages, title, attempt, error,
     {error && <div className={styles.notice} role="alert">{error}<button type="button" onClick={onRetry}>다시 불러오기</button></div>}
     <div ref={viewport} className={`${styles.viewport} ${zoom > 100 ? styles.panning : ""}`} tabIndex={0} role="region" aria-label="전체화면 문서. 확대하면 문서를 이동할 수 있습니다."
       onClick={(event) => {
-        if ((event.target as HTMLElement).closest("button")) return;
-        keyboard.current = false;
-        if (!controlsVisible || status !== "ready" || error) showControls();
-        else { window.clearTimeout(controlsTimer.current); setControlsVisible(false); }
+        if ((event.target as HTMLElement).closest("button") || Date.now() < ignoreClickUntil.current) return;
+        toggleControls();
       }}
       onTouchStart={(event) => {
-        touch.current = zoom === 100 && event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+        keyboard.current = false;
+        touch.current = event.touches.length === 1 && !(event.target as HTMLElement).closest("button") ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
       }}
       onTouchMove={(event) => { if (event.touches.length !== 1) touch.current = null; }}
       onTouchCancel={() => { touch.current = null; }}
       onTouchEnd={(event) => {
         const start = touch.current; touch.current = null;
-        if (!start || zoom !== 100 || !event.changedTouches.length) return;
+        if (!start || !event.changedTouches.length) return;
         const dx = event.changedTouches[0].clientX - start.x, dy = event.changedTouches[0].clientY - start.y;
-        if (Math.abs(dx) >= 60 && Math.abs(dx) > Math.abs(dy) * 1.5) turn(current + (dx < 0 ? 1 : -1));
+        // Browsers can omit click after swiping; use the native tap and ignore its compatibility click.
+        ignoreClickUntil.current = Date.now() + 500;
+        if (zoom === 100 && Math.abs(dx) >= 60 && Math.abs(dx) > Math.abs(dy) * 1.5) turn(current + (dx < 0 ? 1 : -1));
+        else if (Math.abs(dx) <= 12 && Math.abs(dy) <= 12) toggleControls();
       }}>
       {page ? <figure ref={paper} className={styles.paper} data-testid="resource-viewer-page" data-page-number={current + 1} data-render-status={status}>
         <img ref={image} key={`${current}:${attempt}:${page.url}`} className={styles.pageImage} src={page.url} width={page.width} height={page.height}
