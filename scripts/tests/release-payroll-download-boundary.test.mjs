@@ -14,7 +14,7 @@ const origin = "https://af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.co
 const jobId = "11111111-1111-4111-8111-111111111111";
 const filename = "payroll_2026_8.xlsx";
 const mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const disposition = 'attachment; filename="' + filename + '"';
+const disposition = 'attachment; filename="' + filename + '"; filename*=UTF-8\'\'' + filename;
 const query = new URLSearchParams({ "response-content-type": mime, "response-content-disposition": disposition,
   "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
   "X-Amz-Credential": "UNITKEYUNITKEY123456/20260919/auto/s3/aws4_request",

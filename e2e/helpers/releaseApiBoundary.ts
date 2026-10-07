@@ -45,7 +45,7 @@ function isExactDevelopmentPayrollDownload(
     || target.searchParams.getAll("response-content-type").length !== 1
     || target.searchParams.get("response-content-type") !== XLSX_CONTENT_TYPE
     || target.searchParams.getAll("response-content-disposition").length !== 1
-    || target.searchParams.get("response-content-disposition") !== 'attachment; filename="' + filename + '"') return false;
+    || target.searchParams.get("response-content-disposition") !== 'attachment; filename="' + filename + '"; filename*=UTF-8\'\'' + filename) return false;
   const unsigned = new URL(target);
   unsigned.searchParams.delete("response-content-type");
   unsigned.searchParams.delete("response-content-disposition");
@@ -868,7 +868,7 @@ export async function installReleaseContextGuard(
   const resourceReaderUrls = new Map<string, string>();
   const acceptedPptJobs = new Set<string>();
   const acceptedPayrollJobs = new Map<string, string>();
-  const documentDownloadUrls = new Map<string, { url: string; filename: string; contentType: string }>();
+  const documentDownloadUrls = new Map<string, { url: string; filename: string; contentType: string; contentDisposition: string }>();
   const communityAttachments = new Map<string, { contentType: string; originalName: string }>();
   const registerQnaPost = (post: unknown) => {
     if (!isRecord(post) || post.post_type !== "qna" || typeof post.id !== "number" || !Number.isSafeInteger(post.id)
@@ -1022,7 +1022,7 @@ export async function installReleaseContextGuard(
           headers: { accept: documentDownload.contentType }, maxRedirects: 0 });
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
         const body = await response.body();
-        const disposition = 'attachment; filename="' + documentDownload.filename + '"';
+        const disposition = documentDownload.contentDisposition;
         if (response.status() !== 200
           || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== documentDownload.contentType
           || response.headers()["content-disposition"] !== disposition
@@ -1154,6 +1154,7 @@ export async function installReleaseContextGuard(
             && isExactDevelopmentPayrollDownload(boundary, payload.result.download_url, pptStatus[1], payload.result.filename)) {
             documentDownloadUrls.set(pptStatus[1], {
               url: payload.result.download_url, filename: payload.result.filename, contentType: XLSX_CONTENT_TYPE,
+              contentDisposition: 'attachment; filename="' + payload.result.filename + '"; filename*=UTF-8\'\'' + payload.result.filename,
             });
           }
           if (pptStatus && UUID.test(pptStatus[1]) && acceptedPptJobs.has(pptStatus[1])
@@ -1161,7 +1162,8 @@ export async function installReleaseContextGuard(
             && payload?.status === "DONE" && typeof payload?.result?.download_url === "string"
             && typeof payload.result.filename === "string"
             && isExactDevelopmentPptDownload(boundary, payload.result.download_url, payload.result.filename)) {
-            documentDownloadUrls.set(pptStatus[1], { url: payload.result.download_url, filename: payload.result.filename, contentType: PPTX_CONTENT_TYPE });
+            documentDownloadUrls.set(pptStatus[1], { url: payload.result.download_url, filename: payload.result.filename, contentType: PPTX_CONTENT_TYPE,
+              contentDisposition: 'attachment; filename="' + payload.result.filename + '"' });
           }
         }
         const resourceTarget = new URL(upstream);
