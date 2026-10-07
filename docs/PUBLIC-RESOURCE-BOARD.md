@@ -37,7 +37,8 @@ at 100%, use previous/next or select a page; at 125–300% touch scroll pans the
 document instead of turning pages. The percentage control restores screen fit
 and clears both scroll offsets. Header and footer overlay the page and fade away
 2.2 seconds after a ready page or touch interaction; tapping the page toggles
-them. Keyboard navigation keeps them visible, while loading and errors retain
+them. Keyboard navigation keeps them visible and restores modal focus if touch
+or rotation has blurred it to the body, while loading and errors retain
 visible exit/retry controls. Controls remain accessible above safe-area insets, and
 motion respects reduced-motion settings. Only the selected full-screen page
 mounts an image. Extracted page text remains accessible.

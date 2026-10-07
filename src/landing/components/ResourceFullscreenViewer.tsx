@@ -102,38 +102,45 @@ export default function ResourceFullscreenViewer({ pages, title, attempt, error,
     setStatus(image.current?.complete && image.current.naturalWidth > 0 ? "ready" : "waiting");
   }, [page?.url, attempt, current]);
 
-  function turn(next: number) {
+  const turn = useCallback((next: number) => {
     setIndex(Math.max(0, Math.min((pages?.length || 1) - 1, next)));
     setZoom(100); touch.current = null;
     if (viewport.current) { viewport.current.scrollTop = 0; viewport.current.scrollLeft = 0; }
-  }
+  }, [pages?.length]);
 
-  function requestClose() {
+  const requestClose = useCallback(() => {
     if (closing.current) return;
     closing.current = true;
     if (window.history.state?.resourceViewer === historyKey) window.history.back();
     else close.current();
-  }
+  }, [historyKey]);
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      keyboard.current = true; showControls();
+      if (event.key === "Escape") { event.preventDefault(); requestClose(); }
+      else if (event.key === "Tab") {
+        const focusable = Array.from(shell.current?.querySelectorAll<HTMLElement>("button:not(:disabled), select:not(:disabled), [tabindex='0']") || []);
+        const first = focusable[0], last = focusable[focusable.length - 1];
+        if (!shell.current?.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first)?.focus(); }
+        else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      } else if (zoom === 100 && (event.target as HTMLElement).tagName !== "SELECT") {
+        if (event.key === "ArrowLeft") { event.preventDefault(); turn(current - 1); }
+        if (event.key === "ArrowRight") { event.preventDefault(); turn(current + 1); }
+      }
+    };
+    // Touch/rotation may blur focus to body in Safari; modal keys must still work.
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [current, zoom, showControls, turn, requestClose]);
 
   return createPortal(<div ref={shell} className={styles.viewer} data-testid="resource-fullscreen-viewer" data-controls-visible={controlsVisible} role="dialog" aria-modal="true" aria-labelledby={headingId}
     onPointerDown={(event) => {
       keyboard.current = false;
       if ((event.target as HTMLElement).closest("button, select, header, footer")) showControls();
     }}
-    onFocusCapture={() => { if (keyboard.current) showControls(); }}
-    onKeyDown={(event) => {
-      keyboard.current = true; showControls();
-      if (event.key === "Escape") { event.preventDefault(); requestClose(); }
-      else if (event.key === "Tab") {
-        const focusable = Array.from(shell.current?.querySelectorAll<HTMLElement>("button:not(:disabled), select:not(:disabled), [tabindex='0']") || []);
-        const first = focusable[0], last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-      } else if (zoom === 100 && (event.target as HTMLElement).tagName !== "SELECT") {
-        if (event.key === "ArrowLeft") { event.preventDefault(); turn(current - 1); }
-        if (event.key === "ArrowRight") { event.preventDefault(); turn(current + 1); }
-      }
-    }}>
+    onFocusCapture={() => { if (keyboard.current) showControls(); }}>
     <header className={`${styles.header} ${controlsVisible ? "" : styles.controlsHidden}`}>
       <h2 id={headingId}>{title.replace(/\.[^.]+$/, "")}<span>전체화면 보기</span></h2>
       <button ref={closeButton} type="button" className={styles.iconButton} onClick={requestClose} aria-label="전체화면 닫기"><X size={ICON.lg} /></button>

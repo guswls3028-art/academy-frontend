@@ -262,6 +262,15 @@ for (const width of [1366, 390]) {
     await expect(viewer.getByRole("button", { name: "이전 쪽", exact: true })).toBeDisabled();
     await page.clock.fastForward(2300);
     await expect(viewer).toHaveAttribute("data-controls-visible", "false");
+    await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+    await page.keyboard.press("Tab");
+    await expect(viewer).toHaveAttribute("data-controls-visible", "true");
+    await expect(viewer.getByRole("button", { name: "전체화면 닫기", exact: true })).toBeFocused();
+    await page.clock.fastForward(2300);
+    await expect(viewer).toHaveAttribute("data-controls-visible", "true");
+    const stageBounds = await viewerStage.boundingBox();
+    await viewerStage.click({ position: { x: stageBounds!.width / 2, y: stageBounds!.height / 2 } });
+    await expect(viewer).toHaveAttribute("data-controls-visible", "false");
     await revealControls();
     await viewer.getByRole("button", { name: "다음 쪽", exact: true }).click();
     await expect(viewerPage).toHaveAttribute("data-page-number", "2");
