@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { hasPageImages, prepareResourceReader, readResourceFile, resourceError, type ReaderBlock, type ResourceFile, type ResourceReader, type ReaderStatus } from "../api/publicResources";
 import { lazy, Suspense } from "react";
 import ResourcePageImages from "./ResourcePageImages";
+import ResourceFullscreenViewer from "./ResourceFullscreenViewer";
+import { Maximize } from "lucide-react";
+import { ICON } from "@/shared/ui/ds/iconSize";
 import { ResourceFailure } from "./ResourceLayout";
 import styles from "../pages/PublicResources.module.css";
 
@@ -20,6 +23,9 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
   const [reader, setReader] = useState<ResourceReader | null>(null);
   const [error, setError] = useState(""); const [retry, setRetry] = useState(0);
   const [zoom, setZoom] = useState(100);
+  const [fullscreen, setFullscreen] = useState(false);
+  const fullscreenButton = useRef<HTMLButtonElement>(null);
+  const getFullscreenButton = useCallback(() => fullscreenButton.current, []);
   const [nearViewport, setNearViewport] = useState(false);
   const surface = useRef<HTMLElement>(null); const statusCallback = useRef(onStatus);
   const readerFile = useRef(file.id); const lastImageRefresh = useRef(0);
@@ -38,7 +44,7 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
   useEffect(() => {
     let disposed = false; let timer: ReturnType<typeof setTimeout> | undefined; let polls = 0;
     setError("");
-    if (readerFile.current !== file.id) { setReader(null); setZoom(100); readerFile.current = file.id; }
+    if (readerFile.current !== file.id) { setReader(null); setZoom(100); setFullscreen(false); readerFile.current = file.id; }
     async function load(start = false) {
       try {
         let result = start ? await prepareResourceReader(file.id) : await readResourceFile(file.id, preview);
@@ -71,6 +77,7 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
 
   if (reader?.status === "unsupported") return null;
   const showPages = reader?.mode === "pages";
+  const nativePages = reader && hasPageImages(reader.blocks, reader.pages) ? reader.blocks : undefined;
   function reload() { setRetry((value) => value + 1); }
   function refreshImage() {
     if (Date.now() - lastImageRefresh.current < 10_000) return;
@@ -87,6 +94,7 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
     {reader?.status === "ready" && showPages && <>
       <div className={styles.readerTools} aria-label="문서 확대">
         <span>아래로 내려 문서 전체 읽기</span>
+        {nativePages && <button ref={fullscreenButton} type="button" className={styles.fullscreenButton} onClick={() => setFullscreen(true)}><Maximize size={ICON.sm} aria-hidden="true" />전체화면 보기</button>}
         <button type="button" disabled={zoom === 100} onClick={() => setZoom((value) => Math.max(100, value - 25))} aria-label="문서 축소">−</button>
         <output aria-live="polite">{zoom}%</output>
         <button type="button" disabled={zoom === 300} onClick={() => setZoom((value) => Math.min(300, value + 25))} aria-label="문서 확대">+</button>
@@ -101,5 +109,6 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
         </div>
       </div>
     </>}
+    {fullscreen && <ResourceFullscreenViewer pages={nativePages} title={file.filename} attempt={retry} returnFocus={getFullscreenButton} error={error || (reader && ["failed", "unprepared"].includes(reader.status) ? reader.message || "문서를 불러오지 못했습니다. 다시 불러오세요." : "")} onRetry={reload} onError={refreshImage} onClose={() => setFullscreen(false)} />}
   </section>;
 }
