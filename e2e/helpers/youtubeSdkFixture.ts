@@ -26,6 +26,7 @@ type FixturePlayerSnapshot = {
 type FixtureControl = {
   snapshot: () => { sdkReady: number; players: FixturePlayerSnapshot[] };
   emitError: (code: number) => void;
+  finish: () => void;
 };
 
 function bootYouTubeFixture(renderNativeControls = false) {
@@ -107,6 +108,7 @@ function bootYouTubeFixture(renderNativeControls = false) {
       this.startedAt = performance.now();
       this.calls.push("seekTo");
     }
+    finish() { this.seekTo(600); this.changeState(0, "ended"); }
     playVideo() { this.changeState(1, "playVideo"); }
     pauseVideo() { this.changeState(2, "pauseVideo"); }
     private changeState(state: number, call: string) {
@@ -145,6 +147,11 @@ function bootYouTubeFixture(renderNativeControls = false) {
 
   sdkWindow.__academyYouTubeFixture = {
     snapshot: () => ({ sdkReady, players: players.map((player) => player.snapshot()) }),
+    finish: () => {
+      const player = [...players].reverse().find((candidate) => !candidate.destroyed);
+      if (!player) throw new Error("No active YouTube fixture player");
+      player.finish();
+    },
     emitError: (code) => {
       const player = [...players].reverse().find((candidate) => !candidate.destroyed);
       if (!player) throw new Error("No active YouTube fixture player");
@@ -170,6 +177,7 @@ export async function installYouTubeSdkFixture(
     });
   });
   return {
+    finish: () => page.evaluate(() => (window as unknown as { __academyYouTubeFixture: FixtureControl }).__academyYouTubeFixture.finish()),
     snapshot: () => page.evaluate(() => (window as unknown as { __academyYouTubeFixture: FixtureControl }).__academyYouTubeFixture.snapshot()),
     emitError: (code: number) => page.evaluate((value) => (window as unknown as { __academyYouTubeFixture: FixtureControl }).__academyYouTubeFixture.emitError(value), code),
   };

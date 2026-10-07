@@ -136,8 +136,37 @@ function CommentRow({ comment, videoId, queryScope, isReply = false, onReply }: 
     if (ok) removeComment();
   }, [confirm, isDeleting, removeComment]);
 
+  const replyThread = (
+    <>
+        {!isReply && replyCount > 0 && (
+          <div className={styles.replyToggleRow}>
+            <button
+              type="button"
+              className={styles.replyToggle}
+              aria-expanded={showReplies}
+              onClick={() => setShowReplies((visible) => !visible)}
+            >
+              {showReplies ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
+              {showReplies ? "답글 숨기기" : `답글 ${replyCount}개`}
+            </button>
+          </div>
+        )}
+
+        {showReplies && replies.map((reply) => (
+          <CommentRow key={reply.id} comment={reply} videoId={videoId} queryScope={queryScope} isReply />
+        ))}
+    </>
+  );
+
   if (comment.is_deleted) {
-    return <div className={styles.deletedComment}>삭제된 댓글입니다.</div>;
+    return (
+      <div className={cx(styles.commentRow, isReply && styles.replyRow)}>
+        <div className={styles.commentBody}>
+          <div className={styles.deletedComment}>삭제된 댓글입니다.</div>
+          {replyThread}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -225,23 +254,7 @@ function CommentRow({ comment, videoId, queryScope, isReply = false, onReply }: 
           </div>
         )}
 
-        {!isReply && replyCount > 0 && (
-          <div className={styles.replyToggleRow}>
-            <button
-              type="button"
-              className={styles.replyToggle}
-              aria-expanded={showReplies}
-              onClick={() => setShowReplies((visible) => !visible)}
-            >
-              {showReplies ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
-              {showReplies ? "답글 숨기기" : `답글 ${replyCount}개`}
-            </button>
-          </div>
-        )}
-
-        {showReplies && replies.map((reply) => (
-          <CommentRow key={reply.id} comment={reply} videoId={videoId} queryScope={queryScope} isReply />
-        ))}
+        {replyThread}
       </div>
     </div>
   );
@@ -259,10 +272,11 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
   const [newComment, setNewComment] = useState("");
   const [replyTo, setReplyTo] = useState<number | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: studentVideoQueryKeys.comments(queryScope, videoId),
     queryFn: () => fetchVideoComments(videoId),
     enabled: videoId > 0,
+    retry: 1,
   });
 
   const { mutate: createComment, isPending: isCreating } = useMutation({
@@ -294,7 +308,7 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
             <MessageCircle size={18} />
           </span>
           <h3 className={styles.title}>댓글</h3>
-          <span className={styles.countBadge}>{data?.total ?? 0}</span>
+          {data && <span className={styles.countBadge}>{data.total}</span>}
         </div>
       </div>
 
@@ -339,9 +353,18 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
         </div>
       </div>
 
+      {isError && (
+        <div className={styles.queryError} role="alert">
+          <span>댓글을 불러오지 못했습니다.</span>
+          <button type="button" className={styles.replyToggle} aria-label="댓글 다시 불러오기"
+            disabled={isFetching} onClick={() => void refetch()}>
+            {isFetching ? "불러오는 중…" : "다시 시도"}
+          </button>
+        </div>
+      )}
       {isLoading ? (
         <div className={styles.loading}>불러오는 중...</div>
-      ) : comments.length === 0 ? (
+      ) : !isError && comments.length === 0 ? (
         <div className={styles.empty}>
           <MessageCircle className={styles.emptyIcon} size={28} aria-hidden />
           <span>아직 댓글이 없습니다. 첫 댓글을 남겨보세요.</span>

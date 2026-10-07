@@ -701,7 +701,7 @@
   font-weight: 700;
 }
 
-.svpSideButton {
+.svpRoot .svpSideButton {
   margin-top: 12px;
   width: 100%;
   padding: 10px 12px;
@@ -714,22 +714,22 @@
   transition: transform 120ms ease, background 120ms ease;
 }
 
-.svpSideButton:hover {
+.svpRoot .svpSideButton:hover {
   transform: translateY(-1px);
   opacity: 0.9;
 }
 
-.svpSideButton:active {
+.svpRoot .svpSideButton:active {
   transform: translateY(0px);
 }
 
-.svpSideButtonGhost {
+.svpRoot .svpSideButtonGhost {
   background: var(--stu-surface-soft, #f1f5f9);
   color: var(--stu-text, rgba(17, 17, 17, 0.95));
   border-color: var(--stu-border, rgba(17, 17, 17, 0.08));
 }
 
-.svpSideButtonGhost:hover {
+.svpRoot .svpSideButtonGhost:hover {
   background: var(--stu-tint-hover, rgba(17, 17, 17, 0.06));
   opacity: 1;
 }
@@ -767,7 +767,7 @@
   gap: var(--stu-space-4);
 }
 
-.vpp-back-btn {
+.vpp-root .vpp-back-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -782,7 +782,7 @@
   transition: background var(--stu-motion-fast);
 }
 
-.vpp-back-btn:hover {
+.vpp-root .vpp-back-btn:hover {
   background: var(--stu-tint-hover);
 }
 
@@ -917,15 +917,16 @@
 .vpp-primary-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  flex-wrap: wrap;
   min-width: 0;
 }
 
-.vpp-like-btn {
+.vpp-root .vpp-like-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 38px;
+  min-height: 44px;
   padding: 7px 14px;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--stu-primary) 9%, var(--stu-border));
@@ -938,19 +939,19 @@
   transition: background var(--stu-motion-fast), border-color var(--stu-motion-fast), color var(--stu-motion-fast);
 }
 
-.vpp-like-btn[aria-pressed="true"] {
+.vpp-root .vpp-like-btn[aria-pressed="true"] {
   border-color: rgba(239, 68, 68, 0.28);
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
 }
 
-.vpp-like-btn:disabled {
+.vpp-root .vpp-like-btn:disabled {
   opacity: 0.62;
   cursor: wait;
 }
 
-.vpp-back-link,
-.vpp-next-link {
+.vpp-root .vpp-back-link,
+.vpp-root .vpp-next-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -962,22 +963,22 @@
   transition: background var(--stu-motion-fast), color var(--stu-motion-fast), opacity var(--stu-motion-fast);
   text-decoration: none;
   border: none;
-  min-height: 38px;
+  min-height: 44px;
 }
 
-.vpp-back-link {
+.vpp-root .vpp-back-link {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--stu-surface) 92%, white), var(--stu-surface-soft));
   color: color-mix(in srgb, var(--stu-text-muted) 88%, var(--stu-text));
   border: 1px solid color-mix(in srgb, var(--stu-primary) 9%, var(--stu-border));
 }
 
-.vpp-back-link:hover {
+.vpp-root .vpp-back-link:hover {
   background: var(--stu-tint-hover);
   color: var(--stu-text);
 }
 
-.vpp-next-link {
+.vpp-root .vpp-next-link {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--stu-primary) 86%, white), var(--stu-primary));
   color: var(--stu-primary-contrast);
@@ -986,11 +987,11 @@
     0 10px 22px color-mix(in srgb, var(--stu-primary) 24%, transparent);
 }
 
-.vpp-next-link--countdown {
+.vpp-root .vpp-next-link--countdown {
   font-weight: 600;
 }
 
-.vpp-next-link:hover {
+.vpp-root .vpp-next-link:hover {
   opacity: 0.88;
 }
 
@@ -998,7 +999,6 @@
 
 .vpp-playlist {
   margin-top: var(--stu-space-4);
-  max-height: 480px;
   border-radius: 16px;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--stu-surface) 96%, white), var(--stu-surface));
@@ -1007,12 +1007,11 @@
     0 1px 0 rgba(255, 255, 255, 0.7) inset,
     0 16px 38px rgba(15, 23, 42, 0.08);
   overflow: hidden;
-  transition: max-height 0.3s ease, margin-top 0.3s ease;
+  animation: vppPanelIn 160ms ease-out;
 }
 
-.vpp-playlist--closed {
-  max-height: 0;
-  margin-top: 0;
+.vpp-playlist[hidden] {
+  display: none;
 }
 
 .vpp-playlist-header {
@@ -1415,4 +1414,32 @@
     transform: scale(0.95);
     opacity: 0;
   }
+}
+
+.vpp-section-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--stu-border);
+  border-radius: 12px;
+  background: var(--stu-surface);
+  color: var(--stu-text-muted);
+  font-size: 14px;
+}
+
+.vpp-comments-anchor {
+  scroll-margin-top: 76px;
+}
+
+@keyframes vppPanelIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vpp-playlist { animation: none; }
 }

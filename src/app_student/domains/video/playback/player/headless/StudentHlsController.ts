@@ -9,36 +9,10 @@ import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
 import { resolveStudentVideoPlayUrl } from "../playbackUrl";
 import { PlaybackSessionEnd } from "./playbackSessionEnd";
+import type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
+export type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
 
 const ignoreBestEffortError = () => undefined;
-
-export type EventType =
-  | "VISIBILITY_HIDDEN"
-  | "VISIBILITY_VISIBLE"
-  | "FOCUS_LOST"
-  | "FOCUS_GAINED"
-  | "SEEK_ATTEMPT"
-  | "SPEED_CHANGE_ATTEMPT"
-  | "FULLSCREEN_ENTER"
-  | "FULLSCREEN_EXIT"
-  | "PLAYER_ERROR";
-
-export interface Policy {
-  access_mode?: string;
-  monitoring_enabled?: boolean;
-  allow_seek?: boolean;
-  seek?: {
-    mode?: string;
-    grace_seconds?: number;
-    step_seconds?: number;
-    limit_seconds?: number;
-    used_seconds?: number;
-    remaining_seconds?: number;
-    unavailable_reason?: string;
-  };
-  playback_rate?: { max?: number; ui_control?: boolean };
-  watermark?: { enabled?: boolean };
-}
 
 function normalizePolicy(p: Partial<Policy> | null | undefined): Policy {
   const policy: Policy = { ...(p || {}) };
@@ -91,47 +65,6 @@ async function postEvents(
   } catch {
     ignoreBestEffortError();
   }
-}
-
-export interface QualityLevel {
-  /** hls.js levels[] 인덱스. -1 = Auto(ABR). */
-  index: number;
-  /** 표시용 라벨 (예: "1080p", "Auto") */
-  label: string;
-  /** 세로 해상도 (px). Auto는 0. */
-  height: number;
-  /** 비트레이트 (bps) — 라벨 보조 정보 */
-  bitrate: number;
-}
-
-export interface ControllerState {
-  ready: boolean;
-  playing: boolean;
-  buffering: boolean;
-  duration: number;
-  current: number;
-  volume: number;
-  muted: boolean;
-  rate: number;
-  toast: { text: string; kind?: "info" | "warn" | "danger" } | null;
-  /** HLS 화질 목록 — 첫 항목은 항상 "Auto"(index=-1) */
-  qualities: QualityLevel[];
-  /** 현재 선택된 level 인덱스. -1 = Auto */
-  currentQuality: number;
-  /** 자동 재시도 진행 상태 — UI에서 "재연결 중…" 표시용 */
-  reconnecting: boolean;
-}
-
-export interface ControllerOptions {
-  videoId: number;
-  playUrl: string;
-  policy: Partial<Policy> | null | undefined;
-  token: string;
-  enrollmentId: number | null;
-  initialPosition?: number;
-  initialProgress?: number;
-  onFatal?: (reason: string) => void;
-  onLeaveProgress?: (data: { progress?: number; last_position?: number; completed?: boolean }) => void;
 }
 
 type Listener = (state: ControllerState) => void;
@@ -830,6 +763,16 @@ export class StudentHlsController {
     const onPause = () => this.guard(() => this.setState({ playing: false }));
     const onWaiting = () => this.guard(() => this.setState({ buffering: true }));
     const onPlaying = () => this.guard(() => this.setState({ buffering: false }));
+    const onEnded = () => {
+      if (this.disposed) return;
+      const duration = Number(el.duration);
+      if (duration > 0 && Number.isFinite(duration)) {
+        this.maxWatchedRef = Math.max(this.maxWatchedRef, duration);
+      }
+      this.setState({ playing: false, buffering: false, current: Number(el.currentTime || 0) });
+      this.flushProgress();
+      this.opts.onEnded?.();
+    };
 
     const onRateChange = () => {
       if (this.disposed) return;
@@ -940,6 +883,7 @@ export class StudentHlsController {
     this.addVideoListener("pause", onPause);
     this.addVideoListener("waiting", onWaiting);
     this.addVideoListener("playing", onPlaying);
+    this.addVideoListener("ended", onEnded);
     this.addVideoListener("ratechange", onRateChange);
     this.addVideoListener("seeking", onSeeking);
     this.addVideoListener("error", onError);

@@ -31,43 +31,14 @@ import {
   PlaybackPolicyHints,
 } from "./ForwardSkipPolicyUi";
 import { forwardSkipErrorMessage, type ForwardSkipBudgetState } from "./forwardSkipPolicy";
-import { initialControllerState, normalizePolicy, type Policy } from "./playerState";
+import { initialControllerState, normalizePolicy } from "./playerState";
+import type { VideoMetaLite, PlaybackBootstrap, LeaveProgressPayload } from "./playerState";
 
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { isYouTubeSource } from "@/shared/media/video/youtube";
 import { requestVideoForwardSkip } from "../../api/video.api";
 
-export type VideoMetaLite = {
-  id: number;
-  title: string;
-  duration: number | null;
-  status?: string;
-  source_type?: string | null;
-  youtube_video_id?: string | null;
-  youtube_url?: string | null;
-  thumbnail_url?: string | null;
-  hls_url?: string | null;
-  progress?: number;
-};
-
-export type PlaybackBootstrap = {
-  token: string;
-  session_id: string | null;
-  expires_at: number | null;
-  policy_version: number;
-  access_mode: "FREE_REVIEW" | "PROCTORED_CLASS";
-  monitoring_enabled: boolean;
-  policy: Partial<Policy> | null | undefined;
-  play_url: string;
-  source_type?: string | null;
-  youtube_video_id?: string | null;
-};
-
-export type LeaveProgressPayload = {
-  progress?: number;
-  last_position?: number;
-  completed?: boolean;
-};
+export type { VideoMetaLite, PlaybackBootstrap, LeaveProgressPayload } from "./playerState";
 
 type Props = {
   video: VideoMetaLite;
@@ -75,6 +46,7 @@ type Props = {
   enrollmentId: number | null;
   initialPosition?: number;
   onFatal?: (reason: string) => void;
+  onEnded?: () => void;
   onLeaveProgress?: (data: LeaveProgressPayload) => void;
 };
 
@@ -98,6 +70,7 @@ export default function StudentVideoPlayer({
   enrollmentId,
   initialPosition,
   onFatal,
+  onEnded,
   onLeaveProgress,
 }: Props) {
   const policy = useMemo(() => normalizePolicy(bootstrap.policy), [bootstrap.policy]);
@@ -158,6 +131,8 @@ export default function StudentVideoPlayer({
   const touchStartRef = useRef<{ y: number; volume: number; rightHalf: boolean } | null>(null);
   const currentRef = useRef(0);
   const onFatalRef = useRef(onFatal);
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
   const onLeaveProgressRef = useRef(onLeaveProgress);
   onFatalRef.current = onFatal;
   onLeaveProgressRef.current = onLeaveProgress;
@@ -216,6 +191,7 @@ export default function StudentVideoPlayer({
       initialPosition: config.initialPosition,
       initialProgress: config.initialProgress,
       onFatal: (reason: string) => onFatalRef.current?.(reason),
+      onEnded: () => onEndedRef.current?.(),
       onLeaveProgress: (data: LeaveProgressPayload) => onLeaveProgressRef.current?.(data),
     };
     let ctrl: StudentHlsController | StudentYoutubeController;

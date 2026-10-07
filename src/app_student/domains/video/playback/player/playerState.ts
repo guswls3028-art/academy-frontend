@@ -1,5 +1,5 @@
 import type { AccessMode } from "@/shared/api/contracts/videos";
-import type { ControllerState } from "./headless/StudentHlsController";
+import type { ControllerState } from "./headless/controllerTypes";
 
 export type Policy = {
   access_mode?: AccessMode;
@@ -53,4 +53,36 @@ export const initialControllerState: ControllerState = {
   qualities: [],
   currentQuality: -1,
   reconnecting: false,
+};
+
+export type VideoMetaLite = {
+  id: number;
+  title: string;
+  duration: number | null;
+  status?: string;
+  source_type?: string | null;
+  youtube_video_id?: string | null;
+  youtube_url?: string | null;
+  thumbnail_url?: string | null;
+  hls_url?: string | null;
+  progress?: number;
+};
+
+export type PlaybackBootstrap = {
+  token: string;
+  session_id: string | null;
+  expires_at: number | null;
+  policy_version: number;
+  access_mode: "FREE_REVIEW" | "PROCTORED_CLASS";
+  monitoring_enabled: boolean;
+  policy: Partial<Policy> | null | undefined;
+  play_url: string;
+  source_type?: string | null;
+  youtube_video_id?: string | null;
+};
+
+export type LeaveProgressPayload = {
+  progress?: number;
+  last_position?: number;
+  completed?: boolean;
 };
