@@ -25,6 +25,16 @@ pages render lazily and release offscreen canvases; zoom spans 100–300% with
 keyboard-accessible horizontal scrolling. Extracted PDF text is available to
 assistive technology. Retry remounts PDFJS even when a refreshed signature is equal. Lazy imports cannot start a detached PDF worker after navigation; cleanup handles cancellation. Each canvas stays within 16 million pixels and an 8192-pixel edge while preserving CSS zoom.
 
+The shared PDF reader loads core-js's `Map.getOrInsertComputed` polyfill with its
+lazy display component and PDFJS's official `legacy` worker from the same installed
+version. A browser that supports modules may still lack the Map API; the unpolyfilled
+display could read the page count but fail every page render in Safari or an in-app
+browser. The worker has a separate runtime and provides its own compatibility APIs.
+The display keeps the smaller standard build within existing bundle budgets;
+inline reading, zoom, text extraction and retry work without requiring a download.
+The desktop/390px reading tests remove these Map APIs before startup and verify
+rendered canvases, zoom, reload and original download in Chromium and WebKit.
+
 HWP/HWPX and Office documents automatically display their original pages, including
 tables, images and formulas, through the same inline PDF viewer. There is no
 alternate article schema, formula editor or mode switch for the teacher to learn.
