@@ -638,18 +638,19 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           { id: 712, title: "내일 예정 시험", open_at: new Date(Date.now() + 86_400_000).toISOString(), close_at: null },
           { id: 713, title: "결석 이력 시험", open_at: null, learning_todo_eligible: false },
           { id: 701, title: "현재 확인 시험", open_at: null },
+          { id: 702, title: "새 수강에 다시 배정된 시험", open_at: null },
         ] } });
       });
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
       const todo = page.locator("[data-guide='dash-todo']");
-      await expect(todo.getByText("6건", { exact: true })).toBeVisible();
+      await expect(todo.getByText("7건", { exact: true })).toBeVisible();
       await expect(todo.getByRole("link", { name: /시험 확인 필요 1건/ })).toHaveAttribute("href", "/student/grades");
       await expect(todo.getByRole("link", { name: /과제 제출 필요 1건/ })).toHaveAttribute("href", "/student/grades?view=homework");
       await expect(todo.getByText(/종강 특강|결석 시험|선생님 완료|개강 전|검토 대기|채점 중/)).toHaveCount(0);
       await assertNoRenderedHtmlLeak(page);
       await testInfo.attach(`todo-current-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(todo.getByText("6건", { exact: true })).toBeVisible();
+      await expect(todo.getByText("7건", { exact: true })).toBeVisible();
       await todo.getByRole("link", { name: /과제 제출 필요/ }).click();
       await expect(page).toHaveURL(/\/student\/grades\?view=homework$/);
       await expect(page.getByText("종료된 강의 과제", { exact: true })).toBeVisible();
@@ -658,6 +659,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await expect(page.getByRole("region", { name: "예정 시험" }).getByText("내일 예정 시험", { exact: true })).toBeVisible();
       await expect(page.getByRole("link", { name: /내일 예정 시험/ })).toHaveCount(0);
       await expect(page.getByRole("region", { name: "응시 가능" }).getByRole("link", { name: /시작일 없는 미응시 시험/ })).toHaveAttribute("href", "/student/exams/711");
+      await expect(page.getByRole("region", { name: "응시 가능" }).getByRole("link", { name: /새 수강에 다시 배정된 시험/ })).toHaveAttribute("href", "/student/exams/702");
       await assertNoRenderedHtmlLeak(page);
       await testInfo.attach(`todo-exams-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
     });

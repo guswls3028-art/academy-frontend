@@ -303,7 +303,9 @@ export default function DashboardPage() {
   /* 응시 가능한 미제출 시험과 서버가 허용한 7일 이내 예정 시험. 성적 확인 항목과 중복 집계하지 않는다. */
   const upcomingExams = useMemo(() => {
     const items = examsResp?.items ?? [];
-    const gradedIds = new Set((grades?.exams ?? []).map((e) => e.exam_id));
+    const gradedIds = new Set((grades?.exams ?? [])
+      .filter((e) => e.lecture_active !== false && e.learning_todo_eligible !== false)
+      .map((e) => e.exam_id));
     return items
       .filter((e) => e.learning_todo_eligible !== false && !gradedIds.has(e.id)
         && !e.has_result && !e.submission_pending
