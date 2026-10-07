@@ -31,17 +31,26 @@ per-page text is available to assistive technology.
 Prepared page documents also offer `전체화면 보기`. It opens a paged native-image
 viewer over the current article, centering the whole page within the available
 screen at 100% in both portrait and landscape, with no document scrolling. It fits
-both dimensions again when the screen rotates, without
-depending on the browser Fullscreen API or an external viewer. Swipe left/right
+both dimensions again when the screen rotates. The opening click requests native
+fullscreen with hidden navigation UI when the standard API is available; close,
+browser Back, Escape or native fullscreen exit release only this viewer's owned
+session. A rejected request, unavailable API or a late request after closing
+keeps the same readable paged viewer and safe exit. No external viewer is needed.
+On iPhone Safari, [HTML fullscreen remains unsupported](https://bugs.webkit.org/show_bug.cgi?id=206854);
+Safari's [page menu → More → Hide Toolbar](https://support.apple.com/ko-kr/guide/iphone/-iphb3100d149/ios)
+can enlarge the visible browser area. The viewer follows the actual inner height
+when browser bars change. Swipe left/right
 at 100%, use previous/next or select a page; at 125–300% touch scroll pans the
 document instead of turning pages. The percentage control restores screen fit
 and clears both scroll offsets. Header and footer overlay the page and fade away
-2.2 seconds after a ready page or touch interaction; tapping the page toggles
-them. Native taps work even when a browser omits click after swiping, and a
+2.2 seconds after the initial ready page or an explicit control interaction;
+tapping the page toggles them. Page swipes, subsequent image loading, rotation and
+URL renewal preserve hidden controls so reading is not interrupted by page/zoom UI.
+Native taps work even when a browser omits click after swiping, and a
 subsequent compatibility click cannot toggle the controls a second time.
 Keyboard navigation keeps them visible and restores modal focus if touch
-or rotation has blurred it to the body, while loading and errors retain
-visible exit/retry controls. Controls remain accessible above safe-area insets, and
+or rotation has blurred it to the body. Initial loading and errors retain visible
+exit/retry controls; a tap can reveal controls while a later page loads. Controls remain accessible above safe-area insets, and
 motion respects reduced-motion settings. Only the selected full-screen page
 mounts an image. Extracted page text remains accessible.
 
@@ -55,9 +64,9 @@ are introduced. Old PDF-only rollout payloads retain their inline fallback;
 the full-screen entry appears when native page images are ready.
 
 Focused desktop/390px checks cover first/last page boundaries, page selection,
-swipe-versus-pan, centered scroll-free fit after rotation, automatic control hiding,
+swipe-versus-pan, centered scroll-free fit after rotation, uninterrupted hidden controls across swipes/renewal, automatic control hiding,
 tap/keyboard recovery, actual enlargement, URL renewal and link-error
-recovery, focus/scroll restoration, Back and article reload. Same-artifact
+recovery, native fullscreen entry/exit/rejection/late completion, focus/scroll restoration, Back and article reload. Same-artifact
 development real-use opens the uploaded report in the viewer before promotion.
 
 Fresh five-minute image links renew after four minutes and when a background tab

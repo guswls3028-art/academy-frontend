@@ -10,6 +10,12 @@ import styles from "../pages/PublicResources.module.css";
 
 const MatchupInlinePdf = lazy(() => import("./MatchupInlinePdf"));
 
+function exitNativeFullscreen() {
+  if (document.fullscreenElement !== document.documentElement) return;
+  try { void Promise.resolve(document.exitFullscreen()).catch(() => undefined); }
+  catch { /* The paged viewer still closes if the browser has already exited. */ }
+}
+
 function Blocks({ blocks, onError }: { blocks: ReaderBlock[]; onError: () => void }) {
   return <>{blocks.map((block, index) => block.kind === "paragraph"
     ? <p key={index}>{block.text}</p>
@@ -24,12 +30,42 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
   const [error, setError] = useState(""); const [retry, setRetry] = useState(0);
   const [zoom, setZoom] = useState(100);
   const [fullscreen, setFullscreen] = useState(false);
+  const nativeFullscreen = useRef<{ active: boolean; entered: boolean } | null>(null);
   const fullscreenButton = useRef<HTMLButtonElement>(null);
   const getFullscreenButton = useCallback(() => fullscreenButton.current, []);
   const [nearViewport, setNearViewport] = useState(false);
   const surface = useRef<HTMLElement>(null); const statusCallback = useRef(onStatus);
   const readerFile = useRef(file.id); const lastImageRefresh = useRef(0);
   statusCallback.current = onStatus;
+
+  function openFullscreen() {
+    setFullscreen(true);
+    if (!document.fullscreenEnabled || typeof document.documentElement.requestFullscreen !== "function"
+      || typeof document.exitFullscreen !== "function" || document.fullscreenElement) return;
+    const session = { active: true, entered: false }; nativeFullscreen.current = session;
+    try {
+      void Promise.resolve(document.documentElement.requestFullscreen({ navigationUI: "hide" })).then(() => {
+        session.entered = document.fullscreenElement === document.documentElement;
+        if (!session.active && nativeFullscreen.current === session) exitNativeFullscreen();
+      }).catch(() => { if (nativeFullscreen.current === session) nativeFullscreen.current = null; });
+    } catch { nativeFullscreen.current = null; }
+  }
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const changed = () => {
+      const session = nativeFullscreen.current;
+      if (!session?.active) return;
+      if (document.fullscreenElement === document.documentElement) session.entered = true;
+      else if (session.entered) setFullscreen(false);
+    };
+    document.addEventListener("fullscreenchange", changed);
+    return () => {
+      document.removeEventListener("fullscreenchange", changed);
+      const session = nativeFullscreen.current;
+      if (session) { session.active = false; if (session.entered) exitNativeFullscreen(); }
+    };
+  }, [fullscreen]);
 
   useEffect(() => {
     const element = surface.current;
@@ -94,7 +130,7 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
     {reader?.status === "ready" && showPages && <>
       <div className={styles.readerTools} aria-label="문서 확대">
         <span>아래로 내려 문서 전체 읽기</span>
-        {nativePages && <button ref={fullscreenButton} type="button" className={styles.fullscreenButton} onClick={() => setFullscreen(true)}><Maximize size={ICON.sm} aria-hidden="true" />전체화면 보기</button>}
+        {nativePages && <button ref={fullscreenButton} type="button" className={styles.fullscreenButton} onClick={openFullscreen}><Maximize size={ICON.sm} aria-hidden="true" />전체화면 보기</button>}
         <button type="button" disabled={zoom === 100} onClick={() => setZoom((value) => Math.max(100, value - 25))} aria-label="문서 축소">−</button>
         <output aria-live="polite">{zoom}%</output>
         <button type="button" disabled={zoom === 300} onClick={() => setZoom((value) => Math.min(300, value + 25))} aria-label="문서 확대">+</button>
