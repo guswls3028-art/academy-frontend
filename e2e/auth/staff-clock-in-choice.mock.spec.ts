@@ -60,7 +60,7 @@ async function installClockApp(
     date: "2026-08-18",
     start_time: failures.mealHistory ? "23:00:00" : "13:00:00",
     end_time: failures.mealHistory ? "03:00:00" : "17:00:00",
-    end_date: failures.mealHistory ? "2026-08-19" : "2026-08-18",
+    end_date: failures.mealHistory ? "2026-08-19" : null,
     break_minutes: 0,
     meal_minutes: failures.mealHistory ? 30 : 0,
     work_hours: failures.mealHistory ? "3.50" : "4.00",
