@@ -5,12 +5,6 @@ import imageStyles from "./ResourcePageImages.module.css";
 
 type ImagePage = Extract<ReaderBlock, { kind: "image" }>;
 
-export function hasPageImages(blocks?: ReaderBlock[], pages?: number): blocks is ImagePage[] {
-  return typeof pages === "number" && !!blocks?.length && blocks.length === pages && pages <= 100 && blocks.every((block) =>
-    block.kind === "image" && !!block.url && Number.isFinite(block.width) && block.width > 0
-    && Number.isFinite(block.height) && block.height > 0);
-}
-
 function PageImage({ page, number, total, title, attempt, onRetry, onError }: {
   page: ImagePage; number: number; total: number; title: string; attempt: number; onRetry: () => void; onError: () => void;
 }) {
@@ -18,6 +12,9 @@ function PageImage({ page, number, total, title, attempt, onRetry, onError }: {
   const image = useRef<HTMLImageElement>(null);
   const [visible, setVisible] = useState(false);
   const [status, setStatus] = useState("waiting");
+  useLayoutEffect(() => {
+    if (surface.current) surface.current.style.paddingBottom = `${page.height / page.width * 100}%`;
+  }, [page.width, page.height]);
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       setVisible(entries.some((entry) => entry.isIntersecting));
@@ -30,7 +27,7 @@ function PageImage({ page, number, total, title, attempt, onRetry, onError }: {
   }, [visible, attempt]);
   return <section className={styles.page} data-testid="resource-page-image" data-page-number={number} data-render-status={status} aria-label={`${title} ${number}쪽`}>
     <div className={styles.pageMeta}><span>{String(number).padStart(2, "0")}</span><span>{total}쪽 중</span></div>
-    <div ref={surface} className={imageStyles.surface} style={{ paddingBottom: `${page.height / page.width * 100}%` }}>
+    <div ref={surface} className={imageStyles.surface}>
       {visible && <img ref={image} key={attempt} className={imageStyles.image} src={page.url} alt={`${title} ${number}쪽`} width={page.width} height={page.height}
         decoding="async" onLoad={() => setStatus("ready")} onError={() => { setStatus("error"); onError(); }} />}
       {status === "waiting" && <div className={styles.pageLoading} role="status"><span className={styles.spinner} />{number}쪽을 불러오는 중입니다…</div>}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { prepareResourceReader, readResourceFile, resourceError, type ReaderBlock, type ResourceFile, type ResourceReader, type ReaderStatus } from "../api/publicResources";
+import { hasPageImages, prepareResourceReader, readResourceFile, resourceError, type ReaderBlock, type ResourceFile, type ResourceReader, type ReaderStatus } from "../api/publicResources";
 import { lazy, Suspense } from "react";
-import ResourcePageImages, { hasPageImages } from "./ResourcePageImages";
+import ResourcePageImages from "./ResourcePageImages";
 import { ResourceFailure } from "./ResourceLayout";
 import styles from "../pages/PublicResources.module.css";
 
