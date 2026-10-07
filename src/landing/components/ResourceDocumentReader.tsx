@@ -63,7 +63,7 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
     return () => {
       document.removeEventListener("fullscreenchange", changed);
       const session = nativeFullscreen.current;
-      if (session) { session.active = false; if (session.entered) exitNativeFullscreen(); }
+      if (session?.active) { session.active = false; if (session.entered) exitNativeFullscreen(); }
     };
   }, [fullscreen]);
 

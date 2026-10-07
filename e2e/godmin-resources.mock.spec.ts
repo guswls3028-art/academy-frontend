@@ -261,6 +261,14 @@ for (const outcome of ["accepted", "denied", "pending", "existing"] as const) {
       await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
       await expect(page.locator("html")).toHaveAttribute("data-native-exits", "2");
       await expect(page).toHaveURL(/\/landing\/resources\/901$/);
+      await page.evaluate(() => document.documentElement.requestFullscreen());
+      await entry.click(); await expect(viewer.getByTestId("resource-viewer-page")).toHaveAttribute("data-render-status", "ready");
+      await page.keyboard.press("Escape"); await expect(viewer).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => document.fullscreenElement === document.documentElement)).toBe(true);
+      await expect(page.locator("html")).toHaveAttribute("data-native-requests", "3");
+      await expect(page.locator("html")).toHaveAttribute("data-native-exits", "2");
+      await expect(entry).toBeFocused();
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(articleScroll);
     }
   });
 }
