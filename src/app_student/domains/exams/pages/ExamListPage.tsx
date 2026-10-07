@@ -18,7 +18,7 @@ const TABS = [
 
 export default function ExamListPage() {
   const [tab, setTab] = useState("home");
-  const { data, isLoading, isError, refetch } = useStudentExams();
+  const { data, isLoading, isError, refetch } = useStudentExams({ include_upcoming: true });
   const items = data?.items ?? [];
   const shellTitle = tab === "stats" ? "시험 분석" : "시험 데스크";
   const shellDescription =

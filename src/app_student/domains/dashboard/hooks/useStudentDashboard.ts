@@ -10,6 +10,7 @@ export function useStudentDashboard() {
     queryKey: studentQueryKeys.dashboard,
     queryFn: fetchStudentDashboard,
     staleTime: STALE_TIME_MS,
+    refetchInterval: STALE_TIME_MS,
     placeholderData: keepPreviousData,
   });
 }

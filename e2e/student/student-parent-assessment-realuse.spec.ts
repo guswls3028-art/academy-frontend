@@ -7,6 +7,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import type { SendPreflightResponse } from "../../src/app_admin/domains/messages/api/messages.api";
 import type { ManualGradeSheet } from "../../src/app_admin/domains/results/api/manualExamGrading";
 import type { ExamsListResponse } from "../../src/app_student/domains/exams/api/exams.api";
+import type { MyGradesSummary } from "../../src/app_student/domains/grades/api/grades.api";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import {
   api,
@@ -34,7 +35,7 @@ import {
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 
-test.setTimeout(300_000);
+test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
 type CreatedState = {
@@ -284,9 +285,9 @@ async function submitFirstStudentThroughUi(
     expect(submittedExam!.attempt_count).toBeGreaterThan(0);
     expect(submittedExam!.has_result === true || submittedExam!.submission_pending === true).toBe(true);
     const todo = page.locator("[data-guide='dash-todo']");
-    await expect(todo.getByRole("heading", { name: /^(오늘 확인할 일이 있어요|오늘은 급한 일이 없어요)$/ })).toBeVisible();
+    await expect(todo.getByRole("heading", { name: /^(확인할 일이 있어요|오늘은 급한 일이 없어요)$/ })).toBeVisible();
     // A submitted exam may still require a retest or wrong-answer correction.
-    const upcoming = todo.getByRole("link", { name: /^다가오는 시험 / });
+    const upcoming = todo.getByRole("link", { name: /^확인할 시험 / });
     await expect(upcoming.filter({ hasText: examTitle })).toHaveCount(0);
   };
   for (const width of [390, 1366]) {
@@ -409,10 +410,52 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await assertNoHorizontalOverflow(page);
     await verifyScoreMessageTemplate(page, request, admin, primary);
     await verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens);
+    await verifyEndedCourseTodos(page, request, admin, primary, primaryTokens);
     boundary.assertClean();
     browser.assertZeroDefects();
   });
 });
+
+async function verifyEndedCourseTodos(
+  page: Page, request: APIRequestContext, admin: QaTokens, student: QaStudent, studentTokens: QaTokens,
+): Promise<void> {
+  const before = await expectApi<MyGradesSummary>(request, "GET", "/student/grades/", studentTokens.access);
+  const original = before.exams.find((exam) => exam.exam_id === created.examId);
+  expect(original?.learning_todo_eligible).toBe(true);
+  const yesterday = new Date(Date.parse(`${todayKst}T12:00:00+09:00`) - 86_400_000).toISOString().slice(0, 10);
+  await expectApi(request, "PATCH", `/lectures/lectures/${created.lectureId}/`, admin.access, {
+    start_date: yesterday, end_date: yesterday, is_active: true,
+  }, [200]);
+  const ended = await expectApi<MyGradesSummary>(request, "GET", "/student/grades/", studentTokens.access);
+  expect(ended.exams.find((exam) => exam.exam_id === created.examId)).toMatchObject({
+    lecture_active: false, learning_todo_eligible: false, total_score: original!.total_score,
+  });
+  const upcoming = await expectApi<ExamsListResponse>(request, "GET", "/student/exams/?include_upcoming=true", studentTokens.access);
+  expect(upcoming.items.some((exam) => exam.id === created.examId)).toBe(false);
+  for (const role of ["parent", "student"] as const) {
+    if (role === "student") {
+      await logoutStudentApp(page);
+      await loginThroughUi(page, student.ps_number, student.password);
+    }
+    for (const width of [390, 1366]) {
+      await page.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
+      await reloadStudentApp(page);
+      const summary = role === "student" ? page.locator("[data-guide='dash-todo']") : page.getByRole("region", { name: "우리 아이 요약" });
+      await expect(summary.getByText("정리됨", { exact: true })).toBeVisible();
+      await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+      await page.locator("summary").filter({ hasText: "종료된 강의" }).click();
+      await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
+      await assertNoHorizontalOverflow(page);
+    }
+  }
+  // End date is inclusive: restore today's boundary and verify persisted eligibility again.
+  await expectApi(request, "PATCH", `/lectures/lectures/${created.lectureId}/`, admin.access, { end_date: todayKst }, [200]);
+  const restored = await expectApi<MyGradesSummary>(request, "GET", "/student/grades/", studentTokens.access);
+  expect(restored.exams.find((exam) => exam.exam_id === created.examId)).toMatchObject({
+    lecture_active: true, learning_todo_eligible: true, total_score: original!.total_score,
+  });
+}
 
 async function verifyManualScorePrecision(
   parentPage: Page,

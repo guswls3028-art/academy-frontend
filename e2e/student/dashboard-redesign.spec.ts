@@ -27,7 +27,7 @@ test.describe("학생 대시보드 개편", () => {
     await page.waitForLoadState("networkidle", { timeout: 12_000 }).catch(() => {});
 
     /* 핵심 섹션 */
-    await expect(page.getByText("오늘 할 일", { exact: true })).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText("확인할 일", { exact: true })).toBeVisible({ timeout: 8_000 });
     await expect(page.getByText("나의 학습 현황", { exact: true })).toBeVisible();
 
     /* 앱 아이콘 라벨 8종 */
