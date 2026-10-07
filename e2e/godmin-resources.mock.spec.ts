@@ -262,6 +262,13 @@ for (const width of [1366, 390]) {
     await expect(viewer.getByRole("button", { name: "이전 쪽", exact: true })).toBeDisabled();
     await page.clock.fastForward(2300);
     await expect(viewer).toHaveAttribute("data-controls-visible", "false");
+    await viewerStage.dispatchEvent("touchstart", { touches: [{ identifier: 1, clientX: 180, clientY: 300 }] });
+    await viewerStage.dispatchEvent("touchend", { touches: [], changedTouches: [{ identifier: 1, clientX: 180, clientY: 300 }] });
+    await expect(viewer).toHaveAttribute("data-controls-visible", "true");
+    await viewerStage.dispatchEvent("click");
+    await expect(viewer).toHaveAttribute("data-controls-visible", "true");
+    await page.clock.fastForward(2300);
+    await expect(viewer).toHaveAttribute("data-controls-visible", "false");
     await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
     await page.keyboard.press("Tab");
     await expect(viewer).toHaveAttribute("data-controls-visible", "true");
