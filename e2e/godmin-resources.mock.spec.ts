@@ -469,9 +469,14 @@ for (const width of [1366, 390]) {
     // The textarea also matches getByText; wait for the saved detail before reload.
     await expect(page).toHaveURL(`${BASE}/landing/resources/901`);
     await expect(page.getByRole("article").getByText(description, { exact: true })).toBeVisible();
+    // Review the complete reader before reload. In Vite, reloading while module
+    // workers start aborts their HMR imports and WebKit reports access-control errors.
+    // Keep strict console checks and prove each saved document actually loads.
+    await expect(page.getByTestId("matchup-inline-pdf")).toHaveCount(resource.files.length);
     await expect(page.getByRole("link", { name: "수정", exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByText(description, { exact: true })).toBeVisible();
+    await expect(page.getByTestId("matchup-inline-pdf")).toHaveCount(resource.files.length);
     await page.getByText("원본 파일 · 3개", { exact: true }).click();
     for (const file of resource.files) await expect(page.getByText(file.filename, { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "수정", exact: true }).click();
