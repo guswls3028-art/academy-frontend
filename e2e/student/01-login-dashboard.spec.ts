@@ -8,7 +8,7 @@ test.describe("학생 로그인 → 대시보드", () => {
 
     await expect(page.locator("[data-app='student']")).toBeVisible();
     await expect(page.getByRole("navigation", { name: "하단 메뉴" })).toBeVisible();
-    await expect(page.getByText("오늘 할 일").first()).toBeVisible();
+    await expect(page.getByText("확인할 일").first()).toBeVisible();
     await expect(page.getByText("자주 쓰는 일").first()).toBeVisible();
     await expect(page.locator("text=Not Found")).not.toBeVisible();
   });

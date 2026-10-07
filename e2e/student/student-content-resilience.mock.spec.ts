@@ -64,6 +64,7 @@ async function installStudentApi(
     failDataRequests?: boolean;
     lectureNotices?: boolean;
     parentReadOnly?: boolean;
+    parentDashboard?: boolean;
     imageNotice?: boolean;
     imageDeliveryFailure?: boolean;
     notificationClinic?: "retry-success" | "failure";
@@ -124,8 +125,8 @@ async function installStudentApi(
         name: options.legacyHtml ? escapedHtml("학생 이름", "strong") : `학생 ${profileId}`,
         is_staff: false,
         is_superuser: false,
-        tenantRole: "student",
-        linkedStudents: [],
+        tenantRole: options.parentDashboard ? "parent" : "student",
+        linkedStudents: options.parentDashboard ? [{ id: 11, name: "학생 11" }] : [],
       } });
       return;
     }
@@ -601,6 +602,87 @@ function imageNotice() {
 test.describe("학생·학부모 콘텐츠 안정성", () => {
   test.skip(!IS_LOCAL_BASE, "Local route-mock contract spec.");
 
+  for (const width of [390, 1366]) {
+    test(`현재 학습만 집계하고 과거 기록과 예정 시험으로 연결한다 ${width}`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await installStudentApi(page);
+      const exam = { ...emptyGrades(701).exams[0], total_score: 40, is_pass: false, achievement: "FAIL", lecture_active: true };
+      const homework = {
+        homework_id: 801, enrollment_id: 301, title: "현재 제출 과제", score: null,
+        max_score: 10, passed: false, achievement: "NOT_SUBMITTED", submission_state: "needs_submission",
+        session_title: "1차시", lecture_title: "현재 수학", lecture_active: true,
+      };
+      await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+        ...emptyGrades(),
+        exams: [
+          { ...exam, title: "현재 확인 시험", learning_todo_eligible: true },
+          { ...exam, exam_id: 702, title: "종강 특강 시험", lecture_title: "방학특강", lecture_id: 72, lecture_active: false, learning_todo_eligible: false },
+          { ...exam, exam_id: 703, title: "결석 시험 기록", learning_todo_eligible: false },
+          { ...exam, exam_id: 704, title: "선생님 완료 시험", teacher_resolved: true },
+          { ...exam, exam_id: 705, title: "채점 중 시험", submission_pending: true },
+        ],
+        homeworks: [
+          { ...homework, learning_todo_eligible: true },
+          { ...homework, homework_id: 802, title: "종강 특강 과제", lecture_title: "방학특강", lecture_id: 72, lecture_active: false, learning_todo_eligible: false },
+          { ...homework, homework_id: 803, title: "개강 전 과제", learning_todo_eligible: false },
+          { ...homework, homework_id: 804, title: "검토 대기 과제", submission_state: "awaiting_review" },
+        ],
+      } }));
+      await page.route("**/api/v1/student/dashboard/", (route) => route.fulfill({ json: {
+        notices: [], today_sessions: [], badges: { clinic_upcoming: true, clinic_upcoming_count: 2 },
+      } }));
+      await page.route((url) => url.pathname === "/api/v1/student/exams/", (route) => {
+        expect(new URL(route.request().url()).searchParams.get("include_upcoming")).toBe("true");
+        return route.fulfill({ json: { items: [
+          { id: 711, title: "시작일 없는 미응시 시험", open_at: null, close_at: null },
+          { id: 712, title: "내일 예정 시험", open_at: new Date(Date.now() + 86_400_000).toISOString(), close_at: null },
+          { id: 713, title: "결석 이력 시험", open_at: null, learning_todo_eligible: false },
+          { id: 701, title: "현재 확인 시험", open_at: null },
+          { id: 702, title: "새 수강에 다시 배정된 시험", open_at: null },
+        ] } });
+      });
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      const todo = page.locator("[data-guide='dash-todo']");
+      await expect(todo.getByText("7건", { exact: true })).toBeVisible();
+      await expect(todo.getByRole("link", { name: /시험 확인 필요 1건/ })).toHaveAttribute("href", "/student/grades");
+      await expect(todo.getByRole("link", { name: /과제 제출 필요 1건/ })).toHaveAttribute("href", "/student/grades?view=homework");
+      await expect(todo.getByText(/종강 특강|결석 시험|선생님 완료|개강 전|검토 대기|채점 중/)).toHaveCount(0);
+      await assertNoRenderedHtmlLeak(page);
+      await testInfo.attach(`todo-current-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(todo.getByText("7건", { exact: true })).toBeVisible();
+      await todo.getByRole("link", { name: /과제 제출 필요/ }).click();
+      await expect(page).toHaveURL(/\/student\/grades\?view=homework$/);
+      await expect(page.getByText("종료된 강의 과제", { exact: true })).toBeVisible();
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      await todo.getByRole("link", { name: /확인할 시험/ }).click();
+      await expect(page.getByRole("region", { name: "예정 시험" }).getByText("내일 예정 시험", { exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: /내일 예정 시험/ })).toHaveCount(0);
+      await expect(page.getByRole("region", { name: "응시 가능" }).getByRole("link", { name: /시작일 없는 미응시 시험/ })).toHaveAttribute("href", "/student/exams/711");
+      await expect(page.getByRole("region", { name: "응시 가능" }).getByRole("link", { name: /새 수강에 다시 배정된 시험/ })).toHaveAttribute("href", "/student/exams/702");
+      await assertNoRenderedHtmlLeak(page);
+      await testInfo.attach(`todo-exams-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+    });
+
+    test(`학부모 성적 조회 실패는 안정 상태로 표시하지 않고 복구한다 ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await installStudentApi(page, { parentDashboard: true });
+      let failed = true;
+      await page.route("**/api/v1/student/grades/", (route) => route.fulfill(failed
+        ? { status: 503, json: { detail: "temporary grade failure" } }
+        : { json: emptyGrades() }));
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      const summary = page.getByRole("region", { name: "우리 아이 요약" });
+      await expect(summary.getByText("확인 필요", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
+      await expect(summary.getByText("정리됨", { exact: true })).toHaveCount(0);
+      await expect(summary.getByText("안정", { exact: true })).toHaveCount(0);
+      failed = false;
+      await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+      await expect(summary.getByText("정리됨", { exact: true })).toBeVisible();
+      await assertNoRenderedHtmlLeak(page);
+    });
+  }
+
   for (const width of [1366, 390]) {
     test(`제출한 과제와 재시험은 할 일에서 빠지고 검토 후 재제출 필요 상태가 돌아온다 ${width}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
@@ -608,21 +690,21 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await installStudentApi(page, { pendingTodoSubmission: () => submitted });
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
       const todo = page.locator("[data-guide='dash-todo']");
-      await expect(todo.getByRole("link", { name: /재시험 필요/ })).toBeVisible();
-      await expect(todo.getByRole("link", { name: /과제 미통과/ })).toBeVisible();
+      await expect(todo.getByRole("link", { name: /시험 확인 필요/ })).toBeVisible();
+      await expect(todo.getByRole("link", { name: /과제 제출 필요/ })).toBeVisible();
 
       submitted = true;
       await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
-      await expect(todo.getByRole("link", { name: /재시험 필요/ })).toHaveCount(0);
-      await expect(todo.getByRole("link", { name: /과제 미통과/ })).toHaveCount(0);
+      await expect(todo.getByRole("link", { name: /시험 확인 필요/ })).toHaveCount(0);
+      await expect(todo.getByRole("link", { name: /과제 제출 필요/ })).toHaveCount(0);
       await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
       await expect(page.getByRole("button", { name: /제출됨 · 파일 수정 가능.*재제출 과제/ })).toBeVisible();
       await expect(page.getByRole("link", { name: /재제출 시험/ })).toHaveCount(0);
 
       submitted = false;
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-      await expect(todo.getByRole("link", { name: /재시험 필요/ })).toBeVisible();
-      await expect(todo.getByRole("link", { name: /과제 미통과/ })).toBeVisible();
+      await expect(todo.getByRole("link", { name: /시험 확인 필요/ })).toBeVisible();
+      await expect(todo.getByRole("link", { name: /과제 제출 필요/ })).toBeVisible();
       await assertNoRenderedHtmlLeak(page);
     });
   }
@@ -634,7 +716,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
       for (let pass = 0; pass < 2; pass += 1) {
         const todo = page.locator("[data-guide='dash-todo']");
-        await expect(todo.getByText(/다가오는 시험 2건/)).toBeVisible();
+        await expect(todo.getByText(/확인할 시험 2건/)).toBeVisible();
         await expect(todo.getByText("아직 제출하지 않은 시험, 처리가 실패한 시험", { exact: true })).toBeVisible();
         await expect(todo.getByText(/제출한 온라인 시험/)).toHaveCount(0);
         await assertNoRenderedHtmlLeak(page);
@@ -642,7 +724,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       }
       await page.goto(`${BASE}/student/exams`, { waitUntil: "domcontentloaded", timeout: 45_000 });
       await expect(page.getByText("제출한 온라인 시험", { exact: true })).toBeVisible();
-      await expect(page.getByText("응시완료", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("채점 대기", { exact: true }).first()).toBeVisible();
     });
   }
   for (const mode of ["retest", "correction"] as const) {
@@ -653,9 +735,9 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
         for (let pass = 0; pass < 2; pass += 1) {
           const todo = page.locator("[data-guide='dash-todo']");
-          const upcoming = todo.getByRole("link", { name: /^다가오는 시험 / });
-          const followup = todo.getByRole("link", { name: mode === "correction" ? /^오답 미완료 / : /^재시험 필요 / });
-          await expect(todo.getByRole("heading", { name: "오늘 확인할 일이 있어요", exact: true })).toBeVisible();
+          const upcoming = todo.getByRole("link", { name: /^확인할 시험 / });
+          const followup = todo.getByRole("link", { name: mode === "correction" ? /^오답 미완료 / : /^시험 확인 필요 / });
+          await expect(todo.getByRole("heading", { name: "확인할 일이 있어요", exact: true })).toBeVisible();
           await expect(upcoming).toContainText("아직 제출하지 않은 시험, 처리가 실패한 시험");
           await expect(followup).toContainText("채점 완료 시험");
           await expect(upcoming.filter({ hasText: "채점 완료 시험" })).toHaveCount(0);

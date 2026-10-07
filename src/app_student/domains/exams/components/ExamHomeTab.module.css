@@ -50,6 +50,7 @@
 }
 
 .iconWrap {
+  flex-shrink: 0;
   display: grid;
   width: 44px;
   height: 44px;
@@ -78,6 +79,7 @@
 .examMeta {
   margin-top: 2px;
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .chevron {

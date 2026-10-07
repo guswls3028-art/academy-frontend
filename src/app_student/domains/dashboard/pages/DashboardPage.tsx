@@ -13,7 +13,7 @@
  *
  * 부분 실패: 한쪽 쿼리만 실패해도 가능한 섹션 노출.
  */
-import { useState, useEffect, useMemo, memo } from "react";
+import { useState, useEffect, useMemo, useRef, memo } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 import { useAuthContext } from "@/auth/context/AuthContext";
@@ -36,6 +36,7 @@ import type { NotificationCounts } from "@student/domains/notifications/api/noti
 import NotificationBadge from "@student/shared/ui/components/NotificationBadge";
 import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
+import { learningDate, useLearningClock } from "@student/shared/hooks/useLearningClock";
 import styles from "./DashboardPage.module.css";
 
 /* ============================================================================
@@ -44,13 +45,8 @@ import styles from "./DashboardPage.module.css";
 
 function sessionToDate(s: StudentSession): Date | null {
   if (!s.date) return null;
-  const [y, m, d] = s.date.split("-").map(Number);
-  if (!y || !m || !d) return null;
-  if (s.start_time) {
-    const parts = s.start_time.split(":").map(Number);
-    return new Date(y, m - 1, d, parts[0] ?? 0, parts[1] ?? 0);
-  }
-  return new Date(y, m - 1, d, 0, 0);
+  const date = new Date(`${s.date}T${s.start_time ?? "00:00:00"}+09:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function formatRemaining(ms: number): string {
@@ -64,17 +60,11 @@ function formatRemaining(ms: number): string {
   return `${mins}분 후`;
 }
 
-function ymdToday(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-}
-
-function daysUntil(iso: string | null | undefined): number | null {
+function daysUntil(iso: string | null | undefined, now: number): number | null {
   if (!iso) return null;
   const dt = new Date(iso);
   if (Number.isNaN(dt.getTime())) return null;
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const ms = startOfDay(dt).getTime() - startOfDay(new Date()).getTime();
+  const ms = Date.parse(learningDate(dt.getTime())) - Date.parse(learningDate(now));
   return Math.round(ms / (24 * 60 * 60 * 1000));
 }
 
@@ -240,7 +230,19 @@ export default function DashboardPage() {
   const todoDataPending = (dashLoading || gradesQ.isLoading || examsQ.isLoading || countsLoading) && !todoDataError;
   const isParent = user?.tenantRole === "parent";
 
-  const today = ymdToday();
+  const now = useLearningClock();
+  const today = learningDate(now);
+  const previousDay = useRef(today);
+  const { refetch: refetchGrades } = gradesQ;
+  const { refetch: refetchDashboard } = dashboardQ;
+  const { refetch: refetchExams } = examsQ;
+  useEffect(() => {
+    if (previousDay.current === today) return;
+    previousDay.current = today;
+    void refetchGrades();
+    void refetchDashboard();
+    void refetchExams();
+  }, [today, refetchGrades, refetchDashboard, refetchExams]);
   const todaySessions = useMemo<StudentSession[]>(() => {
     const dashboardSessions = dashboard?.today_sessions;
     if (dashboardSessions) {
@@ -258,7 +260,6 @@ export default function DashboardPage() {
 
   const nextSession = useMemo(() => {
     if (!sessions?.length) return null;
-    const now = Date.now();
     let best: { session: StudentSession; dt: Date } | null = null;
     for (const s of sessions) {
       const dt = sessionToDate(s);
@@ -266,12 +267,14 @@ export default function DashboardPage() {
       if (!best || dt.getTime() < best.dt.getTime()) best = { session: s, dt };
     }
     return best;
-  }, [sessions]);
+  }, [sessions, now]);
 
   /* ─── 오늘 할 일 항목 빌드 ─── */
   const failedExams = useMemo(
     () => (grades?.exams ?? []).filter((e) => (
       e.lecture_active !== false
+      && e.learning_todo_eligible !== false
+      && e.teacher_resolved !== true
       && e.submission_pending !== true
       && (wrongCompletionOnly
         ? e.correction_status === "PENDING"
@@ -286,6 +289,7 @@ export default function DashboardPage() {
   const failedHomeworks = useMemo(
     () => (grades?.homeworks ?? []).filter((h) => (
       h.lecture_active !== false
+      && h.learning_todo_eligible !== false
       && h.teacher_resolved !== true
       && (h.submission_state != null ? h.submission_state === "needs_submission" : (
         h.achievement === "FAIL"
@@ -296,25 +300,29 @@ export default function DashboardPage() {
     [grades?.homeworks],
   );
 
-  /* 다가오는 시험: open_at이 오늘~+7일, 아직 결과 없는 것 */
+  /* 응시 가능한 미제출 시험과 서버가 허용한 7일 이내 예정 시험. 성적 확인 항목과 중복 집계하지 않는다. */
   const upcomingExams = useMemo(() => {
     const items = examsResp?.items ?? [];
+    const gradedIds = new Set((grades?.exams ?? [])
+      .filter((e) => e.lecture_active !== false && e.learning_todo_eligible !== false)
+      .map((e) => e.exam_id));
     return items
-      .map((e) => ({ exam: e, d: daysUntil(e.open_at) }))
-      .filter((x) => x.d != null && x.d >= 0 && x.d <= 7
-        && !x.exam.has_result && !x.exam.submission_pending)
+      .filter((e) => e.learning_todo_eligible !== false && !gradedIds.has(e.id)
+        && !e.has_result && !e.submission_pending
+        && (!e.close_at || Date.parse(e.close_at) > now))
+      .map((e) => ({ exam: e, d: daysUntil(e.open_at, now) }))
       .sort((a, b) => (a.d ?? 0) - (b.d ?? 0));
-  }, [examsResp]);
+  }, [examsResp, grades?.exams, now]);
 
   const clinicUpcoming = dashboard?.badges?.clinic_upcoming === true;
+  const clinicCount = dashboard?.badges?.clinic_upcoming_count ?? (clinicUpcoming ? 1 : 0);
   const replyCount = countsError ? 0 : (notificationCounts?.qna ?? 0) + (notificationCounts?.counsel ?? 0);
 
   const todoCount =
     upcomingExams.length +
     failedHomeworks.length +
     failedExams.length +
-    (clinicUpcoming ? 1 : 0) +
-    (replyCount > 0 ? 1 : 0);
+    clinicCount + replyCount;
 
   /* 로딩 / 에러 — 주 데이터(dashboard) 또는 sessions 둘 다 로딩 중일 때만 스켈레톤 */
   if (dashLoading && sessionsLoading) {
@@ -387,6 +395,10 @@ export default function DashboardPage() {
         notificationCounts={notificationCounts}
         countsLoading={countsLoading}
         countsError={countsError}
+        summaryPending={todoDataPending || sessionsLoading}
+        summaryError={todoDataError || sessionsError}
+        todoCount={todoCount}
+        clinicCount={clinicCount}
         grades={grades ?? null}
         sessions={sessions ?? null}
         notices={dashboard?.notices ?? []}
@@ -410,14 +422,14 @@ export default function DashboardPage() {
       <section className={styles.hero} data-guide="dash-todo">
         <div className={styles.heroTop}>
           <div>
-            <div className={styles.heroEyebrow}>오늘 할 일</div>
+            <div className={styles.heroEyebrow}>확인할 일</div>
             <h2 className={styles.heroTitle}>
               {todoDataError
                 ? "일부 할 일을 확인하지 못했어요"
                 : todoDataPending
                   ? "할 일을 확인하고 있어요"
                   : todoCount > 0
-                    ? "오늘 확인할 일이 있어요"
+                    ? "확인할 일이 있어요"
                     : "오늘은 급한 일이 없어요"}
             </h2>
             <p className={styles.heroDescription}>
@@ -426,7 +438,7 @@ export default function DashboardPage() {
                 : todoDataPending
                 ? "새 답변과 클리닉, 성적 알림을 확인하는 중입니다."
                 : todoCount > 0
-                ? "시험, 답변, 클리닉처럼 지금 확인하면 좋은 항목만 모았어요."
+                ? "현재 수강 중인 강의의 미완료 학습과 새 답변, 7일 이내 예정 일정을 모았어요."
                 : "수업과 영상 학습 흐름만 차근차근 이어가면 됩니다."}
             </p>
           </div>
@@ -447,7 +459,7 @@ export default function DashboardPage() {
               const preview = upcomingExams.slice(0, 2).map((x) => x.exam.title);
               const nearest = upcomingExams[0];
               const dLabel = nearest && nearest.d != null
-                ? (nearest.d === 0 ? "오늘" : nearest.d === 1 ? "내일" : `D-${nearest.d}`)
+                ? (nearest.d < 0 ? "응시 가능" : nearest.d === 0 ? "오늘" : nearest.d === 1 ? "내일" : `D-${nearest.d}`)
                 : "";
               const more = upcomingExams.length - 2 > 0 ? ` 외 ${upcomingExams.length - 2}건` : "";
               return (
@@ -455,7 +467,7 @@ export default function DashboardPage() {
                   to="/student/exams"
                   icon={<IconExam />}
                   iconBg="color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1))"
-                  label={`다가오는 시험 ${upcomingExams.length}건${dLabel ? ` · ${dLabel}` : ""}`}
+                  label={`확인할 시험 ${upcomingExams.length}건${dLabel ? ` · ${dLabel}` : ""}`}
                   labelColor="var(--stu-primary)"
                   detail={preview.join(", ") + more}
                 />
@@ -485,7 +497,7 @@ export default function DashboardPage() {
                 to="/student/clinic"
                 icon={<IconClinic />}
                 iconBg="color-mix(in srgb, var(--stu-primary) 16%, var(--stu-surface-1))"
-                label="클리닉 예약이 있어요"
+                label={`클리닉 신청·예약 ${clinicCount}건`}
                 labelColor="var(--stu-primary)"
               />
             )}
@@ -495,10 +507,10 @@ export default function DashboardPage() {
               const more = failedHomeworks.length - 2 > 0 ? ` 외 ${failedHomeworks.length - 2}건` : "";
               return (
                 <TodoRow
-                  to="/student/grades"
+                  to="/student/grades?view=homework"
                   icon={<IconClipboard />}
                   iconBg="var(--stu-warn-bg)"
-                  label={`${wrongCompletionOnly ? "과제 미완료" : "과제 미통과"} ${failedHomeworks.length}건`}
+                  label={`과제 제출 필요 ${failedHomeworks.length}건`}
                   labelColor="var(--stu-warn-text)"
                   detail={preview.join(", ") + more}
                 />
@@ -510,10 +522,10 @@ export default function DashboardPage() {
               const more = failedExams.length - 2 > 0 ? ` 외 ${failedExams.length - 2}건` : "";
               return (
                 <TodoRow
-                  to="/student/exams"
+                  to="/student/grades"
                   icon={<IconExam />}
                   iconBg="var(--stu-danger-bg)"
-                  label={`${wrongCompletionOnly ? "오답 미완료" : "재시험 필요"} ${failedExams.length}건`}
+                  label={`${wrongCompletionOnly ? "오답 미완료" : "시험 확인 필요"} ${failedExams.length}건`}
                   labelColor="var(--stu-danger-text)"
                   detail={preview.join(", ") + more}
                 />
@@ -693,6 +705,10 @@ type ParentDashboardViewProps = {
   notificationCounts: NotificationCounts | undefined;
   countsLoading: boolean;
   countsError: boolean;
+  summaryPending: boolean;
+  summaryError: boolean;
+  todoCount: number;
+  clinicCount: number;
   grades: MyGradesSummary | null;
   sessions: StudentSession[] | null;
   notices: Array<{ id: number; title: string; created_at: string | null; is_urgent?: boolean }>;
@@ -715,6 +731,10 @@ function ParentDashboardView({
   notificationCounts,
   countsLoading,
   countsError,
+  summaryPending,
+  summaryError,
+  todoCount,
+  clinicCount,
   grades,
   sessions,
   notices,
@@ -725,12 +745,7 @@ function ParentDashboardView({
   wrongCompletionOnly,
 }: ParentDashboardViewProps) {
   const supportCount = failedExams.length + failedHomeworks.length;
-  const attentionCount =
-    (replyCount > 0 ? 1 : 0) +
-    (todaySessions.length > 0 ? 1 : 0) +
-    (upcomingExams.length > 0 ? 1 : 0) +
-    (clinicUpcoming ? 1 : 0) +
-    (supportCount > 0 ? 1 : 0);
+  const attentionCount = todoCount;
   const qnaC = notificationCounts?.qna ?? 0;
   const counselC = notificationCounts?.counsel ?? 0;
   const answerTab = qnaC >= counselC ? "qna" : "counsel";
@@ -753,7 +768,7 @@ function ParentDashboardView({
             </p>
           </div>
           <div className={styles.heroPill}>
-            {countsError ? "확인 필요" : countsLoading ? "확인 중" : attentionCount > 0 ? `${attentionCount}건` : "안정"}
+            {summaryError ? "확인 필요" : summaryPending ? "확인 중" : attentionCount > 0 ? `${attentionCount}건` : "정리됨"}
           </div>
         </div>
 
@@ -767,14 +782,16 @@ function ParentDashboardView({
           />
           <ParentMetric
             label="오늘 일정"
-            value={todaySessions.length}
-            unit="개"
+            value={summaryPending || summaryError ? null : todaySessions.length}
+            unit={summaryPending || summaryError ? "" : "개"}
+            placeholder={summaryError ? "확인 필요" : summaryPending ? "확인 중" : undefined}
             tone={todaySessions.length > 0 ? "primary" : "neutral"}
           />
           <ParentMetric
             label="보충 필요"
-            value={supportCount}
-            unit="건"
+            value={summaryPending || summaryError ? null : supportCount}
+            unit={summaryPending || summaryError ? "" : "건"}
+            placeholder={summaryError ? "확인 필요" : summaryPending ? "확인 중" : undefined}
             tone={supportCount > 0 ? "warn" : "neutral"}
           />
         </div>
@@ -850,13 +867,13 @@ function ParentDashboardView({
           )}
           {upcomingExams.length > 0 && (() => {
             const nearest = upcomingExams[0];
-            const dLabel = nearest?.d === 0 ? "오늘" : nearest?.d === 1 ? "내일" : nearest?.d != null ? `D-${nearest.d}` : "";
+            const dLabel = nearest?.d != null && nearest.d < 0 ? "응시 가능" : nearest?.d === 0 ? "오늘" : nearest?.d === 1 ? "내일" : nearest?.d != null ? `D-${nearest.d}` : "";
             return (
               <TodoRow
                 to="/student/exams"
                 icon={<IconExam />}
                 iconBg="color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1))"
-                label={`다가오는 시험 ${upcomingExams.length}건${dLabel ? ` · ${dLabel}` : ""}`}
+                label={`확인할 시험 ${upcomingExams.length}건${dLabel ? ` · ${dLabel}` : ""}`}
                 labelColor="var(--stu-primary)"
                 detail={nearest?.exam.title ?? "시험 일정을 확인해 주세요"}
               />
@@ -877,16 +894,16 @@ function ParentDashboardView({
               to="/student/clinic"
               icon={<IconClinic />}
               iconBg="color-mix(in srgb, var(--stu-success) 14%, var(--stu-surface-1))"
-              label="클리닉 예약이 있어요"
+              label={`클리닉 신청·예약 ${clinicCount}건`}
               labelColor="var(--stu-success-text)"
               detail="보충 일정과 상태를 확인해 주세요"
             />
           )}
-          {attentionCount === 0 && (countsLoading || countsError) ? (
-            <div className={styles.parentAllClear} role={countsError ? "alert" : "status"}>
+          {summaryPending || summaryError ? (
+            <div className={styles.parentAllClear} role={summaryError ? "alert" : "status"}>
               <div>
-                <div className={styles.heroDoneTitle}>{countsError ? "답변 알림을 확인하지 못했어요" : "답변 알림을 확인하고 있어요"}</div>
-                <div className={styles.heroDoneText}>{countsError ? "빈 상태로 단정하지 않고 재시도를 기다립니다." : "조회가 끝나면 정확한 확인 항목을 보여 드립니다."}</div>
+                <div className={styles.heroDoneTitle}>{summaryError ? "확인 항목을 모두 불러오지 못했어요" : "확인 항목을 불러오고 있어요"}</div>
+                <div className={styles.heroDoneText}>{summaryError ? "빈 상태로 단정하지 않고 재시도를 기다립니다." : "조회가 끝나면 정확한 확인 항목을 보여 드립니다."}</div>
               </div>
             </div>
           ) : attentionCount === 0 ? (

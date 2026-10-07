@@ -1,141 +1,87 @@
-/**
- * 시험 홈 탭 — 상태별 그룹핑 (응시가능 / 마감임박 / 완료·마감)
- */
-import { useMemo } from "react";
+/** 시험 목록: 현재 응시 / 채점 대기 / 예정 / 결과 확인을 구분한다. */
 import { Link } from "react-router";
+import { Badge } from "@/shared/ui/ds";
 import EmptyState from "@student/layout/EmptyState";
 import { IconExam, IconChevronRight } from "@student/shared/ui/icons/Icons";
+import { useLearningClock } from "@student/shared/hooks/useLearningClock";
 import type { StudentExam } from "../api/exams.api";
 import styles from "./ExamHomeTab.module.css";
 
-type Props = {
-  items: StudentExam[];
-};
+type ExamState = "urgent" | "available" | "pending" | "upcoming" | "done";
+const SECTIONS: { key: ExamState; title: string }[] = [
+  { key: "urgent", title: "마감 임박" },
+  { key: "available", title: "응시 가능" },
+  { key: "pending", title: "제출 완료 · 채점 대기" },
+  { key: "upcoming", title: "예정 시험" },
+  { key: "done", title: "결과 확인 / 마감" },
+];
 
-type ExamSection = {
-  key: string;
-  title: string;
-  exams: StudentExam[];
-};
+function examState(exam: StudentExam, now: number): ExamState {
+  if (exam.open_at && Date.parse(exam.open_at) > now) return "upcoming";
+  if (exam.submission_pending) return "pending";
+  if (exam.has_result || exam.learning_todo_eligible === false
+    || (exam.close_at && Date.parse(exam.close_at) <= now)) return "done";
+  if (exam.close_at && Date.parse(exam.close_at) - now <= 24 * 60 * 60 * 1000) return "urgent";
+  return "available";
+}
 
-export default function ExamHomeTab({ items }: Props) {
-  const sections = useMemo(() => categorize(items), [items]);
-
+export default function ExamHomeTab({ items }: { items: StudentExam[] }) {
+  const now = useLearningClock();
   if (items.length === 0) {
     return <EmptyState title="시험이 없습니다." description="등록된 시험이 있으면 여기에 표시됩니다." />;
   }
-
   return (
     <div className={styles.root}>
-      {sections.map((section) => {
-        if (section.exams.length === 0) return null;
+      {SECTIONS.map((section) => {
+        const exams = items.filter((exam) => examState(exam, now) === section.key);
+        if (!exams.length) return null;
         return (
-          <div key={section.key}>
+          <section key={section.key} aria-label={section.title}>
             <div className={styles.sectionHeader}>
               <span className={styles.sectionTitle}>{section.title}</span>
-              <span className={`stu-muted ${styles.sectionCount}`}>{section.exams.length}건</span>
+              <span className={`stu-muted ${styles.sectionCount}`}>{exams.length}건</span>
             </div>
             <div data-guide="exam-list" className={styles.examList}>
-              {section.exams.map((e) => (
-                <ExamRow key={e.id} exam={e} />
-              ))}
+              {exams.map((exam) => <ExamRow key={exam.id} exam={exam} state={section.key} now={now} />)}
             </div>
-          </div>
+          </section>
         );
       })}
     </div>
   );
 }
 
-function ExamRow({ exam }: { exam: StudentExam }) {
-  const status = getExamStatus(exam);
-  const variant = getExamPanelVariant(exam);
-  const urgency = getUrgency(exam);
-
-  return (
-    <Link
-      to={`/student/exams/${exam.id}`}
-      className={`stu-panel stu-panel--pressable stu-panel--accent ${variant} ${styles.examRow}`}
-      data-urgency={urgency}
-    >
-      <div className={styles.iconWrap}>
-        <IconExam className={styles.examIcon} />
-      </div>
+function ExamRow({ exam, state, now }: { exam: StudentExam; state: ExamState; now: number }) {
+  const upcoming = state === "upcoming";
+  const closed = !!exam.close_at && Date.parse(exam.close_at) <= now;
+  const status = upcoming ? "시작 전" : state === "pending" ? "채점 대기"
+    : exam.has_result ? (exam.student_results_published === false ? "성적 공개 전" : "채점 완료")
+      : closed ? "마감" : exam.learning_todo_eligible === false ? "기록 확인" : "미응시";
+  const variant = state === "urgent" ? "stu-panel--danger"
+    : state === "available" ? "stu-panel--action" : "stu-panel--complete";
+  const className = `stu-panel stu-panel--accent ${variant} ${styles.examRow}`;
+  const content = (
+    <>
+      <div className={styles.iconWrap}><IconExam className={styles.examIcon} /></div>
       <div className={styles.rowBody}>
         <div className={styles.examTitle}>{exam.title}</div>
         <div className={`stu-muted ${styles.examMeta}`}>
-          {exam.close_at ? `마감: ${new Date(exam.close_at).toLocaleDateString("ko-KR")}` : "마감일 미정"}
+          {upcoming
+            ? `시작: ${new Date(exam.open_at!).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
+            : exam.close_at ? `마감: ${new Date(exam.close_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}` : "마감일 미정"}
         </div>
+        {upcoming && <div className={`stu-muted ${styles.examMeta}`}>시작 시각에 응시할 수 있어요.</div>}
       </div>
-      <span className={`stu-badge stu-badge--${status.variant} stu-badge--sm`}>
-        {status.label}
-      </span>
-      <IconChevronRight className={styles.chevron} />
-    </Link>
+      <Badge tone={state === "urgent" ? "danger" : state === "available" ? "warning" : "neutral"} size="sm">{status}</Badge>
+      {!upcoming && <IconChevronRight className={styles.chevron} />}
+    </>
   );
-}
-
-/* ── Helpers ── */
-
-function categorize(items: StudentExam[]): ExamSection[] {
-  const now = new Date();
-  const available: StudentExam[] = [];
-  const urgent: StudentExam[] = [];
-  const done: StudentExam[] = [];
-
-  for (const e of items) {
-    if (e.has_result || (e.attempt_count ?? 0) > 0) {
-      done.push(e);
-      continue;
-    }
-    const closeAt = e.close_at ? new Date(e.close_at) : null;
-    if (closeAt && closeAt < now) {
-      done.push(e);
-      continue;
-    }
-    if (closeAt) {
-      const hours = (closeAt.getTime() - now.getTime()) / (1000 * 60 * 60);
-      if (hours <= 24) {
-        urgent.push(e);
-        continue;
-      }
-    }
-    available.push(e);
-  }
-
-  return [
-    { key: "urgent", title: "마감 임박", exams: urgent },
-    { key: "available", title: "응시 가능", exams: available },
-    { key: "done", title: "완료 / 마감", exams: done },
-  ];
-}
-
-function getExamPanelVariant(exam: StudentExam): string {
-  if (exam.has_result) return "stu-panel--complete";
-  const now = new Date();
-  const closeAt = exam.close_at ? new Date(exam.close_at) : null;
-  if (!closeAt) return "stu-panel--action";
-  const hours = (closeAt.getTime() - now.getTime()) / (1000 * 60 * 60);
-  if (hours <= 0) return "stu-panel--complete";
-  if (hours <= 24) return "stu-panel--danger";
-  return "stu-panel--action";
-}
-
-function getUrgency(exam: StudentExam): string | undefined {
-  const closeAt = exam.close_at ? new Date(exam.close_at) : null;
-  if (!closeAt) return undefined;
-  const hours = (closeAt.getTime() - new Date().getTime()) / (1000 * 60 * 60);
-  if (hours > 0 && hours <= 6) return "high";
-  return undefined;
-}
-
-function getExamStatus(exam: StudentExam): { label: string; variant: "success" | "danger" | "warn" | "neutral" } {
-  if (exam.has_result && exam.student_results_published === false) {
-    return { label: "성적 공개 전", variant: "neutral" };
-  }
-  if (exam.has_result) return { label: "채점완료", variant: "success" };
-  if ((exam.attempt_count ?? 0) > 0) return { label: "응시완료", variant: "neutral" };
-  const closeAt = exam.close_at ? new Date(exam.close_at) : null;
-  if (closeAt && closeAt < new Date()) return { label: "마감", variant: "danger" };
-  return { label: "미응시", variant: "warn" };
+  // Planned exams expose their schedule, never a link to a not-yet-authorized exam detail.
+  return upcoming ? <div className={className}>{content}</div> : (
+    <Link
+      to={closed || exam.learning_todo_eligible === false ? "/student/grades" : `/student/exams/${exam.id}`}
+      className={`${className} stu-panel--pressable`}
+      data-urgency={state === "urgent" && Date.parse(exam.close_at!) - now <= 6 * 60 * 60 * 1000 ? "high" : undefined}
+    >{content}</Link>
+  );
 }

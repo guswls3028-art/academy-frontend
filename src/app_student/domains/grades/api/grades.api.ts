@@ -47,6 +47,7 @@ export type MyExamGradeSummary = {
   essay_numbering?: "continuous" | "separate";
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
   lecture_active?: boolean;
+  learning_todo_eligible?: boolean;
   grading_status?: "subjective_pending" | null;
   /** Accepted answer exists and grading/publishing is still in progress. */
   submission_pending?: boolean;
@@ -82,6 +83,7 @@ export type MyHomeworkGradeSummary = {
   lecture_chip_label?: string | null;
   recorded_at?: string | null;
   lecture_active?: boolean;
+  learning_todo_eligible?: boolean;
 };
 
 export type MyGradesSummary = {

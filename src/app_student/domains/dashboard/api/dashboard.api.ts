@@ -29,6 +29,7 @@ export type DashboardSession = {
 
 export type StudentDashboardBadges = {
   clinic_upcoming?: boolean;
+  clinic_upcoming_count?: number;
   counseling_upcoming?: boolean;
   [key: string]: unknown;
 };

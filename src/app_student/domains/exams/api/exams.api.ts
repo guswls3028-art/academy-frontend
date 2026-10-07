@@ -20,6 +20,7 @@ export type StudentExam = {
   status?: string;
   has_result?: boolean;
   submission_pending?: boolean;
+  learning_todo_eligible?: boolean;
   attempt_count?: number;
   student_results_published?: boolean;
 };
