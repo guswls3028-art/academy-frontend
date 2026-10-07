@@ -3,7 +3,12 @@ import api, { type ApiRequestConfig } from "@/shared/api/axios";
 export type ResourceCategory = "matchup" | "analysis";
 export type ReaderStatus = "unprepared" | "pending" | "ready" | "failed" | "unsupported";
 export interface ResourceFile { id: string; filename: string; extension: string; size: number; reader_status: ReaderStatus }
-export type ReaderBlock = { kind: "paragraph"; text: string } | { kind: "image"; url: string; width: number; height: number };
+export type ReaderBlock = { kind: "paragraph"; text: string } | { kind: "image"; url: string; width: number; height: number; text?: string };
+export function hasPageImages(blocks?: ReaderBlock[], pages?: number): blocks is Extract<ReaderBlock, { kind: "image" }>[] {
+  return typeof pages === "number" && !!blocks?.length && blocks.length === pages && pages <= 100 && blocks.every((block) =>
+    block.kind === "image" && !!block.url && Number.isFinite(block.width) && block.width > 0
+    && Number.isFinite(block.height) && block.height > 0 && Number.isFinite(block.height / block.width));
+}
 export interface ResourceReader { status: ReaderStatus; message?: string; mode?: "article" | "pages"; blocks?: ReaderBlock[]; pdf_url?: string; pages?: number }
 export async function readResourceFile(id: string, preview = false): Promise<ResourceReader> {
   return (await api.get<ResourceReader>(`/landing-public/resource-files/${id}/reader/`, { skipAuth: !preview } as ApiRequestConfig)).data;

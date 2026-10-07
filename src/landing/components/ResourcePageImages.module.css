@@ -1,0 +1,23 @@
+.document { min-width: 0; }
+
+.document .pages { width: 100%; }
+
+.surface {
+  position: relative;
+  width: 100%;
+  height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(1, 7, 18, 0.26);
+}
+
+.image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}

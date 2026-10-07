@@ -24,6 +24,7 @@ function pdfBytes() {
 // Native browser downloads do not reliably use Page.route interception.
 // Serve the generated fixture over real loopback HTTP and verify its bytes.
 let documentUrl = "";
+let nativePages = false; let pageImageFailure = false; let readerRequests = 0;
 type ResourceScenario = { readerFailure?: boolean; readerPending?: boolean; empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string };
 let resourceScenario: ResourceScenario = { unavailable: false };
 const uploaded = new Map<string, { file: typeof resource.files[number]; bytes: Buffer }>();
@@ -116,6 +117,7 @@ const documentServer = createServer((request, response) => {
     if (url.pathname.endsWith("/resources/capabilities/")) { body = { can_publish: Boolean(resourceScenario.publisher) }; status = 200; }
     else if (url.pathname.endsWith("/resources/901/")) { body = resourceScenario.post || resource; status = 200; }
     else if (/\/resource-files\/[^/]+\/reader\/$/.test(url.pathname)) {
+      readerRequests += 1;
       const id = url.pathname.split("/").filter(Boolean).at(-2)!;
       const file = uploaded.get(id)?.file || resource.files.find((item) => item.id === id);
       if (request.method === "POST" && resourceScenario.readerFailure) {
@@ -127,6 +129,8 @@ const documentServer = createServer((request, response) => {
       } else if (resourceScenario.readerFailure) body = { status: "failed", message: "본문을 준비하지 못했습니다. 원본은 보존됩니다." };
       else body = file?.reader_status === "unsupported" ? { status: "unsupported" }
         : { status: "ready", mode: "pages", blocks: [], pdf_url: `${documentUrl}?reader=${id}` }; status = 200;
+      if (nativePages && (body as { status?: string }).status === "ready") body = { status: "ready", mode: "pages", pages: 3, pdf_url: documentUrl,
+        blocks: [1, 2, 3].map((number) => ({ kind: "image", url: `${documentUrl.replace(".pdf", ".png")}?page=${number}&signature=${readerRequests}`, width: 300, height: 400, text: `QA PAGE ${number}` })) };
     }
     else if (url.pathname.includes("/resource-files/")) { body = { url: `${documentUrl}?file=${url.pathname.split("/").filter(Boolean).at(-1)}`, expires_in: 300 }; status = 200; }
     else if (url.pathname.endsWith("/resources/")) {
@@ -141,6 +145,11 @@ const documentServer = createServer((request, response) => {
       }
     }
     response.writeHead(status, { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" }); response.end(JSON.stringify(body)); return;
+  }
+  if (url.pathname === "/qa-resource.png") {
+    if (pageImageFailure) { pageImageFailure = false; response.writeHead(403, cors); response.end(); return; }
+    const bytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+    response.writeHead(200, { ...cors, "Content-Type": "image/png", "Cache-Control": "no-store" }); response.end(bytes); return;
   }
   if (url.pathname !== "/qa-resource.pdf") { response.writeHead(404); response.end(); return; }
   // Reader PDFs are derived output; only original-download URLs return uploaded source bytes.
@@ -163,6 +172,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => { await new Promise<void>((resolve, reject) => documentServer.close((error) => error ? reject(error) : resolve())); });
 
 async function prepare(page: Page, options: { readerFailure?: boolean; readerPending?: boolean; empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string } = {}) {
+  nativePages = false; pageImageFailure = false; readerRequests = 0;
   await page.addInitScript((tenant) => { localStorage.setItem("tenant_code", tenant); sessionStorage.setItem("tenantCode", tenant); }, options.tenant || "godmin");
   resourceScenario = { ...options, unavailable: Boolean(options.failOnce) }; uploadBody = Buffer.alloc(0); createPayloads.length = 0; uploaded.clear(); uploadCount = 0; deleteCount = 0; cleaned.length = 0; patchPayloads.length = 0;
   if (options.publisher) {
@@ -195,6 +205,54 @@ async function prepare(page: Page, options: { readerFailure?: boolean; readerPen
 }
 
 for (const width of [1366, 390]) {
+  test(`native whole-document reading without modern PDF APIs at ${width}px`, async ({ page }, testInfo) => {
+    await prepare(page); nativePages = true;
+    await page.clock.install();
+    await page.setViewportSize({ width, height: 900 });
+    await page.addInitScript(() => {
+      for (const name of ["getOrInsert", "getOrInsertComputed"]) Reflect.deleteProperty(Map.prototype, name);
+      Reflect.deleteProperty(Promise, "withResolvers");
+      Reflect.deleteProperty(Uint8Array.prototype, "toBase64");
+      Reflect.deleteProperty(AbortSignal, "any");
+      Reflect.deleteProperty(globalThis, "Float16Array");
+    });
+    const workerRequests: string[] = [];
+    page.on("request", (request) => { if (/pdf(?:\.worker|js)/.test(request.url())) workerRequests.push(request.url()); });
+    await page.goto(`${BASE}/landing/resources/901`);
+    const reader = page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true });
+    await reader.scrollIntoViewIfNeeded();
+    await expect(reader.getByTestId("resource-page-image")).toHaveCount(3);
+    for (let number = 0; number < 3; number += 1) {
+      const imagePage = reader.getByTestId("resource-page-image").nth(number);
+      await imagePage.scrollIntoViewIfNeeded();
+      await expect(imagePage).toHaveAttribute("data-render-status", "ready");
+      expect(await imagePage.locator("img").evaluate((image) => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)).toBe(true);
+      await expect(imagePage).toContainText(`QA PAGE ${number + 1}`);
+    }
+    await reader.scrollIntoViewIfNeeded();
+    const normalWidth = await reader.getByTestId("resource-page-image").first().evaluate((element) => element.getBoundingClientRect().width);
+    await reader.getByRole("button", { name: "문서 확대", exact: true }).click();
+    await expect(reader.locator("output")).toHaveText("125%");
+    await expect.poll(async () => reader.getByTestId("resource-page-image").first().evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(normalWidth * 1.2);
+    const beforeRenewal = readerRequests;
+    await page.clock.fastForward(241_000);
+    await expect.poll(() => readerRequests).toBeGreaterThan(beforeRenewal);
+    await expect(reader.locator("output")).toHaveText("125%");
+    const before = readerRequests;
+    pageImageFailure = true;
+    await reader.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+    await expect.poll(() => readerRequests).toBeGreaterThan(before + 1);
+    const first = reader.getByTestId("resource-page-image").first();
+    await first.scrollIntoViewIfNeeded();
+    await expect(first).toHaveAttribute("data-render-status", "ready");
+    await expect(reader.locator("output")).toHaveText("125%");
+    expect(workerRequests).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await page.reload(); await reader.scrollIntoViewIfNeeded();
+    await expect(reader.getByTestId("resource-page-image").first()).toHaveAttribute("data-render-status", "ready");
+    await page.screenshot({ path: testInfo.outputPath(`native-resource-${width}.png`), fullPage: false });
+  });
+
   test(`anonymous home → two categories → detail → PDF canvas and download at ${width}px`, async ({ page }, testInfo) => {
     await prepare(page); await page.setViewportSize({ width, height: 900 });
     // Safari/in-app browsers can load modules without the newer Map upsert APIs.

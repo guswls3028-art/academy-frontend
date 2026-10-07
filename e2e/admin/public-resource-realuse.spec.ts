@@ -75,7 +75,7 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
         await expect(page.getByRole("textbox", { name: "본문", exact: true })).toHaveValue(index ? "로그인 없이 읽는 첨부 보고서입니다." : "");
         const previewDocument = preview.getByRole("region", { name: "공개 보고서.PDF 본문", exact: true });
         await previewDocument.scrollIntoViewIfNeeded();
-        await expect(previewDocument.getByTestId("matchup-pdf-page")).toHaveCount(3, { timeout: 60_000 });
+        await expect(previewDocument.getByTestId("resource-page-image")).toHaveCount(3, { timeout: 60_000 });
         const published = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/landing-public/resources/");
         await page.getByRole("button", { name: "게시하기", exact: true }).click();
         const response = await published; expect(response.status()).toBe(201);
@@ -102,11 +102,12 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
         await expect(visitor.getByRole("button", { name: "PDF 미리보기", exact: true })).toHaveCount(0);
         const pdf = visitor.getByRole("region", { name: "공개 보고서.PDF 본문", exact: true });
         await pdf.scrollIntoViewIfNeeded();
-        await expect(pdf.getByTestId("matchup-pdf-page")).toHaveCount(3, { timeout: 60_000 });
+        await expect(pdf.getByTestId("resource-page-image")).toHaveCount(3, { timeout: 60_000 });
         for (let pageIndex = 0; pageIndex < 3; pageIndex += 1) {
-          const documentPage = pdf.getByTestId("matchup-pdf-page").nth(pageIndex);
+          const documentPage = pdf.getByTestId("resource-page-image").nth(pageIndex);
           await documentPage.scrollIntoViewIfNeeded();
           await expect(documentPage).toHaveAttribute("data-render-status", "ready", { timeout: 60_000 });
+          expect(await documentPage.locator("img").evaluate((image) => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)).toBe(true);
           await expect(pdf).toContainText(`QA PUBLIC RESOURCE PAGE ${pageIndex + 1} OF 3`);
         }
         await pdf.getByRole("button", { name: "문서 확대", exact: true }).click();
@@ -115,16 +116,16 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
         await pdf.getByRole("button", { name: "문서 축소", exact: true }).click();
         const hangul = visitor.getByRole("region", { name: "한글 자료.hwpx 본문", exact: true });
         await hangul.scrollIntoViewIfNeeded();
-        await expect(hangul.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+        await expect(hangul.locator('[data-testid="resource-page-image"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
         // PDF text layers may omit spaces while the original page remains correctly laid out.
         await expect.poll(async () => (await hangul.textContent())?.replace(/\s/g, "")).toContain("산화와환원");
         await expect(hangul).toContainText("85%");
         const equation = visitor.getByRole("region", { name: "한글 수식.hwp 본문", exact: true });
         await equation.scrollIntoViewIfNeeded();
-        await expect(equation.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+        await expect(equation.locator('[data-testid="resource-page-image"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
         const spreadsheet = visitor.getByRole("region", { name: "분석표.xlsx 본문", exact: true });
         await spreadsheet.scrollIntoViewIfNeeded();
-        await expect(spreadsheet.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+        await expect(spreadsheet.locator('[data-testid="resource-page-image"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
         await expect(spreadsheet).toContainText("QA analysis");
         await visitor.getByText("원본 파일 · 5개", { exact: true }).click();
         for (const original of originals) {
