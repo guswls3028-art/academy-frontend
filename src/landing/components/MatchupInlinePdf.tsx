@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import "core-js/actual/map/get-or-insert-computed";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import styles from "./MatchupInlinePdf.module.css";
 
 type MatchupInlinePdfProps = {
@@ -177,6 +178,8 @@ export default function MatchupInlinePdf({ url, title, onRetry, accessibleText, 
       setPdf(null);
       setError(false);
       try {
+        // The display's Map upsert is polyfilled above; the worker has its own
+        // runtime and uses the matching-version compatibility build.
         const pdfjs = await import("pdfjs-dist");
         // Navigation may finish while this lazy import is loading. Do not start
         // a detached worker/fetch after its owning reader has unmounted.
