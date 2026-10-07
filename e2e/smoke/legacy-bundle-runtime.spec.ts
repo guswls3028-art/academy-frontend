@@ -300,11 +300,11 @@ test("390px legacy parent selects and switches children, then reloads the same s
   const switcher = page.getByRole("tablist", { name: "자녀 선택" });
   await switcher.getByRole("tab", { name: "첫째 학생" }).click();
   await expect(page.getByRole("heading", { name: "첫째 학생 상태를 한눈에 볼게요" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "우리 아이 요약" }).getByText("안정", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "우리 아이 요약" }).getByText("정리됨", { exact: true })).toBeVisible();
   await expect(switcher.getByRole("tab", { name: "첫째 학생" })).toHaveAttribute("aria-selected", "true");
   await switcher.getByRole("tab", { name: "둘째 학생" }).click();
   await expect(page.getByRole("heading", { name: "둘째 학생 상태를 한눈에 볼게요" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "우리 아이 요약" }).getByText("안정", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "우리 아이 요약" }).getByText("정리됨", { exact: true })).toBeVisible();
   await expect(switcher.getByRole("tab", { name: "첫째 학생" })).toHaveAttribute("aria-selected", "false");
   expect(api.studentScopes).toContain("901");
   expect(api.studentScopes).toContain("902");
@@ -312,7 +312,7 @@ test("390px legacy parent selects and switches children, then reloads the same s
   const beforeReload = api.studentScopes.length;
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "둘째 학생 상태를 한눈에 볼게요" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "우리 아이 요약" }).getByText("안정", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "우리 아이 요약" }).getByText("정리됨", { exact: true })).toBeVisible();
   await expect(switcher.getByRole("tab", { name: "둘째 학생" })).toHaveAttribute("aria-selected", "true");
   expect(api.studentScopes.slice(beforeReload).length).toBeGreaterThan(0);
   expect(api.studentScopes.slice(beforeReload).every((id) => id === "902")).toBe(true);
