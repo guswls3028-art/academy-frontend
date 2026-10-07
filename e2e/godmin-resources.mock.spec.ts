@@ -217,7 +217,7 @@ for (const width of [1366, 390]) {
       Reflect.deleteProperty(globalThis, "Float16Array");
     });
     const workerRequests: string[] = [];
-    page.on("request", (request) => { if (/pdf(?:\.worker|js)/.test(request.url())) workerRequests.push(request.url()); });
+    page.on("request", (request) => { if (/pdf\.worker/.test(request.url())) workerRequests.push(request.url()); });
     await page.goto(`${BASE}/landing/resources/901`);
     const reader = page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true });
     await reader.scrollIntoViewIfNeeded();
@@ -246,6 +246,7 @@ for (const width of [1366, 390]) {
     await first.scrollIntoViewIfNeeded();
     await expect(first).toHaveAttribute("data-render-status", "ready");
     await expect(reader.locator("output")).toHaveText("125%");
+    await expect(reader.locator("canvas")).toHaveCount(0);
     expect(workerRequests).toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
     await page.reload(); await reader.scrollIntoViewIfNeeded();
