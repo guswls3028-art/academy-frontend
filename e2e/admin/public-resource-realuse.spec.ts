@@ -114,6 +114,15 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
         await expect(pdf.locator("output")).toHaveText("125%");
         await assertNoHorizontalOverflow(visitor);
         await pdf.getByRole("button", { name: "문서 축소", exact: true }).click();
+        await pdf.getByRole("button", { name: "전체화면 보기", exact: true }).click();
+        const viewer = visitor.getByRole("dialog");
+        await expect(viewer.getByTestId("resource-viewer-page")).toHaveAttribute("data-render-status", "ready", { timeout: 60_000 });
+        await viewer.getByRole("button", { name: "다음 쪽", exact: true }).click();
+        await expect(viewer.getByTestId("resource-viewer-page")).toHaveAttribute("data-page-number", "2");
+        await expect(viewer.getByTestId("resource-viewer-page")).toHaveAttribute("data-render-status", "ready", { timeout: 60_000 });
+        await expect(viewer).toContainText("QA PUBLIC RESOURCE PAGE 2 OF 3");
+        await viewer.getByRole("button", { name: "전체화면 닫기", exact: true }).click();
+        await expect(viewer).toHaveCount(0);
         const hangul = visitor.getByRole("region", { name: "한글 자료.hwpx 본문", exact: true });
         await hangul.scrollIntoViewIfNeeded();
         await expect(hangul.locator('[data-testid="resource-page-image"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });

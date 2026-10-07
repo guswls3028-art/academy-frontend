@@ -97,6 +97,7 @@
 .readerTools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 13px; color: #52695f; }
 .readerTools > span { margin-right: auto; }
 .readerTools output { min-width: 40px; text-align: center; }
+.readerTools .fullscreenButton { display: inline-flex; align-items: center; gap: 7px; background: #e5f3ee; color: #235847; border-color: #95bcad; font-weight: 600; }
 .documentViewport { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
 .originals { padding: 22px 0; margin-top: 48px; border-top: 1px solid #dce8e2; }
 .originals summary { cursor: pointer; font-size: 14px; padding: 10px 0; }

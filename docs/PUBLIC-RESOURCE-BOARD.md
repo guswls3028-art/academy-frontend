@@ -28,6 +28,30 @@ Only nearby pages mount images, releasing offscreen images to bound phone memory
 Zoom spans 100–300% with keyboard-accessible horizontal scrolling. Extracted
 per-page text is available to assistive technology.
 
+Prepared page documents also offer `전체화면 보기`. It opens a paged native-image
+viewer over the current article, filling the available phone width without
+depending on the browser Fullscreen API or an external viewer. Swipe left/right
+at 100%, use previous/next or select a page; at 125–300% touch scroll pans the
+document instead of turning pages. The percentage control restores fit. Desktop
+fits the whole page at 100%; phone landscape preserves full-width reading with
+vertical scrolling. Controls remain accessible above safe-area insets, and
+motion respects reduced-motion settings. Only the selected full-screen page
+mounts an image. Extracted page text remains accessible.
+
+Close, Escape and browser Back return to the original article position and
+inline zoom; focus is restored to the opening action. Focus stays in the modal
+while the background is hidden from assistive technology and locked against
+scrolling. The existing reader owns permissions, link renewal and retry: fresh
+URLs preserve the selected viewer page and zoom, and visible failures retain
+close/retry controls. No uploads, new data, permissions or third-party sharing
+are introduced. Old PDF-only rollout payloads retain their inline fallback;
+the full-screen entry appears when native page images are ready.
+
+Focused desktop/390px checks cover first/last page boundaries, page selection,
+swipe-versus-pan, rotation, actual enlargement, URL renewal and link-error
+recovery, focus/scroll restoration, Back and article reload. Same-artifact
+development real-use opens the uploaded report in the viewer before promotion.
+
 Fresh five-minute image links renew after four minutes and when a background tab
 returns. Image failure refreshes links with throttling and offers explicit retry;
 same-link retry also remounts images. Renewal/retry preserves page layout and zoom.
@@ -37,7 +61,8 @@ declaring old-device support. A Map polyfill alone did not cover other recent
 PDFJS APIs, so the previous browser-PDF path is replaced for prepared reports.
 Desktop/390px tests remove Map upsert, Promise.withResolvers, Uint8Array.toBase64,
 AbortSignal.any and Float16Array and verify native page decoding, complete reading,
-zoom, reload and link-failure recovery without requesting PDFJS/worker chunks.
+zoom, reload and link-failure recovery without requesting a PDF worker or rendering
+a canvas. A shared vendor module may still contain unused PDF-library code.
 
 HWP/HWPX and Office documents automatically display their original pages, including
 tables, images and formulas, through the same native page reader. There is no
