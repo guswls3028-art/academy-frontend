@@ -29,12 +29,17 @@ Zoom spans 100–300% with keyboard-accessible horizontal scrolling. Extracted
 per-page text is available to assistive technology.
 
 Prepared page documents also offer `전체화면 보기`. It opens a paged native-image
-viewer over the current article, filling the available phone width without
+viewer over the current article, centering the whole page within the available
+screen at 100% in both portrait and landscape, with no document scrolling. It fits
+both dimensions again when the screen rotates, without
 depending on the browser Fullscreen API or an external viewer. Swipe left/right
 at 100%, use previous/next or select a page; at 125–300% touch scroll pans the
-document instead of turning pages. The percentage control restores fit. Desktop
-fits the whole page at 100%; phone landscape preserves full-width reading with
-vertical scrolling. Controls remain accessible above safe-area insets, and
+document instead of turning pages. The percentage control restores screen fit
+and clears both scroll offsets. Header and footer overlay the page and fade away
+2.2 seconds after a ready page or touch interaction; tapping the page toggles
+them. Keyboard navigation keeps them visible and restores modal focus if touch
+or rotation has blurred it to the body, while loading and errors retain
+visible exit/retry controls. Controls remain accessible above safe-area insets, and
 motion respects reduced-motion settings. Only the selected full-screen page
 mounts an image. Extracted page text remains accessible.
 
@@ -48,7 +53,8 @@ are introduced. Old PDF-only rollout payloads retain their inline fallback;
 the full-screen entry appears when native page images are ready.
 
 Focused desktop/390px checks cover first/last page boundaries, page selection,
-swipe-versus-pan, rotation, actual enlargement, URL renewal and link-error
+swipe-versus-pan, centered scroll-free fit after rotation, automatic control hiding,
+tap/keyboard recovery, actual enlargement, URL renewal and link-error
 recovery, focus/scroll restoration, Back and article reload. Same-artifact
 development real-use opens the uploaded report in the viewer before promotion.
 
