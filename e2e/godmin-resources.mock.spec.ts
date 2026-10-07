@@ -197,6 +197,12 @@ async function prepare(page: Page, options: { readerFailure?: boolean; readerPen
 for (const width of [1366, 390]) {
   test(`anonymous home → two categories → detail → PDF canvas and download at ${width}px`, async ({ page }, testInfo) => {
     await prepare(page); await page.setViewportSize({ width, height: 900 });
+    // Safari/in-app browsers can load modules without the newer Map upsert APIs.
+    // Exercise PDF rendering, zoom and reload with those APIs absent at startup.
+    await page.addInitScript(() => {
+      Reflect.deleteProperty(Map.prototype, "getOrInsert");
+      Reflect.deleteProperty(Map.prototype, "getOrInsertComputed");
+    });
     await page.goto(`${BASE}/landing`);
     await page.getByRole("link", { name: "매치업 · 분석자료", exact: true }).click();
     await expect(page.getByRole("heading", { name: "게시판", exact: true })).toBeVisible();

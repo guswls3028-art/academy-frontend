@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import pdfWorkerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import styles from "./MatchupInlinePdf.module.css";
 
 type MatchupInlinePdfProps = {
@@ -171,13 +171,15 @@ export default function MatchupInlinePdf({ url, title, onRetry, accessibleText, 
 
   useEffect(() => {
     let disposed = false;
-    let loadingTask: ReturnType<(typeof import("pdfjs-dist"))["getDocument"]> | null = null;
+    let loadingTask: ReturnType<(typeof import("pdfjs-dist/legacy/build/pdf.mjs"))["getDocument"]> | null = null;
 
     const load = async () => {
       setPdf(null);
       setError(false);
       try {
-        const pdfjs = await import("pdfjs-dist");
+        // Module support does not imply support for PDFJS's newest runtime APIs.
+        // Keep the official compatibility display/worker pair for Safari and in-app readers.
+        const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
         // Navigation may finish while this lazy import is loading. Do not start
         // a detached worker/fetch after its owning reader has unmounted.
         if (disposed) return;
