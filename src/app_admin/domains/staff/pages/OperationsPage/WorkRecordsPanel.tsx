@@ -62,13 +62,13 @@ export default function WorkRecordsPanel() {
 
   const rows = listQ.data ?? [];
   const duplicateKeys = rows.reduce((counts, record) => {
-    const key = [record.date, record.start_time, record.end_time ?? "OPEN", record.work_type].join("|");
+    const key = [record.date, record.start_time, record.end_date ?? "", record.end_time ?? "OPEN", record.work_type].join("|");
     counts.set(key, (counts.get(key) ?? 0) + 1);
     return counts;
   }, new Map<string, number>());
   const risksFor = (record: WorkRecord) => {
     const risks: string[] = [];
-    const key = [record.date, record.start_time, record.end_time ?? "OPEN", record.work_type].join("|");
+    const key = [record.date, record.start_time, record.end_date ?? "", record.end_time ?? "OPEN", record.work_type].join("|");
     if ((duplicateKeys.get(key) ?? 0) > 1) risks.push("중복 의심");
     if (!record.end_time) risks.push("미퇴근");
     if (record.end_time && (record.work_hours == null || record.amount == null)) {
@@ -181,6 +181,7 @@ export default function WorkRecordsPanel() {
                     </div>
                     <div className="staff-helper mt-1">
                       {hhmmText(r.start_time)} ~ {hhmmText(r.end_time, "근무 중")}
+                      {r.end_date && r.end_date !== r.date && <span className="block text-xs text-[var(--color-text-muted)]">{r.end_date} 퇴근</span>}
                       {` · 휴게 ${(r.break_minutes ?? 0) + (r.meal_minutes ?? 0)}분`}
                     </div>
                     <div className="staff-helper mt-1 tabular-nums">

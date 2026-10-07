@@ -51,9 +51,11 @@ function rowIssues(row: StaffPayrollOverviewRow) {
   if (row.abnormal_long_work_record_count) issues.push(`12시간 이상 ${row.abnormal_long_work_record_count}건`);
   if (row.manually_edited_work_record_count) issues.push(`관리자 수정 ${row.manually_edited_work_record_count}건`);
   if (row.pending_expense_count) issues.push(`비용 대기 ${row.pending_expense_count}건`);
-  if (row.is_active && row.assigned_work_type_count === 0) issues.push("시급태그 없음");
-  if (row.pay_type === "MONTHLY") issues.push("월급 수동 확인");
-  if (row.settlement_status === "RECONCILIATION_REQUIRED") issues.push("마감·스냅샷 불일치");
+  if (row.settlement_status !== "CLOSED") {
+    if (row.is_active && row.assigned_work_type_count === 0) issues.push("시급태그 없음");
+    if (row.pay_type === "MONTHLY") issues.push("월급 수동 확인");
+  }
+  if (row.settlement_status === "RECONCILIATION_REQUIRED") issues.push("마감 금액·기록 대사 필요");
   return issues;
 }
 
@@ -204,9 +206,9 @@ export function StaffPayrollOverview({ year, month }: Props) {
     <div ref={rootRef} className={styles.root} data-testid="staff-payroll-overview">
       <header className={styles.header}>
         <div>
-          <span className={styles.eyebrow}>전체 현황</span>
+          <span className={styles.eyebrow}>대상 {totals.staff_count}명 · 마감 {totals.closed_count}명</span>
           <h2 ref={headingRef} tabIndex={-1}>{year}년 {month}월 급여판</h2>
-          <p>직원을 고르기 전에 근무·비용·마감 상태를 한 번에 확인합니다.</p>
+          <p>전체 직원 합계입니다. 검색·필터는 아래 직원 목록에만 적용됩니다.</p>
         </div>
         <div className={styles.monthControl} aria-label="급여 현황 월 선택">
           <Button className="staff-payroll-action" intent="ghost" size="sm" leftIcon={<ChevronLeft size={16} />} aria-label="이전 달" onClick={() => goMonth(-1)}>
@@ -221,10 +223,19 @@ export function StaffPayrollOverview({ year, month }: Props) {
 
       <section className={styles.ledgerSummary} aria-label="월 급여 합계">
         <div className={styles.headlineMetric} data-testid="payroll-headline-metric">
+          <span>근무 공제 전</span>
+          <strong>{totals.work_amount.toLocaleString()}<small>원</small></strong>
+          <p>근무 {totals.work_hours.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}h</p>
+        </div>
+        <div className={styles.headlineMetric} data-testid="payroll-headline-metric">
+          <span>공제 후 근무액 참고</span>
+          <strong>{totals.reference_net_work_amount.toLocaleString()}<small>원</small></strong>
+          <p>참고 공제 −{totals.reference_deduction_total.toLocaleString()}원 (3.3%)</p>
+        </div>
+        <div className={styles.headlineMetric} data-testid="payroll-headline-metric">
           <span>최종 이체 참고 총액</span>
           <strong>{totals.reference_transfer_amount.toLocaleString()}<small>원</small></strong>
-          <p className={styles.summaryFormula}>공제 전 {totals.work_amount.toLocaleString()}원 − 참고 공제 {totals.reference_deduction_total.toLocaleString()}원 + 승인 환급 {totals.approved_expense_amount.toLocaleString()}원 = 이체 참고액 {totals.reference_transfer_amount.toLocaleString()}원</p>
-          <p>대상 {totals.staff_count}명 · 마감 {totals.closed_count}명 · 근무 {totals.work_hours.toFixed(1)}h</p>
+          <p>공제 후 참고액 + 승인 환급 {totals.approved_expense_amount.toLocaleString()}원</p>
         </div>
         <div className={styles.headlineMetric} data-warning={reviewRows.length > 0 ? "true" : undefined} data-testid="payroll-headline-metric">
           <span>확인 필요 인원</span>
@@ -232,6 +243,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
           <p>마감 차단 {totals.needs_review_count}명 · 기록 점검 {totals.advisory_issue_count}건 · {totals.pending_expense_amount ? `비용 대기 ${totals.pending_expense_amount.toLocaleString()}원` : "비용 대기 없음"}</p>
         </div>
       </section>
+      <p className={styles.referenceNote}>전체 직원 합계 · 공제 후 금액은 3.3% 적용 시 참고값입니다. 확정 세후 급여가 아니며, 실제 공제액을 확인한 뒤 지급하세요.</p>
 
       {reviewRows.length > 0 && (
         <div className={styles.attention} role="status">
@@ -281,9 +293,10 @@ export function StaffPayrollOverview({ year, month }: Props) {
               <thead>
                 <tr>
                   <th>직원</th>
-                  <th>근무 유형</th>
-                  <th>근무시간</th>
+                  <th>근무</th>
                   <th>근무 공제 전</th>
+                  <th>참고 공제 3.3%</th>
+                  <th>공제 후 참고</th>
                   <th>승인 환급</th>
                   <th>최종 이체 참고</th>
                   <th>정산 상태</th>
@@ -301,14 +314,16 @@ export function StaffPayrollOverview({ year, month }: Props) {
                         </button>
                       </td>
                       <td>
+                        <strong className={styles.number}>{row.work_hours.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}h</strong>
                         <div className={styles.rowTypes}>
                           {row.work_type_breakdown.map((item, index) => (
-                            <span key={item.work_type_id ?? `unknown-${index}`} style={{ "--work-color": item.color ?? undefined } as CSSProperties}>{item.work_type_name ?? "근무유형 미지정"} {item.work_hours.toFixed(1)}h</span>
+                            <span key={item.work_type_id ?? `unknown-${index}`} style={{ "--work-color": item.color ?? undefined } as CSSProperties}>{item.work_type_name ?? "근무유형 미지정"} {item.work_hours.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}h</span>
                           ))}
                         </div>
                       </td>
-                      <td className={styles.number}>{row.work_hours.toFixed(1)}h</td>
                       <td className={styles.number}>{row.work_amount.toLocaleString()}원</td>
+                      <td className={styles.number}>−{row.reference_deduction_total.toLocaleString()}원</td>
+                      <td className={styles.number}>{row.reference_net_work_amount.toLocaleString()}원</td>
                       <td className={styles.number}>
                         {row.approved_expense_amount.toLocaleString()}원
                         {row.pending_expense_count > 0 && <span className={styles.pending}>대기 {row.pending_expense_amount.toLocaleString()}원</span>}
@@ -337,17 +352,19 @@ export function StaffPayrollOverview({ year, month }: Props) {
                       {issues.length > 0 && <span className={styles.issueText}>{issues.join(" · ")}</span>}
                     </span>
                     <span className={styles.mobileAmount}>
-                      <small>최종 이체 참고</small>
+                      <small>최종 이체 참고 · 3.3% 적용 시</small>
                       <strong>{row.reference_transfer_amount.toLocaleString()}원</strong>
                       <Badge variant="soft" tone={statusTone(row.settlement_status)}>{STATUS_LABEL[row.settlement_status]}</Badge>
                     </span>
                   </span>
                   <span className={styles.mobileWork}>
-                    <span className={styles.rowTypes}>{row.work_type_breakdown.map((item, index) => <span key={item.work_type_id ?? `unknown-${index}`} style={{ "--work-color": item.color ?? undefined } as CSSProperties}>{item.work_type_name ?? "근무유형 미지정"} {item.work_hours.toFixed(1)}h</span>)}</span>
-                    <strong>{row.work_hours.toFixed(1)}h</strong>
+                    <span className={styles.rowTypes}>{row.work_type_breakdown.map((item, index) => <span key={item.work_type_id ?? `unknown-${index}`} style={{ "--work-color": item.color ?? undefined } as CSSProperties}>{item.work_type_name ?? "근무유형 미지정"} {item.work_hours.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}h</span>)}</span>
+                    <strong>{row.work_hours.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}h</strong>
                   </span>
                   <span className={styles.mobileMeta}>
                     <span><small>공제 전</small><strong>{row.work_amount.toLocaleString()}원</strong></span>
+                    <span><small>참고 공제 3.3%</small><strong>−{row.reference_deduction_total.toLocaleString()}원</strong></span>
+                    <span><small>공제 후 참고</small><strong>{row.reference_net_work_amount.toLocaleString()}원</strong></span>
                     <span>
                       <small>승인 환급</small><strong>{row.approved_expense_amount.toLocaleString()}원</strong>
                       {row.pending_expense_count > 0 && <em>대기 {row.pending_expense_amount.toLocaleString()}원</em>}
@@ -366,7 +383,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
           <div>
             {totals.work_type_breakdown.map((item, index) => (
               <span key={item.work_type_id ?? `unknown-${index}`} style={{ "--work-color": item.color ?? undefined } as CSSProperties}>
-                {item.work_type_name ?? "근무유형 미지정"} <b>{item.work_hours.toFixed(1)}h</b>
+                {item.work_type_name ?? "근무유형 미지정"} <b>{item.work_hours.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}h</b>
               </span>
             ))}
           </div>

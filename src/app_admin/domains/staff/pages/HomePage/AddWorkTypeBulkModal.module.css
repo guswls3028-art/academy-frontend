@@ -15,3 +15,8 @@
 .workTypeButton:disabled {
   opacity: 0.5;
 }
+
+.workTypeButton[aria-pressed="true"] {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 2px;
+}

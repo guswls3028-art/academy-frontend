@@ -2,7 +2,7 @@
 // 선택한 직원 여러 명에게 시급 태그를 한 번에 추가
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import {
   AdminModal,
   ModalHeader,
@@ -11,8 +11,9 @@ import {
 } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { fetchWorkTypes, createStaffWorkType, type WorkType } from "../../api/staffWorkType.api";
+import { fetchWorkTypes, createStaffWorkType } from "../../api/staffWorkType.api";
 import { staffQueryKeys } from "../../queryKeys";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 import { contrastTextColor } from "@/shared/ui/domain/constants";
 import styles from "./AddWorkTypeBulkModal.module.css";
@@ -20,11 +21,14 @@ import styles from "./AddWorkTypeBulkModal.module.css";
 type Props = {
   open: boolean;
   onClose: () => void;
-  staffIds: number[];
+  staffs: { id: number; name: string }[];
 };
 
-export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props) {
+export default function AddWorkTypeBulkModal({ open, onClose, staffs }: Props) {
   const qc = useQueryClient();
+  const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
+  const [failures, setFailures] = useState<{ id: number; name: string; reason: string }[] | null>(null);
+  const [completedCount, setCompletedCount] = useState(0);
   const workTypesQ = useQuery({
     queryKey: staffQueryKeys.staffsWorkTypes,
     queryFn: () => fetchWorkTypes({ is_active: true }),
@@ -35,13 +39,14 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
   const addBulkM = useMutation({
     mutationFn: async ({ work_type_id }: { work_type_id: number }) => {
       let added = 0;
-      let failed = 0;
-      for (const staffId of staffIds) {
+      const failed: { id: number; name: string; reason: string }[] = [];
+      const targets = failures ?? staffs;
+      for (const staff of targets) {
         try {
-          await createStaffWorkType(staffId, { work_type_id });
+          await createStaffWorkType(staff.id, { work_type_id });
           added += 1;
-        } catch {
-          failed += 1;
+        } catch (error) {
+          failed.push({ ...staff, reason: extractApiError(error, "배정에 실패했습니다. 다시 시도해 주세요.") });
         }
       }
       return { added, failed };
@@ -49,22 +54,24 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
-      if (result.failed === 0) {
-        feedback.success(`선택한 직원 ${result.added}명에게 시급 태그를 추가했습니다.`);
-      } else {
-        feedback.warning(`${result.added}명 추가, ${result.failed}명은 이미 해당 태그가 있거나 오류로 건너뛰었습니다.`);
+      qc.invalidateQueries({ queryKey: staffQueryKeys.payrollOverviews });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.me });
+      for (const staff of staffs) {
+        qc.invalidateQueries({ queryKey: staffQueryKeys.staffWorkTypes(staff.id) });
       }
-      onClose();
+      setCompletedCount((count) => count + result.added);
+      setFailures(result.failed);
+      if (result.failed.length === 0) {
+        feedback.success(`선택한 직원 ${completedCount + result.added}명에게 시급 태그를 추가했습니다.`);
+        onClose();
+      } else {
+        feedback.warning(`${result.failed.length}명에게 배정하지 못했습니다. 아래 직원별 사유를 확인해 주세요.`);
+      }
     },
     onError: () => {
       feedback.error("시급 태그 추가에 실패했습니다.");
     },
   });
-
-  const handleSelect = (wt: WorkType) => {
-    if (addBulkM.isPending) return;
-    addBulkM.mutate({ work_type_id: wt.id });
-  };
 
   if (!open) return null;
 
@@ -72,9 +79,10 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
     <AdminModal open={open} onClose={onClose} closeDisabled={addBulkM.isPending}>
       <ModalHeader
         title="시급 태그 추가"
-        description={`선택한 직원 ${staffIds.length}명에게 적용할 시급 태그를 선택하세요.`}
+        description={`선택한 직원 ${staffs.length}명에게 적용할 시급 태그를 선택한 뒤 추가하세요.`}
       />
       <ModalBody>
+        <p className="mb-3 break-words text-sm">대상: {staffs.map((staff) => staff.name).join(", ")}</p>
         {workTypesQ.isLoading ? (
           <p className="text-sm text-[var(--color-text-muted)]">태그 목록 불러오는 중…</p>
         ) : workTypesQ.isError ? (
@@ -93,7 +101,7 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
               const name = wt.name || "";
               const wageText =
                 wt.base_hourly_wage != null
-                  ? ` (${(wt.base_hourly_wage / 10000).toFixed(1)}만/시)`
+                  ? ` (${wt.base_hourly_wage.toLocaleString()}원/시간)`
                   : "";
               const label = `${name}${wageText}`;
               const buttonStyle = {
@@ -105,23 +113,41 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
                 <button
                   key={wt.id}
                   type="button"
-                  disabled={addBulkM.isPending}
-                  onClick={() => handleSelect(wt)}
+                  disabled={addBulkM.isPending || failures !== null}
+                  aria-pressed={selectedTypeId === wt.id}
+                  onClick={() => setSelectedTypeId(wt.id)}
                   className={styles.workTypeButton}
                   style={buttonStyle}
                 >
-                  {addBulkM.isPending ? "…" : label}
+                  {label}
                 </button>
               );
             })}
           </div>
         )}
+        {failures && failures.length > 0 && (
+          <div className="mt-4 space-y-2 text-sm" role="alert">
+            <p>추가 완료 {completedCount}명 · 실패 {failures.length}명</p>
+            <ul className="list-disc space-y-1 pl-5">
+              {failures.map((staff) => <li key={staff.id}>{staff.name}: {staff.reason}</li>)}
+            </ul>
+            <p>완료한 직원은 유지됩니다. 다시 시도하면 실패한 직원만 처리합니다.</p>
+          </div>
+        )}
       </ModalBody>
       <ModalFooter
         right={
-          <Button intent="secondary" onClick={onClose} disabled={addBulkM.isPending}>
-            취소
-          </Button>
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={addBulkM.isPending}>
+              {failures ? "닫기" : "취소"}
+            </Button>
+            <Button intent="primary" disabled={addBulkM.isPending || selectedTypeId === null || staffs.length === 0 || workTypesQ.isError}
+              onClick={() => {
+                if (selectedTypeId !== null && !addBulkM.isPending) addBulkM.mutate({ work_type_id: selectedTypeId });
+              }}>
+              {addBulkM.isPending ? "추가 중…" : failures ? `실패한 ${failures.length}명 다시 시도` : `${staffs.length}명에게 추가`}
+            </Button>
+          </>
         }
       />
     </AdminModal>

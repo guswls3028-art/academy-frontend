@@ -360,6 +360,7 @@ function AttendanceContent({
                   <div className="mt-0.5 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
                     {record.start_time.slice(0, 5)} ~ {record.end_time?.slice(0, 5) ?? "근무 중"}
                     {record.end_time ? ` · ${workHoursText}` : " · 진행 중"}
+                    {record.end_date && record.end_date !== record.date && <span className="block">{record.end_date} 퇴근</span>}
                     {` · 휴게 ${(record.break_minutes ?? 0) + (record.meal_minutes ?? 0)}분`}
                   </div>
                   <div className="mt-1 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>

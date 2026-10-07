@@ -58,8 +58,9 @@ async function installClockApp(
     work_type: 42,
     work_type_name: "현장 조교",
     date: "2026-08-18",
-    start_time: "13:00:00",
-    end_time: "17:00:00",
+    start_time: failures.mealHistory ? "23:00:00" : "13:00:00",
+    end_time: failures.mealHistory ? "03:00:00" : "17:00:00",
+    end_date: failures.mealHistory ? "2026-08-19" : "2026-08-18",
     break_minutes: 0,
     meal_minutes: failures.mealHistory ? 30 : 0,
     work_hours: failures.mealHistory ? "3.50" : "4.00",
@@ -454,7 +455,7 @@ test.describe("조교 로그인 출근 선택", () => {
     await expect(page.getByRole("tab", { name: "근무 기록" })).toBeVisible();
   });
 
-  test("PC 본인 근무 기록은 휴게와 식사 시간을 합쳐 유급 시간 옆에 표시한다", async ({ page }) => {
+  test("PC·모바일 본인 근무 기록은 익일 퇴근과 유급 시간을 함께 표시한다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await installClockApp(
       page,
@@ -473,6 +474,11 @@ test.describe("조교 로그인 출근 선택", () => {
 
     const record = page.getByRole("row").filter({ hasText: "현장 조교" });
     await expect(record).toContainText("총 3.5시간 · 휴게 30분");
+    await expect(page.getByText("45,500원").first()).toBeVisible();
+    await expect(record).toContainText("2026-08-19 퇴근");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/workspace/mobile/my-records`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("2026-08-19 퇴근", { exact: true })).toBeVisible();
     await expect(page.getByText("45,500원").first()).toBeVisible();
   });
 

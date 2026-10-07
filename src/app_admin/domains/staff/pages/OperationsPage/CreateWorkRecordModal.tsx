@@ -47,6 +47,7 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
     work_type: undefined as number | undefined,
     start_time: "",
     end_time: "",
+    end_date: "",
     break_minutes: "",
     memo: "",
   });
@@ -58,6 +59,7 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
         work_type: initial?.work_type,
         start_time: initial?.start_time ?? "",
         end_time: initial?.end_time ?? "",
+        end_date: initial?.end_date ?? "",
         break_minutes: initial ? String(initial.break_minutes) : "",
         memo: initial?.memo ?? "",
       });
@@ -83,13 +85,16 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
       feedback.warning("현재 선택한 월 안의 날짜를 선택해 주세요.");
       return;
     }
-    if (form.end_time === form.start_time) {
-      feedback.warning("종료 시간은 시작 시간과 같을 수 없습니다.");
+    const invalidEnd = form.end_date
+      ? new Date(`${form.end_date}T${form.end_time}`) <= new Date(`${form.date}T${form.start_time}`)
+      : form.end_time.slice(0, 5) === form.start_time.slice(0, 5);
+    if (invalidEnd) {
+      feedback.warning("종료 일시는 시작 일시보다 늦어야 합니다. 다른 날 퇴근했다면 종료 날짜를 선택하세요.");
       return;
     }
     const breakMinutes = form.break_minutes === "" ? 0 : Number(form.break_minutes);
-    if (!Number.isFinite(breakMinutes) || breakMinutes < 0) {
-      feedback.warning("휴게시간은 0분 이상으로 입력하세요.");
+    if (!Number.isInteger(breakMinutes) || breakMinutes < 0) {
+      feedback.warning("휴게시간은 0분 이상의 정수로 입력하세요.");
       return;
     }
     if (createM.isPending || patchM.isPending) return;
@@ -98,6 +103,7 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
         date: form.date,
         start_time: form.start_time,
         end_time: form.end_time,
+        ...(form.end_date ? { end_date: form.end_date } : initial?.end_date ? { end_date: null } : {}),
         break_minutes: breakMinutes,
         memo: form.memo,
     };
@@ -204,7 +210,15 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
               />
             </Field>
           </div>
-          {form.start_time && form.end_time && form.end_time < form.start_time && (
+          <Field label="종료 날짜 (다른 날 퇴근 시)" htmlFor="work-record-end-date">
+            <DatePicker
+              id="work-record-end-date"
+              value={form.end_date}
+              defaultViewDate={form.date}
+              onChange={(value) => setForm((current) => ({ ...current, end_date: value }))}
+            />
+          </Field>
+          {!form.end_date && form.start_time && form.end_time && form.end_time < form.start_time && (
             <p className="text-xs text-[var(--color-text-muted)]">
               종료 시간이 더 이르면 다음 날 퇴근으로 계산됩니다.
             </p>

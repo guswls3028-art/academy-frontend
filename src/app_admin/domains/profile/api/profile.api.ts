@@ -68,6 +68,7 @@ export type Attendance = {
   date: string;
   start_time: string; // "HH:MM:SS"
   end_time: string | null; // "HH:MM:SS"
+  end_date?: string | null;
   work_type: string;
   memo?: string | null;
   duration_hours: number | null;
