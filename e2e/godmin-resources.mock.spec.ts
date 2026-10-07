@@ -204,6 +204,75 @@ async function prepare(page: Page, options: { readerFailure?: boolean; readerPen
   return () => { resourceScenario.unavailable = false; };
 }
 
+for (const outcome of ["accepted", "denied", "pending", "existing"] as const) {
+  test(`native reader fullscreen ${outcome} preserves the article and owned exit`, async ({ page }) => {
+    await prepare(page); nativePages = true;
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.addInitScript((result) => {
+      const install = () => {
+        const root = document.documentElement;
+        let current: Element | null = result === "existing" ? root : null;
+        Object.defineProperty(document, "fullscreenEnabled", { configurable: true, get: () => true });
+        Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => current });
+        root.dataset.nativeRequests = "0"; root.dataset.nativeExits = "0";
+        root.requestFullscreen = (options) => {
+          root.dataset.nativeRequests = String(Number(root.dataset.nativeRequests) + 1);
+          root.dataset.nativeNavigation = options?.navigationUI || "";
+          if (result === "denied") return Promise.reject(new Error("Browser denied fullscreen"));
+          if (result === "pending") return new Promise<void>((resolve) => {
+            (window as Window & { resolveNativeFullscreen?: () => void }).resolveNativeFullscreen = () => {
+              current = root; document.dispatchEvent(new Event("fullscreenchange")); resolve();
+            };
+          });
+          current = root; document.dispatchEvent(new Event("fullscreenchange")); return Promise.resolve();
+        };
+        document.exitFullscreen = () => {
+          root.dataset.nativeExits = String(Number(root.dataset.nativeExits) + 1);
+          current = null; document.dispatchEvent(new Event("fullscreenchange")); return Promise.resolve();
+        };
+      };
+      if (document.documentElement) install();
+      else document.addEventListener("DOMContentLoaded", install, { once: true });
+    }, outcome);
+    await page.goto(`${BASE}/landing/resources/901`);
+    const reader = page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true });
+    const entry = reader.getByRole("button", { name: "전체화면 보기", exact: true });
+    await entry.scrollIntoViewIfNeeded();
+    const articleScroll = await page.evaluate(() => window.scrollY);
+    await entry.click();
+    const viewer = page.getByRole("dialog");
+    await expect(viewer.getByTestId("resource-viewer-page")).toHaveAttribute("data-render-status", "ready");
+    await expect(page.locator("html")).toHaveAttribute("data-native-requests", outcome === "existing" ? "0" : "1");
+    if (outcome !== "existing") await expect(page.locator("html")).toHaveAttribute("data-native-navigation", "hide");
+    if (outcome === "accepted") {
+      await expect.poll(() => page.evaluate(() => document.fullscreenElement === document.documentElement)).toBe(true);
+      await page.evaluate(() => document.exitFullscreen());
+    } else await page.keyboard.press("Escape");
+    await expect(viewer).toHaveCount(0);
+    if (outcome === "pending") await page.evaluate(() => (window as Window & { resolveNativeFullscreen?: () => void }).resolveNativeFullscreen?.());
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement === document.documentElement)).toBe(outcome === "existing");
+    await expect(page.locator("html")).toHaveAttribute("data-native-exits", ["accepted", "pending"].includes(outcome) ? "1" : "0");
+    await expect(entry).toBeFocused();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(articleScroll);
+    await expect(page).toHaveURL(/\/landing\/resources\/901$/);
+    if (outcome === "accepted") {
+      await entry.click(); await expect(viewer.getByTestId("resource-viewer-page")).toHaveAttribute("data-render-status", "ready");
+      await page.keyboard.press("Escape"); await expect(viewer).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+      await expect(page.locator("html")).toHaveAttribute("data-native-exits", "2");
+      await expect(page).toHaveURL(/\/landing\/resources\/901$/);
+      await page.evaluate(() => document.documentElement.requestFullscreen());
+      await entry.click(); await expect(viewer.getByTestId("resource-viewer-page")).toHaveAttribute("data-render-status", "ready");
+      await page.keyboard.press("Escape"); await expect(viewer).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => document.fullscreenElement === document.documentElement)).toBe(true);
+      await expect(page.locator("html")).toHaveAttribute("data-native-requests", "3");
+      await expect(page.locator("html")).toHaveAttribute("data-native-exits", "2");
+      await expect(entry).toBeFocused();
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(articleScroll);
+    }
+  });
+}
+
 for (const width of [1366, 390]) {
   test(`native whole-document reading without modern PDF APIs at ${width}px`, async ({ page }, testInfo) => {
     await prepare(page); nativePages = true;
@@ -211,6 +280,7 @@ for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.addInitScript(() => {
       for (const name of ["getOrInsert", "getOrInsertComputed"]) Reflect.deleteProperty(Map.prototype, name);
+      Object.defineProperty(document, "fullscreenEnabled", { configurable: true, get: () => false });
       Reflect.deleteProperty(Promise, "withResolvers");
       Reflect.deleteProperty(Uint8Array.prototype, "toBase64");
       Reflect.deleteProperty(AbortSignal, "any");
@@ -269,6 +339,18 @@ for (const width of [1366, 390]) {
     await expect(viewer).toHaveAttribute("data-controls-visible", "true");
     await page.clock.fastForward(2300);
     await expect(viewer).toHaveAttribute("data-controls-visible", "false");
+    await viewerStage.dispatchEvent("touchstart", { touches: [{ identifier: 1, clientX: 250, clientY: 180 }] });
+    await viewerStage.dispatchEvent("touchend", { touches: [], changedTouches: [{ identifier: 1, clientX: 70, clientY: 180 }] });
+    await expect(viewerPage).toHaveAttribute("data-page-number", "2");
+    await expect(viewerPage).toHaveAttribute("data-render-status", "ready");
+    await expect(viewer).toHaveAttribute("data-controls-visible", "false");
+    await page.clock.fastForward(2300);
+    await expect(viewer).toHaveAttribute("data-controls-visible", "false");
+    await viewerStage.dispatchEvent("touchstart", { touches: [{ identifier: 1, clientX: 70, clientY: 180 }] });
+    await viewerStage.dispatchEvent("touchend", { touches: [], changedTouches: [{ identifier: 1, clientX: 250, clientY: 180 }] });
+    await expect(viewerPage).toHaveAttribute("data-page-number", "1");
+    await expect(viewerPage).toHaveAttribute("data-render-status", "ready");
+    await expect(viewer).toHaveAttribute("data-controls-visible", "false");
     await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
     await page.keyboard.press("Tab");
     await expect(viewer).toHaveAttribute("data-controls-visible", "true");
@@ -298,6 +380,7 @@ for (const width of [1366, 390]) {
     await page.clock.fastForward(241_000);
     await expect.poll(() => readerRequests).toBeGreaterThan(viewerRenewal);
     await expect(viewerPage).toHaveAttribute("data-page-number", "2");
+    await expect(viewer).toHaveAttribute("data-controls-visible", "false");
     await expect(viewer.locator("output")).toHaveText("125%");
     await revealControls();
     resourceScenario.readerFailure = true;

@@ -41,9 +41,13 @@ export default function ResourceFullscreenViewer({ pages, title, attempt, error,
   }, [status, error]);
 
   useEffect(() => {
-    showControls();
+    window.clearTimeout(controlsTimer.current);
+    if (error || status === "error") setControlsVisible(true);
+    else if (controlsVisible && status === "ready" && !keyboard.current) {
+      controlsTimer.current = window.setTimeout(() => setControlsVisible(false), 2200);
+    }
     return () => window.clearTimeout(controlsTimer.current);
-  }, [showControls, current, attempt, page?.url]);
+  }, [controlsVisible, status, error, current, attempt, page?.url]);
 
   useEffect(() => {
     const focused = document.activeElement as HTMLElement | null;

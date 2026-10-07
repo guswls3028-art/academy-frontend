@@ -423,6 +423,7 @@ jobs:
       - name: Run required real-use and exact cleanup-zero gate
         run: node scripts/run-development-release-canary.mjs
         env:
+          GH_TOKEN: ${{ github.token }}
           ACADEMY_SSM_TOOLCHAIN_DIR: ${{ runner.temp }}/academy-ssm-binary-safe
       - name: Upload PII-free development release evidence
         if: always()
