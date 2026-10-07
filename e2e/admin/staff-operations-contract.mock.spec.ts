@@ -734,7 +734,9 @@ test.describe("직원 운영 계약", () => {
       await expect(page.getByText("300,940원", { exact: true }).last()).toBeInViewport();
       await page.screenshot({ path: test.info().outputPath(`deduction-snapshot-${width}.png`), fullPage: true });
       await page.getByRole("tab", { name: "리포트 탭", exact: true }).click();
-      const plannedTransfer = page.getByText("이체 예정액", { exact: true }).last();
+      const history = page.locator("section").filter({ has: page.getByRole("heading", { name: "급여 이력", exact: true }) });
+      await expect(history).toBeVisible();
+      const plannedTransfer = history.getByText("이체 예정액", { exact: true });
       await expect(plannedTransfer).toBeVisible();
       await expect(plannedTransfer.locator("..")).toContainText("300,940원");
       await plannedTransfer.scrollIntoViewIfNeeded();
