@@ -7,7 +7,7 @@ import type {
   ControllerState,
   EventType,
   Policy,
-} from "./StudentHlsController";
+} from "./controllerTypes";
 
 const ignoreBestEffortError = () => undefined;
 
