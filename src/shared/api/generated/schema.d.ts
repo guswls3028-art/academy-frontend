@@ -5323,6 +5323,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/landing-public/resource-files/{file_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["landing_public_resource_files_retrieve"];
+        put?: never;
+        post?: never;
+        delete: operations["landing_public_resource_files_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/resource-files/{file_id}/reader/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["landing_public_resource_files_reader_retrieve"];
+        put?: never;
+        post: operations["landing_public_resource_files_reader_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/resources/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["landing_public_resources_list"];
+        put?: never;
+        post: operations["landing_public_resources_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/resources/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["landing_public_resources_retrieve"];
+        put?: never;
+        post?: never;
+        delete: operations["landing_public_resources_destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["landing_public_resources_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/landing-public/resources/capabilities/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["landing_public_resources_capabilities_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/landing-public/reviews/": {
         parameters: {
             query?: never;
@@ -5598,6 +5678,22 @@ export interface paths {
         get: operations["landing_public_stats_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/uploads/resource/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["landing_public_uploads_resource_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -12557,10 +12653,16 @@ export interface components {
          * @enum {string}
          */
         ClinicReasonEnum: "exam" | "homework" | "both";
+        /**
+         * @description * `once` - once
+         *     * `repeat` - repeat
+         * @enum {string}
+         */
+        ClinicReminderRequestModeEnum: "once" | "repeat";
         ClinicReminderRequestRequest: {
             interval_minutes?: number;
             /** @default once */
-            mode: components["schemas"]["ModeEnum"];
+            mode: components["schemas"]["ClinicReminderRequestModeEnum"];
             /** Format: date-time */
             repeat_until?: string;
             send_to: components["schemas"]["SendToEnum"];
@@ -14544,6 +14646,28 @@ export interface components {
          * @enum {string}
          */
         ManualGradingMethodEnum: "correctness" | "score";
+        /** @enum {string} */
+        ManualSendRecipientScope: "student" | "parent";
+        ManualSendRequestTrace: {
+            accepted_count: number;
+            cancelled_count: number;
+            delivered_count: number | null;
+            enqueue_failed: number;
+            enqueued: number;
+            provider_accepted_count: number;
+            provider_ambiguous_count: number;
+            provider_failed_count: number;
+            provider_pending_count: number;
+            /** Format: uuid */
+            request_id: string;
+            scheduled: number;
+            skipped_no_phone: number;
+        };
+        /**
+         * @description * `alimtalk` - 알림톡만
+         * @enum {string}
+         */
+        MessageModeEnum: "alimtalk";
         /** @description GET/PATCH 응답: 테넌트 메시징 정보 */
         MessagingInfo: {
             readonly alimtalk_available: boolean;
@@ -14585,12 +14709,13 @@ export interface components {
          * @enum {string}
          */
         MessagingProviderEnum: "solapi" | "ppurio";
-        /**
-         * @description * `once` - once
-         *     * `repeat` - repeat
-         * @enum {string}
-         */
-        ModeEnum: "once" | "repeat";
+        NotificationLogListResponse: {
+            count: number;
+            request_trace?: components["schemas"]["ManualSendRequestTrace"] | null;
+            results: {
+                [key: string]: unknown;
+            }[];
+        };
         /** @enum {unknown} */
         NullEnum: null;
         OmrRotateRescanConflict: {
@@ -15198,6 +15323,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["RegistrationRequestList"][];
+        };
+        PaginatedResourcePostList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ResourcePost"][];
         };
         PaginatedRiskLogList: {
             /** @example 123 */
@@ -16050,6 +16190,17 @@ export interface components {
         PatchedRegistrationRequestSettingsRequest: {
             auto_approve?: boolean;
         };
+        PatchedResourceWriteRequest: {
+            category?: components["schemas"]["ResourceWriteCategoryEnum"];
+            /** @default  */
+            content: string;
+            /** Format: date-time */
+            expected_updated_at?: string;
+            file_ids?: string[];
+            /** Format: uuid */
+            request_id?: string;
+            title?: string;
+        };
         /** @description API uses access_mode (SSOT). DB table kept as video_videopermission. */
         PatchedSealedVideoAccessRequest: {
             /**
@@ -16168,6 +16319,11 @@ export interface components {
             break_minutes?: number;
             /** Format: date */
             date?: string;
+            /**
+             * Format: date
+             * @description 실제 퇴근 날짜. 기존 미기록 자료는 익일 퇴근 추론을 유지합니다.
+             */
+            end_date?: string | null;
             /** Format: time */
             end_time?: string | null;
             /**
@@ -17193,6 +17349,88 @@ export interface components {
         RegistrationRequestSettings: {
             auto_approve: boolean;
         };
+        ResourceCapability: {
+            can_publish: boolean;
+        };
+        ResourceDownloadLink: {
+            expires_in: number;
+            /** Format: uri */
+            url: string;
+        };
+        ResourceFile: {
+            readonly extension: string;
+            filename: string;
+            /** Format: uuid */
+            readonly id: string;
+            readonly reader_status: string;
+            /** Format: int64 */
+            size: number;
+        };
+        ResourcePost: {
+            author_display_name: string;
+            category: components["schemas"]["ResourcePostCategoryEnum"];
+            content?: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly files: components["schemas"]["ResourceFile"][];
+            readonly id: number;
+            title: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        /**
+         * @description * `matchup` - 매치업
+         *     * `analysis` - 분석자료
+         * @enum {string}
+         */
+        ResourcePostCategoryEnum: "matchup" | "analysis";
+        ResourceReader: {
+            blocks?: {
+                [key: string]: unknown;
+            }[];
+            message?: string;
+            mode?: components["schemas"]["ResourceReaderModeEnum"];
+            pages?: number | null;
+            /** Format: uri */
+            pdf_url?: string;
+            status: components["schemas"]["ResourceReaderStatusEnum"];
+        };
+        /**
+         * @description * `article` - article
+         *     * `pages` - pages
+         * @enum {string}
+         */
+        ResourceReaderModeEnum: "article" | "pages";
+        /**
+         * @description * `unprepared` - unprepared
+         *     * `pending` - pending
+         *     * `ready` - ready
+         *     * `failed` - failed
+         *     * `unsupported` - unsupported
+         * @enum {string}
+         */
+        ResourceReaderStatusEnum: "unprepared" | "pending" | "ready" | "failed" | "unsupported";
+        ResourceUploadRequest: {
+            /** Format: binary */
+            file: string;
+        };
+        /**
+         * @description * `matchup` - matchup
+         *     * `analysis` - analysis
+         * @enum {string}
+         */
+        ResourceWriteCategoryEnum: "matchup" | "analysis";
+        ResourceWriteRequest: {
+            category: components["schemas"]["ResourceWriteCategoryEnum"];
+            /** @default  */
+            content: string;
+            /** Format: date-time */
+            expected_updated_at?: string;
+            file_ids: string[];
+            /** Format: uuid */
+            request_id?: string;
+            title: string;
+        };
         /**
          * @description * `NOT_SUBMITTED` - NOT_SUBMITTED
          *     * `PROCESSING` - PROCESSING
@@ -17557,6 +17795,64 @@ export interface components {
             code: components["schemas"]["CodeEnum"];
             detail: string;
         };
+        /** @description 알림톡 발송 요청: 학생/학부모 수신자 + 직접 입력 본문 또는 템플릿 ID. */
+        SendMessageRequestRequest: {
+            /** @description 알림톡 추가 치환 변수 (예: {시험명: '수학', 시험성적: '80/100'}) */
+            alimtalk_extra_vars?: {
+                [key: string]: string;
+            };
+            /** @description 학생별 개별 치환 변수 (key: student_id, value: {변수명: 값}) */
+            alimtalk_extra_vars_per_student?: {
+                [key: string]: unknown;
+            };
+            /**
+             * @description frontend 발송 진입점의 블록 카테고리 (grades/attendance/clinic 등). template_id 누락 또는 t.category 매핑 안 될 때 unified 봉투 fallback 매칭에 사용. 학원장 본문 어떻게 수정해도 봉투(검수 양식)는 유지되어 발송 (domain.md §5).
+             * @default
+             */
+            block_category: string;
+            /**
+             * Format: uuid
+             * @description 동일 발송 내용의 재시도와 학생/학부모 부분 요청에서 유지하는 UUID.
+             */
+            client_request_id?: string;
+            /**
+             * @description alimtalk
+             *
+             *     * `alimtalk` - 알림톡만
+             * @default alimtalk
+             */
+            message_mode: components["schemas"]["MessageModeEnum"];
+            raw_body?: string;
+            /** @default  */
+            raw_subject: string;
+            /**
+             * Format: date-time
+             * @description 예약 발송 시각. 비어 있으면 즉시 발송합니다.
+             */
+            scheduled_send_at?: string | null;
+            /**
+             * @description 학생/학부모 번호로 보낼지
+             * @default parent
+             */
+            send_to: components["schemas"]["ManualSendRecipientScope"];
+            /** @description legacy field. 직원 대상 범용 발송은 비활성화됨. */
+            staff_ids?: number[];
+            /** @description 수신 대상 학생 ID 목록 (send_to가 student/parent일 때 사용) */
+            student_ids?: number[];
+            template_id?: number | null;
+        };
+        SendMessageResponse: {
+            accepted_count: number;
+            cancelled_count: number;
+            detail: string;
+            enqueue_failed: number;
+            enqueued: number;
+            replayed: boolean;
+            /** Format: uuid */
+            request_id: string;
+            scheduled: number;
+            skipped_no_phone: number;
+        };
         /**
          * @description * `student` - student
          *     * `parent` - parent
@@ -17907,6 +18203,11 @@ export interface components {
             readonly created_at: string;
             /** Format: date */
             date: string;
+            /**
+             * Format: date
+             * @description 실제 퇴근 날짜. 기존 미기록 자료는 익일 퇴근 추론을 유지합니다.
+             */
+            end_date?: string | null;
             /** Format: time */
             end_time?: string | null;
             readonly id: number;
@@ -17943,6 +18244,11 @@ export interface components {
             break_minutes?: number;
             /** Format: date */
             date: string;
+            /**
+             * Format: date
+             * @description 실제 퇴근 날짜. 기존 미기록 자료는 익일 퇴근 추론을 유지합니다.
+             */
+            end_date?: string | null;
             /** Format: time */
             end_time?: string | null;
             /**
@@ -27499,6 +27805,235 @@ export interface operations {
             };
         };
     };
+    landing_public_resource_files_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceDownloadLink"];
+                };
+            };
+        };
+    };
+    landing_public_resource_files_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    landing_public_resource_files_reader_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceReader"];
+                };
+            };
+        };
+    };
+    landing_public_resource_files_reader_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceReader"];
+                };
+            };
+        };
+    };
+    landing_public_resources_list: {
+        parameters: {
+            query?: {
+                category?: "analysis" | "matchup";
+                /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedResourcePostList"];
+                };
+            };
+        };
+    };
+    landing_public_resources_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResourceWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ResourceWriteRequest"];
+                "multipart/form-data": components["schemas"]["ResourceWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePost"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePost"];
+                };
+            };
+        };
+    };
+    landing_public_resources_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description public resource post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePost"];
+                };
+            };
+        };
+    };
+    landing_public_resources_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description public resource post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    landing_public_resources_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description public resource post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedResourceWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedResourceWriteRequest"];
+                "multipart/form-data": components["schemas"]["PatchedResourceWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourcePost"];
+                };
+            };
+        };
+    };
+    landing_public_resources_capabilities_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceCapability"];
+                };
+            };
+        };
+    };
     landing_public_reviews_list: {
         parameters: {
             query?: {
@@ -27851,6 +28386,30 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    landing_public_uploads_resource_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": components["schemas"]["ResourceUploadRequest"];
+                "multipart/form-data": components["schemas"]["ResourceUploadRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResourceFile"];
+                };
             };
         };
     };
@@ -30816,6 +31375,8 @@ export interface operations {
             query?: {
                 /** @description PII가 없는 원천 식별자 접두사. 클리닉 참가자별 발송 이력 조회에 사용합니다. */
                 origin_id_prefix?: string;
+                /** @description 동일 테넌트에서 수동 발송 요청 UUID와 정확히 일치하는 기록 및 접수 단계. */
+                request_id?: string;
             };
             header?: never;
             path?: never;
@@ -30823,12 +31384,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["NotificationLogListResponse"];
+                };
             };
         };
     };
@@ -30987,14 +31549,21 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SendMessageRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SendMessageRequestRequest"];
+                "multipart/form-data": components["schemas"]["SendMessageRequestRequest"];
+            };
+        };
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["SendMessageResponse"];
+                };
             };
         };
     };

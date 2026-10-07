@@ -32,6 +32,7 @@ export async function createWorkRecord(payload: {
   date: string;
   start_time: string;
   end_time: string;
+  end_date?: string | null;
   break_minutes?: number;
   memo?: string;
 }) {
@@ -46,6 +47,7 @@ export async function patchWorkRecord(
     date: string;
     start_time: string;
     end_time: string;
+    end_date: string | null;
     break_minutes: number;
     memo: string;
   }>

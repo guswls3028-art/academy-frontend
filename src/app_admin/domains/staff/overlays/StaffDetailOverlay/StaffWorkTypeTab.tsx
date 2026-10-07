@@ -31,7 +31,7 @@ function WageBadge({
   const wage =
     st.effective_hourly_wage ?? wt?.base_hourly_wage ?? null;
   const label =
-    wage != null ? `${name} ${(wage / 10000).toFixed(1)}만` : name;
+    wage != null ? `${name} ${wage.toLocaleString()}원/시간` : name;
   const badgeStyle = {
     "--wage-tag-bg": color,
     "--wage-tag-fg": contrastTextColor(color),
@@ -83,6 +83,8 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffWorkTypes(staffId) });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(staffId) });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.payrollOverviews });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.me });
     },
     onError: () => feedback.error("근무유형 추가에 실패했습니다."),
   });
@@ -93,6 +95,8 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffWorkTypes(staffId) });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(staffId) });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.payrollOverviews });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.me });
     },
     onError: () => feedback.error("근무유형 제거에 실패했습니다."),
   });

@@ -39,7 +39,7 @@ function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
         const color = wt?.color || "#6b7280";
         const name = wt?.name || "-";
         const wage = wt?.base_hourly_wage != null ? st.effective_hourly_wage ?? wt.base_hourly_wage : null;
-        const label = wage != null ? `${name} ${(wage / 10000).toFixed(1)}만` : name;
+        const label = wage != null ? `${name} ${wage.toLocaleString()}원/시간` : name;
         return (
           <span
             key={st.id}
@@ -73,7 +73,7 @@ function WorkTypeOption({
   const color = wt.color || "#6b7280";
   const name = wt.name || "";
   const wageText =
-    wt.base_hourly_wage != null ? ` (${(wt.base_hourly_wage / 10000).toFixed(1)}만/시)` : "";
+    wt.base_hourly_wage != null ? ` (${wt.base_hourly_wage.toLocaleString()}원/시간)` : "";
   const label = `${name}${wageText}`;
   return (
     <button
@@ -287,6 +287,8 @@ export function StaffHomeTable({
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.payrollOverviews });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.me });
       setPendingPayType((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
     },
     onError: (e: unknown, vars) => {
@@ -303,6 +305,8 @@ export function StaffHomeTable({
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.payrollOverviews });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.me });
       setPendingManager((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
     },
     onError: (e: unknown, vars) => {
@@ -320,9 +324,12 @@ export function StaffHomeTable({
   const addTagM = useMutation({
     mutationFn: ({ staffId, work_type_id }: { staffId: number; work_type_id: number }) =>
       createStaffWorkType(staffId, { work_type_id }),
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: staffQueryKeys.staffWorkTypes(vars.staffId) });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.payrollOverviews });
+      qc.invalidateQueries({ queryKey: staffQueryKeys.me });
       setOpenAddForStaffId(null);
     },
     onError: (e: unknown) => {

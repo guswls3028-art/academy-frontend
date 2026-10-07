@@ -145,7 +145,7 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
                 // eslint-disable-next-line no-restricted-syntax -- work type colors are tenant-configured data.
                 style={{ backgroundColor: primaryWageTag.work_type?.color || "#6b7280" }}
               >
-                {primaryWageTag.work_type?.name} {(primaryWageTag.effective_hourly_wage / 10000).toFixed(1)}만
+                {primaryWageTag.work_type?.name} {primaryWageTag.effective_hourly_wage.toLocaleString()}원/시간
               </span>
             )}
           </>

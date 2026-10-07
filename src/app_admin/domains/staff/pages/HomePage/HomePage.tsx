@@ -75,10 +75,17 @@ export default function HomePage() {
   const [exportingRoster, setExportingRoster] = useState(false);
   const [exportingPayroll, setExportingPayroll] = useState(false);
 
-  /** 선택된 직원 ID만 (원장 sentinel 제외) */
+  // 검색은 화면만 좁힌다. 모든 일괄 작업은 같은 선택 집합을 사용한다.
+  const selectedStaffs = useMemo(
+    () => staffs.filter((staff) => selectedIds.includes(staff.id)),
+    [staffs, selectedIds]
+  );
   const selectedStaffIds = useMemo(
-    () => selectedIds.filter((staffId) => staffId > 0),
-    [selectedIds]
+    () => selectedStaffs.map((staff) => staff.id),
+    [selectedStaffs]
+  );
+  const selectionUnavailable = selectedIds.some(
+    (id) => id > 0 && !selectedStaffIds.includes(id)
   );
 
   const canManage = !!meQ.data?.is_payroll_manager;
@@ -108,6 +115,11 @@ export default function HomePage() {
           <span className={styles.selectionCount} data-selected="true">
             {selectedIds.length}명 선택됨
           </span>
+          <span className="text-xs text-[var(--color-text-muted)]">
+            {selectionUnavailable
+              ? "목록에서 확인되지 않는 직원이 있습니다. 선택을 해제하고 다시 선택해 주세요."
+              : `선택 직원: ${selectedStaffs.map((staff) => staff.name).join(", ") || "없음"}${selectedIds.includes(-1) ? " · 대표는 일괄 작업 제외" : ""}`}
+          </span>
           <span className="staff-toolbar__divider" />
         </>
       )}
@@ -120,13 +132,17 @@ export default function HomePage() {
         <Button
           intent="secondary"
           size="sm"
-          disabled={exportingRoster}
+          disabled={exportingRoster || isLoading || isStaffError || selectionUnavailable}
           onClick={async () => {
             setExportingRoster(true);
             try {
-              const exportRows = selectedStaffIds.length > 0
-                ? rows.filter((r) => selectedIds.includes(r.id))
+              const exportRows = selectedIds.length > 0
+                ? selectedStaffs
                 : rows;
+              if (exportRows.length === 0) {
+                feedback.info("내보낼 직원을 선택해 주세요. 대표는 직원 목록 엑셀에서 제외됩니다.");
+                return;
+              }
               await downloadStaffExcel(exportRows, `직원목록_${exportRows.length}명.xlsx`);
               feedback.success("직원 목록 엑셀 다운로드가 완료되었습니다.");
             } catch (e) {
@@ -165,6 +181,7 @@ export default function HomePage() {
             <Button
               intent="secondary"
               size="sm"
+              disabled={selectionUnavailable || selectedStaffIds.length === 0}
               onClick={() => {
                 if (selectedStaffIds.length === 0) {
                   feedback.info("직원을 선택한 뒤 시급 태그 추가를 눌러 주세요.");
@@ -178,6 +195,7 @@ export default function HomePage() {
             <Button
               intent="secondary"
               size="sm"
+              disabled={selectionUnavailable || selectedStaffIds.length === 0}
               onClick={() => {
                 if (selectedStaffIds.length !== 1) {
                   feedback.info("비밀번호를 변경할 직원 한 명만 선택해 주세요.");
@@ -197,13 +215,11 @@ export default function HomePage() {
           <Button
             intent="danger"
             size="sm"
-            disabled={selectedStaffIds.length === 0 || offboarding}
+            disabled={selectionUnavailable || selectedStaffIds.length === 0 || offboarding}
             onClick={async () => {
           if (selectedStaffIds.length === 0) return;
 
-          const activeTargets = rows.filter(
-            (row) => selectedStaffIds.includes(row.id) && row.is_active
-          );
+          const activeTargets = selectedStaffs.filter((row) => row.is_active);
           if (activeTargets.length === 0) {
             feedback.info("선택한 직원은 이미 퇴사 처리되어 있습니다.");
             return;
@@ -213,7 +229,7 @@ export default function HomePage() {
 
           const ok = await confirm({
             title: "퇴사 처리 확인",
-            message: `재직 직원 ${activeTargets.length}명의 로그인을 중지하고 퇴사 처리하시겠습니까?${ownerNote}\n기존 근무·비용·급여 이력은 보존됩니다.`,
+            message: `재직 직원 ${activeTargets.length}명(${activeTargets.map((row) => row.name).join(", ")})의 로그인을 중지하고 퇴사 처리하시겠습니까?${ownerNote}\n기존 근무·비용·급여 이력은 보존됩니다.`,
             danger: true,
             confirmText: "퇴사 처리",
           });
@@ -239,6 +255,7 @@ export default function HomePage() {
           if (successCount > 0) {
             qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
             qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
+            qc.invalidateQueries({ queryKey: staffQueryKeys.payrollOverviews });
             const completedSet = new Set(successIds);
             setSelectedIds((current) =>
               current.filter((sid) => sid <= 0 || !completedSet.has(sid))
@@ -340,15 +357,15 @@ export default function HomePage() {
         onClose={() => setOpenWorkType(false)}
       />
       <AddWorkTypeBulkModal
+        key={openAddWorkTypeBulk ? "open" : "closed"}
         open={openAddWorkTypeBulk}
         onClose={() => setOpenAddWorkTypeBulk(false)}
-        staffIds={selectedStaffIds}
+        staffs={selectedStaffs}
       />
       <StaffPasswordModal
         open={openPasswordModal}
         onClose={() => setOpenPasswordModal(false)}
-        staffList={rows
-          .filter((r) => selectedStaffIds.includes(r.id))
+        staffList={selectedStaffs
           .slice(0, 1)
           .map((r) => ({ id: r.id, name: r.name }))}
       />

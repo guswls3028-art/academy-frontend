@@ -70,7 +70,8 @@ function DailyWorkDetailSection({
                 const sp = (r.start_time ?? "").split(":");
                 const ep = (r.end_time ?? "").split(":");
                 const startMin = sp.length >= 2 ? parseInt(sp[0]) * 60 + parseInt(sp[1]) : 0;
-                const endMin = ep.length >= 2 ? parseInt(ep[0]) * 60 + parseInt(ep[1]) : startMin;
+                let endMin = ep.length >= 2 ? parseInt(ep[0]) * 60 + parseInt(ep[1]) : startMin;
+                if (r.end_time && ((r.end_date && r.end_date > r.date) || endMin < startMin)) endMin = 1440;
                 if (!isNaN(startMin) && !isNaN(endMin)) {
                   pctStart = Math.max(0, Math.min(100, ((startMin - 360) / 1080) * 100));
                   pctWidth = Math.max(2, Math.min(100 - pctStart, ((endMin - startMin) / 1080) * 100));
@@ -100,6 +101,7 @@ function DailyWorkDetailSection({
                   </div>
                   <div className={styles.recordMeta}>
                     <span>{r.start_time?.slice(0, 5)} ~ {r.end_time?.slice(0, 5) ?? "진행 중"}</span>
+                    {r.end_date && r.end_date !== r.date && <span>{r.end_date} 퇴근</span>}
                     {(r.break_minutes ?? 0) > 0 && <span>휴게 {r.break_minutes}분</span>}
                   </div>
                   {r.memo && (

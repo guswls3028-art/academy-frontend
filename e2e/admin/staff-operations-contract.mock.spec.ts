@@ -621,6 +621,81 @@ test.describe("직원 운영 계약", () => {
     await seedAuth(page);
   });
 
+  test("검색에 숨은 선택 직원도 엑셀·비밀번호·퇴사 대상에서 누락하지 않는다", async ({ page }) => {
+    let passwordBody: Record<string, unknown> | undefined;
+    let staffPatch: Record<string, unknown> | undefined;
+    await mockStaffApi(page, {
+      onPasswordReset: (body) => { passwordBody = body; },
+      onStaffPatch: (body) => { staffPatch = body; },
+    });
+    await page.goto(`${BASE}/workspace/staff/home`);
+    await expect(page.getByRole("checkbox", { name: "김조교 선택" })).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("checkbox", { name: "김조교 선택" }).check();
+    await page.getByPlaceholder("이름 / 전화번호 검색").fill("박철");
+    await expect(page.getByRole("checkbox", { name: "김조교 선택" })).toHaveCount(0);
+
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "직원 목록 엑셀", exact: true }).click();
+    const exported = await staffWorkbookRows(await download);
+    expect(exported.slice(1).map((row) => row[exported[0].indexOf("이름")])).toEqual(["김조교"]);
+
+    await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
+    const passwordDialog = page.getByRole("dialog", { name: "비밀번호 설정" });
+    await expect(passwordDialog).toContainText("김조교");
+    await passwordDialog.getByLabel("새 비밀번호", { exact: true }).fill("StaffPass22");
+    await passwordDialog.getByLabel("새 비밀번호 확인", { exact: true }).fill("StaffPass22");
+    await passwordDialog.getByRole("button", { name: "변경", exact: true }).click();
+    await expect.poll(() => passwordBody).toEqual({ password: "StaffPass22" });
+    await expect(passwordDialog).toBeHidden();
+
+    await page.getByRole("button", { name: "퇴사 처리", exact: true }).click();
+    const confirmation = page.getByRole("alertdialog", { name: "퇴사 처리 확인" });
+    await expect(confirmation).toContainText("김조교");
+    await confirmation.getByRole("button", { name: "퇴사 처리", exact: true }).click();
+    await expect.poll(() => staffPatch).toEqual({ is_active: false });
+  });
+
+  test("시급 일괄 배정은 정확한 원 단위와 대상을 보여 주고 실패한 직원만 재시도한다", async ({ page }) => {
+    await mockStaffApi(page);
+    const calls: number[] = [];
+    const workType = { id: 42, name: "수업 지원", base_hourly_wage: 12345, color: "#2563eb", is_active: true };
+    await page.route("**/api/v1/staffs/**", async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path === "/api/v1/staffs/work-types/" && request.method() === "GET") {
+        return route.fulfill({ json: { count: 1, next: null, previous: null, results: [workType] } });
+      }
+      if (path === "/api/v1/staffs/staff-work-types/" && request.method() === "POST") {
+        const body = request.postDataJSON();
+        calls.push(body.staff);
+        expect(body.work_type_id).toBe(42);
+        if (body.staff === 3 && calls.filter((id) => id === 3).length === 1) {
+          return route.fulfill({ status: 400, json: { detail: "시급 배정을 확인한 후 다시 시도해 주세요." } });
+        }
+        return route.fulfill({ status: 201, json: { id: body.staff + 100, staff: body.staff, work_type: workType, effective_hourly_wage: 12345 } });
+      }
+      return route.fallback();
+    });
+    await page.goto(`${BASE}/workspace/staff/home`);
+    await expect(page.getByRole("checkbox", { name: "김조교 선택" })).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("checkbox", { name: "김조교 선택" }).check();
+    await page.getByRole("checkbox", { name: "박철 선택" }).check();
+    await page.getByPlaceholder("이름 / 전화번호 검색").fill("박철");
+    await page.getByRole("button", { name: "시급 태그 추가", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "시급 태그 추가" });
+    await expect(dialog).toContainText("대상: 김조교, 박철");
+    await dialog.getByRole("button", { name: "수업 지원 (12,345원/시간)", exact: true }).click();
+    expect(calls).toEqual([]);
+    await dialog.getByRole("button", { name: "2명에게 추가" }).click();
+    await expect(dialog.getByRole("alert")).toContainText("추가 완료 1명 · 실패 1명");
+    await expect(dialog.getByRole("alert")).toContainText("박철: 시급 배정을 확인한 후 다시 시도해 주세요.");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({ path: test.info().outputPath("bulk-partial-failure-390.png") });
+    await dialog.getByRole("button", { name: "실패한 1명 다시 시도" }).click();
+    await expect(dialog).toBeHidden();
+    expect(calls).toEqual([1, 3, 3]);
+  });
+
   test("급여 첫 화면에서 전 직원의 합계와 검토 항목을 바로 비교한다", async ({ page }) => {
     await mockStaffApi(page);
     await page.setViewportSize({ width: 1366, height: 900 });
@@ -633,13 +708,18 @@ test.describe("직원 운영 계약", () => {
     await expect(overview.getByRole("button", { name: "이전 달" })).toContainText("이전");
     await expect(overview.getByRole("button", { name: "다음 달" })).toContainText("다음");
     await expect(overview.getByText("342,000원", { exact: true }).first()).toBeVisible();
-    await expect(overview.getByText(/공제 전 342,000원 − 참고 공제 11,286원 \+ 승인 환급 18,000원 = 이체 참고액 348,714원/)).toBeVisible();
+    const monthTotals = overview.getByRole("region", { name: "월 급여 합계" });
+    await expect(monthTotals).toContainText("참고 공제 −11,286원 (3.3%)");
+    await expect(monthTotals).toContainText("330,714원");
+    await expect(monthTotals).toContainText("승인 환급 18,000원");
     await expect(overview.getByText("3.3% 적용 시 참고").first()).toBeVisible();
     const reviewMetric = overview.getByText("확인 필요 인원", { exact: true }).locator("..");
     await expect(reviewMetric.getByText("1명", { exact: true })).toBeVisible();
     await expect(reviewMetric).toContainText("기록 점검 0건");
     await expect(reviewMetric).toContainText("비용 대기 30,000원");
     const overviewTable = overview.getByRole("table");
+    await expect(overviewTable.getByRole("columnheader", { name: "참고 공제 3.3%" })).toBeVisible();
+    await expect(overviewTable.getByRole("columnheader", { name: "공제 후 참고", exact: true })).toBeVisible();
     await expect(overviewTable.getByText("비용 대기 1건")).toBeVisible();
     await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
     await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toBeVisible();
@@ -679,6 +759,8 @@ test.describe("직원 운영 계약", () => {
     const kimPayrollCard = mobileOverview.getByRole("button", { name: /김조교/ });
     await expect(kimPayrollCard).toContainText("재직");
     await expect(kimPayrollCard).toContainText("승인 환급");
+    await expect(kimPayrollCard).toContainText("참고 공제 3.3%");
+    await expect(kimPayrollCard).toContainText("공제 후 참고");
     await expect(kimPayrollCard).toContainText("12,000원");
     await expect(mobileOverview.getByRole("button", { name: /이퇴사/ })).toContainText("퇴사");
     const mobileControlReadback = await mobileOverview.evaluate((node) => {
@@ -707,6 +789,41 @@ test.describe("직원 운영 계약", () => {
       path: "test-results/staff-payroll-overview-390.png",
       fullPage: false,
     });
+  });
+
+  test("관리자가 실제 퇴근 날짜를 저장하면 목록과 새로고침 후에도 날짜를 보존한다", async ({ page }) => {
+    const record: Record<string, unknown> = {
+      id: 401, staff: 1, staff_name: "김조교", work_type: 21, work_type_name: "채점",
+      date: "2026-08-20", start_time: "09:00", end_time: "10:00", end_date: "2026-08-21",
+      break_minutes: 0, meal_minutes: 0, work_hours: "25.00", amount: 300000,
+      resolved_hourly_wage: 12000, adjustment_amount: 0, is_manually_edited: false, memo: "",
+    };
+    let saved: Record<string, unknown> | undefined;
+    await mockStaffApi(page, {
+      workRecords: [record],
+      onWorkRecordPatch: (_id, body) => {
+        saved = body;
+        Object.assign(record, body, { work_hours: "49.00", amount: 588000 });
+      },
+    });
+    await gotoAndSettle(page, `${BASE}/workspace/staff/attendance?staffId=1&year=2026&month=8`, { timeout: 30_000 });
+    const row = page.getByTestId("staff-work-record-401");
+    await expect(row).toContainText("2026-08-21 퇴근");
+    await row.getByRole("button", { name: "수정", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "근무 기록 수정" });
+    await dialog.locator("#work-record-end-date").click();
+    const calendar = page.getByRole("dialog", { name: "날짜 선택" });
+    await calendar.getByRole("button", { name: "22", exact: true }).click();
+    await dialog.getByRole("button", { name: "저장", exact: true }).click();
+    await expect.poll(() => saved?.end_date).toBe("2026-08-22");
+    await expect(row).toContainText("2026-08-22 퇴근");
+    await page.reload();
+    await expect(row).toContainText("2026-08-22 퇴근");
+    await expect(row).toContainText("588,000");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await row.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(dialog.locator("#work-record-end-date")).toContainText("2026");
+    await page.screenshot({ path: test.info().outputPath("work-end-date-390.png") });
   });
 
   test("급여판 검색 직후 필터를 눌러도 아직 렌더 중인 검색 URL을 보존한다", async ({ page }) => {
@@ -1120,7 +1237,10 @@ test.describe("직원 운영 계약", () => {
     const headlineTotal = overview.getByText("최종 이체 참고 총액", { exact: true }).locator("..");
     const reviewTotal = overview.getByText("확인 필요 인원", { exact: true }).locator("..");
     await expect(headlineTotal).toContainText("263,613,302원");
-    await expect(headlineTotal).toContainText("공제 전 270,370,200원 − 참고 공제 8,922,198원 + 승인 환급 2,165,300원 = 이체 참고액 263,613,302원");
+    const allTotals = overview.getByRole("region", { name: "월 급여 합계" });
+    await expect(allTotals).toContainText("270,370,200원");
+    await expect(allTotals).toContainText("참고 공제 −8,922,198원 (3.3%)");
+    await expect(headlineTotal).toContainText("승인 환급 2,165,300원");
     await expect(reviewTotal).toContainText("7명");
     await expect(overview.getByRole("searchbox", { name: "직원 이름 검색" })).toBeVisible();
     await expect(overview.getByRole("group", { name: "급여 직원 필터" })).toBeVisible();
@@ -2423,6 +2543,39 @@ test.describe("직원 운영 계약", () => {
       fullPage: false,
     });
   });
+
+  for (const width of [1366, 390]) {
+    test(`${width}px 실제 소수초 출퇴근은 읽을 수 있고 메모 수정이 원래 시간·금액을 보존한다`, async ({ page }) => {
+      const record: Record<string, unknown> = {
+        id: 402, staff: 1, staff_name: "김조교", work_type: 21, work_type_name: "채점",
+        date: "2026-08-21", start_time: "14:00:00.123456", end_time: "14:00:45.987654",
+        break_minutes: 0, meal_minutes: 0, work_hours: "2.00", amount: 24719,
+        resolved_hourly_wage: 12000, adjustment_amount: 0, is_manually_edited: true, memo: "직접 확정",
+      };
+      let saved: Record<string, unknown> | undefined;
+      await mockStaffApi(page, { workRecords: [record], onWorkRecordPatch: (_id, body) => {
+        saved = body;
+        Object.assign(record, body);
+      } });
+      await page.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(page, `${BASE}/workspace/staff/attendance?staffId=1&year=2026&month=8`);
+      const row = page.getByTestId("staff-work-record-402");
+      await row.getByRole("button", { name: "수정", exact: true }).click();
+      const edit = page.getByRole("dialog", { name: "근무 기록 수정" });
+      await expect(edit.getByLabel("시작 시간 *", { exact: true })).toHaveValue("14:00");
+      await expect(edit.getByLabel("종료 시간 *", { exact: true })).toHaveValue("14:00");
+      await edit.getByLabel("메모", { exact: true }).fill("확정 금액 설명 추가");
+      await edit.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(edit).toBeHidden();
+      expect(saved).toMatchObject({ start_time: "14:00:00.123456", end_time: "14:00:45.987654", memo: "확정 금액 설명 추가" });
+      expect(saved).not.toHaveProperty("amount");
+      expect(saved).not.toHaveProperty("work_hours");
+      await page.reload();
+      await expect(row).toContainText("24,719");
+      await expect(row).toContainText("근무 2.00시간");
+      await expect(row).toContainText("확정 금액 설명 추가");
+    });
+  }
 
   test("과거 월 근무기록 추가는 월 1일을 자동 입력하지 않고 실제 날짜를 명시 선택한다", async ({ page }) => {
     await page.clock.install({ time: new Date("2026-09-10T12:00:00+09:00") });

@@ -167,6 +167,7 @@ export const developmentRealUseCases = Object.freeze({
   "admin/public-resource-realuse.spec.ts": 1,
   "admin/alimtalk-withdrawal-realuse.spec.ts": 1,
   "admin/fees-overdue-realuse.spec.ts": 1,
+  "admin/staff-payroll-realuse.spec.ts": 1,
   "flows/notice-roundtrip.spec.ts": 3,
   "flows/qna-roundtrip.spec.ts": 4,
   "flows/clinic-roundtrip.spec.ts": 4,

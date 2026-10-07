@@ -102,6 +102,7 @@ export default function AttendanceTable({ rows }: { rows: Attendance[] }) {
             <td className={styles.secondaryCell}>{row.work_type}</td>
             <td className={styles.primaryCell}>
               <div>{fmtTime(row.start_time)} ~ {fmtTime(row.end_time)}</div>
+              {row.end_date && row.end_date !== row.date && <div className={styles.durationDetail}>{row.end_date} 퇴근</div>}
               <div className={styles.durationDetail}>
                 {row.end_time == null
                   ? "진행 중"

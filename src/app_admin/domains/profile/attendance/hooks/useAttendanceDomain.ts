@@ -42,6 +42,7 @@ export function useAttendanceDomain(
         date: record.date,
         start_time: record.start_time,
         end_time: record.end_time ?? null,
+        end_date: record.end_date ?? null,
         work_type: record.work_type_name,
         memo: record.memo,
         duration_hours: durationHours != null && Number.isFinite(durationHours) ? durationHours : null,
