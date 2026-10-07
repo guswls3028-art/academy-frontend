@@ -64,7 +64,8 @@ export async function exportPayrollSnapshotExcel(params: {
 }): Promise<void> {
   const res = await api.post<{ job_id: string; status: string }>(
     "/staffs/payroll-snapshots/export-excel/",
-    params
+    // 명시적인 다운로드마다 새 파일을 만든다. 실패 작업/만료된 서명 URL을 재사용하지 않는다.
+    { ...params, force_rerun: true }
   );
   const jobId = res.data?.job_id;
   if (!jobId) throw new Error("Export job could not be started.");

@@ -698,9 +698,20 @@ test.describe("직원 운영 계약", () => {
 
   test("마감 급여와 이력의 기본 공제·이체 예정액 및 다운로드 실패 재시도를 표시한다", async ({ page }) => {
     await mockStaffApi(page);
+    let exportAttempts = 0;
+    const workbook = new ExcelJS.Workbook();
+    workbook.addWorksheet("급여").addRow(["이체 예정액", 300940]);
+    const xlsxBytes = Buffer.from(await workbook.xlsx.writeBuffer());
+    await page.route("**/api/v1/jobs/qa-payroll-export-*/", (route) => route.fulfill({ json:
+      exportAttempts === 1
+        ? { job_id: "qa-payroll-export-1", status: "FAILED", error_message: "정산 파일 생성에 실패했습니다. 다시 시도해 주세요." }
+        : { job_id: "qa-payroll-export-2", status: "DONE", result: { download_url: `data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,${xlsxBytes.toString("base64")}`, filename: "payroll.xlsx" } },
+    }));
     await page.route("**/api/v1/staffs/payroll-snapshots/**", async (route) => {
       if (route.request().method() === "POST") {
-        return route.fulfill({ status: 400, json: { detail: "정산 파일 생성에 실패했습니다. 다시 시도해 주세요." } });
+        expect(route.request().postDataJSON()).toEqual({ year: 2026, month: 8, force_rerun: true });
+        exportAttempts += 1;
+        return route.fulfill({ status: 202, json: { job_id: `qa-payroll-export-${exportAttempts}`, status: "PENDING" } });
       }
       return route.fulfill({ json: { count: 1, next: null, previous: null, results: [{
         id: 51, staff: 1, staff_name: "김조교", year: 2026, month: 8, work_hours: "25.00",
@@ -721,8 +732,9 @@ test.describe("직원 운영 계약", () => {
       await expect(page.getByText("300,940원", { exact: true }).last()).toBeVisible();
       await page.screenshot({ path: test.info().outputPath(`deduction-snapshot-${width}.png`), fullPage: true });
       await page.getByRole("tab", { name: "리포트 탭", exact: true }).click();
-      await expect(page.getByText("이체 예정액", { exact: true }).last()).toBeVisible();
-      await expect(page.getByText("300,940원", { exact: true }).last()).toBeVisible();
+      const plannedTransfer = page.getByText("이체 예정액", { exact: true }).last();
+      await expect(plannedTransfer).toBeVisible();
+      await expect(plannedTransfer.locator("..")).toContainText("300,940원");
       const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(documentWidth).toBeLessThanOrEqual(width);
       await page.screenshot({ path: test.info().outputPath(`deduction-history-${width}.png`), fullPage: true });
@@ -731,8 +743,12 @@ test.describe("직원 운영 계약", () => {
     await xlsx.click();
     await expect(page.getByText("정산 파일 생성에 실패했습니다. 다시 시도해 주세요.", { exact: true }).last()).toBeVisible();
     await expect(xlsx).toBeEnabled();
+    expect(exportAttempts).toBe(1);
+    const downloaded = page.waitForEvent("download");
     await xlsx.click();
+    expect(await staffWorkbookRows(await downloaded)).toEqual([["이체 예정액", "300940"]]);
     await expect(xlsx).toBeEnabled();
+    expect(exportAttempts).toBe(2);
   });
 
   test("급여 첫 화면에서 전 직원의 합계와 검토 항목을 바로 비교한다", async ({ page }) => {
