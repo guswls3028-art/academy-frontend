@@ -186,7 +186,7 @@
   margin-bottom: 6px;
 }
 
-.editInput {
+.section .editInput {
   width: 100%;
   min-width: 0;
   min-height: 72px;
@@ -201,7 +201,7 @@
   border-radius: 12px;
 }
 
-.editInput:focus {
+.section .editInput:focus {
   border-color: color-mix(in srgb, var(--stu-primary) 34%, var(--stu-border));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--stu-primary) 12%, transparent);
   outline: none;
@@ -213,7 +213,7 @@
   gap: 8px;
 }
 
-.editButton {
+.section .editButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -226,18 +226,18 @@
   cursor: pointer;
 }
 
-.editButton:disabled {
+.section .editButton:disabled {
   cursor: default;
   opacity: 0.5;
 }
 
-.saveButton {
+.section .saveButton {
   color: var(--stu-primary-contrast);
   background: var(--stu-primary);
   border: 0;
 }
 
-.cancelButton {
+.section .cancelButton {
   color: var(--stu-text-muted);
   background: var(--stu-surface);
   border: 1px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
@@ -250,8 +250,8 @@
   flex-wrap: wrap;
 }
 
-.actionButton,
-.replyToggle {
+.section .actionButton,
+.section .replyToggle {
   padding: 0;
   font: inherit;
   background: none;
@@ -259,7 +259,7 @@
   cursor: pointer;
 }
 
-.actionButton {
+.section .actionButton {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -270,13 +270,13 @@
   border-radius: 999px;
 }
 
-.actionButton:hover,
-.replyToggle:hover {
+.section .actionButton:hover,
+.section .replyToggle:hover {
   color: var(--stu-primary);
   background: color-mix(in srgb, var(--stu-primary) 8%, transparent);
 }
 
-.actionButton:disabled {
+.section .actionButton:disabled {
   cursor: default;
   opacity: 0.5;
 }
@@ -285,7 +285,7 @@
   margin-top: 6px;
 }
 
-.replyToggle {
+.section .replyToggle {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -317,7 +317,7 @@
   border-radius: 999px;
 }
 
-.replyCancelButton {
+.section .replyCancelButton {
   display: grid;
   width: 22px;
   height: 22px;
@@ -329,7 +329,7 @@
   border-radius: 50%;
 }
 
-.replyCancelButton:hover {
+.section .replyCancelButton:hover {
   background: color-mix(in srgb, var(--stu-primary) 12%, transparent);
 }
 
@@ -370,7 +370,7 @@
     0 1px 0 rgba(255, 255, 255, 0.72) inset;
 }
 
-.textarea {
+.section .textarea {
   display: block;
   width: 100%;
   min-width: 0;
@@ -387,7 +387,7 @@
   outline: none;
 }
 
-.textarea::placeholder {
+.section .textarea::placeholder {
   color: var(--stu-text-subtle);
 }
 
@@ -399,7 +399,7 @@
   padding: 0 8px 8px 14px;
 }
 
-.submitButton {
+.section .submitButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -416,13 +416,13 @@
   cursor: pointer;
 }
 
-.submitButtonReady {
+.section .submitButtonReady {
   color: var(--stu-primary-contrast);
   background: var(--stu-primary);
   opacity: 1;
 }
 
-.submitButton:disabled {
+.section .submitButton:disabled {
   cursor: default;
 }
 
@@ -470,7 +470,7 @@
     gap: 8px;
   }
 
-  .submitButton {
+  .section .submitButton {
     width: 100%;
   }
 
@@ -486,7 +486,18 @@
     justify-content: stretch;
   }
 
-  .editButton {
+  .section .editButton {
     flex: 1;
   }
+}
+
+.queryError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 0;
+  color: var(--stu-text-muted);
+  font-size: 14px;
 }

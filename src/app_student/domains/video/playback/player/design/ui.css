@@ -24,7 +24,7 @@
   border-color: rgba(255, 90, 110, 0.78);
 }
 
-.svpBtn {
+.svpRoot .svpBtn {
   width: 44px;
   height: 44px;
   border-radius: 10px;
@@ -39,16 +39,16 @@
   flex-shrink: 0;
 }
 
-.svpBtn:hover {
+.svpRoot .svpBtn:hover {
   background: rgba(255, 255, 255, 0.18);
   border-color: rgba(255, 255, 255, 0.28);
 }
 
-.svpBtn:active {
+.svpRoot .svpBtn:active {
   background: rgba(255, 255, 255, 0.24);
 }
 
-.svpBtn:disabled {
+.svpRoot .svpBtn:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
@@ -62,7 +62,7 @@
   font-weight: 800;
 }
 
-.svpBtn svg {
+.svpRoot .svpBtn svg {
   width: 22px;
   height: 22px;
 }
@@ -74,11 +74,11 @@
 
 /* 터치 디바이스: WCAG 권장 hit area 44x44 이상 보장 + 큰 아이콘 */
 @media (hover: none) and (pointer: coarse) {
-  .svpBtn {
+  .svpRoot .svpBtn {
     width: 48px;
     height: 48px;
   }
-  .svpBtn svg {
+  .svpRoot .svpBtn svg {
     width: 26px;
     height: 26px;
   }
@@ -113,7 +113,7 @@
   right: 0;
 }
 
-.svpMenuItem {
+.svpRoot .svpMenuItem {
   width: 100%;
   text-align: left;
   padding: 10px 10px;
@@ -126,7 +126,7 @@
   font-size: 12px;
 }
 
-.svpMenuItem:hover {
+.svpRoot .svpMenuItem:hover {
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -167,7 +167,7 @@
   white-space: nowrap;
 }
 
-.svpToastClose {
+.svpToast .svpToastClose {
   width: 30px;
   height: 30px;
   border-radius: 10px;
@@ -184,7 +184,7 @@
    Speed Button + Popover
    ═══════════════════════════════════════════════ */
 
-.svpSpeedBtn {
+.svpRoot .svpSpeedBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -204,16 +204,16 @@
   white-space: nowrap;
 }
 
-.svpSpeedBtn:hover {
+.svpRoot .svpSpeedBtn:hover {
   background: rgba(255, 255, 255, 0.18);
   border-color: rgba(255, 255, 255, 0.28);
 }
 
-.svpSpeedBtn:active {
+.svpRoot .svpSpeedBtn:active {
   background: rgba(255, 255, 255, 0.24);
 }
 
-.svpSpeedBtn--disabled {
+.svpRoot .svpSpeedBtn--disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -250,7 +250,7 @@
   transform: rotate(45deg);
 }
 
-.svpSpeedMenuItem {
+.svpSpeedMenu .svpSpeedMenuItem {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -268,12 +268,12 @@
   text-align: left;
 }
 
-.svpSpeedMenuItem:hover {
+.svpSpeedMenu .svpSpeedMenuItem:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 
-.svpSpeedMenuItem--active {
+.svpSpeedMenu .svpSpeedMenuItem--active {
   color: #fff;
   font-weight: 800;
 }
@@ -300,13 +300,13 @@
 
 /* 터치 디바이스 */
 @media (hover: none) and (pointer: coarse) {
-  .svpSpeedBtn {
+  .svpRoot .svpSpeedBtn {
     height: 42px;
     min-width: 54px;
     font-size: 14px;
     padding: 0 14px;
   }
-  .svpSpeedMenuItem {
+  .svpSpeedMenu .svpSpeedMenuItem {
     padding: 15px 22px;
     font-size: 16px;
   }

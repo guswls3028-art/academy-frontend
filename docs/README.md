@@ -9,6 +9,7 @@
 | [ROUTING.md](ROUTING.md) | 공개 URL 네이밍, 권한 분리, 기존 경로 호환 규칙 |
 | [API-CONTRACTS.md](API-CONTRACTS.md) | 백엔드 OpenAPI 고정 SHA와 생성 TypeScript 타입 드리프트 계약 |
 | [VIDEO-DIRECT-ACCESS.md](VIDEO-DIRECT-ACCESS.md) | 수강 등록 없이 영상 1개만 여는 관리자 승인·회수와 학생 무쓰기 재생 계약 |
+| [STUDENT-VIDEO-WATCH.md](STUDENT-VIDEO-WATCH.md) | 학생 영상 동선·좋아요·댓글·재생목록, 종료·진도 저장과 실패 복구 계약 |
 | [PUBLIC-VIDEO-WORKFLOW.md](PUBLIC-VIDEO-WORKFLOW.md) | 공개 영상의 첫 추가, 명시적 공간 준비, 실패·재시도와 구버전 호환 |
 | [REFACTOR-GUARDRAILS.md](REFACTOR-GUARDRAILS.md) | 도메인 공개 표면, 대형 파일, 생성 코드 분리와 CI 부채 예산 |
 | [BROWSER-PERSISTENCE.md](BROWSER-PERSISTENCE.md) | 인증·표시 취향·사용자 초안·운영 선호의 브라우저 저장 범위와 실패 안전 계약 |

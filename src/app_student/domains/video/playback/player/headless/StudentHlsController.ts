@@ -131,6 +131,7 @@ export interface ControllerOptions {
   initialPosition?: number;
   initialProgress?: number;
   onFatal?: (reason: string) => void;
+  onEnded?: () => void;
   onLeaveProgress?: (data: { progress?: number; last_position?: number; completed?: boolean }) => void;
 }
 
@@ -830,6 +831,16 @@ export class StudentHlsController {
     const onPause = () => this.guard(() => this.setState({ playing: false }));
     const onWaiting = () => this.guard(() => this.setState({ buffering: true }));
     const onPlaying = () => this.guard(() => this.setState({ buffering: false }));
+    const onEnded = () => {
+      if (this.disposed) return;
+      const duration = Number(el.duration);
+      if (duration > 0 && Number.isFinite(duration)) {
+        this.maxWatchedRef = Math.max(this.maxWatchedRef, duration);
+      }
+      this.setState({ playing: false, buffering: false, current: Number(el.currentTime || 0) });
+      this.flushProgress();
+      this.opts.onEnded?.();
+    };
 
     const onRateChange = () => {
       if (this.disposed) return;
@@ -940,6 +951,7 @@ export class StudentHlsController {
     this.addVideoListener("pause", onPause);
     this.addVideoListener("waiting", onWaiting);
     this.addVideoListener("playing", onPlaying);
+    this.addVideoListener("ended", onEnded);
     this.addVideoListener("ratechange", onRateChange);
     this.addVideoListener("seeking", onSeeking);
     this.addVideoListener("error", onError);

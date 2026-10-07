@@ -483,6 +483,7 @@ export class StudentYoutubeController {
       this.maxWatchedRef = Math.max(this.maxWatchedRef, duration);
       this.setState({ playing: false, buffering: false, current: duration, duration });
       this.flushProgress();
+      this.opts.onEnded?.();
       return;
     }
     if (state === 2 || state === 5 || state === -1) {

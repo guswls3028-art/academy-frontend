@@ -28,6 +28,7 @@ import StudentVideoPlayer, {
 import { safeParseInt, formatClock } from "../playback/player/design/utils";
 import { timeAgo, formatViewCount } from "../utils/timeAgo";
 import VideoCommentSection from "../components/VideoCommentSection";
+import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
 import { isYouTubeSource } from "@/shared/media/video/youtube";
 import {
@@ -106,6 +107,7 @@ function LikeButton({
       return previous;
     },
     onError: (_error, _variables, previous) => {
+      studentToast.error("좋아요를 저장하지 못했습니다. 다시 시도해 주세요.");
       if (!previous) return;
       setLiked(previous.liked);
       setCount(previous.count);
@@ -124,11 +126,12 @@ function LikeButton({
       disabled={mutation.isPending}
       className="vpp-like-btn"
       aria-pressed={liked}
+      aria-label={liked ? "좋아요 취소" : "좋아요"}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
       </svg>
-      <span>{count > 0 ? count : "좋아요"}</span>
+      <span>좋아요{count > 0 ? ` ${count}` : ""}</span>
     </button>
   );
 }
@@ -272,12 +275,16 @@ export default function VideoPlayerPage() {
     && playbackQuery.data?.playback_token,
   );
   const effectiveEnrollmentId = isDirectAccess ? null : (video?.enrollment_id ?? enrollmentId);
+  const videoListUrl = sessionId
+    ? `/student/video/sessions/${sessionId}${effectiveEnrollmentId ? `?enrollment=${effectiveEnrollmentId}` : ""}`
+    : "/student/video";
+  const commentsRef = useRef<HTMLDivElement>(null);
 
   /* ─── 세션 영상 목록 (React Query, dependent) ─── */
   const sessionVideosQuery = useQuery({
     queryKey: studentVideoQueryKeys.sessionVideos(queryScope, sessionId, effectiveEnrollmentId ?? null),
     queryFn: () => fetchStudentSessionVideos(sessionId!, effectiveEnrollmentId ?? undefined),
-    enabled: !!sessionId && !!videoId,
+    enabled: !!sessionId && !!videoId && !!video,
     staleTime: 60_000,
     retry: 1,
   });
@@ -684,26 +691,25 @@ export default function VideoPlayerPage() {
           completed: data.completed,
         });
       }
-
-      // 영상 완료 시 자동 다음 재생 시작 (nextVideoRef로 최신 값 참조)
-      if (data.completed && nextVideoRef.current && !autoPlayTimerRef.current) {
-        setAutoPlayCountdown(5);
-        autoPlayTimerRef.current = setInterval(() => {
-          setAutoPlayCountdown((prev) => {
-            if (prev === null || prev <= 1) {
-              if (autoPlayTimerRef.current) {
-                clearInterval(autoPlayTimerRef.current);
-                autoPlayTimerRef.current = null;
-              }
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      }
     },
     [effectiveEnrollmentId, isDirectAccess, playbackStorageScope, videoId]
   );
+
+  // Completion is durable learning state; only a new media-end event advances playback.
+  const onPlaybackEnded = useCallback(() => {
+    if (!nextVideoRef.current || autoPlayTimerRef.current) return;
+    setAutoPlayCountdown(5);
+    autoPlayTimerRef.current = setInterval(() => {
+      setAutoPlayCountdown((previous) => {
+        if (previous === null || previous <= 1) {
+          if (autoPlayTimerRef.current) clearInterval(autoPlayTimerRef.current);
+          autoPlayTimerRef.current = null;
+          return 0;
+        }
+        return previous - 1;
+      });
+    }, 1000);
+  }, []);
 
   // Reset state when the video or selected enrollment changes.
   useEffect(() => {
@@ -735,7 +741,7 @@ export default function VideoPlayerPage() {
 
   /* ─── Render ─── */
   const items = playlistItems;
-  const hasPlaylist = items.length > 1;
+  const hasPlaylist = items.length > 0;
   const [drawerOpen, setDrawerOpen] = useState(true);
 
   return (
@@ -753,7 +759,7 @@ export default function VideoPlayerPage() {
             description={fatalError || loadError || "잠시 후 다시 시도해 주세요."}
             onRetry={() => { void retryPlayback(); }}
           />
-          <button type="button" className="vpp-back-btn" onClick={() => nav(-1)} aria-label="뒤로가기">
+          <button type="button" className="vpp-back-btn" onClick={() => nav(videoListUrl)} aria-label="뒤로가기">
             <IconChevronRight className="vpp-icon-back" aria-hidden="true" />
             <span>뒤로가기</span>
           </button>
@@ -768,6 +774,7 @@ export default function VideoPlayerPage() {
               enrollmentId={effectiveEnrollmentId != null ? Number(effectiveEnrollmentId) : null}
               initialPosition={initialPosition}
               onFatal={onFatal}
+              onEnded={onPlaybackEnded}
               onLeaveProgress={onLeaveProgress}
             />
           </div>
@@ -792,17 +799,33 @@ export default function VideoPlayerPage() {
             {/* 액션: 좋아요 · 목록 · 다음 */}
             <div className="vpp-info-row">
               <div className="vpp-primary-actions">
-                <button type="button" className="vpp-back-link" onClick={() => nav(-1)} aria-label="목록으로">
+                <button type="button" className="vpp-back-link" onClick={() => nav(videoListUrl)} aria-label="목록으로">
                   <IconChevronRight className="vpp-icon-back-sm" aria-hidden="true" />
                   <span>목록으로</span>
                 </button>
                 {!isDirectAccess && (
                   <LikeButton
+                    key={videoId}
                     videoId={videoId!}
                     initialLiked={video.is_liked ?? false}
                     initialCount={video.like_count ?? 0}
                     onConfirmed={onLikeConfirmed}
                   />
+                )}
+                {!isDirectAccess && (
+                  <button
+                    type="button"
+                    className="vpp-back-link"
+                    aria-label="댓글 보기"
+                    onClick={() => {
+                      setShowComments(true);
+                      commentsRef.current?.scrollIntoView({
+                        block: "start",
+                        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+                      });
+                      commentsRef.current?.focus({ preventScroll: true });
+                    }}
+                  >댓글</button>
                 )}
               </div>
               <div className="vpp-info-actions">
@@ -812,6 +835,7 @@ export default function VideoPlayerPage() {
                     className="vpp-back-link"
                     onClick={() => setDrawerOpen((v) => !v)}
                     aria-expanded={drawerOpen}
+                    aria-controls="video-playlist"
                     aria-label={drawerOpen ? "재생목록 닫기" : "재생목록 열기"}
                   >
                     <IconChevronRight
@@ -819,7 +843,7 @@ export default function VideoPlayerPage() {
                       aria-hidden="true"
                     />
                     <span>
-                      {drawerOpen ? "목록 닫기" : `재생목록 (${currentIndex + 1}/${items.length})`}
+                      {`재생목록 (${Math.max(0, currentIndex + 1)}/${items.length})`}
                     </span>
                   </button>
                 )}
@@ -849,13 +873,26 @@ export default function VideoPlayerPage() {
             </div>
           </div>
 
-          {/* ─── 댓글 섹션 (플레이어 로드 후 지연 렌더링) ─── */}
-          {videoId && showComments && !isDirectAccess && <VideoCommentSection videoId={videoId} />}
+          {sessionVideosQuery.isError && (
+            <div className="vpp-section-status" role="alert">
+              <span>재생목록을 불러오지 못했습니다.</span>
+              <button type="button" className="vpp-back-link"
+                aria-label="재생목록 다시 불러오기" disabled={sessionVideosQuery.isFetching}
+                onClick={() => void sessionVideosQuery.refetch()}>
+                {sessionVideosQuery.isFetching ? "불러오는 중…" : "다시 시도"}
+              </button>
+            </div>
+          )}
+          {sessionId && sessionVideosQuery.isPending && (
+            <div className="vpp-section-status" role="status">재생목록을 불러오는 중…</div>
+          )}
 
           {/* ─── 재생목록 드로어 ─── */}
           {hasPlaylist && (
             <div
-              className={`vpp-playlist${drawerOpen ? "" : " vpp-playlist--closed"}`}
+              id="video-playlist"
+              className="vpp-playlist"
+              hidden={!drawerOpen}
             >
               <div className="vpp-playlist-header">
                 <span className="vpp-playlist-label">재생목록</span>
@@ -937,6 +974,13 @@ export default function VideoPlayerPage() {
                   );
                 })}
               </div>
+            </div>
+          )}
+          {videoId && !isDirectAccess && (
+            <div id="video-comments" ref={commentsRef} className="vpp-comments-anchor" tabIndex={-1}>
+              {showComments ? <VideoCommentSection key={videoId} videoId={videoId} /> : (
+                <div className="vpp-section-status" role="status">댓글을 불러오는 중…</div>
+              )}
             </div>
           )}
         </>

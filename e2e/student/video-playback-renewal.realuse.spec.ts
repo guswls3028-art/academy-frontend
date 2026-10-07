@@ -761,6 +761,22 @@ async function finishStudent(
     expect(state.sessionPosterCaptureCount).toBe(1);
     const bootstrapsBeforeReload = state.bootstraps.length;
     const sessionPosterCapturesBeforeReload = state.sessionPosterCaptureCount;
+    // Exact disposable student/video, real API writes; tenant cleanup cascades both rows.
+    const commentText = `qa-watch-${state.viewport}: 복습하며 남긴 질문`;
+    const like = page.getByRole("button", { name: "좋아요", exact: true });
+    await expect(like).toHaveAttribute("aria-pressed", "false");
+    const likeSaved = page.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname === `/api/v1/student/video/videos/${videoId}/like/`);
+    await like.click();
+    expect((await likeSaved).status()).toBe(200);
+    await expect(page.getByRole("button", { name: "좋아요 취소", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "댓글 보기", exact: true }).click();
+    await page.getByPlaceholder("댓글을 입력하세요...").fill(commentText);
+    const commentSaved = page.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname === `/api/v1/student/video/videos/${videoId}/comments/`);
+    await page.getByRole("button", { name: "등록", exact: true }).click();
+    expect((await commentSaved).status()).toBe(201);
+    await expect(page.getByText(commentText, { exact: true })).toBeVisible();
     await page.waitForLoadState("networkidle", { timeout: 10_000 });
     await emitPagehideListenerSnapshot(page, state.viewport, "before-reload");
     await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
@@ -769,6 +785,12 @@ async function finishStudent(
     await expect.poll(() => state.sessionPosterCaptureCount).toBeGreaterThan(sessionPosterCapturesBeforeReload);
     expect(state.sessionPosterCaptureCount).toBe(2);
     emitLongVideoCheckpoint(state.viewport, "reload-playlist");
+    await expect(page.getByRole("button", { name: "좋아요 취소", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "댓글 보기", exact: true }).click();
+    await expect(page.getByText(commentText, { exact: true })).toBeVisible();
+    await test.info().attach(`video-watch-${state.viewport}`, {
+      body: await page.screenshot({ fullPage: true }), contentType: "image/png",
+    });
     const reloadedBootstrap = state.bootstraps.at(-1)!;
     const apiPosition = Number(reloadedBootstrap.video?.last_position);
     expect(Number.isFinite(apiPosition)).toBe(true);

@@ -75,6 +75,7 @@ type Props = {
   enrollmentId: number | null;
   initialPosition?: number;
   onFatal?: (reason: string) => void;
+  onEnded?: () => void;
   onLeaveProgress?: (data: LeaveProgressPayload) => void;
 };
 
@@ -98,6 +99,7 @@ export default function StudentVideoPlayer({
   enrollmentId,
   initialPosition,
   onFatal,
+  onEnded,
   onLeaveProgress,
 }: Props) {
   const policy = useMemo(() => normalizePolicy(bootstrap.policy), [bootstrap.policy]);
@@ -158,6 +160,8 @@ export default function StudentVideoPlayer({
   const touchStartRef = useRef<{ y: number; volume: number; rightHalf: boolean } | null>(null);
   const currentRef = useRef(0);
   const onFatalRef = useRef(onFatal);
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
   const onLeaveProgressRef = useRef(onLeaveProgress);
   onFatalRef.current = onFatal;
   onLeaveProgressRef.current = onLeaveProgress;
@@ -216,6 +220,7 @@ export default function StudentVideoPlayer({
       initialPosition: config.initialPosition,
       initialProgress: config.initialProgress,
       onFatal: (reason: string) => onFatalRef.current?.(reason),
+      onEnded: () => onEndedRef.current?.(),
       onLeaveProgress: (data: LeaveProgressPayload) => onLeaveProgressRef.current?.(data),
     };
     let ctrl: StudentHlsController | StudentYoutubeController;
