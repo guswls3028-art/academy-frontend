@@ -198,7 +198,9 @@ export function legacyCssPlugin(buildVersion) {
         const url = base === "./" || base === ""
           ? `new URL(${JSON.stringify(`../${fileName}`)},import.meta.url).href`
           : JSON.stringify(`${base}${fileName}`);
-        return `var __vite_style__ = document.createElement('link');__vite_style__.rel='stylesheet';__vite_style__.href=${url};document.head.appendChild(__vite_style__);`;
+        // CSS modules can export a local binding named document. Qualify the
+        // browser global so injection cannot capture that uninitialized binding.
+        return `var __vite_style__ = window.document.createElement('link');__vite_style__.rel='stylesheet';__vite_style__.href=${url};window.document.head.appendChild(__vite_style__);`;
       });
       if (result.includes("__vite_style__.textContent")) {
         throw new Error("Legacy CSS injection changed; update the stylesheet extractor before releasing.");

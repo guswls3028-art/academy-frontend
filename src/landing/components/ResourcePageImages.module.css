@@ -1,6 +1,6 @@
 .document { min-width: 0; }
 
-.document .pages { width: 100%; }
+.document .pages { width: 100%; max-width: none; }
 
 .surface {
   position: relative;

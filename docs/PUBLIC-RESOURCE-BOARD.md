@@ -133,3 +133,8 @@ cleanup, retaining the original workflow failure.
 Required frontend gates, backend candidate runtime, same-artifact development
 canary and cleanup zero precede promotion. Production observation preserves all
 customer content and uses no synthetic posts.
+
+Legacy stylesheet injection uses `window.document` because CSS modules can
+export a local `document` class binding. Verify the compiled SystemJS artifact,
+including report reading, zoom, renewal and reload, with the modern entry disabled;
+development-server checks alone cannot detect this bundle-only failure.
