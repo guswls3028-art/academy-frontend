@@ -240,20 +240,57 @@ for (const width of [1366, 390]) {
     await entry.click();
     const viewer = page.getByRole("dialog");
     const viewerPage = viewer.getByTestId("resource-viewer-page");
+    const viewerStage = viewer.getByRole("region");
+    const fitsScreen = () => viewerStage.evaluate((element) => {
+      const stage = element.getBoundingClientRect();
+      const paper = element.querySelector('[data-testid="resource-viewer-page"]')!.getBoundingClientRect();
+      return element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1
+        && paper.left >= stage.left - 1 && paper.right <= stage.right + 1
+        && paper.top >= stage.top - 1 && paper.bottom <= stage.bottom + 1
+        && Math.abs((paper.top + paper.bottom) - (stage.top + stage.bottom)) <= 2
+        && Math.abs((paper.left + paper.right) - (stage.left + stage.right)) <= 2;
+    });
+    const revealControls = async () => {
+      if (await viewer.getAttribute("data-controls-visible") === "false") {
+        const bounds = await viewerStage.boundingBox();
+        await viewerStage.click({ position: { x: bounds!.width / 2, y: bounds!.height / 2 } });
+      }
+      await expect(viewer).toHaveAttribute("data-controls-visible", "true");
+    };
     await expect(viewerPage).toHaveAttribute("data-render-status", "ready");
+    await expect.poll(fitsScreen).toBe(true);
     await expect(viewer.getByRole("button", { name: "이전 쪽", exact: true })).toBeDisabled();
-    if (width === 390) expect(await viewerPage.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThanOrEqual(width - 1);
+    await page.clock.fastForward(2300);
+    await expect(viewer).toHaveAttribute("data-controls-visible", "false");
+    await viewerStage.dispatchEvent("touchstart", { touches: [{ identifier: 1, clientX: 180, clientY: 300 }] });
+    await viewerStage.dispatchEvent("touchend", { touches: [], changedTouches: [{ identifier: 1, clientX: 180, clientY: 300 }] });
+    await expect(viewer).toHaveAttribute("data-controls-visible", "true");
+    await viewerStage.dispatchEvent("click");
+    await expect(viewer).toHaveAttribute("data-controls-visible", "true");
+    await page.clock.fastForward(2300);
+    await expect(viewer).toHaveAttribute("data-controls-visible", "false");
+    await page.evaluate(() => (document.activeElement as HTMLElement)?.blur());
+    await page.keyboard.press("Tab");
+    await expect(viewer).toHaveAttribute("data-controls-visible", "true");
+    await expect(viewer.getByRole("button", { name: "전체화면 닫기", exact: true })).toBeFocused();
+    await page.clock.fastForward(2300);
+    await expect(viewer).toHaveAttribute("data-controls-visible", "true");
+    const stageBounds = await viewerStage.boundingBox();
+    await viewerStage.click({ position: { x: stageBounds!.width / 2, y: stageBounds!.height / 2 } });
+    await expect(viewer).toHaveAttribute("data-controls-visible", "false");
+    await revealControls();
     await viewer.getByRole("button", { name: "다음 쪽", exact: true }).click();
     await expect(viewerPage).toHaveAttribute("data-page-number", "2");
     await expect(viewerPage).toHaveAttribute("data-render-status", "ready");
     await viewer.getByRole("button", { name: "전체화면 닫기", exact: true }).focus();
     await page.keyboard.press("Shift+Tab");
     await expect(viewer.getByRole("button", { name: "전체화면 확대", exact: true })).toBeFocused();
+    await page.clock.fastForward(2300);
+    await expect(viewer).toHaveAttribute("data-controls-visible", "true");
     const viewerWidth = await viewerPage.evaluate((element) => element.getBoundingClientRect().width);
     await viewer.getByRole("button", { name: "전체화면 확대", exact: true }).click();
     await expect(viewer.locator("output")).toHaveText("125%");
     await expect.poll(async () => viewerPage.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(viewerWidth * 1.2);
-    const viewerStage = viewer.getByRole("region");
     await viewerStage.dispatchEvent("touchstart", { touches: [{ identifier: 1, clientX: 250, clientY: 180 }] });
     await viewerStage.dispatchEvent("touchend", { touches: [], changedTouches: [{ identifier: 1, clientX: 70, clientY: 180 }] });
     await expect(viewerPage).toHaveAttribute("data-page-number", "2");
@@ -262,26 +299,35 @@ for (const width of [1366, 390]) {
     await expect.poll(() => readerRequests).toBeGreaterThan(viewerRenewal);
     await expect(viewerPage).toHaveAttribute("data-page-number", "2");
     await expect(viewer.locator("output")).toHaveText("125%");
+    await revealControls();
     resourceScenario.readerFailure = true;
     await page.clock.fastForward(241_000);
     await expect(viewer.getByRole("alert")).toContainText("본문을 준비하지 못했습니다");
+    await page.clock.fastForward(2300);
+    await expect(viewer).toHaveAttribute("data-controls-visible", "true");
     resourceScenario.readerFailure = false;
     await viewer.getByRole("button", { name: "다시 불러오기", exact: true }).click();
     await expect(viewerPage).toHaveAttribute("data-page-number", "2");
     await expect(viewerPage).toHaveAttribute("data-render-status", "ready");
     await expect(viewer.locator("output")).toHaveText("125%");
-    await viewer.getByRole("button", { name: "화면 너비에 맞추기", exact: true }).click();
+    await revealControls();
+    await viewer.getByRole("button", { name: "화면에 맞추기", exact: true }).click();
     await viewerStage.dispatchEvent("touchstart", { touches: [{ identifier: 1, clientX: 250, clientY: 180 }] });
     await viewerStage.dispatchEvent("touchend", { touches: [], changedTouches: [{ identifier: 1, clientX: 70, clientY: 180 }] });
     await expect(viewerPage).toHaveAttribute("data-page-number", "3");
+    await revealControls();
     await expect(viewer.getByRole("button", { name: "다음 쪽", exact: true })).toBeDisabled();
     await viewer.getByLabel("페이지 선택", { exact: true }).selectOption("0");
     await expect(viewerPage).toHaveAttribute("data-page-number", "1");
     await page.setViewportSize({ width: 844, height: 390 });
     await expect(viewerPage).toHaveAttribute("data-render-status", "ready");
     await expect.poll(() => viewer.evaluate((element) => element.getBoundingClientRect().height)).toBe(390);
-    if (width === 390) await expect.poll(() => viewerPage.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThanOrEqual(843);
+    await expect.poll(fitsScreen).toBe(true);
+    await page.clock.fastForward(2300);
+    await expect(viewer).toHaveAttribute("data-controls-visible", "false");
+    await revealControls();
     await page.setViewportSize({ width, height: 900 });
+    await expect.poll(fitsScreen).toBe(true);
     await viewer.getByRole("button", { name: "전체화면 닫기", exact: true }).click();
     await expect(viewer).toHaveCount(0);
     await expect(entry).toBeFocused();
