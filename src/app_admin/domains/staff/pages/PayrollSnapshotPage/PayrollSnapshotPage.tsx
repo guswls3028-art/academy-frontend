@@ -88,7 +88,7 @@ export default function PayrollSnapshotPage() {
     return (
       <div className="staff-panel">
         <div className="staff-panel__header">
-          <span className="staff-section-title">근태·환급 정산 참고 · {ymLabel(year, month)}</span>
+          <span className="staff-section-title">근태·환급 급여 정산 · {ymLabel(year, month)}</span>
         </div>
         <div className="staff-panel__body">
           <p className="staff-helper">해당 월은 아직 마감되지 않았거나 스냅샷이 없습니다. 월 마감 탭에서 마감 후 확인하세요.</p>
@@ -100,7 +100,7 @@ export default function PayrollSnapshotPage() {
   return (
     <div className="staff-panel">
       <div className="staff-panel__header flex flex-wrap items-center justify-between gap-4">
-        <span className="staff-section-title">마감 정산 참고 · {ymLabel(snap.year, snap.month)}</span>
+        <span className="staff-section-title">마감 급여 정산 · {ymLabel(snap.year, snap.month)}</span>
         <Button intent="secondary" size="sm" disabled={exportingPdf} onClick={handlePdf}>
           {exportingPdf ? "다운로드 중…" : "PDF 명세"}
         </Button>
@@ -117,8 +117,20 @@ export default function PayrollSnapshotPage() {
               <span className="value">{snap.work_amount.toLocaleString()}원</span>
             </div>
             <div className="staff-payroll-row">
+              <span className="label">기본 공제 3.3%</span>
+              <span className="value">-{snap.default_deduction.deduction_total.toLocaleString()}원</span>
+            </div>
+            <div className="staff-payroll-row">
+              <span className="label">공제 후 급여</span>
+              <span className="value">{snap.default_deduction.net_work_amount.toLocaleString()}원</span>
+            </div>
+            <div className="staff-payroll-row">
               <span className="label">승인 선결제 환급</span>
               <span className="value">{snap.approved_expense_amount.toLocaleString()}원</span>
+            </div>
+            <div className="staff-payroll-row">
+              <span className="label">이체 예정액</span>
+              <span className="value">{snap.default_deduction.transfer_amount.toLocaleString()}원</span>
             </div>
             <div className="staff-payroll-row">
               <span className="label">정산 합계(공제 전)</span>
@@ -127,7 +139,7 @@ export default function PayrollSnapshotPage() {
           </div>
         </div>
         <div className="text-xs text-[var(--color-text-muted)]">
-          세금·4대보험·기타 공제는 반영하지 않습니다. 실제 지급액은 계약 형태와 공제 내역을 확인해 확정하세요.
+          마감된 급여에 기본 공제 3.3%를 적용합니다. 승인 환급은 공제 없이 더하며, 이체 예정액은 송금 완료를 뜻하지 않습니다.
         </div>
         <div className="text-xs text-[var(--color-text-muted)]">
           확정일시: {snap.created_at ? new Date(snap.created_at).toLocaleString("ko-KR") : "-"}

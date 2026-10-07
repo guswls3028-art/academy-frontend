@@ -9,6 +9,7 @@ export type ReleaseBoundary = {
 };
 
 const DEVELOPMENT_OMR_R2_ORIGIN = "https://af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.com";
+const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const PPTX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
 function isExactDevelopmentPptDownload(
@@ -26,6 +27,25 @@ function isExactDevelopmentPptDownload(
     || target.searchParams.get("response-content-type") !== PPTX_CONTENT_TYPE
     || target.searchParams.getAll("response-content-disposition").length !== 1
     || target.searchParams.get("response-content-disposition") !== 'attachment; filename="' + filename + '"') return false;
+  const unsigned = new URL(target);
+  unsigned.searchParams.delete("response-content-type");
+  unsigned.searchParams.delete("response-content-disposition");
+  return hasExactHostSignature(unsigned, 3600);
+}
+
+function isExactDevelopmentPayrollDownload(
+  boundary: ReleaseBoundary, rawUrl: string, jobId: string, filename: string,
+): boolean {
+  if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
+    || Number(boundary.omrR2TenantId) < 1 || !UUID.test(jobId)) return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== target.origin + target.pathname + target.search
+    || target.pathname !== `/academy-development-artifacts/exports/${boundary.omrR2TenantId}/${jobId}_${filename}`
+    || target.searchParams.getAll("response-content-type").length !== 1
+    || target.searchParams.get("response-content-type") !== XLSX_CONTENT_TYPE
+    || target.searchParams.getAll("response-content-disposition").length !== 1
+    || target.searchParams.get("response-content-disposition") !== 'attachment; filename="' + filename + '"; filename*=UTF-8\'\'' + filename) return false;
   const unsigned = new URL(target);
   unsigned.searchParams.delete("response-content-type");
   unsigned.searchParams.delete("response-content-disposition");
@@ -847,7 +867,8 @@ export async function installReleaseContextGuard(
   const resourceDownloadUrls = new Set<string>();
   const resourceReaderUrls = new Map<string, string>();
   const acceptedPptJobs = new Set<string>();
-  const pptDownloadUrls = new Map<string, { url: string; filename: string }>();
+  const acceptedPayrollJobs = new Map<string, string>();
+  const documentDownloadUrls = new Map<string, { url: string; filename: string; contentType: string; contentDisposition: string }>();
   const communityAttachments = new Map<string, { contentType: string; originalName: string }>();
   const registerQnaPost = (post: unknown) => {
     if (!isRecord(post) || post.post_type !== "qna" || typeof post.id !== "number" || !Number.isSafeInteger(post.id)
@@ -988,9 +1009,9 @@ export async function installReleaseContextGuard(
         await route.fulfill({ response, body });
         return;
       }
-      const pptDownload = request.method() === "GET"
-        ? [...pptDownloadUrls.values()].find((item) => item.url === upstream) : undefined;
-      if (pptDownload && ["document", "other"].includes(request.resourceType())) {
+      const documentDownload = request.method() === "GET"
+        ? [...documentDownloadUrls.values()].find((item) => item.url === upstream) : undefined;
+      if (documentDownload && ["document", "other"].includes(request.resourceType())) {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
           .some((key) => headers[key])) {
@@ -998,18 +1019,18 @@ export async function installReleaseContextGuard(
           return;
         }
         const response = await route.fetch({ url: upstream, method: "GET",
-          headers: { accept: PPTX_CONTENT_TYPE }, maxRedirects: 0 });
+          headers: { accept: documentDownload.contentType }, maxRedirects: 0 });
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
         const body = await response.body();
-        const disposition = 'attachment; filename="' + pptDownload.filename + '"';
+        const disposition = documentDownload.contentDisposition;
         if (response.status() !== 200
-          || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== PPTX_CONTENT_TYPE
+          || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== documentDownload.contentType
           || response.headers()["content-disposition"] !== disposition
           || body.length < 4 || body.subarray(0, 4).toString("binary") !== "PK\x03\x04") {
           await reject("transport");
           return;
         }
-        await route.fulfill({ status: 200, headers: { "content-type": PPTX_CONTENT_TYPE,
+        await route.fulfill({ status: 200, headers: { "content-type": documentDownload.contentType,
           "content-disposition": disposition }, body });
         return;
       }
@@ -1106,22 +1127,43 @@ export async function installReleaseContextGuard(
         const pptTarget = new URL(upstream);
         const pptSubmission = request.method() === "POST"
           && pptTarget.pathname === "/api/v1/tools/ppt/generate/" && !pptTarget.search;
+        const payrollSubmission = request.method() === "POST"
+          && pptTarget.pathname === "/api/v1/staffs/payroll-snapshots/export-excel/" && !pptTarget.search;
+        const payrollPeriod = data as { year?: unknown; month?: unknown } | undefined;
+        const payrollYear = Number(payrollPeriod?.year);
+        const payrollMonth = Number(payrollPeriod?.month);
         const pptStatus = request.method() === "GET"
           ? /^\/api\/v1\/jobs\/([0-9a-f-]{36})\/(?:progress\/)?$/.exec(pptTarget.pathname) : null;
         if (boundary.mode === "development" && response.status() >= 200 && response.status() < 300
           && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json"
           && /^Bearer \S+$/.test(headers.authorization ?? "") && headers["x-tenant-code"] === boundary.tenantCode
-          && (pptSubmission || (pptStatus && !pptTarget.search))) {
+          && (pptSubmission || payrollSubmission || (pptStatus && !pptTarget.search))) {
           const payload = await response.json();
           if (pptSubmission && UUID.test(payload?.job_id) && acceptedPptJobs.size < 2) {
             acceptedPptJobs.add(payload.job_id);
+          }
+          if (payrollSubmission && UUID.test(payload?.job_id) && acceptedPayrollJobs.size < 2
+            && Number.isInteger(payrollYear) && payrollYear >= 2020 && payrollYear <= 2100
+            && Number.isInteger(payrollMonth) && payrollMonth >= 1 && payrollMonth <= 12) {
+            acceptedPayrollJobs.set(payload.job_id, `payroll_${payrollYear}_${payrollMonth}.xlsx`);
+          }
+          if (pptStatus && UUID.test(pptStatus[1]) && acceptedPayrollJobs.has(pptStatus[1])
+            && payload?.job_id === pptStatus[1] && payload?.job_type === "staff_excel_export"
+            && payload?.status === "DONE" && typeof payload?.result?.download_url === "string"
+            && payload.result.filename === acceptedPayrollJobs.get(pptStatus[1])
+            && isExactDevelopmentPayrollDownload(boundary, payload.result.download_url, pptStatus[1], payload.result.filename)) {
+            documentDownloadUrls.set(pptStatus[1], {
+              url: payload.result.download_url, filename: payload.result.filename, contentType: XLSX_CONTENT_TYPE,
+              contentDisposition: 'attachment; filename="' + payload.result.filename + '"; filename*=UTF-8\'\'' + payload.result.filename,
+            });
           }
           if (pptStatus && UUID.test(pptStatus[1]) && acceptedPptJobs.has(pptStatus[1])
             && payload?.job_id === pptStatus[1] && payload?.job_type === "ppt_generation"
             && payload?.status === "DONE" && typeof payload?.result?.download_url === "string"
             && typeof payload.result.filename === "string"
             && isExactDevelopmentPptDownload(boundary, payload.result.download_url, payload.result.filename)) {
-            pptDownloadUrls.set(pptStatus[1], { url: payload.result.download_url, filename: payload.result.filename });
+            documentDownloadUrls.set(pptStatus[1], { url: payload.result.download_url, filename: payload.result.filename, contentType: PPTX_CONTENT_TYPE,
+              contentDisposition: 'attachment; filename="' + payload.result.filename + '"' });
           }
         }
         const resourceTarget = new URL(upstream);

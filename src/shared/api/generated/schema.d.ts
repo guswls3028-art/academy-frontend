@@ -16519,6 +16519,9 @@ export interface components {
             readonly approved_expense_amount: number;
             /** Format: date-time */
             readonly created_at: string;
+            readonly default_deduction: {
+                [key: string]: number;
+            };
             readonly generated_by: number | null;
             readonly generated_by_name: string;
             readonly id: number;

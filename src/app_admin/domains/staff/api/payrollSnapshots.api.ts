@@ -13,6 +13,13 @@ export type PayrollSnapshot = {
   work_amount: number;
   approved_expense_amount: number;
   total_amount: number;
+  default_deduction: {
+    business_income_tax: number;
+    local_income_tax: number;
+    deduction_total: number;
+    net_work_amount: number;
+    transfer_amount: number;
+  };
   generated_by: number | null;
   generated_by_name: string | null;
   created_at: string;
@@ -57,7 +64,8 @@ export async function exportPayrollSnapshotExcel(params: {
 }): Promise<void> {
   const res = await api.post<{ job_id: string; status: string }>(
     "/staffs/payroll-snapshots/export-excel/",
-    params
+    // 명시적인 다운로드마다 새 파일을 만든다. 실패 작업/만료된 서명 URL을 재사용하지 않는다.
+    { ...params, force_rerun: true }
   );
   const jobId = res.data?.job_id;
   if (!jobId) throw new Error("Export job could not be started.");

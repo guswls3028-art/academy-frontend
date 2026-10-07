@@ -310,18 +310,18 @@ function AttendanceContent({
             <div className="text-base font-bold tabular-nums" style={{ color: "var(--tc-text)" }}>{approvedExpense.toLocaleString()}원</div>
           </div>
           <div>
-            <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>최종 이체 참고액</div>
+            <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>이체 예정액</div>
             <div className="text-base font-bold tabular-nums" style={{ color: "var(--tc-primary)" }}>{referenceTransfer.toLocaleString()}원</div>
           </div>
         </div>
         <div className="mt-3 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 border-t pt-3 text-[11px] tabular-nums" style={{ borderColor: "var(--tc-border)" }}>
           <span style={{ color: "var(--tc-text-muted)" }}>근무 공제 전</span><strong>{totalAmount.toLocaleString()}원</strong>
-          <span style={{ color: "var(--tc-text-muted)" }}>3.3% 적용 시 참고 공제</span><strong>-{referenceDeduction.toLocaleString()}원</strong>
-          <span style={{ color: "var(--tc-text-muted)" }}>공제 후 근무 참고액</span><strong>{referenceNetWork.toLocaleString()}원</strong>
+          <span style={{ color: "var(--tc-text-muted)" }}>기본 공제 3.3%</span><strong>-{referenceDeduction.toLocaleString()}원</strong>
+          <span style={{ color: "var(--tc-text-muted)" }}>공제 후 급여</span><strong>{referenceNetWork.toLocaleString()}원</strong>
           <span style={{ color: "var(--tc-text-muted)" }}>승인 환급비</span><strong>+{approvedExpense.toLocaleString()}원</strong>
         </div>
         <p className="mt-2 text-[10px] leading-relaxed" style={{ color: "var(--tc-text-muted)" }}>
-          3.3% 공제 적용을 자동 판정한 값이 아닙니다. 실제 지급액은 계약·세무 확인 후 확정됩니다.
+          기본 공제 3.3%를 원 단위 반올림합니다. 승인 환급은 공제 없이 더하며, 이체 예정액은 송금 완료를 뜻하지 않습니다.
         </p>
       </Card>
       {records.length === 0 ? (

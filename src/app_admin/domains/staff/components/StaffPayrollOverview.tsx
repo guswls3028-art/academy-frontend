@@ -228,14 +228,14 @@ export function StaffPayrollOverview({ year, month }: Props) {
           <p>근무 {totals.work_hours.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}h</p>
         </div>
         <div className={styles.headlineMetric} data-testid="payroll-headline-metric">
-          <span>공제 후 근무액 참고</span>
+          <span>공제 후 급여</span>
           <strong>{totals.reference_net_work_amount.toLocaleString()}<small>원</small></strong>
-          <p>참고 공제 −{totals.reference_deduction_total.toLocaleString()}원 (3.3%)</p>
+          <p>기본 공제 −{totals.reference_deduction_total.toLocaleString()}원 (3.3%)</p>
         </div>
         <div className={styles.headlineMetric} data-testid="payroll-headline-metric">
-          <span>최종 이체 참고 총액</span>
+          <span>이체 예정 총액</span>
           <strong>{totals.reference_transfer_amount.toLocaleString()}<small>원</small></strong>
-          <p>공제 후 참고액 + 승인 환급 {totals.approved_expense_amount.toLocaleString()}원</p>
+          <p>공제 후 급여 + 승인 환급 {totals.approved_expense_amount.toLocaleString()}원</p>
         </div>
         <div className={styles.headlineMetric} data-warning={reviewRows.length > 0 ? "true" : undefined} data-testid="payroll-headline-metric">
           <span>확인 필요 인원</span>
@@ -243,7 +243,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
           <p>마감 차단 {totals.needs_review_count}명 · 기록 점검 {totals.advisory_issue_count}건 · {totals.pending_expense_amount ? `비용 대기 ${totals.pending_expense_amount.toLocaleString()}원` : "비용 대기 없음"}</p>
         </div>
       </section>
-      <p className={styles.referenceNote}>전체 직원 합계 · 공제 후 금액은 3.3% 적용 시 참고값입니다. 확정 세후 급여가 아니며, 실제 공제액을 확인한 뒤 지급하세요.</p>
+      <p className={styles.referenceNote}>직원별 기본 공제 3.3%를 원 단위 반올림한 뒤 합산합니다. 승인 환급은 공제하지 않으며, 이체 예정액은 송금 완료를 뜻하지 않습니다.</p>
 
       {reviewRows.length > 0 && (
         <div className={styles.attention} role="status">
@@ -295,10 +295,10 @@ export function StaffPayrollOverview({ year, month }: Props) {
                   <th>직원</th>
                   <th>근무</th>
                   <th>근무 공제 전</th>
-                  <th>참고 공제 3.3%</th>
-                  <th>공제 후 참고</th>
+                  <th>기본 공제 3.3%</th>
+                  <th>공제 후 급여</th>
                   <th>승인 환급</th>
-                  <th>최종 이체 참고</th>
+                  <th>이체 예정액</th>
                   <th>정산 상태</th>
                 </tr>
               </thead>
@@ -328,7 +328,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
                         {row.approved_expense_amount.toLocaleString()}원
                         {row.pending_expense_count > 0 && <span className={styles.pending}>대기 {row.pending_expense_amount.toLocaleString()}원</span>}
                       </td>
-                      <td className={`${styles.number} ${styles.total}`}>{row.reference_transfer_amount.toLocaleString()}원<span className={styles.subtle}>3.3% 적용 시 참고</span></td>
+                      <td className={`${styles.number} ${styles.total}`}>{row.reference_transfer_amount.toLocaleString()}원<span className={styles.subtle}>기본 공제 3.3%</span></td>
                       <td>
                         <Badge variant="solid" tone={statusTone(row.settlement_status)}>{STATUS_LABEL[row.settlement_status]}</Badge>
                         {issues.length > 0 && <span className={styles.issueText}>{issues.join(" · ")}</span>}
@@ -352,7 +352,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
                       {issues.length > 0 && <span className={styles.issueText}>{issues.join(" · ")}</span>}
                     </span>
                     <span className={styles.mobileAmount}>
-                      <small>최종 이체 참고 · 3.3% 적용 시</small>
+                      <small>이체 예정액 · 기본 공제 3.3%</small>
                       <strong>{row.reference_transfer_amount.toLocaleString()}원</strong>
                       <Badge variant="soft" tone={statusTone(row.settlement_status)}>{STATUS_LABEL[row.settlement_status]}</Badge>
                     </span>
@@ -363,8 +363,8 @@ export function StaffPayrollOverview({ year, month }: Props) {
                   </span>
                   <span className={styles.mobileMeta}>
                     <span><small>공제 전</small><strong>{row.work_amount.toLocaleString()}원</strong></span>
-                    <span><small>참고 공제 3.3%</small><strong>−{row.reference_deduction_total.toLocaleString()}원</strong></span>
-                    <span><small>공제 후 참고</small><strong>{row.reference_net_work_amount.toLocaleString()}원</strong></span>
+                    <span><small>기본 공제 3.3%</small><strong>−{row.reference_deduction_total.toLocaleString()}원</strong></span>
+                    <span><small>공제 후 급여</small><strong>{row.reference_net_work_amount.toLocaleString()}원</strong></span>
                     <span>
                       <small>승인 환급</small><strong>{row.approved_expense_amount.toLocaleString()}원</strong>
                       {row.pending_expense_count > 0 && <em>대기 {row.pending_expense_amount.toLocaleString()}원</em>}
@@ -390,13 +390,13 @@ export function StaffPayrollOverview({ year, month }: Props) {
         </section>
       )}
 
-      <section className={styles.waterfall} aria-label="3.3% 적용 시 참고 정산">
+      <section className={styles.waterfall} aria-label="기본 공제 3.3% 정산">
         <WaterfallStep label="근무 공제 전" value={totals.work_amount} />
-        <WaterfallStep label="3.3% 참고 공제" value={-totals.reference_deduction_total} sub={`사업소득세 ${totals.reference_business_income_tax.toLocaleString()}원 + 지방소득세 ${totals.reference_local_income_tax.toLocaleString()}원`} />
-        <WaterfallStep label="공제 후 근무 참고" value={totals.reference_net_work_amount} />
+        <WaterfallStep label="기본 공제 3.3%" value={-totals.reference_deduction_total} sub={`사업소득세 ${totals.reference_business_income_tax.toLocaleString()}원 + 지방소득세 ${totals.reference_local_income_tax.toLocaleString()}원`} />
+        <WaterfallStep label="공제 후 급여" value={totals.reference_net_work_amount} />
         <WaterfallStep label="승인 환급비" value={totals.approved_expense_amount} prefix="+" />
-        <WaterfallStep label="최종 이체 참고액" value={totals.reference_transfer_amount} accent />
-        <p><strong>3.3% 적용 시 참고</strong> 비교값입니다. 실제 공제 적용 여부와 지급액은 계약·세무 확인 후 확정하세요.</p>
+        <WaterfallStep label="이체 예정액" value={totals.reference_transfer_amount} accent />
+        <p><strong>기본 공제 3.3%</strong> · 직원별 월 급여 기준으로 계산하며, 이체 예정액은 송금 완료를 뜻하지 않습니다.</p>
       </section>
     </div>
   );

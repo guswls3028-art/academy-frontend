@@ -112,7 +112,7 @@ export default function MonthLockPanel() {
           <p className="staff-helper">
             {payType === "MONTHLY"
               ? "월급 직원은 자동 마감하지 않습니다. 근로계약·수당·공제를 별도로 확인해 주세요."
-              : "마감 전까지 근태·환급 기록을 수정할 수 있습니다. 마감하면 해당 월 참고 합계가 고정됩니다."}
+              : "마감 전까지 근태·환급 기록을 수정할 수 있습니다. 마감하면 해당 월 정산 금액가 고정됩니다."}
           </p>
         )}
       </div>
