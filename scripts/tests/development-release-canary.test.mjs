@@ -19,6 +19,7 @@ import "./release-resource-download-boundary.test.mjs";
 import "./binary-safe-ssm.test.mjs";
 import "./release-canary-progress.test.mjs";
 import "./development-backend-readiness.test.mjs";
+import "./release-governance-metadata.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);

@@ -541,6 +541,12 @@ Inspect를 별도로 실행하며, exact tenant/users/R2 object/QA process/liste
 `process|bundle|governance|iam|document|host|ssm|complete`만, `preflightChecks`는
 bundle/governance/IAM/document/host/SSM의 boolean만 기록한다. 정상 진행 중 terminal은
 `preflight_running|qa_running`, 종료 시 `preflight_failed|qa_failed|passed` 중 하나다.
+governance 조회는 readiness와 동일하게 해당 job의 `GH_TOKEN`을 정확한 backend GitHub API
+origin/repository 경로에만 보내며 raw 파일 요청에는 보내지 않는다. redirect는 거부한다.
+metadata 조회 실패에는 선택적 `governanceFailure`로 고정 source
+(`github-api|github-raw|other`), reason(`http|transport|json`), HTTP status 또는 null만 남긴다.
+응답 본문·URL·토큰·원본 예외는 보존하지 않으며 이 진단이 manifest 검증이나 실패 판정을
+완화하지 않는다. 회귀는 `scripts/tests/release-governance-metadata.test.mjs`가 소유한다.
 따라서 Inspect 전에 실패해도 마지막 stage와 그 전까지 통과한 prerequisite만 식별하며,
 경로·ARN·role/principal/session ID·raw output/error·secret·tenant capability·password·PII는
 envelope에 넣지 않는다. 고정 document operation은

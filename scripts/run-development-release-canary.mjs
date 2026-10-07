@@ -697,6 +697,7 @@ export async function runPreflightStages(stages, persist, frontendSha) {
     return evidence;
   } catch (error) {
     evidence.terminalOutcome = "preflight_failed";
+    if (error instanceof GovernanceMetadataError) evidence.governanceFailure = error.observation;
     persist(evidence);
     throw error;
   }
@@ -992,10 +993,38 @@ function aws(args) {
   } catch { throw new Error(`AWS operation failed: ${args[0]} ${args[1]}`); }
 }
 
-async function publicJson(url) {
-  const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(30_000) });
-  assert.equal(response.status, 200, "Public governance metadata unavailable");
-  return response.json();
+class GovernanceMetadataError extends Error {
+  constructor(source, reason, status = null) {
+    super("Public governance metadata unavailable");
+    this.observation = { source, reason, status };
+  }
+}
+
+export async function publicJson(url, { fetchImpl = fetch, token = process.env.GH_TOKEN } = {}) {
+  const target = new URL(url);
+  const githubApi = target.origin === "https://api.github.com"
+    && target.pathname.startsWith("/repos/guswls3028-art/academy-backend/");
+  const source = githubApi ? "github-api" : target.origin === "https://raw.githubusercontent.com"
+    ? "github-raw" : "other";
+  const headers = {};
+  if (githubApi) {
+    headers.Accept = "application/vnd.github+json";
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  let response;
+  try {
+    response = await fetchImpl(url, { headers, redirect: "error", signal: AbortSignal.timeout(30_000) });
+  } catch {
+    throw new GovernanceMetadataError(source, "transport");
+  }
+  const status = Number.isInteger(response.status) && response.status >= 100 && response.status <= 599
+    ? response.status : null;
+  if (status !== 200) throw new GovernanceMetadataError(source, "http", status);
+  try {
+    return await response.json();
+  } catch {
+    throw new GovernanceMetadataError(source, "json", status);
+  }
 }
 
 export function artifactFingerprint(directory) {
