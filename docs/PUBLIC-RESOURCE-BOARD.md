@@ -19,24 +19,28 @@ articles. Login preserves the board return path.
 ## Reading and recovery
 
 Anyone, including an unauthenticated visitor, can read and reload a published
-article. No separate PDF-preview click is required. PDF and DOCX/XLSX/PPTX open
-as page-preserving documents through the established PDFJS component. Visible
-pages render lazily and release offscreen canvases; zoom spans 100–300% with
-keyboard-accessible horizontal scrolling. Extracted PDF text is available to
-assistive technology. Retry remounts PDFJS even when a refreshed signature is equal. Lazy imports cannot start a detached PDF worker after navigation; cleanup handles cancellation. Each canvas stays within 16 million pixels and an 8192-pixel edge while preserving CSS zoom.
+article. No separate PDF-preview click is required. Prepared PDF, HWP/HWPX and
+DOCX/XLSX/PPTX display their original pages as server-generated PNG images.
+Normal reading needs no PDFJS display/worker, canvas, embedded browser font or
+new typed-array APIs. The app retains its legacy iOS/Android bootstrap targets;
+the native reader uses ratio padding for browsers without CSS aspect-ratio.
+Only nearby pages mount images, releasing offscreen images to bound phone memory.
+Zoom spans 100–300% with keyboard-accessible horizontal scrolling. Extracted
+per-page text is available to assistive technology.
 
-The shared PDF reader loads core-js's `Map.getOrInsertComputed` polyfill with its
-lazy display component and PDFJS's official `legacy` worker from the same installed
-version. A browser that supports modules may still lack the Map API; the unpolyfilled
-display could read the page count but fail every page render in Safari or an in-app
-browser. The worker has a separate runtime and provides its own compatibility APIs.
-The display keeps the smaller standard build within existing bundle budgets;
-inline reading, zoom, text extraction and retry work without requiring a download.
-The desktop/390px reading tests remove these Map APIs before startup and verify
-rendered canvases, zoom, reload and original download in Chromium and WebKit.
+Fresh five-minute image links renew after four minutes and when a background tab
+returns. Image failure refreshes links with throttling and offers explicit retry;
+same-link retry also remounts images. Renewal/retry preserves page layout and zoom.
+The legacy PDFJS viewer is lazily loaded only for old backend payloads during
+compatible rollout; existing published reports must be explicitly prepared before
+declaring old-device support. A Map polyfill alone did not cover other recent
+PDFJS APIs, so the previous browser-PDF path is replaced for prepared reports.
+Desktop/390px tests remove Map upsert, Promise.withResolvers, Uint8Array.toBase64,
+AbortSignal.any and Float16Array and verify native page decoding, complete reading,
+zoom, reload and link-failure recovery without requesting PDFJS/worker chunks.
 
 HWP/HWPX and Office documents automatically display their original pages, including
-tables, images and formulas, through the same inline PDF viewer. There is no
+tables, images and formulas, through the same native page reader. There is no
 alternate article schema, formula editor or mode switch for the teacher to learn.
 PNG/JPEG/WebP/GIF and UTF-8 text also read inline. Original downloads remain an
 optional collapsed section after the displayed document.
