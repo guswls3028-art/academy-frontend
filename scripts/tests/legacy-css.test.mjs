@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
+import { runInNewContext } from "node:vm";
 import { createLegacyStylesheets, legacyCssPlugin } from "../legacy-css.mjs";
 
 test("old engines receive actual rules across shared cascade layers and lazy files", async () => {
@@ -74,6 +75,22 @@ test("Vite legacy injection becomes a cached stylesheet instead of inline modern
   assert.equal(emitted.length, 1);
   assert.match(emitted[0].source, /button/);
   assert.doesNotMatch(emitted[0].source, /@layer/);
+});
+
+test("a document CSS class cannot shadow the browser document during legacy injection", () => {
+  const plugin = legacyCssPlugin("release-shadowed-document");
+  const injected = 'var __vite_style__ = document.createElement(\'style\');__vite_style__.textContent = ".document{color:red}";document.head.appendChild(__vite_style__);const document="_document_1";';
+  const transformed = plugin.renderChunk(injected, { name: "document", fileName: "assets/document-legacy.js" });
+  const links = [];
+  runInNewContext(`(() => { ${transformed.code} })()`, {
+    window: { document: {
+      createElement: (tag) => { assert.equal(tag, "link"); return {}; },
+      head: { appendChild: (link) => links.push(link) },
+    } },
+  });
+  assert.equal(links.length, 1);
+  assert.equal(links[0].rel, "stylesheet");
+  assert.match(links[0].href, /document-[a-f0-9]{12}-legacy\.css$/);
 });
 
 test("a sibling stylesheet's layer change cannot reuse a prior release's CSS URL", async () => {
