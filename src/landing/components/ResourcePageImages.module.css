@@ -1,3 +1,7 @@
+.document { min-width: 0; }
+
+.document .pages { width: 100%; }
+
 .surface {
   position: relative;
   width: 100%;

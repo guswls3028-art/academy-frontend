@@ -230,8 +230,10 @@ for (const width of [1366, 390]) {
       await expect(imagePage).toContainText(`QA PAGE ${number + 1}`);
     }
     await reader.scrollIntoViewIfNeeded();
+    const normalWidth = await reader.getByTestId("resource-page-image").first().evaluate((element) => element.getBoundingClientRect().width);
     await reader.getByRole("button", { name: "문서 확대", exact: true }).click();
     await expect(reader.locator("output")).toHaveText("125%");
+    await expect.poll(async () => reader.getByTestId("resource-page-image").first().evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(normalWidth * 1.2);
     const beforeRenewal = readerRequests;
     await page.clock.fastForward(241_000);
     await expect.poll(() => readerRequests).toBeGreaterThan(beforeRenewal);

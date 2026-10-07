@@ -40,8 +40,8 @@ function PageImage({ page, number, total, title, attempt, onRetry, onError }: {
 export default function ResourcePageImages({ pages, title, attempt, onRetry, onError }: {
   pages: ImagePage[]; title: string; attempt: number; onRetry: () => void; onError: () => void;
 }) {
-  return <div className={styles.document}>
+  return <div className={`${styles.document} ${imageStyles.document}`}>
     <div className={styles.readingGuide}><strong>전체 {pages.length}쪽</strong><span>아래로 넘기면 모든 페이지가 순서대로 이어집니다.</span></div>
-    <div className={styles.pages}>{pages.map((page, index) => <PageImage key={index} page={page} number={index + 1} total={pages.length} title={title} attempt={attempt} onRetry={onRetry} onError={onError} />)}</div>
+    <div className={`${styles.pages} ${imageStyles.pages}`}>{pages.map((page, index) => <PageImage key={index} page={page} number={index + 1} total={pages.length} title={title} attempt={attempt} onRetry={onRetry} onError={onError} />)}</div>
   </div>;
 }
