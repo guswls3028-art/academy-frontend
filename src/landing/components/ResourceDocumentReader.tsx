@@ -95,7 +95,7 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
           throw new Error("Invalid reader response");
         }
         setError("");
-        if (result.status === "unsupported" || (result.status === "ready" && !hasPageImages(result.blocks, result.pages))) setFullscreen(false);
+        if (result.status === "unsupported" || (result.status === "ready" && (result.mode !== "pages" || !hasPageImages(result.blocks, result.pages)))) setFullscreen(false);
         setReader(result); statusCallback.current?.(file.id, result.status);
         clearTimeout(timer);
         if (result.status === "pending") timer = setTimeout(() => void load(), Math.min(15000, 3000 * 2 ** polls++));

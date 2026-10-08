@@ -24,7 +24,7 @@ function pdfBytes() {
 // Native browser downloads do not reliably use Page.route interception.
 // Serve the generated fixture over real loopback HTTP and verify its bytes.
 let documentUrl = "";
-let nativePages = false; let pageImageFailure = false; let readerRequests = 0; let readerDelay = 0; let readerUnsupported = false;
+let nativePages = false; let pageImageFailure = false; let readerRequests = 0; let readerDelay = 0; let readerUnsupported = false; let readerArticle = false;
 type ResourceScenario = { readerFailure?: boolean; readerPending?: boolean; empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string };
 let resourceScenario: ResourceScenario = { unavailable: false };
 const uploaded = new Map<string, { file: typeof resource.files[number]; bytes: Buffer }>();
@@ -128,6 +128,7 @@ const documentServer = createServer(async (request, response) => {
         resourceScenario.readerPending = false;
         body = { status: "ready", mode: "pages", blocks: [], pdf_url: documentUrl };
       } else if (readerUnsupported) body = { status: "unsupported" };
+      else if (readerArticle) body = { status: "ready", mode: "article", pages: 1, blocks: [{ kind: "image", url: documentUrl.replace(".pdf", ".png"), width: 300, height: 400 }] };
       else if (resourceScenario.readerFailure) body = { status: "failed", message: "본문을 준비하지 못했습니다. 원본은 보존됩니다." };
       else body = file?.reader_status === "unsupported" ? { status: "unsupported" }
         : { status: "ready", mode: "pages", blocks: [], pdf_url: `${documentUrl}?reader=${id}` }; status = 200;
@@ -174,7 +175,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => { await new Promise<void>((resolve, reject) => documentServer.close((error) => error ? reject(error) : resolve())); });
 
 async function prepare(page: Page, options: { readerFailure?: boolean; readerPending?: boolean; empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string } = {}) {
-  nativePages = false; pageImageFailure = false; readerRequests = 0; readerDelay = 0; readerUnsupported = false;
+  nativePages = false; pageImageFailure = false; readerRequests = 0; readerDelay = 0; readerUnsupported = false; readerArticle = false;
   await page.addInitScript((tenant) => { localStorage.setItem("tenant_code", tenant); sessionStorage.setItem("tenantCode", tenant); }, options.tenant || "godmin");
   resourceScenario = { ...options, unavailable: Boolean(options.failOnce) }; uploadBody = Buffer.alloc(0); createPayloads.length = 0; uploaded.clear(); uploadCount = 0; deleteCount = 0; cleaned.length = 0; patchPayloads.length = 0;
   if (options.publisher) {
@@ -295,7 +296,7 @@ test("background resume coalesces delayed reader requests and keeps later renewa
   await expect(reader.getByRole("button", { name: "전체화면 보기", exact: true })).toBeVisible();
 });
 
-for (const refresh of ["unsupported", "pdf-only"] as const) {
+for (const refresh of ["unsupported", "pdf-only", "article"] as const) {
   test(`reader ${refresh} transition exits owned fullscreen and restores a usable article`, async ({ page }) => {
     await prepare(page); nativePages = true;
     resourceScenario.post = { ...resource, files: [resource.files[0]] };
@@ -313,14 +314,15 @@ for (const refresh of ["unsupported", "pdf-only"] as const) {
     const viewer = page.getByRole("dialog");
     await expect(viewer.getByTestId("resource-viewer-page")).toHaveAttribute("data-render-status", "ready");
     await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true);
-    readerUnsupported = refresh === "unsupported"; nativePages = false;
+    readerUnsupported = refresh === "unsupported"; readerArticle = refresh === "article"; nativePages = false;
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await expect(viewer).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
     await expect.poll(() => page.evaluate(() => document.body.style.position)).not.toBe("fixed");
     await expect(page).toHaveURL(/\/landing\/resources\/901$/);
     await expect(page.getByText("원본 파일 · 1개", { exact: true })).toBeVisible();
-    readerUnsupported = false; nativePages = true;
+    if (refresh === "article") await expect(page.getByRole("img", { name: "첨부 이미지", exact: true })).toBeVisible();
+    readerUnsupported = false; readerArticle = false; nativePages = true;
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await expect(entry).toBeVisible();
     await expect(viewer).toHaveCount(0);
