@@ -139,11 +139,11 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
         await spreadsheet.scrollIntoViewIfNeeded();
         await expect(spreadsheet.locator('[data-testid="resource-page-image"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
         await expect(spreadsheet).toContainText("QA analysis");
-        await visitor.getByText("원본 파일 · 5개", { exact: true }).click();
+        await expect(visitor.getByRole("region", { name: "자료 다운로드", exact: true })).toBeVisible();
         for (const original of originals) {
           const row = visitor.getByText(original.name, { exact: true }).first().locator("..").locator("..");
           const downloading = visitor.waitForEvent("download");
-          await row.getByRole("button", { name: "원본 다운로드", exact: true }).click();
+          await row.getByRole("button", { name: /다운로드$/ }).click();
           const download = await downloading; expect(await download.failure()).toBeNull();
           expect(download.suggestedFilename()).toBe(original.name);
           expect(await readFile((await download.path())!)).toEqual(original.buffer);
@@ -153,12 +153,12 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
           await visitor.reload();
           await expect(visitor.getByText("다른 지정 게시자가 원본 첨부를 보존하며 수정했습니다.", { exact: true })).toBeVisible();
           await expect(visitor.getByRole("link", { name: "수정", exact: true })).toHaveCount(0);
-          await visitor.getByText("원본 파일 · 5개", { exact: true }).click();
+          await expect(visitor.getByRole("region", { name: "자료 다운로드", exact: true })).toBeVisible();
           for (const original of originals) await expect(visitor.getByText(original.name, { exact: true }).first()).toBeVisible();
           const original = originals[0];
           const row = visitor.getByText(original.name, { exact: true }).first().locator("..").locator("..");
           const downloading = visitor.waitForEvent("download");
-          await row.getByRole("button", { name: "원본 다운로드", exact: true }).click();
+          await row.getByRole("button", { name: /다운로드$/ }).click();
           const download = await downloading; expect(await download.failure()).toBeNull();
           expect(download.suggestedFilename()).toBe(original.name);
           expect(await readFile((await download.path())!)).toEqual(original.buffer);

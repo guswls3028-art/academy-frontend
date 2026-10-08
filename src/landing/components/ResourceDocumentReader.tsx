@@ -141,10 +141,12 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
       <div className={styles.readerTools} aria-label="문서 확대">
         <span>아래로 내려 문서 전체 읽기</span>
         {nativePages && <button ref={fullscreenButton} type="button" className={styles.fullscreenButton} onClick={openFullscreen}><Maximize size={ICON.sm} aria-hidden="true" />전체화면 보기</button>}
+        <div className={styles.readerZoom}>
         <button type="button" disabled={zoom === 100} onClick={() => setZoom((value) => Math.max(100, value - 25))} aria-label="문서 축소">−</button>
         <output aria-live="polite">{zoom}%</output>
         <button type="button" disabled={zoom === 300} onClick={() => setZoom((value) => Math.min(300, value + 25))} aria-label="문서 확대">+</button>
-        <button type="button" onClick={reload}>다시 불러오기</button>
+        </div>
+        <button type="button" className={styles.readerReload} onClick={reload}>다시 불러오기</button>
       </div>
       <div className={styles.documentViewport} tabIndex={zoom > 100 ? 0 : undefined} role="region" aria-label="문서 본문. 확대하면 좌우로 이동할 수 있습니다.">
         <div className={styles[`zoom${zoom}`]}>

@@ -73,7 +73,7 @@
 .recovery summary { cursor: pointer; margin-bottom: 12px; font-weight: 700; }
 .recovery p { white-space: pre-wrap; line-height: 1.7; }
 
-/* Public reading: typography first, originals remain an optional footer. */
+/* Public reading: choose a download at entry, then read the document. */
 .categoryFilters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; }
 .shell .categoryFilters button[aria-pressed="true"] { background: #24483d; color: #fff; border-color: #24483d; }
 .articleCards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
@@ -83,11 +83,15 @@
 .excerpt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.8; font-size: 15px; color: #52695f; overflow-wrap: anywhere; margin: 0 0 24px; }
 .articleCard .meta { margin-top: auto; }
 .article { max-width: 920px; margin-inline: auto; }
-.articleHeader { max-width: 740px; margin-inline: auto; padding: 8px 0 30px; border-bottom: 1px solid #e6eee9; }
-.articleIntro { max-width: 740px; margin: 32px auto 44px; font-size: 17px; line-height: 1.95; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.articleHeader { margin-inline: auto; padding: 0 0 20px; }
+.articleHeader h1 { font-size: clamp(25px, 3.5vw, 36px); margin: 10px 0 16px; }
+.articleMeta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.shell .shareButton { display: inline-flex; align-items: center; gap: 6px; border-color: transparent; padding-inline: 8px; color: #52695f; }
+.shell .shareButton:hover { background: #edf6f1; }
+.articleIntro { max-width: 740px; margin: 28px auto 32px; font-size: 17px; line-height: 1.95; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .articleIntro p { white-space: pre-wrap; margin: 0 0 1.4em; }
-.documentReader { min-width: 0; margin: 40px 0; }
-.readerHeading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+.documentReader { min-width: 0; margin: 28px 0; }
+.readerHeading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .readerHeading h2 { font-size: 19px; line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
 .readableBody { max-width: 740px; margin-inline: auto; font-size: 17px; line-height: 1.95; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .readableBody p { white-space: pre-wrap; margin: 0 0 1.3em; }
@@ -95,12 +99,27 @@
 .readableBody img { display: block; max-width: 100%; height: auto; margin-inline: auto; border-radius: 6px; }
 .documentViewport:focus-visible { outline: 3px solid #72b9a4; outline-offset: 3px; }
 .readerTools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 13px; color: #52695f; }
-.readerTools > span { margin-right: auto; }
+.readerTools > span { flex-basis: 100%; }
 .readerTools output { min-width: 40px; text-align: center; }
-.readerTools .fullscreenButton { display: inline-flex; align-items: center; gap: 7px; background: #e5f3ee; color: #235847; border-color: #95bcad; font-weight: 600; }
+.shell .readerTools .fullscreenButton { display: inline-flex; justify-content: center; align-items: center; gap: 7px; background: #e5f3ee; color: #235847; border-color: #95bcad; font-weight: 600; }
+.readerZoom { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.shell .readerReload { color: #617c70; border-color: transparent; }
 .documentViewport { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
-.originals { padding: 22px 0; margin-top: 48px; border-top: 1px solid #dce8e2; }
-.originals summary { cursor: pointer; font-size: 14px; padding: 10px 0; }
+.originals { padding: 18px 0 16px; border-top: 1px solid #dce8e2; border-bottom: 1px solid #dce8e2; }
+.originalsHeading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 12px; margin-bottom: 8px; }
+.originalsHeading h2 { margin: 0; font-size: 14px; font-weight: 700; }
+.originalsHeading h2 span { margin-left: 4px; color: #617c70; font-weight: 400; font-variant-numeric: tabular-nums; }
+.originalsHeading a { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; color: #147a62; font-size: 12px; text-decoration: none; }
+.downloadRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; }
+.downloadRow + .downloadRow { border-top: 1px solid #e6eee9; }
+.downloadInfo { min-width: 0; }
+.downloadInfo strong { display: block; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.downloadInfo span { display: block; margin-top: 4px; color: #617c70; font-size: 12px; }
+.downloadButton { gap: 7px; min-height: 46px; padding: 10px 16px; border-radius: 9px; font-size: 13px; white-space: nowrap; }
+.downloadButton svg, .shareButton svg { flex-shrink: 0; }
+.downloadHint { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: #617c70; }
+.readingStart { scroll-margin-top: 16px; }
+.readingStart:focus-visible { outline: 3px solid #72b9a4; outline-offset: 5px; }
 .articleEnd { display: inline-flex; min-height: 44px; align-items: center; margin-top: 24px; color: #147a62; font-size: 14px; text-decoration: none; }
 .editorPreview { border-top: 1px solid #dce8e2; padding-top: 28px; margin-top: 28px; }
 .editorPreview > h2 { font-size: 18px; }
@@ -109,10 +128,15 @@
 @media (max-width: 700px) {
   .articleCards { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .articleCard { padding: 20px 0; }.articleCard h2 { font-size: 21px; }
-  .article { border-radius: 14px; padding: 24px 16px; }
+  .article { max-width: none; margin-left: -18px; margin-right: -18px; border-left: 0; border-right: 0; border-radius: 0; padding: 24px 16px; }
+  .articleMeta .meta { gap: 6px 12px; }
+  .articleMeta { gap: 4px 8px; }
+  .downloadRow { gap: 12px; }
+  .downloadButton { padding-inline: 12px; }
   .articleIntro, .readableBody { font-size: 16px; line-height: 1.9; }
   .readerHeading h2 { font-size: 17px; }
   .readerTools > span { flex-basis: 100%; }
+  .readerReload { margin-left: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .articleCard { transition: none; }.articleCard:hover { transform: none; } }
 
