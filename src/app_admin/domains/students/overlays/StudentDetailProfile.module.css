@@ -18,14 +18,23 @@
 
 .profileToggle.profileToggle { display: none; }
 .profilePanel { min-width: 0; }
-.infoRow {
+.infoRow.infoRow {
   width: 100%;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 12px;
   background: transparent;
   border-top: 0;
   border-left: 0;
   border-right: 0;
   text-align: left;
   font: inherit;
+}
+.infoRow :global(.ds-overlay-info-row__label) { white-space: nowrap; }
+.infoRow :global(.ds-overlay-info-row__value) {
+  min-width: 0;
+  display: block;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 .profilePanel :global(.ds-overlay-sidebar-section__title) { font-size: 12px; }
 .profilePanel :global(.ds-overlay-info-row):focus-visible {
