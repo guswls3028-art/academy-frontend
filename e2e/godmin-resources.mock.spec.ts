@@ -276,6 +276,26 @@ for (const outcome of ["accepted", "denied", "pending", "existing"] as const) {
   });
 }
 
+test("fullscreen entry can immediately go Back while timers are paused", async ({ page }) => {
+  await prepare(page); nativePages = true;
+  await page.clock.install();
+  await page.addInitScript(() => { Object.defineProperty(document, "fullscreenEnabled", { configurable: true, get: () => false }); });
+  await page.goto(`${BASE}/landing/resources/901`);
+  const entry = page.getByRole("button", { name: "전체화면 보기", exact: true }).first();
+  await expect(entry).toBeVisible();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  for (let turn = 0; turn < 2; turn += 1) {
+    await entry.click();
+    const viewer = page.getByRole("dialog");
+    await expect(viewer.getByTestId("resource-viewer-page")).toHaveAttribute("data-render-status", "ready");
+    await page.goBack();
+    await expect(viewer).toHaveCount(0);
+    await expect(page).toHaveURL(/\/landing\/resources\/901$/);
+    await expect(entry).toBeFocused();
+    await expect.poll(() => page.evaluate(() => Boolean(window.history.state?.resourceViewer))).toBe(false);
+  }
+});
+
 test("background resume coalesces delayed reader requests and keeps later renewal working", async ({ page }) => {
   await prepare(page); nativePages = true;
   resourceScenario.post = { ...resource, files: [resource.files[0]] };

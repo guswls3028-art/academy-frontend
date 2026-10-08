@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { hasPageImages, prepareResourceReader, readResourceFile, resourceError, type ReaderBlock, type ResourceFile, type ResourceReader, type ReaderStatus } from "../api/publicResources";
 import { lazy, Suspense } from "react";
 import ResourcePageImages from "./ResourcePageImages";
@@ -29,7 +29,8 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
   const [reader, setReader] = useState<ResourceReader | null>(null);
   const [error, setError] = useState(""); const [retry, setRetry] = useState(0);
   const [zoom, setZoom] = useState(100);
-  const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreen, setFullscreen] = useState<string | null>(null);
+  const fullscreenId = useId(); const fullscreenSequence = useRef(0);
   const nativeFullscreen = useRef<{ active: boolean; entered: boolean } | null>(null);
   const fullscreenButton = useRef<HTMLButtonElement>(null);
   const getFullscreenButton = useCallback(() => fullscreenButton.current, []);
@@ -39,7 +40,9 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
   statusCallback.current = onStatus;
 
   function openFullscreen() {
-    setFullscreen(true);
+    const historyKey = `resource-viewer-${fullscreenId}-${++fullscreenSequence.current}`;
+    window.history.pushState({ ...window.history.state, resourceViewer: historyKey }, "", window.location.href);
+    setFullscreen(historyKey);
     if (!document.fullscreenEnabled || typeof document.documentElement.requestFullscreen !== "function"
       || typeof document.exitFullscreen !== "function" || document.fullscreenElement) return;
     const session = { active: true, entered: false }; nativeFullscreen.current = session;
@@ -51,17 +54,21 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
     } catch { nativeFullscreen.current = null; }
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!fullscreen) return;
+    const back = () => setFullscreen(null);
     const changed = () => {
       const session = nativeFullscreen.current;
       if (!session?.active) return;
       if (document.fullscreenElement === document.documentElement) session.entered = true;
-      else if (session.entered) setFullscreen(false);
+      else if (session.entered) setFullscreen(null);
     };
     document.addEventListener("fullscreenchange", changed);
+    window.addEventListener("popstate", back);
     return () => {
       document.removeEventListener("fullscreenchange", changed);
+      window.removeEventListener("popstate", back);
+      if (window.history.state?.resourceViewer === fullscreen) window.history.back();
       const session = nativeFullscreen.current;
       if (session?.active) { session.active = false; if (session.entered) exitNativeFullscreen(); }
     };
@@ -80,7 +87,7 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
   useEffect(() => {
     let disposed = false; let loading = false; let timer: ReturnType<typeof setTimeout> | undefined; let polls = 0;
     setError("");
-    if (readerFile.current !== file.id) { setReader(null); setZoom(100); setFullscreen(false); readerFile.current = file.id; }
+    if (readerFile.current !== file.id) { setReader(null); setZoom(100); setFullscreen(null); readerFile.current = file.id; }
     async function load(start = false) {
       if (disposed || loading) return;
       loading = true; clearTimeout(timer);
@@ -95,7 +102,7 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
           throw new Error("Invalid reader response");
         }
         setError("");
-        if (result.status === "unsupported" || (result.status === "ready" && (result.mode !== "pages" || !hasPageImages(result.blocks, result.pages)))) setFullscreen(false);
+        if (result.status === "unsupported" || (result.status === "ready" && (result.mode !== "pages" || !hasPageImages(result.blocks, result.pages)))) setFullscreen(null);
         setReader(result); statusCallback.current?.(file.id, result.status);
         clearTimeout(timer);
         if (result.status === "pending") timer = setTimeout(() => void load(), Math.min(15000, 3000 * 2 ** polls++));
@@ -148,6 +155,6 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
         </div>
       </div>
     </>}
-    {fullscreen && <ResourceFullscreenViewer pages={nativePages} title={file.filename} attempt={retry} returnFocus={getFullscreenButton} error={error || (reader && ["failed", "unprepared"].includes(reader.status) ? reader.message || "문서를 불러오지 못했습니다. 다시 불러오세요." : "")} onRetry={reload} onError={refreshImage} onClose={() => setFullscreen(false)} />}
+    {fullscreen && <ResourceFullscreenViewer historyKey={fullscreen} pages={nativePages} title={file.filename} attempt={retry} returnFocus={getFullscreenButton} error={error || (reader && ["failed", "unprepared"].includes(reader.status) ? reader.message || "문서를 불러오지 못했습니다. 다시 불러오세요." : "")} onRetry={reload} onError={refreshImage} onClose={() => setFullscreen(null)} />}
   </section>;
 }

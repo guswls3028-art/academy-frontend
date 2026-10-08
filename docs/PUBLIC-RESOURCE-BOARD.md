@@ -54,6 +54,10 @@ exit/retry controls; a tap can reveal controls while a later page loads. Control
 motion respects reduced-motion settings. Only the selected full-screen page
 mounts an image. Extracted page text remains accessible.
 
+The opening action creates the owned history entry synchronously, and the
+already-mounted reader registers Back before paint. A visible viewer therefore
+supports immediate Back/re-entry even while timers are paused; StrictMode's
+viewer mount rehearsal does not add or unwind history entries.
 Close, Escape and browser Back return to the original article position and
 inline zoom; focus is restored to the opening action. Focus stays in the modal
 while the background is hidden from assistive technology and locked against
