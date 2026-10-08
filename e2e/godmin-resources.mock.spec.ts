@@ -848,11 +848,19 @@ for (const width of [1366, 390]) {
     // Review the complete reader before reload. In Vite, reloading while module
     // workers start aborts their HMR imports and WebKit reports access-control errors.
     // Keep strict console checks and prove each saved document actually loads.
-    await expect(page.getByTestId("matchup-inline-pdf")).toHaveCount(resource.files.length);
+    for (const file of resource.files) {
+      const reader = page.getByRole("region", { name: `${file.filename} 본문`, exact: true });
+      await reader.scrollIntoViewIfNeeded();
+      await expect(reader.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+    }
     await expect(page.getByRole("link", { name: "수정", exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByText(description, { exact: true })).toBeVisible();
-    await expect(page.getByTestId("matchup-inline-pdf")).toHaveCount(resource.files.length);
+    for (const file of resource.files) {
+      const reader = page.getByRole("region", { name: `${file.filename} 본문`, exact: true });
+      await reader.scrollIntoViewIfNeeded();
+      await expect(reader.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+    }
     await expect(page.getByRole("region", { name: "자료 다운로드", exact: true })).toBeVisible();
     for (const file of resource.files) await expect(page.getByText(file.filename, { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "수정", exact: true }).click();
