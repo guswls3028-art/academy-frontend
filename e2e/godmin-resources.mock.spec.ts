@@ -580,6 +580,13 @@ for (const width of [1366, 390]) {
     await page.screenshot({ path: testInfo.outputPath(`resources-${width}.png`), fullPage: true });
     await page.getByRole("link", { name: LONG_TITLE }).first().click();
     await expect(page.getByRole("heading", { level: 1, name: LONG_TITLE })).toBeVisible();
+    // Finish the first read before reload so WebKit does not report aborted
+    // fixture requests as cross-origin errors while the title alone is visible.
+    for (const file of resource.files) {
+      const reader = page.getByRole("region", { name: `${file.filename} 본문`, exact: true });
+      await reader.scrollIntoViewIfNeeded();
+      await expect(reader.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 90_000 });
+    }
     await page.reload(); await expect(page.getByRole("heading", { level: 1, name: LONG_TITLE })).toBeVisible();
     await expect(page).toHaveTitle(`${LONG_TITLE} | 신과함께`);
     await expect(page.getByRole("button", { name: "PDF 미리보기", exact: true })).toHaveCount(0);
