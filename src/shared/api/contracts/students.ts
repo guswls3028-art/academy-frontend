@@ -1155,7 +1155,10 @@ export async function detachStudentTag(studentId: number, tagId: number) {
  * =============================== */
 
 export async function createMemo(studentId: number, content: string) {
-  await api.patch(`/students/${studentId}/`, { memo: String(content ?? "") });
+  const response = await api.patch(`/students/${studentId}/`, { memo: String(content ?? "") });
+  // Update responses omit detail-only fields such as tags and enrollments.
+  if (typeof response.data?.memo !== "string") throw new Error("메모 저장 결과를 확인할 수 없습니다.");
+  return response.data.memo as string;
 }
 
 export type AccountPasswordMode = "phone_last4" | "fixed" | "random";

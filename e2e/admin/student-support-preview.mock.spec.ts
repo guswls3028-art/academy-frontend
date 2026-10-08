@@ -252,7 +252,7 @@ test("학생 활동은 대리보기를 기본 제외하고 팝업 토큰은 교�
 
   const overlay = page.getByTestId("student-detail-overlay");
   await expect(overlay).toBeVisible();
-  await overlay.getByRole("tab", { name: "활동 감사 로그인 · 열람" }).click();
+  await overlay.getByRole("tab", { name: /^활동 기록/ }).click();
 
   const activityPanel = overlay.getByRole("region", { name: "학생 활동 감사" });
   await expect(activityPanel.getByText("학생 로그인", { exact: true })).toBeVisible();
@@ -282,7 +282,7 @@ test("학생 활동은 대리보기를 기본 제외하고 팝업 토큰은 교�
 
   await page.setViewportSize({ width: 1366, height: 900 });
   const desktopOverlay = page.getByTestId("student-detail-overlay");
-  await desktopOverlay.getByRole("tab", { name: "활동 감사 로그인 · 열람" }).click();
+  await desktopOverlay.getByRole("tab", { name: /^활동 기록/ }).click();
   await expect(desktopOverlay.getByRole("region", { name: "학생 활동 감사" })).toBeVisible();
   await expect.poll(
     () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),

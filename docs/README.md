@@ -31,6 +31,7 @@
 | [학생 이름의 현재 강의 표시](STUDENT-LECTURE-STATUS.md) | 종료·비활성 강의 딱지 제외, 이력 보존, 종료·복원 후 화면 갱신 |
 | [LECTURE-SESSION-SCOPES.md](LECTURE-SESSION-SCOPES.md) | 정규 수업·보강 분리 진입, 유형·번호를 유지하는 이름 생성·수정과 학생 표시 계약 |
 | [STUDENT-LECTURE-MEMOS.md](STUDENT-LECTURE-MEMOS.md) | 학생 공통 메모와 학생별 강의 메모의 차시 공유·편집·동시 수정·직원 화면 계약 |
+| [ADMIN-STUDENT-DETAIL.md](ADMIN-STUDENT-DETAIL.md) | 학생 상세 정보·기록 탭·계정 작업, 메모 저장/복구와 학생별 질문 조회 계약 |
 | [REAL-USE-REVIEW-MANUAL.md](REAL-USE-REVIEW-MANUAL.md) | 실제 운영 흐름과 UI/UX 상품성을 함께 점검하는 반복 검수 매뉴얼 |
 | [REAL-USE-E2E-INVENTORY.md](REAL-USE-E2E-INVENTORY.md) | 기존 E2E 자산을 실사용 운영 리뷰 관점으로 분류한 인벤토리 |
 | [DEPLOYMENT-OPERATIONS.md](DEPLOYMENT-OPERATIONS.md) | Cloudflare preview/production/rollback, scoped token, PR 무쓰기 E2E, Actions 공급망, backend/frontend release-bundle readback 계약 |

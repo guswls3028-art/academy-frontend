@@ -17,14 +17,12 @@
 
 .detailHeader {
   padding: 18px 24px 16px;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface)) 0 4px, transparent 4px),
-    var(--color-bg-surface);
+  background: var(--color-bg-surface);
 }
 
 .identityAvatar {
-  width: 76px;
-  height: 76px;
+  width: 56px;
+  height: 56px;
   border: 3px solid var(--color-bg-surface);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-border-divider)),
@@ -44,40 +42,17 @@
   margin: 0;
 }
 
-.identityMetaItem {
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  overflow: hidden;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--color-bg-surface-soft) 72%, var(--color-bg-surface));
-}
-
-.identityMetaItem dt {
-  padding: 4px 7px;
-  color: var(--color-text-muted);
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.identityMetaItem dd {
-  margin: 0;
-  padding: 4px 8px 4px 0;
-  color: var(--color-text-primary);
-  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.015em;
-}
-
 .headerActions {
   gap: 6px;
-  padding: 5px;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 11px;
-  background: color-mix(in srgb, var(--color-bg-surface-soft) 58%, var(--color-bg-surface));
-  box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+  padding: 0;
+}
+
+.schoolSummary {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .statusControl {
@@ -140,12 +115,6 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 14%, transparent);
 }
 
-.actionDivider {
-  width: 1px;
-  height: 26px;
-  margin: 0 2px;
-  background: var(--color-border-divider);
-}
 
 .deleteAction {
   color: var(--color-text-muted);
@@ -204,7 +173,7 @@
 
 .statTabLabel {
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -240,7 +209,7 @@
   overflow: hidden;
   max-width: 100%;
   color: var(--color-text-muted);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -725,6 +694,9 @@
 
 .questionRecord {
   padding: 12px 16px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
 }
 
 .tabRecord[data-clickable],
@@ -894,19 +866,22 @@
 
   .headerActions {
     width: 100%;
-    overflow-x: auto;
+    overflow-x: visible;
   }
 
   .statTabs {
-    display: flex;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: thin;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+    padding: 6px;
   }
 
   .statTab {
-    flex: 0 0 92px;
+    min-height: 54px;
+    padding: 6px;
   }
+
+  .statTabSub { display: none; }
+  .statTabValue { font-size: 13px; }
 
   .recordActionHint {
     font-size: 0;

@@ -2566,6 +2566,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await cells.nth(1).fill("81");
     await page.getByRole("tab", { name: "출결", exact: true }).first().click();
     await expect(page).toHaveURL(/\/attendance/);
+    await expect(page.getByRole("button", { name: "수강생 등록", exact: true }).first()).toBeVisible();
     await expect.poll(() => scorePatches.at(-2)?.score, { timeout: 10_000 }).toBe(79);
     await expect.poll(() => scorePatches.at(-1)?.score, { timeout: 10_000 }).toBe(81);
     await page.getByRole("tab", { name: "성적", exact: true }).first().click();
@@ -2578,6 +2579,8 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await cells.nth(0).fill("83");
     await page.getByRole("tab", { name: "출결", exact: true }).first().click();
     await expect(page).toHaveURL(/\/attendance/);
+    // URL changes before the route transition commits; verify that the score panel really unmounted.
+    await expect(page.getByRole("button", { name: "수강생 등록", exact: true }).first()).toBeVisible();
     await page.getByRole("tab", { name: "성적", exact: true }).first().click();
     const recoveryDialog = page.getByRole("dialog", { name: /임시저장된 변경 1건/ });
     await expect(recoveryDialog).toBeVisible({ timeout: 30_000 });
@@ -2591,6 +2594,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       .first()
       .evaluate((button) => (button as HTMLButtonElement).click());
     await expect(page).toHaveURL(/\/attendance/);
+    await expect(page.getByRole("button", { name: "수강생 등록", exact: true }).first()).toBeVisible();
     await expect
       .poll(
         () => draftCommits.filter((commit) => commit.release_lease === true).length,

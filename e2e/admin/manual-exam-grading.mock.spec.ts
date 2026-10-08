@@ -2080,6 +2080,11 @@ test.describe("문항별 직접 채점", () => {
     await expect(uploadDialog).toBeVisible();
     await expect(uploadDialog.getByText("7월 진단평가", { exact: true })).toBeVisible();
     await expect(uploadDialog.getByText("스캔 파일 선택", { exact: true })).toBeVisible();
+    // The visible appear-start frame precedes the frame that creates the animation.
+    await expect.poll(() => uploadDialog.evaluate((dialog) =>
+      (dialog.closest(".admin-modal") ?? dialog).getAnimations().filter((animation) =>
+        Number(animation.effect?.getTiming().duration) > 0).length,
+    )).toBeGreaterThan(0);
     const closeBounds = await uploadDialog.evaluate((dialog) => {
       const panel = dialog.closest(".admin-modal") ?? dialog;
       const animations = panel.getAnimations().filter((animation) =>
