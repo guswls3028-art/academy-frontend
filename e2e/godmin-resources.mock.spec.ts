@@ -281,12 +281,13 @@ test("background resume coalesces delayed reader requests and keeps later renewa
   await page.clock.install();
   await page.goto(`${BASE}/landing/resources/901`);
   const reader = page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true });
+  await reader.scrollIntoViewIfNeeded();
   await expect(reader.getByRole("button", { name: "전체화면 보기", exact: true })).toBeVisible();
   const before = readerRequests;
   readerDelay = 500;
   await page.evaluate(() => { for (let n = 0; n < 4; n++) document.dispatchEvent(new Event("visibilitychange")); });
   await expect.poll(() => readerRequests).toBe(before + 1);
-  await page.waitForTimeout(1000);
+  await expect(reader.getByTestId("resource-page-image").first().locator("img")).toHaveAttribute("src", new RegExp(`[?&]signature=${before + 1}$`));
   expect(readerRequests).toBe(before + 1);
   readerDelay = 0;
   await page.clock.fastForward(241_000);
