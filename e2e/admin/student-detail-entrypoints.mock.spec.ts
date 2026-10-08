@@ -241,6 +241,7 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
     name: "테스트학생",
   })).toBeVisible();
   await expect(overlay.getByRole("button", { name: "학생 화면 보기" })).toBeVisible();
+  await overlay.getByRole("button", { name: "계정·관리" }).click();
   await expect(overlay.getByRole("button", { name: "로그인 정보 안내 알림톡" })).toBeVisible();
   await expect(overlay.getByRole("button", { name: "비밀번호 초기화" })).toBeVisible();
 
@@ -633,4 +634,212 @@ test("클리닉 대상자 선택 중 학생 상세를 열고 선택 화면으로
   await expect(overlay).toHaveCount(0);
   await expect(targetGrid).toBeVisible();
   await expect(targetGrid.getByRole("checkbox", { name: "클리닉학생 선택" })).not.toBeChecked();
+});
+
+async function prepareDetail(page: Page) {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", jwt + "-refresh");
+  }, localJwt());
+  await installApi(page);
+}
+
+test("학생 상세는 1366·1100·390px에서 주요 작업과 전체 탭에 접근할 수 있다", async ({ page }, testInfo) => {
+  await prepareDetail(page);
+  await page.route("**/api/v1/students/1001/", (route) => route.fulfill({ json: {
+    id: 1001, name: "동명이인구분이필요한긴이름학생", ps_number: "student.name+1001",
+    parent_phone: "01011112222", phone: "01033334444", is_managed: true,
+    high_school: "이름이 긴 학교 정보도 확인할 수 있는 가상고등학교", grade: 2,
+    tags: [], enrollments: [],
+  } }));
+  for (const width of [1366, 1100, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, BASE + "/workspace/students/1001");
+    const overlay = page.getByTestId("student-detail-overlay");
+    await expect(overlay.getByRole("button", { name: "정보 수정" })).toBeVisible();
+    await expect(overlay.getByRole("button", { name: "학생 화면 보기" })).toBeVisible();
+    for (const label of ["수강", "시험", "과제", "오답노트", "클리닉", "질문", "활동"]) {
+      await expect(overlay.getByRole("tab", { name: new RegExp("^" + label) })).toBeInViewport();
+    }
+    if (width === 390) {
+      await expect(overlay.getByRole("textbox", { name: "학생 공통 메모" })).toBeHidden();
+      await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
+    }
+    await expect(overlay.getByRole("button", { name: "학부모 전화 010-1111-2222 복사" })).toBeVisible();
+    await expect.poll(() => overlay.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+    await overlay.getByRole("tab", { name: /^수강/ }).focus();
+    await page.keyboard.press("End");
+    await expect(overlay.getByRole("tab", { name: /^활동/ })).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(overlay.getByRole("tab", { name: /^수강/ })).toHaveAttribute("aria-selected", "true");
+    await page.screenshot({ path: testInfo.outputPath("student-detail-" + width + ".png") });
+  }
+});
+
+test("학생 메모는 느린 저장 중 재입력한 내용을 보존하고 닫기 중복을 막는다", async ({ page }) => {
+  await prepareDetail(page);
+  let serverMemo = "기존 메모";
+  let releaseFirst!: () => void;
+  const firstSaved = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const patches: string[] = [];
+  await page.route("**/api/v1/students/1001/", async (route) => {
+    if (route.request().method() === "PATCH") {
+      const text = (route.request().postDataJSON() as { memo: string }).memo;
+      patches.push(text);
+      if (patches.length === 1) await firstSaved;
+      serverMemo = text;
+    }
+    await route.fulfill({ json: { id: 1001, name: "메모학생", ps_number: "memo.1001", memo: serverMemo, is_managed: true, tags: [], enrollments: [] } });
+  });
+  await gotoAndSettle(page, BASE + "/workspace/students/home");
+  await page.goto(BASE + "/workspace/students/1001");
+  const overlay = page.getByTestId("student-detail-overlay");
+  const input = overlay.getByRole("textbox", { name: "학생 공통 메모" });
+  await input.fill("잠시 입력한 값");
+  await input.fill("기존 메모");
+  await overlay.getByRole("tab", { name: /^수강/ }).click();
+  expect(patches).toEqual([]);
+  await input.fill("첫 번째 메모");
+  await overlay.getByRole("tab", { name: /^수강/ }).click();
+  await expect.poll(() => patches).toEqual(["첫 번째 메모"]);
+  await input.fill("새로 입력한 최종 메모");
+  await overlay.getByRole("button", { name: "닫기", exact: true }).dblclick();
+  await expect(overlay).toBeVisible();
+  releaseFirst();
+  await expect(overlay).toHaveCount(0);
+  await expect(page).toHaveURL(/\/workspace\/students\/home$/);
+  expect(patches).toEqual(["첫 번째 메모", "새로 입력한 최종 메모"]);
+  await page.goto(BASE + "/workspace/students/1001");
+  await expect(page.getByRole("textbox", { name: "학생 공통 메모" })).toHaveValue("새로 입력한 최종 메모");
+  await page.reload();
+  await expect(page.getByRole("textbox", { name: "학생 공통 메모" })).toHaveValue(serverMemo);
+});
+
+test("학생 메모 저장 실패는 입력과 상세를 유지하고 재시도로 복구한다", async ({ page }) => {
+  await prepareDetail(page);
+  let failSave = true;
+  let serverMemo = "보존할 메모";
+  await page.route("**/api/v1/students/1001/", async (route) => {
+    if (route.request().method() === "PATCH") {
+      if (failSave) return route.fulfill({ status: 503, json: { detail: "test save unavailable" } });
+      serverMemo = (route.request().postDataJSON() as { memo: string }).memo.trim();
+      return route.fulfill({ json: { id: 1001, memo: serverMemo } });
+    }
+    return route.fulfill({ json: { id: 1001, name: "테스트학생", memo: serverMemo, tags: [{ id: 91, name: "보존할 태그", color: "#2563eb" }], enrollments: [] } });
+  });
+  await gotoAndSettle(page, BASE + "/workspace/students/1001");
+  const overlay = page.getByTestId("student-detail-overlay");
+  const input = overlay.getByRole("textbox", { name: "학생 공통 메모" });
+  await input.fill("실패해도 유지할 변경  ");
+  await overlay.getByRole("button", { name: "닫기", exact: true }).click();
+  await expect(overlay.getByRole("button", { name: "다시 저장", exact: true })).toBeVisible();
+  await expect(input).toHaveValue("실패해도 유지할 변경  ");
+  expect(serverMemo).toBe("보존할 메모");
+  failSave = false;
+  await overlay.getByRole("button", { name: "다시 저장", exact: true }).click();
+  await expect(overlay.getByText("저장됨", { exact: true })).toBeVisible();
+  await expect(input).toHaveValue("실패해도 유지할 변경");
+  await expect(overlay.getByRole("button", { name: "보존할 태그 태그 제거", exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("textbox", { name: "학생 공통 메모" })).toHaveValue("실패해도 유지할 변경");
+});
+
+test("학생 질문·클리닉은 실패를 빈 기록으로 표시하지 않고 50건 이후도 읽는다", async ({ page }) => {
+  await prepareDetail(page);
+  let failRead = true;
+  let failNextPage = true;
+  const requestedPages: string[] = [];
+  await page.route("**/api/v1/community/posts/?**", async (route) => {
+    const url = new URL(route.request().url());
+    if (!url.searchParams.has("author_student")) return route.fallback();
+    expect(url.searchParams.get("author_student")).toBe("1001");
+    expect(url.searchParams.get("post_type")).toBe("qna");
+    if (failRead) return route.fulfill({ status: 503, json: { detail: "test history unavailable" } });
+    const current = url.searchParams.get("page") || "1";
+    if (current === "2" && failNextPage) return route.fulfill({ status: 503, json: { detail: "test next page unavailable" } });
+    requestedPages.push(current);
+    const rows = current === "1" ? Array.from({ length: 50 }, (_, i) => ({ id: 100 + i, post_type: "qna", title: "질문 " + (i + 1) })) : [{ id: 149, post_type: "qna", title: "질문 50" }, { id: 150, post_type: "qna", title: "질문 51" }];
+    return route.fulfill({ json: { count: 51, next: current === "1" ? "?page=2" : null, results: rows } });
+  });
+  await page.route("**/api/v1/clinic/participants/?**", async (route) => {
+    if (!new URL(route.request().url()).searchParams.has("student")) return route.fallback();
+    expect(new URL(route.request().url()).searchParams.get("student")).toBe("1001");
+    return route.fulfill({ status: failRead ? 503 : 200, json: failRead ? { detail: "test unavailable" } : { count: 0, results: [], next: null } });
+  });
+  await gotoAndSettle(page, BASE + "/workspace/students/1001");
+  const overlay = page.getByTestId("student-detail-overlay");
+  await overlay.getByRole("tab", { name: /^질문/ }).click();
+  await expect(overlay.getByRole("alert")).toContainText("질문 이력을 불러오지 못했습니다", { timeout: 30000 });
+  await expect(overlay.getByText("질문 이력이 없습니다.")).toHaveCount(0);
+  failRead = false;
+  await overlay.getByRole("button", { name: "다시 불러오기" }).click();
+  await expect(overlay.getByRole("tab", { name: "질문 51건", exact: true })).toBeVisible();
+  await overlay.getByRole("button", { name: "질문 이력 더 보기" }).click();
+  await expect(overlay.getByRole("alert")).toContainText("이미 불러온 기록은 유지됩니다", { timeout: 30000 });
+  await expect(overlay.getByRole("button", { name: "질문 질문 1", exact: true })).toBeVisible();
+  failNextPage = false;
+  await overlay.getByRole("button", { name: "다시 불러오기" }).click();
+  await expect(overlay.getByRole("button", { name: "질문 질문 51", exact: true })).toBeVisible();
+  await expect(overlay.getByRole("button", { name: "질문 질문 50", exact: true })).toHaveCount(1);
+  expect(requestedPages).toEqual(["1", "2"]);
+  await overlay.getByRole("tab", { name: /^클리닉/ }).click();
+  await expect(overlay.getByRole("button", { name: "다시 불러오기" })).toBeVisible();
+  await overlay.getByRole("button", { name: "다시 불러오기" }).click();
+  await expect(overlay.getByText("클리닉/상담 이력이 없습니다.")).toBeVisible();
+});
+
+test("학생 ID 복사는 구두점을 보존하고 키보드로 사용할 수 있다", async ({ page }) => {
+  await prepareDetail(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+      writeText: async (value: string) => { document.documentElement.dataset.copiedStudentId = value; },
+    } });
+  });
+  await page.route("**/api/v1/students/1001/", (route) => route.fulfill({
+    json: { id: 1001, name: "학생", ps_number: "student.name+01", tags: [], enrollments: [] },
+  }));
+  await gotoAndSettle(page, BASE + "/workspace/students/1001");
+  await page.getByRole("button", { name: "아이디 student.name+01 복사", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("html")).toHaveAttribute("data-copied-student-id", "student.name+01");
+});
+
+test("잘못된 학생 ID는 무한 로딩 대신 복귀 가능한 오류를 표시한다", async ({ page }) => {
+  await prepareDetail(page);
+  await gotoAndSettle(page, BASE + "/workspace/students/not-a-student");
+  const overlay = page.getByTestId("student-detail-overlay");
+  await expect(overlay.getByText("학생 정보를 찾을 수 없습니다")).toBeVisible();
+  await overlay.getByRole("button", { name: "닫기", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/workspace\/students\/home$/);
+});
+
+test("저장 실패 후 뒤로 이동해도 같은 학생을 다시 열면 메모 초안을 복원한다", async ({ page }) => {
+  await prepareDetail(page);
+  let fail = true;
+  let savedMemo = "원래 값";
+  let attempts = 0;
+  await page.route("**/api/v1/students/1002/", async (route) => {
+    if (route.request().method() === "PATCH") {
+      attempts++;
+      if (fail) return route.fulfill({ status: 503, json: { detail: "QA 일시 저장 실패" } });
+      savedMemo = (route.request().postDataJSON() as { memo: string }).memo;
+    }
+    return route.fulfill({ json: { id: 1002, name: "클리닉학생", memo: savedMemo, tags: [], enrollments: [] } });
+  });
+  await gotoAndSettle(page, BASE + "/workspace/students/home");
+  const row = page.locator('tr[data-student-detail-trigger="1002"]');
+  await row.click();
+  await page.getByRole("textbox", { name: "학생 공통 메모" }).fill("돌아와서 복구할 메모");
+  await page.getByRole("tab", { name: /^수강/ }).click();
+  await expect(page.getByRole("button", { name: "다시 저장", exact: true })).toBeVisible();
+  await expect.poll(() => attempts).toBeGreaterThan(0);
+  await page.goBack();
+  await expect(page.getByTestId("student-detail-overlay")).toHaveCount(0);
+  await row.click();
+  const input = page.getByRole("textbox", { name: "학생 공통 메모" });
+  await expect(input).toHaveValue("돌아와서 복구할 메모");
+  fail = false;
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+  await expect.poll(() => savedMemo).toBe("돌아와서 복구할 메모");
 });

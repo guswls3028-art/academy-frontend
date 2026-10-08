@@ -8,9 +8,13 @@ import {
   createQaFamily,
   installQaStudentParentBoundary,
   loginAdmin,
+  loginApi,
   loginThroughUi,
   logoutStudentApp,
   QA_BASE,
+  QA_TENANT,
+  QA_ADMIN_USER,
+  QA_ADMIN_PASSWORD,
   reloadStudentApp,
   selectParentStudentThroughUi,
   STUDENT_PARENT_REALUSE_ENABLED,
@@ -18,6 +22,7 @@ import {
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
+import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -56,7 +61,7 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
   test.beforeAll(() => assertQaStudentParentRuntime());
   test.afterAll(async ({ request }) => cleanup(request));
 
-  test("390px 저장·자녀 격리·reload/relogin·desktop을 완료한다", async ({ page, request }) => {
+  test("390px 저장·자녀 격리·reload/relogin·desktop을 완료한다", async ({ page, request }, testInfo) => {
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
@@ -159,5 +164,54 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await assertNoHorizontalOverflow(page);
     boundary.assertClean();
     browser.assertZeroDefects();
+
+    // The same deployed artifact must attribute the parent's question to the
+    // selected student in staff detail and persist a shared student memo.
+    const adminContext = await page.context().browser()!.newContext({ viewport: { width: 1366, height: 900 } });
+    const adminPage = await adminContext.newPage();
+    const adminBoundary = await installQaStudentParentBoundary(adminPage, request);
+    const adminBrowser = attachStrictBrowserGuards(adminPage);
+    try {
+      await gotoAndSettle(adminPage, QA_BASE + "/login/" + QA_TENANT);
+      await adminPage.getByTestId("login-username").fill(QA_ADMIN_USER);
+      await adminPage.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
+      await adminPage.getByTestId("login-submit").click();
+      await expect(adminPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+      await acknowledgeInitialAccountPromptsIfVisible(adminPage);
+      await gotoAndSettle(adminPage, QA_BASE + "/workspace/students/" + primary.id);
+      const detail = adminPage.getByTestId("student-detail-overlay");
+      await detail.getByRole("tab", { name: /^질문/ }).click();
+      await expect(detail.getByText(qnaTitle, { exact: true })).toBeVisible();
+      await expect(detail.getByText(counselTitle, { exact: true })).toHaveCount(0);
+      const sharedMemo = "QA 학생 상세 저장·후속 화면 확인";
+      const memo = detail.getByRole("textbox", { name: "학생 공통 메모" });
+      await memo.fill(sharedMemo);
+      const saved = adminPage.waitForResponse((response) => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === "/api/v1/students/" + primary.id + "/");
+      await detail.getByRole("tab", { name: /^수강/ }).click();
+      expect((await saved).status()).toBe(200);
+      await expect(detail.getByText("저장됨", { exact: true })).toBeVisible();
+      await adminPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(memo).toHaveValue(sharedMemo);
+      await assertNoHorizontalOverflow(adminPage);
+      await adminPage.screenshot({ path: testInfo.outputPath("student-detail-development-desktop.png") });
+      await adminPage.setViewportSize({ width: 390, height: 844 });
+      await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
+      await expect(memo).toHaveValue(sharedMemo);
+      await assertNoHorizontalOverflow(adminPage);
+      await adminPage.screenshot({ path: testInfo.outputPath("student-detail-development-mobile.png") });
+      await gotoAndSettle(adminPage, QA_BASE + "/workspace/students/" + sibling.id);
+      await detail.getByRole("tab", { name: /^질문/ }).click();
+      await expect(detail.getByText("질문 이력이 없습니다.", { exact: true })).toBeVisible();
+      await expect(detail.getByText(qnaTitle, { exact: true })).toHaveCount(0);
+      const studentTokens = await loginApi(request, primary.ps_number, primary.password);
+      const studentProfile = await api<{ memo: string }>(request, "GET", "/student/me/", studentTokens.access);
+      expect(studentProfile.status).toBe(200);
+      expect(studentProfile.body.memo).toBe(sharedMemo);
+      adminBoundary.assertClean();
+      adminBrowser.assertZeroDefects();
+    } finally {
+      await adminContext.close();
+    }
   });
 });

@@ -231,7 +231,7 @@ export default function EditStudentModal({
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={!busy && customFieldsQuery.isSuccess ? handleSubmit : undefined}>
+    <AdminModal open={open} onClose={onClose} closeDisabled={busy} type="action" width={MODAL_WIDTH.md} onEnterConfirm={!busy && customFieldsQuery.isSuccess ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title="학생 수정"

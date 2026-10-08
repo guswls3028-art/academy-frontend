@@ -14,11 +14,12 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import { FolderOpen, MonitorSmartphone } from "lucide-react";
 import api from "@/shared/api/axios";
-import { lectureMemoQueryKeys } from "@/shared/api/queryKeys/lectureMemos";
+import { useModalKeyboard } from "@/shared/ui/modal/useModalKeyboard";
+import { useStudentMemo } from "./useStudentMemo";
 
 import {
   getStudentDetail,
@@ -27,7 +28,6 @@ import {
   getTags,
   attachStudentTag,
   detachStudentTag,
-  createMemo,
   studentAccountStateLabel,
   toggleStudentActive,
   type ClientAccountNotificationLog,
@@ -97,13 +97,11 @@ type CommunityPost = {
   created_by_display?: string | null;
 };
 
-type ListEnvelope<T> = {
-  results?: T[];
-};
-
-function listFromResponse<T>(value: T[] | ListEnvelope<T> | null | undefined): T[] {
-  if (Array.isArray(value)) return value;
-  return Array.isArray(value?.results) ? value.results : [];
+type HistoryPage<T> = { results: T[]; count: number; hasNext: boolean };
+function historyPage<T>(value: T[] | { results: T[]; count?: number; next?: string | null }): HistoryPage<T> {
+  if (Array.isArray(value)) return { results: value, count: value.length, hasNext: false };
+  if (!Array.isArray(value?.results)) throw new Error("기록 응답을 확인할 수 없습니다.");
+  return { results: value.results, count: value.count ?? value.results.length, hasNext: Boolean(value.next) };
 }
 
 type StudentsDetailOverlayProps = {
@@ -114,7 +112,13 @@ type StudentsDetailOverlayProps = {
   layer?: "workspace" | "modal";
 };
 
-export default function StudentsDetailOverlay({
+export default function StudentsDetailOverlay(props: StudentsDetailOverlayProps = {}) {
+  const routeParams = useParams();
+  const id = props.studentId ?? Number(routeParams.studentId);
+  return <StudentDetailContent key={id} {...props} studentId={id} />;
+}
+
+function StudentDetailContent({
   studentId,
   onClose: closeOverride,
   layer = "workspace",
@@ -128,7 +132,7 @@ export default function StudentsDetailOverlay({
     if (activeElement && activeElement !== document.body) return activeElement;
     return null;
   });
-  const onClose = useCallback(() => {
+  const closeDetail = useCallback(() => {
     if (closeOverride) {
       closeOverride();
       return;
@@ -144,6 +148,10 @@ export default function StudentsDetailOverlay({
   const studentsQueryKey = ["students"] as const;
 
   const [tab, setTab] = useState<StatTabKey>("enroll");
+  const [accountToolsOpen, setAccountToolsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const tabId = useId();
+  const leaving = useRef(false);
   const [editOpen, setEditOpen] = useState(false);
   const [tagCreateOpen, setTagCreateOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -176,22 +184,37 @@ export default function StudentsDetailOverlay({
     [id, returnFocusTarget],
   );
 
-  // Escape 키로 오버레이 닫기
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
   const [inventoryOpen, setInventoryOpen] = useState(false);
 
-  const { data: student, isLoading, isError } = useQuery({
+  const { data: student, isLoading, isError, error: studentError, refetch: refetchStudent } = useQuery({
     queryKey: adminStudentsQueryKeys.studentDetail(id),
     queryFn: () => getStudentDetail(id),
-    enabled: !!id,
+    enabled: Number.isInteger(id) && id > 0,
   });
-  const { data: customFieldDefinitions = [] } = useQuery({
+  const memo = useStudentMemo(id, student);
+  const saveMemo = memo.save;
+  const onClose = useCallback(() => {
+    if (leaving.current) return;
+    leaving.current = true;
+    void saveMemo().then((saved) => {
+      if (saved) closeDetail();
+      else leaving.current = false;
+    });
+  }, [saveMemo, closeDetail]);
+  const onNavigate = (path: string) => {
+    if (leaving.current) return;
+    leaving.current = true;
+    void memo.save().then((saved) => {
+      if (!saved) { leaving.current = false; return; }
+      closeOverride?.();
+      navigate(path);
+    });
+  };
+  useModalKeyboard(true, () => {
+    if (inventoryOpen) setInventoryOpen(false);
+    else onClose();
+  }, () => {});
+  const { data: customFieldDefinitions = [], isError: customFieldsError, refetch: refetchCustomFields } = useQuery({
     queryKey: adminStudentsQueryKeys.customFields,
     queryFn: () => fetchStudentCustomFields(true),
   });
@@ -210,32 +233,38 @@ export default function StudentsDetailOverlay({
   } = useQuery({
     queryKey: adminStudentsQueryKeys.studentGrades(id),
     queryFn: () => fetchAdminStudentGrades(id),
-    enabled: id > 0,
+    enabled: Number.isInteger(id) && id > 0,
     refetchOnMount: "always",
   });
   const examGrades = gradesData?.exams ?? [];
   const homeworkGrades = gradesData?.homeworks ?? [];
 
-  const { data: clinicData } = useQuery({
-    queryKey: adminStudentsQueryKeys.studentClinic(id),
-    queryFn: async () => {
-      const res = await api.get<ClinicParticipant[] | ListEnvelope<ClinicParticipant>>("/clinic/participants/", { params: { student: id, page_size: 50 } });
-      return listFromResponse(res.data);
+  const clinic = useInfiniteQuery({
+    queryKey: [...adminStudentsQueryKeys.studentClinic(id), "pages"],
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const res = await api.get("/clinic/participants/", { params: { student: id, page_size: 50, page: pageParam } });
+      return historyPage<ClinicParticipant>(res.data);
     },
-    enabled: id > 0,
+    getNextPageParam: (last, _pages, page) => last.hasNext ? page + 1 : undefined,
+    enabled: Number.isInteger(id) && id > 0,
   });
-  const { data: questionsData } = useQuery({
-    queryKey: adminStudentsQueryKeys.studentQuestions(id),
-    queryFn: async () => {
-      const res = await api.get<CommunityPost[] | ListEnvelope<CommunityPost>>("/community/posts/", { params: { author_student: id, page_size: 50 } });
-      return listFromResponse(res.data);
+  const questions = useInfiniteQuery({
+    queryKey: [...adminStudentsQueryKeys.studentQuestions(id), "pages"],
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const res = await api.get("/community/posts/", { params: { author_student: id, post_type: "qna", page_size: 50, page: pageParam } });
+      return historyPage<CommunityPost>(res.data);
     },
-    enabled: id > 0,
+    getNextPageParam: (last, _pages, page) => last.hasNext ? page + 1 : undefined,
+    enabled: Number.isInteger(id) && id > 0,
   });
-  const { data: accountNotifications, isLoading: accountNotificationsLoading } = useQuery({
+  const clinicData = Array.from(new Map((clinic.data?.pages.flatMap((page) => page.results) ?? []).map((record) => [record.id, record])).values());
+  const questionsData = Array.from(new Map((questions.data?.pages.flatMap((page) => page.results) ?? []).map((record) => [record.id, record])).values());
+  const { data: accountNotifications, isLoading: accountNotificationsLoading, isError: accountNotificationsError, refetch: refetchNotifications } = useQuery({
     queryKey: adminStudentsQueryKeys.studentAccountNotifications(id),
     queryFn: () => fetchStudentAccountNotifications(id, 5),
-    enabled: id > 0,
+    enabled: Number.isInteger(id) && id > 0,
   });
 
   const addTag = useMutation({
@@ -243,22 +272,16 @@ export default function StudentsDetailOverlay({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentDetail(id) });
       qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.tags });
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
     },
     onError: () => { feedback.error("처리에 실패했습니다."); },
   });
 
   const removeTag = useMutation({
     mutationFn: (tagId: number) => detachStudentTag(id, tagId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentDetail(id) }),
-    onError: () => { feedback.error("처리에 실패했습니다."); },
-  });
-
-  const updateMemo = useMutation({
-    mutationFn: (memo: string) => createMemo(id, memo),
     onSuccess: () => Promise.all([
       qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentDetail(id) }),
-      ...lectureMemoQueryKeys.rosters
-        .map((queryKey) => qc.invalidateQueries({ queryKey })),
+      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students }),
     ]),
     onError: () => { feedback.error("처리에 실패했습니다."); },
   });
@@ -273,12 +296,15 @@ export default function StudentsDetailOverlay({
   });
 
   // 에러 상태 (존재하지 않는 학생 ID 등)
-  if (isError || (!isLoading && !student && !!id)) {
+  const invalidId = !Number.isInteger(id) || id <= 0;
+  const unavailableStudent = invalidId || (studentError as { response?: { status?: number } })?.response?.status === 404;
+  if (invalidId || isError || (!isLoading && !student)) {
     return (
       <StudentDetailShell onClose={onClose} layer={layer}>
         <div className={`ds-overlay-body ${styles.bodyPadded}`}>
-          <EmptyState scope="panel" tone="error" title="학생 정보를 찾을 수 없습니다" description="삭제되었거나 잘못된 학생 ID입니다." />
+          <EmptyState scope="panel" tone="error" title={unavailableStudent ? "학생 정보를 찾을 수 없습니다" : "학생 정보를 불러오지 못했습니다"} description={unavailableStudent ? "학생 목록에서 대상을 다시 확인해 주세요." : "연결 상태를 확인한 뒤 다시 시도해 주세요."} />
           <div className={styles.centerAction}>
+            {!unavailableStudent && <Button intent="primary" size="sm" onClick={() => { void refetchStudent(); }}>다시 불러오기</Button>}
             <Button intent="secondary" size="sm" onClick={onClose}>닫기</Button>
           </div>
         </div>
@@ -331,7 +357,7 @@ export default function StudentsDetailOverlay({
                   </span>
                 </div>
                 <div className={`ds-overlay-header__title-block ${styles.headerTitleBlock}`}>
-                  <h1 className="ds-overlay-header__title">
+                  <h1 className="ds-overlay-header__title" title={student.name}>
                     <StudentNameWithLectureChip
                       name={student.name ?? ""}
                       avatarSize={0}
@@ -347,24 +373,42 @@ export default function StudentsDetailOverlay({
                       }
                     />
                   </h1>
-                  <dl className={styles.identityMeta}>
-                    <div className={styles.identityMetaItem}>
-                      <dt>아이디</dt>
-                      <dd>{student.psNumber ?? "—"}</dd>
-                    </div>
-                    <div className={styles.identityMetaItem}>
-                      <dt>시험코드</dt>
-                      <dd>{formatOmrCode(student.omrCode)}</dd>
-                    </div>
-                    <div className={styles.identityMetaItem}>
-                      <dt>계정</dt>
-                      <dd>{studentAccountStateLabel(student.accountState)}</dd>
-                    </div>
-                  </dl>
+                  <p className={styles.schoolSummary}>
+                    {[student.school, student.grade != null ? student.grade + "학년" : null, student.schoolClass ? student.schoolClass + "반" : null].filter(Boolean).join(" · ") || "학교 정보 미등록"}
+                  </p>
+                  <div className={styles.identityMeta}>
+                    <Badge tone={student.active ? "success" : "muted"} size="sm">{student.active ? "관리 중" : "관리 제외"}</Badge>
+                    <Badge tone="muted" size="sm">{studentAccountStateLabel(student.accountState)}</Badge>
+                  </div>
                 </div>
               </div>
               <div className="ds-overlay-header__right">
                 <div className={`ds-overlay-header__actions ${styles.headerActions}`}>
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    disabled={supportOpening}
+                    leftIcon={<MonitorSmartphone size={ICON.sm} aria-hidden />}
+                    onClick={async () => {
+                      setSupportOpening(true);
+                      try {
+                        await openStudentSupportPreview(id);
+                      } catch (error) {
+                        feedback.error(error instanceof Error ? error.message : "학생 화면을 열지 못했습니다.");
+                      } finally {
+                        setSupportOpening(false);
+                      }
+                    }}
+                  >
+                    {supportOpening ? "여는 중…" : "학생 화면 보기"}
+                  </Button>
+                  <Button type="button" intent="primary" size="sm" onClick={() => { void memo.save().then((saved) => { if (saved) setEditOpen(true); }); }}>정보 수정</Button>
+                  <Button type="button" intent="ghost" size="sm" aria-expanded={accountToolsOpen} aria-controls={tabId + "-account-tools"} onClick={() => setAccountToolsOpen((open) => !open)}>계정·관리</Button>
+                </div>
+              </div>
+            </div>
+            {accountToolsOpen && <div id={tabId + "-account-tools"} className={styles.accountTools} aria-label="학생 계정·관리">
                   <div className={styles.statusControl}>
                     <span className={styles.statusLabel}>관리 대상</span>
                     <button
@@ -380,26 +424,6 @@ export default function StudentsDetailOverlay({
                       {toggleActive.isPending ? "변경 중" : student.active ? "관리 중" : "관리 제외"}
                     </button>
                   </div>
-                  <span className={styles.actionDivider} aria-hidden />
-                  <Button
-                    type="button"
-                    intent="primary"
-                    size="sm"
-                    disabled={supportOpening}
-                    onClick={async () => {
-                      setSupportOpening(true);
-                      try {
-                        await openStudentSupportPreview(id);
-                      } catch (error) {
-                        feedback.error(error instanceof Error ? error.message : "학생 화면을 열지 못했습니다.");
-                      } finally {
-                        setSupportOpening(false);
-                      }
-                    }}
-                  >
-                    <MonitorSmartphone size={ICON.sm} aria-hidden />
-                    {supportOpening ? "여는 중…" : "학생 화면 보기"}
-                  </Button>
                   <Button
                     type="button"
                     intent="secondary"
@@ -419,28 +443,26 @@ export default function StudentsDetailOverlay({
                   >
                     비밀번호 초기화
                   </Button>
-                  <Button type="button" intent="secondary" size="sm" onClick={() => setEditOpen(true)}>
-                    정보 수정
-                  </Button>
                   <Button type="button" intent="ghost" size="sm" className={styles.deleteAction} onClick={() => setDeleteConfirmOpen(true)}>
                     삭제
                   </Button>
-                </div>
-              </div>
-            </div>
+            </div>}
           </header>
 
           <div className="ds-overlay-body" data-testid="student-detail-scroll">
+            <Button type="button" intent="secondary" className={styles.profileToggle} aria-expanded={profileOpen} aria-controls={tabId + "-profile"} onClick={() => setProfileOpen((open) => !open)}>
+              {profileOpen ? "연락처·메모 접기" : "연락처·메모 보기"}
+            </Button>
             <div className="ds-overlay-body__grid">
               {/* Left panel — 단일 카드, 섹션 구분선 */}
-              <div className="ds-overlay-sidebar">
+              <div id={tabId + "-profile"} className={"ds-overlay-sidebar " + styles.profilePanel} data-expanded={profileOpen}>
                 <div className="ds-overlay-sidebar-card">
                   {/* 연락처 */}
                   <div className="ds-overlay-sidebar-section">
-                    <div className="ds-overlay-sidebar-section__title">연락처</div>
+                    <div className="ds-overlay-sidebar-section__title">기본 정보</div>
                     <div className="ds-overlay-info-rows">
                       {student.psNumber && <InfoRow label="아이디" value={student.psNumber} accent copyable />}
-                      {student.omrCode && <InfoRow label="식별코드" value={formatOmrCode(student.omrCode)} accent copyable />}
+                      {student.omrCode && <InfoRow label="시험코드" value={formatOmrCode(student.omrCode)} accent copyable />}
                       <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
                       <InfoRow label="학생 전화" value={formatStudentPhoneDisplay(student.studentPhone)} copyable />
                       {student.gender && <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />}
@@ -450,12 +472,32 @@ export default function StudentsDetailOverlay({
                   </div>
 
                   <div className="ds-overlay-sidebar-section">
-                    <div className="ds-overlay-sidebar-section__title">계정 알림톡</div>
+                    <div className="ds-overlay-sidebar-section__title">학생 공통 메모</div>
+                    <textarea
+                      aria-label="학생 공통 메모"
+                      className={"ds-textarea w-full " + styles.memoTextarea}
+                      rows={4}
+                      value={memo.value}
+                      placeholder="학생 지도·상담에 필요한 메모"
+                      onChange={(event) => memo.change(event.target.value)}
+                      onBlur={() => { void memo.save(); }}
+                    />
+                    <div className={styles.memoFooter}>
+                      <span role={memo.status === "error" ? "alert" : "status"}>
+                        {memo.status === "saving" ? "저장 중…" : memo.status === "error" ? "저장 실패 · 입력은 유지됩니다" : memo.dirty ? "저장할 변경 내용이 있습니다" : memo.status === "saved" ? "저장됨" : "입력 후 다른 곳을 누르면 저장"}
+                      </span>
+                      {(memo.dirty || memo.status === "error") && <Button intent="secondary" size="sm" onClick={() => { void memo.save(); }}>{memo.status === "error" ? "다시 저장" : "저장"}</Button>}
+                    </div>
+                  </div>
+                  <details className={"ds-overlay-sidebar-section " + styles.accountHistory}>
+                    <summary className="ds-overlay-sidebar-section__title">계정 알림톡 이력</summary>
                     <AccountNotificationHistory
                       logs={accountNotifications ?? []}
                       loading={accountNotificationsLoading}
+                      error={accountNotificationsError}
+                      onRetry={() => { void refetchNotifications(); }}
                     />
-                  </div>
+                  </details>
 
                   {/* 학교 정보 */}
                   {(student.school || student.grade != null || student.schoolClass != null || student.major || (student.schoolType === "HIGH" && student.originMiddleSchool)) && (
@@ -473,6 +515,7 @@ export default function StudentsDetailOverlay({
                   </div>
                   )}
 
+                  {customFieldsError && <div role="alert" className={styles.sectionError}>맞춤 정보를 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => { void refetchCustomFields(); }}>다시 불러오기</Button></div>}
                   {customFieldDefinitions.some(
                     (definition) => {
                       const value = student.customFields[definition.key];
@@ -541,6 +584,8 @@ export default function StudentsDetailOverlay({
                       </Button>
                       {availableTags.length > 0 && (
                         <select
+                          aria-label="기존 태그 추가"
+                          disabled={addTag.isPending}
                           className={`ds-input ${styles.tagSelect}`}
                           onChange={(e) => {
                             const tagId = Number(e.target.value);
@@ -557,27 +602,6 @@ export default function StudentsDetailOverlay({
                     </div>
                   </div>
 
-                  {/* 메모 */}
-                  <div className="ds-overlay-sidebar-section">
-                    <div className="ds-overlay-sidebar-section__title">
-                      학생 공통 메모
-                      {updateMemo.isPending && (
-                        <span className="ds-overlay-memo__status ds-overlay-memo__status--saving">저장 중...</span>
-                      )}
-                      {updateMemo.isSuccess && !updateMemo.isPending && (
-                        <span className="ds-overlay-memo__status ds-overlay-memo__status--saved">저장됨</span>
-                      )}
-                    </div>
-                    <textarea
-                      key={`memo-${student.memo ?? ""}`}
-                      aria-label="학생 공통 메모"
-                      className={`ds-textarea w-full ${styles.memoTextarea}`}
-                      rows={4}
-                      defaultValue={student.memo ?? ""}
-                      placeholder="포커스 해제 시 자동 저장"
-                      onBlur={(e) => updateMemo.mutate(e.target.value)}
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -585,6 +609,7 @@ export default function StudentsDetailOverlay({
               <div className="ds-overlay-content-panel">
                 {/* Stat-Tab 네비게이터: 요약 + 탭 전환 통합 */}
                 <StudentStatTabs
+                  id={tabId}
                   activeTab={tab}
                   onTabChange={setTab}
                   enrollments={student.enrollments}
@@ -593,12 +618,16 @@ export default function StudentsDetailOverlay({
                   homeworkGrades={homeworkGrades}
                   gradesLoading={gradesLoading}
                   gradesError={gradesError}
-                  clinicData={clinicData ?? []}
-                  questionsData={questionsData ?? []}
+                  clinicCount={clinic.data?.pages[0]?.count ?? 0}
+                  questionCount={questions.data?.pages[0]?.count ?? 0}
+                  clinicLoading={clinic.isLoading}
+                  clinicError={clinic.isError}
+                  questionsLoading={questions.isLoading}
+                  questionsError={questions.isError}
                 />
 
-                <div className="ds-overlay-content-panel__scrollable">
-                  {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
+                <div className="ds-overlay-content-panel__scrollable" role="tabpanel" id={tabId + "-panel"} aria-labelledby={tabId + "-" + tab} tabIndex={0}>
+                  {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={onNavigate} />}
                   {tab === "score" && (
                     <ScoreTab
                       studentId={id}
@@ -607,7 +636,7 @@ export default function StudentsDetailOverlay({
                       isLoading={gradesLoading}
                       isError={gradesError}
                       onRetry={() => { void refetchGrades(); }}
-                      onNavigate={(path) => { closeOverride?.(); navigate(path); }}
+                      onNavigate={onNavigate}
                     />
                   )}
                   {tab === "homework" && (
@@ -617,12 +646,12 @@ export default function StudentsDetailOverlay({
                       isError={gradesError}
                       onRetry={() => { void refetchGrades(); }}
                       onUpdated={async () => { await refetchGrades(); }}
-                      onNavigate={(path) => { closeOverride?.(); navigate(path); }}
+                      onNavigate={onNavigate}
                     />
                   )}
                   {tab === "wrong-note" && <StudentWrongNoteBuilder studentId={id} />}
-                  {tab === "clinic" && <ClinicTab data={clinicData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
-                  {tab === "question" && <QuestionTab data={questionsData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
+                  {tab === "clinic" && <HistoryState label="클리닉" loading={clinic.isLoading} error={clinic.isError} hasData={clinicData.length > 0} hasNext={clinic.hasNextPage} fetchingMore={clinic.isFetchingNextPage} onRetry={() => { void (clinic.isFetchNextPageError ? clinic.fetchNextPage() : clinic.refetch()); }} onMore={() => { void clinic.fetchNextPage(); }}><ClinicTab data={clinicData} onNavigate={onNavigate} /></HistoryState>}
+                  {tab === "question" && <HistoryState label="질문" loading={questions.isLoading} error={questions.isError} hasData={questionsData.length > 0} hasNext={questions.hasNextPage} fetchingMore={questions.isFetchingNextPage} onRetry={() => { void (questions.isFetchNextPageError ? questions.fetchNextPage() : questions.refetch()); }} onMore={() => { void questions.fetchNextPage(); }}><QuestionTab data={questionsData} onNavigate={onNavigate} /></HistoryState>}
                   {tab === "activity" && <StudentActivityPanel studentId={id} />}
                 </div>
               </div>
@@ -771,12 +800,22 @@ function StudentDetailShell({
       <div className={`ds-overlay-wrap${elevated ? ` ${styles.modalWrap}` : ""}`}>
         <div
           ref={panelRef}
-          className="ds-overlay-panel ds-overlay-panel--student-detail"
+          className={"ds-overlay-panel ds-overlay-panel--student-detail " + styles.detailPanel}
           role="dialog"
           aria-modal="true"
           aria-label="학생 상세"
           data-testid="student-detail-overlay"
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key !== "Tab") return;
+            const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+              "button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex='0']",
+            )).filter((element) => element.getClientRects().length > 0);
+            const first = items[0];
+            const last = items[items.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+          }}
         >
           <CloseButton className="ds-overlay-panel__close" onClick={onClose} />
           {children}
@@ -809,13 +848,18 @@ function formatAccountNotificationTime(value: string | null): string {
 function AccountNotificationHistory({
   logs,
   loading,
+  error,
+  onRetry,
 }: {
   logs: ClientAccountNotificationLog[];
   loading: boolean;
+  error: boolean;
+  onRetry: () => void;
 }) {
   if (loading) {
     return <div className={styles.accountNotificationEmpty}>불러오는 중...</div>;
   }
+  if (error) return <div role="alert" className={styles.sectionError}>발송 이력을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={onRetry}>다시 불러오기</Button></div>;
   if (!logs.length) {
     return <div className={styles.accountNotificationEmpty}>최근 발송 없음</div>;
   }
@@ -858,21 +902,30 @@ function InfoRow({
 }) {
   const displayValue = value || "-";
   const canCopy = copyable && value && value !== "-";
+  const Row = canCopy ? "button" : "div";
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!canCopy) return;
-    const text = String(value).replace(/[^0-9a-zA-Z가-힣-]/g, "").trim() || String(value);
-    navigator.clipboard.writeText(text).then(
-      () => feedback.success(`${label} 복사됨`),
-      () => {}
-    );
+    try {
+      await navigator.clipboard.writeText(String(value));
+      feedback.success(`${label} 복사됨`);
+    } catch {
+      feedback.error("복사하지 못했습니다. 표시된 내용을 직접 선택해 복사해 주세요.");
+    }
   };
 
   return (
-    <div
-      className="ds-overlay-info-row"
+    <Row
+      type={canCopy ? "button" : undefined}
+      className={"ds-overlay-info-row " + styles.infoRow}
       data-copyable={canCopy ? "" : undefined}
       onClick={canCopy ? handleCopy : undefined}
+      role={canCopy ? "button" : undefined}
+      tabIndex={canCopy ? 0 : undefined}
+      aria-label={canCopy ? `${label} ${String(displayValue)} 복사` : undefined}
+      onKeyDown={canCopy ? (event) => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); void handleCopy(); }
+      } : undefined}
       title={canCopy ? "클릭하여 복사" : undefined}
     >
       <span className="ds-overlay-info-row__label">{label}</span>
@@ -885,12 +938,13 @@ function InfoRow({
           </svg>
         )}
       </span>
-    </div>
+    </Row>
   );
 }
 
 /** Stat-Tab 네비게이터: 요약 숫자 + 탭 전환 통합 */
 function StudentStatTabs({
+  id,
   activeTab,
   onTabChange,
   enrollments,
@@ -899,9 +953,14 @@ function StudentStatTabs({
   homeworkGrades,
   gradesLoading,
   gradesError,
-  clinicData,
-  questionsData,
+  clinicCount,
+  questionCount,
+  clinicLoading,
+  clinicError,
+  questionsLoading,
+  questionsError,
 }: {
+  id: string;
   activeTab: StatTabKey;
   onTabChange: (tab: StatTabKey) => void;
   enrollments: ClientEnrollmentLite[];
@@ -910,8 +969,12 @@ function StudentStatTabs({
   homeworkGrades: StudentHomeworkGrade[];
   gradesLoading: boolean;
   gradesError: boolean;
-  clinicData: ClinicParticipant[];
-  questionsData: CommunityPost[];
+  clinicCount: number;
+  questionCount: number;
+  clinicLoading: boolean;
+  clinicError: boolean;
+  questionsLoading: boolean;
+  questionsError: boolean;
 }) {
   // 정책: 합격률은 "성취"(1차 + 보강합격) 기준. achievement가 내려오면 우선 사용.
   // 드리프트 방지: 같은 오버레이의 ScoreTab이 achievement 기반으로 뱃지를 그리므로
@@ -941,10 +1004,6 @@ function StudentStatTabs({
     homework.achievement === "NOT_SUBMITTED"
   )).length;
   const hwTotal = homeworkGrades.length;
-
-  const clinicCount = (clinicData ?? []).length;
-  const clinicAttended = (clinicData ?? []).filter((participant) => participant.status === "ATTENDED" || participant.status === "attended").length;
-  const questionCount = (questionsData ?? []).length;
 
   const activeEnrollments = (enrollments ?? []).filter((enrollment) => (
     (enrollment.status ?? "ACTIVE") === "ACTIVE" && enrollment.lectureActive
@@ -989,18 +1048,17 @@ function StudentStatTabs({
     {
       key: "clinic",
       label: "클리닉",
-      value: `${clinicCount}건`,
-      sub: clinicAttended > 0 ? `출석 ${clinicAttended}` : undefined,
+      value: clinicLoading ? "…" : clinicError ? "확인 필요" : `${clinicCount}건`,
     },
     {
       key: "question",
       label: "질문",
-      value: `${questionCount}건`,
+      value: questionsLoading ? "…" : questionsError ? "확인 필요" : `${questionCount}건`,
     },
     {
       key: "activity",
       label: "활동",
-      value: "감사",
+      value: "기록",
       sub: "로그인 · 열람",
     },
   ];
@@ -1017,7 +1075,18 @@ function StudentStatTabs({
             key={t.key}
             type="button"
             role="tab"
+            id={id + "-" + t.key}
+            aria-controls={id + "-panel"}
             aria-selected={active}
+            tabIndex={active ? 0 : -1}
+            onKeyDown={(event) => {
+              const index = tabs.findIndex((item) => item.key === activeTab);
+              const next = event.key === "ArrowRight" ? (index + 1) % tabs.length : event.key === "ArrowLeft" ? (index - 1 + tabs.length) % tabs.length : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : null;
+              if (next === null) return;
+              event.preventDefault();
+              onTabChange(tabs[next].key);
+              document.getElementById(id + "-" + tabs[next].key)?.focus();
+            }}
             className={`${styles.statTab}${active ? ` ${styles.statTabActive}` : ""}${muted ? ` ${styles.statTabMuted}` : ""}`}
             onClick={() => onTabChange(t.key)}
           >
@@ -1132,6 +1201,23 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
 }
 
 /** 클리닉/상담 이력 탭 */
+function HistoryState({ label, loading, error, hasData, hasNext, fetchingMore, onRetry, onMore, children }: {
+  label: string; loading: boolean; error: boolean; hasData: boolean; hasNext: boolean;
+  fetchingMore: boolean; onRetry: () => void; onMore: () => void; children: ReactNode;
+}) {
+  if (loading) return <EmptyState scope="panel" tone="loading" title={`${label} 이력을 불러오는 중…`} />;
+  return <>
+    {(!error || hasData) && children}
+    {error && <div role="alert" className={styles.historyFeedback}>
+      <p>{label} 이력을 불러오지 못했습니다.{hasData ? " 이미 불러온 기록은 유지됩니다." : ""}</p>
+      <Button intent="secondary" size="sm" onClick={onRetry}>다시 불러오기</Button>
+    </div>}
+    {hasNext && !error && <div className={styles.historyFeedback}>
+      <Button intent="secondary" size="sm" disabled={fetchingMore} onClick={onMore}>{fetchingMore ? "불러오는 중…" : `${label} 이력 더 보기`}</Button>
+    </div>}
+  </>;
+}
+
 function ClinicTab({ data, onNavigate }: { data: ClinicParticipant[]; onNavigate: (path: string) => void }) {
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="클리닉/상담 이력이 없습니다." />;
 
@@ -1211,7 +1297,8 @@ function QuestionTab({ data, onNavigate }: { data: CommunityPost[]; onNavigate: 
           ? `/workspace/community/qna?id=${post.id}`
           : `/workspace/community/board`;
         return (
-          <div
+          <button
+            type="button"
             key={post.id}
             className={styles.questionRecord}
             data-clickable=""
@@ -1237,7 +1324,7 @@ function QuestionTab({ data, onNavigate }: { data: CommunityPost[]; onNavigate: 
               {post.created_at ? new Date(post.created_at).toLocaleDateString("ko-KR") : ""}
               {post.created_by_display ? ` · ${post.created_by_display}` : ""}
             </span>
-          </div>
+          </button>
         );
       })}
     </div>

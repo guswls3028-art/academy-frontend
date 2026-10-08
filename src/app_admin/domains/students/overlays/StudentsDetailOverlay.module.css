@@ -2,6 +2,13 @@
   padding: 24px;
 }
 
+.detailPanel.detailPanel :global(.ds-overlay-inventory-wrap) {
+  top: auto;
+  bottom: 16px;
+  right: 16px;
+}
+.detailPanel :global(.ds-overlay-body) { padding-bottom: 64px; }
+
 .modalBackdrop,
 .modalWrap {
   left: 0;
@@ -17,14 +24,12 @@
 
 .detailHeader {
   padding: 18px 24px 16px;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface)) 0 4px, transparent 4px),
-    var(--color-bg-surface);
+  background: var(--color-bg-surface);
 }
 
 .identityAvatar {
-  width: 76px;
-  height: 76px;
+  width: 56px;
+  height: 56px;
   border: 3px solid var(--color-bg-surface);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-border-divider)),
@@ -44,40 +49,65 @@
   margin: 0;
 }
 
-.identityMetaItem {
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  overflow: hidden;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--color-bg-surface-soft) 72%, var(--color-bg-surface));
-}
-
-.identityMetaItem dt {
-  padding: 4px 7px;
-  color: var(--color-text-muted);
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.identityMetaItem dd {
-  margin: 0;
-  padding: 4px 8px 4px 0;
-  color: var(--color-text-primary);
-  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.015em;
-}
-
 .headerActions {
   gap: 6px;
-  padding: 5px;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 11px;
-  background: color-mix(in srgb, var(--color-bg-surface-soft) 58%, var(--color-bg-surface));
-  box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+  padding: 0;
+}
+
+.schoolSummary {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.accountTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-divider);
+  animation: detail-reveal 140ms ease-out;
+}
+
+.profileToggle.profileToggle { display: none; }
+.profilePanel { min-width: 0; }
+.infoRow {
+  width: 100%;
+  background: transparent;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  text-align: left;
+  font: inherit;
+}
+.profilePanel :global(.ds-overlay-sidebar-section__title) { font-size: 12px; }
+.profilePanel :global(.ds-overlay-info-row):focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+.memoFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.memoFooter [role="alert"], .sectionError { color: var(--color-danger); }
+.historyFeedback { padding: 16px; text-align: center; }
+.sectionError { padding: 12px; font-size: 12px; }
+
+@keyframes detail-reveal {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .statusControl {
@@ -140,12 +170,6 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 14%, transparent);
 }
 
-.actionDivider {
-  width: 1px;
-  height: 26px;
-  margin: 0 2px;
-  background: var(--color-border-divider);
-}
 
 .deleteAction {
   color: var(--color-text-muted);
@@ -204,7 +228,7 @@
 
 .statTabLabel {
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -240,7 +264,7 @@
   overflow: hidden;
   max-width: 100%;
   color: var(--color-text-muted);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -725,6 +749,9 @@
 
 .questionRecord {
   padding: 12px 16px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
 }
 
 .tabRecord[data-clickable],
@@ -882,6 +909,7 @@
 }
 
 @media (max-width: 768px) {
+  .detailPanel :global(.ds-overlay-header__left) { padding-right: 40px; }
   .detailHeader {
     padding: 14px 16px 12px;
   }
@@ -894,19 +922,26 @@
 
   .headerActions {
     width: 100%;
-    overflow-x: auto;
+    overflow-x: visible;
   }
 
   .statTabs {
-    display: flex;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: thin;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+    padding: 6px;
   }
 
   .statTab {
-    flex: 0 0 92px;
+    min-height: 54px;
+    padding: 6px;
   }
+
+  .statTabSub { display: none; }
+  .statTabValue { font-size: 13px; }
+  .profileToggle.profileToggle { display: flex; width: 100%; margin-bottom: 12px; }
+  .profilePanel { order: -2; }
+  .profilePanel[data-expanded="false"] { display: none; }
+  .profilePanel[data-expanded="true"] { animation: detail-reveal 140ms ease-out; }
 
   .recordActionHint {
     font-size: 0;
@@ -971,9 +1006,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .accountTools,
+  .profilePanel[data-expanded="true"],
   .statTab,
   .homeworkQuickEditor {
     transition: none;
     animation: none;
   }
 }
+
+.accountHistory summary { cursor: pointer; }
+.accountHistory[open] summary { margin-bottom: 10px; }
