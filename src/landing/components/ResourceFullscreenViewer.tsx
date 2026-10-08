@@ -7,8 +7,8 @@ import styles from "./ResourceFullscreenViewer.module.css";
 
 type ImagePage = Extract<ReaderBlock, { kind: "image" }>;
 
-export default function ResourceFullscreenViewer({ pages, title, attempt, error, returnFocus, onRetry, onError, onClose }: {
-  pages?: ImagePage[]; title: string; attempt: number; error: string;
+export default function ResourceFullscreenViewer({ historyKey, pages, title, attempt, error, returnFocus, onRetry, onError, onClose }: {
+  historyKey: string; pages?: ImagePage[]; title: string; attempt: number; error: string;
   returnFocus: () => HTMLElement | null;
   onRetry: () => void; onError: () => void; onClose: () => void;
 }) {
@@ -17,7 +17,6 @@ export default function ResourceFullscreenViewer({ pages, title, attempt, error,
   const [status, setStatus] = useState("waiting");
   const [controlsVisible, setControlsVisible] = useState(true);
   const headingId = useId();
-  const historyKey = `resource-viewer-${headingId}`;
   const closing = useRef(false);
   const shell = useRef<HTMLDivElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
@@ -62,19 +61,12 @@ export default function ResourceFullscreenViewer({ pages, title, attempt, error,
     body.style.position = "fixed"; body.style.top = `-${scrollY}px`; body.style.width = "100%"; body.style.overflow = "hidden";
     closeButton.current?.focus({ preventScroll: true });
     app?.setAttribute("aria-hidden", "true");
-    // Defer one tick so StrictMode's mount rehearsal cannot leave a history entry.
-    const historyTimer = window.setTimeout(() => window.history.pushState({ ...window.history.state, resourceViewer: historyKey }, "", window.location.href), 0);
-    const back = () => close.current();
-    window.addEventListener("popstate", back);
     return () => {
-      window.clearTimeout(historyTimer);
-      window.removeEventListener("popstate", back);
       Object.assign(body.style, previous);
       if (app) {
         if (previousHidden === null || previousHidden === undefined) app.removeAttribute("aria-hidden");
         else app.setAttribute("aria-hidden", previousHidden);
       }
-      if (window.history.state?.resourceViewer === historyKey) window.history.back();
       window.history.scrollRestoration = scrollRestoration;
       const restoreArticle = () => {
         if (window.location.href !== articleUrl) return;
@@ -87,7 +79,7 @@ export default function ResourceFullscreenViewer({ pages, title, attempt, error,
         if (!document.querySelector('[data-testid="resource-fullscreen-viewer"]')) restoreArticle();
       });
     };
-  }, [historyKey, returnFocus]);
+  }, [returnFocus]);
 
   useLayoutEffect(() => {
     function fit() {
