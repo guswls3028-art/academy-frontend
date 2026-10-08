@@ -52,6 +52,7 @@ import StudentHomeworkTab from "./StudentHomeworkTab";
 import AccountGuidanceModal from "../components/AccountGuidanceModal";
 import PasswordResetModal, { type PwResetTarget } from "../components/PasswordResetModal";
 import styles from "./StudentsDetailOverlay.module.css";
+import profileStyles from "./StudentDetailProfile.module.css";
 import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
 import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 import StudentExamCorrectionCard from "./StudentExamCorrectionCard";
@@ -240,7 +241,7 @@ function StudentDetailContent({
   const homeworkGrades = gradesData?.homeworks ?? [];
 
   const clinic = useInfiniteQuery({
-    queryKey: [...adminStudentsQueryKeys.studentClinic(id), "pages"],
+    queryKey: adminStudentsQueryKeys.studentClinicPages(id),
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
       const res = await api.get("/clinic/participants/", { params: { student: id, page_size: 50, page: pageParam } });
@@ -250,7 +251,7 @@ function StudentDetailContent({
     enabled: Number.isInteger(id) && id > 0,
   });
   const questions = useInfiniteQuery({
-    queryKey: [...adminStudentsQueryKeys.studentQuestions(id), "pages"],
+    queryKey: adminStudentsQueryKeys.studentQuestionPages(id),
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
       const res = await api.get("/community/posts/", { params: { author_student: id, post_type: "qna", page_size: 50, page: pageParam } });
@@ -408,7 +409,7 @@ function StudentDetailContent({
                 </div>
               </div>
             </div>
-            {accountToolsOpen && <div id={tabId + "-account-tools"} className={styles.accountTools} aria-label="학생 계정·관리">
+            {accountToolsOpen && <div id={tabId + "-account-tools"} className={profileStyles.accountTools} aria-label="학생 계정·관리">
                   <div className={styles.statusControl}>
                     <span className={styles.statusLabel}>관리 대상</span>
                     <button
@@ -450,12 +451,12 @@ function StudentDetailContent({
           </header>
 
           <div className="ds-overlay-body" data-testid="student-detail-scroll">
-            <Button type="button" intent="secondary" className={styles.profileToggle} aria-expanded={profileOpen} aria-controls={tabId + "-profile"} onClick={() => setProfileOpen((open) => !open)}>
+            <Button type="button" intent="secondary" className={profileStyles.profileToggle} aria-expanded={profileOpen} aria-controls={tabId + "-profile"} onClick={() => setProfileOpen((open) => !open)}>
               {profileOpen ? "연락처·메모 접기" : "연락처·메모 보기"}
             </Button>
             <div className="ds-overlay-body__grid">
               {/* Left panel — 단일 카드, 섹션 구분선 */}
-              <div id={tabId + "-profile"} className={"ds-overlay-sidebar " + styles.profilePanel} data-expanded={profileOpen}>
+              <div id={tabId + "-profile"} className={"ds-overlay-sidebar " + profileStyles.profilePanel} data-expanded={profileOpen}>
                 <div className="ds-overlay-sidebar-card">
                   {/* 연락처 */}
                   <div className="ds-overlay-sidebar-section">
@@ -482,14 +483,14 @@ function StudentDetailContent({
                       onChange={(event) => memo.change(event.target.value)}
                       onBlur={() => { void memo.save(); }}
                     />
-                    <div className={styles.memoFooter}>
+                    <div className={profileStyles.memoFooter}>
                       <span role={memo.status === "error" ? "alert" : "status"}>
                         {memo.status === "saving" ? "저장 중…" : memo.status === "error" ? "저장 실패 · 입력은 유지됩니다" : memo.dirty ? "저장할 변경 내용이 있습니다" : memo.status === "saved" ? "저장됨" : "입력 후 다른 곳을 누르면 저장"}
                       </span>
                       {(memo.dirty || memo.status === "error") && <Button intent="secondary" size="sm" onClick={() => { void memo.save(); }}>{memo.status === "error" ? "다시 저장" : "저장"}</Button>}
                     </div>
                   </div>
-                  <details className={"ds-overlay-sidebar-section " + styles.accountHistory}>
+                  <details className={"ds-overlay-sidebar-section " + profileStyles.accountHistory}>
                     <summary className="ds-overlay-sidebar-section__title">계정 알림톡 이력</summary>
                     <AccountNotificationHistory
                       logs={accountNotifications ?? []}
@@ -515,7 +516,7 @@ function StudentDetailContent({
                   </div>
                   )}
 
-                  {customFieldsError && <div role="alert" className={styles.sectionError}>맞춤 정보를 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => { void refetchCustomFields(); }}>다시 불러오기</Button></div>}
+                  {customFieldsError && <div role="alert" className={profileStyles.sectionError}>맞춤 정보를 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => { void refetchCustomFields(); }}>다시 불러오기</Button></div>}
                   {customFieldDefinitions.some(
                     (definition) => {
                       const value = student.customFields[definition.key];
@@ -800,7 +801,7 @@ function StudentDetailShell({
       <div className={`ds-overlay-wrap${elevated ? ` ${styles.modalWrap}` : ""}`}>
         <div
           ref={panelRef}
-          className={"ds-overlay-panel ds-overlay-panel--student-detail " + styles.detailPanel}
+          className={"ds-overlay-panel ds-overlay-panel--student-detail " + profileStyles.detailPanel}
           role="dialog"
           aria-modal="true"
           aria-label="학생 상세"
@@ -859,7 +860,7 @@ function AccountNotificationHistory({
   if (loading) {
     return <div className={styles.accountNotificationEmpty}>불러오는 중...</div>;
   }
-  if (error) return <div role="alert" className={styles.sectionError}>발송 이력을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={onRetry}>다시 불러오기</Button></div>;
+  if (error) return <div role="alert" className={profileStyles.sectionError}>발송 이력을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={onRetry}>다시 불러오기</Button></div>;
   if (!logs.length) {
     return <div className={styles.accountNotificationEmpty}>최근 발송 없음</div>;
   }
@@ -917,7 +918,7 @@ function InfoRow({
   return (
     <Row
       type={canCopy ? "button" : undefined}
-      className={"ds-overlay-info-row " + styles.infoRow}
+      className={"ds-overlay-info-row " + profileStyles.infoRow}
       data-copyable={canCopy ? "" : undefined}
       onClick={canCopy ? handleCopy : undefined}
       role={canCopy ? "button" : undefined}
@@ -1208,11 +1209,11 @@ function HistoryState({ label, loading, error, hasData, hasNext, fetchingMore, o
   if (loading) return <EmptyState scope="panel" tone="loading" title={`${label} 이력을 불러오는 중…`} />;
   return <>
     {(!error || hasData) && children}
-    {error && <div role="alert" className={styles.historyFeedback}>
+    {error && <div role="alert" className={profileStyles.historyFeedback}>
       <p>{label} 이력을 불러오지 못했습니다.{hasData ? " 이미 불러온 기록은 유지됩니다." : ""}</p>
       <Button intent="secondary" size="sm" onClick={onRetry}>다시 불러오기</Button>
     </div>}
-    {hasNext && !error && <div className={styles.historyFeedback}>
+    {hasNext && !error && <div className={profileStyles.historyFeedback}>
       <Button intent="secondary" size="sm" disabled={fetchingMore} onClick={onMore}>{fetchingMore ? "불러오는 중…" : `${label} 이력 더 보기`}</Button>
     </div>}
   </>;

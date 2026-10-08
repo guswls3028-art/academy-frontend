@@ -2,13 +2,6 @@
   padding: 24px;
 }
 
-.detailPanel.detailPanel :global(.ds-overlay-inventory-wrap) {
-  top: auto;
-  bottom: 16px;
-  right: 16px;
-}
-.detailPanel :global(.ds-overlay-body) { padding-bottom: 64px; }
-
 .modalBackdrop,
 .modalWrap {
   left: 0;
@@ -60,54 +53,6 @@
   font-size: 13px;
   line-height: 1.5;
   overflow-wrap: anywhere;
-}
-
-.accountTools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-border-divider);
-  animation: detail-reveal 140ms ease-out;
-}
-
-.profileToggle.profileToggle { display: none; }
-.profilePanel { min-width: 0; }
-.infoRow {
-  width: 100%;
-  background: transparent;
-  border-top: 0;
-  border-left: 0;
-  border-right: 0;
-  text-align: left;
-  font: inherit;
-}
-.profilePanel :global(.ds-overlay-sidebar-section__title) { font-size: 12px; }
-.profilePanel :global(.ds-overlay-info-row):focus-visible {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 2px;
-}
-
-.memoFooter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-  color: var(--color-text-secondary);
-  font-size: 11px;
-}
-
-.memoFooter [role="alert"], .sectionError { color: var(--color-danger); }
-.historyFeedback { padding: 16px; text-align: center; }
-.sectionError { padding: 12px; font-size: 12px; }
-
-@keyframes detail-reveal {
-  from { opacity: 0; transform: translateY(-3px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 
 .statusControl {
@@ -909,7 +854,6 @@
 }
 
 @media (max-width: 768px) {
-  .detailPanel :global(.ds-overlay-header__left) { padding-right: 40px; }
   .detailHeader {
     padding: 14px 16px 12px;
   }
@@ -938,10 +882,6 @@
 
   .statTabSub { display: none; }
   .statTabValue { font-size: 13px; }
-  .profileToggle.profileToggle { display: flex; width: 100%; margin-bottom: 12px; }
-  .profilePanel { order: -2; }
-  .profilePanel[data-expanded="false"] { display: none; }
-  .profilePanel[data-expanded="true"] { animation: detail-reveal 140ms ease-out; }
 
   .recordActionHint {
     font-size: 0;
@@ -1006,14 +946,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .accountTools,
-  .profilePanel[data-expanded="true"],
   .statTab,
   .homeworkQuickEditor {
     transition: none;
     animation: none;
   }
 }
-
-.accountHistory summary { cursor: pointer; }
-.accountHistory[open] summary { margin-bottom: 10px; }
