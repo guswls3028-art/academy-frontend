@@ -9,9 +9,17 @@ Teachers finish and edit documents on their own computers, then upload each comp
 
 Visitors browse a familiar single-column post list with a title, optional excerpt, author/date and compact 전체/매치업/분석자료 filters; long
 titles/excerpts are clamped while the detail preserves the full text. The reading
-journey is article → authored body → automatically opened reports → optional
-collapsed original files. It replaces the earlier download-first board because
-analysis and matchup publications must also work for outside promotional readers.
+journey is article heading → visible original downloads → authored body →
+automatically opened reports. The header aligns author/date with link copying;
+each original keeps its filename, format, size and its own download action.
+PDF originals say `PDF 다운로드`; other formats say `원본 다운로드` and retain
+their exact bytes. `본문 바로보기` moves keyboard/touch users to the reading
+content. Downloads are no longer collapsed below long reports, because visitors
+who prefer their own viewer could not find them. Inline reading remains automatic.
+Download progress and retryable failures appear beside the top download flow.
+No API, publication permission, file ordering or stored content changes.
+On mobile, the article spans the available width with 16px content gutters;
+download actions, inline zoom and fullscreen controls remain grouped and touchable.
 Header/title use the resolved tenant's program name with a neutral loading state.
 A single layout owner updates the article/tenant browser title without a late brand request overwriting it, offers link copying and a return to other
 articles. Login preserves the board return path.
@@ -38,8 +46,17 @@ session. A rejected request, unavailable API or a late request after closing
 keeps the same readable paged viewer and safe exit. No external viewer is needed.
 On iPhone Safari, [HTML fullscreen remains unsupported](https://bugs.webkit.org/show_bug.cgi?id=206854);
 Safari's [page menu → More → Hide Toolbar](https://support.apple.com/ko-kr/guide/iphone/-iphb3100d149/ios)
-can enlarge the visible browser area. The viewer follows the actual inner height
-when browser bars change. Swipe left/right
+can enlarge the visible browser area. The viewer follows the Visual Viewport's
+height and top offset when browser bars or keyboards change, batches resize/scroll
+measurements in an animation frame, and falls back to inner height when the API
+is absent. Browser pinch zoom is not counteracted. The browser theme color blends
+with the dark reading surface during viewing and is restored on exit.
+Mobile browsers without an active native/standalone fullscreen session offer
+`화면 안내` in the tap-revealed header: Safari toolbar hiding and opening an in-app
+link in Safari/Chrome. This help stays closed during ordinary reading; while open
+its controls stay visible and Escape closes help before closing the viewer. This
+does not claim that web code can force iPhone Safari's browser chrome to disappear.
+Swipe left/right
 at 100%, use previous/next or select a page; at 125–300% touch scroll pans the
 document instead of turning pages. The percentage control restores screen fit
 and clears both scroll offsets. Header and footer overlay the page and fade away

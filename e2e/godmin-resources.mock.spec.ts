@@ -207,6 +207,45 @@ async function prepare(page: Page, options: { readerFailure?: boolean; readerPen
   return () => { resourceScenario.unavailable = false; };
 }
 
+test("mobile reading follows the visible viewport and keeps Safari help out of the page", async ({ page }) => {
+  await prepare(page); nativePages = true;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "userAgent", { configurable: true, value: "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 Version/26.0 Mobile/15E148 Safari/604.1" });
+    Object.defineProperty(document, "fullscreenEnabled", { configurable: true, get: () => false });
+    const visual = Object.assign(new EventTarget(), { height: 620, offsetTop: 24, scale: 1 });
+    Object.defineProperty(window, "visualViewport", { configurable: true, value: visual });
+    (window as Window & { resizeReaderViewport?: (height: number, top: number) => void }).resizeReaderViewport = (height, top) => {
+      visual.height = height; visual.offsetTop = top; visual.dispatchEvent(new Event("resize")); visual.dispatchEvent(new Event("scroll"));
+    };
+  });
+  await page.goto(`${BASE}/landing/resources/901`);
+  const theme = page.locator('meta[name="theme-color"]').first();
+  const originalTheme = await theme.getAttribute("content");
+  await page.getByRole("button", { name: "전체화면 보기", exact: true }).first().click();
+  const viewer = page.getByTestId("resource-fullscreen-viewer");
+  await expect(viewer.locator('figure[data-render-status="ready"]')).toBeVisible();
+  await expect.poll(async () => Math.round((await viewer.boundingBox())!.height)).toBe(620);
+  await expect.poll(async () => Math.round((await viewer.boundingBox())!.y)).toBe(24);
+  await expect(theme).toHaveAttribute("content", "#162b35");
+  await page.evaluate(() => (window as Window & { resizeReaderViewport?: (height: number, top: number) => void }).resizeReaderViewport?.(780, 0));
+  await expect.poll(async () => Math.round((await viewer.boundingBox())!.height)).toBe(780);
+  await expect.poll(async () => Math.round((await viewer.boundingBox())!.y)).toBe(0);
+  const help = page.getByRole("region", { name: "주소창 없이 넓게 보기", exact: true });
+  await expect(help).toHaveCount(0);
+  await page.clock.install();
+  await viewer.getByRole("button", { name: "화면 안내", exact: true }).click();
+  await expect(help).toContainText("도구 막대 가리기");
+  await page.clock.fastForward(3000);
+  await expect(help).toBeVisible();
+  await expect(viewer).toHaveAttribute("data-controls-visible", "true");
+  await page.keyboard.press("Escape");
+  await expect(help).toHaveCount(0); await expect(viewer).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(viewer).toHaveCount(0);
+  await expect(theme).toHaveAttribute("content", originalTheme!);
+});
+
 for (const outcome of ["accepted", "denied", "pending", "existing"] as const) {
   test(`native reader fullscreen ${outcome} preserves the article and owned exit`, async ({ page }) => {
     await prepare(page); nativePages = true;
@@ -340,7 +379,7 @@ for (const refresh of ["unsupported", "pdf-only", "article"] as const) {
     await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
     await expect.poll(() => page.evaluate(() => document.body.style.position)).not.toBe("fixed");
     await expect(page).toHaveURL(/\/landing\/resources\/901$/);
-    await expect(page.getByText("원본 파일 · 1개", { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "자료 다운로드", exact: true })).toBeVisible();
     if (refresh === "article") await expect(page.getByRole("img", { name: "첨부 이미지", exact: true })).toBeVisible();
     readerUnsupported = false; readerArticle = false; nativePages = true;
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
@@ -541,9 +580,21 @@ for (const width of [1366, 390]) {
     await page.screenshot({ path: testInfo.outputPath(`resources-${width}.png`), fullPage: true });
     await page.getByRole("link", { name: LONG_TITLE }).first().click();
     await expect(page.getByRole("heading", { level: 1, name: LONG_TITLE })).toBeVisible();
+    // Finish the first read before reload so WebKit does not report aborted
+    // fixture requests as cross-origin errors while the title alone is visible.
+    for (const file of resource.files) {
+      const reader = page.getByRole("region", { name: `${file.filename} 본문`, exact: true });
+      await reader.scrollIntoViewIfNeeded();
+      await expect(reader.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 90_000 });
+    }
     await page.reload(); await expect(page.getByRole("heading", { level: 1, name: LONG_TITLE })).toBeVisible();
     await expect(page).toHaveTitle(`${LONG_TITLE} | 신과함께`);
     await expect(page.getByRole("button", { name: "PDF 미리보기", exact: true })).toHaveCount(0);
+    const downloads = page.getByRole("region", { name: "자료 다운로드", exact: true });
+    await expect(downloads.getByRole("button", { name: /다운로드$/ })).toHaveCount(resource.files.length);
+    await expect(downloads.getByRole("button", { name: /PDF 다운로드$/ })).toBeVisible();
+    const firstDocument = page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true });
+    expect((await downloads.boundingBox())!.y + (await downloads.boundingBox())!.height).toBeLessThan((await firstDocument.boundingBox())!.y);
     await page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true }).scrollIntoViewIfNeeded();
     for (const file of resource.files) {
       const document = page.getByRole("region", { name: `${file.filename} 본문`, exact: true });
@@ -559,9 +610,9 @@ for (const width of [1366, 390]) {
     expect(pixels).toBeGreaterThan(1); expect(pixels).toBeLessThanOrEqual(16_000_000);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
     for (let zoom = 300; zoom > 100; zoom -= 25) await reader.getByRole("button", { name: "문서 축소", exact: true }).click();
-    await page.getByText("원본 파일 · 3개", { exact: true }).click();
+    await expect(page.getByRole("region", { name: "자료 다운로드", exact: true })).toBeVisible();
     const downloadPromise = page.waitForEvent("download");
-    await page.getByRole("button", { name: "원본 다운로드", exact: true }).first().click();
+    await page.getByRole("button", { name: /다운로드$/ }).first().click();
     const download = await downloadPromise; expect(await download.failure()).toBeNull();
     expect(download.suggestedFilename()).toBe(resource.files[0].filename);
     const downloadPath = await download.path(); expect(downloadPath).not.toBeNull();
@@ -669,10 +720,10 @@ for (const width of [1366, 390]) {
     await expect(page.getByRole("heading", { name: "모든 형식의 원본 자료", exact: true })).toBeVisible();
     expect(createPayloads[0].category).toBe(category);
     await page.reload();
-    await page.getByText("원본 파일 · 5개", { exact: true }).click();
+    await expect(page.getByRole("region", { name: "자료 다운로드", exact: true })).toBeVisible();
     for (const [index, original] of originals.entries()) {
       const downloadPromise = page.waitForEvent("download");
-      await page.getByRole("button", { name: "원본 다운로드", exact: true }).nth(index).click();
+      await page.getByRole("button", { name: /다운로드$/ }).nth(index).click();
       const download = await downloadPromise; expect(await download.failure()).toBeNull();
       expect(download.suggestedFilename()).toBe(original.name);
       expect(await readFile((await download.path())!)).toEqual(original.buffer);
@@ -746,7 +797,7 @@ test("lost publish acknowledgement recovers as an edit without duplicate posts o
   await expect(page.getByLabel("제목", { exact: true })).toHaveValue("응답 유실 뒤 수정할 내용");
   await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
   await expect(page.getByRole("heading", { name: "응답 유실 뒤 수정할 내용", exact: true })).toBeVisible();
-  await page.reload(); await page.getByText("원본 파일 · 1개", { exact: true }).click(); await expect(page.getByText("original.xlsx", { exact: true })).toBeVisible();
+  await page.reload(); await expect(page.getByRole("region", { name: "자료 다운로드", exact: true })).toBeVisible(); await expect(page.getByText("original.xlsx", { exact: true })).toBeVisible();
   expect(createPayloads).toHaveLength(2); expect(createPayloads[0].request_id).toBe(createPayloads[1].request_id);
   expect(patchPayloads).toHaveLength(1); expect(cleaned).toHaveLength(0);
 });
@@ -765,7 +816,7 @@ test("cancel after a lost publish response preserves published originals and ret
   expect(cleaned).toHaveLength(0);
   await page.getByRole("link", { name: LONG_TITLE }).first().click();
   await expect(page.getByRole("heading", { name: "이미 게시된 원본 보존", exact: true })).toBeVisible();
-  await page.getByText("원본 파일 · 1개", { exact: true }).click();
+  await expect(page.getByRole("region", { name: "자료 다운로드", exact: true })).toBeVisible();
   await expect(page.getByText("published.zip", { exact: true })).toBeVisible();
 });
 
@@ -804,12 +855,20 @@ for (const width of [1366, 390]) {
     // Review the complete reader before reload. In Vite, reloading while module
     // workers start aborts their HMR imports and WebKit reports access-control errors.
     // Keep strict console checks and prove each saved document actually loads.
-    await expect(page.getByTestId("matchup-inline-pdf")).toHaveCount(resource.files.length);
+    for (const file of resource.files) {
+      const reader = page.getByRole("region", { name: `${file.filename} 본문`, exact: true });
+      await reader.scrollIntoViewIfNeeded();
+      await expect(reader.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+    }
     await expect(page.getByRole("link", { name: "수정", exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByText(description, { exact: true })).toBeVisible();
-    await expect(page.getByTestId("matchup-inline-pdf")).toHaveCount(resource.files.length);
-    await page.getByText("원본 파일 · 3개", { exact: true }).click();
+    for (const file of resource.files) {
+      const reader = page.getByRole("region", { name: `${file.filename} 본문`, exact: true });
+      await reader.scrollIntoViewIfNeeded();
+      await expect(reader.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+    }
+    await expect(page.getByRole("region", { name: "자료 다운로드", exact: true })).toBeVisible();
     for (const file of resource.files) await expect(page.getByText(file.filename, { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "수정", exact: true }).click();
     await expect(page.getByRole("textbox", { name: "본문", exact: true })).toHaveValue(description);

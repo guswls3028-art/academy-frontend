@@ -1,7 +1,14 @@
-.viewer { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; z-index: 11000; display: flex; flex-direction: column; background: #162b35; color: #eff7f5; font-family: inherit; animation: open 160ms ease-out; }
+.viewer { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; height: 100dvh; z-index: 11000; display: flex; flex-direction: column; background: #162b35; color: #eff7f5; font-family: inherit; animation: open 160ms ease-out; }
 .header { position: absolute; top: 0; left: 0; right: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; padding-top: calc(8px + env(safe-area-inset-top, 0px)); padding-left: calc(12px + env(safe-area-inset-left, 0px)); padding-right: calc(12px + env(safe-area-inset-right, 0px)); background: linear-gradient(#162b35, #162b35e8); transition: opacity 180ms ease; }
 .header h2 { min-width: 0; margin: 0 12px 0 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .header h2 span { display: block; margin-top: 3px; font-size: 11px; color: #aac8c7; font-weight: 400; }
+.headerActions { display: flex; flex-shrink: 0; align-items: center; gap: 8px; }
+.viewer .helpButton { min-height: 44px; border: 1px solid #46616a; border-radius: 9px; padding: 8px 10px; background: #233d47; font-size: 12px; white-space: nowrap; }
+.screenHelp { position: absolute; z-index: 4; top: 68px; top: calc(68px + env(safe-area-inset-top, 0px)); right: 12px; left: 12px; right: max(12px, env(safe-area-inset-right, 0px)); left: max(12px, env(safe-area-inset-left, 0px)); max-width: 440px; max-height: calc(100% - 152px); max-height: calc(100% - 152px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); margin-left: auto; overflow: auto; border: 1px solid #46616a; border-radius: 12px; padding: 16px; background: #233d47; box-shadow: 0 12px 32px #07191f66; font-size: 13px; line-height: 1.65; animation: open 160ms ease-out; }
+.screenHelp h3 { margin: 0 0 12px; font-size: 16px; }
+.screenHelp p { margin: 0 0 14px; color: #d4e5e2; }
+.screenHelp strong { display: block; margin-bottom: 4px; color: #eff7f5; }
+.screenHelp button { min-height: 44px; width: 100%; border: 1px solid #6a9395; border-radius: 8px; background: #36555f; }
 .viewer button, .viewer select { font: inherit; color: inherit; cursor: pointer; }
 .iconButton { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 1px solid #46616a; border-radius: 9px; background: #233d47; transition: background 140ms ease, transform 140ms ease; }
 .iconButton:active { transform: scale(.94); background: #36555f; }
@@ -32,4 +39,4 @@
 @media (orientation: landscape) and (max-height: 500px) { .header { padding-top: 4px; padding-bottom: 4px; }.header h2 span, .hint { display: none; }.footer { padding-top: 5px; padding-bottom: 5px; } }
 @media (max-width: 360px) { .pageSelect select { width: 76px; padding: 0 16px 0 4px; }.controls { gap: 4px; }.pager, .zoom { gap: 0; }.fit { width: 44px; } }
 @media (hover: hover) { .iconButton:not(:disabled):hover, .fit:hover { background: #36555f; } }
-@media (prefers-reduced-motion: reduce) { .viewer, .pageImage, .spinner { animation: none; }.iconButton, .header, .footer { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .viewer, .pageImage, .spinner, .screenHelp { animation: none; }.iconButton, .header, .footer { transition: none; } }

@@ -16,13 +16,19 @@ export default function ResourceFullscreenViewer({ historyKey, pages, title, att
   const [zoom, setZoom] = useState(100);
   const [status, setStatus] = useState("waiting");
   const [controlsVisible, setControlsVisible] = useState(true);
-  const headingId = useId();
+  const [screenHelp, setScreenHelp] = useState(false);
+  const [browserFullscreen, setBrowserFullscreen] = useState(false);
+  const mobileBrowser = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+    || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  const helpOpen = screenHelp && !browserFullscreen;
+  const headingId = useId(); const helpId = useId();
   const closing = useRef(false);
   const shell = useRef<HTMLDivElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const paper = useRef<HTMLElement>(null);
   const image = useRef<HTMLImageElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const helpButton = useRef<HTMLButtonElement>(null);
   const controlsTimer = useRef<number | undefined>(undefined);
   const keyboard = useRef(false);
   const close = useRef(onClose); close.current = onClose;
@@ -34,19 +40,28 @@ export default function ResourceFullscreenViewer({ historyKey, pages, title, att
   const showControls = useCallback(() => {
     window.clearTimeout(controlsTimer.current);
     setControlsVisible(true);
-    if (status === "ready" && !error && !keyboard.current) {
+    if (status === "ready" && !error && !keyboard.current && !helpOpen) {
       controlsTimer.current = window.setTimeout(() => setControlsVisible(false), 2200);
     }
-  }, [status, error]);
+  }, [status, error, helpOpen]);
+
+  useEffect(() => {
+    const changed = () => setBrowserFullscreen(Boolean(document.fullscreenElement)
+      || window.matchMedia("(display-mode: standalone), (display-mode: fullscreen)").matches
+      || Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+    changed(); document.addEventListener("fullscreenchange", changed);
+    return () => document.removeEventListener("fullscreenchange", changed);
+  }, []);
 
   useEffect(() => {
     window.clearTimeout(controlsTimer.current);
-    if (error || status === "error") setControlsVisible(true);
+    if (error || status === "error") { setControlsVisible(true); setScreenHelp(false); }
+    else if (helpOpen) setControlsVisible(true);
     else if (controlsVisible && status === "ready" && !keyboard.current) {
       controlsTimer.current = window.setTimeout(() => setControlsVisible(false), 2200);
     }
     return () => window.clearTimeout(controlsTimer.current);
-  }, [controlsVisible, status, error, current, attempt, page?.url]);
+  }, [controlsVisible, status, error, current, attempt, page?.url, helpOpen]);
 
   useEffect(() => {
     const focused = document.activeElement as HTMLElement | null;
@@ -58,10 +73,21 @@ export default function ResourceFullscreenViewer({ historyKey, pages, title, att
     const previous = { position: body.style.position, top: body.style.top, width: body.style.width, overflow: body.style.overflow };
     const app = document.getElementById("root");
     const previousHidden = app?.getAttribute("aria-hidden");
+    const themeElements = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]'));
+    const createdTheme = themeElements.length ? null : document.createElement("meta");
+    if (createdTheme) { createdTheme.name = "theme-color"; document.head.appendChild(createdTheme); themeElements.push(createdTheme); }
+    const previousThemes = themeElements.map((element) => ({ element, content: element.getAttribute("content") }));
+    themeElements.forEach((element) => element.setAttribute("content", "#162b35"));
     body.style.position = "fixed"; body.style.top = `-${scrollY}px`; body.style.width = "100%"; body.style.overflow = "hidden";
     closeButton.current?.focus({ preventScroll: true });
     app?.setAttribute("aria-hidden", "true");
     return () => {
+      previousThemes.forEach(({ element, content }) => {
+        if (element === createdTheme) element.remove();
+        else if (element.getAttribute("content") === "#162b35") {
+          if (content === null) element.removeAttribute("content"); else element.setAttribute("content", content);
+        }
+      });
       Object.assign(body.style, previous);
       if (app) {
         if (previousHidden === null || previousHidden === undefined) app.removeAttribute("aria-hidden");
@@ -82,8 +108,14 @@ export default function ResourceFullscreenViewer({ historyKey, pages, title, att
   }, [returnFocus]);
 
   useLayoutEffect(() => {
+    const visual = window.visualViewport; let frame = 0;
     function fit() {
-      if (shell.current) shell.current.style.height = `${window.innerHeight}px`;
+      if (shell.current) {
+        // Follow toolbar/keyboard changes without counteracting browser pinch zoom.
+        const visible = visual && Math.abs(visual.scale - 1) < .01 && visual.height > 0;
+        shell.current.style.height = `${visible ? visual.height : window.innerHeight}px`;
+        shell.current.style.top = `${visible ? visual.offsetTop : 0}px`;
+      }
       if (!viewport.current || !paper.current || !page) return;
       const stage = viewport.current;
       const base = Math.min(stage.clientWidth, stage.clientHeight * page.width / page.height);
@@ -91,8 +123,9 @@ export default function ResourceFullscreenViewer({ historyKey, pages, title, att
       paper.current.style.width = `${width}px`;
       paper.current.style.height = `${width * page.height / page.width}px`;
     }
-    fit(); window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+    const resize = () => { window.cancelAnimationFrame(frame); frame = window.requestAnimationFrame(fit); };
+    fit(); window.addEventListener("resize", resize); visual?.addEventListener("resize", resize); visual?.addEventListener("scroll", resize);
+    return () => { window.cancelAnimationFrame(frame); window.removeEventListener("resize", resize); visual?.removeEventListener("resize", resize); visual?.removeEventListener("scroll", resize); };
   }, [page, zoom]);
 
   useLayoutEffect(() => {
@@ -114,6 +147,7 @@ export default function ResourceFullscreenViewer({ historyKey, pages, title, att
 
   function toggleControls() {
     keyboard.current = false;
+    if (helpOpen) setScreenHelp(false);
     if (!controlsVisible || status !== "ready" || error) showControls();
     else { window.clearTimeout(controlsTimer.current); setControlsVisible(false); }
   }
@@ -121,14 +155,14 @@ export default function ResourceFullscreenViewer({ historyKey, pages, title, att
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       keyboard.current = true; showControls();
-      if (event.key === "Escape") { event.preventDefault(); requestClose(); }
+      if (event.key === "Escape") { event.preventDefault(); if (helpOpen) { setScreenHelp(false); helpButton.current?.focus(); } else requestClose(); }
       else if (event.key === "Tab") {
         const focusable = Array.from(shell.current?.querySelectorAll<HTMLElement>("button:not(:disabled), select:not(:disabled), [tabindex='0']") || []);
         const first = focusable[0], last = focusable[focusable.length - 1];
         if (!shell.current?.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first)?.focus(); }
         else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-      } else if (zoom === 100 && (event.target as HTMLElement).tagName !== "SELECT") {
+      } else if (!helpOpen && zoom === 100 && (event.target as HTMLElement).tagName !== "SELECT") {
         if (event.key === "ArrowLeft") { event.preventDefault(); turn(current - 1); }
         if (event.key === "ArrowRight") { event.preventDefault(); turn(current + 1); }
       }
@@ -136,7 +170,7 @@ export default function ResourceFullscreenViewer({ historyKey, pages, title, att
     // Touch/rotation may blur focus to body in Safari; modal keys must still work.
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [current, zoom, showControls, turn, requestClose]);
+  }, [current, zoom, showControls, turn, requestClose, helpOpen]);
 
   return createPortal(<div ref={shell} className={styles.viewer} data-testid="resource-fullscreen-viewer" data-controls-visible={controlsVisible} role="dialog" aria-modal="true" aria-labelledby={headingId}
     onPointerDown={(event) => {
@@ -146,8 +180,17 @@ export default function ResourceFullscreenViewer({ historyKey, pages, title, att
     onFocusCapture={() => { if (keyboard.current) showControls(); }}>
     <header className={`${styles.header} ${controlsVisible ? "" : styles.controlsHidden}`}>
       <h2 id={headingId}>{title.replace(/\.[^.]+$/, "")}<span>전체화면 보기</span></h2>
+      <div className={styles.headerActions}>
+      {mobileBrowser && !browserFullscreen && <button ref={helpButton} type="button" className={styles.helpButton} aria-expanded={helpOpen} aria-controls={helpId} onClick={() => setScreenHelp((value) => !value)}>화면 안내</button>}
       <button ref={closeButton} type="button" className={styles.iconButton} onClick={requestClose} aria-label="전체화면 닫기"><X size={ICON.lg} /></button>
+      </div>
     </header>
+    {helpOpen && <section id={helpId} className={styles.screenHelp} aria-label="주소창 없이 넓게 보기">
+      <h3>주소창 없이 넓게 보기</h3>
+      <p><strong>iPhone Safari</strong>페이지 메뉴에서 ‘도구 막대 가리기’를 선택하세요. 메뉴가 보이지 않으면 더보기(···)를 확인하세요.</p>
+      <p><strong>카카오톡·인스타그램 등 앱 안에서 열었다면</strong>앱 메뉴에서 Safari 또는 Chrome으로 열면 화면을 더 넓게 사용할 수 있습니다.</p>
+      <button type="button" onClick={() => { setScreenHelp(false); helpButton.current?.focus(); }}>확인</button>
+    </section>}
     {error && <div className={styles.notice} role="alert">{error}<button type="button" onClick={onRetry}>다시 불러오기</button></div>}
     <div ref={viewport} className={`${styles.viewport} ${zoom > 100 ? styles.panning : ""}`} tabIndex={0} role="region" aria-label="전체화면 문서. 확대하면 문서를 이동할 수 있습니다."
       onClick={(event) => {
