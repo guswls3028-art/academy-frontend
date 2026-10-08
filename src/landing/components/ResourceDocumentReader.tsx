@@ -78,10 +78,12 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
   }, []);
 
   useEffect(() => {
-    let disposed = false; let timer: ReturnType<typeof setTimeout> | undefined; let polls = 0;
+    let disposed = false; let loading = false; let timer: ReturnType<typeof setTimeout> | undefined; let polls = 0;
     setError("");
     if (readerFile.current !== file.id) { setReader(null); setZoom(100); setFullscreen(false); readerFile.current = file.id; }
     async function load(start = false) {
+      if (disposed || loading) return;
+      loading = true; clearTimeout(timer);
       try {
         let result = start ? await prepareResourceReader(file.id) : await readResourceFile(file.id, preview);
         if (disposed) return;
@@ -93,6 +95,7 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
           throw new Error("Invalid reader response");
         }
         setError("");
+        if (result.status === "unsupported" || (result.status === "ready" && !hasPageImages(result.blocks, result.pages))) setFullscreen(false);
         setReader(result); statusCallback.current?.(file.id, result.status);
         clearTimeout(timer);
         if (result.status === "pending") timer = setTimeout(() => void load(), Math.min(15000, 3000 * 2 ** polls++));
@@ -103,7 +106,7 @@ export default function ResourceDocumentReader({ file, preview = false, onStatus
           if ([403, 404].includes((failure as { response?: { status?: number } })?.response?.status || 0)) setReader(null);
           timer = setTimeout(() => void load(), 15_000);
         }
-      }
+      } finally { loading = false; }
     }
     void load(preview && retry > 0);
     function resume() { if (document.visibilityState === "visible") void load(); }

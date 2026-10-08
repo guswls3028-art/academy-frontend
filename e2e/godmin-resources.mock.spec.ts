@@ -24,7 +24,7 @@ function pdfBytes() {
 // Native browser downloads do not reliably use Page.route interception.
 // Serve the generated fixture over real loopback HTTP and verify its bytes.
 let documentUrl = "";
-let nativePages = false; let pageImageFailure = false; let readerRequests = 0;
+let nativePages = false; let pageImageFailure = false; let readerRequests = 0; let readerDelay = 0; let readerUnsupported = false;
 type ResourceScenario = { readerFailure?: boolean; readerPending?: boolean; empty?: boolean; paged?: boolean; unavailable: boolean; publisher?: boolean; actorId?: number; post?: typeof resource; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string };
 let resourceScenario: ResourceScenario = { unavailable: false };
 const uploaded = new Map<string, { file: typeof resource.files[number]; bytes: Buffer }>();
@@ -32,7 +32,7 @@ let uploadCount = 0; let deleteCount = 0;
 const cleaned: string[] = [];
 const patchPayloads: Array<{ expected_updated_at?: string; title: string }> = [];
 let uploadBody = Buffer.alloc(0); const createPayloads: Array<{ request_id: string; title: string; category: string; content: string; file_ids: string[] }> = [];
-const documentServer = createServer((request, response) => {
+const documentServer = createServer(async (request, response) => {
   const url = new URL(request.url || "/", "http://127.0.0.1");
   const cors = { "Access-Control-Allow-Origin": new URL(BASE).origin, "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS", "Access-Control-Allow-Headers": request.headers["access-control-request-headers"] || "content-type, x-tenant-code, authorization" };
   if (request.method === "OPTIONS") { response.writeHead(204, cors); response.end(); return; }
@@ -118,6 +118,7 @@ const documentServer = createServer((request, response) => {
     else if (url.pathname.endsWith("/resources/901/")) { body = resourceScenario.post || resource; status = 200; }
     else if (/\/resource-files\/[^/]+\/reader\/$/.test(url.pathname)) {
       readerRequests += 1;
+      if (readerDelay) await new Promise((resolve) => setTimeout(resolve, readerDelay));
       const id = url.pathname.split("/").filter(Boolean).at(-2)!;
       const file = uploaded.get(id)?.file || resource.files.find((item) => item.id === id);
       if (request.method === "POST" && resourceScenario.readerFailure) {
@@ -126,7 +127,8 @@ const documentServer = createServer((request, response) => {
       } else if (resourceScenario.readerPending) {
         resourceScenario.readerPending = false;
         body = { status: "ready", mode: "pages", blocks: [], pdf_url: documentUrl };
-      } else if (resourceScenario.readerFailure) body = { status: "failed", message: "본문을 준비하지 못했습니다. 원본은 보존됩니다." };
+      } else if (readerUnsupported) body = { status: "unsupported" };
+      else if (resourceScenario.readerFailure) body = { status: "failed", message: "본문을 준비하지 못했습니다. 원본은 보존됩니다." };
       else body = file?.reader_status === "unsupported" ? { status: "unsupported" }
         : { status: "ready", mode: "pages", blocks: [], pdf_url: `${documentUrl}?reader=${id}` }; status = 200;
       if (nativePages && (body as { status?: string }).status === "ready") body = { status: "ready", mode: "pages", pages: 3, pdf_url: documentUrl,
@@ -172,7 +174,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => { await new Promise<void>((resolve, reject) => documentServer.close((error) => error ? reject(error) : resolve())); });
 
 async function prepare(page: Page, options: { readerFailure?: boolean; readerPending?: boolean; empty?: boolean; failOnce?: boolean; paged?: boolean; publisher?: boolean; actorId?: number; cleanupFailure?: boolean; conflict?: boolean; lostDeleteResponse?: boolean; deleted?: boolean; lostPublishResponse?: boolean; publishedRequest?: string; tenant?: string } = {}) {
-  nativePages = false; pageImageFailure = false; readerRequests = 0;
+  nativePages = false; pageImageFailure = false; readerRequests = 0; readerDelay = 0; readerUnsupported = false;
   await page.addInitScript((tenant) => { localStorage.setItem("tenant_code", tenant); sessionStorage.setItem("tenantCode", tenant); }, options.tenant || "godmin");
   resourceScenario = { ...options, unavailable: Boolean(options.failOnce) }; uploadBody = Buffer.alloc(0); createPayloads.length = 0; uploaded.clear(); uploadCount = 0; deleteCount = 0; cleaned.length = 0; patchPayloads.length = 0;
   if (options.publisher) {
@@ -270,6 +272,63 @@ for (const outcome of ["accepted", "denied", "pending", "existing"] as const) {
       await expect(entry).toBeFocused();
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(articleScroll);
     }
+  });
+}
+
+test("background resume coalesces delayed reader requests and keeps later renewal working", async ({ page }) => {
+  await prepare(page); nativePages = true;
+  resourceScenario.post = { ...resource, files: [resource.files[0]] };
+  await page.clock.install();
+  await page.goto(`${BASE}/landing/resources/901`);
+  const reader = page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true });
+  await expect(reader.getByRole("button", { name: "전체화면 보기", exact: true })).toBeVisible();
+  const before = readerRequests;
+  readerDelay = 500;
+  await page.evaluate(() => { for (let n = 0; n < 4; n++) document.dispatchEvent(new Event("visibilitychange")); });
+  await expect.poll(() => readerRequests).toBe(before + 1);
+  await page.waitForTimeout(1000);
+  expect(readerRequests).toBe(before + 1);
+  readerDelay = 0;
+  await page.clock.fastForward(241_000);
+  await expect.poll(() => readerRequests).toBe(before + 2);
+  await expect(reader.getByRole("button", { name: "전체화면 보기", exact: true })).toBeVisible();
+});
+
+for (const refresh of ["unsupported", "pdf-only"] as const) {
+  test(`reader ${refresh} transition exits owned fullscreen and restores a usable article`, async ({ page }) => {
+    await prepare(page); nativePages = true;
+    resourceScenario.post = { ...resource, files: [resource.files[0]] };
+    await page.goto(`${BASE}/landing/resources/901`);
+    const entry = page.getByRole("button", { name: "전체화면 보기", exact: true });
+    await expect(entry).toBeVisible();
+    await page.evaluate(() => {
+      let active = false;
+      Object.defineProperty(document, "fullscreenEnabled", { configurable: true, get: () => true });
+      Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => active ? document.documentElement : null });
+      document.documentElement.requestFullscreen = () => { active = true; document.dispatchEvent(new Event("fullscreenchange")); return Promise.resolve(); };
+      document.exitFullscreen = () => { active = false; document.dispatchEvent(new Event("fullscreenchange")); return Promise.resolve(); };
+    });
+    await entry.click();
+    const viewer = page.getByRole("dialog");
+    await expect(viewer.getByTestId("resource-viewer-page")).toHaveAttribute("data-render-status", "ready");
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true);
+    readerUnsupported = refresh === "unsupported"; nativePages = false;
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await expect(viewer).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+    await expect.poll(() => page.evaluate(() => document.body.style.position)).not.toBe("fixed");
+    await expect(page).toHaveURL(/\/landing\/resources\/901$/);
+    await expect(page.getByText("원본 파일 · 1개", { exact: true })).toBeVisible();
+    readerUnsupported = false; nativePages = true;
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await expect(entry).toBeVisible();
+    await expect(viewer).toHaveCount(0);
+    await entry.click();
+    await expect(viewer.getByTestId("resource-viewer-page")).toHaveAttribute("data-render-status", "ready");
+    await viewer.getByRole("button", { name: "전체화면 닫기", exact: true }).click();
+    await expect(viewer).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+    await expect(entry).toBeFocused();
   });
 }
 

@@ -59,7 +59,11 @@ inline zoom; focus is restored to the opening action. Focus stays in the modal
 while the background is hidden from assistive technology and locked against
 scrolling. The existing reader owns permissions, link renewal and retry: fresh
 URLs preserve the selected viewer page and zoom, and visible failures retain
-close/retry controls. No uploads, new data, permissions or third-party sharing
+close/retry controls. If renewal changes the document to article/PDF-only output
+or an unsupported format, the paged viewer closes and releases its owned native
+fullscreen; the article and available inline/original-file actions remain usable.
+Restoring native page images makes the entry available without reopening it.
+No uploads, new data, permissions or third-party sharing
 are introduced. Old PDF-only rollout payloads retain their inline fallback;
 the full-screen entry appears when native page images are ready.
 
@@ -70,7 +74,10 @@ recovery, native fullscreen entry/exit/rejection/late completion, focus/scroll r
 development real-use opens the uploaded report in the viewer before promotion.
 
 Fresh five-minute image links renew after four minutes and when a background tab
-returns. Image failure refreshes links with throttling and offers explicit retry;
+returns. Overlapping resume/poll events share one active reader request, preventing
+duplicate network work and older renewal responses from replacing a newer result.
+The next poll/recovery remains scheduled after that request completes.
+Image failure refreshes links with throttling and offers explicit retry;
 same-link retry also remounts images. Renewal/retry preserves page layout and zoom.
 The legacy PDFJS viewer is lazily loaded only for old backend payloads during
 compatible rollout; existing published reports must be explicitly prepared before
@@ -78,7 +85,8 @@ declaring old-device support. A Map polyfill alone did not cover other recent
 PDFJS APIs, so the previous browser-PDF path is replaced for prepared reports.
 Desktop/390px tests remove Map upsert, Promise.withResolvers, Uint8Array.toBase64,
 AbortSignal.any and Float16Array and verify native page decoding, complete reading,
-zoom, reload and link-failure recovery without requesting a PDF worker or rendering
+zoom, reload, delayed resume coalescing, fallback/unsupported fullscreen recovery
+and link-failure recovery without requesting a PDF worker or rendering
 a canvas. A shared vendor module may still contain unused PDF-library code.
 
 HWP/HWPX and Office documents automatically display their original pages, including
