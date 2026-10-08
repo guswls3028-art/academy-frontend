@@ -44,6 +44,7 @@ export function useStudentMemo(studentId: number, student?: ClientStudent) {
           if (snapshot !== (current?.memo ?? "")) {
             setStatus("saving");
             const saved = await mutateAsync(snapshot);
+            await qc.cancelQueries({ queryKey: adminStudentsQueryKeys.studentDetail(studentId), exact: true });
             qc.setQueryData<ClientStudent>(adminStudentsQueryKeys.studentDetail(studentId), (previous) =>
               previous ? { ...previous, memo: saved } : previous,
             );
@@ -57,6 +58,7 @@ export function useStudentMemo(studentId: number, student?: ClientStudent) {
         }
         setStatus("saved");
         void Promise.all([
+          qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentDetail(studentId), exact: true }),
           qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students }),
           ...lectureMemoQueryKeys.rosters.map((key) => qc.invalidateQueries({ queryKey: key })),
         ]);

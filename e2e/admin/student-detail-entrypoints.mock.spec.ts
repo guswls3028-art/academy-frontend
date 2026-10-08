@@ -716,6 +716,48 @@ test("학생 메모는 느린 저장 중 재입력한 내용을 보존하고 닫
   await expect(page.getByRole("textbox", { name: "학생 공통 메모" })).toHaveValue(serverMemo);
 });
 
+test("메모 저장 이전에 시작한 상세 재조회가 저장 결과를 되돌리지 않는다", async ({ page }) => {
+  await prepareDetail(page);
+  let serverMemo = "저장 전 메모";
+  let removed = false;
+  let reads = 0;
+  let releaseSave!: () => void;
+  let releaseRead!: () => void;
+  const saving = new Promise<void>((resolve) => { releaseSave = resolve; });
+  const reading = new Promise<void>((resolve) => { releaseRead = resolve; });
+  await page.route("**/api/v1/students/1001/remove_tag/", async (route) => {
+    removed = true;
+    await route.fulfill({ json: {} });
+  });
+  await page.route("**/api/v1/students/1001/", async (route) => {
+    if (route.request().method() === "PATCH") {
+      await saving;
+      serverMemo = (route.request().postDataJSON() as { memo: string }).memo;
+      return route.fulfill({ json: { id: 1001, memo: serverMemo } });
+    }
+    const memo = serverMemo;
+    reads++;
+    if (reads === 2) await reading;
+    return route.fulfill({ json: { id: 1001, name: "재조회학생", memo,
+      tags: removed ? [] : [{ id: 91, name: "재조회 태그", color: "#2563eb" }], enrollments: [] } });
+  });
+  await gotoAndSettle(page, BASE + "/workspace/students/1001");
+  const overlay = page.getByTestId("student-detail-overlay");
+  const input = overlay.getByRole("textbox", { name: "학생 공통 메모" });
+  await input.fill("저장 완료한 메모");
+  await overlay.getByRole("button", { name: "재조회 태그 태그 제거", exact: true }).click();
+  await expect.poll(() => reads).toBe(2);
+  releaseSave();
+  await expect(overlay.getByText("저장됨", { exact: true })).toBeVisible();
+  const lateResponse = page.waitForResponse((response) => response.request().method() === "GET"
+    && new URL(response.url()).pathname === "/api/v1/students/1001/");
+  releaseRead();
+  await lateResponse;
+  await expect(overlay.getByRole("button", { name: "재조회 태그 태그 제거", exact: true })).toHaveCount(0);
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(input).toHaveValue("저장 완료한 메모");
+});
+
 test("학생 메모 저장 실패는 입력과 상세를 유지하고 재시도로 복구한다", async ({ page }) => {
   await prepareDetail(page);
   let failSave = true;
