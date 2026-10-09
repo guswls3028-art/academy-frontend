@@ -16,6 +16,7 @@ import QuickNavigationDialog, {
   type QuickNavigationItem,
 } from "@/shared/ui/navigation/QuickNavigationDialog";
 import { useQuickNavigationHotkey } from "@/shared/ui/navigation/useQuickNavigationHotkey";
+import { useWorkspaceFeatures, WORKSPACE_FEATURE_CATEGORY_LABELS } from "@/shared/ui/navigation/useWorkspaceFeatures";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
 import { NavIcon } from "./adminNavConfig";
@@ -31,20 +32,28 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
   const location = useLocation();
   const { user } = useAuth();
   const navigationGroups = useAvailableAdminNavigation();
+  const featureDiscovery = useWorkspaceFeatures();
   const [quickNavigationOpen, setQuickNavigationOpen] = useState(false);
   const openQuickNavigation = useCallback(() => setQuickNavigationOpen(true), []);
   useQuickNavigationHotkey(openQuickNavigation);
   useFavicon();
 
   const quickNavigationItems = useMemo<QuickNavigationItem[]>(
-    () => navigationGroups.flatMap((group) => group.items.map((item) => ({
+    () => [...navigationGroups.flatMap((group) => group.items.map((item) => ({
       to: item.to,
       label: item.label,
       group: group.title ?? "메뉴",
       keywords: item.keywords,
       icon: <NavIcon d={item.iconPath} />,
-    }))),
-    [navigationGroups],
+    }))), ...featureDiscovery.features.map((feature) => ({
+      to: feature.path,
+      label: feature.title,
+      group: WORKSPACE_FEATURE_CATEGORY_LABELS[feature.category],
+      description: feature.desc,
+      keywords: feature.keywords,
+      icon: feature.icon,
+    }))],
+    [navigationGroups, featureDiscovery.features],
   );
   const tenantCode = getTenantCodeForApiRequest();
   const quickNavigationStorageKey = tenantCode && user
@@ -70,6 +79,8 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
         items={quickNavigationItems}
         storageKey={quickNavigationStorageKey}
         placement="admin.quick-navigation"
+        permissionStatus={featureDiscovery.permissionStatus}
+        onRetryPermissions={() => void featureDiscovery.retryPermissions()}
       />
       {overlay}
     </>

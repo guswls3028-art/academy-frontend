@@ -171,15 +171,15 @@ export default function TeacherTopBar({
         </button>
       </div>
 
-      {/* Right: 빠른 이동·가이드·알림. 홈은 좌측 브랜드 버튼 하나가 소유한다. */}
+      {/* Right: 기능 검색·가이드·알림. 홈은 좌측 브랜드 버튼 하나가 소유한다. */}
       <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
         <CompactStaffClockButton />
         <button
           type="button"
           onClick={onQuickNavigationClick}
-          aria-label="빠른 이동"
+          aria-label="기능 검색"
           aria-keyshortcuts="Control+K Meta+K"
-          title="빠른 이동"
+          title="기능 검색"
           style={{
             background: "none",
             border: "none",
@@ -195,6 +195,7 @@ export default function TeacherTopBar({
           }}
         >
           <Search size={ICON.lg} />
+          <span style={{ fontSize: 12, fontWeight: 600, marginLeft: 4 }}>찾기</span>
         </button>
         <GuideBookLauncher
           preset={TEACHER_GUIDE_BOOK}

@@ -24,7 +24,15 @@ export async function verifyConsultInbox(parentPage: Page, request: APIRequestCo
     await seedBrowserAuth(page, admin);
     for (const width of [390, 1366]) {
       await page.setViewportSize({ width, height: 900 });
-      await gotoAndSettle(page, `${QA_BASE}/workspace/settings/consult`);
+      // Discover the existing workflow by the operator's task, then complete
+      // the original real API save/reload/read assertions below.
+      await gotoAndSettle(page, `${QA_BASE}/workspace/guide`);
+      if (width === 390) await page.getByRole("button", { name: "메뉴", exact: true }).click();
+      await page.getByRole("button", { name: "기능 검색", exact: true }).click();
+      const finder = page.getByRole("dialog", { name: "기능 검색", exact: true });
+      await finder.getByRole("textbox", { name: "메뉴 검색", exact: true }).fill("상담 신청");
+      await finder.getByRole("button", { name: /상담 수신함/ }).click();
+      await expect(page).toHaveURL(/\/workspace\/settings\/consult$/);
       const row = page.getByRole("article", { name: `상담 요청 ${name}`, exact: true });
       await expect(row).toBeVisible();
       await row.getByRole("button", { name: width === 390 ? "+ 메모 추가" : "수정", exact: true }).click();

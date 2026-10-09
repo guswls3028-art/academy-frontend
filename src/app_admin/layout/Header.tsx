@@ -384,12 +384,12 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
               size="lg"
               className="app-header__quickNavigationBtn"
               onClick={onOpenQuickNavigation}
-              aria-label="빠른 이동"
+              aria-label="기능 검색"
               aria-keyshortcuts="Control+K Meta+K"
-              title="빠른 이동 (Ctrl+K)"
+              title="기능 검색 (Ctrl+K)"
               leftIcon={<SearchIcon size={ICON_FOR_BUTTON.md} aria-hidden />}
             >
-              <span>빠른 이동</span>
+              <span>기능 검색</span>
               <kbd aria-hidden>Ctrl K</kbd>
             </Button>
           )}

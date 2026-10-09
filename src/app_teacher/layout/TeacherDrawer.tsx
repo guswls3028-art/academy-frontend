@@ -81,10 +81,6 @@ export default function TeacherDrawer({
   };
 
   const handleNav = (path: string) => {
-    if (path === "/workspace/mobile/desktop-only" && contextualDesktopPath) {
-      handleDesktopSwitch(contextualDesktopPath);
-      return;
-    }
     onClose();
     navigate(path);
   };

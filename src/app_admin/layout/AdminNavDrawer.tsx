@@ -36,6 +36,7 @@ export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickN
       <div className={styles.quickNavigationWrap}>
         <button
           type="button"
+          aria-label="기능 검색"
           className={styles.quickNavigationButton}
           onClick={() => {
             onClose();
@@ -43,7 +44,7 @@ export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickN
           }}
         >
           <Search size={18} aria-hidden />
-          <span>빠른 이동</span>
+          <span>기능 검색</span>
           <span className={styles.quickNavigationHint}>메뉴 검색</span>
         </button>
       </div>
