@@ -83,12 +83,36 @@
 }
 
 .invoiceButton {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--stu-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color 120ms ease;
 }
 
-.invoiceButton[data-selected="true"] {
+.invoiceButton:hover {
+  background: var(--stu-surface-soft);
+}
+
+.invoiceButton:focus-visible {
+  outline: 2px solid var(--stu-primary);
+  outline-offset: 4px;
+}
+
+.invoiceCard[data-selected="true"] {
   border-color: var(--stu-primary);
+}
+
+.loadingMessage {
+  padding: var(--stu-space-3) 0;
+  color: var(--stu-text-muted);
+  font-size: 14px;
 }
 
 .invoicePeriod {
@@ -116,11 +140,14 @@
 }
 
 .invoiceItemDesc {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--stu-text-muted);
 }
 
 .invoiceItemAmount,
 .paymentAmount {
+  flex-shrink: 0;
   font-size: 14px;
   font-weight: 600;
 }

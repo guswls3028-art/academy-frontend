@@ -1,6 +1,8 @@
 // PATH: src/app_teacher/domains/fees/pages/FeesInvoicesPage.tsx
 // 수납 청구서 목록 + 상세 BottomSheet + 결제 기록
 import { useEffect, useState, type ReactNode } from "react";
+import { isAxiosError } from "axios";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
@@ -204,33 +206,28 @@ function InvoiceDetailSheet({
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState<PaymentMethod>("CARD");
   const [payNote, setPayNote] = useState("");
+  const [payBaseAmount, setPayBaseAmount] = useState(0);
+  const [payRequest, setPayRequest] = useState<Parameters<typeof recordPayment>[0] | null>(null);
   const payAmountNumber = Number(payAmount);
   const canRecordPayment =
-    invoiceId != null && Number.isFinite(payAmountNumber) && payAmountNumber > 0;
+    invoiceId != null && Number.isInteger(payAmountNumber) && payAmountNumber > 0;
 
   useEffect(() => {
     setPayMode(false);
     setPayAmount("");
     setPayMethod("CARD");
     setPayNote("");
+    setPayRequest(null);
   }, [invoiceId, open]);
 
-  const { data: invoice, isLoading } = useQuery({
+  const { data: invoice, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: teacherFeesQueryKeys.invoice(invoiceId),
     queryFn: () => fetchInvoiceDetail(invoiceId!),
     enabled: invoiceId != null && open,
   });
 
   const payMut = useMutation({
-    mutationFn: () => {
-      if (!canRecordPayment) throw new Error("결제 금액을 확인해 주세요.");
-      return recordPayment({
-        invoice_id: invoiceId!,
-        amount: payAmountNumber,
-        payment_method: payMethod,
-        receipt_note: payNote,
-      });
-    },
+    mutationFn: recordPayment,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherFeesQueryKeys.invoices });
       qc.invalidateQueries({ queryKey: teacherFeesQueryKeys.invoice(invoiceId) });
@@ -240,17 +237,27 @@ function InvoiceDetailSheet({
       setPayMode(false);
       setPayAmount("");
       setPayNote("");
+      setPayRequest(null);
     },
-    onError: (error: unknown) =>
-      teacherToast.error(getFeesApiErrorMessage(error, "기록에 실패했습니다.")),
+    onError: (error: unknown) => {
+      teacherToast.error(getFeesApiErrorMessage(error, "수납 결과를 확인하지 못했습니다. 같은 수납을 다시 확인해 주세요."));
+      if (isAxiosError(error) && error.response?.status === 400) setPayRequest(null);
+      if (isAxiosError(error) && error.response?.status === 409) {
+        setPayRequest(null);
+        setPayMode(false);
+        void qc.invalidateQueries({ queryKey: teacherFeesQueryKeys.invoices });
+        void refetch();
+      }
+    },
   });
 
   const invoiceItems = invoice?.items ?? [];
   const invoicePayments = invoice?.payments ?? [];
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={invoice?.invoice_number ?? "청구서 상세"}>
+    <BottomSheet open={open} onClose={() => { if (!payMut.isPending) onClose(); }} title={invoice?.invoice_number ?? "청구서 상세"}>
       {isLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
+      {isError && <EmptyState scope="panel" tone="error" title="청구서 상세 조회 실패" actions={<EmptyActionButton onClick={() => refetch()}>다시 시도</EmptyActionButton>} />}
       {invoice && (
         <div className="flex flex-col gap-3 pb-3">
           {/* 요약 */}
@@ -332,10 +339,22 @@ function InvoiceDetailSheet({
               {!payMode ? (
                 <button
                   type="button"
-                  onClick={() => { setPayMode(true); setPayAmount(String(invoice.outstanding_amount)); }}
+                  disabled={isFetching}
+                  onClick={async () => {
+                    const result = await refetch();
+                    if (result.isError || !result.data) {
+                      teacherToast.error("최신 수납 내역을 불러오지 못했습니다. 다시 시도해 주세요.");
+                      return;
+                    }
+                    if (result.data.status === "CANCELLED" || result.data.outstanding_amount <= 0) return;
+                    setPayBaseAmount(result.data.paid_amount);
+                    setPayRequest(null);
+                    setPayAmount(String(result.data.outstanding_amount));
+                    setPayMode(true);
+                  }}
                   className={`${styles.primaryAction} text-sm font-bold cursor-pointer w-full`}
                 >
-                  결제 기록하기
+                  {isFetching ? "잔액 확인 중…" : "결제 기록하기"}
                 </button>
               ) : (
                 <Card>
@@ -343,10 +362,14 @@ function InvoiceDetailSheet({
                     결제 기록
                   </div>
                   <div className="flex flex-col gap-2">
+                    {payRequest && payMut.isError && <p role="status">저장 결과가 확정되지 않았습니다. 같은 수납을 다시 확인해 주세요.</p>}
                     <Field label="금액">
                       <input
                         type="number"
                         value={payAmount}
+                        disabled={payRequest != null}
+                        min={1}
+                        max={invoice.total_amount - payBaseAmount}
                         onChange={(e) => setPayAmount(e.target.value)}
                         className={`${styles.fieldInput} w-full text-sm tabular-nums`}
                       />
@@ -357,6 +380,7 @@ function InvoiceDetailSheet({
                           <button
                             key={m}
                             type="button"
+                            disabled={payRequest != null}
                             onClick={() => setPayMethod(m)}
                             className={`${styles.methodButton} ${payMethod === m ? styles.methodButtonActive : ""} text-[12px] font-semibold cursor-pointer`}
                           >
@@ -369,6 +393,8 @@ function InvoiceDetailSheet({
                       <input
                         type="text"
                         value={payNote}
+                        disabled={payRequest != null}
+                        maxLength={300}
                         onChange={(e) => setPayNote(e.target.value)}
                         className={`${styles.fieldInput} w-full text-sm`}
                       />
@@ -377,17 +403,27 @@ function InvoiceDetailSheet({
                       <button
                         type="button"
                         onClick={() => setPayMode(false)}
+                        disabled={payMut.isPending}
                         className={`${styles.secondaryAction} flex-1 text-sm font-semibold cursor-pointer`}
                       >
                         취소
                       </button>
                       <button
                         type="button"
-                        onClick={() => payMut.mutate()}
-                        disabled={payMut.isPending || !canRecordPayment}
+                        onClick={() => {
+                          if (!invoiceId) return;
+                          const request = payRequest ?? {
+                            invoice_id: invoiceId, amount: payAmountNumber,
+                            expected_paid_amount: payBaseAmount, idempotency_key: createRandomUuid(),
+                            payment_method: payMethod, receipt_note: payNote,
+                          };
+                          setPayRequest(request);
+                          payMut.mutate(request);
+                        }}
+                        disabled={payMut.isPending || !canRecordPayment || payAmountNumber > invoice.total_amount - payBaseAmount}
                         className={`${styles.submitAction} flex-1 text-sm font-bold cursor-pointer disabled:opacity-50`}
                       >
-                        {payMut.isPending ? "저장 중…" : "저장"}
+                        {payMut.isPending ? "저장 중…" : payRequest ? "같은 수납 다시 확인" : "저장"}
                       </button>
                     </div>
                   </div>

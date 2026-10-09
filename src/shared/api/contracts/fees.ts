@@ -1,7 +1,9 @@
 // PATH: src/shared/api/contracts/fees.ts
 // 수납(Fees) API contract
 
-import api from "@/shared/api/axios";
+import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
+import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
 /* ────────── Types ────────── */
 
@@ -120,8 +122,7 @@ export interface LectureOption {
 }
 
 export async function fetchLectureOptions(): Promise<LectureOption[]> {
-  const res = await api.get("/lectures/lectures/", { params: { is_active: true } });
-  return unwrapList<unknown>(res.data)
+  return (await fetchFeePages<LectureOption>("/lectures/lectures/", { is_active: true }))
     .map(normalizeLectureOption)
     .filter((option): option is LectureOption => option != null);
 }
@@ -134,11 +135,38 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function unwrapList<T>(data: unknown): T[] {
-  if (Array.isArray(data)) return data;
-  const record = asRecord(data);
-  if (Array.isArray(record.results)) return record.results as T[];
-  return [];
+async function fetchFeePages<T extends { id: number }>(path: string, params: Record<string, unknown> = {}): Promise<T[]> {
+  const session = readAuthTokenEnvelopeSafely();
+  const tenant = getTenantCodeForApiRequest();
+  if (!session || !tenant) throw new Error("로그인과 학원 정보를 확인한 뒤 다시 조회해 주세요.");
+  const config = createAuthSessionBoundConfig(session.generation, undefined, tenant);
+  const rows: T[] = [];
+  const ids = new Set<number>();
+  let expectedCount: number | undefined;
+  for (let page = 1; ; page += 1) {
+    const { data } = await api.get<T[] | { results: T[]; count: number; next: string | null }>(path, {
+      ...config, params: { ...params, page, page_size: 500 },
+    });
+    const items = Array.isArray(data) ? data : data?.results;
+    if (!Array.isArray(items) || (page > 1 && Array.isArray(data))) throw new Error("목록 응답을 확인하지 못했습니다. 다시 조회해 주세요.");
+    const count = Array.isArray(data) ? undefined : data.count;
+    const next = Array.isArray(data) ? null : data.next;
+    if (count !== undefined && (!Number.isSafeInteger(count) || count < 0)) throw new Error("목록 건수가 올바르지 않습니다. 다시 조회해 주세요.");
+    if (next != null && (typeof next !== "string" || !next)) throw new Error("다음 페이지 정보가 올바르지 않습니다. 다시 조회해 주세요.");
+    if (page === 1) expectedCount = count;
+    else if (count !== expectedCount) throw new Error("조회 중 목록이 변경되었습니다. 다시 조회해 주세요.");
+    for (const item of items) {
+      if (!item || !Number.isSafeInteger(item.id) || item.id <= 0 || ids.has(item.id)) throw new Error("중복되거나 잘못된 목록입니다. 다시 조회해 주세요.");
+      ids.add(item.id);
+      rows.push(item);
+    }
+    if (!next) {
+      if (expectedCount !== undefined && rows.length !== expectedCount) throw new Error("목록 전체를 불러오지 못했습니다. 다시 조회해 주세요.");
+      return rows;
+    }
+    if (!items.length || expectedCount === undefined || rows.length >= expectedCount) throw new Error("목록 전체를 불러오지 못했습니다. 다시 조회해 주세요.");
+    // Rebuild the same scoped request; never follow an API-provided next URL.
+  }
 }
 
 function normalizeLectureOption(value: unknown): LectureOption | null {
@@ -152,8 +180,7 @@ function normalizeLectureOption(value: unknown): LectureOption | null {
 /* ────────── API: Fee Templates ────────── */
 
 export async function fetchFeeTemplates(params?: Record<string, string>) {
-  const res = await api.get("/fees/templates/", { params });
-  return unwrapList<FeeTemplate>(res.data);
+  return fetchFeePages<FeeTemplate>("/fees/templates/", params);
 }
 
 export async function createFeeTemplate(data: Partial<FeeTemplate>) {
@@ -173,8 +200,7 @@ export async function deleteFeeTemplate(id: number) {
 /* ────────── API: Student Fees ────────── */
 
 export async function fetchStudentFees(params?: Record<string, string>) {
-  const res = await api.get("/fees/student-fees/", { params });
-  return unwrapList<StudentFee>(res.data);
+  return fetchFeePages<StudentFee>("/fees/student-fees/", params);
 }
 
 export async function createStudentFee(data: { student: number; fee_template: number; enrollment?: number }) {
@@ -197,8 +223,7 @@ export async function deleteStudentFee(id: number) {
 /* ────────── API: Invoices ────────── */
 
 export async function fetchInvoices(params?: Record<string, string>) {
-  const res = await api.get("/fees/invoices/", { params: { ...params, page_size: "500" } });
-  return unwrapList<StudentInvoice>(res.data);
+  return fetchFeePages<StudentInvoice>("/fees/invoices/", params);
 }
 
 export async function fetchInvoiceDetail(id: number) {
@@ -221,19 +246,23 @@ export async function cancelInvoice(id: number) {
 /* ────────── API: Payments ────────── */
 
 export async function fetchPayments(params?: Record<string, string>) {
-  const res = await api.get("/fees/payments/", { params });
-  return unwrapList<FeePayment>(res.data);
+  return fetchFeePages<FeePayment>("/fees/payments/", params);
 }
 
 export async function recordPayment(data: {
   invoice_id: number;
   amount: number;
+  expected_paid_amount: number;
+  idempotency_key: string;
   payment_method: PaymentMethod;
   paid_at?: string;
   receipt_note?: string;
   memo?: string;
 }) {
-  const res = await api.post<FeePayment>("/fees/payments/", data);
+  const session = readAuthTokenEnvelopeSafely();
+  const tenant = getTenantCodeForApiRequest();
+  if (!session || !tenant) throw new Error("로그인 상태를 확인한 뒤 다시 시도해 주세요.");
+  const res = await api.post<FeePayment>("/fees/payments/", data, createAuthSessionBoundConfig(session.generation, undefined, tenant));
   return res.data;
 }
 
@@ -250,6 +279,5 @@ export async function fetchDashboard(params?: { year?: number; month?: number })
 }
 
 export async function fetchOverdueInvoices() {
-  const res = await api.get("/fees/dashboard/overdue/");
-  return unwrapList<StudentInvoice>(res.data);
+  return fetchFeePages<StudentInvoice>("/fees/dashboard/overdue/");
 }

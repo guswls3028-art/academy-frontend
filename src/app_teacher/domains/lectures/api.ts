@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/lectures/api.ts
 // 강의/세션 API — 기존 lectures API 래핑
 import api from "@/shared/api/axios";
+import { fetchLectureEnrollmentPages } from "@/shared/api/contracts/enrollments";
 import { sortSessionsByDisplayOrder, type SessionType } from "@/shared/product/sessions/sessionOrdering";
 
 export {
@@ -101,10 +102,7 @@ export async function fetchSession(sessionId: number) {
 
 /** 강의 수강생 목록 (enrollments 기반) — backend 마운트: /api/v1/enrollments/ */
 export async function fetchLectureEnrollments(lectureId: number): Promise<TeacherLectureEnrollment[]> {
-  const res = await api.get("/enrollments/", {
-    params: { lecture: lectureId, page_size: 200 },
-  });
-  return extractList<TeacherLectureEnrollment>(res.data);
+  return fetchLectureEnrollmentPages<TeacherLectureEnrollment>(lectureId);
 }
 
 /** 세션 수강생 출석 목록 */

@@ -603,6 +603,61 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
   test.skip(!IS_LOCAL_BASE, "Local route-mock contract spec.");
 
   for (const width of [390, 1366]) {
+    for (const area of ["detail", "payments"] as const) {
+      test(`수납 ${area} 조회 실패를 구분하고 다시 시도해 복구한다 ${width}`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        await installStudentApi(page);
+        let recovered = false;
+        const invoice = {
+          id: 701, invoice_number: "INV-202610-001", billing_year: 2026, billing_month: 10,
+          total_amount: 120000, paid_amount: 50000, outstanding_amount: 70000,
+          status: "PARTIAL", status_display: "부분 납부", due_date: "2026-10-31", paid_at: null,
+        };
+        await page.route("**/api/v1/student/fees/**", async (route) => {
+          const path = new URL(route.request().url()).pathname;
+          const isDetail = path.endsWith("/invoices/701/");
+          const isPayments = path.endsWith("/payments/");
+          if (!recovered && (area === "detail" ? isDetail : isPayments)) {
+            await route.fulfill({ status: 400, json: { detail: "조회를 다시 시도해 주세요." } });
+            return;
+          }
+          await route.fulfill({ json: isDetail
+            ? { ...invoice, items: [{ id: 901, description: "<p>10월 수학 수업료</p>", amount: 120000 }] }
+            : isPayments ? [{ id: 801, invoice_number: invoice.invoice_number, amount: 50000,
+              payment_method_display: "계좌이체", paid_at: "2026-10-09T09:00:00+09:00" }]
+              : [invoice] });
+        });
+        await page.goto(`${BASE}/student/fees`, { waitUntil: "domcontentloaded" });
+        const invoiceButton = page.getByRole("button", { name: /2026\.10/ });
+        await expect(invoiceButton).toBeVisible();
+        if (area === "detail") await invoiceButton.click();
+        const errorText = area === "detail" ? "청구서 상세를 불러오지 못했습니다" : "납부 내역을 불러오지 못했습니다";
+        await expect(page.getByText(errorText)).toBeVisible();
+        await expect(page.getByText("납부 내역이 없습니다")).toHaveCount(0);
+        await page.screenshot({ path: testInfo.outputPath(`fees-${area}-error-${width}.png`), fullPage: true });
+        recovered = true;
+        await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+        await expect(page.getByText(errorText)).toHaveCount(0);
+        await expect(page.getByText(area === "detail" ? "10월 수학 수업료" : /계좌이체 ·/)).toBeVisible();
+        if (area === "detail") {
+          await expect(invoiceButton).toHaveAttribute("aria-expanded", "true");
+          await invoiceButton.click();
+          await expect(page.getByText("10월 수학 수업료")).toHaveCount(0);
+          await invoiceButton.click();
+          await expect(page.getByText("10월 수학 수업료")).toBeVisible();
+        }
+        await assertNoRenderedHtmlLeak(page);
+        await page.reload();
+        await expect(invoiceButton).toBeVisible();
+        await expect(page.getByText(/계좌이체 ·/)).toBeVisible();
+        await invoiceButton.click();
+        await expect(page.getByText("10월 수학 수업료")).toBeVisible();
+        await assertNoRenderedHtmlLeak(page);
+      });
+    }
+  }
+
+  for (const width of [390, 1366]) {
     test(`현재 학습만 집계하고 과거 기록과 예정 시험으로 연결한다 ${width}`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
       await installStudentApi(page);

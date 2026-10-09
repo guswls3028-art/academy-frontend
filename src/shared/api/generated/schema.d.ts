@@ -17230,6 +17230,7 @@ export interface components {
         RecordPaymentPaymentMethodEnum: "CARD" | "BANK_TRANSFER" | "CASH" | "OTHER";
         RecordPaymentRequest: {
             amount: number;
+            expected_paid_amount?: number;
             /** @default  */
             idempotency_key: string;
             invoice_id: number;

@@ -75,7 +75,7 @@ export default function FeesTemplatesTab() {
     staleTime: 60_000,
   });
 
-  const { data: templates, isLoading } = useQuery({
+  const { data: templates, isLoading, isError, refetch } = useQuery({
     queryKey: adminFeesQueryKeys.templates,
     queryFn: () => fetchFeeTemplates(),
     staleTime: 10_000,
@@ -169,6 +169,8 @@ export default function FeesTemplatesTab() {
 
       {isLoading ? (
         <div className={styles.loading}>불러오는 중...</div>
+      ) : isError ? (
+        <EmptyState title="비목을 불러올 수 없습니다" description="잠시 후 다시 조회해 주세요." actions={<Button intent="secondary" onClick={() => refetch()}>다시 시도</Button>} />
       ) : !templates?.length ? (
         <EmptyState title="등록된 비목이 없습니다" description="'비목 추가' 버튼으로 수강료, 교재비 등을 등록하세요." />
       ) : (
