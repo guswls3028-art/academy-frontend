@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/staff/api/expenses.api.ts
 import api from "@/shared/api/axios";
+import { fetchStaffPages } from "@/shared/staff/fetchStaffPages";
 
 /** Backend: ExpenseRecord.STATUS_CHOICES */
 export type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -30,13 +31,8 @@ export async function fetchExpenses(params: {
   date_from: string;
   date_to: string;
 }) {
-  const res = await api.get("/staffs/expense-records/", {
-    params: { ...params, page_size: 500 },
-  });
-
-  if (Array.isArray(res.data)) return res.data as ExpenseRecord[];
-  if (Array.isArray(res.data?.results)) return res.data.results as ExpenseRecord[];
-  return [];
+  const { rows } = await fetchStaffPages<ExpenseRecord>("/staffs/expense-records/", params);
+  return rows;
 }
 
 /**

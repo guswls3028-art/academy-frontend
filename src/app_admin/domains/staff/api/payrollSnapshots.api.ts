@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/staff/api/payrollSnapshots.api.ts
 import api from "@/shared/api/axios";
+import { fetchStaffPages } from "@/shared/staff/fetchStaffPages";
 import { pollJobUntilDone, downloadFromUrl } from "@/shared/api/jobExport";
 
 /** Backend: PayrollSnapshotSerializer (work_hours Decimal, no updated_at) */
@@ -38,15 +39,7 @@ export async function fetchPayrollSnapshots(params: {
   if (params.year != null) cleanParams.year = params.year;
   if (params.month != null) cleanParams.month = params.month;
 
-  const res = await api.get("/staffs/payroll-snapshots/", {
-    params: { ...cleanParams, page_size: 500 },
-  });
-
-  const rows: PayrollSnapshot[] = Array.isArray(res.data)
-    ? res.data
-    : Array.isArray(res.data?.results)
-      ? res.data.results
-      : [];
+  const { rows } = await fetchStaffPages<PayrollSnapshot>("/staffs/payroll-snapshots/", cleanParams);
   return rows.filter(
     (row) =>
       (params.staff == null || row.staff === params.staff) &&
