@@ -7,6 +7,9 @@ export const productionReadOnlySpecs = [
 
 export const routeMockSpecs = [
   "e2e/clinic/session-list-pages.mock.spec.ts",
+  "e2e/admin/fees-operations-contract.mock.spec.ts",
+  "e2e/student/attendance-history.mock.spec.ts",
+  "e2e/teacher/assessment-list-pages.mock.spec.ts",
   "e2e/admin/design-system-theme.mock.spec.ts",
   "e2e/admin/student-lecture-memo.mock.spec.ts",
   "e2e/admin/public-video-preparation.mock.spec.ts",
@@ -84,6 +87,7 @@ export const routeMockSpecs = [
   "e2e/admin/student-unified-wrong-note.mock.spec.ts",
   "e2e/admin/wrong-note-generation-contract.mock.spec.ts",
   "e2e/shared/product-analytics-contract.mock.spec.ts",
+  "e2e/teacher/lecture-roster-pages.mock.spec.ts",
   "e2e/shared/api-document-exit.mock.spec.ts",
   "e2e/student/student-content-resilience.mock.spec.ts",
   "e2e/student/community-draft-autosave.mock.spec.ts",

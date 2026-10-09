@@ -6,16 +6,19 @@ type EmptyActionButtonProps = {
   children: ReactNode;
   onClick: () => void;
   variant?: "primary" | "secondary";
+  disabled?: boolean;
 };
 
 export function EmptyActionButton({
   children,
   onClick,
   variant = "primary",
+  disabled = false,
 }: EmptyActionButtonProps) {
   return (
     <button
       type="button"
+      disabled={disabled}
       onClick={onClick}
       className={cx(styles.button, variant === "secondary" && styles.secondary)}
     >

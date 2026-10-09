@@ -94,6 +94,13 @@
 
 .recentMeta {
   font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.historyHint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
 }
 
 .statusPill {
