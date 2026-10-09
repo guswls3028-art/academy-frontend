@@ -1,4 +1,5 @@
 import api from "@/shared/api/axios";
+import { fetchStaffPages } from "@/shared/staff/fetchStaffPages";
 import type { components } from "@/shared/api/generated/schema";
 export { fetchStaffMe } from "@/shared/staff/api";
 export type { AssignedWorkType, StaffMe } from "@/shared/staff/api";
@@ -23,7 +24,6 @@ export type WorkCurrentStatus =
 
 export type WorkSummary = components["schemas"]["StaffWorkSummary"];
 type WorkStartRequest = components["schemas"]["StaffWorkStartRequestRequest"];
-type PaginatedWorkRecords = components["schemas"]["PaginatedStaffWorkRecordList"];
 
 export async function fetchWorkCurrent(staffId: number): Promise<WorkCurrentStatus> {
   const { data } = await api.get<WorkCurrentStatus>(
@@ -84,14 +84,11 @@ export async function fetchMyWorkRecords(
   dateFrom: string,
   dateTo: string,
 ): Promise<WorkRecord[]> {
-  const { data } = await api.get<PaginatedWorkRecords | WorkRecord[]>(
-    `/staffs/${staffId}/work-records/`, {
-    params: { date_from: dateFrom, date_to: dateTo, page_size: 500 },
-    },
-  );
-  if (Array.isArray(data)) return data as WorkRecord[];
-  if (Array.isArray(data.results)) return data.results;
-  return [];
+  const { rows } = await fetchStaffPages<WorkRecord>(`/staffs/${staffId}/work-records/`, {
+    date_from: dateFrom,
+    date_to: dateTo,
+  });
+  return rows;
 }
 
 export async function fetchMyWorkSummary(

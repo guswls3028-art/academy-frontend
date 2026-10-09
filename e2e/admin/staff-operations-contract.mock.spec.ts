@@ -621,6 +621,111 @@ test.describe("직원 운영 계약", () => {
     await seedAuth(page);
   });
 
+  test("직원 목록은 두 번째 페이지까지 엑셀과 모바일 검색에 포함한다", async ({ page }) => {
+    const cpu = await page.context().newCDPSession(page);
+    await mockStaffApi(page);
+    const staffRows = Array.from({ length: 501 }, (_, index) => ({
+      ...activeStaff,
+      id: index + 1,
+      name: `검증직원 ${String(index + 1).padStart(3, "0")}`,
+      staff_work_types: [],
+    }));
+    const requestedPages: number[] = [];
+    await page.route("**/api/v1/staffs/**", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname !== "/api/v1/staffs/") return route.fallback();
+      const currentPage = Number(url.searchParams.get("page") || "1");
+      requestedPages.push(currentPage);
+      expect(url.searchParams.get("page_size")).toBe("500");
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          count: 501,
+          next: currentPage === 1 ? "/api/v1/staffs/?page=2&page_size=500" : null,
+          results: staffRows.slice((currentPage - 1) * 500, currentPage * 500),
+          owner: currentPage === 1 ? {
+            id: null, name: "검증대표", role: "OWNER", account_role: "OWNER",
+            position: "OWNER", position_label: "대표", can_manage_staff: true, is_owner: true,
+          } : null,
+        }),
+      });
+    });
+    await gotoAndSettle(page, `${BASE}/workspace/staff/home`);
+    await expect(page.getByRole("checkbox", { name: "검증직원 001 선택" })).toBeVisible();
+    // Stress actual roster interactions after the source modules have loaded.
+    await cpu.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+    await expect(page.getByRole("row", { name: "대표", exact: true })).toContainText("검증대표");
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "직원 목록 엑셀", exact: true }).click();
+    const exported = await staffWorkbookRows(await download);
+    expect(exported.slice(1)).toHaveLength(501);
+    expect(exported.slice(1).map((row) => row[exported[0].indexOf("이름")])).toContain("검증직원 501");
+    expect(requestedPages).toEqual([1, 2]);
+
+    await page.getByRole("checkbox", { name: "검증직원 001 선택" }).check();
+    await page.getByRole("navigation", { name: "직원 목록 페이지" }).getByRole("button", { name: "다음", exact: true }).click();
+    await expect(page.getByRole("checkbox", { name: "검증직원 001 선택" })).toHaveCount(0);
+    await page.getByRole("checkbox", { name: "검증직원 051 선택" }).check();
+    const selectedDownload = page.waitForEvent("download");
+    await page.getByRole("button", { name: "직원 목록 엑셀", exact: true }).click();
+    const selectedExport = await staffWorkbookRows(await selectedDownload);
+    expect(selectedExport.slice(1).map((row) => row[selectedExport[0].indexOf("이름")])).toEqual(["검증직원 001", "검증직원 051"]);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await cpu.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+    await page.reload();
+    await expect(page.getByRole("checkbox", { name: "검증직원 001 선택" })).toBeVisible();
+    await cpu.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+    await page.getByPlaceholder("이름 / 전화번호 검색").fill("검증직원 501");
+    await expect(page.getByRole("checkbox", { name: "검증직원 501 선택" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await page.screenshot({ path: test.info().outputPath("staff-search-501-390.png"), fullPage: true });
+    expect(requestedPages).toEqual([1, 2, 1, 2]);
+  });
+
+  for (const failure of ["조회 실패", "중복 응답", "누락 응답"] as const) {
+    test(`직원 목록의 다음 페이지 ${failure}는 부분 엑셀을 막고 다시 조회로 복구한다`, async ({ page }) => {
+      await mockStaffApi(page);
+      const staffRows = Array.from({ length: 501 }, (_, index) => ({
+        ...activeStaff,
+        id: index + 1,
+        name: `검증직원 ${String(index + 1).padStart(3, "0")}`,
+        staff_work_types: [],
+      }));
+      let failing = true;
+      await page.route("**/api/v1/staffs/**", async (route) => {
+        const url = new URL(route.request().url());
+        if (url.pathname !== "/api/v1/staffs/") return route.fallback();
+        const currentPage = Number(url.searchParams.get("page") || "1");
+        if (failing && currentPage === 2 && failure === "조회 실패") {
+          return route.fulfill({ status: 400, contentType: "application/json", body: '{"detail":"QA page failure"}' });
+        }
+        const results = failing && currentPage === 2
+          ? failure === "중복 응답" ? [staffRows[0]] : []
+          : staffRows.slice((currentPage - 1) * 500, currentPage * 500);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ count: 501, next: currentPage === 1 ? "?page=2" : null, results }),
+        });
+      });
+      await gotoAndSettle(page, `${BASE}/workspace/staff/home`);
+      await expect(page.getByText("직원 목록을 불러올 수 없습니다", { exact: true })).toBeVisible();
+      await expect(page.getByRole("checkbox", { name: "검증직원 001 선택" })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "직원 목록 엑셀", exact: true })).toBeDisabled();
+
+      failing = false;
+      await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+      await expect(page.getByRole("checkbox", { name: "검증직원 001 선택" })).toBeVisible();
+      const download = page.waitForEvent("download");
+      await page.getByRole("button", { name: "직원 목록 엑셀", exact: true }).click();
+      expect((await staffWorkbookRows(await download)).slice(1)).toHaveLength(501);
+      await page.getByPlaceholder("이름 / 전화번호 검색").fill("검증직원 501");
+      await expect(page.getByRole("checkbox", { name: "검증직원 501 선택" })).toBeVisible();
+    });
+  }
+
   test("검색에 숨은 선택 직원도 엑셀·비밀번호·퇴사 대상에서 누락하지 않는다", async ({ page }) => {
     let passwordBody: Record<string, unknown> | undefined;
     let staffPatch: Record<string, unknown> | undefined;

@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/staff/api/staff.api.ts
 import api from "@/shared/api/axios";
+import { fetchStaffPages } from "@/shared/staff/fetchStaffPages";
 import type { components } from "@/shared/api/generated/schema";
 import type { StaffWorkType } from "./staffWorkType.api";
 
@@ -93,23 +94,8 @@ export async function fetchStaffs(params?: {
   is_manager?: boolean;
   pay_type?: string;
 }): Promise<StaffListResponse> {
-  const res = await api.get<
-    Staff[] | { results?: Staff[]; owner?: StaffListOwner | null }
-  >("/staffs/", {
-    params: { ...params, page_size: 500 },
-  });
-
-  const raw = res.data;
-  const staffs: Staff[] = Array.isArray(raw)
-    ? raw
-    : Array.isArray(raw.results)
-      ? raw.results
-      : [];
-  const owner =
-    !Array.isArray(raw) && raw.owner?.name
-      ? raw.owner
-      : null;
-
+  const { rows: staffs, metadata } = await fetchStaffPages<Staff, { owner?: StaffListOwner | null }>("/staffs/", params);
+  const owner = metadata?.owner?.name ? metadata.owner : null;
   return { staffs, owner };
 }
 

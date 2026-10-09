@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/staff/api/staffWorkType.api.ts
 import api from "@/shared/api/axios";
+import { fetchStaffPages } from "@/shared/staff/fetchStaffPages";
 
 /** Backend: WorkTypeSerializer */
 export type WorkType = {
@@ -28,26 +29,16 @@ export type StaffWorkType = {
  * GET /staffs/work-types/
  */
 export async function fetchWorkTypes(params?: { is_active?: boolean }) {
-  const res = await api.get("/staffs/work-types/", {
-    params: { ...params, page_size: 500 },
-  });
-
-  if (Array.isArray(res.data)) return res.data as WorkType[];
-  if (Array.isArray(res.data?.results)) return res.data.results as WorkType[];
-  return [];
+  const { rows } = await fetchStaffPages<WorkType>("/staffs/work-types/", params);
+  return rows;
 }
 
 /**
  * GET /staffs/staff-work-types/?staff={staffId}
  */
 export async function fetchStaffWorkTypes(staffId: number) {
-  const res = await api.get("/staffs/staff-work-types/", {
-    params: { staff: staffId, page_size: 500 },
-  });
-
-  if (Array.isArray(res.data)) return res.data as StaffWorkType[];
-  if (Array.isArray(res.data?.results)) return res.data.results as StaffWorkType[];
-  return [];
+  const { rows } = await fetchStaffPages<StaffWorkType>("/staffs/staff-work-types/", { staff: staffId });
+  return rows;
 }
 
 /**

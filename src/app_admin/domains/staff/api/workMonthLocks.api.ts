@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/staff/api/workMonthLocks.api.ts
 import api from "@/shared/api/axios";
+import { fetchStaffPages } from "@/shared/staff/fetchStaffPages";
 
 /** Backend: WorkMonthLockSerializer (no updated_at) */
 export type WorkMonthLock = {
@@ -22,15 +23,7 @@ export async function fetchWorkMonthLocks(params: {
   year: number;
   month: number;
 }) {
-  const res = await api.get("/staffs/work-month-locks/", {
-    params: { ...params, page_size: 500 },
-  });
-
-  const rows: WorkMonthLock[] = Array.isArray(res.data)
-    ? res.data
-    : Array.isArray(res.data?.results)
-    ? res.data.results
-    : [];
+  const { rows } = await fetchStaffPages<WorkMonthLock>("/staffs/work-month-locks/", params);
 
   // 서버 필터가 계약의 정본이며, 이 검사는 잘못된 응답이 잠금을
   // 미마감으로 보이게 하지 않도록 하는 클라이언트 방어선입니다.
