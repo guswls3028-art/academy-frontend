@@ -56,7 +56,7 @@ export default function StudentFeesPage() {
     staleTime: 10_000,
   });
 
-  const { data: detail } = useQuery({
+  const { data: detail, isLoading: detailLoading, isError: detailError, refetch: refetchDetail } = useQuery({
     queryKey: studentQueryKeys.feesInvoice(selectedStudentId, selectedId),
     queryFn: async () => {
       const res = await studentApi.get<Invoice>(`/student/fees/invoices/${selectedId}/`);
@@ -66,7 +66,7 @@ export default function StudentFeesPage() {
     staleTime: 10_000,
   });
 
-  const { data: payments } = useQuery({
+  const { data: payments, isLoading: paymentsLoading, isError: paymentsError, refetch: refetchPayments } = useQuery({
     queryKey: studentQueryKeys.feesPayments(selectedStudentId),
     queryFn: async () => {
       const res = await studentApi.get<Payment[]>("/student/fees/payments/");
@@ -144,27 +144,42 @@ export default function StudentFeesPage() {
           ) : (
             <div className={styles.listStack}>
               {invoices.map((inv) => (
-                <button
+                <div
                   key={inv.id}
-                  type="button"
-                  onClick={() => setSelectedId(selectedId === inv.id ? null : inv.id)}
-                  className={`stu-panel stu-panel--pressable ${styles.invoiceButton}`}
+                  className={`stu-panel ${styles.invoiceCard}`}
                   data-selected={selectedId === inv.id}
                 >
-                  <div className={styles.invoiceHeader}>
-                    <span className={styles.invoicePeriod}>
-                      {inv.billing_year}.{String(inv.billing_month).padStart(2, "0")}
-                    </span>
-                    <StatusBadge status={inv.status} label={inv.status_display} />
-                  </div>
-                  <div className={styles.invoiceTotal}>
-                    {formatKRW(inv.total_amount)}
-                  </div>
+                  <button
+                    type="button"
+                    className={styles.invoiceButton}
+                    onClick={() => setSelectedId(selectedId === inv.id ? null : inv.id)}
+                    aria-expanded={selectedId === inv.id}
+                    aria-controls={`fee-invoice-detail-${inv.id}`}
+                  >
+                    <div className={styles.invoiceHeader}>
+                      <span className={styles.invoicePeriod}>
+                        {inv.billing_year}.{String(inv.billing_month).padStart(2, "0")}
+                      </span>
+                      <StatusBadge status={inv.status} label={inv.status_display} />
+                    </div>
+                    <div className={styles.invoiceTotal}>
+                      {formatKRW(inv.total_amount)}
+                    </div>
+                  </button>
 
                   {/* Expanded detail */}
-                  {selectedId === inv.id && detail && (
-                    <div className={styles.invoiceDetail}>
-                      {detail.items?.map((item) => (
+                  {selectedId === inv.id && (
+                    <div id={`fee-invoice-detail-${inv.id}`} className={styles.invoiceDetail}>
+                      {detailLoading ? (
+                        <div role="status" className={styles.loadingMessage}>청구서 상세를 불러오는 중입니다</div>
+                      ) : detailError ? (
+                        <EmptyState
+                          title="청구서 상세를 불러오지 못했습니다"
+                          description="다시 시도하면 상세 내역을 확인할 수 있어요."
+                          onRetry={() => refetchDetail()}
+                          compact
+                        />
+                      ) : detail?.items?.map((item) => (
                         <div
                           key={item.id}
                           className={styles.invoiceItem}
@@ -175,16 +190,27 @@ export default function StudentFeesPage() {
                       ))}
                     </div>
                   )}
-                </button>
+                </div>
               ))}
             </div>
           )}
         </section>
 
         {/* Payment History */}
-        {payments && payments.length > 0 && (
-          <section>
-            <div className={styles.sectionTitle}>납부 내역</div>
+        <section>
+          <div className={styles.sectionTitle}>납부 내역</div>
+          {paymentsLoading ? (
+            <div role="status" className={styles.loadingMessage}>납부 내역을 불러오는 중입니다</div>
+          ) : paymentsError ? (
+            <EmptyState
+              title="납부 내역을 불러오지 못했습니다"
+              description="네트워크 연결을 확인하고 다시 시도해 주세요."
+              onRetry={() => refetchPayments()}
+              compact
+            />
+          ) : !payments?.length ? (
+            <EmptyState title="납부 내역이 없습니다" description="납부가 기록되면 여기에 표시돼요." compact />
+          ) : (
             <div className={styles.listStack}>
               {payments.map((pay) => (
                 <div
@@ -203,8 +229,8 @@ export default function StudentFeesPage() {
                 </div>
               ))}
             </div>
-          </section>
-        )}
+          )}
+        </section>
       </div>
     </StudentPageShell>
   );
