@@ -2,6 +2,7 @@
 // 청구서 목록 + 생성/상세/수납 기록 모달
 
 import { useState, useCallback } from "react";
+import { isAxiosError } from "axios";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";
@@ -11,6 +12,7 @@ import { ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { MODAL_WIDTH } from "@/shared/ui/modal/constants";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 import { formatKRW } from "@/shared/product/fees/feesFormat";
 import { StatusBadge } from "./FeesDashboardTab";
 import styles from "./FeesInvoicesTab.module.css";
@@ -51,6 +53,8 @@ export default function FeesInvoicesTab() {
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState<PaymentMethod>("CASH");
   const [payNote, setPayNote] = useState("");
+  const [payRequest, setPayRequest] = useState<Parameters<typeof recordPayment>[0] | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   const params: Record<string, string> = {
     billing_year: String(year),
@@ -96,8 +100,18 @@ export default function FeesInvoicesTab() {
       setDetailOpen(false);
       setPayAmount("");
       setPayNote("");
+      setPayRequest(null);
     },
-    onError: (e: unknown) => feedback.error(extractApiError(e, "수납 기록 실패")),
+    onError: (e: unknown) => {
+      feedback.error(extractApiError(e, "수납 결과를 확인하지 못했습니다. 같은 수납을 다시 확인해 주세요."));
+      if (isAxiosError(e) && e.response?.status === 400) setPayRequest(null);
+      if (isAxiosError(e) && e.response?.status === 409) {
+        setPayRequest(null);
+        setPaymentOpen(false);
+        invalidateFees();
+        if (selectedInvoice) void openDetail(selectedInvoice.id);
+      }
+    },
   });
 
   const cancelInvMutation = useMutation({
@@ -131,12 +145,26 @@ export default function FeesInvoicesTab() {
     }
   }, []);
 
-  const openPayment = () => {
-    if (!selectedInvoice) return;
-    setPayAmount(String(selectedInvoice.outstanding_amount));
-    setPayMethod("CASH");
-    setPayNote("");
-    setPaymentOpen(true);
+  const openPayment = async () => {
+    if (!selectedInvoice || paymentLoading) return;
+    setPaymentLoading(true);
+    try {
+      const current = await fetchInvoiceDetail(selectedInvoice.id);
+      setSelectedInvoice(current);
+      if (current.status === "CANCELLED" || current.outstanding_amount <= 0) {
+        feedback.info("현재 수납할 잔액이 없습니다.");
+        return;
+      }
+      setPayRequest(null);
+      setPayAmount(String(current.outstanding_amount));
+      setPayMethod("CASH");
+      setPayNote("");
+      setPaymentOpen(true);
+    } catch {
+      feedback.error("최신 수납 내역을 불러오지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setPaymentLoading(false);
+    }
   };
 
   // 요약 카운트
@@ -467,8 +495,8 @@ export default function FeesInvoicesTab() {
               }
               right={
                 selectedInvoice.outstanding_amount > 0 ? (
-                  <Button intent="primary" onClick={openPayment}>
-                    수납 기록
+                  <Button intent="primary" disabled={paymentLoading} onClick={openPayment}>
+                    {paymentLoading ? "잔액 확인 중..." : "수납 기록"}
                   </Button>
                 ) : undefined
               }
@@ -478,16 +506,20 @@ export default function FeesInvoicesTab() {
       </AdminModal>
 
       {/* ===== Payment Modal ===== */}
-      <AdminModal open={paymentOpen} onClose={() => setPaymentOpen(false)} type="action" width={MODAL_WIDTH.sm}>
+      <AdminModal open={paymentOpen} onClose={() => { if (!payMutation.isPending) setPaymentOpen(false); }} type="action" width={MODAL_WIDTH.sm}>
         <ModalHeader title="수납 기록" description={selectedInvoice?.student_name} type="action" />
         <ModalBody>
           <div className="modal-scroll-body">
+            {payRequest && payMutation.isError && (
+              <p role="status" className="modal-hint">저장 결과가 확정되지 않았습니다. 같은 수납을 다시 확인해 주세요. 창을 다시 열면 최신 납부 내역부터 확인합니다.</p>
+            )}
             <div className="modal-form-group">
               <label className="modal-section-label">납부 금액 (원)</label>
               <input
                 className="ds-input"
                 type="number"
                 value={payAmount}
+                disabled={payRequest != null}
                 onChange={(e) => setPayAmount(e.target.value)}
                 min={1}
                 max={selectedInvoice?.outstanding_amount}
@@ -496,7 +528,7 @@ export default function FeesInvoicesTab() {
             </div>
             <div className="modal-form-group">
               <label className="modal-section-label">결제 수단</label>
-              <select className="ds-select" value={payMethod} onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}>
+              <select className="ds-select" value={payMethod} disabled={payRequest != null} onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}>
                 <option value="CASH">현금</option>
                 <option value="BANK_TRANSFER">계좌이체</option>
                 <option value="CARD">카드</option>
@@ -508,6 +540,8 @@ export default function FeesInvoicesTab() {
               <input
                 className="ds-input"
                 value={payNote}
+                disabled={payRequest != null}
+                maxLength={300}
                 onChange={(e) => setPayNote(e.target.value)}
                 placeholder="선택 입력"
               />
@@ -517,21 +551,25 @@ export default function FeesInvoicesTab() {
         <ModalFooter
           right={
             <>
-              <Button intent="secondary" onClick={() => setPaymentOpen(false)}>취소</Button>
+              <Button intent="secondary" disabled={payMutation.isPending} onClick={() => setPaymentOpen(false)}>닫기</Button>
               <Button
                 intent="primary"
-                disabled={!payAmount || Number(payAmount) <= 0 || payMutation.isPending}
+                disabled={!Number.isInteger(Number(payAmount)) || Number(payAmount) <= 0 || Number(payAmount) > (selectedInvoice?.outstanding_amount ?? 0) || payMutation.isPending}
                 onClick={() => {
                   if (!selectedInvoice) return;
-                  payMutation.mutate({
+                  const request = payRequest ?? {
                     invoice_id: selectedInvoice.id,
                     amount: Number(payAmount),
+                    expected_paid_amount: selectedInvoice.paid_amount,
+                    idempotency_key: createRandomUuid(),
                     payment_method: payMethod,
                     receipt_note: payNote,
-                  });
+                  };
+                  setPayRequest(request);
+                  payMutation.mutate(request);
                 }}
               >
-                {payMutation.isPending ? "처리 중..." : "수납 기록"}
+                {payMutation.isPending ? "처리 중..." : payRequest ? "같은 수납 다시 확인" : "수납 기록"}
               </Button>
             </>
           }

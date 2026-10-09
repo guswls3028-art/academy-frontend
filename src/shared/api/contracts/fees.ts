@@ -252,12 +252,17 @@ export async function fetchPayments(params?: Record<string, string>) {
 export async function recordPayment(data: {
   invoice_id: number;
   amount: number;
+  expected_paid_amount: number;
+  idempotency_key: string;
   payment_method: PaymentMethod;
   paid_at?: string;
   receipt_note?: string;
   memo?: string;
 }) {
-  const res = await api.post<FeePayment>("/fees/payments/", data);
+  const session = readAuthTokenEnvelopeSafely();
+  const tenant = getTenantCodeForApiRequest();
+  if (!session || !tenant) throw new Error("로그인 상태를 확인한 뒤 다시 시도해 주세요.");
+  const res = await api.post<FeePayment>("/fees/payments/", data, createAuthSessionBoundConfig(session.generation, undefined, tenant));
   return res.data;
 }
 

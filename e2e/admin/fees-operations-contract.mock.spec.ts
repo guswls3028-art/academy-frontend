@@ -21,7 +21,7 @@ async function installApi(page: Page) {
     const path = new URL(req.url()).pathname.replace(/^\/api\/v1/, "");
     const json = (body: unknown) => route.fulfill({ json: body });
     if (req.method() === "OPTIONS") return route.fulfill({ status: 204 });
-    if (path === "/core/program/") return json({ tenantCode: "hakwonplus", display_name: "검증 학원", isPlatformAdmin: false, is_active: true, feature_flags: {} });
+    if (path === "/core/program/") return json({ tenantCode: "hakwonplus", display_name: "검증 학원", isPlatformAdmin: false, is_active: true, feature_flags: { fee_management: true } });
     if (path === "/core/me/") return json({ id: 12, username: "fees-owner", name: "수납 담당자", is_staff: true, is_superuser: false, tenantRole: "owner", must_change_password: false, first_login_guide_required: false });
     if (path === "/core/subscription/") return json({ plan: "all", subscription_status: "active", is_subscription_active: true, days_remaining: 30 });
     if (path === "/fees/invoices/generate/") {
@@ -32,6 +32,88 @@ async function installApi(page: Page) {
     return json({ count: 0, next: null, results: [] });
   });
   return { generated };
+}
+
+for (const mobile of [false, true]) {
+for (const conflict of [false, true]) {
+test(`${mobile ? "모바일 업무 390px" : "관리자 1366px"} 부분 수납 ${conflict ? "동시 잔액 변경" : "응답 유실 60초 후 재시도"}와 새 분할 납부`, async ({ page }) => {
+  await page.setViewportSize({ width: mobile ? 390 : 1366, height: 900 });
+  await installApi(page);
+  const entries: Array<Record<string, unknown>> = [];
+  const requests: Array<Record<string, unknown>> = [];
+  let loseFirstResponse = !conflict;
+  const invoice = () => ({
+    id: 701, student: 71, student_name: "수납 검증 학생", invoice_number: "QA-701",
+    billing_year: 2026, billing_month: 10, total_amount: 100000,
+    paid_amount: entries.reduce((sum, entry) => sum + Number(entry.amount), 0),
+    outstanding_amount: 100000 - entries.reduce((sum, entry) => sum + Number(entry.amount), 0),
+    status: entries.length ? "PARTIAL" : "PENDING", due_date: "2026-10-31", items: [], payments: entries,
+  });
+  await page.route("**/api/v1/fees/**", async (route) => {
+    const req = route.request();
+    const path = new URL(req.url()).pathname;
+    if (path.endsWith("/payments/") && req.method() === "POST") {
+      const payload = req.postDataJSON() as Record<string, unknown>;
+      requests.push(payload);
+      if (conflict && requests.length === 1) {
+        entries.push({ id: 99, amount: 40000, status: "SUCCESS", payment_method: "CASH", payment_method_display: "현금", paid_at: "2026-10-09T09:00:00+09:00" });
+      }
+      let entry = payload.idempotency_key && entries.find((row) => row.idempotency_key === payload.idempotency_key);
+      if (!entry) {
+        if (payload.expected_paid_amount !== invoice().paid_amount) {
+          return route.fulfill({ status: 409, json: { code: "invoice_balance_changed", detail: "수납 내역이 변경되었습니다. 최신 납부 금액을 확인한 뒤 다시 기록해 주세요." } });
+        }
+        entry = { ...payload, id: entries.length + 1, status: "SUCCESS", payment_method_display: "현금", paid_at: "2026-10-09T09:00:00+09:00" };
+        entries.push(entry);
+      }
+      if (loseFirstResponse) {
+        loseFirstResponse = false;
+        return route.fulfill({ status: 504, json: { detail: "수납 결과 확인에 실패했습니다" } });
+      }
+      return route.fulfill({ status: 201, json: entry });
+    }
+    return route.fulfill({ json: path.endsWith("/invoices/701/") ? invoice() : { count: 1, next: null, results: [invoice()] } });
+  });
+  await gotoAndSettle(page, `${BASE}/workspace/${mobile ? "mobile/" : ""}fees/invoices`);
+  if (mobile) await page.getByRole("button", { name: /수납 검증 학생/ }).click();
+  else await page.getByText("QA-701", { exact: true }).click();
+  const openPayment = () => page.getByRole("dialog").getByRole("button", { name: mobile ? "결제 기록하기" : "수납 기록", exact: true }).click();
+  await openPayment();
+  const form = mobile ? page.getByRole("dialog") : page.getByRole("dialog", { name: "수납 기록" });
+  await form.locator('input[type="number"]').fill("40000");
+  await form.getByRole("button", { name: mobile ? "저장" : "수납 기록", exact: true }).click();
+  if (conflict) {
+    await expect(page.getByText("수납 내역이 변경되었습니다. 최신 납부 금액을 확인한 뒤 다시 기록해 주세요.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog").locator('input[type="number"]')).toHaveCount(0);
+    await waitForRenderSettled(page);
+    await page.screenshot({ path: test.info().outputPath(`payment-conflict-${mobile ? 390 : 1366}.png`), fullPage: true, animations: "disabled" });
+  } else {
+    await expect(page.getByText("수납 결과 확인에 실패했습니다", { exact: true })).toBeVisible();
+    await expect(form.locator('input[type="number"]')).toBeDisabled();
+    await waitForRenderSettled(page);
+    await page.screenshot({ path: test.info().outputPath(`payment-retry-${mobile ? 390 : 1366}.png`), fullPage: true, animations: "disabled" });
+    await page.clock.setFixedTime(new Date(Date.now() + 61000));
+    await form.getByRole("button", { name: "같은 수납 다시 확인", exact: true }).click();
+    await expect(form.locator('input[type="number"]')).toHaveCount(0);
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toEqual(requests[0]);
+  }
+  expect(entries).toHaveLength(1);
+  expect(requests[0].idempotency_key).toBeTruthy();
+  await page.reload();
+  if (!mobile) await page.getByText("QA-701", { exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("60,000");
+  await openPayment();
+  await expect(form.locator('input[type="number"]')).toHaveValue("60000");
+  await form.getByRole("button", { name: mobile ? "저장" : "수납 기록", exact: true }).click();
+  await expect(form.locator('input[type="number"]')).toHaveCount(0);
+  expect(entries).toHaveLength(2);
+  expect(invoice().paid_amount).toBe(100000);
+  expect(requests.at(-1)?.expected_paid_amount).toBe(40000);
+  expect(requests.at(-1)?.idempotency_key).not.toBe(requests[0].idempotency_key);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(mobile ? 390 : 1366);
+});
+}
 }
 
 for (const width of [1366, 390]) {
