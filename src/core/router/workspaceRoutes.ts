@@ -61,14 +61,18 @@ export function parseMobileWorkspaceReturnPath(candidate: string): string | null
   const { pathname, searchParams } = parsed;
 
   const simplePatterns = [
+    /^\/workspace\/mobile\/(assistant|guide|classes|students|message-log|message-templates|messaging-settings|notifications|exams|videos|clinic|counseling|results|submissions|profile|settings|staff|my-records|billing|desktop-only|fees|storage|tools)$/,
+    /^\/workspace\/mobile\/(exams\/(templates|bundles)|clinic\/(reports|remote)|fees\/invoices|storage\/inventory|settings\/(organization|appearance)|tools\/(problem-solver|stopwatch)|developer\/(bug|feedback))$/,
     /^\/workspace\/mobile\/students\/([1-9]\d*)$/,
     /^\/workspace\/mobile\/classes\/([1-9]\d*)$/,
     /^\/workspace\/mobile\/classes\/([1-9]\d*)\/sessions\/([1-9]\d*)$/,
+    /^\/workspace\/mobile\/classes\/([1-9]\d*)\/attendance-matrix$/,
     /^\/workspace\/mobile\/attendance\/([1-9]\d*)$/,
     /^\/workspace\/mobile\/scores\/([1-9]\d*)$/,
     /^\/workspace\/mobile\/videos\/([1-9]\d*)$/,
     /^\/workspace\/mobile\/staff\/([1-9]\d*)$/,
-    /^\/workspace\/mobile\/(profile|my-records)$/,
+    /^\/workspace\/mobile\/homeworks\/([1-9]\d*)$/,
+    /^\/workspace\/mobile\/exams\/([1-9]\d*)\/omr$/,
   ];
   if (simplePatterns.some((pattern) => pattern.test(pathname))) {
     return searchParams.size === 0 ? pathname : null;

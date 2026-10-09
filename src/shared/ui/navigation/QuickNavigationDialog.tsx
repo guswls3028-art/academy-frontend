@@ -18,6 +18,7 @@ export type QuickNavigationItem = {
   group: string;
   icon?: ReactNode;
   keywords?: string[];
+  description?: string;
 };
 
 type QuickNavigationDialogProps = {
@@ -26,6 +27,9 @@ type QuickNavigationDialogProps = {
   items: QuickNavigationItem[];
   storageKey: string | null;
   placement: string;
+  onNavigate?: (destination: string) => void;
+  permissionStatus?: "loading" | "error";
+  onRetryPermissions?: () => void;
 };
 
 const MAX_RECENT_ITEMS = 4;
@@ -59,7 +63,7 @@ function writeRecent(storageKey: string | null, destinations: string[]) {
   try {
     setLocalItem(storageKey, JSON.stringify(destinations.slice(0, MAX_RECENT_ITEMS)));
   } catch {
-    // 저장소가 차단되어도 현재 세션의 빠른 이동은 계속 동작한다.
+    // 저장소가 차단되어도 현재 세션의 기능 검색은 계속 동작한다.
   }
 }
 
@@ -69,6 +73,9 @@ export default function QuickNavigationDialog({
   items,
   storageKey,
   placement,
+  onNavigate,
+  permissionStatus,
+  onRetryPermissions,
 }: QuickNavigationDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -138,12 +145,12 @@ export default function QuickNavigationDialog({
     }
   }, [open]);
 
-  const queryTokens = normalize(query).split(/[,/]/).filter(Boolean);
+  const queryTokens = query.trim().split(/[\s,/]+/u).map(normalize).filter(Boolean);
   const filteredItems = useMemo(() => {
     if (queryTokens.length === 0) return uniqueItems;
     return uniqueItems.filter((item) => {
       const searchable = normalize(
-        [item.label, item.group, ...(item.keywords ?? [])].join(" "),
+        [item.label, item.group, item.description ?? "", ...(item.keywords ?? [])].join(" "),
       );
       return queryTokens.every((token) => searchable.includes(token));
     });
@@ -168,6 +175,10 @@ export default function QuickNavigationDialog({
   }, [query]);
 
   useEffect(() => {
+    setActiveIndex((current) => Math.max(0, Math.min(current, displayedItems.length - 1)));
+  }, [displayedItems.length]);
+
+  useEffect(() => {
     resultsRef.current
       ?.querySelector<HTMLElement>("[data-active='true']")
       ?.scrollIntoView({ block: "nearest" });
@@ -176,13 +187,13 @@ export default function QuickNavigationDialog({
   const selectItem = (item: QuickNavigationItem) => {
     remember(item.to);
     onClose();
-    navigate(item.to);
+    (onNavigate ?? navigate)(item.to);
   };
 
   const onInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setActiveIndex((current) => Math.min(displayedItems.length - 1, current + 1));
+      setActiveIndex((current) => Math.max(0, Math.min(displayedItems.length - 1, current + 1)));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setActiveIndex((current) => Math.max(0, current - 1));
@@ -221,14 +232,14 @@ export default function QuickNavigationDialog({
         <div className={styles.headingRow}>
           <div>
             <span className={styles.eyebrow}>업무 지도</span>
-            <h2 id="quick-navigation-title" className={styles.title}>빠른 이동</h2>
+            <h2 id="quick-navigation-title" className={styles.title}>기능 검색</h2>
           </div>
           <div className={styles.headingActions}>
             <span className={styles.escapeHint}>Esc 닫기</span>
             <button
               type="button"
               className={styles.closeButton}
-              aria-label="빠른 이동 닫기"
+              aria-label="기능 검색 닫기"
               onClick={onClose}
             >
               <X size={ICON.md} aria-hidden />
@@ -244,7 +255,7 @@ export default function QuickNavigationDialog({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={onInputKeyDown}
-            placeholder="메뉴 이름이나 할 일을 입력하세요"
+            placeholder="학생 복원, 급여, PPT 등 하고 싶은 업무"
             autoComplete="off"
           />
           <span className={styles.keyboardHint} aria-hidden>
@@ -253,6 +264,16 @@ export default function QuickNavigationDialog({
           </span>
         </label>
 
+        {permissionStatus && (
+          <div className={styles.permissionNotice} role={permissionStatus === "error" ? "alert" : "status"}>
+            {permissionStatus === "error"
+              ? "권한 정보를 불러오지 못해 일부 관리 기능이 보이지 않습니다."
+              : "관리 기능의 권한을 확인하고 있습니다."}
+            {permissionStatus === "error" && onRetryPermissions && (
+              <button type="button" onClick={onRetryPermissions}>다시 시도</button>
+            )}
+          </div>
+        )}
         <div ref={resultsRef} className={styles.results} aria-live="polite">
           {displayedItems.length === 0 ? (
             <div className={styles.emptyState}>
@@ -287,6 +308,7 @@ export default function QuickNavigationDialog({
                           <span className={styles.itemBody}>
                             <strong>{item.label}</strong>
                             <span>{item.group}</span>
+                            {item.description && <span className={styles.itemDescription}>{item.description}</span>}
                           </span>
                           <span className={styles.enterMark} aria-hidden>
                             <CornerDownLeft size={14} />

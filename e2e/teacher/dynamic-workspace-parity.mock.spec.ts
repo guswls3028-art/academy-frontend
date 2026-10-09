@@ -225,11 +225,21 @@ test("동적 모바일 경로는 현재 executable canonical route만 가리킨�
     "/workspace/mobile/comms?tab=qna&id=0",
     "/workspace/mobile/comms?tab=requests&id=5",
     "/workspace/mobile/comms?tab=qna&id=5&extra=1",
+    "/workspace/mobile/desktop-only?next=https://evil.example",
+    "/workspace/mobile/guide?next=/workspace/students",
+    "/workspace/mobile/unknown-feature",
   ];
 
   for (const [mobile, canonical] of mappings) {
     expect(parseMobileWorkspaceReturnPath(mobile)).toBe(mobile);
     expect(resolveFullWorkspaceDestination(mobile)).toBe(canonical);
+  }
+  expect(parseMobileWorkspaceReturnPath("/workspace/mobile/desktop-only")).toBe("/workspace/mobile/desktop-only");
+  expect(resolveFullWorkspaceDestination("/workspace/mobile/desktop-only")).toBeNull();
+  const staticRoutes = [...teacherRouter.matchAll(/<Route path="([a-z/-]+)"/g)]
+    .map((match) => match[1]).filter((path) => path !== "developer" && path !== "comms");
+  for (const path of staticRoutes) {
+    expect(parseMobileWorkspaceReturnPath(`/workspace/mobile/${path}`)).toBe(`/workspace/mobile/${path}`);
   }
   for (const candidate of rejected) {
     expect(parseMobileWorkspaceReturnPath(candidate)).toBeNull();

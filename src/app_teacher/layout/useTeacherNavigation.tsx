@@ -120,7 +120,7 @@ export function useTeacherNavigation() {
           { label: "사용 가이드", path: "/workspace/mobile/guide", icon: <Info size={ICON.md} />, keywords: ["도움말", "사용법", "매뉴얼"] },
           { label: "학원 홈페이지", path: "/landing", icon: <Globe size={ICON.md} /> },
           { label: "도구", path: "/workspace/mobile/tools", icon: <Wrench size={ICON.md} />, keywords: ["AI", "풀이", "리포트"] },
-          { label: "PC 버전", path: "/workspace/mobile/desktop-only", icon: <Monitor size={ICON.md} />, keywords: ["전체 기능", "고급 기능", "PC 업무", "데스크톱"] },
+          { label: "기능 찾기", path: "/workspace/mobile/desktop-only", icon: <Monitor size={ICON.md} />, keywords: ["전체 기능", "고급 기능", "PC 업무", "데스크톱"] },
           { label: "버그 제보", path: "/workspace/mobile/developer/bug", icon: <Bug size={ICON.md} />, keywords: ["문제 신고", "오류"] },
           { label: "피드백", path: "/workspace/mobile/developer/feedback", icon: <MessageSquare size={ICON.md} />, keywords: ["의견", "제안"] },
         ],

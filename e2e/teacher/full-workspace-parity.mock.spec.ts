@@ -17,7 +17,7 @@ function fakeJwt(): string {
   return `e30.${payload}.sig`;
 }
 
-type StaffRole = "owner" | "admin" | "teacher";
+type StaffRole = "owner" | "admin" | "teacher" | "staff";
 
 async function installWorkspaceMocks(
   page: Page,
@@ -89,10 +89,10 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test("모바일 PC 버전 허브의 모든 정적 목적지는 executable canonical route다", () => {
-  const source = fs.readFileSync(
+  const source = [
     "src/app_teacher/domains/profile/pages/DesktopOnlyPage.tsx",
-    "utf8",
-  );
+    "src/shared/ui/navigation/useWorkspaceFeatures.tsx",
+  ].map((path) => fs.readFileSync(path, "utf8")).join("\n");
   const routeSources = {
     admin: fs.readFileSync("src/app_admin/app/AdminRouter.tsx", "utf8"),
     materials: fs.readFileSync("src/app_admin/domains/materials/MaterialsRoutes.tsx", "utf8"),
@@ -133,9 +133,9 @@ test("모바일 PC 버전 허브의 모든 정적 목적지는 executable canoni
     expect(source).toContain(route.path);
     expect(routeSources[route.source]).toContain(route.marker);
   }
-  expect(source).toContain("setPreferFullWorkspace(true)");
+  expect(source).toContain("setPreferFullWorkspace(true,");
   expect(source).toContain("useFeesEnabled()");
-  expect(source).toContain("staffMe?.is_payroll_manager");
+  expect(source).toContain("staffQuery.data?.is_payroll_manager");
   expect(source).toContain('feature.access === "owner"');
   expect(source).toContain('feature.access === "tenantAdmin"');
 });
@@ -145,26 +145,26 @@ test("390px 원장은 검색과 전체 기능 링크를 쓰고 권한 밖 mutati
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/mobile/desktop-only`, { timeout: 20_000 });
 
-  await expect(page.getByRole("heading", { name: "PC 버전", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "기능 찾기", exact: true })).toBeVisible();
   const search = page.getByRole("searchbox", { name: "전체 기능 검색" });
   await expect(search).toBeVisible();
-  await expect(page.getByRole("button", { name: /매치업 \(OCR\)/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /매치업 분석/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /자료실 전체/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /홈페이지 편집/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /기능 플래그/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /학원 기능 설정/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /수납 템플릿/ })).toBeVisible();
   await expectNoHorizontalOverflow(page);
 
   await page.getByRole("button", { name: "자료·저장소", exact: true }).click();
-  await expect(page.getByRole("button", { name: /매치업 \(OCR\)/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /성적 트리/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /매치업 분석/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /강의별 성적 조회/ })).toHaveCount(0);
   await page.getByRole("button", { name: "전체", exact: true }).click();
 
   await search.fill("존재하지 않는 기능");
   await expect(page.getByRole("status").filter({ hasText: "검색 결과가 없어요" })).toBeVisible();
   await page.getByRole("button", { name: "검색 초기화" }).click();
   await search.fill("성적 트리");
-  const resultTree = page.getByRole("button", { name: /성적 트리/ });
+  const resultTree = page.getByRole("button", { name: /강의별 성적 조회/ });
   await expect(resultTree).toBeVisible();
   await resultTree.focus();
   await expect(resultTree).toBeFocused();
@@ -174,7 +174,7 @@ test("390px 원장은 검색과 전체 기능 링크를 쓰고 권한 밖 mutati
 
   await page.getByRole("button", { name: "메뉴", exact: true }).click();
   await page.getByRole("button", { name: "모바일 버전", exact: true }).click();
-  await expect(page).toHaveURL(/\/workspace\/mobile$/);
+  await expect(page).toHaveURL(/\/workspace\/mobile\/desktop-only$/);
 
   expect(apiRequests.filter(({ method }) => method !== "GET")).toEqual([]);
 });
@@ -184,11 +184,11 @@ test("390px 선생님은 공용 기능만 보고 관리자·원장·급여 경�
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/mobile/desktop-only`, { timeout: 20_000 });
 
-  await expect(page.getByRole("button", { name: /성적 트리/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /강의별 성적 조회/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /PPT 만들기/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /홈페이지 편집/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /수납 템플릿/ })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /기능 플래그/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /학원 기능 설정/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /직원 급여 운영/ })).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 });
@@ -262,7 +262,7 @@ test("390px 급여 관리자는 직원 운영만 추가되고 원장·수납 권
   await expect(page.getByRole("button", { name: /직원 급여 운영/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /홈페이지 편집/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /수납 템플릿/ })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /기능 플래그/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /학원 기능 설정/ })).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 });
 
@@ -274,10 +274,23 @@ test("1366px 관리자는 관리자·수납 기능을 보되 대표원장·급�
   await expect(page.getByRole("searchbox", { name: "전체 기능 검색" })).toBeVisible();
   await expect(page.getByRole("button", { name: /홈페이지 편집/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /수납 템플릿/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /기능 플래그/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /학원 기능 설정/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /직원 급여 운영/ })).toHaveCount(0);
   await page.getByRole("button", { name: "관리·도구", exact: true }).click();
   await expect(page.getByRole("button", { name: /PPT 만들기/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /성적 트리/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /강의별 성적 조회/ })).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+});
+
+
+test("일반 직원에게 분석·검수 목적지를 잘못 안내하지 않는다", async ({ page }) => {
+  await installWorkspaceMocks(page, { role: "staff", payrollManager: false });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/mobile/desktop-only`);
+  await expect(page.getByRole("heading", { name: "기능 찾기", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /자료실 전체/ })).toBeVisible();
+  for (const name of ["매치업 분석", "적중 보고서", "문제 매칭 제안", "확정 급여·정산 내역"]) {
+    await expect(page.getByRole("button", { name: new RegExp(name) })).toHaveCount(0);
+  }
   await expectNoHorizontalOverflow(page);
 });
