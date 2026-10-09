@@ -14,8 +14,8 @@
 //   done/answers_ready + !resolved → "결과 없음" 라벨
 //
 // SessionLayout 데드락 회피: navigate 전 target_resolved 가드.
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -25,13 +25,14 @@ import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import {
-  fetchPendingSubmissions,
+  fetchPendingSubmissionPage,
   retrySubmissionApi,
   discardSubmissionApi,
   discardSubmissionsBatchApi,
   type PendingSubmissionRow,
 } from "@/shared/api/contracts/submissions";
 import { teacherResultsQueryKeys } from "@teacher/domains/results/queryKeys";
+import SubmissionInboxPager from "@/shared/ui/submissions/SubmissionInboxPager";
 
 type FilterKey = "pending" | "done" | "failed" | "all";
 
@@ -41,13 +42,6 @@ const FILTER_TABS: { key: FilterKey; label: string }[] = [
   { key: "failed", label: "실패/폐기" },
   { key: "all", label: "전체" },
 ];
-
-const FILTER_PARAM: Record<FilterKey, string | undefined> = {
-  pending: "pending",
-  done: "done",
-  failed: "failed",
-  all: undefined,
-};
 
 const PENDING_STATUSES = new Set([
   "submitted",
@@ -112,21 +106,43 @@ function isTargetResolved(row: PendingSubmissionRow): boolean {
 export default function SubmissionsInboxPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [filter, setFilter] = useState<FilterKey>("pending");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawFilter = searchParams.get("filter");
+  const filter: FilterKey = rawFilter === "all" || rawFilter === "done" || rawFilter === "failed" ? rawFilter : "pending";
+  const rawPage = Number(searchParams.get("page") || 1);
+  const page = Number.isSafeInteger(rawPage) && rawPage > 0 && rawPage <= 1_000_000 ? rawPage : 1;
+
+  function changePage(nextPage: number, nextFilter = filter) {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set("page", String(nextPage));
+      next.set("filter", nextFilter);
+      return next;
+    });
+  }
 
   const q = useQuery({
-    queryKey: teacherResultsQueryKeys.pendingSubmissionsList(filter),
-    queryFn: () => fetchPendingSubmissions(FILTER_PARAM[filter]),
+    queryKey: [...teacherResultsQueryKeys.pendingSubmissionsList(filter), page],
+    queryFn: () => fetchPendingSubmissionPage(filter, page),
     refetchInterval: 5_000,
   });
 
+  useEffect(() => {
+    if (q.isError || !q.data || q.data.page === page) return;
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set("page", String(q.data.page));
+      return next;
+    }, { replace: true });
+  }, [q.data, q.isError, page, setSearchParams]);
+
   const rows = useMemo(() => {
-    const data = q.data ?? [];
+    const data = q.isError ? [] : q.data?.results ?? [];
     const sorted = [...data].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime() || b.id - a.id,
     );
     return clientFilter(sorted, filter);
-  }, [q.data, filter]);
+  }, [q.data, q.isError, filter]);
 
   function refetchAll() {
     qc.invalidateQueries({ queryKey: teacherResultsQueryKeys.pendingSubmissions });
@@ -178,10 +194,10 @@ export default function SubmissionsInboxPage() {
 
   const orphanRows = useMemo(
     () =>
-      (q.data ?? []).filter(
+      rows.filter(
         (r) => !isTargetResolved(r) && !(r.status === "failed" && r.is_discarded === true),
       ),
-    [q.data],
+    [rows],
   );
 
   const handleDiscardAllOrphans = () => {
@@ -240,7 +256,7 @@ export default function SubmissionsInboxPage() {
         >
           <div className="flex-1 min-w-0">
             <div className="text-[13px] font-bold" style={{ color: "var(--tc-text)" }}>
-              원본 없음 {orphanRows.length}건
+              이 페이지의 원본 없음 {orphanRows.length}건
             </div>
             <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
               시험·과제가 삭제돼 매칭이 안 되는 답안지입니다. 한 번에 정리할 수 있어요.
@@ -272,7 +288,7 @@ export default function SubmissionsInboxPage() {
         {FILTER_TABS.map((t) => (
           <button
             key={t.key}
-            onClick={() => setFilter(t.key)}
+            onClick={() => changePage(1, t.key)}
             className="shrink-0 text-[13px] cursor-pointer"
             style={{
               padding: "12px 14px",
@@ -290,6 +306,8 @@ export default function SubmissionsInboxPage() {
         ))}
       </div>
 
+      {!q.isError && q.data && <SubmissionInboxPager data={q.data} onPage={changePage} />}
+
       {/* Loading */}
       {q.isLoading && (
         <EmptyState scope="panel" tone="loading" title="제출 목록 불러오는 중…" />
@@ -297,7 +315,8 @@ export default function SubmissionsInboxPage() {
 
       {/* Error */}
       {q.isError && !q.isLoading && (
-        <EmptyState scope="panel" tone="error" title="제출 목록을 불러올 수 없습니다." />
+        <EmptyState scope="panel" tone="error" title="제출 목록을 불러올 수 없습니다."
+          actions={<EmptyActionButton onClick={() => q.refetch()}>다시 시도</EmptyActionButton>} />
       )}
 
       {/* Empty */}
@@ -312,7 +331,7 @@ export default function SubmissionsInboxPage() {
               차시 확인
             </EmptyActionButton>
           ) : (
-            <EmptyActionButton variant="secondary" onClick={() => setFilter("pending")}>
+            <EmptyActionButton variant="secondary" onClick={() => changePage(1, "pending")}>
               대기 중 보기
             </EmptyActionButton>
           )}
@@ -320,7 +339,7 @@ export default function SubmissionsInboxPage() {
       )}
 
       {/* Rows */}
-      {!q.isLoading && rows.length > 0 && (
+      {!q.isLoading && !q.isError && rows.length > 0 && (
         <div className="flex flex-col gap-1.5">
           {rows.map((r) => {
             const isExam = r.target_type === "exam";
@@ -342,6 +361,7 @@ export default function SubmissionsInboxPage() {
             return (
               <div
                 key={r.id}
+                data-testid={`submission-inbox-${r.id}`}
                 className="flex items-center gap-2 rounded-xl"
                 style={{
                   padding: "var(--tc-space-3) var(--tc-space-4)",

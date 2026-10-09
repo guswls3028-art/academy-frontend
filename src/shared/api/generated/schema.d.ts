@@ -37748,7 +37748,23 @@ export interface operations {
     };
     submissions_submissions_pending_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description * `all` - all
+                 *     * `real_failed` - real_failed
+                 *     * `discarded` - discarded
+                 */
+                failed_type?: "all" | "real_failed" | "discarded";
+                /**
+                 * @description * `all` - all
+                 *     * `pending` - pending
+                 *     * `done` - done
+                 *     * `failed` - failed
+                 */
+                filter?: "all" | "pending" | "done" | "failed";
+                page?: number;
+                page_size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;

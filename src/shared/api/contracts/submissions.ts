@@ -1,7 +1,9 @@
 // PATH: src/shared/api/contracts/submissions.ts
 // Submission API contract
 
-import api from "@/shared/api/axios";
+import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
+import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
 export type SubmissionStatus =
   | "submitted"
@@ -264,6 +266,48 @@ export async function fetchPendingSubmissions(filter?: string): Promise<PendingS
   const params = filter ? { filter } : {};
   const res = await api.get("/submissions/submissions/pending/", { params });
   return listFromApiResponse(res.data) as PendingSubmissionRow[];
+}
+
+export type PendingSubmissionPage = {
+  results: PendingSubmissionRow[];
+  count: number;
+  page: number;
+  page_size: number;
+  pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+  summary: { failed: number; real_failed: number; discarded: number };
+};
+
+export async function fetchPendingSubmissionPage(filter: string, page: number, failedType = "all"): Promise<PendingSubmissionPage> {
+  const session = readAuthTokenEnvelopeSafely();
+  const tenant = getTenantCodeForApiRequest();
+  if (!session || !tenant) throw new Error("로그인과 학원 정보를 확인한 뒤 다시 조회해 주세요.");
+  const config = createAuthSessionBoundConfig(session.generation, undefined, tenant);
+  const { data } = await api.get<PendingSubmissionPage | PendingSubmissionRow[]>("/submissions/submissions/pending/", {
+    ...config, params: { filter, page, page_size: 50, failed_type: failedType },
+  });
+  // Compatibility for complete small legacy responses; a capped list is not complete.
+  if (Array.isArray(data)) {
+    if (page !== 1 || data.length >= 200) throw new Error("제출 목록 전체를 확인하지 못했습니다. 다시 조회해 주세요.");
+    const failed = data.filter((row) => row.status === "failed");
+    return { results: data, count: data.length, page: 1, page_size: data.length, pages: 1,
+      has_next: false, has_previous: false, summary: { failed: failed.length,
+        discarded: failed.filter((row) => row.is_discarded).length,
+        real_failed: failed.filter((row) => !row.is_discarded).length } };
+  }
+  if (!Array.isArray(data?.results) || !Number.isSafeInteger(data.count) || data.count < 0
+    || !Number.isSafeInteger(data.page) || data.page < 1 || !Number.isSafeInteger(data.pages)
+    || data.pages < data.page || !data.summary || data.results.length > 50
+    || !Number.isSafeInteger(data.page_size) || data.page_size < 1 || data.page_size > 200
+    || typeof data.has_next !== "boolean" || typeof data.has_previous !== "boolean"
+    || [data.summary.failed, data.summary.real_failed, data.summary.discarded].some((count) => !Number.isSafeInteger(count) || count < 0)
+    || data.summary.failed !== data.summary.real_failed + data.summary.discarded
+    || data.results.some((row) => !Number.isSafeInteger(row?.id) || row.id <= 0)
+    || new Set(data.results.map((row) => row.id)).size !== data.results.length) {
+    throw new Error("제출 목록을 확인하지 못했습니다. 다시 조회해 주세요.");
+  }
+  return data;
 }
 
 export async function listExamSubmissionsApi(examId: number): Promise<ExamSubmissionRow[]> {
