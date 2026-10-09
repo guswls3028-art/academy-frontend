@@ -297,7 +297,7 @@ export default function OrganizationSettingsPage() {
                       saving={updateMut.isPending}
                     />
                   ) : (
-                    <div className={s.row}>
+                    <div className={`${s.row} ${styles.academyRow}`}>
                       <span className={s.rowLabel}>학원 {index + 1}</span>
                       <span className={entry.name ? s.rowValue : s.rowValueMuted}>
                         {entry.name || "미설정"} · {entry.phone || "미설정"}

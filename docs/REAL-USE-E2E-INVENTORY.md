@@ -22,6 +22,13 @@ spec 목록과 과거 pass count는 보관하지 않는다. 실행 목록은
 
 ## 2. 실행 구조
 
+학생/학부모 계정 실사용 spec은 같은 일회용 tenant의 별도 owner 계정으로 학원 정보를
+PC/390px에서 수정·저장·reload한 뒤 학생 홈 학원문의 반영까지 확인한다. 기존 admin
+계정 역할은 유지하며 원래 학원 정보는 finally에서 복원·재조회한다. 최종 사용자·token
+정리는 기존 exact tenant cleanup-zero가 소유한다. 외부 메시지·운영 데이터 변경은
+허용하지 않는다. owner fixture는 backend의
+[격리 개발 런타임 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/persistent-development-runtime.md)을 따른다.
+
 `e2e/suites.mjs`는 다음 세 집합을 한 곳에서 소유한다.
 
 - `productionReadOnlySpecs`: 운영 자격증명을 쓰는 네 개의 직렬 PR spec

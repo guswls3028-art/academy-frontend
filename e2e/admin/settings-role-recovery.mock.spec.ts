@@ -101,6 +101,10 @@ for (const width of [1366, 390]) {
     await page.reload();
     await expect(page.getByText("수정 본원 · 02-0000-0000", { exact: true })).toBeVisible();
     await expect(page.getByText("기존 분원 · 02-0000-0001", { exact: true })).toBeVisible();
+    const savedName = page.getByText("수정 본원 · 02-0000-0000", { exact: true });
+    await expect.poll(() => savedName.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await savedName.evaluate((element) => element.scrollIntoView({ behavior: "instant", block: "center" }));
+    await expect(savedName).toBeInViewport();
     await page.screenshot({ path: testInfo.outputPath(`settings-recovery-${width}.png`), fullPage: true });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   });

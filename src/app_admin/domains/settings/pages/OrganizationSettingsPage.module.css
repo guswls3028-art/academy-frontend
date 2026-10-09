@@ -236,6 +236,26 @@
 }
 
 @media (max-width: 640px) {
+  .academyRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .academyRow > span:first-child {
+    grid-area: 1 / 1;
+  }
+
+  .academyRow > span:nth-child(2) {
+    grid-area: 2 / 1 / auto / -1;
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+
+  .academyRow > div {
+    grid-area: 1 / 2;
+  }
+
   .modeRow {
     grid-template-columns: 1fr;
     align-items: start;
