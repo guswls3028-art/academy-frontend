@@ -3,7 +3,7 @@
 
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { Plus } from "lucide-react";
-import { EmptyState, Badge } from "@/shared/ui/ds";
+import { EmptyState, Badge, Button } from "@/shared/ui/ds";
 import { DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
@@ -203,6 +203,8 @@ export function StaffHomeTable({
   const confirm = useConfirm();
   const [internalSelected, setInternalSelected] = useState<number[]>([]);
   const [sort, setSort] = useState("");
+  const [pageState, setPageState] = useState({ key: "", page: 1 });
+  const tableShell = useRef<HTMLDivElement>(null);
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("staff-home", STAFF_HOME_COLUMN_DEFS);
   const selectedIds = onSelectionChange && controlledSelectedIds !== undefined ? controlledSelectedIds : internalSelected;
   const setSelectedIds = onSelectionChange && controlledSelectedIds !== undefined
@@ -250,6 +252,16 @@ export function StaffHomeTable({
       return asc ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
     });
   }, [dataSource, sort]);
+
+  const pageSize = 50;
+  const pageKey = JSON.stringify([needle, sort]);
+  const pageCount = Math.max(1, Math.ceil(sortedDataSource.length / pageSize));
+  const page = Math.min(pageState.key === pageKey ? pageState.page : 1, pageCount);
+  const pageRows = sortedDataSource.slice((page - 1) * pageSize, page * pageSize);
+  const changePage = (nextPage: number) => {
+    setPageState({ key: pageKey, page: nextPage });
+    tableShell.current?.scrollIntoView({ block: "start" });
+  };
 
   const handleSort = useCallback((colKey: string) => {
     setSort((prev) => (prev === colKey ? `-${colKey}` : prev === `-${colKey}` ? "" : colKey));
@@ -361,7 +373,7 @@ export function StaffHomeTable({
   }
 
   return (
-    <div className="staff-home-table-shell">
+    <div className="staff-home-table-shell" ref={tableShell}>
       <DomainTable
         tableClassName="ds-table--flat ds-table--center"
         tableStyle={{ tableLayout: "fixed", width: tableWidth }}
@@ -453,7 +465,7 @@ export function StaffHomeTable({
               </td>
             </tr>
           )}
-          {sortedDataSource.map((r) => (
+          {pageRows.map((r) => (
             <tr
               key={r.id}
               onClick={(event) => {
@@ -641,6 +653,17 @@ export function StaffHomeTable({
           ))}
         </tbody>
       </DomainTable>
+      {pageCount > 1 && (
+        <nav aria-label="직원 목록 페이지" className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border-divider)] p-3 text-sm">
+          <span aria-live="polite">{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, sortedDataSource.length)} / {sortedDataSource.length}명</span>
+          <div className="flex items-center gap-2">
+            <Button intent="secondary" size="sm" disabled={page === 1} onClick={() => changePage(page - 1)}>이전</Button>
+            <span>{page} / {pageCount}</span>
+            <Button intent="secondary" size="sm" disabled={page === pageCount} onClick={() => changePage(page + 1)}>다음</Button>
+          </div>
+          <span className="w-full text-xs text-[var(--color-text-muted)]">전체 선택은 다른 페이지의 검색 결과도 포함합니다.</span>
+        </nav>
+      )}
     </div>
   );
 }
