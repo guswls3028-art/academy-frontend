@@ -56,8 +56,7 @@ const BILLING_MODE_LABELS: Record<string, string> = {
 
 export default function BillingSettingsPage() {
   const { user } = useAuth();
-  const canManageBilling =
-    user?.tenantRole === "owner" || Boolean(user?.is_superuser);
+  const canManageBilling = user?.tenantRole === "owner";
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: adminSettingsQueryKeys.subscriptionInfo,
     queryFn: fetchSubscription,

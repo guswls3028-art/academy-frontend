@@ -4,6 +4,7 @@
 
 | 문서 | 내용 |
 |------|------|
+| [ORGANIZATION-SETTINGS.md](ORGANIZATION-SETTINGS.md) | 현재 학원 역할별 설정·결제·상담 접근, 조회/저장 실패 복구와 입력 초안 보존 |
 | [개발 저장공간·CI 캐시 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/concurrent-codex-sessions.md#session-output-lifecycle) | 원격 빌드 기본값, 작업별 임시 파일 수명주기, 종료된 PR 캐시 정리와 검증 기록 보존 |
 | [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) | 관리자·교사 테마, 토큰 계층, 공용 컨트롤, 미리보기·저장·반응형 검증 |
 | [PUBLIC-RESOURCE-BOARD.md](PUBLIC-RESOURCE-BOARD.md) | godmin 공개 자료게시판·게시자·파일·오류 복구·PC/모바일 검증 |

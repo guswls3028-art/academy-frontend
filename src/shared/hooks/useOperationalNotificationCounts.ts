@@ -18,7 +18,7 @@ import useAuth from "@/auth/hooks/useAuth";
 export function useOperationalNotificationCounts() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const includeConsult = user?.tenantRole === "owner";
+  const includeConsult = user?.tenantRole === "owner" || user?.tenantRole === "admin";
   const queryKey = notificationQueryKeys.operationalCountsForRole(includeConsult);
   const q = useQuery({
     queryKey,

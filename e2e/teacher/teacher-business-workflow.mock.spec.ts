@@ -243,7 +243,7 @@ test.skip(
   "선생님 업무 route-mock 검증은 로컬 dev 서버 전용",
 );
 
-test("관리자는 오늘 업무 합계를 일관되게 보고 학원장 전용 API를 호출하지 않는다", async ({ page }) => {
+test("관리자는 상담을 포함한 오늘 업무를 보고 원장 전용 결제는 열지 않는다", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installAuth(page);
   const apiState = await installApi(page, { role: "admin" });
@@ -251,11 +251,12 @@ test("관리자는 오늘 업무 합계를 일관되게 보고 학원장 전용 
   await gotoAndSettle(page, `${BASE}/workspace/mobile`);
 
   await expect(page.getByText("안녕하세요, 관리자님", { exact: true })).toBeVisible();
-  await expect(page.getByText("오늘 업무 12건", { exact: true })).toBeVisible();
+  await expect(page.getByText("오늘 업무 13건", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "출결 미입력 12건 처리하기" })).toBeVisible();
   await expect(page.getByText("처리 대기함이 비었습니다", { exact: true })).toHaveCount(0);
   await expect(page.getByText("정리됨", { exact: true })).toHaveCount(0);
-  expect(apiState.consultRequests()).toBe(0);
+  expect(apiState.consultRequests()).toBeGreaterThan(0);
+  await expect(page.getByRole("button", { name: "새 상담 요청 1건 처리하기", exact: true })).toBeVisible();
 
   const targets = page.locator("main button:visible, main [role=button]:visible");
   const targetCount = await targets.count();
