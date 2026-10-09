@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { createMemo, type ClientStudent } from "../api/students.api";
 import { adminStudentsQueryKeys } from "../queryKeys";
 import { lectureMemoQueryKeys } from "@/shared/api/queryKeys/lectureMemos";
@@ -8,6 +8,24 @@ import useAuth from "@/auth/hooks/useAuth";
 import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
 
 const MEMO_DRAFTS = ["student-memo-drafts"] as const;
+const memoWrites = new WeakMap<QueryClient, Map<number, Promise<string>>>();
+
+function enqueueMemo(client: QueryClient, studentId: number, value: string): Promise<string> {
+  let writes = memoWrites.get(client);
+  if (!writes) {
+    writes = new Map();
+    memoWrites.set(client, writes);
+  }
+  const previous = writes.get(studentId);
+  const ready = previous ? previous.catch(() => undefined) : Promise.resolve();
+  const next = ready.then(() => createMemo(studentId, value));
+  writes.set(studentId, next);
+  const settled = () => {
+    if (writes.get(studentId) === next) writes.delete(studentId);
+  };
+  void next.then(settled, settled);
+  return next;
+}
 
 /** Keep the local draft while an earlier save/refetch finishes; serialize writes. */
 export function useStudentMemo(studentId: number, student?: ClientStudent) {
@@ -21,8 +39,9 @@ export function useStudentMemo(studentId: number, student?: ClientStudent) {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const queryKey = adminStudentsQueryKeys.studentDetail(studentId);
   const { mutateAsync } = useMutation({
-    scope: { id: `student-memo-${studentId}` },
-    mutationFn: (value: string) => createMemo(studentId, value),
+    // Keep mutation tracking, but avoid scoped runNext: the production transform
+    // binds Query's private Map as a function. This queue also survives reopening.
+    mutationFn: (value: string) => enqueueMemo(qc, studentId, value),
   });
 
   const change = (value: string) => {
