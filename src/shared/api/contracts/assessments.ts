@@ -1,5 +1,4 @@
-import api from "@/shared/api/axios";
-import { isApiRecord } from "@/shared/api/response";
+import { fetchAssessmentPages } from "./assessmentPages";
 
 export type AssessmentExamListItem = {
   id: number;
@@ -20,13 +19,6 @@ export type AssessmentHomeworkListItem = {
 
 export type AssessmentHomeworkCutlineMode = "PERCENT" | "COUNT";
 
-function unwrapList(data: unknown): unknown[] {
-  if (Array.isArray(data)) return data;
-  if (isApiRecord(data) && Array.isArray(data.results)) return data.results;
-  if (isApiRecord(data) && Array.isArray(data.items)) return data.items;
-  return [];
-}
-
 function asRecord(value: unknown): Record<string, unknown> {
   return value != null && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -43,8 +35,8 @@ export async function fetchAssessmentExams(params?: {
   session_id?: number;
   lecture_id?: number;
 }): Promise<AssessmentExamListItem[]> {
-  const res = await api.get("/exams/", { params });
-  return unwrapList(res.data).map((item) => {
+  const rows = await fetchAssessmentPages("/exams/", params);
+  return rows.map((item) => {
     const record = asRecord(item);
     return {
       id: Number(record.id),
@@ -58,8 +50,8 @@ export async function fetchAssessmentExams(params?: {
 export async function fetchAssessmentHomeworks(params?: {
   session_id?: number;
 }): Promise<AssessmentHomeworkListItem[]> {
-  const res = await api.get("/homeworks/", { params });
-  return unwrapList(res.data).map((item) => {
+  const rows = await fetchAssessmentPages("/homeworks/", params);
+  return rows.map((item) => {
     const record = asRecord(item);
     const sid = record.session_id ?? record.session ?? record.sessionId;
     return {

@@ -12,7 +12,7 @@ type AssessmentListItem = {
   due_date?: string;
 };
 
-/** Read the complete filtered list before displaying it or offering an assessment. */
+/** Read a complete, session-bound list before displaying or copying an assessment. */
 export async function fetchAssessmentPages(path: "/exams/" | "/homeworks/", params: Record<string, unknown> = {}) {
   const session = readAuthTokenEnvelopeSafely();
   const tenant = getTenantCodeForApiRequest();
