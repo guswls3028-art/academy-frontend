@@ -28,6 +28,7 @@ import {
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
+import { verifyConsultInbox } from "../helpers/verifyConsultInbox";
 
 test.setTimeout(480_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -372,6 +373,7 @@ test.describe.serial("[real-use] 학생/학부모 계정과 복구", () => {
     await logoutStudentApp(page);
     await verifySignupAndApproval(page, request);
     await verifyOwnerOrganizationSettings(page, request, student);
+    await verifyConsultInbox(page, request, admin);
     boundary.assertClean();
     browser.assertZeroDefects();
   });

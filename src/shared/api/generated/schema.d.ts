@@ -15834,6 +15834,10 @@ export interface components {
             tenant?: number;
             title?: string;
         };
+        PatchedConsultInboxPatchRequest: {
+            admin_memo?: string | null;
+            mark_read?: boolean;
+        };
         PatchedEnrollmentRequest: {
             lecture?: number;
             status?: components["schemas"]["Status2d4Enum"];
@@ -22726,7 +22730,16 @@ export interface operations {
     };
     core_landing_admin_consult_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description * `all` - all
+                 *     * `unread` - unread
+                 */
+                filter?: "all" | "unread";
+                page?: number;
+                page_size?: number;
+                summary_only?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -22751,7 +22764,13 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedConsultInboxPatchRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedConsultInboxPatchRequest"];
+                "multipart/form-data": components["schemas"]["PatchedConsultInboxPatchRequest"];
+            };
+        };
         responses: {
             /** @description No response body */
             200: {

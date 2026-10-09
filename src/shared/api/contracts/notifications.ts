@@ -170,7 +170,7 @@ async function fetchReportsPending(): Promise<number | null> {
 
 async function fetchConsultUnread(): Promise<number | null> {
   try {
-    const res = await api.get<{ summary?: { unread?: number } }>("/core/landing/admin/consult/");
+    const res = await api.get<{ summary?: { unread?: number } }>("/core/landing/admin/consult/", { params: { summary_only: true } });
     return res.data?.summary?.unread ?? 0;
   } catch (e) {
     const status = (e as { response?: { status?: number } })?.response?.status;
