@@ -8796,7 +8796,8 @@ export interface paths {
          *
          *     Response:
          *     {
-         *       "video_failed": int
+         *       "video_failed": int, "qna_pending": int,
+         *       "counsel_pending": int, "submission_pending": int
          *     }
          */
         get: operations["results_admin_teacher_dashboard_counts_retrieve"];
@@ -19285,6 +19286,12 @@ export interface components {
             readonly tenant: number;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        TeacherDashboardCounts: {
+            counsel_pending: number;
+            qna_pending: number;
+            submission_pending: number;
+            video_failed: number;
         };
         TeacherOpsAnalyzeRequest: {
             images: string[];
@@ -33471,12 +33478,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TeacherDashboardCounts"];
+                };
             };
         };
     };

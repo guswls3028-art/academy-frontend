@@ -66,12 +66,6 @@ type ListEnvelope<T> = {
   items?: T[];
 };
 
-type CommunityPostRow = {
-  replies_count?: number | null;
-  author_role?: string | null;
-  category_label?: string | null;
-};
-
 export function createEmptyOperationalNotificationCounts(): OperationalNotificationCounts {
   return {
     qnaPending: 0,
@@ -105,32 +99,17 @@ function countFromListEnvelope(data: unknown): number {
   return unwrapList<unknown>(data).length;
 }
 
-async function fetchAdminPosts(params: {
-  postType?: "qna" | "counsel" | null;
-  pageSize?: number;
-}): Promise<{ results: CommunityPostRow[]; count: number }> {
-  const res = await api.get("/community/admin/posts/", {
-    params: {
-      post_type: params.postType ?? undefined,
-      page: 1,
-      page_size: params.pageSize ?? 20,
-    },
-  });
-  const results = unwrapList<CommunityPostRow>(res.data);
-  return { results, count: countFromListEnvelope(res.data) };
-}
-
-async function countPendingPosts(postType: "qna" | "counsel"): Promise<number | null> {
+async function fetchDashboardWorkCounts() {
+  const empty = { qna: null, counsel: null, submissions: null, video: null };
   try {
-    const { results } = await fetchAdminPosts({ postType, pageSize: 100 });
-    return results.filter((p) => {
-      if (postType === "counsel" && (p.author_role === "staff" || p.category_label === "teacher_internal_memo")) {
-        return false;
-      }
-      return (p.replies_count ?? 0) === 0;
-    }).length;
+    const { data } = await api.get<Record<string, unknown>>("/results/admin/teacher-dashboard-counts/");
+    const read = (key: string): number | null => {
+      const value = data?.[key];
+      return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
+    };
+    return { qna: read("qna_pending"), counsel: read("counsel_pending"), submissions: read("submission_pending"), video: read("video_failed") };
   } catch {
-    return null;
+    return empty;
   }
 }
 
@@ -164,24 +143,6 @@ async function fetchRegistrationRequestsPendingCount(): Promise<RegistrationRequ
       return { count: 0, selfRegistrationDisabled: true };
     }
     return { count: null, selfRegistrationDisabled: false };
-  }
-}
-
-async function fetchRecentSubmissionsCount(): Promise<number | null> {
-  try {
-    const res = await api.get("/submissions/submissions/pending/", { params: { filter: "pending" } });
-    return unwrapList<unknown>(res.data).length;
-  } catch {
-    return null;
-  }
-}
-
-async function fetchDashboardVideoFailedCount(): Promise<number | null> {
-  try {
-    const res = await api.get<{ video_failed?: number }>("/results/admin/teacher-dashboard-counts/");
-    return Number(res.data?.video_failed ?? 0);
-  } catch {
-    return null;
   }
 }
 
@@ -226,29 +187,25 @@ export async function fetchOperationalNotificationCounts(
   const includeRegistrationRequests = options.includeRegistrationRequests ?? true;
   const [
     clinicPendingRes,
-    qnaCount,
-    counselCount,
+    workCounts,
     registrationRequestsRes,
-    recentSubmissionsRes,
-    videoFailedRes,
     consultRes,
     reportsRes,
     communityRes,
     arrivalRes,
   ] = await Promise.all([
     fetchClinicPendingCount(),
-    countPendingPosts("qna"),
-    countPendingPosts("counsel"),
+    fetchDashboardWorkCounts(),
     includeRegistrationRequests
       ? fetchRegistrationRequestsPendingCount()
       : Promise.resolve({ count: 0, selfRegistrationDisabled: true }),
-    fetchRecentSubmissionsCount(),
-    fetchDashboardVideoFailedCount(),
     includeConsult ? fetchConsultUnread() : Promise.resolve(0),
     fetchReportsPending(),
     fetchCommunityUnread(),
     loadArrivalOverview().catch(() => null),
   ]);
+
+  const { qna: qnaCount, counsel: counselCount, submissions: recentSubmissionsRes, video: videoFailedRes } = workCounts;
 
   const failures: OperationalNotificationSource[] = [];
   if (qnaCount === null) failures.push("qna");

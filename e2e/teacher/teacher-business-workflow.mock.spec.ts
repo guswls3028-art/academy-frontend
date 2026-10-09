@@ -215,7 +215,7 @@ async function installApi(
         items: [],
       });
     }
-    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0 });
+    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 });
     if (path === "/community/notifications/unread-count/") return json({ count: 0 });
     if (path === "/community/admin/reports/pending-count/") return json({ count: 0 });
     return json({ count: 0, results: [] });

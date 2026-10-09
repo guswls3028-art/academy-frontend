@@ -214,7 +214,7 @@ async function installScenario(page: Page, options: { scenario?: Scenario; failS
       leaseClient = null;
       return json({ ok: true });
     }
-    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0 });
+    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 });
     if (path === "/community/notifications/unread-count/" || path === "/community/admin/reports/pending-count/") return json({ count: 0 });
     return list([]);
   });
