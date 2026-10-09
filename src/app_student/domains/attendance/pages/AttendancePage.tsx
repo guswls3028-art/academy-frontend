@@ -26,20 +26,22 @@ type AttendanceSummary = {
     session_title: string;
     date: string | null;
     status: string;
+    can_view_session?: boolean;
   }>;
 };
 
 const STATUS_LABEL: Record<string, string> = {
+  UNSET: "미입력",
   PRESENT: "출석",
   ONLINE: "온라인",
   SUPPLEMENT: "보강",
   LATE: "지각",
   EARLY_LEAVE: "조퇴",
   ABSENT: "결석",
-  RUNAWAY: "출튀",
+  RUNAWAY: "이탈",
   MATERIAL: "자료",
   INACTIVE: "부재",
-  SECESSION: "탈퇴",
+  SECESSION: "퇴원",
 };
 
 type AttendanceTone = "success" | "warn" | "danger" | "neutral";
@@ -102,7 +104,7 @@ export default function AttendancePage() {
   const hasAny = summary.total > 0;
 
   return (
-    <StudentPageShell title="출결 현황" description="누적 출결과 최근 차시 상태입니다." descriptionMode="help">
+    <StudentPageShell title="출결 현황" description="누적 출결과 최근 차시 상태입니다. 출석은 현장·온라인·보강을 합산하며, 전체에는 미입력·자료·부재·퇴원 기록도 포함됩니다." descriptionMode="help">
       {!hasAny ? (
         <EmptyState
           title="출결 기록이 없습니다"
@@ -114,8 +116,8 @@ export default function AttendancePage() {
           <section className={`stu-panel ${styles.kpiGrid}`}>
             <KpiCell label="전체" value={summary.total} />
             <KpiCell label="출석" value={summary.present} tone="success" />
-            <KpiCell label="지각" value={summary.late + summary.early_leave} tone="warn" />
-            <KpiCell label="결석" value={summary.absent + summary.runaway} tone="danger" />
+            <KpiCell label="지각·조퇴" value={summary.late + summary.early_leave} tone="warn" />
+            <KpiCell label="결석·이탈" value={summary.absent + summary.runaway} tone="danger" />
           </section>
 
           {/* 최근 출결 */}
@@ -124,18 +126,15 @@ export default function AttendancePage() {
               최근 출결 ({recent.length})
             </h3>
             <div className={styles.recentList}>
-              {recent.map((row) => (
-                <Link
-                  key={row.session_id}
-                  to={`/student/sessions/${row.session_id}`}
-                  className={`stu-panel stu-panel--pressable ${styles.recentLink}`}
-                >
+              {recent.map((row) => {
+                const content = <>
                   <div className={styles.recentContent}>
                     <div className={styles.recentTitle}>
                       {row.lecture_title || row.session_title || "차시"}
                     </div>
                     <div className={`stu-muted ${styles.recentMeta}`}>
                       {row.session_title} · {row.date ? formatYmd(row.date) : "-"}
+                      {row.can_view_session !== true && <span className={styles.historyHint}>출결 이력</span>}
                     </div>
                   </div>
                   <span
@@ -144,8 +143,18 @@ export default function AttendancePage() {
                   >
                     {STATUS_LABEL[row.status] || row.status}
                   </span>
-                </Link>
-              ))}
+                </>;
+                return row.can_view_session === true ? (
+                  <Link key={row.session_id} to={`/student/sessions/${row.session_id}`}
+                    className={`stu-panel stu-panel--pressable ${styles.recentLink}`}>
+                    {content}
+                  </Link>
+                ) : (
+                  <div key={row.session_id} className={`stu-panel ${styles.recentLink}`}>
+                    {content}
+                  </div>
+                );
+              })}
             </div>
           </section>
         </div>
