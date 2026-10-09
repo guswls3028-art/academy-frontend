@@ -37,8 +37,7 @@ export default function HitReportListPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isAcademyAdmin = !!(
-    user?.is_superuser
-    || user?.tenantRole === "owner"
+    user?.tenantRole === "owner"
     || user?.tenantRole === "admin"
   );
 
