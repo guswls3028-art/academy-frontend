@@ -1,10 +1,57 @@
 import type { Page, Route } from "@playwright/test";
+import ExcelJS from "exceljs";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+
+for (const width of [1366, 390]) {
+  test(`학생 엑셀은 잘못된 연락처를 알리고 파일 교체 실패에서 복구한다 (${width}px)`, async ({ page }, testInfo) => {
+    await installTenantOneInitScript(page);
+    await page.addInitScript((jwt) => {
+      localStorage.setItem("access", jwt);
+      localStorage.setItem("refresh", `${jwt}-refresh`);
+    }, localJwt());
+    await installApi(page);
+    await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 45_000 });
+    await page.setViewportSize({ width, height: 900 });
+    await page.getByRole("button", { name: "학생 추가", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "엑셀 업로드", exact: true }).click();
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("학생목록");
+    sheet.addRows([
+      [],
+      ["이름", "학부모전화번호", "학생전화번호", "학교유형", "학년"],
+      ["숫자연락처학생", 1077778888, 1099990000, "MIDDLE", 2],
+      ["번호없는학생", "01077778888", "", "MIDDLE", 2],
+      ["번호오타학생", "01077778888", "0101234567", "MIDDLE", 2],
+      ["보호자누락학생", "", "01011113333", "MIDDLE", 2],
+      ["보호자와같은번호학생", "01077778888", "01077778888", "MIDDLE", 2],
+    ]);
+    const file = { name: "student-import.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(await workbook.xlsx.writeBuffer()) };
+    await dialog.locator('input[type="file"]').setInputFiles(file);
+    await expect(dialog.getByText("입력 확인 필요 2명", { exact: true })).toBeVisible();
+    await expect(dialog.getByText(/5행 · 번호오타학생/)).toBeVisible();
+    await expect(dialog.getByText(/6행 · 보호자누락학생/)).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "3명 등록 요청", exact: true })).toBeEnabled();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await dialog.getByText("입력 확인 필요 2명", { exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`student-import-${width}.png`), fullPage: true });
+    await dialog.getByRole("button", { name: "3명 등록 요청", exact: true }).click();
+    const confirmation = page.getByRole("alertdialog", { name: "학생 일괄 등록 최종 확인" });
+    await expect(confirmation.getByText("2명 · 해당 행은 등록되지 않습니다", { exact: true })).toBeVisible();
+    await expect(confirmation.getByRole("group", { name: "학생 초기 비밀번호" }).getByLabel("전화번호 뒤 4자리", { exact: true })).toBeDisabled();
+    await confirmation.getByRole("button", { name: "다시 확인", exact: true }).click();
+    await dialog.locator('input[type="file"]').setInputFiles({ ...file, name: "broken.xlsx", buffer: Buffer.from("not-an-xlsx") });
+    await expect(dialog.getByRole("button", { name: "3명 등록 요청", exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole("region", { name: "엑셀 파일 확인 결과" })).toHaveCount(0);
+    await dialog.locator('input[type="file"]').setInputFiles(file);
+    await expect(dialog.getByRole("button", { name: "3명 등록 요청", exact: true })).toBeEnabled();
+  });
+}
 
 test.use({ serviceWorkers: "block" });
 
