@@ -3,7 +3,7 @@
 import api, { isApiErrorStatus } from "@/shared/api/axios";
 import { expectedUpdatedAtHeaders } from "@/shared/api/optimisticConcurrency";
 import { listFromApiResponse } from "@/shared/api/response";
-import { fetchAssessmentPages } from "./fetchAssessmentPages";
+import { fetchAssessmentPages } from "@/shared/api/contracts/assessmentPages";
 
 /** 선생님이 담당하는 운영 시험 목록 (최근순) */
 export async function fetchExams(params?: { session_id?: number; lecture_id?: number; exam_type?: "regular" | "template" }) {

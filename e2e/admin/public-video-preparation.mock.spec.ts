@@ -93,7 +93,7 @@ async function installApp(page: Page, role: "admin" | "teacher") {
       "/community/admin/posts/": { count: 0, results: [] },
       "/students/registration_requests/": { count: 0, results: [] },
       "/submissions/submissions/pending/": { count: 0, results: [] },
-      "/results/admin/teacher-dashboard-counts/": {},
+      "/results/admin/teacher-dashboard-counts/": { video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 },
       "/community/admin/reports/pending-count/": { count: 0 },
       "/community/notifications/unread-count/": { count: 0 },
       "/lectures/attendance/arrival-overview/": { students: [], sessions: [], summary: {} },

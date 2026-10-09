@@ -68,6 +68,9 @@ export default function SessionItemBrowser({
   const [lecturesError, setLecturesError] = useState(false);
   const [sessionsError, setSessionsError] = useState(false);
   const [itemsError, setItemsError] = useState(false);
+  const [lecturesRetry, setLecturesRetry] = useState(0);
+  const [sessionsRetry, setSessionsRetry] = useState(0);
+  const [itemsRetry, setItemsRetry] = useState(0);
   const [keyword, setKeyword] = useState("");
 
   // Load lectures
@@ -86,21 +89,23 @@ export default function SessionItemBrowser({
         if (!cancelled) setLecturesLoading(false);
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [lecturesRetry]);
 
   // Load sessions when lecture selected
   useEffect(() => {
+    setSelectedSessionId(null);
+    setSessions([]);
+    setExams([]);
+    setHomeworks([]);
+    setSelectedIds(new Set());
+    setKeyword("");
+    setSessionsError(false);
     if (!selectedLectureId) {
-      setSessions([]);
+      setSessionsLoading(false);
       return;
     }
     let cancelled = false;
     setSessionsLoading(true);
-    setSelectedSessionId(null);
-    setExams([]);
-    setHomeworks([]);
-    setSelectedIds(new Set());
-    setSessionsError(false);
     fetchSessions(selectedLectureId)
       .then((items) => {
         if (!cancelled) {
@@ -114,21 +119,21 @@ export default function SessionItemBrowser({
         if (!cancelled) setSessionsLoading(false);
       });
     return () => { cancelled = true; };
-  }, [selectedLectureId, excludeSessionId]);
+  }, [selectedLectureId, excludeSessionId, sessionsRetry]);
 
   // Load items when session selected
   useEffect(() => {
+    setExams([]);
+    setHomeworks([]);
+    setSelectedIds(new Set());
+    setKeyword("");
+    setItemsError(false);
     if (!selectedSessionId) {
-      setExams([]);
-      setHomeworks([]);
-      setSelectedIds(new Set());
+      setItemsLoading(false);
       return;
     }
     let cancelled = false;
     setItemsLoading(true);
-    setSelectedIds(new Set());
-
-    setItemsError(false);
     if (mode === "exam") {
       fetchAssessmentExams({ session_id: selectedSessionId, exam_type: "regular" })
         .then((items) => {
@@ -153,7 +158,7 @@ export default function SessionItemBrowser({
         });
     }
     return () => { cancelled = true; };
-  }, [selectedSessionId, mode]);
+  }, [selectedSessionId, mode, itemsRetry]);
 
   const toggleItem = useCallback((id: number) => {
     setSelectedIds((prev) => {
@@ -164,17 +169,25 @@ export default function SessionItemBrowser({
     });
   }, []);
 
-  const selectAll = useCallback(() => {
-    const all = mode === "exam" ? exams.map((e) => e.id) : homeworks.map((h) => h.id);
-    setSelectedIds(new Set(all));
-  }, [mode, exams, homeworks]);
-
   const items = mode === "exam" ? exams : homeworks;
   const filteredItems = useMemo(() => {
     const k = keyword.trim().toLowerCase();
     if (!k) return items;
     return items.filter((item) => (item.title ?? "").toLowerCase().includes(k));
   }, [items, keyword]);
+
+  const allFilteredSelected = filteredItems.length > 0 && filteredItems.every((item) => selectedIds.has(item.id));
+  const toggleFilteredSelection = useCallback(() => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      const remove = filteredItems.every((item) => previous.has(item.id));
+      for (const item of filteredItems) {
+        if (remove) next.delete(item.id);
+        else next.add(item.id);
+      }
+      return next;
+    });
+  }, [filteredItems]);
 
   // Notify parent on selection change
   const handleConfirm = useCallback(() => {
@@ -222,11 +235,15 @@ export default function SessionItemBrowser({
         {lecturesLoading ? (
           <div className="text-sm text-[var(--color-text-muted)]">불러오는 중…</div>
         ) : lecturesError ? (
-          <div className="text-sm text-[var(--color-danger)]">강의 목록을 불러오지 못했습니다.</div>
+          <div className="text-sm text-[var(--color-danger)]">
+            강의 목록을 불러오지 못했습니다.
+            <button type="button" className="ml-2 underline" onClick={() => setLecturesRetry((value) => value + 1)}>강의 다시 불러오기</button>
+          </div>
         ) : lectures.length === 0 ? (
           <div className="text-sm text-[var(--color-text-muted)]">등록된 강의가 없습니다.</div>
         ) : (
           <select
+            aria-label="강의 선택"
             className="ds-input w-full"
             value={selectedLectureId ?? ""}
             onChange={(e) => setSelectedLectureId(e.target.value ? Number(e.target.value) : null)}
@@ -248,13 +265,17 @@ export default function SessionItemBrowser({
           {sessionsLoading ? (
             <div className="text-sm text-[var(--color-text-muted)]">불러오는 중…</div>
           ) : sessionsError ? (
-            <div className="text-sm text-[var(--color-danger)]">차시 목록을 불러오지 못했습니다.</div>
+            <div className="text-sm text-[var(--color-danger)]">
+              차시 목록을 불러오지 못했습니다.
+              <button type="button" className="ml-2 underline" onClick={() => setSessionsRetry((value) => value + 1)}>차시 다시 불러오기</button>
+            </div>
           ) : sessions.length === 0 ? (
             <div className="text-sm text-[var(--color-text-muted)]">
               {selectedLecture ? `"${selectedLecture.title}"에 다른 차시가 없습니다.` : "차시가 없습니다."}
             </div>
           ) : (
             <select
+              aria-label="차시 선택"
               className="ds-input w-full"
               value={selectedSessionId ?? ""}
               onChange={(e) => setSelectedSessionId(e.target.value ? Number(e.target.value) : null)}
@@ -285,10 +306,12 @@ export default function SessionItemBrowser({
             {filteredItems.length > 0 && (
               <button
                 type="button"
-                onClick={selectedIds.size === filteredItems.length ? () => setSelectedIds(new Set()) : selectAll}
+                onClick={toggleFilteredSelection}
                 className="text-xs text-[var(--color-brand-primary)] hover:underline"
               >
-                {selectedIds.size === filteredItems.length ? "전체 해제" : "전체 선택"}
+                {keyword.trim()
+                  ? allFilteredSelected ? "검색 결과 해제" : "검색 결과 선택"
+                  : allFilteredSelected ? "전체 해제" : "전체 선택"}
               </button>
             )}
           </div>
@@ -309,6 +332,7 @@ export default function SessionItemBrowser({
           ) : itemsError ? (
             <div className="rounded border border-[var(--color-danger)] p-4 text-center text-sm text-[var(--color-danger)]">
               {mode === "exam" ? "시험" : "과제"} 목록을 불러오지 못했습니다.
+              <button type="button" className="ml-2 underline" onClick={() => setItemsRetry((value) => value + 1)}>목록 다시 불러오기</button>
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="rounded border border-[var(--color-border-divider)] p-4 text-center text-sm text-[var(--color-text-muted)]">
@@ -380,7 +404,7 @@ export default function SessionItemBrowser({
       <div className="rounded border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-brand-primary)_4%,var(--color-bg-surface))] p-3">
         <div className="text-xs text-[var(--color-text-muted)]">
           선택한 {mode === "exam" ? "시험" : "과제"}을 현재 차시에 <strong>복사</strong>하여 새로 생성합니다.
-          원본과 완전히 독립된 항목이 됩니다. 대상자는 자동 등록됩니다.
+          원본과 완전히 독립된 항목이 됩니다. 현재 차시의 등록 가능한 수강생을 대상자로 자동 등록합니다.
         </div>
       </div>
     </div>

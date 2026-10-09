@@ -11,7 +11,7 @@ const adminReadFixtures: Record<string, unknown> = {
   "/api/v1/community/admin/posts/": { count: 0, next: null, previous: null, results: [] },
   "/api/v1/students/registration_requests/": { count: 0, next: null, previous: null, results: [] },
   "/api/v1/submissions/submissions/pending/": [],
-  "/api/v1/results/admin/teacher-dashboard-counts/": { video_failed: 0 },
+  "/api/v1/results/admin/teacher-dashboard-counts/": { video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 },
   "/api/v1/community/admin/reports/pending-count/": { count: 0 },
   "/api/v1/community/notifications/unread-count/": { count: 0 },
   "/api/v1/lectures/attendance/arrival-overview/": {

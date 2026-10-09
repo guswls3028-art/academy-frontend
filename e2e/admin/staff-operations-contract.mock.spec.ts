@@ -302,7 +302,7 @@ async function mockStaffApi(
       return json({ count: 0, next: null, previous: null, results: [] });
     }
     if (path === "/results/admin/teacher-dashboard-counts/" && request.method() === "GET") {
-      return json({ video_failed: 0 });
+      return json({ video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 });
     }
     if (
       (path === "/community/admin/reports/pending-count/" ||
