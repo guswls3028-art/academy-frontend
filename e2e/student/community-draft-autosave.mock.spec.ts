@@ -739,8 +739,12 @@ test.describe("학생 커뮤니티 durable draft", () => {
   });
 
   for (const width of [1366, 390]) {
-    test(`${width}px: 학부모는 선택 자녀로 질문·상담을 작성하고 자녀별 초안과 reload 결과를 격리한다`, async ({ page }) => {
+    test(`${width}px: 학부모는 선택 자녀로 질문·상담을 작성하고 자녀별 초안과 reload 결과를 격리한다`, async ({ page, browserName }) => {
       await page.setViewportSize({ width, height: 844 });
+      if (browserName === "chromium") {
+        const session = await page.context().newCDPSession(page);
+        await session.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+      }
       const harness = await installStudentApi(page, { parent: true });
       await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
@@ -770,8 +774,9 @@ test.describe("학생 커뮤니티 durable draft", () => {
       await expect(page.getByText("하늘이 질문", { exact: true })).toHaveCount(0);
       await page.getByRole("button", { name: "질문하기", exact: true }).click();
       await expect(page.getByPlaceholder("질문 제목")).toHaveValue("");
+      await page.getByPlaceholder("질문 제목").fill("바다 질문 초안");
       await page.screenshot({ path: `test-results/community-parent-form-${width}.png`, fullPage: true });
-      await expect(page.getByPlaceholder("질문 제목")).toHaveValue("");
+      await expect(page.getByPlaceholder("질문 제목")).toHaveValue("바다 질문 초안");
       await page.getByRole("button", { name: "뒤로", exact: true }).click();
       await expect(page.getByRole("heading", { name: "작성한 질문이 없습니다" })).toBeVisible();
       await page.getByRole("button", { name: "상담", exact: true }).click();

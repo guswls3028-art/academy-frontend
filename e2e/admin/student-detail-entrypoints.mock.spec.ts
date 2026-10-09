@@ -758,6 +758,123 @@ test("메모 저장 이전에 시작한 상세 재조회가 저장 결과를 되
   await expect(input).toHaveValue("저장 완료한 메모");
 });
 
+test("빈 메모의 null 응답은 저장으로 확인하고 누락 응답은 재시도한다", async ({ page }) => {
+  await prepareDetail(page);
+  let serverMemo: string | null = "지울 메모";
+  let omitResult = false;
+  await page.route("**/api/v1/students/1001/", async (route) => {
+    if (route.request().method() === "PATCH") {
+      serverMemo = (route.request().postDataJSON() as { memo: string }).memo.trim() || null;
+      return route.fulfill({ json: omitResult ? { id: 1001 } : { id: 1001, memo: serverMemo } });
+    }
+    return route.fulfill({ json: { id: 1001, name: "메모학생", memo: serverMemo, tags: [], enrollments: [] } });
+  });
+  await gotoAndSettle(page, BASE + "/workspace/students/1001");
+  const detail = page.getByTestId("student-detail-overlay");
+  const input = detail.getByRole("textbox", { name: "학생 공통 메모" });
+  await input.fill("");
+  await detail.getByRole("tab", { name: /^수강/ }).click();
+  await expect(detail.getByText("저장됨", { exact: true })).toBeVisible();
+  expect(serverMemo).toBeNull();
+  await page.reload();
+  await expect(input).toHaveValue("");
+  omitResult = true;
+  await input.fill("다시 확인할 메모");
+  await detail.getByRole("tab", { name: /^수강/ }).click();
+  await expect(detail.getByRole("button", { name: "다시 저장", exact: true })).toBeVisible();
+  await expect(input).toHaveValue("다시 확인할 메모");
+  omitResult = false;
+  await detail.getByRole("button", { name: "다시 저장", exact: true }).click();
+  await expect(detail.getByText("저장됨", { exact: true })).toBeVisible();
+});
+
+test("저장 중 뒤로 갔다 다시 연 학생의 새 메모는 앞선 쓰기를 추월하지 않는다", async ({ page }) => {
+  await prepareDetail(page);
+  let serverMemo = "처음 값";
+  let releaseFirst!: () => void;
+  const firstSave = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const patches: string[] = [];
+  await page.route("**/api/v1/students/1002/", async (route) => {
+    if (route.request().method() === "PATCH") {
+      const memo = (route.request().postDataJSON() as { memo: string }).memo;
+      patches.push(memo);
+      if (patches.length === 1) await firstSave;
+      serverMemo = memo;
+      return route.fulfill({ json: { id: 1002, memo: serverMemo } });
+    }
+    return route.fulfill({ json: { id: 1002, name: "클리닉학생", memo: serverMemo, tags: [], enrollments: [] } });
+  });
+  await gotoAndSettle(page, BASE + "/workspace/students/home");
+  const row = page.locator('tr[data-student-detail-trigger="1002"]');
+  await row.click();
+  const detail = page.getByTestId("student-detail-overlay");
+  const input = detail.getByRole("textbox", { name: "학생 공통 메모" });
+  await input.fill("먼저 저장한 값");
+  await detail.getByRole("tab", { name: /^수강/ }).click();
+  await expect.poll(() => patches).toEqual(["먼저 저장한 값"]);
+  await page.goBack();
+  await expect(detail).toHaveCount(0);
+  await row.click();
+  await input.fill("다시 열어 수정한 값");
+  await detail.getByRole("tab", { name: /^수강/ }).click();
+  await expect(detail.getByText("저장 중…", { exact: true })).toBeVisible();
+  expect(patches).toEqual(["먼저 저장한 값"]);
+  releaseFirst();
+  await expect(detail.getByText("저장됨", { exact: true })).toBeVisible();
+  expect(patches).toEqual(["먼저 저장한 값", "다시 열어 수정한 값"]);
+  expect(serverMemo).toBe("다시 열어 수정한 값");
+  await page.reload();
+  await expect(input).toHaveValue("다시 열어 수정한 값");
+});
+
+test("인증 세션이 바뀌면 대기하던 메모를 자동 전송하지 않고 명시적으로 다시 저장한다", async ({ page }) => {
+  await prepareDetail(page);
+  let serverMemo = "처음 값";
+  let releaseFirst!: () => void;
+  const firstSave = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  const patches: string[] = [];
+  await page.route("**/api/v1/students/1002/", async (route) => {
+    if (route.request().method() === "PATCH") {
+      const value = (route.request().postDataJSON() as { memo: string }).memo;
+      patches.push(value);
+      if (patches.length === 1) await firstSave;
+      serverMemo = value;
+      return route.fulfill({ json: { id: 1002, memo: serverMemo } });
+    }
+    return route.fulfill({ json: { id: 1002, name: "클리닉학생", memo: serverMemo, tags: [], enrollments: [] } });
+  });
+  await gotoAndSettle(page, BASE + "/workspace/students/home");
+  const row = page.locator('tr[data-student-detail-trigger="1002"]');
+  await row.click();
+  const detail = page.getByTestId("student-detail-overlay");
+  const input = detail.getByRole("textbox", { name: "학생 공통 메모" });
+  await input.fill("진행 중 메모");
+  await detail.getByRole("tab", { name: /^수강/ }).click();
+  await expect.poll(() => patches).toEqual(["진행 중 메모"]);
+  await page.goBack();
+  await expect(detail).toHaveCount(0);
+  await row.click();
+  await input.fill("이전 세션에서 대기한 메모");
+  await detail.getByRole("tab", { name: /^수강/ }).click();
+  await expect(detail.getByText("저장 중…", { exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    const key = "academy:auth-active-generation:v1";
+    const generation = localStorage.getItem(key);
+    const envelope = JSON.parse(localStorage.getItem(`academy:auth-tokens:v1:${generation}`) ?? "null");
+    if (!envelope) throw new Error("Active authentication envelope missing");
+    const nextGeneration = "student-memo-new-session";
+    localStorage.setItem(`academy:auth-tokens:v1:${nextGeneration}`, JSON.stringify({ ...envelope, generation: nextGeneration }));
+    localStorage.setItem(key, nextGeneration);
+  });
+  releaseFirst();
+  await expect(detail.getByRole("button", { name: "다시 저장", exact: true })).toBeVisible();
+  expect(patches).toEqual(["진행 중 메모"]);
+  await expect(input).toHaveValue("이전 세션에서 대기한 메모");
+  await detail.getByRole("button", { name: "다시 저장", exact: true }).click();
+  await expect(detail.getByText("저장됨", { exact: true })).toBeVisible();
+  expect(patches).toEqual(["진행 중 메모", "이전 세션에서 대기한 메모"]);
+});
+
 test("학생 메모 저장 실패는 입력과 상세를 유지하고 재시도로 복구한다", async ({ page }) => {
   await prepareDetail(page);
   let failSave = true;
