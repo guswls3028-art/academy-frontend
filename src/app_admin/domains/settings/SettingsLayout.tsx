@@ -35,7 +35,6 @@ export default function SettingsLayout() {
         {NAV.filter(
           (item) =>
             !item.roles ||
-            user?.is_superuser ||
             (role && item.roles.includes(role)),
         ).map(({ key, label, icon: Icon, path }) => (
           <NavLink

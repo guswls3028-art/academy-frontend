@@ -9,7 +9,6 @@ import {
   fetchTenantInfo,
   updateTenantInfo,
   type AcademyEntry,
-  fetchMe,
 } from "@admin/domains/profile/api/profile.api";
 import { fetchLegalConfig, updateLegalConfig, type LegalConfig } from "@admin/domains/legal/api/legal.api";
 import { accountQueryKeys } from "@/shared/api/queryKeys/account";
@@ -18,6 +17,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useProgram } from "@/shared/program";
 import StudentGradeReportLayoutEditor from "@/shared/ui/assessment/StudentGradeReportLayoutEditor";
 import AccountPasswordSettings from "@/shared/product/students/AccountPasswordSettings";
+import useAuth from "@/auth/hooks/useAuth";
 
 import s from "../components/SettingsSection.module.css";
 import { adminSettingsQueryKeys } from "../queryKeys";
@@ -89,18 +89,13 @@ function AcademyRow({
   saving,
 }: {
   entry: AcademyEntry;
-  onSave: (name: string, phone: string) => Promise<void>;
+  onSave: (name: string, phone: string) => void;
   onRemove: () => void;
   onCancel: () => void;
   saving: boolean;
 }) {
   const [name, setName] = useState(entry.name);
   const [phone, setPhone] = useState(entry.phone);
-
-  useEffect(() => {
-    setName(entry.name);
-    setPhone(entry.phone);
-  }, [entry.name, entry.phone]);
 
   return (
     <div className={s.rowEdit}>
@@ -171,9 +166,9 @@ export default function OrganizationSettingsPage() {
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
 
-  const meQ = useQuery({ queryKey: accountQueryKeys.me, queryFn: fetchMe });
-  const isOwner = meQ.data?.tenantRole === "owner" || meQ.data?.is_superuser;
-  const canManageStudentReport = isOwner || meQ.data?.tenantRole === "admin";
+  const { user } = useAuth();
+  const isOwner = user?.tenantRole === "owner";
+  const canManageStudentReport = isOwner || user?.tenantRole === "admin";
 
   const tenantQ = useQuery({
     queryKey: accountQueryKeys.tenantInfo,
@@ -201,22 +196,25 @@ export default function OrganizationSettingsPage() {
       ? [{ name: tenantQ.data.name || "", phone: tenantQ.data.headquarters_phone || "" }]
       : [];
 
-  const handleSaveEdit = async (index: number, name: string, phone: string) => {
+  const handleSaveEdit = (index: number, name: string, phone: string) => {
+    if (updateMut.isPending || !tenantQ.data) return;
     const next = [...list];
     next[index] = { name, phone };
-    await updateMut.mutateAsync({ academies: next });
+    updateMut.mutate({ academies: next });
   };
 
-  const handleRemove = async (index: number) => {
+  const handleRemove = (index: number) => {
+    if (updateMut.isPending || !tenantQ.data) return;
     const next = list.filter((_, i) => i !== index);
     if (next.length === 0) {
       feedback.error("최소 1개 학원은 등록되어 있어야 합니다.");
       return;
     }
-    await updateMut.mutateAsync({ academies: next });
+    updateMut.mutate({ academies: next });
   };
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
+    if (updateMut.isPending || !tenantQ.data) return;
     const name = newName.trim();
     const phone = newPhone.trim();
     if (!name) {
@@ -224,16 +222,8 @@ export default function OrganizationSettingsPage() {
       return;
     }
     const next = [...list, { name, phone }];
-    await updateMut.mutateAsync({ academies: next });
+    updateMut.mutate({ academies: next });
   };
-
-  if (meQ.isLoading) {
-    return (
-      <div className={s.page}>
-        <div className={s.loadingBox}>불러오는 중…</div>
-      </div>
-    );
-  }
 
   if (!isOwner) {
     return (
@@ -255,6 +245,25 @@ export default function OrganizationSettingsPage() {
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (!tenantQ.data) {
+    return (
+      <div className={s.page}>
+        <AcademyModeSection />
+        <AccountPasswordSettings />
+        <div className={s.sectionHeader}><h2 className={s.sectionTitle}>학원 정보</h2></div>
+        {tenantQ.isError ? (
+          <div className={s.recoveryBox} role="alert">
+            <p>학원 정보를 불러오지 못했습니다.</p>
+            <p>기존 정보를 확인한 뒤 수정할 수 있습니다.</p>
+            <Button onClick={() => void tenantQ.refetch()} loading={tenantQ.isFetching} disabled={tenantQ.isFetching}>
+              학원 정보 다시 불러오기
+            </Button>
+          </div>
+        ) : <div className={s.loadingBox} role="status">학원 정보를 불러오는 중…</div>}
       </div>
     );
   }
@@ -426,12 +435,12 @@ function OgPreviewSection({
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
-    if (tenantData) {
+    if (tenantData && !editing) {
       setOgTitle(tenantData.og_title || "");
       setOgDescription(tenantData.og_description || "");
       setOgImageUrl(tenantData.og_image_url || "");
     }
-  }, [tenantData]);
+  }, [tenantData, editing]);
 
   const saveMut = useMutation({
     mutationFn: () =>
@@ -622,11 +631,11 @@ function PassFailLabelsSection({
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
-    if (tenantData) {
+    if (tenantData && !editing) {
       setPass(tenantData.pass_label || "");
       setFail(tenantData.fail_label || "");
     }
-  }, [tenantData]);
+  }, [tenantData, editing]);
 
   const saveMut = useMutation({
     mutationFn: () =>
@@ -756,14 +765,14 @@ function LegalInfoSection() {
   });
 
   useEffect(() => {
-    if (legalQ.data) {
+    if (legalQ.data && !editing) {
       const initial: Record<string, string> = {};
       for (const f of LEGAL_FIELDS) {
         initial[f.key] = legalQ.data[f.key] || "";
       }
       setForm(initial);
     }
-  }, [legalQ.data]);
+  }, [legalQ.data, editing]);
 
   const saveMut = useMutation({
     mutationFn: (payload: Partial<EditableLegalConfig>) => updateLegalConfig(payload),
@@ -811,6 +820,13 @@ function LegalInfoSection() {
       <section className={s.section}>
         {legalQ.isLoading ? (
           <div className={s.loadingBox}>불러오는 중...</div>
+        ) : legalQ.isError && !legalQ.data ? (
+          <div className={s.recoveryBox} role="alert">
+            <p>법적 고지 정보를 불러오지 못했습니다.</p>
+            <Button onClick={() => void legalQ.refetch()} disabled={legalQ.isFetching} loading={legalQ.isFetching}>
+              법적 고지 다시 불러오기
+            </Button>
+          </div>
         ) : editing ? (
           <div className={styles.formStack}>
             {LEGAL_FIELDS.map((f) => (
