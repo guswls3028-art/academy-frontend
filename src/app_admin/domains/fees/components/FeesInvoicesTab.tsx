@@ -45,10 +45,7 @@ export default function FeesInvoicesTab() {
   const [selectedInvoice, setSelectedInvoice] = useState<StudentInvoice | null>(null);
 
   // Generate form
-  const [genDueDate, setGenDueDate] = useState(() => {
-    const d = new Date(year, month, 0); // last day of month
-    return d.toISOString().split("T")[0];
-  });
+  const [genDueDate, setGenDueDate] = useState("");
 
   // Payment form
   const [payAmount, setPayAmount] = useState("");
@@ -73,7 +70,7 @@ export default function FeesInvoicesTab() {
     staleTime: 60_000,
   });
 
-  const { data: invoices, isLoading } = useQuery({
+  const { data: invoices, isLoading, isError, refetch } = useQuery({
     queryKey: adminFeesQueryKeys.invoices(params),
     queryFn: () => fetchInvoices(params),
     staleTime: 5_000,
@@ -167,14 +164,7 @@ export default function FeesInvoicesTab() {
               className={styles.filterChip}
               data-active={statusFilter === chip.value || (!statusFilter && chip.value === "") ? "true" : "false"}
               data-tone={chip.tone}
-              onClick={() => {
-                if (chip.value === "UNPAID") {
-                  // 미납+부분납+연체 모두 보기 — 상태 필터 해제하고 정렬로 처리
-                  setStatusFilter("");
-                } else {
-                  setStatusFilter(chip.value);
-                }
-              }}
+              onClick={() => setStatusFilter(chip.value)}
             >
               {chip.label}
             </button>
@@ -211,6 +201,7 @@ export default function FeesInvoicesTab() {
           onChange={(e) => setStatusFilter(e.target.value)}
         >
           <option value="">전체 상태</option>
+          <option value="UNPAID">미납/부분납·연체</option>
           <option value="PENDING">미납</option>
           <option value="PARTIAL">부분납</option>
           <option value="PAID">완납</option>
@@ -259,7 +250,11 @@ export default function FeesInvoicesTab() {
         </label>
 
         <div className={styles.toolbarAction}>
-          <Button intent="primary" onClick={() => setGenerateOpen(true)}>
+          <Button intent="primary" onClick={() => {
+            const lastDay = new Date(year, month, 0).getDate();
+            setGenDueDate(`${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`);
+            setGenerateOpen(true);
+          }}>
             월 청구서 생성
           </Button>
         </div>
@@ -268,6 +263,8 @@ export default function FeesInvoicesTab() {
       {/* Table */}
       {isLoading ? (
         <div className={styles.loading}>불러오는 중...</div>
+      ) : isError ? (
+        <EmptyState title="청구서를 불러올 수 없습니다" description="전체 내역을 확인한 뒤 다시 표시합니다." actions={<Button intent="secondary" onClick={() => refetch()}>다시 시도</Button>} />
       ) : !invoices?.length ? (
         <EmptyState title="해당 월의 청구서가 없습니다" />
       ) : (
@@ -338,7 +335,7 @@ export default function FeesInvoicesTab() {
               />
             </div>
             <p className={`modal-hint ${styles.modalHint}`}>
-              활성 비목(월납)이 할당된 학생에게 청구서가 생성됩니다. 이미 생성된 학생은 건너뜁니다.
+              활성 비목이 할당된 학생에게 청구서가 생성됩니다. 이미 생성된 학생은 건너뜁니다.
             </p>
           </div>
         </ModalBody>
@@ -349,7 +346,7 @@ export default function FeesInvoicesTab() {
               <Button
                 intent="primary"
                 onClick={() => genMutation.mutate({ billing_year: year, billing_month: month, due_date: genDueDate })}
-                disabled={genMutation.isPending}
+                disabled={genMutation.isPending || !genDueDate}
               >
                 {genMutation.isPending ? "생성 중..." : "생성"}
               </Button>
