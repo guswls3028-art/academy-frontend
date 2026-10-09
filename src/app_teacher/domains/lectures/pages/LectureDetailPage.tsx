@@ -62,7 +62,7 @@ export default function LectureDetailPage() {
   });
 
   // 수강생 카운트가 탭 헤더에 표시되므로 탭 전환 전에도 fetch
-  const { data: enrollments } = useQuery({
+  const { data: enrollments, isError: enrollmentsError, isFetching: enrollmentsFetching, refetch: refetchEnrollments } = useQuery({
     queryKey: teacherLectureQueryKeys.lectureEnrollmentsFor(lid),
     queryFn: () => fetchLectureEnrollments(lid),
     enabled: Number.isFinite(lid),
@@ -161,7 +161,7 @@ export default function LectureDetailPage() {
       >
         {([
           { key: "sessions" as Tab, label: `차시 (${sessions?.length ?? 0})` },
-          { key: "students" as Tab, label: `수강생 (${enrollments?.length ?? "…"})` },
+          { key: "students" as Tab, label: `수강생 (${enrollmentsError ? "확인 필요" : enrollments?.length ?? "…"})` },
         ]).map((t) => (
           <button
             key={t.key}
@@ -266,11 +266,24 @@ export default function LectureDetailPage() {
       {tab === "students" && (
         <>
         <button onClick={() => setEnrollOpen(true)}
-          className="flex items-center gap-1 text-xs font-bold cursor-pointer self-end"
+          disabled={enrollmentsError || !enrollments}
+          className="flex items-center gap-1 text-xs font-bold cursor-pointer self-end disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
           <Plus size={ICON.xs} /> 수강생 등록
         </button>
-        {enrollments ? (
+        {enrollmentsError ? (
+          <EmptyState
+            scope="panel"
+            tone="error"
+            title="수강생을 불러오지 못했습니다"
+            description="명단 전체를 확인하지 못했습니다. 다시 불러와 주세요."
+            actions={
+              <EmptyActionButton disabled={enrollmentsFetching} onClick={() => { void refetchEnrollments(); }}>
+                {enrollmentsFetching ? "불러오는 중…" : "다시 시도"}
+              </EmptyActionButton>
+            }
+          />
+        ) : enrollments ? (
           enrollments.length > 0 ? (
             <div className="flex flex-col gap-1.5">
               {enrollments.map((e: any) => {

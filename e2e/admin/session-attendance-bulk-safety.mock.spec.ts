@@ -202,6 +202,7 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
         const end = page === 1 ? 500 : 501;
         return json({
           count: 501,
+          next: page === 1 ? "?page=2" : null,
           results: Array.from({ length: end - start + 1 }, (_, index) => {
             const studentId = 10_000 + start + index;
             return {

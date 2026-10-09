@@ -15,3 +15,8 @@
   background: var(--tc-surface);
   color: var(--tc-text-secondary);
 }
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
