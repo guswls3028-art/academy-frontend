@@ -35,6 +35,7 @@ import {
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 import { verifyAssessmentCopy } from "../helpers/verifyAssessmentCopy";
+import { verifySubmissionInbox } from "../helpers/verifySubmissionInbox";
 
 test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -50,6 +51,7 @@ type CreatedState = {
   primaryEnrollmentId?: number;
   enrollmentIds: number[];
   sessionEnrollmentIds: number[];
+  copySessionIds: number[];
   submissionIds: number[];
   messageTemplateId?: number;
 };
@@ -69,6 +71,7 @@ const created: CreatedState = {
   adminAccess: "",
   enrollmentIds: [],
   sessionEnrollmentIds: [],
+  copySessionIds: [],
   submissionIds: [],
 };
 
@@ -135,6 +138,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   for (const id of created.enrollmentIds) {
     await remove("DELETE", `/enrollments/${id}/`);
   }
+  for (const id of created.copySessionIds) {
+    await remove("DELETE", `/lectures/sessions/${id}/`);
+  }
   if (created.sessionId) await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
   if (created.lectureId) await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
 
@@ -152,6 +158,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       : []),
     ...(created.manualStaffId ? [[`manual staff ${created.manualStaffId}`, `/staffs/${created.manualStaffId}/`] as const] : []),
     ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
+    ...created.copySessionIds.map((id) => [`copy session ${id}`, `/lectures/sessions/${id}/`] as const),
     ...(created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
     ...(created.messageTemplateId ? [[`message template ${created.messageTemplateId}`, `/messaging/templates/${created.messageTemplateId}/`] as const] : []),
   ]) {
@@ -377,6 +384,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     expect(teacherProjection.user).toBeGreaterThan(0);
     expect(teacherProjection.meta.submitted_by_user_id).toBeGreaterThan(0);
     expect(teacherProjection.meta.submitted_by_user_id).not.toBe(teacherProjection.user);
+    await verifySubmissionInbox(page, request, admin, parentSubmissionId);
 
     await reloadStudentApp(page);
     await expect(page.getByRole("tab", { name: peer.name })).toHaveAttribute("aria-selected", "true");
@@ -414,7 +422,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await verifyAssessmentCopy(page, request, admin, primaryTokens, {
       lectureId: created.lectureId!, sessionId: created.sessionId!, examId: created.examId!,
       examTitle, enrollmentIds: created.enrollmentIds, date: todayKst,
-    });
+    }, (sessionId) => { created.copySessionIds.push(sessionId); });
     await verifyEndedCourseTodos(page, request, admin, primary, primaryTokens);
     boundary.assertClean();
     browser.assertZeroDefects();

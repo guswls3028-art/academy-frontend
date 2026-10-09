@@ -368,7 +368,7 @@ export function safeNativeTransportKind(error: unknown): NativeTransportKind {
   return safeNativeTransportCode(new Error(firstLine));
 }
 
-export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "context-check",
+export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup",
   emit: (value: unknown) => void = (value) => console.log(JSON.stringify(value))) {
   const message = error instanceof Error ? error.message.split(/\r?\n/, 1)[0] : "";
   const kind = /Release API boundary failed:/.test(message) ? "boundary"

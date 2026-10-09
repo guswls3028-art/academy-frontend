@@ -4,8 +4,8 @@ import { ExternalLink, FileImage, FileText } from "lucide-react";
 
 import {
   fetchPendingSubmissionPreview,
-  type PendingSubmissionRow,
 } from "@admin/domains/submissions/api/adminPendingSubmissions";
+import type { PendingSubmissionRow } from "@/shared/api/contracts/submissions";
 import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
 import { Badge, Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";

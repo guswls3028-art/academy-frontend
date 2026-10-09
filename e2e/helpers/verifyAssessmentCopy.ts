@@ -2,6 +2,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { attachStrictBrowserGuards } from "./strictBrowser";
 import { gotoAndSettle } from "./wait";
+import { emitReleaseTestFailure } from "./releaseApiBoundary";
 import {
   api, assertNoHorizontalOverflow, assertQaStudentParentRuntime, expectApi,
   installQaStudentParentBoundary, QA_BASE, seedBrowserAuth, type QaTokens,
@@ -14,6 +15,7 @@ export async function verifyAssessmentCopy(
   admin: QaTokens,
   student: QaTokens,
   source: { lectureId: number; sessionId: number; examId: number; examTitle: string; enrollmentIds: number[]; date: string },
+  registerSessionCleanup: (sessionId: number) => void,
 ): Promise<void> {
   assertQaStudentParentRuntime();
   const context = await parentPage.context().browser()!.newContext({ serviceWorkers: "block" });
@@ -27,7 +29,9 @@ export async function verifyAssessmentCopy(
     const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", admin.access, {
       lecture: source.lectureId, title: "QA 평가 복사 대상", date: source.date, order: 2,
     });
-    cleanupPaths.push(`/lectures/sessions/${session.id}/`);
+    // Roster creation also creates attendance. The parent removes the owned
+    // lecture enrollments before deleting this session, preserving delete guards.
+    registerSessionCleanup(session.id);
     const enrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/session-enrollments/bulk_create/", admin.access, {
       session: session.id, enrollments: source.enrollmentIds,
     });
@@ -82,6 +86,7 @@ export async function verifyAssessmentCopy(
     boundary.assertClean();
     guards.assertZeroDefects();
   } catch (error) {
+    emitReleaseTestFailure(error, "assessment-copy");
     workflowError = error;
   } finally {
     await context.close().catch(() => { cleanupFailures.push(new Error("Assessment copy context did not close")); });
@@ -89,12 +94,13 @@ export async function verifyAssessmentCopy(
       try {
         await expectApi(request, "DELETE", path, admin.access, undefined, [200, 204, 404]);
         expect((await api(request, "GET", path, admin.access)).status).toBe(404);
-      } catch {
-        cleanupFailures.push(new Error(`Assessment copy cleanup did not reach zero: ${path}`));
+      } catch (error) {
+        cleanupFailures.push(error instanceof Error ? error : new Error("Assessment copy cleanup failed"));
       }
     }
   }
-  if (workflowError || cleanupFailures.length) throw new AggregateError(
-    [...(workflowError ? [workflowError] : []), ...cleanupFailures], "Assessment copy or cleanup failed",
-  );
+  for (const error of cleanupFailures) emitReleaseTestFailure(error, "assessment-copy-cleanup");
+  // Preserve the original assertion/location after attempting every cleanup.
+  if (workflowError) throw workflowError;
+  if (cleanupFailures.length) throw cleanupFailures[0];
 }

@@ -70,6 +70,7 @@ const OMR_DELETE_BLOCKER_LABELS = new Set([
 const SAFE_FAILURE_SOURCE_FILES = new Set([
   ...Object.keys(FLOW_COUNTS),
   "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
+  "verifyAssessmentCopy.ts",
 ]);
 const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
   "/api/v1/clinic/idcard/",
@@ -561,8 +562,10 @@ export function observeReleaseTestResult(stdout) {
                 } else if (name === "releaseTestFailure") {
                   destination = "testFailureObservations";
                   valid &&= exactKeys(value, ["schema", "phase", "kind", "expectedStatus", "receivedStatus"])
-                    && value.schema === "release-test-failure/v1" && ["video-primary", "context-check"].includes(value.phase)
+                    && value.schema === "release-test-failure/v1"
+                    && ["video-primary", "context-check", "assessment-copy", "assessment-copy-cleanup"].includes(value.phase)
                     && (value.phase !== "video-primary" || file === "video-playback-renewal.realuse.spec.ts")
+                    && (!value.phase.startsWith("assessment-copy") || file === "student-parent-assessment-realuse.spec.ts")
                     && ["boundary", "assertion", "locator-timeout", "transport", "other"].includes(value.kind)
                     && value.expectedStatus === null && value.receivedStatus === null;
                 } else if (name === "omrCleanupStatus") {

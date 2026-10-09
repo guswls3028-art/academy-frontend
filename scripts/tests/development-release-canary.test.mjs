@@ -518,6 +518,38 @@ test("fixture API failures preserve status while dropping bodies and unknown pat
   assert.throws(() => assertReleaseSummary(report), /./);
 });
 
+test("assessment copy failure observations keep only reviewed phases and source", () => {
+  const outputs = [];
+  for (const phase of ["assessment-copy", "assessment-copy-cleanup"]) {
+    policyModule.emitReleaseTestFailure(new Error("private-user secret-token"), phase, (value) => outputs.push(value));
+  }
+  const observed = observeReleaseTestResult(JSON.stringify(contextReport(outputs, "student-parent-assessment-realuse.spec.ts")));
+  assert.deepEqual(observed.testFailureObservations.map((item) => item.phase), ["assessment-copy", "assessment-copy-cleanup"]);
+  assert.equal(observed.rejectedFailureObservationCount, 0);
+  assert.doesNotMatch(JSON.stringify(observed), /private-user|secret-token/);
+  const wrongSpec = observeReleaseTestResult(JSON.stringify(contextReport(outputs, "notice-roundtrip.spec.ts")));
+  assert.equal(wrongSpec.testFailureObservations.length, 0);
+  assert.equal(wrongSpec.rejectedFailureObservationCount, 2);
+});
+
+test("assessment copy session cleanup follows its owned enrollment deletion and verifies absence", async () => {
+  const source = readFileSync(new URL("../../e2e/student/student-parent-assessment-realuse.spec.ts", import.meta.url), "utf8");
+  const body = stripTypeScriptTypes(source.slice(source.indexOf("async function cleanup("), source.indexOf("async function seedAssessment(")));
+  const calls = [];
+  const created = { adminAccess: "secret-token", submissionIds: [], sessionEnrollmentIds: [], enrollmentIds: [11], copySessionIds: [22] };
+  let enrollmentRemoved = false;
+  const api = async (_request, method, endpoint) => {
+    calls.push([method, endpoint]);
+    if (method === "GET") return { status: 404 };
+    if (endpoint === "/enrollments/11/") enrollmentRemoved = true;
+    if (endpoint === "/lectures/sessions/22/" && !enrollmentRemoved) return { status: 403 };
+    return { status: 204 };
+  };
+  const cleanup = new Function("api", "cleanupQaFamily", "created", `${body}; return cleanup;`)(api, async () => {}, created);
+  await cleanup({});
+  assert.deepEqual(calls, [["DELETE", "/enrollments/11/"], ["DELETE", "/lectures/sessions/22/"], ["GET", "/lectures/sessions/22/"]]);
+});
+
 test("transport truth rejects unsafe markers and accepts old snapshots without guessing missing counters", () => {
   const marker = { schema: "release-test-failure/v1", phase: "video-primary", kind: "assertion", expectedStatus: null, receivedStatus: null };
   const invalid = [

@@ -2,9 +2,13 @@
 // 학원장 상담 수신함 — 외부 학부모가 홈페이지 form으로 보낸 상담 요청 관리.
 /* eslint-disable no-restricted-syntax */
 
-import { useEffect, useState, useCallback } from "react";
-import api from "@/shared/api/axios";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router";
+import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
+import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import RoleGuard from "@teacher/shared/ui/RoleGuard";
+import { Button } from "@/shared/ui/ds";
 
 type ConsultItem = {
   id: number;
@@ -21,6 +25,7 @@ type ConsultItem = {
 type ListResp = {
   items: ConsultItem[];
   summary: { total: number; unread: number };
+  pagination?: { page: number; page_size: number; pages: number; count: number; has_next: boolean; has_previous: boolean };
 };
 
 export default function LandingConsultInboxPage() {
@@ -37,41 +42,73 @@ function errorDetail(error: unknown, fallback: string): string {
 }
 
 function LandingConsultInboxContent() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requested = Number(searchParams.get("page") || 1);
+  const requestedPage = Number.isSafeInteger(requested) && requested > 0 && requested <= 1_000_000 ? requested : 1;
+  const filter = searchParams.get("filter") === "unread" ? "unread" : "all";
+  const requestSequence = useRef(0);
   const [items, setItems] = useState<ConsultItem[]>([]);
+  const [pagination, setPagination] = useState<NonNullable<ListResp["pagination"]> | null>(null);
   const [summary, setSummary] = useState<{ total: number; unread: number }>({ total: 0, unread: 0 });
   const [readError, setReadError] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasSuccessfulLoad, setHasSuccessfulLoad] = useState(false);
   const [pendingId, setPendingId] = useState<number | null>(null);
-  const [filter, setFilter] = useState<"all" | "unread">("all");
   const [editing, setEditing] = useState<{ id: number; memo: string } | null>(null);
 
   const load = useCallback(async () => {
+    const sequence = ++requestSequence.current;
     setIsLoading(true);
     setHasSuccessfulLoad(false);
     setReadError(null);
     setItems([]);
+    setPagination(null);
     setSummary({ total: 0, unread: 0 });
     setEditing(null);
     try {
-      const r = await api.get<ListResp>("/core/landing/admin/consult/");
-      setItems(r.data.items || []);
-      setSummary(r.data.summary || { total: 0, unread: 0 });
+      const session = readAuthTokenEnvelopeSafely();
+      const tenant = getTenantCodeForApiRequest();
+      if (!session || !tenant) throw new Error("Missing inbox authentication context");
+      const config = createAuthSessionBoundConfig(session.generation, undefined, tenant);
+      const r = await api.get<ListResp>("/core/landing/admin/consult/", { ...config, params: { page: requestedPage, page_size: 50, filter } });
+      if (sequence !== requestSequence.current) return;
+      if (!Array.isArray(r.data?.items) || !Number.isSafeInteger(r.data.summary?.total)
+        || !Number.isSafeInteger(r.data.summary?.unread) || r.data.summary.total < 0
+        || r.data.summary.unread < 0 || r.data.summary.unread > r.data.summary.total) throw new Error("Invalid inbox response");
+      // Old servers returned complete small lists without pagination metadata.
+      if (!r.data.pagination && r.data.items.length !== r.data.summary.total) throw new Error("Incomplete inbox response");
+      const paging = r.data.pagination ?? { page: 1, page_size: r.data.items.length, pages: 1,
+        count: r.data.items.length, has_next: false, has_previous: false };
+      if (!Number.isSafeInteger(paging.page) || !Number.isSafeInteger(paging.pages)
+        || paging.page < 1 || paging.pages < paging.page) throw new Error("Invalid inbox page");
+      setItems(r.data.items);
+      setSummary(r.data.summary);
+      setPagination(paging);
       setHasSuccessfulLoad(true);
+      if (paging.page !== requestedPage) setSearchParams((previous) => {
+        const next = new URLSearchParams(previous);
+        next.set("page", String(paging.page));
+        return next;
+      }, { replace: true });
     } catch (e) {
-      setReadError(errorDetail(e, "상담 요청을 불러오지 못했습니다."));
+      if (sequence === requestSequence.current) setReadError(errorDetail(e, "상담 요청을 불러오지 못했습니다."));
     } finally {
-      setIsLoading(false);
+      if (sequence === requestSequence.current) setIsLoading(false);
     }
-  }, []);
+  }, [requestedPage, filter, setSearchParams]);
+  const latestLoad = useRef(load);
+  latestLoad.current = load;
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+    return () => { requestSequence.current += 1; };
+  }, [load]);
 
   const readReady = hasSuccessfulLoad && !isLoading && readError == null;
 
   const markRead = async (id: number) => {
-    if (!readReady || pendingId != null) return;
+    if (!readReady || pendingId != null || editing != null) return;
     setMutationError(null);
     setPendingId(id);
     try {
@@ -81,7 +118,7 @@ function LandingConsultInboxContent() {
       setPendingId(null);
       return;
     }
-    await load();
+    await latestLoad.current();
     setPendingId(null);
   };
 
@@ -97,14 +134,33 @@ function LandingConsultInboxContent() {
       return;
     }
     setEditing(null);
-    await load();
+    await latestLoad.current();
     setPendingId(null);
   };
 
   const filtered = readReady ? items.filter((it) => filter === "all" || !it.read_at) : [];
+  const changePage = (page: number, nextFilter = filter) => {
+    if (!readReady || pendingId != null || editing != null) return;
+    setMutationError(null);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set("page", String(page));
+      if (nextFilter === "unread") next.set("filter", nextFilter);
+      else next.delete("filter");
+      return next;
+    });
+  };
+  const navigationDisabled = pendingId != null || editing != null;
+  const pager = (position: string) => readReady && pagination && pagination.pages > 1 ? (
+    <nav aria-label={`상담 목록 페이지 ${position}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, margin: "16px 0" }}>
+      <Button intent="secondary" style={{ height: 44 }} disabled={navigationDisabled || !pagination.has_previous} onClick={() => changePage(pagination.page - 1)} aria-label="이전 페이지">이전</Button>
+      <span aria-live="polite" style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{pagination.page} / {pagination.pages} 페이지</span>
+      <Button intent="secondary" style={{ height: 44 }} disabled={navigationDisabled || !pagination.has_next} onClick={() => changePage(pagination.page + 1)} aria-label="다음 페이지">다음</Button>
+    </nav>
+  ) : null;
 
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ padding: "24px clamp(12px, 2vw, 28px)", maxWidth: 1100, margin: "0 auto", overflowWrap: "anywhere" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: "var(--color-text-primary, #0f172a)", letterSpacing: "-0.02em" }}>
@@ -121,11 +177,14 @@ function LandingConsultInboxContent() {
         </div>
         {readReady && (
           <div style={{ display: "flex", gap: 6, padding: 4, background: "rgba(15,23,42,0.04)", borderRadius: 10 }}>
-            <FilterTab active={filter === "all"} onClick={() => setFilter("all")}>전체 {summary.total}</FilterTab>
-            <FilterTab active={filter === "unread"} onClick={() => setFilter("unread")}>미확인 {summary.unread}</FilterTab>
+            <FilterTab active={filter === "all"} disabled={navigationDisabled} onClick={() => changePage(1, "all")}>전체 {summary.total}</FilterTab>
+            <FilterTab active={filter === "unread"} disabled={navigationDisabled} onClick={() => changePage(1, "unread")}>미확인 {summary.unread}</FilterTab>
           </div>
         )}
       </div>
+
+      {editing && <p role="status" style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>메모를 저장하거나 취소한 뒤 목록을 이동할 수 있습니다.</p>}
+      {pager("상단")}
 
       {readError && (
         <div role="alert" style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "#b91c1c", fontSize: 13, marginBottom: 16 }}>
@@ -155,7 +214,7 @@ function LandingConsultInboxContent() {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {filtered.map((it) => (
-            <div key={it.id} style={{
+            <article key={it.id} aria-label={`상담 요청 ${it.name}`} style={{
               padding: "18px 20px", borderRadius: 12,
               background: it.read_at ? "var(--color-bg-surface, #fff)" : "rgba(220,38,38,0.04)",
               border: `1px solid ${it.read_at ? "rgba(15,23,42,0.08)" : "rgba(220,38,38,0.25)"}`,
@@ -184,46 +243,47 @@ function LandingConsultInboxContent() {
                 </div>
               )}
               {editing?.id === it.id ? (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input type="text" value={editing.memo} onChange={(e) => setEditing({ id: it.id, memo: e.target.value })} placeholder="처리 메모"
-                    style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", fontSize: 13, fontFamily: "inherit", outline: "none" }} />
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <textarea rows={3} maxLength={2000} value={editing.memo} onChange={(e) => setEditing({ id: it.id, memo: e.target.value })} placeholder="처리 메모" aria-label="처리 메모" disabled={pendingId != null}
+                    style={{ flex: "1 1 100%", width: "100%", minWidth: 0, minHeight: 80, resize: "vertical", padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", fontSize: 13, fontFamily: "inherit" }} />
                   <button disabled={pendingId != null} onClick={() => void saveMemo(it.id, editing.memo)} style={{ minHeight: 44, padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--color-brand-primary, #2563EB)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: pendingId != null ? "wait" : "pointer" }}>저장</button>
-                  <button onClick={() => setEditing(null)} style={{ minHeight: 44, padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", background: "#fff", color: "#64748b", fontSize: 13, cursor: "pointer" }}>취소</button>
+                  <button disabled={pendingId != null} onClick={() => setEditing(null)} style={{ minHeight: 44, padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", background: "#fff", color: "#64748b", fontSize: 13, cursor: "pointer" }}>취소</button>
                 </div>
               ) : it.admin_memo ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 11, color: "var(--color-text-muted, #94a3b8)", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>메모</span>
-                  <span style={{ fontSize: 13, color: "var(--color-text-secondary, #475569)" }}>{it.admin_memo}</span>
-                  <button onClick={() => setEditing({ id: it.id, memo: it.admin_memo })} style={{ marginLeft: "auto", minHeight: 44, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(15,23,42,0.1)", background: "transparent", fontSize: 12, color: "#64748b", cursor: "pointer" }}>수정</button>
+                  <span style={{ minWidth: 0, whiteSpace: "pre-wrap", fontSize: 13, color: "var(--color-text-secondary, #475569)" }}>{it.admin_memo}</span>
+                  <button disabled={navigationDisabled} onClick={() => setEditing({ id: it.id, memo: it.admin_memo })} style={{ marginLeft: "auto", minHeight: 44, flexShrink: 0, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(15,23,42,0.1)", background: "transparent", fontSize: 12, color: "#64748b", cursor: "pointer" }}>수정</button>
                 </div>
               ) : null}
               <div style={{ display: "flex", gap: 8 }}>
                 {!it.read_at && (
-                  <button disabled={pendingId != null} onClick={() => void markRead(it.id)} style={{
+                  <button disabled={navigationDisabled} onClick={() => void markRead(it.id)} style={{
                     minHeight: 44, padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.1)",
                     background: "var(--color-bg-surface, #fff)", color: "var(--color-text-primary, #1e293b)",
                     fontSize: 12, fontWeight: 600, cursor: "pointer",
                   }}>읽음으로 표시</button>
                 )}
                 {!editing && !it.admin_memo && (
-                  <button onClick={() => setEditing({ id: it.id, memo: "" })} style={{
+                  <button disabled={navigationDisabled} onClick={() => setEditing({ id: it.id, memo: "" })} style={{
                     minHeight: 44, padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.1)",
                     background: "transparent", color: "var(--color-text-secondary, #64748b)",
                     fontSize: 12, fontWeight: 600, cursor: "pointer",
                   }}>+ 메모 추가</button>
                 )}
               </div>
-            </div>
+            </article>
           ))}
         </div>
       )}
+      {pager("하단")}
     </div>
   );
 }
 
-function FilterTab({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
+function FilterTab({ active, children, onClick, disabled }: { active: boolean; children: React.ReactNode; onClick: () => void; disabled: boolean }) {
   return (
-    <button onClick={onClick} style={{
+    <button onClick={onClick} disabled={disabled} style={{
       minHeight: 44, padding: "6px 14px", borderRadius: 7, border: "none",
       background: active ? "var(--color-bg-surface, #fff)" : "transparent",
       color: active ? "var(--color-text-primary, #0f172a)" : "var(--color-text-secondary, #64748b)",
