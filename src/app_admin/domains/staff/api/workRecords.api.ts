@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/staff/api/workRecords.api.ts
 import api from "@/shared/api/axios";
+import { fetchStaffPages } from "@/shared/staff/fetchStaffPages";
 import type { components } from "@/shared/api/generated/schema";
 
 /** Backend: WorkRecordSerializer — 급여 상세 화면의 정본 필드. */
@@ -14,13 +15,8 @@ export async function fetchWorkRecords(params: {
   date_from: string;
   date_to: string;
 }) {
-  const res = await api.get("/staffs/work-records/", {
-    params: { ...params, page_size: 500 },
-  });
-
-  if (Array.isArray(res.data)) return res.data as WorkRecord[];
-  if (Array.isArray(res.data?.results)) return res.data.results as WorkRecord[];
-  return [];
+  const { rows } = await fetchStaffPages<WorkRecord>("/staffs/work-records/", params);
+  return rows;
 }
 
 /**
