@@ -55,6 +55,57 @@ for (const width of [1366, 390]) {
 
 test.use({ serviceWorkers: "block" });
 
+test("학생 엑셀 읽기 중 닫고 다시 열어도 이전 실패가 새 읽기를 해제하지 않는다", async ({ page }) => {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  await installApi(page);
+  await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 45_000 });
+  await page.getByRole("button", { name: "학생 추가", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "엑셀 업로드", exact: true }).click();
+  const workbook = new ExcelJS.Workbook();
+  workbook.addWorksheet("학생목록").addRows([["이름", "학부모전화번호"], ["파일교체학생", "01077778888"]]);
+  const file = { name: "slow.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(await workbook.xlsx.writeBuffer()) };
+  await page.evaluate(() => {
+    const original = File.prototype.arrayBuffer;
+    let rejectOld!: (reason: Error) => void;
+    let releaseCurrent!: () => void;
+    const oldRead = new Promise<ArrayBuffer>((_resolve, reject) => { rejectOld = reject; });
+    const currentRead = new Promise<void>((resolve) => { releaseCurrent = resolve; });
+    File.prototype.arrayBuffer = async function () {
+      if (this.name === "slow.xlsx") return oldRead;
+      if (this.name === "current.xlsx") await currentRead;
+      return original.call(this);
+    };
+    Object.assign(window, {
+      failOldExcelRead: async () => {
+        rejectOld(new Error("취소한 파일의 지연 오류"));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      },
+      releaseCurrentExcelRead: () => { releaseCurrent(); File.prototype.arrayBuffer = original; },
+    });
+  });
+  await dialog.locator('input[type="file"]').setInputFiles(file);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole("button", { name: "학생 추가", exact: true }).click();
+  await dialog.getByRole("button", { name: "엑셀 업로드", exact: true }).click();
+  await dialog.locator('input[type="file"]').setInputFiles({ ...file, name: "current.xlsx" });
+  await expect(dialog.getByRole("button", { name: "엑셀 양식 다운로드", exact: true })).toBeDisabled();
+  await page.evaluate(async () => {
+    await (window as unknown as { failOldExcelRead: () => Promise<void> }).failOldExcelRead();
+  });
+  await expect(dialog.getByRole("button", { name: "엑셀 양식 다운로드", exact: true })).toBeDisabled();
+  await expect(page.getByText("취소한 파일의 지연 오류", { exact: true })).toHaveCount(0);
+  await page.evaluate(() => (window as unknown as { releaseCurrentExcelRead: () => void }).releaseCurrentExcelRead());
+  await expect(dialog.getByText("current.xlsx", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("slow.xlsx", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "1명 등록 요청", exact: true })).toBeEnabled();
+});
+
 function localJwt(): string {
   const encode = (value: unknown) =>
     Buffer.from(JSON.stringify(value)).toString("base64url");

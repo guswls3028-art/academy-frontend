@@ -150,6 +150,7 @@ export default function StudentCreateModal({
   const confirm = useConfirm();
   const confirmPasswords = useRegistrationPasswordConfirmation();
   const confirmationInFlightRef = useRef(false);
+  const excelReadVersionRef = useRef(0);
   const [mode, setMode] = useState<RegisterMode>("choice");
   const [busy, setBusy] = useState(false);
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
@@ -162,6 +163,7 @@ export default function StudentCreateModal({
   );
 
   useEffect(() => {
+    excelReadVersionRef.current += 1;
     if (!open) return;
     setMode("choice");
     setBusy(false);
@@ -171,15 +173,18 @@ export default function StudentCreateModal({
     setParsedExcel(null);
     setSubmitError("");
     setForm(createInitialForm(slm.defaultSchoolType));
+    return () => { excelReadVersionRef.current += 1; };
   }, [open, onBulkProgress, slm.defaultSchoolType]);
 
   async function handleExcelFileSelect(file: File) {
     if (busy) return;
+    const readVersion = ++excelReadVersionRef.current;
     setBusy(true);
     setSelectedExcelFile(null);
     setParsedExcel(null);
     try {
       const parsed = await parseStudentExcel(file);
+      if (readVersion !== excelReadVersionRef.current) return;
       if (!parsed.rows.length && !parsed.issues?.length) {
         feedback.error("등록할 학생 데이터가 없습니다.");
         return;
@@ -187,9 +192,10 @@ export default function StudentCreateModal({
       setSelectedExcelFile(file);
       setParsedExcel(parsed);
     } catch (error) {
+      if (readVersion !== excelReadVersionRef.current) return;
       feedback.error(error instanceof Error ? error.message : "엑셀 파일을 읽지 못했습니다.");
     } finally {
-      setBusy(false);
+      if (readVersion === excelReadVersionRef.current) setBusy(false);
     }
   }
 
@@ -506,6 +512,7 @@ export default function StudentCreateModal({
   }
 
   const handleClose = () => {
+    excelReadVersionRef.current += 1;
     setDeletedStudentConflict(null);
     onClose();
   };
@@ -835,6 +842,7 @@ export default function StudentCreateModal({
               onFileSelect={handleExcelFileSelect}
               selectedFile={selectedExcelFile}
               onClearFile={() => {
+                excelReadVersionRef.current += 1;
                 setSelectedExcelFile(null);
                 setParsedExcel(null);
               }}
@@ -940,7 +948,7 @@ export default function StudentCreateModal({
         }
         right={
           <>
-            <Button intent="secondary" onClick={onClose} disabled={busy}>
+            <Button intent="secondary" onClick={handleClose} disabled={busy}>
               취소
             </Button>
             {mode === "single" && (
