@@ -5,6 +5,7 @@ import { Routes, Route, Navigate, useParams } from "react-router";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { renderLazyRoute } from "@/core/router/renderLazyRoute";
 import { EmptyState } from "@/shared/ui/ds";
+import useAuth from "@/auth/hooks/useAuth";
 
 const StorageLayout = lazy(() => import("./StorageLayout"));
 const MyStoragePage = lazy(() => import("./pages/MyStoragePage"));
@@ -30,16 +31,19 @@ function StudentRedirect() {
 }
 
 export default function StorageRoutes() {
+  const { user } = useAuth();
+  const isAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin";
+  const canUseMatchup = isAdmin || user?.tenantRole === "teacher";
+  const defaultPath = `/workspace/storage/${canUseMatchup ? "matchup" : "files"}`;
   return (
     <Routes>
       <Route element={renderLazyRoute(StorageLayout, <StorageRouteFallback />)}>
-        {/* 기본: 매치업 탭으로 리다이렉트 */}
-        <Route index element={<Navigate to="matchup" replace />} />
+        <Route index element={<Navigate to={defaultPath} replace />} />
 
         {/* 매치업 */}
         <Route
           path="matchup/*"
-          element={renderLazyRoute(MatchupPage, <StorageRouteFallback />)}
+          element={canUseMatchup ? renderLazyRoute(MatchupPage, <StorageRouteFallback />) : <Navigate to={defaultPath} replace />}
         />
 
         {/* 저장소 (기존) */}
@@ -51,16 +55,16 @@ export default function StorageRoutes() {
         {/* 적중 보고서 — 자료저장소 3번째 탭 */}
         <Route
           path="hit-reports"
-          element={renderLazyRoute(HitReportListPage, <StorageRouteFallback />)}
+          element={canUseMatchup ? renderLazyRoute(HitReportListPage, <StorageRouteFallback />) : <Navigate to={defaultPath} replace />}
         />
 
         {/* Stage 6.3A — 자동 분리 검수 큐 (Proposal Review v1) */}
         <Route
           path="proposals"
-          element={renderLazyRoute(ProposalReviewPage, <StorageRouteFallback />)}
+          element={isAdmin ? renderLazyRoute(ProposalReviewPage, <StorageRouteFallback />) : <Navigate to={defaultPath} replace />}
         />
 
-        <Route path="*" element={<Navigate to="/workspace/storage/matchup" replace />} />
+        <Route path="*" element={<Navigate to={defaultPath} replace />} />
       </Route>
     </Routes>
   );

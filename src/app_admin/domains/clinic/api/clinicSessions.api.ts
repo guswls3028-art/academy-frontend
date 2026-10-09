@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/clinic/api/clinicSessions.api.ts
 import api from "@/shared/api/axios";
+import { fetchClinicSessionPages } from "@/shared/clinic/fetchClinicSessionPages";
 import dayjs from "dayjs";
 import type { ClinicBookingAvailability } from "@/shared/ui/clinic/ClinicActualTimePicker";
 
@@ -215,9 +216,8 @@ export async function fetchClinicSessions(params: {
   date_to?: string;
   ordering?: string;
 }): Promise<ClinicSessionDetail[]> {
-  const res = await api.get("/clinic/sessions/", { params });
-  return normalizeListPayload(res.data)
-    .filter(isRecord)
+  const sessions = await fetchClinicSessionPages<{ id: number } & Record<string, unknown>>(params);
+  return sessions
     .map((row) => ({
       id: toNumber(row.id),
       title: toStringValue(row.title),

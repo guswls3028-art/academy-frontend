@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/clinic/api.ts
 // 클리닉 API — 기존 admin clinic API 재사용
 import api from "@/shared/api/axios";
-import { listFromApiResponse } from "@/shared/api/response";
+import { fetchClinicSessionPages } from "@/shared/clinic/fetchClinicSessionPages";
 import type { ClinicBookingAvailability } from "@/shared/ui/clinic/ClinicActualTimePicker";
 
 export type TeacherClinicSession = {
@@ -68,8 +68,8 @@ export async function fetchClinicSessions(params: {
   date_from: string;
   date_to: string;
 }): Promise<TeacherClinicSession[]> {
-  const res = await api.get("/clinic/sessions/", { params });
-  return listFromApiResponse<TeacherClinicSession>(res.data).map((session) => ({
+  const sessions = await fetchClinicSessionPages<TeacherClinicSession>(params);
+  return sessions.map((session) => ({
     ...session,
     allow_multi_slot_booking: session.allow_multi_slot_booking === true,
     allow_time_preference: session.allow_time_preference === true,
