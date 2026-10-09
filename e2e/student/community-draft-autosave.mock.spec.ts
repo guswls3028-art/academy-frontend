@@ -237,6 +237,8 @@ test.describe("학생 커뮤니티 durable draft", () => {
 
   for (const width of [1366, 390]) {
     test(`${width}px: 강조·목록·링크 HTML을 초안과 게시글에 저장하고 재열어 확인한다`, async ({ page }) => {
+      const cpu = await page.context().newCDPSession(page);
+      await cpu.send("Emulation.setCPUThrottlingRate", { rate: 4 });
       await page.setViewportSize({ width, height: 844 });
       const { writeHeaders } = await installStudentApi(page);
       await openForm(page, "QnA");
@@ -269,8 +271,12 @@ test.describe("학생 커뮤니티 durable draft", () => {
       await page.getByRole("button", { name: "질문하기", exact: true }).click();
       await expect(editor.locator("strong")).toHaveText("강조 문장");
       await expect(editor.locator('ul a[href="https://example.com/study"]')).toHaveText("참고 링크");
+      // Choose the insertion point like a user. Native programmatic focus has
+      // a deferred ProseMirror selection restore and can race Control+End.
+      await editor.locator(":scope > p").last().click();
       await editor.press("Control+End");
       await page.keyboard.insertText(" 수정");
+      await expect(editor.locator(":scope > p").last()).toHaveText("수정");
       await page.getByRole("button", { name: "질문 보내기", exact: true }).click();
       await expect.poll(() => writeHeaders.length).toBe(1);
       const submitted = String(writeHeaders[0].body.content);
