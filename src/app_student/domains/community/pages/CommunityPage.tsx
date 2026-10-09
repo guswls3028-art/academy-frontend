@@ -2,7 +2,7 @@
  * PATH: src/app_student/domains/community/pages/CommunityPage.tsx
  * 학생 커뮤니티 — QnA | 게시판 | 자료실
  */
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -293,7 +293,9 @@ export default function CommunityPage() {
   const handledLocationKeyRef = useRef<string | null>(null);
 
   // 알림에서 질문/상담 상세 직접 진입 + dashboard "새 답변" tab prefill
-  useEffect(() => {
+  // Synchronize before paint: after a tab URL commits, the previous hub's CTA
+  // must not open a second navigation whose later effect closes the new form.
+  useLayoutEffect(() => {
     // Re-rendering the router can change navigate without a new navigation.
     // Process each committed location once so it cannot close a newly opened form.
     if (handledLocationKeyRef.current === location.key) return;
