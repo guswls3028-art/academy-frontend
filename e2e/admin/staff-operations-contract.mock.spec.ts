@@ -623,7 +623,6 @@ test.describe("직원 운영 계약", () => {
 
   test("직원 목록은 두 번째 페이지까지 엑셀과 모바일 검색에 포함한다", async ({ page }) => {
     const cpu = await page.context().newCDPSession(page);
-    await cpu.send("Emulation.setCPUThrottlingRate", { rate: 4 });
     await mockStaffApi(page);
     const staffRows = Array.from({ length: 501 }, (_, index) => ({
       ...activeStaff,
@@ -654,6 +653,8 @@ test.describe("직원 운영 계약", () => {
     });
     await gotoAndSettle(page, `${BASE}/workspace/staff/home`);
     await expect(page.getByRole("checkbox", { name: "검증직원 001 선택" })).toBeVisible();
+    // Stress actual roster interactions after the source modules have loaded.
+    await cpu.send("Emulation.setCPUThrottlingRate", { rate: 4 });
     await expect(page.getByRole("row", { name: "대표", exact: true })).toContainText("검증대표");
     const download = page.waitForEvent("download");
     await page.getByRole("button", { name: "직원 목록 엑셀", exact: true }).click();
@@ -672,8 +673,10 @@ test.describe("직원 운영 계약", () => {
     expect(selectedExport.slice(1).map((row) => row[selectedExport[0].indexOf("이름")])).toEqual(["검증직원 001", "검증직원 051"]);
 
     await page.setViewportSize({ width: 390, height: 844 });
+    await cpu.send("Emulation.setCPUThrottlingRate", { rate: 1 });
     await page.reload();
     await expect(page.getByRole("checkbox", { name: "검증직원 001 선택" })).toBeVisible();
+    await cpu.send("Emulation.setCPUThrottlingRate", { rate: 4 });
     await page.getByPlaceholder("이름 / 전화번호 검색").fill("검증직원 501");
     await expect(page.getByRole("checkbox", { name: "검증직원 501 선택" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
