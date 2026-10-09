@@ -3,14 +3,11 @@
 import api, { isApiErrorStatus } from "@/shared/api/axios";
 import { expectedUpdatedAtHeaders } from "@/shared/api/optimisticConcurrency";
 import { listFromApiResponse } from "@/shared/api/response";
+import { fetchAssessmentPages } from "./fetchAssessmentPages";
 
 /** 선생님이 담당하는 운영 시험 목록 (최근순) */
 export async function fetchExams(params?: { session_id?: number; lecture_id?: number; exam_type?: "regular" | "template" }) {
-  const res = await api.get("/exams/", {
-    params: { ...params, page_size: 100, ordering: "-created_at" },
-  });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return fetchAssessmentPages("/exams/", params);
 }
 
 /** 시험 상세 */
@@ -32,11 +29,7 @@ export async function fetchExamResults(examId: number) {
 
 /** 숙제 목록 (세션 기반) */
 export async function fetchHomeworks(params?: { session_id?: number; homework_type?: "regular" | "template" }) {
-  const res = await api.get("/homeworks/", {
-    params: { ...params, page_size: 100, ordering: "-created_at" },
-  });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return fetchAssessmentPages("/homeworks/", params);
 }
 
 /** 숙제 상세 */
