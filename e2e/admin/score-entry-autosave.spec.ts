@@ -719,6 +719,11 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       return;
     }
 
+    if (path.endsWith("/api/v1/core/landing/admin/consult/") && method === "GET") {
+      await route.fulfill({ json: { items: [], summary: { total: 0, unread: 0 } } });
+      return;
+    }
+
     if (path.endsWith("/api/v1/messaging/templates/") && method === "GET") {
       await route.fulfill({ json: [] });
       return;

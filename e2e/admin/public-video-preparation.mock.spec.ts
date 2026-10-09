@@ -91,6 +91,7 @@ async function installApp(page: Page, role: "admin" | "teacher") {
       "/core/og-meta/": { title: "학원플러스", description: "공개 영상 검증" },
       "/clinic/participants/": [],
       "/community/admin/posts/": { count: 0, results: [] },
+      "/core/landing/admin/consult/": { items: [], summary: { total: 0, unread: 0 } },
       "/students/registration_requests/": { count: 0, results: [] },
       "/submissions/submissions/pending/": { count: 0, results: [] },
       "/results/admin/teacher-dashboard-counts/": { video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 },
