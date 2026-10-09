@@ -16,7 +16,7 @@ import {
   MessageCircle,
   MessageCircleQuestion,
 } from "lucide-react";
-import { fetchExams } from "@admin/domains/exams/api/exams.api";
+import { fetchActiveExamCount } from "@admin/domains/exams/api/exams.api";
 import { useMessagingInfo } from "@admin/domains/messages/hooks/useMessagingInfo";
 import {
   arrivalOverviewQueryKey,
@@ -43,9 +43,9 @@ export default function DashboardPage() {
     isLoading: messagingLoading,
     isError: messagingError,
   } = useMessagingInfo();
-  const { data: exams = [], isLoading: eLoading, isError: eError } = useQuery({
+  const { data: activeExamCount = 0, isLoading: eLoading, isError: eError } = useQuery({
     queryKey: adminDashboardQueryKeys.exams,
-    queryFn: () => fetchExams(),
+    queryFn: fetchActiveExamCount,
     staleTime: 60 * 1000,
   });
   const arrivalQuery = useQuery({
@@ -59,7 +59,6 @@ export default function DashboardPage() {
     operationalNotifications.isError || operationalNotifications.failures.includes(source)
   );
   const pendingQnaCount = operationalNotifications.counts.qnaPending;
-  const activeExams = exams.filter((exam) => exam.is_active);
   const pendingSubmissionCount = operationalNotifications.counts.recentSubmissions;
   const pendingClinicCount = operationalNotifications.counts.clinicPending;
   const openArrival = (item: ArrivalOverviewItem) => {
@@ -181,7 +180,7 @@ export default function DashboardPage() {
                 description="진행 상태와 결과를 관리합니다."
                 loading={eLoading}
                 error={eError}
-                value={activeExams.length}
+                value={activeExamCount}
                 action="관리하기"
                 tone="exam"
                 icon={<ClipboardCheck size={20} aria-hidden="true" />}

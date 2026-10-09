@@ -592,7 +592,7 @@ export default function CreateRegularExamModal({
             : stage === "new"
             ? "한 번에 여러 개도 만들 수 있어요."
             : stage === "copy"
-            ? "다른 차시의 만점·커트라인만 가져옵니다. 원본과 별개로 관리돼요."
+            ? "다른 차시의 문항과 만점·커트라인을 복사합니다. 원본과 별개로 관리돼요."
             : stage === "import"
             ? "시험지 양식을 불러옵니다. 점수 기준은 이 차시에서 따로 관리합니다."
             : undefined

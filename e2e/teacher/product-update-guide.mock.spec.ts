@@ -51,7 +51,7 @@ async function installTeacherMocks(page: Page, options: {
       ? json({ detail: "temporary failure" }, 503) : json({ count: 0, results: [] });
     if (path === "/clinic/participants/") return json({ count: 0, results: [] });
     if (path === "/submissions/submissions/pending/") return json([]);
-    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: options.videoFailed ?? 0 });
+    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: options.videoFailed ?? 0, qna_pending: options.qnaPending ?? 0, counsel_pending: 0, submission_pending: 0 });
     if (path === "/community/admin/reports/pending-count/") return json({ count: 0 });
     if (path === "/community/notifications/unread-count/") return json({ count: 0 });
     if (path === "/lectures/attendance/arrival-overview/") return json({

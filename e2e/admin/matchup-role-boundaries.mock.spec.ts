@@ -90,7 +90,7 @@ for (const width of [1366, 390]) {
         await expect(review).toHaveCount(0);
         await expect(page.getByText("내 적중 보고서 모음", { exact: true })).toBeVisible();
         await page.goto(`${BASE}/workspace/storage/proposals`);
-        await expect(page).toHaveURL(/\/workspace\/storage\/matchup$/);
+        await expect(page).toHaveURL((url) => url.pathname === "/workspace/storage/matchup");
         await expect(page.getByText("내 적중 보고서 모음", { exact: true })).toBeVisible();
       }
       await page.screenshot({ path: test.info().outputPath(`matchup-${role}-${superuser}-${width}.png`), fullPage: true });

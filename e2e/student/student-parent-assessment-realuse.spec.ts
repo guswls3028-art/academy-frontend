@@ -34,6 +34,7 @@ import {
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
+import { verifyAssessmentCopy } from "../helpers/verifyAssessmentCopy";
 
 test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -410,6 +411,10 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await assertNoHorizontalOverflow(page);
     await verifyScoreMessageTemplate(page, request, admin, primary);
     await verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens);
+    await verifyAssessmentCopy(page, request, admin, primaryTokens, {
+      lectureId: created.lectureId!, sessionId: created.sessionId!, examId: created.examId!,
+      examTitle, enrollmentIds: created.enrollmentIds, date: todayKst,
+    });
     await verifyEndedCourseTodos(page, request, admin, primary, primaryTokens);
     boundary.assertClean();
     browser.assertZeroDefects();
