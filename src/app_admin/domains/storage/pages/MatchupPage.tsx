@@ -169,8 +169,7 @@ export default function MatchupPage() {
   // 학원장 inbox 모드 vs 강사 본인 시점 결정용. user.tenantRole로 판단.
   const { user } = useAuth();
   const isAcademyAdmin = !!(
-    user?.is_superuser
-    || user?.tenantRole === "owner"
+    user?.tenantRole === "owner"
     || user?.tenantRole === "admin"
   );
   // 적중 보고서 찜 — 시험지 doc 활성 시에만. selectedProblemId(시험지 문항)별 별표 후보 problem id Set.
@@ -1851,7 +1850,7 @@ export default function MatchupPage() {
                     Stage 6.3A Proposal Review v1. ENV MATCHUP_PROPOSAL_FIRST_TENANTS default off
                     → 대부분 doc 빈 list. 그래도 학원장이 검수 화면 위치를 파악할 수 있도록 항상 노출.
                     backend `/matchup/proposals/?document_id=&status=pending` user_v1 schema. */}
-                {selectedDoc?.status === "done" && (
+                {isAcademyAdmin && selectedDoc?.status === "done" && (
                   <div
                     data-testid="matchup-proposal-review-cta"
                     style={/* eslint-disable-line no-restricted-syntax */ {
