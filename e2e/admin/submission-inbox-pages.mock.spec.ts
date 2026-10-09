@@ -57,6 +57,7 @@ for (const teacher of [false, true]) {
       const state = await setup(page, teacher);
       const path = teacher ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
       await gotoAndSettle(page, `${BASE}${path}?page=5`);
+      await expect(page.getByText("대기 중인 제출은 모두 표시합니다. 완료·실패·폐기는 최근 24시간에 접수된 제출만 표시합니다.", { exact: true })).toBeVisible();
       await expect(page.getByText("QA 학생 001", { exact: true })).toBeVisible();
       const pager = page.getByRole("navigation", { name: "제출 목록 페이지", exact: true });
       await expect(pager).toContainText("전체 205건");

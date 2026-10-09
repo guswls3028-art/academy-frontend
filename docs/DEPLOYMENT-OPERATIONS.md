@@ -698,6 +698,14 @@ API method+검토된 path+`returned NNN` 형식의 status만 별도로 보존하
 바꾸지 않으므로 나중의 `context-check` 오류가 원 오류를 대체해도 두 안전 관측이
 남는다. 이것은 누락된 원 오류를 사후 복구하거나 assertion을 완화하는 계약이 아니다.
 
+평가 복사 helper도 원 오류를 정리 뒤 그대로 throw하고 `assessment-copy`와
+`assessment-copy-cleanup`의 닫힌 단계/kind만 남긴다. 이 두 단계는
+`student-parent-assessment-realuse.spec.ts`에서만 허용하며 source 위치는
+검토된 `verifyAssessmentCopy.ts` 파일명/행/열만 허용한다. 복사 대상 차시는
+생성 즉시 부모 시나리오에 등록하고, 부모가 소유한 강의 수강 등록을 제거해
+출결 참조가 정리된 후 삭제한다. 차시 GET 404와 최종 tenant/user/R2/process
+cleanup 0 조건을 유지하며 운영의 출결/차시 삭제 보호 규칙을 완화하지 않는다.
+
 OMR cleanup의 실제 실패 지점은 remove/verify-absent/archive-action/verify-archive
 단계와 기존 expected HTTP status 목록, received status만 기록한다(응답 없는 전송
 실패는 null). cross-tenant probe는 실제 받은 status와 `errorCode:null`만 기록하고

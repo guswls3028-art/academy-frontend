@@ -243,6 +243,9 @@ export default function SubmissionsInboxPage() {
         <BackButton onClick={() => navigate(-1)} />
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>제출함</h1>
       </div>
+      <p className="text-[13px] leading-relaxed text-[var(--tc-text-muted)]">
+        대기 중인 제출은 모두 표시합니다. 완료·실패·폐기는 최근 24시간에 접수된 제출만 표시합니다.
+      </p>
 
       {/* 원본 없음 일괄 폐기 배너 — 2건 이상일 때만 노출. 학원장 노동 압축. */}
       {orphanRows.length >= 2 && (

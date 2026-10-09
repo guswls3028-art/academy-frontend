@@ -443,6 +443,9 @@ export default function SubmissionsInboxPage() {
 
   return (
     <div className="space-y-5">
+      <p className="text-sm leading-relaxed text-[var(--color-text-muted)]">
+        대기 중인 제출은 모두 표시합니다. 완료·실패·폐기는 최근 24시간에 접수된 제출만 표시합니다.
+      </p>
       {/* 식별 필요 안내 배너 */}
       {needsIdentificationCount > 0 && (
         <div
