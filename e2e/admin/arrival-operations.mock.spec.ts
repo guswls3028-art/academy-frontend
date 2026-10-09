@@ -208,7 +208,7 @@ async function installApi(page: Page, state: MockState, overview: unknown = arri
     if (path === "/messaging/info/") return json({ alimtalk_available: true });
     if (path === "/clinic/participants/") return json({ count: 3, results: [] });
     if (path === "/students/registration_requests/") return json({ count: 0, results: [] });
-    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0 });
+    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 });
     if (path === "/core/landing/admin/consult/") return json({ summary: { unread: 0 } });
     if (path === "/community/admin/reports/pending-count/" || path === "/community/notifications/unread-count/") return json({ count: 0 });
     if (path === "/enrollments/session-enrollments/" || path === "/enrollments/" || path === "/lectures/sections/" || path === "/results/admin/clinic-targets/") return json([]);

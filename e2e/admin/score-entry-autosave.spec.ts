@@ -715,7 +715,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
     }
 
     if (path.endsWith("/api/v1/results/admin/teacher-dashboard-counts/") && method === "GET") {
-      await route.fulfill({ json: { video_failed: 0 } });
+      await route.fulfill({ json: { video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 } });
       return;
     }
 

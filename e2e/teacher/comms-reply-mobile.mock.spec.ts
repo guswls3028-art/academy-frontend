@@ -112,7 +112,7 @@ async function installRegistrationPolicyMocks(
       return json({ count: rows.length, results: rows });
     }
     if (path === "/submissions/submissions/pending/") return json([]);
-    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0 });
+    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0, qna_pending: qnaPending, counsel_pending: 0, submission_pending: 0 });
     if (path === "/core/landing/admin/consult/") return json({ summary: { unread: 0 } });
     if (path === "/community/admin/reports/pending-count/") return json({ count: 0 });
     if (path === "/community/notifications/unread-count/") return json({ count: 0 });

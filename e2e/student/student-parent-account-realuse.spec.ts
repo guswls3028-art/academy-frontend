@@ -46,6 +46,68 @@ let adminAccess = "";
 const signupFamilies: QaFamily[] = [];
 const signupRequestIds: number[] = [];
 
+async function verifyOwnerOrganizationSettings(page: Page, request: APIRequestContext, student: QaFamily["students"][number]): Promise<void> {
+  assertQaStudentParentRuntime();
+  const ownerUser = "ymath-qa-organization-owner";
+  const owner = await loginApi(request, ownerUser, QA_ADMIN_PASSWORD);
+  const path = "/core/tenant-info/";
+  const original = await expectApi<{
+    name: string; phone: string; headquarters_phone: string;
+    academies: { name: string; phone: string }[];
+  }>(request, "GET", path, owner.access);
+  const ownerContext = await page.context().browser()!.newContext({ viewport: { width: 390, height: 844 } });
+  const ownerPage = await ownerContext.newPage();
+  const boundary = await installQaStudentParentBoundary(ownerPage, request);
+  const browser = attachStrictBrowserGuards(ownerPage);
+  const phone = "02-0000-0000";
+  let name = "";
+  try {
+    await gotoAndSettle(ownerPage, `${QA_BASE}/login/${QA_TENANT}`);
+    await ownerPage.getByTestId("login-username").fill(ownerUser);
+    await ownerPage.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
+    await ownerPage.getByTestId("login-submit").click();
+    await expect(ownerPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+    await acknowledgeInitialAccountPromptsIfVisible(ownerPage);
+    for (const width of [390, 1366]) {
+      name = `QA 설정 저장 ${width}`;
+      await ownerPage.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(ownerPage, `${QA_BASE}/workspace/settings/organization`);
+      await expect(ownerPage.getByRole("button", { name: "학원 추가", exact: true })).toBeVisible();
+      await ownerPage.getByRole("button", { name: "수정", exact: true }).first().click();
+      await ownerPage.getByRole("textbox", { name: "학원명", exact: true }).fill(name);
+      await ownerPage.getByRole("textbox", { name: "학원문의 전화번호", exact: true }).fill(phone);
+      await ownerPage.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(ownerPage.getByText(`${name} · ${phone}`, { exact: true })).toBeVisible();
+      await ownerPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(ownerPage.getByText(`${name} · ${phone}`, { exact: true })).toBeVisible();
+      await assertNoHorizontalOverflow(ownerPage);
+      const saved = await expectApi<typeof original>(request, "GET", path, owner.access);
+      expect(saved.academies[0]).toEqual({ name, phone });
+      expect(saved.academies.slice(1)).toEqual(original.academies.slice(1));
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await loginThroughUi(page, student.ps_number, student.password);
+    await gotoAndSettle(page, `${QA_BASE}/student`);
+    await expect(page.locator('a[href="tel:0200000000"]').filter({ hasText: name })).toBeVisible();
+    await reloadStudentApp(page);
+    await expect(page.locator('a[href="tel:0200000000"]').filter({ hasText: name })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+    boundary.assertClean();
+    browser.assertZeroDefects();
+  } finally {
+    try {
+      await expectApi(request, "PATCH", path, owner.access, {
+        name: original.name, phone: original.phone, headquarters_phone: original.headquarters_phone,
+        academies: original.academies,
+      });
+      const restored = await expectApi<typeof original>(request, "GET", path, owner.access);
+      expect(restored.academies).toEqual(original.academies);
+    } finally {
+      await ownerContext.close();
+    }
+  }
+}
+
 async function verifySignupAndApproval(page: Page, request: APIRequestContext): Promise<void> {
   const settingsPath = "/students/registration_requests/settings/";
   const original = await expectApi<{ auto_approve: boolean }>(request, "GET", settingsPath, adminAccess);
@@ -309,6 +371,7 @@ test.describe.serial("[real-use] 학생/학부모 계정과 복구", () => {
     await assertNoHorizontalOverflow(page);
     await logoutStudentApp(page);
     await verifySignupAndApproval(page, request);
+    await verifyOwnerOrganizationSettings(page, request, student);
     boundary.assertClean();
     browser.assertZeroDefects();
   });
