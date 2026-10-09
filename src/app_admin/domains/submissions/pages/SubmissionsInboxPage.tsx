@@ -169,7 +169,7 @@ export default function SubmissionsInboxPage() {
   >(null);
 
   const q = useQuery({
-    queryKey: [...submissionsQueryKeys.adminPendingList(filter), failedSub, page],
+    queryKey: submissionsQueryKeys.adminPendingList(filter, failedSub, page),
     queryFn: () => fetchPendingSubmissionPage(filter, page, failedSub),
     refetchInterval: pickerRow || previewRow || discardModal ? false : 5_000,
   });

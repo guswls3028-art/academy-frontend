@@ -122,7 +122,7 @@ export default function SubmissionsInboxPage() {
   }
 
   const q = useQuery({
-    queryKey: [...teacherResultsQueryKeys.pendingSubmissionsList(filter), page],
+    queryKey: teacherResultsQueryKeys.pendingSubmissionsList(filter, page),
     queryFn: () => fetchPendingSubmissionPage(filter, page),
     refetchInterval: 5_000,
   });
