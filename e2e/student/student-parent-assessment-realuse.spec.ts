@@ -35,6 +35,7 @@ import {
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 import { verifyAssessmentCopy } from "../helpers/verifyAssessmentCopy";
+import { verifySubmissionInbox } from "../helpers/verifySubmissionInbox";
 
 test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -377,6 +378,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     expect(teacherProjection.user).toBeGreaterThan(0);
     expect(teacherProjection.meta.submitted_by_user_id).toBeGreaterThan(0);
     expect(teacherProjection.meta.submitted_by_user_id).not.toBe(teacherProjection.user);
+    await verifySubmissionInbox(page, request, admin, parentSubmissionId);
 
     await reloadStudentApp(page);
     await expect(page.getByRole("tab", { name: peer.name })).toHaveAttribute("aria-selected", "true");

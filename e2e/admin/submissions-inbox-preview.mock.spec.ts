@@ -139,7 +139,22 @@ async function installSubmissionApi(page: Page, options: {
       await json(route, { submission_id: 501, status: "grading" });
       return;
     }
-    await route.fallback();
+    const shellReads: Record<string, unknown> = {
+      "/clinic/participants/": [],
+      "/community/admin/reports/pending-count/": { count: 0 },
+      "/community/notifications/unread-count/": { count: 0 },
+      "/core/landing/admin/consult/": { items: [], summary: { total: 0, unread: 0 } },
+      "/lectures/attendance/arrival-overview/": { students: [], sessions: [], summary: {} },
+      "/results/admin/teacher-dashboard-counts/": { video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 1 },
+      "/staffs/currently-working/": [],
+      "/staffs/me/": { id: 12, is_working: false, work_types: [] },
+      "/students/registration_requests/": { count: 0, results: [] },
+    };
+    if (request.method() === "GET" && Object.hasOwn(shellReads, path)) return json(route, shellReads[path]);
+    if (["/core/program/", "/core/me/", "/token/refresh/", "/results/admin/clinic-targets/"].includes(path)) {
+      return route.fallback(); // Explicit local authentication stubs installed above.
+    }
+    throw new Error(`Unexpected local submission fixture request: ${request.method()} ${path}`);
   });
 
   return {

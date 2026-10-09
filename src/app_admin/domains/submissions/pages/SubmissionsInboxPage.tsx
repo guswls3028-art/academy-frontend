@@ -20,8 +20,8 @@
  * 직접 navigate 시 lecture/session 결손 가드 → SessionLayout "잘못된 세션 접근" 회피.
  */
 
-import { useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileSearch } from "lucide-react";
 import { Button, EmptyState, Tabs, Badge, ICON_FOR_BUTTON } from "@/shared/ui/ds";
@@ -48,9 +48,10 @@ import {
   formatSubmissionDate,
 } from "@admin/domains/submissions/statusMaps";
 import {
-  fetchPendingSubmissions,
+  fetchPendingSubmissionPage,
   type PendingSubmissionRow,
-} from "../api/adminPendingSubmissions";
+} from "@/shared/api/contracts/submissions";
+import SubmissionInboxPager from "@/shared/ui/submissions/SubmissionInboxPager";
 import DiscardReasonModal from "../components/DiscardReasonModal";
 import SubmissionPreviewModal, {
   submissionFileKind,
@@ -72,13 +73,6 @@ const FILTER_TABS: { key: FilterKey; label: string }[] = [
   { key: "failed", label: "실패/폐기" },
   { key: "all", label: "전체" },
 ];
-
-const FILTER_PARAM: Record<FilterKey, string | undefined> = {
-  pending: "pending",
-  done: "done",
-  failed: "failed",
-  all: undefined,
-};
 
 const PENDING_STATUSES: Set<SubmissionStatus> = new Set([
   "submitted",
@@ -115,7 +109,7 @@ function clientFilter(
 /* ─── Helpers ─── */
 
 function isTargetResolved(row: PendingSubmissionRow): boolean {
-  return row.target_resolved;
+  return row.target_resolved === true;
 }
 
 const DISCARD_REASON_LABEL: Record<string, string> = {
@@ -152,8 +146,13 @@ export default function SubmissionsInboxPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const [filter, setFilter] = useState<FilterKey>("pending");
-  const [failedSub, setFailedSub] = useState<FailedSubFilter>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawFilter = searchParams.get("filter");
+  const filter: FilterKey = rawFilter === "all" || rawFilter === "done" || rawFilter === "failed" ? rawFilter : "pending";
+  const rawFailed = searchParams.get("failed_type");
+  const failedSub: FailedSubFilter = rawFailed === "real_failed" || rawFailed === "discarded" ? rawFailed : "all";
+  const rawPage = Number(searchParams.get("page") || 1);
+  const page = Number.isSafeInteger(rawPage) && rawPage > 0 && rawPage <= 1_000_000 ? rawPage : 1;
 
   const [pickerRow, setPickerRow] = useState<PendingSubmissionRow | null>(null);
   const [previewRow, setPreviewRow] = useState<PendingSubmissionRow | null>(null);
@@ -170,37 +169,46 @@ export default function SubmissionsInboxPage() {
   >(null);
 
   const q = useQuery({
-    queryKey: submissionsQueryKeys.adminPendingList(filter),
-    queryFn: () => fetchPendingSubmissions(FILTER_PARAM[filter]),
-    refetchInterval: 5_000,
+    queryKey: [...submissionsQueryKeys.adminPendingList(filter), failedSub, page],
+    queryFn: () => fetchPendingSubmissionPage(filter, page, failedSub),
+    refetchInterval: pickerRow || previewRow || discardModal ? false : 5_000,
   });
 
+  useEffect(() => {
+    if (q.isError || !q.data || q.data.page === page) return;
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set("page", String(q.data.page));
+      return next;
+    }, { replace: true });
+  }, [q.data, q.isError, page, setSearchParams]);
+
   const rows = useMemo(() => {
-    const data = q.data ?? [];
+    const data = q.isError ? [] : q.data?.results ?? [];
     const sorted = [...data].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime() || b.id - a.id,
     );
     return clientFilter(sorted, filter, failedSub);
-  }, [q.data, filter, failedSub]);
+  }, [q.data, q.isError, filter, failedSub]);
 
   // failed 탭에서 sub-filter 카운트
   const failedCounts = useMemo(() => {
-    const fails = (q.data ?? []).filter((r) => r.status === "failed");
+    const summary = q.isError ? undefined : q.data?.summary;
     return {
-      total: fails.length,
-      real: fails.filter((r) => !r.is_discarded).length,
-      discarded: fails.filter((r) => r.is_discarded).length,
+      total: summary?.failed ?? 0,
+      real: summary?.real_failed ?? 0,
+      discarded: summary?.discarded ?? 0,
     };
-  }, [q.data]);
+  }, [q.data, q.isError]);
 
   const needsIdentificationCount = useMemo(
-    () => (q.data ?? []).filter((r) => r.status === "needs_identification").length,
-    [q.data],
+    () => rows.filter((r) => r.status === "needs_identification").length,
+    [rows],
   );
 
   const orphanCount = useMemo(
-    () => (q.data ?? []).filter((r) => !isTargetResolved(r)).length,
-    [q.data],
+    () => rows.filter((r) => !isTargetResolved(r)).length,
+    [rows],
   );
 
   // 일괄 선택 가능한 row 만 토글 가능 (선택은 폐기 가능 row 만 — 이미 폐기된 row 제외)
@@ -209,11 +217,23 @@ export default function SubmissionsInboxPage() {
     const resolved = isTargetResolved(row);
     return row.status === "needs_identification" || row.status === "failed" || !resolved;
   };
+  const selectedCurrentIds = rows.filter((row) => selectedIds.has(row.id) && isSelectable(row)).map((row) => row.id);
 
   // 필터 변경 시 선택 초기화
   function handleFilterChange(key: FilterKey) {
-    setFilter(key);
+    changePage(1, key, "all");
+  }
+
+  function changePage(nextPage: number, nextFilter = filter, nextFailed = failedSub) {
     setSelectedIds(new Set());
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.set("page", String(nextPage));
+      next.set("filter", nextFilter);
+      if (nextFilter === "failed" && nextFailed !== "all") next.set("failed_type", nextFailed);
+      else next.delete("failed_type");
+      return next;
+    });
   }
 
   function refetchAll() {
@@ -345,8 +365,8 @@ export default function SubmissionsInboxPage() {
   }
 
   function handleAskBatchDiscard() {
-    if (selectedIds.size === 0) return;
-    setDiscardModal({ kind: "batch", ids: Array.from(selectedIds) });
+    if (selectedCurrentIds.length === 0) return;
+    setDiscardModal({ kind: "batch", ids: selectedCurrentIds });
   }
 
   function handleDiscardConfirm(reason: DiscardReason) {
@@ -436,7 +456,7 @@ export default function SubmissionsInboxPage() {
         >
           <div className="flex flex-col gap-0.5 min-w-0">
             <span className="text-sm font-bold text-[var(--color-text-primary)]">
-              학생 미식별 제출 {needsIdentificationCount}건
+              이 페이지의 학생 미식별 제출 {needsIdentificationCount}건
             </span>
             <span className="text-xs text-[var(--color-text-muted)]">
               스캔/AI 업로드 후 학생 매칭이 안 된 제출입니다. 행의 <b>학생 지정</b> 버튼을 눌러 매칭하면 자동 채점 큐에 들어갑니다.
@@ -457,14 +477,13 @@ export default function SubmissionsInboxPage() {
           items={FILTER_TABS}
           onChange={(key) => {
             handleFilterChange(key as FilterKey);
-            setFailedSub("all");
           }}
         />
         <div className="flex items-center gap-2">
-          {selectedIds.size > 0 && (
+          {selectedCurrentIds.length > 0 && (
             <>
               <span className="text-xs text-[var(--color-text-muted)]">
-                {selectedIds.size}건 선택됨
+                {selectedCurrentIds.length}건 선택됨
               </span>
               <Button
                 type="button"
@@ -487,7 +506,7 @@ export default function SubmissionsInboxPage() {
       </div>
 
       {/* failed 탭 sub-filter — 폐기/실제실패 분리 */}
-      {filter === "failed" && (q.data ?? []).some((r) => r.status === "failed") && (
+      {filter === "failed" && failedCounts.total > 0 && (
         <div className="flex items-center gap-1 text-xs">
           <span className="text-[var(--color-text-muted)] mr-2">분류:</span>
           {([
@@ -498,7 +517,7 @@ export default function SubmissionsInboxPage() {
             <button
               key={opt.key}
               type="button"
-              onClick={() => setFailedSub(opt.key)}
+              onClick={() => changePage(1, filter, opt.key)}
               className={`px-2.5 py-1 rounded-full border ${
                 failedSub === opt.key
                   ? "bg-[var(--color-bg-surface-soft)] border-[var(--color-border-strong)] text-[var(--color-text-primary)] font-bold"
@@ -509,6 +528,10 @@ export default function SubmissionsInboxPage() {
             </button>
           ))}
         </div>
+      )}
+
+      {!q.isError && q.data && (
+        <SubmissionInboxPager data={q.data} onPage={changePage} disabled={!!pickerRow || !!previewRow || !!discardModal} />
       )}
 
       {q.isLoading && (
@@ -533,7 +556,7 @@ export default function SubmissionsInboxPage() {
         <EmptyState scope="panel" tone="empty" title={emptyTitle} />
       )}
 
-      {!q.isLoading && rows.length > 0 && (
+      {!q.isLoading && !q.isError && rows.length > 0 && (
         <div className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden">
           {/* 헤더 — 일괄 선택 체크박스 */}
           <div className="flex items-center gap-3 px-4 py-2 border-b border-[var(--color-border-divider)] text-xs text-[var(--color-text-muted)]">
@@ -545,7 +568,7 @@ export default function SubmissionsInboxPage() {
                 disabled={visibleSelectableIds.length === 0}
                 aria-label="모두 선택"
               />
-              <span>모두 선택 (폐기 가능 row 만)</span>
+              <span>이 페이지에서 폐기 가능한 항목 모두 선택</span>
             </label>
           </div>
 
@@ -664,7 +687,7 @@ function SubmissionRow({
   const lectureTitleDisplay = row.lecture_title || "";
 
   return (
-    <div className="flex flex-wrap items-center gap-2 px-4 py-3 hover:bg-[var(--color-bg-surface-soft)] transition-colors sm:flex-nowrap sm:gap-3">
+    <div data-testid={`submission-inbox-${row.id}`} className="flex flex-wrap items-center gap-2 px-4 py-3 hover:bg-[var(--color-bg-surface-soft)] transition-colors sm:flex-nowrap sm:gap-3">
       {/* 일괄 선택 체크박스 */}
       <input
         type="checkbox"
