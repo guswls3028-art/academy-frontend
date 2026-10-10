@@ -12,6 +12,35 @@ const DEVELOPMENT_OMR_R2_ORIGIN = "https://af4f2937d73db240e99864b8518265c5.r2.c
 const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const PPTX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
+type InventoryOriginal = { r2Key: string; name: string; contentType: string; sizeBytes: number };
+
+function encodeRfc3986(value: string): string {
+  return encodeURIComponent(value).replace(/[!'()*]/g, (char) => "%" + char.charCodeAt(0).toString(16).toUpperCase());
+}
+
+function inventoryDisposition(name: string): string {
+  const safeName = [...name].filter((char) => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127)
+    .join("").replaceAll('"', "").replaceAll("\\", "_");
+  const ascii = [...safeName].every((char) => char.charCodeAt(0) < 128);
+  return `attachment; filename="${ascii ? safeName : "download"}"`
+    + (ascii ? "" : "; filename*=UTF-8''" + encodeRfc3986(safeName));
+}
+
+function isExactInventoryOriginalDownload(boundary: ReleaseBoundary, rawUrl: string, file: InventoryOriginal): boolean {
+  if (boundary.mode !== "development") return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== target.origin + target.pathname + target.search
+    || target.pathname !== "/academy-development-artifacts/" + file.r2Key.split("/").map(encodeRfc3986).join("/")
+    || target.searchParams.getAll("response-content-type").length !== 1
+    || target.searchParams.get("response-content-type") !== file.contentType
+    || target.searchParams.getAll("response-content-disposition").length !== 1
+    || target.searchParams.get("response-content-disposition") !== inventoryDisposition(file.name)) return false;
+  target.searchParams.delete("response-content-type");
+  target.searchParams.delete("response-content-disposition");
+  return hasExactHostSignature(target, 3600);
+}
+
 function isExactDevelopmentPptDownload(
   boundary: ReleaseBoundary, rawUrl: string, filename: string,
 ): boolean {
@@ -868,7 +897,9 @@ export async function installReleaseContextGuard(
   const resourceReaderUrls = new Map<string, string>();
   const acceptedPptJobs = new Set<string>();
   const acceptedPayrollJobs = new Map<string, string>();
-  const documentDownloadUrls = new Map<string, { url: string; filename: string; contentType: string; contentDisposition: string }>();
+  const documentDownloadUrls = new Map<string, { url: string; filename: string; contentType: string; contentDisposition: string;
+    inventoryOriginal?: InventoryOriginal }>();
+  const inventoryOriginals = new Map<string, InventoryOriginal>();
   const communityAttachments = new Map<string, { contentType: string; originalName: string }>();
   const registerQnaPost = (post: unknown) => {
     if (!isRecord(post) || post.post_type !== "qna" || typeof post.id !== "number" || !Number.isSafeInteger(post.id)
@@ -1023,10 +1054,14 @@ export async function installReleaseContextGuard(
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
         const body = await response.body();
         const disposition = documentDownload.contentDisposition;
+        const original = documentDownload.inventoryOriginal;
+        const signatureMatches = original?.contentType === "application/x-hwp"
+          ? [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1].every((byte, index) => body[index] === byte)
+          : body.length >= 4 && body.subarray(0, 4).toString("binary") === "PK\x03\x04";
         if (response.status() !== 200
           || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== documentDownload.contentType
           || response.headers()["content-disposition"] !== disposition
-          || body.length < 4 || body.subarray(0, 4).toString("binary") !== "PK\x03\x04") {
+          || !signatureMatches || (original && body.length !== original.sizeBytes)) {
           await reject("transport");
           return;
         }
@@ -1125,6 +1160,34 @@ export async function installReleaseContextGuard(
           throw new Error("Real API CORS boundary mismatch");
         }
         const pptTarget = new URL(upstream);
+        if (boundary.mode === "development" && request.method() === "POST" && !pptTarget.search
+          && response.status() >= 200 && response.status() < 300
+          && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json"
+          && /^Bearer \S+$/.test(headers.authorization ?? "") && headers["x-tenant-code"] === boundary.tenantCode
+          && ["/api/v1/storage/inventory/upload/", "/api/v1/storage/inventory/presign/"].includes(pptTarget.pathname)) {
+          const payload = await response.json();
+          if (pptTarget.pathname.endsWith("/upload/") && isRecord(payload) && inventoryOriginals.size < 4
+            && Number.isSafeInteger(boundary.omrR2TenantId) && Number(boundary.omrR2TenantId) > 0
+            && typeof payload.r2Key === "string" && new RegExp("^tenants/" + boundary.omrR2TenantId
+              + "/students/[A-Za-z0-9_-]+/inventory/qa-[^/\\\\\\x00-\\x1f]{1,240}_[0-9]{6}_[a-f0-9]{32}\\.[hH][wW][pP][xX]?$").test(payload.r2Key)
+            && typeof payload.name === "string" && /^qa-[^/\\]{1,240}\.[hH][wW][pP][xX]?$/.test(payload.name)
+            && [...payload.name].every((char) => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127)
+            && typeof payload.contentType === "string" && payload.contentType === (payload.name.toLowerCase().endsWith(".hwpx")
+              ? "application/vnd.hancom.hwpx" : "application/x-hwp")
+            && typeof payload.sizeBytes === "number" && Number.isSafeInteger(payload.sizeBytes)
+            && payload.sizeBytes > 0 && payload.sizeBytes <= 30 * 1024 * 1024) {
+            inventoryOriginals.set(payload.r2Key, { r2Key: payload.r2Key, name: payload.name,
+              contentType: payload.contentType, sizeBytes: payload.sizeBytes });
+          }
+          if (pptTarget.pathname.endsWith("/presign/") && isRecord(data) && data.download === true
+            && typeof data.r2_key === "string" && isRecord(payload) && typeof payload.url === "string") {
+            const original = inventoryOriginals.get(data.r2_key);
+            if (original && isExactInventoryOriginalDownload(boundary, payload.url, original)) {
+              documentDownloadUrls.set("inventory:" + original.r2Key, { url: payload.url, filename: original.name,
+                contentType: original.contentType, contentDisposition: inventoryDisposition(original.name), inventoryOriginal: original });
+            }
+          }
+        }
         const pptSubmission = request.method() === "POST"
           && pptTarget.pathname === "/api/v1/tools/ppt/generate/" && !pptTarget.search;
         const payrollSubmission = request.method() === "POST"

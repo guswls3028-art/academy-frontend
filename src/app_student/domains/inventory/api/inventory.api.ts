@@ -70,8 +70,8 @@ export async function deleteMyFolder(studentPs: string, folderId: string, select
 }
 
 /** presigned URL (다운로드/미리보기) */
-export function getMyFileUrl(r2Key: string, selectedStudentId?: number): Promise<{ url: string }> {
-  return getPresignedUrl(r2Key, undefined, selectedStudentId);
+export function getMyFileUrl(r2Key: string, selectedStudentId?: number, download = false): Promise<{ url: string }> {
+  return getPresignedUrl(r2Key, undefined, selectedStudentId, download);
 }
 
 /** 파일 타입에서 아이콘 추론 */

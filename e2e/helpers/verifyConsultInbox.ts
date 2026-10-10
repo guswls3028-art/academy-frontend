@@ -38,6 +38,16 @@ export async function verifyConsultInbox(parentPage: Page, request: APIRequestCo
       await row.getByRole("button", { name: width === 390 ? "+ 메모 추가" : "수정", exact: true }).click();
       const memo = `QA 상담 메모 ${width}\n다음 연락 일정 보존`;
       await row.getByPlaceholder("처리 메모", { exact: true }).fill(memo);
+      const concurrentMemo = `QA 다른 담당자 메모 ${width}`;
+      await expectApi(request, "PATCH", `${endpoint}${created.id}/`, admin.access, { admin_memo: concurrentMemo });
+      const conflictingResponse = page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes(`/consult/${created.id}/`));
+      await row.getByRole("button", { name: "저장", exact: true }).click();
+      expect((await conflictingResponse).status()).toBe(409);
+      await expect(row.getByPlaceholder("처리 메모", { exact: true })).toHaveValue(memo);
+      await expect(row.getByRole("region", { name: "다른 담당자의 최신 메모" })).toContainText(concurrentMemo);
+      await row.getByRole("button", { name: "최신 메모로 다시 작성", exact: true }).click();
+      await expect(row.getByPlaceholder("처리 메모", { exact: true })).toHaveValue(concurrentMemo);
+      await row.getByPlaceholder("처리 메모", { exact: true }).fill(memo);
       await row.getByRole("button", { name: "저장", exact: true }).click();
       await expect(row.getByText(memo, { exact: true })).toBeVisible();
       await page.reload({ waitUntil: "domcontentloaded" });

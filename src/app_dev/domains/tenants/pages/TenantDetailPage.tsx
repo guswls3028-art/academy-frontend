@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { isAxiosError } from "axios";
 import { Link, useParams } from "react-router";
 import {
   useTenantDetail, useUpdateTenant,
@@ -324,6 +325,7 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
   const [loginSubtitle, setLoginSubtitle] = useState("");
   const [initialized, setInitialized] = useState(false);
   const [initial, setInitial] = useState({ displayName: "", windowTitle: "", loginTitle: "", loginSubtitle: "" });
+  const [conflict, setConflict] = useState(false);
 
   useEffect(() => {
     setInitialized(false);
@@ -367,12 +369,16 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
   }, [tenantId, uploadLogo, toast]);
 
   function handleSave() {
-    patchBranding.mutate({ tenantId, displayName, windowTitle, loginTitle, loginSubtitle }, {
+    patchBranding.mutate({ tenantId, displayName, windowTitle, loginTitle, loginSubtitle, expected: initial }, {
       onSuccess: () => {
         setInitial({ displayName, windowTitle, loginTitle, loginSubtitle });
+        setConflict(false);
         toast("저장 완료");
       },
-      onError: () => toast("저장 실패", "error"),
+      onError: (error) => {
+        if (isAxiosError(error) && error.response?.status === 409) setConflict(true);
+        else toast("저장 실패", "error");
+      },
     });
   }
 
@@ -402,6 +408,20 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
 
   return (
     <div className={styles.splitGrid}>
+      {conflict && (
+        <div className={s.card} role="alert">
+          <div className={s.cardBody}>
+            <p>다른 사용자가 브랜딩을 변경했습니다. 현재 입력은 저장되지 않았습니다.</p>
+            <p>최신 설정을 불러오면 현재 편집 내용을 버리고 다시 수정할 수 있습니다.</p>
+            <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={async () => {
+              const result = await refetch();
+              if (result.isError) return;
+              setInitialized(false);
+              setConflict(false);
+            }}>최신 설정에서 다시 수정</button>
+          </div>
+        </div>
+      )}
       {/* 로고 */}
       <div className={s.card}>
         <div className={s.cardHeader}>

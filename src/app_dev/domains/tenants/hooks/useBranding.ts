@@ -3,7 +3,7 @@ import {
   getTenantBranding,
   uploadTenantLogo,
   patchTenantBranding,
-  type TenantBrandingDto,
+  type BrandingUpdate,
 } from "@dev/domains/tenants/api/branding.api";
 
 const KEYS = {
@@ -33,7 +33,7 @@ export function useUploadLogo() {
 export function usePatchBranding() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ tenantId, ...payload }: { tenantId: number } & Partial<TenantBrandingDto>) =>
+    mutationFn: ({ tenantId, ...payload }: { tenantId: number } & BrandingUpdate) =>
       patchTenantBranding(tenantId, payload),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.branding(vars.tenantId) });

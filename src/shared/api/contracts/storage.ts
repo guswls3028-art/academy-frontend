@@ -310,10 +310,12 @@ export async function getPresignedUrl(
   r2Key: string,
   expiresIn?: number,
   selectedStudentId?: number,
+  download = false,
 ): Promise<{ url: string }> {
   const { data } = await api.post<{ url: string }>("/storage/inventory/presign/", {
     r2_key: r2Key,
     expires_in: expiresIn ?? 3600,
+    ...(download ? { download: true } : {}),
   }, {
     headers: selectedStudentHeaders(selectedStudentId),
   });

@@ -48,7 +48,10 @@ async function setup(page: Page) {
       state.patches += 1;
       if (state.failPatch) return json({ detail: "QA 저장 실패" }, 400);
       const row = items.find((item) => item.id === Number(detail[1]))!;
-      const body = route.request().postDataJSON() as { mark_read?: boolean; admin_memo?: string };
+      const body = route.request().postDataJSON() as { mark_read?: boolean; admin_memo?: string; expected_admin_memo?: string };
+      if (body.expected_admin_memo !== undefined && body.expected_admin_memo !== row.admin_memo) {
+        return json({ detail: "다른 담당자가 메모를 변경했습니다.", code: "memo_conflict", admin_memo: row.admin_memo }, 409);
+      }
       if (body.mark_read) row.read_at = "2026-10-09T10:00:00+09:00";
       if (body.admin_memo !== undefined) row.admin_memo = body.admin_memo;
       return json({ ok: true });
@@ -59,6 +62,29 @@ async function setup(page: Page) {
 }
 
 for (const width of [390, 1366]) {
+  test(`같은 상담 메모 충돌은 초안과 최신값을 보여주고 재작성한다 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await setup(page);
+    await gotoAndSettle(page, `${BASE}/workspace/settings/consult?page=5`);
+    const row = page.getByRole("article", { name: "상담 요청 QA 문의 001", exact: true });
+    await row.getByRole("button", { name: "수정", exact: true }).click();
+    await row.getByPlaceholder("처리 메모", { exact: true }).fill("내 초안");
+    state.items.find((item) => item.id === 1001)!.admin_memo = "다른 담당자 연락 완료";
+    await row.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(row.getByRole("region", { name: "다른 담당자의 최신 메모" })).toContainText("다른 담당자 연락 완료");
+    await expect(row.getByPlaceholder("처리 메모", { exact: true })).toHaveValue("내 초안");
+    expect(state.items.find((item) => item.id === 1001)!.admin_memo).toBe("다른 담당자 연락 완료");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath(`consult-conflict-${width}.png`), animations: "disabled" });
+    await row.getByRole("button", { name: "최신 메모로 다시 작성", exact: true }).click();
+    await expect(row.getByPlaceholder("처리 메모", { exact: true })).toHaveValue("다른 담당자 연락 완료");
+    await row.getByPlaceholder("처리 메모", { exact: true }).fill("다른 담당자 연락 완료\n내 후속 일정");
+    await row.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(row.getByText("다른 담당자 연락 완료\n내 후속 일정", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(row.getByText("다른 담당자 연락 완료\n내 후속 일정", { exact: true })).toBeVisible();
+  });
+
   test(`상담 수신함은 200건 이후 메모·읽음·미확인 필터와 reload를 유지한다 ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const state = await setup(page);

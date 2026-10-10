@@ -1,5 +1,6 @@
 /** Student baseline and parent selected-child inventory/score writes in isolated qa-* development. */
 import { expect, test } from "../fixtures/strictTest";
+import { readFile } from "node:fs/promises";
 import {
   api,
   assertNoHorizontalOverflow,
@@ -62,6 +63,7 @@ async function uploadInventoryFile(
   page: Parameters<typeof gotoAndSettle>[0],
   name: string,
   selectedStudentId?: number,
+  original?: { mimeType: string; buffer: Buffer },
 ): Promise<string> {
   const responsePromise = page.waitForResponse((response) => (
     response.request().method() === "POST"
@@ -69,8 +71,8 @@ async function uploadInventoryFile(
   ));
   await page.locator('input[type="file"]').setInputFiles({
     name,
-    mimeType: "application/pdf",
-    buffer: Buffer.from(`isolated-${name}`),
+    mimeType: original?.mimeType ?? "application/pdf",
+    buffer: original?.buffer ?? Buffer.from(`isolated-${name}`),
   });
   const response = await responsePromise;
   expect([200, 201]).toContain(response.status());
@@ -128,6 +130,21 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
     expect(requestedStudentId).toBe(String(primary.id));
     await expect(page.getByText(studentFile, { exact: true })).toBeVisible();
     await uploadInventoryFile(page, parentFile, primary.id);
+    const hancomOriginals = [
+      { name: `qa-한글원본-${runStamp}.HWP`, mimeType: "application/octet-stream", buffer: await readFile(new URL("../fixtures/documents/public-resource-equation.hwp", import.meta.url)) },
+      { name: `qa-한글원본-${runStamp}.hwpx`, mimeType: "application/zip", buffer: await readFile(new URL("../fixtures/documents/public-resource-report.hwpx", import.meta.url)) },
+    ];
+    for (const original of hancomOriginals) {
+      await uploadInventoryFile(page, original.name, primary.id, original);
+      await reloadStudentApp(page);
+      const fileRow = page.getByText(original.name, { exact: true }).locator("..").locator("..");
+      const downloading = page.waitForEvent("download");
+      await fileRow.getByTitle("다운로드", { exact: true }).click();
+      const downloaded = await downloading;
+      expect(await downloaded.failure()).toBeNull();
+      expect(downloaded.suggestedFilename()).toBe(original.name);
+      expect(await readFile((await downloaded.path())!)).toEqual(original.buffer);
+    }
     await page.getByRole("button", { name: "새 폴더", exact: true }).click();
     await page.getByPlaceholder("폴더 이름").fill(folderName);
     const folderResponsePromise = page.waitForResponse((response) => (
@@ -192,6 +209,7 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
     await gotoAndSettle(page, `${QA_BASE}/student/inventory`, { timeout: 30_000 });
     await expect(page.getByText(studentFile, { exact: true })).toHaveCount(0);
     await expect(page.getByText(parentFile, { exact: true })).toHaveCount(0);
+    for (const original of hancomOriginals) await expect(page.getByText(original.name, { exact: true })).toHaveCount(0);
     await selectParentStudentThroughUi(page, primary);
     await logoutStudentApp(page);
     await loginThroughUi(page, family.parentPhone, family.parentPassword);

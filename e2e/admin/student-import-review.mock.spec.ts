@@ -132,7 +132,71 @@ async function confirmStudentImport(page: Page, count = 3): Promise<void> {
 
 test.use({ serviceWorkers: "block" });
 
+for (const width of [1366, 390]) {
+  test(`표지 뒤 영문 명단의 학생·보호자와 오류 행을 구분하고 등록한다 (${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await installStudentPage(page, { importResult: { created: 1, total: 2, failed: [] } });
+    await openExcelRegistration(page);
+    const workbook = new ExcelJS.Workbook();
+    workbook.addWorksheet("안내").addRow(["학생 등록 안내"]);
+    const roster = workbook.addWorksheet("등록 명단");
+    roster.addRows([
+      [],
+      ["Guardian Name", "Student Name", "Student Mobile", "Guardian Phone", "School Type", "Grade"],
+      ["보호자이름", "번호없는학생", "", "01077778888", "MIDDLE", 2],
+      ["다른보호자", "오류학생", "0101234567", "01033334444", "MIDDLE", 2],
+    ]);
+    const dialog = page.getByRole("dialog");
+    await dialog.locator('input[type="file"]').setInputFiles({
+      name: "표지와-영문명단.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: Buffer.from(await workbook.xlsx.writeBuffer()),
+    });
+    await expect(dialog.getByText("입력 확인 필요 1명", { exact: true })).toBeVisible();
+    await expect(dialog.getByText(/4행 · 오류학생/)).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "1명 등록 요청", exact: true })).toBeEnabled();
+    await expect(dialog.getByText("없음·식별번호 사용").locator("..")).toContainText("1명");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`multisheet-import-${width}.png`), fullPage: true });
+    await dialog.getByRole("button", { name: "1명 등록 요청", exact: true }).click();
+    const upload = page.waitForRequest((request) => request.method() === "POST" && request.url().includes("/students/bulk_create_from_excel/"));
+    await confirmStudentImport(page, 1);
+    expect((await upload).postDataBuffer()?.length).toBeGreaterThan(0);
+  });
+}
+
 test.describe("신규 학생 Excel 등록 확인 화면", () => {
+  test("동률 명단은 선택을 안내하고 활성 시트를 바꿔 다시 등록할 수 있다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installStudentPage(page);
+    await openExcelRegistration(page);
+    const dialog = page.getByRole("dialog");
+    const workbook = new ExcelJS.Workbook();
+    workbook.addWorksheet("안내").addRow(["등록할 명단을 선택하세요."]);
+    for (const name of ["첫째반", "둘째반"]) {
+      workbook.addWorksheet(name).addRows([
+        ["Guardian Name", "Student Name", "Guardian Phone", "Student Mobile"],
+        ["보호자", name, "01070001111", name === "첫째반" ? "01080001111" : ""],
+      ]);
+    }
+    // Both rosters must have the same quality; only student ownership differs.
+    workbook.getWorksheet("첫째반")!.getCell("D2").value = "";
+    const upload = async () => dialog.locator('input[type="file"]').setInputFiles({
+      name: "여러명단.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: Buffer.from(await workbook.xlsx.writeBuffer()),
+    });
+    await upload();
+    await expect(page.getByText(/명단으로 보이는 시트가 여러 개입니다/)).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /명 등록 요청/ })).toHaveCount(0);
+    workbook.views = [{ x: 0, y: 0, width: 1000, height: 800, visibility: "visible", activeTab: 2 }];
+    await upload();
+    await expect(dialog.getByRole("button", { name: "1명 등록 요청", exact: true })).toBeEnabled();
+    await dialog.getByRole("button", { name: "1명 등록 요청", exact: true }).click();
+    await confirmStudentImport(page, 1);
+    await expect(page.getByRole("dialog", { name: "학생 등록 결과" })).toBeVisible();
+  });
+
   test("이름 표기를 보존하고 누락 전화번호의 실제 등록 인원을 먼저 보여준다", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await installStudentPage(page);

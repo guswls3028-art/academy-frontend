@@ -23,7 +23,7 @@ export type TenantInfo = {
 
 export type UpdateTenantInfoPayload =
   Partial<Pick<TenantInfo, "name" | "phone" | "headquarters_phone" | "og_title" | "og_description" | "og_image_url" | "pass_label" | "fail_label">>
-  & { academies?: AcademyEntry[] };
+  & { academies?: AcademyEntry[]; expected_academies?: AcademyEntry[] };
 
 export async function fetchTenantInfo(): Promise<TenantInfo> {
   const { data } = await api.get<TenantInfo>("/core/tenant-info/");

@@ -22,6 +22,14 @@ spec 목록과 과거 pass count는 보관하지 않는다. 실행 목록은
 
 ## 2. 실행 구조
 
+학생·학부모 보관함 검증은 선택 자녀의 합성 HWP/HWPX를 업로드한 뒤 reload와 원본
+다운로드를 수행하여 한글 원본 파일명·바이트 일치·형제 자녀 격리를 확인한다.
+다운로드는 `download: true` presign 계약을 사용하고 일반 미리보기는 기존 열람 계약을
+유지한다. 개발 브라우저 경계는 실제 인증된 업로드 응답의 exact QA 원본 metadata와
+presign 응답을 연결한다. 개발 tenant/bucket/key·MIME·파일명·서명·크기가 모두 일치하는
+원본만 허용하며 다른 R2 URL, 앱 자격 증명 전달, redirect, 변경된 본문은 차단한다.
+업로드한 exact 파일 ID는 기존 finally 정리에 포함되며 tenant/user cleanup zero도 유지한다.
+
 학생/학부모 계정 실사용 spec은 같은 일회용 tenant의 별도 owner 계정으로 학원 정보를
 PC/390px에서 수정·저장·reload한 뒤 학생 홈 학원문의 반영까지 확인한다. 기존 admin
 계정 역할은 유지하며 원래 학원 정보는 finally에서 복원·재조회한다. 최종 사용자·token

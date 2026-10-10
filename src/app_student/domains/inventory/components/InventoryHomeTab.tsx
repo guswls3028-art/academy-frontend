@@ -122,7 +122,7 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey, selecte
 
   const handleDownload = async (file: InventoryFile) => {
     try {
-      const { url } = await getMyFileUrl(file.r2Key, selectedStudentId);
+      const { url } = await getMyFileUrl(file.r2Key, selectedStudentId, true);
       if (url) {
         const { downloadPresignedUrl } = await import("@/shared/utils/safeDownload");
         downloadPresignedUrl(url, file.name || "download");

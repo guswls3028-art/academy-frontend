@@ -6,7 +6,8 @@ import {
   createWorkbook,
   downloadArrayWorksheet,
   downloadWorkbook,
-  readFirstWorksheetRows,
+  readExcelWorkbook,
+  readWorksheetRows,
 } from "@/shared/utils/excelWorkbook";
 import type {
   ClientStudentCustomFieldDefinition,
@@ -60,42 +61,75 @@ function toRawPhone(v: unknown): string {
  * 각 필드에 매칭 가능한 대체 라벨 목록
  */
 const HEADER_ALIASES: Record<string, readonly string[]> = {
-  remark: ["구분", "체크"],
-  name: ["이름", "성명", "학생명"],
-  studentPhone: ["학생전화번호", "학생핸드폰", "학생 전화번호", "학생 전화", "학생연락처"],
-  parentPhone: ["학부모전화번호", "부모핸드폰", "부모 전화", "학부모 전화", "보호자 전화", "보호자전화"],
-  gender: ["성별"],
-  schoolType: ["학교유형"],
-  school: ["학교", "학교(학년)", "학교명"], // 학교(학년) = 학교+학년 합쳐진 컬럼
-  grade: ["학년"],
-  schoolClass: ["반"],
-  major: ["계열"],
-  memo: ["메모"],
+  name: ["이름", "성명", "학생명", "학생 이름", "이름(학생)", "성함", "학생성명", "수강생", "name", "student name"],
+  parentPhone: ["학부모전화번호", "부모핸드폰", "부모 전화", "학부모 전화", "보호자 전화", "보호자전화", "학부모연락처", "부모 연락처", "보호자 연락처", "연락처(학부모)", "전화(학부모)", "휴대폰", "핸드폰", "연락처", "전화번호", "전화", "폰", "폰번호", "부모핸드", "학부모", "보호자", "parent phone", "parent mobile", "guardian phone", "guardian mobile", "emergency contact"],
+  studentPhone: ["학생전화번호", "학생핸드폰", "학생 전화", "학생연락처", "학생 연락처", "연락처(학생)", "전화(학생)", "학생폰", "학생 폰", "학생핸드", "학생전화", "student phone", "student mobile"],
+  schoolType: ["학교유형", "학교 유형", "school type"],
+  school: ["학교", "학교(학년)", "학교명", "출신학교", "school", "school / grade"],
+  grade: ["학년", "학년도", "grade"],
+  gender: ["성별", "남자", "여자", "남성", "여성", "남", "여", "녀"],
+  schoolClass: ["반", "학급"],
+  major: ["계열", "이과", "문과"],
+  memo: ["메모", "비고", "특이사항", "비고2"],
+  remark: ["구분", "체크", "비고", "비고2", "출석", "현장"],
   /** 엑셀 내 강의명 — 강의 일치 확인용(선택) */
   lectureName: ["강의명", "강의", "과목", "수업명"],
 };
 
+const PARENT_KEYWORDS = ["부모", "학부모", "보호자", "guardian", "parent", "emergency"];
+const STUDENT_KEYWORDS = ["학생", "student"];
+
 function normalizeHeader(s: string): string {
-  return String(s ?? "").trim().replace(/\s/g, "");
+  return String(s ?? "").trim().replace(/\s/g, "")
+    .replace(/[！-～]/g, (character) => String.fromCharCode(character.charCodeAt(0) - 0xfee0))
+    .toLowerCase();
 }
 
 /** 헤더 라벨이 특정 필드에 매칭되는지 확인 */
 function headerMatches(label: string, key: string): boolean {
   const normalized = normalizeHeader(label);
+  if (!normalized || (key === "name" && PARENT_KEYWORDS.some((keyword) => normalized.includes(keyword)))) return false;
+  if ((key === "parentPhone" || key === "studentPhone") && ["이름", "성명", "name"].some((word) => normalized.includes(word))) return false;
   const aliases = HEADER_ALIASES[key];
   if (!aliases) return false;
   const labels = EXCEL_HEADERS.filter((h) => h.key === key).map((h) => h.label);
   const allLabels = [...new Set([...aliases, ...labels])];
-  return allLabels.some((a) => normalizeHeader(a) === normalized);
+  return allLabels.some((alias) => {
+    const value = normalizeHeader(alias);
+    return normalized === value
+      || (value.length >= 3 && normalized.includes(value))
+      || (value.length >= 2 && normalized.startsWith(value) && normalized.length <= value.length + 4);
+  });
 }
 
 /** 헤더 인덱스 매핑 (첫 행 기준) — 별칭 포함 */
 function buildHeaderMap(headers: string[]): Record<string, number> {
   const map: Record<string, number> = {};
+  const used = new Set<number>();
+  headers.forEach((header, index) => {
+    const label = normalizeHeader(header);
+    if (!headerMatches(label, "parentPhone") && !headerMatches(label, "studentPhone")) return;
+    const parent = PARENT_KEYWORDS.some((keyword) => label.includes(keyword));
+    const student = STUDENT_KEYWORDS.some((keyword) => label.includes(keyword));
+    const role = parent && !student ? "parentPhone" : student && !parent ? "studentPhone" : null;
+    if (role && map[role] === undefined) {
+      map[role] = index;
+      used.add(index);
+    }
+  });
+  for (const key of ["parentPhone", "studentPhone"]) {
+    if (map[key] !== undefined) continue;
+    const index = headers.findIndex((header, i) => !used.has(i) && headerMatches(header, key));
+    if (index >= 0) {
+      map[key] = index;
+      used.add(index);
+    }
+  }
   headers.forEach((h, i) => {
     const label = String(h ?? "").trim();
     if (!label) return;
     for (const key of Object.keys(HEADER_ALIASES) as (keyof typeof HEADER_ALIASES)[]) {
+      if (key === "parentPhone" || key === "studentPhone") continue;
       if (headerMatches(label, key) && map[key] === undefined) {
         map[key] = i;
         break;
@@ -103,6 +137,63 @@ function buildHeaderMap(headers: string[]): Record<string, number> {
     }
   });
   return map;
+}
+
+function findStudentHeader(rows: unknown[][]): number {
+  const strict = rows.findIndex((row) =>
+    row.some((cell) => headerMatches(String(cell ?? ""), "name"))
+    && row.some((cell) => headerMatches(String(cell ?? ""), "parentPhone") || headerMatches(String(cell ?? ""), "studentPhone"))
+  );
+  if (strict >= 0) return strict;
+  return rows.slice(0, 10).findIndex((row) => {
+    const map = buildHeaderMap(row.map((cell) => String(cell ?? "")));
+    return map.name !== undefined || map.parentPhone !== undefined || map.studentPhone !== undefined;
+  });
+}
+
+/** Use the worker's worksheet ranking so preview and the uploaded file refer to the same roster. */
+async function readStudentWorksheetRows(file: File): Promise<unknown[][]> {
+  const workbook = await readExcelWorkbook(file);
+  const activeTab = workbook.views?.[0]?.activeTab ?? 0;
+  const sheets = workbook.worksheets.map((sheet, index) => ({
+    name: sheet.name,
+    active: index === activeTab,
+    rows: readWorksheetRows(sheet, { preserveEmptyRows: true }),
+  }));
+  const candidates = sheets.flatMap((sheet) => {
+    const header = findStudentHeader(sheet.rows);
+    if (header < 0) return [];
+    const headerRow = sheet.rows[header].map((cell) => String(cell ?? ""));
+    const map = buildHeaderMap(headerRow);
+    const strict = headerRow.some((cell) => headerMatches(cell, "name"))
+      && headerRow.some((cell) => headerMatches(cell, "parentPhone") || headerMatches(cell, "studentPhone"));
+    const phoneColumns = new Set<number>();
+    let meaningfulRows = 0;
+    for (const row of sheet.rows.slice(header + 1, header + 51)) {
+      let hasPhone = false;
+      row.forEach((cell, index) => {
+        if (/^010[0-9]{8}$/.test(toRawPhone(cell))) {
+          hasPhone = true;
+          phoneColumns.add(index);
+        }
+      });
+      if (hasPhone) meaningfulRows += 1;
+    }
+    return [{ ...sheet, score: [Number(strict), Number(map.parentPhone !== undefined), Number(map.name !== undefined), meaningfulRows, phoneColumns.size] }];
+  });
+  candidates.sort((left, right) => {
+    for (let index = 0; index < left.score.length; index += 1) {
+      if (left.score[index] !== right.score[index]) return right.score[index] - left.score[index];
+    }
+    return Number(right.active) - Number(left.active);
+  });
+  const best = candidates[0];
+  if (!best) return sheets.find((sheet) => sheet.active)?.rows ?? [];
+  const tied = candidates.filter((candidate) => candidate.score.every((value, index) => value === best.score[index]));
+  if (tied.length > 1 && !best.active) {
+    throw new Error(`명단으로 보이는 시트가 여러 개입니다. 등록할 시트를 Excel에서 활성화한 뒤 다시 업로드해 주세요: ${tied.map((sheet) => sheet.name).join(", ")}`);
+  }
+  return best.rows;
 }
 
 /** 셀 값 → 문자열 */
@@ -244,7 +335,7 @@ export interface ParseStudentExcelResult {
  */
 export async function parseStudentExcel(file: File): Promise<ParseStudentExcelResult> {
   try {
-        const rows = await readFirstWorksheetRows(file, { preserveEmptyRows: true });
+        const rows = await readStudentWorksheetRows(file);
         if (!rows.length) {
           throw new Error("데이터가 없습니다.");
         }
@@ -414,7 +505,7 @@ export function mapAttendanceCellToStatus(cell: string): string | null {
  */
 export async function parseSessionEnrollExcel(file: File): Promise<SessionEnrollParsedRow[]> {
   try {
-        const rows = await readFirstWorksheetRows(file);
+        const rows = await readStudentWorksheetRows(file);
         if (!rows.length) {
           throw new Error("데이터가 없습니다.");
         }

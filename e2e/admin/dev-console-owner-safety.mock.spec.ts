@@ -343,8 +343,47 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
       windowTitle: "창 B",
       loginTitle: "로그인 B",
       loginSubtitle: "부제 B",
+      expected: { displayName: "표시 B", windowTitle: "창 B", loginTitle: "로그인 B", loginSubtitle: "부제 B" },
     });
   });
+
+  for (const width of [1366, 390]) {
+    test(`브랜딩 동시 편집 충돌은 최신값 확인 후 다시 저장한다 ${width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await stubDevTenant(page);
+      let saved: Record<string, unknown> = { tenantId: 11, displayName: "기존 학원", windowTitle: "기존 창", loginTitle: "기존 로그인", loginSubtitle: "기존 부제" };
+      await page.route("**/api/v1/core/tenant-branding/11/", async (route) => {
+        if (route.request().method() === "PATCH") {
+          const { expected, ...payload } = route.request().postDataJSON();
+          if (Object.entries(expected).some(([key, value]) => saved[key] !== value)) {
+            return route.fulfill({ status: 409, json: { code: "settings_conflict" } });
+          }
+          saved = { ...saved, ...payload };
+        }
+        return route.fulfill({ json: saved });
+      });
+      await gotoAndSettle(page, `${BASE}/dev/tenants/11`);
+      await page.getByRole("button", { name: "브랜딩", exact: true }).click();
+      await expect(page.getByPlaceholder("헤더에 표시될 이름")).toHaveValue("기존 학원");
+      await page.getByPlaceholder("헤더에 표시될 이름").fill("내 수정 학원");
+      saved.loginTitle = "다른 담당자의 로그인";
+      await page.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(page.getByRole("alert")).toContainText("다른 사용자가 브랜딩을 변경했습니다");
+      await expect(page.getByPlaceholder("헤더에 표시될 이름")).toHaveValue("내 수정 학원");
+      expect(saved.displayName).toBe("기존 학원");
+      await page.getByRole("button", { name: "최신 설정에서 다시 수정", exact: true }).click();
+      await expect(page.getByPlaceholder("헤더에 표시될 이름")).toHaveValue("기존 학원");
+      await page.getByPlaceholder("헤더에 표시될 이름").fill("내 수정 학원");
+      await page.getByRole("button", { name: "저장", exact: true }).click();
+      await expect.poll(() => saved.displayName).toBe("내 수정 학원");
+      expect(saved.loginTitle).toBe("다른 담당자의 로그인");
+      await page.reload();
+      await page.getByRole("button", { name: "브랜딩", exact: true }).click();
+      await expect(page.getByPlaceholder("헤더에 표시될 이름")).toHaveValue("내 수정 학원");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`branding-conflict-${width}.png`), fullPage: true });
+    });
+  }
 
   test("기존 계정 승격 재요청은 자격 증명과 프로필을 보내지 않는다", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
