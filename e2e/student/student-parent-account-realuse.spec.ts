@@ -105,7 +105,11 @@ async function verifyExcelSiblingImport(page: Page, request: APIRequestContext, 
         expect(student.grade).toBe(corrected ? 1 : 2);
         expect(student.gender).toBe(corrected ? "F" : "M");
         expect(student.name).toBe(corrected ? "QA 엑셀 둘째" : "QA 엑셀 첫째");
-        await loginApi(request, student.ps_number, QA_STUDENT_PASSWORD);
+        const importedLogin = await loginApi(request, student.ps_number, QA_STUDENT_PASSWORD);
+        const ownProfile = await expectApi<{ name: string; grade: number; gender: string }>(
+          request, "GET", "/student/me/", importedLogin.access,
+        );
+        expect(ownProfile).toMatchObject({ name: student.name, grade: student.grade, gender: student.gender });
       }
       expect(result!.created).toBe(1);
       expect(result!.total).toBe(2);
