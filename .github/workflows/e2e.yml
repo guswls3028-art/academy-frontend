@@ -207,6 +207,14 @@ jobs:
           cat /tmp/academy-vite.log
           exit 1
 
+      - name: Verify synthetic Excel format and profile contracts
+        if: matrix.shard == 1
+        env:
+          E2E_STRICT: strict
+          E2E_ALLOW_REAL_ALIMTALK: "0"
+          E2E_ALLOW_PRODUCTION_WRITES: "0"
+        run: pnpm exec playwright test e2e/admin/excel-import-compatibility.spec.ts --project=chromium --workers=1 --retries=0 --reporter=github,list
+
       - name: Run parallel route-mock gate
         env:
           E2E_BASE_URL: http://127.0.0.1:5174

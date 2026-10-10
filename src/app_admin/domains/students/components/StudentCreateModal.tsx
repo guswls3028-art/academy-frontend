@@ -849,6 +849,9 @@ export default function StudentCreateModal({
               disabled={busy}
               hintText="안전한 .xlsx 파일 · 최대 10MB"
             />
+            {busy && !parsedExcel ? (
+              <p className="modal-hint" role="status">엑셀 파일을 읽고 있습니다…</p>
+            ) : null}
 
             {parsedExcel ? (
               <div

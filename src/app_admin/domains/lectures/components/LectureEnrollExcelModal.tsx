@@ -48,7 +48,7 @@ export default function LectureEnrollExcelModal({
     if (busy) return;
     setBusy(true);
     try {
-      const result = await parseStudentExcel(file);
+      const result = await parseStudentExcel(file, false); // Existing-student matching does not write profile fields.
       if (!result.rows.length) {
         feedback.error("등록할 학생 데이터가 없습니다.");
         return;

@@ -99,7 +99,7 @@ export default function FileUploadZone({
   const isFilled = !multiple && Boolean(selectedFile);
 
   const processFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+    if (disabled || !files || files.length === 0) return;
     let list = Array.from(files);
     // accept 기반 파일 타입 필터링 (드래그앤드롭 포함 — input.accept는 파일 선택기만 필터)
     if (accept) {
@@ -142,15 +142,20 @@ export default function FileUploadZone({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={() => {
+      role={isFilled ? undefined : "button"}
+      aria-disabled={!isFilled && disabled ? true : undefined}
+      tabIndex={isFilled || disabled ? -1 : 0}
+      onClick={(e) => {
+        if (e.target === inputRef.current) return;
         if (isFilled) return;
         if (!disabled) inputRef.current?.click();
       }}
       onKeyDown={(e) => {
-        if (isFilled) return;
-        if (e.key === "Enter" && !disabled) inputRef.current?.click();
+        if (e.target !== e.currentTarget || isFilled || disabled) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          inputRef.current?.click();
+        }
       }}
       className={`excel-upload-zone ${dragover ? "excel-upload-zone--dragover" : ""} ${isFilled ? "excel-upload-zone--filled" : ""}`}
       onDragOver={(e) => {
@@ -169,6 +174,9 @@ export default function FileUploadZone({
         type="file"
         accept={accept}
         multiple={multiple}
+        disabled={disabled}
+        tabIndex={-1}
+        aria-hidden="true"
         className="ds-sr-only"
         onChange={handleChange}
       />

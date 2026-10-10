@@ -120,6 +120,15 @@
 cleanup0을 같은 개발 artifact에서 확인한다. 자료함 삭제 확인은 보조기술에도 대상과
 행동을 구분할 수 있는 이름 있는 경고 대화상자로 제공한다.
 
+자료함 삭제는 성공·실패 응답 모두 현재 자녀 범위의 목록을 다시 조회한다. 서버가
+HTTP 502 `inventory_storage_cleanup_pending`과 실제 삭제 결과를 반환하면 확인창을
+닫고, 목록 삭제와 원본 정리 재시도 대기를 구분한 안내를 화면에 유지한다. DELETE를
+자동 재전송하지 않는다. 점수 증빙 보호 등 삭제 거절은 서버 사유를 확인창에 표시하고
+취소로 복귀할 수 있으며 원본 항목은 유지된다. 서버 소유권·원본 정리 계약은
+academy-backend의 `docs/domain/inventory-storage.md`가 소유한다.
+`e2e/student/parent-child-inventory-scope.mock.spec.ts`는 학생·학부모의 정상 삭제,
+정리 지연, 보호된 파일 거절, 재조회·reload·형제자매 격리를 1366px/390px에서 확인한다.
+
 서버의 학생·학부모 권한과 자녀 연결 계약은 academy-backend의
 `docs/domain/student-core.md`, `docs/domain/parent-account.md`가 소유한다.
 프론트엔드는 그 계약을 완화하거나 기본 자녀를 추정하지 않는다.

@@ -217,6 +217,28 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
     await expect(page.getByText(parentFile, { exact: true })).toBeVisible();
     await page.setViewportSize({ width: 1366, height: 900 });
     await assertNoHorizontalOverflow(page);
+    // Both roles complete a normal file deletion and read its durable result.
+    for (const [name, selectedId] of [[parentFile, primary.id], [studentFile, undefined]] as const) {
+      if (selectedId === undefined) {
+        await logoutStudentApp(page);
+        await loginThroughUi(page, primary.ps_number, primary.password);
+        await gotoAndSettle(page, `${QA_BASE}/student/inventory`, { timeout: 30_000 });
+        await expect(page.getByText(parentFile, { exact: true })).toHaveCount(0);
+      }
+      const fileRow = page.getByText(name, { exact: true }).locator("..").locator("..");
+      await fileRow.getByTitle("삭제", { exact: true }).click();
+      const deleting = page.waitForResponse((response) => response.request().method() === "DELETE"
+        && new URL(response.url()).pathname.includes("/storage/inventory/files/"));
+      await page.getByRole("alertdialog", { name: "파일 삭제" }).getByRole("button", { name: "삭제", exact: true }).click();
+      const deleted = await deleting;
+      expect(deleted.status()).toBe(204);
+      expect(deleted.request().headers()["x-student-id"]).toBe(selectedId === undefined ? undefined : String(selectedId));
+      await expect(page.getByRole("alertdialog")).toHaveCount(0);
+      await expect(page.getByText(name, { exact: true })).toHaveCount(0);
+      await reloadStudentApp(page);
+      await expect(page.getByText(name, { exact: true })).toHaveCount(0);
+      for (const original of hancomOriginals) await expect(page.getByText(original.name, { exact: true })).toBeVisible();
+    }
     boundary.assertClean();
     browser.assertZeroDefects();
   });
