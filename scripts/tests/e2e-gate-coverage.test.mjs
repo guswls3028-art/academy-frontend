@@ -169,7 +169,12 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   assert.match(e2eWorkflow, /VITE_DEV_PROXY_TARGET: http:\/\/127\.0\.0\.1:9/);
   assert.ok(e2eWorkflow.includes("playwright install --with-deps chromium ${{ matrix.shard == 3 && 'webkit' || '' }}"));
   assert.equal((e2eWorkflow.match(/if: matrix.shard == 3/g) || []).length, 5);
-  assert.doesNotMatch(e2eWorkflow, /matrix.shard == 1/);
+  const excelStep = e2eWorkflow.match(/      - name: Verify synthetic Excel format and profile contracts[\s\S]*?(?=      - name:)/)?.[0] ?? "";
+  assert.match(excelStep, /if: matrix.shard == 1/);
+  assert.match(excelStep, /playwright test e2e\/admin\/excel-import-compatibility.spec.ts --project=chromium --workers=1 --retries=0/);
+  assert.doesNotMatch(excelStep, /secrets\.|continue-on-error|E2E_ALLOW_PRODUCTION_WRITES: "1"/);
+  // Only the synthetic parser check runs on shard 1; mandatory browser gates stay on shard 3.
+  assert.doesNotMatch(e2eWorkflow.replace(excelStep, ""), /matrix.shard == 1/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:readonly --reporter=github,html/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:mock --reporter=github,html/);
   assert.match(prGateConfig, /workers: process\.env\.CI \? 3 : 2/);
