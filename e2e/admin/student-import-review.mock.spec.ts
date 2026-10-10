@@ -230,10 +230,12 @@ test("파일을 읽는 동안 숨겨진 입력도 비활성이고 완료 후 다
     buffer: await studentWorkbook(),
   });
   await expect(dialog.locator('input[type="file"]')).toBeDisabled();
+  await expect(dialog.getByRole("status")).toHaveText("엑셀 파일을 읽고 있습니다…");
   await expect(dialog.locator(".excel-upload-zone")).toHaveAttribute("aria-disabled", "true");
   await expect(dialog.locator(".excel-upload-zone")).toHaveAttribute("tabindex", "-1");
   await page.evaluate(() => (window as unknown as { finishWorkbookRead: () => void }).finishWorkbookRead());
   await expect(dialog.getByRole("button", { name: "3명 등록 요청", exact: true })).toBeEnabled();
+  await expect(dialog.getByText("엑셀 파일을 읽고 있습니다…", { exact: true })).toHaveCount(0);
   await dialog.getByRole("button", { name: "파일 변경", exact: true }).click();
   await expect(dialog.locator('input[type="file"]')).toBeEnabled();
   await expect(dialog.locator(".excel-upload-zone")).toHaveAttribute("tabindex", "0");
