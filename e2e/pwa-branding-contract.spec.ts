@@ -60,6 +60,8 @@ test("public article SEO uses the host-resolved tenant and removes deleted artic
   let status = 200;
   const requests: string[] = [];
   globalThis.fetch = async (input, init) => {
+    // Unlike Node's fetch, workerd rejects this mode before any network I/O.
+    if (init?.redirect === "error") throw new TypeError("Invalid redirect value, must be follow or manual");
     const url = new URL(String(input));
     requests.push(url.pathname);
     if (url.pathname === "/api/v1/core/og-meta/") {
@@ -85,6 +87,34 @@ test("public article SEO uses the host-resolved tenant and removes deleted artic
     expect(deleted.headers.get("X-Robots-Tag")).toContain("noindex");
     expect(await deleted.text()).not.toContain("분석 &lt;보고서&gt;");
     expect(requests.filter((path) => path.includes("resources/17"))).toHaveLength(2);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("public article SEO refuses upstream redirects and preserves recovery without indexing", async () => {
+  const originalFetch = globalThis.fetch;
+  let status = 302;
+  const resourceRequests: Array<{ origin: string; redirect: RequestRedirect | undefined; authorization: string | null }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(String(input));
+    if (url.pathname === "/api/v1/core/og-meta/") {
+      return Response.json({ title: "QA redirect", tenant_code: "qa-resource-redirect" });
+    }
+    resourceRequests.push({ origin: url.origin, redirect: init?.redirect,
+      authorization: new Headers(init?.headers).get("Authorization") });
+    return new Response("", { status, headers: { Location: "https://unrelated.example/private" } });
+  };
+  try {
+    for (status of [301, 302, 303, 307, 308, 503]) {
+      const response = await documentRequest("qa-resource-redirect.example", "/landing/resources/18");
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(response.headers.get("X-Robots-Tag")).toContain("noindex");
+      expect(response.headers.has("Location")).toBe(false);
+      expect(await response.text()).toContain('<title>QA redirect</title>');
+    }
+    expect(resourceRequests).toEqual(Array.from({ length: 6 }, () => ({
+      origin: "https://api.hakwonplus.com", redirect: "manual", authorization: null,
+    })));
   } finally { globalThis.fetch = originalFetch; }
 });
 

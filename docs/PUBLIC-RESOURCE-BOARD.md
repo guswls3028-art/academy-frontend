@@ -213,6 +213,14 @@ tenant are reused. Article metadata is not cached. Deleted/foreign posts retain
 metadata is escaped as HTML text/attributes without changing stored content.
 `pwa-branding-contract.spec.ts` covers special characters, tenant selection,
 canonical metadata and deletion after an earlier successful lookup.
+The Pages request uses `redirect: "manual"` and rejects non-2xx responses,
+including all redirects, without forwarding the tenant header to another URL.
+Cloudflare's workerd rejects `redirect: "error"` before sending a request, even
+when the API would return 200; Node-only mocks must reproduce that runtime
+constraint. Regression checks include successful/deleted metadata and upstream
+301/302/303/307/308/503 recovery. Release readback also checks the deployed
+initial HTML against an existing public article and a nonexistent article,
+not only the client-rendered page or the static tenant title.
 
 Legacy stylesheet injection uses `window.document` because CSS modules can
 export a local `document` class binding. Verify the compiled SystemJS artifact,
