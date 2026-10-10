@@ -90,6 +90,8 @@ function contentTypeForPath(pathname: string): string {
 interface TenantMeta {
   title: string;
   description: string;
+  tenantCode?: string;
+  siteName?: string;
   favicon?: string;
   image?: string;
   imageWidth?: number;
@@ -436,6 +438,7 @@ async function fetchOgMeta(host: string): Promise<TenantMeta | null> {
     });
     if (!res.ok) return null;
     const json = await res.json() as {
+      tenant_code?: string;
       title?: string;
       description?: string;
       image?: string;
@@ -446,6 +449,7 @@ async function fetchOgMeta(host: string): Promise<TenantMeta | null> {
     };
     if (!json.title) return null;
     const meta: TenantMeta = {
+      tenantCode: json.tenant_code,
       title: json.title,
       description: json.description || `${json.title} 학습 플랫폼`,
       image: json.image || undefined,
@@ -461,6 +465,26 @@ async function fetchOgMeta(host: string): Promise<TenantMeta | null> {
   }
 }
 
+function escapeMeta(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]!);
+}
+
+async function fetchPublicResourceMeta(tenantCode: string, id: string): Promise<{ status: number; title?: string; description?: string }> {
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/landing-public/resources/${id}/`, {
+      headers: { Accept: "application/json", "X-Tenant-Code": tenantCode },
+      redirect: "error",
+      cf: { cacheTtl: 0 } as RequestInitCfProperties,
+    });
+    if (!response.ok) return { status: response.status };
+    const post = await response.json() as { title?: unknown; content?: unknown };
+    if (typeof post.title !== "string" || typeof post.content !== "string") return { status: 503 };
+    return { status: 200, title: post.title, description: post.content.replace(/\s+/g, " ").trim().slice(0, 180) };
+  } catch {
+    return { status: 503 };
+  }
+}
+
 function injectMeta(
   html: string,
   meta: TenantMeta,
@@ -469,46 +493,48 @@ function injectMeta(
   host: string,
   pathname: string,
 ): string {
-  const { title, description, favicon, image } = meta;
-  const siteName = HAKWONPLUS_HOSTS.has(host) || host === DEV_CONSOLE_HOST
+  const { favicon, image } = meta;
+  const title = escapeMeta(meta.title);
+  const description = escapeMeta(meta.description);
+  const siteName = meta.siteName ? escapeMeta(meta.siteName) : HAKWONPLUS_HOSTS.has(host) || host === DEV_CONSOLE_HOST
     ? "학원플러스"
     : title;
 
   // <title>
-  html = html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
+  html = html.replace(/<title>[^<]*<\/title>/, () => `<title>${title}</title>`);
   html = html.replace(
     /<meta name="description" content="[^"]*" \/>/,
-    `<meta name="description" content="${description}" />`,
+    () => `<meta name="description" content="${description}" />`,
   );
   html = html.replace(
     /<link rel="canonical" href="[^"]*" \/>/,
-    `<link rel="canonical" href="${pageUrl}" />`,
+    () => `<link rel="canonical" href="${escapeMeta(pageUrl)}" />`,
   );
 
   // og:site_name, og:title, og:description
   html = html.replace(
     /<meta property="og:site_name" content="[^"]*" \/>/,
-    `<meta property="og:site_name" content="${siteName}" />`,
+    () => `<meta property="og:site_name" content="${siteName}" />`,
   );
   html = html.replace(
     /<meta property="og:title" content="[^"]*" \/>/,
-    `<meta property="og:title" content="${title}" />`,
+    () => `<meta property="og:title" content="${title}" />`,
   );
   html = html.replace(
     /<meta property="og:description" content="[^"]*" \/>/,
-    `<meta property="og:description" content="${description}" />`,
+    () => `<meta property="og:description" content="${description}" />`,
   );
 
   // og:url — 쿼리를 제외한 현재 페이지 canonical URL
   html = html.replace(
     /<meta property="og:url" content="[^"]*" \/>/,
-    `<meta property="og:url" content="${pageUrl}" />`,
+    () => `<meta property="og:url" content="${escapeMeta(pageUrl)}" />`,
   );
 
   // og:image — 절대 URL이면 그대로, 상대 경로면 origin 붙임
   if (image) {
     const normalized = normalizeImagePath(image);
-    const absImage = normalized.startsWith("http") ? normalized : origin + normalized;
+    const absImage = escapeMeta(normalized.startsWith("http") ? normalized : origin + normalized);
     // og:image + optional width/height (카카오톡 크롤러 힌트)
     let ogImageTag = `<meta property="og:image" content="${absImage}" />`;
     if (meta.imageWidth && meta.imageHeight) {
@@ -517,29 +543,29 @@ function injectMeta(
     }
     html = html.replace(
       /<meta property="og:image" content="[^"]*" \/>/,
-      ogImageTag,
+      () => ogImageTag,
     );
     html = html.replace(
       /<meta name="twitter:image" content="[^"]*" \/>/,
-      `<meta name="twitter:image" content="${absImage}" />`,
+      () => `<meta name="twitter:image" content="${absImage}" />`,
     );
   }
 
   // twitter:title, twitter:description
   html = html.replace(
     /<meta name="twitter:title" content="[^"]*" \/>/,
-    `<meta name="twitter:title" content="${title}" />`,
+    () => `<meta name="twitter:title" content="${title}" />`,
   );
   html = html.replace(
     /<meta name="twitter:description" content="[^"]*" \/>/,
-    `<meta name="twitter:description" content="${description}" />`,
+    () => `<meta name="twitter:description" content="${description}" />`,
   );
 
   // favicon
   if (favicon) {
     html = html.replace(
       /<link rel="icon" href="[^"]*"[^>]*>/,
-      `<link rel="icon" href="${favicon}" type="image/png" />`,
+      () => `<link rel="icon" href="${escapeMeta(favicon)}" type="image/png" />`,
     );
   }
 
@@ -581,17 +607,17 @@ function injectMeta(
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       url: pageUrl,
-      description,
+      description: meta.description,
       offers: {
         "@type": "Offer",
         price: "180000",
         priceCurrency: "KRW",
         description: "2026년 9월 이후 신규 가입은 월 18만원(부가세 10% 별도, 결제금액 19만 8천원)입니다. 8월 기존 가입은 월 14만 5천원에 고정 부가세 1만 4천원, 결제금액 15만 9천원이며 기존 공급가는 계속 유지됩니다. 안내된 기능 및 200GB 저장공간 포함",
       },
-    });
+    }).replace(/</g, "\\u003c");
     html = html.replace(
       "</head>",
-      `    <script id="promo-structured-data" type="application/ld+json">${structuredData}</script>\n  </head>`,
+      () => `    <script id="promo-structured-data" type="application/ld+json">${structuredData}</script>\n  </head>`,
     );
   }
 
@@ -761,12 +787,24 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
       }
     : fallback;
   const promoMeta = HAKWONPLUS_HOSTS.has(host) ? HAKWONPLUS_PROMO_META[pathname] : undefined;
-  const meta = promoMeta
+  let meta = promoMeta
     ? {
         ...fallback,
         ...promoMeta,
       }
     : tenantMeta;
+  const resourceId = /^\/landing\/resources\/([1-9][0-9]{0,18})\/?$/.exec(pathname)?.[1];
+  let resourceStatus: number | undefined;
+  if (resourceId) {
+    const resource: Awaited<ReturnType<typeof fetchPublicResourceMeta>> = apiMeta?.tenantCode
+      ? await fetchPublicResourceMeta(apiMeta.tenantCode, resourceId)
+      : { status: 503 };
+    resourceStatus = resource.status;
+    if (resource.title && meta) {
+      meta = { ...meta, siteName: meta.title, title: `${resource.title} | ${meta.title}`,
+        description: resource.description || `${meta.title} 공개 학습자료` };
+    }
+  }
   if (meta) {
     const origin = url.origin;
     const pageUrl = `${origin}${pathname}`;
@@ -775,15 +813,16 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
 
   const headers = new Headers({
     "Content-Type": "text/html; charset=utf-8",
-    "Cache-Control": res.headers.get("Cache-Control") ?? "no-cache",
+    "Cache-Control": resourceId ? "no-store" : res.headers.get("Cache-Control") ?? "no-cache",
     "Strict-Transport-Security": "max-age=31536000",
   });
   if (host === DEV_CONSOLE_HOST) {
     headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }
+  if (resourceId && resourceStatus !== 200) headers.set("X-Robots-Tag", "noindex, noarchive");
 
   return new Response(html, {
-    status: 200,
+    status: resourceStatus === 404 ? 404 : 200,
     headers,
   });
 };

@@ -53,6 +53,15 @@ export async function readFirstWorksheetRows(
   file: File,
   { preserveEmptyRows = false }: { preserveEmptyRows?: boolean } = {},
 ): Promise<unknown[][]> {
+  const workbook = await readExcelWorkbook(file);
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) {
+    throw new Error("시트가 없습니다.");
+  }
+  return readWorksheetRows(worksheet, { preserveEmptyRows });
+}
+
+export async function readExcelWorkbook(file: File): Promise<ExcelJS.Workbook> {
   if (!/\.xlsx$/i.test(file.name)) {
     throw new Error("보안상 .xlsx 파일만 지원합니다. 구형 .xls 또는 .csv 파일은 .xlsx로 저장한 뒤 업로드해 주세요.");
   }
@@ -61,11 +70,13 @@ export async function readFirstWorksheetRows(
   }
 
   const source = await file.arrayBuffer();
-  const workbook = await loadImportWorkbook(source);
-  const worksheet = workbook.worksheets[0];
-  if (!worksheet) {
-    throw new Error("시트가 없습니다.");
-  }
+  return loadImportWorkbook(source);
+}
+
+export function readWorksheetRows(
+  worksheet: ExcelJS.Worksheet,
+  { preserveEmptyRows = false }: { preserveEmptyRows?: boolean } = {},
+): unknown[][] {
   if (worksheet.rowCount > MAX_IMPORT_ROWS || worksheet.columnCount > MAX_IMPORT_COLUMNS) {
     throw new Error(`엑셀은 최대 ${MAX_IMPORT_ROWS.toLocaleString()}행, ${MAX_IMPORT_COLUMNS}열까지 업로드할 수 있습니다.`);
   }

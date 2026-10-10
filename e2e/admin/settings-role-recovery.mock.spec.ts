@@ -26,7 +26,13 @@ async function setup(page: Page, role: string, superuser: boolean, failure?: "te
       if (request.method() === "PATCH") {
         state.patches += 1;
         if (state.failSave) return json({ detail: "잠시 후 다시 저장하세요." }, 503);
-        if (kind === "tenant") tenant = { ...tenant, ...request.postDataJSON() };
+        if (kind === "tenant") {
+          const payload = request.postDataJSON();
+          if (payload.expected_academies && JSON.stringify(payload.expected_academies) !== JSON.stringify(tenant.academies)) {
+            return json({ code: "settings_conflict", academies: tenant.academies }, 409);
+          }
+          tenant = { ...tenant, ...payload };
+        }
         else legal = { ...legal, ...request.postDataJSON() };
       } else {
         if (kind === "tenant") state.tenantReads += 1;
@@ -51,6 +57,30 @@ async function setup(page: Page, role: string, superuser: boolean, failure?: "te
 }
 
 for (const width of [1366, 390]) {
+  test(`동시 학원 편집 충돌에서 최신 목록 확인 후 저장·재조회 ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const api = await setup(page, "owner", false);
+    await page.goto(`${BASE}/workspace/settings/organization`, { waitUntil: "commit" });
+    await page.getByRole("button", { name: "수정", exact: true }).first().click();
+    await page.getByRole("textbox", { name: "학원명", exact: true }).fill("내 수정 본원");
+    api.tenant().academies = [{ name: "다른 원장이 저장한 본원", phone: "02-0000-0000" }, { name: "추가 분원", phone: "02-0000-0002" }];
+    await page.getByRole("button", { name: "저장", exact: true }).first().click();
+    await expect(page.getByRole("alert").filter({ hasText: "다른 사용자가 학원 정보를 변경했습니다" })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "학원명", exact: true })).toHaveValue("내 수정 본원");
+    expect(api.tenant().academies[1].name).toBe("추가 분원");
+    await page.screenshot({ path: testInfo.outputPath(`settings-conflict-${width}.png`), fullPage: true });
+    await page.getByRole("button", { name: "최신 목록에서 다시 수정", exact: true }).click();
+    await expect(page.getByText("다른 원장이 저장한 본원 · 02-0000-0000", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "수정", exact: true }).first().click();
+    await page.getByRole("textbox", { name: "학원명", exact: true }).fill("최신 목록에 수정");
+    await page.getByRole("button", { name: "저장", exact: true }).first().click();
+    await expect(page.getByText("최신 목록에 수정 · 02-0000-0000", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByText("최신 목록에 수정 · 02-0000-0000", { exact: true })).toBeVisible();
+    await expect(page.getByText("추가 분원 · 02-0000-0002", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  });
+
   for (const [role, superuser] of [["owner", false], ["admin", true], ["teacher", true], ["staff", true]] as const) {
     test(`설정 현재 학원 역할 ${role} global=${superuser} ${width}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });

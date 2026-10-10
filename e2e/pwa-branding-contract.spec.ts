@@ -35,6 +35,59 @@ function documentRequest(host: string, pathname: string) {
   } as never);
 }
 
+test("tenant metadata preserves special characters as text without injecting tags or replacement patterns", async () => {
+  const originalFetch = globalThis.fetch;
+  const title = 'QA </title><script id="qa-meta-injection">alert(1)</script> $&';
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    title, description: 'QA " /><img id="qa-meta-image" src=x> & $&',
+    image: 'https://cdn.example/image.png?x=" onerror="alert(1)',
+    favicon: 'https://cdn.example/icon.png?x=" onerror="alert(1)',
+  }), { headers: { "Content-Type": "application/json" } });
+  try {
+    const response = await documentRequest("qa-meta-escape.example", "/landing");
+    const html = await response.text();
+    expect(html).toContain('QA &lt;/title&gt;&lt;script id=&quot;qa-meta-injection&quot;&gt;alert(1)&lt;/script&gt; $&amp;');
+    expect(html).not.toContain('<script id="qa-meta-injection"');
+    expect(html).not.toMatch(/<script[^>]+id="qa-meta-injection"/);
+    expect(html).not.toContain('<img id="qa-meta-image"');
+    expect(html).not.toContain(' onerror="');
+    expect(html).toContain('x=&quot; onerror=&quot;');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("public article SEO uses the host-resolved tenant and removes deleted article metadata", async () => {
+  const originalFetch = globalThis.fetch;
+  let status = 200;
+  const requests: string[] = [];
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(String(input));
+    requests.push(url.pathname);
+    if (url.pathname === "/api/v1/core/og-meta/") {
+      expect(url.searchParams.get("hostname")).toBe("qa-resource-seo.example");
+      return Response.json({ title: "QA 학원", tenant_code: "qa-resource-seo", description: "학원 설명" });
+    }
+    expect(url.pathname).toBe("/api/v1/landing-public/resources/17/");
+    expect(new Headers(init?.headers).get("X-Tenant-Code")).toBe("qa-resource-seo");
+    expect(new Headers(init?.headers).has("Authorization")).toBe(false);
+    return Response.json(status === 200 ? { title: '분석 <보고서> "A"', content: "원본을 보존한\n공개 설명입니다." } : { detail: "Not found" }, { status });
+  };
+  try {
+    const response = await documentRequest("qa-resource-seo.example", "/landing/resources/17");
+    const html = await response.text();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(html).toContain('<title>분석 &lt;보고서&gt; &quot;A&quot; | QA 학원</title>');
+    expect(html).toContain('property="og:description" content="원본을 보존한 공개 설명입니다."');
+    expect(html).toContain('rel="canonical" href="https://qa-resource-seo.example/landing/resources/17"');
+    status = 404;
+    const deleted = await documentRequest("qa-resource-seo.example", "/landing/resources/17");
+    expect(deleted.status).toBe(404);
+    expect(deleted.headers.get("X-Robots-Tag")).toContain("noindex");
+    expect(await deleted.text()).not.toContain("분석 &lt;보고서&gt;");
+    expect(requests.filter((path) => path.includes("resources/17"))).toHaveLength(2);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test("known tenant teacher and student manifests use only that tenant's icons", async () => {
   const teacher = await manifestRequest("tchul.com", "/teacher-manifest.json");
   const student = await manifestRequest("tchul.com", "/student-manifest.json");

@@ -15836,6 +15836,7 @@ export interface components {
         };
         PatchedConsultInboxPatchRequest: {
             admin_memo?: string | null;
+            expected_admin_memo?: string;
             mark_read?: boolean;
         };
         PatchedEnrollmentRequest: {

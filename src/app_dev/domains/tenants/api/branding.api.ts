@@ -12,6 +12,10 @@ export type TenantBrandingDto = {
   displayName?: string;
 };
 
+export type BrandingUpdate = Partial<TenantBrandingDto> & {
+  expected?: Pick<TenantBrandingDto, "displayName" | "windowTitle" | "loginTitle" | "loginSubtitle">;
+};
+
 /** GET tenant branding (from Program.ui_config or Tenant). */
 export async function getTenantBranding(
   tenantId: number
@@ -42,7 +46,7 @@ export async function uploadTenantLogo(
 /** PATCH tenant branding (loginTitle, logoUrl, etc.). */
 export async function patchTenantBranding(
   tenantId: number,
-  payload: Partial<TenantBrandingDto>
+  payload: BrandingUpdate
 ): Promise<TenantBrandingDto> {
   const res = await api.patch<TenantBrandingDto>(
     `/core/tenant-branding/${tenantId}/`,

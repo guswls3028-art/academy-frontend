@@ -70,11 +70,13 @@ async function verifyExcelSiblingImport(page: Page, request: APIRequestContext, 
       const dialog = uploadPage.getByRole("dialog");
       await dialog.getByRole("button", { name: "엑셀 업로드", exact: true }).click();
       const workbook = new ExcelJS.Workbook();
+      workbook.addWorksheet("안내").addRow(["학생 명단은 다음 시트에 있습니다."]);
       const sheet = workbook.addWorksheet("학생목록");
       sheet.addRows([
-        ["이름", "학부모전화번호", "학생전화번호", "학교유형", "학년"],
-        ["QA 엑셀 첫째", Number(target.parentPhone), Number(phone), "MIDDLE", 2],
-        ["QA 엑셀 둘째", Number(target.parentPhone), corrected ? "" : "0101234567", "MIDDLE", 1],
+        [],
+        ["Guardian Name", "Student Name", "Guardian Phone", "Student Mobile", "School Type", "Grade"],
+        ["QA 보호자", "QA 엑셀 첫째", Number(target.parentPhone), Number(phone), "MIDDLE", 2],
+        ["QA 보호자", "QA 엑셀 둘째", Number(target.parentPhone), corrected ? "" : "0101234567", "MIDDLE", 1],
       ]);
       await dialog.locator('input[type="file"]').setInputFiles({ name: "qa-student-import.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(await workbook.xlsx.writeBuffer()) });
       if (!corrected) await expect(dialog.getByText("입력 확인 필요 1명", { exact: true })).toBeVisible();
@@ -100,19 +102,20 @@ async function verifyExcelSiblingImport(page: Page, request: APIRequestContext, 
         const student = await expectApi<QaStudent & { school_type: string }>(request, "GET", `/students/${row.student_id}/`, adminAccess);
         target.students.push({ ...student, password: QA_STUDENT_PASSWORD });
         expect(student.school_type).toBe("MIDDLE");
+        expect(student.name).toBe(corrected ? "QA 엑셀 둘째" : "QA 엑셀 첫째");
         await loginApi(request, student.ps_number, QA_STUDENT_PASSWORD);
       }
       expect(result!.created).toBe(1);
       expect(result!.total).toBe(2);
       expect(result!.duplicates.length).toBe(corrected ? 1 : 0);
-      expect(result!.failed.map((row) => row.row)).toEqual(corrected ? [] : [3]);
+      expect(result!.failed.map((row) => row.row)).toEqual(corrected ? [] : [4]);
       const resultDialog = uploadPage.getByRole("dialog", { name: "학생 등록 결과" });
       await expect(resultDialog).toBeVisible({ timeout: 30_000 });
       const summary = resultDialog.getByLabel("등록 결과 요약");
       await expect(summary.getByText("신규 등록", { exact: true }).locator("..")).toContainText("1명");
       await expect(summary.getByText("이미 등록", { exact: true }).locator("..")).toContainText(`${corrected ? 1 : 0}명`);
       await expect(summary.getByText("확인 필요", { exact: true }).locator("..")).toContainText(`${corrected ? 0 : 1}명`);
-      if (!corrected) await expect(resultDialog.getByRole("region", { name: "확인 필요", exact: true }).getByText("3행", { exact: true })).toBeVisible();
+      if (!corrected) await expect(resultDialog.getByRole("region", { name: "확인 필요", exact: true }).getByText("4행", { exact: true })).toBeVisible();
       await assertNoHorizontalOverflow(uploadPage);
       await resultDialog.getByRole("button", { name: "확인", exact: true }).click();
       await expect(resultDialog).toBeHidden();
@@ -160,6 +163,21 @@ async function verifyOwnerOrganizationSettings(page: Page, request: APIRequestCo
       await ownerPage.getByRole("button", { name: "수정", exact: true }).first().click();
       await ownerPage.getByRole("textbox", { name: "학원명", exact: true }).fill(name);
       await ownerPage.getByRole("textbox", { name: "학원문의 전화번호", exact: true }).fill(phone);
+      const before = await expectApi<typeof original>(request, "GET", path, owner.access);
+      const concurrentName = `QA 동시 수정 ${width}`;
+      const concurrent = [{ name: concurrentName, phone }, ...before.academies.slice(1)];
+      await expectApi(request, "PATCH", path, owner.access, {
+        academies: concurrent, expected_academies: before.academies,
+      });
+      const conflictResponse = ownerPage.waitForResponse((response) => response.request().method() === "PATCH" && new URL(response.url()).pathname === "/api/v1/core/tenant-info/");
+      await ownerPage.getByRole("button", { name: "저장", exact: true }).click();
+      expect((await conflictResponse).status()).toBe(409);
+      await expect(ownerPage.getByRole("textbox", { name: "학원명", exact: true })).toHaveValue(name);
+      expect((await expectApi<typeof original>(request, "GET", path, owner.access)).academies).toEqual(concurrent);
+      await ownerPage.getByRole("button", { name: "최신 목록에서 다시 수정", exact: true }).click();
+      await expect(ownerPage.getByText(`${concurrentName} · ${phone}`, { exact: true })).toBeVisible();
+      await ownerPage.getByRole("button", { name: "수정", exact: true }).first().click();
+      await ownerPage.getByRole("textbox", { name: "학원명", exact: true }).fill(name);
       await ownerPage.getByRole("button", { name: "저장", exact: true }).click();
       await expect(ownerPage.getByText(`${name} · ${phone}`, { exact: true })).toBeVisible();
       await ownerPage.reload({ waitUntil: "domcontentloaded" });

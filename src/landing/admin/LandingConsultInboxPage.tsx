@@ -4,6 +4,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router";
+import { isAxiosError } from "axios";
 import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
 import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
@@ -55,7 +56,8 @@ function LandingConsultInboxContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasSuccessfulLoad, setHasSuccessfulLoad] = useState(false);
   const [pendingId, setPendingId] = useState<number | null>(null);
-  const [editing, setEditing] = useState<{ id: number; memo: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: number; memo: string; original: string } | null>(null);
+  const [conflictingMemo, setConflictingMemo] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const sequence = ++requestSequence.current;
@@ -66,6 +68,7 @@ function LandingConsultInboxContent() {
     setPagination(null);
     setSummary({ total: 0, unread: 0 });
     setEditing(null);
+    setConflictingMemo(null);
     try {
       const session = readAuthTokenEnvelopeSafely();
       const tenant = getTenantCodeForApiRequest();
@@ -127,8 +130,11 @@ function LandingConsultInboxContent() {
     setMutationError(null);
     setPendingId(id);
     try {
-      await api.patch(`/core/landing/admin/consult/${id}/`, { admin_memo: memo });
+      await api.patch(`/core/landing/admin/consult/${id}/`, { admin_memo: memo, expected_admin_memo: editing?.original });
     } catch (e) {
+      if (isAxiosError(e) && e.response?.status === 409 && typeof e.response.data?.admin_memo === "string") {
+        setConflictingMemo(e.response.data.admin_memo);
+      }
       setMutationError(errorDetail(e, "메모를 저장하지 못했습니다."));
       setPendingId(null);
       return;
@@ -244,16 +250,27 @@ function LandingConsultInboxContent() {
               )}
               {editing?.id === it.id ? (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <textarea rows={3} maxLength={2000} value={editing.memo} onChange={(e) => setEditing({ id: it.id, memo: e.target.value })} placeholder="처리 메모" aria-label="처리 메모" disabled={pendingId != null}
+                  {conflictingMemo !== null && (
+                    <div role="region" aria-label="다른 담당자의 최신 메모" style={{ width: "100%", whiteSpace: "pre-wrap" }}>
+                      <p>최신 메모: {conflictingMemo || "(비어 있음)"}</p>
+                      <p>아래 버튼은 현재 초안을 최신 메모로 바꿉니다. 확인 후 다시 수정해 주세요.</p>
+                      <Button intent="secondary" onClick={() => {
+                        setEditing({ id: it.id, memo: conflictingMemo, original: conflictingMemo });
+                        setConflictingMemo(null);
+                        setMutationError(null);
+                      }}>최신 메모로 다시 작성</Button>
+                    </div>
+                  )}
+                  <textarea rows={3} maxLength={2000} value={editing.memo} onChange={(e) => setEditing({ ...editing, memo: e.target.value })} placeholder="처리 메모" aria-label="처리 메모" disabled={pendingId != null}
                     style={{ flex: "1 1 100%", width: "100%", minWidth: 0, minHeight: 80, resize: "vertical", padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", fontSize: 13, fontFamily: "inherit" }} />
                   <button disabled={pendingId != null} onClick={() => void saveMemo(it.id, editing.memo)} style={{ minHeight: 44, padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--color-brand-primary, #2563EB)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: pendingId != null ? "wait" : "pointer" }}>저장</button>
-                  <button disabled={pendingId != null} onClick={() => setEditing(null)} style={{ minHeight: 44, padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", background: "#fff", color: "#64748b", fontSize: 13, cursor: "pointer" }}>취소</button>
+                  <button disabled={pendingId != null} onClick={() => { setEditing(null); setConflictingMemo(null); setMutationError(null); void load(); }} style={{ minHeight: 44, padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", background: "#fff", color: "#64748b", fontSize: 13, cursor: "pointer" }}>취소</button>
                 </div>
               ) : it.admin_memo ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 11, color: "var(--color-text-muted, #94a3b8)", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>메모</span>
                   <span style={{ minWidth: 0, whiteSpace: "pre-wrap", fontSize: 13, color: "var(--color-text-secondary, #475569)" }}>{it.admin_memo}</span>
-                  <button disabled={navigationDisabled} onClick={() => setEditing({ id: it.id, memo: it.admin_memo })} style={{ marginLeft: "auto", minHeight: 44, flexShrink: 0, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(15,23,42,0.1)", background: "transparent", fontSize: 12, color: "#64748b", cursor: "pointer" }}>수정</button>
+                  <button disabled={navigationDisabled} onClick={() => setEditing({ id: it.id, memo: it.admin_memo, original: it.admin_memo })} style={{ marginLeft: "auto", minHeight: 44, flexShrink: 0, padding: "4px 10px", borderRadius: 6, border: "1px solid rgba(15,23,42,0.1)", background: "transparent", fontSize: 12, color: "#64748b", cursor: "pointer" }}>수정</button>
                 </div>
               ) : null}
               <div style={{ display: "flex", gap: 8 }}>
@@ -265,7 +282,7 @@ function LandingConsultInboxContent() {
                   }}>읽음으로 표시</button>
                 )}
                 {!editing && !it.admin_memo && (
-                  <button disabled={navigationDisabled} onClick={() => setEditing({ id: it.id, memo: "" })} style={{
+                  <button disabled={navigationDisabled} onClick={() => setEditing({ id: it.id, memo: "", original: "" })} style={{
                     minHeight: 44, padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.1)",
                     background: "transparent", color: "var(--color-text-secondary, #64748b)",
                     fontSize: 12, fontWeight: 600, cursor: "pointer",

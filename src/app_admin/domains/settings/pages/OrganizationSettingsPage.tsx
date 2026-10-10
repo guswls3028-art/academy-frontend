@@ -2,6 +2,7 @@
 // 설정 > 학원 정보 — 섹션형, 여러 학원 등록/추가/수정/제거 (owner 전용)
 
 import { useState, useEffect } from "react";
+import { isAxiosError } from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FiCheck, FiX, FiLock, FiPlus, FiTrash2, FiMessageCircle, FiFileText } from "react-icons/fi";
 
@@ -165,6 +166,8 @@ export default function OrganizationSettingsPage() {
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [editSnapshot, setEditSnapshot] = useState<AcademyEntry[] | null>(null);
+  const [conflict, setConflict] = useState(false);
 
   const { user } = useAuth();
   const isOwner = user?.tenantRole === "owner";
@@ -177,8 +180,8 @@ export default function OrganizationSettingsPage() {
   });
 
   const updateMut = useMutation({
-    mutationFn: (payload: { academies: AcademyEntry[] }) =>
-      updateTenantInfo({ academies: payload.academies }),
+    mutationFn: (payload: { academies: AcademyEntry[]; expected_academies: AcademyEntry[] }) =>
+      updateTenantInfo(payload),
     onSuccess: (data) => {
       qc.setQueryData(accountQueryKeys.tenantInfo, data);
       feedback.success("저장되었습니다.");
@@ -186,31 +189,42 @@ export default function OrganizationSettingsPage() {
       setAdding(false);
       setNewName("");
       setNewPhone("");
+      setEditSnapshot(null);
+      setConflict(false);
     },
-    onError: () => feedback.error("저장에 실패했습니다."),
+    onError: (error) => {
+      if (isAxiosError(error) && error.response?.status === 409) {
+        setConflict(true);
+        return;
+      }
+      feedback.error("저장에 실패했습니다.");
+    },
   });
 
-  const list: AcademyEntry[] = tenantQ.data?.academies?.length
+  const currentList: AcademyEntry[] = tenantQ.data?.academies?.length
     ? tenantQ.data.academies
     : tenantQ.data
       ? [{ name: tenantQ.data.name || "", phone: tenantQ.data.headquarters_phone || "" }]
       : [];
+  const list = editSnapshot ?? currentList;
 
   const handleSaveEdit = (index: number, name: string, phone: string) => {
     if (updateMut.isPending || !tenantQ.data) return;
-    const next = [...list];
+    const original = editSnapshot ?? list;
+    const next = [...original];
     next[index] = { name, phone };
-    updateMut.mutate({ academies: next });
+    updateMut.mutate({ academies: next, expected_academies: original });
   };
 
   const handleRemove = (index: number) => {
     if (updateMut.isPending || !tenantQ.data) return;
-    const next = list.filter((_, i) => i !== index);
+    const original = editSnapshot ?? list;
+    const next = original.filter((_, i) => i !== index);
     if (next.length === 0) {
       feedback.error("최소 1개 학원은 등록되어 있어야 합니다.");
       return;
     }
-    updateMut.mutate({ academies: next });
+    updateMut.mutate({ academies: next, expected_academies: original });
   };
 
   const handleAdd = () => {
@@ -221,8 +235,9 @@ export default function OrganizationSettingsPage() {
       feedback.error("학원명을 입력하세요.");
       return;
     }
-    const next = [...list, { name, phone }];
-    updateMut.mutate({ academies: next });
+    const original = editSnapshot ?? list;
+    const next = [...original, { name, phone }];
+    updateMut.mutate({ academies: next, expected_academies: original });
   };
 
   if (!isOwner) {
@@ -281,6 +296,22 @@ export default function OrganizationSettingsPage() {
       </div>
 
       <section className={s.section}>
+        {conflict && (
+          <div className={s.recoveryBox} role="alert">
+            <p>다른 사용자가 학원 정보를 변경했습니다. 입력한 내용은 아직 저장되지 않았습니다.</p>
+            <p>최신 목록을 불러오면 현재 편집 내용을 버리고 다시 수정할 수 있습니다.</p>
+            <Button loading={tenantQ.isFetching} disabled={tenantQ.isFetching} onClick={async () => {
+              const result = await tenantQ.refetch();
+              if (result.isError) return;
+              setEditingIndex(null);
+              setAdding(false);
+              setEditSnapshot(null);
+              setNewName("");
+              setNewPhone("");
+              setConflict(false);
+            }}>최신 목록에서 다시 수정</Button>
+          </div>
+        )}
         {tenantQ.isLoading ? (
           <div className={s.loadingBox}>불러오는 중…</div>
         ) : (
@@ -293,7 +324,7 @@ export default function OrganizationSettingsPage() {
                       entry={entry}
                       onSave={(name, phone) => handleSaveEdit(index, name, phone)}
                       onRemove={() => handleRemove(index)}
-                      onCancel={() => setEditingIndex(null)}
+                      onCancel={() => { setEditingIndex(null); setEditSnapshot(null); setConflict(false); }}
                       saving={updateMut.isPending}
                     />
                   ) : (
@@ -305,7 +336,7 @@ export default function OrganizationSettingsPage() {
                       <div className={s.rowActions}>
                         <button
                           className={s.editBtn}
-                          onClick={() => setEditingIndex(index)}
+                          onClick={() => { setEditSnapshot(currentList); setEditingIndex(index); }}
                           type="button"
                         >
                           수정
@@ -371,6 +402,8 @@ export default function OrganizationSettingsPage() {
                         size="sm"
                         onClick={() => {
                           setAdding(false);
+                          setEditSnapshot(null);
+                          setConflict(false);
                           setNewName("");
                           setNewPhone("");
                         }}
@@ -391,7 +424,7 @@ export default function OrganizationSettingsPage() {
                   type="button"
                   intent="secondary"
                   size="sm"
-                  onClick={() => setAdding(true)}
+                  onClick={() => { setEditSnapshot(currentList); setAdding(true); }}
                   leftIcon={<FiPlus size={14} />}
                 >
                   학원 추가
