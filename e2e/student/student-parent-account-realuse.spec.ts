@@ -74,9 +74,9 @@ async function verifyExcelSiblingImport(page: Page, request: APIRequestContext, 
       const sheet = workbook.addWorksheet("학생목록");
       sheet.addRows([
         [],
-        ["Guardian Name", "Student Name", "Guardian Phone", "Student Mobile", "School Type", "Grade"],
-        ["QA 보호자", "QA 엑셀 첫째", Number(target.parentPhone), Number(phone), "MIDDLE", 2],
-        ["QA 보호자", "QA 엑셀 둘째", Number(target.parentPhone), corrected ? "" : "0101234567", "MIDDLE", 1],
+        ["Guardian Name", "Student Name", "Guardian Phone", "Student Mobile", "School Type", "Grade", "성별"],
+        ["QA 보호자", "QA 엑셀 첫째", Number(target.parentPhone), Number(phone), "MIDDLE", "2학년", "남자"],
+        ["QA 보호자", "QA 엑셀 둘째", Number(target.parentPhone), corrected ? "" : "0101234567", "MIDDLE", "１ 학년", "여자"],
       ]);
       await dialog.locator('input[type="file"]').setInputFiles({ name: "qa-student-import.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(await workbook.xlsx.writeBuffer()) });
       if (!corrected) await expect(dialog.getByText("입력 확인 필요 1명", { exact: true })).toBeVisible();
@@ -99,9 +99,11 @@ async function verifyExcelSiblingImport(page: Page, request: APIRequestContext, 
         return job.status;
       }, { timeout: 120_000, intervals: [1000, 2000, 5000] }).toBe("DONE");
       for (const row of result!.created_rows) {
-        const student = await expectApi<QaStudent & { school_type: string }>(request, "GET", `/students/${row.student_id}/`, adminAccess);
+        const student = await expectApi<QaStudent & { school_type: string; grade: number; gender: string }>(request, "GET", `/students/${row.student_id}/`, adminAccess);
         target.students.push({ ...student, password: QA_STUDENT_PASSWORD });
         expect(student.school_type).toBe("MIDDLE");
+        expect(student.grade).toBe(corrected ? 1 : 2);
+        expect(student.gender).toBe(corrected ? "F" : "M");
         expect(student.name).toBe(corrected ? "QA 엑셀 둘째" : "QA 엑셀 첫째");
         await loginApi(request, student.ps_number, QA_STUDENT_PASSWORD);
       }

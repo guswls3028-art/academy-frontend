@@ -26,7 +26,7 @@ function shouldSkipEnter(): boolean {
   if (el.getAttribute?.("contenteditable") === "true") return true;
 
   // 버튼은 브라우저 기본 클릭에 맡기고, 선택형 컨트롤은 값 확정에 Enter를 사용한다.
-  if (el.tagName === "BUTTON" || el.tagName === "SELECT") return true;
+  if (el.tagName === "BUTTON" || el.tagName === "SELECT" || el.getAttribute("role") === "button") return true;
   if (el.tagName === "INPUT") {
     const type = (el as HTMLInputElement).type;
     if (["checkbox", "radio", "file", "color", "range", "date", "time", "month", "week"].includes(type)) {

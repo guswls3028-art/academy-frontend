@@ -5,11 +5,38 @@ import { File as NodeFile } from "node:buffer";
 import { expect, test } from "../fixtures/strictTest";
 import { loadImportWorkbook, MAX_IMPORT_BYTES } from "../../src/shared/utils/excelImport";
 import { readFirstWorksheetRows } from "../../src/shared/utils/excelWorkbook";
+import { parseStudentExcel } from "../../src/shared/product/students/studentExcel";
 
 const WORKBOOK_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
 const HANCOM_XLSX_MIME = "application/haansoftxlsx";
 const MAX_OOXML_XML_MEMBER_CHARS = 16 * 1024 * 1024;
 const MAX_OOXML_XML_TOTAL_CHARS = 32 * 1024 * 1024;
+
+test("학생 내보내기 학년·성별을 다시 읽고 잘못된 행은 수정 후 복구한다", async () => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("학생목록");
+  sheet.addRows([
+    ["이름", "학부모 전화", "학교", "학년", "성별"],
+    ["정상학생", "01070000001", "테스트중", "２ 학년", "여자"],
+    ["학년오류", "01070000002", "테스트고", "4", "M"],
+    ["성별오류", "01070000003", "테스트중", "3", "Mystery"],
+  ]);
+  const read = async (validateProfile = true) => parseStudentExcel(new NodeFile(
+    [await workbook.xlsx.writeBuffer()], "학생목록.xlsx",
+  ) as unknown as File, validateProfile);
+  const parsed = await read();
+  expect(parsed.rows).toHaveLength(1);
+  expect(parsed.rows[0]).toMatchObject({ grade: "2", gender: "F", schoolType: "MIDDLE" });
+  expect(parsed.issues?.map((issue) => issue.row)).toEqual([3, 4]);
+  expect((await read(false)).rows).toHaveLength(3); // Enrollment only matches an existing name/phone.
+  sheet.getCell("D3").value = "1학년";
+  sheet.getCell("E4").value = "남자";
+  const corrected = await read();
+  expect(corrected.issues).toEqual([]);
+  expect(corrected.rows).toHaveLength(3);
+  expect(corrected.rows[1].grade).toBe("1");
+  expect(corrected.rows[2].gender).toBe("M");
+});
 
 async function createStandardWorkbook(): Promise<ArrayBuffer> {
   const workbook = new ExcelJS.Workbook();

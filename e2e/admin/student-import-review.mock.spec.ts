@@ -165,6 +165,80 @@ for (const width of [1366, 390]) {
   });
 }
 
+for (const width of [390, 1366]) {
+  test(`학년·성별 오류 수정과 키보드 파일 재선택 ${width}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await installStudentPage(page);
+    await openExcelRegistration(page);
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "파일 변경", exact: true }).click();
+    const zone = dialog.locator(".excel-upload-zone");
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("학생목록");
+    sheet.addRows([
+      ["이름", "학부모 전화", "학교", "학년", "성별"],
+      ["정상학생", "01070000001", "테스트중", "2학년", "여자"],
+      ["학년오류", "01070000002", "테스트고", "4", "남자"],
+      ["성별오류", "01070000003", "테스트중", "3", "Mystery"],
+    ]);
+    for (const corrected of [false, true]) {
+      await zone.focus();
+      const chooserPromise = page.waitForEvent("filechooser");
+      await zone.press(corrected ? "Enter" : "Space");
+      const chooser = await chooserPromise;
+      await chooser.setFiles({ name: "같은-학생목록.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(await workbook.xlsx.writeBuffer()) });
+      await expect(dialog.getByRole("button", { name: `${corrected ? 3 : 1}명 등록 요청`, exact: true })).toBeEnabled();
+      await expect(zone).not.toHaveAttribute("role", "button");
+      await expect(zone.locator('input[type="file"]')).toHaveAttribute("tabindex", "-1");
+      if (!corrected) {
+        await expect(dialog.getByText("입력 확인 필요 2명", { exact: true })).toBeVisible();
+        await expect(dialog.getByText(/3행 · 학년오류/)).toBeVisible();
+        await expect(dialog.getByText(/4행 · 성별오류/)).toBeVisible();
+      } else await expect(dialog.getByText(/입력 확인 필요/)).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`field-import-${width}-${corrected}.png`), fullPage: true });
+      if (!corrected) {
+        sheet.getCell("D3").value = "1학년";
+        sheet.getCell("E4").value = "남자";
+        await dialog.getByRole("button", { name: "파일 변경", exact: true }).press("Enter");
+      }
+    }
+    await dialog.getByRole("button", { name: "3명 등록 요청", exact: true }).click();
+    await confirmStudentImport(page, 3);
+    await expect(page.getByRole("dialog", { name: "학생 등록 결과" })).toBeVisible();
+  });
+}
+
+test("파일을 읽는 동안 숨겨진 입력도 비활성이고 완료 후 다시 선택할 수 있다", async ({ page }) => {
+  await installStudentPage(page);
+  await openExcelRegistration(page);
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "파일 변경", exact: true }).click();
+  await page.evaluate(() => {
+    const original = File.prototype.arrayBuffer;
+    File.prototype.arrayBuffer = async function () {
+      if (this.name === "읽기-대기.xlsx") {
+        await new Promise<void>((resolve) => {
+          (window as unknown as { finishWorkbookRead: () => void }).finishWorkbookRead = resolve;
+        });
+      }
+      return original.call(this);
+    };
+  });
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: "읽기-대기.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: await studentWorkbook(),
+  });
+  await expect(dialog.locator('input[type="file"]')).toBeDisabled();
+  await expect(dialog.locator(".excel-upload-zone")).toHaveAttribute("aria-disabled", "true");
+  await expect(dialog.locator(".excel-upload-zone")).toHaveAttribute("tabindex", "-1");
+  await page.evaluate(() => (window as unknown as { finishWorkbookRead: () => void }).finishWorkbookRead());
+  await expect(dialog.getByRole("button", { name: "3명 등록 요청", exact: true })).toBeEnabled();
+  await dialog.getByRole("button", { name: "파일 변경", exact: true }).click();
+  await expect(dialog.locator('input[type="file"]')).toBeEnabled();
+  await expect(dialog.locator(".excel-upload-zone")).toHaveAttribute("tabindex", "0");
+});
+
 test.describe("신규 학생 Excel 등록 확인 화면", () => {
   test("동률 명단은 선택을 안내하고 활성 시트를 바꿔 다시 등록할 수 있다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });

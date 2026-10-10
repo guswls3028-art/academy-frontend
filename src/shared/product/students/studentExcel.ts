@@ -239,7 +239,7 @@ function isTemplateExampleRow(map: Record<string, number>, row: unknown[]): bool
 function parseSchoolGrade(value: string): { school: string; grade: string } {
   const s = String(value ?? "").trim();
   if (!s) return { school: "", grade: "" };
-  const m = s.match(/^(.+?)\(([０-９0-9]+)\)\s*$/);
+  const m = s.match(/^(.+?)\(([０-９0-9]+)\s*(?:학년)?\)\s*$/);
   if (!m) return { school: s, grade: "" };
   const school = m[1].trim();
   const gradeFullwidth = m[2].replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
@@ -248,12 +248,12 @@ function parseSchoolGrade(value: string): { school: string; grade: string } {
 }
 
 /** 학교명에서 학교유형 추론 (초등학교/초→ELEMENTARY, 중→MIDDLE, 고→HIGH) */
-function inferSchoolType(school: string): "ELEMENTARY" | "MIDDLE" | "HIGH" {
+function inferSchoolType(school: string, fallback: ParsedStudentRow["schoolType"] = "HIGH"): ParsedStudentRow["schoolType"] {
   const s = school.trim();
-  if (/(초등학교|초등|초\b)/.test(s)) return "ELEMENTARY";
-  if (/(중학교|중등|중\b)/.test(s)) return "MIDDLE";
-  if (/(여고|부고|고등|고등학교)/.test(s)) return "HIGH";
-  return "HIGH";
+  if (s.includes("초등학교") || (s.endsWith("초") && !s.includes("고") && !s.includes("중"))) return "ELEMENTARY";
+  if (s.includes("고")) return "HIGH";
+  if (s.includes("중")) return "MIDDLE";
+  return fallback;
 }
 
 function parseSchoolTypeFromCell(raw: string): "ELEMENTARY" | "MIDDLE" | "HIGH" | null {
@@ -333,7 +333,7 @@ export interface ParseStudentExcelResult {
 /**
  * 엑셀 파일 파싱 → 학생 행 + 엑셀 강의명(있을 경우)
  */
-export async function parseStudentExcel(file: File): Promise<ParseStudentExcelResult> {
+export async function parseStudentExcel(file: File, validateProfile = true): Promise<ParseStudentExcelResult> {
   try {
         const rows = await readStudentWorksheetRows(file);
         if (!rows.length) {
@@ -426,20 +426,34 @@ export async function parseStudentExcel(file: File): Promise<ParseStudentExcelRe
           const gradeCell = cellStr(map, row, "grade");
           const { school: parsedSchool, grade: parsedGrade } = parseSchoolGrade(schoolCell);
           const school = parsedSchool || schoolCell; // 학교(학년) 파싱 결과 또는 원본
-          const grade = parsedGrade || gradeCell;
+          let grade = (parsedGrade || gradeCell).replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+            .replace(/^([+-]?[0-9]+)\s*학년$/, "$1").trim();
           const schoolTypeCell = cellStr(map, row, "schoolType");
           const explicitSchoolType = parseSchoolTypeFromCell(schoolTypeCell);
           if (schoolTypeCell && !explicitSchoolType) {
             issues.push({ row: r + 1, name, reason: "학교유형은 ELEMENTARY, MIDDLE, HIGH 중 하나로 입력해 주세요." });
             continue;
           }
-          const schoolType =
-            explicitSchoolType
-            || (school ? inferSchoolType(school) : "HIGH");
+          const schoolType = inferSchoolType(school, explicitSchoolType || "HIGH");
+          const genderRaw = cellStr(map, row, "gender").toUpperCase();
+          const gender = ({ M: "M", MALE: "M", 남: "M", 남자: "M", 남성: "M",
+            F: "F", FEMALE: "F", 여: "F", 여자: "F", 여성: "F" } as Record<string, string>)[genderRaw] || "";
+          let profileError = "";
+          if (grade) {
+            if (!/^[+-]?[0-9]+$/.test(grade)) profileError = "학년은 정수 또는 N학년 형식으로 입력해 주세요.";
+            else if (Number(grade) < 1 || Number(grade) > (schoolType === "ELEMENTARY" ? 6 : 3)) {
+              profileError = "학년은 초등 1~6, 중등·고등 1~3 범위로 입력해 주세요.";
+            } else grade = String(Number(grade));
+          }
+          if (!profileError && genderRaw && !gender) profileError = "성별은 M/F, 남자/여자 또는 공란으로 입력해 주세요.";
+          if (profileError && validateProfile) {
+            issues.push({ row: r + 1, name, reason: profileError });
+            continue;
+          }
 
           result.push({
             name,
-            gender: cellStr(map, row, "gender").toUpperCase().slice(0, 1) || "",
+            gender,
             studentPhone,
             parentPhone,
             usesIdentifier,
