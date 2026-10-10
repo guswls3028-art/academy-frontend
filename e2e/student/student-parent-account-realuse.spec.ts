@@ -4,6 +4,7 @@
  */
 import { expect, test } from "../fixtures/strictTest";
 import { createHash } from "node:crypto";
+import ExcelJS from "exceljs";
 import type { APIRequestContext, Page } from "@playwright/test";
 import {
   assertNoHorizontalOverflow,
@@ -24,6 +25,7 @@ import {
   reloadStudentApp,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
+  type QaStudent,
 } from "../helpers/qaStudentParentScenario";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
@@ -46,6 +48,78 @@ let family: QaFamily | null = null;
 let adminAccess = "";
 const signupFamilies: QaFamily[] = [];
 const signupRequestIds: number[] = [];
+
+async function verifyExcelSiblingImport(page: Page, request: APIRequestContext, target: QaFamily): Promise<void> {
+  assertQaStudentParentRuntime();
+  const context = await page.context().browser()!.newContext({ viewport: { width: 390, height: 900 } });
+  const uploadPage = await context.newPage();
+  const boundary = await installQaStudentParentBoundary(uploadPage, request);
+  const browser = attachStrictBrowserGuards(uploadPage);
+  const phone = `010${(BigInt(`0x${createHash("sha256").update(`${QA_TENANT}:excel`).digest("hex").slice(0, 12)}`) % 100000000n).toString().padStart(8, "0")}`;
+  type ImportResult = { created: number; total: number; created_rows: { student_id: number }[]; duplicates: unknown[]; failed: { row: number }[] };
+  try {
+    await gotoAndSettle(uploadPage, `${QA_BASE}/login/${QA_TENANT}`);
+    await uploadPage.getByTestId("login-username").fill(QA_ADMIN_USER);
+    await uploadPage.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
+    await uploadPage.getByTestId("login-submit").click();
+    await expect(uploadPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+    await acknowledgeInitialAccountPromptsIfVisible(uploadPage);
+    for (const corrected of [false, true]) {
+      await gotoAndSettle(uploadPage, `${QA_BASE}/workspace/students/home`);
+      await uploadPage.getByRole("button", { name: "학생 추가", exact: true }).click();
+      const dialog = uploadPage.getByRole("dialog");
+      await dialog.getByRole("button", { name: "엑셀 업로드", exact: true }).click();
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("학생목록");
+      sheet.addRows([
+        ["이름", "학부모전화번호", "학생전화번호", "학교유형", "학년"],
+        ["QA 엑셀 첫째", Number(target.parentPhone), Number(phone), "MIDDLE", 2],
+        ["QA 엑셀 둘째", Number(target.parentPhone), corrected ? "" : "0101234567", "MIDDLE", 1],
+      ]);
+      await dialog.locator('input[type="file"]').setInputFiles({ name: "qa-student-import.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(await workbook.xlsx.writeBuffer()) });
+      if (!corrected) await expect(dialog.getByText("입력 확인 필요 1명", { exact: true })).toBeVisible();
+      await assertNoHorizontalOverflow(uploadPage);
+      await dialog.getByRole("button", { name: `${corrected ? 2 : 1}명 등록 요청`, exact: true }).click();
+      const confirmation = uploadPage.getByRole("alertdialog", { name: "학생 일괄 등록 최종 확인" });
+      await confirmation.getByRole("group", { name: "학생 초기 비밀번호" }).getByLabel("직접 입력", { exact: true }).check();
+      await confirmation.getByLabel("학생 직접 입력 비밀번호", { exact: true }).fill(QA_STUDENT_PASSWORD);
+      await confirmation.getByRole("group", { name: "학부모 초기 비밀번호" }).getByLabel("직접 입력", { exact: true }).check();
+      await confirmation.getByLabel("학부모 직접 입력 비밀번호", { exact: true }).fill(QA_STUDENT_PASSWORD);
+      const responsePromise = uploadPage.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/students/bulk_create_from_excel/");
+      await confirmation.getByRole("button", { name: `${corrected ? 2 : 1}명 등록 요청`, exact: true }).click();
+      const response = await responsePromise;
+      expect(response.status()).toBe(202);
+      const { job_id: jobId } = await response.json() as { job_id: string };
+      let result: ImportResult | undefined;
+      await expect.poll(async () => {
+        const job = await expectApi<{ status: string; result?: ImportResult }>(request, "GET", `/students/excel_job_status/${jobId}/`, adminAccess);
+        result = job.result;
+        return job.status;
+      }, { timeout: 120_000, intervals: [1000, 2000, 5000] }).toBe("DONE");
+      for (const row of result!.created_rows) {
+        const student = await expectApi<QaStudent & { school_type: string }>(request, "GET", `/students/${row.student_id}/`, adminAccess);
+        target.students.push({ ...student, password: QA_STUDENT_PASSWORD });
+        expect(student.school_type).toBe("MIDDLE");
+        await loginApi(request, student.ps_number, QA_STUDENT_PASSWORD);
+      }
+      expect(result!.created).toBe(1);
+      expect(result!.total).toBe(2);
+      expect(result!.duplicates.length).toBe(corrected ? 1 : 0);
+      expect(result!.failed.map((row) => row.row)).toEqual(corrected ? [] : [3]);
+      await expect(dialog).toHaveCount(0);
+    }
+    const parent = await loginApi(request, target.parentPhone, target.parentPassword);
+    const me = await expectApi<{ linkedStudents: { id: number }[] }>(request, "GET", "/core/me/", parent.access);
+    expect(me.linkedStudents.map((student) => student.id).sort((a, b) => a - b)).toEqual(target.students.map((student) => student.id).sort((a, b) => a - b));
+    await uploadPage.reload({ waitUntil: "domcontentloaded" });
+    await expect(uploadPage.getByText("QA 엑셀 첫째", { exact: true }).first()).toBeVisible();
+    await expect(uploadPage.getByText("QA 엑셀 둘째", { exact: true }).first()).toBeVisible();
+    boundary.assertClean();
+    browser.assertZeroDefects();
+  } finally {
+    await context.close();
+  }
+}
 
 async function verifyOwnerOrganizationSettings(page: Page, request: APIRequestContext, student: QaFamily["students"][number]): Promise<void> {
   assertQaStudentParentRuntime();
@@ -374,6 +448,7 @@ test.describe.serial("[real-use] 학생/학부모 계정과 복구", () => {
     await verifySignupAndApproval(page, request);
     await verifyOwnerOrganizationSettings(page, request, student);
     await verifyConsultInbox(page, request, admin);
+    await verifyExcelSiblingImport(page, request, family);
     boundary.assertClean();
     browser.assertZeroDefects();
   });

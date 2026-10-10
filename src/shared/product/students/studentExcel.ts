@@ -47,7 +47,9 @@ export interface ParsedStudentRow {
 
 /** 전화번호에서 숫자만 추출 (01012345678). 엑셀 숫자 셀은 앞 0이 빠져 10자리로 올 수 있음. */
 function toRawPhone(v: unknown): string {
-  let s = String(v ?? "").replace(/\D/g, "");
+  const value = String(v ?? "").trim();
+  if (value && !/^[0-9\s.()-]+$/.test(value)) return value;
+  let s = value.replace(/\D/g, "");
   // 엑셀에서 01012345678 이 숫자로 저장되면 1012345678(10자리)로 읽힘 → 0 붙여서 11자리로
   if (s.length === 10 && s.startsWith("10")) s = "0" + s;
   return s;
@@ -232,6 +234,7 @@ export async function downloadStudentExcelTemplate(
 /** parseStudentExcel 반환 타입 — 강의명은 엑셀 내 컬럼/첫 행에서 추출(선택) */
 export interface ParseStudentExcelResult {
   rows: ParsedStudentRow[];
+  issues?: { row: number; name: string; reason: string }[];
   /** 엑셀에 적힌 강의명(강의 일치 확인용). 없으면 undefined */
   lectureNameFromExcel?: string;
 }
@@ -241,7 +244,7 @@ export interface ParseStudentExcelResult {
  */
 export async function parseStudentExcel(file: File): Promise<ParseStudentExcelResult> {
   try {
-        const rows = await readFirstWorksheetRows(file);
+        const rows = await readFirstWorksheetRows(file, { preserveEmptyRows: true });
         if (!rows.length) {
           throw new Error("데이터가 없습니다.");
         }
@@ -286,6 +289,7 @@ export async function parseStudentExcel(file: File): Promise<ParseStudentExcelRe
         }
 
         const result: ParsedStudentRow[] = [];
+        const issues: NonNullable<ParseStudentExcelResult["issues"]> = [];
         for (let r = headerRowIndex + 1; r < rows.length; r++) {
           const row = rows[r] as unknown[];
           if (isTemplateExampleRow(map, row)) continue;
@@ -296,8 +300,21 @@ export async function parseStudentExcel(file: File): Promise<ParseStudentExcelRe
           const name = cellStr(map, row, "name");
           const rawStudent = toRawPhone(cellStr(map, row, "studentPhone"));
           let studentPhone = rawStudent;
-          let parentPhone = toRawPhone(cellStr(map, row, "parentPhone"));
+          const parentPhone = toRawPhone(cellStr(map, row, "parentPhone"));
           let usesIdentifier = false;
+
+          if (!name && !rawStudent && !parentPhone) continue;
+          const reason = !name
+            ? "학생 이름을 입력해 주세요."
+            : !/^010[0-9]{8}$/.test(parentPhone)
+              ? "학부모 전화번호가 없거나 형식이 잘못되었습니다(010 포함 11자리)."
+              : rawStudent && !/^(?:010)?[0-9]{8}$/.test(rawStudent)
+                ? "학생 전화번호는 비우거나 010 포함 11자리로 입력해 주세요."
+                : "";
+          if (reason) {
+            issues.push({ row: r + 1, name: name || "(이름 없음)", reason });
+            continue;
+          }
 
           // 8자리 숫자만 있으면 식별자(010+8자리)로 해석
           if (rawStudent.length === 8 && /^\d{8}$/.test(rawStudent)) {
@@ -305,21 +322,28 @@ export async function parseStudentExcel(file: File): Promise<ParseStudentExcelRe
             usesIdentifier = true;
           }
           // 학생 전화 없을 때: 학부모 전화 8자리로 OMR 식별 (백엔드에서 처리)
-          else if (!studentPhone || studentPhone.length !== 11 || !studentPhone.startsWith("010")) {
-            if (!parentPhone || parentPhone.length !== 11 || !parentPhone.startsWith("010")) continue; // 학부모도 없으면 스킵
+          else if (!studentPhone) {
             studentPhone = "";
             usesIdentifier = true;
           }
-          if (!parentPhone || parentPhone.length !== 11 || !parentPhone.startsWith("010")) parentPhone = studentPhone;
-          if (!name && !studentPhone) continue; // 빈 행 스킵
+          if (studentPhone === parentPhone) {
+            studentPhone = "";
+            usesIdentifier = true;
+          }
 
           const schoolCell = cellStr(map, row, "school");
           const gradeCell = cellStr(map, row, "grade");
           const { school: parsedSchool, grade: parsedGrade } = parseSchoolGrade(schoolCell);
           const school = parsedSchool || schoolCell; // 학교(학년) 파싱 결과 또는 원본
           const grade = parsedGrade || gradeCell;
+          const schoolTypeCell = cellStr(map, row, "schoolType");
+          const explicitSchoolType = parseSchoolTypeFromCell(schoolTypeCell);
+          if (schoolTypeCell && !explicitSchoolType) {
+            issues.push({ row: r + 1, name, reason: "학교유형은 ELEMENTARY, MIDDLE, HIGH 중 하나로 입력해 주세요." });
+            continue;
+          }
           const schoolType =
-            parseSchoolTypeFromCell(cellStr(map, row, "schoolType"))
+            explicitSchoolType
             || (school ? inferSchoolType(school) : "HIGH");
 
           result.push({
@@ -336,7 +360,7 @@ export async function parseStudentExcel(file: File): Promise<ParseStudentExcelRe
             memo: cellStr(map, row, "memo"),
           });
         }
-        return { rows: result, lectureNameFromExcel: lectureNameFromExcel || undefined };
+        return { rows: result, issues, lectureNameFromExcel: lectureNameFromExcel || undefined };
   } catch (err) {
     throw err instanceof Error ? err : new Error("파일 파싱 실패");
   }

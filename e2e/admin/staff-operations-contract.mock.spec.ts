@@ -1749,7 +1749,7 @@ test.describe("직원 운영 계약", () => {
     await expect(kimRow.getByText("마감", { exact: true })).toBeVisible();
   });
 
-  test("자문 점검만 있는 직원도 KPI와 필터에 포함하고 0건이어도 선택 필터를 조용히 바꾸지 않는다", async ({ page, context }) => {
+  test("자문 점검만 있는 직원도 KPI와 필터에 포함하고 0건이어도 선택 필터를 조용히 바꾸지 않는다", async ({ page }) => {
     await page.clock.install({ time: new Date("2026-08-21T12:00:00+09:00") });
     let payrollMode: "advisory" | "none" = "advisory";
     let payrollRequestCount = 0;
@@ -1803,8 +1803,11 @@ test.describe("직원 운영 계약", () => {
     const refetchPayroll = async () => {
       const previousRequestCount = payrollRequestCount;
       await page.clock.fastForward(11_000);
-      await context.setOffline(true);
-      await context.setOffline(false);
+      // Exercise reconnect refetch without interrupting unrelated shell polling.
+      await page.evaluate(() => {
+        window.dispatchEvent(new Event("offline"));
+        window.dispatchEvent(new Event("online"));
+      });
       await expect.poll(() => payrollRequestCount).toBeGreaterThan(previousRequestCount);
     };
 

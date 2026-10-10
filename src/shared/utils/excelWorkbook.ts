@@ -49,7 +49,10 @@ export async function downloadArrayWorksheet({
   await downloadWorkbook(workbook, filename);
 }
 
-export async function readFirstWorksheetRows(file: File): Promise<unknown[][]> {
+export async function readFirstWorksheetRows(
+  file: File,
+  { preserveEmptyRows = false }: { preserveEmptyRows?: boolean } = {},
+): Promise<unknown[][]> {
   if (!/\.xlsx$/i.test(file.name)) {
     throw new Error("보안상 .xlsx 파일만 지원합니다. 구형 .xls 또는 .csv 파일은 .xlsx로 저장한 뒤 업로드해 주세요.");
   }
@@ -75,7 +78,7 @@ export async function readFirstWorksheetRows(file: File): Promise<unknown[][]> {
       values.push(cellValueToPlainValue(row.getCell(columnIndex).value));
     }
     trimTrailingEmptyCells(values);
-    if (values.some((value) => String(value ?? "").trim())) {
+    if (preserveEmptyRows || values.some((value) => String(value ?? "").trim())) {
       rows.push(values);
     }
   }

@@ -199,6 +199,15 @@
   font-size: 12px;
 }
 
+.fileReview[data-tone="warning"] {
+  border-color: color-mix(in srgb, var(--color-warning) 30%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-warning) 5%, var(--color-bg-surface));
+}
+
+.fileReview[data-tone="warning"] .fileReviewHeading {
+  color: var(--color-text-primary);
+}
+
 .fileReviewHeading span {
   margin-left: auto;
   color: var(--color-text-muted);
@@ -258,6 +267,14 @@
 .phoneCoverageNotice[data-tone="warning"] {
   background: color-mix(in srgb, var(--color-warning) 11%, var(--color-bg-surface));
   color: color-mix(in srgb, var(--color-warning) 76%, var(--color-text-primary));
+}
+
+.importIssueList {
+  max-height: 160px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  margin: 8px 0 0;
+  padding-left: 18px;
 }
 
 .phoneCoverageNotice[data-tone="ready"] {

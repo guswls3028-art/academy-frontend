@@ -150,6 +150,7 @@ export default function StudentCreateModal({
   const confirm = useConfirm();
   const confirmPasswords = useRegistrationPasswordConfirmation();
   const confirmationInFlightRef = useRef(false);
+  const excelReadVersionRef = useRef(0);
   const [mode, setMode] = useState<RegisterMode>("choice");
   const [busy, setBusy] = useState(false);
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
@@ -162,6 +163,7 @@ export default function StudentCreateModal({
   );
 
   useEffect(() => {
+    excelReadVersionRef.current += 1;
     if (!open) return;
     setMode("choice");
     setBusy(false);
@@ -171,23 +173,29 @@ export default function StudentCreateModal({
     setParsedExcel(null);
     setSubmitError("");
     setForm(createInitialForm(slm.defaultSchoolType));
+    return () => { excelReadVersionRef.current += 1; };
   }, [open, onBulkProgress, slm.defaultSchoolType]);
 
   async function handleExcelFileSelect(file: File) {
     if (busy) return;
+    const readVersion = ++excelReadVersionRef.current;
     setBusy(true);
+    setSelectedExcelFile(null);
+    setParsedExcel(null);
     try {
       const parsed = await parseStudentExcel(file);
-      if (!parsed.rows.length) {
+      if (readVersion !== excelReadVersionRef.current) return;
+      if (!parsed.rows.length && !parsed.issues?.length) {
         feedback.error("등록할 학생 데이터가 없습니다.");
         return;
       }
       setSelectedExcelFile(file);
       setParsedExcel(parsed);
     } catch (error) {
+      if (readVersion !== excelReadVersionRef.current) return;
       feedback.error(error instanceof Error ? error.message : "엑셀 파일을 읽지 못했습니다.");
     } finally {
-      setBusy(false);
+      if (readVersion === excelReadVersionRef.current) setBusy(false);
     }
   }
 
@@ -441,7 +449,7 @@ export default function StudentCreateModal({
   }
 
   async function handleExcelRegister() {
-    if (busy || confirmationInFlightRef.current || !selectedExcelFile || !parsedExcel) return;
+    if (busy || confirmationInFlightRef.current || !selectedExcelFile || !parsedExcel?.rows.length) return;
     const eligibleCount = parsedExcel.rows.length;
     confirmationInFlightRef.current = true;
     const passwordChoice = await confirmPasswords({
@@ -453,8 +461,9 @@ export default function StudentCreateModal({
         eyebrow: "학생 명부 일괄 등록 검토",
         items: [
           { label: "파일", value: selectedExcelFile.name },
-          { label: "전체 행", value: `${parsedExcel.rows.length}명` },
+          { label: "전체 행", value: `${parsedExcel.rows.length + (parsedExcel.issues?.length ?? 0)}명` },
           { label: "등록 요청", value: `${eligibleCount}명`, tone: "accent" },
+          ...(parsedExcel.issues?.length ? [{ label: "입력 오류", value: `${parsedExcel.issues.length}명 · 해당 행은 등록되지 않습니다`, tone: "warning" as const }] : []),
         ],
         note: "학생 명부 등록 요청이며 강의 수강은 만들지 않습니다. 계정 안내 알림톡은 첫 수강 확정 때 별도로 발송됩니다.",
       },
@@ -503,6 +512,7 @@ export default function StudentCreateModal({
   }
 
   const handleClose = () => {
+    excelReadVersionRef.current += 1;
     setDeletedStudentConflict(null);
     onClose();
   };
@@ -516,6 +526,7 @@ export default function StudentCreateModal({
           ? handleExcelRegister
           : undefined;
   const excelRowCount = parsedExcel?.rows.length ?? 0;
+  const excelIssues = parsedExcel?.issues ?? [];
   const invalidExcelStudentPhoneNames = parsedExcel?.rows
     .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
     .map((row) => row.name || "(이름 없음)") ?? [];
@@ -831,6 +842,7 @@ export default function StudentCreateModal({
               onFileSelect={handleExcelFileSelect}
               selectedFile={selectedExcelFile}
               onClearFile={() => {
+                excelReadVersionRef.current += 1;
                 setSelectedExcelFile(null);
                 setParsedExcel(null);
               }}
@@ -841,20 +853,21 @@ export default function StudentCreateModal({
             {parsedExcel ? (
               <div
                 className={styles.fileReview}
+                data-tone={excelIssues.length ? "warning" : "ready"}
                 role="region"
                 aria-label="엑셀 파일 확인 결과"
                 aria-live="polite"
               >
                 <div className={styles.fileReviewHeading}>
-                  <FiCheckCircle aria-hidden />
-                  <strong>파일을 읽었습니다</strong>
-                  <span>등록 전에 아래 인원을 확인해 주세요.</span>
+                  {excelIssues.length ? <FiInfo aria-hidden /> : <FiCheckCircle aria-hidden />}
+                  <strong>{excelIssues.length ? "확인 필요한 행이 있습니다" : "파일을 읽었습니다"}</strong>
+                  <span>{excelIssues.length ? `정상 ${excelRowCount}명 · 입력 확인 ${excelIssues.length}명` : "등록 전에 아래 인원을 확인해 주세요."}</span>
                 </div>
                 <div className={styles.fileMetrics}>
                   <div className={styles.fileMetric}>
                     <FiUsers aria-hidden />
                     <span>읽은 학생</span>
-                    <strong>{excelRowCount}명</strong>
+                    <strong>{excelRowCount + excelIssues.length}명</strong>
                   </div>
                   <div className={styles.fileMetric}>
                     <FiSmartphone aria-hidden />
@@ -870,6 +883,17 @@ export default function StudentCreateModal({
                     <strong>{invalidExcelStudentPhoneNames.length}명</strong>
                   </div>
                 </div>
+                {excelIssues.length > 0 ? (
+                  <div className={styles.phoneCoverageNotice} data-tone="warning" role="alert">
+                    <strong>입력 확인 필요 {excelIssues.length}명</strong>
+                    <p>아래 행은 등록되지 않습니다. 파일을 수정해 다시 선택하거나 정상 {excelRowCount}명만 먼저 등록할 수 있습니다.</p>
+                    <ul className={styles.importIssueList}>
+                      {excelIssues.map((issue) => (
+                        <li key={issue.row}>{issue.row}행 · {issue.name}: {issue.reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 {invalidExcelStudentPhoneNames.length > 0 ? (
                   <div
                     className={styles.phoneCoverageNotice}
@@ -917,14 +941,14 @@ export default function StudentCreateModal({
           mode === "choice" ? null : mode === "excel" ? (
             <span className={`modal-hint ${styles.footerHint}`}>
               {parsedExcel
-                ? `${excelRowCount}명 확인 · 전원 등록 요청 가능`
+                ? `정상 ${excelRowCount}명${excelIssues.length ? ` · 입력 확인 ${excelIssues.length}명` : " · 전원 등록 요청 가능"}`
                 : "엑셀 파일을 선택하면 등록 인원을 먼저 확인합니다"}
             </span>
           ) : null
         }
         right={
           <>
-            <Button intent="secondary" onClick={onClose} disabled={busy}>
+            <Button intent="secondary" onClick={handleClose} disabled={busy}>
               취소
             </Button>
             {mode === "single" && (
