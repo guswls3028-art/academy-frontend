@@ -106,7 +106,16 @@ async function verifyExcelSiblingImport(page: Page, request: APIRequestContext, 
       expect(result!.total).toBe(2);
       expect(result!.duplicates.length).toBe(corrected ? 1 : 0);
       expect(result!.failed.map((row) => row.row)).toEqual(corrected ? [] : [3]);
-      await expect(dialog).toHaveCount(0);
+      const resultDialog = uploadPage.getByRole("dialog", { name: "학생 등록 결과" });
+      await expect(resultDialog).toBeVisible({ timeout: 30_000 });
+      const summary = resultDialog.getByLabel("등록 결과 요약");
+      await expect(summary.getByText("신규 등록", { exact: true }).locator("..")).toContainText("1명");
+      await expect(summary.getByText("이미 등록", { exact: true }).locator("..")).toContainText(`${corrected ? 1 : 0}명`);
+      await expect(summary.getByText("확인 필요", { exact: true }).locator("..")).toContainText(`${corrected ? 0 : 1}명`);
+      if (!corrected) await expect(resultDialog.getByRole("region", { name: "확인 필요", exact: true }).getByText("3행", { exact: true })).toBeVisible();
+      await assertNoHorizontalOverflow(uploadPage);
+      await resultDialog.getByRole("button", { name: "확인", exact: true }).click();
+      await expect(resultDialog).toBeHidden();
     }
     const parent = await loginApi(request, target.parentPhone, target.parentPassword);
     const me = await expectApi<{ linkedStudents: { id: number }[] }>(request, "GET", "/core/me/", parent.access);
