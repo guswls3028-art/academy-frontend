@@ -15,8 +15,8 @@ for (const width of [1366, 390]) {
       localStorage.setItem("refresh", `${jwt}-refresh`);
     }, localJwt());
     await installApi(page);
-    await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 45_000 });
     await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 45_000 });
     await page.getByRole("button", { name: "학생 추가", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "엑셀 업로드", exact: true }).click();
