@@ -29,6 +29,18 @@ test.describe("[real-use] 직원 계정·근태·급여", () => {
     const boundary = await installQaStudentParentBoundary(page, request);
     const admin = (await loginAdmin(request)).access;
     const suffix = Date.now().toString(36);
+    const program = await api<{ display_name: string; ui_config: Record<string, unknown> }>(request, "GET", "/core/program/", admin);
+    expect(program.status).toBe(200);
+    expect((await api(request, "PATCH", "/core/program/", admin, { ui_config: ["invalid"] })).status).toBe(400);
+    try {
+      const renamed = await api(request, "PATCH", "/core/program/", admin, { display_name: `QA 설정 ${suffix}` });
+      expect(renamed.status).toBe(200);
+      const reloaded = await api(request, "GET", "/core/program/", admin);
+      expect(reloaded.status).toBe(200);
+      expect(reloaded.body).toMatchObject({ display_name: `QA 설정 ${suffix}`, ui_config: program.body.ui_config });
+    } finally {
+      expect((await api(request, "PATCH", "/core/program/", admin, { display_name: program.body.display_name })).status).toBe(200);
+    }
     const firstName = `QA 급여 갑 ${suffix}`;
     const secondName = `QA 급여 을 ${suffix}`;
     const username = `staff-payroll-${suffix}`;
@@ -103,6 +115,18 @@ test.describe("[real-use] 직원 계정·근태·급여", () => {
     });
     expect(record.status).toBe(201);
     expect(record.body.amount).toBe(12345);
+    const recordPath = `/staffs/work-records/${record.body.id}/`;
+    expect((await api(request, "PATCH", recordPath, admin, { break_minutes: 61 })).status).toBe(400);
+    const unchanged = await api<RecordRow>(request, "GET", recordPath, admin);
+    expect(unchanged.status).toBe(200);
+    expect(unchanged.body).toMatchObject({ amount: 12345, break_minutes: 0 });
+    const halfHour = await api<RecordRow>(request, "PATCH", recordPath, admin, { break_minutes: 30 });
+    expect(halfHour.status).toBe(200);
+    expect(halfHour.body).toMatchObject({ amount: 6173, break_minutes: 30 });
+    expect((await api(request, "PATCH", recordPath, admin, { break_minutes: 0 })).status).toBe(200);
+    const restored = await api<RecordRow>(request, "GET", recordPath, admin);
+    expect(restored.status).toBe(200);
+    expect(restored.body).toMatchObject({ amount: 12345, break_minutes: 0 });
     await gotoAndSettle(page, `${QA_BASE}/workspace/staff/attendance?staffId=${first.body.id}&year=2026&month=8`);
     const recordRow = page.getByTestId(`staff-work-record-${record.body.id}`);
     await recordRow.getByRole("button", { name: "수정", exact: true }).click();

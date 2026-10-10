@@ -67,6 +67,17 @@ test.describe.serial("[real-use] 납기 경과 청구 즉시 연체", () => {
     });
     expect(assigned.status).toBe(201);
     studentFeeId = assigned.body.id;
+    const assignmentPath = `/fees/student-fees/${studentFeeId}/`;
+    const endMonth = `${new Date().getUTCFullYear() + 1}-12`;
+    // Independent partial edits must both survive before invoice generation.
+    const edits = await Promise.all([
+      api(request, "PATCH", assignmentPath, access, { discount_amount: 20000 }),
+      api(request, "PATCH", assignmentPath, access, { billing_end_month: endMonth }),
+    ]);
+    for (const edited of edits) expect(edited.status).toBe(200);
+    const reloadedAssignment = await api(request, "GET", assignmentPath, access);
+    expect(reloadedAssignment.status).toBe(200);
+    expect(reloadedAssignment.body).toMatchObject({ discount_amount: 20000, billing_end_month: endMonth, effective_amount: 100000 });
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`, { timeout: 45_000 });
@@ -91,7 +102,7 @@ test.describe.serial("[real-use] 납기 경과 청구 즉시 연체", () => {
     expect(rows(invoices.body)).toHaveLength(1);
     const invoice = rows(invoices.body)[0];
     invoiceId = invoice.id;
-    expect(invoice).toMatchObject({ student: student.id, status: "OVERDUE", due_date: yesterday, paid_amount: 0, total_amount: 120000 });
+    expect(invoice).toMatchObject({ student: student.id, status: "OVERDUE", due_date: yesterday, paid_amount: 0, total_amount: 100000 });
     const invoiceRow = page.getByRole("row").filter({ hasText: student.name });
     await expect(invoiceRow).toHaveAttribute("data-status", "OVERDUE");
     await expect(invoiceRow.getByText("연체", { exact: true })).toBeVisible();
@@ -108,7 +119,7 @@ test.describe.serial("[real-use] 납기 경과 청구 즉시 연체", () => {
     const dashboard = await api<{ overdue_count: number; total_outstanding: number }>(request, "GET",
       `/fees/dashboard/?year=${period.billing_year}&month=${period.billing_month}`, access);
     expect(dashboard.status).toBe(200);
-    expect(dashboard.body).toMatchObject({ overdue_count: 1, total_outstanding: 120000 });
+    expect(dashboard.body).toMatchObject({ overdue_count: 1, total_outstanding: 100000 });
     boundary.assertClean();
     browser.assertZeroDefects();
   });
