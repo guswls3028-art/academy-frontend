@@ -473,7 +473,9 @@ async function fetchPublicResourceMeta(tenantCode: string, id: string): Promise<
   try {
     const response = await fetch(`${API_BASE}/api/v1/landing-public/resources/${id}/`, {
       headers: { Accept: "application/json", "X-Tenant-Code": tenantCode },
-      redirect: "error",
+      // workerd supports manual/follow only. Non-2xx below rejects redirects
+      // without following them or forwarding the tenant header elsewhere.
+      redirect: "manual",
       cf: { cacheTtl: 0 } as RequestInitCfProperties,
     });
     if (!response.ok) return { status: response.status };
