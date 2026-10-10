@@ -5,6 +5,8 @@
  */
 import { useState, useRef, useCallback, useId, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import {
   uploadMyFile,
   deleteMyFile,
@@ -58,6 +60,7 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey, selecte
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<{ type: "file" | "folder"; id: string; name: string } | null>(null);
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
   const [uploadQueue, setUploadQueue] = useState<{ name: string; done: boolean; error: boolean }[]>([]);
 
   const currentFolders = useMemo(
@@ -110,8 +113,22 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey, selecte
       if (type === "file") return deleteMyFile(ps, id, selectedStudentId);
       return deleteMyFolder(ps, id, selectedStudentId);
     },
-    onSuccess: async () => { qc.invalidateQueries({ queryKey }); setConfirmDelete(null); const { studentToast } = await import("@student/shared/ui/feedback/studentToast"); studentToast.success("삭제되었습니다."); },
-    onError: async () => { const { studentToast } = await import("@student/shared/ui/feedback/studentToast"); studentToast.error("삭제에 실패했습니다."); },
+    onMutate: () => { setDeleteNotice(null); },
+    onSuccess: async () => { setConfirmDelete(null); const { studentToast } = await import("@student/shared/ui/feedback/studentToast"); studentToast.success("삭제되었습니다."); },
+    onError: async (error) => {
+      const message = getApiErrorMessage(error, "삭제에 실패했습니다.");
+      const response = isAxiosError(error) ? error.response : undefined;
+      if (response?.status === 502 && response.data?.code === "inventory_storage_cleanup_pending" &&
+          (response.data.deleted === true || response.data.deleted?.folders > 0)) {
+        setConfirmDelete(null);
+        setDeleteNotice(message);
+        return;
+      }
+      const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
+      studentToast.error(message);
+    },
+    // A failed storage cleanup or lost response may follow a committed DB delete.
+    onSettled: () => qc.invalidateQueries({ queryKey }),
   });
 
   const createFolderMut = useMutation({
@@ -150,6 +167,12 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey, selecte
       </div>
 
       <input ref={fileInputRef} type="file" accept="image/*,video/*,.pdf,.doc,.docx,.hwp,.hwpx,.xlsx,.xls" multiple onChange={onFileChange} style={{ display: "none" }} />
+
+      {deleteNotice && (
+        <div role="status" style={{ marginBlock: "var(--stu-space-3)", fontSize: 14, color: "var(--stu-text-muted)" }}>
+          {deleteNotice}
+        </div>
+      )}
 
       {/* 브레드크럼 */}
       {folderStack.length > 1 && (
@@ -275,8 +298,8 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey, selecte
               </button>
             </div>
             {deleteMut.isError && (
-              <div style={{ marginTop: 8, fontSize: 13, color: "var(--stu-danger-text)", fontWeight: 600 }}>
-                {deleteMut.error instanceof Error ? deleteMut.error.message : "삭제에 실패했습니다."}
+              <div role="alert" style={{ marginTop: 8, fontSize: 13, color: "var(--stu-danger-text)", fontWeight: 600 }}>
+                {getApiErrorMessage(deleteMut.error, "삭제에 실패했습니다.")}
               </div>
             )}
           </div>
