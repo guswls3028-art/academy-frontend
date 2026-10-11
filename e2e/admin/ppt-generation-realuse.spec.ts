@@ -9,6 +9,8 @@ import { getApiBaseUrl, getBaseUrl, loginViaUI } from "../helpers/auth";
 
 const PDF = path.resolve("e2e/fixtures/synthetic-math-low-anchor-7pages.pdf");
 const GENERATE_PATH = "/api/v1/tools/ppt/generate/";
+// 18 detected questions plus four image-only pages; the 7/7 folio is not a question.
+const AUTOMATIC_SLIDES = 22;
 const jobIds: string[] = [];
 
 function requireIsolatedDevelopment(): void {
@@ -72,7 +74,7 @@ async function expectDownload(page: Page, click: () => Promise<void>, slideCount
   await expectPptx(await downloadPromise, slideCount);
 }
 
-test("7쪽 자동 생성 실패 안내에서 직접 자르기·다운로드·새로고침 복구", async ({ page }) => {
+test("7쪽 혼합 PDF의 문항·원본 보존과 직접 자르기·다운로드·새로고침 복구", async ({ page }) => {
   test.setTimeout(900_000);
   requireIsolatedDevelopment();
   await page.setViewportSize({ width: 1366, height: 850 });
@@ -111,9 +113,9 @@ test("7쪽 자동 생성 실패 안내에서 직접 자르기·다운로드·새
     ? automaticBody.code : "unclassified";
   expect(automatic.ok(), `PPT 자동 생성 제출: status=${automatic.status()}, code=${failureCode}`).toBe(true);
   expect(automaticBody.job_id).toBeTruthy();
-  await expect(page.getByText(/문항을 정확히 나누기 어려워 모든 쪽을 그대로 넣었습니다/)).toBeVisible({ timeout: 480_000 });
+  await expect(page.getByText(/문항을 찾지 못한 쪽은 원본 페이지로 넣었습니다/)).toBeVisible({ timeout: 480_000 });
   // Verify the generated file; both persistent completion controls are checked after reload below.
-  await expectPptx(await automaticDownload, 7);
+  await expectPptx(await automaticDownload, AUTOMATIC_SLIDES);
 
   await page.getByRole("button", { name: "직접 자르기" }).click();
   await expect(page.getByText("1 / 7쪽")).toBeVisible();
@@ -148,8 +150,10 @@ test("7쪽 자동 생성 실패 안내에서 직접 자르기·다운로드·새
 
   await page.reload({ waitUntil: "domcontentloaded" });
   const recovery = page.getByRole("region", { name: "이전 PPT 작업" });
-  await expect(recovery.getByRole("button", { name: "완료된 PPT 다운로드 (7장)" })).toBeVisible();
+  const automaticRecovery = recovery.getByRole("button", { name: `완료된 PPT 다운로드 (${AUTOMATIC_SLIDES}장)` });
+  await expect(automaticRecovery).toBeVisible();
   await expect(recovery.getByRole("button", { name: "완료된 PPT 다운로드 (2장)" })).toBeVisible();
+  await expectDownload(page, () => automaticRecovery.click(), AUTOMATIC_SLIDES);
   await expectDownload(page, () => recovery.getByRole("button", { name: "완료된 PPT 다운로드 (2장)" }).click(), 2);
 });
 
