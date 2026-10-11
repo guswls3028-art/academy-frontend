@@ -3624,6 +3624,10 @@ for (const width of [1366, 390]) {
     await targets.getByRole("checkbox", { name: "심야 학생 선택" }).check();
     await targets.getByRole("button", { name: "선택 확정 (1명)" }).click();
     const picker = page.getByRole("dialog", { name: "실제 예약 시간 선택" });
+    // The opening zoom can be stationary in its prepare frame before it moves.
+    // Wait for the opened dialog before choosing a time, preserving the motion.
+    await expect(picker).toBeVisible();
+    await expect(picker).not.toHaveClass(/ant-zoom-(?:appear|enter)/);
     await picker.getByRole("button", { name: "2026-09-01 00:30 시작, 잔여 2자리" }).click();
     await picker.getByRole("button", { name: "2026-09-01 01:00 종료, 총 30분" }).click();
     state.participantBulkFailure = { detail: "선택한 구간의 잔여 정원이 변경되었습니다.", status: 409 };
