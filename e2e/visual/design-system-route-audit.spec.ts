@@ -23,7 +23,6 @@ const ADMIN_ROUTES = [
   "/workspace/clinic/home",
   "/workspace/clinic/schedule",
   "/workspace/clinic/operations",
-  "/workspace/clinic/bookings",
   "/workspace/clinic/reports",
   "/workspace/clinic/msg-settings",
   "/workspace/exams",

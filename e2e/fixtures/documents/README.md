@@ -3,6 +3,13 @@
 These files were created for automated tests; they contain no tenant documents,
 accounts, student information or customer data.
 
+- `public-resource-note.docx` and `public-resource-slide.pptx`: python-docx and
+  python-pptx create a one-page/one-slide heading (`QA document original` /
+  `QA slide original`) and `Synthetic QA content: 42 / 100.`. These exercise the
+  distinct Word and PowerPoint native reader paths and exact original downloads.
+- `public-resource-bars.png`: Pillow creates a 120×60 white canvas with two solid
+  navy/teal rectangles. The reader verifies decoded dimensions and original bytes.
+
 - `public-resource-report.hwpx`: python-hwpx builds a Korean heading, two explanatory
   paragraphs, a 3×3 table with QA units/counts/percentages and a Pillow-generated
   two-bar diagram. Values such as 12/85% and 8/75% are invented test data.

@@ -9,6 +9,7 @@ import { api, assertNoHorizontalOverflow, assertQaStudentParentRuntime, loginAdm
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { installReleaseContextGuard, releaseBoundaryFromEnv, installReleaseRequestGuard } from "../helpers/releaseApiBoundary";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
+import { loginViaUI } from "../helpers/auth";
 
 test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -185,6 +186,74 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
       }
       // Soft-deleted original objects are preserved by product policy. The owning
       // scenario cleanup purges only this disposable tenant and proves R2/user zero.
+    }
+  });
+  test("Word/PowerPoint/text/image originals → anonymous desktop/mobile reading and exact download", async ({ page, browser, request }) => {
+    assertQaStudentParentRuntime();
+    const access = (await loginAdmin(request)).access;
+    const originals = [
+      { name: "문서 원본.docx", mimeType: "application/octet-stream", buffer: await readFile(new URL("../fixtures/documents/public-resource-note.docx", import.meta.url)) },
+      { name: "발표 원본.pptx", mimeType: "application/octet-stream", buffer: await readFile(new URL("../fixtures/documents/public-resource-slide.pptx", import.meta.url)) },
+      { name: "읽어보기.txt", mimeType: "text/plain", buffer: Buffer.from("QA plain original: 42 / 100.") },
+      { name: "합성 그래프.png", mimeType: "image/png", buffer: await readFile(new URL("../fixtures/documents/public-resource-bars.png", import.meta.url)) },
+    ];
+    let post: Post | undefined;
+    const visitorContext = await browser.newContext({ serviceWorkers: "block" });
+    await visitorContext.addInitScript(({ tenant, origin }) => {
+      if (location.origin !== origin) return;
+      localStorage.setItem("tenant_code", tenant); sessionStorage.setItem("tenantCode", tenant);
+    }, { tenant: QA_TENANT, origin: new URL(QA_BASE).origin });
+    try {
+      await loginViaUI(page, "admin", { landingPath: "/landing/resources" });
+      await page.getByRole("link", { name: "글 올리기", exact: true }).click();
+      await page.getByLabel("제목", { exact: true }).fill("QA 원본 형식별 읽기");
+      await page.getByLabel("첨부 자료", { exact: true }).setInputFiles(originals);
+      await expect(page.getByText("합성 그래프.png", { exact: true })).toBeVisible({ timeout: 90_000 });
+      await expect(page.getByRole("button", { name: "게시하기", exact: true })).toBeEnabled({ timeout: 180_000 });
+      const published = page.waitForResponse((response) => response.request().method() === "POST"
+        && new URL(response.url()).pathname === "/api/v1/landing-public/resources/");
+      await page.getByRole("button", { name: "게시하기", exact: true }).click();
+      const response = await published;
+      expect(response.status()).toBe(201);
+      post = await response.json() as Post;
+      expect(post.files).toHaveLength(originals.length);
+      const visitor = await visitorContext.newPage();
+      for (const width of [1366, 390]) {
+        await visitor.setViewportSize({ width, height: 900 });
+        await visitor.goto(`${QA_BASE}/landing/resources/${post.id}`);
+        await visitor.reload();
+        await expect(visitor.getByRole("heading", { name: "QA 원본 형식별 읽기", exact: true })).toBeVisible();
+        for (const [filename, title] of [["문서 원본.docx", "QA document original"], ["발표 원본.pptx", "QA slide original"]]) {
+          const office = visitor.getByRole("region", { name: `${filename} 본문`, exact: true });
+          await office.scrollIntoViewIfNeeded();
+          await expect(office.locator('[data-testid="resource-page-image"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+          await expect(office).toContainText(title);
+        }
+        const text = visitor.getByRole("region", { name: "읽어보기.txt 본문", exact: true });
+        await text.scrollIntoViewIfNeeded();
+        await expect(text).toContainText("QA plain original: 42 / 100.");
+        const graph = visitor.getByRole("region", { name: "합성 그래프.png 본문", exact: true });
+        await graph.scrollIntoViewIfNeeded();
+        const graphImage = graph.getByRole("img", { name: "첨부 이미지" });
+        await expect(graphImage).toBeVisible();
+        await expect.poll(() => graphImage.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth === 120 && image.naturalHeight === 60)).toBe(true);
+        for (const original of originals) {
+          const row = visitor.getByText(original.name, { exact: true }).first().locator("..").locator("..");
+          const downloading = visitor.waitForEvent("download");
+          await row.getByRole("button", { name: /다운로드$/ }).click();
+          const download = await downloading;
+          expect(await download.failure()).toBeNull();
+          expect(download.suggestedFilename()).toBe(original.name);
+          expect(await readFile((await download.path())!)).toEqual(original.buffer);
+        }
+        await assertNoHorizontalOverflow(visitor);
+      }
+    } finally {
+      await visitorContext.close();
+      if (post) {
+        expect([204, 404]).toContain((await api(request, "DELETE", `/landing-public/resources/${post.id}/`, access)).status);
+        expect((await api(request, "GET", `/landing-public/resources/${post.id}/`, "")).status).toBe(404);
+      }
     }
   });
 });

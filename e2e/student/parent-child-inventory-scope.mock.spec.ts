@@ -62,6 +62,13 @@ async function installApi(page: Page, options: { role?: "student" | "parent"; de
       const child = CHILDREN[selectedId ?? "11"];
       return json({ id: child.id, name: child.name, displayName: child.name, ps_number: child.ps, is_student: true, isParentReadOnly: role === "parent" });
     }
+    if (request.method() === "DELETE" && path.endsWith("/storage/inventory/folders/folder-11/")) {
+      expect(url.searchParams.get("student_ps")).toBe(CHILDREN["11"].ps);
+      expect(selectedId).toBe(role === "parent" ? "11" : undefined);
+      deletes.push(path);
+      deleted.add("folder-11");
+      return route.fulfill({ status: 204 });
+    }
     if (request.method() === "DELETE" && path.endsWith("/storage/inventory/files/file-11/")) {
       expect(url.searchParams.get("scope")).toBe("student");
       expect(url.searchParams.get("student_ps")).toBe(CHILDREN["11"].ps);
@@ -85,7 +92,8 @@ async function installApi(page: Page, options: { role?: "student" | "parent"; de
       if (status !== 200) return json({ detail: "선택 자녀와 자료함 학생이 다릅니다." }, status);
       const child = CHILDREN[childId!];
       return json({
-        folders: [],
+        folders: options.deleteReply === "protected" && childId === "11" && !deleted.has("folder-11")
+          ? [{ id: "folder-11", name: "빈 폴더", parentId: null }] : [],
         files: deleted.has(childId!) ? [] : [{
           id: `file-${child.id}`,
           name: child.file,
@@ -159,6 +167,15 @@ for (const width of [390, 1366]) {
           await expect(dialog.getByRole("alert")).toHaveText("점수 증빙으로 연결된 파일은 삭제할 수 없습니다.");
           await dialog.getByRole("button", { name: "취소" }).click();
           await expect(page.getByText(CHILDREN["11"].file, { exact: true })).toBeVisible();
+          await page.getByRole("button", { name: "삭제", exact: true }).click();
+          await expect(dialog.getByRole("alert")).toHaveCount(0);
+          await dialog.getByRole("button", { name: "취소" }).click();
+          await page.getByRole("button", { name: "폴더 삭제", exact: true }).click();
+          const folderDialog = page.getByRole("alertdialog", { name: "폴더 삭제" });
+          await expect(folderDialog.getByRole("alert")).toHaveCount(0);
+          await folderDialog.getByRole("button", { name: "삭제", exact: true }).click();
+          await expect(folderDialog).toHaveCount(0);
+          await expect(page.getByText("빈 폴더", { exact: true })).toHaveCount(0);
         } else {
           await expect(dialog).toHaveCount(0);
           await expect(page.getByText(CHILDREN["11"].file, { exact: true })).toHaveCount(0);
@@ -170,7 +187,8 @@ for (const width of [390, 1366]) {
         await expect.poll(() => harness.scopes.length).toBeGreaterThan(reads);
         await page.reload({ waitUntil: "domcontentloaded" });
         await expect(page.getByText(CHILDREN["11"].file, { exact: true })).toHaveCount(reply === "protected" ? 1 : 0);
-        expect(harness.deletes).toHaveLength(1);
+        expect(harness.deletes).toHaveLength(reply === "protected" ? 2 : 1);
+        await expect(page.getByText("빈 폴더", { exact: true })).toHaveCount(0);
         expect(harness.scopes.every(({ status }) => status === 200)).toBe(true);
         if (role === "parent") {
           await page.getByRole("tab", { name: CHILDREN["12"].name, exact: true }).click();

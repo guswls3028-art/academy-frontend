@@ -246,7 +246,7 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey, selecte
               <IconFolder style={{ width: 20, height: 20, color: "var(--stu-primary)", flexShrink: 0 }} />
               <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folder.name}</span>
               <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" style={{ padding: 4, flexShrink: 0 }}
-                onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: "folder", id: folder.id, name: folder.name }); }} title="폴더 삭제">
+                onClick={(e) => { e.stopPropagation(); deleteMut.reset(); setConfirmDelete({ type: "folder", id: folder.id, name: folder.name }); }} title="폴더 삭제">
                 <IconTrash style={{ width: 14, height: 14, color: "var(--stu-text-muted)" }} />
               </button>
               <IconChevronRight style={{ width: 16, height: 16, color: "var(--stu-text-muted)", flexShrink: 0 }} />
@@ -272,7 +272,7 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey, selecte
                   <IconDownload style={{ width: 16, height: 16 }} />
                 </button>
                 <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" style={{ padding: 6 }}
-                  onClick={() => setConfirmDelete({ type: "file", id: file.id, name: file.displayName || file.name })} title="삭제">
+                  onClick={() => { deleteMut.reset(); setConfirmDelete({ type: "file", id: file.id, name: file.displayName || file.name }); }} title="삭제">
                   <IconTrash style={{ width: 16, height: 16, color: "var(--stu-text-muted)" }} />
                 </button>
               </div>
