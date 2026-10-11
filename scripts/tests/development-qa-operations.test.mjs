@@ -3,7 +3,26 @@ import test from "node:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createFixedQaRunner, writeQaCheckpoint } from "../development-qa-operations.mjs";
+import { createFixedQaRunner, writeQaCheckpoint, reserveQaDispatch } from "../development-qa-operations.mjs";
+
+test("dispatch authorization is consumed once across reloads and binds the candidate and fixtures", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "qa-dispatch-"));
+  try {
+    const file = path.join(directory, "plan.json");
+    const binding = { candidateSha: "a".repeat(40), tenantId: 17, fixturesSha256: "b".repeat(64) };
+    const plan = { schema: "development-qa-dispatch-plan/v1", binding, limit: 2,
+      operations: ["photo-01", "reanalyze-01"] };
+    writeQaCheckpoint(file, plan);
+    reserveQaDispatch(file, "photo-01", binding);
+    assert.throws(() => reserveQaDispatch(file, "photo-01", binding), { code: "EEXIST" });
+    assert.throws(() => reserveQaDispatch(file, "photo-02", binding), /outside/);
+    assert.throws(() => reserveQaDispatch(file, "reanalyze-01", { ...binding, tenantId: 18 }), /changed/);
+    reserveQaDispatch(file, "reanalyze-01", binding);
+    assert.equal(fs.readdirSync(`${file}.attempts`).length, 2);
+    writeQaCheckpoint(file, { ...plan, limit: 1 });
+    assert.throws(() => reserveQaDispatch(file, "photo-01", binding));
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
 
 test("checkpoint replacement preserves the previous receipt when serialization fails", () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "qa-checkpoint-"));

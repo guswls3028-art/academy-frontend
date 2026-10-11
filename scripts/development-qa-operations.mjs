@@ -1,6 +1,31 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Budget units are explicitly approved analysis dispatches, not HTTP retries
+// inside a provider. Each allowed operation is consumed before its API request.
+export function reserveQaDispatch(planFile, operation, binding) {
+  const plan = JSON.parse(fs.readFileSync(planFile, "utf8"));
+  assert.equal(plan.schema, "development-qa-dispatch-plan/v1");
+  assert.deepEqual(plan.binding, binding, "QA dispatch candidate/tenant/fixtures changed");
+  assert.ok(Number.isSafeInteger(plan.limit) && plan.limit > 0);
+  assert.ok(Array.isArray(plan.operations) && plan.operations.length <= plan.limit);
+  assert.equal(new Set(plan.operations).size, plan.operations.length);
+  assert.ok(plan.operations.every((name) => typeof name === "string" && /^[a-z0-9-]{1,64}$/.test(name)));
+  assert.ok(plan.operations.includes(operation), "Dispatch is outside the approved QA plan");
+  const directory = `${planFile}.attempts`;
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  assert.equal(fs.lstatSync(directory).isSymbolicLink(), false);
+  // An existing marker means uncertain or completed, never permission to retry.
+  const descriptor = fs.openSync(path.join(directory, `${operation}.json`), "wx", 0o600);
+  try {
+    fs.writeFileSync(descriptor, JSON.stringify({ operation, binding, attempted: true }) + "\n");
+    fs.fsyncSync(descriptor);
+  } finally { fs.closeSync(descriptor); }
+  return { operation, attempted: true };
+}
 
 export function writeQaCheckpoint(file, value) {
   const temporary = `${file}.${crypto.randomUUID()}.tmp`;
@@ -193,5 +218,16 @@ export function fixedOperationParameters(common, action, tenantId, videoId) {
   }
   return { ...common, Action: [action], ...(hasTenantId ? { TenantId: [String(tenantId)] } : {}),
     ...(hasVideoId ? { VideoId: [String(videoId)] } : {}) };
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    assert.equal(process.argv.length, 6);
+    assert.equal(process.argv[2], "--reserve");
+    reserveQaDispatch(process.argv[3], process.argv[4], JSON.parse(process.argv[5]));
+  } catch {
+    console.error("QA dispatch refused; inspect the candidate-bound plan and existing attempt marker.");
+    process.exitCode = 1;
+  }
 }
 

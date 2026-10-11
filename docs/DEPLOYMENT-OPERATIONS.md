@@ -547,6 +547,11 @@ checkpoint를 읽어 조회를 재개할 수 있으며, capability를 잃으면 
 동일 디렉터리의 임시 파일을 flush한 뒤 교체해 중단으로 이전 JSON을 자르지 않는다.
 회귀는 `scripts/tests/development-qa-operations.test.mjs`의 정상 흐름, 전송 전 기록 실패,
 응답 유실·재개, 부분 성공 후 정리, 후보/소유권 불일치, 동시 실행과 비밀값 제외를 소유한다.
+같은 모듈의 `reserveQaDispatch`는 수동 QA의 승인된 분석 요청 목록·상한을 후보/테넌트/
+fixture hash에 묶는다. 요청 전에 고유 시도 파일을 exclusive-create하고 flush하므로
+프로세스 재시작이나 응답 유실 뒤 같은 요청을 재전송할 수 없다. 허용 목록 외 요청과
+상한보다 긴 계획도 거부한다. 이 단위는 분석 dispatch이며 공급자의 내부 HTTP 재시도
+횟수나 과금액을 증명하지 않는다. 운영 provider quota를 대체하지 않는다.
 결과는 test 수/상태, release/image/artifact identity, cleanup 수와 실패 분류를
 `test-results/development-release.json`으로 남긴다. runner는 첫 preflight assertion보다
 먼저 null-safe 미완료 envelope를 쓴다. `preflightStage`는
