@@ -22,6 +22,14 @@ spec 목록과 과거 pass count는 보관하지 않는다. 실행 목록은
 
 ## 2. 실행 구조
 
+격리 수동 PPT 실사용(`ppt-generation-realuse.spec.ts`)은 합성 7쪽 혼합 PDF의
+실제 문항 18개와 이미지 전용 4쪽을 합친 22장, 직접 자른 2장의 실제 PPTX를
+검증한다. 상단 쪽번호는 문항이 아니며, 일부 쪽 보존 안내를 전체 페이지
+fallback 안내로 오인하지 않는다. 잘못된 PDF의 재시도, PC/390px 자르기·순서,
+두 작업의 reload 후 다운로드와 exact job 정리까지 소유한다.
+공식 28건 개발 canary에는 포함되지 않으므로 별도 실행 결과가 필요하다.
+제품 보존 정책은 backend의 `docs/domain/ppt-question-generator.md`를 따른다.
+
 공개 자료 실사용은 게시물당 최대 5개 첨부 계약을 유지하면서 두 시나리오로
 PDF/HWP/HWPX/XLSX/ZIP과 DOCX/PPTX/TXT/PNG를 검증한다. 별도 QA 원본의 실제
 변환·페이지/텍스트/이미지 디코딩, 무로그인 PC/390px 읽기·reload와 다운로드한
