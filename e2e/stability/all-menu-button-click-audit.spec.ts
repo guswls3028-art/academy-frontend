@@ -157,7 +157,6 @@ const ADMIN_ROUTES: AuditRoute[] = [
   { path: "/workspace/fees/templates", label: "수납 템플릿" },
   { path: "/workspace/clinic/home", label: "클리닉 홈" },
   { path: "/workspace/clinic/operations", label: "클리닉 운영" },
-  { path: "/workspace/clinic/bookings", label: "클리닉 예약" },
   { path: "/workspace/clinic/reports", label: "클리닉 리포트" },
   { path: "/workspace/clinic/msg-settings", label: "클리닉 메시지 설정" },
   { path: "/workspace/exams", label: "시험" },

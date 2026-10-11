@@ -22,6 +22,11 @@ spec 목록과 과거 pass count는 보관하지 않는다. 실행 목록은
 
 ## 2. 실행 구조
 
+공개 자료 실사용은 게시물당 최대 5개 첨부 계약을 유지하면서 두 시나리오로
+PDF/HWP/HWPX/XLSX/ZIP과 DOCX/PPTX/TXT/PNG를 검증한다. 별도 QA 원본의 실제
+변환·페이지/텍스트/이미지 디코딩, 무로그인 PC/390px 읽기·reload와 다운로드한
+파일명·바이트 일치, 삭제 후 접근 거절 및 exact tenant 정리 0을 확인한다.
+
 학생 Excel 형식 호환 spec은 폐쇄 proxy PR 작업의 첫 shard에서 UI 묶음과 별도
 단계로 실행한다. 실제 XLSX의 OOXML 안전 경계와 내보내기 학년·성별 재입력,
 행 오류·수정 복구를 네트워크 없이 검사하며, UI 묶음의 API mock 필수 가드는 유지한다.
@@ -92,6 +97,9 @@ fatal·빈 화면 검사는 이미 정착된 페이지를 읽으며 같은 `netw
 집중 회귀와 공개 route 감사에서 검증하며 중복 순회하지 않는다. 데이터에 따라
 실제 상세 화면으로 이동하는 공개 영상 진입점처럼 의도된 동적 redirect만 spec의
 `settlesAt` 패턴으로 명시해, 정상 이동을 stale route 결함으로 오인하지 않는다.
+클리닉 구 예약 주소 `/workspace/clinic/bookings`는 `clinic-remediation-missing.mock`
+검사의 운영 화면·미통과 패널 전환으로 확인한다. 전 메뉴·시각 감사는 통합된
+`/workspace/clinic/operations`를 순회하며 구 주소가 그대로 유지된다고 단정하지 않는다.
 
 이 구조는 shared tenant 직렬성은 유지하면서 순차 matrix가 반복하던 runner 준비
 비용을 제거한다. 새로운 shard는 독립 tenant·계정·데이터와 실행 시간 증거가

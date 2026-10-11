@@ -175,7 +175,7 @@ export const controlledWriteSpecs = [
 // Relative to the development config's e2e testDir. This is the shared
 // inventory for collection, executed-result acceptance and safe progress.
 export const developmentRealUseCases = Object.freeze({
-  "admin/public-resource-realuse.spec.ts": 1,
+  "admin/public-resource-realuse.spec.ts": 2,
   "admin/alimtalk-withdrawal-realuse.spec.ts": 1,
   "admin/fees-overdue-realuse.spec.ts": 1,
   "admin/staff-payroll-realuse.spec.ts": 1,
