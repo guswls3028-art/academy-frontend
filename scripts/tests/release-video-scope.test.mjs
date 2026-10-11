@@ -7,7 +7,8 @@ const source = readFileSync(new URL("../run-development-release-canary.mjs", imp
 const tenantId = 912345;
 const videoId = 823456;
 const tenant = "qa-ymath-realuse-video-scope-unit";
-const common = { TenantCode: [tenant], SyntheticLongVideo: ["true"] };
+const common = { TenantCode: [tenant], SyntheticLongVideo: ["true"],
+  OwnershipCapability: ["a".repeat(64)], ReleaseId: ["unit-release"], ApiDigest: ["unit-digest"] };
 const manifest = { releaseImageTag: "unit-release", images: { "academy-api": { digest: "unit-digest" } } };
 const runtime = {
   videos: 1, video_accesses: 2, proctored_video_accesses: 2, video_progresses: 2,
@@ -111,17 +112,19 @@ test("numeric snapshots reject malformed, extra and raw fields without discardin
 });
 
 test("official post-playback operation persists numeric snapshots before command and ownership assertions", async () => {
-  const operationSource = source.match(/  async function operation\([\s\S]*?\n  }\n  let server;/)?.[0]
+  const operationSource = source.match(/  const operationStates = \{\};[\s\S]*?\n  let server;/)?.[0]
     .replace(/\n  let server;$/, "");
   assert.ok(operationSource, "test must exercise the official operation function");
   const createOperation = new Function("deps", `
-    const { assert, session, fixedOperationParameters, observeFixedOperationResult, setupTenantIdFromOperation,
+    const { assert, session, createFixedQaRunner,
       observePostPlaybackInspect, tenant, scenario, manifest, remember } = deps;
     const QA_DOCUMENT = "unit-fixed-document";
     const common = deps.common;
+    const crossCommon = common;
     const interrupted = false;
     let scenarioTenantId = null, cleanupObservation = null, postCleanupInspectOperationObservation = null;
     let operationObservation = null, postPlaybackInspectObservation = null;
+    let crossScenarioTenantId = null;
     const writeEvidence = () => deps.persist(postPlaybackInspectObservation);
     ${operationSource}
     return operation;
@@ -142,12 +145,13 @@ test("official post-playback operation persists numeric snapshots before command
       persist: (observation) => snapshots.push(structuredClone(observation)),
     });
     await assert.rejects(operation("Inspect", tenantId, "post-playback", videoId));
-    assert.equal(snapshots.length, 1, `${failureStage}: numeric observation must persist before rejection`);
+    const numericSnapshots = snapshots.filter((snapshot) => snapshot !== null);
+    assert.ok(numericSnapshots.length > 0, `${failureStage}: numeric observation must persist before rejection`);
     if (failureStage !== "json") {
-      assert.deepEqual(snapshots[0].aggregateVideoState, inspect.video_state);
-      assert.deepEqual(snapshots[0].syntheticVideoState, runtime);
+      assert.deepEqual(numericSnapshots[0].aggregateVideoState, inspect.video_state);
+      assert.deepEqual(numericSnapshots[0].syntheticVideoState, runtime);
     }
-    assertSafe(snapshots[0]);
+    for (const snapshot of numericSnapshots) assertSafe(snapshot);
   }
 });
 

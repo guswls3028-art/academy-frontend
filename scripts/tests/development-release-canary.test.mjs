@@ -17,6 +17,7 @@ import "./release-homework-image-boundary.test.mjs";
 import "./release-community-image-boundary.test.mjs";
 import "./release-resource-download-boundary.test.mjs";
 import "./binary-safe-ssm.test.mjs";
+import "./development-qa-operations.test.mjs";
 import "./release-canary-progress.test.mjs";
 import "./development-backend-readiness.test.mjs";
 import "./release-governance-metadata.test.mjs";
@@ -1141,10 +1142,10 @@ function runtimeEvidenceFixture(untilInitialWriteOnly) {
   let externalCalls = 0;
   const forbidden = () => { externalCalls++; assert.fail("runtime evidence test attempted external work"); };
   const deps = {
-    assert, evidence: { preflightStage: "complete", passed: false },
+    assert, createFixedQaRunner: runner.createFixedQaRunner, evidence: { preflightStage: "complete", passed: false },
     manifest: { releaseImageTag: "unit-release", images: { "academy-api": { digest: "unit-digest" } } },
     revision: "b".repeat(40), instanceId: "unit-instance", tenant: "qa-unit-primary", crossTenant: "qa-unit-cross",
-    capability: "private-primary-capability", crossCapability: "private-cross-capability",
+    capability: "a".repeat(64), crossCapability: "b".repeat(64),
     bundle: "unit-bundle", fingerprint: "c".repeat(64), expectedDocuments: new Map([["unit-document", "unit-content"]]),
     sha: (value) => { assert.equal(value, "unit-content"); return "d".repeat(64); },
     process: { env: { GITHUB_SHA: "a".repeat(40) }, on: (name) => signals.push(`on:${name}`), off: (name) => signals.push(`off:${name}`) },
