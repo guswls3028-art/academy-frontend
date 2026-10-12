@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/students/pages/StudentDetailPage.tsx
 // 학생 상세 — 데스크톱 오버레이 1:1 매칭 (5탭) + 편집/태그/메모/상태 관리
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -14,7 +14,7 @@ import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
-import { fetchStudentQuestionPage, type StudentQuestionRow } from "../api";
+import { fetchStudentQuestionPage, fetchStudentClinicPage, type StudentQuestionRow, type StudentClinicRow } from "../api";
 import { fetchStudent, fetchStudentAccountNotifications, fetchStudentCustomFields, fetchStudentGrades, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset, sendStudentAccountGuidance } from "../api";
 import type { StudentAccountNotificationLog, TeacherStudentExamResult } from "../api";
 import type { StudentExamTrendPoint, StudentHomeworkGrade } from "@/shared/api/contracts/studentGrades";
@@ -30,23 +30,11 @@ import {
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
-import api from "@/shared/api/axios";
-import { listFromApiResponse } from "@/shared/api/response";
 import { MonitorSmartphone } from "lucide-react";
 import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
 import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 
 type Tab = "enrollments" | "exams" | "homework" | "clinic" | "questions" | "activity";
-
-type ClinicParticipantRow = {
-  id: number | string;
-  session_title?: string | null;
-  session_date?: string | null;
-  session_start_time?: string | null;
-  session_location?: string | null;
-  clinic_reason?: string | null;
-  status?: string | null;
-};
 
 export default function StudentDetailPage() {
   const { studentId } = useParams<{ studentId: string }>();
@@ -89,14 +77,24 @@ export default function StudentDetailPage() {
     enabled: Number.isFinite(sid),
   });
 
-  const { data: clinicData } = useQuery({
-    queryKey: teacherStudentsQueryKeys.clinic(sid),
-    queryFn: async () => {
-      const res = await api.get("/clinic/participants/", { params: { student: sid, page_size: 100 } });
-      return listFromApiResponse<ClinicParticipantRow>(res.data);
-    },
-    enabled: Number.isFinite(sid) && tab === "clinic",
+  const clinic = useInfiniteQuery({
+    queryKey: teacherStudentsQueryKeys.clinicPages(sid),
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => fetchStudentClinicPage(sid, pageParam),
+    getNextPageParam: (last) => last.nextPage,
+    enabled: Number.isSafeInteger(sid) && sid > 0 && tab === "clinic",
   });
+  const clinicData = [...new Map(
+    clinic.data?.pages.flatMap((page) => page.results).map((row) => [row.id, row]),
+  ).values()];
+  const clinicErrorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (tab !== "clinic" || !clinic.isError) return;
+    clinicErrorRef.current?.scrollIntoView({
+      block: "center",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  }, [tab, clinic.isError]);
 
   const questions = useInfiniteQuery({
     queryKey: teacherStudentsQueryKeys.questionPages(sid),
@@ -280,7 +278,40 @@ export default function StudentDetailPage() {
           onRetry={() => { void refetchGrades(); }}
         />
       )}
-      {tab === "clinic" && <ClinicList items={clinicData ?? []} />}
+      {tab === "clinic" && (
+        <div className="flex flex-col gap-3">
+          {clinic.isPending ? (
+            <EmptyState scope="panel" tone="loading" title="클리닉 이력을 불러오는 중…" />
+          ) : (
+            <>
+              {clinic.data && <ClinicList items={clinicData} />}
+              {clinic.isError && (
+                <div ref={clinicErrorRef} role="alert">
+                  <EmptyState
+                    scope="panel"
+                    tone="error"
+                    title="클리닉 이력을 불러오지 못했습니다"
+                    description={extractApiError(clinic.error, "잠시 후 다시 조회해 주세요.")}
+                    actions={
+                      <EmptyActionButton disabled={clinic.isFetching} onClick={() => {
+                        if (clinic.isFetchNextPageError) void clinic.fetchNextPage();
+                        else void clinic.refetch();
+                      }}>
+                        다시 시도
+                      </EmptyActionButton>
+                    }
+                  />
+                </div>
+              )}
+              {clinic.hasNextPage && !clinic.isError && (
+                <EmptyActionButton disabled={clinic.isFetching} onClick={() => void clinic.fetchNextPage()}>
+                  {clinic.isFetchingNextPage ? "불러오는 중…" : "클리닉 이력 더 보기"}
+                </EmptyActionButton>
+              )}
+            </>
+          )}
+        </div>
+      )}
       {tab === "questions" && (
         <div className="flex flex-col gap-3">
           {questions.isPending ? (
@@ -480,7 +511,7 @@ function HomeworkList({
   );
 }
 
-function ClinicList({ items }: { items: ClinicParticipantRow[] }) {
+function ClinicList({ items }: { items: StudentClinicRow[] }) {
   if (!items.length) {
     return (
       <EmptyState
