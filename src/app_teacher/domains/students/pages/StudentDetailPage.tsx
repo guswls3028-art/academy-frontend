@@ -3,7 +3,7 @@
 // 학생 상세 — 데스크톱 오버레이 1:1 매칭 (5탭) + 편집/태그/메모/상태 관리
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
@@ -13,6 +13,8 @@ import { Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight, Lock, MessageSquar
 import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
+import { fetchStudentQuestionPage, type StudentQuestionRow } from "../api";
 import { fetchStudent, fetchStudentAccountNotifications, fetchStudentCustomFields, fetchStudentGrades, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset, sendStudentAccountGuidance } from "../api";
 import type { StudentAccountNotificationLog, TeacherStudentExamResult } from "../api";
 import type { StudentExamTrendPoint, StudentHomeworkGrade } from "@/shared/api/contracts/studentGrades";
@@ -44,14 +46,6 @@ type ClinicParticipantRow = {
   session_location?: string | null;
   clinic_reason?: string | null;
   status?: string | null;
-};
-
-type CommunityQuestionRow = {
-  id: number | string;
-  post_type?: string | null;
-  title?: string | null;
-  created_at?: string | null;
-  replies_count?: number | null;
 };
 
 export default function StudentDetailPage() {
@@ -104,14 +98,16 @@ export default function StudentDetailPage() {
     enabled: Number.isFinite(sid) && tab === "clinic",
   });
 
-  const { data: questionsData } = useQuery({
-    queryKey: teacherStudentsQueryKeys.questions(sid),
-    queryFn: async () => {
-      const res = await api.get("/community/posts/", { params: { created_by: sid, page_size: 50, ordering: "-created_at" } });
-      return listFromApiResponse<CommunityQuestionRow>(res.data);
-    },
-    enabled: Number.isFinite(sid) && tab === "questions",
+  const questions = useInfiniteQuery({
+    queryKey: teacherStudentsQueryKeys.questionPages(sid),
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => fetchStudentQuestionPage(sid, pageParam),
+    getNextPageParam: (last) => last.nextPage,
+    enabled: Number.isSafeInteger(sid) && sid > 0 && tab === "questions",
   });
+  const questionsData = [...new Map(
+    questions.data?.pages.flatMap((page) => page.results).map((row) => [row.id, row]),
+  ).values()];
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (!student)
@@ -285,7 +281,38 @@ export default function StudentDetailPage() {
         />
       )}
       {tab === "clinic" && <ClinicList items={clinicData ?? []} />}
-      {tab === "questions" && <QuestionList items={questionsData ?? []} />}
+      {tab === "questions" && (
+        <div className="flex flex-col gap-3">
+          {questions.isPending ? (
+            <EmptyState scope="panel" tone="loading" title="질문 이력을 불러오는 중…" />
+          ) : (
+            <>
+              {questions.data && <QuestionList items={questionsData} />}
+              {questions.isError && (
+                <EmptyState
+                  scope="panel"
+                  tone="error"
+                  title="질문 이력을 불러오지 못했습니다"
+                  description={extractApiError(questions.error, "잠시 후 다시 조회해 주세요.")}
+                  actions={
+                    <EmptyActionButton disabled={questions.isFetching} onClick={() => {
+                      if (questions.isFetchNextPageError) void questions.fetchNextPage();
+                      else void questions.refetch();
+                    }}>
+                      다시 시도
+                    </EmptyActionButton>
+                  }
+                />
+              )}
+              {questions.hasNextPage && !questions.isError && (
+                <EmptyActionButton disabled={questions.isFetching} onClick={() => void questions.fetchNextPage()}>
+                  {questions.isFetchingNextPage ? "불러오는 중…" : "이력 더 보기"}
+                </EmptyActionButton>
+              )}
+            </>
+          )}
+        </div>
+      )}
       {tab === "activity" && <StudentActivityPanel studentId={sid} />}
 
       {/* Edit Student BottomSheet */}
@@ -484,7 +511,7 @@ function ClinicList({ items }: { items: ClinicParticipantRow[] }) {
   );
 }
 
-function QuestionList({ items }: { items: CommunityQuestionRow[] }) {
+function QuestionList({ items }: { items: StudentQuestionRow[] }) {
   if (!items.length) {
     return (
       <EmptyState

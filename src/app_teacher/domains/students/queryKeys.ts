@@ -10,5 +10,6 @@ export const teacherStudentsQueryKeys = {
   accountNotifications: (studentId: number) => ["student-account-notifications", studentId] as const,
   clinic: (studentId: number) => ["student-clinic", studentId] as const,
   questions: (studentId: number) => ["student-questions", studentId] as const,
+  questionPages: (studentId: number) => ["student-questions", studentId, "pages"] as const,
   allTags: ["all-tags"] as const,
 };

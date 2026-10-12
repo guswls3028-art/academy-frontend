@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/students/api.ts
 // 학생 API — 기존 students API 래핑 (모바일 전용 정규화)
 import api from "@/shared/api/axios";
-import { countFromApiResponse, listFromApiResponse } from "@/shared/api/response";
+import { countFromApiResponse, isApiRecord, listFromApiResponse } from "@/shared/api/response";
 import {
   applyDisplayNames,
   fetchStudentCustomFields as fetchCanonicalStudentCustomFields,
@@ -98,6 +98,37 @@ export async function fetchStudentAccountNotifications(studentId: number): Promi
     params: { limit: 5 },
   });
   return Array.isArray(res.data?.results) ? res.data.results : [];
+}
+
+export type StudentQuestionRow = {
+  id: number;
+  post_type?: string | null;
+  title?: string | null;
+  created_at?: string | null;
+  replies_count?: number | null;
+};
+
+/** Student-authored posts, including Q&A and counseling, within the caller's visibility scope. */
+export async function fetchStudentQuestionPage(studentId: number, page: number) {
+  if (!Number.isSafeInteger(studentId) || studentId <= 0 || !Number.isSafeInteger(page) || page <= 0) {
+    throw new Error("학생 정보를 확인한 뒤 다시 조회해 주세요.");
+  }
+  const { data } = await api.get<unknown>("/community/posts/", {
+    params: { author_student: studentId, page_size: 50, page, ordering: "-created_at" },
+  });
+  const record = isApiRecord(data) ? data : {};
+  const results = Array.isArray(data) ? data : record.results;
+  const count = Array.isArray(data) ? data.length : record.count;
+  const next = Array.isArray(data) ? null : record.next;
+  if (!Array.isArray(results) || (page > 1 && Array.isArray(data))
+    || typeof count !== "number" || !Number.isSafeInteger(count) || count < 0
+    || (next != null && (typeof next !== "string" || !next.trim()))
+    || !results.every((row) => isApiRecord(row) && Number.isSafeInteger(row.id) && Number(row.id) > 0)
+    || (next != null && !results.length)
+    || (next == null && (page - 1) * 50 + results.length < count)) {
+    throw new Error("질문 이력 응답을 확인하지 못했습니다. 다시 조회해 주세요.");
+  }
+  return { results: results as StudentQuestionRow[], count, nextPage: next == null ? undefined : page + 1 };
 }
 
 /** 학생 출석 이력 */
