@@ -1,4 +1,6 @@
-import api from "@/shared/api/axios";
+import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
+import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import type { SubmissionStatus } from "../types";
 
 export type HomeworkSubmissionStatus =
@@ -110,12 +112,6 @@ export function normalizeMediaFile(raw: unknown): HomeworkSubmissionMediaFile | 
   };
 }
 
-function unwrapList(data: unknown): unknown[] {
-  if (Array.isArray(data)) return data;
-  const record = asRecord(data);
-  return Array.isArray(record.results) ? record.results : [];
-}
-
 function normalizeHomeworkSubmission(raw: unknown): HomeworkSubmissionRow {
   const record = asRecord(raw);
   return {
@@ -139,9 +135,52 @@ function normalizeHomeworkSubmission(raw: unknown): HomeworkSubmissionRow {
   };
 }
 
+/** Both staff surfaces publish a list only after every page is accounted for. */
+export async function fetchHomeworkSubmissionRecords(homeworkId: number): Promise<unknown[]> {
+  const session = readAuthTokenEnvelopeSafely();
+  const tenant = getTenantCodeForApiRequest();
+  if (!session || !tenant) throw new Error("로그인과 학원 정보를 확인한 뒤 다시 조회해 주세요.");
+  const config = createAuthSessionBoundConfig(session.generation, undefined, tenant);
+  const rows: unknown[] = [];
+  const ids = new Set<number>();
+  let expectedCount: number | undefined;
+  for (let page = 1; ; page += 1) {
+    const { data } = await api.get<unknown>(`/submissions/submissions/homework/${homeworkId}/`, {
+      ...config, params: { page, page_size: 200 },
+    });
+    const record = asRecord(data);
+    const items = Array.isArray(data) ? data : record.results;
+    const count = Array.isArray(data) ? undefined : record.count;
+    const next = Array.isArray(data) ? null : record.next;
+    if (!Array.isArray(items) || (page > 1 && Array.isArray(data))
+      || (!Array.isArray(data) && (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0))
+      || (next != null && (typeof next !== "string" || !next))) {
+      throw new Error("제출 목록 응답을 확인하지 못했습니다. 다시 조회해 주세요.");
+    }
+    if (page === 1) expectedCount = count as number | undefined;
+    else if (count !== expectedCount) throw new Error("조회 중 제출 목록이 변경되었습니다. 다시 조회해 주세요.");
+    for (const item of items) {
+      const id = asRecord(item).id;
+      if (typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0 || ids.has(id)) {
+        throw new Error("제출 목록에 누락되거나 중복된 항목이 있습니다. 다시 조회해 주세요.");
+      }
+      ids.add(id);
+      rows.push(item);
+    }
+    if (!next) {
+      if (expectedCount !== undefined && rows.length !== expectedCount) {
+        throw new Error("제출 목록 전체를 불러오지 못했습니다. 다시 조회해 주세요.");
+      }
+      return rows;
+    }
+    if (!items.length || expectedCount === undefined || rows.length >= expectedCount) {
+      throw new Error("제출 목록 전체를 불러오지 못했습니다. 다시 조회해 주세요.");
+    }
+  }
+}
+
 export async function fetchHomeworkSubmissions(homeworkId: number): Promise<HomeworkSubmissionRow[]> {
-  const res = await api.get(`/submissions/submissions/homework/${homeworkId}/`);
-  return unwrapList(res.data).map(normalizeHomeworkSubmission);
+  return (await fetchHomeworkSubmissionRecords(homeworkId)).map(normalizeHomeworkSubmission);
 }
 
 export type HomeworkMediaPreview = {

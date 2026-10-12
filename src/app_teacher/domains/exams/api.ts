@@ -4,6 +4,7 @@ import api, { isApiErrorStatus } from "@/shared/api/axios";
 import { expectedUpdatedAtHeaders } from "@/shared/api/optimisticConcurrency";
 import { listFromApiResponse } from "@/shared/api/response";
 import { fetchAssessmentPages } from "@/shared/api/contracts/assessmentPages";
+import { fetchHomeworkSubmissionRecords } from "@admin/domains/submissions/api/adminHomeworkSubmissions.api";
 
 /** 선생님이 담당하는 운영 시험 목록 (최근순) */
 export async function fetchExams(params?: { session_id?: number; lecture_id?: number; exam_type?: "regular" | "template" }) {
@@ -40,9 +41,7 @@ export async function fetchHomework(homeworkId: number) {
 
 /** 숙제 제출 목록 */
 export async function fetchHomeworkSubmissions(homeworkId: number) {
-  const res = await api.get(`/submissions/submissions/homework/${homeworkId}/`);
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  return fetchHomeworkSubmissionRecords(homeworkId);
 }
 
 export async function fetchHomeworkSubmissionPreview(homeworkId: number, mediaId: string) {
