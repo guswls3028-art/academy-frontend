@@ -1,6 +1,6 @@
 // PATH: src/app_teacher/domains/attendance/pages/SwipeAttendancePage.tsx
 // 출석 체크 — 스와이프 UI. 우측=출석, 좌측=결석, 탭=상태 선택
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
@@ -44,6 +44,13 @@ export default function SwipeAttendancePage() {
 
   const records = result?.data ?? EMPTY_RECORDS;
 
+  const [sheetRecord, setSheetRecord] = useState<AttendanceListItem | null>(null);
+  const [undoItem, setUndoItem] = useState<{
+    id: number;
+    prev: string;
+    failed?: boolean;
+  } | null>(null);
+
   const updateMut = useMutation({
     mutationFn: ({ id, status, confirm_secession }: {
       id: number;
@@ -53,10 +60,12 @@ export default function SwipeAttendancePage() {
       "attendance.update",
       () => updateAttendance(id, { status, confirm_secession }),
     ),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) });
-      qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) });
-      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sid) });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) }),
+        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) }),
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sid) }),
+      ]);
     },
     onError: (e) => feedback.error(extractApiError(e, "상태 변경 실패")),
   });
@@ -67,6 +76,7 @@ export default function SwipeAttendancePage() {
       () => bulkSetPresent(sid),
     ),
     onSuccess: (data) => {
+      setUndoItem(null);
       qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) });
       qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sid) });
@@ -75,38 +85,40 @@ export default function SwipeAttendancePage() {
     onError: (e) => feedback.error(extractApiError(e, "전체 출석 실패")),
   });
 
-  const [sheetRecord, setSheetRecord] = useState<AttendanceListItem | null>(null);
-  const [undoItem, setUndoItem] = useState<{
-    id: number;
-    prev: string;
-  } | null>(null);
+  useEffect(() => {
+    if (!undoItem || undoItem.failed || updateMut.isPending || bulkMut.isPending) return;
+    const timer = setTimeout(() => setUndoItem(null), 3000);
+    return () => clearTimeout(timer);
+  }, [undoItem, updateMut.isPending, bulkMut.isPending]);
 
   const handleStatusChange = useCallback(
     (attendanceId: number, status: string) => {
+      if (updateMut.isPending || bulkMut.isPending) return;
       const prev = records.find((r) => r.id === attendanceId);
-      if (prev) {
-        setUndoItem({ id: attendanceId, prev: prev.status });
-        setTimeout(() => setUndoItem(null), 3000);
-      }
+      if (!prev || prev.status === status) return;
       updateMut.mutate({
         id: attendanceId,
         status,
         confirm_secession: status === "SECESSION" ? true : undefined,
+      }, {
+        onSuccess: () => setUndoItem({ id: attendanceId, prev: prev.status }),
       });
     },
-    [records, updateMut],
+    [records, updateMut, bulkMut.isPending],
   );
 
   const handleUndo = useCallback(() => {
-    if (undoItem) {
+    if (undoItem && !updateMut.isPending && !bulkMut.isPending) {
       updateMut.mutate({
         id: undoItem.id,
         status: undoItem.prev,
         confirm_secession: undoItem.prev === "SECESSION" ? true : undefined,
+      }, {
+        onSuccess: () => setUndoItem(null),
+        onError: () => setUndoItem({ ...undoItem, failed: true }),
       });
-      setUndoItem(null);
     }
-  }, [undoItem, updateMut]);
+  }, [undoItem, updateMut, bulkMut.isPending]);
 
   // Summary
   const summary = records.reduce(
@@ -131,7 +143,7 @@ export default function SwipeAttendancePage() {
         </h1>
         <button
           onClick={() => bulkMut.mutate()}
-          disabled={bulkMut.isPending}
+          disabled={bulkMut.isPending || updateMut.isPending}
           className={styles.bulkButton}
         >
           전체출석
@@ -162,8 +174,10 @@ export default function SwipeAttendancePage() {
       </div>
 
       {/* Hint */}
-      <div className={styles.hint}>
-        우측 스와이프 = 출석 · 좌측 = 결석 · 탭 = 상태 선택
+      <div className={styles.hint} role="status">
+        {updateMut.isPending || bulkMut.isPending
+          ? "출결 저장 중…"
+          : "우측 스와이프 = 출석 · 좌측 = 결석 · 탭 = 상태 선택"}
       </div>
 
       {/* Cards */}
@@ -176,7 +190,9 @@ export default function SwipeAttendancePage() {
               key={r.id}
               record={r}
               onStatusChange={handleStatusChange}
-              onTap={setSheetRecord}
+              onTap={(record) => {
+                if (!updateMut.isPending && !bulkMut.isPending) setSheetRecord(record);
+              }}
             />
           ))}
         </div>
@@ -204,14 +220,22 @@ export default function SwipeAttendancePage() {
 
       {/* Undo snackbar */}
       {undoItem && (
-        <div className={styles.undoSnackbar}>
-          <span>상태가 변경되었습니다</span>
+        <div className={styles.undoSnackbar} role="status">
+          <span>{undoItem.failed ? "되돌리지 못했습니다. 다시 시도해 주세요." : "상태가 변경되었습니다"}</span>
           <button
             onClick={handleUndo}
+            disabled={updateMut.isPending || bulkMut.isPending}
             className={styles.undoButton}
           >
             되돌리기
           </button>
+          {undoItem.failed && <button
+            onClick={() => setUndoItem(null)}
+            disabled={updateMut.isPending || bulkMut.isPending}
+            className={styles.undoButton}
+          >
+            닫기
+          </button>}
         </div>
       )}
     </div>
