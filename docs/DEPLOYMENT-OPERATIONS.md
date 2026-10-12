@@ -528,13 +528,30 @@ capability로 cleanup/readback을 시도한다. 실패 schema에는 tenant code�
 결합한다. 이름 정규식이나 runner run 문자열만으로 destroy 권한을 주지 않는다.
 missing/duplicate/foreign owner는 destroy 전 거부하며, 이미 부재하면 0 readback만 한다.
 초기 Inspect와 Setup에는 `TenantId`를 보내지 않는다. Setup이 반환한 exact positive integer
-`tenant_id`만 메모리에 보존해 post-playback Inspect, Cleanup과 그 직후 고정 Inspect에
+`tenant_id`만 메모리와 비밀값 없는 checkpoint에 보존해 post-playback Inspect, Cleanup과 그 직후 고정 Inspect에
 `TenantId`로 전달하고, 각 응답의 `tenant_id` echo가 같아야 한다. Cleanup 성공 여부와 무관하게 post-cleanup
 Inspect를 별도로 실행하며, exact tenant/users/R2 object/QA process/listener가 모두 숫자 0인
 데 더해 backend가 exact TenantId로 R2 범위를 증명한 `r2_scope_proven=true`인 경우에만
 `postCleanupInspectObservation`을 통과시킨다. 이 readback이 없거나 하나라도
 남아 있으면 promotion은 실패한다.
 상세 감사 행 보존과 capability 신뢰 경계는 backend 상시 개발 런타임 문서가 소유한다.
+`scripts/development-qa-operations.mjs`는 주/교차 테넌트와 수동 사진 QA에서 같은
+고정 문서 실행·응답 판정·부분 Setup ID 수집을 사용하도록 소유한다. 전송 전에
+후보 release/digest, tenant code, capability의 SHA-256과 시도 상태를 checkpoint에
+기록하고, 응답 유실 또는 프로세스 실패 뒤 Setup을 재전송하지 않는다. 토큰·capability
+원문·Setup payload·명령 인수는 기록하지 않는다. 같은 소유권과 후보가 유지된 경우만
+checkpoint를 읽어 조회를 재개할 수 있으며, capability를 잃으면 기존 exact-target
+복구 검토가 필요하다. 세션 ID 관측 실패나 비정상 종료가 있어도 이미 검증된 Setup ID를
+먼저 보존해 정확한 정리·재조회를 가능하게 한다. 완료된 Cleanup은 정리 0의 증명이
+아니며 기존 별도 Inspect와 세션 종료 게이트를 그대로 요구한다. checkpoint 파일은
+동일 디렉터리의 임시 파일을 flush한 뒤 교체해 중단으로 이전 JSON을 자르지 않는다.
+회귀는 `scripts/tests/development-qa-operations.test.mjs`의 정상 흐름, 전송 전 기록 실패,
+응답 유실·재개, 부분 성공 후 정리, 후보/소유권 불일치, 동시 실행과 비밀값 제외를 소유한다.
+같은 모듈의 `reserveQaDispatch`는 수동 QA의 승인된 분석 요청 목록·상한을 후보/테넌트/
+fixture hash에 묶는다. 요청 전에 고유 시도 파일을 exclusive-create하고 flush하므로
+프로세스 재시작이나 응답 유실 뒤 같은 요청을 재전송할 수 없다. 허용 목록 외 요청과
+상한보다 긴 계획도 거부한다. 이 단위는 분석 dispatch이며 공급자의 내부 HTTP 재시도
+횟수나 과금액을 증명하지 않는다. 운영 provider quota를 대체하지 않는다.
 결과는 test 수/상태, release/image/artifact identity, cleanup 수와 실패 분류를
 `test-results/development-release.json`으로 남긴다. runner는 첫 preflight assertion보다
 먼저 null-safe 미완료 envelope를 쓴다. `preflightStage`는

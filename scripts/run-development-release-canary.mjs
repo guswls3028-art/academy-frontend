@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "./release-playback-end-proxy.mjs";
 import { binarySafeSsmEnvironment } from "./binary-safe-ssm.mjs";
+import { createFixedQaRunner, writeQaCheckpoint } from "./development-qa-operations.mjs";
+export { createFixedQaRunner, observeFixedOperationResult, setupTenantIdFromOperation, fixedOperationParameters } from "./development-qa-operations.mjs";
 import { developmentRealUseCases } from "../e2e/suites.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -147,26 +149,6 @@ const canonical = (value) => JSON.stringify(value, function (_key, item) {
   return item && typeof item === "object" && !Array.isArray(item)
     ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item;
 });
-const FIXED_ACTIONS = new Set(["Inspect", "Setup", "Cleanup"]);
-const FIXED_STATUSES = new Set([
-  "DEVELOPMENT_QA_FAILED",
-  "DEVELOPMENT_QA_IDENTITY_PASS",
-  "YMATH_REALUSE_SCENARIO_READY",
-  "YMATH_REALUSE_SCENARIO_DESTROYED",
-  "YMATH_REALUSE_SCENARIO_ABSENT",
-]);
-const FIXED_ERROR_TYPES = new Set([
-  "AssertionError", "BotoCoreError", "ClientError", "CommandError", "ConnectionError", "DatabaseError",
-  "IntegrityError", "KeyError", "OperationalError", "PermissionError", "RuntimeError", "TimeoutError",
-  "TypeError", "ValueError",
-]);
-const FIXED_FAILURE_STAGES = new Set([
-  "bootstrap", "identity", "inspect_database", "inspect_residue", "setup_database", "setup_readback",
-  "cleanup_identity", "cleanup_absent_readback", "cleanup_r2", "cleanup_database", "cleanup_readback", "unknown",
-]);
-const FIXED_RESIDUE_FIELDS = [
-  "activity_audits", "outstanding_tokens", "listeners", "processes", "r2_objects",
-];
 const PREFLIGHT_STAGES = ["process", "bundle", "governance", "iam", "document", "host", "ssm"];
 const PREFLIGHT_CHECKS = PREFLIGHT_STAGES.slice(1);
 
@@ -706,68 +688,6 @@ export async function runPreflightStages(stages, persist, frontendSha) {
   }
 }
 
-export function observeFixedOperationResult(action, result) {
-  const stdout = typeof result?.stdout === "string" ? result.stdout : "";
-  const jsonLines = stdout.split(/\r?\n/).filter((line) => line.trim().startsWith("{"));
-  let payload = null;
-  let parseError = null;
-  if (jsonLines.length === 1) {
-    try { payload = JSON.parse(jsonLines[0]); }
-    catch (error) { parseError = error; }
-  }
-  const failure = (() => {
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)
-      || Object.keys(payload).sort().join(",") !== "error_type,failure_stage,residue,status,tenant_id"
-      || payload.status !== "DEVELOPMENT_QA_FAILED"
-      || typeof payload.error_type !== "string" || payload.error_type.length === 0
-      || !FIXED_FAILURE_STAGES.has(payload.failure_stage)
-      || !Number.isSafeInteger(payload.tenant_id) || payload.tenant_id < 0
-      || !payload.residue || typeof payload.residue !== "object" || Array.isArray(payload.residue)
-      || Object.keys(payload.residue).sort().join(",") !== [...FIXED_RESIDUE_FIELDS].sort().join(",")
-      || FIXED_RESIDUE_FIELDS.some((key) => !Number.isSafeInteger(payload.residue[key]) || payload.residue[key] < 0)) {
-      return null;
-    }
-    return {
-      failureStage: payload.failure_stage,
-      tenantId: payload.tenant_id,
-      residue: Object.fromEntries(FIXED_RESIDUE_FIELDS.map((key) => [key, payload.residue[key]])),
-      errorType: FIXED_ERROR_TYPES.has(payload.error_type) ? payload.error_type : "OtherError",
-    };
-  })();
-  const payloadStatus = payload?.status === "DEVELOPMENT_QA_FAILED"
-    ? (failure ? payload.status : null)
-    : (FIXED_STATUSES.has(payload?.status) ? payload.status : null);
-  return {
-    observation: {
-      action: FIXED_ACTIONS.has(action) ? action : null,
-      exitCode: Number.isInteger(result?.code) && result.code >= -1 && result.code <= 255 ? result.code : null,
-      jsonLineCount: jsonLines.length,
-      sessionIdObserved: /Starting session with SessionId:\s*[A-Za-z0-9_.:-]+/.test(stdout),
-      payloadStatus,
-      errorType: failure?.errorType ?? null,
-      failureStage: failure?.failureStage ?? null,
-      tenantId: failure?.tenantId ?? null,
-      residue: failure?.residue ?? null,
-    },
-    payload,
-    parseError,
-  };
-}
-
-export function setupTenantIdFromOperation(action, observed, tenantCode) {
-  if (action !== "Setup") return null;
-  const failedTenantId = observed?.observation?.tenantId;
-  if (observed?.observation?.payloadStatus === "DEVELOPMENT_QA_FAILED"
-    && Number.isSafeInteger(failedTenantId) && failedTenantId > 0) {
-    return failedTenantId;
-  }
-  const successfulTenantId = observed?.payload?.tenant_id;
-  return observed?.payload?.status === "YMATH_REALUSE_SCENARIO_READY"
-    && observed.payload.tenant_code === tenantCode
-    && Number.isSafeInteger(successfulTenantId) && successfulTenantId > 0
-    ? successfulTenantId : null;
-}
-
 export function inspectMatchObservation(payload, manifest) {
   return {
     statusMatches: payload?.status === "DEVELOPMENT_QA_IDENTITY_PASS",
@@ -907,23 +827,6 @@ export function assertCleanup(payload, tenantCode, tenantId) {
   assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0, "Cleanup tenant id must be a positive integer");
   assert.ok(["YMATH_REALUSE_SCENARIO_DESTROYED", "YMATH_REALUSE_SCENARIO_ABSENT"].includes(payload.status));
   assert.deepEqual(payload.remaining, { tenants: 0, users: 0 }, "Cleanup residue must be numeric zero");
-}
-
-export function fixedOperationParameters(common, action, tenantId, videoId) {
-  assert.ok(FIXED_ACTIONS.has(action), "Unsupported fixed development action");
-  const hasTenantId = tenantId !== undefined;
-  if (action === "Setup") assert.equal(hasTenantId, false, "Setup must not receive TenantId");
-  if (action === "Cleanup") assert.equal(hasTenantId, true, "Cleanup requires the exact Setup TenantId");
-  if (hasTenantId) assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0, "TenantId must be a positive integer");
-  const hasVideoId = videoId !== undefined;
-  if (hasVideoId) {
-    assert.equal(action, "Inspect", "VideoId is only permitted for post-playback Inspect");
-    assert.equal(hasTenantId, true, "VideoId requires the exact Setup TenantId");
-    assert.deepEqual(common.SyntheticLongVideo, ["true"], "VideoId requires the synthetic long-video fixture");
-    assert.ok(Number.isSafeInteger(videoId) && videoId > 0, "VideoId must be a positive integer");
-  }
-  return { ...common, Action: [action], ...(hasTenantId ? { TenantId: [String(tenantId)] } : {}),
-    ...(hasVideoId ? { VideoId: [String(videoId)] } : {}) };
 }
 
 export function assertPostCleanupInspect(payload, tenantCode, tenantId, manifest) {
@@ -1185,7 +1088,7 @@ export async function run() {
   const evidencePath = path.join(ROOT, "test-results/development-release.json");
   const persistEvidence = (evidence) => {
     fs.mkdirSync(path.dirname(evidencePath), { recursive: true });
-    fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
+    writeQaCheckpoint(evidencePath, evidence);
   };
   let identity;
   let bundle;
@@ -1299,48 +1202,36 @@ export async function run() {
     assert.ok(match[1].startsWith("academy-fe-qa-"), "Unexpected session ownership");
     sessions.add(match[1]);
   }
-  async function operation(action, tenantId, observationTarget = "operation", videoId) {
-    const process = session(QA_DOCUMENT, fixedOperationParameters(common, action, tenantId, videoId));
-    const result = await process.done;
-    const observed = observeFixedOperationResult(action, result);
-    const capturedSetupTenantId = setupTenantIdFromOperation(action, observed, tenant);
-    if (capturedSetupTenantId !== null) scenarioTenantId = capturedSetupTenantId;
-    if (action === "Cleanup") cleanupObservation = observed.observation;
-    else if (observationTarget === "post-cleanup") postCleanupInspectOperationObservation = observed.observation;
-    else operationObservation = observed.observation;
-    if (observationTarget === "post-playback") {
-      postPlaybackInspectObservation = observePostPlaybackInspect(observed.payload,
-        scenario?.tenant_id, scenario?.synthetic_long_video?.video_id, manifest);
+  const operationStates = {};
+  const checkpointOperation = (key, snapshot) => {
+    operationStates[key] = snapshot;
+    writeEvidence(false, ["development attempt unfinished; cleanup not proven"]);
+  };
+  const primaryRunner = createFixedQaRunner({
+    common, session: (parameters) => session(QA_DOCUMENT, parameters), remember,
+    interrupted: () => interrupted,
+    checkpoint: (snapshot) => checkpointOperation("primary", snapshot),
+    observe: ({ action, observed, tenantId, context }) => {
+      scenarioTenantId = tenantId;
+      if (action === "Cleanup") cleanupObservation = observed.observation;
+      else if (context === "post-cleanup") postCleanupInspectOperationObservation = observed.observation;
+      else operationObservation = observed.observation;
+      if (context === "post-playback") {
+        postPlaybackInspectObservation = observePostPlaybackInspect(observed.payload,
+          scenario?.tenant_id, scenario?.synthetic_long_video?.video_id, manifest);
+      }
       writeEvidence(false, ["development attempt unfinished; cleanup not proven"]);
-    }
-    remember(process);
-    if (action !== "Cleanup") assert.equal(interrupted, false, "Development run interrupted");
-    assert.equal(result.code, 0, `Fixed development ${action} command failed`);
-    assert.equal(observed.observation.jsonLineCount, 1, "Missing/ambiguous fixed operation readback");
-    if (observed.parseError) throw observed.parseError;
-    const payload = observed.payload;
-    assert.ok(payload, "Missing fixed operation payload");
-    assert.notEqual(payload.status, "DEVELOPMENT_QA_FAILED", `Development ${action} boundary failed`);
-    assert.equal(payload.tenant_code, tenant);
-    return payload;
-  }
-  async function crossOperation(action, tenantId) {
-    const process = session(QA_DOCUMENT, fixedOperationParameters(crossCommon, action, tenantId));
-    const result = await process.done;
-    const observed = observeFixedOperationResult(action, result);
-    const capturedSetupTenantId = setupTenantIdFromOperation(action, observed, crossTenant);
-    if (capturedSetupTenantId !== null) crossScenarioTenantId = capturedSetupTenantId;
-    remember(process);
-    if (action !== "Cleanup") assert.equal(interrupted, false, "Development run interrupted");
-    assert.equal(result.code, 0, `Fixed development ${action} command failed`);
-    assert.equal(observed.observation.jsonLineCount, 1, "Missing/ambiguous fixed operation readback");
-    if (observed.parseError) throw observed.parseError;
-    const payload = observed.payload;
-    assert.ok(payload, "Missing fixed operation payload");
-    assert.notEqual(payload.status, "DEVELOPMENT_QA_FAILED", `Development ${action} boundary failed`);
-    assert.equal(payload.tenant_code, crossTenant);
-    return payload;
-  }
+    },
+  });
+  const crossRunner = createFixedQaRunner({
+    common: crossCommon, session: (parameters) => session(QA_DOCUMENT, parameters), remember,
+    interrupted: () => interrupted,
+    checkpoint: (snapshot) => checkpointOperation("cross", snapshot),
+    observe: ({ tenantId }) => { crossScenarioTenantId = tenantId; },
+  });
+  const operation = (action, tenantId, context = "operation", videoId) =>
+    primaryRunner.run(action, tenantId, { context, videoId });
+  const crossOperation = (action, tenantId) => crossRunner.run(action, tenantId);
   let server;
   let setupAttempted = false;
   let crossSetupAttempted = false;
@@ -1368,7 +1259,7 @@ export async function run() {
       instanceId, tenantCode: tenant, artifactSha256: fingerprint, cases: counts || null,
       documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
       cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
-      operationObservation, cleanupObservation, inspectObservation,
+      operationObservation, cleanupObservation, inspectObservation, operationStates,
       postCleanupInspectOperationObservation, postCleanupInspectObservation,
       crossTenantCleanup: crossTenantCleanup
         ? { tenantCode: crossTenant, tenantId: crossScenarioTenantId, remaining: crossTenantCleanup.remaining }
