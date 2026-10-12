@@ -1,6 +1,7 @@
 import { expect, test } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5173").replace(/\/+$/, "");
 test.use({ serviceWorkers: "block" });
@@ -60,7 +61,7 @@ for (const width of [1366, 390]) {
   test(`동시 학원 편집 충돌에서 최신 목록 확인 후 저장·재조회 ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const api = await setup(page, "owner", false);
-    await page.goto(`${BASE}/workspace/settings/organization`, { waitUntil: "commit" });
+    await gotoAndSettle(page, `${BASE}/workspace/settings/organization`);
     await page.getByRole("button", { name: "수정", exact: true }).first().click();
     await page.getByRole("textbox", { name: "학원명", exact: true }).fill("내 수정 본원");
     api.tenant().academies = [{ name: "다른 원장이 저장한 본원", phone: "02-0000-0000" }, { name: "추가 분원", phone: "02-0000-0002" }];
