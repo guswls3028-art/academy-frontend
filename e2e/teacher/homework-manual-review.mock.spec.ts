@@ -17,12 +17,14 @@ function fakeJwt(): string {
   })}.sig`;
 }
 
-async function installApi(page: Page, options: { reviewed?: boolean; scoreReviewed?: boolean; score?: number; previewFailures?: number } = {}) {
+async function installApi(page: Page, options: { reviewed?: boolean; scoreReviewed?: boolean; score?: number; previewFailures?: number; olderSubmission?: boolean; failSecondPage?: boolean } = {}) {
   let reviewed = options.reviewed ?? options.scoreReviewed ?? false;
   let reviewUpdatedAt: string | null = reviewed && !options.scoreReviewed ? "2026-08-23T03:30:00Z" : null;
   let correctionPayload: Record<string, unknown> | null = null;
   let previewFailures = options.previewFailures ?? 0;
   let saveFailures = 0;
+  let failSecondPage = options.failSecondPage ?? false;
+  const requestedPages: number[] = [];
 
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
@@ -32,7 +34,8 @@ async function installApi(page: Page, options: { reviewed?: boolean; scoreReview
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const url = new URL(request.url());
+    const path = url.pathname.replace(/^\/api\/v1/, "");
     const json = (value: unknown, status = 200) => route.fulfill({ status, json: value });
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
     if (path === "/core/program/") return json({ tenantCode: "hakwonplus", display_name: "학원플러스", is_active: true, feature_flags: {}, ui_config: {} });
@@ -56,7 +59,7 @@ async function installApi(page: Page, options: { reviewed?: boolean; scoreReview
       });
     }
     if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/`) {
-      return json([{
+      const submission = {
         id: 9901,
         enrollment_id: 9902,
         student_id: 9903,
@@ -78,7 +81,26 @@ async function installApi(page: Page, options: { reviewed?: boolean; scoreReview
         teacher_review_note: reviewed ? "제출 파일 직접 확인" : "",
         teacher_reviewed_at: reviewed ? "2026-08-23T03:30:00Z" : null,
         teacher_review_updated_at: reviewUpdatedAt,
-      }]);
+      };
+      if (!options.olderSubmission) return json([submission]);
+      const pageNumber = Number(url.searchParams.get("page") || 1);
+      requestedPages.push(pageNumber);
+      if (pageNumber === 2 && failSecondPage) return json({ detail: "제출 목록 조회 실패" }, 503);
+      const recent = Array.from({ length: 200 }, (_, index) => ({
+        ...submission,
+        id: 20_000 - index,
+        enrollment_id: 30_000 + index,
+        student_id: 40_000 + index,
+        student_name: `최근 제출 ${index + 1}`,
+        files: [],
+        teacher_reviewed: false,
+      }));
+      return json({
+        count: 201,
+        next: pageNumber === 1 ? `${url.origin}${url.pathname}?page=2&page_size=200` : null,
+        previous: pageNumber === 2 ? `${url.origin}${url.pathname}?page=1&page_size=200` : null,
+        results: pageNumber === 1 ? recent : [submission],
+      });
     }
     if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/media/9911/preview/`) {
       if (previewFailures > 0) {
@@ -105,8 +127,48 @@ async function installApi(page: Page, options: { reviewed?: boolean; scoreReview
     correctionPayload: () => correctionPayload,
     failNextSave: () => { saveFailures = 1; },
     allowPreview: () => { previewFailures = 0; },
+    allowSecondPage: () => { failSecondPage = false; },
+    requestedPages: () => [...requestedPages],
   };
 }
+
+for (const width of [390, 1280]) {
+  test(`선생님이 200건 뒤의 과제 파일도 검수하고 새로고침한다 (${width}px)`, async ({ page }) => {
+    test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 검증 전용");
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height: 844 });
+    const api = await installApi(page, { olderSubmission: true });
+    await page.goto(`${BASE}/workspace/mobile/homeworks/${HOMEWORK_ID}`);
+    await expect(page.getByText("김하늘", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "제출물 확인", exact: true })).toHaveCount(201);
+    expect(api.requestedPages()).toContain(2);
+    await page.getByRole("button", { name: "제출물 확인", exact: true }).last().click();
+    const dialog = page.getByRole("dialog").filter({ hasText: "김하늘 제출 확인" });
+    await expect(dialog.getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
+    await dialog.getByRole("button", { name: "직접 확인 완료" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "확인 완료", exact: true }).click();
+    await expect.poll(api.correctionPayload).toMatchObject({ enrollment_id: 9902, completed: true });
+    await expect(dialog).toBeHidden();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "제출물 확인", exact: true })).toHaveCount(201);
+    await page.getByRole("button", { name: "제출물 확인", exact: true }).last().click();
+    await expect(dialog.getByRole("button", { name: "확인 완료 취소" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  });
+}
+
+test("두 번째 제출 페이지 실패는 부분 목록 대신 오류를 보여주고 전체 재조회로 복구한다", async ({ page }) => {
+  test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 검증 전용");
+  test.setTimeout(120_000);
+  const api = await installApi(page, { olderSubmission: true, failSecondPage: true });
+  await page.goto(`${BASE}/workspace/mobile/homeworks/${HOMEWORK_ID}`);
+  await expect(page.getByText("과제 상세를 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByRole("button", { name: "제출물 확인", exact: true })).toHaveCount(0);
+  api.allowSecondPage();
+  await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(page.getByText("김하늘", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "제출물 확인", exact: true })).toHaveCount(201);
+});
 
 test("선생님이 모바일 과제 상세에서 제출 파일을 보고 직접 확인 완료한다", async ({ page }, testInfo) => {
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 검증 전용");

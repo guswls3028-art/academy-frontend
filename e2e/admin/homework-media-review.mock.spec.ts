@@ -20,7 +20,7 @@ function fakeJwt(): string {
   })}.sig`;
 }
 
-async function installApi(page: Page, submissionStatus = "submitted", newAssistant = false) {
+async function installApi(page: Page, submissionStatus = "submitted", newAssistant = false, olderSubmission = false) {
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
     "과제 파일 검수 route-mock 검증은 로컬 dev 서버 전용",
@@ -97,7 +97,7 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
       });
     }
     if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/`) {
-      return json([{
+      const submission = {
         id: 9901,
         enrollment_id: 9902,
         student_id: 9903,
@@ -159,7 +159,22 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
             created_at: "2026-08-23T03:20:11Z",
           },
         ],
-      }]);
+      };
+      if (!olderSubmission) return json([submission]);
+      const pageNumber = Number(url.searchParams.get("page") || 1);
+      return json({
+        count: 201,
+        next: pageNumber === 1 ? `${url.origin}${url.pathname}?page=2&page_size=200` : null,
+        previous: pageNumber === 2 ? `${url.origin}${url.pathname}?page=1&page_size=200` : null,
+        results: pageNumber === 1 ? Array.from({ length: 200 }, (_, index) => ({
+          ...submission,
+          id: 20_000 - index,
+          enrollment_id: 30_000 + index,
+          student_id: 40_000 + index,
+          student_name: `최근 제출 ${index + 1}`,
+          files: [],
+        })) : [submission],
+      });
     }
     if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/media/9911/preview/`) {
       const svg = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#eef2ff"/><text x="400" y="300" text-anchor="middle" font-size="38">homework preview</text></svg>');
@@ -186,6 +201,26 @@ async function openSubmissionReview(page: Page) {
   await page.getByRole("tab", { name: "제출관리", exact: true }).click();
   await expect(page.getByRole("heading", { name: "과제 제출 검수" })).toBeVisible({ timeout: 30_000 });
 }
+
+test("관리자가 200건 뒤의 과제 파일을 PC와 모바일에서 열고 새로고침한다", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await installApi(page, "submitted", false, true);
+  await openSubmissionReview(page);
+  await expect(page.getByText("제출 학생").locator("..")).toContainText("201");
+  const imageRow = page.locator('[class*="fileRow"]').filter({ hasText: "풀이 앞면.jpg" });
+  await imageRow.getByRole("button", { name: "미리보기" }).click();
+  const dialog = page.getByRole("dialog").filter({ hasText: "풀이 앞면.jpg" });
+  await expect(dialog.getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
+  await dialog.getByRole("button", { name: "닫기" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+  await expect(page.getByText("제출 학생").locator("..")).toContainText("201");
+  await imageRow.getByRole("button", { name: "미리보기" }).click();
+  await expect(dialog.getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
 
 test("선생님이 학생별 제출 묶음에서 사진·동영상·오류를 파일별로 검수하고 미리본다", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
