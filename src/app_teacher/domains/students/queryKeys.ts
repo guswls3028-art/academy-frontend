@@ -3,6 +3,7 @@
 export const teacherStudentsQueryKeys = {
   students: ["students-mobile"] as const,
   studentList: (search: string, filters: object) => ["students-mobile", search, filters] as const,
+  studentPages: (search: string, filters: object) => ["students-mobile", search, filters, "pages"] as const,
   teacherStudents: ["teacher-students"] as const,
   student: (studentId: number) => ["student", studentId] as const,
   customFields: ["students", "custom-fields"] as const,

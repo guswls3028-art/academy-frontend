@@ -23,9 +23,11 @@ import {
   QA_STUDENT_PASSWORD,
   QA_TENANT,
   reloadStudentApp,
+  seedBrowserAuth,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
   type QaStudent,
+  type QaTokens,
 } from "../helpers/qaStudentParentScenario";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
@@ -48,6 +50,39 @@ let family: QaFamily | null = null;
 let adminAccess = "";
 const signupFamilies: QaFamily[] = [];
 const signupRequestIds: number[] = [];
+
+async function verifyTeacherStudentList(page: Page, request: APIRequestContext, student: QaStudent, admin: QaTokens): Promise<void> {
+  const context = await page.context().browser()!.newContext();
+  try {
+    const teacherPage = await context.newPage();
+    const boundary = await installQaStudentParentBoundary(teacherPage, request);
+    const browser = attachStrictBrowserGuards(teacherPage);
+    await seedBrowserAuth(teacherPage, admin);
+    for (const width of [390, 1366]) {
+      await teacherPage.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/students`);
+      const main = teacherPage.getByRole("main");
+      await main.getByPlaceholder("이름, 아이디, 전화번호, 학교").fill(student.ps_number);
+      await expect(main.getByText("총 1명 · 1명 표시", { exact: true })).toBeVisible();
+      await expect(main.getByText(student.name, { exact: true })).toBeVisible();
+      await main.getByRole("button", { name: "선택", exact: true }).click();
+      await main.getByRole("button", { name: "불러온 1명 전체 선택", exact: true }).click();
+      await expect(main.getByText("1명 선택됨", { exact: true })).toBeVisible();
+      await assertNoHorizontalOverflow(teacherPage);
+      await main.getByRole("button", { name: "선택 취소", exact: true }).click();
+      await main.getByText(student.name, { exact: true }).click();
+      await expect(teacherPage).toHaveURL(new RegExp(`/workspace/mobile/students/${student.id}$`));
+      await expect(main.getByText(student.name, { exact: true })).toBeVisible();
+      await teacherPage.reload();
+      await expect(main.getByText(student.name, { exact: true })).toBeVisible();
+      await assertNoHorizontalOverflow(teacherPage);
+    }
+    boundary.assertClean();
+    browser.assertZeroDefects();
+  } finally {
+    await context.close();
+  }
+}
 
 async function verifyExcelSiblingImport(page: Page, request: APIRequestContext, target: QaFamily): Promise<void> {
   assertQaStudentParentRuntime();
@@ -482,6 +517,7 @@ test.describe.serial("[real-use] 학생/학부모 계정과 복구", () => {
     await verifyOwnerOrganizationSettings(page, request, student);
     await verifyConsultInbox(page, request, admin);
     await verifyExcelSiblingImport(page, request, family);
+    await verifyTeacherStudentList(page, request, family.students.at(-1)!, admin);
     boundary.assertClean();
     browser.assertZeroDefects();
   });
