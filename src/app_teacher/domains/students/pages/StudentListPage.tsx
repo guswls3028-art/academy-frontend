@@ -3,7 +3,7 @@
 // 학생 목록 — 강의딱지 + 전화번호 + 검색 + 필터 + 대량 선택 모드
 import { useEffect, useState, useDeferredValue, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -100,19 +100,37 @@ export default function StudentListPage() {
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.pathname, location.state, navigate]);
 
-  const { data, isLoading } = useQuery({
-    queryKey: teacherStudentsQueryKeys.studentList(deferredSearch, filters),
-    queryFn: () =>
-      fetchStudents({
+  const studentPages = useInfiniteQuery({
+    queryKey: teacherStudentsQueryKeys.studentPages(deferredSearch, filters),
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const result = await fetchStudents({
         search: deferredSearch.trim() || undefined,
+        page: pageParam,
         page_size: 50,
         ...(filters.grade ? { grade: Number(filters.grade) } : {}),
         ...(filters.gender ? { gender: filters.gender } : {}),
         ...(filters.status ? { status: filters.status } : {}),
-      }),
+      });
+      if (result.data.length < Math.min(50, Math.max(0, result.count - (pageParam - 1) * 50))) {
+        throw new Error("학생 목록의 일부를 확인하지 못했습니다. 다시 조회해 주세요.");
+      }
+      return result;
+    },
+    getNextPageParam: (last, _pages, page) => page * 50 < last.count ? page + 1 : undefined,
   });
 
-  const students = data?.data ?? [];
+  const students = [...new Map(
+    studentPages.data?.pages.flatMap((page) => page.data).map((student) => [student.id, student]),
+  ).values()];
+  const studentErrorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!studentPages.isError) return;
+    studentErrorRef.current?.scrollIntoView({
+      block: "center",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  }, [studentPages.isError]);
   const selectedCount = selectedIds.size;
   const selectedStudents = students.filter((s) => selectedIds.has(s.id));
 
@@ -174,13 +192,13 @@ export default function StudentListPage() {
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-2"
+        <div className="flex flex-wrap items-center gap-2"
           style={{ padding: "8px 10px", borderRadius: "var(--tc-radius)", background: "var(--tc-primary-bg)", border: "1px solid var(--tc-primary)" }}>
           <button onClick={exitSelectMode} aria-label="선택 취소" className="flex items-center justify-center cursor-pointer"
             style={{ width: 44, minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius-sm)", background: "none", border: "none", color: "var(--tc-primary)" }}>
             <X size={ICON.sm} />
           </button>
-          <div className="flex-1 text-[13px] font-bold" style={{ color: "var(--tc-primary)" }}>
+          <div className="flex-1 min-w-[100px] text-[13px] font-bold" style={{ color: "var(--tc-primary)" }}>
             {selectModeIntent === "scheduled"
               ? `예약할 학생 ${selectedCount}명`
               : selectModeIntent === "message"
@@ -189,7 +207,7 @@ export default function StudentListPage() {
           </div>
           <button onClick={selectAll} className="text-[11px] font-semibold cursor-pointer"
             style={{ minHeight: 36, padding: "6px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-primary)", background: "var(--tc-surface)", color: "var(--tc-primary)" }}>
-            전체 선택
+            불러온 {students.length}명 전체 선택
           </button>
           {selectedCount > 0 && (
             <button onClick={clearSelection} className="text-[11px] font-semibold cursor-pointer"
@@ -259,14 +277,14 @@ export default function StudentListPage() {
             </div>
           )}
 
-          {!isLoading && students.length > 0 && (
-            <div className="text-xs" style={{ color: "var(--tc-text-muted)" }}>총 {data?.count ?? students.length}명</div>
+          {students.length > 0 && (
+            <div className="text-xs" role="status" style={{ color: "var(--tc-text-muted)" }}>총 {studentPages.data?.pages[0]?.count ?? students.length}명 · {students.length}명 표시</div>
           )}
         </>
       )}
 
       {/* List */}
-      {isLoading ? (
+      {studentPages.isPending ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : students.length > 0 ? (
         <div className="grid grid-cols-1 gap-1.5 lg:grid-cols-2 lg:gap-3" style={{ paddingBottom: selectMode ? 80 : 0 }}>
@@ -325,7 +343,7 @@ export default function StudentListPage() {
             );
           })}
         </div>
-      ) : (
+      ) : !studentPages.isError ? (
         <EmptyState
           scope="panel"
           tone="empty"
@@ -343,6 +361,29 @@ export default function StudentListPage() {
             )
           }
         />
+      ) : null}
+
+      {(studentPages.isError || studentPages.hasNextPage) && (
+        <div style={{ paddingBottom: selectMode ? 80 : 0 }}>
+          {studentPages.isError ? (
+            <div ref={studentErrorRef} role="alert">
+              <EmptyState
+                scope="panel"
+                tone="error"
+                title="학생 목록을 불러오지 못했습니다"
+                description={extractApiError(studentPages.error, "잠시 후 다시 조회해 주세요.")}
+                actions={<EmptyActionButton disabled={studentPages.isFetching} onClick={() => {
+                  if (studentPages.isFetchNextPageError) void studentPages.fetchNextPage();
+                  else void studentPages.refetch();
+                }}>다시 시도</EmptyActionButton>}
+              />
+            </div>
+          ) : (
+            <EmptyActionButton disabled={studentPages.isFetching} onClick={() => void studentPages.fetchNextPage()}>
+              {studentPages.isFetchingNextPage ? "불러오는 중…" : "학생 더 보기"}
+            </EmptyActionButton>
+          )}
+        </div>
       )}
 
       {/* Bulk action bar — TabBar 위에 띄우기 (z-index 230, bottom = tabbar 높이 + safe-bottom) */}
