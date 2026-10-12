@@ -704,13 +704,14 @@ test("일괄 출결 이후 충돌하면 기록을 유지하고 일부 복구처�
 
 test("수강생 검토 레일과 최근 작업은 1366·1100·390px에서 접근 가능하다", async ({ page }) => {
   const state = createState();
+  // Exercise responsive layout on one document without reinstalling auth and booting three times.
+  await openAttendance(page, state);
   for (const viewport of [
     { width: 1366, height: 850 },
     { width: 1100, height: 760 },
     { width: 390, height: 844 },
   ]) {
     await page.setViewportSize(viewport);
-    await openAttendance(page, state);
     await page.getByRole("button", { name: "수강생 등록" }).first().click();
     await expect(page.getByLabel("등록 후 출결 시작 상태")).toBeVisible();
     await expect(page.getByRole("button", { name: "0명 검토 후 등록" })).toBeVisible();
