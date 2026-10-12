@@ -5,6 +5,7 @@ import { fetchLectureEnrollmentPages } from "@/shared/api/contracts/enrollments"
 import { sortSessionsByDisplayOrder, type SessionType } from "@/shared/product/sessions/sessionOrdering";
 
 export {
+  fetchAttendanceRoster as fetchSessionAttendance,
   downloadAttendanceExcel,
   fetchAttendanceMatrix,
   type AttendanceMatrixCell,
@@ -103,15 +104,6 @@ export async function fetchSession(sessionId: number) {
 /** 강의 수강생 목록 (enrollments 기반) — backend 마운트: /api/v1/enrollments/ */
 export async function fetchLectureEnrollments(lectureId: number): Promise<TeacherLectureEnrollment[]> {
   return fetchLectureEnrollmentPages<TeacherLectureEnrollment>(lectureId);
-}
-
-/** 세션 수강생 출석 목록 */
-export async function fetchSessionAttendance(sessionId: number) {
-  const res = await api.get("/lectures/attendance/", {
-    params: { session: sessionId, page_size: 200 },
-  });
-  const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
 
 /* ─── Lecture CRUD ─── */
