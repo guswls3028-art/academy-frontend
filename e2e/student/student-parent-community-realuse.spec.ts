@@ -208,6 +208,24 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       const studentProfile = await api<{ memo: string }>(request, "GET", "/student/me/", studentTokens.access);
       expect(studentProfile.status).toBe(200);
       expect(studentProfile.body.memo).toBe(sharedMemo);
+      for (const width of [390, 1366]) {
+        await adminPage.setViewportSize({ width, height: 900 });
+        await gotoAndSettle(adminPage, `${QA_BASE}/workspace/mobile/students/${primary.id}`);
+        await adminPage.getByRole("button", { name: "질문", exact: true }).click();
+        await expect(adminPage.getByText(qnaTitle, { exact: true })).toBeVisible();
+        await expect(adminPage.getByText(counselTitle, { exact: true })).toBeVisible();
+        await adminPage.reload({ waitUntil: "domcontentloaded" });
+        await adminPage.getByRole("button", { name: "질문", exact: true }).click();
+        await expect(adminPage.getByText(qnaTitle, { exact: true })).toBeVisible();
+        await expect(adminPage.getByText(counselTitle, { exact: true })).toBeVisible();
+        await assertNoHorizontalOverflow(adminPage);
+        await adminPage.screenshot({ path: testInfo.outputPath(`teacher-student-history-${width}.png`) });
+        await gotoAndSettle(adminPage, `${QA_BASE}/workspace/mobile/students/${sibling.id}`);
+        await adminPage.getByRole("button", { name: "질문", exact: true }).click();
+        await expect(adminPage.getByText("질문 이력 없음", { exact: true })).toBeVisible();
+        await expect(adminPage.getByText(qnaTitle, { exact: true })).toHaveCount(0);
+        await expect(adminPage.getByText(counselTitle, { exact: true })).toHaveCount(0);
+      }
       adminBoundary.assertClean();
       adminBrowser.assertZeroDefects();
     } finally {
