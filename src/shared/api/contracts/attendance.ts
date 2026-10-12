@@ -1,5 +1,7 @@
 // PATH: src/shared/api/contracts/attendance.ts
-import api from "@/shared/api/axios";
+import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
+import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import type { components } from "@/shared/api/generated/schema";
 import { pollJobUntilDone, downloadFromUrl } from "@/shared/api/jobExport";
 
@@ -97,6 +99,54 @@ export async function fetchAttendance(
     count,
     pageSize,
   };
+}
+
+/** Complete, name-ordered roster for the teacher's swipe attendance screen. */
+export async function fetchAttendanceRoster(sessionId: number): Promise<AttendanceListItem[]> {
+  const session = readAuthTokenEnvelopeSafely();
+  const tenant = getTenantCodeForApiRequest();
+  if (!session || !tenant) throw new Error("로그인과 학원 정보를 확인한 뒤 다시 조회해 주세요.");
+  const config = createAuthSessionBoundConfig(session.generation, undefined, tenant);
+  const rows: AttendanceListItem[] = [];
+  const ids = new Set<number>();
+  let expectedCount: number | undefined;
+
+  for (let page = 1; ; page += 1) {
+    const { data } = await api.get<AttendanceListItem[] | {
+      results: AttendanceListItem[]; count: number; next?: string | null;
+    }>("/lectures/attendance/", {
+      ...config,
+      params: { session: sessionId, page, page_size: 500, ordering: "name" },
+    });
+    const items = Array.isArray(data) ? data : data?.results;
+    const count = Array.isArray(data) ? items.length : data?.count;
+    const next = Array.isArray(data) ? null : data?.next;
+    if (!Array.isArray(items) || (page > 1 && Array.isArray(data))
+      || !Number.isSafeInteger(count) || count < 0
+      || (next != null && (typeof next !== "string" || !next))) {
+      throw new Error("출석 명단 응답을 확인하지 못했습니다. 다시 조회해 주세요.");
+    }
+    if (page === 1) expectedCount = count;
+    else if (count !== expectedCount) {
+      throw new Error("조회 중 출석 명단이 변경되었습니다. 다시 조회해 주세요.");
+    }
+    for (const item of items) {
+      if (!item || !Number.isSafeInteger(item.id) || item.id <= 0 || ids.has(item.id)) {
+        throw new Error("출석 명단에 누락되거나 중복된 항목이 있습니다. 다시 조회해 주세요.");
+      }
+      ids.add(item.id);
+      rows.push(item);
+    }
+    if (!next) {
+      if (rows.length !== expectedCount) {
+        throw new Error("출석 명단 전체를 불러오지 못했습니다. 다시 조회해 주세요.");
+      }
+      return rows;
+    }
+    if (!items.length || rows.length >= count) {
+      throw new Error("출석 명단 전체를 불러오지 못했습니다. 다시 조회해 주세요.");
+    }
+  }
 }
 
 /**

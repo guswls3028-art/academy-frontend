@@ -9,7 +9,7 @@ import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useTrackedTask } from "@/shared/productAnalytics";
 import {
-  fetchAttendance,
+  fetchAttendanceRoster,
   updateAttendance,
   bulkSetPresent,
   type AttendanceListItem,
@@ -34,15 +34,17 @@ export default function SwipeAttendancePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const sid = Number(sessionId);
+  const validSession = Number.isSafeInteger(sid) && sid > 0;
   const runTrackedTask = useTrackedTask();
 
-  const { data: result, isLoading } = useQuery({
-    queryKey: teacherAttendanceQueryKeys.attendance(sid),
-    queryFn: () => fetchAttendance(sid, { page_size: 200 }),
-    enabled: Number.isFinite(sid),
+  const { data: result, isLoading, isFetching, isError, error, refetch } = useQuery({
+    queryKey: teacherAttendanceQueryKeys.completeAttendance(sid),
+    queryFn: () => fetchAttendanceRoster(sid),
+    enabled: validSession,
   });
 
-  const records = result?.data ?? EMPTY_RECORDS;
+  const records = result ?? EMPTY_RECORDS;
+  const rosterReady = validSession && result !== undefined && !isError;
 
   const [sheetRecord, setSheetRecord] = useState<AttendanceListItem | null>(null);
   const [undoItem, setUndoItem] = useState<{
@@ -143,7 +145,7 @@ export default function SwipeAttendancePage() {
         </h1>
         <button
           onClick={() => bulkMut.mutate()}
-          disabled={bulkMut.isPending || updateMut.isPending}
+          disabled={!rosterReady || isFetching || !records.length || bulkMut.isPending || updateMut.isPending}
           className={styles.bulkButton}
         >
           전체출석
@@ -151,7 +153,7 @@ export default function SwipeAttendancePage() {
       </div>
 
       {/* Summary bar */}
-      <div className={styles.summaryBar}>
+      {rosterReady && <div className={styles.summaryBar}>
         <span className={styles.summaryPresent}>
           출석 {summary.present}
         </span>
@@ -171,7 +173,7 @@ export default function SwipeAttendancePage() {
         <span className={styles.summaryTotal}>
           총 {records.length}명
         </span>
-      </div>
+      </div>}
 
       {/* Hint */}
       <div className={styles.hint} role="status">
@@ -183,6 +185,26 @@ export default function SwipeAttendancePage() {
       {/* Cards */}
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : !validSession || isError ? (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="출석 명단을 불러오지 못했습니다"
+          description={validSession
+            ? extractApiError(error, "전체 명단을 다시 불러온 뒤 출석을 입력해 주세요.")
+            : "차시 정보를 확인한 뒤 다시 열어 주세요."}
+          actions={
+            validSession ? (
+              <EmptyActionButton variant="secondary" onClick={() => void refetch()} disabled={isFetching}>
+                다시 시도
+              </EmptyActionButton>
+            ) : (
+              <EmptyActionButton variant="secondary" onClick={() => navigate(-1)}>
+                차시로 돌아가기
+              </EmptyActionButton>
+            )
+          }
+        />
       ) : records.length > 0 ? (
         <div className={styles.cardList}>
           {records.map((r) => (
