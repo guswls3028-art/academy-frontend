@@ -38,7 +38,7 @@ export default function SwipeAttendancePage() {
   const runTrackedTask = useTrackedTask();
 
   const { data: result, isLoading, isFetching, isError, error, refetch } = useQuery({
-    queryKey: [...teacherAttendanceQueryKeys.attendance(sid), "complete"],
+    queryKey: teacherAttendanceQueryKeys.completeAttendance(sid),
     queryFn: () => fetchAttendanceRoster(sid),
     enabled: validSession,
   });
