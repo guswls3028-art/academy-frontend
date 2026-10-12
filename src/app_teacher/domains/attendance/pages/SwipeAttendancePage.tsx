@@ -77,11 +77,13 @@ export default function SwipeAttendancePage() {
       "attendance.bulk-present",
       () => bulkSetPresent(sid),
     ),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setUndoItem(null);
-      qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) });
-      qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) });
-      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sid) });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) }),
+        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) }),
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sid) }),
+      ]);
       feedback.success(`${data.updated}명 출석 처리`);
     },
     onError: (e) => feedback.error(extractApiError(e, "전체 출석 실패")),

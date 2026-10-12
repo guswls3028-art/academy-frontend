@@ -9,6 +9,7 @@ test.use({ serviceWorkers: "block" });
 for (const { width, scenario } of [
   { width: 390, scenario: "slow-save" }, { width: 1366, scenario: "slow-save" },
   { width: 390, scenario: "save-error" }, { width: 390, scenario: "undo-error" },
+  { width: 390, scenario: "bulk-after-save" },
 ]) {
   test(`출결 저장 확인과 되돌리기 복구 ${width}px ${scenario}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -22,6 +23,9 @@ for (const { width, scenario } of [
     let failing = scenario === "save-error";
     let releaseSave: () => void = () => {};
     const saveGate = new Promise<void>((resolve) => { releaseSave = resolve; });
+    let releaseBulkRead: () => void = () => {};
+    const bulkReadGate = new Promise<void>((resolve) => { releaseBulkRead = resolve; });
+    let bulkSaved = false;
     const changes: Array<Record<string, unknown>> = [];
     await page.route("**/api/v1/**", async (route) => {
       const request = route.request();
@@ -31,7 +35,14 @@ for (const { width, scenario } of [
       if (path === "/core/me/") return route.fulfill({ json: { id: 12, name: "출결 담당자", username: "attendance-owner", is_staff: true, tenantRole: "teacher", must_change_password: false, first_login_guide_required: false } });
       if (path === "/core/subscription/") return route.fulfill({ json: { plan: "all", subscription_status: "active", is_subscription_active: true, days_remaining: 30 } });
       if (path === "/lectures/attendance/" && request.method() === "GET") {
+        if (bulkSaved) await bulkReadGate;
         return route.fulfill({ json: { count: 1, next: null, results: [{ id: 777, name: "되돌리기 검증학생", status: currentStatus }] } });
+      }
+      if (path === "/lectures/attendance/bulk_set_present/" && request.method() === "POST") {
+        expect(request.postDataJSON()).toEqual({ session: 99 });
+        currentStatus = "PRESENT";
+        bulkSaved = true;
+        return route.fulfill({ json: { session: 99, updated: 1 } });
       }
       if (path === "/lectures/attendance/777/" && request.method() === "PATCH") {
         const body = request.postDataJSON();
@@ -73,6 +84,23 @@ for (const { width, scenario } of [
     }
     await expect(page.getByText("결석 1", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "되돌리기", exact: true })).toBeVisible();
+    if (scenario === "bulk-after-save") {
+      await page.getByRole("button", { name: "전체출석", exact: true }).click();
+      await expect.poll(() => bulkSaved).toBe(true);
+      try {
+        await expect(page.getByText("출결 저장 중…", { exact: true })).toBeVisible();
+        await student.click();
+        expect(await page.getByText("출석 상태", { exact: true }).count()).toBe(0);
+        expect(changes).toHaveLength(1);
+        await expect(page.getByRole("button", { name: "되돌리기", exact: true })).toHaveCount(0);
+      } finally { releaseBulkRead(); }
+      await expect(page.getByText("출석 1", { exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "전체출석", exact: true })).toBeEnabled();
+      await page.reload();
+      await expect(page.getByText("출석 1", { exact: true })).toBeVisible();
+      expect(currentStatus).toBe("PRESENT");
+      return;
+    }
     failing = scenario === "undo-error";
     await page.getByRole("button", { name: "되돌리기", exact: true }).click();
     if (scenario === "undo-error") {
