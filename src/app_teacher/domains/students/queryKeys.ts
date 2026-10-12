@@ -9,6 +9,7 @@ export const teacherStudentsQueryKeys = {
   studentExams: (studentId: number) => ["student-exams", studentId] as const,
   accountNotifications: (studentId: number) => ["student-account-notifications", studentId] as const,
   clinic: (studentId: number) => ["student-clinic", studentId] as const,
+  clinicPages: (studentId: number) => ["student-clinic", studentId, "pages"] as const,
   questions: (studentId: number) => ["student-questions", studentId] as const,
   questionPages: (studentId: number) => ["student-questions", studentId, "pages"] as const,
   allTags: ["all-tags"] as const,

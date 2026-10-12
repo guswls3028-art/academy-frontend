@@ -15,6 +15,7 @@ import {
   logoutStudentApp,
   QA_BASE,
   reloadStudentApp,
+  seedBrowserAuth,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
@@ -258,6 +259,39 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     await reloadStudentApp(page);
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toHaveCount(0);
+
+    // Cancelled participation remains an auditable history item for staff.
+    const historical = await expectApi<ClinicParticipant>(
+      request, "GET", `/clinic/participants/${participantId}/`, admin.access,
+    );
+    expect(historical).toMatchObject({ student: student.id, status: "cancelled" });
+    const teacherContext = await page.context().browser()!.newContext({ serviceWorkers: "block" });
+    const teacherPage = await teacherContext.newPage();
+    const teacherBoundary = await installQaStudentParentBoundary(teacherPage, request);
+    const teacherBrowser = attachStrictBrowserGuards(teacherPage);
+    try {
+      await seedBrowserAuth(teacherPage, admin);
+      for (const width of [390, 1366]) {
+        await teacherPage.setViewportSize({ width, height: 900 });
+        await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/students/${student.id}`, { timeout: 30_000 });
+        await teacherPage.getByRole("main").getByRole("button", { name: "클리닉", exact: true }).click();
+        const historyRow = teacherPage.getByText(sessionTitle, { exact: true }).locator("..").locator("..");
+        await expect(historyRow).toContainText("취소");
+        await expect(historyRow).toContainText(clinicDate);
+        await expect(teacherPage.getByText("클리닉 이력 없음", { exact: true })).toHaveCount(0);
+        await teacherPage.reload({ waitUntil: "domcontentloaded" });
+        await teacherPage.getByRole("main").getByRole("button", { name: "클리닉", exact: true }).click();
+        await expect(historyRow).toContainText("취소");
+        await assertNoHorizontalOverflow(teacherPage);
+        await testInfo.attach(`teacher-clinic-history-${width}`, {
+          body: await teacherPage.screenshot({ fullPage: true }), contentType: "image/png",
+        });
+      }
+      teacherBoundary.assertClean();
+      teacherBrowser.assertZeroDefects();
+    } finally {
+      await teacherContext.close();
+    }
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await assertNoHorizontalOverflow(page);

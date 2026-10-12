@@ -108,6 +108,39 @@ export type StudentQuestionRow = {
   replies_count?: number | null;
 };
 
+export type StudentClinicRow = {
+  id: number;
+  session_title?: string | null;
+  session_date?: string | null;
+  session_start_time?: string | null;
+  session_location?: string | null;
+  clinic_reason?: string | null;
+  status?: string | null;
+};
+
+/** Clinic participation history for the selected student, including older and cancelled records. */
+export async function fetchStudentClinicPage(studentId: number, page: number) {
+  if (!Number.isSafeInteger(studentId) || studentId <= 0 || !Number.isSafeInteger(page) || page <= 0) {
+    throw new Error("학생 정보를 확인한 뒤 다시 조회해 주세요.");
+  }
+  const { data } = await api.get<unknown>("/clinic/participants/", {
+    params: { student: studentId, page_size: 100, page, ordering: "-created_at,-id" },
+  });
+  const record = isApiRecord(data) ? data : {};
+  const results = Array.isArray(data) ? data : record.results;
+  const count = Array.isArray(data) ? data.length : record.count;
+  const next = Array.isArray(data) ? null : record.next;
+  if (!Array.isArray(results) || (page > 1 && Array.isArray(data))
+    || typeof count !== "number" || !Number.isSafeInteger(count) || count < 0
+    || (next != null && (typeof next !== "string" || !next.trim()))
+    || !results.every((row) => isApiRecord(row) && Number.isSafeInteger(row.id) && Number(row.id) > 0)
+    || (next != null && !results.length)
+    || (next == null && (page - 1) * 100 + results.length < count)) {
+    throw new Error("클리닉 이력 응답을 확인하지 못했습니다. 다시 조회해 주세요.");
+  }
+  return { results: results as StudentClinicRow[], count, nextPage: next == null ? undefined : page + 1 };
+}
+
 /** Student-authored posts, including Q&A and counseling, within the caller's visibility scope. */
 export async function fetchStudentQuestionPage(studentId: number, page: number) {
   if (!Number.isSafeInteger(studentId) || studentId <= 0 || !Number.isSafeInteger(page) || page <= 0) {
