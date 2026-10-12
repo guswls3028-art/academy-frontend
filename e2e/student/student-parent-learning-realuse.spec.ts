@@ -312,6 +312,28 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
           await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
           await expect(teacherPage.getByText(`결석 ${absentCount}`, { exact: true })).toBeVisible();
         }
+        // Exercise the actual undo control before leaving the successful save's window.
+        await teacherPage.getByText(primary.name, { exact: true }).click();
+        const absentSaved = teacherPage.waitForResponse((response) => (
+          response.request().method() === "PATCH"
+          && new URL(response.url()).pathname === `/api/v1/lectures/attendance/${created.attendanceIds[0]}/`
+        ));
+        await teacherPage.getByRole("button", { name: "결석", exact: true }).click();
+        expect((await absentSaved).status()).toBe(200);
+        await expect(teacherPage.getByText("결석 2", { exact: true })).toBeVisible();
+        const undoSaved = teacherPage.waitForResponse((response) => (
+          response.request().method() === "PATCH"
+          && new URL(response.url()).pathname === `/api/v1/lectures/attendance/${created.attendanceIds[0]}/`
+        ));
+        await teacherPage.getByRole("button", { name: "되돌리기", exact: true }).click();
+        expect((await undoSaved).status()).toBe(200);
+        const restored = await expectApi<{ status: string }>(
+          request, "GET", `/lectures/attendance/${created.attendanceIds[0]}/`, admin.access,
+        );
+        expect(restored.status).toBe("PRESENT");
+        await teacherPage.reload();
+        await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
+        await expect(teacherPage.getByText("결석 1", { exact: true })).toBeVisible();
         await assertNoHorizontalOverflow(teacherPage);
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/classes/${created.lectureId}/sessions/${created.sessionId}`, { timeout: 30_000 });
         await expect(teacherPage.getByRole("button").filter({ has: teacherPage.getByText(primary.name, { exact: true }) })).toContainText("출석");
