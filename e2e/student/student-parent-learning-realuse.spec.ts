@@ -294,6 +294,25 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
       await seedBrowserAuth(teacherPage, admin);
       for (const width of [390, 1366]) {
         await teacherPage.setViewportSize({ width, height: 900 });
+        await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/attendance/${created.sessionId}`, { timeout: 30_000 });
+        await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
+        for (const [label, status, absentCount] of [["결석", "ABSENT", 2], ["출석", "PRESENT", 1]] as const) {
+          await teacherPage.getByText(primary.name, { exact: true }).click();
+          const saved = teacherPage.waitForResponse((response) => (
+            response.request().method() === "PATCH"
+            && new URL(response.url()).pathname === `/api/v1/lectures/attendance/${created.attendanceIds[0]}/`
+          ));
+          await teacherPage.getByRole("button", { name: label, exact: true }).click();
+          expect((await saved).status()).toBe(200);
+          const persisted = await expectApi<{ status: string }>(
+            request, "GET", `/lectures/attendance/${created.attendanceIds[0]}/`, admin.access,
+          );
+          expect(persisted.status).toBe(status);
+          await teacherPage.reload();
+          await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
+          await expect(teacherPage.getByText(`결석 ${absentCount}`, { exact: true })).toBeVisible();
+        }
+        await assertNoHorizontalOverflow(teacherPage);
         const responsePromise = teacherPage.waitForResponse((response) => (
           response.request().method() === "GET"
           && new URL(response.url()).pathname === "/api/v1/media/videos/"

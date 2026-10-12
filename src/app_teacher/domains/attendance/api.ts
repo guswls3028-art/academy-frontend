@@ -4,6 +4,7 @@ import type { AttendanceStatus } from "@/shared/ui/badges/attendanceStatus";
 
 export {
   fetchAttendance,
+  fetchAttendanceRoster,
   updateAttendance,
   bulkSetPresent,
 } from "@/shared/api/contracts/attendance";
