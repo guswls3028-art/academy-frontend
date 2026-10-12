@@ -26,7 +26,8 @@ for (const { width, scenario } of cases) {
     const changes: unknown[] = [];
     const rows = Array.from({ length: 501 }, (_, index) => ({
       id: index + 1, status: "UNSET", name: `출결 검증 ${String(index + 1).padStart(3, "0")}`,
-      student_id: index + 101, lecture_title: "출결 검증반", lecture_chip_label: "검증",
+      student_id: index + 101, enrollment_id: index + 1001,
+      lecture_title: "출결 검증반", lecture_chip_label: "검증",
     }));
     await page.route("**/api/v1/**", async (route) => {
       const request = route.request();
@@ -36,6 +37,11 @@ for (const { width, scenario } of cases) {
       if (path === "/core/program/") return route.fulfill({ json: { tenantCode: "hakwonplus", display_name: "검증 학원", is_active: true, feature_flags: {} } });
       if (path === "/core/me/") return route.fulfill({ json: { id: 12, name: "출결 담당자", username: "attendance-owner", is_staff: true, tenantRole: "teacher", must_change_password: false, first_login_guide_required: false } });
       if (path === "/core/subscription/") return route.fulfill({ json: { plan: "all", subscription_status: "active", is_subscription_active: true, days_remaining: 30 } });
+      if (path === "/lectures/sessions/71/") return route.fulfill({ json: { id: 71, lecture: 7, order: 1, title: "출결 검증 차시", lecture_title: "출결 검증반" } });
+      if (path === "/enrollments/session-enrollments/") return route.fulfill({ json: rows.map((row) => ({
+        id: row.id + 2001, session: 71, enrollment: row.enrollment_id,
+        student_id: row.student_id, student_name: row.name, enrollment_status: "ACTIVE",
+      })) });
       if (path === "/lectures/attendance/" && request.method() === "GET") {
         expect(url.searchParams.get("session")).toBe("71");
         const pageNumber = Number(url.searchParams.get("page") || 1);
@@ -91,6 +97,13 @@ for (const { width, scenario } of cases) {
     await page.reload();
     await expect(page.getByText("총 501명", { exact: true })).toBeVisible();
     await expect(page.getByText("결석 1", { exact: true })).toBeVisible();
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/classes/7/sessions/71`);
+    const lastStudentRow = page.getByRole("button").filter({ has: page.getByText("출결 검증 501", { exact: true }) });
+    await expect(lastStudentRow).toContainText("결석");
+    await page.reload();
+    await expect(lastStudentRow).toContainText("결석");
+    await page.getByRole("button", { name: "출석 체크", exact: true }).click();
+    await expect(page.getByText("총 501명", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "전체출석", exact: true }).click();
     await expect(page.getByText("출석 501", { exact: true })).toBeVisible();
     await page.reload();

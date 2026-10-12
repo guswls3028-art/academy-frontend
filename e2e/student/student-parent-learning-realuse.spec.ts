@@ -313,6 +313,8 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
           await expect(teacherPage.getByText(`결석 ${absentCount}`, { exact: true })).toBeVisible();
         }
         await assertNoHorizontalOverflow(teacherPage);
+        await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/classes/${created.lectureId}/sessions/${created.sessionId}`, { timeout: 30_000 });
+        await expect(teacherPage.getByRole("button").filter({ has: teacherPage.getByText(primary.name, { exact: true }) })).toContainText("출석");
         const responsePromise = teacherPage.waitForResponse((response) => (
           response.request().method() === "GET"
           && new URL(response.url()).pathname === "/api/v1/media/videos/"
