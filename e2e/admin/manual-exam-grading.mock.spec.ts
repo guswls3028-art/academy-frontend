@@ -1542,6 +1542,7 @@ test.describe("문항별 직접 채점", () => {
 
     const dialog = page.getByRole("dialog").filter({ hasText: "시험 자료 올리기" });
     await expect(dialog).toBeVisible();
+    await expect(dialog).not.toHaveClass(/ant-zoom-(?:appear|enter)/);
     await dialog.getByRole("button", { name: "정답지·해설지가 따로 있어요" }).click();
     const fileInputs = dialog.locator('input[type="file"]');
     await expect(fileInputs).toHaveCount(3);
