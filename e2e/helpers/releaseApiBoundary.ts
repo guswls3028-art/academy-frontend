@@ -1045,8 +1045,6 @@ export async function installReleaseContextGuard(
           // route.continue() can follow a redirect without re-entering this guard.
           const response = await route.fetch({ maxRedirects: 0, timeout: 30_000 });
           if (response.status() >= 300 && response.status() < 400) {
-            const destination = new URL(response.headers().location || '/', target);
-            console.log(JSON.stringify({ publicVideoRedirectDiagnostic: { status: response.status(), method: request.method(), kind: publicVideoKind, fromHost: target.hostname, toHost: destination.hostname, sameOrigin: target.origin === destination.origin, samePath: target.pathname === destination.pathname } }));
             await reject("public-video-redirect"); return;
           }
           if (publicVideoKind === "embed" && playerFrame && response.status() === 200) publicVideoFrames.add(playerFrame);
