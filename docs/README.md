@@ -8,6 +8,7 @@
 | [개발 저장공간·CI 캐시 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/concurrent-codex-sessions.md#session-output-lifecycle) | 원격 빌드 기본값, 작업별 임시 파일 수명주기, 종료된 PR 캐시 정리와 검증 기록 보존 |
 | [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) | 관리자·교사 테마, 토큰 계층, 공용 컨트롤, 미리보기·저장·반응형 검증 |
 | [PUBLIC-RESOURCE-BOARD.md](PUBLIC-RESOURCE-BOARD.md) | godmin 공개 자료게시판·게시자·파일·오류 복구·PC/모바일 검증 |
+| [PUBLIC-VIDEOS.md](PUBLIC-VIDEOS.md) | 공개 YouTube 영상·히어로·두 게시자 스튜디오·초안/공개·오류 복구 |
 | [ROUTING.md](ROUTING.md) | 공개 URL 네이밍, 권한 분리, 기존 경로 호환 규칙 |
 | [API-CONTRACTS.md](API-CONTRACTS.md) | 백엔드 OpenAPI 고정 SHA와 생성 TypeScript 타입 드리프트 계약 |
 | [FEES-OPERATIONS.md](FEES-OPERATIONS.md) | 학원 수납의 전체 목록, 조회 복구, 미납 필터, 월말 납부기한과 검증 계약 |

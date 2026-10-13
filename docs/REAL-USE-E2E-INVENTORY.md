@@ -27,13 +27,17 @@ spec 목록과 과거 pass count는 보관하지 않는다. 실행 목록은
 검증한다. 상단 쪽번호는 문항이 아니며, 일부 쪽 보존 안내를 전체 페이지
 fallback 안내로 오인하지 않는다. 잘못된 PDF의 재시도, PC/390px 자르기·순서,
 두 작업의 reload 후 다운로드와 exact job 정리까지 소유한다.
-공식 28건 개발 canary에는 포함되지 않으므로 별도 실행 결과가 필요하다.
+공식 29건 개발 canary에는 포함되지 않으므로 별도 실행 결과가 필요하다.
 제품 보존 정책은 backend의 `docs/domain/ppt-question-generator.md`를 따른다.
 
 공개 자료 실사용은 게시물당 최대 5개 첨부 계약을 유지하면서 두 시나리오로
 PDF/HWP/HWPX/XLSX/ZIP과 DOCX/PPTX/TXT/PNG를 검증한다. 별도 QA 원본의 실제
 변환·페이지/텍스트/이미지 디코딩, 무로그인 PC/390px 읽기·reload와 다운로드한
 파일명·바이트 일치, 삭제 후 접근 거절 및 exact tenant 정리 0을 확인한다.
+
+홈페이지 영상 실사용은 두 지정 게시자의 YouTube 링크 등록·임시저장·reload·공개,
+대표 변경·익명 상세·다른 게시자 수정 시 공개 스냅샷 보존·비공개를 PC/390px에서 확인한다.
+생성한 QA 영상은 비공개로 회수한 뒤 소유 scenario의 tenant cascade로 정리한다.
 
 학생 Excel 형식 호환 spec은 폐쇄 proxy PR 작업의 첫 shard에서 UI 묶음과 별도
 단계로 실행한다. 실제 XLSX의 OOXML 안전 경계와 내보내기 학년·성별 재입력,

@@ -8,6 +8,7 @@ const BASE = (
 ).replace(/\/+$/, "");
 
 async function prepareGodmin(page: Page) {
+  await page.route("**/api/v1/landing-public/videos/**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(route.request().url().includes("showcase") ? { hero: null } : { count: 0, results: [], next: null }) }));
   await page.addInitScript(() => {
     localStorage.setItem("tenant_code", "godmin");
     sessionStorage.setItem("tenantCode", "godmin");

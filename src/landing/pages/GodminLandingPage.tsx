@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link } from "react-router";
 
 import { setLandingMeta } from "@/landing/utils/seoMeta";
+import { GodminHeroVideo, VideoHighlights } from "@/landing/components/VideoCards";
 
 import styles from "./GodminLandingPage.module.css";
 
@@ -83,6 +84,7 @@ export default function GodminLandingPage() {
           <a href="#system">학습 관리</a>
           <a href="#teacher">신민T</a>
           <Link to="/landing/resources">자료게시판</Link>
+          <Link to="/landing/videos">영상</Link>
         </nav>
         <Link className={styles.headerLogin} to="/login/godmin">로그인</Link>
       </header>
@@ -117,7 +119,7 @@ export default function GodminLandingPage() {
             </dl>
           </div>
 
-          <div className={styles.heroVisual} aria-label="신민 통합과학 강사 프로필">
+          <GodminHeroVideo fallback={<div className={styles.heroVisual} aria-label="신민 통합과학 강사 프로필">
             <div className={styles.orbitField} aria-hidden="true">
               <span className={styles.orbitOne} />
               <span className={styles.orbitTwo} />
@@ -140,7 +142,7 @@ export default function GodminLandingPage() {
               <span>INTEGRATED SCIENCE</span>
               <strong>신민T</strong>
             </div>
-          </div>
+          </div>} />
         </section>
 
         <section className={styles.signalBar} aria-label="신민 선생님 공개 프로필 요약">
@@ -149,6 +151,8 @@ export default function GodminLandingPage() {
           <span>두각학원 출강</span>
           <span>MBC 「구해줘! 홈즈」 출연</span>
         </section>
+
+        <VideoHighlights />
 
         <section id="philosophy" className={styles.philosophy} aria-labelledby="philosophy-title">
           <div className={styles.sectionLead}>
