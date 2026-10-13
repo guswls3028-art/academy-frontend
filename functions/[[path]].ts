@@ -487,6 +487,19 @@ async function fetchPublicResourceMeta(tenantCode: string, id: string): Promise<
   }
 }
 
+async function fetchPublicVideoMeta(tenantCode: string, id: string): Promise<{ status: number; title?: string; description?: string; image?: string }> {
+  try {
+    const response = await fetch(`${API_BASE}/api/v1/landing-public/videos/${id}/`, {
+      headers: { Accept: "application/json", "X-Tenant-Code": tenantCode }, redirect: "manual",
+      cf: { cacheTtl: 0 } as RequestInitCfProperties,
+    });
+    if (!response.ok) return { status: response.status };
+    const video = await response.json() as { title?: unknown; summary?: unknown; youtube_video_id?: unknown };
+    if (typeof video.title !== "string" || typeof video.summary !== "string" || typeof video.youtube_video_id !== "string" || !/^[A-Za-z0-9_-]{11}$/.test(video.youtube_video_id)) return { status: 503 };
+    return { status: 200, title: video.title, description: video.summary, image: `https://i.ytimg.com/vi/${video.youtube_video_id}/hqdefault.jpg` };
+  } catch { return { status: 503 }; }
+}
+
 function injectMeta(
   html: string,
   meta: TenantMeta,
@@ -796,6 +809,7 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
       }
     : tenantMeta;
   const resourceId = /^\/landing\/resources\/([1-9][0-9]{0,18})\/?$/.exec(pathname)?.[1];
+  const videoId = /^\/landing\/videos\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i.exec(pathname)?.[1];
   let resourceStatus: number | undefined;
   if (resourceId) {
     const resource: Awaited<ReturnType<typeof fetchPublicResourceMeta>> = apiMeta?.tenantCode
@@ -807,6 +821,17 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
         description: resource.description || `${meta.title} 공개 학습자료` };
     }
   }
+  let videoStatus: number | undefined;
+  if (videoId) {
+    const video: Awaited<ReturnType<typeof fetchPublicVideoMeta>> = apiMeta?.tenantCode
+      ? await fetchPublicVideoMeta(apiMeta.tenantCode, videoId) : { status: 503 };
+    videoStatus = video.status;
+    if (video.title && meta) {
+      meta = { ...meta, siteName: meta.title, title: `${video.title} | ${meta.title}`,
+        description: video.description || `${meta.title} 영상 이야기`, image: video.image,
+        imageWidth: 480, imageHeight: 360 };
+    }
+  }
   if (meta) {
     const origin = url.origin;
     const pageUrl = `${origin}${pathname}`;
@@ -815,16 +840,17 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
 
   const headers = new Headers({
     "Content-Type": "text/html; charset=utf-8",
-    "Cache-Control": resourceId ? "no-store" : res.headers.get("Cache-Control") ?? "no-cache",
+    "Cache-Control": resourceId || videoId ? "no-store" : res.headers.get("Cache-Control") ?? "no-cache",
     "Strict-Transport-Security": "max-age=31536000",
   });
   if (host === DEV_CONSOLE_HOST) {
     headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }
   if (resourceId && resourceStatus !== 200) headers.set("X-Robots-Tag", "noindex, noarchive");
+  if (videoId && videoStatus !== 200) headers.set("X-Robots-Tag", "noindex, noarchive");
 
   return new Response(html, {
-    status: resourceStatus === 404 ? 404 : 200,
+    status: resourceStatus === 404 || videoStatus === 404 ? 404 : 200,
     headers,
   });
 };

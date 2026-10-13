@@ -26,6 +26,7 @@ export const routeMockSpecs = [
   "e2e/refactor/landing-router.spec.ts",
   "e2e/godmin-landing.mock.spec.ts",
   "e2e/godmin-resources.mock.spec.ts",
+  "e2e/godmin-videos.mock.spec.ts",
   "e2e/auth/account-password-flows.mock.spec.ts",
   "e2e/auth/account-recovery-modal.spec.ts",
   "e2e/auth/signup-tenant-policy.mock.spec.ts",
@@ -156,6 +157,7 @@ export const e2eGateSpecs = [
 ];
 
 export const controlledWriteSpecs = [
+  "e2e/admin/public-video-realuse.spec.ts",
   "e2e/admin/public-resource-realuse.spec.ts",
   "e2e/admin/alimtalk-withdrawal-realuse.spec.ts",
   "e2e/admin/fees-overdue-realuse.spec.ts",
@@ -180,6 +182,7 @@ export const controlledWriteSpecs = [
 // Relative to the development config's e2e testDir. This is the shared
 // inventory for collection, executed-result acceptance and safe progress.
 export const developmentRealUseCases = Object.freeze({
+  "admin/public-video-realuse.spec.ts": 1,
   "admin/public-resource-realuse.spec.ts": 2,
   "admin/alimtalk-withdrawal-realuse.spec.ts": 1,
   "admin/fees-overdue-realuse.spec.ts": 1,
