@@ -58,3 +58,5 @@ PR route mock과 iPhone WebKit, 격리 개발 동일 산출물 실사용은 등�
 실사용 데이터는 disposable qa tenant 안에서만 생성하며 최종 tenant/user cleanup zero를 유지한다.
 격리 개발 검증은 해당 QA API 응답에서 확인한 YouTube ID의 고정 썸네일과 autoplay=0인 iframe만 실제 HTTPS로 연다. 그 프레임 내부의 Google/YouTube 공개 공급자 요청만 허용하고, 앱 인증 헤더·운영 API·다른 origin·프레임 이탈은 계속 차단한다. 응답이나 재생 화면을 모의 데이터로 교체하지 않는다.
 운영 배포 후 실제 공개 API·원본 iframe·OG와 version.json을 읽어 확인한다.
+
+실제 플레이어 공급자의 같은 origin·같은 path GET/HEAD query redirect만 hop마다 검사해 최대 3회·전체 30초로 전달한다. 다른 출처/경로와 쓰기 redirect는 거부한다. 원본 응답을 그대로 사용하며 썸네일/iframe 진입의 redirect는 허용하지 않는다.

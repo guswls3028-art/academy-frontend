@@ -1041,9 +1041,27 @@ export async function installReleaseContextGuard(
             || (publicVideoKind === "embed" && (!playerFrame || !parent || new URL(parent.url()).origin !== boundary.webOrigin))) {
             await reject("credentials"); return;
           }
-          // Relay the actual provider response without following redirects. Native
+          // Relay actual provider responses and validate any permitted read hop. Native
           // route.continue() can follow a redirect without re-entering this guard.
-          const response = await route.fetch({ maxRedirects: 0, timeout: 30_000 });
+          const started = Date.now();
+          let response = await route.fetch({ maxRedirects: 0, timeout: 30_000 });
+          let current = target;
+          let redirects = 0;
+          while ([301, 302, 303, 307, 308].includes(response.status())) {
+            const location = response.headers().location;
+            const next = location ? new URL(location, current) : null;
+            const remaining = 30_000 - (Date.now() - started);
+            // The native player uses query-only redirects on public providers.
+            // Validate every hop; never replay writes or cross an origin/path.
+            if (publicVideoKind !== "player" || !["GET", "HEAD"].includes(request.method())
+              || redirects >= 3 || remaining <= 0 || !next
+              || next.origin !== target.origin || next.pathname !== target.pathname
+              || publicVideoRequestKind(boundary, next.href, request.method(), request.resourceType(), publicVideoIds, trustedPlayerFrame) !== "player") {
+              await reject("public-video-redirect"); return;
+            }
+            redirects += 1; current = next;
+            response = await route.fetch({ url: next.href, maxRedirects: 0, timeout: remaining });
+          }
           if (response.status() >= 300 && response.status() < 400) {
             await reject("public-video-redirect"); return;
           }
