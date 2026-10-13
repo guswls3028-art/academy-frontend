@@ -24,7 +24,7 @@ export function GodminHeroVideo({ fallback }: { fallback: ReactNode }) {
   }, [retry]);
   if (!hero) return <div>{fallback}{error && <div className={s.heroRetry}><span>대표 영상을 불러오지 못했습니다.</span><button type="button" onClick={() => setRetry((value) => value + 1)}>다시 시도</button></div>}</div>;
   return <div className={s.heroVideo}><div className={s.heroLabel}><span>MEET THE TEACHER</span><span>신민T의 이야기</span></div>
-    <button type="button" className={`${s.heroPoster} ${hero.format === "vertical" ? s.verticalPoster : ""}`} onClick={() => setOpen(true)} aria-label={`${hero.title} 영상 열기`}>
+    <button type="button" className={`${s.heroPoster} ${hero.format === "vertical" ? s.verticalPoster : ""}`} onClick={(event) => { event.currentTarget.focus(); setOpen(true); }} aria-label={`${hero.title} 영상 열기`}>
       <img src={hero.thumbnail_url} alt="" fetchPriority="high" /><span className={s.heroPlay}><Play size={ICON.lg} fill="currentColor" />영상 열기</span>
     </button><div className={s.heroCaption}><h2>{hero.title}</h2><p>{hero.summary}</p><Link to={`/landing/videos/${hero.id}`}>영상 소개 <ArrowUpRight size={ICON.sm} /></Link></div>
     {open && <VideoDialog video={hero} close={() => setOpen(false)} />}
