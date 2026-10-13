@@ -108,7 +108,17 @@ for (const width of [1366, 390]) {
     await page.getByRole("button", { name: "영상 확인", exact: true }).click();
     await expect(page.getByLabel(/^제목/)).toHaveValue(source.source_title);
     await page.getByLabel(/^제목/).fill(initial.title); await page.getByLabel(/^한 줄 소개/).fill(initial.summary);
-    await page.getByRole("button", { name: "임시저장", exact: true }).click(); await expect(page).toHaveURL(`${BASE}/landing/admin/videos/${ID}`);
+    const [savedVideo, savedShowcase] = await Promise.all([
+      page.waitForResponse((response) => new URL(response.url()).pathname === `/api/v1/landing-public/videos/manage/${ID}/` && response.request().method() === "GET"),
+      page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/landing-public/videos/manage/showcase/" && response.request().method() === "GET"),
+      page.getByRole("button", { name: "임시저장", exact: true }).click(),
+    ]);
+    // The editor reload must not abort its initial reads and manufacture WebKit CORS errors.
+    for (const response of [savedVideo, savedShowcase]) {
+      expect(response.status()).toBe(200);
+      expect(await response.finished()).toBeNull();
+    }
+    await expect(page).toHaveURL(`${BASE}/landing/admin/videos/${ID}`);
     await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue(initial.title);
     await page.getByLabel("홈페이지 대표 영상으로 표시", { exact: false }).check();
     await page.getByRole("button", { name: "공개하기", exact: true }).click(); await expect(page.getByRole("link", { name: "공개 화면 확인" })).toBeVisible();
