@@ -84,6 +84,9 @@ for (const width of [1366, 390]) {
       if (typeof HTMLDialogElement !== "undefined") Object.defineProperty(HTMLDialogElement.prototype, "showModal", { value: undefined, configurable: true });
     });
     await page.goto(`${BASE}/landing`);
+    const headline = page.locator("#godmin-hero-title strong");
+    await expect(headline).toBeVisible();
+    await expect.poll(() => headline.evaluate((element) => element.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(element).lineHeight))).toBeLessThan(1.1);
     const trigger = page.getByRole("button", { name: `${initial.title} 영상 열기`, exact: true });
     await expect(trigger).toBeVisible(); await trigger.click();
     const frame = page.getByRole("dialog").locator("iframe"); await expect(frame).toHaveCount(1);

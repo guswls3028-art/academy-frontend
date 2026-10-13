@@ -97,11 +97,12 @@
 .eyebrow span { background: var(--gm-coral); border-radius: 50%; box-shadow: 0 0 0 6px rgba(239, 117, 88, 0.12); height: 7px; width: 7px; }
 
 .hero h1 {
-  font-size: clamp(54px, 6.3vw, 92px);
+  font-size: clamp(54px, 5.5vw, 80px);
   font-weight: 800;
   letter-spacing: -0.085em;
   line-height: 0.98;
   margin: 30px 0 28px;
+  word-break: keep-all;
 }
 .hero h1 strong { color: var(--gm-deep); display: block; font-weight: inherit; margin-top: 14px; }
 .heroCopy > p { color: #4d625c; font-size: 18px; letter-spacing: -0.035em; line-height: 1.82; margin: 0; max-width: 540px; }
