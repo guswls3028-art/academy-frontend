@@ -1024,29 +1024,33 @@ export async function installReleaseContextGuard(
     try {
       const upstream = developmentUpstream(boundary, request.url());
       const target = new URL(upstream);
-      let playerFrame: Frame | null = null;
-      try { playerFrame = request.frame(); } catch { /* Requests without a frame stay inside the API boundary. */ }
-      let trustedPlayerFrame = false;
-      for (let frame = playerFrame; frame; frame = frame.parentFrame()) {
-        if (publicVideoFrames.has(frame) && exactPublicVideoEmbed(boundary, frame.url(), publicVideoIds)) { trustedPlayerFrame = true; break; }
-      }
-      const publicVideoKind = publicVideoRequestKind(boundary, upstream, request.method(), request.resourceType(), publicVideoIds, trustedPlayerFrame);
-      if (publicVideoKind) {
-        const headers = await request.allHeaders();
-        const parent = playerFrame?.parentFrame();
-        if (headers.authorization || headers["x-tenant-code"] || headers["x-csrftoken"]
-          || (publicVideoKind === "embed" && (!playerFrame || !parent || new URL(parent.url()).origin !== boundary.webOrigin))) {
-          await reject("credentials"); return;
+      // Public-player handling only applies outside the existing app/API
+      // transports; their diagnostics and retry policy remain untouched.
+      if (boundary.mode === "development" && target.origin !== boundary.apiOrigin && target.origin !== boundary.webOrigin) {
+        let playerFrame: Frame | null = null;
+        try { playerFrame = request.frame(); } catch { /* Requests without a frame stay inside the API boundary. */ }
+        let trustedPlayerFrame = false;
+        for (let frame = playerFrame; frame; frame = frame.parentFrame()) {
+          if (publicVideoFrames.has(frame) && exactPublicVideoEmbed(boundary, frame.url(), publicVideoIds)) { trustedPlayerFrame = true; break; }
         }
-        // Relay the actual provider response without following redirects. Native
-        // route.continue() can follow a redirect without re-entering this guard.
-        const response = await route.fetch({ maxRedirects: 0, timeout: 30_000 });
-        if (response.status() >= 300 && response.status() < 400) {
-          await reject("public-video-redirect"); return;
+        const publicVideoKind = publicVideoRequestKind(boundary, upstream, request.method(), request.resourceType(), publicVideoIds, trustedPlayerFrame);
+        if (publicVideoKind) {
+          const headers = await request.allHeaders();
+          const parent = playerFrame?.parentFrame();
+          if (headers.authorization || headers["x-tenant-code"] || headers["x-csrftoken"]
+            || (publicVideoKind === "embed" && (!playerFrame || !parent || new URL(parent.url()).origin !== boundary.webOrigin))) {
+            await reject("credentials"); return;
+          }
+          // Relay the actual provider response without following redirects. Native
+          // route.continue() can follow a redirect without re-entering this guard.
+          const response = await route.fetch({ maxRedirects: 0, timeout: 30_000 });
+          if (response.status() >= 300 && response.status() < 400) {
+            await reject("public-video-redirect"); return;
+          }
+          if (publicVideoKind === "embed" && playerFrame && response.status() === 200) publicVideoFrames.add(playerFrame);
+          await route.fulfill({ response });
+          return;
         }
-        if (publicVideoKind === "embed" && playerFrame && response.status() === 200) publicVideoFrames.add(playerFrame);
-        await route.fulfill({ response });
-        return;
       }
       if (isExactReadonlyCloudflareBeacon(boundary, target, request.method())) {
         const headers = await request.allHeaders();
