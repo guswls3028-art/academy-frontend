@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Modal } from "antd";
 import { X, ArrowUpRight } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
 import type { VideoContent, VideoSource } from "../api/publicVideos";
@@ -18,10 +19,10 @@ export function VideoPlayer({ video }: { video: Playable }) {
 }
 
 export default function VideoDialog({ video, close }: { video: Playable; close: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => { const element = dialog.current; element?.showModal(); return () => { element?.close(); }; }, []);
-  return <dialog className={s.dialog} ref={dialog} onCancel={close} onClick={(event) => { if (event.target === event.currentTarget) close(); }} aria-labelledby="video-dialog-title">
+  const trigger = useRef(document.activeElement as HTMLElement | null);
+  useEffect(() => { const element = trigger.current; return () => { element?.focus(); }; }, []);
+  return <Modal open centered footer={null} closable={false} onCancel={close} width={880} className={s.dialog} aria-labelledby="video-dialog-title" destroyOnHidden>
     <div className={s.dialogHead}><h2 id="video-dialog-title">{video.title}</h2><button type="button" onClick={close} aria-label="영상 닫기" autoFocus><X size={ICON.md} /></button></div>
     <VideoPlayer video={video} /><p className={s.source}>원본 채널 · {video.channel_title}</p>
-  </dialog>;
+  </Modal>;
 }

@@ -55,8 +55,8 @@
 .external { display: inline-flex; align-items: center; gap: 6px; color: var(--video-deep, #0d6655); font-size: 13px; font-weight: 700; text-underline-offset: 4px; line-height: 1.7; }
 .detailFooter { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 30px 0; border-bottom: 1px solid var(--video-line); }
 .detailFooter p { margin: 8px 0 0; font-size: 14px; }
-.dialog { --video-deep: #0d6655; --video-muted: #657a72; width: min(880px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); border: 0; border-radius: 20px; padding: 24px; margin: auto; color: #142f29; background: #fbfdfc; box-shadow: 0 24px 100px #0006; }
-.dialog::backdrop { background: #102d28c4; backdrop-filter: blur(6px); }
+.dialog { --video-deep: #0d6655; --video-muted: #657a72; max-width: calc(100vw - 32px); color: #142f29; font-family: Pretendard, -apple-system, BlinkMacSystemFont, sans-serif; }
+.dialog :global(.ant-modal-content) { max-height: calc(100dvh - 32px); overflow-y: auto; border-radius: 20px; padding: 24px; background: #fbfdfc; box-shadow: 0 24px 100px #0006; }
 .dialogHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .dialogHead h2 { font-size: 20px; letter-spacing: -.04em; line-height: 1.5; margin: 0; }
 .dialogHead button { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border-radius: 50%; background: #edf3ef; border: 0; cursor: pointer; color: inherit; }
@@ -148,7 +148,8 @@
   .heroCaption h2 { font-size: 21px; }
   .heroPoster { aspect-ratio: 16 / 10; }
   .heroPlay { bottom: 18px; left: 18px; }
-  .dialog { padding: 18px; border-radius: 15px; width: calc(100vw - 24px); }
+  .dialog { max-width: calc(100vw - 24px); }
+  .dialog :global(.ant-modal-content) { padding: 18px; border-radius: 15px; }
   .dialogHead h2 { font-size: 17px; }
   .dialogHead { margin-bottom: 16px; }
   .verticalPlayer { max-width: 290px; }

@@ -74,6 +74,9 @@ async function noOverflow(page: Page) { expect(await page.evaluate(() => documen
 for (const width of [1366, 390]) {
   test(`public hero → single native player → close and detail/Shorts at ${width}px`, async ({ page }, testInfo) => {
     const state = await prepare(page, false, true); await page.setViewportSize({ width, height: 900 });
+    if (width === 390) await page.addInitScript(() => {
+      if (typeof HTMLDialogElement !== "undefined") Object.defineProperty(HTMLDialogElement.prototype, "showModal", { value: undefined, configurable: true });
+    });
     await page.goto(`${BASE}/landing`);
     const trigger = page.getByRole("button", { name: `${initial.title} 영상 열기`, exact: true });
     await expect(trigger).toBeVisible(); await trigger.click();
