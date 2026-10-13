@@ -595,7 +595,6 @@ for (const width of [1366, 390]) {
     await expect(downloads.getByRole("button", { name: /PDF 다운로드$/ })).toBeVisible();
     const firstDocument = page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true });
     expect((await downloads.boundingBox())!.y + (await downloads.boundingBox())!.height).toBeLessThan((await firstDocument.boundingBox())!.y);
-    await page.getByRole("region", { name: `${resource.files[0].filename} 본문`, exact: true }).scrollIntoViewIfNeeded();
     for (const file of resource.files) {
       const document = page.getByRole("region", { name: `${file.filename} 본문`, exact: true });
       await document.scrollIntoViewIfNeeded();
