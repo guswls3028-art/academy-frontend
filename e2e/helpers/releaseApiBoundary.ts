@@ -1,4 +1,4 @@
-import type { APIRequestContext, BrowserContext, Request } from "@playwright/test";
+import type { APIRequestContext, BrowserContext, Frame, Request } from "@playwright/test";
 
 export type ReleaseBoundary = {
   mode: "readonly" | "development";
@@ -11,6 +11,49 @@ export type ReleaseBoundary = {
 const DEVELOPMENT_OMR_R2_ORIGIN = "https://af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.com";
 const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const PPTX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
+const PUBLIC_VIDEO_PROVIDERS = ["youtube.com", "youtube-nocookie.com", "ytimg.com", "googlevideo.com",
+  "gstatic.com", "google.com", "googleapis.com", "googleusercontent.com", "ggpht.com",
+  "doubleclick.net", "googlesyndication.com", "googleadservices.com"];
+
+function registerPublicVideoSources(payload: unknown, ids: Set<string>): void {
+  if (!isRecord(payload)) return;
+  const sources = [payload, payload.hero, payload.video,
+    ...(Array.isArray(payload.results) ? payload.results.slice(0, 12) : [])];
+  for (const source of sources) {
+    if (!isRecord(source) || typeof source.youtube_video_id !== "string"
+      || !/^[A-Za-z0-9_-]{11}$/.test(source.youtube_video_id)) continue;
+    const id = source.youtube_video_id;
+    if (source.canonical_url === `https://www.youtube.com/watch?v=${id}`
+      && ["", `https://i.ytimg.com/vi/${id}/hqdefault.jpg`].includes(String(source.thumbnail_url))) ids.add(id);
+  }
+}
+
+function exactPublicVideoEmbed(boundary: ReleaseBoundary, rawUrl: string, ids: Set<string>): boolean {
+  const url = new URL(rawUrl);
+  const match = /^\/embed\/([A-Za-z0-9_-]{11})$/.exec(url.pathname);
+  return boundary.mode === "development" && url.origin === "https://www.youtube.com"
+    && !url.username && !url.password && !url.hash && !!match && ids.has(match[1])
+    && [...url.searchParams.keys()].sort().join(",") === "autoplay,origin,playsinline"
+    && url.searchParams.get("autoplay") === "0" && url.searchParams.get("playsinline") === "1"
+    && url.searchParams.get("origin") === boundary.webOrigin;
+}
+
+function publicVideoRequestKind(boundary: ReleaseBoundary, rawUrl: string, method: string,
+  resourceType: string, ids: Set<string>, trustedPlayerFrame: boolean): "thumbnail" | "embed" | "player" | null {
+  if (boundary.mode !== "development") return null;
+  const url = new URL(rawUrl);
+  if (url.protocol !== "https:" || url.port || url.username || url.password || url.hash) return null;
+  const thumbnail = /^\/vi\/([A-Za-z0-9_-]{11})\/hqdefault\.jpg$/.exec(url.pathname);
+  if (method === "GET" && resourceType === "image" && url.origin === "https://i.ytimg.com"
+    && !url.search && thumbnail && ids.has(thumbnail[1])) return "thumbnail";
+  if (method === "GET" && resourceType === "document" && exactPublicVideoEmbed(boundary, rawUrl, ids)) return "embed";
+  // Only Google's actual embedded player frame may contact its public providers.
+  // The application and direct APIRequestContext retain the original fail-closed boundary.
+  if (trustedPlayerFrame && ["GET", "HEAD", "OPTIONS", "POST"].includes(method)
+    && PUBLIC_VIDEO_PROVIDERS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))) return "player";
+  return null;
+}
 
 type InventoryOriginal = { r2Key: string; name: string; contentType: string; sizeBytes: number };
 
@@ -772,8 +815,21 @@ async function installNativeKeepaliveGuard(
         request = new NativeRequest(input, init);
         target = new URL(request.url);
       } catch { return refuse("shape"); }
-      // No unreviewed native keepalive (including telemetry) may bypass the route
-      // policy. Only this terminal development write has a native transport path.
+      const playerUrl = new URL(location.href);
+      const publicPlayerTelemetry = boundary.mode === "development" && window.parent !== window
+        && playerUrl.origin === "https://www.youtube.com" && /^\/embed\/[A-Za-z0-9_-]{11}$/.test(playerUrl.pathname)
+        && [...playerUrl.searchParams.keys()].sort().join(",") === "autoplay,origin,playsinline"
+        && playerUrl.searchParams.get("origin") === boundary.webOrigin && playerUrl.searchParams.get("autoplay") === "0"
+        && playerUrl.searchParams.get("playsinline") === "1" && !playerUrl.hash
+        && target.origin === "https://www.youtube.com" && !target.username && !target.password
+        && ["GET", "POST"].includes(request.method)
+        && ["/youtubei/v1/log_event", "/api/stats/qoe", "/api/stats/watchtime", "/api/stats/playback"].includes(target.pathname)
+        && !request.headers.has("authorization") && !request.headers.has("x-tenant-code") && !request.headers.has("x-csrftoken");
+      // This iframe document was admitted by the registered-video route check.
+      // Keep YouTube's own anonymous telemetry outside the application's write boundary.
+      if (publicPlayerTelemetry) return nativeFetch(request, { redirect: "error" });
+      // Application keepalive retains its existing route policy. Only the
+      // reviewed terminal development write below has a native transport path.
       if (location.origin !== boundary.webOrigin
         || ![boundary.apiOrigin, "https://api.hakwonplus.com"].includes(target.origin)
         || target.username || target.password) return refuse("origin");
@@ -919,6 +975,8 @@ export async function installReleaseContextGuard(
   };
   const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
   const activeRoutes = new Set<Promise<void>>();
+  const publicVideoIds = new Set<string>();
+  const publicVideoFrames = new WeakSet<Frame>();
   let closing = false;
   let nextRequestOrdinal = 0;
   const observation = createReleaseContextObservation(++nextContextOrdinal,
@@ -966,6 +1024,34 @@ export async function installReleaseContextGuard(
     try {
       const upstream = developmentUpstream(boundary, request.url());
       const target = new URL(upstream);
+      // Public-player handling only applies outside the existing app/API
+      // transports; their diagnostics and retry policy remain untouched.
+      if (boundary.mode === "development" && target.origin !== boundary.apiOrigin && target.origin !== boundary.webOrigin) {
+        let playerFrame: Frame | null = null;
+        try { playerFrame = request.frame(); } catch { /* Requests without a frame stay inside the API boundary. */ }
+        let trustedPlayerFrame = false;
+        for (let frame = playerFrame; frame; frame = frame.parentFrame()) {
+          if (publicVideoFrames.has(frame) && exactPublicVideoEmbed(boundary, frame.url(), publicVideoIds)) { trustedPlayerFrame = true; break; }
+        }
+        const publicVideoKind = publicVideoRequestKind(boundary, upstream, request.method(), request.resourceType(), publicVideoIds, trustedPlayerFrame);
+        if (publicVideoKind) {
+          const headers = await request.allHeaders();
+          const parent = playerFrame?.parentFrame();
+          if (headers.authorization || headers["x-tenant-code"] || headers["x-csrftoken"]
+            || (publicVideoKind === "embed" && (!playerFrame || !parent || new URL(parent.url()).origin !== boundary.webOrigin))) {
+            await reject("credentials"); return;
+          }
+          // Relay the actual provider response without following redirects. Native
+          // route.continue() can follow a redirect without re-entering this guard.
+          const response = await route.fetch({ maxRedirects: 0, timeout: 30_000 });
+          if (response.status() >= 300 && response.status() < 400) {
+            await reject("public-video-redirect"); return;
+          }
+          if (publicVideoKind === "embed" && playerFrame && response.status() === 200) publicVideoFrames.add(playerFrame);
+          await route.fulfill({ response });
+          return;
+        }
+      }
       if (isExactReadonlyCloudflareBeacon(boundary, target, request.method())) {
         const headers = await request.allHeaders();
         if (headers.authorization || headers.cookie || headers["x-tenant-code"]) {
@@ -1277,6 +1363,11 @@ export async function installReleaseContextGuard(
             && typeof preview.url === "string" && isExactDevelopmentHomeworkPng(boundary, preview.url, homeworkPreview[2])) {
             homeworkPreviewUrls.add(preview.url);
           }
+        }
+        if (boundary.mode === "development" && target.pathname.startsWith("/api/v1/landing-public/videos/")
+          && [200, 201].includes(response.status())
+          && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
+          registerPublicVideoSources(await response.json(), publicVideoIds);
         }
         const communityTarget = new URL(upstream);
         const communityPost = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/$/.exec(communityTarget.pathname);
