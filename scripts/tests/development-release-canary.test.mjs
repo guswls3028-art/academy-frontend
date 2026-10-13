@@ -16,6 +16,7 @@ import "./release-omr-image-boundary.test.mjs";
 import "./release-homework-image-boundary.test.mjs";
 import "./release-community-image-boundary.test.mjs";
 import "./release-resource-download-boundary.test.mjs";
+import "./release-public-video-boundary.test.mjs";
 import "./binary-safe-ssm.test.mjs";
 import "./development-qa-operations.test.mjs";
 import "./release-canary-progress.test.mjs";

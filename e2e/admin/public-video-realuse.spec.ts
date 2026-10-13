@@ -50,6 +50,9 @@ test.describe("[real-use] public video publishing", () => {
         const visitor = await open(width); await visitor.goto(`${QA_BASE}/landing/videos/${row.id}`);
         await expect(visitor.getByRole("heading", { name: title, exact: true })).toBeVisible(); await visitor.reload(); await expect(visitor.locator("iframe")).toHaveCount(1);
         await expect(visitor.locator("iframe")).toHaveAttribute("src", /autoplay=0/); await expect(visitor.getByRole("link", { name: "YouTube에서 보기 · 좋아요" })).toBeVisible();
+        const player = visitor.frameLocator("iframe");
+        await expect(player.getByRole("button", { name: /^(?:Play(?: video)?|동영상 재생|재생)(?: \(k\))?$/i }).filter({ visible: true }).first()).toBeVisible({ timeout: 30_000 });
+        await expect(player.locator(".ytp-error")).toBeHidden();
         await assertNoHorizontalOverflow(visitor); await visitor.screenshot({ path: testInfo.outputPath(`public-video-${width}.png`), fullPage: true });
         await visitor.getByRole("link", { name: "← 영상 모아보기", exact: true }).click(); await expect(visitor.locator("iframe")).toHaveCount(0);
         if (index) {

@@ -56,4 +56,5 @@ hover 이동/확대는 짧게 적용하고 prefers-reduced-motion에서는 제�
 PR route mock과 iPhone WebKit, 격리 개발 동일 산출물 실사용은 등록→새로고침→
 공개→다른 지정 게시자 수정→초안 보존→재공개→비공개→익명 확인을 포함한다.
 실사용 데이터는 disposable qa tenant 안에서만 생성하며 최종 tenant/user cleanup zero를 유지한다.
+격리 개발 검증은 해당 QA API 응답에서 확인한 YouTube ID의 고정 썸네일과 autoplay=0인 iframe만 실제 HTTPS로 연다. 그 프레임 내부의 Google/YouTube 공개 공급자 요청만 허용하고, 앱 인증 헤더·운영 API·다른 origin·프레임 이탈은 계속 차단한다. 응답이나 재생 화면을 모의 데이터로 교체하지 않는다.
 운영 배포 후 실제 공개 API·원본 iframe·OG와 version.json을 읽어 확인한다.
