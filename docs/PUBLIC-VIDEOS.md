@@ -51,6 +51,7 @@ React 상세에도 메타데이터를 반영하고 이탈 시 복구한다. SSR 
 desktop/390px에서 목록·폼·재생 dialog·단일 iframe·키보드·넘침을 검증한다.
 재생창은 기존 Ant Design Modal을 사용해 native HTMLDialogElement.showModal을
 지원하지 않는 브라우저에서도 열리고 닫히며 트리거 포커스를 복구한다.
+Safari의 클릭 포커스 차이를 보완하고, aspect-ratio/dvh 미지원 환경에는 영상 비율과 재생창 높이의 CSS 대체 규칙을 적용한다.
 hover 이동/확대는 짧게 적용하고 prefers-reduced-motion에서는 제거한다.
 PR route mock과 iPhone WebKit, 격리 개발 동일 산출물 실사용은 등록→새로고침→
 공개→다른 지정 게시자 수정→초안 보존→재공개→비공개→익명 확인을 포함한다.

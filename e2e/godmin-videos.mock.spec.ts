@@ -9,7 +9,13 @@ const initial: VideoContent = { title: "통합과학 잘하는 학생들의 공�
 const source = { youtube_video_id: "xgjL2HyrdFM", canonical_url: "https://www.youtube.com/watch?v=xgjL2HyrdFM", thumbnail_url: "https://i.ytimg.com/vi/xgjL2HyrdFM/hqdefault.jpg", source_title: "두각 INSIDE 인터뷰", channel_title: "두각학원" };
 function managed(): ManagedVideo { return { ...source, id: ID, draft_content: initial, published_content: initial, status: "published", revision: 2, metadata_ready: true }; }
 let server: Server | undefined;
-test.afterEach(async () => { if (server) await new Promise<void>((resolve, reject) => server!.close((error) => error ? reject(error) : resolve())); server = undefined; });
+test.afterEach(async () => {
+  const current = server; server = undefined;
+  if (current) await new Promise<void>((resolve, reject) => {
+    current.close((error) => error ? reject(error) : resolve());
+    current.closeAllConnections();
+  });
+});
 
 async function prepare(page: Page, publisher = false, published = false) {
   const state = { row: published ? managed() : null as ManagedVideo | null, hero: published ? ID : null as string | null, revision: published ? 1 : 0, conflict: false, unavailable: false, publicFailure: false };

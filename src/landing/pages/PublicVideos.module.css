@@ -56,7 +56,7 @@
 .detailFooter { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 30px 0; border-bottom: 1px solid var(--video-line); }
 .detailFooter p { margin: 8px 0 0; font-size: 14px; }
 .dialog { --video-deep: #0d6655; --video-muted: #657a72; max-width: calc(100vw - 32px); color: #142f29; font-family: Pretendard, -apple-system, BlinkMacSystemFont, sans-serif; }
-.dialog :global(.ant-modal-content) { max-height: calc(100dvh - 32px); overflow-y: auto; border-radius: 20px; padding: 24px; background: #fbfdfc; box-shadow: 0 24px 100px #0006; }
+.dialog :global(.ant-modal-content) { max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; border-radius: 20px; padding: 24px; background: #fbfdfc; box-shadow: 0 24px 100px #0006; }
 .dialogHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .dialogHead h2 { font-size: 20px; letter-spacing: -.04em; line-height: 1.5; margin: 0; }
 .dialogHead button { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border-radius: 50%; background: #edf3ef; border: 0; cursor: pointer; color: inherit; }
@@ -167,6 +167,15 @@
   .editLabel { display: none; }
   .studioNote { padding: 20px; }
   .back { margin-bottom: 25px; }
+}
+@supports not (aspect-ratio: 16 / 9) {
+  .player, .previewImage { position: relative; }
+  .player::before, .previewImage::before { content: ""; display: block; padding-top: 56.25%; }
+  .verticalPlayer::before { padding-top: 177.7778%; }
+  .thumbnail::before, .heroPoster::before { content: ""; display: block; padding-top: 62.5%; }
+  .player iframe, .thumbnail img, .heroPoster img, .previewImage img { position: absolute; top: 0; left: 0; }
+  .manageRow img { height: 94.5px; }
+  @media (max-width: 640px) { .manageRow img { height: 56.25px; } }
 }
 @media (prefers-reduced-motion: reduce) {
   .card img, .heroPoster img, .primary, .secondary, .manageRow { transition: none; }
