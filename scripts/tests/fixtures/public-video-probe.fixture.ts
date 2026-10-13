@@ -10,7 +10,7 @@ for (const id of ['xgjL2HyrdFM', 'Q70aZV1TH1Y']) test(`public player ${id}`, asy
       res.writeHead(200, {'Content-Type':'application/json','Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true'});
       res.end(JSON.stringify({results:[{youtube_video_id:id,canonical_url:`https://www.youtube.com/watch?v=${id}`,thumbnail_url:`https://i.ytimg.com/vi/${id}/hqdefault.jpg`}]})); return;
     }
-    res.writeHead(200, {'Content-Type':'text/html'});
+    res.writeHead(200, {'Content-Type':'text/html','Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true'});
     res.end(`<!doctype html><meta charset="utf-8"><button id="open">Open</button><button id="close">Close</button><main></main><script>
       const source=fetch('/api/v1/landing-public/videos/',{headers:{'X-Tenant-Code':'${tenant}'}}).then(r=>r.json());
       document.querySelector('#open').onclick=async()=>{await source;const f=document.createElement('iframe');f.title='YouTube';f.width='640';f.height='480';f.referrerPolicy='strict-origin-when-cross-origin';f.src='https://www.youtube.com/embed/${id}?'+new URLSearchParams({autoplay:'0',playsinline:'1',origin:location.origin});document.querySelector('main').replaceChildren(f)};
