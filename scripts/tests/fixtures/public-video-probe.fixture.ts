@@ -4,22 +4,23 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import { installReleaseContextGuard } from '../../../e2e/helpers/releaseApiBoundary';
 test.setTimeout(90_000);
 for (const id of ['xgjL2HyrdFM', 'Q70aZV1TH1Y']) test(`public player ${id}`, async ({ browser }) => {
-  let origin = ''; const tenant = 'qa-public-video-probe';
+  let origin = ''; let apiOrigin = ''; const tenant = 'qa-public-video-probe';
   const server = createServer((req, res) => {
+    if (req.method === 'OPTIONS') { res.writeHead(204, {'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true','Access-Control-Allow-Methods':'GET, OPTIONS','Access-Control-Allow-Headers':'X-Tenant-Code, Content-Type'}); res.end(); return; }
     if (req.url === '/api/v1/landing-public/videos/') {
       res.writeHead(200, {'Content-Type':'application/json','Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true'});
       res.end(JSON.stringify({results:[{youtube_video_id:id,canonical_url:`https://www.youtube.com/watch?v=${id}`,thumbnail_url:`https://i.ytimg.com/vi/${id}/hqdefault.jpg`}]})); return;
     }
     res.writeHead(200, {'Content-Type':'text/html','Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true'});
     res.end(`<!doctype html><meta charset="utf-8"><button id="open">Open</button><button id="close">Close</button><main></main><script>
-      const source=fetch('/api/v1/landing-public/videos/',{headers:{'X-Tenant-Code':'${tenant}'}}).then(r=>r.json());
+      const source=fetch('${apiOrigin}/api/v1/landing-public/videos/',{headers:{'X-Tenant-Code':'${tenant}'}}).then(r=>r.json());
       document.querySelector('#open').onclick=async()=>{await source;const f=document.createElement('iframe');f.title='YouTube';f.width='640';f.height='480';f.referrerPolicy='strict-origin-when-cross-origin';f.src='https://www.youtube.com/embed/${id}?'+new URLSearchParams({autoplay:'0',playsinline:'1',origin:location.origin});document.querySelector('main').replaceChildren(f)};
       document.querySelector('#close').onclick=()=>document.querySelector('main').replaceChildren();</script>`);
   });
   await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
-  origin=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
+  apiOrigin=`http://127.0.0.1:${(server.address() as {port:number}).port}`; origin=apiOrigin.replace('127.0.0.1','localhost');
   const context=await browser.newContext({serviceWorkers:'block'});
-  const guard=await installReleaseContextGuard(context,{mode:'development',apiOrigin:origin,webOrigin:origin,tenantCode:tenant});
+  const guard=await installReleaseContextGuard(context,{mode:'development',apiOrigin,webOrigin:origin,tenantCode:tenant});
   const page=await context.newPage(); const nativeCodes:string[]=[]; let nativeVisible=false; let rejected:string[]=[];
   page.on('console', message=>{const code=/^academy-release-native-keepalive:(origin|tenant|mutation|shape|transport)$/.exec(message.text())?.[1];if(code)nativeCodes.push(code)});
   try {
