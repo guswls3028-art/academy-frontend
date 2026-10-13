@@ -53,19 +53,29 @@ async function setup(options = {}) {
       abort: async () => assert.fail("Valid QA API source was rejected"), continue: async () => assert.fail("API must use verified transport"),
       fetch: async () => ({ status: () => options.status ?? 200, headers: () => ({ "content-type": "application/json", "access-control-allow-origin": boundary.webOrigin, "access-control-allow-credentials": "true" }), json: async () => video }), fulfill: async () => {} });
   }
-  async function request(url, { method = "GET", type = "image", frame, headers = {} } = {}) {
-    let continued = 0, aborted = 0;
+  async function request(url, { method = "GET", type = "image", frame, headers = {}, status = 200 } = {}) {
+    let relayed = 0, aborted = 0;
+    const providerResponse = { status: () => status };
     await handler({ request: () => ({ url: () => url, method: () => method, resourceType: () => type, frame: () => frame, allHeaders: async () => headers, headerValue: async (name) => headers[name] ?? null, postDataJSON: () => null, postDataBuffer: () => null }),
-      continue: async () => { continued++; }, abort: async () => { aborted++; }, fetch: async () => assert.fail("Public player must use native HTTPS"), fulfill: async () => assert.fail("Public player response must not be mocked") });
-    return { continued, aborted };
+      continue: async () => assert.fail("Native continuation can escape via redirects"), abort: async () => { aborted++; },
+      fetch: async (settings) => { assert.equal(settings.maxRedirects, 0); assert.equal(settings.timeout, 30_000); return providerResponse; },
+      fulfill: async (value) => { assert.deepEqual(Object.keys(value), ["response"]); assert.equal(value.response, providerResponse); relayed++; } });
+    return { relayed, aborted };
   }
   return { guard, request, initializers };
 }
 
-test("real public resources continue without mocked bytes; app credentials and unregistered resources are rejected", async () => {
-  const allowed = await setup(); assert.deepEqual(await allowed.request(video.thumbnail_url), { continued: 1, aborted: 0 }); allowed.guard.assertClean();
+test("real provider responses are relayed without mocked bytes; credentials and unregistered resources are rejected", async () => {
+  const allowed = await setup(); assert.deepEqual(await allowed.request(video.thumbnail_url), { relayed: 1, aborted: 0 }); allowed.guard.assertClean();
   for (const options of [{ register: false }, { status: 503 }, { headers: { authorization: "Bearer fixture" } }, { headers: { "x-tenant-code": boundary.tenantCode } }]) {
-    const denied = await setup(options); assert.deepEqual(await denied.request(video.thumbnail_url, options), { continued: 0, aborted: 1 }); assert.throws(() => denied.guard.assertClean());
+    const denied = await setup(options); assert.deepEqual(await denied.request(video.thumbnail_url, options), { relayed: 0, aborted: 1 }); assert.throws(() => denied.guard.assertClean());
+  }
+});
+
+test("provider redirects are refused before any response or subsequent target is delivered", async () => {
+  for (const status of [301, 302, 307, 308]) {
+    const denied = await setup(); assert.deepEqual(await denied.request(video.thumbnail_url, { status }), { relayed: 0, aborted: 1 });
+    assert.throws(() => denied.guard.assertClean(), /public-video-redirect/);
   }
 });
 
@@ -74,12 +84,12 @@ test("frame trust is scoped to the actual admitted iframe and ends when it navig
   let current = "about:blank";
   const frame = { url: () => current, parentFrame: () => parent };
   const allowed = await setup();
-  assert.deepEqual(await allowed.request(embed, { type: "document", frame }), { continued: 1, aborted: 0 });
+  assert.deepEqual(await allowed.request(embed, { type: "document", frame }), { relayed: 1, aborted: 0 });
   current = embed;
-  assert.deepEqual(await allowed.request("https://www.youtube.com/youtubei/v1/log_event", { method: "POST", type: "fetch", frame }), { continued: 1, aborted: 0 });
+  assert.deepEqual(await allowed.request("https://www.youtube.com/youtubei/v1/log_event", { method: "POST", type: "fetch", frame }), { relayed: 1, aborted: 0 });
   allowed.guard.assertClean();
   current = `${boundary.webOrigin}/landing`;
-  assert.deepEqual(await allowed.request("https://www.youtube.com/youtubei/v1/log_event", { method: "POST", type: "fetch", frame }), { continued: 0, aborted: 1 });
+  assert.deepEqual(await allowed.request("https://www.youtube.com/youtubei/v1/log_event", { method: "POST", type: "fetch", frame }), { relayed: 0, aborted: 1 });
   assert.throws(() => allowed.guard.assertClean());
 });
 

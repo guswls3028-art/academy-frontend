@@ -272,6 +272,7 @@ APIRequestContext와 browser request 검사, strict browser assertion을 받는�
 iframe 내부로 한정하고 프레임이 다른 문서로 이동하면 허용을 종료한다. 앱 인증
 헤더와 운영 API, direct APIRequestContext의 외부 접근은 계속 거부한다. native
 keepalive도 해당 iframe의 익명 YouTube 통계 endpoint만 redirect 금지로 허용한다.
+브라우저 리소스도 실제 공급자 응답을 그대로 전달하되 redirect는 후속 요청 전에 차단한다.
 모의 플레이어/응답으로 대체하지 않으며 `release-public-video-boundary.test.mjs`가
 정상 리소스와 위조 host·인증 전달·운영 접근·프레임 이탈을 검증한다. 상세 범위는
 [공개 영상 계약](PUBLIC-VIDEOS.md)을 따른다.

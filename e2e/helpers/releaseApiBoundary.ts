@@ -1038,9 +1038,14 @@ export async function installReleaseContextGuard(
           || (publicVideoKind === "embed" && (!playerFrame || !parent || new URL(parent.url()).origin !== boundary.webOrigin))) {
           await reject("credentials"); return;
         }
-        if (publicVideoKind === "embed" && playerFrame) publicVideoFrames.add(playerFrame);
-        // No response replacement: thumbnails, player and player-owned requests use real HTTPS.
-        await route.continue();
+        // Relay the actual provider response without following redirects. Native
+        // route.continue() can follow a redirect without re-entering this guard.
+        const response = await route.fetch({ maxRedirects: 0, timeout: 30_000 });
+        if (response.status() >= 300 && response.status() < 400) {
+          await reject("public-video-redirect"); return;
+        }
+        if (publicVideoKind === "embed" && playerFrame && response.status() === 200) publicVideoFrames.add(playerFrame);
+        await route.fulfill({ response });
         return;
       }
       if (isExactReadonlyCloudflareBeacon(boundary, target, request.method())) {
