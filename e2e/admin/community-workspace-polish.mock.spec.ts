@@ -397,6 +397,43 @@ test.describe("커뮤니티 QnA 작업대", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   });
 
+  test("여러 이미지의 동시 미리보기 복구는 응답 파일을 정확히 선택한다 @qna-preview-recovery", async ({ page }) => {
+    qnaAttachmentsByPage.set(page, [80, 82].map((id) => ({
+      id, original_name: `문제-${id}.jpg`, size_bytes: 81200, content_type: "image/jpeg", created_at: "2026-08-23T01:21:00Z",
+    })));
+    const release: Record<number, () => void> = {};
+    const pending = Object.fromEntries([80, 82].map((id) => [id, new Promise<void>((resolve) => { release[id] = resolve; })]));
+    const requests: number[] = [];
+    await page.route(`**/api/v1/community/posts/${QUESTION_ID}/attachments/*/download/`, async (route) => {
+      const id = Number(new URL(route.request().url()).pathname.split("/").at(-3));
+      requests.push(id);
+      await pending[id];
+      await route.fulfill({ status: 200, headers: CORS_HEADERS, contentType: "application/json",
+        body: JSON.stringify({ url: IMAGE_DATA_URL, original_name: `문제-${id}.jpg` }) });
+    });
+    try {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
+      const first = page.locator(".qna-inbox__file-card").filter({ hasText: "문제-80.jpg" });
+      const second = page.locator(".qna-inbox__file-card").filter({ hasText: "문제-82.jpg" });
+      await first.getByRole("button", { name: "다시 보기" }).click();
+      await second.getByRole("button", { name: "다시 보기" }).click();
+      await expect.poll(() => requests.length).toBe(2);
+      release[80]();
+      await expect(page.getByRole("img", { name: "문제-80.jpg" })).toBeVisible();
+      await expect(second.getByRole("button", { name: "불러오는 중…" })).toBeDisabled();
+      release[82]();
+      await expect(page.getByRole("region", { name: "미리보기 복구" })).toHaveCount(0);
+      await expect(page.getByRole("img", { name: "문제-82.jpg" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "2번째 이미지 문제-82.jpg" })).toHaveAttribute("aria-pressed", "true");
+      await page.getByRole("button", { name: "1번째 이미지 문제-80.jpg" }).click();
+      await expect(page.getByRole("img", { name: "문제-80.jpg" })).toBeVisible();
+    } finally {
+      release[80]();
+      release[82]();
+    }
+  });
+
   test("여러 첨부파일의 진행·실패 상태를 독립적으로 유지한다", async ({ page }) => {
     qnaAttachmentsByPage.set(page, [80, 82].map((id) => ({
       id, original_name: `자료-${id}.txt`, size_bytes: 30, content_type: "text/plain", created_at: "2026-08-23T01:21:00Z",

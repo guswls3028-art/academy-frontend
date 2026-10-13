@@ -762,7 +762,7 @@ function QnaAttachmentViewer({
   expanded: boolean;
   onToggleExpanded: () => void;
 }) {
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeId, setActiveId] = useState<number | null>(null);
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [failedIds, setFailedIds] = useState<number[]>([]);
@@ -770,12 +770,12 @@ function QnaAttachmentViewer({
   const available = attachments.filter((attachment) =>
     Boolean(refreshedUrls[attachment.id] || attachment.download_url) && !failedIds.includes(attachment.id));
   const unavailable = attachments.filter((attachment) => !available.includes(attachment));
-  const resolvedIndex = Math.min(activeIndex, available.length - 1);
-  const active = available[resolvedIndex];
+  const active = available.find((attachment) => attachment.id === activeId) ?? available[0];
+  const resolvedIndex = available.findIndex((attachment) => attachment.id === active?.id);
   const attachmentIds = attachments.map((attachment) => attachment.id).join(",");
 
   useEffect(() => {
-    setActiveIndex(0);
+    setActiveId(null);
     setRotation(0);
     setZoom(1);
     setFailedIds([]);
@@ -786,11 +786,11 @@ function QnaAttachmentViewer({
   const recoverPreview = (attachment: PostAttachment, url: string) => {
     setRefreshedUrls((current) => ({ ...current, [attachment.id]: url }));
     setFailedIds((current) => current.filter((id) => id !== attachment.id));
-    setActiveIndex(attachments.filter((item) => item.id === attachment.id || available.includes(item)).findIndex((item) => item.id === attachment.id));
+    setActiveId(attachment.id);
   };
 
-  const selectAttachment = (index: number) => {
-    setActiveIndex(index);
+  const selectAttachment = (id: number) => {
+    setActiveId(id);
     setRotation(0);
     setZoom(1);
   };
@@ -845,7 +845,7 @@ function QnaAttachmentViewer({
               key={attachment.id}
               type="button"
               className={index === resolvedIndex ? "is-active" : ""}
-              onClick={() => selectAttachment(index)}
+              onClick={() => selectAttachment(attachment.id)}
               aria-label={`${index + 1}번째 이미지 ${attachment.original_name}`}
               aria-pressed={index === resolvedIndex}
             >
