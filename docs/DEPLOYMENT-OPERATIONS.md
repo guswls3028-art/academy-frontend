@@ -267,6 +267,14 @@ strict browser 및 기존 exact-baseline rollback 검증이 남는다. 기존 �
 APIRequestContext와 browser request 검사, strict browser assertion을 받는다.
 외부 origin, 다른/누락 tenant, 예상 밖 운영 mutation과 API redirect는 실패로 기록한다.
 예외를 test에서 catch해도 APIRequestContext 경계 위반은 teardown에서 실패한다.
+공개 YouTube 영상의 격리 개발 실사용은 검증된 QA API 응답의 영상 ID로만 고정
+썸네일/비자동재생 embed를 등록한다. 실제 Google/YouTube 공급자 요청은 등록된
+iframe 내부로 한정하고 프레임이 다른 문서로 이동하면 허용을 종료한다. 앱 인증
+헤더와 운영 API, direct APIRequestContext의 외부 접근은 계속 거부한다. native
+keepalive도 해당 iframe의 익명 YouTube 통계 endpoint만 redirect 금지로 허용한다.
+모의 플레이어/응답으로 대체하지 않으며 `release-public-video-boundary.test.mjs`가
+정상 리소스와 위조 host·인증 전달·운영 접근·프레임 이탈을 검증한다. 상세 범위는
+[공개 영상 계약](PUBLIC-VIDEOS.md)을 따른다.
 로그인 전에 호스트별 PWA 메타데이터를 찾는 공개 조회만 예외다. 정확한
 `GET /api/v1/core/og-meta/?hostname=<현재 web hostname>` 한 건은 tenant header 없이
 허용하고, 다른 hostname, 추가·중복 query, 다른 method와 그 밖의 API 요청은 기존
