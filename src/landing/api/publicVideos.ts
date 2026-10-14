@@ -17,13 +17,13 @@ export const videoStatuses = { draft: "임시저장", published: "공개 중", u
 
 export async function listVideos(page = 1) { return (await api.get<VideoPage<PublicVideo>>(base, { ...publicRequest, params: { page } })).data; }
 export async function getVideo(id: string) { return (await api.get<PublicVideo>(`${base}${id}/`, publicRequest)).data; }
-export async function getVideoShowcase() { return (await api.get<VideoPresentation & { hero: PublicVideo | null }>(`${base}showcase/`, publicRequest)).data; }
+export async function getVideoShowcase() { return { ...defaultVideoPresentation, ...(await api.get<VideoPresentation & { hero: PublicVideo | null }>(`${base}showcase/`, publicRequest)).data }; }
 export async function getVideoHero() { return (await getVideoShowcase()).hero; }
 export async function videoCapability() { return (await api.get<{ can_publish: boolean }>(`${base}capabilities/`)).data.can_publish; }
 export async function resolveVideo(url: string) { return (await api.post<VideoSource & { format: VideoContent["format"] }>(`${base}resolve/`, { url })).data; }
 export async function listManagedVideos(page = 1) { return (await api.get<VideoPage<ManagedVideo>>(`${base}manage/`, { params: { page } })).data; }
 export async function getManagedVideo(id: string) { return (await api.get<ManagedVideo>(`${base}manage/${id}/`)).data; }
-export async function getManagedShowcase() { return (await api.get<VideoShowcase>(`${base}manage/showcase/`)).data; }
+export async function getManagedShowcase() { return { ...defaultVideoPresentation, ...(await api.get<VideoShowcase>(`${base}manage/showcase/`)).data }; }
 export async function saveVideoPresentation(showcase: VideoShowcase, content: VideoPresentation) {
   return (await api.patch<VideoShowcase>(`${base}manage/showcase/`, { expected_revision: showcase.revision, ...content })).data;
 }
