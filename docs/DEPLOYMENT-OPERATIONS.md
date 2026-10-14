@@ -272,7 +272,7 @@ APIRequestContext와 browser request 검사, strict browser assertion을 받는�
 iframe 내부로 한정하고 프레임이 다른 문서로 이동하면 허용을 종료한다. 앱 인증
 헤더와 운영 API, direct APIRequestContext의 외부 접근은 계속 거부한다. native
 keepalive도 해당 iframe의 익명 YouTube 통계 endpoint만 redirect 금지로 허용한다.
-브라우저 리소스도 실제 공급자 응답을 그대로 전달하되 redirect는 후속 요청 전에 차단한다.
+브라우저 리소스는 실제 공급자 응답을 그대로 전달한다. 등록된 플레이어 내부의 GET/HEAD만 같은 origin·같은 path에서 query가 바뀌는 redirect를 최대 3회, 전체 30초 안에서 hop마다 검사한다. embed/썸네일·POST·다른 origin/path·URL 자격정보·fragment·루프는 후속 요청 전에 차단하고 `public-video-redirect`로 기록한다.
 모의 플레이어/응답으로 대체하지 않으며 `release-public-video-boundary.test.mjs`가
 정상 리소스와 위조 host·인증 전달·운영 접근·프레임 이탈을 검증한다. 상세 범위는
 [공개 영상 계약](PUBLIC-VIDEOS.md)을 따른다.
@@ -781,6 +781,10 @@ test child를 기다리는 동안 runner는 60초마다 내용 없는 진행 신
 열어 두되 어떤 byte도 쓰지 않는다. Session Manager plugin이 닫힌 stdin의 EOF를 정상
 종료로 오인해 원격 JSON 전에 끝나는 것을 막기 위한 경계이며, 다른 child의 stdin은 계속
 닫혀 있다. stderr 폐기, 메모리 전용 raw stdout, allowlist 증거 규칙은 바꾸지 않는다.
+`apiTunnelProcessObservation`은 실제 port-session client 종료 시의 exit code, signal,
+stop reason, 경과 시간만 보존한다. 미종료 상태는 null이며 raw 출력·세션 식별자는
+포함하지 않는다. 최종 cleanup 뒤 기존 evidence 쓰기에서 함께 저장하며, 관측 callback은
+성공 여부나 gate 조건을 변경하지 않는다.
 job timeout은 60분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
 
 GitHub 강제 취소의 짧은 grace, SIGKILL, runner/host 소실, IAM·네트워크 상실에서는
