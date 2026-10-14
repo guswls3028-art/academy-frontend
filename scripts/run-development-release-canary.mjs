@@ -163,6 +163,7 @@ function initialPreflightEvidence(frontendSha) {
     postCleanupInspectOperationObservation: null, postCleanupInspectObservation: null,
     realUseObservation: null,
     realUseProcessObservation: null,
+    apiTunnelProcessObservation: null,
     videoRuntimeObservation: null,
     postPlaybackInspectObservation: null,
     preflightStage: "process",
@@ -1240,6 +1241,7 @@ export async function run() {
   let counts;
   let realUseObservation;
   let realUseProcessObservation;
+  let apiTunnelProcessObservation;
   let videoRuntimeObservation;
   let scenario;
   let tests;
@@ -1267,6 +1269,7 @@ export async function run() {
       crossPostCleanupInspectObservation,
       realUseObservation: realUseObservation || null,
       realUseProcessObservation: realUseProcessObservation || null,
+      apiTunnelProcessObservation: apiTunnelProcessObservation || null,
       videoRuntimeObservation: videoRuntimeObservation || null,
       postPlaybackInspectObservation,
       terminalOutcome, passed, failures: errors });
@@ -1299,6 +1302,9 @@ export async function run() {
     assert.equal(crossScenarioTenantId, crossScenario.tenant_id, "Cross Setup tenant id capture drift");
     const longVideo = assertLongVideoSetup(scenario);
     const tunnel = session(PORT_DOCUMENT);
+    void tunnel.done.then((result) => {
+      apiTunnelProcessObservation = observeOwnedProcessResult(result);
+    });
     await waitPort(18000, () => interrupted);
     remember(tunnel);
     server = await serveArtifact(path.join(bundle, "dist"), {

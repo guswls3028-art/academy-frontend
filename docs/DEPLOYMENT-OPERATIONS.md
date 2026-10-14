@@ -781,6 +781,10 @@ test child를 기다리는 동안 runner는 60초마다 내용 없는 진행 신
 열어 두되 어떤 byte도 쓰지 않는다. Session Manager plugin이 닫힌 stdin의 EOF를 정상
 종료로 오인해 원격 JSON 전에 끝나는 것을 막기 위한 경계이며, 다른 child의 stdin은 계속
 닫혀 있다. stderr 폐기, 메모리 전용 raw stdout, allowlist 증거 규칙은 바꾸지 않는다.
+`apiTunnelProcessObservation`은 실제 port-session client 종료 시의 exit code, signal,
+stop reason, 경과 시간만 보존한다. 미종료 상태는 null이며 raw 출력·세션 식별자는
+포함하지 않는다. 최종 cleanup 뒤 기존 evidence 쓰기에서 함께 저장하며, 관측 callback은
+성공 여부나 gate 조건을 변경하지 않는다.
 job timeout은 60분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
 
 GitHub 강제 취소의 짧은 grace, SIGKILL, runner/host 소실, IAM·네트워크 상실에서는
