@@ -56,6 +56,7 @@ playsinline=1, origin, strict-origin-when-cross-origin과 기본 컨트롤을 �
 
 Cloudflare Functions는 tenant API로 확인한 tenantCode로만 공개 상세 메타데이터를 읽는다.
 YouTube 썸네일, 제목과 소개를 OG로 제공하며 no-store, 미공개 404/noindex를 적용한다.
+소개가 비어 있으면 공유 설명도 브랜드명과 `영상`만 사용한다.
 React 상세에도 메타데이터를 반영하고 이탈 시 복구한다. SSR API 실패는 noindex와
 클라이언트 재시도로 복구한다. 캐시에서 이전 비공개 영상 정보를 되살리지 않는다.
 
