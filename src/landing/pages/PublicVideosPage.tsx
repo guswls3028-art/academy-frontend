@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useLocation, useParams, useSearchParams } from "react-router";
 import { defaultVideoPresentation, getVideo, getVideoShowcase, listVideos, type PublicVideo, type VideoPage, type VideoPresentation } from "../api/publicVideos";
 import { resourceError } from "../api/publicResources";
 import VideoLayout, { VideoEditLink, VideoFailure, VideoPublisherLink } from "../components/VideoLayout";
@@ -10,6 +10,7 @@ import s from "./PublicVideos.module.css";
 
 export default function PublicVideosPage() {
   const { id } = useParams(); const [params, setParams] = useSearchParams();
+  const location = useLocation();
   const requestedPage = Number(params.get("page"));
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const [data, setData] = useState<VideoPage<PublicVideo> | null>(null); const [video, setVideo] = useState<PublicVideo | null>(null);
@@ -19,7 +20,7 @@ export default function PublicVideosPage() {
   const [listRetry, setListRetry] = useState(0);
   const [presentation, setPresentation] = useState<VideoPresentation>(defaultVideoPresentation);
   useEffect(() => { window.scrollTo(0, 0); }, [id]);
-  useEffect(() => { if (!id) window.scrollTo(0, 0); }, [id, page]);
+  useEffect(() => { if (!id && !location.hash) window.scrollTo(0, 0); }, [id, page, location]);
   useEffect(() => {
     if (!id) { setVideo(null); setError(""); setLoading(false); return; }
     let disposed = false; setLoading(true); setError(""); setVideo(null); setShare("");
@@ -55,7 +56,7 @@ export default function PublicVideosPage() {
   const visibleVideos = data?.results.filter((item) => item.id !== id) || [];
   const library = listLoading ? <p className={s.empty} role="status">영상을 불러오고 있습니다.</p>
     : listError ? <VideoFailure message={listError} retry={() => setListRetry((value) => value + 1)} />
-    : visibleVideos.length ? <>{id ? <VideoCards videos={visibleVideos} compact page={page} /> : <VideoCollection videos={visibleVideos} page={page} />}{pagination}</>
+    : visibleVideos.length ? <>{id ? <VideoCards videos={visibleVideos} compact page={page} /> : <VideoCollection videos={visibleVideos} page={page} navigation />}{pagination}</>
     : <div className={s.empty}><h2>{id ? "다른 공개 영상이 없습니다" : "등록된 공개 영상이 없습니다"}</h2>{page > 1 && <button className={s.secondary} onClick={() => setParams({})}>첫 페이지로</button>}{pagination}</div>;
 
   return <VideoLayout title={video?.title || presentation.title}>

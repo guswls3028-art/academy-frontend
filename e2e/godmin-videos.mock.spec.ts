@@ -227,6 +227,14 @@ for (const width of [1366, 1100, 390]) {
     await expect(shortsSection.getByRole("heading", { name: next.title })).toBeVisible();
     const shortPoster = await shortsSection.locator("img").boundingBox();
     expect(shortPoster!.height / shortPoster!.width).toBeGreaterThan(1.7);
+    if (width === 390) {
+      const shortcuts = page.getByRole("navigation", { name: "영상 종류 바로가기" });
+      await shortcuts.getByRole("link", { name: "Shorts", exact: true }).click();
+      await expect(shortsSection.getByRole("heading", { name: "Shorts", exact: true })).toBeInViewport();
+      expect(await shortsSection.evaluate((element) => element.getBoundingClientRect().top - document.querySelector("header")!.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(0);
+      await page.getByRole("navigation", { name: "홈페이지 주요 메뉴" }).getByRole("link", { name: "영상", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "영상", exact: true, level: 1 })).toBeInViewport();
+    }
     await noOverflow(page);
     await testInfo.attach(`video-library-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
     state.presentation = { title: "사용자가 직접 정한 영상 영역 제목 ".repeat(3).slice(0, 60), description: "사용자가 자유롭게 작성하는 소개입니다. ".repeat(12).slice(0, 220) };

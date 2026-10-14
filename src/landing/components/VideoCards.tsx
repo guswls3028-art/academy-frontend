@@ -14,20 +14,23 @@ export function VideoCards({ videos, compact = false, portrait = false, page = 1
   </Link>)}</div>;
 }
 
-export function VideoCollection({ videos, page = 1 }: { videos: PublicVideo[]; page?: number }) {
+export function VideoCollection({ videos, page = 1, navigation = false }: { videos: PublicVideo[]; page?: number; navigation?: boolean }) {
   const headingId = useId();
   const landscape = videos.filter((video) => video.format !== "vertical");
   const shorts = videos.filter((video) => video.format === "vertical");
-  return <div className={`${s.collection} ${landscape.length && shorts.length ? s.mixedCollection : ""}`}>
-    {landscape.length > 0 && <section aria-labelledby={`${headingId}-videos`}>
+  return <>
+    {navigation && landscape.length > 0 && shorts.length > 0 && <nav className={s.collectionNav} aria-label="영상 종류 바로가기"><a href={`#${headingId}-videos-section`}>동영상</a><a href={`#${headingId}-shorts-section`}>Shorts</a></nav>}
+    <div className={`${s.collection} ${landscape.length && shorts.length ? s.mixedCollection : ""}`}>
+    {landscape.length > 0 && <section id={`${headingId}-videos-section`} aria-labelledby={`${headingId}-videos`}>
       <div className={s.collectionHeading}><h2 id={`${headingId}-videos`}>동영상</h2><span>{landscape.length}편</span></div>
       <VideoCards videos={landscape} page={page} />
     </section>}
-    {shorts.length > 0 && <section aria-labelledby={`${headingId}-shorts`}>
+    {shorts.length > 0 && <section id={`${headingId}-shorts-section`} aria-labelledby={`${headingId}-shorts`}>
       <div className={s.collectionHeading}><h2 id={`${headingId}-shorts`}>Shorts</h2><span>{shorts.length}편</span></div>
       <VideoCards videos={shorts} page={page} portrait />
     </section>}
-  </div>;
+    </div>
+  </>;
 }
 
 export function GodminHeroVideo({ fallback }: { fallback: ReactNode }) {

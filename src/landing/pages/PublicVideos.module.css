@@ -231,7 +231,9 @@
 .catalogueToolbar > span:first-child { font-weight: 700; color: var(--video-ink); }
 .library { min-width: 0; }
 .collection { display: grid; gap: 36px; }
-.collection > section { min-width: 0; }
+.collection > section { min-width: 0; scroll-margin-top: 130px; }
+.collectionNav { display: none; }
+.collection h3, .detailHeading h1, .heroCaption h2 { word-break: keep-all; }
 .mixedCollection { grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr); gap: 36px; }
 .collectionHeading { display: flex; align-items: baseline; gap: 9px; margin-bottom: 18px; }
 .collectionHeading h2 { font-size: 20px; letter-spacing: -.03em; margin: 0; font-weight: 750; }
@@ -265,6 +267,9 @@
   .browseJump { display: inline-flex; min-height: 44px; align-items: center; }
   .moreVideos { position: static; max-height: none; overflow: visible; }
   .collection, .mixedCollection { grid-template-columns: minmax(0, 1fr); }
+  .collectionNav { display: flex; gap: 10px; margin: -6px 0 24px; }
+  .collectionNav a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 20px; border: 1px solid var(--video-line); border-radius: 24px; background: #fff; color: var(--video-deep); text-decoration: none; font-size: 13px; font-weight: 650; }
+  .collectionNav a:hover { background: #edf7f3; }
   .collection .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shortsGrid, .mixedCollection .shortsGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .previewPanel { top: 136px; }
