@@ -160,7 +160,7 @@ export default function ConversionStudioPage() {
         first ??= created;
         group.forEach(file => submitted.add(file));
       }
-      setFiles([]); setOptions(value => ({ ...value, external_ai_confirmed: false }));
+      setFiles([]); setTitle(""); setOptions(value => ({ ...value, external_ai_confirmed: false }));
       await refreshList();
       if (first) navigate({ conversion: first.id });
     } catch (cause) {
