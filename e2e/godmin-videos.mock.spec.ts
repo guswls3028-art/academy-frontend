@@ -232,6 +232,10 @@ for (const width of [1366, 390]) {
     await noOverflow(page); await testInfo.attach(`video-browsing-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
     await page.getByRole("link", { name: "영상 등록", exact: true }).click();
     await expect(page.getByLabel("01 · YouTube 링크", { exact: true })).toBeVisible();
+    await nav.getByRole("link", { name: "수업 철학", exact: true }).click();
+    await expect(page).toHaveURL(`${BASE}/landing#philosophy`);
+    await expect(page.locator("#philosophy-title")).toBeInViewport();
+    await expect.poll(() => page.locator("#philosophy-title").evaluate((element) => element.getBoundingClientRect().top - document.querySelector("header")!.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(0);
   });
 }
 

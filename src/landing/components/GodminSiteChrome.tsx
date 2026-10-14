@@ -15,9 +15,9 @@ export function GodminSiteHeader() {
   return <header className={`${home.header} ${s.header}`}>
     <Link className={home.brand} to="/landing" aria-label="신과함께 홈"><img src="/tenants/godmin/logo.png" alt="신과함께" /></Link>
     <nav className={`${home.nav} ${s.nav}`} aria-label="홈페이지 주요 메뉴">
-      <a href={section("philosophy")}>수업 철학</a>
-      <a href={section("system")}>학습 관리</a>
-      <a href={section("teacher")}>신민T</a>
+      <Link to={section("philosophy")}>수업 철학</Link>
+      <Link to={section("system")}>학습 관리</Link>
+      <Link to={section("teacher")}>신민T</Link>
       <Link to="/landing/resources">자료게시판</Link>
       <Link to="/landing/videos" aria-current={videos ? "page" : undefined}>영상</Link>
     </nav>

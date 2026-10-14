@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 
 import { setLandingMeta } from "@/landing/utils/seoMeta";
 import { GodminHeroVideo, VideoHighlights } from "@/landing/components/VideoCards";
@@ -53,6 +53,10 @@ const PROFILE_LINKS = [
 const INSTAGRAM_URL = "https://www.instagram.com/godmin7/";
 
 export default function GodminLandingPage() {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
+  }, [hash]);
   useEffect(() => {
     const title = "신민T 통합과학 | 신과함께";
     const description = "13년 이상 통합과학을 가르쳐 온 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.";
