@@ -194,7 +194,7 @@ export default function LandingEditorPage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--color-border-divider, #e2e8f0)", flexWrap: "wrap", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "var(--color-text-primary, #1e293b)" }}>홈페이지 꾸미기</h1>
-          <VideoPublisherLink />
+          <VideoPublisherLink manage />
           {landing?.is_published ? (
             <span style={{ padding: "3px 10px", borderRadius: 99, background: "#dcfce7", color: "#16a34a", fontSize: 12, fontWeight: 600 }}>게시 중</span>
           ) : (

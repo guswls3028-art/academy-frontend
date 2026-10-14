@@ -359,3 +359,8 @@
   from { transform: translate3d(-4px, -5px, 0); }
   to { transform: translate3d(7px, 8px, 0); }
 }
+
+@media (max-width: 980px) {
+  .hero { padding-top: 156px; }
+  .philosophy, .system, .teacher { scroll-margin-top: 124px; }
+}

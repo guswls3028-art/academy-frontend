@@ -104,6 +104,7 @@ async function installLandingEditor(page: Page) {
     }
     if (pathname === "/core/landing/admin/") return json(current);
     if (pathname === "/core/landing/has-published/") return json({ has_published: false });
+    if (pathname === "/landing-public/videos/capabilities/") return json({ can_publish: false });
     return json({ count: 0, next: null, previous: null, results: [] });
   });
   return saveBodies;

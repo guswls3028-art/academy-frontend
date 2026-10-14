@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 
 import { setLandingMeta } from "@/landing/utils/seoMeta";
 import { GodminHeroVideo, VideoHighlights } from "@/landing/components/VideoCards";
 
+import { GodminSiteHeader, GodminSiteFooter } from "../components/GodminSiteChrome";
 import styles from "./GodminLandingPage.module.css";
 
 const DISCIPLINES = [
@@ -52,6 +53,10 @@ const PROFILE_LINKS = [
 const INSTAGRAM_URL = "https://www.instagram.com/godmin7/";
 
 export default function GodminLandingPage() {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
+  }, [hash]);
   useEffect(() => {
     const title = "신민T 통합과학 | 신과함께";
     const description = "13년 이상 통합과학을 가르쳐 온 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.";
@@ -75,19 +80,7 @@ export default function GodminLandingPage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <Link className={styles.brand} to="/landing" aria-label="신과함께 홈">
-          <img src="/tenants/godmin/logo.png" alt="신과함께" />
-        </Link>
-        <nav className={styles.nav} aria-label="홈페이지 주요 메뉴">
-          <a href="#philosophy">수업 철학</a>
-          <a href="#system">학습 관리</a>
-          <a href="#teacher">신민T</a>
-          <Link to="/landing/resources">자료게시판</Link>
-          <Link to="/landing/videos">영상</Link>
-        </nav>
-        <Link className={styles.headerLogin} to="/login/godmin">로그인</Link>
-      </header>
+      <GodminSiteHeader />
 
       <main>
         <section className={styles.hero} aria-labelledby="godmin-hero-title">
@@ -259,17 +252,7 @@ export default function GodminLandingPage() {
         </section>
       </main>
 
-      <footer className={styles.footer}>
-        <Link to="/landing" aria-label="신과함께 홈"><img src="/tenants/godmin/logo.png" alt="신과함께" /></Link>
-        <div>
-          <a href="#philosophy">수업 철학</a>
-          <a href="#system">학습 관리</a>
-          <Link to="/login/godmin">로그인</Link>
-          <Link to="/terms">이용약관</Link>
-          <Link to="/privacy">개인정보처리방침</Link>
-        </div>
-        <p>© {new Date().getFullYear()} 신과함께. powered by 학원플러스</p>
-      </footer>
+      <GodminSiteFooter />
     </div>
   );
 }
