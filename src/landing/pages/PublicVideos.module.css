@@ -61,7 +61,7 @@
 .dialog :global(.ant-modal-content) { max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; border-radius: 20px; padding: 24px; background: #fbfdfc; box-shadow: 0 24px 100px #0006; }
 .dialogHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .dialogHead h2 { font-size: 20px; letter-spacing: -.04em; line-height: 1.5; margin: 0; }
-.dialogHead button { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border-radius: 50%; background: #edf3ef; border: 0; cursor: pointer; color: inherit; }
+.dialogHead button { display: grid; place-items: center; flex: 0 0 44px; height: 44px; border-radius: 50%; background: #edf3ef; border: 0; cursor: pointer; color: inherit; }
 .source { color: var(--video-muted, #657a72); font-size: 12px; line-height: 1.8; margin-top: 20px; }
 .highlights { padding: 85px max(24px, calc((100% - 1168px) / 2)); background: #f1f7f3; border-block: 1px solid #deebe2; }
 .sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 34px; }

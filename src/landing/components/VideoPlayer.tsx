@@ -22,7 +22,7 @@ export function VideoPlayer({ video }: { video: Playable }) {
 export default function VideoDialog({ video, close }: { video: Playable; close: () => void }) {
   const trigger = useRef(document.activeElement as HTMLElement | null);
   useEffect(() => { const element = trigger.current; return () => { element?.focus(); }; }, []);
-  return <Modal open centered footer={null} closable={false} onCancel={close} width={880} className={s.dialog} aria-labelledby="video-dialog-title" destroyOnHidden>
+  return <Modal open centered footer={null} closable={false} onCancel={close} width={880} transitionName="" className={s.dialog} aria-labelledby="video-dialog-title" destroyOnHidden>
     <div className={s.dialogHead}><h2 id="video-dialog-title">{video.title}</h2><button type="button" onClick={close} aria-label="영상 닫기" autoFocus><X size={ICON.md} /></button></div>
     <VideoPlayer video={video} /><p className={s.source}>원본 채널 · {video.channel_title}</p>
   </Modal>;

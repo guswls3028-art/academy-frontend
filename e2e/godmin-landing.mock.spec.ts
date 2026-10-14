@@ -55,7 +55,7 @@ test.describe("godmin public landing", () => {
     await expect(login).toHaveAttribute("href", "/login/godmin");
     await expect(page.getByText("대성마이맥 통합과학", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "네 영역을 잇는 하나의 과학 지도" })).toBeVisible();
-    await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /13년 이상 통합과학/);
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /대치동 통합과학 강사 신민T/);
     expect(genericLandingRequests).toBe(0);
     expect(publishedConfigRequests).toBe(0);
     expect(await page.evaluate(

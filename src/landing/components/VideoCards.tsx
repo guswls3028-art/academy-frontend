@@ -33,14 +33,14 @@ export function VideoCollection({ videos, page = 1, navigation = false }: { vide
   </>;
 }
 
-export function GodminHeroVideo({ fallback }: { fallback: ReactNode }) {
+export function GodminHeroVideo({ fallback, onReady }: { fallback: ReactNode; onReady?: () => void }) {
   const [hero, setHero] = useState<PublicVideo | null>(null);
   const [error, setError] = useState(false); const [retry, setRetry] = useState(0); const [open, setOpen] = useState(false);
   useEffect(() => {
     let disposed = false; setError(false);
-    getVideoHero().then((video) => { if (!disposed) setHero(video); }).catch(() => { if (!disposed) setError(true); });
+    getVideoHero().then((video) => { if (!disposed) setHero(video); }).catch(() => { if (!disposed) setError(true); }).finally(() => { if (!disposed) onReady?.(); });
     return () => { disposed = true; };
-  }, [retry]);
+  }, [retry, onReady]);
   if (!hero) return <div>{fallback}{error && <div className={s.heroRetry}><span>대표 영상을 불러오지 못했습니다.</span><button type="button" onClick={() => setRetry((value) => value + 1)}>다시 시도</button></div>}</div>;
   return <div className={s.heroVideo}><div className={s.heroLabel}><span>대표 영상</span><span>{hero.format === "vertical" ? "Shorts" : hero.channel_title}</span></div>
     <button type="button" className={`${s.heroPoster} ${hero.format === "vertical" ? s.verticalPoster : ""}`} onClick={(event) => { event.currentTarget.focus(); setOpen(true); }} aria-label={`${hero.title} 영상 열기`}>
@@ -50,14 +50,14 @@ export function GodminHeroVideo({ fallback }: { fallback: ReactNode }) {
   </div>;
 }
 
-export function VideoHighlights() {
+export function VideoHighlights({ onReady }: { onReady?: () => void }) {
   const [videos, setVideos] = useState<PublicVideo[] | null>(null); const [error, setError] = useState(false); const [retry, setRetry] = useState(0);
   const [presentation, setPresentation] = useState<VideoPresentation>(defaultVideoPresentation);
   useEffect(() => {
     let disposed = false; setError(false);
-    Promise.all([listVideos(), getVideoShowcase()]).then(([page, settings]) => { if (!disposed) { setVideos(page.results.slice(0, 4)); setPresentation(settings); } }).catch(() => { if (!disposed) setError(true); });
+    Promise.all([listVideos(), getVideoShowcase()]).then(([page, settings]) => { if (!disposed) { setVideos(page.results.slice(0, 4)); setPresentation(settings); } }).catch(() => { if (!disposed) setError(true); }).finally(() => { if (!disposed) onReady?.(); });
     return () => { disposed = true; };
-  }, [retry]);
+  }, [retry, onReady]);
   return <section className={s.highlights} aria-labelledby="video-highlights-title"><div className={s.sectionHeading}><div><h2 id="video-highlights-title">{presentation.title}</h2>{presentation.description && <p>{presentation.description}</p>}</div><div className={s.actions}><VideoPublisherLink /><Link className={s.secondary} to="/landing/videos">영상 전체 보기 <ArrowUpRight size={ICON.sm} /></Link></div></div>
     {error ? <VideoFailure message="영상을 불러오지 못했습니다." retry={() => setRetry((value) => value + 1)} /> : videos ? videos.length ? <VideoCollection videos={videos} /> : <p className={s.empty}>등록된 공개 영상이 없습니다.</p> : <p role="status" className={s.empty}>영상을 불러오고 있습니다.</p>}
   </section>;

@@ -222,6 +222,8 @@
 .profileLinks a > span { display: flex; flex-direction: column; gap: 5px; }
 .profileLinks strong { font-size: 15px; letter-spacing: -0.025em; }
 .profileLinks small { color: var(--gm-muted); font-size: 12px; line-height: 1.5; }
+.profileLinks .profileDate { color: var(--gm-deep); font-size: 11px; }
+.profileChecked { color: var(--gm-muted); font-size: 11px; line-height: 1.7; margin: 18px 0 0; word-break: keep-all; }
 .profileLinks svg { fill: none; height: 18px; stroke: var(--gm-deep); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; transition: transform 160ms ease; width: 18px; }
 .profileLinks a:hover svg { transform: translateX(4px); }
 
