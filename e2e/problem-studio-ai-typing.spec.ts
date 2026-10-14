@@ -592,7 +592,7 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
     });
   });
 
-  await page.goto(`${baseUrl}/workspace/tools/problem-studio`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseUrl}/workspace/tools/problem-studio/legacy`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "문제집 한 권을, 검수 가능한 정답·해설 PDF로" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => ({
     legacy: localStorage.getItem("problem-studio:explanation-run:v1"),
