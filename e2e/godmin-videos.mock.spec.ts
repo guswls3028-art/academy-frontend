@@ -18,11 +18,11 @@ test.afterEach(async () => {
 });
 
 async function prepare(page: Page, publisher = false, published = false) {
-  const state = { row: published ? managed() : null as ManagedVideo | null, hero: published ? ID : null as string | null, revision: published ? 1 : 0, conflict: false, unavailable: false, publicFailure: false };
+  const state = { row: published ? managed() : null as ManagedVideo | null, hero: published ? ID : null as string | null, revision: published ? 1 : 0, conflict: false, unavailable: false, publicFailure: false, deleteFailure: false, presentation: { title: "영상", description: "" } };
   const publicRow = () => state.row?.status === "published" ? { ...source, id: ID, ...state.row.published_content, published_at: "2026-10-14T00:00:00Z" } : null;
   server = createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://localhost");
-    const headers = { "Access-Control-Allow-Origin": new URL(BASE).origin, "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS", "Access-Control-Allow-Headers": request.headers["access-control-request-headers"] || "content-type, x-tenant-code, authorization" };
+    const headers = { "Access-Control-Allow-Origin": new URL(BASE).origin, "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS", "Access-Control-Allow-Headers": request.headers["access-control-request-headers"] || "content-type, x-tenant-code, authorization" };
     const json = (body: unknown, status = 200) => { response.writeHead(status, { ...headers, "Content-Type": "application/json", "Cache-Control": "no-store" }); response.end(JSON.stringify(body)); };
     if (request.method === "OPTIONS") { response.writeHead(204, headers); response.end(); return; }
     if (url.pathname.endsWith("/core/program/")) return json({ tenantCode: "godmin", display_name: "신과함께", ui_config: {}, feature_flags: {}, is_active: true });
@@ -33,8 +33,14 @@ async function prepare(page: Page, publisher = false, published = false) {
     const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {};
     if (path === "capabilities/") return json({ can_publish: publisher });
     if (path === "resolve/") return state.unavailable ? json({ detail: "유튜브 정보 확인 실패. 잠시 후 다시 시도해주세요." }, 503) : json({ ...source, format: "landscape" });
-    if (path === "showcase/") return json({ hero: state.hero ? publicRow() : null });
-    if (path === "manage/showcase/") return json({ hero_video_id: state.hero, revision: state.revision });
+    if (path === "showcase/") return json({ hero: state.hero ? publicRow() : null, ...state.presentation });
+    if (path === "manage/showcase/") {
+      if (request.method === "PATCH") {
+        if (body.expected_revision !== state.revision) return json({ detail: "다른 게시자가 설정을 변경했습니다." }, 409);
+        state.presentation = { title: body.title, description: body.description }; state.revision++;
+      }
+      return json({ hero_video_id: state.hero, revision: state.revision, ...state.presentation });
+    }
     if (path === "manage/" && request.method === "POST") {
       if (state.row) return json({ detail: "이미 등록된 영상입니다.", existing_id: ID }, 409);
       state.row = { ...managed(), status: "draft", draft_content: body.draft_content, published_content: null, revision: 1 };
@@ -45,6 +51,12 @@ async function prepare(page: Page, publisher = false, published = false) {
       if (state.conflict && state.row) { state.conflict = false; state.row = { ...state.row, revision: state.row.revision + 1, draft_content: { ...initial, title: "다른 게시자의 최신 제목" } }; return json({ detail: "다른 게시자가 변경했습니다." }, 409); }
       if (state.row) state.row = { ...state.row, draft_content: body.draft_content, revision: state.row.revision + 1 };
       return json(state.row);
+    }
+    if (path === `manage/${ID}/` && request.method === "DELETE") {
+      if (state.deleteFailure) return json({ detail: "삭제하지 못했습니다. 다시 시도해주세요." }, 503);
+      if (state.row && (body.expected_revision !== state.row.revision || body.expected_showcase_revision !== state.revision)) return json({ detail: "다른 게시자가 변경했습니다." }, 409);
+      state.row = null; if (state.hero) { state.hero = null; state.revision++; }
+      response.writeHead(204, headers); response.end(); return;
     }
     if (path === `manage/${ID}/publish/` || path === `manage/${ID}/unpublish/`) {
       if (!state.row) return json({}, 404);
@@ -97,7 +109,7 @@ for (const width of [1366, 390]) {
     await page.goto(`${BASE}/landing/videos/${ID}`); await expect(page.locator("iframe")).toHaveCount(1);
     const bounds = await page.locator("iframe").boundingBox(); expect(bounds!.width).toBeGreaterThanOrEqual(200); expect(bounds!.height).toBeGreaterThan(bounds!.width);
     await expect(page.getByRole("link", { name: "YouTube에서 보기 · 좋아요" })).toHaveAttribute("href", source.canonical_url);
-    await noOverflow(page); await page.getByRole("link", { name: "← 영상 모아보기" }).click(); await expect(page.locator("iframe")).toHaveCount(0);
+    await noOverflow(page); await page.getByRole("link", { name: "← 영상 목록" }).click(); await expect(page.locator("iframe")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "영상 관리", exact: true })).toHaveCount(0);
   });
 
@@ -108,6 +120,7 @@ for (const width of [1366, 390]) {
     await page.getByRole("button", { name: "영상 확인", exact: true }).click();
     await expect(page.getByLabel(/^제목/)).toHaveValue(source.source_title);
     await page.getByLabel(/^제목/).fill(initial.title); await page.getByLabel(/^한 줄 소개/).fill(initial.summary);
+    await page.getByLabel("분류 · 선택", { exact: true }).fill("직접 정한 분류");
     // The URL changes before the new editor finishes its permission/data load.
     // Verify that saved state is displayed before testing a document reload.
     const loadedDraft = page.waitForResponse((response) => response.request().method() === "GET"
@@ -115,9 +128,11 @@ for (const width of [1366, 390]) {
     await page.getByRole("button", { name: "임시저장", exact: true }).click(); await expect(page).toHaveURL(`${BASE}/landing/admin/videos/${ID}`);
     await loadedDraft; await expect(page.getByLabel(/^제목/)).toHaveValue(initial.title);
     await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue(initial.title);
+    await expect(page.getByLabel("분류 · 선택", { exact: true })).toHaveValue("직접 정한 분류");
     await page.getByLabel("홈페이지 대표 영상으로 표시", { exact: false }).check();
     await page.getByRole("button", { name: "공개하기", exact: true }).click(); await expect(page.getByRole("link", { name: "공개 화면 확인" })).toBeVisible();
     expect(state.row!.published_content!.title).toBe(initial.title); expect(state.hero).toBe(ID);
+    expect(state.row!.published_content!.category_label).toBe("직접 정한 분류");
     await page.getByLabel(/^제목/).fill("내가 수정한 초안"); await page.getByRole("button", { name: "임시저장", exact: true }).click(); await expect(page.getByRole("status")).toContainText("임시저장했습니다");
     expect(state.row!.published_content!.title).toBe(initial.title);
     state.conflict = true; await page.getByLabel(/^제목/).fill("입력을 지켜주세요"); await page.getByRole("button", { name: "임시저장", exact: true }).click();
@@ -127,6 +142,47 @@ for (const width of [1366, 390]) {
     await expect(page.getByRole("status")).toContainText("공개했습니다"); expect(state.row!.published_content!.title).toBe("입력을 지켜주세요");
     await noOverflow(page); await testInfo.attach(`video-editor-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
     await page.getByRole("button", { name: "비공개로 전환", exact: true }).click(); await expect(page.getByRole("status")).toContainText("비공개로 전환했습니다"); expect(state.hero).toBeNull();
+    await page.goto(`${BASE}/landing/videos/${ID}`); await expect(page.getByRole("alert")).toContainText("공개 중인 영상을 찾을 수 없습니다");
+  });
+
+  test(`custom settings → reload/public → delete cancel/conflict/retry at ${width}px`, async ({ page }, testInfo) => {
+    const state = await prepare(page, true, true); await page.setViewportSize({ width, height: 900 });
+    let acceptDelete = false;
+    page.on("dialog", (dialog) => void (dialog.message().includes("영상을 삭제할까요") && !acceptDelete ? dialog.dismiss() : dialog.accept()));
+    await page.goto(`${BASE}/landing/admin/videos`); await page.getByText("영상 영역 설정", { exact: true }).click();
+    await page.getByLabel("영역 제목", { exact: true }).fill("직접 정한 영상 제목");
+    await page.getByLabel("영역 소개 · 선택", { exact: true }).fill("사용자가 작성한 소개입니다.");
+    state.revision++; state.presentation.title = "다른 게시자의 영역 제목";
+    await page.getByRole("button", { name: "영역 설정 저장", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "다른 게시자의 설정 변경이 있습니다" })).toBeVisible();
+    await expect(page.getByLabel("영역 제목", { exact: true })).toHaveValue("직접 정한 영상 제목");
+    await page.getByRole("button", { name: "최신 설정 확인", exact: true }).click();
+    await expect(page.getByText("다른 게시자의 영역 제목", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "내 설정으로 이어서 수정" }).click();
+    await page.getByRole("button", { name: "영역 설정 저장", exact: true }).click();
+    await expect(page.getByRole("status")).toContainText("영상 영역 설정을 저장했습니다");
+    await page.reload(); await page.getByText("영상 영역 설정", { exact: true }).click();
+    await expect(page.getByLabel("영역 제목", { exact: true })).toHaveValue("직접 정한 영상 제목");
+    await noOverflow(page); await testInfo.attach(`video-settings-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+    await page.goto(`${BASE}/landing`); await expect(page.locator("#video-highlights-title")).toHaveText("직접 정한 영상 제목");
+    await page.goto(`${BASE}/landing/videos`); await expect(page.getByRole("heading", { name: "직접 정한 영상 제목", exact: true })).toBeVisible();
+    await expect(page.getByText("사용자가 작성한 소개입니다.", { exact: true })).toBeVisible();
+    await page.goto(`${BASE}/landing/admin/videos/${ID}`); await page.getByRole("button", { name: "영상 삭제", exact: true }).click();
+    expect(state.row).not.toBeNull(); expect(state.hero).toBe(ID);
+    acceptDelete = true; state.row!.revision++;
+    await page.getByRole("button", { name: "영상 삭제", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "다른 게시자의 변경이 있습니다" })).toBeVisible();
+    await page.getByRole("button", { name: "최신 상태 확인", exact: true }).click();
+    await page.getByRole("button", { name: "최신 내용 불러오기", exact: true }).click();
+    state.deleteFailure = true; await page.getByRole("button", { name: "영상 삭제", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("삭제하지 못했습니다");
+    await expect(page.getByLabel(/^제목/)).toHaveValue(initial.title); expect(state.hero).toBe(ID);
+    state.deleteFailure = false; await page.getByRole("button", { name: "영상 삭제", exact: true }).click();
+    await expect(page).toHaveURL(`${BASE}/landing/admin/videos`);
+    await expect(page.getByRole("status")).toContainText("영상을 삭제했습니다");
+    await expect(page.getByRole("heading", { name: "첫 영상을 등록해보세요" })).toBeVisible();
+    expect(state.row).toBeNull(); expect(state.hero).toBeNull();
+    await page.reload(); await expect(page.getByRole("heading", { name: "첫 영상을 등록해보세요" })).toBeVisible();
     await page.goto(`${BASE}/landing/videos/${ID}`); await expect(page.getByRole("alert")).toContainText("공개 중인 영상을 찾을 수 없습니다");
   });
 }
@@ -143,5 +199,5 @@ test("lookup failure retains manual draft and public list error has retry", asyn
   await expect(page.getByLabel(/^제목/)).toHaveValue("직접 입력한 제목");
   await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue("직접 입력한 제목");
   state.publicFailure = true; await page.goto(`${BASE}/landing/videos`); await expect(page.getByRole("alert")).toBeVisible(); state.publicFailure = false;
-  await page.getByRole("button", { name: "다시 시도", exact: true }).click(); await expect(page.getByRole("heading", { name: "새로운 이야기를 준비하고 있습니다" })).toBeVisible();
+  await page.getByRole("button", { name: "다시 시도", exact: true }).click(); await expect(page.getByRole("heading", { name: "등록된 공개 영상이 없습니다" })).toBeVisible();
 });
