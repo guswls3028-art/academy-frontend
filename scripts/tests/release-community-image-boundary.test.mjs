@@ -66,7 +66,8 @@ async function exercise(options = {}) {
   abort: async () => { aborted++; }, continue: async () => assert.fail("unguarded image"),
   fetch: async (settings) => { fetched.push(settings); if (options.fetchError) throw new Error("private signed URL");
     return { status: () => options.status ?? 200,
-      headers: () => ({ "content-type": options.contentType ?? "image/png", "set-cookie": "private" }),
+      headers: () => ({ "content-type": options.contentType ?? "image/png", "set-cookie": "private",
+        ...(options.disposition ? { "content-disposition": options.disposition } : {}) }),
       body: async () => options.body ?? png }; }, fulfill: async (response) => fulfilled.push(response) });
   return { guard, fetched, fulfilled, aborted };
 }
@@ -139,5 +140,48 @@ test("QnA signed image rejects credentials, mutation, non-image use and invalid 
   for (const options of [{ status: 302 }, { status: 403 }, { contentType: "image/jpeg" },
     { body: Buffer.from("not png") }, { body: png.subarray(0, 4) }, { fetchError: true }]) {
     rejected(await exercise(options), 1);
+  }
+});
+
+test("QnA file download requires bound post/attachment metadata and exact development bytes", async () => {
+  for (const [extension, contentType, body, unicodeName] of [
+    ["txt", "text/plain", Buffer.from("QA attachment\n")],
+    ["pdf", "application/pdf", Buffer.from("%PDF-1.4\n%%EOF")],
+    ["txt", "text/plain", Buffer.from("QA unicode attachment\n"), "qa-질문-추가-학습자료.txt"],
+  ]) {
+    const name = unicodeName ?? `qa-problem.${extension}`;
+    const disposition = unicodeName
+      ? `attachment; filename="download"; filename*=UTF-8''${encodeURIComponent(name)}`
+      : `attachment; filename="${name}"`;
+    const fileUrl = new URL(downloadUrl.replace("qa-problem.png?", `${name}?`));
+    fileUrl.searchParams.set("response-content-type", contentType);
+    fileUrl.searchParams.set("response-content-disposition", disposition);
+    const attachments = [{ id: 456, original_name: name, content_type: contentType, size_bytes: body.length }];
+    const options = { download: true, downloadUrl: fileUrl.href, downloadName: name, resourceType: "document",
+      attachments, body, contentType, disposition };
+    const result = await exercise(options);
+    result.guard.assertClean();
+    assert.deepEqual(result.fetched, [{ url: fileUrl.href, method: "GET", headers: { accept: contentType }, maxRedirects: 0 }]);
+    assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": contentType, "content-disposition": disposition }, body }]);
+    for (const invalid of [
+      { register: false }, { downloadStatus: 403 }, { postId: 124 }, { postType: "notice" },
+      { downloadPath: "/api/v1/community/posts/123/attachments/457/download/" },
+      { downloadHeaders: { authorization: "" } }, { downloadName: "another.txt" },
+      { downloadUrl: fileUrl.href.replace("tenants/352/", "tenants/353/") },
+      { downloadUrl: fileUrl.href.replace("academy-development-artifacts", "academy-production-artifacts") },
+      { downloadUrl: fileUrl.href.replace("Expires=3600", "Expires=3601") },
+      { downloadUrl: fileUrl.href + "&extra=1" },
+      { url: fileUrl.href.replace("a".repeat(64), "d".repeat(64)) },
+      { method: "POST" }, { method: "HEAD" }, { resourceType: "fetch" }, { resourceType: "image" },
+      { requestBody: Buffer.from("private") }, { boundary: { ...boundary, mode: "readonly" } },
+      ...[0, -1, 1.5, 50 * 1024 * 1024 + 1, undefined].map((size_bytes) => ({ attachments: [{ ...attachments[0], size_bytes }] })),
+      ...["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
+        .map((key) => ({ headers: { [key]: "private" } })),
+    ]) rejected(await exercise({ ...options, ...invalid }));
+    for (const invalid of [{ status: 302 }, { status: 403 }, { disposition: undefined },
+      { disposition: "inline" }, { contentType: "text/html" }, { body: body.subarray(1) }, { fetchError: true }]) {
+      rejected(await exercise({ ...options, ...invalid }), 1);
+    }
+    if (extension === "pdf") rejected(await exercise({ ...options, body: Buffer.alloc(body.length, 32) }), 1);
   }
 });
