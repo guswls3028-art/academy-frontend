@@ -13,7 +13,7 @@ export type QuestionContent = { prompt: string; choices: string[]; answer: strin
 export type ConversionQuestion = QuestionContent & {
   id: string; number: number; source_name: string; source_number: number; page_index: number | null;
   reviewed: boolean; review_flags: string[]; visual?: ConversionAsset; redrawn?: ConversionAsset;
-  proposal?: Partial<QuestionContent> & { redrawn?: ConversionAsset };
+  proposal?: Partial<QuestionContent> & { redrawn?: ConversionAsset; review_flags?: string[] };
 };
 export type Conversion = {
   id: string; title: string; status: "PENDING" | "RUNNING" | "REVIEW" | "DONE" | "FAILED";

@@ -44,6 +44,10 @@ for (const width of [1366, 390]) {
         const body = request.postDataJSON();
         if (body.action === "rebuild") row.artifact_version = row.version;
         if (body.action === "resume") { row.status = "REVIEW"; row.error = ""; resumeCount++; }
+        if (body.action === "correct") {
+          row.document!.questions[0].proposal = { answer: "②", review_flags: ["원본의 아래첨자를 확인해 주세요."] };
+          row.version++;
+        }
         return route.fulfill({ status: 202, json: row });
       }
       if (path.endsWith(`/conversions/${id}/`)) {
@@ -51,6 +55,10 @@ for (const width of [1366, 390]) {
           const body = request.postDataJSON();
           expect(body.version).toBe(row.version);
           if (body.question) { Object.assign(row.document!.questions[0], body.question); saveCount++; }
+          if (body.action === "apply_proposal") {
+            Object.assign(row.document!.questions[0], row.document!.questions[0].proposal);
+            delete row.document!.questions[0].proposal;
+          }
           if (body.action === "accept" || body.action === "accept_all") { row.document!.questions[0].reviewed = true; row.review_count = 0; }
           row.version++;
         }
@@ -78,6 +86,12 @@ for (const width of [1366, 390]) {
     await expect.poll(() => saveCount).toBe(1);
     await expect(page.getByRole("status").filter({ hasText: /^저장됨$/ })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`editor-${width}.png`), fullPage: true });
+    await page.getByLabel("이렇게 고쳐 주세요").fill("정답을 원본과 확인해 주세요.");
+    await page.getByRole("button", { name: "AI로 고치기", exact: true }).click();
+    await expect(page.getByRole("region", { name: "AI 수정 제안" })).toContainText("원본의 아래첨자를 확인해 주세요.");
+    await page.getByRole("button", { name: "제안 적용", exact: true }).click();
+    await expect(page.getByRole("region", { name: "AI 수정 제안" })).toHaveCount(0);
+    await expect(page.getByText("원본의 아래첨자를 확인해 주세요.", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "목록으로" }).click();
     await expect(page.getByRole("button", { name: /^원고본/ })).toBeDisabled();
     await page.getByRole("button", { name: "한글 문서 다시작성" }).click();
