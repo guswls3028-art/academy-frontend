@@ -94,6 +94,25 @@ export default function ConversionStudioPage() {
     void getConversion(selectedId).then(value => { if (requestNumber.current === request) setRow(value); }).catch(cause => { if (requestNumber.current === request) setError(message(cause)); }).finally(() => { if (requestNumber.current === request) setLoading(false); });
   }, [selectedId, storageKey]);
   const active = row ? conversionActive(row) : false;
+  const loadedId = row?.id;
+  const loadedVersion = row?.version;
+  useEffect(() => {
+    if (!loadedId || loadedVersion === undefined || active) return;
+    let cancelled = false;
+    const refreshAssets = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const value = await getConversion(loadedId);
+        if (cancelled) return;
+        if (value.version !== loadedVersion) { setConflict(true); return; }
+        setRow(current => current?.id === loadedId && current.version === loadedVersion ? value : current);
+      } catch (cause) { if (!cancelled) setError(message(cause)); }
+    };
+    // Refresh 15-minute image signatures before expiry without replacing a newer draft.
+    const timer = setInterval(() => { void refreshAssets(); }, 10 * 60_000);
+    document.addEventListener("visibilitychange", refreshAssets);
+    return () => { cancelled = true; clearInterval(timer); document.removeEventListener("visibilitychange", refreshAssets); };
+  }, [loadedId, loadedVersion, active]);
   useEffect(() => {
     if (!selectedId || !active) return;
     let cancelled = false;

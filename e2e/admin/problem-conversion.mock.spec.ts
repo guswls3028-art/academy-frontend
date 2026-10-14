@@ -70,6 +70,10 @@ for (const width of [1366, 390]) {
     await page.getByRole("button", { name: /1번.*2와 3/ }).click();
     await expect(page.getByRole("img", { name: /원본 1쪽/ })).toBeVisible();
     await page.getByRole("textbox", { name: "문항", exact: true }).fill("2와 3을 더한 값을 구하시오. 교사 수정본");
+    const refreshed = page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname.endsWith(`/conversions/${id}/`));
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await refreshed;
+    await expect(page.getByRole("textbox", { name: "문항", exact: true })).toHaveValue("2와 3을 더한 값을 구하시오. 교사 수정본");
     await page.getByRole("button", { name: "저장", exact: true }).click();
     await expect.poll(() => saveCount).toBe(1);
     await expect(page.getByRole("status").filter({ hasText: /^저장됨$/ })).toBeVisible();
