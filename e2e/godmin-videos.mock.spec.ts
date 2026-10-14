@@ -214,7 +214,7 @@ test("lookup failure retains manual draft and public list error has retry", asyn
 for (const width of [1366, 390]) {
   test(`homepage navigation → browse another video → publisher entry at ${width}px`, async ({ page }, testInfo) => {
     const state = await prepare(page, true, true); await page.setViewportSize({ width, height: 900 });
-    const next: PublicVideo = { ...source, ...initial, id: "82222222-2222-4222-8222-222222222222", title: "다음에 볼 영상", summary: "", format: "vertical", youtube_video_id: "Q70aZV1TH1Y", published_at: "2026-10-14T00:00:00Z" };
+    const next: PublicVideo = { ...source, ...initial, id: "82222222-2222-4222-8222-222222222222", title: "다음에 볼 영상", summary: "", format: "vertical", youtube_video_id: "Q70aZV1TH1Y", canonical_url: "https://www.youtube.com/watch?v=Q70aZV1TH1Y", thumbnail_url: "https://i.ytimg.com/vi/Q70aZV1TH1Y/hqdefault.jpg", published_at: "2026-10-14T00:00:00Z" };
     state.related.push(next);
     await page.goto(`${BASE}/landing/videos/${ID}`);
     const nav = page.getByRole("navigation", { name: "홈페이지 주요 메뉴" });

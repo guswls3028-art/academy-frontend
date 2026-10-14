@@ -31,10 +31,10 @@ export function VideoFailure({ message, retry }: { message: string; retry?: () =
   return <div className={s.notice} role="alert"><p>{message}</p>{retry && <button type="button" onClick={retry}>다시 시도</button>}</div>;
 }
 
-export function VideoPublisherLink() {
+export function VideoPublisherLink({ manage = false }: { manage?: boolean }) {
   const publisher = useVideoPublisher();
   if (publisher.state === "error") return <button className={s.textButton} type="button" onClick={publisher.retry}>관리 권한 다시 확인</button>;
-  return publisher.state === "allowed" ? <Link className={s.primary} to="/landing/admin/videos/new">영상 등록</Link> : null;
+  return publisher.state === "allowed" ? <Link className={manage ? s.textButton : s.primary} to={manage ? "/landing/admin/videos" : "/landing/admin/videos/new"}>{manage ? "영상 관리" : "영상 등록"}</Link> : null;
 }
 
 export function VideoEditLink({ id }: { id: string }) {
