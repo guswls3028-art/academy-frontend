@@ -38,7 +38,7 @@ test.describe("[real-use] public video publishing", () => {
         await page.getByText("영상 영역 설정", { exact: true }).click();
         if (index) await expect(page.getByLabel("영역 제목", { exact: true })).toHaveValue("QA 영상 자료 1366");
         await page.getByLabel("영역 제목", { exact: true }).fill(`QA 영상 자료 ${width}`);
-        await page.getByLabel("영역 소개 · 선택", { exact: true }).fill("게시자가 직접 정한 영상 소개입니다.");
+        await page.getByRole("textbox", { name: "영역 소개 · 선택", exact: true }).fill("게시자가 직접 정한 영상 소개입니다.");
         await page.getByRole("button", { name: "영역 설정 저장", exact: true }).click();
         await expect(page.getByRole("status", { name: "영역 설정 결과" })).toContainText("영상 영역 설정을 저장했습니다");
         await page.reload(); await page.getByText("영상 영역 설정", { exact: true }).click();

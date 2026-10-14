@@ -152,13 +152,13 @@ for (const width of [1366, 390]) {
     page.on("dialog", (dialog) => void (dialog.message().includes("영상을 삭제할까요") && !acceptDelete ? dialog.dismiss() : dialog.accept()));
     await page.goto(`${BASE}/landing/admin/videos`); await page.getByText("영상 영역 설정", { exact: true }).click();
     await page.getByLabel("영역 제목", { exact: true }).fill("직접 정한 영상 제목");
-    await page.getByLabel("영역 소개 · 선택", { exact: true }).fill("사용자가 작성한 소개입니다.");
+    await page.getByRole("textbox", { name: "영역 소개 · 선택", exact: true }).fill("사용자가 작성한 소개입니다.");
     await expect(page.getByText("관리 목록을 불러오지 못했습니다.", { exact: true })).toBeVisible();
     state.listFailure = false;
     await page.getByRole("button", { name: "다시 시도", exact: true }).click();
     await expect(page.getByRole("link").filter({ has: page.getByRole("heading", { name: initial.title, exact: true }) })).toBeVisible();
     await expect(page.getByLabel("영역 제목", { exact: true })).toHaveValue("직접 정한 영상 제목");
-    await expect(page.getByLabel("영역 소개 · 선택", { exact: true })).toHaveValue("사용자가 작성한 소개입니다.");
+    await expect(page.getByRole("textbox", { name: "영역 소개 · 선택", exact: true })).toHaveValue("사용자가 작성한 소개입니다.");
     state.revision++; state.presentation.title = "다른 게시자의 영역 제목";
     await page.getByRole("button", { name: "영역 설정 저장", exact: true }).click();
     await expect(page.getByRole("heading", { name: "다른 게시자의 설정 변경이 있습니다" })).toBeVisible();
