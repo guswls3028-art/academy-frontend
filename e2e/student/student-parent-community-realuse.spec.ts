@@ -1,5 +1,6 @@
 /** Parent selected-child QnA/counsel writes in the isolated qa-* development runtime. */
 import { expect, test } from "../fixtures/strictTest";
+import { readFile } from "node:fs/promises";
 import {
   api,
   assertNoHorizontalOverflow,
@@ -83,6 +84,10 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       name: "qa-community-recovery.png", mimeType: "image/png",
       buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
     };
+    const documentAttachment = {
+      name: "qa-질문-추가-학습자료.txt", mimeType: "text/plain",
+      buffer: Buffer.from("QA community attachment: selected-child question and staff download.\n"),
+    };
     let rejectFirstUpload = true;
     await page.route("**/api/v1/community/posts/*/attachments/", async (route) => {
       if (rejectFirstUpload && route.request().method() === "POST") {
@@ -94,7 +99,7 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       }
       await route.fallback();
     });
-    await page.locator(".community-file-picker__input").setInputFiles(attachment);
+    await page.locator(".community-file-picker__input").setInputFiles([attachment, documentAttachment]);
     const qnaResponsePromise = page.waitForResponse((response) => (
       response.request().method() === "POST"
       && new URL(response.url()).pathname.endsWith("/api/v1/community/posts/")
@@ -113,19 +118,22 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await page.getByRole("button", { name: "질문하기", exact: true }).click();
     await expect(page.getByPlaceholder("질문 제목")).toHaveValue(qnaTitle);
     await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeDisabled();
-    await page.locator(".community-file-picker__input").setInputFiles(attachment);
+    await page.locator(".community-file-picker__input").setInputFiles([attachment, documentAttachment]);
     const uploadResponsePromise = page.waitForResponse((response) => response.request().method() === "POST"
       && new URL(response.url()).pathname.endsWith(`/api/v1/community/posts/${qna.id}/attachments/`));
     await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
     const uploaded = await uploadResponsePromise;
     expect(uploaded.status()).toBe(201);
     expect(uploaded.request().headers()["x-student-id"]).toBe(String(primary.id));
-    expect(await uploaded.json()).toMatchObject([{ original_name: attachment.name }]);
+    expect(await uploaded.json()).toEqual(expect.arrayContaining([
+      expect.objectContaining({ original_name: attachment.name }),
+      expect.objectContaining({ original_name: documentAttachment.name }),
+    ]));
     await expect(page.getByText(qnaTitle, { exact: true })).toBeVisible();
     const persisted = await api<{ attachments: Array<{ original_name: string }> }>(request, "GET", `/community/posts/${qna.id}/`, adminAccess);
     expect(persisted.status).toBe(200);
-    expect(persisted.body.attachments).toHaveLength(1);
-    expect(persisted.body.attachments[0].original_name).toBe(attachment.name);
+    expect(persisted.body.attachments).toHaveLength(2);
+    expect(persisted.body.attachments.map((file) => file.original_name)).toEqual(expect.arrayContaining([attachment.name, documentAttachment.name]));
 
     await openCommunityTab(page, "상담");
     await page.getByRole("button", { name: "상담 신청하기", exact: true }).click();
@@ -178,6 +186,23 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       await adminPage.getByTestId("login-submit").click();
       await expect(adminPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
       await acknowledgeInitialAccountPromptsIfVisible(adminPage);
+      for (const width of [1366, 390]) {
+        await adminPage.setViewportSize({ width, height: 900 });
+        await gotoAndSettle(adminPage, `${QA_BASE}/workspace/community/qna?id=${qna.id}`);
+        const files = adminPage.getByRole("region", { name: "첨부파일", exact: true });
+        await expect(files).toContainText(documentAttachment.name);
+        await expect(adminPage.getByRole("img", { name: attachment.name, exact: true })).toBeVisible();
+        const downloadPromise = adminPage.waitForEvent("download");
+        await files.getByRole("button", { name: "다운로드", exact: true }).click();
+        const download = await downloadPromise;
+        expect(await download.failure()).toBeNull();
+        expect(await readFile((await download.path())!)).toEqual(documentAttachment.buffer);
+        await adminPage.reload({ waitUntil: "domcontentloaded" });
+        await expect(files).toContainText(documentAttachment.name);
+        await assertNoHorizontalOverflow(adminPage);
+        await adminPage.screenshot({ path: testInfo.outputPath(`qna-attachment-development-${width}.png`) });
+      }
+      await adminPage.setViewportSize({ width: 1366, height: 900 });
       await gotoAndSettle(adminPage, QA_BASE + "/workspace/students/" + primary.id);
       const detail = adminPage.getByTestId("student-detail-overlay");
       await detail.getByRole("tab", { name: /^질문/ }).click();

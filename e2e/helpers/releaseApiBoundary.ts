@@ -183,25 +183,28 @@ function isExactDevelopmentHomeworkPng(boundary: ReleaseBoundary, rawUrl: string
   return Boolean(path && Number.isSafeInteger(Number(path[1])) && hasExactHostSignature(target, 600));
 }
 
-function isExactDevelopmentCommunityImage(
+function isExactDevelopmentCommunityAttachment(
   boundary: ReleaseBoundary, rawUrl: string, postId: number, contentType: string, downloadName?: string,
 ): boolean {
   if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
     || Number(boundary.omrR2TenantId) < 1 || !Number.isSafeInteger(postId) || postId < 1
-    || !["image/png", "image/jpeg", "image/webp"].includes(contentType)) return false;
+    || !["image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain"].includes(contentType)
+    || (!contentType.startsWith("image/") && downloadName === undefined)) return false;
   const target = new URL(rawUrl);
   if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
     || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
-  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/community/posts/${postId}/uploads/[A-Za-z0-9_-]{16,80}/[0-9]_[0-9a-f]{16}_[0-9a-f]{8}_[^/]+\\.(png|jpg|jpeg|webp)$`, "i").exec(target.pathname);
+  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/community/posts/${postId}/uploads/[A-Za-z0-9_-]{16,80}/[0-9]_[0-9a-f]{16}_[0-9a-f]{8}_[^/]+\\.(png|jpg|jpeg|webp|pdf|txt)$`, "i").exec(target.pathname);
   if (!path) return false;
   const extensionType = path[1].toLowerCase() === "png" ? "image/png"
-    : path[1].toLowerCase() === "webp" ? "image/webp" : "image/jpeg";
+    : path[1].toLowerCase() === "webp" ? "image/webp"
+    : path[1].toLowerCase() === "pdf" ? "application/pdf"
+    : path[1].toLowerCase() === "txt" ? "text/plain" : "image/jpeg";
   if (extensionType !== contentType || target.searchParams.getAll("response-content-type").length !== 1
     || target.searchParams.get("response-content-type") !== contentType) return false;
   if (downloadName === undefined) {
     if (target.searchParams.has("response-content-disposition")) return false;
   } else if (target.searchParams.getAll("response-content-disposition").length !== 1
-    || target.searchParams.get("response-content-disposition") !== `attachment; filename="${downloadName.replaceAll('"', "")}"`) {
+    || target.searchParams.get("response-content-disposition") !== inventoryDisposition(downloadName)) {
     return false;
   }
   const unsignedType = new URL(target);
@@ -949,6 +952,7 @@ export async function installReleaseContextGuard(
   const defects: string[] = [];
   const homeworkPreviewUrls = new Set<string>();
   const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
+  const communityFileUrls = new Map<string, { contentType: string; sizeBytes: number; disposition: string }>();
   const resourceDownloadUrls = new Set<string>();
   const resourceReaderUrls = new Map<string, string>();
   const acceptedPptJobs = new Set<string>();
@@ -956,7 +960,7 @@ export async function installReleaseContextGuard(
   const documentDownloadUrls = new Map<string, { url: string; filename: string; contentType: string; contentDisposition: string;
     inventoryOriginal?: InventoryOriginal }>();
   const inventoryOriginals = new Map<string, InventoryOriginal>();
-  const communityAttachments = new Map<string, { contentType: string; originalName: string }>();
+  const communityAttachments = new Map<string, { contentType: string; originalName: string; sizeBytes?: number }>();
   const registerQnaPost = (post: unknown) => {
     if (!isRecord(post) || post.post_type !== "qna" || typeof post.id !== "number" || !Number.isSafeInteger(post.id)
       || Number(post.id) < 1 || !Array.isArray(post.attachments) || post.attachments.length > 10) return;
@@ -965,10 +969,13 @@ export async function installReleaseContextGuard(
       if (!isRecord(attachment) || typeof attachment.id !== "number" || !Number.isSafeInteger(attachment.id) || Number(attachment.id) < 1
         || typeof attachment.content_type !== "string" || typeof attachment.original_name !== "string") continue;
       const contentType = attachment.content_type;
-      if (!["image/png", "image/jpeg", "image/webp"].includes(contentType)) continue;
-      communityAttachments.set(`${postId}:${attachment.id}`, { contentType, originalName: attachment.original_name });
+      if (!["image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain"].includes(contentType)) continue;
+      const sizeBytes = typeof attachment.size_bytes === "number" && Number.isSafeInteger(attachment.size_bytes)
+        && attachment.size_bytes > 0 && attachment.size_bytes <= 50 * 1024 * 1024 ? attachment.size_bytes : undefined;
+      if (!contentType.startsWith("image/") && sizeBytes === undefined) continue;
+      communityAttachments.set(`${postId}:${attachment.id}`, { contentType, originalName: attachment.original_name, sizeBytes });
       const url = attachment.download_url;
-      if (typeof url === "string" && isExactDevelopmentCommunityImage(boundary, url, postId, contentType)) {
+      if (typeof url === "string" && isExactDevelopmentCommunityAttachment(boundary, url, postId, contentType)) {
         communityImageUrls.set(url, contentType as "image/png" | "image/jpeg" | "image/webp");
       }
     }
@@ -1171,6 +1178,28 @@ export async function installReleaseContextGuard(
         }
         await route.fulfill({ status: 200, headers: { "content-type": documentDownload.contentType,
           "content-disposition": disposition }, body });
+        return;
+      }
+      const communityFile = request.method() === "GET" ? communityFileUrls.get(upstream) : undefined;
+      if (communityFile && ["document", "other"].includes(request.resourceType())) {
+        const headers = await request.allHeaders();
+        if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
+          .some((key) => headers[key])) {
+          await reject("credentials");
+          return;
+        }
+        const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: communityFile.contentType }, maxRedirects: 0 });
+        if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
+        const body = await response.body();
+        if (response.status() !== 200 || body.length !== communityFile.sizeBytes
+          || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== communityFile.contentType
+          || response.headers()["content-disposition"] !== communityFile.disposition
+          || (communityFile.contentType === "application/pdf" && body.subarray(0, 5).toString("ascii") !== "%PDF-")) {
+          await reject("transport");
+          return;
+        }
+        await route.fulfill({ status: 200, headers: { "content-type": communityFile.contentType,
+          "content-disposition": communityFile.disposition }, body });
         return;
       }
       const homeworkPng = request.method() === "GET" && homeworkPreviewUrls.has(upstream);
@@ -1412,10 +1441,15 @@ export async function installReleaseContextGuard(
             const postId = Number(communityDownload[1]);
             const attachment = communityAttachments.get(`${postId}:${communityDownload[2]}`);
             if (attachment && payload?.original_name === attachment.originalName && typeof payload?.url === "string"
-              && isExactDevelopmentCommunityImage(boundary, payload.url, postId,
+              && isExactDevelopmentCommunityAttachment(boundary, payload.url, postId,
                 attachment.contentType, attachment.originalName)) {
-              communityImageUrls.set(payload.url,
-                attachment.contentType as "image/png" | "image/jpeg" | "image/webp");
+              if (attachment.contentType.startsWith("image/")) {
+                communityImageUrls.set(payload.url,
+                  attachment.contentType as "image/png" | "image/jpeg" | "image/webp");
+              } else if (attachment.sizeBytes !== undefined) {
+                communityFileUrls.set(payload.url, { contentType: attachment.contentType, sizeBytes: attachment.sizeBytes,
+                  disposition: new URL(payload.url).searchParams.get("response-content-disposition")! });
+              }
             }
           }
         }
