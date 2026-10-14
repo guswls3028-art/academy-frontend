@@ -40,9 +40,13 @@ test.describe("[real-use] public video publishing", () => {
         const title = `QA 영상 이야기 ${width}`; await page.getByLabel(/^제목/).fill(title);
         await page.getByLabel(/^한 줄 소개/).fill("격리 개발환경에서 공개와 초안 보존을 확인합니다.");
         const created = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/landing-public/videos/manage/");
+        const editorReady = page.waitForResponse((response) => response.request().method() === "GET" && response.status() === 200
+          && /^\/api\/v1\/landing-public\/videos\/manage\/[a-f0-9-]+\/$/.test(new URL(response.url()).pathname));
         await page.getByRole("button", { name: "임시저장", exact: true }).click();
         const response = await created; expect(response.status()).toBe(201); const row = await response.json() as ManagedVideo; owned.push(row.id);
-        await expect(page).toHaveURL(`${QA_BASE}/landing/admin/videos/${row.id}`); await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue(title);
+        await expect(page).toHaveURL(`${QA_BASE}/landing/admin/videos/${row.id}`); await editorReady;
+        await expect(page.getByLabel(/^제목/)).toHaveValue(title);
+        await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue(title);
         expect((await api(request, "GET", `/landing-public/videos/${row.id}/`, "")).status).toBe(404);
         await page.getByLabel("홈페이지 대표 영상으로 표시", { exact: false }).check();
         await page.getByRole("button", { name: "공개하기", exact: true }).click(); await expect(page.getByRole("status")).toContainText("공개했습니다", { timeout: 30_000 });

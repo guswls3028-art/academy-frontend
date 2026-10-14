@@ -44,6 +44,7 @@ test("provider requests require an admitted player frame and never allow platfor
 
 async function setup(options = {}) {
   let handler;
+  const fetches = [];
   const initializers = [];
   const context = { request: { fetch: async () => assert.fail("No direct external API transport") }, exposeBinding: async () => {}, addInitScript: async (fn, arg) => { initializers.push({ fn, arg }); }, on() {}, route: async (_pattern, callback) => { handler = callback; } };
   const guard = await installReleaseContextGuard(context, boundary);
@@ -53,16 +54,22 @@ async function setup(options = {}) {
       abort: async () => assert.fail("Valid QA API source was rejected"), continue: async () => assert.fail("API must use verified transport"),
       fetch: async () => ({ status: () => options.status ?? 200, headers: () => ({ "content-type": "application/json", "access-control-allow-origin": boundary.webOrigin, "access-control-allow-credentials": "true" }), json: async () => video }), fulfill: async () => {} });
   }
-  async function request(url, { method = "GET", type = "image", frame, headers = {}, status = 200 } = {}) {
+  async function request(url, { method = "GET", type = "image", frame, headers = {}, status = 200, sequence } = {}) {
     let relayed = 0, aborted = 0;
-    const providerResponse = { status: () => status };
+    let providerResponse; let index = 0;
     await handler({ request: () => ({ url: () => url, method: () => method, resourceType: () => type, frame: () => frame, allHeaders: async () => headers, headerValue: async (name) => headers[name] ?? null, postDataJSON: () => null, postDataBuffer: () => null }),
       continue: async () => assert.fail("Native continuation can escape via redirects"), abort: async () => { aborted++; },
-      fetch: async (settings) => { assert.equal(settings.maxRedirects, 0); assert.equal(settings.timeout, 30_000); return providerResponse; },
+      fetch: async (settings) => {
+        assert.equal(settings.maxRedirects, 0); assert.ok(settings.timeout > 0 && settings.timeout <= 30_000);
+        fetches.push(settings.url ?? url);
+        const item = sequence?.[Math.min(index++, sequence.length - 1)] ?? { status };
+        providerResponse = { status: () => item.status, headers: () => item.location ? { location: item.location } : {} };
+        return providerResponse;
+      },
       fulfill: async (value) => { assert.deepEqual(Object.keys(value), ["response"]); assert.equal(value.response, providerResponse); relayed++; } });
     return { relayed, aborted };
   }
-  return { guard, request, initializers };
+  return { guard, request, initializers, fetches };
 }
 
 test("real provider responses are relayed without mocked bytes; credentials and unregistered resources are rejected", async () => {
@@ -72,11 +79,44 @@ test("real provider responses are relayed without mocked bytes; credentials and 
   }
 });
 
-test("provider redirects are refused before any response or subsequent target is delivered", async () => {
+test("thumbnail redirects are refused before any response or subsequent target is delivered", async () => {
   for (const status of [301, 302, 307, 308]) {
     const denied = await setup(); assert.deepEqual(await denied.request(video.thumbnail_url, { status }), { relayed: 0, aborted: 1 });
     assert.throws(() => denied.guard.assertClean(), /public-video-redirect/);
   }
+});
+
+async function playerSetup() {
+  const allowed = await setup();
+  const parent = { url: () => boundary.webOrigin, parentFrame: () => null };
+  const frame = { url: () => embed, parentFrame: () => parent };
+  await allowed.request(embed, { type: "document", frame });
+  allowed.fetches.length = 0;
+  return { ...allowed, frame };
+}
+
+test("admitted native player follows a bounded same-origin same-path GET query redirect with real responses", async () => {
+  const allowed = await playerSetup();
+  const resource = "https://googleads.g.doubleclick.net/pagead/id";
+  assert.deepEqual(await allowed.request(resource, { frame: allowed.frame,
+    sequence: [{ status: 302, location: "?fixture=1" }, { status: 200 }] }), { relayed: 1, aborted: 0 });
+  assert.deepEqual(allowed.fetches, [resource, resource + "?fixture=1"]);
+  allowed.guard.assertClean();
+});
+
+test("player redirect cannot escape its origin/path, replay a POST, carry URL credentials or loop", async () => {
+  const resource = "https://googleads.g.doubleclick.net/pagead/id";
+  for (const location of ["https://foreign.invalid/upload", "https://www.youtube.com/pagead/id", "/other", "http://googleads.g.doubleclick.net/pagead/id", "https://secret@googleads.g.doubleclick.net/pagead/id", resource + "#fragment", "https://googleads.g.doubleclick.net:8443/pagead/id"]) {
+    const denied = await playerSetup();
+    assert.deepEqual(await denied.request(resource, { frame: denied.frame, sequence: [{ status: 302, location }] }), { relayed: 0, aborted: 1 });
+    assert.deepEqual(denied.fetches, [resource]); assert.throws(() => denied.guard.assertClean(), /public-video-redirect/);
+  }
+  const post = await playerSetup();
+  assert.deepEqual(await post.request(resource, { frame: post.frame, method: "POST", sequence: [{ status: 307, location: "?fixture=1" }] }), { relayed: 0, aborted: 1 });
+  assert.deepEqual(post.fetches, [resource]);
+  const loop = await playerSetup();
+  assert.deepEqual(await loop.request(resource, { frame: loop.frame, sequence: [{ status: 302, location: "?fixture=1" }] }), { relayed: 0, aborted: 1 });
+  assert.equal(loop.fetches.length, 4); assert.throws(() => loop.guard.assertClean(), /public-video-redirect/);
 });
 
 test("frame trust is scoped to the actual admitted iframe and ends when it navigates away", async () => {

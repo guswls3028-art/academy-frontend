@@ -1116,6 +1116,7 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     postCleanupInspectObservation: null,
     realUseObservation: null,
     realUseProcessObservation: null,
+    apiTunnelProcessObservation: null,
     videoRuntimeObservation: null,
     postPlaybackInspectObservation: null,
     preflightStage: "process",
@@ -1454,6 +1455,27 @@ test("owned process observation exposes only allowlisted termination facts", () 
     durationMs: null,
   });
   assert.doesNotMatch(published, /secret-token|student-name|secret\/path/);
+});
+
+test("API tunnel termination records safe facts without rewriting gate evidence", async () => {
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("    const tunnel = session(PORT_DOCUMENT);");
+  const end = source.indexOf("    await waitPort(18000", start);
+  assert.ok(start > 0 && end > start);
+  let finish;
+  const done = new Promise((resolve) => { finish = resolve; });
+  const execute = new Function("session", "PORT_DOCUMENT", "observeOwnedProcessResult",
+    `let apiTunnelProcessObservation;\n${source.slice(start, end)}\nreturn () => apiTunnelProcessObservation;`);
+  const read = execute((name) => {
+    assert.equal(name, "unit-port");
+    return { done };
+  }, "unit-port", runner.observeOwnedProcessResult);
+  assert.equal(read(), undefined);
+  finish({ code: 1, signal: null, stopReason: "exited", durationMs: 1234,
+    stdout: "private-session student-name", stderr: "private-token" });
+  await done;
+  assert.deepEqual(read(), { exitCode: 1, signal: null, stopReason: "exited", durationMs: 1234 });
+  assert.doesNotMatch(JSON.stringify(read()), /private-|student-name/);
 });
 
 const workflow = readFileSync(new URL("../../.github/workflows/quality-gate.yml", import.meta.url), "utf8").replaceAll("\r\n", "\n");
