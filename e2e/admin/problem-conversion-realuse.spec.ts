@@ -11,12 +11,24 @@ import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 test.setTimeout(540_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 test.skip(!STUDENT_PARENT_REALUSE_ENABLED, "Requires the exact isolated development release boundary.");
+let conversionId: string | null = null;
+let conversionAccess = "";
+test.afterEach(async ({ request }) => {
+  if (!conversionId) return;
+  // Finish outstanding writes before the runner removes this exact tenant's R2 prefix.
+  await expect.poll(async () => {
+    const result = await api<{ status: string }>(request, "GET", `/tools/problem-studio/conversions/${conversionId}/`, conversionAccess);
+    expect(result.status).toBe(200);
+    return ["PENDING", "RUNNING"].includes(result.body.status);
+  }, { timeout: 180_000, intervals: [2000, 5000] }).toBe(false);
+});
 
 test("PDF·이미지 OCR → 실제 AI 수정·그림 제안 → 교사 저장 → HWPX → desktop/390px 재진입", async ({ page, request }) => {
   assertQaStudentParentRuntime();
   const boundary = await installQaStudentParentBoundary(page, request);
   const browser = attachStrictBrowserGuards(page);
   const tokens = await loginAdmin(request);
+  conversionAccess = tokens.access;
   await seedBrowserAuth(page, tokens);
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -40,7 +52,12 @@ test("PDF·이미지 OCR → 실제 AI 수정·그림 제안 → 교사 저장 �
   ]);
   await page.getByRole("radio", { name: /문제지만/ }).check();
   await page.getByLabel("원본을 외부 AI로 처리하는 데 동의합니다.").check();
+  const created = page.waitForResponse(response => response.request().method() === "POST"
+    && new URL(response.url()).pathname.endsWith("/tools/problem-studio/conversions/"));
   await page.getByRole("button", { name: "변환 시작", exact: true }).click();
+  const createdResponse = await created;
+  expect(createdResponse.status()).toBe(202);
+  conversionId = (await createdResponse.json()).id;
   await expect(page.getByRole("button", { name: "원고본", exact: true })).toBeEnabled({ timeout: 180_000 });
   const id = new URL(page.url()).searchParams.get("conversion")!;
   const path = `/tools/problem-studio/conversions/${id}/`;
