@@ -87,7 +87,7 @@ function isExactInventoryOriginalDownload(boundary: ReleaseBoundary, rawUrl: str
 export function isExactDevelopmentConversionAsset(boundary: ReleaseBoundary, rawUrl: string, conversionId: string,
   filename: string, contentType: string): boolean {
   if (boundary.mode !== "development" || !UUID.test(conversionId) || !Number.isSafeInteger(boundary.omrR2TenantId)
-    || Number(boundary.omrR2TenantId) < 1 || !["image/png", "application/hwp+zip", "application/zip"].includes(contentType)) return false;
+    || Number(boundary.omrR2TenantId) < 1 || !["image/png", "image/jpeg", "application/hwp+zip", "application/zip"].includes(contentType)) return false;
   const target = new URL(rawUrl);
   const prefix = `/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/tools/problem-studio/conversions/${conversionId}/`;
   const suffix = target.pathname.slice(prefix.length);
@@ -1156,9 +1156,11 @@ export async function installReleaseContextGuard(
           ? body.subarray(0, 5).toString("ascii") === "%PDF-"
           : readerContentType === "image/png"
             ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((byte, index) => body[index] === byte)
-            : readerContentType === "image/gif"
-              ? ["GIF87a", "GIF89a"].includes(body.subarray(0, 6).toString("ascii"))
-              : body.subarray(0, 4).toString("ascii") === "RIFF" && body.subarray(8, 12).toString("ascii") === "WEBP");
+            : readerContentType === "image/jpeg"
+              ? body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff
+              : readerContentType === "image/gif"
+                ? ["GIF87a", "GIF89a"].includes(body.subarray(0, 6).toString("ascii"))
+                : body.subarray(0, 4).toString("ascii") === "RIFF" && body.subarray(8, 12).toString("ascii") === "WEBP");
         if (response.status() !== 200 || !body.length || body.length > (readerContentType ? 60 : 30) * 1024 * 1024
           || !readerSignatureMatches
           || (readerContentType ? actualType !== readerContentType
@@ -1397,7 +1399,7 @@ export async function installReleaseContextGuard(
               || !isExactDevelopmentConversionAsset(boundary, asset.url, conversion[1], asset.filename, asset.mime)) {
               throw new Error("Conversion asset escaped exact development scope");
             }
-            if (asset.mime === "image/png") resourceReaderUrls.set(asset.url, asset.mime);
+            if (["image/png", "image/jpeg"].includes(asset.mime)) resourceReaderUrls.set(asset.url, asset.mime);
             else documentDownloadUrls.set(asset.url, { url: asset.url, filename: asset.filename,
               contentType: asset.mime, contentDisposition: inventoryDisposition(asset.filename) });
           }
