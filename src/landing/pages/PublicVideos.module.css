@@ -117,6 +117,17 @@
 .message { min-height: 24px; font-size: 13px; color: var(--video-deep); margin-bottom: 18px; }
 .publishFooter { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--video-line); font-size: 12px; color: var(--video-deep); }
 .latest { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eed5b4; }
+.settingsPanel { padding: 24px 28px; margin-bottom: 24px; border: 1px solid var(--video-line); border-radius: 14px; background: #fff; }
+.settingsPanel summary { cursor: pointer; font-size: 15px; font-weight: 700; color: var(--video-deep); }
+.settingsPanel[open] form { animation: video-settings-in .18s ease-out; }
+.settingsPanel input, .settingsPanel textarea { width: 100%; min-width: 0; border: 1px solid #cadbd1; border-radius: 8px; background: #fbfdfc; padding: 12px 13px; color: var(--video-ink); font: inherit; font-size: 15px; line-height: 1.5; }
+.deletePanel { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 22px; border: 1px solid var(--video-line); border-radius: 12px; font-size: 13px; }
+.deletePanel p { margin: 7px 0 0; color: var(--video-muted); font-size: 12px; line-height: 1.7; }
+.deleteButton { border: 1px solid #e5c8c5; border-radius: 8px; padding: 11px 16px; min-height: 44px; background: #fff; color: #a3312c; font: inherit; font-weight: 650; cursor: pointer; transition: background .18s; }
+.deleteButton:hover { background: #fff2f0; }
+.kicker, .pageHeading h1, .pageHeading p, .sectionHeading h2, .sectionHeading p, .cardCopy p, .heroCaption p, .latest { overflow-wrap: anywhere; }
+@keyframes video-settings-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .settingsPanel[open] form { animation: none; } .deleteButton { transition: none; } }
 @media (max-width: 1000px) {
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .editorGrid { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 20px; }

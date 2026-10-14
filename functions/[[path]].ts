@@ -828,7 +828,7 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
     videoStatus = video.status;
     if (video.title && meta) {
       meta = { ...meta, siteName: meta.title, title: `${video.title} | ${meta.title}`,
-        description: video.description || `${meta.title} 영상 이야기`, image: video.image,
+        description: video.description || `${meta.title} 영상`, image: video.image,
         imageWidth: 480, imageHeight: 360 };
     }
   }

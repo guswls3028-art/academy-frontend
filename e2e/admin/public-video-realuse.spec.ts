@@ -12,11 +12,12 @@ test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off
 test.describe("[real-use] public video publishing", () => {
   test.describe.configure({ retries: 0 });
   test.skip(!STUDENT_PARENT_REALUSE_ENABLED, "Requires exact isolated development release boundary.");
-  test("two publishers register → draft reload → publish/hero → anonymous detail → edit snapshot → hide", async ({ browser, request }, testInfo) => {
+  test("two publishers customize → register/reload → publish → edit/hide → delete → re-register", async ({ browser, request }, testInfo) => {
     assertQaStudentParentRuntime();
     const boundary = releaseBoundaryFromEnv(process.env)!; installReleaseRequestGuard(request, boundary);
     const access = (await loginAdmin(request)).access;
     const owned: string[] = [];
+    const publishers: Array<Awaited<ReturnType<typeof open>>> = [];
     const contexts: Array<{ context: Awaited<ReturnType<typeof browser.newContext>>; guard: Awaited<ReturnType<typeof installReleaseContextGuard>>; strict: ReturnType<typeof attachStrictBrowserGuards> }> = [];
     async function open(width: number) {
       const context = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block" });
@@ -33,12 +34,23 @@ test.describe("[real-use] public video publishing", () => {
         await page.getByTestId("login-password").fill(QA_ADMIN_PASSWORD); await page.getByTestId("login-submit").click();
         await expect(page).toHaveURL(/\/landing\/videos$/, { timeout: 45_000 }); await acknowledgeInitialAccountPromptsIfVisible(page);
         await page.goto(`${QA_BASE}/landing/videos`); await page.getByRole("link", { name: "영상 관리", exact: true }).click();
+        publishers.push(page);
+        await page.getByText("영상 영역 설정", { exact: true }).click();
+        if (index) await expect(page.getByLabel("영역 제목", { exact: true })).toHaveValue("QA 영상 자료 1366");
+        await page.getByLabel("영역 제목", { exact: true }).fill(`QA 영상 자료 ${width}`);
+        await page.getByRole("textbox", { name: "영역 소개 · 선택", exact: true }).fill("게시자가 직접 정한 영상 소개입니다.");
+        await page.getByRole("button", { name: "영역 설정 저장", exact: true }).click();
+        await expect(page.getByRole("status", { name: "영역 설정 결과" })).toContainText("영상 영역 설정을 저장했습니다");
+        await page.reload(); await page.getByText("영상 영역 설정", { exact: true }).click();
+        await expect(page.getByLabel("영역 제목", { exact: true })).toHaveValue(`QA 영상 자료 ${width}`);
+        await assertNoHorizontalOverflow(page); await page.screenshot({ path: testInfo.outputPath(`video-settings-${width}.png`), fullPage: true });
         await page.getByRole("link", { name: "새 영상 등록", exact: true }).click();
         await page.getByLabel("01 · YouTube 링크", { exact: true }).fill(index ? "https://youtube.com/shorts/Q70aZV1TH1Y" : "https://youtu.be/xgjL2HyrdFM");
         await page.getByRole("button", { name: "영상 확인", exact: true }).click();
         await expect(page.getByRole("status")).toContainText("영상을 확인했습니다", { timeout: 30_000 });
         const title = `QA 영상 이야기 ${width}`; await page.getByLabel(/^제목/).fill(title);
         await page.getByLabel(/^한 줄 소개/).fill("격리 개발환경에서 공개와 초안 보존을 확인합니다.");
+        await page.getByLabel("분류 · 선택", { exact: true }).fill(`직접 정한 분류 ${width}`);
         const created = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/landing-public/videos/manage/");
         const editorReady = page.waitForResponse((response) => response.request().method() === "GET" && response.status() === 200
           && /^\/api\/v1\/landing-public\/videos\/manage\/[a-f0-9-]+\/$/.test(new URL(response.url()).pathname));
@@ -47,18 +59,23 @@ test.describe("[real-use] public video publishing", () => {
         await expect(page).toHaveURL(`${QA_BASE}/landing/admin/videos/${row.id}`); await editorReady;
         await expect(page.getByLabel(/^제목/)).toHaveValue(title);
         await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue(title);
+        await expect(page.getByLabel("분류 · 선택", { exact: true })).toHaveValue(`직접 정한 분류 ${width}`);
         expect((await api(request, "GET", `/landing-public/videos/${row.id}/`, "")).status).toBe(404);
         await page.getByLabel("홈페이지 대표 영상으로 표시", { exact: false }).check();
         await page.getByRole("button", { name: "공개하기", exact: true }).click(); await expect(page.getByRole("status")).toContainText("공개했습니다", { timeout: 30_000 });
         const hero = await api<{ hero: { id: string } }>(request, "GET", "/landing-public/videos/showcase/", ""); expect(hero.body.hero.id).toBe(row.id);
-        const visitor = await open(width); await visitor.goto(`${QA_BASE}/landing/videos/${row.id}`);
+        const visitor = await open(width); await visitor.goto(`${QA_BASE}/landing/videos`);
+        await expect(visitor.getByRole("heading", { name: `QA 영상 자료 ${width}`, exact: true })).toBeVisible();
+        await expect(visitor.getByText("게시자가 직접 정한 영상 소개입니다.", { exact: true })).toBeVisible();
+        await visitor.goto(`${QA_BASE}/landing/videos/${row.id}`);
         await expect(visitor.getByRole("heading", { name: title, exact: true })).toBeVisible(); await visitor.reload(); await expect(visitor.locator("iframe")).toHaveCount(1);
+        await expect(visitor.getByText(`직접 정한 분류 ${width}`, { exact: true })).toBeVisible();
         await expect(visitor.locator("iframe")).toHaveAttribute("src", /autoplay=0/); await expect(visitor.getByRole("link", { name: "YouTube에서 보기 · 좋아요" })).toBeVisible();
         const player = visitor.frameLocator("iframe");
         await expect(player.getByRole("button", { name: /^(?:Play(?: video)?|동영상 재생|재생)(?: \(k\))?$/i }).filter({ visible: true }).first()).toBeVisible({ timeout: 30_000 });
         await expect(player.locator(".ytp-error")).toBeHidden();
         await assertNoHorizontalOverflow(visitor); await visitor.screenshot({ path: testInfo.outputPath(`public-video-${width}.png`), fullPage: true });
-        await visitor.getByRole("link", { name: "← 영상 모아보기", exact: true }).click(); await expect(visitor.locator("iframe")).toHaveCount(0);
+        await visitor.getByRole("link", { name: "← 영상 목록", exact: true }).click(); await expect(visitor.locator("iframe")).toHaveCount(0);
         if (index) {
           // The second exact publisher edits the first publisher's saved video.
           await page.goto(`${QA_BASE}/landing/admin/videos/${owned[0]}`);
@@ -74,16 +91,37 @@ test.describe("[real-use] public video publishing", () => {
         }
         await assertNoHorizontalOverflow(page); await page.screenshot({ path: testInfo.outputPath(`video-studio-${width}.png`), fullPage: true });
       }
+      for (const [index, page] of publishers.entries()) {
+        const deletedId = owned[index];
+        await page.goto(`${QA_BASE}/landing/admin/videos/${deletedId}`);
+        await page.getByRole("button", { name: "영상 삭제", exact: true }).click();
+        await expect(page).toHaveURL(`${QA_BASE}/landing/admin/videos`);
+        await expect(page.getByRole("status", { name: "삭제 결과" })).toContainText("영상을 삭제했습니다");
+        await page.reload(); await expect(page.locator(`a[href="/landing/admin/videos/${deletedId}"]`)).toHaveCount(0);
+        expect((await api(request, "GET", `/landing-public/videos/${deletedId}/`, "")).status).toBe(404);
+        expect((await api(request, "GET", `/landing-public/videos/manage/${deletedId}/`, access)).status).toBe(404);
+        if (index) expect((await api<{ hero: null }>(request, "GET", "/landing-public/videos/showcase/", "")).body.hero).toBeNull();
+        await page.getByRole("link", { name: "새 영상 등록", exact: true }).click();
+        await page.getByLabel("01 · YouTube 링크", { exact: true }).fill(index ? "https://youtube.com/shorts/Q70aZV1TH1Y" : "https://youtu.be/xgjL2HyrdFM");
+        await page.getByLabel(/^제목/).fill(`다시 등록한 영상 ${index}`);
+        const recreated = page.waitForResponse((response) => response.request().method() === "POST" && new URL(response.url()).pathname === "/api/v1/landing-public/videos/manage/");
+        const ready = page.waitForResponse((response) => response.request().method() === "GET" && response.status() === 200 && /^\/api\/v1\/landing-public\/videos\/manage\/[a-f0-9-]+\/$/.test(new URL(response.url()).pathname));
+        await page.getByRole("button", { name: "임시저장", exact: true }).click();
+        const replacementResponse = await recreated; expect(replacementResponse.status()).toBe(201);
+        const replacement = await replacementResponse.json() as ManagedVideo; owned.push(replacement.id); expect(replacement.id).not.toBe(deletedId);
+        await ready; await expect(page.getByLabel(/^제목/)).toHaveValue(`다시 등록한 영상 ${index}`);
+        await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue(`다시 등록한 영상 ${index}`);
+        await assertNoHorizontalOverflow(page);
+      }
     } finally {
-      // No product delete exists. Hide only these owned QA rows; the scenario's
-      // tenant cascade then removes videos/showcase/events and proves tenant/user zero.
+      // Only IDs created in this disposable QA tenant are removed. Its tenant
+      // cascade then removes deletion tombstones/events and proves tenant/user zero.
       for (const id of owned) {
         const current = await api<ManagedVideo>(request, "GET", `/landing-public/videos/manage/${id}/`, access);
+        if (current.status === 404) { expect((await api(request, "GET", `/landing-public/videos/${id}/`, "")).status).toBe(404); continue; }
         const showcase = await api<VideoShowcase>(request, "GET", "/landing-public/videos/manage/showcase/", access);
         expect(current.status).toBe(200); expect(showcase.status).toBe(200);
-        expect((await api(request, "POST", `/landing-public/videos/manage/${id}/unpublish/`, access, {
-          expected_revision: current.body.revision, expected_showcase_revision: showcase.body.revision,
-        })).status).toBe(200);
+        expect((await api(request, "DELETE", `/landing-public/videos/manage/${id}/?expected_revision=${current.body.revision}&expected_showcase_revision=${showcase.body.revision}`, access)).status).toBe(204);
         expect((await api(request, "GET", `/landing-public/videos/${id}/`, "")).status).toBe(404);
       }
       for (const { context, guard, strict } of contexts) {
