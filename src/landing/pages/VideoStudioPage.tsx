@@ -65,14 +65,14 @@ export default function VideoStudioPage() {
   }
   return <VideoLayout title="영상 관리">{publisher.state !== "allowed" ? <VideoAccess publisher={publisher} /> : <>
     <div className={s.sectionHeading}><div><span className={s.kicker}>VIDEOS</span><h1>영상 관리</h1><p>YouTube 링크로 영상을 등록하고 공개 정보를 관리합니다.</p></div><Link className={s.primary} to="/landing/admin/videos/new">새 영상 등록</Link></div>
-    {location.state?.videoDeleted && <p role="status" className={s.message}>영상을 삭제했습니다. 홈페이지와 관리 목록에서 내려갔습니다.</p>}
+    {location.state?.videoDeleted && <p role="status" aria-label="삭제 결과" className={s.message}>영상을 삭제했습니다. 홈페이지와 관리 목록에서 내려갔습니다.</p>}
     <details className={s.settingsPanel}><summary>영상 영역 설정</summary><p className={s.hint}>홈페이지 영상 영역과 영상 목록에 함께 표시됩니다. 제목과 소개를 직접 정할 수 있습니다.</p>
       {settingsError && <VideoFailure message={settingsError} retry={!showcase ? () => setRetry((value) => value + 1) : undefined} />}
       {showcase ? <form onSubmit={(event) => void saveSettings(event)}>
         <label className={s.field} htmlFor="video-section-title">영역 제목<input id="video-section-title" required maxLength={60} value={presentation.title} onChange={(event) => setPresentation({ ...presentation, title: event.target.value })} disabled={settingsBusy || settingsConflict} /></label>
         <label className={s.field} htmlFor="video-section-description">영역 소개 · 선택<textarea id="video-section-description" rows={3} maxLength={220} value={presentation.description} onChange={(event) => setPresentation({ ...presentation, description: event.target.value })} disabled={settingsBusy || settingsConflict} /></label>
         {settingsConflict && <div className={s.notice}><h2>다른 게시자의 설정 변경이 있습니다</h2><p>내 입력을 유지했습니다. 최신 설정을 확인해주세요.</p><button type="button" onClick={() => void checkSettings()} disabled={settingsBusy}>최신 설정 확인</button>{latest && <div className={s.latest}><strong>{latest.title}</strong><p>{latest.description || "소개 없음"}</p><div className={s.actions}><button type="button" onClick={() => acceptSettings(false)}>최신 설정 불러오기</button><button type="button" onClick={() => acceptSettings(true)}>내 설정으로 이어서 수정</button></div></div>}</div>}
-        <button className={s.secondary} type="submit" disabled={settingsBusy || settingsConflict || !presentation.title.trim()}>{settingsBusy ? "처리 중…" : "영역 설정 저장"}</button><p role="status" className={s.message}>{settingsMessage}</p>
+        <button className={s.secondary} type="submit" disabled={settingsBusy || settingsConflict || !presentation.title.trim()}>{settingsBusy ? "처리 중…" : "영역 설정 저장"}</button><p role="status" aria-label="영역 설정 결과" className={s.message}>{settingsMessage}</p>
       </form> : !settingsError && <p role="status">설정을 불러오고 있습니다.</p>}
     </details>
     <div className={s.studioNote}><strong>임시저장 → 미리보기 → 공개</strong><p>공개 중인 영상을 수정해도 다시 공개하기 전까지 방문자에게는 기존 내용이 보입니다. 대표 영상은 홈페이지 첫 화면에 한 편만 표시됩니다.</p></div>

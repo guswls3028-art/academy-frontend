@@ -160,7 +160,7 @@ for (const width of [1366, 390]) {
     await expect(page.getByText("다른 게시자의 영역 제목", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "내 설정으로 이어서 수정" }).click();
     await page.getByRole("button", { name: "영역 설정 저장", exact: true }).click();
-    await expect(page.getByRole("status")).toContainText("영상 영역 설정을 저장했습니다");
+    await expect(page.getByRole("status", { name: "영역 설정 결과" })).toContainText("영상 영역 설정을 저장했습니다");
     await page.reload(); await page.getByText("영상 영역 설정", { exact: true }).click();
     await expect(page.getByLabel("영역 제목", { exact: true })).toHaveValue("직접 정한 영상 제목");
     await noOverflow(page); await testInfo.attach(`video-settings-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
@@ -179,7 +179,7 @@ for (const width of [1366, 390]) {
     await expect(page.getByLabel(/^제목/)).toHaveValue(initial.title); expect(state.hero).toBe(ID);
     state.deleteFailure = false; await page.getByRole("button", { name: "영상 삭제", exact: true }).click();
     await expect(page).toHaveURL(`${BASE}/landing/admin/videos`);
-    await expect(page.getByRole("status")).toContainText("영상을 삭제했습니다");
+    await expect(page.getByRole("status", { name: "삭제 결과" })).toContainText("영상을 삭제했습니다");
     await expect(page.getByRole("heading", { name: "첫 영상을 등록해보세요" })).toBeVisible();
     expect(state.row).toBeNull(); expect(state.hero).toBeNull();
     await page.reload(); await expect(page.getByRole("heading", { name: "첫 영상을 등록해보세요" })).toBeVisible();

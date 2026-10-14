@@ -40,7 +40,7 @@ test.describe("[real-use] public video publishing", () => {
         await page.getByLabel("영역 제목", { exact: true }).fill(`QA 영상 자료 ${width}`);
         await page.getByLabel("영역 소개 · 선택", { exact: true }).fill("게시자가 직접 정한 영상 소개입니다.");
         await page.getByRole("button", { name: "영역 설정 저장", exact: true }).click();
-        await expect(page.getByRole("status")).toContainText("영상 영역 설정을 저장했습니다");
+        await expect(page.getByRole("status", { name: "영역 설정 결과" })).toContainText("영상 영역 설정을 저장했습니다");
         await page.reload(); await page.getByText("영상 영역 설정", { exact: true }).click();
         await expect(page.getByLabel("영역 제목", { exact: true })).toHaveValue(`QA 영상 자료 ${width}`);
         await assertNoHorizontalOverflow(page); await page.screenshot({ path: testInfo.outputPath(`video-settings-${width}.png`), fullPage: true });
@@ -96,7 +96,7 @@ test.describe("[real-use] public video publishing", () => {
         await page.goto(`${QA_BASE}/landing/admin/videos/${deletedId}`);
         await page.getByRole("button", { name: "영상 삭제", exact: true }).click();
         await expect(page).toHaveURL(`${QA_BASE}/landing/admin/videos`);
-        await expect(page.getByRole("status")).toContainText("영상을 삭제했습니다");
+        await expect(page.getByRole("status", { name: "삭제 결과" })).toContainText("영상을 삭제했습니다");
         await page.reload(); await expect(page.locator(`a[href="/landing/admin/videos/${deletedId}"]`)).toHaveCount(0);
         expect((await api(request, "GET", `/landing-public/videos/${deletedId}/`, "")).status).toBe(404);
         expect((await api(request, "GET", `/landing-public/videos/manage/${deletedId}/`, access)).status).toBe(404);
