@@ -215,7 +215,7 @@ test("lookup failure retains manual draft and public list error has retry", asyn
   await page.getByRole("button", { name: "다시 시도", exact: true }).click(); await expect(page.getByRole("heading", { name: "등록된 공개 영상이 없습니다" })).toBeVisible();
 });
 
-for (const width of [1366, 390]) {
+for (const width of [1366, 1100, 390]) {
   test(`homepage navigation → browse another video → publisher entry at ${width}px`, async ({ page }, testInfo) => {
     const state = await prepare(page, true, true); await page.setViewportSize({ width, height: 900 });
     const next: PublicVideo = { ...source, ...initial, id: "82222222-2222-4222-8222-222222222222", title: "다음에 볼 영상", summary: "", format: "vertical", youtube_video_id: "Q70aZV1TH1Y", canonical_url: "https://www.youtube.com/watch?v=Q70aZV1TH1Y", thumbnail_url: "https://i.ytimg.com/vi/Q70aZV1TH1Y/hqdefault.jpg", published_at: "2026-10-14T00:00:00Z" };
@@ -229,6 +229,10 @@ for (const width of [1366, 390]) {
     expect(shortPoster!.height / shortPoster!.width).toBeGreaterThan(1.7);
     await noOverflow(page);
     await testInfo.attach(`video-library-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+    state.presentation = { title: "사용자가 직접 정한 영상 영역 제목 ".repeat(3).slice(0, 60), description: "사용자가 자유롭게 작성하는 소개입니다. ".repeat(12).slice(0, 220) };
+    await page.reload();
+    await expect(page.getByRole("heading", { name: state.presentation.title, exact: true })).toBeVisible();
+    await noOverflow(page);
     await page.goto(`${BASE}/landing/videos/${ID}`);
     const nav = page.getByRole("navigation", { name: "홈페이지 주요 메뉴" });
     await expect(nav.getByRole("link", { name: "수업 철학", exact: true })).toBeVisible();
