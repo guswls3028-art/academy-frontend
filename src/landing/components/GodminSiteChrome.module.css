@@ -12,6 +12,7 @@
   .nav { display: flex; grid-row: 2; grid-column: 1 / -1; width: 100%; justify-content: space-between; gap: 16px; overflow-x: auto; }
   .nav a { font-size: 13px; }
   .account { grid-row: 1; grid-column: 2; }
+  .userName { display: block; max-width: 100px; }
 }
 @media (max-width: 640px) {
   .header { height: 110px; padding-inline: 18px; }

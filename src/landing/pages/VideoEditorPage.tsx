@@ -19,7 +19,7 @@ export default function VideoEditorPage() {
   const [conflict, setConflict] = useState(false); const [duplicate, setDuplicate] = useState<string | null>(null);
   const [latest, setLatest] = useState<{ row: ManagedVideo; showcase: VideoShowcase } | null>(null);
   const request = useRef({ id: createRandomUuid(), body: "" });
-  const dirty = JSON.stringify(content) !== JSON.stringify(row?.draft_content || EMPTY) || (!row && !!url);
+  const dirty = JSON.stringify(content) !== JSON.stringify(row?.draft_content || EMPTY) || (!row && !!url) || hero !== (!!row && showcase?.hero_video_id === row.id);
   useEffect(() => {
     if (publisher.state !== "allowed") return;
     let disposed = false; setLoading(true); setLoadError(""); setError(""); setConflict(false); setLatest(null); setDuplicate(null); setPreview(false); setMessage(location.state?.videoResult || "");

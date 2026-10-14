@@ -194,7 +194,7 @@
 
 /* The video library shares the homepage chrome and stays browseable during playback. */
 .godminShell .main { max-width: 1320px; padding-top: 112px; }
-.godminShell a.primary { color: #fff; }
+.godminShell a.primary, .highlights a.primary { color: #fff; }
 .watchToolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
 .watchToolbar .back { margin: 0; padding-block: 12px; }
 .watchGrid { display: grid; grid-template-columns: minmax(0, 1fr) 350px; align-items: start; gap: 36px; }
