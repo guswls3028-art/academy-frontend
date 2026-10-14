@@ -6,6 +6,7 @@ export const productionReadOnlySpecs = [
 ];
 
 export const routeMockSpecs = [
+  "e2e/admin/problem-conversion.mock.spec.ts",
   "e2e/admin/submission-inbox-pages.mock.spec.ts",
   "e2e/admin/assessment-copy-pages.mock.spec.ts",
   "e2e/admin/consult-inbox-pages.mock.spec.ts",
@@ -182,6 +183,7 @@ export const controlledWriteSpecs = [
 // Relative to the development config's e2e testDir. This is the shared
 // inventory for collection, executed-result acceptance and safe progress.
 export const developmentRealUseCases = Object.freeze({
+  "admin/problem-conversion-realuse.spec.ts": 1,
   "admin/public-video-realuse.spec.ts": 1,
   "admin/public-resource-realuse.spec.ts": 2,
   "admin/alimtalk-withdrawal-realuse.spec.ts": 1,

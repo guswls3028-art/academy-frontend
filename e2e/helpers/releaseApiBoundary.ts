@@ -84,6 +84,25 @@ function isExactInventoryOriginalDownload(boundary: ReleaseBoundary, rawUrl: str
   return hasExactHostSignature(target, 3600);
 }
 
+export function isExactDevelopmentConversionAsset(boundary: ReleaseBoundary, rawUrl: string, conversionId: string,
+  filename: string, contentType: string): boolean {
+  if (boundary.mode !== "development" || !UUID.test(conversionId) || !Number.isSafeInteger(boundary.omrR2TenantId)
+    || Number(boundary.omrR2TenantId) < 1 || !["image/png", "application/hwp+zip", "application/zip"].includes(contentType)) return false;
+  const target = new URL(rawUrl);
+  const prefix = `/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/tools/problem-studio/conversions/${conversionId}/`;
+  const suffix = target.pathname.slice(prefix.length);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || !target.pathname.startsWith(prefix) || rawUrl !== target.origin + target.pathname + target.search
+    || !(suffix === "sources.zip" && filename === "원본.zip" && contentType === "application/zip"
+      || /^[0-9a-f]{20}\//.test(suffix) && suffix.slice(21) === encodeRfc3986(filename) && !filename.includes("/"))
+    || target.searchParams.getAll("response-content-type").length !== 1
+    || target.searchParams.get("response-content-type") !== contentType
+    || target.searchParams.getAll("response-content-disposition").length !== 1
+    || target.searchParams.get("response-content-disposition") !== inventoryDisposition(filename)) return false;
+  target.searchParams.delete("response-content-type"); target.searchParams.delete("response-content-disposition");
+  return hasExactHostSignature(target, 900);
+}
+
 function isExactDevelopmentPptDownload(
   boundary: ReleaseBoundary, rawUrl: string, filename: string,
 ): boolean {
@@ -1363,6 +1382,26 @@ export async function installReleaseContextGuard(
           }
         }
         const resourceTarget = new URL(upstream);
+        const conversion = /^\/api\/v1\/tools\/problem-studio\/conversions\/([0-9a-f-]{36})\/(?:actions\/)?$/.exec(resourceTarget.pathname);
+        if (boundary.mode === "development" && conversion && !resourceTarget.search && [200, 202].includes(response.status())
+          && headers["x-tenant-code"] === boundary.tenantCode && /^Bearer \S+$/.test(headers.authorization ?? "")
+          && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
+          const payload = await response.json();
+          if (payload?.id !== conversion[1]) throw new Error("Conversion identity mismatch");
+          const assets = [...(payload.document?.pages ?? []), payload.source_archive,
+            ...Object.values(payload.artifacts ?? {}),
+            ...(payload.document?.questions ?? []).flatMap((question: { visual?: unknown; redrawn?: unknown; proposal?: { redrawn?: unknown } }) => [question.visual, question.redrawn, question.proposal?.redrawn])];
+          for (const asset of assets) {
+            if (!asset) continue;
+            if (typeof asset.url !== "string" || typeof asset.filename !== "string" || typeof asset.mime !== "string"
+              || !isExactDevelopmentConversionAsset(boundary, asset.url, conversion[1], asset.filename, asset.mime)) {
+              throw new Error("Conversion asset escaped exact development scope");
+            }
+            if (asset.mime === "image/png") resourceReaderUrls.set(asset.url, asset.mime);
+            else documentDownloadUrls.set(asset.url, { url: asset.url, filename: asset.filename,
+              contentType: asset.mime, contentDisposition: inventoryDisposition(asset.filename) });
+          }
+        }
         const resourceFile = /^\/api\/v1\/landing-public\/resource-files\/([0-9a-f-]{36})\/$/.exec(resourceTarget.pathname);
         if (boundary.mode === "development" && request.method() === "GET" && resourceFile
           && !resourceTarget.search && response.status() === 200 && headers["x-tenant-code"] === boundary.tenantCode

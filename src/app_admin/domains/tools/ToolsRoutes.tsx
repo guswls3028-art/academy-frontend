@@ -11,6 +11,7 @@ const PptGeneratorPage = lazy(() => import("./ppt/pages/PptGeneratorPage"));
 const OmrGeneratorPage = lazy(() => import("./omr/pages/OmrGeneratorPage"));
 const StopwatchPage = lazy(() => import("./stopwatch/pages/StopwatchPage"));
 const ProblemStudioPage = lazy(() => import("./problem-studio/pages/ProblemStudioPage"));
+const ConversionStudioPage = lazy(() => import("./problem-studio/pages/ConversionStudioPage"));
 const ProblemReviewPage = lazy(() => import("./problem-review/pages/ProblemReviewPage"));
 
 function Fallback() {
@@ -30,7 +31,8 @@ export default function ToolsRoutes() {
           <Route path="ppt" element={<Suspense fallback={<Fallback />}><PptGeneratorPage /></Suspense>} />
           <Route path="omr" element={<Suspense fallback={<Fallback />}><OmrGeneratorPage /></Suspense>} />
           <Route path="stopwatch" element={<Suspense fallback={<Fallback />}><StopwatchPage /></Suspense>} />
-          <Route path="problem-studio" element={<Suspense fallback={<Fallback />}><ProblemStudioPage /></Suspense>} />
+          <Route path="problem-studio" element={<Suspense fallback={<Fallback />}><ConversionStudioPage /></Suspense>} />
+          <Route path="problem-studio/legacy" element={<Suspense fallback={<Fallback />}><ProblemStudioPage /></Suspense>} />
           <Route path="problem-review" element={<Suspense fallback={<Fallback />}><ProblemReviewPage /></Suspense>} />
           <Route path="*" element={<Navigate to="/workspace/tools/ppt" replace />} />
         </Route>

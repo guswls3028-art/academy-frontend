@@ -4,6 +4,7 @@
 
 | 문서 | 내용 |
 |------|------|
+| [PROBLEM-CONVERSION.md](PROBLEM-CONVERSION.md) | 시험지 변환·문항 검수·AI 수정 제안·한글 3종 출력과 기존 도구 호환 |
 | [ORGANIZATION-SETTINGS.md](ORGANIZATION-SETTINGS.md) | 현재 학원 역할별 설정·결제·상담 접근, 조회/저장 실패 복구와 입력 초안 보존 |
 | [개발 저장공간·CI 캐시 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/concurrent-codex-sessions.md#session-output-lifecycle) | 원격 빌드 기본값, 작업별 임시 파일 수명주기, 종료된 PR 캐시 정리와 검증 기록 보존 |
 | [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) | 관리자·교사 테마, 토큰 계층, 공용 컨트롤, 미리보기·저장·반응형 검증 |
