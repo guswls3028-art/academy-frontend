@@ -12,7 +12,7 @@ test.setTimeout(540_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 test.skip(!STUDENT_PARENT_REALUSE_ENABLED, "Requires the exact isolated development release boundary.");
 
-test("시험지 업로드 → 실제 AI 제안 → 교사 수정 → HWPX 세 종류 → desktop/390px 재진입", async ({ page, request }) => {
+test("PDF·이미지 OCR → 실제 AI 수정·그림 제안 → 교사 저장 → HWPX → desktop/390px 재진입", async ({ page, request }) => {
   assertQaStudentParentRuntime();
   const boundary = await installQaStudentParentBoundary(page, request);
   const browser = attachStrictBrowserGuards(page);
@@ -24,7 +24,20 @@ test("시험지 업로드 → 실제 AI 제안 → 교사 수정 → HWPX 세 �
   source.drawText("1. Find the sum of 2 and 3.\n(1) 4\n(2) 5", { x: 50, y: 760, font, size: 14, lineHeight: 22 });
   await page.goto(`${QA_BASE}/workspace/tools/problem-studio`, { waitUntil: "domcontentloaded" });
   await acknowledgeInitialAccountPromptsIfVisible(page);
-  await page.getByLabel("시험지 파일 선택").setInputFiles({ name: "qa-conversion.pdf", mimeType: "application/pdf", buffer: Buffer.from(await pdf.save()) });
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement("canvas"); canvas.width = 600; canvas.height = 600;
+    const draw = canvas.getContext("2d")!; draw.fillStyle = "white"; draw.fillRect(0, 0, 600, 600);
+    draw.fillStyle = "black"; draw.font = "22px sans-serif";
+    draw.fillText("2. Find the product of 3 and 4.", 40, 50);
+    draw.fillText("(1) 7", 40, 90); draw.fillText("(2) 12", 40, 125);
+    draw.lineWidth = 3; draw.strokeRect(90, 230, 240, 130);
+    draw.fillText("A", 115, 280); draw.fillText("B", 280, 280);
+    return canvas.toDataURL("image/png").split(",")[1];
+  });
+  await page.getByLabel("시험지 파일 선택").setInputFiles([
+    { name: "qa-conversion.pdf", mimeType: "application/pdf", buffer: Buffer.from(await pdf.save()) },
+    { name: "qa-conversion-image.png", mimeType: "image/png", buffer: Buffer.from(png, "base64") },
+  ]);
   await page.getByRole("radio", { name: /문제지만/ }).check();
   await page.getByLabel("원본을 외부 AI로 처리하는 데 동의합니다.").check();
   await page.getByRole("button", { name: "변환 시작", exact: true }).click();
@@ -33,7 +46,7 @@ test("시험지 업로드 → 실제 AI 제안 → 교사 수정 → HWPX 세 �
   const path = `/tools/problem-studio/conversions/${id}/`;
   const initial = await api<{ document: { questions: Array<{ prompt: string }> } }>(request, "GET", path, tokens.access);
   expect(initial.status).toBe(200);
-  expect(initial.body.document.questions).toHaveLength(1);
+  expect(initial.body.document.questions).toHaveLength(2);
   await page.getByRole("button", { name: /1번.*Find the sum/ }).click();
   await expect(page.getByRole("img", { name: /원본 1쪽/ })).toBeVisible();
   await page.getByLabel("이렇게 고쳐 주세요").fill("원문 문항과 보기는 유지하고 정답과 짧은 해설을 작성해 주세요.");
@@ -47,6 +60,18 @@ test("시험지 업로드 → 실제 AI 제안 → 교사 수정 → HWPX 세 �
   await page.getByRole("textbox", { name: "문항", exact: true }).fill(edited);
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: /^저장됨$/ })).toBeVisible();
+  await page.getByRole("button", { name: "원본 대조 완료 · 그대로 둠", exact: true }).click();
+  await page.getByRole("button", { name: "목록으로", exact: true }).click();
+  await page.getByRole("button", { name: /^2번/ }).click();
+  await page.getByText("그림 범위 직접 입력", { exact: true }).click();
+  for (const [label, value] of [["너비", "50"], ["높이", "30"], ["왼쪽", "10"], ["위", "35"]]) {
+    await page.getByLabel(label, { exact: true }).fill(value);
+  }
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: /^저장됨$/ })).toBeVisible();
+  await page.getByRole("button", { name: "그림 다시 그리기", exact: true }).click();
+  await expect(page.getByRole("img", { name: "다시 그린 그림 제안", exact: true })).toBeVisible({ timeout: 180_000 });
+  await page.getByRole("button", { name: "제안 적용", exact: true }).click();
   await page.getByRole("button", { name: "원본 대조 완료 · 그대로 둠", exact: true }).click();
   await page.getByRole("button", { name: "목록으로", exact: true }).click();
   await page.getByRole("button", { name: "한글 문서 다시작성", exact: true }).click();
