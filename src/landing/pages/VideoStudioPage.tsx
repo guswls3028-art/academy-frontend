@@ -13,6 +13,7 @@ export default function VideoStudioPage() {
   const location = useLocation();
   const [presentation, setPresentation] = useState<VideoPresentation>(defaultVideoPresentation);
   const [settingsError, setSettingsError] = useState(""); const [settingsMessage, setSettingsMessage] = useState("");
+  const [settingsRetry, setSettingsRetry] = useState(0);
   const [settingsBusy, setSettingsBusy] = useState(false); const settingsBusyRef = useRef(false);
   const [settingsConflict, setSettingsConflict] = useState(false); const [latest, setLatest] = useState<VideoShowcase | null>(null);
   const dirty = !!showcase && (presentation.title !== showcase.title || presentation.description !== showcase.description);
@@ -29,7 +30,7 @@ export default function VideoStudioPage() {
     getManagedShowcase().then((value) => { if (!disposed) { setShowcase(value); setPresentation({ title: value.title, description: value.description }); } })
       .catch((failure) => { if (!disposed) setSettingsError(resourceError(failure, "영상 영역 설정을 불러오지 못했습니다.")); });
     return () => { disposed = true; };
-  }, [publisher.state, retry]);
+  }, [publisher.state, settingsRetry]);
   useEffect(() => {
     if (!dirty) return;
     const before = (event: BeforeUnloadEvent) => { event.preventDefault(); };
@@ -67,7 +68,7 @@ export default function VideoStudioPage() {
     <div className={s.sectionHeading}><div><span className={s.kicker}>VIDEOS</span><h1>영상 관리</h1><p>YouTube 링크로 영상을 등록하고 공개 정보를 관리합니다.</p></div><Link className={s.primary} to="/landing/admin/videos/new">새 영상 등록</Link></div>
     {location.state?.videoDeleted && <p role="status" aria-label="삭제 결과" className={s.message}>영상을 삭제했습니다. 홈페이지와 관리 목록에서 내려갔습니다.</p>}
     <details className={s.settingsPanel}><summary>영상 영역 설정</summary><p className={s.hint}>홈페이지 영상 영역과 영상 목록에 함께 표시됩니다. 제목과 소개를 직접 정할 수 있습니다.</p>
-      {settingsError && <VideoFailure message={settingsError} retry={!showcase ? () => setRetry((value) => value + 1) : undefined} />}
+      {settingsError && <VideoFailure message={settingsError} retry={!showcase ? () => setSettingsRetry((value) => value + 1) : undefined} />}
       {showcase ? <form onSubmit={(event) => void saveSettings(event)}>
         <label className={s.field} htmlFor="video-section-title">영역 제목<input id="video-section-title" required maxLength={60} value={presentation.title} onChange={(event) => setPresentation({ ...presentation, title: event.target.value })} disabled={settingsBusy || settingsConflict} /></label>
         <label className={s.field} htmlFor="video-section-description">영역 소개 · 선택<textarea id="video-section-description" rows={3} maxLength={220} value={presentation.description} onChange={(event) => setPresentation({ ...presentation, description: event.target.value })} disabled={settingsBusy || settingsConflict} /></label>

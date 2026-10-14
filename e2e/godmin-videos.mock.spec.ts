@@ -18,7 +18,7 @@ test.afterEach(async () => {
 });
 
 async function prepare(page: Page, publisher = false, published = false) {
-  const state = { row: published ? managed() : null as ManagedVideo | null, hero: published ? ID : null as string | null, revision: published ? 1 : 0, conflict: false, unavailable: false, publicFailure: false, deleteFailure: false, presentation: { title: "영상", description: "" } };
+  const state = { row: published ? managed() : null as ManagedVideo | null, hero: published ? ID : null as string | null, revision: published ? 1 : 0, conflict: false, unavailable: false, publicFailure: false, listFailure: false, deleteFailure: false, presentation: { title: "영상", description: "" } };
   const publicRow = () => state.row?.status === "published" ? { ...source, id: ID, ...state.row.published_content, published_at: "2026-10-14T00:00:00Z" } : null;
   server = createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://localhost");
@@ -46,7 +46,7 @@ async function prepare(page: Page, publisher = false, published = false) {
       state.row = { ...managed(), status: "draft", draft_content: body.draft_content, published_content: null, revision: 1 };
       return json(state.row, 201);
     }
-    if (path === "manage/") return json({ count: state.row ? 1 : 0, results: state.row ? [state.row] : [], next: null });
+    if (path === "manage/") return state.listFailure ? json({ detail: "관리 목록을 불러오지 못했습니다." }, 503) : json({ count: state.row ? 1 : 0, results: state.row ? [state.row] : [], next: null });
     if (path === `manage/${ID}/` && request.method === "PATCH") {
       if (state.conflict && state.row) { state.conflict = false; state.row = { ...state.row, revision: state.row.revision + 1, draft_content: { ...initial, title: "다른 게시자의 최신 제목" } }; return json({ detail: "다른 게시자가 변경했습니다." }, 409); }
       if (state.row) state.row = { ...state.row, draft_content: body.draft_content, revision: state.row.revision + 1 };
@@ -147,11 +147,18 @@ for (const width of [1366, 390]) {
 
   test(`custom settings → reload/public → delete cancel/conflict/retry at ${width}px`, async ({ page }, testInfo) => {
     const state = await prepare(page, true, true); await page.setViewportSize({ width, height: 900 });
+    state.listFailure = true;
     let acceptDelete = false;
     page.on("dialog", (dialog) => void (dialog.message().includes("영상을 삭제할까요") && !acceptDelete ? dialog.dismiss() : dialog.accept()));
     await page.goto(`${BASE}/landing/admin/videos`); await page.getByText("영상 영역 설정", { exact: true }).click();
     await page.getByLabel("영역 제목", { exact: true }).fill("직접 정한 영상 제목");
     await page.getByLabel("영역 소개 · 선택", { exact: true }).fill("사용자가 작성한 소개입니다.");
+    await expect(page.getByText("관리 목록을 불러오지 못했습니다.", { exact: true })).toBeVisible();
+    state.listFailure = false;
+    await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(page.getByRole("link").filter({ has: page.getByRole("heading", { name: initial.title, exact: true }) })).toBeVisible();
+    await expect(page.getByLabel("영역 제목", { exact: true })).toHaveValue("직접 정한 영상 제목");
+    await expect(page.getByLabel("영역 소개 · 선택", { exact: true })).toHaveValue("사용자가 작성한 소개입니다.");
     state.revision++; state.presentation.title = "다른 게시자의 영역 제목";
     await page.getByRole("button", { name: "영역 설정 저장", exact: true }).click();
     await expect(page.getByRole("heading", { name: "다른 게시자의 설정 변경이 있습니다" })).toBeVisible();
