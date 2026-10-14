@@ -28,7 +28,7 @@ export async function saveVideoPresentation(showcase: VideoShowcase, content: Vi
   return (await api.patch<VideoShowcase>(`${base}manage/showcase/`, { expected_revision: showcase.revision, ...content })).data;
 }
 export async function deleteVideo(row: ManagedVideo, showcase: VideoShowcase) {
-  await api.delete(`${base}manage/${row.id}/`, { data: { expected_revision: row.revision, expected_showcase_revision: showcase.revision } });
+  await api.delete(`${base}manage/${row.id}/`, { params: { expected_revision: row.revision, expected_showcase_revision: showcase.revision } });
 }
 export async function createVideo(url: string, request_id: string, draft_content: VideoContent) { return (await api.post<ManagedVideo>(`${base}manage/`, { url, request_id, draft_content })).data; }
 export async function saveVideo(row: ManagedVideo, draft_content: VideoContent) { return (await api.patch<ManagedVideo>(`${base}manage/${row.id}/`, { expected_revision: row.revision, draft_content })).data; }

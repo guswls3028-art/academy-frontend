@@ -54,7 +54,7 @@ async function prepare(page: Page, publisher = false, published = false) {
     }
     if (path === `manage/${ID}/` && request.method === "DELETE") {
       if (state.deleteFailure) return json({ detail: "삭제하지 못했습니다. 다시 시도해주세요." }, 503);
-      if (state.row && (body.expected_revision !== state.row.revision || body.expected_showcase_revision !== state.revision)) return json({ detail: "다른 게시자가 변경했습니다." }, 409);
+      if (state.row && (Number(url.searchParams.get("expected_revision")) !== state.row.revision || Number(url.searchParams.get("expected_showcase_revision")) !== state.revision)) return json({ detail: "다른 게시자가 변경했습니다." }, 409);
       state.row = null; if (state.hero) { state.hero = null; state.revision++; }
       response.writeHead(204, headers); response.end(); return;
     }

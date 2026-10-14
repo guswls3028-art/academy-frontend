@@ -121,9 +121,7 @@ test.describe("[real-use] public video publishing", () => {
         if (current.status === 404) { expect((await api(request, "GET", `/landing-public/videos/${id}/`, "")).status).toBe(404); continue; }
         const showcase = await api<VideoShowcase>(request, "GET", "/landing-public/videos/manage/showcase/", access);
         expect(current.status).toBe(200); expect(showcase.status).toBe(200);
-        expect((await api(request, "DELETE", `/landing-public/videos/manage/${id}/`, access, {
-          expected_revision: current.body.revision, expected_showcase_revision: showcase.body.revision,
-        })).status).toBe(204);
+        expect((await api(request, "DELETE", `/landing-public/videos/manage/${id}/?expected_revision=${current.body.revision}&expected_showcase_revision=${showcase.body.revision}`, access)).status).toBe(204);
         expect((await api(request, "GET", `/landing-public/videos/${id}/`, "")).status).toBe(404);
       }
       for (const { context, guard, strict } of contexts) {
