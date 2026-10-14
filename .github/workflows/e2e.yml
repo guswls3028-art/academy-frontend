@@ -1,26 +1,401 @@
-name: Public YouTube boundary diagnostic (temporary branch only)
+name: E2E Tests
+
 on:
   workflow_dispatch:
-permissions:
-  contents: read
+    inputs:
+      controlled_write_canaries:
+        description: "통제 번호만 사용하는 가입/복구/OMR/과제/클리닉 운영 쓰기 canary 실행"
+        required: false
+        default: false
+        type: boolean
+      all_menu_scope:
+        description: "전 메뉴 감사 진단 범위. 완료 증거는 all만 인정"
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - admin
+          - student
+          - teacher
+      all_menu_route_filter:
+        description: "focused 진단용 route path/label 필터. 완료 실행은 비워 둠"
+        required: false
+        default: ""
+        type: string
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "functions/**"
+      - "e2e/**"
+      - "e2e-wrong-note-harness.html"
+      - "index.html"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "playwright.config.ts"
+      - "playwright.controlled-write.config.ts"
+      - "playwright.pr-gate.config.ts"
+      - "playwright.development-release.config.ts"
+      - "e2e/suites.mjs"
+      - "scripts/guard-e2e-safety.mjs"
+      - "scripts/guard-deployment-governance.mjs"
+      - "scripts/run-development-release-canary.mjs"
+      - "scripts/tests/e2e-gate-coverage.test.mjs"
+      - ".github/workflows/e2e.yml"
+      - "vite.config.ts"
+
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
 jobs:
-  public-player:
-    if: github.ref == 'refs/heads/codex/godmin-video-01a135b7-frontend-20261014-021702'
+  e2e:
+    name: E2E production read-only
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 120
+    # Dependabot PR은 아래 closed-proxy route-mock job만 실행한다.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (
+        github.event_name == 'pull_request'
+        && github.event.pull_request.user.login != 'dependabot[bot]'
+      )
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile --shamefully-hoist
-      - run: pnpm exec playwright install chromium --with-deps
-      - run: pnpm exec playwright test --config=scripts/tests/fixtures/playwright.public-video-probe.config.ts
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --shamefully-hoist
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: Guard production E2E safety boundaries
+        run: pnpm guard:e2e-safety
+
+      - name: Start checkout frontend
+        env:
+          VITE_DEV_PROXY_TARGET: ${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
+        run: |
+          pnpm dev --host 127.0.0.1 --port 5174 --strictPort > /tmp/academy-vite.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:5174/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/academy-vite.log
+          exit 1
+
+      - name: Create .env.e2e
+        run: |
+          cat > .env.e2e << EOF
+          # PR checkout의 실제 UI를 검증하고 API만 운영 E2E tenant로 proxy한다.
+          E2E_BASE_URL=http://127.0.0.1:5174
+          E2E_LOCAL_BASE_URL=http://127.0.0.1:5174
+          E2E_API_URL=${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
+          E2E_TENANT_CODE=hakwonplus
+          E2E_ADMIN_USER=${{ secrets.E2E_ADMIN_USER }}
+          E2E_ADMIN_PASS=${{ secrets.E2E_ADMIN_PASS }}
+          E2E_STUDENT_USER=${{ secrets.E2E_STUDENT_USER }}
+          E2E_STUDENT_PASS=${{ secrets.E2E_STUDENT_PASS }}
+          TCHUL_BASE_URL=https://tchul.com
+          TCHUL_ADMIN_USER=${{ secrets.TCHUL_ADMIN_USER }}
+          TCHUL_ADMIN_PASS=${{ secrets.TCHUL_ADMIN_PASS }}
+          SSWE_BASE_URL=https://sswe.co.kr
+          DNB_BASE_URL=https://dnbacademy.co.kr
+          DNB_ADMIN_USER=${{ secrets.DNB_ADMIN_USER }}
+          DNB_ADMIN_PASS=${{ secrets.DNB_ADMIN_PASS }}
+          LIMGLISH_BASE_URL=https://limglish.kr
+          LIMGLISH_ADMIN_USER=${{ secrets.LIMGLISH_ADMIN_USER }}
+          LIMGLISH_ADMIN_PASS=${{ secrets.LIMGLISH_ADMIN_PASS }}
+          # console.error/pageerror는 PR을 실패시킨다. 명시적 예외만 marker로 허용한다.
+          E2E_STRICT=strict
+          # PR/전체 suite는 provider 실발송 금지. 전용 수동 canary만 1로 실행한다.
+          E2E_ALLOW_REAL_ALIMTALK=0
+          E2E_ALLOW_PRODUCTION_WRITES=0
+          EOF
+
+      - name: Run production read-only gate
+        run: pnpm test:e2e:gate:readonly --reporter=github,html
+
+      - name: Run opt-in controlled production write canaries
+        if: github.event_name == 'workflow_dispatch' && inputs.controlled_write_canaries
+        env:
+          E2E_ALLOW_PRODUCTION_WRITES: "1"
+          E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND: "1"
+          E2E_SIGNUP_CONTROLLED_PHONE: "01031217466"
+          E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND: "1"
+          E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE: "01031217466"
+          E2E_ALLOW_PASSWORD_RESET_REAL_NOTIFICATIONS: "1"
+          E2E_ALLOW_CLINIC_REAL_NOTIFICATIONS: "1"
+          E2E_CLINIC_CONTROLLED_PHONE: "01031217466"
+          E2E_ALLOW_HOMEWORK_REAL_NOTIFICATIONS: "1"
+          E2E_HOMEWORK_CONTROLLED_PHONE: "01031217466"
+        run: pnpm test:e2e:controlled-writes --reporter=github,html
+
+      - name: Upload report
         if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: public-video-probe
-          path: test-results/public-video-probe.jsonl
+          name: playwright-report-production-readonly
+          path: |
+            playwright-report/
+            test-results/
           retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload frontend server log
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: frontend-server-log-production-readonly
+          path: /tmp/academy-vite.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  pr-route-mock-shards:
+    name: E2E route mocks (shard ${{ matrix.shard }}/3)
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --shamefully-hoist
+
+      - name: Install Playwright
+        # Every shard uses Chromium; only shard 3 runs the mandatory WebKit gate.
+        # Keep native dependencies for each browser that the shard actually runs.
+        run: pnpm exec playwright install --with-deps chromium ${{ matrix.shard == 3 && 'webkit' || '' }}
+
+      - name: Guard production E2E safety boundaries
+        run: pnpm guard:e2e-safety
+
+      - name: Start closed-proxy checkout frontend
+        env:
+          VITE_DEV_PROXY_TARGET: http://127.0.0.1:9
+        run: |
+          pnpm dev --host 127.0.0.1 --port 5174 --strictPort > /tmp/academy-vite.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:5174/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/academy-vite.log
+          exit 1
+
+      - name: Verify synthetic Excel format and profile contracts
+        if: matrix.shard == 1
+        env:
+          E2E_STRICT: strict
+          E2E_ALLOW_REAL_ALIMTALK: "0"
+          E2E_ALLOW_PRODUCTION_WRITES: "0"
+        run: pnpm exec playwright test e2e/admin/excel-import-compatibility.spec.ts --project=chromium --workers=1 --retries=0 --reporter=github,list
+
+      - name: Run parallel route-mock gate
+        env:
+          E2E_BASE_URL: http://127.0.0.1:5174
+          E2E_LOCAL_BASE_URL: http://127.0.0.1:5174
+          E2E_STRICT: strict
+          E2E_ALLOW_REAL_ALIMTALK: "0"
+          E2E_ALLOW_PRODUCTION_WRITES: "0"
+        run: pnpm test:e2e:gate:mock --reporter=github,html --shard=${{ matrix.shard }}/3
+
+      - name: Run mandatory iPhone WebKit closed-proxy gate
+        if: matrix.shard == 3
+        env:
+          E2E_BASE_URL: http://127.0.0.1:5174
+          E2E_LOCAL_BASE_URL: http://127.0.0.1:5174
+          E2E_STRICT: strict
+          E2E_ALLOW_REAL_ALIMTALK: "0"
+          E2E_ALLOW_PRODUCTION_WRITES: "0"
+        run: pnpm test:e2e:gate:iphone-webkit --reporter=github,list
+
+      - name: Build production bundle
+        if: matrix.shard == 3
+        run: pnpm build
+
+      - name: Start production bundle preview
+        if: matrix.shard == 3
+        run: |
+          pnpm preview --host 127.0.0.1 --port 4173 --strictPort > /tmp/academy-vite-preview.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/promo > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/academy-vite-preview.log
+          exit 1
+
+      - name: Run production bundle runtime smoke
+        if: matrix.shard == 3
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173
+          E2E_STRICT: strict
+          E2E_ALLOW_REAL_ALIMTALK: "0"
+          E2E_ALLOW_PRODUCTION_WRITES: "0"
+        run: pnpm test:e2e:bundle-smoke
+
+      - name: Verify shared control states across all themes
+        if: matrix.shard == 3
+        env:
+          THEME_AUDIT_BASE_URL: http://127.0.0.1:4173
+          E2E_STRICT: strict
+          E2E_ALLOW_REAL_ALIMTALK: "0"
+          E2E_ALLOW_PRODUCTION_WRITES: "0"
+        run: pnpm exec playwright test e2e/visual/theme-control-states.spec.ts --project=chromium --workers=1 --retries=0 --reporter=github,list
+
+      - name: Upload route-mock report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-report-pr-route-mocks-${{ matrix.shard }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload route-mock server log
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: frontend-server-log-pr-route-mocks-${{ matrix.shard }}
+          path: /tmp/academy-vite.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload production bundle preview log
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: frontend-preview-log-pr-route-mocks-${{ matrix.shard }}
+          path: /tmp/academy-vite-preview.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  pr-route-mocks:
+    name: E2E closed-proxy route mocks
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    needs: [pr-route-mock-shards]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all shards and mandatory browser checks
+        env:
+          SHARDS_RESULT: ${{ needs.pr-route-mock-shards.result }}
+        run: test "$SHARDS_RESULT" = "success"
+
+  all-menu-audit:
+    name: All-menu audit
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && needs.e2e.result == 'success'
+      && needs.pr-route-mocks.result == 'success'
+    needs: [e2e, pr-route-mocks]
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --shamefully-hoist
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: Guard production E2E safety boundaries
+        run: pnpm guard:e2e-safety
+
+      - name: Start checkout frontend
+        env:
+          VITE_DEV_PROXY_TARGET: ${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
+        run: |
+          pnpm dev --host 127.0.0.1 --port 5174 --strictPort > /tmp/academy-vite.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:5174/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/academy-vite.log
+          exit 1
+
+      - name: Create .env.e2e
+        run: |
+          cat > .env.e2e << EOF
+          E2E_BASE_URL=http://127.0.0.1:5174
+          E2E_LOCAL_BASE_URL=http://127.0.0.1:5174
+          E2E_API_URL=${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
+          E2E_TENANT_CODE=hakwonplus
+          E2E_ADMIN_USER=${{ secrets.E2E_ADMIN_USER }}
+          E2E_ADMIN_PASS=${{ secrets.E2E_ADMIN_PASS }}
+          E2E_STUDENT_USER=${{ secrets.E2E_STUDENT_USER }}
+          E2E_STUDENT_PASS=${{ secrets.E2E_STUDENT_PASS }}
+          E2E_STRICT=strict
+          E2E_ALLOW_REAL_ALIMTALK=0
+          E2E_ALLOW_PRODUCTION_WRITES=0
+          EOF
+
+      - name: Run exhaustive read-only menu audit
+        env:
+          E2E_CLICK_AUDIT_SCOPE: ${{ inputs.all_menu_scope || 'all' }}
+          E2E_CLICK_AUDIT_ROUTE_FILTER: ${{ inputs.all_menu_route_filter || '' }}
+        run: >-
+          pnpm exec playwright test
+          e2e/stability/all-menu-button-click-audit.spec.ts
+          --project=chromium
+          --reporter=github,html
+          --retries=0
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-report-all-menu
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload frontend server log
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: frontend-server-log-all-menu
+          path: /tmp/academy-vite.log
+          retention-days: 7
+          if-no-files-found: ignore
