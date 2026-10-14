@@ -7,10 +7,10 @@ import s from "../pages/PublicVideos.module.css";
 
 export default function VideoLayout({ children, title }: { children: ReactNode; title: string }) {
   const { program } = useProgram();
-  const brand = program?.display_name || "영상 이야기";
+  const brand = program?.display_name || "영상";
   useEffect(() => { const before = document.title; document.title = `${title} | ${brand}`; return () => { document.title = before; }; }, [title, brand]);
   return <div className={s.shell}><header className={s.header}>
-    <Link to="/landing" className={s.brand}>{brand}<span>VIDEO JOURNAL</span></Link>
+    <Link to="/landing" className={s.brand}>{brand}<span>VIDEOS</span></Link>
     <nav aria-label="영상 메뉴"><Link to="/landing">홈페이지</Link><Link to="/landing/videos">영상</Link><Link to="/login" onClick={() => saveReturnPath()}>로그인</Link></nav>
   </header><main className={s.main}>{children}</main><footer className={s.footer}>영상은 원본 채널의 YouTube 플레이어로 재생됩니다. 좋아요와 댓글은 YouTube에서 남겨주세요.</footer></div>;
 }
