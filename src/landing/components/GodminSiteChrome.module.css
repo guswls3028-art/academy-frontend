@@ -3,6 +3,7 @@
 .nav a { min-height: 44px; display: inline-flex; align-items: center; white-space: nowrap; }
 .nav a[aria-current="page"] { color: var(--gm-deep); box-shadow: inset 0 -3px var(--gm-deep); }
 .account { display: flex; align-items: center; justify-content: flex-end; gap: 12px; font-size: 12px; }
+.account a { min-height: 44px; }
 .userName { max-width: 120px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .account button { border: 0; background: transparent; color: var(--gm-deep); font: inherit; text-decoration: underline; cursor: pointer; min-height: 44px; }
 .header :focus-visible { outline: 3px solid var(--gm-coral); outline-offset: 4px; }

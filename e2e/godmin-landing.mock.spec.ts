@@ -77,7 +77,14 @@ test.describe("godmin public landing", () => {
     await page.goto(`${BASE}/landing`, { waitUntil: "commit", timeout: 45_000 });
 
     await expect(page.getByRole("heading", { name: "복잡한 과학을, 이해되는 구조로." })).toBeVisible({ timeout: 90_000 });
-    await expect(page.getByRole("navigation", { name: "홈페이지 주요 메뉴" })).toBeHidden();
+    const nav = page.getByRole("navigation", { name: "홈페이지 주요 메뉴" });
+    await expect(nav).toBeVisible();
+    for (const label of ["수업 철학", "학습 관리", "신민T", "자료게시판", "영상"]) {
+      await expect(nav.getByRole("link", { name: label, exact: true })).toBeInViewport();
+    }
+    const account = page.getByRole("link", { name: "로그인", exact: true });
+    await expect(account).toBeInViewport();
+    expect((await account.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
     const login = page.getByRole("link", { name: "수강생·학부모 로그인" });
     await expect(login).toBeVisible();
     const loginBox = await login.boundingBox();
