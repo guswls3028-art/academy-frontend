@@ -76,6 +76,12 @@ test.describe("[real-use] public video publishing", () => {
         await expect(player.locator(".ytp-error")).toBeHidden();
         await assertNoHorizontalOverflow(visitor); await visitor.screenshot({ path: testInfo.outputPath(`public-video-${width}.png`), fullPage: true });
         await visitor.getByRole("link", { name: "← 영상 목록", exact: true }).click(); await expect(visitor.locator("iframe")).toHaveCount(0);
+        await page.goto(`${QA_BASE}/landing/videos/${row.id}`);
+        await expect(page.getByRole("link", { name: "로그인", exact: true })).toHaveCount(0);
+        await expect(page.getByRole("link", { name: "영상 관리", exact: true })).toBeVisible();
+        await expect(page.getByRole("link", { name: "영상 등록", exact: true })).toBeVisible();
+        await page.getByRole("link", { name: "이 영상 수정", exact: true }).click();
+        await expect(page.getByLabel(/^제목/)).toHaveValue(title);
         if (index) {
           // The second exact publisher edits the first publisher's saved video.
           await page.goto(`${QA_BASE}/landing/admin/videos/${owned[0]}`);

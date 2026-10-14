@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures/strictTest";
-import type { ManagedVideo, VideoContent } from "../src/landing/api/publicVideos";
+import type { ManagedVideo, PublicVideo, VideoContent } from "../src/landing/api/publicVideos";
 
 const BASE = (process.env.E2E_LANDING_BASE_URL || process.env.E2E_LOCAL_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
 const ID = "81111111-1111-4111-8111-111111111111";
@@ -17,8 +17,8 @@ test.afterEach(async () => {
   });
 });
 
-async function prepare(page: Page, publisher = false, published = false) {
-  const state = { row: published ? managed() : null as ManagedVideo | null, hero: published ? ID : null as string | null, revision: published ? 1 : 0, conflict: false, unavailable: false, publicFailure: false, listFailure: false, deleteFailure: false, presentation: { title: "영상", description: "" } };
+async function prepare(page: Page, publisher = false, published = false, authenticated = publisher) {
+  const state = { related: [] as PublicVideo[], capabilityFailure: false, canPublish: publisher, row: published ? managed() : null as ManagedVideo | null, hero: published ? ID : null as string | null, revision: published ? 1 : 0, conflict: false, unavailable: false, publicFailure: false, listFailure: false, deleteFailure: false, presentation: { title: "영상", description: "" } };
   const publicRow = () => state.row?.status === "published" ? { ...source, id: ID, ...state.row.published_content, published_at: "2026-10-14T00:00:00Z" } : null;
   server = createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://localhost");
@@ -31,7 +31,7 @@ async function prepare(page: Page, publisher = false, published = false) {
     const path = url.pathname.replace("/api/v1/landing-public/videos/", "");
     const chunks: Buffer[] = []; for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {};
-    if (path === "capabilities/") return json({ can_publish: publisher });
+    if (path === "capabilities/") return state.capabilityFailure ? json({ detail: "권한 확인 실패" }, 503) : json({ can_publish: state.canPublish });
     if (path === "resolve/") return state.unavailable ? json({ detail: "유튜브 정보 확인 실패. 잠시 후 다시 시도해주세요." }, 503) : json({ ...source, format: "landscape" });
     if (path === "showcase/") return json({ hero: state.hero ? publicRow() : null, ...state.presentation });
     if (path === "manage/showcase/") {
@@ -68,7 +68,9 @@ async function prepare(page: Page, publisher = false, published = false) {
       return json({ video: state.row, showcase_revision: state.revision });
     }
     if (path === `manage/${ID}/`) return json(state.row || {}, state.row ? 200 : 404);
-    if (path === "") return state.publicFailure ? json({ detail: "목록을 불러오지 못했습니다." }, 503) : json({ count: publicRow() ? 1 : 0, results: publicRow() ? [publicRow()] : [], next: null });
+    if (path === "") return state.publicFailure ? json({ detail: "목록을 불러오지 못했습니다." }, 503) : json({ count: (publicRow() ? 1 : 0) + state.related.length, results: [...(publicRow() ? [publicRow()] : []), ...state.related], next: null });
+    const related = state.related.find((video) => path === `${video.id}/`);
+    if (related) return json(related);
     if (path === `${ID}/`) return json(publicRow() || {}, publicRow() ? 200 : 404);
     return json({ detail: "Closed video mock: unmatched API" }, 404);
   });
@@ -76,12 +78,12 @@ async function prepare(page: Page, publisher = false, published = false) {
   const address = server.address(); if (!address || typeof address === "string") throw new Error("Missing mock port");
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   const token = `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "godmin", user_id: 501 })}.sig`;
-  await page.addInitScript(({ origin, token, publisher }) => {
+  await page.addInitScript(({ origin, token, authenticated }) => {
     localStorage.setItem("tenant_code", "godmin"); sessionStorage.setItem("tenantCode", "godmin");
-    if (publisher) { localStorage.setItem("access", token); localStorage.setItem("refresh", `${token}-refresh`); }
+    if (authenticated) { localStorage.setItem("access", token); localStorage.setItem("refresh", `${token}-refresh`); }
     const open = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function(method, value, ...rest) { const url = new URL(String(value), location.href); return Reflect.apply(open, this, [method, url.pathname.startsWith("/api/v1/") ? `${origin}${url.pathname}${url.search}` : value, ...rest]); };
-  }, { origin: `http://127.0.0.1:${address.port}`, token, publisher });
+  }, { origin: `http://127.0.0.1:${address.port}`, token, authenticated });
   await page.route("https://www.youtube.com/embed/**", (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Mock native player boundary</title><button>Play</button>" }));
   await page.route("https://i.ytimg.com/**", (route) => route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360"><rect width="480" height="360" fill="#276756"/></svg>' }));
   return state;
@@ -207,4 +209,57 @@ test("lookup failure retains manual draft and public list error has retry", asyn
   await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue("직접 입력한 제목");
   state.publicFailure = true; await page.goto(`${BASE}/landing/videos`); await expect(page.getByRole("alert")).toBeVisible(); state.publicFailure = false;
   await page.getByRole("button", { name: "다시 시도", exact: true }).click(); await expect(page.getByRole("heading", { name: "등록된 공개 영상이 없습니다" })).toBeVisible();
+});
+
+for (const width of [1366, 390]) {
+  test(`homepage navigation → browse another video → publisher entry at ${width}px`, async ({ page }, testInfo) => {
+    const state = await prepare(page, true, true); await page.setViewportSize({ width, height: 900 });
+    const next: PublicVideo = { ...source, ...initial, id: "82222222-2222-4222-8222-222222222222", title: "다음에 볼 영상", summary: "", format: "vertical", youtube_video_id: "Q70aZV1TH1Y", published_at: "2026-10-14T00:00:00Z" };
+    state.related.push(next);
+    await page.goto(`${BASE}/landing/videos/${ID}`);
+    const nav = page.getByRole("navigation", { name: "홈페이지 주요 메뉴" });
+    await expect(nav.getByRole("link", { name: "수업 철학", exact: true })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "영상", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("link", { name: "로그인", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "영상 관리", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "영상 등록", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "이 영상 수정", exact: true })).toHaveAttribute("href", `/landing/admin/videos/${ID}`);
+    const others = page.getByRole("complementary", { name: "다른 영상" });
+    await others.getByRole("link").filter({ has: page.getByRole("heading", { name: next.title }) }).click();
+    await expect(page.getByRole("heading", { name: next.title, level: 1 })).toBeVisible();
+    await expect(page.locator("iframe")).toHaveCount(1); await expect(page.locator("iframe")).toHaveAttribute("src", /Q70aZV1TH1Y/);
+    await page.reload(); await expect(page.getByRole("heading", { name: next.title, level: 1 })).toBeVisible();
+    await noOverflow(page); await testInfo.attach(`video-browsing-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+    await page.getByRole("link", { name: "영상 등록", exact: true }).click();
+    await expect(page.getByLabel("01 · YouTube 링크", { exact: true })).toBeVisible();
+  });
+}
+
+test("publisher permission retry, direct publish and persisted completion", async ({ page }) => {
+  const state = await prepare(page, true); state.capabilityFailure = true;
+  page.on("dialog", (dialog) => void dialog.accept());
+  await page.goto(`${BASE}/landing/videos`);
+  await expect(page.getByRole("button", { name: "관리 권한 다시 확인" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "영상 등록", exact: true })).toHaveCount(0);
+  state.capabilityFailure = false; await page.getByRole("button", { name: "관리 권한 다시 확인" }).click();
+  await page.getByRole("link", { name: "영상 등록", exact: true }).click();
+  await page.getByLabel("01 · YouTube 링크", { exact: true }).fill(source.canonical_url);
+  await page.getByRole("button", { name: "영상 확인", exact: true }).click();
+  await expect(page.getByLabel(/^제목/)).toHaveValue(source.source_title);
+  await page.getByRole("button", { name: "공개하기", exact: true }).click();
+  await expect(page).toHaveURL(`${BASE}/landing/admin/videos/${ID}`);
+  await expect(page.getByRole("status")).toContainText("공개했습니다");
+  await expect(page.getByRole("link", { name: "공개 화면 확인" })).toBeVisible();
+  await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue(source.source_title);
+  expect(state.row?.status).toBe("published");
+});
+
+test("signed-in non-publisher cannot see publishing controls", async ({ page }) => {
+  await prepare(page, false, true, true);
+  await page.goto(`${BASE}/landing/videos/${ID}`);
+  await expect(page.getByRole("link", { name: "내 학습 공간", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^(영상 등록|영상 관리|이 영상 수정)$/ })).toHaveCount(0);
+  await page.goto(`${BASE}/landing/admin/videos/new`);
+  await expect(page.getByRole("heading", { name: "이 계정에는 영상 게시 권한이 없습니다" })).toBeVisible();
+  await expect(page.getByLabel("01 · YouTube 링크", { exact: true })).toHaveCount(0);
 });

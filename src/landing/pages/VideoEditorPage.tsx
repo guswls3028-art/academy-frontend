@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { createRandomUuid } from "@/shared/utils/randomUuid";
 import { createVideo, deleteVideo, getManagedShowcase, getManagedVideo, publishVideo, resolveVideo, saveVideo, videoStatuses, type ManagedVideo, type VideoContent, type VideoShowcase, type VideoSource } from "../api/publicVideos";
 import { resourceError } from "../api/publicResources";
@@ -10,7 +10,7 @@ import s from "./PublicVideos.module.css";
 
 const EMPTY: VideoContent = { title: "", summary: "", category: "interview", category_label: "", format: "landscape" };
 export default function VideoEditorPage() {
-  const { id } = useParams(); const publisher = useVideoPublisher(); const navigate = useNavigate();
+  const { id } = useParams(); const location = useLocation(); const publisher = useVideoPublisher(); const navigate = useNavigate();
   const [row, setRow] = useState<ManagedVideo | null>(null); const [showcase, setShowcase] = useState<VideoShowcase | null>(null);
   const [url, setUrl] = useState(""); const [source, setSource] = useState<VideoSource | null>(null); const [content, setContent] = useState<VideoContent>(EMPTY);
   const [hero, setHero] = useState(false); const [preview, setPreview] = useState(false); const [loading, setLoading] = useState(true);
@@ -22,13 +22,13 @@ export default function VideoEditorPage() {
   const dirty = JSON.stringify(content) !== JSON.stringify(row?.draft_content || EMPTY) || (!row && !!url);
   useEffect(() => {
     if (publisher.state !== "allowed") return;
-    let disposed = false; setLoading(true); setLoadError(""); setError(""); setConflict(false); setLatest(null); setDuplicate(null); setPreview(false); setMessage("");
+    let disposed = false; setLoading(true); setLoadError(""); setError(""); setConflict(false); setLatest(null); setDuplicate(null); setPreview(false); setMessage(location.state?.videoResult || "");
     Promise.all([id ? getManagedVideo(id) : Promise.resolve(null), getManagedShowcase()]).then(([video, current]) => {
       if (disposed) return;
       setRow(video); setShowcase(current); setContent(video?.draft_content || EMPTY); setSource(video); setUrl(video?.canonical_url || ""); setHero(!!video && current.hero_video_id === video.id);
     }).catch((failure) => { if (!disposed) setLoadError(resourceError(failure, "편집할 영상을 불러오지 못했습니다.")); }).finally(() => { if (!disposed) setLoading(false); });
     return () => { disposed = true; };
-  }, [id, publisher.state, retry]);
+  }, [id, publisher.state, retry, location.state?.videoResult]);
   useEffect(() => {
     if (!dirty) return;
     const before = (event: BeforeUnloadEvent) => { event.preventDefault(); };
@@ -67,14 +67,14 @@ export default function VideoEditorPage() {
   }
   function save(event: FormEvent) {
     event.preventDefault();
-    void run("저장 중…", async () => { const saved = await persist(); if (!id) navigate(`/landing/admin/videos/${saved.id}`, { replace: true }); setMessage("임시저장했습니다. 공개 화면은 변경되지 않았습니다."); });
+    void run("저장 중…", async () => { const saved = await persist(); if (!id) navigate(`/landing/admin/videos/${saved.id}`, { replace: true, state: { videoResult: "임시저장했습니다. 공개하려면 공개하기를 눌러주세요." } }); setMessage("임시저장했습니다. 공개 화면은 변경되지 않았습니다."); });
   }
   function publish() {
     if (!showcase || !window.confirm(hero ? "이 영상을 공개하고 홈페이지 대표 영상으로 표시할까요?" : "입력한 내용으로 영상을 공개할까요?")) return;
     void run("공개 중…", async () => {
       const saved = await persist(); const result = await publishVideo(saved, showcase, hero);
       setRow(result.video); setSource(result.video); setShowcase({ ...showcase, revision: result.showcase_revision, hero_video_id: hero ? saved.id : showcase.hero_video_id === saved.id ? null : showcase.hero_video_id });
-      if (!id) navigate(`/landing/admin/videos/${saved.id}`, { replace: true }); setMessage("공개했습니다. 방문자 화면에서 영상을 확인할 수 있습니다.");
+      if (!id) navigate(`/landing/admin/videos/${saved.id}`, { replace: true, state: { videoResult: "공개했습니다. 방문자 화면에서 영상을 확인할 수 있습니다." } }); setMessage("공개했습니다. 방문자 화면에서 영상을 확인할 수 있습니다.");
     });
   }
   function hide() {
@@ -103,14 +103,15 @@ export default function VideoEditorPage() {
   }
   const formDisabled = !!busy || conflict;
   return <VideoLayout title={id ? "영상 편집" : "새 영상 등록"}>{publisher.state !== "allowed" ? <VideoAccess publisher={publisher} /> : loading ? <p role="status">편집 화면을 불러오고 있습니다.</p> : loadError ? <VideoFailure message={loadError} retry={() => setRetry((value) => value + 1)} /> : <>
-    <Link className={s.back} to="/landing/admin/videos">← 영상 관리</Link><div className={s.pageHeading}><span className={s.kicker}>VIDEOS</span><h1>{id ? "영상 편집" : "새 영상 등록"}</h1><p>{row ? `${videoStatuses[row.status]} · 공개할 때 원본 영상 정보를 다시 확인합니다.` : "파일 업로드 없이 YouTube 주소로 등록합니다. 일반 영상과 Shorts 모두 지원합니다."}</p></div>
+    <Link className={s.back} to="/landing/admin/videos">← 영상 관리</Link><div className={s.pageHeading}><h1>{id ? "영상 편집" : "새 영상 등록"}</h1><p>{row ? `${videoStatuses[row.status]} · 공개할 때 원본 영상 정보를 다시 확인합니다.` : "YouTube 주소를 붙여넣고 제목을 확인한 뒤 공개하세요. 일반 영상과 Shorts 모두 등록할 수 있습니다."}</p></div>
+    {!row && <ol className={s.editorSteps} aria-label="영상 등록 순서"><li aria-current={!source ? "step" : undefined}>1. 링크 입력</li><li aria-current={source ? "step" : undefined}>2. 제목 확인</li><li>3. 공개하기</li></ol>}
     {error && <VideoFailure message={error} />}{duplicate && <Link className={s.secondary} to={`/landing/admin/videos/${duplicate}`}>기존 등록 영상 열기</Link>}<p role="status" className={s.message}>{busy || message}</p>
     {conflict && <div className={s.notice}><h2>다른 게시자의 변경이 있습니다</h2><p>내 입력은 유지했습니다. 최신 저장 내용과 대표 영상 상태를 확인한 뒤 이어서 편집해주세요.</p><button type="button" onClick={checkLatest} disabled={!!busy}>최신 상태 확인</button>{latest && <div className={s.latest}><strong>{latest.row.draft_content.title}</strong><p>{latest.row.draft_content.summary}</p><p>{latest.row.draft_content.category_label || "분류 없음"} · {latest.row.draft_content.format === "vertical" ? "Shorts" : "일반 영상"} · {videoStatuses[latest.row.status]} · {latest.showcase.hero_video_id === latest.row.id ? "홈 대표" : "홈 대표 아님"}</p><div className={s.actions}><button type="button" onClick={() => acceptLatest(false)}>최신 내용 불러오기</button><button type="button" onClick={() => acceptLatest(true)}>내 입력으로 이어서 수정</button></div></div>}</div>}
     <div className={s.editorGrid}><div>
       {!row && <form className={s.panel} onSubmit={lookup}><label htmlFor="video-url">01 · YouTube 링크</label><p>youtu.be, youtube.com/watch, youtube.com/shorts 주소를 붙여넣으세요.</p><div className={s.urlRow}><input id="video-url" type="url" required value={url} onChange={(event) => { setUrl(event.target.value); setSource(null); }} placeholder="https://youtu.be/…" disabled={!!busy} /><button className={s.secondary} disabled={!!busy} type="submit">영상 확인</button></div><p className={s.hint}>정보 확인이 잠시 어려워도 제목을 직접 입력해 임시저장할 수 있습니다.</p></form>}
       <form id="video-content-form" className={s.panel} onSubmit={save}>
-        <label htmlFor="video-title">{row ? "홈페이지 표시 정보" : "02 · 홈페이지 표시 정보"}</label><label className={s.field} htmlFor="video-title">제목 <span>{content.title.length}/90</span><input id="video-title" required maxLength={90} value={content.title} onChange={(event) => setContent({ ...content, title: event.target.value })} disabled={formDisabled} /></label>
-        <label className={s.field} htmlFor="video-summary">한 줄 소개 <span>{content.summary.length}/220</span><textarea id="video-summary" maxLength={220} rows={3} value={content.summary} onChange={(event) => setContent({ ...content, summary: event.target.value })} disabled={formDisabled} /></label>
+        <h2>{row ? "홈페이지 표시 정보" : "02 · 홈페이지 표시 정보"}</h2><label className={s.field} htmlFor="video-title">제목 <span>{content.title.length}/90</span><input id="video-title" required maxLength={90} value={content.title} onChange={(event) => setContent({ ...content, title: event.target.value })} disabled={formDisabled} /></label>
+        <label className={s.field} htmlFor="video-summary">한 줄 소개 · 선택 <span>{content.summary.length}/220</span><textarea id="video-summary" maxLength={220} rows={3} value={content.summary} onChange={(event) => setContent({ ...content, summary: event.target.value })} disabled={formDisabled} /></label>
         <div className={s.fieldColumns}><label className={s.field} htmlFor="video-category">분류 · 선택<input id="video-category" maxLength={40} value={content.category_label || ""} onChange={(event) => setContent({ ...content, category_label: event.target.value })} placeholder="원하는 분류를 입력하세요" disabled={formDisabled} /></label><label className={s.field} htmlFor="video-format">영상 형태<select id="video-format" value={content.format} onChange={(event) => setContent({ ...content, format: event.target.value as VideoContent["format"] })} disabled={formDisabled}><option value="landscape">일반 영상</option><option value="vertical">Shorts</option></select></label></div>
         <label className={s.check}><input type="checkbox" checked={hero} onChange={(event) => setHero(event.target.checked)} disabled={formDisabled} /><span><strong>홈페이지 대표 영상으로 표시</strong><small>공개할 때 적용됩니다. 기존 대표 영상은 영상 목록에 남습니다.</small></span></label>
         <div className={s.actions}><button className={s.secondary} type="submit" disabled={formDisabled}>임시저장</button><button className={s.primary} type="button" disabled={formDisabled || !content.title.trim() || (!row && !url.trim())} onClick={publish}>{row?.status === "published" ? "수정 내용 공개" : "공개하기"}</button></div>

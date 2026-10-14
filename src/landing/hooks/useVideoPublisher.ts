@@ -1,18 +1,18 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import useAuth from "@/auth/hooks/useAuth";
+import { resolveTenantCode } from "@/shared/tenant";
 import { videoCapability } from "../api/publicVideos";
 
 export function useVideoPublisher() {
-  const { user, isAuthenticated } = useAuth();
-  const [state, setState] = useState<"loading" | "allowed" | "denied" | "error">("loading");
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    let disposed = false;
-    if (!isAuthenticated) { setState("denied"); return; }
-    setState("loading");
-    videoCapability().then((allowed) => { if (!disposed) setState(allowed ? "allowed" : "denied"); })
-      .catch(() => { if (!disposed) setState("error"); });
-    return () => { disposed = true; };
-  }, [isAuthenticated, user?.id, attempt]);
-  return { state: isAuthenticated ? state : "denied", retry: () => setAttempt((value) => value + 1) };
+  const { user, isAuthenticated, isLoading, authUnavailable, refreshMe } = useAuth();
+  const tenant = resolveTenantCode();
+  const capability = useQuery({
+    queryKey: ["landing-video-publisher", tenant.ok ? tenant.code : null, user?.id],
+    queryFn: videoCapability,
+    enabled: tenant.ok && isAuthenticated && !isLoading && !authUnavailable,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const state = isLoading ? "loading" : authUnavailable ? "error" : !tenant.ok || !isAuthenticated ? "denied" : capability.isError ? "error" : capability.isPending ? "loading" : capability.data ? "allowed" : "denied";
+  return { state, retry: () => { void (authUnavailable ? refreshMe() : capability.refetch()).catch(() => undefined); } };
 }

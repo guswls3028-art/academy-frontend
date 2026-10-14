@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { defaultVideoPresentation, getVideo, getVideoShowcase, listVideos, type PublicVideo, type VideoPage, type VideoPresentation } from "../api/publicVideos";
 import { resourceError } from "../api/publicResources";
-import VideoLayout, { VideoFailure, VideoPublisherLink } from "../components/VideoLayout";
+import VideoLayout, { VideoEditLink, VideoFailure, VideoPublisherLink } from "../components/VideoLayout";
 import { VideoCards } from "../components/VideoCards";
 import { VideoPlayer } from "../components/VideoPlayer";
 import { setLandingMeta } from "../utils/seoMeta";
@@ -10,18 +10,31 @@ import s from "./PublicVideos.module.css";
 
 export default function PublicVideosPage() {
   const { id } = useParams(); const [params, setParams] = useSearchParams();
-  const page = Math.max(1, Number(params.get("page")) || 1);
+  const requestedPage = Number(params.get("page"));
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const [data, setData] = useState<VideoPage<PublicVideo> | null>(null); const [video, setVideo] = useState<PublicVideo | null>(null);
   const [error, setError] = useState(""); const [retry, setRetry] = useState(0); const [loading, setLoading] = useState(true);
   const [share, setShare] = useState("");
+  const [listError, setListError] = useState(""); const [listLoading, setListLoading] = useState(true);
+  const [listRetry, setListRetry] = useState(0);
   const [presentation, setPresentation] = useState<VideoPresentation>(defaultVideoPresentation);
+  useEffect(() => { window.scrollTo(0, 0); }, [id]);
   useEffect(() => {
+    if (!id) { setVideo(null); setError(""); setLoading(false); return; }
     let disposed = false; setLoading(true); setError(""); setVideo(null); setShare("");
-    const task = id ? getVideo(id).then((value) => { if (!disposed) setVideo(value); }) : Promise.all([listVideos(page), getVideoShowcase()]).then(([value, settings]) => { if (!disposed) { setData(value); setPresentation(settings); } });
-    task.catch((failure) => { if (!disposed) setError((failure as { response?: { status?: number } }).response?.status === 404 ? "공개 중인 영상을 찾을 수 없습니다. 영상 목록에서 다른 영상을 확인해주세요." : resourceError(failure, "영상을 불러오지 못했습니다.")); })
+    getVideo(id).then((value) => { if (!disposed) setVideo(value); })
+      .catch((failure) => { if (!disposed) setError((failure as { response?: { status?: number } }).response?.status === 404 ? "공개 중인 영상을 찾을 수 없습니다. 영상 목록에서 다른 영상을 확인해주세요." : resourceError(failure, "영상을 불러오지 못했습니다.")); })
       .finally(() => { if (!disposed) setLoading(false); });
     return () => { disposed = true; };
-  }, [id, page, retry]);
+  }, [id, retry]);
+  useEffect(() => {
+    let disposed = false; setListLoading(true); setListError("");
+    Promise.all([listVideos(page), getVideoShowcase()]).then(([value, settings]) => {
+      if (!disposed) { setData(value); setPresentation(settings); }
+    }).catch((failure) => { if (!disposed) setListError(resourceError(failure, "영상 목록을 불러오지 못했습니다.")); })
+      .finally(() => { if (!disposed) setListLoading(false); });
+    return () => { disposed = true; };
+  }, [page, listRetry]);
   useEffect(() => {
     if (!video) return;
     const fields = { "description": video.summary, "og:title": video.title, "og:description": video.summary, "og:image": video.thumbnail_url, "og:url": `${window.location.origin}/landing/videos/${video.id}` };
@@ -33,11 +46,34 @@ export default function PublicVideosPage() {
     try { await navigator.clipboard.writeText(`${window.location.origin}/landing/videos/${id}`); setShare("영상 링크를 복사했습니다."); }
     catch { setShare("주소창의 링크를 복사해 공유해주세요."); }
   }
+  const pagination = data && data.count > 12 ? <nav className={s.pagination} aria-label="영상 페이지">
+    <button disabled={page === 1 || listLoading} onClick={() => setParams({ page: String(page - 1) })}>이전</button>
+    <span>{page} / {Math.ceil(data.count / 12)}</span>
+    <button disabled={!data.next || listLoading} onClick={() => setParams({ page: String(page + 1) })}>다음</button>
+  </nav> : null;
+  const visibleVideos = data?.results.filter((item) => item.id !== id) || [];
+  const library = listLoading ? <p className={s.empty} role="status">영상을 불러오고 있습니다.</p>
+    : listError ? <VideoFailure message={listError} retry={() => setListRetry((value) => value + 1)} />
+    : visibleVideos.length ? <><VideoCards videos={visibleVideos} compact={!!id} page={page} />{pagination}</>
+    : <div className={s.empty}><h2>{id ? "다른 공개 영상이 없습니다" : "등록된 공개 영상이 없습니다"}</h2>{page > 1 && <button className={s.secondary} onClick={() => setParams({})}>첫 페이지로</button>}{pagination}</div>;
+
   return <VideoLayout title={video?.title || presentation.title}>
-    {id ? <Link className={s.back} to="/landing/videos">← 영상 목록</Link> : <div className={s.pageHeading}><span className={s.kicker}>VIDEOS</span><h1>{presentation.title}</h1>{presentation.description && <p>{presentation.description}</p>}<VideoPublisherLink /></div>}
-    {loading ? <p className={s.empty} role="status">영상을 불러오고 있습니다.</p> : error ? <VideoFailure message={error} retry={() => setRetry((value) => value + 1)} /> : id && video ? <article className={s.detail}>
-      <div className={s.detailHeading}>{video.category_label && <span className={s.kicker}>{video.category_label}</span>}<h1>{video.title}</h1>{video.summary && <p>{video.summary}</p>}</div>
-      <VideoPlayer video={video} /><div className={s.detailFooter}><div><span className={s.kicker}>ORIGINAL CHANNEL</span><p>{video.channel_title}</p></div><button className={s.secondary} type="button" onClick={() => void copyLink()}>링크 공유</button></div><p role="status">{share}</p>
-    </article> : data?.results.length ? <><VideoCards videos={data.results} /><nav className={s.pagination} aria-label="영상 페이지"><button disabled={page === 1} onClick={() => setParams({ page: String(page - 1) })}>이전</button><span>{page} / {Math.ceil(data.count / 12)}</span><button disabled={!data.next} onClick={() => setParams({ page: String(page + 1) })}>다음</button></nav></> : <div className={s.empty}><h2>등록된 공개 영상이 없습니다</h2></div>}
+    {id ? <>
+      <div className={s.watchToolbar}><Link className={s.back} to={`/landing/videos${page > 1 ? `?page=${page}` : ""}`}>← 영상 목록</Link><div className={s.actions}><a className={s.browseJump} href="#more-videos">다른 영상</a><VideoPublisherLink /></div></div>
+      <div className={s.watchGrid}>
+        <article className={s.detail}>
+          {loading ? <p className={s.empty} role="status">영상을 불러오고 있습니다.</p> : error ? <VideoFailure message={error} retry={() => setRetry((value) => value + 1)} /> : video && <>
+            <VideoPlayer key={video.id} video={video} />
+            <div className={s.detailHeading}>{video.category_label && <span className={s.kicker}>{video.category_label}</span>}<h1>{video.title}</h1>{video.summary && <p>{video.summary}</p>}</div>
+            <div className={s.detailFooter}><p>{video.channel_title}</p><div className={s.actions}><button className={s.secondary} type="button" onClick={() => void copyLink()}>링크 공유</button><VideoEditLink id={video.id} /></div></div>
+            <p role="status" aria-label="공유 결과">{share}</p>
+          </>}
+        </article>
+        <aside id="more-videos" className={s.moreVideos} aria-label="다른 영상"><div className={s.libraryHeading}><h2>다른 영상</h2><Link to="/landing/videos">전체 보기</Link></div>{library}</aside>
+      </div>
+    </> : <>
+      <div className={s.sectionHeading}><div className={s.pageHeading}><h1>{presentation.title}</h1>{presentation.description && <p>{presentation.description}</p>}{data && <span className={s.videoCount}>전체 {data.count}편</span>}</div><VideoPublisherLink /></div>
+      <div className={s.library}>{library}</div>
+    </>}
   </VideoLayout>;
 }
