@@ -10,6 +10,7 @@ import { gunzipSync } from "node:zlib";
 import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "./release-playback-end-proxy.mjs";
 import { binarySafeSsmEnvironment } from "./binary-safe-ssm.mjs";
 import { createFixedQaRunner, writeQaCheckpoint } from "./development-qa-operations.mjs";
+import { accountProbeParameters, assertAccountProbeProof, createAccountProbeHandler } from "./development-account-probe.mjs";
 export { createFixedQaRunner, observeFixedOperationResult, setupTenantIdFromOperation, fixedOperationParameters } from "./development-qa-operations.mjs";
 import { developmentRealUseCases } from "../e2e/suites.mjs";
 
@@ -26,7 +27,7 @@ const PASSWORD_PARAMETER = "/academy/api/development/ymath-realuse-password";
 // from a stale-socket drop. 5 minutes of margin covers tunnel startup
 // (before the tests start) and the tests' own teardown (after they finish).
 // The previous 28m36s run failed/skipped two serial OMR cases (10m each).
-// Keep individual assertions/deadlines unchanged and budget for all 23 cases.
+// Keep individual assertions/deadlines unchanged; the inventory owns case counts.
 const REAL_USE_SUITE_TIMEOUT_MS = 50 * 60_000;
 const TUNNEL_TIMEOUT_MS = REAL_USE_SUITE_TIMEOUT_MS + 5 * 60_000;
 const WEB_ORIGIN = "http://localhost:4173";
@@ -949,11 +950,16 @@ export function artifactFingerprint(directory) {
   return sha(canonical(entries.sort(([a], [b]) => a.localeCompare(b))));
 }
 
-function serveArtifact(directory, playbackBoundary) {
+function serveArtifact(directory, playbackBoundary, accountBoundary) {
   const playbackProxy = createPlaybackEndProxy(playbackBoundary);
+  const accountProbe = createAccountProbeHandler(accountBoundary);
   const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
     ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp" };
   const server = http.createServer((request, response) => {
+    if (request.url?.startsWith("/__qa__/account-registration")) {
+      void accountProbe(request, response);
+      return;
+    }
     if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH) || request.url?.startsWith(SCORE_EXIT_PROXY_PATH)) {
       playbackProxy.handle(request, response);
       return;
@@ -1307,9 +1313,25 @@ export async function run() {
     });
     await waitPort(18000, () => interrupted);
     remember(tunnel);
+    const accountCapability = crypto.randomBytes(32).toString("hex");
+    const accountScope = sha(JSON.stringify([tenant, scenario.tenant_id, manifest.releaseImageTag, manifest.images["academy-api"].digest]));
     server = await serveArtifact(path.join(bundle, "dist"), {
       apiOrigin: API_ORIGIN, webOrigin: WEB_ORIGIN, tenantCodes: [tenant, crossTenant],
       onFailure: (code) => failures.push(`development native playback proxy failed [${code}]`),
+    }, {
+      capability: accountCapability, tenantId: scenario.tenant_id, scope: accountScope,
+      onFailure: (code) => failures.push(`development account probe failed [${code}]`),
+      execute: async (input) => {
+        assert.equal(interrupted, false, "Development run interrupted");
+        const probe = session(QA_DOCUMENT, accountProbeParameters(common, scenario.tenant_id, input));
+        const result = await probe.done;
+        remember(probe);
+        assert.equal(result.code, 0, "Candidate account probe failed");
+        assert.equal(interrupted, false, "Development run interrupted");
+        const lines = result.stdout.split(/\r?\n/).filter((line) => line.startsWith("{"));
+        assert.equal(lines.length, 1, "Candidate account probe proof missing or ambiguous");
+        return assertAccountProbeProof(JSON.parse(lines[0]), accountScope, input);
+      },
     });
     const secret = aws(["ssm", "get-parameter", "--name", PASSWORD_PARAMETER, "--with-decryption"]);
     assert.equal(secret.Parameter.Name, PASSWORD_PARAMETER);
@@ -1319,6 +1341,7 @@ export async function run() {
       env: { ...process.env, E2E_BASE_URL: WEB_ORIGIN, E2E_API_URL: API_ORIGIN, API_BASE_URL: API_ORIGIN,
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
         E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",
+        E2E_ACCOUNT_PROBE_CAPABILITY: accountCapability,
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
         E2E_CROSS_TENANT_CODE: crossTenant,
         E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_TENANT_ID: String(scenario.tenant_id),

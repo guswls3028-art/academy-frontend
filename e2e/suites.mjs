@@ -193,6 +193,7 @@ export const developmentRealUseCases = Object.freeze({
   "flows/qna-roundtrip.spec.ts": 4,
   "flows/clinic-roundtrip.spec.ts": 4,
   "student/student-parent-account-realuse.spec.ts": 1,
+  "student/student-parent-registration-realuse.spec.ts": 7,
   "student/student-parent-assessment-realuse.spec.ts": 1,
   "student/student-clinic-required-cancel-realuse.spec.ts": 1,
   "student/student-parent-clinic-realuse.spec.ts": 1,
