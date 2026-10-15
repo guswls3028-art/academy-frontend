@@ -526,11 +526,11 @@ scoped state에만 기존 영상 1개, 접근/PROCTORED 접근/진도 각 2개, 
 기존 비지정 범위 계약을 유지한다. 서버 query와 fixture identity 규칙은 backend의
 `docs/operations/persistent-development-runtime.md`가 소유한다.
 계정·학습·수강·영상 시나리오 전체를 한 worker에서 순차 실행하므로 Playwright 자식
-프로세스에는 30분을 허용한다. 40분 개발 카나리 job 안에서 결과 JSON 생성과 exact
-Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 30분을 넘기면 기존처럼 실패
+프로세스에는 50분을 허용한다. 60분 개발 카나리 job 안에서 결과 JSON 생성과 exact
+Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 50분을 넘기면 기존처럼 실패
 폐쇄하고 cleanup 0이 증명되기 전에는 운영 승격하지 않는다.
 
-고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup만 사용하고 임의 shell 입력,
+고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup과 합성 등록 계정용 AccountProbe만 사용하고 임의 shell 입력,
 기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup이 실패해도
 exact `DEVELOPMENT_QA_FAILED` safe schema에서 positive tenant ID가 검증되면 동일 256-bit run
 capability로 cleanup/readback을 시도한다. 실패 schema에는 tenant code를 허용하지 않는다.
