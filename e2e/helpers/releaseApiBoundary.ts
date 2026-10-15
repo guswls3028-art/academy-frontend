@@ -250,6 +250,9 @@ function releaseRequestFailureCode(error: unknown): string {
   if (message.includes("business mutation refused")) return "mutation";
   if (message.includes("redirect refused")) return "redirect";
   if (message.includes("CORS boundary mismatch")) return "cors";
+  if (message === "Resource reader QA manifest limit") return "resource-manifest";
+  if (message === "Resource reader asset escaped exact development scope") return "resource-scope";
+  if (message === "Resource reader format is outside exact development scope") return "resource-format";
   if (message.startsWith("route.fetch: Request context disposed.")) return "context-disposed";
   return "transport";
 }
@@ -423,7 +426,7 @@ export type RequestTransportDiagnostic = {
 type NativeTransportCode = "ECONNRESET" | "ECONNREFUSED" | "EPIPE" | "ETIMEDOUT" | "timeout" | "context-disposed" | "other";
 type NativeTransportKind = "socket-hang-up" | "response-aborted" | "decompression" | NativeTransportCode;
 export type ReleaseObservationEvent = {
-  phase: "route-fetch" | "route-fulfill" | "api-request" | "browser-console" | "browser-pageerror"
+  phase: "route-fetch" | "route-fulfill" | "route-handler" | "api-request" | "browser-console" | "browser-pageerror"
     | "page-close" | "page-crash" | "context-close" | "browser-disconnected";
   stage: "initial" | "retry" | "recovered" | "terminal";
   method?: RequestTransportDiagnostic["method"] | "other";
@@ -1014,7 +1017,7 @@ export async function installReleaseContextGuard(
     attemptStartedAt: number; startPage: ReturnType<typeof observation.requestPageState> }>();
   const recordRouteTransport = (request: Request, upstream: string,
     stage: ReleaseObservationEvent["stage"], error?: unknown,
-    phase: "route-fetch" | "route-fulfill" = "route-fetch") => {
+    phase: "route-fetch" | "route-fulfill" | "route-handler" = "route-fetch") => {
     const method = safeTransportMethod(request.method().toUpperCase());
     const pathTemplate = safeRequestTransportPathTemplate(upstream);
     const timing = requestTimings.get(request);
@@ -1161,11 +1164,13 @@ export async function installReleaseContextGuard(
               : readerContentType === "image/gif"
                 ? ["GIF87a", "GIF89a"].includes(body.subarray(0, 6).toString("ascii"))
                 : body.subarray(0, 4).toString("ascii") === "RIFF" && body.subarray(8, 12).toString("ascii") === "WEBP");
-        if (response.status() !== 200 || !body.length || body.length > (readerContentType ? 60 : 30) * 1024 * 1024
-          || !readerSignatureMatches
-          || (readerContentType ? actualType !== readerContentType
-            : !["application/pdf", "application/x-hwp", "application/hwp+zip", "application/octet-stream"].includes(actualType)
-              || !response.headers()["content-disposition"]?.startsWith("attachment;"))) { await reject("transport"); return; }
+        const responseFailure = response.status() !== 200 ? "resource-status"
+          : !body.length || body.length > (readerContentType ? 60 : 30) * 1024 * 1024 ? "resource-size"
+            : !readerSignatureMatches ? "resource-signature"
+              : (readerContentType ? actualType !== readerContentType
+                : !["application/pdf", "application/x-hwp", "application/hwp+zip", "application/octet-stream"].includes(actualType)) ? "resource-type"
+                : !readerContentType && !response.headers()["content-disposition"]?.startsWith("attachment;") ? "resource-disposition" : null;
+        if (responseFailure) { await reject(responseFailure); return; }
         if (preview && !["*", boundary.webOrigin].includes(response.headers()["access-control-allow-origin"])) {
           await reject("cors"); return;
         }
@@ -1504,6 +1509,7 @@ export async function installReleaseContextGuard(
       }
     } catch (error) {
       // Upstream errors can contain credential-bearing URLs. Emit no raw error.
+      recordRouteTransport(request, request.url(), "terminal", error, "route-handler");
       await reject(releaseRequestFailureCode(error));
       return;
     }

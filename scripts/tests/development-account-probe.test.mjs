@@ -34,6 +34,38 @@ const accountProof = (input, scope = "a".repeat(64)) => ({
 });
 const proofInput = { mode: "verify", kind: "random" };
 
+test("SSM proof accepts only an exact successful result and preserves closed candidate failure codes", async () => {
+  const result = (payload, code = 0) => ({ code, stdout: `Starting session\n${JSON.stringify(payload)}\nExiting session\n` });
+  assert.deepEqual(runner.accountProbeResult(result(accountProof(proofInput)), "a".repeat(64), proofInput), accountProof(proofInput));
+  const failures = [];
+  let current = result({ status: "DEVELOPMENT_QA_FAILED", failure_stage: "account_probe",
+    account_probe_failure: "credential-unrecoverable", rawError: "private-password" }, 1);
+  const handler = runner.createAccountProbeHandler({ capability: "c".repeat(64), tenantId: 71, scope: "a".repeat(64),
+    execute: async () => runner.accountProbeResult(current, "a".repeat(64), proofInput), onFailure: (code) => failures.push(code) });
+  assert.equal((await accountProbeCall(handler)).status, 502);
+  assert.deepEqual(failures, ["credential-unrecoverable"]);
+  current = { ...current, code: 0 }; // The SSM client exit is not the remote command's proof.
+  assert.equal((await accountProbeCall(handler)).status, 502);
+  assert.equal(failures.at(-1), "credential-unrecoverable");
+  for (const [candidate, expected] of [
+    [result({ status: "DEVELOPMENT_QA_FAILED", failure_stage: "account_probe", account_probe_failure: "private-password" }, 1), "probe-process-failed"],
+    [result({ status: "DEVELOPMENT_QA_FAILED", failure_stage: "bootstrap", account_probe_failure: "owner-mismatch" }, 1), "probe-process-failed"],
+    [result(accountProof(proofInput), 1), "probe-process-failed"],
+    [result({ ...accountProof(proofInput), token: "private-token" }), "probe-proof-invalid"],
+    [{ code: 0, stdout: "{private-password" }, "probe-output-invalid"],
+    [{ code: 0, stdout: "x".repeat(65_537) }, "probe-output-invalid"],
+    [{ code: 0, stdout: "" }, "probe-proof-missing"],
+    [{ code: 0, stdout: `${JSON.stringify(accountProof(proofInput))}\n{}\n` }, "probe-proof-missing"],
+  ]) {
+    current = candidate;
+    const response = await accountProbeCall(handler);
+    assert.equal(response.status, 502);
+    assert.equal(response.body, '{"error":"ACCOUNT_PROBE_FAILED"}');
+    assert.equal(failures.at(-1), expected);
+  }
+  assert.doesNotMatch(JSON.stringify(failures), /private|token/);
+});
+
 test("account probe parameters preserve owner and accept only bounded target and closed modes", () => {
   const common = { TenantCode: ["qa-ymath-realuse-fe-123-1-abcdef123456"], OwnershipCapability: ["b".repeat(64)] };
   const input = { studentId: 23, ...proofInput };

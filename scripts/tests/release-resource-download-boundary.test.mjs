@@ -141,3 +141,24 @@ test("derived outputs retain the 60 MiB cap while originals retain their 30 MiB 
   const oversized = Buffer.alloc(60 * 1024 * 1024 + 1); pdf.copy(oversized);
   rejectReader(await exerciseReader({ body: oversized }), 1);
 });
+
+test("resource failures preserve closed causes and sanitized handler observations without relaxing rejection", async () => {
+  for (const [options, code] of [
+    [{ status: 403 }, "resource-status"], [{ body: Buffer.alloc(0) }, "resource-size"],
+    [{ body: Buffer.from("not pdf") }, "resource-signature"], [{ contentType: "text/html" }, "resource-type"],
+    [{ original: true }, "resource-disposition"],
+    [{ registerUrl: readerUrl.replace("/352/", "/353/") }, "resource-scope"],
+  ]) {
+    const result = await exerciseReader(options);
+    rejectReader(result, code === "resource-scope" ? 0 : 1);
+    assert.throws(() => result.guard.assertClean(), new RegExp(`\\[${code}\\]`));
+  }
+  const failed = await exerciseReader({ fetchError: true });
+  rejectReader(failed, 1);
+  const event = failed.guard.observation.data.events.find((event) => event.phase === "route-handler");
+  assert.equal(event.stage, "terminal");
+  assert.equal(event.nativeCode, "other");
+  assert.equal(event.pathTemplate, null);
+  assert.equal(failed.guard.transport.readFetchRetries, 0);
+  assert.doesNotMatch(JSON.stringify(failed.guard.observation.data), /private|X-Amz|UNITKEY|cloudflarestorage/);
+});

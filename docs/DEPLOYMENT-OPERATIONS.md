@@ -665,6 +665,15 @@ allowlist된 path template이 있을 때만 method, read/mutation, initial/retry
 
 전송·브라우저 종료 진단은 같은 `observeReleaseTestResult` 정제 단계를 거쳐 공식
 `development-release.json`의 `realUseObservation.contextObservations`에 보존한다.
+공개 자료 검증의 상태·크기·파일 시그니처·형식·다운로드 disposition·manifest·scope
+실패는 각각 고정 `resource-*` 코드로 구분한다. 기존 허용 조건은 동일하다.
+fetch/fulfill 전용 처리 밖의 예외는 `route-handler/terminal` 관측으로 남기며,
+정제된 method/path template/native code와 요청 순서·시간만 보존한다.
+서명 URL, 응답 본문, 원문 예외는 저장하지 않고 재전송 정책도 바꾸지 않는다.
+AccountProbe는 성공 exit와 정확한 proof를 모두 요구한다. 실패 시 후보의 고정
+`account_probe_failure` allowlist 코드만 공식 `failures`에 보존한다. 잘못되거나
+누락·중복된 proof와 프로세스 실패도 고정 코드로 실패하며 브라우저에는 동일한
+502 응답을 돌려준다. 비밀번호·토큰·SSM stdout 원문은 증거에 포함하지 않는다.
 `release-context-observation/v1`은 worker 내부의 고유 `observationOrdinal`, 선택적인
 browser `contextOrdinal`, 증가하는 `snapshotSequence`로 한 관측의 교체 snapshot을
 식별한다. assertion 전 snapshot은 실패해도 먼저 남기고, native context 종료나
