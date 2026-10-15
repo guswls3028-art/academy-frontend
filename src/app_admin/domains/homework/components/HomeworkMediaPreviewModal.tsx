@@ -27,7 +27,7 @@ export default function HomeworkMediaPreviewModal({ open, homeworkId, file, medi
     onClose();
   };
   const previewQ = useQuery({
-    queryKey: [...QUERY_KEYS.HOMEWORK_MEDIA_PREVIEW(homeworkId, file?.id), mediaSetFingerprint],
+    queryKey: QUERY_KEYS.HOMEWORK_MEDIA_PREVIEW(homeworkId, file?.id, mediaSetFingerprint),
     queryFn: () => fetchHomeworkMediaPreview(homeworkId, file!.id),
     enabled: open && file != null && file.status === "uploaded" && !file.removed_at,
     staleTime: 8 * 60 * 1000,
