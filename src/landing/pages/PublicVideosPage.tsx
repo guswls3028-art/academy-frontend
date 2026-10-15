@@ -22,7 +22,7 @@ export default function PublicVideosPage() {
   const query = (params.get("q") || "").trim().slice(0, 90);
   const [search, setSearch] = useState(query);
   const browseQuery = videoBrowseQuery(format, sort, query, page);
-  const formatLabel = format === "vertical" ? "Shorts" : "동영상";
+  const videoKindLabel = format === "vertical" ? "Shorts" : "동영상";
   const [error, setError] = useState(""); const [retry, setRetry] = useState(0); const [loading, setLoading] = useState(true);
   const [share, setShare] = useState("");
   const [listError, setListError] = useState(""); const [listLoading, setListLoading] = useState(true);
@@ -84,7 +84,7 @@ export default function PublicVideosPage() {
   const library = listLoading ? <p className={s.empty} role="status">영상을 불러오고 있습니다.</p>
     : listError ? <><VideoFailure message={listError} retry={() => setListRetry((value) => value + 1)} /><div className={s.actions}>{sort === "popular" && <button type="button" className={s.secondary} onClick={() => updateBrowse({ sort: "latest" })}>최신순으로 보기</button>}{page > 1 && <button type="button" className={s.secondary} onClick={() => updateBrowse({ page: 1 })}>첫 페이지로</button>}</div></>
     : visibleVideos.length ? <><div className={s.browseGrid}><VideoCards videos={visibleVideos} compact={!!id} portrait={format === "vertical"} browseQuery={browseQuery} statistics /></div>{pagination}</>
-    : <div className={s.empty}><h2>{query ? "검색 결과가 없습니다" : id ? `다른 ${formatLabel}이 없습니다` : `등록된 ${formatLabel}이 없습니다`}</h2><p>{query ? "다른 검색어를 입력하거나 검색을 지워주세요." : "다른 영상 종류를 선택해 둘러보세요."}</p>{page > 1 && <button className={s.secondary} onClick={() => updateBrowse({ page: 1 })}>첫 페이지로</button>}{pagination}</div>;
+    : <div className={s.empty}><h2>{query ? "검색 결과가 없습니다" : id ? `다른 ${videoKindLabel}이 없습니다` : `등록된 ${videoKindLabel}이 없습니다`}</h2><p>{query ? "다른 검색어를 입력하거나 검색을 지워주세요." : "다른 영상 종류를 선택해 둘러보세요."}</p>{page > 1 && <button className={s.secondary} onClick={() => updateBrowse({ page: 1 })}>첫 페이지로</button>}{pagination}</div>;
 
   return <VideoLayout title={video?.title || presentation.title}>
     {id ? <>
@@ -108,7 +108,7 @@ export default function PublicVideosPage() {
     </> : <>
       <div className={`${s.sectionHeading} ${s.catalogueHeader}`}><div className={s.pageHeading}><h1>{presentation.title}</h1>{presentation.description && <p>{presentation.description}</p>}</div><VideoPublisherLink /></div>
       {filters}
-      <div className={s.catalogueToolbar}><span role="status">{formatLabel}{data && !listLoading && !listError ? ` ${data.count}편` : ""}</span>{data && data.count > 12 && <span>{page}페이지 · 페이지별 12편</span>}</div>
+      <div className={s.catalogueToolbar}><span role="status">{videoKindLabel}{data && !listLoading && !listError ? ` ${data.count}편` : ""}</span>{data && data.count > 12 && <span>{page}페이지 · 페이지별 12편</span>}</div>
       <div className={s.library} aria-busy={listLoading}>{library}</div>
     </>}
   </VideoLayout>;
