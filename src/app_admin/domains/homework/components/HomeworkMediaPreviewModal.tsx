@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -13,45 +14,80 @@ type Props = {
   open: boolean;
   homeworkId: number;
   file: HomeworkSubmissionMediaFile | null;
+  mediaSetFingerprint: string | null;
   onClose: () => void;
+  onViewed?: (fileId: string) => void;
 };
 
-export default function HomeworkMediaPreviewModal({ open, homeworkId, file, onClose }: Props) {
+export default function HomeworkMediaPreviewModal({ open, homeworkId, file, mediaSetFingerprint, onClose, onViewed }: Props) {
+  const [openedPdfId, setOpenedPdfId] = useState<string | null>(null);
+  const [failedMediaKey, setFailedMediaKey] = useState<string | null>(null);
+  const close = () => {
+    setOpenedPdfId(null);
+    onClose();
+  };
   const previewQ = useQuery({
-    queryKey: QUERY_KEYS.HOMEWORK_MEDIA_PREVIEW(homeworkId, file?.id),
+    queryKey: QUERY_KEYS.HOMEWORK_MEDIA_PREVIEW(homeworkId, file?.id, mediaSetFingerprint),
     queryFn: () => fetchHomeworkMediaPreview(homeworkId, file!.id),
     enabled: open && file != null && file.status === "uploaded" && !file.removed_at,
     staleTime: 8 * 60 * 1000,
     retry: 1,
   });
+  const mediaKey = `${homeworkId}:${file?.id}:${previewQ.data?.url}`;
+  const mediaFailed = failedMediaKey === mediaKey;
+  const previewAvailable = previewQ.data && !previewQ.isError && !mediaFailed;
+  const retryPreview = async () => {
+    setOpenedPdfId(null);
+    const result = await previewQ.refetch();
+    if (!result.isError) setFailedMediaKey(null);
+  };
 
   return (
-    <AdminModal open={open} onClose={onClose} type="inspect" width={MODAL_WIDTH.xwide}>
+    <AdminModal open={open} onClose={close} type="inspect" width={MODAL_WIDTH.xwide}>
       <ModalHeader
         type="inspect"
         title={file?.original_filename || "과제 파일 미리보기"}
-        description={file ? `${file.media_kind === "video" ? "동영상" : "사진"} · 파일 ${file.position + 1}` : undefined}
+        description={file ? `${file.mime_type === "application/pdf" ? "PDF" : file.media_kind === "video" ? "동영상" : "사진"} · 파일 ${file.position + 1}` : undefined}
       />
       <ModalBody>
         <div className={styles.previewBody}>
           {previewQ.isLoading && <div className={styles.previewState}>안전한 미리보기를 준비하는 중…</div>}
-          {previewQ.isError && (
+          {(previewQ.isError || mediaFailed) && (
             <div className={styles.previewState} role="alert">
               <span>파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</span>
-              <Button type="button" intent="ghost" size="sm" onClick={() => previewQ.refetch()}>다시 시도</Button>
+              <Button type="button" intent="ghost" size="sm" disabled={previewQ.isFetching} onClick={() => void retryPreview()}>
+                {previewQ.isFetching ? "다시 불러오는 중…" : "다시 시도"}
+              </Button>
             </div>
           )}
-          {previewQ.data && file?.media_kind === "image" && (
-            <img src={previewQ.data.url} alt={`${file.original_filename} 과제 제출 미리보기`} />
+          {previewAvailable && file?.mime_type === "application/pdf" && (
+            <div className={styles.previewState}>
+              <span>기존 PDF 파일은 새 창에서 원본을 확인해 주세요.</span>
+              <a
+                className={styles.pdfLink}
+                href={previewQ.data.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpenedPdfId(file.id)}
+              >
+                PDF 원본 열기
+              </a>
+              <Button type="button" intent="secondary" size="sm" disabled={openedPdfId !== file.id} onClick={() => onViewed?.(file.id)}>
+                열람 확인
+              </Button>
+            </div>
           )}
-          {previewQ.data && file?.media_kind === "video" && (
-            <video src={previewQ.data.url} controls playsInline preload="metadata">
+          {previewAvailable && file?.media_kind === "image" && file.mime_type !== "application/pdf" && (
+            <img key={mediaKey} src={previewQ.data.url} alt={`${file.original_filename} 과제 제출 미리보기`} onLoad={() => onViewed?.(file.id)} onError={() => setFailedMediaKey(mediaKey)} />
+          )}
+          {previewAvailable && file?.media_kind === "video" && file.mime_type !== "application/pdf" && (
+            <video key={mediaKey} src={previewQ.data.url} controls playsInline preload="metadata" onLoadedMetadata={() => onViewed?.(file.id)} onError={() => setFailedMediaKey(mediaKey)}>
               브라우저에서 이 동영상을 재생할 수 없습니다.
             </video>
           )}
         </div>
       </ModalBody>
-      <ModalFooter right={<Button type="button" intent="secondary" size="xl" onClick={onClose}>닫기</Button>} />
+      <ModalFooter right={<Button type="button" intent="secondary" size="xl" onClick={close}>닫기</Button>} />
     </AdminModal>
   );
 }

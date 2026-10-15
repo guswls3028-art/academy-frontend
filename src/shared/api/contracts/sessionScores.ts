@@ -143,6 +143,7 @@ export async function patchAssessmentCorrection(
     completed: boolean;
     note?: string;
     expected_updated_at?: string | null;
+    expected_media_set_fingerprint?: string;
   },
 ) {
   const res = await api.patch(
