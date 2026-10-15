@@ -495,6 +495,56 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
         body: await staffPage.screenshot({ fullPage: true }),
         contentType: "image/png",
       });
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/assignments?assessment=homework%3A${created.homeworkId}`, { timeout: 30_000 });
+      await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
+      await expect(staffPage.getByRole("heading", { name: "과제 제출 검수" })).toBeVisible();
+      const pcComplete = staffPage.getByRole("button", { name: "직접 확인 완료" });
+      await expect(pcComplete).toBeDisabled();
+      await staffPage.locator('[class*="fileRow"]').filter({ hasText: uploadName }).getByRole("button", { name: "미리보기" }).click();
+      const pcPreview = staffPage.getByRole("dialog").filter({ hasText: uploadName });
+      const pcImage = pcPreview.getByRole("img", { name: /과제 제출 미리보기/ });
+      await expect.poll(() => pcImage.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+      await pcPreview.getByRole("button", { name: "닫기" }).click();
+      await expect(pcComplete).toBeEnabled();
+      const stalePcReview = await api(request, "PATCH", `/results/admin/sessions/${created.sessionId}/score-correction/`, staffTokens.access, {
+        enrollment_id: created.enrollmentId, source_type: "homework", source_id: created.homeworkId,
+        completed: true, note: "QA 오래된 파일 묶음 확인", expected_media_set_fingerprint: "0".repeat(64),
+      });
+      expect(stalePcReview.status).toBe(409);
+      expect(stalePcReview.body).toMatchObject({ code: "HOMEWORK_MEDIA_CHANGED" });
+      await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === false);
+      const pcSaved = staffPage.waitForResponse((response) => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1/results/admin/sessions/${created.sessionId}/score-correction/`);
+      await pcComplete.click();
+      await staffPage.getByRole("alertdialog").getByRole("button", { name: "확인 완료", exact: true }).click();
+      const pcSavedResponse = await pcSaved;
+      expect(pcSavedResponse.status()).toBe(200);
+      expect(pcSavedResponse.request().postDataJSON()).toMatchObject({
+        completed: true, expected_media_set_fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
+      });
+      await expect(staffPage.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+      await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === true);
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
+      await expect(staffPage.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+      await assertNoHorizontalOverflow(staffPage);
+      await testInfo.attach("assistant-homework-pc-review-1366", {
+        body: await staffPage.screenshot({ fullPage: true }), contentType: "image/png",
+      });
+      await staffPage.setViewportSize({ width: 390, height: 844 });
+      await assertNoHorizontalOverflow(staffPage);
+      await testInfo.attach("assistant-homework-pc-review-390", {
+        body: await staffPage.screenshot({ fullPage: true }), contentType: "image/png",
+      });
+      const pcCancelled = staffPage.waitForResponse((response) => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1/results/admin/sessions/${created.sessionId}/score-correction/`);
+      await staffPage.getByRole("button", { name: "확인 완료 취소" }).click();
+      await staffPage.getByRole("alertdialog").getByRole("button", { name: "확인 취소", exact: true }).click();
+      expect((await pcCancelled).status()).toBe(200);
+      await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === false);
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
+      await expect(staffPage.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
       staffBoundary.assertClean();
       staffBrowser.assertZeroDefects();
     } finally {

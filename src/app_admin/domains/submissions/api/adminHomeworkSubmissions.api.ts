@@ -44,6 +44,12 @@ export type HomeworkSubmissionRow = {
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
   name_highlight_clinic_target?: boolean;
+  teacher_reviewed: boolean;
+  teacher_review_source: "manual" | "score" | null;
+  teacher_review_note: string;
+  teacher_reviewed_at: string | null;
+  teacher_review_updated_at: string | null;
+  media_set_fingerprint: string | null;
   created_at: string;
 };
 
@@ -131,6 +137,12 @@ function normalizeHomeworkSubmission(raw: unknown): HomeworkSubmissionRow {
     lecture_color: asNullableString(record.lecture_color),
     lecture_chip_label: asNullableString(record.lecture_chip_label),
     name_highlight_clinic_target: record.name_highlight_clinic_target === true,
+    teacher_reviewed: record.teacher_reviewed === true,
+    teacher_review_source: record.teacher_review_source === "score" ? "score" : record.teacher_review_source === "manual" ? "manual" : null,
+    teacher_review_note: String(record.teacher_review_note ?? ""),
+    teacher_reviewed_at: asNullableString(record.teacher_reviewed_at),
+    teacher_review_updated_at: asNullableString(record.teacher_review_updated_at),
+    media_set_fingerprint: asNullableString(record.media_set_fingerprint),
     created_at: String(record.created_at ?? ""),
   };
 }
