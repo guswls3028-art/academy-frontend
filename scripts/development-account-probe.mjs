@@ -17,6 +17,7 @@ const PROBE_EXCEPTION_CODES = new Map([
   ["PermissionError", "probe-permission-error"], ["TimeoutError", "probe-timeout"],
   ["ProgrammingError", "probe-database-programming-error"], ["OperationalError", "probe-database-operational-error"],
   ["IntegrityError", "probe-database-integrity-error"], ["DataError", "probe-database-data-error"],
+  ["TransactionManagementError", "probe-transaction-management-error"],
   ["FieldError", "probe-field-error"], ["CommandError", "probe-command-error"],
   ["ProbeFailure", "probe-unclassified-contract"], ["RuntimeError", "probe-runtime-error"],
 ]);

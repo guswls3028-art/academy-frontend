@@ -74,6 +74,7 @@ test("unexpected candidate exceptions retain only closed categories and never th
     onFailure: (code) => failures.push(code) });
   for (const [errorType, code] of [["AssertionError", "probe-assertion-error"],
     ["AttributeError", "probe-attribute-error"], ["ProgrammingError", "probe-database-programming-error"],
+    ["TransactionManagementError", "probe-transaction-management-error"],
     ["UnboundLocalError", "probe-unbound-local-error"], ["ProbeFailure", "probe-unclassified-contract"],
     ["private-token", "probe-failed"], ["__proto__", "probe-failed"], [null, "probe-failed"]]) {
     payload = { status: "DEVELOPMENT_QA_FAILED", failure_stage: "account_probe", account_probe_failure: "probe-failed",
