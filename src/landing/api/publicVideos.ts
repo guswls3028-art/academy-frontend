@@ -2,7 +2,12 @@ import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
 export interface VideoContent { title: string; summary: string; category: "interview" | "lesson" | "news"; category_label?: string; format: "landscape" | "vertical" }
 export interface VideoSource { youtube_video_id: string; canonical_url: string; source_title: string; channel_title: string; thumbnail_url: string }
-export interface PublicVideo extends VideoSource, VideoContent { id: string; published_at: string }
+export interface PublicVideo extends VideoSource, VideoContent {
+  id: string; published_at: string;
+  youtube_view_count?: number | null; youtube_published_at?: string | null; youtube_statistics_checked_at?: string | null;
+}
+export type VideoSort = "latest" | "popular" | "oldest";
+export interface VideoFilters { format?: VideoContent["format"]; sort?: VideoSort; q?: string }
 export interface ManagedVideo extends VideoSource {
   id: string; draft_content: VideoContent; published_content: VideoContent | null;
   status: "draft" | "published" | "unpublished"; revision: number; metadata_ready: boolean;
@@ -15,7 +20,7 @@ const base = "/landing-public/videos/";
 const publicRequest = { skipAuth: true } as ApiRequestConfig;
 export const videoStatuses = { draft: "임시저장", published: "공개 중", unpublished: "비공개" };
 
-export async function listVideos(page = 1) { return (await api.get<VideoPage<PublicVideo>>(base, { ...publicRequest, params: { page } })).data; }
+export async function listVideos(page = 1, filters: VideoFilters = {}) { return (await api.get<VideoPage<PublicVideo>>(base, { ...publicRequest, params: { page, kind: filters.format, sort: filters.sort, q: filters.q } })).data; }
 export async function getVideo(id: string) { return (await api.get<PublicVideo>(`${base}${id}/`, publicRequest)).data; }
 export async function getVideoShowcase() { return { ...defaultVideoPresentation, ...(await api.get<VideoPresentation & { hero: PublicVideo | null }>(`${base}showcase/`, publicRequest)).data }; }
 export async function getVideoHero() { return (await getVideoShowcase()).hero; }

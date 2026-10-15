@@ -19,7 +19,7 @@ test.afterEach(async () => {
 
 async function prepare(page: Page, publisher = false, published = false, authenticated = publisher) {
   const state = { related: [] as PublicVideo[], capabilityFailure: false, canPublish: publisher, row: published ? managed() : null as ManagedVideo | null, hero: published ? ID : null as string | null, revision: published ? 1 : 0, conflict: false, unavailable: false, publicFailure: false, listFailure: false, deleteFailure: false, presentation: { title: "영상", description: "" } };
-  const publicRow = () => state.row?.status === "published" ? { ...source, id: ID, ...state.row.published_content, published_at: "2026-10-14T00:00:00Z" } : null;
+  const publicRow = (): PublicVideo | null => state.row?.status === "published" ? { ...source, id: ID, ...(state.row.published_content || initial), published_at: "2026-10-14T00:00:00Z", youtube_published_at: "2026-10-14T00:00:00Z", youtube_view_count: 375, youtube_statistics_checked_at: "2026-10-15T00:00:00Z" } : null;
   server = createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://localhost");
     const headers = { "Access-Control-Allow-Origin": new URL(BASE).origin, "Access-Control-Allow-Credentials": "true", "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS", "Access-Control-Allow-Headers": request.headers["access-control-request-headers"] || "content-type, x-tenant-code, authorization" };
@@ -69,7 +69,17 @@ async function prepare(page: Page, publisher = false, published = false, authent
     }
     if (path === `manage/${ID}/`) return json(state.row || {}, state.row ? 200 : 404);
     if (path === "") {
-      const rows = [...(publicRow() ? [publicRow()] : []), ...state.related];
+      let rows = [...(publicRow() ? [publicRow()!] : []), ...state.related];
+      const format = url.searchParams.get("kind"); const query = (url.searchParams.get("q") || "").toLowerCase();
+      if (format) rows = rows.filter((row) => row.format === format);
+      if (query) rows = rows.filter((row) => [row.title, row.category_label || "", row.channel_title].some((value) => value.toLowerCase().includes(query)));
+      const sort = url.searchParams.get("sort") || "latest";
+      if (sort === "popular" && rows.length && rows.every((row) => row.youtube_view_count == null)) return json({ detail: "조회수를 확인하지 못했습니다. 잠시 후 다시 시도하거나 최신순으로 영상을 확인해주세요." }, 503);
+      rows.sort((a, b) => {
+        if (sort === "popular") { const count = (b.youtube_view_count ?? -1) - (a.youtube_view_count ?? -1); if (count) return count; }
+        const date = new Date(a.youtube_published_at || a.published_at).getTime() - new Date(b.youtube_published_at || b.published_at).getTime();
+        return (sort === "oldest" ? date : -date) || a.id.localeCompare(b.id);
+      });
       const pageNumber = Math.max(1, Number(url.searchParams.get("page")) || 1);
       return state.publicFailure ? json({ detail: "목록을 불러오지 못했습니다." }, 503) : json({ count: rows.length, results: rows.slice((pageNumber - 1) * 12, pageNumber * 12), next: rows.length > pageNumber * 12 ? `?page=${pageNumber + 1}` : null });
     }
@@ -212,7 +222,7 @@ test("lookup failure retains manual draft and public list error has retry", asyn
   await expect(page.getByLabel(/^제목/)).toHaveValue("직접 입력한 제목");
   await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue("직접 입력한 제목");
   state.publicFailure = true; await page.goto(`${BASE}/landing/videos`); await expect(page.getByRole("alert")).toBeVisible(); state.publicFailure = false;
-  await page.getByRole("button", { name: "다시 시도", exact: true }).click(); await expect(page.getByRole("heading", { name: "등록된 공개 영상이 없습니다" })).toBeVisible();
+  await page.getByRole("button", { name: "다시 시도", exact: true }).click(); await expect(page.getByRole("heading", { name: "등록된 동영상이 없습니다" })).toBeVisible();
 });
 
 for (const width of [1366, 1100, 390]) {
@@ -221,17 +231,17 @@ for (const width of [1366, 1100, 390]) {
     const next: PublicVideo = { ...source, ...initial, id: "82222222-2222-4222-8222-222222222222", title: "다음에 볼 영상", summary: "", format: "vertical", youtube_video_id: "Q70aZV1TH1Y", canonical_url: "https://www.youtube.com/watch?v=Q70aZV1TH1Y", thumbnail_url: "https://i.ytimg.com/vi/Q70aZV1TH1Y/hqdefault.jpg", published_at: "2026-10-14T00:00:00Z" };
     state.related.push(next);
     await page.goto(`${BASE}/landing/videos`);
-    const landscapeSection = page.getByRole("region", { name: "동영상", exact: true });
-    const shortsSection = page.getByRole("region", { name: "Shorts", exact: true });
-    await expect(landscapeSection.getByRole("heading", { name: initial.title })).toBeVisible();
-    await expect(shortsSection.getByRole("heading", { name: next.title })).toBeVisible();
-    const shortPoster = await shortsSection.locator("img").boundingBox();
+    const formats = page.getByRole("navigation", { name: "영상 종류", exact: true });
+    await expect(page.getByRole("heading", { name: initial.title })).toBeVisible();
+    await expect(page.getByRole("heading", { name: next.title })).toHaveCount(0);
+    await formats.getByRole("button", { name: "Shorts", exact: true }).click();
+    await expect(page.getByRole("heading", { name: next.title })).toBeVisible();
+    await expect(page.getByRole("heading", { name: initial.title })).toHaveCount(0);
+    const shortPoster = await page.getByRole("link").filter({ has: page.getByRole("heading", { name: next.title }) }).locator("img").boundingBox();
     expect(shortPoster!.height / shortPoster!.width).toBeGreaterThan(1.7);
     if (width === 390) {
-      const shortcuts = page.getByRole("navigation", { name: "영상 종류 바로가기" });
-      await shortcuts.getByRole("link", { name: "Shorts", exact: true }).click();
-      await expect(shortsSection.getByRole("heading", { name: "Shorts", exact: true })).toBeInViewport();
-      expect(await shortsSection.evaluate((element) => element.getBoundingClientRect().top - document.querySelector("header")!.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(0);
+      await expect(formats.getByRole("button", { name: "Shorts", exact: true })).toBeInViewport();
+      expect(await formats.evaluate((element) => element.getBoundingClientRect().top - document.querySelector("header")!.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(0);
       await page.getByRole("navigation", { name: "홈페이지 주요 메뉴" }).getByRole("link", { name: "영상", exact: true }).click();
       await expect(page.getByRole("heading", { name: "영상", exact: true, level: 1 })).toBeInViewport();
     }
@@ -250,6 +260,7 @@ for (const width of [1366, 1100, 390]) {
     await expect(page.getByRole("link", { name: "영상 등록", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "이 영상 수정", exact: true })).toHaveAttribute("href", `/landing/admin/videos/${ID}`);
     const others = page.getByRole("complementary", { name: "다른 영상" });
+    await others.getByRole("button", { name: "Shorts", exact: true }).click();
     await others.getByRole("link").filter({ has: page.getByRole("heading", { name: next.title }) }).click();
     await expect(page.getByRole("heading", { name: next.title, level: 1 })).toBeVisible();
     await expect(page.locator("iframe")).toHaveCount(1); await expect(page.locator("iframe")).toHaveAttribute("src", /Q70aZV1TH1Y/);
@@ -269,10 +280,10 @@ for (const width of [1366, 1100, 390]) {
 
 test("paginated browsing keeps the current player through list failure, retry and back navigation", async ({ page }) => {
   const state = await prepare(page, false, true);
-  state.related.push(...Array.from({ length: 24 }, (_, index): PublicVideo => ({ ...source, ...initial, id: `83333333-3333-4333-8333-${String(index).padStart(12, "0")}`, title: `공개 영상 ${index + 2}`, summary: "", format: index % 2 ? "vertical" : "landscape", published_at: "2026-10-14T00:00:00Z" })));
+  state.related.push(...Array.from({ length: 24 }, (_, index): PublicVideo => ({ ...source, ...initial, id: `83333333-3333-4333-8333-${String(index).padStart(12, "0")}`, title: `공개 영상 ${index + 2}`, summary: "", format: "landscape", published_at: "2026-10-14T00:00:00Z" })));
   await page.goto(`${BASE}/landing/videos`);
   await page.getByRole("navigation", { name: "영상 페이지" }).getByRole("button", { name: "다음", exact: true }).click();
-  await expect(page).toHaveURL(`${BASE}/landing/videos?page=2`);
+  await expect(page).toHaveURL(`${BASE}/landing/videos?format=landscape&sort=latest&page=2`);
   await page.getByRole("link").filter({ has: page.getByRole("heading", { name: "공개 영상 13", exact: true }) }).click();
   await expect(page.getByRole("heading", { name: "공개 영상 13", level: 1 })).toBeVisible();
   const iframe = await page.locator("iframe").elementHandle();
@@ -286,7 +297,7 @@ test("paginated browsing keeps the current player through list failure, retry an
   await expect(page.getByRole("heading", { name: "공개 영상 25", exact: true })).toBeVisible();
   expect(await iframe!.evaluate((element) => element.isConnected)).toBe(true);
   await page.getByRole("link", { name: "← 영상 목록", exact: true }).click();
-  await expect(page).toHaveURL(`${BASE}/landing/videos?page=3`);
+  await expect(page).toHaveURL(`${BASE}/landing/videos?format=landscape&sort=latest&page=3`);
   await page.reload();
   await expect(page.getByRole("heading", { name: "공개 영상 25", exact: true })).toBeVisible();
   await expect(page.locator("iframe")).toHaveCount(0);
@@ -310,6 +321,61 @@ test("publisher permission retry, direct publish and persisted completion", asyn
   await expect(page.getByRole("link", { name: "공개 화면 확인" })).toBeVisible();
   await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue(source.source_title);
   expect(state.row?.status).toBe("published");
+});
+
+for (const width of [1366, 390]) {
+  test(`YouTube format filters → global popularity/date sorting → search and return at ${width}px`, async ({ page }) => {
+    const state = await prepare(page, false, true);
+    state.related.push(...Array.from({ length: 30 }, (_, index): PublicVideo => ({
+      ...source, ...initial, id: `84444444-4444-4444-8444-${String(index).padStart(12, "0")}`,
+      title: `탐색 검증 ${index + 1}`, format: index % 2 ? "vertical" : "landscape", category_label: "탐구",
+      published_at: "2026-10-14T00:00:00Z", youtube_published_at: new Date(Date.UTC(2026, 9, 1, 0, index)).toISOString(),
+      youtube_view_count: index * 100, youtube_statistics_checked_at: "2026-10-15T00:00:00Z",
+    })));
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/landing/videos`);
+    await page.getByRole("navigation", { name: "영상 종류" }).getByRole("button", { name: "Shorts", exact: true }).click();
+    await page.getByRole("button", { name: "인기순", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 3 }).first()).toHaveText("탐색 검증 30");
+    await expect(page.getByRole("heading", { name: initial.title })).toHaveCount(0);
+    await expect(page.getByText("Shorts 15편", { exact: true })).toBeVisible();
+    await page.getByRole("navigation", { name: "영상 페이지" }).getByRole("button", { name: "다음", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 3 }).first()).toHaveText("탐색 검증 6");
+    await page.reload();
+    await expect(page.getByRole("button", { name: "인기순", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("heading", { level: 3 }).first()).toHaveText("탐색 검증 6");
+    await page.getByRole("button", { name: "오래된순", exact: true }).click();
+    await expect(page).not.toHaveURL(/page=/);
+    await expect(page.getByRole("heading", { level: 3 }).first()).toHaveText("탐색 검증 2");
+    await page.goBack();
+    await expect(page).toHaveURL(/format=vertical&sort=popular&page=2$/);
+    await page.getByRole("textbox", { name: "영상 검색", exact: true }).fill("탐색 검증 30");
+    await page.getByRole("button", { name: "검색", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 3 })).toHaveCount(1);
+    await page.getByRole("link").filter({ has: page.getByRole("heading", { name: "탐색 검증 30", exact: true }) }).click();
+    await expect(page.getByRole("heading", { name: "탐색 검증 30", level: 1 })).toBeVisible();
+    await expect(page.getByText("YouTube 조회수 2,900회", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "← 영상 목록", exact: true }).click();
+    await page.reload();
+    await expect(page.getByRole("textbox", { name: "영상 검색", exact: true })).toHaveValue("탐색 검증 30");
+    await page.getByRole("button", { name: "검색 지우기", exact: true }).click();
+    await expect(page.getByText("Shorts 15편", { exact: true })).toBeVisible();
+    await page.getByRole("textbox", { name: "영상 검색", exact: true }).fill("일치하는 영상 없음");
+    await page.getByRole("button", { name: "검색", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "검색 결과가 없습니다" })).toBeVisible();
+    await noOverflow(page);
+  });
+}
+
+test("popularity provider failure is explicit and switching to latest recovers", async ({ page }) => {
+  const state = await prepare(page, false, false);
+  state.related.push({ ...source, ...initial, id: ID, published_at: "2026-10-14T00:00:00Z", youtube_view_count: null });
+  await page.goto(`${BASE}/landing/videos?format=landscape&sort=popular`);
+  await expect(page.getByRole("alert")).toContainText("조회수를 확인하지 못했습니다");
+  await page.getByRole("button", { name: "최신순으로 보기", exact: true }).click();
+  await expect(page.getByRole("heading", { name: initial.title })).toBeVisible();
+  await expect(page.getByText("YouTube 조회수 미확인", { exact: true })).toBeVisible();
+  await expect(page.getByText("YouTube 조회수 0회", { exact: true })).toHaveCount(0);
 });
 
 test("signed-in non-publisher cannot see publishing controls", async ({ page }) => {
