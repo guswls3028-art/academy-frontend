@@ -1579,6 +1579,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText(`${EXPECTED_SCORE - 1}/50점`);
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText(`${EXPECTED_SCORE - 1}/50점`);
+    // Finish the reloaded student screen's resources before the strict context
+    // teardown blocks new requests. An unfinished reload must still fail here.
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+    await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText(`${EXPECTED_SCORE - 1}/50점`);
   });
 
   test("3·5·3+5를 실제 제출하고 수기 보정 재채점의 확인 경로를 연다", async ({ page, request }) => {
