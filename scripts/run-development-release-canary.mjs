@@ -10,7 +10,7 @@ import { gunzipSync } from "node:zlib";
 import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "./release-playback-end-proxy.mjs";
 import { binarySafeSsmEnvironment } from "./binary-safe-ssm.mjs";
 import { createFixedQaRunner, writeQaCheckpoint } from "./development-qa-operations.mjs";
-import { accountProbeParameters, assertAccountProbeProof, createAccountProbeHandler } from "./development-account-probe.mjs";
+import { accountProbeParameters, accountProbeResult, createAccountProbeHandler } from "./development-account-probe.mjs";
 export { createFixedQaRunner, observeFixedOperationResult, setupTenantIdFromOperation, fixedOperationParameters } from "./development-qa-operations.mjs";
 import { developmentRealUseCases } from "../e2e/suites.mjs";
 
@@ -54,6 +54,8 @@ const SYNTHETIC_LONG_VIDEO_MEDIA_GZIP = "H4sIAAAAAAACCu2ZQYscRRiGv5mQBUMQkURymMM
 const RELEASE_BOUNDARY_CODES = new Set([
   "api-origin", "context-disposed", "cors", "credentials", "mutation", "observation-schema",
   "origin", "redirect", "public-video-redirect", "tenant", "transport", "fetch-transport", "fulfill-transport",
+  "resource-manifest", "resource-scope", "resource-format", "resource-status", "resource-size",
+  "resource-signature", "resource-type", "resource-disposition",
 ]);
 // Mirrors e2e/helpers/releaseApiBoundary.ts's SESSION_DELETE_BLOCKER_LABELS /
 // LECTURE_ONLY_DELETE_BLOCKER_LABELS (itself mirroring the fixed label
@@ -357,7 +359,7 @@ function observeReleaseContextSnapshot(payload) {
   for (const event of payload.events) {
     if (!record(event) || required.some((key) => !Object.hasOwn(event, key))
       || Object.keys(event).some((key) => !required.includes(key) && !optional.includes(key))
-      || ![...phases, "browser-console", "browser-pageerror", "page-close", "page-crash", "context-close", "browser-disconnected"].includes(event.phase)
+      || ![...phases, "route-handler", "browser-console", "browser-pageerror", "page-close", "page-crash", "context-close", "browser-disconnected"].includes(event.phase)
       || !["initial", "retry", "recovered", "terminal"].includes(event.stage)
       || !count(event.elapsedMs, 2 * 60 * 60_000) || !count(event.activeRouteCount) || typeof event.closing !== "boolean"
       || (Object.hasOwn(event, "method") && !["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE", "other"].includes(event.method))
@@ -368,8 +370,9 @@ function observeReleaseContextSnapshot(payload) {
       || pageKeys.some((key) => Object.hasOwn(event, key) && event[key] !== null && !count(event[key]))
       || (Object.hasOwn(event, "category") && !["cors", "chunk", "network", "resource", "runtime", "other"].includes(event.category))
       || (Object.hasOwn(event, "sourceKind") && !["local", "api", "vendor", "unknown"].includes(event.sourceKind))) return null;
-    if (phases.includes(event.phase)) {
+    if (phases.includes(event.phase) || event.phase === "route-handler") {
       if (!Object.hasOwn(event, "method") || !Object.hasOwn(event, "pathTemplate")) return null;
+      if (event.phase === "route-handler" && event.stage !== "terminal") return null;
     } else if (event.stage !== "terminal") return null;
   }
   return { ...Object.fromEntries(keys.map((key) => [key, payload[key]])),
@@ -1326,11 +1329,8 @@ export async function run() {
         const probe = session(QA_DOCUMENT, accountProbeParameters(common, scenario.tenant_id, input));
         const result = await probe.done;
         remember(probe);
-        assert.equal(result.code, 0, "Candidate account probe failed");
         assert.equal(interrupted, false, "Development run interrupted");
-        const lines = result.stdout.split(/\r?\n/).filter((line) => line.startsWith("{"));
-        assert.equal(lines.length, 1, "Candidate account probe proof missing or ambiguous");
-        return assertAccountProbeProof(JSON.parse(lines[0]), accountScope, input);
+        return accountProbeResult(result, accountScope, input);
       },
     });
     const secret = aws(["ssm", "get-parameter", "--name", PASSWORD_PARAMETER, "--with-decryption"]);

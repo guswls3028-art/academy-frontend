@@ -1802,6 +1802,25 @@ test("cross-file snapshots identify the latest emitting file without claiming or
   assert.equal(Object.hasOwn(observed.contextObservations[0], "specFile"), false);
 });
 
+test("official evidence keeps terminal handler failures and fixed resource causes without raw data", () => {
+  const observer = policyModule.createReleaseContextObservation(1);
+  observer.record({ phase: "route-handler", stage: "terminal", method: "GET", pathTemplate: null, nativeCode: "other" });
+  const report = contextReport([{ releaseContextObservation: observer.snapshot() }], "public-resource-realuse.spec.ts");
+  report.suites[0].specs[0].tests[0].results[0].errors = [{ message: "Release request rejected [resource-type] GET" }];
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.deepEqual(observed.boundaryCodes, ["resource-type"]);
+  assert.equal(observed.contextObservations[0].events[0].phase, "route-handler");
+  assert.equal(observed.rejectedContextObservationCount, 0);
+  for (const patch of [{ stage: "retry" }, { rawError: "private-token" }, { nativeCode: "private-token" }]) {
+    const payload = observer.snapshot();
+    Object.assign(payload.events[0], patch);
+    const invalid = observeReleaseTestResult(JSON.stringify(contextReport([{ releaseContextObservation: payload }])));
+    assert.deepEqual(invalid.contextObservations, []);
+    assert.equal(invalid.rejectedContextObservationCount, 1);
+    assert.doesNotMatch(JSON.stringify(invalid), /private-token/);
+  }
+});
+
 test("official context observation sanitizer rejects unsafe fields and bounds context count", () => {
   const observer = policyModule.createReleaseContextObservation(null);
   observer.record({ phase: "api-request", stage: "terminal", method: "POST", pathTemplate: null, nativeCode: "other" });

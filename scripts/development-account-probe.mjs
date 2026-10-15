@@ -1,6 +1,33 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 const WEB_ORIGIN = "http://localhost:4173";
+const PROBE_FAILURE_CODES = new Set([
+  "credential-unrecoverable", "credential-hash-mismatch", "random-format-invalid", "own-phone-mismatch",
+  "auth-redirect-refused", "auth-status", "auth-response-size", "auth-response-shape", "auth-request-failed",
+  "auth-token-invalid", "auth-role-mismatch", "auth-student-mismatch", "auth-parent-mismatch",
+  "runtime-scope-invalid", "owner-mismatch", "fixture-scope-invalid", "fixture-role-invalid",
+  "snapshot-already-exists", "parent-hash-changed", "business-state-changed", "target-invalid", "arguments-invalid", "probe-failed",
+]);
+class AccountProbeFailure extends Error {
+  constructor(code) { super(code); this.code = code; }
+}
+
+export function accountProbeResult(result, scope, input) {
+  // Only fixed codes cross into evidence; never retain stdout, stderr, credentials or assertion values.
+  if (typeof result.stdout !== "string" || result.stdout.length > 65_536) throw new AccountProbeFailure("probe-output-invalid");
+  const lines = result.stdout.split(/\r?\n/).filter((line) => line.startsWith("{"));
+  if (lines.length !== 1) throw new AccountProbeFailure("probe-proof-missing");
+  let payload;
+  try { payload = JSON.parse(lines[0]); }
+  catch { throw new AccountProbeFailure("probe-output-invalid"); }
+  if (result.code !== 0 || payload?.status === "DEVELOPMENT_QA_FAILED") {
+    const code = payload?.status === "DEVELOPMENT_QA_FAILED" && payload?.failure_stage === "account_probe"
+      && PROBE_FAILURE_CODES.has(payload?.account_probe_failure) ? payload.account_probe_failure : "probe-process-failed";
+    throw new AccountProbeFailure(code);
+  }
+  try { return assertAccountProbeProof(payload, scope, input); }
+  catch { throw new AccountProbeFailure("probe-proof-invalid"); }
+}
 
 export function accountProbeParameters(common, tenantId, input) {
   assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0);
@@ -60,8 +87,8 @@ export function createAccountProbeHandler(boundary) {
       const proof = assertAccountProbeProof(await boundary.execute(input), boundary.scope, input);
       response.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
       response.end(JSON.stringify(proof));
-    } catch {
-      boundary.onFailure("account-probe-failed");
+    } catch (error) {
+      boundary.onFailure(error instanceof AccountProbeFailure ? error.code : "account-probe-failed");
       response.writeHead(502, { "content-type": "application/json", "cache-control": "no-store" });
       response.end('{"error":"ACCOUNT_PROBE_FAILED"}');
     } finally { if (acquired) active = false; }
