@@ -212,7 +212,7 @@
 .teacherPortrait img { aspect-ratio: 4 / 5.4; border-radius: 16px; display: block; height: auto; object-fit: cover; object-position: center top; width: 100%; }
 .teacherPortrait figcaption { color: #71817c; display: flex; font-size: 11px; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 .teacherPortrait figcaption a { color: var(--gm-deep); text-underline-offset: 3px; }
-.teacherCopy { padding-top: 20px; }
+.teacherCopy { overflow-wrap: anywhere; padding-top: 20px; word-break: keep-all; }
 .teacherIntro { color: var(--gm-muted); font-size: 17px; letter-spacing: -0.03em; line-height: 1.85; margin: 28px 0 0; max-width: 620px; }
 .teacherPrinciple { border-left: 3px solid var(--gm-mint); margin: 44px 0; padding: 2px 0 4px 28px; }
 .teacherPrinciple > span { color: var(--gm-coral); display: block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; font-weight: 750; letter-spacing: 0.16em; margin-bottom: 10px; text-transform: uppercase; }
@@ -222,6 +222,8 @@
 .profileLinks a > span { display: flex; flex-direction: column; gap: 5px; }
 .profileLinks strong { font-size: 15px; letter-spacing: -0.025em; }
 .profileLinks small { color: var(--gm-muted); font-size: 12px; line-height: 1.5; }
+.profileLinks .profileDate { color: var(--gm-deep); font-size: 11px; }
+.profileChecked { color: var(--gm-muted); font-size: 11px; line-height: 1.7; margin: 18px 0 0; word-break: keep-all; }
 .profileLinks svg { fill: none; height: 18px; stroke: var(--gm-deep); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; transition: transform 160ms ease; width: 18px; }
 .profileLinks a:hover svg { transform: translateX(4px); }
 

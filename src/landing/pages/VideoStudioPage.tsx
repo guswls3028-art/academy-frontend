@@ -65,7 +65,7 @@ export default function VideoStudioPage() {
     setSettingsMessage(keepInput ? "내 입력을 유지했습니다. 확인한 뒤 다시 저장해주세요." : "최신 설정을 불러왔습니다.");
   }
   return <VideoLayout title="영상 관리">{publisher.state !== "allowed" ? <VideoAccess publisher={publisher} /> : <>
-    <div className={s.sectionHeading}><div><h1>영상 관리</h1><p>YouTube 링크로 영상을 등록하고 공개 정보를 관리합니다.</p></div><Link className={s.primary} to="/landing/admin/videos/new">새 영상 등록</Link></div>
+    <div className={s.sectionHeading}><div><h1>영상 관리</h1><p>YouTube 링크로 영상을 등록하고 공개 정보를 관리합니다.</p></div><div className={s.actions}><Link className={s.secondary} to="/landing/videos">공개 영상 보기</Link><Link className={s.primary} to="/landing/admin/videos/new">새 영상 등록</Link></div></div>
     {location.state?.videoDeleted && <p role="status" aria-label="삭제 결과" className={s.message}>영상을 삭제했습니다. 홈페이지와 관리 목록에서 내려갔습니다.</p>}
     <details className={s.settingsPanel}><summary>영상 영역 설정</summary><p className={s.hint}>홈페이지 영상 영역과 영상 목록에 함께 표시됩니다. 제목과 소개를 직접 정할 수 있습니다.</p>
       {settingsError && <VideoFailure message={settingsError} retry={!showcase ? () => setSettingsRetry((value) => value + 1) : undefined} />}
@@ -77,11 +77,12 @@ export default function VideoStudioPage() {
       </form> : !settingsError && <p role="status">설정을 불러오고 있습니다.</p>}
     </details>
     <div className={s.studioNote}><strong>YouTube 링크 입력 → 제목 확인 → 공개</strong><p>바로 공개하거나 임시저장해 나중에 이어서 작성할 수 있습니다. 공개 중인 영상의 수정 내용은 다시 공개해야 반영됩니다. 대표 영상은 홈페이지 첫 화면에 한 편만 표시됩니다.</p></div>
+    <div className={s.catalogueToolbar}><span>등록한 영상{data && !loading && !error ? ` ${data.count}편` : ""}</span><span>영상을 선택하면 수정할 수 있습니다.</span></div>
     {loading ? <p role="status" className={s.empty}>영상 목록을 불러오고 있습니다.</p> : error ? <VideoFailure message={error} retry={() => setRetry((value) => value + 1)} /> : data?.results.length ? <>
       <div className={s.manageList}>{data.results.map((video) => <Link className={s.manageRow} key={video.id} to={`/landing/admin/videos/${video.id}`}>
         <img src={video.thumbnail_url || `https://i.ytimg.com/vi/${video.youtube_video_id}/hqdefault.jpg`} alt="" loading="lazy" />
         <div><div className={s.statusLine}><span className={video.status === "published" ? s.live : s.status}>{videoStatuses[video.status]}</span>{showcase?.hero_video_id === video.id && <span className={s.heroBadge}>홈 대표</span>}{video.status === "published" && JSON.stringify(video.draft_content) !== JSON.stringify(video.published_content) && <span className={s.status}>수정 내용 미공개</span>}</div><h2>{video.draft_content.title}</h2><p>{video.channel_title || "공개할 때 원본 영상 확인"} · {video.draft_content.format === "vertical" ? "Shorts" : "일반 영상"}</p></div><span className={s.editLabel}>편집 →</span>
-      </Link>)}</div><nav className={s.pagination} aria-label="관리 목록 페이지"><button disabled={page === 1} onClick={() => setParams({ page: String(page - 1) })}>이전</button><span>{page} / {Math.ceil(data.count / 12)}</span><button disabled={!data.next} onClick={() => setParams({ page: String(page + 1) })}>다음</button></nav>
+      </Link>)}</div>{data.count > 12 && <nav className={s.pagination} aria-label="관리 목록 페이지"><button disabled={page === 1} onClick={() => setParams({ page: String(page - 1) })}>이전</button><span>{page} / {Math.ceil(data.count / 12)}</span><button disabled={!data.next} onClick={() => setParams({ page: String(page + 1) })}>다음</button></nav>}
     </> : <div className={s.empty}><h2>첫 영상을 등록해보세요</h2><p>일반 영상과 Shorts 링크를 모두 사용할 수 있습니다.</p><Link className={s.primary} to="/landing/admin/videos/new">영상 등록 시작</Link></div>}
   </>}</VideoLayout>;
 }

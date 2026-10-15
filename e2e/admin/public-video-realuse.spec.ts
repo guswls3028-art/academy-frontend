@@ -1,6 +1,6 @@
 /** Full publication journey in an isolated, disposable development tenant. */
 import { expect, test } from "../fixtures/strictTest";
-import { api, assertNoHorizontalOverflow, assertQaStudentParentRuntime, loginAdmin,
+import { api, assertNoHorizontalOverflow, assertQaStudentParentRuntime,
   QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_BASE, QA_TENANT, STUDENT_PARENT_REALUSE_ENABLED } from "../helpers/qaStudentParentScenario";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv } from "../helpers/releaseApiBoundary";
@@ -15,7 +15,7 @@ test.describe("[real-use] public video publishing", () => {
   test("two publishers customize → register/reload → publish → edit/hide → delete → re-register", async ({ browser, request }, testInfo) => {
     assertQaStudentParentRuntime();
     const boundary = releaseBoundaryFromEnv(process.env)!; installReleaseRequestGuard(request, boundary);
-    const access = (await loginAdmin(request)).access;
+    let access = "";
     const owned: string[] = [];
     const publishers: Array<Awaited<ReturnType<typeof open>>> = [];
     const contexts: Array<{ context: Awaited<ReturnType<typeof browser.newContext>>; guard: Awaited<ReturnType<typeof installReleaseContextGuard>>; strict: ReturnType<typeof attachStrictBrowserGuards> }> = [];
@@ -31,7 +31,18 @@ test.describe("[real-use] public video publishing", () => {
         const page = await open(width); await page.goto(`${QA_BASE}/landing/videos`);
         await page.getByRole("link", { name: "로그인", exact: true }).click();
         await page.getByTestId("login-username").fill(index ? "ymath-qa-resource-publisher" : QA_ADMIN_USER);
-        await page.getByTestId("login-password").fill(QA_ADMIN_PASSWORD); await page.getByTestId("login-submit").click();
+        await page.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
+        const tokenResponse = page.waitForResponse((response) => response.request().method() === "POST"
+          && new URL(response.url()).pathname === "/api/v1/token/", { timeout: 45_000 });
+        await page.getByTestId("login-submit").click();
+        const loginResponse = await tokenResponse;
+        expect(loginResponse.status(), `POST /api/v1/token/ returned ${loginResponse.status()}: publisher login`).toBe(200);
+        if (index === 0) {
+          // Reuse the real UI login for API checks/cleanup without another login quota slot.
+          const tokens = await loginResponse.json() as { access?: unknown };
+          expect(typeof tokens.access === "string" && tokens.access.length > 0, "Publisher login must return an access token").toBe(true);
+          access = tokens.access as string;
+        }
         await expect(page).toHaveURL(/\/landing\/videos$/, { timeout: 45_000 }); await acknowledgeInitialAccountPromptsIfVisible(page);
         await page.goto(`${QA_BASE}/landing/videos`); await page.getByRole("link", { name: "영상 관리", exact: true }).click();
         publishers.push(page);

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
 
 import { setLandingMeta } from "@/landing/utils/seoMeta";
@@ -32,34 +32,49 @@ const LEARNING_STEPS = [
   },
 ];
 
+const INTERVIEW_URL = "https://m.lemouton.co.kr/article/%EB%A5%B4%EB%AC%B4%ED%86%B5-%EC%97%A0%EB%B2%84%EC%84%9C%EB%8D%94/18/78433/";
+
 const PROFILE_LINKS = [
   {
+    label: "두각 공식 강사 소개",
+    date: "공식 강사진",
+    detail: "통합과학·화학 담당과 대성마이맥 강의 이력",
+    href: "https://dugak.net/info/teacher.do",
+  },
+  {
+    label: "명인학원 수업 안내",
+    date: "강좌 안내 · 2026.06.14",
+    detail: "교재·주차별 테스트·연구실 클리닉으로 이어지는 수업 구성",
+    href: "https://mp.myunginedu.co.kr/branch/classinfo_detail.php?a_serial=4208&mode=read&page=4",
+  },
+  {
     label: "MBC 구해줘! 홈즈",
-    detail: "방송에서 소개한 통합과학 강의와 대치동 연구실",
+    date: "iMBC 보도 · 2025.04.16",
+    detail: "보도 당시 13년 차 강사로 소개된 신민T와 대치동 연구실",
     href: "https://enews.imbc.com/News/RetrieveNewsInfo/457287",
   },
   {
-    label: "대치명인 강좌 안내",
-    detail: "통합과학 수업 구성과 연구실 클리닉 안내",
-    href: "https://www.gangmom.kr/news/6a47e8ab5b337b68a4901381",
-  },
-  {
     label: "르무통 인터뷰",
-    detail: "학생과 수업을 대하는 신민 선생님의 이야기",
-    href: "https://m.lemouton.co.kr/article/%EB%A5%B4%EB%AC%B4%ED%86%B5-%EC%97%A0%EB%B2%84%EC%84%9C%EB%8D%94/18/78433/",
+    date: "브랜드 인터뷰 · 2023.10.10",
+    detail: "화학교육 전공과 무대 경험, 학생과 교감하는 강의 이야기",
+    href: INTERVIEW_URL,
   },
 ];
 
 const INSTAGRAM_URL = "https://www.instagram.com/godmin7/";
 
 export default function GodminLandingPage() {
-  const { hash } = useLocation();
+  const { hash, key } = useLocation();
+  const [heroReady, setHeroReady] = useState(false);
+  const [highlightsReady, setHighlightsReady] = useState(false);
+  const handleHeroReady = useCallback(() => setHeroReady(true), []);
+  const handleHighlightsReady = useCallback(() => setHighlightsReady(true), []);
   useEffect(() => {
-    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
-  }, [hash]);
+    if (hash && heroReady && highlightsReady) document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start", behavior: "instant" });
+  }, [hash, key, heroReady, highlightsReady]);
   useEffect(() => {
     const title = "신민T 통합과학 | 신과함께";
-    const description = "13년 이상 통합과학을 가르쳐 온 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.";
+    const description = "대치동 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.";
     const ogImage = new URL("/tenants/godmin/og-image.png", window.location.origin).toString();
 
     document.title = title;
@@ -87,7 +102,7 @@ export default function GodminLandingPage() {
           <div className={styles.heroCopy}>
             <div className={styles.eyebrow}>
               <span />
-              13년 이상 통합과학 · 대치동 현장 강의
+              대치동 통합과학 · 신민T
             </div>
             <h1 id="godmin-hero-title">
               복잡한 과학을,
@@ -106,13 +121,13 @@ export default function GodminLandingPage() {
               <Link className={styles.secondaryAction} to="/landing/resources">매치업 · 분석자료</Link>
             </div>
             <dl className={styles.heroFacts} aria-label="신민 선생님 주요 경력">
-              <div><dt>13+ YEARS</dt><dd>통합과학 강의 경력</dd></div>
+              <div><dt>SCIENCE</dt><dd>통합과학·화학</dd></div>
               <div><dt>DAECHI</dt><dd>대치동 현장 강의</dd></div>
               <div><dt>LAB</dt><dd>교재 연구·질의 연구실</dd></div>
             </dl>
           </div>
 
-          <GodminHeroVideo fallback={<div className={styles.heroVisual} aria-label="신민 통합과학 강사 프로필">
+          <GodminHeroVideo onReady={handleHeroReady} fallback={<div className={styles.heroVisual} aria-label="신민 통합과학 강사 프로필">
             <div className={styles.orbitField} aria-hidden="true">
               <span className={styles.orbitOne} />
               <span className={styles.orbitTwo} />
@@ -140,12 +155,12 @@ export default function GodminLandingPage() {
 
         <section className={styles.signalBar} aria-label="신민 선생님 공개 프로필 요약">
           <span>대성마이맥 통합과학</span>
-          <span>강남대성학원 출강</span>
+          <span>대치동 현장 강의</span>
           <span>두각학원 출강</span>
           <span>MBC 「구해줘! 홈즈」 출연</span>
         </section>
 
-        <VideoHighlights />
+        <VideoHighlights onReady={handleHighlightsReady} />
 
         <section id="philosophy" className={styles.philosophy} aria-labelledby="philosophy-title">
           <div className={styles.sectionLead}>
@@ -197,8 +212,8 @@ export default function GodminLandingPage() {
             <h2 id="lab-title">수업 밖 질문까지<br />{" "}이어지는 연구실</h2>
           </div>
           <p>
-            신민T의 대치동 연구실은 교재를 연구하고 학생의 질문에 답하는 공간으로 소개됐습니다.
-            수업의 밀도는 준비에서 시작하고, 학생의 이해를 확인하는 과정까지 이어집니다.
+            2025년 iMBC 보도는 신민T의 대치동 연구실을 교재 연구와 학생 질의응답이 이루어지는 공간으로 소개했습니다.
+            2026년 명인학원 강좌 안내에도 연구실 클리닉과 주차별 학습 확인이 담겨 있습니다.
           </p>
         </section>
 
@@ -207,31 +222,33 @@ export default function GodminLandingPage() {
             <img src="/tenants/godmin/landing-portrait.webp" alt="신민 선생님 공식 인터뷰 프로필" loading="lazy" />
             <figcaption>
               사진 출처
-              <a href={PROFILE_LINKS[2].href} target="_blank" rel="noreferrer">르무통 인터뷰</a>
+              <a href={INTERVIEW_URL} target="_blank" rel="noreferrer">르무통 인터뷰</a>
             </figcaption>
           </figure>
           <div className={styles.teacherCopy}>
             <span className={styles.sectionLabel}>SHIN MIN · SCIENCE INSTRUCTOR</span>
             <h2 id="teacher-title">신민 선생님</h2>
             <p className={styles.teacherIntro}>
-              13년 이상 통합과학을 가르쳐 온 강사. 대성마이맥에서 통합과학을 강의하고,
-              대치동 현장과 연구실에서 수업·교재 연구·학생 질문을 함께 이어가고 있습니다.
+              대성마이맥과 대치동 현장에서 통합과학을 가르칩니다. 두각 공식 강사진에는
+              통합과학·화학 강사로 소개되어 있으며, 수업에서 배운 내용을 교재와 테스트,
+              연구실 클리닉으로 이어갑니다.
             </p>
             <div className={styles.teacherPrinciple}>
-              <span>수업의 기준</span>
+              <span>학생과 소통하는 수업</span>
               <p>
-                오래 남는 수업은 정답만 알려주지 않습니다.
-                이해한 원리를 스스로 꺼내 쓸 수 있을 때까지 함께 확인합니다.
+                2023년 르무통 인터뷰에서 화학교육 전공과 뮤지컬 무대 경험을 소개하며,
+                학생과 교류하는 즐거움과 무대 경험이 강의에 도움이 된다고 이야기했습니다.
               </p>
             </div>
             <div className={styles.profileLinks}>
               {PROFILE_LINKS.map((link) => (
                 <a href={link.href} target="_blank" rel="noreferrer" key={link.label}>
-                  <span><strong>{link.label}</strong><small>{link.detail}</small></span>
+                  <span><small className={styles.profileDate}>{link.date}</small><strong>{link.label}</strong><small>{link.detail}</small></span>
                   <ArrowIcon />
                 </a>
               ))}
             </div>
+            <p className={styles.profileChecked}>공식 프로필·보도 확인: 2026.10.15 · 강좌 일정은 각 학원 안내를 확인해주세요.</p>
           </div>
         </section>
 

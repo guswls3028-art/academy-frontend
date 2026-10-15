@@ -68,7 +68,11 @@ async function prepare(page: Page, publisher = false, published = false, authent
       return json({ video: state.row, showcase_revision: state.revision });
     }
     if (path === `manage/${ID}/`) return json(state.row || {}, state.row ? 200 : 404);
-    if (path === "") return state.publicFailure ? json({ detail: "목록을 불러오지 못했습니다." }, 503) : json({ count: (publicRow() ? 1 : 0) + state.related.length, results: [...(publicRow() ? [publicRow()] : []), ...state.related], next: null });
+    if (path === "") {
+      const rows = [...(publicRow() ? [publicRow()] : []), ...state.related];
+      const pageNumber = Math.max(1, Number(url.searchParams.get("page")) || 1);
+      return state.publicFailure ? json({ detail: "목록을 불러오지 못했습니다." }, 503) : json({ count: rows.length, results: rows.slice((pageNumber - 1) * 12, pageNumber * 12), next: rows.length > pageNumber * 12 ? `?page=${pageNumber + 1}` : null });
+    }
     const related = state.related.find((video) => path === `${video.id}/`);
     if (related) return json(related);
     if (path === `${ID}/`) return json(publicRow() || {}, publicRow() ? 200 : 404);
@@ -211,11 +215,32 @@ test("lookup failure retains manual draft and public list error has retry", asyn
   await page.getByRole("button", { name: "다시 시도", exact: true }).click(); await expect(page.getByRole("heading", { name: "등록된 공개 영상이 없습니다" })).toBeVisible();
 });
 
-for (const width of [1366, 390]) {
+for (const width of [1366, 1100, 390]) {
   test(`homepage navigation → browse another video → publisher entry at ${width}px`, async ({ page }, testInfo) => {
     const state = await prepare(page, true, true); await page.setViewportSize({ width, height: 900 });
     const next: PublicVideo = { ...source, ...initial, id: "82222222-2222-4222-8222-222222222222", title: "다음에 볼 영상", summary: "", format: "vertical", youtube_video_id: "Q70aZV1TH1Y", canonical_url: "https://www.youtube.com/watch?v=Q70aZV1TH1Y", thumbnail_url: "https://i.ytimg.com/vi/Q70aZV1TH1Y/hqdefault.jpg", published_at: "2026-10-14T00:00:00Z" };
     state.related.push(next);
+    await page.goto(`${BASE}/landing/videos`);
+    const landscapeSection = page.getByRole("region", { name: "동영상", exact: true });
+    const shortsSection = page.getByRole("region", { name: "Shorts", exact: true });
+    await expect(landscapeSection.getByRole("heading", { name: initial.title })).toBeVisible();
+    await expect(shortsSection.getByRole("heading", { name: next.title })).toBeVisible();
+    const shortPoster = await shortsSection.locator("img").boundingBox();
+    expect(shortPoster!.height / shortPoster!.width).toBeGreaterThan(1.7);
+    if (width === 390) {
+      const shortcuts = page.getByRole("navigation", { name: "영상 종류 바로가기" });
+      await shortcuts.getByRole("link", { name: "Shorts", exact: true }).click();
+      await expect(shortsSection.getByRole("heading", { name: "Shorts", exact: true })).toBeInViewport();
+      expect(await shortsSection.evaluate((element) => element.getBoundingClientRect().top - document.querySelector("header")!.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(0);
+      await page.getByRole("navigation", { name: "홈페이지 주요 메뉴" }).getByRole("link", { name: "영상", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "영상", exact: true, level: 1 })).toBeInViewport();
+    }
+    await noOverflow(page);
+    await testInfo.attach(`video-library-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+    state.presentation = { title: "사용자가 직접 정한 영상 영역 제목 ".repeat(3).slice(0, 60), description: "사용자가 자유롭게 작성하는 소개입니다. ".repeat(12).slice(0, 220) };
+    await page.reload();
+    await expect(page.getByRole("heading", { name: state.presentation.title, exact: true })).toBeVisible();
+    await noOverflow(page);
     await page.goto(`${BASE}/landing/videos/${ID}`);
     const nav = page.getByRole("navigation", { name: "홈페이지 주요 메뉴" });
     await expect(nav.getByRole("link", { name: "수업 철학", exact: true })).toBeVisible();
@@ -229,6 +254,9 @@ for (const width of [1366, 390]) {
     await expect(page.getByRole("heading", { name: next.title, level: 1 })).toBeVisible();
     await expect(page.locator("iframe")).toHaveCount(1); await expect(page.locator("iframe")).toHaveAttribute("src", /Q70aZV1TH1Y/);
     await page.reload(); await expect(page.getByRole("heading", { name: next.title, level: 1 })).toBeVisible();
+    await expect(others.getByText("지금 시청 중", { exact: true })).toBeVisible();
+    const shortPlayer = await page.locator("iframe").boundingBox();
+    expect(shortPlayer!.height).toBeLessThanOrEqual(570);
     await noOverflow(page); await testInfo.attach(`video-browsing-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
     await page.getByRole("link", { name: "영상 등록", exact: true }).click();
     await expect(page.getByLabel("01 · YouTube 링크", { exact: true })).toBeVisible();
@@ -238,6 +266,32 @@ for (const width of [1366, 390]) {
     await expect.poll(() => page.locator("#philosophy-title").evaluate((element) => element.getBoundingClientRect().top - document.querySelector("header")!.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(0);
   });
 }
+
+test("paginated browsing keeps the current player through list failure, retry and back navigation", async ({ page }) => {
+  const state = await prepare(page, false, true);
+  state.related.push(...Array.from({ length: 24 }, (_, index): PublicVideo => ({ ...source, ...initial, id: `83333333-3333-4333-8333-${String(index).padStart(12, "0")}`, title: `공개 영상 ${index + 2}`, summary: "", format: index % 2 ? "vertical" : "landscape", published_at: "2026-10-14T00:00:00Z" })));
+  await page.goto(`${BASE}/landing/videos`);
+  await page.getByRole("navigation", { name: "영상 페이지" }).getByRole("button", { name: "다음", exact: true }).click();
+  await expect(page).toHaveURL(`${BASE}/landing/videos?page=2`);
+  await page.getByRole("link").filter({ has: page.getByRole("heading", { name: "공개 영상 13", exact: true }) }).click();
+  await expect(page.getByRole("heading", { name: "공개 영상 13", level: 1 })).toBeVisible();
+  const iframe = await page.locator("iframe").elementHandle();
+  expect(iframe).not.toBeNull();
+  state.publicFailure = true;
+  await page.getByRole("navigation", { name: "영상 페이지" }).getByRole("button", { name: "다음", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "다른 영상" }).getByRole("alert")).toContainText("목록을 불러오지 못했습니다");
+  expect(await iframe!.evaluate((element) => element.isConnected)).toBe(true);
+  state.publicFailure = false;
+  await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "공개 영상 25", exact: true })).toBeVisible();
+  expect(await iframe!.evaluate((element) => element.isConnected)).toBe(true);
+  await page.getByRole("link", { name: "← 영상 목록", exact: true }).click();
+  await expect(page).toHaveURL(`${BASE}/landing/videos?page=3`);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "공개 영상 25", exact: true })).toBeVisible();
+  await expect(page.locator("iframe")).toHaveCount(0);
+  await noOverflow(page);
+});
 
 test("publisher permission retry, direct publish and persisted completion", async ({ page }) => {
   const state = await prepare(page, true); state.capabilityFailure = true;
