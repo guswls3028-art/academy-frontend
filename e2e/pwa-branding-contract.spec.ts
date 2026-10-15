@@ -207,7 +207,7 @@ test("godmin host resolves its registry, PWA metadata, and committed icons", asy
   await expect(page).toHaveTitle("신민T 통합과학 | 신과함께");
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "신민T 통합과학 | 신과함께");
   await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "신과함께");
-  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /13년 이상 통합과학/);
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /대치동 통합과학 강사 신민T/);
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#147a62");
   for (const filename of [
     "logo.png",
