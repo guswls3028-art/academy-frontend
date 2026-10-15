@@ -16,6 +16,8 @@ import {
 } from "@/shared/api/contracts/submissions";
 import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
+import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
+import OmrBatchLedger from "@/shared/ui/asyncStatus/OmrBatchLedger";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
 import { getRejectionMessage } from "@admin/domains/submissions/contracts/aiJobContract";
@@ -162,6 +164,9 @@ export default function AdminOmrBatchUploadBox({
   const [loadingResume, setLoadingResume] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [batchId, setBatchId] = useState<string | null>(null);
+  const [ledgerBatchId, setLedgerBatchId] = useState<string | null>(null);
+  const tasks = useAsyncStatus();
+  const ledgerBatch = tasks.find((task) => task.omrBatch?.id === ledgerBatchId)?.omrBatch;
   const [resumeOrdinals, setResumeOrdinals] = useState<number[]>([]);
   const [validatedResumeBatchId, setValidatedResumeBatchId] = useState<string | null>(null);
   const mountedRef = useRef(false);
@@ -199,6 +204,7 @@ export default function AdminOmrBatchUploadBox({
     setLoadingResume(true);
     setValidatedResumeBatchId(null);
     setBatchId(null);
+    setLedgerBatchId(null);
     setResumeOrdinals([]);
     setItems([]);
     fetchOmrUploadBatchApi(resumeBatchId)
@@ -224,6 +230,7 @@ export default function AdminOmrBatchUploadBox({
           return;
         }
         setBatchId(batch.id);
+        setLedgerBatchId(batch.id);
         setResumeOrdinals(fileRetryOrdinals);
         setValidatedResumeBatchId(resumeBatchId);
         setNotice(`${fileRetryOrdinals.length}개 미접수 파일을 순서대로 다시 선택해 주세요.`);
@@ -281,7 +288,10 @@ export default function AdminOmrBatchUploadBox({
     if (busy) return;
     setItems([]);
     setNotice(null);
-    if (resumeOrdinals.length === 0) setBatchId(null);
+    if (resumeOrdinals.length === 0) {
+      setBatchId(null);
+      setLedgerBatchId(null);
+    }
   };
 
   const removeOne = (idx: number) => {
@@ -362,6 +372,7 @@ export default function AdminOmrBatchUploadBox({
         if (!isActive()) return;
         activeBatchId = initialized.id;
         setBatchId(initialized.id);
+        setLedgerBatchId(initialized.id);
         asyncStatusStore.upsertOmrBatch(initialized);
         uploadItems = uploadItems.map((item, index) => ({ ...item, ordinal: index + 1 }));
         setItems(uploadItems.map((item) => ({ ...item, status: "uploading", message: undefined })));
@@ -472,6 +483,7 @@ export default function AdminOmrBatchUploadBox({
           {notice}
         </div>
       )}
+      {ledgerBatch && <OmrBatchLedger batch={ledgerBatch} />}
 
       <div className="admin-omr-upload__actions">
         <Button

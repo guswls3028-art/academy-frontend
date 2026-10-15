@@ -76,6 +76,14 @@ OMR 검토의 미해결 총수는 서버의 `review_issues` 총수를 따른다.
 
 ## 실패와 재시도
 
+접수 창과 작업박스의 `답안지별 접수 내역`은 서버 `items`의 모든 예약 순번과 현재 상태를
+접어서 보여 준다. 키보드 Enter/Space로 펼칠 수 있고 긴 목록은 내부에서 스크롤한다.
+부분 실패나 응답 중단으로 파일 재선택이 필요해도 이미 접수한 순번과 미접수 순번이 모두
+남으며, 새로고침 뒤에도 같은 서버 내역을 복구한다. 실패 사유와 재선택할 순번을 확인한 뒤
+기존 재접수 동작으로 미접수 파일만 선택한다. 서버에 파일명·학생 개인정보를 저장하지
+않고 `N번 답안지`로 표시한다. 구버전 서버에 `items`가 없으면 기존 집계/재시도 계약을
+유지하며 없는 상세 내역을 추측하지 않는다. 세션이 바뀌면 기존 작업 store와 함께 사라진다.
+
 - multipart 응답이 끊기면 batch detail을 다시 읽어 서버가 이미 받은 ordinal과
   `pending_admission_ordinals`/`admission_failed_ordinals`를 재구성한다.
 - 성공 ordinal은 다시 보내지 않는다. 원본 파일이 없는 ordinal만 순서대로 명시 재선택한다.
@@ -103,6 +111,9 @@ OMR 검토의 미해결 총수는 서버의 `review_issues` 총수를 따른다.
 - 1366px에서는 헤더 작업박스 드롭다운을 사용한다.
 - 390px PC 업무 보기에서는 헤더 dropdown과 충돌하지 않는 로컬 작업박스를 사용하며,
   상태 칩과 OMR 검토/재시도 CTA가 가로로 잘리지 않아야 한다.
+- 접수 내역은 1366px/390px에서 부분 접수 → 순번 확인 → reload → 22번만 재접수 →
+  성공 상태 변경을 확인한다. 펼침은 짧은 opacity/transform 전환을 사용하고 reduced-motion을
+  존중한다. 실제 격리 개발환경 OMR 검증도 업로드 응답의 순번·제출 연결과 화면 내역을 확인한다.
 - `e2e/admin/omr-batch-progress.mock.spec.ts`는 read-only GET, terminal claim 1회,
   22개 단일 multipart, 응답 중단 후 정확한 ordinal 재선택, reload 복구,
   삭제/재추가와 비우기/재선택 ordinal, query detail fail-closed, logout 중 지연 list/upload/retry/claim,
