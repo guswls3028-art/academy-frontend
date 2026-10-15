@@ -674,6 +674,9 @@ AccountProbe는 성공 exit와 정확한 proof를 모두 요구한다. 실패 �
 `account_probe_failure` allowlist 코드만 공식 `failures`에 보존한다. 잘못되거나
 누락·중복된 proof와 프로세스 실패도 고정 코드로 실패하며 브라우저에는 동일한
 502 응답을 돌려준다. 비밀번호·토큰·SSM stdout 원문은 증거에 포함하지 않는다.
+등록 fixture의 학생 이름은 소유권 prefix를 유지하면서 실제 50자 제한을 지킨다.
+긴 시나리오 이름은 고정 hash suffix로 구분하여 기존 학부모 연결 두 사례가
+서로 다른 50자 이름으로 저장·재조회·인증되는 경계도 검증한다.
 `release-context-observation/v1`은 worker 내부의 고유 `observationOrdinal`, 선택적인
 browser `contextOrdinal`, 증가하는 `snapshotSequence`로 한 관측의 교체 snapshot을
 식별한다. assertion 전 snapshot은 실패해도 먼저 남기고, native context 종료나
