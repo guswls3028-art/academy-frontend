@@ -333,6 +333,10 @@ for (const action of ["delete", "duplicate"] as const) {
     const compose = page.getByRole("dialog").filter({ hasText: "알림톡 발송" });
     await compose.getByRole("button", { name: /^(다른 문구 선택|문구 선택)$/ }).click();
     const picker = page.locator(".tpl-picker-modal");
+    await expect(picker).toBeVisible();
+    await picker.evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished));
+    });
     await picker.getByRole("button", { name: "더보기", exact: true }).click();
     await picker.getByRole("button", { name: action === "delete" ? "삭제" : "다른 이름으로 복제", exact: true }).click();
     if (action === "delete") {
