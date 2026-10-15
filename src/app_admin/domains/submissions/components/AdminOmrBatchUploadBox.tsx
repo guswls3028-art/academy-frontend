@@ -165,6 +165,7 @@ export default function AdminOmrBatchUploadBox({
   const [notice, setNotice] = useState<string | null>(null);
   const [batchId, setBatchId] = useState<string | null>(null);
   const [ledgerBatchId, setLedgerBatchId] = useState<string | null>(null);
+  const [ledgerFileNames, setLedgerFileNames] = useState<Record<number, string>>({});
   const tasks = useAsyncStatus();
   const ledgerBatch = tasks.find((task) => task.omrBatch?.id === ledgerBatchId)?.omrBatch;
   const [resumeOrdinals, setResumeOrdinals] = useState<number[]>([]);
@@ -205,6 +206,7 @@ export default function AdminOmrBatchUploadBox({
     setValidatedResumeBatchId(null);
     setBatchId(null);
     setLedgerBatchId(null);
+    setLedgerFileNames({});
     setResumeOrdinals([]);
     setItems([]);
     fetchOmrUploadBatchApi(resumeBatchId)
@@ -291,6 +293,7 @@ export default function AdminOmrBatchUploadBox({
     if (resumeOrdinals.length === 0) {
       setBatchId(null);
       setLedgerBatchId(null);
+      setLedgerFileNames({});
     }
   };
 
@@ -373,6 +376,7 @@ export default function AdminOmrBatchUploadBox({
         activeBatchId = initialized.id;
         setBatchId(initialized.id);
         setLedgerBatchId(initialized.id);
+        setLedgerFileNames({});
         asyncStatusStore.upsertOmrBatch(initialized);
         uploadItems = uploadItems.map((item, index) => ({ ...item, ordinal: index + 1 }));
         setItems(uploadItems.map((item) => ({ ...item, status: "uploading", message: undefined })));
@@ -384,6 +388,10 @@ export default function AdminOmrBatchUploadBox({
         ));
       }
 
+      setLedgerFileNames((previous) => ({
+        ...previous,
+        ...Object.fromEntries(uploadItems.map((item) => [Number(item.ordinal), item.file.name])),
+      }));
       const result = await uploadOmrBatchApi({
         examId,
         files: preparedFiles,
@@ -483,7 +491,7 @@ export default function AdminOmrBatchUploadBox({
           {notice}
         </div>
       )}
-      {ledgerBatch && <OmrBatchLedger batch={ledgerBatch} />}
+      {ledgerBatch && <OmrBatchLedger batch={ledgerBatch} fileNames={ledgerFileNames} />}
 
       <div className="admin-omr-upload__actions">
         <Button

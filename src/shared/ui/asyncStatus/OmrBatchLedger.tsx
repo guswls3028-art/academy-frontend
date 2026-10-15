@@ -12,7 +12,10 @@ const STATUS_LABELS: Record<OmrUploadBatchItemStatus, string> = {
   superseded: "보관",
 };
 
-export default function OmrBatchLedger({ batch }: { batch: OmrUploadBatchSummary }) {
+export default function OmrBatchLedger({ batch, fileNames }: {
+  batch: OmrUploadBatchSummary;
+  fileNames?: Readonly<Record<number, string>>;
+}) {
   if (!batch.items?.length) return null;
   return (
     <details
@@ -25,7 +28,10 @@ export default function OmrBatchLedger({ batch }: { batch: OmrUploadBatchSummary
       <ol className={styles.items}>
         {batch.items.map((item) => (
           <li key={item.id} data-status={item.status}>
-            <span className={styles.ordinal}>{item.ordinal}번 답안지</span>
+            <span className={styles.ordinal}>
+              {item.ordinal}번 답안지
+              {fileNames?.[item.ordinal] && <span className={styles.fileName}>{fileNames[item.ordinal]}</span>}
+            </span>
             <span className={styles.state}>
               {batch.subjective_pending_ordinals?.includes(item.ordinal)
                 ? "서술형 입력 필요"

@@ -773,7 +773,9 @@ test.describe("OMR durable batch progress", () => {
     await ledger.locator("summary").click();
     await expect(ledger.getByRole("listitem")).toHaveCount(22);
     await expect(ledger.getByRole("listitem").first()).toContainText("접수 완료");
+    await expect(ledger.getByRole("listitem").first()).toContainText("partial-1.jpg");
     await expect(ledger.getByRole("listitem").last()).toContainText("접수 대기");
+    await expect(ledger.getByRole("listitem").last()).toContainText("partial-22.jpg");
     await dialog.getByRole("button", { name: "닫기", exact: true }).click();
     await page.reload({ waitUntil: "domcontentloaded" });
     const task = await openWorkbox(page);
@@ -783,6 +785,7 @@ test.describe("OMR durable batch progress", () => {
     await page.keyboard.press("Enter");
     await expect(restoredLedger.getByRole("listitem")).toHaveCount(22);
     await expect(restoredLedger.getByRole("listitem").last()).toContainText("접수 대기");
+    await expect(restoredLedger).not.toContainText("partial-1.jpg");
     expect(page.url()).toBe(currentUrl);
     expect(await task.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
     expect(await restoredLedger.getByRole("listitem").first().evaluate(
@@ -807,6 +810,7 @@ test.describe("OMR durable batch progress", () => {
     expect(uploadBodies[1]).not.toContain("partial-1.jpg");
     await ledger.locator("summary").click();
     await expect(ledger.getByRole("listitem").last()).toContainText("접수 완료");
+    await expect(ledger.getByRole("listitem").last()).toContainText("partial-22-retry.jpg");
   });
   }
 
