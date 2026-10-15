@@ -41,6 +41,9 @@
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
    현재 20개 파일·37건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
+   첫 실패 후에는 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.
+   이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 37건 모두의
+   통과와 cleanup0이 필요하다. 이미 실패한 실행이 장시간 영상 검증까지 계속되는 비용을 줄인다.
    홈페이지 영상은 두 지정 게시자의 링크 등록·초안 reload·대표 공개·익명 조회·
    다른 게시자 수정·비공개를 동일 산출물의 격리 tenant에서 확인한다.
    직원 급여 흐름은 계정·출퇴근·일괄 시급·날짜 정정·환급·월마감·퇴사 이력을
@@ -671,7 +674,10 @@ fetch/fulfill 전용 처리 밖의 예외는 `route-handler/terminal` 관측으�
 정제된 method/path template/native code와 요청 순서·시간만 보존한다.
 서명 URL, 응답 본문, 원문 예외는 저장하지 않고 재전송 정책도 바꾸지 않는다.
 AccountProbe는 성공 exit와 정확한 proof를 모두 요구한다. 실패 시 후보의 고정
-`account_probe_failure` allowlist 코드만 공식 `failures`에 보존한다. 잘못되거나
+`account_probe_failure` allowlist 코드를 공식 `failures`에 보존한다. 일반 `probe-failed`는
+후보가 이미 반환하는 `error_type`이 고정 예외 목록에 있을 때만 assertion/attribute/
+import/database 등의 고정 코드로 구분한다. 목록 밖의 이름은 원래 일반 코드로 남긴다.
+예외 메시지·traceback·임의 클래스 이름은 보관하지 않는다. 잘못되거나
 누락·중복된 proof와 프로세스 실패도 고정 코드로 실패하며 브라우저에는 동일한
 502 응답을 돌려준다. 비밀번호·토큰·SSM stdout 원문은 증거에 포함하지 않는다.
 등록 fixture의 학생 이름은 소유권 prefix를 유지하면서 실제 50자 제한을 지킨다.

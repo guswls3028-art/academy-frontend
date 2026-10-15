@@ -2038,6 +2038,7 @@ test("development config discovers every required case without executing any API
       E2E_STUDENT_PASS: "development-discovery-only" },
   });
   const report = JSON.parse(output);
+  assert.equal(report.config.maxFailures, 1, "a failed gate stops further scenarios before exact cleanup");
   let discovered = 0;
   const counts = {};
   const visit = (suite) => {
