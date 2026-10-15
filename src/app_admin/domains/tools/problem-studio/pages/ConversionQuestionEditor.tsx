@@ -7,8 +7,8 @@ function content(question: ConversionQuestion): QuestionContent {
   return { prompt: question.prompt, choices: question.choices, answer: question.answer, explanation: question.explanation, crop: question.crop, page_index: question.page_index };
 }
 
-export default function ConversionQuestionEditor({ conversion, question, busy, onSave, onAction, onReview, onClose, onMove, canPrevious, canNext, onDirty }: {
-  conversion: Conversion; question: ConversionQuestion; busy: boolean;
+export default function ConversionQuestionEditor({ conversion, question, busy, pendingMutation, onSave, onAction, onReview, onClose, onMove, canPrevious, canNext, onDirty }: {
+  conversion: Conversion; question: ConversionQuestion; busy: boolean; pendingMutation: boolean;
   onSave: (value: QuestionContent) => Promise<boolean>;
   onAction: (action: string, instruction?: string) => void;
   onReview: (action: string) => void; onClose: () => void; onMove: (delta: number) => void;
@@ -60,7 +60,7 @@ export default function ConversionQuestionEditor({ conversion, question, busy, o
   }
   return <section className={styles.editor} aria-label={`${question.number}번 문항 편집`}>
     <header className={styles.editorHeader}>
-      <div><Button intent="ghost" onClick={onClose}>목록으로</Button><strong>{question.number}번 문항</strong></div>
+      <div><Button intent="ghost" disabled={pendingMutation || saving} onClick={onClose}>목록으로</Button><strong>{question.number}번 문항</strong></div>
       <div className={styles.actions}><span role="status">{saving ? "저장 중…" : saveError ? "저장 실패 · 입력 보관 중" : dirty ? "저장할 변경 있음" : "저장됨"}</span>
         <Button size="sm" onClick={save} loading={saving} disabled={!dirty || busy}>저장</Button>
         <Button size="sm" disabled={!canPrevious || busy || saving} onClick={() => onMove(-1)}>이전</Button>
