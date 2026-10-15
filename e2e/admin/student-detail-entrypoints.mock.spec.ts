@@ -1005,6 +1005,7 @@ test("학생 메모 저장 실패는 입력과 상세를 유지하고 재시도�
 test("학생 질문·클리닉은 실패를 빈 기록으로 표시하지 않고 50건 이후도 읽는다", async ({ page }) => {
   await prepareDetail(page);
   let failRead = true;
+  let failClinicRead = true;
   let failNextPage = true;
   const requestedPages: string[] = [];
   await page.route("**/api/v1/community/posts/?**", async (route) => {
@@ -1022,7 +1023,7 @@ test("학생 질문·클리닉은 실패를 빈 기록으로 표시하지 않고
   await page.route("**/api/v1/clinic/participants/?**", async (route) => {
     if (!new URL(route.request().url()).searchParams.has("student")) return route.fallback();
     expect(new URL(route.request().url()).searchParams.get("student")).toBe("1001");
-    return route.fulfill({ status: failRead ? 503 : 200, json: failRead ? { detail: "test unavailable" } : { count: 0, results: [], next: null } });
+    return route.fulfill({ status: failClinicRead ? 503 : 200, json: failClinicRead ? { detail: "test unavailable" } : { count: 0, results: [], next: null } });
   });
   await gotoAndSettle(page, BASE + "/workspace/students/1001");
   const overlay = page.getByTestId("student-detail-overlay");
@@ -1042,6 +1043,7 @@ test("학생 질문·클리닉은 실패를 빈 기록으로 표시하지 않고
   expect(requestedPages).toEqual(["1", "2"]);
   await overlay.getByRole("tab", { name: /^클리닉/ }).click();
   await expect(overlay.getByRole("button", { name: "다시 불러오기" })).toBeVisible();
+  failClinicRead = false;
   await overlay.getByRole("button", { name: "다시 불러오기" }).click();
   await expect(overlay.getByText("클리닉/상담 이력이 없습니다.")).toBeVisible();
 });
