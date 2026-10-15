@@ -149,10 +149,16 @@ for (const width of [1366, 390]) {
     });
     await page.goto(`${baseUrl}/workspace/tools/problem-studio?conversion=${id}`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: /1번.*2와 3/ }).click();
+    await page.getByText("그림 범위 직접 입력", { exact: true }).click();
     await page.getByRole("button", { name: "원본 대조 완료 · 그대로 둠", exact: true }).click();
     await expect.poll(() => acceptPending).toBe(true);
     try {
       await expect(page.getByRole("button", { name: "목록으로", exact: true })).toBeDisabled({ timeout: 1500 });
+      await expect(page.getByLabel("너비", { exact: true })).toBeDisabled({ timeout: 1500 });
+      await expect(page.getByRole("button", { name: "범위 초기화", exact: true })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "그림 범위 선택", exact: true })).toBeDisabled();
+      await expect(page.getByLabel("이렇게 고쳐 주세요")).toBeDisabled();
+      await expect(page.getByRole("status").filter({ hasText: /^처리 중…$/ })).toBeVisible();
     } finally { releaseAccept(); }
     await page.getByRole("button", { name: "목록으로", exact: true }).click();
     await page.getByRole("button", { name: /^2번/ }).click();

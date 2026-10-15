@@ -61,7 +61,7 @@ export default function ConversionQuestionEditor({ conversion, question, busy, p
   return <section className={styles.editor} aria-label={`${question.number}번 문항 편집`}>
     <header className={styles.editorHeader}>
       <div><Button intent="ghost" disabled={pendingMutation || saving} onClick={onClose}>목록으로</Button><strong>{question.number}번 문항</strong></div>
-      <div className={styles.actions}><span role="status">{saving ? "저장 중…" : saveError ? "저장 실패 · 입력 보관 중" : dirty ? "저장할 변경 있음" : "저장됨"}</span>
+      <div className={styles.actions}><span role="status">{saving ? "저장 중…" : pendingMutation ? "처리 중…" : saveError ? "저장 실패 · 입력 보관 중" : dirty ? "저장할 변경 있음" : "저장됨"}</span>
         <Button size="sm" onClick={save} loading={saving} disabled={!dirty || busy}>저장</Button>
         <Button size="sm" disabled={!canPrevious || busy || saving} onClick={() => onMove(-1)}>이전</Button>
         <Button size="sm" disabled={!canNext || busy || saving} onClick={() => onMove(1)}>다음</Button>
@@ -69,7 +69,7 @@ export default function ConversionQuestionEditor({ conversion, question, busy, p
     </header>
     <div className={styles.editorColumns}>
       <div className={styles.sourcePane}>
-        <div className={styles.paneHeading}><h3>원본</h3>{page && <Button size="sm" intent={selecting ? "primary" : "secondary"} onClick={() => setSelecting(!selecting)}>{selecting ? "범위 선택 마침" : "그림 범위 선택"}</Button>}</div>
+        <div className={styles.paneHeading}><h3>원본</h3>{page && <Button size="sm" disabled={busy} intent={selecting ? "primary" : "secondary"} onClick={() => setSelecting(!selecting)}>{selecting ? "범위 선택 마침" : "그림 범위 선택"}</Button>}</div>
         <p className={styles.muted}>{question.source_name}{page?.page_number ? ` · ${page.page_number}쪽` : ""}</p>
         <select aria-label="대조할 원본 페이지" value={draft.page_index ?? ""} disabled={busy} onChange={event => setDraft(value => ({ ...value, page_index: event.target.value === "" ? null : Number(event.target.value), crop: null }))}><option value="">원본 페이지 선택</option>{conversion.document?.pages.map((source, index) => source && <option key={index} value={index}>{source.source_name} · {source.page_number}쪽</option>)}</select>
         {page ? <div ref={imageRef} className={styles.sourceImage} data-selecting={selecting} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={() => { dragStart.current = null; }} onPointerCancel={() => { dragStart.current = null; }}>
@@ -79,7 +79,7 @@ export default function ConversionQuestionEditor({ conversion, question, busy, p
             <div className={styles.crop} style={{ left: `${draft.crop[0] * 100}%`, top: `${draft.crop[1] * 100}%`, width: `${draft.crop[2] * 100}%`, height: `${draft.crop[3] * 100}%` }} />
           )}
         </div> : <p>이 문항의 원본 이미지를 연결하지 못했습니다. 원본 파일과 대조해 주세요.</p>}
-        {page && <details className={styles.cropControls}><summary>그림 범위 직접 입력</summary><p>왼쪽·위·너비·높이를 원본의 백분율로 입력하세요.</p><div className={styles.cropInputs}>{["왼쪽", "위", "너비", "높이"].map((label, index) => <label key={label}>{label}<input type="number" min={0} max={100} step={0.1} value={Math.round((draft.crop ?? [0, 0, 1, 1])[index] * 1000) / 10} onChange={event => { const crop: [number, number, number, number] = [...(draft.crop ?? [0, 0, 1, 1])]; crop[index] = Number(event.target.value) / 100; setDraft(value => ({ ...value, crop })); }} /></label>)}</div><Button size="sm" onClick={() => setDraft(value => ({ ...value, crop: null }))}>범위 초기화</Button></details>}
+        {page && <details className={styles.cropControls}><summary>그림 범위 직접 입력</summary><p>왼쪽·위·너비·높이를 원본의 백분율로 입력하세요.</p><div className={styles.cropInputs}>{["왼쪽", "위", "너비", "높이"].map((label, index) => <label key={label}>{label}<input type="number" disabled={busy} min={0} max={100} step={0.1} value={Math.round((draft.crop ?? [0, 0, 1, 1])[index] * 1000) / 10} onChange={event => { const crop: [number, number, number, number] = [...(draft.crop ?? [0, 0, 1, 1])]; crop[index] = Number(event.target.value) / 100; setDraft(value => ({ ...value, crop })); }} /></label>)}</div><Button size="sm" disabled={busy} onClick={() => setDraft(value => ({ ...value, crop: null }))}>범위 초기화</Button></details>}
       </div>
       <div className={styles.editPane}>
         <div className={styles.paneHeading}><h3>변환 결과</h3><Badge tone={question.reviewed ? "success" : "warning"}>{question.reviewed ? "확인 완료" : "확인 필요"}</Badge></div>
@@ -92,7 +92,7 @@ export default function ConversionQuestionEditor({ conversion, question, busy, p
           <label>해설<textarea rows={6} value={draft.explanation} onChange={event => setDraft(value => ({ ...value, explanation: event.target.value }))} /></label>
         </fieldset>
         {(question.redrawn || question.visual) && <figure className={styles.figure}><img src={(question.redrawn || question.visual)!.url} alt={`${question.number}번 문항 그림`} /><figcaption>{question.redrawn ? "다시 그린 그림 · 원본 대조 필요" : "원본에서 가져온 그림"}</figcaption></figure>}
-        <div className={styles.correction}><label>이렇게 고쳐 주세요<input placeholder="예: 두 번째 보기의 아래첨자를 원본과 맞춰 주세요" maxLength={2000} value={instruction} onChange={event => setInstruction(event.target.value)} /></label>
+        <div className={styles.correction}><label>이렇게 고쳐 주세요<input placeholder="예: 두 번째 보기의 아래첨자를 원본과 맞춰 주세요" maxLength={2000} disabled={pendingMutation} value={instruction} onChange={event => setInstruction(event.target.value)} /></label>
           <div className={styles.actions}><Button disabled={busy || dirty || !instruction.trim()} onClick={() => onAction("correct", instruction)}>AI로 고치기</Button><Button disabled={busy || dirty} onClick={() => onAction("reanalyze")}>이 문항 다시 분석</Button><Button disabled={busy || dirty || (!question.visual && !draft.crop)} onClick={() => onAction("redraw")}>그림 다시 그리기</Button></div>
           <p className={styles.muted}>{dirty ? "수정 내용을 저장하면 AI 작업을 시작할 수 있습니다." : "AI 수정은 제안으로 보관됩니다. 내용을 보고 적용하세요."}</p>
         </div>
