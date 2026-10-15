@@ -19,6 +19,7 @@ import "./release-resource-download-boundary.test.mjs";
 import "./release-public-video-boundary.test.mjs";
 import "./binary-safe-ssm.test.mjs";
 import "./development-qa-operations.test.mjs";
+import "./development-account-probe.test.mjs";
 import "./release-canary-progress.test.mjs";
 import "./development-backend-readiness.test.mjs";
 import "./release-governance-metadata.test.mjs";
@@ -1557,9 +1558,10 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 30, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 37, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 4,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
+      "student-parent-registration-realuse.spec.ts": 7,
       "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
       "student-clinic-required-cancel-realuse.spec.ts": 1,
       "student-parent-homework-realuse.spec.ts": 1,
@@ -1828,7 +1830,7 @@ test("official context observation sanitizer rejects unsafe fields and bounds co
   assert.equal(bounded.contextObservations[0].unknownPathEventCounts["api-request"], 1);
 });
 
-test("all twenty-nine real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
+test("all thirty-seven real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
   assert.doesNotThrow(() => assertReleaseSummary(completeFlowReport()));
   const corrupt = [
     (report) => report.suites.pop(),
@@ -2031,7 +2033,7 @@ test("development config discovers every required case without executing any API
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 30);
+  assert.equal(discovered, 37);
   assert.deepEqual(counts, Object.fromEntries(Object.entries(developmentRealUseCases)
     .map(([file, count]) => [file.split("/").at(-1), count])), "collection must match the same release inventory by file");
   // Playwright's --list reporter counts all unexecuted cases as skipped. These

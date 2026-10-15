@@ -103,6 +103,17 @@ function admissionSummary(state: "pending" | "received") {
       superseded: 0,
     },
     pending_admission_ordinals: pending ? Array.from({ length: 22 }, (_, index) => index + 1) : [],
+    items: Array.from({ length: 22 }, (_, index) => ({
+      id: `${BATCH_ID}:${index + 1}`,
+      ordinal: index + 1,
+      admission_status: state,
+      status: pending ? "pending_admission" : "received",
+      submission_id: pending ? null : 2001 + index,
+      submission_status: pending ? null : "submitted",
+      identifier_status: null,
+      failure_code: null,
+      failure_message: null,
+    })),
   };
 }
 
@@ -120,6 +131,9 @@ function partialAdmissionSummary() {
       superseded: 0,
     },
     pending_admission_ordinals: [22],
+    items: admissionSummary("received").items.map((item) => item.ordinal === 22
+      ? { ...item, admission_status: "pending", status: "pending_admission", submission_id: null, submission_status: null }
+      : item),
   };
 }
 
@@ -277,7 +291,7 @@ async function installDashboardApi(
         return;
       }
       const batch = options.uploadFlow && initializedUploads
-        ? admissionSummary(uploadPosts > 0 ? "received" : "pending")
+        ? partialUpload ? partialAdmissionSummary() : admissionSummary(uploadPosts > 0 ? "received" : "pending")
         : batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
       const response = options.empty || hideBatches ? [] : [batch];
       if (options.holdListResponse && listGets === 1) await listResponseGate;
@@ -729,7 +743,9 @@ test.describe("OMR durable batch progress", () => {
     expect(multipartFieldValues(body, "item_ordinals")).toEqual(["1", "2"]);
   });
 
-  test("중단된 접수 응답은 서버 ordinal을 복구해 22번만 명시 재선택한다", async ({ page }) => {
+  for (const width of [1366, 390]) {
+  test(`${width}px 중단된 접수 응답은 서버 ordinal을 복구해 22번만 명시 재선택한다`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
     const api = await installDashboardApi(page, {
       uploadFlow: true,
       failFirstUploadAfterPartialAdmission: true,
@@ -753,6 +769,31 @@ test.describe("OMR durable batch progress", () => {
     await expect(dialog.getByText("서버의 접수 결과를 복구했습니다", { exact: false })).toBeVisible();
     await expect(dialog.locator(".admin-omr-upload__file")).toHaveCount(0);
 
+    const ledger = dialog.getByLabel("답안지별 접수 내역");
+    await ledger.locator("summary").click();
+    await expect(ledger.getByRole("listitem")).toHaveCount(22);
+    await expect(ledger.getByRole("listitem").first()).toContainText("접수 완료");
+    await expect(ledger.getByRole("listitem").first()).toContainText("partial-1.jpg");
+    await expect(ledger.getByRole("listitem").last()).toContainText("접수 대기");
+    await expect(ledger.getByRole("listitem").last()).toContainText("partial-22.jpg");
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const task = await openWorkbox(page);
+    const restoredLedger = task.getByLabel("답안지별 접수 내역");
+    const currentUrl = page.url();
+    await restoredLedger.locator("summary").focus();
+    await page.keyboard.press("Enter");
+    await expect(restoredLedger.getByRole("listitem")).toHaveCount(22);
+    await expect(restoredLedger.getByRole("listitem").last()).toContainText("접수 대기");
+    await expect(restoredLedger).not.toContainText("partial-1.jpg");
+    expect(page.url()).toBe(currentUrl);
+    expect(await task.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    expect(await restoredLedger.getByRole("listitem").first().evaluate(
+      (element) => element.scrollWidth - element.clientWidth,
+    )).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: `test-results/omr-ledger-${width}.png`, fullPage: true });
+    await openResumeOmrUpload(page);
+
     await input.setInputFiles({
       name: "partial-22-retry.jpg",
       mimeType: "image/jpeg",
@@ -767,7 +808,11 @@ test.describe("OMR durable batch progress", () => {
     expect(uploadBodies[1].match(/name="item_ordinals"/g)).toHaveLength(1);
     expect(uploadBodies[1]).toContain("22");
     expect(uploadBodies[1]).not.toContain("partial-1.jpg");
+    await ledger.locator("summary").click();
+    await expect(ledger.getByRole("listitem").last()).toContainText("접수 완료");
+    await expect(ledger.getByRole("listitem").last()).toContainText("partial-22-retry.jpg");
   });
+  }
 
   test("혼합 선택의 미지원 파일을 조용히 버리지 않고 전체 선택을 중단한다", async ({ page }) => {
     const api = await installDashboardApi(page, { uploadFlow: true });

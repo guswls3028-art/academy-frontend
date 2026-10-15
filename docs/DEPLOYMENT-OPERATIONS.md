@@ -40,7 +40,7 @@
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
-   현재 19개 파일·30건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
+   현재 20개 파일·37건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
    홈페이지 영상은 두 지정 게시자의 링크 등록·초안 reload·대표 공개·익명 조회·
    다른 게시자 수정·비공개를 동일 산출물의 격리 tenant에서 확인한다.
    직원 급여 흐름은 계정·출퇴근·일괄 시급·날짜 정정·환급·월마감·퇴사 이력을
@@ -526,11 +526,11 @@ scoped state에만 기존 영상 1개, 접근/PROCTORED 접근/진도 각 2개, 
 기존 비지정 범위 계약을 유지한다. 서버 query와 fixture identity 규칙은 backend의
 `docs/operations/persistent-development-runtime.md`가 소유한다.
 계정·학습·수강·영상 시나리오 전체를 한 worker에서 순차 실행하므로 Playwright 자식
-프로세스에는 30분을 허용한다. 40분 개발 카나리 job 안에서 결과 JSON 생성과 exact
-Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 30분을 넘기면 기존처럼 실패
+프로세스에는 50분을 허용한다. 60분 개발 카나리 job 안에서 결과 JSON 생성과 exact
+Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 50분을 넘기면 기존처럼 실패
 폐쇄하고 cleanup 0이 증명되기 전에는 운영 승격하지 않는다.
 
-고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup만 사용하고 임의 shell 입력,
+고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup과 합성 등록 계정용 AccountProbe만 사용하고 임의 shell 입력,
 기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup이 실패해도
 exact `DEVELOPMENT_QA_FAILED` safe schema에서 positive tenant ID가 검증되면 동일 256-bit run
 capability로 cleanup/readback을 시도한다. 실패 schema에는 tenant code를 허용하지 않는다.
@@ -636,7 +636,7 @@ runner는 Setup 전부터 `passed:false`/`cleanup:null`인 미완료 증거를 �
 증거 업로드 여유를 포함해 60분이다. 이전 28분 36초 실행은 serial OMR 한 건 실패·한 건
 건너뛰기를 포함해 두 건의 각 10분 한도를 추가하면 48분 36초 미만이다. 기존 30분
 한도를 넘긴 실행은 전체 결과를 보고하기 전에 종료됐다. OMR 각 10분,
-영상 test 17분, 단일 worker·재시도 0·필수 23건·690초 재생 및 cleanup0 요구는 유지한다.
+영상 test 17분, 단일 worker·재시도 0·필수 37건·690초 재생 및 cleanup0 요구는 유지한다.
 `development-release-progress.json`은 테스트 시작/종료마다 허용 spec 파일명·행·상태·
 소요 시간만 저장해 child timeout 시 마지막 진행 지점을 보존한다. 제목·오류 원문·
 API 데이터·인증정보는 기록하지 않는다. 이 진단 파일이나 일부 통과 결과로 전체 JSON

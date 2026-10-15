@@ -1,0 +1,60 @@
+.ledger {
+  min-width: 0;
+  width: 100%;
+  margin-top: var(--space-2);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: default;
+}
+
+.ledger summary {
+  padding: var(--space-2) var(--space-3);
+  font-weight: 650;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.ledger summary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+.items {
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2);
+  animation: reveal 120ms ease-out;
+}
+
+.items li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.ordinal { min-width: 0; }
+.fileName { display: block; overflow-wrap: anywhere; color: var(--color-text-secondary); }
+.state { min-width: 0; text-align: right; overflow-wrap: anywhere; }
+.reason { display: block; color: var(--color-text-secondary); }
+.items li[data-status="failed"] .state { color: var(--color-danger); }
+.items li[data-status="pending_admission"] .state { color: var(--color-warning); }
+
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .items { animation: none; }
+}

@@ -61,6 +61,20 @@ PC/390px에서 수정·저장·reload한 뒤 학생 홈 학원문의 반영까�
 허용하지 않는다. owner fixture는 backend의
 [격리 개발 런타임 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/persistent-development-runtime.md)을 따른다.
 
+계정 등록 후보 검증 `student-parent-registration-realuse.spec.ts`는 격리 개발에서
+역할별 설정 저장, 직접 입력, 각자의 전화 뒤 4자리, 랜덤 6자리, 번호 없는 학생의
+오류 복구, 기존 학부모 계정 보존, 공개 가입 신청 선택의 승인 후 유지를 7건으로 검증한다.
+직접 입력/전화 방식은 두 역할의 실제 UI 로그인·reload와 PC/390px를 확인한다.
+랜덤 원문은 후보 컨테이너 밖으로 꺼내지 않고 내부 token/core/me/student/me 인증으로
+확인한다. 기존 학부모 hash는 소유 QA 감사 행의 keyed commitment로 생성·삭제·복원
+전후를 비교한다. 같은 artifact의 나머지 필수 검증과 tenant/user cleanup0도 모두 필요하다.
+
+고정 localhost 제어 경로는 현재 run의 메모리 capability와 정확한 학생 ID만 받는다.
+비밀번호·token·임의 명령을 입력받거나 출력하지 않으며, 한 번에 한 요청만 실행한다.
+요청 읽기 중인 경우도 동시 요청을 거부한다. probe 없음·실패·다른 scope·알 수 없는
+출력 필드·skip은 승격을 차단한다. 후보 이미지 및 고정 SSM 문서의 계약은
+[backend 초기 계정 검증](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/persistent-development-runtime.md#초기-계정-등록-개발-후보-검증)이 소유한다.
+
 `e2e/suites.mjs`는 다음 세 집합을 한 곳에서 소유한다.
 
 - `productionReadOnlySpecs`: 운영 자격증명을 쓰는 네 개의 직렬 PR spec

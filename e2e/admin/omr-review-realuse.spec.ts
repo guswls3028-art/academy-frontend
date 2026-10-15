@@ -1070,14 +1070,23 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     ]);
     expect(initializeResponse.status()).toBe(201);
     expect(uploadResponse.status()).toBe(201);
-    const uploadBody = await uploadResponse.json() as { submission_ids?: number[] };
+    const uploadBody = await uploadResponse.json() as {
+      submission_ids?: number[];
+      items?: { ordinal: number; submission_id: number | null; status: string }[];
+    };
     created.submissionIds = (uploadBody.submission_ids ?? []).map((id) => Number(id));
     expect(created.submissionIds.length).toBe(1);
 
     const submissionId = created.submissionIds[0];
+    expect(uploadBody.items).toHaveLength(1);
+    expect(uploadBody.items?.[0]).toMatchObject({ ordinal: 1, submission_id: submissionId });
     // AdminOmrBatchUploadBox.tsx's post-upload notice (single file, no
     // duplicates/failures): `${created_count}건을 접수했습니다. ...`.
     await expect(page.getByText("1건을 접수했습니다. AI 처리 상태는 작업박스에서 계속 확인할 수 있습니다.")).toBeVisible({ timeout: 20_000 });
+    const ledger = uploadDialog.getByLabel("답안지별 접수 내역");
+    await ledger.locator("summary").click();
+    await expect(ledger.getByRole("listitem")).toHaveCount(1);
+    await expect(ledger.getByRole("listitem")).toContainText("1번 답안지");
     await uploadDialog.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(uploadDialog).toBeHidden();
 
