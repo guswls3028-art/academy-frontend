@@ -5,12 +5,13 @@ import { ICON } from "@/shared/ui/ds";
 import { defaultVideoPresentation, getVideoHero, getVideoShowcase, listVideos, type PublicVideo, type VideoPresentation } from "../api/publicVideos";
 import { VideoFailure, VideoPublisherLink } from "./VideoLayout";
 import VideoDialog from "./VideoPlayer";
+import { videoDateLabel, videoViewLabel } from "../utils/videoBrowse";
 import s from "../pages/PublicVideos.module.css";
 
-export function VideoCards({ videos, compact = false, portrait = false, page = 1 }: { videos: PublicVideo[]; compact?: boolean; portrait?: boolean; page?: number }) {
-  return <div className={compact ? s.queue : portrait ? s.shortsGrid : s.grid}>{videos.map((video) => <Link className={`${s.card} ${video.format === "vertical" ? s.shortCard : ""}`} to={`/landing/videos/${video.id}${page > 1 ? `?page=${page}` : ""}`} key={video.id}>
+export function VideoCards({ videos, compact = false, portrait = false, page = 1, browseQuery = "", statistics = false }: { videos: PublicVideo[]; compact?: boolean; portrait?: boolean; page?: number; browseQuery?: string; statistics?: boolean }) {
+  return <div className={compact ? s.queue : portrait ? s.shortsGrid : s.grid}>{videos.map((video) => <Link className={`${s.card} ${video.format === "vertical" ? s.shortCard : ""}`} to={`/landing/videos/${video.id}${browseQuery || (page > 1 ? `?page=${page}` : "")}`} key={video.id}>
     <div className={s.thumbnail}><img src={video.thumbnail_url} alt="" loading="lazy" />{!compact && <span className={s.playMark}><Play size={ICON.md} fill="currentColor" /></span>}<span className={s.format}>{video.format === "vertical" ? "Shorts" : "영상"}</span></div>
-    <div className={s.cardCopy}>{video.category_label && <span className={s.kicker}>{video.category_label}</span>}<h3>{video.title}</h3>{!compact && video.summary && <p>{video.summary}</p>}<span className={s.cardLink}>{video.channel_title}</span></div>
+    <div className={s.cardCopy}>{video.category_label && <span className={s.kicker}>{video.category_label}</span>}<h3>{video.title}</h3>{!compact && video.summary && <p>{video.summary}</p>}<span className={s.cardLink}>{video.channel_title}</span>{statistics && <div className={s.cardStatistics}><span>{videoViewLabel(video)}</span><time dateTime={video.youtube_published_at || video.published_at}>{videoDateLabel(video)}</time></div>}</div>
   </Link>)}</div>;
 }
 
