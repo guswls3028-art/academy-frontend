@@ -585,7 +585,7 @@ test.describe("조교 로그인 출근 선택", () => {
   });
 
   test("조교가 모바일 메뉴에서 본인 근무기록을 열고 월별 시간과 금액을 확인한다", async ({ page }) => {
-    await page.clock.install({ time: new Date("2026-09-10T12:00:00+09:00") });
+    await page.clock.setFixedTime(new Date("2026-09-10T12:00:00+09:00"));
     await page.setViewportSize({ width: 390, height: 844 });
     const calls = await installClockApp(
       page,
@@ -615,9 +615,13 @@ test.describe("조교 로그인 출근 선택", () => {
     await page.getByTestId("login-username").fill("assistant77");
     await page.getByTestId("login-password").fill("password");
     await page.getByTestId("login-submit").click();
-    await page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })
-      .getByRole("button", { name: /출근하지 않고 로그인/ })
-      .click();
+    const choice = page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" });
+    await expect(choice).toBeVisible();
+    await choice.evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished));
+    });
+    await choice.getByRole("button", { name: /출근하지 않고 로그인/ }).click();
+    await expect(choice).toHaveCount(0);
 
     await page.getByRole("button", { name: "메뉴", exact: true }).click();
     const menu = page.getByRole("navigation", { name: "선생님 메뉴" });
