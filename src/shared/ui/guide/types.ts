@@ -21,3 +21,15 @@ export type GuideWorkflow = {
   tourPath?: string;
   tourSteps?: TourStep[];
 };
+
+/** A complete user journey. Keep the labels and paths aligned with the owning screen. */
+export type GuideArticle = GuideWorkflow & {
+  category: string;
+  audience: string;
+  path: string;
+  prerequisites: string[];
+  completion: string[];
+  troubleshooting: GuideStep[];
+  nextIds: string[];
+  keywords?: string[];
+};

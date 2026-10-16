@@ -22,6 +22,7 @@
 | [BROWSER-COMPATIBILITY.md](BROWSER-COMPATIBILITY.md) | 구형 iOS·Android의 legacy 로더·스타일·런타임 보완과 로그인·학습·영상 검증 범위 |
 | [DATA-LIST-CONTRACT.md](DATA-LIST-CONTRACT.md) | 테이블·성적 그리드·선택 모달의 정렬, 필터, 동률, 페이지·390px 계약 |
 | [USER-GUIDE-ADMIN.md](USER-GUIDE-ADMIN.md) | 관리자 앱 사용 가이드 |
+| [IN-APP-GUIDE.md](IN-APP-GUIDE.md) | 관리자·선생님·학생/학부모 AtoZ 가이드의 흐름·검색·권한·검증 계약 |
 | [USER-GUIDE-STUDENT.md](USER-GUIDE-STUDENT.md) | 학생 앱 사용 가이드 |
 | [STUDENT-PARENT-APP-CONTRACT.md](STUDENT-PARENT-APP-CONTRACT.md) | 학생·학부모 앱의 표시 경계, 모바일 레이아웃, 권한·자녀 선택·알림 읽음 계약 |
 | [STUDENT-GRADE-REPORT.md](STUDENT-GRADE-REPORT.md) | 학원별 성장 그래프 섹션 표시·순서 편집과 학생 시험 카드의 오답 완료/미완료 표시 계약 |
