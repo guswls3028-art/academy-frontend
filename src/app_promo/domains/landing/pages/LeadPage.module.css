@@ -190,6 +190,28 @@
   padding: 28px;
 }
 
+.guideContext {
+  margin-bottom: 24px;
+  border-left: 3px solid #0f766e;
+  padding: 14px 16px;
+  color: #164e48;
+  background: #f0fdfa;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.guideContext p { margin: 8px 0; }
+.guideContext a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: #0f766e;
+  font-weight: 700;
+  text-underline-offset: 4px;
+}
+.guideContext a:focus-visible { outline: 3px solid #0f766e; outline-offset: 3px; }
+
 .honeypot {
   position: absolute;
   left: -9999px;

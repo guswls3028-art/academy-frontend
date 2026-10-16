@@ -1,5 +1,5 @@
 // PATH: src/app_promo/domains/landing/pages/DemoPage.tsx
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { getPromoLeadErrorMessage, submitPromoDemoLead } from "../api/promoLead";
 import { CONSULT_CALLBACK_NOTICE, CONSULT_PHONE_DISPLAY, START_GUIDANCE_NOTICE } from "../business";
@@ -20,6 +20,8 @@ const INTEREST_OPTIONS = [
 ];
 
 export default function DemoPage() {
+  const resultRef = useRef<HTMLHeadingElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
   const [searchParams] = useSearchParams();
   const matchupPptRequested = searchParams.get("interest") === "matchup-ppt";
   const [submitted, setSubmitted] = useState(false);
@@ -37,6 +39,11 @@ export default function DemoPage() {
     interests: matchupPptRequested ? ["적중 매치업", "칠판용 PPT"] : [] as string[],
     message: "",
   });
+
+  useEffect(() => {
+    if (submitted) resultRef.current?.focus();
+    else if (error) errorRef.current?.focus();
+  }, [submitted, error]);
 
   const update = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -81,7 +88,7 @@ export default function DemoPage() {
       <section className={styles.resultSection}>
         <div className={styles.resultCard}>
           <span>데모 접수</span>
-          <h1>데모 요청이 접수되었습니다</h1>
+          <h1 ref={resultRef} tabIndex={-1}>데모 요청이 접수되었습니다</h1>
           <p>접수 내용을 확인한 뒤 연락드리겠습니다. 일정이 정해져 있으면 전화로 먼저 조율할 수 있습니다.</p>
           <div className={styles.resultActions}>
             <PhoneInquiryLink>전화 상담 {CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
@@ -122,7 +129,7 @@ export default function DemoPage() {
             </div>
           </aside>
 
-          <form onSubmit={handleSubmit} className={styles.formCard}>
+          <form onSubmit={handleSubmit} className={styles.formCard} aria-busy={pending}>
             <input
               type="text"
               name="website"
@@ -247,7 +254,7 @@ export default function DemoPage() {
               시험지와 수업자료는 이 화면에 첨부하지 않습니다. 접수 후 자료를 안전하게 전달하는 방법을 안내합니다.
             </p>
 
-            {error && <div className={styles.errorBox}>{error}</div>}
+            {error && <div className={styles.errorBox} role="alert" ref={errorRef} tabIndex={-1}>{error}</div>}
 
             <button type="submit" disabled={pending} className={styles.submitButton}>
               {pending ? "전송 중..." : "데모 요청하기"}

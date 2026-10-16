@@ -1,30 +1,40 @@
 // PATH: src/app_promo/domains/landing/pages/ContactPage.tsx
-import { useState, type FormEvent } from "react";
-import { Link } from "react-router";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link, useSearchParams } from "react-router";
 import { getPromoLeadErrorMessage, submitPromoContactLead } from "../api/promoLead";
 import { CONSULT_CALLBACK_NOTICE, CONSULT_PHONE_DISPLAY, START_GUIDANCE_NOTICE } from "../business";
 import LeadPrivacyConsent from "../components/LeadPrivacyConsent";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import { getPromoAttributionLabel } from "../promoAttribution";
+import { getGuideInquiryContext } from "../promoGuides";
 import styles from "./LeadPage.module.css";
 
 const INQUIRY_TYPES = ["가격 문의", "데모 요청", "수업 맞춤 상담", "기능 문의", "제휴 문의"];
 
 export default function ContactPage() {
+  const [params] = useSearchParams();
+  const [guideContext] = useState(() => getGuideInquiryContext(params));
+  const resultRef = useRef<HTMLHeadingElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
   const [submitted, setSubmitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [website, setWebsite] = useState("");
   const [privacyAgreed, setPrivacyAgreed] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     name: "",
     phone: "",
     email: "",
     academy_name: "",
     student_count: "",
-    inquiry_type: INQUIRY_TYPES[0],
-    message: "",
-  });
+    inquiry_type: guideContext ? "기능 문의" : INQUIRY_TYPES[0],
+    message: guideContext ? `[${guideContext.label}]\n이 기능에 대해 문의드립니다.\n` : "",
+  }));
+
+  useEffect(() => {
+    if (submitted) resultRef.current?.focus();
+    else if (error) errorRef.current?.focus();
+  }, [submitted, error]);
 
   const update = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -60,7 +70,7 @@ export default function ContactPage() {
       <section className={styles.resultSection}>
         <div className={styles.resultCard}>
           <span>문의 접수</span>
-          <h1>문의가 접수되었습니다</h1>
+          <h1 ref={resultRef} tabIndex={-1}>문의가 접수되었습니다</h1>
           <p>확인 후 연락드리겠습니다. 일정이 정해져 있으면 아래 버튼으로 전화 문의도 가능합니다.</p>
           <div className={styles.resultActions}>
             <PhoneInquiryLink>전화 상담 {CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
@@ -101,7 +111,14 @@ export default function ContactPage() {
             </div>
           </aside>
 
-          <form onSubmit={handleSubmit} className={styles.formCard}>
+          <form onSubmit={handleSubmit} className={styles.formCard} aria-busy={pending}>
+            {guideContext && (
+              <div className={styles.guideContext}>
+                <strong>문의할 기능: {guideContext.label}</strong>
+                <p>문의 내용에 읽던 안내를 담았습니다. 궁금한 점을 자유롭게 적어주세요.</p>
+                <Link to={guideContext.path}>읽던 가이드 보기</Link>
+              </div>
+            )}
             <input
               type="text"
               name="website"
@@ -207,7 +224,7 @@ export default function ContactPage() {
               optionalFields="이메일, 소속/수업명, 담당 수강생 수, 유입 정보"
             />
 
-            {error && <div className={styles.errorBox}>{error}</div>}
+            {error && <div className={styles.errorBox} role="alert" ref={errorRef} tabIndex={-1}>{error}</div>}
 
             <button type="submit" disabled={pending} className={styles.submitButton}>
               {pending ? "전송 중..." : "문의 보내기"}
