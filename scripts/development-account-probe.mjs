@@ -8,6 +8,19 @@ const PROBE_FAILURE_CODES = new Set([
   "runtime-scope-invalid", "owner-mismatch", "fixture-scope-invalid", "fixture-role-invalid",
   "snapshot-already-exists", "parent-hash-changed", "business-state-changed", "target-invalid", "arguments-invalid", "probe-failed",
 ]);
+const PROBE_EXCEPTION_CODES = new Map([
+  ["AssertionError", "probe-assertion-error"], ["AttributeError", "probe-attribute-error"],
+  ["TypeError", "probe-type-error"], ["ValueError", "probe-value-error"],
+  ["KeyError", "probe-key-error"], ["NameError", "probe-name-error"],
+  ["UnboundLocalError", "probe-unbound-local-error"], ["ImportError", "probe-import-error"],
+  ["ModuleNotFoundError", "probe-module-not-found"], ["FileNotFoundError", "probe-file-not-found"],
+  ["PermissionError", "probe-permission-error"], ["TimeoutError", "probe-timeout"],
+  ["ProgrammingError", "probe-database-programming-error"], ["OperationalError", "probe-database-operational-error"],
+  ["IntegrityError", "probe-database-integrity-error"], ["DataError", "probe-database-data-error"],
+  ["TransactionManagementError", "probe-transaction-management-error"],
+  ["FieldError", "probe-field-error"], ["CommandError", "probe-command-error"],
+  ["ProbeFailure", "probe-unclassified-contract"], ["RuntimeError", "probe-runtime-error"],
+]);
 class AccountProbeFailure extends Error {
   constructor(code) { super(code); this.code = code; }
 }
@@ -21,8 +34,9 @@ export function accountProbeResult(result, scope, input) {
   try { payload = JSON.parse(lines[0]); }
   catch { throw new AccountProbeFailure("probe-output-invalid"); }
   if (result.code !== 0 || payload?.status === "DEVELOPMENT_QA_FAILED") {
-    const code = payload?.status === "DEVELOPMENT_QA_FAILED" && payload?.failure_stage === "account_probe"
+    let code = payload?.status === "DEVELOPMENT_QA_FAILED" && payload?.failure_stage === "account_probe"
       && PROBE_FAILURE_CODES.has(payload?.account_probe_failure) ? payload.account_probe_failure : "probe-process-failed";
+    if (code === "probe-failed") code = PROBE_EXCEPTION_CODES.get(payload.error_type) ?? code;
     throw new AccountProbeFailure(code);
   }
   try { return assertAccountProbeProof(payload, scope, input); }

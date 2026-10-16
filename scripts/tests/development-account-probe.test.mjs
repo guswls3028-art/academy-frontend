@@ -66,6 +66,31 @@ test("SSM proof accepts only an exact successful result and preserves closed can
   assert.doesNotMatch(JSON.stringify(failures), /private|token/);
 });
 
+test("unexpected candidate exceptions retain only closed categories and never their text", async () => {
+  const failures = [];
+  let payload;
+  const handler = runner.createAccountProbeHandler({ capability: "c".repeat(64), tenantId: 71, scope: "a".repeat(64),
+    execute: async () => runner.accountProbeResult({ code: 0, stdout: JSON.stringify(payload) }, "a".repeat(64), proofInput),
+    onFailure: (code) => failures.push(code) });
+  for (const [errorType, code] of [["AssertionError", "probe-assertion-error"],
+    ["AttributeError", "probe-attribute-error"], ["ProgrammingError", "probe-database-programming-error"],
+    ["TransactionManagementError", "probe-transaction-management-error"],
+    ["UnboundLocalError", "probe-unbound-local-error"], ["ProbeFailure", "probe-unclassified-contract"],
+    ["private-token", "probe-failed"], ["__proto__", "probe-failed"], [null, "probe-failed"]]) {
+    payload = { status: "DEVELOPMENT_QA_FAILED", failure_stage: "account_probe", account_probe_failure: "probe-failed",
+      error_type: errorType, message: "private-password", traceback: "private-token" };
+    const response = await accountProbeCall(handler);
+    assert.equal(response.status, 502);
+    assert.equal(response.body, '{"error":"ACCOUNT_PROBE_FAILED"}');
+    assert.equal(failures.at(-1), code);
+  }
+  payload.failure_stage = "bootstrap";
+  payload.error_type = "AssertionError";
+  assert.equal((await accountProbeCall(handler)).status, 502);
+  assert.equal(failures.at(-1), "probe-process-failed");
+  assert.doesNotMatch(JSON.stringify(failures), /private|__proto__/);
+});
+
 test("account probe parameters preserve owner and accept only bounded target and closed modes", () => {
   const common = { TenantCode: ["qa-ymath-realuse-fe-123-1-abcdef123456"], OwnershipCapability: ["b".repeat(64)] };
   const input = { studentId: 23, ...proofInput };
