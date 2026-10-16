@@ -32,6 +32,8 @@ for (const width of [1366, 390]) {
       await expect(body).toBeVisible();
       await expect(page.getByRole("searchbox")).toHaveValue(article.title);
       expect(new URL(page.url()).searchParams.get("q")).toBe(article.title);
+      await expect(body.locator("ol")).toHaveCSS("list-style-type", "decimal");
+      await expect(body.locator("ul").first()).toHaveCSS("list-style-type", "disc");
       for (const step of article.steps) {
         await expect(body.getByRole("heading", { name: step.title, exact: true })).toBeVisible();
         await expect(body.getByText(step.description, { exact: true })).toBeVisible();
@@ -41,12 +43,17 @@ for (const width of [1366, 390]) {
       const recovery = article.troubleshooting[0];
       await body.locator("summary").filter({ hasText: recovery.title }).click();
       await expect(body.getByText(recovery.description, { exact: true })).toBeVisible();
+      await testInfo.attach(`public-guide-${guide.role}-${width}-recovery`, {
+        body: await body.locator("details[open]").first().screenshot(), contentType: "image/png",
+      });
       await expect(page.locator('main a[href^="/workspace"], main a[href^="/student"], main a[href^="/teacher"], main a[href^="/admin"]')).toHaveCount(0);
       await page.reload();
       await expect(body).toBeVisible();
       await expect(page.getByRole("searchbox")).toHaveValue(article.title);
       expect(new URL(page.url()).searchParams.get("topic")).toBe(article.id);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+      await body.getByRole("heading", { level: 2 }).scrollIntoViewIfNeeded();
+      await expect(body.getByRole("heading", { level: 2 })).toBeInViewport();
       await testInfo.attach(`public-guide-${guide.role}-${width}`, { body: await page.screenshot(), contentType: "image/png" });
     }
     await page.getByRole("searchbox").fill("없는안내-검색복구-qa");
