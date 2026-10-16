@@ -2,6 +2,7 @@ import { type Page, type TestInfo } from "@playwright/test";
 import { test, expect } from "../fixtures/strictTest";
 import { getApiBaseUrl, getBaseUrl, loginViaUI } from "../helpers/auth";
 import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
+import { captureGuideEvidence } from "../helpers/guideEvidence";
 
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const API_BASE = getApiBaseUrl().replace(/\/+$/, "");
@@ -19,9 +20,7 @@ async function verifyGuideJourney(
     await expect(article.getByRole("heading", { name: "여기까지 확인하면 완료" })).toBeVisible();
     const action = article.getByRole("link", { name: `${guide.title} 화면 열기` });
     await assertInteractiveSurface(page, article, action);
-    await testInfo.attach(`live-guide-${guide.scope}-${width}`, {
-      body: await article.screenshot(), contentType: "image/png",
-    });
+    await captureGuideEvidence(page, article, action, testInfo, `live-guide-${guide.scope}-${width}`);
     await action.click();
     await expect(page).toHaveURL(`${BASE}${guide.target}`);
     await expect(page.getByRole("heading", { name: guide.targetTitle, exact: true })).toBeVisible();
