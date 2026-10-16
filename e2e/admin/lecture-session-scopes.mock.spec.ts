@@ -1077,7 +1077,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
 
   await expect(page.getByRole("region", { name: "첫 시험 시작" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "시험을 만들어 보세요" })).toBeInViewport();
-  await expect(page.getByRole("link", { name: "시험·성적표 사용 순서" })).toHaveAttribute("href", "/workspace/guide#exam-score-guide");
+  await expect(page.getByRole("link", { name: "시험·성적표 사용 순서" })).toHaveAttribute("href", "/workspace/guide?topic=create-exam");
   await expect(page.getByRole("button", { name: "시험 추가", exact: true }).first()).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath("scores-first-exam-390.png") });
   await page.getByRole("button", { name: "시험 추가", exact: true }).first().click();
