@@ -1,8 +1,8 @@
-import { expect, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { expect, type Locator, type TestInfo } from "@playwright/test";
 
 /** Check rendered readability and capture visible guide content inside app scroll containers. */
 export async function captureGuideEvidence(
-  page: Page, article: Locator, action: Locator, testInfo: TestInfo, name: string,
+  article: Locator, action: Locator, testInfo: TestInfo, name: string,
 ) {
   const contrast = await action.evaluate((element) => {
     const canvas = document.createElement("canvas");
@@ -31,15 +31,9 @@ export async function captureGuideEvidence(
 
   await action.scrollIntoViewIfNeeded();
   await expect(action).toBeInViewport();
-  const box = (await article.boundingBox())!;
-  const viewport = page.viewportSize()!;
-  const x = Math.max(0, box.x);
-  const y = Math.max(0, box.y);
-  await testInfo.attach(`${name}-start`, {
-    body: await page.screenshot({ clip: {
-      x, y, width: Math.min(viewport.width, box.x + box.width) - x,
-      height: Math.min(viewport.height, box.y + box.height) - y,
-    } }),
+  // Keep production account headers and fixed navigation outside the evidence.
+  await testInfo.attach(`${name}-action`, {
+    body: await action.screenshot(),
     contentType: "image/png",
   });
 
@@ -48,7 +42,7 @@ export async function captureGuideEvidence(
     await expect(step).toBeInViewport();
   }
   const completion = article.locator("section").filter({
-    has: page.getByRole("heading", { name: "여기까지 확인하면 완료" }),
+    hasText: "여기까지 확인하면 완료",
   });
   await completion.scrollIntoViewIfNeeded();
   await expect(completion).toBeInViewport();

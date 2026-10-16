@@ -532,7 +532,7 @@ test.describe("업무별 AtoZ 가이드", () => {
         const action = article.getByRole("link", { name: scenario.title + " 화면 열기" });
         await expect(action).toHaveAttribute("href", scenario.target);
         await assertInteractiveSurface(page, article, action);
-        await captureGuideEvidence(page, article, action, testInfo, `guide-${scenario.role}-${width}`);
+        await captureGuideEvidence(article, action, testInfo, `guide-${scenario.role}-${width}`);
 
         await page.reload();
         await expect(search).toHaveValue(scenario.query);
