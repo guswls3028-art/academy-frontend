@@ -910,7 +910,7 @@ jobs:
         run: pnpm install --frozen-lockfile --shamefully-hoist
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Wait for current Cloudflare build to propagate
         run: |
