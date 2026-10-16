@@ -3,6 +3,7 @@ import { expect, test } from "../fixtures/strictTest";
 import { dismissDevelopmentFirstLoginGuide } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
 import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
+import { captureGuideEvidence } from "../helpers/guideEvidence";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
 
@@ -511,6 +512,10 @@ test.describe("업무별 AtoZ 가이드", () => {
         await stubAuthenticatedApp(page, { role: scenario.role, required: false });
         await gotoAndSettle(page, BASE + scenario.path);
         const search = page.getByRole("searchbox", { name: "어떤 작업이 필요한가요?" });
+        await expect(search).toBeVisible();
+        await testInfo.attach(`guide-overview-${scenario.role}-${width}`, {
+          body: await page.screenshot(), contentType: "image/png",
+        });
         await search.fill(scenario.query);
         await page.getByRole("navigation", { name: "주요 기능 이용 순서" })
           .getByRole("button", { name: new RegExp(scenario.title) }).click();
@@ -525,7 +530,7 @@ test.describe("업무별 AtoZ 가이드", () => {
         const action = article.getByRole("link", { name: scenario.title + " 화면 열기" });
         await expect(action).toHaveAttribute("href", scenario.target);
         await assertInteractiveSurface(page, article, action);
-        await testInfo.attach(`guide-${scenario.role}-${width}`, { body: await article.screenshot(), contentType: "image/png" });
+        await captureGuideEvidence(page, article, action, testInfo, `guide-${scenario.role}-${width}`);
 
         await page.reload();
         await expect(search).toHaveValue(scenario.query);
