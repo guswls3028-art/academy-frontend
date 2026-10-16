@@ -218,7 +218,8 @@ test("390px 선생님 가이드에서 시험 생성 PC 화면으로 이어지고
   await expectNoHorizontalOverflow(page);
   await page.getByRole("link", { name: "시험 생성·답안·응시 대상 화면 열기" }).click();
   await expect(page).toHaveURL(/\/workspace\/exams$/);
-  await expect(page.getByRole("heading", { name: "시험", exact: true })).toBeVisible();
+  await expect(page.locator(".domain-layout__title")).toHaveText("시험");
+  await expect(page.getByRole("tab", { name: "강의별 시험", exact: true })).toHaveAttribute("aria-selected", "true");
   await expectNoHorizontalOverflow(page);
   expect(apiRequests.filter(({ method }) => method !== "GET")).toEqual([]);
 });
