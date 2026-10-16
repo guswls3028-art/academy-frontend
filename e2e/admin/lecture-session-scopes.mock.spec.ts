@@ -1268,10 +1268,16 @@ test("성적 탭의 첫 시험 안내에서 현재 가이드의 해당 단계가
   await expect(page.getByRole("region", { name: "첫 시험 시작" })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("scores-first-exam-1366.png") });
   await page.getByRole("link", { name: "시험·성적표 사용 순서" }).click();
-  await expect(page).toHaveURL(/\/workspace\/guide#exam-score-guide$/);
-  await expect(page.locator("#exam-score-guide")).toHaveAttribute("class", /cardOpen/);
-  await expect(page.getByText("OMR 답안지 받기", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/workspace\/guide\?topic=create-exam$/);
+  const article = page.getByRole("article", { name: "시험 생성·답안·응시 대상" });
+  await expect(article.getByRole("heading", { name: "시험지와 답안지 준비" })).toBeVisible();
+  await expect(article.getByText(/OMR 답안지 PDF/)).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("exam-score-guide-1366.png") });
+  await page.goto(`${BASE}/workspace/guide#exam-score-guide`, { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/workspace\/guide\?topic=create-exam$/);
+  await expect(article).toBeVisible();
+  await page.reload();
+  await expect(article).toBeVisible();
 });
 
 test("원본을 선택하면 생성과 자동 등록 뒤 기존 업로드 순서를 유지한다", async ({ page }, testInfo) => {
