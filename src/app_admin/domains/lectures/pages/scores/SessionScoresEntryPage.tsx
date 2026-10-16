@@ -1471,7 +1471,7 @@ export default function SessionScoresEntryPage({
             <Button type="button" intent="secondary" size="md" leftIcon={<Plus size={ICON_FOR_BUTTON.md} />} onClick={openCreateHomework}>
               과제 추가
             </Button>
-            <Link className="scores-start-panel__guide" to="/workspace/guide#exam-score-guide">시험·성적표 사용 순서</Link>
+            <Link className="scores-start-panel__guide" to="/workspace/guide?topic=create-exam">시험·성적표 사용 순서</Link>
           </div>
         </section>
       )}
