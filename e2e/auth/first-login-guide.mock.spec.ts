@@ -548,9 +548,13 @@ test.describe("업무별 AtoZ 가이드", () => {
     await page.setViewportSize({ width: 1100, height: 900 });
     await stubAuthenticatedApp(page, { role: "admin", required: false });
     await gotoAndSettle(page, BASE + "/workspace/guide");
-    await page.getByRole("button", { name: "학습·평가", exact: true }).click();
-    const firstTopic = page.getByRole("navigation", { name: "주요 기능 이용 순서" }).getByRole("button").first();
+    const category = page.getByRole("button", { name: "학습·평가", exact: true });
+    await category.click();
+    await expect(category).toHaveAttribute("aria-pressed", "true");
+    const firstTopic = page.getByRole("navigation", { name: "주요 기능 이용 순서" })
+      .getByRole("button", { name: /시험 생성·답안·응시 대상/ });
     await firstTopic.focus();
+    await expect(firstTopic).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("article").getByRole("heading", { level: 2 })).toBeFocused();
     await assertInteractiveSurface(page, page.getByRole("article"), page.getByRole("article").getByRole("link").first());
