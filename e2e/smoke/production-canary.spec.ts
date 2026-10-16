@@ -20,7 +20,7 @@ async function verifyGuideJourney(
     await expect(article.getByRole("heading", { name: "여기까지 확인하면 완료" })).toBeVisible();
     const action = article.getByRole("link", { name: `${guide.title} 화면 열기` });
     await assertInteractiveSurface(page, article, action);
-    await captureGuideEvidence(page, article, action, testInfo, `live-guide-${guide.scope}-${width}`);
+    await captureGuideEvidence(article, action, testInfo, `live-guide-${guide.scope}-${width}`);
     await action.click();
     await expect(page).toHaveURL(`${BASE}${guide.target}`);
     await expect(page.getByRole("heading", { name: guide.targetTitle, exact: true })).toBeVisible();
