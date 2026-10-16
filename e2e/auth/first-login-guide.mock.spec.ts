@@ -518,7 +518,9 @@ test.describe("업무별 AtoZ 가이드", () => {
         });
         await search.fill(scenario.query);
         await page.getByRole("navigation", { name: "주요 기능 이용 순서" })
-          .getByRole("button", { name: new RegExp(scenario.title) }).click();
+          .getByRole("button", { name: new RegExp(scenario.title) }).press("Enter");
+        await expect(search).toHaveValue(scenario.query);
+        await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe(scenario.query);
         const article = page.getByRole("article");
         await expect(article.getByRole("heading", { level: 2, name: scenario.title })).toBeFocused();
         await expect(page).toHaveURL(new RegExp(`topic=${scenario.topic}`));
