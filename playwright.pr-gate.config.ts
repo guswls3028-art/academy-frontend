@@ -47,6 +47,7 @@ export default defineConfig({
       dependencies: [`pr-readonly-${productionReadOnlySpecs.length}`],
       use: {
         ...chromium,
+        serviceWorkers: "block",
         // Keep first-failure diagnostics without encoding discarded videos
         // or taking a second automatic screenshot after every successful test.
         screenshot: "only-on-failure",
@@ -66,7 +67,7 @@ export default defineConfig({
         matchSpec("e2e/admin/community-workspace-polish.mock.spec.ts"),
       ],
       dependencies: [],
-      use: webkit,
+      use: { ...webkit, serviceWorkers: "block" },
     },
   ],
 });

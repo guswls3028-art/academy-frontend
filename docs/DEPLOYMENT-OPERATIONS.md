@@ -177,6 +177,11 @@ PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency
 chain으로 직렬 실행한다. 별도 세 job은 API proxy를 `http://127.0.0.1:9`로 닫고
 route-mock 전체 목록을 Playwright의 `--shard=1/3`, `2/3`, `3/3`으로 나눈다.
+`pr-route-mocks`와 `pr-iphone-webkit`은 `serviceWorkers: "block"`으로 앱의 SW가
+등록·응답을 가로채지 않게 한다. [Playwright routing 정본](https://playwright.dev/docs/api/class-browsercontext#browser-context-route)에 따라
+모의 API의 요청 interception을 보장하며, 브라우저 offline/online 전환·재생 유지 검사는
+기존대로 수행한다. 이 격리 설정만으로 WebKit의 reload 중 취소 오류가 해결됐다고
+판정하지 않으며, console/pageerror 검사와 재시도 0·필수 시나리오 목록을 유지한다.
 route-mock project는 실패 시 자동 screenshot과 첫 실패 trace를 보존하고,
 성공 후 자동 screenshot과 매 실행의 화면 녹화는 생략한다. 각 테스트가 직접
 촬영하는 UI 증거는 그대로 남긴다. 이 정책은 mock project에만 적용하며 운영
