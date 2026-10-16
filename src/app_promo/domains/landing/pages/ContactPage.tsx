@@ -2,7 +2,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { getPromoLeadErrorMessage, submitPromoContactLead } from "../api/promoLead";
-import { CONSULT_PHONE_DISPLAY } from "../business";
+import { CONSULT_CALLBACK_NOTICE, CONSULT_PHONE_DISPLAY, START_GUIDANCE_NOTICE } from "../business";
 import LeadPrivacyConsent from "../components/LeadPrivacyConsent";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import { getPromoAttributionLabel } from "../promoAttribution";
@@ -78,8 +78,9 @@ export default function ContactPage() {
         <div className={styles.heroInner}>
           <span>사용 상담</span>
           <h1 id="contact-title">선생님의 수업에 맞는 가격과 범위를 확인하세요</h1>
-          <p>문의 내용을 남기거나 전화로 바로 상담할 수 있습니다. 기능과 시작일을 확인한 뒤 학원 계정을 설정합니다.</p>
+          <p>문의 내용을 남기거나 전화로 상담할 수 있습니다. 기능과 시작일을 확인한 뒤 학원 계정을 설정합니다.</p>
           <PhoneInquiryLink>전화 상담 {CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
+          <p>{CONSULT_CALLBACK_NOTICE}</p>
         </div>
       </section>
 
@@ -96,7 +97,7 @@ export default function ContactPage() {
             <div className={styles.callBox}>
               <strong>가입·사용 전화 상담</strong>
               <PhoneInquiryLink className={styles.callBoxButton}>{CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
-              <p>가격·일정·기능 범위를 확인한 뒤 학원 계정을 설정합니다.</p>
+              <p>{START_GUIDANCE_NOTICE}</p>
             </div>
           </aside>
 

@@ -10,10 +10,23 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import CtaSection from "../components/CtaSection";
+import { CONSULT_CALLBACK_NOTICE, PLANNED_PAYMENT_NOTICE, START_GUIDANCE_NOTICE } from "../business";
 import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import styles from "./PromoPages.module.css";
 
 const FAQS = [
+  {
+    q: "처음 사용하면 직원·강사도 설명을 받을 수 있나요?",
+    a: START_GUIDANCE_NOTICE,
+  },
+  {
+    q: "원비나 교재비를 온라인으로 결제할 수 있나요?",
+    a: PLANNED_PAYMENT_NOTICE,
+  },
+  {
+    q: "전화가 연결되지 않으면 어떻게 문의하나요?",
+    a: CONSULT_CALLBACK_NOTICE,
+  },
   {
     q: "학생전용앱에서 실제로 영상을 볼 수 있나요?",
     a: "네. 수강생은 학생전용앱에서 강의별 영상 목록을 보고, 마지막으로 보던 지점부터 이어볼 수 있습니다. 플레이어, 댓글, 좋아요, 재생 목록이 앱 안에 있어 외부 링크를 따로 설명하지 않아도 됩니다.",
@@ -80,8 +93,8 @@ export default function FaqPage() {
               필요한 내용이 정해져 있으면 전화로도 확인할 수 있습니다.
             </p>
             <div className={styles.heroActions}>
-              <Link to="/promo/features#student-video-flow" className={styles.primaryCta}>
-                학생앱 영상 화면 보기
+              <Link to="/promo/guide" className={styles.primaryCta}>
+                전체 사용 가이드 보기
                 <ArrowRight size={18} />
               </Link>
               <Link to="/promo/pricing" className={styles.secondaryCta}>

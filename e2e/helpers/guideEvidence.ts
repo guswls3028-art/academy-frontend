@@ -33,7 +33,7 @@ export async function captureGuideEvidence(
   await expect(action).toBeInViewport({ ratio: 1 });
   // Keep production account headers and fixed navigation outside the evidence.
   await testInfo.attach(`${name}-action`, {
-    body: await action.screenshot(),
+    body: await action.screenshot({ path: testInfo.outputPath(`${name}-action.png`) }),
     contentType: "image/png",
   });
 
@@ -41,7 +41,7 @@ export async function captureGuideEvidence(
     await step.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
     await expect(step).toBeInViewport({ ratio: 1 });
     if (index === 0) {
-      await testInfo.attach(`${name}-step`, { body: await step.screenshot(), contentType: "image/png" });
+      await testInfo.attach(`${name}-step`, { body: await step.screenshot({ path: testInfo.outputPath(`${name}-step.png`) }), contentType: "image/png" });
     }
   }
   const completion = article.locator("section").filter({
@@ -49,12 +49,12 @@ export async function captureGuideEvidence(
   });
   await completion.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
   await expect(completion).toBeInViewport({ ratio: 1 });
-  await testInfo.attach(`${name}-completion`, { body: await completion.screenshot(), contentType: "image/png" });
+  await testInfo.attach(`${name}-completion`, { body: await completion.screenshot({ path: testInfo.outputPath(`${name}-completion.png`) }), contentType: "image/png" });
 
   const recovery = article.locator("details").first();
   if (await recovery.getAttribute("open") === null) await recovery.locator("summary").click();
   await recovery.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
   await expect(recovery).toBeInViewport({ ratio: 1 });
   await expect(recovery.locator("p")).toBeVisible();
-  await testInfo.attach(`${name}-recovery`, { body: await recovery.screenshot(), contentType: "image/png" });
+  await testInfo.attach(`${name}-recovery`, { body: await recovery.screenshot({ path: testInfo.outputPath(`${name}-recovery.png`) }), contentType: "image/png" });
 }

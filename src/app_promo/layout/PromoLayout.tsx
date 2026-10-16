@@ -27,12 +27,13 @@ const NAV_ITEMS = [
   { label: "기능", path: "/promo/features", icon: ClipboardList, note: "운영·영상·알림톡·홈페이지" },
   { label: "활용 사례", path: "/promo/parent-trust", icon: ShieldCheck, note: "기록으로 설명하는 학부모 상담" },
   { label: "요금", path: "/promo/pricing", icon: CreditCard, note: "월 요금과 별도 비용" },
-  { label: "가이드", path: "/promo/faq", icon: BookOpenCheck, note: "도입 전 자주 묻는 질문" },
+  { label: "가이드", path: "/promo/guide", icon: BookOpenCheck, note: "역할별 전체 사용 가이드" },
   { label: "업데이트", path: "/promo/updates", icon: Radio, note: "새 기능과 운영 개선" },
   { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "사용 상담" },
 ];
 
 const ACTIVE_ALIASES: Record<string, string[]> = {
+  "/promo/guide": ["/promo/faq"],
   "/promo/features": ["/promo/ai-grading", "/promo/matchup-ppt", "/promo/video-platform"],
   "/promo/parent-trust": ["/promo/landing-samples"],
   "/promo/contact": ["/promo/demo"],

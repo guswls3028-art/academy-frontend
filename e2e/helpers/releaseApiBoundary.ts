@@ -399,9 +399,9 @@ export function assertReleaseRequestSafe(
     const payload = data as Record<string, unknown> | null;
     if (!payload || typeof payload !== "object" || Array.isArray(payload)
       || Object.keys(payload).sort().join(",") !== "device_class,screen_id"
-      || payload.screen_id !== "student.dashboard.home"
-      || !["desktop", "tablet", "mobile"].includes(String(payload.device_class))) {
-      throw new Error("Production observation payload is outside the reviewed dashboard schema");
+      || !["student.dashboard.home", "student.guide.home", "student.assignment.submit"].some((screenId) => payload.screen_id === screenId)
+      || !["desktop", "tablet", "mobile"].some((deviceClass) => payload.device_class === deviceClass)) {
+      throw new Error("Production observation payload is outside the reviewed screen-view schema");
     }
     return "observation";
   }

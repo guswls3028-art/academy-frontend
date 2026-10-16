@@ -2770,14 +2770,24 @@ test("APIRequestContext retries one transport rejection only for GET/HEAD and re
   assert.doesNotMatch(JSON.stringify(diagnostics), /student-secret|parents\/by-login/);
 });
 
-test("only the reviewed dashboard observation schema is permitted", () => {
+test("only the reviewed canary screen observation schemas are permitted", () => {
   const url = "https://api.hakwonplus.com/api/v1/students/me/activity/";
-  const valid = { screen_id: "student.dashboard.home", device_class: "desktop" };
-  assert.equal(assertReleaseRequestSafe(production, url, "POST", production.tenantCode, valid), "observation");
-  for (const data of [undefined, {}, [], { ...valid, score: 100 }, { ...valid, screen_id: "student.video.player" }, { ...valid, device_class: "unknown" }]) {
-    assert.throws(() => assertReleaseRequestSafe(production, url, "POST", production.tenantCode, data), /observation payload/);
+  for (const screen_id of ["student.dashboard.home", "student.guide.home", "student.assignment.submit"]) {
+    for (const device_class of ["desktop", "tablet", "mobile"]) {
+      const valid = { screen_id, device_class };
+      assert.equal(assertReleaseRequestSafe(production, url, "POST", production.tenantCode, valid), "observation");
+      for (const data of [undefined, {}, [], { ...valid, score: 100 }, { ...valid, homework_id: 1 }, { ...valid, screen_id: "student.video.player" }, { ...valid, screen_id: "student.guide.unknown" }, { ...valid, screen_id: [screen_id] }, { ...valid, device_class: "unknown" }, { ...valid, device_class: [device_class] }]) {
+        assert.throws(() => assertReleaseRequestSafe(production, url, "POST", production.tenantCode, data), /observation payload/);
+      }
+      for (const tenant of [undefined, "foreign-tenant"]) {
+        assert.throws(() => assertReleaseRequestSafe(production, url, "POST", tenant, valid), /missing or foreign QA tenant/);
+      }
+      for (const method of ["PUT", "PATCH", "DELETE"]) {
+        assert.throws(() => assertReleaseRequestSafe(production, url, method, production.tenantCode, valid), /mutation refused/);
+      }
+      assert.throws(() => assertReleaseRequestSafe(production, `${url}homework-open/`, "POST", production.tenantCode, { homework_id: 1 }), /mutation refused/);
+    }
   }
-  assert.throws(() => assertReleaseRequestSafe(production, url, "PATCH", production.tenantCode, valid), /mutation refused/);
 });
 
 test("same-artifact proxy preserves the real response and never sends credentials to an external origin", async () => {

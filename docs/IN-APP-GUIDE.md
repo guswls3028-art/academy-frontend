@@ -77,6 +77,11 @@
 
 ## 접근성·반응형·검증
 
+역할별 원문은 `shared/ui/guide/content/`에서 관리하며 기존 앱의 데이터 경로는
+re-export로 유지합니다. [홍보 페이지 전체 가이드](PROMO-GUIDE-AND-SUPPORT.md)는
+동일한 원문과 `GuideCatalog`의 `public` 모드를 사용합니다. 기본 `app` 모드의
+업무 화면 실행 링크·권한·저장 흐름은 유지합니다.
+
 공통 `shared/ui/guide/GuideCatalog.tsx`는 라벨 있는 검색, 실제 button/link,
 분류 aria-pressed, 목차 aria-current, 안내 전환 시 제목 포커스, 네이티브 details
 문제 해결을 제공합니다. 760px 이하에서는 한 열로 전환하고 선택한 안내를 목차보다

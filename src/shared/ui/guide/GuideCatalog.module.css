@@ -30,6 +30,16 @@
   --guide-on-accent: var(--tc-primary-contrast, var(--color-brand-primary-contrast, #fff));
   padding: 20px 16px 40px;
 }
+.catalog[data-mode="public"] {
+  --guide-bg: #fff;
+  --guide-muted-bg: #eaf5f7;
+  --guide-text: #112a34;
+  --guide-muted: #475569;
+  --guide-border: #cce3e7;
+  --guide-accent: #086875;
+  --guide-on-accent: #fff;
+  padding: 8px 0 40px;
+}
 .hero { padding: 24px 28px; border-left: 4px solid var(--guide-accent); background: var(--guide-muted-bg); border-radius: 0 16px 16px 0; }
 .eyebrow { margin: 0 0 10px; color: var(--guide-accent); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
 .hero h1 { margin: 0 0 12px; font-size: clamp(24px, 3vw, 32px); line-height: 1.35; letter-spacing: -.04em; }

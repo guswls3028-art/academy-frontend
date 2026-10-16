@@ -177,6 +177,11 @@ PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency
 chain으로 직렬 실행한다. 별도 세 job은 API proxy를 `http://127.0.0.1:9`로 닫고
 route-mock 전체 목록을 Playwright의 `--shard=1/3`, `2/3`, `3/3`으로 나눈다.
+`pr-route-mocks`와 `pr-iphone-webkit`은 `serviceWorkers: "block"`으로 앱의 SW가
+등록·응답을 가로채지 않게 한다. [Playwright routing 정본](https://playwright.dev/docs/api/class-browsercontext#browser-context-route)에 따라
+모의 API의 요청 interception을 보장하며, 브라우저 offline/online 전환·재생 유지 검사는
+기존대로 수행한다. 이 격리 설정만으로 WebKit의 reload 중 취소 오류가 해결됐다고
+판정하지 않으며, console/pageerror 검사와 재시도 0·필수 시나리오 목록을 유지한다.
 route-mock project는 실패 시 자동 screenshot과 첫 실패 trace를 보존하고,
 성공 후 자동 screenshot과 매 실행의 화면 녹화는 생략한다. 각 테스트가 직접
 촬영하는 UI 증거는 그대로 남긴다. 이 정책은 mock project에만 적용하며 운영
@@ -404,8 +409,12 @@ release readonly strict browser는 이 exact host/path/SHA-512 mismatch 한 줄�
 
 - 기존 계정의 정확한 `POST /api/v1/token/`, `POST /api/v1/token/refresh/` 인증.
 - `POST /api/v1/students/me/activity/`의 정확한 두 키
-  `{screen_id: "student.dashboard.home", device_class: "desktop"|"tablet"|"mobile"}`.
-  추가 키, 다른 screen/method는 거부한다. 이 요청은 append-only 화면 관측 감사 로그다.
+  `{screen_id, device_class: "desktop"|"tablet"|"mobile"}`. `screen_id`는 운영 canary가
+  실제 방문하는 `student.dashboard.home`, `student.guide.home`,
+  `student.assignment.submit` 세 값만 허용한다. 가이드에서 과제 제출 화면으로 이동하고
+  돌아와 새로고침하는 흐름도 이 동일한 화면 열기 API를 사용한다.
+  추가 키(과제 ID 등), 다른 screen/method와 `/activity/homework-open/`은 거부한다.
+  이 요청은 append-only 화면 관측 감사 로그다.
   인증·관측 attempted/accepted를 각각 보고하며 전체 DB read-only 또는 총 쓰기 0으로
   표현하지 않는다. 진도·출결·성적·완료·결제·발송·product-usage mutation은 허용하지 않는다.
 
@@ -415,6 +424,14 @@ SQL mutation이 `ops_audit_log` INSERT 1건이고 platform push 0,
 ProductUsageEvent/DailyActor 변화 0임을 검사한다. 도메인 설명은 backend의
 `docs/domain/student-support-audit.md`, 환경/IAM 경계는
 `docs/operations/persistent-development-runtime.md`가 소유한다.
+추가된 두 screen도 backend `apps/domains/students/services/activity.py`의 `SCREEN_PRESENTATION`에서
+동일한 `record_student_screen_view` → `_create_activity` 경로를 사용한다.
+허용된 세 화면 × 세 기기, 추가 데이터·다른 화면·다른 tenant·업무 mutation 거부는
+`scripts/tests/development-release-canary.test.mjs`의 canary screen observation 회귀가 검증한다.
+운영 canary 직후 `production-guide-evidence`에는 `live-guide-*.png`만 별도로 보존한다.
+이는 가이드의 정적 버튼·첫 단계·완료 기준·문제 해결 영역만 캡처하며 계정 헤더,
+전체 화면, trace는 포함하지 않는다. 후속 Playwright 실행이 `test-results/`를 정리하기
+전에 업로드하여 PC/390px 운영 가이드의 시각 확인 증거가 유지된다.
 
 공식 main 배포는 먼저 `backend-readiness`에서 backend의 진행 중인 main release run과
 successful manifest·active development host를 읽는다. 진행 중인 release만 최대

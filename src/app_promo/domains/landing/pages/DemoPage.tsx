@@ -2,7 +2,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router";
 import { getPromoLeadErrorMessage, submitPromoDemoLead } from "../api/promoLead";
-import { CONSULT_PHONE_DISPLAY } from "../business";
+import { CONSULT_CALLBACK_NOTICE, CONSULT_PHONE_DISPLAY, START_GUIDANCE_NOTICE } from "../business";
 import LeadPrivacyConsent from "../components/LeadPrivacyConsent";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import { getPromoAttributionLabel } from "../promoAttribution";
@@ -101,6 +101,7 @@ export default function DemoPage() {
           <h1 id="demo-title">선생님의 수업 방식에 맞춰 데모를 준비합니다</h1>
           <p>데모 요청이나 전화 상담 후 사용할 기능과 시작일을 확인하고 계정을 설정합니다.</p>
           <PhoneInquiryLink>전화 상담 {CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
+          <p>{CONSULT_CALLBACK_NOTICE}</p>
         </div>
       </section>
 
@@ -117,7 +118,7 @@ export default function DemoPage() {
             <div className={styles.callBox}>
               <strong>데모·가입 전화 상담</strong>
               <PhoneInquiryLink className={styles.callBoxButton}>{CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
-              <p>사용할 기능과 시작일을 확인한 뒤 학원 계정을 설정합니다.</p>
+              <p>{START_GUIDANCE_NOTICE}</p>
             </div>
           </aside>
 
