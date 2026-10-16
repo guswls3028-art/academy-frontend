@@ -4,6 +4,12 @@ const CONSULT_PHONE_PARTS = ["010", "3121", "7466"] as const;
 
 export const CONSULT_PHONE_LABEL = "전화 문의";
 export const CONSULT_PHONE_DISPLAY = CONSULT_PHONE_PARTS.join("-");
+export const CONSULT_CALLBACK_NOTICE =
+  "통화 연결이 어려울 경우 문자를 남겨주시면 확인 후 연락드리겠습니다.";
+export const START_GUIDANCE_NOTICE =
+  "학원플러스 이용료 결제 후 사용을 시작하실 때, 개발자가 직접 프로그램을 소개하고 직원·강사분들께 홈페이지 사용법을 안내해 드립니다.";
+export const PLANNED_PAYMENT_NOTICE =
+  "원비·교재비 온라인 결제 기능은 도입 예정입니다. 현재는 온라인 결제를 지원하지 않으며, 도입 일정은 확정 후 안내드립니다.";
 export const MONTHLY_VAT_RATE_PERCENT = 10;
 export const AUGUST_MONTHLY_SUPPLY_AMOUNT = 145000;
 export const AUGUST_MONTHLY_TAX_AMOUNT = 14000;

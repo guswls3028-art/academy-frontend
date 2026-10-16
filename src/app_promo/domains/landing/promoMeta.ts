@@ -49,6 +49,11 @@ export const PROMO_META: Record<string, PromoMeta> = {
     description:
       "요금, 자료 이전, 채점, 영상, 알림톡 등 학원플러스를 사용하기 전에 자주 묻는 질문을 확인하세요.",
   },
+  "/promo/guide": {
+    title: "전체 사용 가이드 | 학원플러스",
+    description:
+      "실제 프로그램과 동일한 관리자·선생님, 직원·강사, 학생 사용 가이드를 로그인 없이 확인하세요. 준비사항부터 사용 순서, 완료 확인과 문제 해결까지 안내합니다.",
+  },
   "/promo/contact": {
     title: "사용 상담 | 학원플러스",
     description:

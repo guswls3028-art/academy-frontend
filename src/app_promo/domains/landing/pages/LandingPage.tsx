@@ -19,7 +19,8 @@ import {
   UsersRound,
 } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
-import { CONSULT_PHONE_DISPLAY } from "../business";
+import { CONSULT_CALLBACK_NOTICE, CONSULT_PHONE_DISPLAY, START_GUIDANCE_NOTICE } from "../business";
+import GettingStartedSection from "../components/GettingStartedSection";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import styles from "./LandingPage.module.css";
@@ -210,6 +211,11 @@ const START_POINTS = [
     icon: ShieldCheck,
     title: "월 요금과 별도 비용을 안내합니다",
     copy: "9월 이후 신규 가입은 월 18만원(부가세 10% 별도, 결제금액 19만 8천원)입니다. 8월 기존 가입은 월 14만 5천원에 고정 부가세 1만 4천원, 결제금액 15만 9천원이며 기존 공급가는 이용 기간 동안 유지됩니다.",
+  },
+  {
+    icon: UsersRound,
+    title: "개발자가 직원·강사분들께 직접 안내합니다",
+    copy: START_GUIDANCE_NOTICE,
   },
 ];
 
@@ -602,6 +608,7 @@ function FinalCta() {
         <p className={styles.finalCall}>
           전화 상담 <PhoneInquiryLink>{CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
         </p>
+        <p className={styles.finalCall}>{CONSULT_CALLBACK_NOTICE}</p>
       </div>
     </section>
   );
@@ -615,6 +622,7 @@ export default function LandingPage() {
       <StrengthSection />
       <FlowSection />
       <StartSection />
+      <GettingStartedSection />
       <FinalCta />
     </>
   );

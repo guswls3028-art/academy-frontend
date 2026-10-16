@@ -11,6 +11,7 @@
 | [PUBLIC-RESOURCE-BOARD.md](PUBLIC-RESOURCE-BOARD.md) | godmin 공개 자료게시판·게시자·파일·오류 복구·PC/모바일 검증 |
 | [PUBLIC-VIDEOS.md](PUBLIC-VIDEOS.md) | 공개 YouTube 영상·히어로·두 게시자 스튜디오·초안/공개·오류 복구 |
 | [ROUTING.md](ROUTING.md) | 공개 URL 네이밍, 권한 분리, 기존 경로 호환 규칙 |
+| [PROMO-GUIDE-AND-SUPPORT.md](PROMO-GUIDE-AND-SUPPORT.md) | 공개 전체 사용 가이드, 개발자 시작 안내, 전화 부재 회신과 온라인 결제 예정 고지 |
 | [API-CONTRACTS.md](API-CONTRACTS.md) | 백엔드 OpenAPI 고정 SHA와 생성 TypeScript 타입 드리프트 계약 |
 | [FEES-OPERATIONS.md](FEES-OPERATIONS.md) | 학원 수납의 전체 목록, 조회 복구, 미납 필터, 월말 납부기한과 검증 계약 |
 | [VIDEO-DIRECT-ACCESS.md](VIDEO-DIRECT-ACCESS.md) | 수강 등록 없이 영상 1개만 여는 관리자 승인·회수와 학생 무쓰기 재생 계약 |
