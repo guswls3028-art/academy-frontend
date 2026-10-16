@@ -1494,10 +1494,11 @@ test("production promotion requires the non-skipped isolated development canary"
 
 test("expanded development real-use suite keeps time to report and clean up", () => {
   const runner = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
-  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 50 \* 60_000;/);
+  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 60 \* 60_000;/);
   assert.doesNotMatch(runner, /REAL_USE_SUITE_TIMEOUT_MS = 20 \* 60_000/);
   assert.match(runner, /}, REAL_USE_SUITE_TIMEOUT_MS\);/);
-  assert.match(job("development-canary"), /timeout-minutes: 60/);
+  assert.match(job("development-canary"), /timeout-minutes: 75/);
+  assert.match(job("development-canary"), /role-duration-seconds: 4500/);
 });
 
 test("the SSM tunnel outlives the real-use suite it serves", () => {

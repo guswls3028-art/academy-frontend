@@ -379,7 +379,7 @@ jobs:
   development-canary:
     name: Same-artifact isolated development real-use
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 75
     needs: [quality-check, hangul-companion-check, candidate-preview, backend-readiness]
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
@@ -417,7 +417,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::809466760795:role/academy-frontend-development-qa
           role-session-name: academy-fe-qa-${{ github.run_id }}-${{ github.run_attempt }}
-          role-duration-seconds: 3600
+          role-duration-seconds: 4500
           aws-region: ap-northeast-2
           allowed-account-ids: 809466760795
       - name: Run required real-use and exact cleanup-zero gate
