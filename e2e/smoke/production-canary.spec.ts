@@ -1,9 +1,37 @@
-import { type Page } from "@playwright/test";
+import { type Page, type TestInfo } from "@playwright/test";
 import { test, expect } from "../fixtures/strictTest";
 import { getApiBaseUrl, getBaseUrl, loginViaUI } from "../helpers/auth";
+import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
 
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const API_BASE = getApiBaseUrl().replace(/\/+$/, "");
+
+async function verifyGuideJourney(
+  page: Page,
+  testInfo: TestInfo,
+  guide: { scope: string; path: string; topic: string; title: string; target: string; targetTitle: string },
+) {
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const guideUrl = `${BASE}${guide.path}?topic=${guide.topic}`;
+    await page.goto(guideUrl, { waitUntil: "domcontentloaded" });
+    const article = page.getByRole("article", { name: guide.title });
+    await expect(article.getByRole("heading", { name: "여기까지 확인하면 완료" })).toBeVisible();
+    const action = article.getByRole("link", { name: `${guide.title} 화면 열기` });
+    await assertInteractiveSurface(page, article, action);
+    await testInfo.attach(`live-guide-${guide.scope}-${width}`, {
+      body: await article.screenshot(), contentType: "image/png",
+    });
+    await action.click();
+    await expect(page).toHaveURL(`${BASE}${guide.target}`);
+    await expect(page.getByRole("heading", { name: guide.targetTitle, exact: true })).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(guideUrl);
+    await expect(article).toBeVisible();
+    await page.reload();
+    await expect(article).toBeVisible();
+  }
+}
 
 function trackedHostnames(): Set<string> {
   const hosts = new Set<string>();
@@ -84,7 +112,7 @@ test.describe("Production canary", () => {
     guard.assertClean();
   });
 
-  test("admin dashboard login survives production edge", async ({ page }) => {
+  test("admin dashboard login survives production edge", async ({ page }, testInfo) => {
     test.setTimeout(420_000);
     const guard = attachProductionRequestGuard(page);
 
@@ -120,10 +148,18 @@ test.describe("Production canary", () => {
     await expect(page.getByRole("button", { name: /^강의목록 \(\d+\)$/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "강의 추가", exact: true })).toBeEnabled();
     await expect(page.locator("text=Not Found")).not.toBeVisible();
+    await verifyGuideJourney(page, testInfo, {
+      scope: "admin", path: "/workspace/guide", topic: "homework",
+      title: "과제 배정·제출 확인·평가", target: "/workspace/lectures", targetTitle: "강의 관리",
+    });
+    await verifyGuideJourney(page, testInfo, {
+      scope: "teacher", path: "/workspace/mobile/guide", topic: "attendance",
+      title: "모바일 출결 입력", target: "/workspace/mobile/classes", targetTitle: "강의 관리",
+    });
     guard.assertClean();
   });
 
-  test("student dashboard login survives production edge", async ({ page }) => {
+  test("student dashboard login survives production edge", async ({ page }, testInfo) => {
     test.setTimeout(420_000);
     const guard = attachProductionRequestGuard(page);
 
@@ -132,6 +168,10 @@ test.describe("Production canary", () => {
     expect(page.url()).toMatch(/\/student(\/|$)/);
     await expect(page.locator("[class*='tabbar'], [class*='tab-bar'], nav, main").first()).toBeVisible();
     await expect(page.locator("text=Not Found")).not.toBeVisible();
+    await verifyGuideJourney(page, testInfo, {
+      scope: "student", path: "/student/guide", topic: "submit-assignment",
+      title: "과제 사진·동영상 제출", target: "/student/submit/assignment", targetTitle: "과제 제출",
+    });
     guard.assertClean();
   });
 });
