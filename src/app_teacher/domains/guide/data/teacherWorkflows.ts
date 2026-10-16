@@ -225,10 +225,10 @@ export const TEACHER_WORKFLOWS: GuideArticle[] = [
     path: "/workspace/mobile/tools",
     prerequisites: ["문제 풀이에 사용할 원본을 준비합니다.","AI 결과는 선생님이 검토한 뒤 활용합니다."],
     steps: [
-      { title: "도구 선택", description: "도구에서 검색·분류로 문제 풀이 또는 타이머를 찾습니다." },
+      { title: "도구 선택", description: "도구에서 검색·분류로 AI 풀이·해설(Beta) 또는 타이머를 찾습니다. Beta의 이용 조건과 안내를 먼저 확인합니다." },
       { title: "문제 풀이 요청", description: "문제 풀이 화면의 원본 입력과 옵션을 확인해 요청하고 작업 상태를 기다립니다." },
       { title: "답변 검토", description: "원본 문제와 풀이·정답을 비교하고 잘못된 내용은 그대로 학생에게 배포하지 않습니다." },
-      { title: "타이머와 자료 활용", description: "타이머는 시간을 설정해 시작·정지·초기화를 확인합니다. 자료 업로드·정리는 기능 찾기의 저장소로 이어갑니다." },
+      { title: "타이머와 자료 활용", description: "타이머에서 시작·정지·재개를 누르고 진행 중에는 랩을 기록합니다. 정지한 뒤 리셋할 수 있습니다. 자료 업로드·정리는 기능 찾기의 저장소로 이어갑니다." },
     ],
     completion: ["도구 결과와 원본을 대조했습니다.","필요한 수업 자료를 다시 찾을 수 있습니다."],
     troubleshooting: [
