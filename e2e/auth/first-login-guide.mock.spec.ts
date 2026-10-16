@@ -505,6 +505,9 @@ test.describe("업무별 AtoZ 가이드", () => {
     for (const width of [390, 1366]) {
       test(`${scenario.role} ${width}px 검색 → 안내 → 복구 → 새로고침 → 다음 안내`, async ({ page }, testInfo) => {
         await page.setViewportSize({ width, height: 900 });
+        if (scenario.role === "student" && width === 390) {
+          await page.addInitScript(() => localStorage.setItem("hakwonplus:student-theme-mode", "dark"));
+        }
         await stubAuthenticatedApp(page, { role: scenario.role, required: false });
         await gotoAndSettle(page, BASE + scenario.path);
         const search = page.getByRole("searchbox", { name: "어떤 작업이 필요한가요?" });
