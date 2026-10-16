@@ -8,7 +8,7 @@ import { gotoAndSettle } from "../helpers/wait";
 import {
   assertNoHorizontalOverflow, cleanupQaFamily, expectApi,
   installQaStudentParentBoundary, loginAdmin, loginApi, loginThroughUi,
-  QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_BASE, QA_TENANT, reloadStudentApp,
+  QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_API, QA_BASE, QA_TENANT, reloadStudentApp,
   type QaFamily, type QaStudent,
 } from "../helpers/qaStudentParentScenario";
 
@@ -41,7 +41,26 @@ async function staffLogin(page: Page) {
   await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`);
   await page.getByTestId("login-username").fill(QA_ADMIN_USER);
   await page.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
-  await page.getByTestId("login-submit").click();
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const submitted = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return response.request().method() === "POST" && url.pathname === "/api/v1/token/" && !url.search
+        && [new URL(QA_API).origin, "https://api.hakwonplus.com"].includes(url.origin);
+    }, { timeout: 60_000 });
+    await page.getByTestId("login-submit").click();
+    const response = await submitted;
+    const retryAfter = response.headers()["retry-after"] ?? "";
+    const retrySeconds = /^\d+$/.test(retryAfter) ? Number(retryAfter) : Number.NaN;
+    // The API and UI setup logins share the real 10-per-5-minute account limit.
+    // Only a measured throttle with its full server wait permits one UI retry.
+    if (attempt === 0 && response.status() === 429 && Number.isSafeInteger(retrySeconds)
+      && retrySeconds > 0 && retrySeconds <= 300) {
+      await new Promise((resolve) => setTimeout(resolve, (retrySeconds + 1) * 1000));
+      continue;
+    }
+    expect(response.status(), `POST /api/v1/token/ returned ${response.status()}: synthetic staff UI login`).toBe(200);
+    break;
+  }
   await expect(page).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
   await acknowledgeInitialAccountPromptsIfVisible(page);
 }
