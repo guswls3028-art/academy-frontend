@@ -93,7 +93,7 @@ test.describe("선생님 업데이트 안내의 도움말 이동", () => {
     await page.keyboard.press("Enter");
     const dialog = page.getByRole("dialog", { name: "선생님 가이드북" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("button", { name: /대시보드에서 시작/ })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /오늘 수업과 학생/ })).toBeVisible();
     await expect(dialog.getByRole("button", { name: "선생님 전체 가이드" })).toBeVisible();
     const updateLink = dialog.getByRole("link", { name: /새 제품 업데이트.*패치노트 보기/ });
     await expect(updateLink).toHaveAttribute("href", /\/promo\/updates#latest-update$/);
