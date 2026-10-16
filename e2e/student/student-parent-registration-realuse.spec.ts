@@ -6,7 +6,7 @@ import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLogin
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
 import {
-  api, assertNoHorizontalOverflow, cleanupQaFamily, expectApi,
+  assertNoHorizontalOverflow, cleanupQaFamily, expectApi,
   installQaStudentParentBoundary, loginAdmin, loginApi, loginThroughUi,
   QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_BASE, QA_TENANT, reloadStudentApp,
   type QaFamily, type QaStudent,
@@ -262,7 +262,6 @@ test("public signup: submitted Parent choice survives changed defaults and staff
   const settings = "/students/registration_requests/settings/";
   const original = await expectApi<{ auto_approve: boolean }>(request, "GET", settings, admin);
   const row = fixture("signup");
-  let pendingId: number | undefined;
   const context = await page.context().browser()!.newContext({ viewport: { width: 390, height: 900 }, serviceWorkers: "block" });
   const signupPage = await context.newPage();
   const signupBoundary = await installQaStudentParentBoundary(signupPage, request);
@@ -288,7 +287,7 @@ test("public signup: submitted Parent choice survives changed defaults and staff
     await confirmation.getByRole("button", { name: "가입 신청", exact: true }).click();
     const response = await submitted;
     expect(response.status()).toBe(201);
-    pendingId = (await response.json() as { id: number }).id;
+    const registrationId = (await response.json() as { id: number }).id;
     // A later academy policy cannot rewrite the pending applicant's explicit choice.
     await expectApi(request, "PATCH", policyPath, admin, { parent_mode: "random" });
     await gotoAndSettle(page, `${QA_BASE}/workspace/students/requests`);
@@ -296,7 +295,7 @@ test("public signup: submitted Parent choice survives changed defaults and staff
     await page.getByRole("dialog").filter({ hasText: "가입 신청 상세" }).getByRole("button", { name: "승인", exact: true }).click();
     const approval = page.getByRole("alertdialog", { name: "가입 승인 최종 확인" });
     await expect(approval.locator('input[type="radio"]')).toHaveCount(0);
-    const approved = page.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith(`/registration_requests/${pendingId}/approve/`));
+    const approved = page.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith(`/registration_requests/${registrationId}/approve/`));
     await approval.getByRole("button", { name: "승인", exact: true }).click();
     const approvalResponse = await approved;
     expect(approvalResponse.status()).toBe(200);
@@ -306,13 +305,15 @@ test("public signup: submitted Parent choice survives changed defaults and staff
     await page.reload({ waitUntil: "domcontentloaded" });
     await proveFamily(page, request, family);
     await probe(student.id, "verify", "fixed");
+    const history = await expectApi<{ status: string; student: number }>(request, "GET", `/students/registration_requests/${registrationId}/`, admin);
+    expect(history).toMatchObject({ status: "approved", student: student.id });
     signupBoundary.assertClean(); signupGuards.assertZeroDefects();
   } finally {
-    if (pendingId) {
-      const removed = await api(request, "DELETE", `/students/registration_requests/${pendingId}/`, admin);
-      expect([204, 404]).toContain(removed.status);
+    // Registration history is immutable; the exact disposable-tenant Cleanup removes it.
+    try {
+      await expectApi(request, "PATCH", settings, admin, { auto_approve: original.auto_approve });
+    } finally {
+      await context.close();
     }
-    await expectApi(request, "PATCH", settings, admin, { auto_approve: original.auto_approve });
-    await context.close();
   }
 });

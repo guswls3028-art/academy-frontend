@@ -683,6 +683,12 @@ import/database 등의 고정 코드로 구분한다. 목록 밖의 이름은 �
 등록 fixture의 학생 이름은 소유권 prefix를 유지하면서 실제 50자 제한을 지킨다.
 긴 시나리오 이름은 고정 hash suffix로 구분하여 기존 학부모 연결 두 사례가
 서로 다른 50자 이름으로 저장·재조회·인증되는 경계도 검증한다.
+공개 가입의 수동 승인 시나리오는 학생·학부모 로그인과 AccountProbe 뒤 승인 이력의
+`approved` 상태·정확한 학생 연결을 다시 조회한다. 가입 이력은
+[backend의 이력 보존 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/student-core.md)에 따라
+일반 DELETE로 지우지 않는다. 시나리오 종료 시 가입 설정을 복원하고 브라우저를
+닫으며, 합성 가입 이력은 실행 전체의 exact disposable-tenant Cleanup에서 제거한다.
+양쪽 QA tenant/user·R2·프로세스 잔여 0 확인과 37건 전체 통과 조건은 유지한다.
 `release-context-observation/v1`은 worker 내부의 고유 `observationOrdinal`, 선택적인
 browser `contextOrdinal`, 증가하는 `snapshotSequence`로 한 관측의 교체 snapshot을
 식별한다. assertion 전 snapshot은 실패해도 먼저 남기고, native context 종료나
