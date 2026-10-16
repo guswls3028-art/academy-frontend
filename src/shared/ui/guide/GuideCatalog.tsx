@@ -35,14 +35,16 @@ export default function GuideCatalog({ articles, title, description, scope, mode
   });
 
   function updateFilters(key: "q" | "category", value: string) {
-    const next = new URLSearchParams(params);
+    // BrowserRouter updates the address before React commits the new filters.
+    // A quick search → topic selection must preserve that latest address.
+    const next = new URLSearchParams(window.location.search);
     if (value) next.set(key, value); else next.delete(key);
     next.delete("topic");
     setParams(next, { replace: true, preventScrollReset: true });
   }
 
   function openArticle(id: string) {
-    const next = new URLSearchParams(params);
+    const next = new URLSearchParams(window.location.search);
     if (!visible.some((article) => article.id === id)) {
       next.delete("q");
       next.delete("category");
@@ -52,13 +54,13 @@ export default function GuideCatalog({ articles, title, description, scope, mode
   }
 
   function resetFilters() {
-    const next = new URLSearchParams(params);
+    const next = new URLSearchParams(window.location.search);
     next.delete("q"); next.delete("category"); next.delete("topic");
     setParams(next, { preventScrollReset: true });
   }
 
   function closeArticle() {
-    const next = new URLSearchParams(params);
+    const next = new URLSearchParams(window.location.search);
     next.delete("topic");
     returnToContents.current = true;
     setParams(next, { preventScrollReset: true });
