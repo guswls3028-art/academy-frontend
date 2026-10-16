@@ -18,6 +18,8 @@ export default function GuideCatalog({ articles, title, description, scope }: Pr
   const category = categories.includes(requestedCategory) ? requestedCategory : "";
   const topic = params.get("topic");
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const contentsRef = useRef<HTMLElement>(null);
+  const returnToContents = useRef(false);
   const previousTopic = useRef(topic);
   const selected = articles.find((article) => article.id === topic);
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
@@ -54,7 +56,19 @@ export default function GuideCatalog({ articles, title, description, scope }: Pr
     setParams(next, { preventScrollReset: true });
   }
 
+  function closeArticle() {
+    const next = new URLSearchParams(params);
+    next.delete("topic");
+    returnToContents.current = true;
+    setParams(next, { preventScrollReset: true });
+  }
+
   useEffect(() => {
+    if (returnToContents.current && !topic) {
+      contentsRef.current?.focus({ preventScroll: true });
+      contentsRef.current?.scrollIntoView({ block: "start" });
+      returnToContents.current = false;
+    }
     if (topic !== previousTopic.current && selected) {
       headingRef.current?.focus({ preventScroll: true });
       headingRef.current?.scrollIntoView({ block: "start" });
@@ -99,7 +113,7 @@ export default function GuideCatalog({ articles, title, description, scope }: Pr
       )}
 
       <div className={styles.workspace}>
-        <nav className={styles.contents} aria-label="주요 기능 이용 순서">
+        <nav className={styles.contents} aria-label="주요 기능 이용 순서" ref={contentsRef} tabIndex={-1}>
           <p className={styles.count} role="status">{visible.length}개 안내 · 위에서부터 따라오세요</p>
           {visible.length === 0 ? (
             <div className={styles.empty}>
@@ -119,6 +133,7 @@ export default function GuideCatalog({ articles, title, description, scope }: Pr
 
         {selected ? (
           <article className={styles.article} aria-labelledby={`guide-topic-${selected.id}`} key={selected.id}>
+            <button type="button" className={styles.backToContents} onClick={closeArticle}>← 목차로 돌아가기</button>
             <p className={styles.eyebrow}>{selected.category} · {selected.audience}</p>
             <h2 id={`guide-topic-${selected.id}`} ref={headingRef} tabIndex={-1}>{selected.title}</h2>
             <p className={styles.summary}>{selected.summary}</p>

@@ -533,6 +533,10 @@ test.describe("업무별 AtoZ 가이드", () => {
         await page.goBack();
         await expect(page.getByRole("article").getByRole("heading", { level: 2 })).toHaveText(scenario.title);
         await expect(search).toHaveValue(scenario.query);
+        await page.getByRole("button", { name: "목차로 돌아가기" }).click();
+        await expect(page.getByRole("navigation", { name: "주요 기능 이용 순서" })).toBeFocused();
+        await expect(search).toHaveValue(scenario.query);
+        await expect(page.getByRole("article")).toHaveCount(0);
       });
     }
   }
