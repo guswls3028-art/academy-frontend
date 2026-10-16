@@ -42,13 +42,14 @@ async function staffLogin(page: Page) {
   await page.getByTestId("login-username").fill(QA_ADMIN_USER);
   await page.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const submitted = page.waitForResponse((response) => {
-      const url = new URL(response.url());
-      return response.request().method() === "POST" && url.pathname === "/api/v1/token/" && !url.search
-        && [new URL(QA_API).origin, "https://api.hakwonplus.com"].includes(url.origin);
-    }, { timeout: 60_000 });
-    await page.getByTestId("login-submit").click();
-    const response = await submitted;
+    const [response] = await Promise.all([
+      page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return response.request().method() === "POST" && url.pathname === "/api/v1/token/" && !url.search
+          && [new URL(QA_API).origin, "https://api.hakwonplus.com"].includes(url.origin);
+      }, { timeout: 60_000 }),
+      page.getByTestId("login-submit").click(),
+    ]);
     const retryAfter = response.headers()["retry-after"] ?? "";
     const retrySeconds = /^\d+$/.test(retryAfter) ? Number(retryAfter) : Number.NaN;
     // The API and UI setup logins share the real 10-per-5-minute account limit.

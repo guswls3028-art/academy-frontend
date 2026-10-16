@@ -3493,6 +3493,12 @@ test("registration staff UI login preserves the real throttle window and rejects
           assert.ok(pending, "response observation must precede the UI click");
           const reply = replies[state.clicks++];
           assert.ok(reply, "unexpected extra login submission");
+          if (reply.clickError) {
+            const reject = pending.reject;
+            queueMicrotask(() => reject(new Error("response closed after click failure")));
+            pending = null;
+            throw new Error("login button unavailable");
+          }
           if (reply instanceof Error) pending.reject(reply);
           else {
             if (reply[0] === 200 && redirect) state.url = "/workspace";
@@ -3558,8 +3564,12 @@ test("registration staff UI login preserves the real throttle window and rejects
     assert.equal(h.state.clicks, 2);
     assert.deepEqual(h.state.waits, [3000]);
   });
-  await t.test("transport timeout and missing workspace navigation cannot be retried into success", async () => {
-    for (const [replies, redirect, error] of [[[new Error("response timed out")], true, /response timed out/], [[[200]], false, /workspace entry remains mandatory/]]) {
+  await t.test("transport, click and workspace failures cannot be retried into success", async () => {
+    for (const [replies, redirect, error] of [
+      [[new Error("response timed out")], true, /response timed out/],
+      [[{ clickError: true }], true, /login button unavailable/],
+      [[[200]], false, /workspace entry remains mandatory/],
+    ]) {
       const h = harness(replies, redirect);
       await assert.rejects(h.run(), error);
       assert.equal(h.state.clicks, 1);
