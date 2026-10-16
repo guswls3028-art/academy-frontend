@@ -1,7 +1,53 @@
+import { readFileSync } from "node:fs";
+import { onRequestGet } from "../functions/[[path]].ts";
+import { PROMO_META } from "../src/app_promo/domains/landing/promoMeta";
 import { expect, test } from "./fixtures/strictTest";
 import { ADMIN_WORKFLOWS } from "../src/shared/ui/guide/content/adminWorkflows";
 import { TEACHER_WORKFLOWS } from "../src/shared/ui/guide/content/teacherWorkflows";
 import { STUDENT_WORKFLOWS } from "../src/shared/ui/guide/content/studentWorkflows";
+
+test("Cloudflare public guide supports direct reading URLs and canonical metadata without widening promo routes", async () => {
+  const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("{}", { status: 404 });
+  const documentRequest = (pathname: string) => onRequestGet({
+    request: new Request(`https://hakwonplus.com${pathname}`),
+    env: { ASSETS: { fetch: async () => new Response(indexHtml, {
+      status: 200, headers: { "Content-Type": "text/html; charset=utf-8" },
+    }) } },
+  } as never);
+  try {
+    for (const pathname of [
+      "/promo/guide",
+      "/promo/guide?role=teacher&topic=today&q=%ED%95%99%EC%83%9D",
+    ]) {
+      const response = await documentRequest(pathname);
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain(`<title>${PROMO_META["/promo/guide"].title}</title>`);
+      expect(html).toContain(`<meta name="description" content="${PROMO_META["/promo/guide"].description}" />`);
+      expect(html).toContain(`<meta property="og:title" content="${PROMO_META["/promo/guide"].title}" />`);
+      expect(html).toContain('<link rel="canonical" href="https://hakwonplus.com/promo/guide" />');
+      expect(html).toContain('<meta property="og:url" content="https://hakwonplus.com/promo/guide" />');
+    }
+    const redirect = await documentRequest("/promo/guide/?role=teacher&q=attendance");
+    expect(redirect.status).toBe(308);
+    expect(redirect.headers.get("Location")).toBe("https://hakwonplus.com/promo/guide?role=teacher&q=attendance");
+    const redirected = await documentRequest("/promo/guide?role=teacher&q=attendance");
+    expect(redirected.status).toBe(200);
+    expect(await redirected.text()).toContain('<link rel="canonical" href="https://hakwonplus.com/promo/guide" />');
+    const sitemap = await documentRequest("/sitemap.xml");
+    expect(sitemap.status).toBe(200);
+    const xml = await sitemap.text();
+    expect(xml.match(/<loc>https:\/\/hakwonplus\.com\/promo\/guide<\/loc>/g)).toHaveLength(1);
+    expect(xml).not.toContain("/promo/guide?");
+    for (const pathname of ["/promo/guide/not-a-route", "/promo/not-a-route"]) {
+      expect((await documentRequest(pathname)).status).toBe(404);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const GUIDES = [

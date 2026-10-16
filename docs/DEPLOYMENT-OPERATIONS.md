@@ -437,6 +437,9 @@ ProductUsageEvent/DailyActor 변화 0임을 검사한다. 도메인 설명은 ba
 이는 가이드의 정적 버튼·첫 단계·완료 기준·문제 해결 영역만 캡처하며 계정 헤더,
 전체 화면, trace는 포함하지 않는다. 후속 Playwright 실행이 `test-results/`를 정리하기
 전에 업로드하여 PC/390px 운영 가이드의 시각 확인 증거가 유지된다.
+운영 read-only runner도 PR E2E와 동일하게 Playwright를 `--with-deps chromium`으로
+설치하여 한글 표시에 필요한 시스템 글꼴을 갖춘다. PNG의 한글이 네모로 표시되면
+기능 검증 성공과 구분하여 시각 검증 실패로 취급하고, 글꼴 설치 후 새 증거로 확인한다.
 
 공식 main 배포는 먼저 `backend-readiness`에서 backend의 진행 중인 main release run과
 successful manifest·active development host를 읽는다. 진행 중인 release만 최대
