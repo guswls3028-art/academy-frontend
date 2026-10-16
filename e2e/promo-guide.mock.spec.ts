@@ -30,6 +30,8 @@ for (const width of [1366, 390]) {
       await contents.getByRole("button").filter({ hasText: article.title }).first().press("Enter");
       const body = page.getByRole("article", { name: article.title, exact: true });
       await expect(body).toBeVisible();
+      await expect(page.getByRole("searchbox")).toHaveValue(article.title);
+      expect(new URL(page.url()).searchParams.get("q")).toBe(article.title);
       for (const step of article.steps) {
         await expect(body.getByRole("heading", { name: step.title, exact: true })).toBeVisible();
         await expect(body.getByText(step.description, { exact: true })).toBeVisible();
