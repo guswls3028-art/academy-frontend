@@ -8,9 +8,10 @@ type Props = {
   title: string;
   description: string;
   scope: "admin" | "teacher" | "student";
+  mode?: "app" | "public";
 };
 
-export default function GuideCatalog({ articles, title, description, scope }: Props) {
+export default function GuideCatalog({ articles, title, description, scope, mode = "app" }: Props) {
   const [params, setParams] = useSearchParams();
   const query = params.get("q") ?? "";
   const categories = [...new Set(articles.map((article) => article.category))];
@@ -82,7 +83,7 @@ export default function GuideCatalog({ articles, title, description, scope }: Pr
   }) ?? [];
 
   return (
-    <div className={styles.catalog} data-scope={scope}>
+    <div className={styles.catalog} data-scope={scope} data-mode={mode}>
       <header className={styles.hero}>
         <p className={styles.eyebrow}>사용 가이드 · A to Z</p>
         <h1>{title}</h1>
@@ -107,7 +108,7 @@ export default function GuideCatalog({ articles, title, description, scope }: Pr
 
       {topic && !selected && (
         <div className={styles.empty} role="status">
-          <p>이 안내를 찾을 수 없거나 현재 계정에서 이용할 수 없습니다.</p>
+          <p>{mode === "public" ? "이 안내를 찾을 수 없습니다. 역할을 확인하거나 전체 가이드에서 다시 선택해 주세요." : "이 안내를 찾을 수 없거나 현재 계정에서 이용할 수 없습니다."}</p>
           <button type="button" onClick={resetFilters}>전체 가이드 보기</button>
         </div>
       )}
@@ -137,7 +138,7 @@ export default function GuideCatalog({ articles, title, description, scope }: Pr
             <p className={styles.eyebrow}>{selected.category} · {selected.audience}</p>
             <h2 id={`guide-topic-${selected.id}`} ref={headingRef} tabIndex={-1}>{selected.title}</h2>
             <p className={styles.summary}>{selected.summary}</p>
-            <Link to={selected.path} className={styles.primaryLink}>{selected.title} 화면 열기 <span aria-hidden="true">↗</span></Link>
+            {mode === "app" && <Link to={selected.path} className={styles.primaryLink}>{selected.title} 화면 열기 <span aria-hidden="true">↗</span></Link>}
             <section className={styles.preparation}>
               <h3>시작 전에</h3>
               <ul>{selected.prerequisites.map((item) => <li key={item}>{item}</li>)}</ul>
@@ -164,7 +165,7 @@ export default function GuideCatalog({ articles, title, description, scope }: Pr
                 {nextArticles.map((item) => <button key={item.id} type="button" onClick={() => openArticle(item.id)}>{item.title} →</button>)}
               </section>
             )}
-            <p className={styles.returnHint}>실제 화면을 연 뒤 브라우저의 뒤로가기를 누르면 읽던 안내로 돌아옵니다.</p>
+            <p className={styles.returnHint}>{mode === "public" ? "실제 업무 화면은 가입 후 해당 권한으로 로그인하여 이용합니다. 사용 전 궁금한 점은 상담으로 안내해 드립니다." : "실제 화면을 연 뒤 브라우저의 뒤로가기를 누르면 읽던 안내로 돌아옵니다."}</p>
           </article>
         ) : (
           <section className={styles.welcome} aria-label="가이드 시작 안내">
