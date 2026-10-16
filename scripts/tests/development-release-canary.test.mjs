@@ -3474,3 +3474,107 @@ test("real 307/308 authentication redirects never forward the credential body to
     await Promise.all([foreign, web, api].map((server) => new Promise((resolve) => server.close(resolve))));
   }
 });
+
+test("registration staff UI login preserves the real throttle window and rejects other failures", async (t) => {
+  const source = readFileSync(new URL("../../e2e/student/student-parent-registration-realuse.spec.ts", import.meta.url), "utf8");
+  const body = stripTypeScriptTypes(source.slice(source.indexOf("async function staffLogin("), source.indexOf("async function openRegistration(")));
+  function harness(replies, redirect = true) {
+    const state = { clicks: 0, waits: [], acknowledged: 0, url: "/login/qa-registration" };
+    let pending;
+    const response = (status = 200, retryAfter = "", url = "https://api.hakwonplus.com/api/v1/token/", method = "POST") => ({
+      status: () => status, headers: () => ({ "retry-after": retryAfter }), url: () => url,
+      request: () => ({ method: () => method }),
+    });
+    const page = {
+      getByTestId: (id) => ({
+        fill: async () => assert.ok(["login-username", "login-password"].includes(id)),
+        click: async () => {
+          assert.equal(id, "login-submit");
+          assert.ok(pending, "response observation must precede the UI click");
+          const reply = replies[state.clicks++];
+          assert.ok(reply, "unexpected extra login submission");
+          if (reply.clickError) {
+            const reject = pending.reject;
+            queueMicrotask(() => reject(new Error("response closed after click failure")));
+            pending = null;
+            throw new Error("login button unavailable");
+          }
+          if (reply instanceof Error) pending.reject(reply);
+          else {
+            if (reply[0] === 200 && redirect) state.url = "/workspace";
+            pending.resolve(response(...reply));
+          }
+          pending = null;
+        },
+      }),
+      waitForResponse: (predicate, options) => {
+        assert.equal(options.timeout, 60_000);
+        assert.equal(predicate(response()), true);
+        assert.equal(predicate(response(200, "", "http://127.0.0.1:18000/api/v1/token/")), true);
+        for (const [url, method] of [
+          ["https://foreign.invalid/api/v1/token/", "POST"],
+          ["https://api.hakwonplus.com/api/v1/token/?other=1", "POST"],
+          ["https://api.hakwonplus.com/api/v1/token/refresh/", "POST"],
+          ["https://api.hakwonplus.com/api/v1/token/", "GET"],
+        ]) assert.equal(predicate(response(200, "", url, method)), false);
+        return new Promise((resolve, reject) => { pending = { resolve, reject }; });
+      },
+    };
+    const expectUi = (value, message) => ({
+      toBe: (expected) => assert.equal(value, expected, message),
+      toHaveURL: async (pattern, options) => {
+        assert.equal(value, page);
+        assert.equal(options.timeout, 45_000);
+        assert.match(state.url, pattern, "workspace entry remains mandatory");
+      },
+    });
+    const run = new Function("gotoAndSettle", "QA_BASE", "QA_TENANT", "QA_API", "QA_ADMIN_USER", "QA_ADMIN_PASSWORD",
+      "expect", "acknowledgeInitialAccountPromptsIfVisible", "setTimeout", `${body}; return staffLogin;`)(
+      async () => {}, "http://localhost:4173", "qa-registration", "http://127.0.0.1:18000", "synthetic", "synthetic",
+      expectUi, async () => { state.acknowledged++; }, (resolve, ms) => { state.waits.push(ms); resolve(); });
+    return { state, run: () => run(page) };
+  }
+  await t.test("successful login enters the workspace without waiting or retrying", async () => {
+    const h = harness([[200]]);
+    await h.run();
+    assert.deepEqual(h.state, { clicks: 1, waits: [], acknowledged: 1, url: "/workspace" });
+  });
+  for (const seconds of [124, 300]) await t.test(`429 honors all ${seconds} server seconds before one successful UI retry`, async () => {
+    const h = harness([[429, String(seconds)], [200]]);
+    await h.run();
+    assert.equal(h.state.clicks, 2);
+    assert.deepEqual(h.state.waits, [(seconds + 1) * 1000]);
+    assert.equal(h.state.acknowledged, 1);
+  });
+  for (const status of [401, 403, 500]) await t.test(`${status} is never retried`, async () => {
+    const h = harness([[status, "2"]]);
+    await assert.rejects(h.run(), new RegExp(`POST /api/v1/token/ returned ${status}`));
+    assert.equal(h.state.clicks, 1);
+    assert.deepEqual(h.state.waits, []);
+  });
+  for (const header of ["", "0", "-1", "1.5", "301", "2 seconds"]) await t.test(`invalid Retry-After ${JSON.stringify(header)} fails closed`, async () => {
+    const h = harness([[429, header]]);
+    await assert.rejects(h.run(), /POST \/api\/v1\/token\/ returned 429/);
+    assert.equal(h.state.clicks, 1);
+    assert.deepEqual(h.state.waits, []);
+  });
+  await t.test("a second throttle is a failure with no third submission", async () => {
+    const h = harness([[429, "2"], [429, "2"]]);
+    await assert.rejects(h.run(), /POST \/api\/v1\/token\/ returned 429/);
+    assert.equal(h.state.clicks, 2);
+    assert.deepEqual(h.state.waits, [3000]);
+  });
+  await t.test("transport, click and workspace failures cannot be retried into success", async () => {
+    for (const [replies, redirect, error] of [
+      [[new Error("response timed out")], true, /response timed out/],
+      [[{ clickError: true }], true, /login button unavailable/],
+      [[[200]], false, /workspace entry remains mandatory/],
+    ]) {
+      const h = harness(replies, redirect);
+      await assert.rejects(h.run(), error);
+      assert.equal(h.state.clicks, 1);
+      assert.deepEqual(h.state.waits, []);
+      assert.equal(h.state.acknowledged, 0);
+    }
+  });
+});
