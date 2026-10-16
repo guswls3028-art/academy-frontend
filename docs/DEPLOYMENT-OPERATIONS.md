@@ -404,8 +404,12 @@ release readonly strict browser는 이 exact host/path/SHA-512 mismatch 한 줄�
 
 - 기존 계정의 정확한 `POST /api/v1/token/`, `POST /api/v1/token/refresh/` 인증.
 - `POST /api/v1/students/me/activity/`의 정확한 두 키
-  `{screen_id: "student.dashboard.home", device_class: "desktop"|"tablet"|"mobile"}`.
-  추가 키, 다른 screen/method는 거부한다. 이 요청은 append-only 화면 관측 감사 로그다.
+  `{screen_id, device_class: "desktop"|"tablet"|"mobile"}`. `screen_id`는 운영 canary가
+  실제 방문하는 `student.dashboard.home`, `student.guide.home`,
+  `student.assignment.submit` 세 값만 허용한다. 가이드에서 과제 제출 화면으로 이동하고
+  돌아와 새로고침하는 흐름도 이 동일한 화면 열기 API를 사용한다.
+  추가 키(과제 ID 등), 다른 screen/method와 `/activity/homework-open/`은 거부한다.
+  이 요청은 append-only 화면 관측 감사 로그다.
   인증·관측 attempted/accepted를 각각 보고하며 전체 DB read-only 또는 총 쓰기 0으로
   표현하지 않는다. 진도·출결·성적·완료·결제·발송·product-usage mutation은 허용하지 않는다.
 
@@ -415,6 +419,14 @@ SQL mutation이 `ops_audit_log` INSERT 1건이고 platform push 0,
 ProductUsageEvent/DailyActor 변화 0임을 검사한다. 도메인 설명은 backend의
 `docs/domain/student-support-audit.md`, 환경/IAM 경계는
 `docs/operations/persistent-development-runtime.md`가 소유한다.
+추가된 두 screen도 backend `apps/domains/students/services/activity.py`의 `SCREEN_PRESENTATION`에서
+동일한 `record_student_screen_view` → `_create_activity` 경로를 사용한다.
+허용된 세 화면 × 세 기기, 추가 데이터·다른 화면·다른 tenant·업무 mutation 거부는
+`scripts/tests/development-release-canary.test.mjs`의 canary screen observation 회귀가 검증한다.
+운영 canary 직후 `production-guide-evidence`에는 `live-guide-*.png`만 별도로 보존한다.
+이는 가이드의 정적 버튼·첫 단계·완료 기준·문제 해결 영역만 캡처하며 계정 헤더,
+전체 화면, trace는 포함하지 않는다. 후속 Playwright 실행이 `test-results/`를 정리하기
+전에 업로드하여 PC/390px 운영 가이드의 시각 확인 증거가 유지된다.
 
 공식 main 배포는 먼저 `backend-readiness`에서 backend의 진행 중인 main release run과
 successful manifest·active development host를 읽는다. 진행 중인 release만 최대

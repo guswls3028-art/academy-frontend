@@ -1019,6 +1019,15 @@ jobs:
       - name: Run production canary (login smoke)
         run: pnpm test:e2e:canary --retries=0
 
+      - name: Upload PII-free production guide evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: production-guide-evidence
+          path: test-results/**/live-guide-*.png
+          retention-days: 7
+          if-no-files-found: error
+
       - name: Verify all tenant public screens are open
         run: pnpm verify:tenant-availability
 
