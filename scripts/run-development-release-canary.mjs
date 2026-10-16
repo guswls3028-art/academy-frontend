@@ -26,9 +26,11 @@ const PASSWORD_PARAMETER = "/academy/api/development/ymath-realuse-password";
 // requests, surfacing as unexplained transport failures indistinguishable
 // from a stale-socket drop. 5 minutes of margin covers tunnel startup
 // (before the tests start) and the tests' own teardown (after they finish).
-// The previous 28m36s run failed/skipped two serial OMR cases (10m each).
-// Keep individual assertions/deadlines unchanged; the inventory owns case counts.
-const REAL_USE_SUITE_TIMEOUT_MS = 50 * 60_000;
+// Run 38843507538 completed 36 cases in 39m24s, then the 50min parent
+// deadline interrupted the final video test (17min individual deadline).
+// Reserve the full final-test budget and cleanup time without shortening
+// playback, skipping cases or retrying mutations.
+const REAL_USE_SUITE_TIMEOUT_MS = 60 * 60_000;
 const TUNNEL_TIMEOUT_MS = REAL_USE_SUITE_TIMEOUT_MS + 5 * 60_000;
 const WEB_ORIGIN = "http://localhost:4173";
 const API_ORIGIN = "http://127.0.0.1:18000";
