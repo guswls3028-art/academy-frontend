@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { GuideArticle } from "./types";
 import styles from "./GuideCatalog.module.css";
@@ -24,15 +24,17 @@ export default function GuideCatalog({ articles, title, description, scope, mode
   const previousTopic = useRef(topic);
   const selected = articles.find((article) => article.id === topic);
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  const visible = articles.filter((article) => {
-    if (category && article.category !== category) return false;
-    const searchable = [article.title, article.summary, article.category, article.audience,
+  const searchIndex = useMemo(() => articles.map((article) => ({
+    article,
+    text: [article.title, article.summary, article.category, article.audience,
       ...(article.keywords ?? []), ...article.prerequisites, ...article.completion,
       ...article.steps.flatMap((step) => [step.title, step.description]),
       ...article.troubleshooting.flatMap((step) => [step.title, step.description])]
-      .join(" ").toLocaleLowerCase();
-    return terms.every((term) => searchable.includes(term));
-  });
+      .join(" ").toLocaleLowerCase(),
+  })), [articles]);
+  const visible = searchIndex
+    .filter(({ article, text }) => (!category || article.category === category) && terms.every((term) => text.includes(term)))
+    .map(({ article }) => article);
 
   function updateFilters(key: "q" | "category", value: string) {
     // BrowserRouter updates the address before React commits the new filters.
@@ -168,6 +170,11 @@ export default function GuideCatalog({ articles, title, description, scope, mode
               </section>
             )}
             <p className={styles.returnHint}>{mode === "public" ? "실제 업무 화면은 가입 후 해당 권한으로 로그인하여 이용합니다. 사용 전 궁금한 점은 상담으로 안내해 드립니다." : "실제 화면을 연 뒤 브라우저의 뒤로가기를 누르면 읽던 안내로 돌아옵니다."}</p>
+            {mode === "public" && (
+              <Link to={`/promo/contact?guideRole=${scope}&guideTopic=${encodeURIComponent(selected.id)}`} className={styles.primaryLink}>
+                이 기능 문의하기 <span aria-hidden="true">→</span>
+              </Link>
+            )}
           </article>
         ) : (
           <section className={styles.welcome} aria-label="가이드 시작 안내">

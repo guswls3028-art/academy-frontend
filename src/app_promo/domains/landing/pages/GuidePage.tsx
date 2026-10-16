@@ -1,19 +1,8 @@
 import { Link, useSearchParams } from "react-router";
 import GuideCatalog from "@/shared/ui/guide/GuideCatalog";
-import { ADMIN_WORKFLOWS } from "@/shared/ui/guide/content/adminWorkflows";
-import { STUDENT_WORKFLOWS } from "@/shared/ui/guide/content/studentWorkflows";
-import { TEACHER_WORKFLOWS } from "@/shared/ui/guide/content/teacherWorkflows";
+import { GUIDES, GUIDE_ROLES as ROLES, type GuideRole } from "../promoGuides";
 import CtaSection from "../components/CtaSection";
 import styles from "./GuidePage.module.css";
-
-const GUIDES = {
-  admin: { label: "관리자·선생님", articles: ADMIN_WORKFLOWS },
-  teacher: { label: "직원·강사", articles: TEACHER_WORKFLOWS },
-  student: { label: "학생", articles: STUDENT_WORKFLOWS },
-} as const;
-
-type GuideRole = keyof typeof GUIDES;
-const ROLES: GuideRole[] = ["admin", "teacher", "student"];
 
 export default function GuidePage() {
   const [params, setParams] = useSearchParams();
