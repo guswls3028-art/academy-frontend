@@ -4,7 +4,7 @@
     "topics": [
       "admin/attendance"
     ],
-    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "sourceRevision": "cb5e56176325bde8cc9156fc3fadde1584e0b328",
     "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
     "test": "@guide-recording 차시 출결 입력과 저장 확인",
     "synthetic": true,
@@ -13,8 +13,8 @@
       "height": 900
     },
     "frames": 4,
-    "durationSeconds": 26.6,
-    "folder": "admin-attendance-90f1db7540a8"
+    "durationSeconds": 27.68,
+    "folder": "admin-attendance-3fb37f672430"
   },
   {
     "id": "create-exam",

@@ -62,6 +62,83 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
         await page.getByTestId("login-submit").click();
         await expect(page).toHaveURL(/\/landing\/resources$/, { timeout: 45_000 });
         await acknowledgeInitialAccountPromptsIfVisible(page);
+        if (index) {
+          // The publisher fixture has tenantRole=teacher, unlike QA_ADMIN_USER.
+          // Prove guide access with the real account and the exact release bundle.
+          for (const guide of [
+            { width: 1366, path: "/workspace/guide", title: "출결 입력과 수업 마감", photoWidth: 1366 },
+            { width: 390, path: "/workspace/mobile/guide", title: "모바일 출결 입력", photoWidth: 390 },
+          ]) {
+            await page.setViewportSize({ width: guide.width, height: 900 });
+            if (guide.width === 390) {
+              await page.goto(`${QA_BASE}/workspace/mobile`);
+              await page.getByRole("button", { name: "메뉴", exact: true }).click();
+              const navigation = page.getByRole("navigation", { name: "선생님 메뉴" });
+              const support = navigation.getByRole("button", { name: /^지원/ });
+              if (await support.getAttribute("aria-expanded") !== "true") await support.click();
+              await navigation.getByRole("button", { name: "사용 가이드", exact: true }).click();
+              await expect(page).toHaveURL(`${QA_BASE}/workspace/mobile/guide`);
+            }
+            const guideUrl = `${QA_BASE}${guide.path}?topic=attendance`;
+            await page.goto(guideUrl);
+            const article = page.getByRole("article", { name: guide.title });
+            await expect(article).toBeVisible();
+            const currentUserResponse = page.waitForResponse((response) => response.request().method() === "GET"
+              && new URL(response.url()).pathname === "/api/v1/core/me/");
+            await page.reload();
+            const currentUser = await currentUserResponse;
+            expect(currentUser.status()).toBe(200);
+            expect(await currentUser.json()).toMatchObject({ tenantRole: "teacher", is_staff: true, is_superuser: false });
+            await expect(article).toBeVisible();
+            const media = article.getByRole("region", { name: "화면으로 따라하기" });
+            const photo = media.locator("figure img");
+            const choices = media.getByRole("group", { name: "따라할 화면 선택" }).getByRole("button");
+            await expect(choices).toHaveCount(4);
+            for (const choice of await choices.all()) {
+              await choice.click();
+              await expect(choice).toHaveAttribute("aria-pressed", "true");
+              await photo.scrollIntoViewIfNeeded();
+              await expect.poll(() => photo.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(guide.photoWidth);
+            }
+            await media.getByRole("button", { name: /사진 크게 보기$/ }).click();
+            const dialog = page.getByRole("dialog", { name: /사진 확대$/ });
+            await expect(dialog).toBeVisible();
+            await expect.poll(() => dialog.locator("img").evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(guide.photoWidth);
+            await page.keyboard.press("Escape");
+            await expect(dialog).toBeHidden();
+            const summary = media.locator("summary");
+            await summary.click();
+            const video = media.locator("video");
+            await video.evaluate((element: HTMLVideoElement) => element.scrollIntoView({ block: "center", behavior: "instant" }));
+            await video.evaluate((element: HTMLVideoElement) => element.play());
+            await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).toBeGreaterThan(0.2);
+            await video.evaluate((element: HTMLVideoElement) => { element.currentTime = 5; element.textTracks[0].mode = "hidden"; });
+            await expect.poll(() => video.evaluate((element: HTMLVideoElement) => !element.seeking && element.readyState >= 2 && element.currentTime >= 5)).toBe(true);
+            await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.textTracks[0].cues?.length ?? 0)).toBe(4);
+            await expect(media.getByRole("link", { name: "자막 포함 영상 내려받기 ↓" })).toHaveAttribute("download", /\.mp4$/);
+            const downloading = page.waitForEvent("download");
+            await media.getByRole("link", { name: "자막 포함 영상 내려받기 ↓" }).click();
+            const download = await downloading;
+            expect(await download.failure()).toBeNull();
+            expect(download.suggestedFilename()).toMatch(/\.mp4$/);
+            const downloadedVideo = await readFile((await download.path())!);
+            expect(downloadedVideo.length).toBeGreaterThan(10_000);
+            expect(downloadedVideo.subarray(4, 8).toString()).toBe("ftyp");
+            await video.evaluate((element: HTMLVideoElement) => element.scrollIntoView({ block: "center", behavior: "instant" }));
+            await expect(video).toBeInViewport({ ratio: 1 });
+            await testInfo.attach(`authenticated-teacher-guide-${guide.width}-video`, { body: await video.screenshot(), contentType: "image/png" });
+            await summary.click();
+            await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
+            await page.reload();
+            await expect(page).toHaveURL(guideUrl);
+            await expect(article).toBeVisible();
+            await expect(choices.first()).toHaveAttribute("aria-pressed", "true");
+            await photo.scrollIntoViewIfNeeded();
+            await expect.poll(() => photo.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(guide.photoWidth);
+            await testInfo.attach(`authenticated-teacher-guide-${guide.width}-photo`, { body: await photo.screenshot(), contentType: "image/png" });
+            await assertNoHorizontalOverflow(page);
+          }
+        }
         await page.goto(`${QA_BASE}/landing/resources`);
         await page.getByRole("link", { name: "글 올리기", exact: true }).click();
         await page.getByLabel("분류", { exact: true }).selectOption(index ? "analysis" : "matchup");

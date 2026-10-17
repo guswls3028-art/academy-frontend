@@ -3,35 +3,35 @@
     "title": "차시 출결 입력과 저장 확인",
     "screens": [
       {
-        "src": "/guide-media/admin-attendance-90f1db7540a8/01.jpg",
+        "src": "/guide-media/admin-attendance-3fb37f672430/01.jpg",
         "title": "수업과 학생 명단 확인",
         "description": "해당 강의·차시의 출결을 열고 학생 명단과 수업 날짜를 확인합니다.",
         "alt": "차시 출결 입력과 저장 확인: 수업과 학생 명단 확인. 해당 강의·차시의 출결을 열고 학생 명단과 수업 날짜를 확인합니다."
       },
       {
-        "src": "/guide-media/admin-attendance-90f1db7540a8/02.jpg",
+        "src": "/guide-media/admin-attendance-3fb37f672430/02.jpg",
         "title": "학생의 실제 출결 선택",
         "description": "학생 행에서 현장·지각·결석 등 실제 상태를 누릅니다. 전체출석은 예외 학생을 먼저 확인합니다.",
         "alt": "차시 출결 입력과 저장 확인: 학생의 실제 출결 선택. 학생 행에서 현장·지각·결석 등 실제 상태를 누릅니다. 전체출석은 예외 학생을 먼저 확인합니다."
       },
       {
-        "src": "/guide-media/admin-attendance-90f1db7540a8/03.jpg",
+        "src": "/guide-media/admin-attendance-3fb37f672430/03.jpg",
         "title": "저장된 상태와 집계 확인",
         "description": "선택한 상태와 상단 집계가 바뀌었는지 확인합니다.",
         "alt": "차시 출결 입력과 저장 확인: 저장된 상태와 집계 확인. 선택한 상태와 상단 집계가 바뀌었는지 확인합니다."
       },
       {
-        "src": "/guide-media/admin-attendance-90f1db7540a8/04.jpg",
+        "src": "/guide-media/admin-attendance-3fb37f672430/04.jpg",
         "title": "다시 열어 출결 확인",
         "description": "새로고침 후에도 같은 상태인지 확인합니다. 잘못 입력했다면 현재 상태를 확인하고 정정합니다.",
         "alt": "차시 출결 입력과 저장 확인: 다시 열어 출결 확인. 새로고침 후에도 같은 상태인지 확인합니다. 잘못 입력했다면 현재 상태를 확인하고 정정합니다."
       }
     ],
     "video": {
-      "src": "/guide-media/admin-attendance-90f1db7540a8/walkthrough.mp4",
-      "captions": "/guide-media/admin-attendance-90f1db7540a8/captions.vtt",
-      "poster": "/guide-media/admin-attendance-90f1db7540a8/01.jpg",
-      "duration": "27초"
+      "src": "/guide-media/admin-attendance-3fb37f672430/walkthrough.mp4",
+      "captions": "/guide-media/admin-attendance-3fb37f672430/captions.vtt",
+      "poster": "/guide-media/admin-attendance-3fb37f672430/01.jpg",
+      "duration": "28초"
     }
   },
   "admin/create-exam": {
