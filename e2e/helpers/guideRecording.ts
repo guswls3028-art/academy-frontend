@@ -38,7 +38,7 @@ export async function guideRecording(page: Page, info: TestInfo, options: {
   return {
     async screen(title: string, description: string, target: Locator) {
       await target.waitFor({ state: "visible", timeout: 20_000 });
-      await target.scrollIntoViewIfNeeded();
+      await target.evaluate((element) => element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
       await page.evaluate(() => document.fonts.ready);
       const bounds = await target.boundingBox();
       if (!bounds) throw new Error(`Missing visible recording target: ${title}`);

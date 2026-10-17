@@ -98,6 +98,7 @@
 현재 소스와 합성 fixture만 사용하며 loopback 외의 미처리 요청은 차단하고 API proxy도
 닫힌 포트를 사용한다. 운영 계정·학생 자료·개인정보는 촬영하거나 복제하지 않는다.
 일반 PR에서는 검토된 정적 미디어의 연결·재생을 검사하며 매번 재촬영하지 않는다.
+수동 실행의 `test_filter`에 촬영 테스트 제목을 넣으면 변경된 시연만 촬영할 수 있다.
 촬영 원본 artifact를 재사용해 자막만 조정할 때는 `recording.webm`과 `recording.json`을
 포함한 폴더를 `guide-media-output/`에 두고 `node scripts/package-guide-media.mjs`로
 패키징한다. 기존 FFmpeg/ffprobe와 한글 글꼴이 필요하다. 실제 인코딩 파일의 바이트까지
