@@ -5,8 +5,10 @@ import { expect, test } from "./fixtures/strictTest";
 import { ADMIN_WORKFLOWS } from "../src/shared/ui/guide/content/adminWorkflows";
 import { TEACHER_WORKFLOWS } from "../src/shared/ui/guide/content/teacherWorkflows";
 import { STUDENT_WORKFLOWS } from "../src/shared/ui/guide/content/studentWorkflows";
-import { findGuideMedia } from "../src/shared/ui/guide/guideMediaData";
-import mediaCatalog from "../src/shared/ui/guide/content/guide-media.json";
+import type { GuideMediaSource } from "../src/shared/ui/guide/guideMediaData";
+
+const mediaCatalog = JSON.parse(readFileSync(new URL("../src/shared/ui/guide/content/guide-media.json", import.meta.url), "utf8")) as Record<string, GuideMediaSource>;
+const findGuideMedia = (scope: string, topic: string) => mediaCatalog[`${scope}/${topic}`];
 
 test("Cloudflare public guide supports direct reading URLs and canonical metadata without widening promo routes", async () => {
   const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
