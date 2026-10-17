@@ -587,6 +587,20 @@ export default function SessionAttendancePage({
 
   const filterSlot = (
     <>
+      <Button
+        type="button"
+        intent={sort === "not_arrived" ? "primary" : "secondary"}
+        size="sm"
+        aria-pressed={sort === "not_arrived"}
+        title="미입력·결석 학생을 먼저 표시합니다. 출결을 저장하면 순서가 갱신됩니다."
+        onClick={() => {
+          const nextSort = sort === "not_arrived" ? DEFAULT_ATTENDANCE_SORT : "not_arrived";
+          setSort(nextSort);
+          if (sortStorageKey) setLocalItem(sortStorageKey, nextSort);
+        }}
+      >
+        미도착 우선
+      </Button>
       <span ref={statusTriggerRef}>
         <Button
           type="button"
@@ -794,9 +808,9 @@ export default function SessionAttendancePage({
                     <span className="inline-flex items-center gap-1">이름 <span aria-hidden style={{ fontSize: 10, opacity: sort === "name" || sort === "-name" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "name" ? "▲" : sort === "-name" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
                   <ResizableTh columnKey="status" width={columnWidths.status ?? col.statusBadge} minWidth={isCompactAttendance ? 60 : 520} maxWidth={isCompactAttendance ? 140 : 660} onWidthChange={setColumnWidth} scope="col" className="text-center">
-                    <span className="inline-flex items-center gap-1" title="출결을 바꿔도 학생 명단 순서는 유지됩니다.">
-                      {!isCompactAttendance && <ShieldCheck size={12} aria-hidden />}
-                      {isCompactAttendance ? "상태" : "출결 상태 · 선택해도 명단 순서 유지"}
+                    <span className="inline-flex items-center gap-1" title={sort === "not_arrived" ? "미입력·결석 학생을 먼저 표시하며 출결 저장 후 순서가 갱신됩니다." : "출결을 바꿔도 학생 명단 순서는 유지됩니다."}>
+                      {!isCompactAttendance && sort !== "not_arrived" && <ShieldCheck size={12} aria-hidden />}
+                      {isCompactAttendance ? "상태" : sort === "not_arrived" ? "출결 상태 · 미입력·결석 우선" : "출결 상태 · 선택해도 명단 순서 유지"}
                     </span>
                   </ResizableTh>
                   {isSupplementSession && (

@@ -530,20 +530,18 @@ export default function SessionScoresEntryPage({
 
   const examReviewOverview = useMemo(() => {
     const searchedRows = (data?.rows ?? [])
-      .filter((row) => row.assessment_todo_eligible !== false)
-      .filter((row) => (row.exams?.length ?? 0) > 0 || (row.homeworks?.length ?? 0) > 0)
       .filter((row) => matchesSessionScoreStudentSearch(row.student_name ?? "", searchInput));
     const counts = { all: searchedRows.length, incomplete: 0, pending: 0, resolved: 0 };
-    const visibleEnrollmentIds: number[] = [];
+    const selectableEnrollmentIds: number[] = [];
     for (const row of searchedRows) {
       const kind = getSessionRowExamReviewSummary(row).kind;
       if (kind === "incomplete" || kind === "pending") counts[kind] += 1;
       if (kind === "complete" || kind === "clear") counts.resolved += 1;
-      if (matchesSessionRowExamReviewFilter(row, examReviewFilter)) {
-        visibleEnrollmentIds.push(row.enrollment_id);
+      if (row.assessment_todo_eligible !== false && matchesSessionRowExamReviewFilter(row, examReviewFilter)) {
+        selectableEnrollmentIds.push(row.enrollment_id);
       }
     }
-    return { counts, visibleEnrollmentIds };
+    return { counts, selectableEnrollmentIds };
   }, [data?.rows, examReviewFilter, searchInput]);
 
   const hasSubjectiveExam = useMemo(
@@ -1233,11 +1231,11 @@ export default function SessionScoresEntryPage({
                 size="sm"
                 leftIcon={<Users size={ICON_FOR_BUTTON.sm} />}
                 onClick={() => {
-                  setSelectedEnrollmentIds(examReviewOverview.visibleEnrollmentIds);
-                  feedback.success(`현재 결과 ${examReviewOverview.visibleEnrollmentIds.length}명을 선택했습니다.`);
+                  setSelectedEnrollmentIds(examReviewOverview.selectableEnrollmentIds);
+                  feedback.success(`현재 결과의 평가 대상 ${examReviewOverview.selectableEnrollmentIds.length}명을 선택했습니다.`);
                 }}
-                disabled={isEditMode || examReviewOverview.visibleEnrollmentIds.length === 0}
-                title={isEditMode ? "점수를 저장하고 잠근 뒤 선택할 수 있습니다." : "검색과 오답 필터에 보이는 학생만 선택합니다."}
+                disabled={isEditMode || examReviewOverview.selectableEnrollmentIds.length === 0}
+                title={isEditMode ? "점수를 저장하고 잠근 뒤 선택할 수 있습니다." : "현재 결과에서 평가 대상 학생만 선택합니다. 결석 학생은 제외됩니다."}
               >
                 현재 결과 선택
               </Button>

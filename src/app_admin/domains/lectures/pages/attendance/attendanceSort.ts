@@ -1,7 +1,7 @@
 import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
 export const DEFAULT_ATTENDANCE_SORT = "name";
-const ATTENDANCE_SORT_VALUES = ["name", "-name", "parent_phone", "-parent_phone", "phone", "-phone"] as const;
+const ATTENDANCE_SORT_VALUES = ["name", "-name", "not_arrived", "parent_phone", "-parent_phone", "phone", "-phone"] as const;
 export type AttendanceSort = typeof ATTENDANCE_SORT_VALUES[number];
 export type AttendanceSortColumn = "name" | "parent_phone" | "phone";
 
