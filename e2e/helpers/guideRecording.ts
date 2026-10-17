@@ -58,16 +58,22 @@ export async function guideRecording(page: Page, info: TestInfo, options: {
       screens.push({ file, title, description, alt: `${options.title}: ${title}. ${description}`, at: (Date.now() - started) / 1000 });
       await page.screenshot({ path: resolve(directory, file), type: "jpeg", quality: 88, animations: "disabled" });
       // eslint-disable-next-line no-restricted-syntax -- Intentional readable dwell in an authored tutorial, not a test synchronization delay.
-      await page.waitForTimeout(2400);
+      await page.waitForTimeout(Math.max(4000, Math.min(9000, (title.length + description.length) * 90)));
       await page.evaluate(() => document.getElementById("guide-recording-focus")?.remove());
     },
     async finish() {
       if (screens.length < 2) throw new Error("A tutorial must show an action and its result.");
-      const video = await page.video()?.path();
+      const video = page.video();
       if (!video) throw new Error("Guide capture must record a video.");
+      const viewport = page.viewportSize();
+      const finishedAt = (Date.now() - started) / 1000;
+      // Playwright relocates temporary videos at test teardown. Finalize and own a stable copy first.
+      await page.context().close();
+      const videoPath = resolve(directory, "recording.webm");
+      await video.saveAs(videoPath);
       await writeFile(resolve(directory, "recording.json"), JSON.stringify({
         ...options, sourceRevision: process.env.GITHUB_SHA ?? "local", test: info.title,
-        viewport: page.viewportSize(), synthetic: true, video, screens, finishedAt: (Date.now() - started) / 1000,
+        viewport, synthetic: true, video: videoPath, screens, finishedAt,
       }, null, 2));
     },
   };
