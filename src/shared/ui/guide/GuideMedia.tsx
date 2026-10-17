@@ -1,16 +1,6 @@
 import { useRef, useState } from "react";
-import mediaCatalog from "./content/guide-media.json";
+import type { GuideMediaSource } from "./guideMediaData";
 import styles from "./GuideMedia.module.css";
-
-export type GuideMediaSource = {
-  title: string;
-  screens: { src: string; title: string; description: string; alt: string }[];
-  video?: { src: string; captions: string; poster: string; duration: string };
-};
-
-export function findGuideMedia(scope: string, topic: string): GuideMediaSource | undefined {
-  return (mediaCatalog as Record<string, GuideMediaSource>)[`${scope}/${topic}`];
-}
 
 export default function GuideMedia({ media }: { media: GuideMediaSource }) {
   const [current, setCurrent] = useState(0);

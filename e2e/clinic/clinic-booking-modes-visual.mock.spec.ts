@@ -1,8 +1,37 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { guideRecording } from "../helpers/guideRecording";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+
+if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
+  test.describe("학생 클리닉 예약 시연", () => {
+    test.use({ viewport: { width: 390, height: 844 }, video: { mode: "on", size: { width: 390, height: 844 } } });
+    test("@guide-recording 학생 클리닉 예약", async ({ page }, info) => {
+      const recording = await guideRecording(page, info, { id: "student-clinic", title: "학생 클리닉 시간 선택과 예약", topics: ["student/check-clinic"] });
+      const requests: Array<Record<string, unknown>> = [];
+      const { date } = await installApi(page, "student", requests);
+      await page.goto(`${BASE}/student/clinic`);
+      const day = page.getByTestId(`clinic-calendar-day-${date}`);
+      await recording.screen("예약할 날짜 선택", "클리닉 달력에서 학원이 열어 둔 날짜를 선택합니다.", day);
+      await day.click();
+      const choose = page.getByRole("button", { name: "아래에서 시간 선택" });
+      await recording.screen("운영 일정 확인", "클리닉 장소와 운영 시간을 확인하고 아래에서 시간 선택을 누릅니다.", choose);
+      await choose.click();
+      const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
+      await selection.getByRole("button", { name: "21:00 시작, 잔여 5자리" }).click();
+      await selection.getByRole("button", { name: "익일 00:00 종료, 총 3시간" }).click();
+      await recording.screen("실제 이용 시간 선택", "자유지정은 등원·하원 시간을 고릅니다. 자정을 넘는 일정은 익일 표시까지 확인합니다.", selection);
+      await selection.getByRole("button", { name: "이 일정 예약하기" }).click();
+      await expect.poll(() => requests.length).toBe(1);
+      await page.reload();
+      const booking = page.getByText(/21:00/).first();
+      await recording.screen("예약 내역 다시 확인", "새로고침 뒤 예약 내역의 날짜·시간·상태를 확인합니다. 학원 설정에 따라 확정 전 승인이 필요할 수 있습니다.", booking);
+      await recording.finish();
+    });
+  });
+}
 
 function fakeJwt(role: "admin" | "teacher" | "student"): string {
   const payload = Buffer.from(JSON.stringify({

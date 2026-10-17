@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { GuideArticle } from "./types";
-import GuideMedia, { findGuideMedia } from "./GuideMedia";
+import GuideMedia from "./GuideMedia";
+import { findGuideMedia } from "./guideMediaData";
 import styles from "./GuideCatalog.module.css";
 
 type Props = {
@@ -132,7 +133,9 @@ export default function GuideCatalog({ articles, title, description, scope, mode
               aria-current={article.id === topic ? "step" : undefined}
               onClick={() => openArticle(article.id)}>
               <span className={styles.number}>{String(articles.indexOf(article) + 1).padStart(2, "0")}</span>
-              <span className={styles.topicText}><strong>{article.title}</strong><span>{article.summary}</span></span>
+              <span className={styles.topicText}><strong>{article.title}</strong><span>{article.summary}</span>
+                {findGuideMedia(scope, article.id) && <span className={styles.mediaLabel}>사진·영상으로 따라하기</span>}
+              </span>
               <span aria-hidden="true">→</span>
             </button>
           ))}

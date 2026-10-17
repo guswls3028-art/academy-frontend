@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
+import { guideRecording } from "../helpers/guideRecording";
 import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
@@ -9,6 +10,34 @@ const ENROLLMENT_ID = 901;
 const DONE_SUBMISSION_ID = 1801;
 const NOID_SUBMISSION_ID = 1802;
 const QUESTION_IDS = [1001, 1002] as const;
+
+if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
+  test("@guide-recording 시험 문항별 직접 채점", async ({ page }, info) => {
+    const recording = await guideRecording(page, info, { id: "manual-grading", title: "시험 문항별 직접 채점", topics: ["admin/grade-exam"] });
+    const state = await installApi(page);
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+    const tab = page.getByRole("tab", { name: "채점·결과", exact: true });
+    await recording.screen("대상 시험 확인", "해당 차시에서 채점할 시험을 확인하고 채점·결과를 엽니다.", tab);
+    await tab.click();
+    const row = page.getByRole("row").filter({ hasText: "김학생" });
+    const cells = row.locator("[data-manual-grade-cell]");
+    await expect(cells).toHaveCount(2);
+    await recording.screen("학생과 문항 확인", "대상 학생 행에서 문항별 정오를 입력합니다. 이 예시는 정오 방식이며 점수 방식은 배점 안에서 점수를 입력합니다.", row);
+    await cells.nth(0).press("o");
+    await recording.screen("미입력 문항 확인", "정답은 O, 오답은 X로 입력합니다. 빈칸이 남아 있으면 미저장 안내를 확인하고 행을 완성합니다.", page.getByRole("status", { name: "정오 자동 저장 상태" }));
+    await cells.nth(1).press("x");
+    const saved = page.getByRole("status", { name: "정오 자동 저장 상태" });
+    await expect(saved).toContainText("저장됨");
+    await recording.screen("저장됨 확인", "입력 뒤 저장됨 표시를 확인합니다. 저장 중에는 화면을 닫지 않습니다.", saved);
+    await expect.poll(() => state.postedRows.length).toBe(1);
+    await page.reload();
+    await tab.click();
+    await expect(row.getByRole("button", { name: "O" })).toHaveCount(1);
+    await expect(row.getByRole("button", { name: "X" })).toHaveCount(1);
+    await recording.screen("다시 열어 결과 확인", "시험을 다시 열어 학생의 문항별 결과가 유지되는지 확인합니다.", row);
+    await recording.finish();
+  });
+}
 
 function isLocalBase(value: string): boolean {
   try {

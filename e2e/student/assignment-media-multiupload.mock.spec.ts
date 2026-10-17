@@ -1,10 +1,45 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { guideRecording } from "../helpers/guideRecording";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const HOMEWORK_ID = 8501;
 const ENROLLMENT_ID = 8601;
+
+if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
+  test.describe("과제 제출 시연", () => {
+    test.use({ viewport: { width: 390, height: 844 }, video: { mode: "on", size: { width: 390, height: 844 } } });
+    test("@guide-recording 학생 과제 사진 제출", async ({ page }, info) => {
+      const recording = await guideRecording(page, info, { id: "student-assignment", title: "학생 과제 사진 제출", topics: ["student/submit-assignment"] });
+      const state = await installApi(page);
+      const paper = await page.context().newPage();
+      await paper.setViewportSize({ width: 640, height: 800 });
+      await paper.setContent('<html lang="ko"><body style="margin:60px;font:24px sans-serif;color:#24364b"><p>과제 제출 예시</p><h1>도형 풀이</h1><hr><p>1. 삼각형의 넓이를 구하시오.</p><svg width="400" height="240"><path d="M40 210 L340 210 L210 30 Z" fill="#eaf2ff" stroke="#2563eb" stroke-width="4"/><text x="170" y="238">밑변 10 cm</text></svg><p>넓이 = 밑변 × 높이 ÷ 2</p><p>= 10 × 8 ÷ 2 = 40 cm²</p></body></html>');
+      const sample = await paper.screenshot({ type: "png" });
+      await paper.close();
+      await page.goto(`${BASE}/student/submit/assignment`);
+      const target = page.getByRole("button", { name: /도형 풀이 인증/ });
+      await recording.screen("제출할 과제 선택", "과제·시험 제목과 강의·차시를 확인하고 제출할 항목을 누릅니다.", target);
+      await target.click();
+      await recording.screen("기존 제출 확인", "이미 올린 파일과 추가 제출 가능 상태를 먼저 확인합니다.", page.getByText("기존 제출.jpg", { exact: true }));
+      await page.locator('input[type="file"]').setInputFiles([
+        { name: "도형-풀이-1.png", mimeType: "image/png", buffer: sample },
+        { name: "도형-풀이-2.png", mimeType: "image/png", buffer: sample },
+      ]);
+      await recording.screen("파일과 미리보기 확인", "사진·동영상을 고른 뒤 파일명·미리보기·파일 수가 맞는지 확인합니다.", page.getByRole("region", { name: "이번에 제출할 파일" }));
+      const submit = page.getByRole("button", { name: "파일 2개 제출하기" });
+      await recording.screen("선택한 파일 제출", "파일 제출 버튼을 누르고 파일별 완료·실패 표시를 확인합니다.", submit);
+      await submit.click();
+      await recording.screen("제출 완료 확인", "모두 제출했다는 안내를 확인합니다. 일부만 실패하면 성공 파일을 유지하고 실패한 파일만 다시 제출합니다.", page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true }));
+      expect(state.getUploadAttempts()).toBe(2);
+      await page.reload();
+      await target.click();
+      await recording.screen("다시 열어 파일 확인", "제출한 파일이 남아 있는지 확인합니다. 파일 제출 완료와 선생님의 평가 완료는 다릅니다.", page.getByText("도형-풀이-2.png", { exact: true }));
+      await recording.finish();
+    });
+  });
+}
 
 test.use({ serviceWorkers: "block" });
 

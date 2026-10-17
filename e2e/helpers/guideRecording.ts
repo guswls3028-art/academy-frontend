@@ -24,6 +24,8 @@ export async function guideRecording(page: Page, info: TestInfo, options: {
   await page.addInitScript(() => {
     document.addEventListener("pointerdown", (event) => {
       const marker = document.createElement("span");
+      document.querySelectorAll("[data-guide-recording-pointer]").forEach((item) => item.remove());
+      marker.dataset.guideRecordingPointer = "true";
       Object.assign(marker.style, {
         position: "fixed", left: `${event.clientX - 16}px`, top: `${event.clientY - 16}px`,
         width: "32px", height: "32px", border: "3px solid #f97316", borderRadius: "50%",
@@ -35,12 +37,13 @@ export async function guideRecording(page: Page, info: TestInfo, options: {
   });
   return {
     async screen(title: string, description: string, target: Locator) {
-      await target.waitFor({ state: "visible" });
+      await target.waitFor({ state: "visible", timeout: 20_000 });
       await target.scrollIntoViewIfNeeded();
       await page.evaluate(() => document.fonts.ready);
       const bounds = await target.boundingBox();
       if (!bounds) throw new Error(`Missing visible recording target: ${title}`);
       await page.evaluate((box) => {
+        document.querySelectorAll("[data-guide-recording-pointer]").forEach((item) => item.remove());
         document.getElementById("guide-recording-focus")?.remove();
         const marker = document.createElement("div");
         marker.id = "guide-recording-focus";

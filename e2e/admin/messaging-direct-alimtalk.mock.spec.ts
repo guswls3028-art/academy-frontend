@@ -1,10 +1,36 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { guideRecording } from "../helpers/guideRecording";
 import { gotoAndSettle } from "../helpers/wait";
 import { realMessagingSkipReason } from "../helpers/safety";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5214").replace(/\/+$/, "");
+
+if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
+  test("@guide-recording 알림톡 대상부터 결과까지", async ({ page }, info) => {
+    const recording = await guideRecording(page, info, { id: "send-alimtalk", title: "알림톡 대상부터 결과까지", topics: ["admin/send-message"] });
+    const state = await installMocks(page);
+    await gotoAndSettle(page, `${BASE}/workspace/students/home?compose=alimtalk`);
+    const recipient = page.getByRole("checkbox", { name: "김알림 선택" });
+    await recording.screen("발송 대상 선택", "학생 메뉴에서 대상자를 선택합니다. 이 시연은 예시이며 실제 메시지가 발송되지 않습니다.", recipient);
+    await recipient.check();
+    await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
+    const message = page.getByRole("textbox", { name: "안내문", exact: true });
+    await recording.screen("승인 양식과 내용 확인", "승인된 양식과 대상·수신자를 확인합니다. 안내문에는 실제로 전달할 내용만 입력합니다.", message);
+    await page.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
+    const confirmation = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+    await recording.screen("발송 전 마지막 확인", "받는 사람과 최종 문구·요청 건수를 확인한 뒤 발송합니다.", confirmation);
+    await confirmation.getByRole("button", { name: "발송하기", exact: true }).click();
+    const result = page.getByRole("button", { name: "이번 발송 결과 보기", exact: true });
+    await recording.screen("접수 뒤 결과로 이동", "접수는 수신 성공과 다릅니다. 이번 발송 결과 보기를 눌러 대상별 상태를 확인합니다.", result);
+    await result.click();
+    const summary = page.getByRole("region", { name: "이번 발송 접수 요약" });
+    await recording.screen("대상별 최종 상태 확인", "처리 중·성공·실패를 구분합니다. 실패한 대상의 사유를 확인한 뒤 필요한 건만 후속 처리합니다.", summary);
+    expect(state.sends).toHaveLength(2);
+    await recording.finish();
+  });
+}
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
