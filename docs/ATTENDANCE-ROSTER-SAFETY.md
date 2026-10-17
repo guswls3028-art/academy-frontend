@@ -250,6 +250,12 @@
 
 ## 검증
 
+격리 개발의 `student-parent-assessment-realuse.spec.ts`는 실제 출결 API로 준비한
+일회용 학생 2명으로 1366/390px의 미도착 우선 선택·순서·새로고침 복원·해제를
+확인한다. 같은 차시의 테스트 오답에서 결석자의 기존 이력 표시, 전체 인원과 행 수,
+평가 대상만 선택되는 동작과 새로고침을 확인하고 기존 tenant/user cleanup-zero를
+유지한다. API 응답을 mock하지 않으며 아래 route-mock의 실패/복구 검증과 함께 사용한다.
+
 ```powershell
 pnpm typecheck
 pnpm exec eslint src/app_admin/domains/lectures/components/SessionEnrollModal.tsx `

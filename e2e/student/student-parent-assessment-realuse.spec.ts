@@ -3,7 +3,7 @@
  * Runs only in the disposable production-shaped development tenant.
  */
 import { expect, test } from "../fixtures/strictTest";
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 import type { SendPreflightResponse } from "../../src/app_admin/domains/messages/api/messages.api";
 import type { ManualGradeSheet } from "../../src/app_admin/domains/results/api/manualExamGrading";
 import type { ExamsListResponse } from "../../src/app_student/domains/exams/api/exams.api";
@@ -51,6 +51,7 @@ type CreatedState = {
   primaryEnrollmentId?: number;
   enrollmentIds: number[];
   sessionEnrollmentIds: number[];
+  attendanceIds: number[];
   copySessionIds: number[];
   submissionIds: number[];
   messageTemplateId?: number;
@@ -71,6 +72,7 @@ const created: CreatedState = {
   adminAccess: "",
   enrollmentIds: [],
   sessionEnrollmentIds: [],
+  attendanceIds: [],
   copySessionIds: [],
   submissionIds: [],
 };
@@ -132,6 +134,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   }
   // Staff deletion deactivates tenant access; the outer owned-tenant cleanup proves User zero.
   if (created.manualStaffId) await remove("DELETE", `/staffs/${created.manualStaffId}/`);
+  for (const id of created.attendanceIds) await remove("DELETE", `/lectures/attendance/${id}/`);
   for (const id of created.sessionEnrollmentIds) {
     await remove("DELETE", `/enrollments/session-enrollments/${id}/`);
   }
@@ -324,7 +327,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await cleanup(request);
   });
 
-  test("390px 학생·학부모 자녀별 제출·결과·reload/relogin·desktop을 완료한다", async ({ page, request }) => {
+  test("390px 학생·학부모 자녀별 제출·결과·reload/relogin·desktop을 완료한다", async ({ page, request }, testInfo) => {
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
@@ -423,11 +426,79 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
       lectureId: created.lectureId!, sessionId: created.sessionId!, examId: created.examId!,
       examTitle, enrollmentIds: created.enrollmentIds, date: todayKst,
     }, (sessionId) => { created.copySessionIds.push(sessionId); });
+    await verifyAttendancePriorityAndAbsentScores(page, request, admin, created.family, testInfo);
     await verifyEndedCourseTodos(page, request, admin, primary, primaryTokens);
     boundary.assertClean();
     browser.assertZeroDefects();
   });
 });
+
+async function verifyAttendancePriorityAndAbsentScores(
+  parentPage: Page, request: APIRequestContext, admin: QaTokens, family: QaFamily, testInfo: TestInfo,
+): Promise<void> {
+  const [present, absent] = family.students;
+  for (const [student, status] of [[present, "PRESENT"], [absent, "ABSENT"]] as const) {
+    const rows = await expectApi<Array<{ id: number }>>(
+      request, "POST", "/lectures/attendance/bulk_create/", admin.access,
+      { session: created.sessionId, students: [student.id] }, [201],
+    );
+    expect(rows).toHaveLength(1);
+    created.attendanceIds.push(rows[0].id);
+    await expectApi(request, "PATCH", `/lectures/attendance/${rows[0].id}/`, admin.access, { status });
+  }
+  const context = await parentPage.context().browser()!.newContext({ serviceWorkers: "block" });
+  try {
+    const page = await context.newPage();
+    const boundary = await installQaStudentParentBoundary(page, request);
+    const browser = attachStrictBrowserGuards(page);
+    await seedBrowserAuth(page, admin);
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/attendance`);
+      const links = page.locator('tbody a[aria-label$=" 학생 상세 열기"]');
+      const priority = page.getByRole("button", { name: "미도착 우선", exact: true });
+      await expect(links.first()).toHaveAttribute("aria-label", `${present.name} 학생 상세 열기`);
+      await priority.click();
+      await expect(priority).toHaveAttribute("aria-pressed", "true");
+      await expect(links.first()).toHaveAttribute("aria-label", `${absent.name} 학생 상세 열기`);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(priority).toHaveAttribute("aria-pressed", "true");
+      await expect(links.first()).toHaveAttribute("aria-label", `${absent.name} 학생 상세 열기`);
+      await links.first().scrollIntoViewIfNeeded();
+      await assertNoHorizontalOverflow(page);
+      await testInfo.attach(`attendance-priority-realuse-${width}`, {
+        body: await page.screenshot({ fullPage: true }), contentType: "image/png",
+      });
+      await priority.click();
+      await expect(links.first()).toHaveAttribute("aria-label", `${present.name} 학생 상세 열기`);
+
+      await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
+      const summary = page.getByRole("group", { name: "마지막 열 표시" });
+      if (!(await summary.isVisible())) await page.getByRole("button", { name: /표시 옵션/ }).click();
+      await summary.getByRole("button", { name: "테스트 오답", exact: true }).click();
+      const row = page.locator("tbody tr").filter({ hasText: absent.name });
+      await expect(row).toBeVisible();
+      await expect(page.getByRole("group", { name: "테스트 오답 확인 학생 필터" })
+        .getByRole("button", { name: "전체 2명" })).toHaveAttribute("aria-pressed", "true");
+      await expect(page.locator('td[data-col-type="exam-review"]')).toHaveCount(2);
+      await expect(row.getByRole("checkbox", { name: `${absent.name} 선택`, exact: true })).toBeDisabled();
+      await page.getByRole("button", { name: "현재 결과 선택", exact: true }).click();
+      await expect(page.getByRole("checkbox", { name: `${present.name} 선택`, exact: true })).toBeChecked();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(row).toBeVisible();
+      await expect(page.locator('td[data-col-type="exam-review"]')).toHaveCount(2);
+      await row.scrollIntoViewIfNeeded();
+      await assertNoHorizontalOverflow(page);
+      await testInfo.attach(`absent-score-review-realuse-${width}`, {
+        body: await page.screenshot({ fullPage: true }), contentType: "image/png",
+      });
+    }
+    boundary.assertClean();
+    browser.assertZeroDefects();
+  } finally {
+    await context.close();
+  }
+}
 
 async function verifyEndedCourseTodos(
   page: Page, request: APIRequestContext, admin: QaTokens, student: QaStudent, studentTokens: QaTokens,
