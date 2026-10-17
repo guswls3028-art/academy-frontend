@@ -5,6 +5,7 @@
 .videoSection summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 14px; font-weight: 700; }
 .videoSection summary span { color: var(--guide-muted); font-size: 12px; font-weight: 400; }
 .videoSection video { display: block; width: 100%; max-height: 560px; margin-top: 12px; background: #101820; border-radius: 8px; }
+.media .download { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; color: var(--guide-accent); font-size: 13px; text-decoration: underline; }
 .screenChoices { display: flex; gap: 6px; overflow-x: auto; padding: 4px 3px 12px; scrollbar-width: thin; }
 .media .screenChoices button { display: flex; align-items: center; flex: 0 0 auto; gap: 7px; min-height: 44px; max-width: 220px; padding: 8px 12px; border: 1px solid var(--guide-border); border-radius: 8px; background: var(--guide-bg); color: var(--guide-text); font-size: 12px; text-align: left; }
 .screenChoices button span { font-variant-numeric: tabular-nums; font-weight: 700; }

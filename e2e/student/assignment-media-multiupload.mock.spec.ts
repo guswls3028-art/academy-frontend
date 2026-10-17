@@ -8,8 +8,8 @@ const HOMEWORK_ID = 8501;
 const ENROLLMENT_ID = 8601;
 
 if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
+  test.use({ viewport: { width: 390, height: 844 }, video: { mode: "on", size: { width: 390, height: 844 } } });
   test.describe("과제 제출 시연", () => {
-    test.use({ viewport: { width: 390, height: 844 }, video: { mode: "on", size: { width: 390, height: 844 } } });
     test("@guide-recording 학생 과제 사진 제출", async ({ page }, info) => {
       const recording = await guideRecording(page, info, { id: "student-assignment", title: "학생 과제 사진 제출", topics: ["student/submit-assignment"] });
       const state = await installApi(page);

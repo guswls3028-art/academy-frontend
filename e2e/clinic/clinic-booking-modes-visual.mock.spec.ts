@@ -6,8 +6,8 @@ import { guideRecording } from "../helpers/guideRecording";
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
 if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
+  test.use({ viewport: { width: 390, height: 844 }, video: { mode: "on", size: { width: 390, height: 844 } } });
   test.describe("학생 클리닉 예약 시연", () => {
-    test.use({ viewport: { width: 390, height: 844 }, video: { mode: "on", size: { width: 390, height: 844 } } });
     test("@guide-recording 학생 클리닉 예약", async ({ page }, info) => {
       const recording = await guideRecording(page, info, { id: "student-clinic", title: "학생 클리닉 시간 선택과 예약", topics: ["student/check-clinic"] });
       const requests: Array<Record<string, unknown>> = [];

@@ -8,6 +8,7 @@ export default function GuideMedia({ media }: { media: GuideMediaSource }) {
   const [videoFailed, setVideoFailed] = useState(false);
   const [retry, setRetry] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
+  const video = useRef<HTMLVideoElement>(null);
   const screen = media.screens[current];
 
   function selectScreen(index: number) {
@@ -22,7 +23,7 @@ export default function GuideMedia({ media }: { media: GuideMediaSource }) {
         <p>예시 데이터로 촬영한 실제 프로그램 화면입니다.</p>
       </div>
       {media.video && (
-        <details className={styles.videoSection}>
+        <details className={styles.videoSection} onToggle={(event) => { if (!event.currentTarget.open) video.current?.pause(); }}>
           <summary>▶ 짧은 시연 보기 <span>{media.video.duration} · 무음·자막</span></summary>
           {videoFailed ? (
             <div className={styles.failure} role="status">
@@ -31,12 +32,13 @@ export default function GuideMedia({ media }: { media: GuideMediaSource }) {
               <a href={media.video.src} download>영상 파일 내려받기</a>
             </div>
           ) : (
-            <video key={retry} controls playsInline preload="none" poster={media.video.poster}
+            <video ref={video} key={retry} controls playsInline preload="none" poster={media.video.poster}
               aria-label={`${media.title} 시연 영상`} onError={() => setVideoFailed(true)}>
               <source src={media.video.src} type="video/mp4" />
-              <track kind="captions" src={media.video.captions} srcLang="ko" label="한국어 설명" default />
+              <track kind="captions" src={media.video.captions} srcLang="ko" label="한국어 설명" />
             </video>
           )}
+          <a className={styles.download} href={media.video.src} download>자막 포함 영상 내려받기 ↓</a>
         </details>
       )}
       <div className={styles.screenChoices} role="group" aria-label="따라할 화면 선택">

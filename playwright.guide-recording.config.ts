@@ -6,7 +6,7 @@ export default defineConfig({
   testDir: "./e2e", grep: /@guide-recording/,
   testMatch: ["admin/lecture-session-scopes.mock.spec.ts", "teacher/student-create-readback.mock.spec.ts",
     "admin/session-attendance-bulk-safety.mock.spec.ts", "student/assignment-media-multiupload.mock.spec.ts",
-    "teacher/guide-recording.mock.spec.ts", "admin/manual-exam-grading.mock.spec.ts",
+    "teacher/attendance-roster-pages.mock.spec.ts", "admin/manual-exam-grading.mock.spec.ts",
     "admin/messaging-direct-alimtalk.mock.spec.ts", "clinic/clinic-booking-modes-visual.mock.spec.ts"],
   timeout: 120_000, expect: { timeout: 20_000 },
   workers: 1, retries: 0, reporter: [["list"], ["json", { outputFile: "guide-media-output/results.json" }]],
