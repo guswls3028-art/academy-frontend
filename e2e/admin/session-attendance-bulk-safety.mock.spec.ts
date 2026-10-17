@@ -39,6 +39,8 @@ function localJwt(): string {
 
 type MockState = {
   attendanceOrderings: string[];
+  attendanceTableRequests: Array<{ page: number; ordering: string }>;
+  failAttendanceRead: boolean;
   attendancePageRequests: number[];
   incompleteAttendancePage: boolean;
   studentPageRequests: number[];
@@ -127,6 +129,10 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
     if (path === "/lectures/attendance/" && method === "GET") {
       const ordering = url.searchParams.get("ordering") || "name";
       state.attendanceOrderings.push(ordering);
+      if (url.searchParams.get("page_size") === "50") {
+        state.attendanceTableRequests.push({ page: Number(url.searchParams.get("page") || "1"), ordering });
+        if (state.failAttendanceRead) return json({ detail: "출결 목록을 조회하지 못했습니다." }, 503);
+      }
       if (options.attendanceRosterSize) {
         const pageNumber = Number(url.searchParams.get("page") || "1");
         const pageSize = Number(url.searchParams.get("page_size") || "50");
@@ -340,6 +346,8 @@ async function openAttendance(page: Page, state: MockState, options: MockOptions
 function createState(overrides: Partial<MockState> = {}): MockState {
   return {
     attendanceOrderings: [],
+    attendanceTableRequests: [],
+    failAttendanceRead: false,
     attendancePageRequests: [],
     incompleteAttendancePage: false,
     studentPageRequests: [],
@@ -432,6 +440,57 @@ test("이전 상태순 설정은 이름순으로 복구하고 출결 저장 뒤�
 });
 
 for (const width of [1366, 390]) {
+  test(`출결 정렬 조회와 저장 후 재조회 실패를 같은 조건으로 복구한다 (${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = createState();
+    await openAttendance(page, state, { includePresentStudent: true });
+    const toggle = page.getByRole("button", { name: "미도착 우선", exact: true });
+    const studentLinks = page.locator('tbody a[aria-label$=" 학생 상세 열기"]');
+    state.failAttendanceRead = true;
+    await toggle.click();
+    const error = page.getByText("출결 데이터를 불러올 수 없습니다.", { exact: true });
+    await expect(error).toBeVisible();
+    await expect(page.getByText("이 차시에 수강생이 없습니다.", { exact: true })).toHaveCount(0);
+    await expect(studentLinks).toHaveCount(0);
+    state.failAttendanceRead = false;
+    await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
+
+    state.failAttendanceRead = true;
+    if (width === 390) {
+      await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
+      await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
+    } else {
+      await page.getByRole("button", { name: "결석학생 현장 상태로 변경" }).click();
+    }
+    await expect.poll(() => state.attendanceStatusUpdates).toEqual([{ id: 502, status: "PRESENT" }]);
+    await expect(error).toBeVisible();
+    await expect(studentLinks).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`attendance-refresh-error-${width}.png`), fullPage: true });
+    state.failAttendanceRead = false;
+    await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "미입력학생 학생 상세 열기");
+    await expect(studentLinks.nth(2)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
+    expect(state.attendanceStatusUpdates).toHaveLength(1);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(studentLinks.nth(2)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test(`뒤쪽 페이지에서 정렬을 바꾸면 첫 페이지만 조회한다 (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = createState();
+    await openAttendance(page, state, { attendanceRosterSize: 51 });
+    await page.getByRole("button", { name: "2", exact: true }).click();
+    await expect(page.locator('tbody a[aria-label="이도윤 학생 상세 열기"]')).toBeVisible();
+    state.attendanceTableRequests.length = 0;
+    await page.getByRole("button", { name: "미도착 우선", exact: true }).click();
+    await expect(page.locator('tbody a[aria-label="보관학생0 학생 상세 열기"]')).toBeVisible();
+    expect(state.attendanceTableRequests).toEqual([{ page: 1, ordering: "not_arrived" }]);
+  });
+
   test(`미도착 우선 선택은 저장되고 출결 실패 복구 후 전체 명단 순서를 갱신한다 (${width}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const state = createState();
