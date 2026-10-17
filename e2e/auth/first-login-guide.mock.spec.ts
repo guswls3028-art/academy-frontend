@@ -526,7 +526,7 @@ test.describe("업무별 AtoZ 가이드", () => {
         await expect(page).toHaveURL(new RegExp(`topic=${scenario.topic}`));
         await expect(article.getByRole("heading", { name: "시작 전에", exact: true })).toBeVisible();
         await expect(article.getByRole("heading", { name: "여기까지 확인하면 완료", exact: true })).toBeVisible();
-        const recovery = article.locator("details").first();
+        const recovery = article.locator("section").filter({ hasText: "막혔을 때" }).locator("details").first();
         await recovery.locator("summary").click();
         await expect(recovery.locator("p")).toBeVisible();
         const action = article.getByRole("link", { name: scenario.title + " 화면 열기" });

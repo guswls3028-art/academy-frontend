@@ -18,27 +18,20 @@ for (const directory of await readdir(root, { withFileTypes: true })) {
   const source = join(root, directory.name);
   const recording = JSON.parse(await readFile(join(source, "recording.json"), "utf8"));
   if (!recording.synthetic || recording.screens.length < 2 || !/^[a-z0-9-]+$/.test(recording.id)) throw new Error("Invalid guide recording");
-  const hash = createHash("sha256");
-  hash.update(await readFile(new URL(import.meta.url)));
-  hash.update(JSON.stringify(recording.screens));
-  for (const screen of recording.screens) hash.update(await readFile(join(source, screen.file)));
-  hash.update(await readFile(recording.video));
-  const assetFolder = `${recording.id}-${hash.digest("hex").slice(0, 12)}`;
-  const output = join(publicRoot, assetFolder);
-  await mkdir(output, { recursive: true });
-  for (const screen of recording.screens) await cp(join(source, screen.file), join(output, screen.file));
-  const videoPath = join(output, "walkthrough.mp4");
-  const duration = Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", recording.video], { encoding: "utf8" }).trim());
+  const rawVideo = join(source, "recording.webm");
+  const videoPath = join(source, "walkthrough.mp4");
+  const duration = Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", rawVideo], { encoding: "utf8" }).trim());
   if (!Number.isFinite(duration) || duration < 5) throw new Error("Recording video is incomplete");
   const captions = recording.screens.map((screen, index) => {
     const from = index === 0 ? 0 : screen.at;
     const to = recording.screens[index + 1]?.at ?? duration;
     return `${stamp(from)} --> ${stamp(to)}\n${index + 1}. ${text(screen.title)}\n${text(screen.description)}\n`;
   }).join("\n");
-  await writeFile(join(output, "captions.vtt"), `WEBVTT\n\n${captions}`, "utf8");
+  await writeFile(join(source, "captions.vtt"), `WEBVTT\n\n${captions}`, "utf8");
   // Keep the explanation outside the application pixels so it cannot cover Save or Next.
   const { width, height } = recording.viewport;
-  const captionHeight = width < 500 ? 140 : 110;
+  const captionHeight = width < 500 ? 170 : 140;
+  const captionFont = process.platform === "win32" ? "Malgun Gothic" : "Noto Sans CJK KR";
   const assTime = (seconds) => stamp(seconds).replace(/^0/, "").slice(0, -1);
   const assText = (value) => text(value).replace(/[{}\\]/g, " ").replace(/\r?\n/g, " ");
   const events = recording.screens.map((screen, index) => {
@@ -47,12 +40,22 @@ for (const directory of await readdir(root, { withFileTypes: true })) {
     return `Dialogue: 0,${assTime(from)},${assTime(to)},Default,,0,0,0,,${index + 1}. ${assText(screen.title)}\\N${assText(screen.description)}`;
   }).join("\n");
   const subtitlePath = join(source, "captions.ass");
-  await writeFile(subtitlePath, `[Script Info]\nScriptType: v4.00+\nPlayResX: ${width}\nPlayResY: ${height + captionHeight}\nWrapStyle: 0\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Noto Sans CJK KR,${width < 500 ? 17 : 24},&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,20,20,14,1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n${events}\n`);
-  const subtitleFilterPath = subtitlePath.replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
-  execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", recording.video,
-    "-vf", `pad=iw:ih+${captionHeight}:0:0:color=0x101820,subtitles='${subtitleFilterPath}'`,
+  await writeFile(subtitlePath, `[Script Info]\nScriptType: v4.00+\nPlayResX: ${width}\nPlayResY: ${height + captionHeight}\nWrapStyle: 0\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,${captionFont},${width < 500 ? 24 : 32},&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,0,2,20,20,14,1\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n${events}\n`);
+  execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", rawVideo,
+    "-vf", `pad=iw:ih+${captionHeight}:0:0:color=0x101820,subtitles=captions.ass`,
     "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "27", "-pix_fmt", "yuv420p",
-    "-movflags", "+faststart", videoPath], { stdio: "inherit" });
+    "-movflags", "+faststart", videoPath], { cwd: source, stdio: "inherit" });
+  const packagerSha256 = createHash("sha256").update(await readFile(new URL(import.meta.url))).digest("hex");
+  const hash = createHash("sha256").update(packagerSha256).update(JSON.stringify(recording.screens));
+  for (const screen of recording.screens) hash.update(await readFile(join(source, screen.file)));
+  hash.update(await readFile(videoPath));
+  hash.update(captions);
+  const assetFolder = `${recording.id}-${hash.digest("hex").slice(0, 12)}`;
+  const output = join(publicRoot, assetFolder);
+  await mkdir(output, { recursive: true });
+  for (const file of [...recording.screens.map((screen) => screen.file), "walkthrough.mp4", "captions.vtt"]) {
+    await cp(join(source, file), join(output, file));
+  }
   // Keep a frame with the longest explanation in the review artifact, outside shipped assets.
   const longest = recording.screens.reduce((current, screen) => screen.description.length > current.description.length ? screen : current);
   execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-ss", String(Math.min(duration - 0.1, longest.at + 0.5)),
@@ -67,7 +70,7 @@ for (const directory of await readdir(root, { withFileTypes: true })) {
     if (manifest[topic]) throw new Error(`Duplicate media topic: ${topic}`);
     manifest[topic] = media;
   }
-  provenance.push({ id: recording.id, topics: recording.topics, sourceRevision: recording.sourceRevision, test: recording.test, synthetic: true,
+  provenance.push({ id: recording.id, topics: recording.topics, sourceRevision: recording.sourceRevision, packagerSha256, test: recording.test, synthetic: true,
     viewport: recording.viewport, frames: recording.screens.length, durationSeconds: duration, folder: assetFolder });
 }
 if (provenance.length === 0) throw new Error("No completed guide recording");

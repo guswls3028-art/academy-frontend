@@ -5,6 +5,8 @@ import { expect, test } from "./fixtures/strictTest";
 import { ADMIN_WORKFLOWS } from "../src/shared/ui/guide/content/adminWorkflows";
 import { TEACHER_WORKFLOWS } from "../src/shared/ui/guide/content/teacherWorkflows";
 import { STUDENT_WORKFLOWS } from "../src/shared/ui/guide/content/studentWorkflows";
+import { findGuideMedia } from "../src/shared/ui/guide/guideMediaData";
+import mediaCatalog from "../src/shared/ui/guide/content/guide-media.json";
 
 test("Cloudflare public guide supports direct reading URLs and canonical metadata without widening promo routes", async () => {
   const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
@@ -50,6 +52,27 @@ test("Cloudflare public guide supports direct reading URLs and canonical metadat
 });
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+
+test("Cloudflare guide videos preserve byte ranges and missing media never returns an app shell", async () => {
+  const request = new Request("https://hakwonplus.com/guide-media/example/walkthrough.mp4", { headers: { Range: "bytes=0-3" } });
+  const partial = await onRequestGet({ request, env: { ASSETS: { fetch: async (incoming: Request) => {
+    expect(incoming.headers.get("Range")).toBe("bytes=0-3");
+    return new Response("ftyp", { status: 206, headers: { "Content-Type": "video/mp4", "Content-Range": "bytes 0-3/100", "Accept-Ranges": "bytes" } });
+  } } } } as never);
+  expect(partial.status).toBe(206);
+  expect(partial.headers.get("Content-Range")).toBe("bytes 0-3/100");
+  expect(await partial.text()).toBe("ftyp");
+  for (const [file, mime] of [["walkthrough.mp4", "video/mp4"], ["captions.vtt", "text/vtt; charset=utf-8"]]) {
+    const missing = await onRequestGet({
+      request: new Request(`https://hakwonplus.com/guide-media/missing/${file}`),
+      env: { ASSETS: { fetch: async () => new Response("<html>SPA fallback</html>", { headers: { "Content-Type": "text/html" } }) } },
+    } as never);
+    expect(missing.status).toBe(404);
+    expect(missing.headers.get("Content-Type")).toBe(mime);
+    expect(missing.headers.get("Cache-Control")).toContain("no-store");
+    expect(await missing.text()).not.toContain("<html>");
+  }
+});
 const GUIDES = [
   { role: "admin", label: "관리자·선생님", articles: ADMIN_WORKFLOWS },
   { role: "teacher", label: "직원·강사", articles: TEACHER_WORKFLOWS },
@@ -60,6 +83,122 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/v1/core/program/**", (route) => route.fulfill({
     json: { tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true },
   }));
+});
+
+test("published guide media has complete local files and known role/topic owners", async () => {
+  const owners = Object.fromEntries(GUIDES.map((guide) => [guide.role, guide.articles.map((item) => item.id)]));
+  expect(Object.keys(mediaCatalog).length).toBeGreaterThanOrEqual(11);
+  for (const key of Object.keys(mediaCatalog)) {
+    const [role, topic] = key.split("/");
+    expect(owners[role]).toContain(topic);
+    const media = findGuideMedia(role, topic)!;
+    expect(media.screens.length).toBeGreaterThanOrEqual(2);
+    expect(media.video).toBeDefined();
+    for (const screen of media.screens) {
+      expect(screen.alt).toContain(screen.title);
+      const bytes = readFileSync(new URL(`../public${screen.src}`, import.meta.url));
+      expect(bytes.subarray(0, 2).toString("hex")).toBe("ffd8");
+    }
+    const bytes = readFileSync(new URL(`../public${media.video!.src}`, import.meta.url));
+    expect(bytes.subarray(4, 8).toString()).toBe("ftyp");
+    expect(bytes.length).toBeLessThan(25 * 1024 * 1024);
+    const captions = readFileSync(new URL(`../public${media.video!.captions}`, import.meta.url), "utf8");
+    expect(captions).toMatch(/^WEBVTT/);
+    for (const screen of media.screens) expect(captions).toContain(screen.title);
+  }
+});
+
+for (const width of [1366, 390]) {
+  for (const { role, topic } of [
+    { role: "admin", topic: "register-student" },
+    { role: "teacher", topic: "attendance" },
+    { role: "student", topic: "submit-assignment" },
+  ]) {
+    test(`visual guide ${role} supports photos, captions, downloads and reload at ${width}px`, async ({ page }, info) => {
+      const media = findGuideMedia(role, topic)!;
+      expect(media).toBeDefined();
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${BASE}/promo/guide?role=${role}&topic=${topic}`);
+      const viewer = page.getByRole("region", { name: "화면으로 따라하기" });
+      await expect(viewer).toBeVisible();
+      const photo = viewer.locator("figure img");
+      await photo.scrollIntoViewIfNeeded();
+      await expect.poll(() => photo.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBeGreaterThan(0);
+      await expect(viewer.getByRole("button", { name: "← 이전 화면", exact: true })).toBeDisabled();
+      await viewer.getByRole("button", { name: "다음 화면 →", exact: true }).click();
+      await expect(viewer.locator("figcaption")).toContainText(media.screens[1].title);
+      const enlarge = viewer.getByRole("button", { name: `${media.screens[1].title} 사진 크게 보기` });
+      await enlarge.click();
+      const dialog = page.getByRole("dialog", { name: `${media.screens[1].title} 사진 확대` });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("link", { name: "사진 파일 내려받기" })).toHaveAttribute("download", `${media.title} - 2 ${media.screens[1].title}.jpg`);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy();
+      await info.attach(`guide-photo-${role}-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+      await expect(enlarge).toBeFocused();
+      await viewer.locator("summary").click();
+      const video = viewer.locator("video");
+      await video.evaluate((node: HTMLVideoElement) => node.play());
+      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(0.2);
+      await expect(video).toHaveAttribute("controls", "");
+      expect(await video.evaluate((node: HTMLVideoElement) => node.videoHeight)).toBeGreaterThan(0);
+      await video.scrollIntoViewIfNeeded();
+      await info.attach(`guide-video-${role}-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+      await expect(video.locator("track")).toHaveAttribute("src", media.video!.captions);
+      await video.evaluate((node: HTMLVideoElement) => { node.textTracks[0].mode = "hidden"; });
+      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.textTracks[0].cues?.length ?? 0)).toBe(media.screens.length);
+      const download = page.waitForEvent("download");
+      await viewer.getByRole("link", { name: "자막 포함 영상 내려받기 ↓" }).click();
+      expect((await download).suggestedFilename()).toBe(`${media.title}.mp4`);
+      await viewer.locator("summary").click();
+      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.paused)).toBe(true);
+      await page.reload();
+      expect(new URL(page.url()).searchParams.get("topic")).toBe(topic);
+      await expect(viewer.locator("figcaption")).toContainText(media.screens[0].title);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBeTruthy();
+      await viewer.scrollIntoViewIfNeeded();
+      await info.attach(`guide-media-${role}-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+    });
+  }
+}
+
+test("visual guide opens the original photo when native dialog is unavailable", async ({ page, context }) => {
+  await page.addInitScript(() => Object.defineProperty(HTMLDialogElement.prototype, "showModal", { value: undefined }));
+  const media = findGuideMedia("teacher", "attendance")!;
+  await page.goto(`${BASE}/promo/guide?role=teacher&topic=attendance`);
+  await expect(page.getByRole("dialog")).toBeHidden();
+  const opened = context.waitForEvent("page");
+  await page.getByRole("button", { name: `${media.screens[0].title} 사진 크게 보기` }).click();
+  const original = await opened;
+  await expect(original).toHaveURL(`${BASE}${media.screens[0].src}`);
+  await original.close();
+  await expect(page.getByRole("region", { name: "화면으로 따라하기" })).toBeVisible();
+});
+
+test("visual guide keeps written instructions and recovers failed image and video requests", async ({ page }) => {
+  const media = findGuideMedia("admin", "register-student")!;
+  let failImage = true;
+  let failVideo = true;
+  await page.route(`**${media.screens[0].src}`, (route) => failImage
+    ? route.fulfill({ status: 503, body: "Temporarily unavailable" }) : route.continue());
+  await page.route(`**${media.video!.src}`, (route) => failVideo
+    ? route.fulfill({ status: 503, body: "Temporarily unavailable" }) : route.continue());
+  await page.goto(`${BASE}/promo/guide?topic=register-student`);
+  const viewer = page.getByRole("region", { name: "화면으로 따라하기" });
+  await viewer.scrollIntoViewIfNeeded();
+  await expect(viewer.getByText(/사진을 불러오지 못했습니다/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "순서대로 따라하기", exact: true })).toBeVisible();
+  failImage = false;
+  await viewer.getByRole("button", { name: "사진 다시 불러오기" }).click();
+  await expect.poll(() => viewer.locator("figure img").evaluate((node: HTMLImageElement) => node.naturalWidth)).toBeGreaterThan(0);
+  await viewer.locator("summary").click();
+  await viewer.locator("video").evaluate((node: HTMLVideoElement) => { node.preload = "auto"; node.load(); });
+  await expect(viewer.getByText(/영상을 불러오지 못했습니다/)).toBeVisible();
+  failVideo = false;
+  await viewer.getByRole("button", { name: "영상 다시 불러오기" }).click();
+  await viewer.locator("video").evaluate((node: HTMLVideoElement) => node.play());
+  await expect.poll(() => viewer.locator("video").evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(0.2);
 });
 
 for (const width of [1366, 390]) {

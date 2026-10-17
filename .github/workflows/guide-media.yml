@@ -2,13 +2,6 @@ name: Guide media authoring
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - "e2e/helpers/guideRecording.ts"
-      - "playwright.guide-recording.config.ts"
-      - "scripts/package-guide-media.mjs"
-      - ".github/workflows/guide-media.yml"
 
 permissions:
   contents: read
