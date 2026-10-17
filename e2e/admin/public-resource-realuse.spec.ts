@@ -83,13 +83,18 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
             await page.goto(guideUrl);
             const article = page.getByRole("article", { name: guide.title });
             await expect(article).toBeVisible();
+            // The public board does not mount ProtectedRoute's first-login prompts.
+            // Complete them on the first workspace visit before using its controls.
+            await acknowledgeInitialAccountPromptsIfVisible(page);
             const currentUserResponse = page.waitForResponse((response) => response.request().method() === "GET"
               && new URL(response.url()).pathname === "/api/v1/core/me/");
             await page.reload();
             const currentUser = await currentUserResponse;
             expect(currentUser.status()).toBe(200);
-            expect(await currentUser.json()).toMatchObject({ tenantRole: "teacher", is_staff: true, is_superuser: false });
+            expect(await currentUser.json()).toMatchObject({ tenantRole: "teacher", is_staff: true, is_superuser: false, first_login_guide_required: false });
             await expect(article).toBeVisible();
+            await expect(page.getByRole("dialog", { name: "계정 안내" })).toBeHidden();
+            await expect(page.getByRole("dialog", { name: "비밀번호 변경 권장" })).toBeHidden();
             const media = article.getByRole("region", { name: "화면으로 따라하기" });
             const photo = media.locator("figure img");
             const choices = media.getByRole("group", { name: "따라할 화면 선택" }).getByRole("button");

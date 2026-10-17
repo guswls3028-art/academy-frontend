@@ -151,8 +151,10 @@ re-export로 유지합니다. [홍보 페이지 전체 가이드](PROMO-GUIDE-AN
 가이드 검증은 제품 업무의 실제 저장·발송·생성 성공을 대신하는 증거가 아닙니다.
 배포와 동일 산출물 검증은 기존 정식 release gates를 따릅니다.
 `e2e/admin/public-resource-realuse.spec.ts`는 격리 개발 환경의 별도 일반 강사
-계정으로 로그인한 뒤 실제 `/core/me/` 응답이 `tenantRole=teacher`,
-`is_superuser=false`임을 확인합니다. 같은 세션으로 PC 관리자 가이드와
+계정으로 로그인한 뒤 보호 화면에서 첫 접속 계정 안내를 확인하고, 새로고침한
+실제 `/core/me/` 응답이 `tenantRole=teacher`, `is_superuser=false`,
+`first_login_guide_required=false`임을 확인합니다. 공개 자료게시판은 해당 안내를
+띄우지 않으므로 게시판 로그인 직후 확인으로 대신하지 않습니다. 같은 세션으로 PC 관리자 가이드와
 390px 모바일 메뉴 → 사용 가이드에서 사진 전환·확대·영상 재생·탐색·자막·
 MP4 다운로드·새로고침을 검증합니다. 이 계정도 기존 일회용 QA tenant의
 cleanup-zero 대상이며 운영 강사의 계정·권한을 변경하지 않습니다.

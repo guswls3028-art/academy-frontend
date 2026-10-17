@@ -959,7 +959,8 @@ function serveArtifact(directory, playbackBoundary, accountBoundary) {
   const playbackProxy = createPlaybackEndProxy(playbackBoundary);
   const accountProbe = createAccountProbeHandler(accountBoundary);
   const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
-    ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp" };
+    ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp",
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".mp4": "video/mp4", ".vtt": "text/vtt; charset=utf-8" };
   const server = http.createServer((request, response) => {
     if (request.url?.startsWith("/__qa__/account-registration")) {
       void accountProbe(request, response);
