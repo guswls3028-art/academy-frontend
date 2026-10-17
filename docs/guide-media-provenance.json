@@ -140,7 +140,7 @@
     "topics": [
       "student/check-clinic"
     ],
-    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "sourceRevision": "7d42bb531897b354be8ed76640815f0753cc210f",
     "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
     "test": "@guide-recording 학생 클리닉 예약",
     "synthetic": true,
@@ -149,8 +149,8 @@
       "height": 844
     },
     "frames": 5,
-    "durationSeconds": 30.16,
-    "folder": "student-clinic-eca94a6250da"
+    "durationSeconds": 30.08,
+    "folder": "student-clinic-b18f153c6adf"
   },
   {
     "id": "teacher-attendance",
