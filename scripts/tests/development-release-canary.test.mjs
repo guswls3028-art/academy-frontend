@@ -539,7 +539,7 @@ test("assessment copy session cleanup follows its owned enrollment deletion and 
   const source = readFileSync(new URL("../../e2e/student/student-parent-assessment-realuse.spec.ts", import.meta.url), "utf8");
   const body = stripTypeScriptTypes(source.slice(source.indexOf("async function cleanup("), source.indexOf("async function seedAssessment(")));
   const calls = [];
-  const created = { adminAccess: "secret-token", submissionIds: [], sessionEnrollmentIds: [], enrollmentIds: [11], copySessionIds: [22] };
+  const created = { adminAccess: "secret-token", submissionIds: [], attendanceIds: [9], sessionEnrollmentIds: [], enrollmentIds: [11], copySessionIds: [22] };
   let enrollmentRemoved = false;
   const api = async (_request, method, endpoint) => {
     calls.push([method, endpoint]);
@@ -550,7 +550,7 @@ test("assessment copy session cleanup follows its owned enrollment deletion and 
   };
   const cleanup = new Function("api", "cleanupQaFamily", "created", `${body}; return cleanup;`)(api, async () => {}, created);
   await cleanup({});
-  assert.deepEqual(calls, [["DELETE", "/enrollments/11/"], ["DELETE", "/lectures/sessions/22/"], ["GET", "/lectures/sessions/22/"]]);
+  assert.deepEqual(calls, [["DELETE", "/lectures/attendance/9/"], ["DELETE", "/enrollments/11/"], ["DELETE", "/lectures/sessions/22/"], ["GET", "/lectures/sessions/22/"]]);
 });
 
 test("transport truth rejects unsafe markers and accepts old snapshots without guessing missing counters", () => {
