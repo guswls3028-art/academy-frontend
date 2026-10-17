@@ -240,7 +240,7 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     await expect.poll(() => evidence.completedVideoIds.length).toBe(2);
     await expect(dialog).toBeHidden();
     const uploaded = page.getByText("함수 개념 정리", { exact: true }).first();
-    await recording.screen("업로드 결과 확인하기", "이 화면은 처리 완료 예시입니다. 실제 파일 전송 중에는 창을 닫지 말고 작업박스에서 진행 상태를 확인합니다.", uploaded);
+    await recording.screen("파일 전송과 처리 확인", "파일 전송과 영상 처리는 별도입니다. 전송 중에는 창을 닫지 말고 작업박스에서 처리 완료를 확인합니다.", uploaded);
     await page.reload();
     await recording.screen("목록에서 다시 확인하기", "새로고침 후 제목과 순서를 확인합니다. 처리 완료 후 재생과 학생별 접근 권한도 확인해 주세요.", uploaded);
     expect(evidence.initRequests.map((item) => item.title)).toEqual(["02 함수 문제풀이", "함수 개념 정리"]);

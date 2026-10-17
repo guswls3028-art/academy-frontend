@@ -23,7 +23,9 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
       await selection.getByRole("button", { name: "21:00 시작, 잔여 5자리" }).click();
       await selection.getByRole("button", { name: "익일 00:00 종료, 총 3시간" }).click();
       await recording.screen("실제 이용 시간 선택", "자유지정은 등원·하원 시간을 고릅니다. 자정을 넘는 일정은 익일 표시까지 확인합니다.", selection);
-      await selection.getByRole("button", { name: "이 일정 예약하기" }).click();
+      const reserve = selection.getByRole("button", { name: "이 일정 예약하기" });
+      await recording.screen("확인 후 예약 신청", "선택한 시간과 안내를 확인하고 아래의 이 일정 예약하기를 누릅니다.", reserve);
+      await reserve.click();
       await expect.poll(() => requests.length).toBe(1);
       await page.reload();
       await page.getByRole("tab", { name: /내 일정/ }).click();

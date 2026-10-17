@@ -27,7 +27,7 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     await recording.screen("접수 뒤 결과로 이동", "접수는 수신 성공과 다릅니다. 이번 발송 결과 보기를 눌러 대상별 상태를 확인합니다.", result);
     await result.click();
     const summary = page.getByRole("region", { name: "이번 발송 접수 요약" });
-    await recording.screen("대상별 최종 상태 확인", "처리 중·성공·실패를 구분합니다. 실패한 대상의 사유를 확인한 뒤 필요한 건만 후속 처리합니다.", summary);
+    await recording.screen("발송 처리 상태 확인", "처리 중이면 잠시 후 새로고침해 확인합니다. 접수와 실제 수신을 구분하고 실패한 대상의 사유를 확인합니다.", summary);
     expect(state.sends).toHaveLength(2);
     await recording.finish();
   });
