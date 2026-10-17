@@ -11,7 +11,7 @@ interface Env {
   ASSETS: Fetcher;
 }
 
-const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest)(\?.*)?$/i;
+const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest|mp4|vtt)(\?.*)?$/i;
 const STATIC_HTML_PATHS = new Set(["/omr-sheet", "/omr-sheet.html"]);
 
 function createCspNonce(): string {
@@ -83,6 +83,8 @@ function contentTypeForPath(pathname: string): string {
   if (/\.(js|mjs)(\?.*)?$/i.test(pathname)) return "application/javascript; charset=utf-8";
   if (/\.css(\?.*)?$/i.test(pathname)) return "text/css; charset=utf-8";
   if (/\.json(\?.*)?$/i.test(pathname)) return "application/json";
+  if (/\.mp4(\?.*)?$/i.test(pathname)) return "video/mp4";
+  if (/\.vtt(\?.*)?$/i.test(pathname)) return "text/vtt; charset=utf-8";
   return "application/octet-stream";
 }
 

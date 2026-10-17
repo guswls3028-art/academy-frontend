@@ -1,11 +1,32 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { guideRecording } from "../helpers/guideRecording";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 9901;
 const SESSION_ID = 9902;
+
+if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
+  test("@guide-recording 차시 출결 입력과 저장 확인", async ({ page }, info) => {
+    const recording = await guideRecording(page, info, { id: "admin-attendance", title: "차시 출결 입력과 저장 확인", topics: ["admin/attendance"] });
+    const state = createState();
+    await openAttendance(page, state);
+    const rail = page.getByRole("group", { name: "결석학생 출결 빠른 선택" });
+    await recording.screen("수업과 학생 명단 확인", "해당 강의·차시의 출결을 열고 학생 명단과 수업 날짜를 확인합니다.", page.locator('[aria-label^="차시 출결 집계:"]'));
+    const late = rail.getByRole("button", { name: "결석학생 지각 상태로 변경" });
+    await recording.screen("학생의 실제 출결 선택", "학생 행에서 현장·지각·결석 등 실제 상태를 누릅니다. 전체출석은 예외 학생을 먼저 확인합니다.", late);
+    await late.click();
+    await expect.poll(() => state.attendanceStatuses[502]).toBe("LATE");
+    await expect(late).toHaveAttribute("aria-pressed", "true");
+    await recording.screen("저장된 상태와 집계 확인", "선택한 상태와 상단 집계가 바뀌었는지 확인합니다.", page.locator('[aria-label^="차시 출결 집계:"]'));
+    await page.reload();
+    await expect(late).toHaveAttribute("aria-pressed", "true");
+    await recording.screen("다시 열어 출결 확인", "새로고침 후에도 같은 상태인지 확인합니다. 잘못 입력했다면 현재 상태를 확인하고 정정합니다.", rail);
+    await recording.finish();
+  });
+}
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");

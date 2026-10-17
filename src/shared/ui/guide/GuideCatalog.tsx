@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { GuideArticle } from "./types";
+import GuideMedia from "./GuideMedia";
+import { findGuideMedia } from "./guideMediaData";
 import styles from "./GuideCatalog.module.css";
 
 type Props = {
@@ -23,6 +25,8 @@ export default function GuideCatalog({ articles, title, description, scope, mode
   const returnToContents = useRef(false);
   const previousTopic = useRef(topic);
   const selected = articles.find((article) => article.id === topic);
+  const selectedMedia = selected ? findGuideMedia(scope, selected.id) : undefined;
+  const visualArticles = articles.filter((article) => findGuideMedia(scope, article.id));
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const searchIndex = useMemo(() => articles.map((article) => ({
     article,
@@ -92,6 +96,7 @@ export default function GuideCatalog({ articles, title, description, scope, mode
         <p className={styles.eyebrow}>사용 가이드 · A to Z</p>
         <h1>{title}</h1>
         <p>{description}</p>
+        {visualArticles.length > 0 && <p>글보다 화면이 편하다면 목차의 ‘사진·영상으로 따라하기’를 선택하세요. 사진을 크게 보거나 자막 영상을 내려받을 수 있습니다.</p>}
         <ol className={styles.flow} aria-label="가이드 이용 순서">
           <li>기능 찾기</li><li>준비하기</li><li>따라하기</li><li>완료 확인</li>
         </ol>
@@ -130,7 +135,9 @@ export default function GuideCatalog({ articles, title, description, scope, mode
               aria-current={article.id === topic ? "step" : undefined}
               onClick={() => openArticle(article.id)}>
               <span className={styles.number}>{String(articles.indexOf(article) + 1).padStart(2, "0")}</span>
-              <span className={styles.topicText}><strong>{article.title}</strong><span>{article.summary}</span></span>
+              <span className={styles.topicText}><strong>{article.title}</strong><span>{article.summary}</span>
+                {findGuideMedia(scope, article.id) && <span className={styles.mediaLabel}>사진·영상으로 따라하기</span>}
+              </span>
               <span aria-hidden="true">→</span>
             </button>
           ))}
@@ -143,6 +150,7 @@ export default function GuideCatalog({ articles, title, description, scope, mode
             <h2 id={`guide-topic-${selected.id}`} ref={headingRef} tabIndex={-1}>{selected.title}</h2>
             <p className={styles.summary}>{selected.summary}</p>
             {mode === "app" && <Link to={selected.path} className={styles.primaryLink}>{selected.title} 화면 열기 <span aria-hidden="true">↗</span></Link>}
+            {selectedMedia && <GuideMedia key={`${scope}/${selected.id}`} media={selectedMedia} />}
             <section className={styles.preparation}>
               <h3>시작 전에</h3>
               <ul>{selected.prerequisites.map((item) => <li key={item}>{item}</li>)}</ul>
@@ -183,6 +191,7 @@ export default function GuideCatalog({ articles, title, description, scope, mode
             <p>목차에서 기능을 선택하면 준비사항부터 완료 확인까지 한 흐름으로 볼 수 있습니다. 화면을 열기 전에 안내를 먼저 읽어 주세요.</p>
             <p>검색어와 읽던 안내는 주소에 남아 새로고침하거나 뒤로 돌아와도 이어서 볼 수 있습니다.</p>
             {visible[0] && <button type="button" onClick={() => openArticle(visible[0].id)}>{query || category ? "첫 검색 결과 읽기" : "첫 단계부터 시작"} →</button>}
+            {visualArticles[0] && <button type="button" onClick={() => openArticle(visualArticles[0].id)}>사진·영상으로 시작하기 →</button>}
           </section>
         )}
       </div>
