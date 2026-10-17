@@ -51,7 +51,7 @@ export async function captureGuideEvidence(
   await expect(completion).toBeInViewport({ ratio: 1 });
   await testInfo.attach(`${name}-completion`, { body: await completion.screenshot({ path: testInfo.outputPath(`${name}-completion.png`) }), contentType: "image/png" });
 
-  const recovery = article.locator("details").first();
+  const recovery = article.locator("section").filter({ hasText: "막혔을 때" }).locator("details").first();
   if (await recovery.getAttribute("open") === null) await recovery.locator("summary").click();
   await recovery.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
   await expect(recovery).toBeInViewport({ ratio: 1 });

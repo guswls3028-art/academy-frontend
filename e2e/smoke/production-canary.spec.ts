@@ -21,6 +21,33 @@ async function verifyGuideJourney(
     const action = article.getByRole("link", { name: `${guide.title} 화면 열기` });
     await assertInteractiveSurface(page, article, action);
     await captureGuideEvidence(article, action, testInfo, `live-guide-${guide.scope}-${width}`);
+    const media = article.getByRole("region", { name: "화면으로 따라하기" });
+    await expect(media).toBeVisible();
+    const photo = media.locator("figure img");
+    await photo.scrollIntoViewIfNeeded();
+    await expect.poll(() => photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    const firstPhoto = await photo.getAttribute("src");
+    await media.getByRole("button", { name: "다음 화면 →", exact: true }).click();
+    await expect(photo).not.toHaveAttribute("src", firstPhoto!);
+    await expect.poll(() => photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    await testInfo.attach(`live-guide-${guide.scope}-${width}-photo`, {
+      body: await photo.screenshot({ path: testInfo.outputPath(`live-guide-${guide.scope}-${width}-photo.png`) }), contentType: "image/png",
+    });
+    await media.locator("summary").click();
+    const video = media.locator("video");
+    await video.scrollIntoViewIfNeeded();
+    await video.evaluate((element: HTMLVideoElement) => element.play());
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).toBeGreaterThan(0.2);
+    await video.evaluate((element: HTMLVideoElement) => { element.currentTime = Math.min(5, element.duration / 2); });
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.seeking)).toBe(false);
+    await video.evaluate((element: HTMLVideoElement) => { element.textTracks[0].mode = "hidden"; });
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.textTracks[0].cues?.length ?? 0)).toBeGreaterThan(1);
+    await testInfo.attach(`live-guide-${guide.scope}-${width}-video`, {
+      body: await video.screenshot({ path: testInfo.outputPath(`live-guide-${guide.scope}-${width}-video.png`) }), contentType: "image/png",
+    });
+    await media.locator("summary").click();
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
     await action.click();
     await expect(page).toHaveURL(`${BASE}${guide.target}`);
     await expect(guide.targetReady).toBeVisible();
@@ -29,6 +56,7 @@ async function verifyGuideJourney(
     await expect(article).toBeVisible();
     await page.reload();
     await expect(article).toBeVisible();
+    await expect(photo).toHaveAttribute("src", firstPhoto!);
   }
 }
 

@@ -1,0 +1,189 @@
+[
+  {
+    "id": "admin-attendance",
+    "topics": [
+      "admin/attendance"
+    ],
+    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
+    "test": "@guide-recording 차시 출결 입력과 저장 확인",
+    "synthetic": true,
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    },
+    "frames": 4,
+    "durationSeconds": 26.6,
+    "folder": "admin-attendance-90f1db7540a8"
+  },
+  {
+    "id": "create-exam",
+    "topics": [
+      "admin/create-exam"
+    ],
+    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
+    "test": "@guide-recording 시험 생성과 정답 등록",
+    "synthetic": true,
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    },
+    "frames": 6,
+    "durationSeconds": 35.96,
+    "folder": "create-exam-0c8d93f7042e"
+  },
+  {
+    "id": "create-homework",
+    "topics": [
+      "admin/homework"
+    ],
+    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
+    "test": "@guide-recording 과제 만들기",
+    "synthetic": true,
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    },
+    "frames": 4,
+    "durationSeconds": 31.12,
+    "folder": "create-homework-f034c57a9d0f"
+  },
+  {
+    "id": "create-session",
+    "topics": [
+      "admin/create-lecture"
+    ],
+    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
+    "test": "@guide-recording 강의에서 수업 차시 만들기",
+    "synthetic": true,
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    },
+    "frames": 5,
+    "durationSeconds": 32.72,
+    "folder": "create-session-e6096e16cee5"
+  },
+  {
+    "id": "manual-grading",
+    "topics": [
+      "admin/grade-exam"
+    ],
+    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
+    "test": "@guide-recording 시험 문항별 직접 채점",
+    "synthetic": true,
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    },
+    "frames": 5,
+    "durationSeconds": 31.36,
+    "folder": "manual-grading-091af37c4429"
+  },
+  {
+    "id": "register-student",
+    "topics": [
+      "admin/register-student"
+    ],
+    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
+    "test": "@guide-recording 학생 한 명 등록하기",
+    "synthetic": true,
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    },
+    "frames": 5,
+    "durationSeconds": 29.48,
+    "folder": "register-student-32f65693ff08"
+  },
+  {
+    "id": "send-alimtalk",
+    "topics": [
+      "admin/send-message"
+    ],
+    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
+    "test": "@guide-recording 알림톡 대상부터 결과까지",
+    "synthetic": true,
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    },
+    "frames": 5,
+    "durationSeconds": 32,
+    "folder": "send-alimtalk-f5520aa79a47"
+  },
+  {
+    "id": "student-assignment",
+    "topics": [
+      "student/submit-assignment"
+    ],
+    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
+    "test": "@guide-recording 학생 과제 사진 제출",
+    "synthetic": true,
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "frames": 6,
+    "durationSeconds": 34.04,
+    "folder": "student-assignment-35a80ffe8c70"
+  },
+  {
+    "id": "student-clinic",
+    "topics": [
+      "student/check-clinic"
+    ],
+    "sourceRevision": "7d42bb531897b354be8ed76640815f0753cc210f",
+    "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
+    "test": "@guide-recording 학생 클리닉 예약",
+    "synthetic": true,
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "frames": 5,
+    "durationSeconds": 30.08,
+    "folder": "student-clinic-b18f153c6adf"
+  },
+  {
+    "id": "teacher-attendance",
+    "topics": [
+      "teacher/attendance"
+    ],
+    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
+    "test": "@guide-recording 선생님 모바일 출결 입력",
+    "synthetic": true,
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "frames": 4,
+    "durationSeconds": 23.56,
+    "folder": "teacher-attendance-146417c82f52"
+  },
+  {
+    "id": "upload-video",
+    "topics": [
+      "admin/upload-video"
+    ],
+    "sourceRevision": "a3e6c543ae46e927168190d448c55cc7c97beb95",
+    "packagerSha256": "0ac4d5e90b8c21afe1d03ce7d02b6dc1b4d414b266272077eb19d605a7b4d1af",
+    "test": "@guide-recording 영상 파일 올리고 순서 정하기",
+    "synthetic": true,
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    },
+    "frames": 5,
+    "durationSeconds": 33.92,
+    "folder": "upload-video-84172b6ffcba"
+  }
+]
