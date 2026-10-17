@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { GuideArticle } from "./types";
+import GuideMedia, { findGuideMedia } from "./GuideMedia";
 import styles from "./GuideCatalog.module.css";
 
 type Props = {
@@ -23,6 +24,7 @@ export default function GuideCatalog({ articles, title, description, scope, mode
   const returnToContents = useRef(false);
   const previousTopic = useRef(topic);
   const selected = articles.find((article) => article.id === topic);
+  const selectedMedia = selected ? findGuideMedia(scope, selected.id) : undefined;
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const searchIndex = useMemo(() => articles.map((article) => ({
     article,
@@ -143,6 +145,7 @@ export default function GuideCatalog({ articles, title, description, scope, mode
             <h2 id={`guide-topic-${selected.id}`} ref={headingRef} tabIndex={-1}>{selected.title}</h2>
             <p className={styles.summary}>{selected.summary}</p>
             {mode === "app" && <Link to={selected.path} className={styles.primaryLink}>{selected.title} 화면 열기 <span aria-hidden="true">↗</span></Link>}
+            {selectedMedia && <GuideMedia key={`${scope}/${selected.id}`} media={selectedMedia} />}
             <section className={styles.preparation}>
               <h3>시작 전에</h3>
               <ul>{selected.prerequisites.map((item) => <li key={item}>{item}</li>)}</ul>

@@ -1,6 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { guideRecording } from "../helpers/guideRecording";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { waitForRenderSettled } from "../helpers/wait";
 
@@ -11,6 +12,86 @@ const SUPPLEMENT_SESSION_ID = 9953;
 const SECTION_ID = 9954;
 const SECOND_LECTURE_ID = 9955;
 const SECOND_REGULAR_SESSION_ID = 9956;
+
+if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
+  test("@guide-recording 강의에서 수업 차시 만들기", async ({ page }, info) => {
+    const recording = await guideRecording(page, info, { id: "create-session", title: "강의에서 수업 차시 만들기", topics: ["admin/create-lecture"] });
+    const state: MockState = { supplementTitle: "보충 수업", patchTitles: [], createdSessionPayloads: [], persistCreatedSessions: true };
+    await openLecture(page, state);
+    const add = page.getByRole("button", { name: "수업 추가", exact: true });
+    await recording.screen("강의에서 수업 추가", "강의 상세를 열고 수업 추가를 누릅니다. 강의·수강생을 먼저 준비해 주세요.", add);
+    await add.click();
+    const regular = page.getByRole("button", { name: /정규 차시 추가/ });
+    await recording.screen("수업 유형 선택", "정규 수업은 정규 차시 추가를 선택합니다. 별도 보충 수업은 보강을 선택합니다.", regular);
+    await regular.click();
+    await page.getByRole("button", { name: "직접 지정", exact: true }).click();
+    await page.getByLabel("차시 번호").fill("7");
+    await page.getByLabel("차시 이름 (선택)").fill("단원 마무리");
+    await recording.screen("날짜와 차시 정보 입력", "수업 날짜·시간과 차시 번호를 확인하고 저장합니다.", page.getByRole("dialog"));
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    const confirmation = page.getByRole("alertdialog", { name: "차시 생성 최종 확인" });
+    await recording.screen("최종 확인 후 추가", "수업 유형·날짜·차시 이름이 맞으면 확인하고 추가를 누릅니다.", confirmation);
+    await confirmation.getByRole("button", { name: "확인하고 추가" }).click();
+    await expect.poll(() => state.createdSessionPayloads?.length).toBe(1);
+    await page.reload();
+    await recording.screen("수업 목록에서 확인", "다시 열어 만든 차시를 확인합니다. 차시의 수강생 등록에서 실제 참석 학생을 배정합니다.", page.getByRole("button", { name: /단원 마무리/ }));
+    await recording.finish();
+  });
+
+  test("@guide-recording 과제 만들기", async ({ page }, info) => {
+    const recording = await guideRecording(page, info, { id: "create-homework", title: "차시에 과제 만들기", topics: ["admin/homework"] });
+    const state: MockState = { supplementTitle: "보충 수업", patchTitles: [], createdHomeworkPayloads: [] };
+    await openLecture(page, state);
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/assignments`);
+    const add = page.getByRole("button", { name: "과제 추가", exact: true }).first();
+    await recording.screen("차시의 과제 열기", "강의에서 해당 차시의 과제를 열고 과제 추가를 누릅니다.", add);
+    await add.click();
+    const dialog = page.getByRole("dialog", { name: "과제 만들기", exact: true });
+    await dialog.getByRole("button", { name: "처음부터 만들기 제목, 만점, 커트라인, 기한 입력", exact: true }).click();
+    await page.getByRole("button", { name: "점 (점수)", exact: true }).click();
+    await page.getByLabel("과제 1 제목").fill("연산 복습");
+    await page.getByLabel("과제 1 만점").fill("20");
+    await page.getByLabel("과제 1 커트라인").fill("15");
+    await recording.screen("제목과 평가 기준 입력", "과제 제목·만점·통과 기준·기한을 확인합니다. 여러 과제는 추가 버튼으로 이어서 입력합니다.", dialog);
+    const save = page.getByRole("button", { name: "과제 만들기", exact: true });
+    await recording.screen("과제 저장", "입력한 내용을 확인한 뒤 과제 만들기를 눌러 저장합니다.", save);
+    await save.click();
+    await expect.poll(() => state.createdHomeworkPayloads?.length).toBe(1);
+    await expect(dialog).toHaveCount(0);
+    await recording.screen("저장 결과와 대상 확인", "차시에 과제가 만들어졌는지 확인하고 대상 학생·제출·평가로 이어갑니다.", page.getByText("연산 복습", { exact: true }).first());
+    await recording.finish();
+  });
+
+  test("@guide-recording 시험 생성과 정답 등록", async ({ page }, info) => {
+    const recording = await guideRecording(page, info, { id: "create-exam", title: "시험 생성부터 정답·답안지 준비까지", topics: ["admin/create-exam"] });
+    const state: MockState = { supplementTitle: "보충 수업", patchTitles: [], guidedExamFlow: true, guidedQuestionCount: 3, createdExamPayloads: [], examSessionEnrollmentRows: [], answerKeySaves: [] };
+    await openLecture(page, state);
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/scores`);
+    const add = page.getByRole("button", { name: "시험 추가", exact: true }).first();
+    await recording.screen("차시에서 시험 추가", "해당 차시의 성적 화면에서 시험 추가를 누릅니다.", add);
+    await add.click();
+    await page.getByText("시험 설정해서 만들기", { exact: true }).click();
+    await page.getByLabel("시험명").fill("수학 단원평가");
+    await recording.screen("시험 이름과 채점 방식", "시험명을 입력하고 사용할 채점 방식을 확인한 뒤 시험 만들기를 누릅니다.", page.getByRole("dialog"));
+    await page.getByRole("button", { name: "시험 만들기", exact: true }).click();
+    const answers = page.getByRole("dialog").filter({ hasText: "2. 답안 등록" });
+    await answers.getByRole("spinbutton", { name: "전체 문항 수" }).fill("3");
+    await recording.screen("문항 수 설정", "실제 시험의 전체 문항 수를 입력하고 유형 저장을 누릅니다.", answers);
+    await answers.getByRole("button", { name: "유형 저장" }).click();
+    await expect.poll(() => state.guidedQuestionsInitialized).toBe(true);
+    for (const row of await answers.locator(".answer-key-row--choice").all()) await row.locator(".answer-key-omr-label").nth(1).click();
+    await answers.locator(".answer-key-panel--choice").getByRole("textbox", { name: "목표 총점" }).fill("100");
+    await answers.getByRole("button", { name: "만점에 맞게 균등 배점" }).click();
+    await recording.screen("정답과 배점 확인", "문항별 정답을 선택하고 배점 합계가 목표 총점과 일치하는지 확인합니다.", answers);
+    await answers.getByRole("button", { name: /답안 저장하고 다음/ }).click();
+    await expect.poll(() => state.answerKeySaves?.length).toBe(1);
+    const print = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
+    await recording.screen("OMR 답안지 준비", "OMR을 쓰면 답안지를 다운로드합니다. 실제 응시 학생과 시험 상태도 별도로 확인해 주세요.", print);
+    await Promise.all([page.waitForEvent("download"), print.getByRole("button", { name: "OMR PDF 다운로드" }).click()]);
+    await recording.screen("다운로드 완료 확인", "답안지 다운로드 완료 표시를 확인하고 설정 화면으로 돌아갑니다.", print.getByText("답안지 다운로드 완료"));
+    await recording.finish();
+  });
+}
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
