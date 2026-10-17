@@ -11,6 +11,7 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
   test("@guide-recording 알림톡 대상부터 결과까지", async ({ page }, info) => {
     const recording = await guideRecording(page, info, { id: "send-alimtalk", title: "알림톡 대상부터 결과까지", topics: ["admin/send-message"] });
     const state = await installMocks(page);
+    await page.route("**/api/v1/submissions/submissions/omr/batches/", (route) => route.fulfill({ json: [] }));
     await gotoAndSettle(page, `${BASE}/workspace/students/home?compose=alimtalk`);
     const recipient = page.getByRole("checkbox", { name: "김알림 선택" });
     await recording.screen("발송 대상 선택", "학생 메뉴에서 대상자를 선택합니다. 이 시연은 예시이며 실제 메시지가 발송되지 않습니다.", recipient);

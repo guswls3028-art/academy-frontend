@@ -207,12 +207,22 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
       id: "upload-video", title: "영상 파일 올리고 순서 정하기", topics: ["admin/upload-video"],
     });
     const evidence = await installApp(page);
-    await page.route(/\/api\/v1\/media\/videos\/(?:\?.*)?$/, (route) => route.fulfill({ json:
-      evidence.initRequests.map((item, index) => ({
+    const uploadedVideos = () => evidence.initRequests.map((item, index) => ({
         id: 9201 + index, session_id: SESSION_ID, title: item.title, order: index + 1,
         status: evidence.completedVideoIds.includes(9201 + index) ? "READY" : "UPLOADING", source_type: "s3",
-      })),
-    }));
+      }));
+    await page.route(/\/api\/v1\/media\/videos\/(?:\?.*)?$/, (route) => {
+      const rows = [
+        { id: 8101, session_id: SESSION_ID, title: "지난 수업 복습", order: 1, status: "READY", source_type: "s3" },
+        ...uploadedVideos(),
+      ];
+      const status = new URL(route.request().url()).searchParams.get("status");
+      return route.fulfill({ json: status ? rows.filter((item) => item.status === status) : rows });
+    });
+    await page.route(/\/api\/v1\/media\/videos\/92\d+\/$/, (route) => {
+      const id = Number(new URL(route.request().url()).pathname.split("/").at(-2));
+      return route.fulfill({ json: uploadedVideos().find((item) => item.id === id) });
+    });
     await page.goto(`${BASE}/workspace/videos/tree`);
     const add = page.locator('[title="영상 추가"]').first();
     await recording.screen("강의와 차시를 확인하기", "영상 메뉴에서 올릴 강의와 차시를 확인한 뒤 영상 추가를 누릅니다.", add);

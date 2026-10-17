@@ -53,6 +53,10 @@ for (const directory of await readdir(root, { withFileTypes: true })) {
     "-vf", `pad=iw:ih+${captionHeight}:0:0:color=0x101820,subtitles='${subtitleFilterPath}'`,
     "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "27", "-pix_fmt", "yuv420p",
     "-movflags", "+faststart", videoPath], { stdio: "inherit" });
+  // Keep a frame with the longest explanation in the review artifact, outside shipped assets.
+  const longest = recording.screens.reduce((current, screen) => screen.description.length > current.description.length ? screen : current);
+  execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-ss", String(Math.min(duration - 0.1, longest.at + 0.5)),
+    "-i", videoPath, "-frames:v", "1", "-q:v", "2", join(source, "preview-caption.jpg")], { stdio: "inherit" });
   const url = `/guide-media/${assetFolder}`;
   const media = {
     title: recording.title,
@@ -63,7 +67,7 @@ for (const directory of await readdir(root, { withFileTypes: true })) {
     if (manifest[topic]) throw new Error(`Duplicate media topic: ${topic}`);
     manifest[topic] = media;
   }
-  provenance.push({ id: recording.id, topics: recording.topics, sourceRevision: recording.sourceRevision, synthetic: true,
+  provenance.push({ id: recording.id, topics: recording.topics, sourceRevision: recording.sourceRevision, test: recording.test, synthetic: true,
     viewport: recording.viewport, frames: recording.screens.length, durationSeconds: duration, folder: assetFolder });
 }
 if (provenance.length === 0) throw new Error("No completed guide recording");
