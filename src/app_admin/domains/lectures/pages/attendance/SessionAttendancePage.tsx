@@ -138,13 +138,14 @@ export default function SessionAttendancePage({
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, sort]);
+  }, [search, statusFilter]);
 
   useEffect(() => {
     setBulkPresentUndo(null);
   }, [sessionId]);
 
   useEffect(() => {
+    setPage(1);
     setSort(getStoredAttendanceSort(sortStorageKey, previousSortStorageKey));
   }, [previousSortStorageKey, sortStorageKey]);
 
@@ -172,7 +173,7 @@ export default function SessionAttendancePage({
     return () => document.removeEventListener("mousedown", close);
   }, [openStatusRowAttId]);
 
-  const { data: attendanceResult, isLoading } = useQuery({
+  const { data: attendanceResult, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter, sort),
     queryFn: () =>
       fetchAttendance(sessionId, {
@@ -286,7 +287,19 @@ export default function SessionAttendancePage({
   const tableWidth = fixedColsWidth;
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
-  if (attendanceResult == null) return <EmptyState scope="panel" tone="error" title="출결 데이터를 불러올 수 없습니다." />;
+  if (isError || attendanceResult == null) return (
+    <EmptyState
+      scope="panel"
+      tone="error"
+      title="출결 데이터를 불러올 수 없습니다."
+      description="저장된 출결은 유지됩니다. 같은 검색·필터·정렬로 다시 불러와 주세요."
+      actions={
+        <Button type="button" intent="secondary" onClick={() => void refetch()} disabled={isFetching}>
+          {isFetching ? "다시 불러오는 중…" : "다시 시도"}
+        </Button>
+      }
+    />
+  );
 
   const allIds = sorted.map((att) => att.id);
   const allSelected = sorted.length > 0 && allIds.every((attendanceId: number) => selectedSet.has(attendanceId));
@@ -595,6 +608,7 @@ export default function SessionAttendancePage({
         title="미입력·결석 학생을 먼저 표시합니다. 출결을 저장하면 순서가 갱신됩니다."
         onClick={() => {
           const nextSort = sort === "not_arrived" ? DEFAULT_ATTENDANCE_SORT : "not_arrived";
+          setPage(1);
           setSort(nextSort);
           if (sortStorageKey) setLocalItem(sortStorageKey, nextSort);
         }}
@@ -668,6 +682,7 @@ export default function SessionAttendancePage({
       : sort === descending
         ? DEFAULT_ATTENDANCE_SORT
         : colKey;
+    setPage(1);
     setSort(nextSort);
     if (!sortStorageKey) return;
     setLocalItem(sortStorageKey, nextSort);
