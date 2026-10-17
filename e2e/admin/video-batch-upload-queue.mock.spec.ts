@@ -208,7 +208,7 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     });
     const evidence = await installApp(page);
     const uploadedVideos = () => evidence.initRequests.map((item, index) => ({
-        id: 9201 + index, session_id: SESSION_ID, title: item.title, order: index + 1,
+        id: 9201 + index, session_id: SESSION_ID, title: item.title, order: index + 2,
         status: evidence.completedVideoIds.includes(9201 + index) ? "READY" : "UPLOADING", source_type: "s3",
       }));
     await page.route(/\/api\/v1\/media\/videos\/(?:\?.*)?$/, (route) => {
