@@ -54,11 +54,12 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     await page.getByLabel("과제 1 커트라인").fill("15");
     const form = page.getByRole("dialog").filter({ has: page.getByLabel("과제 1 제목") });
     await recording.screen("제목과 평가 기준 입력", "과제 제목·만점·통과 기준·기한을 확인합니다. 여러 과제는 추가 버튼으로 이어서 입력합니다.", form);
-    const save = page.getByRole("button", { name: "과제 만들기", exact: true });
-    await recording.screen("과제 저장", "입력한 내용을 확인한 뒤 과제 만들기를 눌러 저장합니다.", save);
+    const save = form.getByRole("button", { name: "1개 과제 만들기", exact: true });
+    await recording.screen("과제 저장", "입력한 내용을 확인한 뒤 1개 과제 만들기를 눌러 저장합니다. 입력한 과제 수에 따라 버튼의 숫자가 달라집니다.", save);
     await save.click();
     await expect.poll(() => state.createdHomeworkPayloads?.length).toBe(1);
     await expect(form).toHaveCount(0);
+    await page.reload();
     await recording.screen("저장 결과와 대상 확인", "차시에 과제가 만들어졌는지 확인하고 대상 학생·제출·평가로 이어갑니다.", page.getByText("연산 복습", { exact: true }).first());
     await recording.finish();
   });

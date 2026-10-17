@@ -26,8 +26,9 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
       await selection.getByRole("button", { name: "이 일정 예약하기" }).click();
       await expect.poll(() => requests.length).toBe(1);
       await page.reload();
+      await page.getByRole("tab", { name: /내 일정/ }).click();
       const booking = page.getByText(/21:00/).first();
-      await recording.screen("예약 내역 다시 확인", "새로고침 뒤 예약 내역의 날짜·시간·상태를 확인합니다. 학원 설정에 따라 확정 전 승인이 필요할 수 있습니다.", booking);
+      await recording.screen("내 일정에서 예약 확인", "내 일정 탭에서 예약한 날짜·시간·상태를 확인합니다. 학원 설정에 따라 확정 전 승인이 필요할 수 있습니다.", booking);
       await recording.finish();
     });
   });
