@@ -254,9 +254,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       matchesSessionScoreStudentSearch(row.student_name ?? "", search)
     ));
     if (summaryColumnMode !== "exam_wrong") return searchedRows;
-    return searchedRows
-      .filter((row) => row.assessment_todo_eligible !== false)
-      .filter((row) => matchesSessionRowExamReviewFilter(row, examReviewFilter));
+    return searchedRows.filter((row) => matchesSessionRowExamReviewFilter(row, examReviewFilter));
   }, [allRows, examReviewFilter, search, summaryColumnMode]);
 
   // 드로어에 항상 최신 rows 데이터를 전달 (쿼리 갱신 시 자동 반영)

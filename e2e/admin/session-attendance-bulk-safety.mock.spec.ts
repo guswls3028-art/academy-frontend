@@ -42,6 +42,7 @@ type MockOptions = {
   reregisterSessionStudent?: boolean;
   attendanceRosterSize?: number;
   paginatedStudents?: boolean;
+  includePresentStudent?: boolean;
 };
 
 async function installApi(page: Page, state: MockState, options: MockOptions = {}) {
@@ -128,9 +129,20 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
         { id: 501, status: state.attendanceStatuses[501] ?? "UNSET", name: "미입력학생", student_id: 1001, parent_phone: "01011112222", student_phone: "01033334444" },
         { id: 502, status: state.attendanceStatuses[502] ?? "ABSENT", name: options.reregisterSessionStudent ? "김가람" : "결석학생", student_id: options.reregisterSessionStudent ? 2001 : 1002, enrollment_id: 3001, parent_phone: "01055556666", student_phone: "01077778888" },
       ];
-      if (ordering === "name") rows.reverse();
+      if (options.includePresentStudent) {
+        rows.push({ id: 503, status: "PRESENT", name: "가나다학생", student_id: 1003, parent_phone: "01022223333", student_phone: "01044445555" });
+      }
+      if (ordering === "not_arrived") {
+        rows.sort((a, b) => {
+          const aGroup = a.status === "UNSET" || a.status === "ABSENT" ? 0 : 1;
+          const bGroup = b.status === "UNSET" || b.status === "ABSENT" ? 0 : 1;
+          return aGroup - bGroup || a.name.localeCompare(b.name, "ko") || a.id - b.id;
+        });
+      } else if (ordering === "name") {
+        rows.sort((a, b) => a.name.localeCompare(b.name, "ko") || a.id - b.id);
+      }
       return json({
-        count: 2,
+        count: rows.length,
         page_size: Number(url.searchParams.get("page_size")) || 50,
         results: rows,
       });
@@ -397,6 +409,56 @@ test("이전 상태순 설정은 이름순으로 복구하고 출결 저장 뒤�
   await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
   await expect.poll(() => state.attendanceOrderings.at(-1)).toBe("name");
 });
+
+for (const width of [1366, 390]) {
+  test(`미도착 우선 선택은 저장되고 출결 실패 복구 후 전체 명단 순서를 갱신한다 (${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = createState();
+    await openAttendance(page, state, { includePresentStudent: true });
+    const studentLinks = page.locator('tbody a[aria-label$=" 학생 상세 열기"]');
+    const toggle = page.getByRole("button", { name: "미도착 우선", exact: true });
+    await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "가나다학생 학생 상세 열기");
+    await toggle.focus();
+    await page.keyboard.press("Space");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => state.attendanceOrderings.at(-1)).toBe("not_arrived");
+    await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
+    await expect(studentLinks.nth(1)).toHaveAttribute("aria-label", "미입력학생 학생 상세 열기");
+    await expect(studentLinks.nth(2)).toHaveAttribute("aria-label", "가나다학생 학생 상세 열기");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
+
+    const markPresent = async () => {
+      if (width === 390) {
+        if (!(await page.locator(".attendance-popover").isVisible())) {
+          await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
+        }
+        await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
+      } else {
+        await page.getByRole("button", { name: "결석학생 현장 상태로 변경" }).click();
+      }
+    };
+    state.failStatusUpdate = true;
+    await markPresent();
+    await expect(page.getByText("출석 상태 변경에 실패했습니다. 다시 시도해 주세요.", { exact: true })).toBeVisible();
+    await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
+    state.failStatusUpdate = false;
+    await markPresent();
+    await expect.poll(() => state.attendanceStatusUpdates).toEqual([{ id: 502, status: "PRESENT" }]);
+    await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "미입력학생 학생 상세 열기");
+    await expect(studentLinks.nth(1)).toHaveAttribute("aria-label", "가나다학생 학생 상세 열기");
+    await expect(studentLinks.nth(2)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "미입력학생 학생 상세 열기");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`attendance-not-arrived-${width}.png`), fullPage: true });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "가나다학생 학생 상세 열기");
+    expect(await page.evaluate(() => localStorage.getItem("attendance:sort:hakwonplus:user:12"))).toBe("name");
+  });
+}
 
 test("데스크톱은 모든 출결 상태를 한 줄에서 저장하고 모바일은 압축 선택기를 유지한다", async ({ page }, testInfo) => {
   const state = createState();
