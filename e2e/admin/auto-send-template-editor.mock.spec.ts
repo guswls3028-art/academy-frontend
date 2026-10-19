@@ -20,6 +20,8 @@ async function setup(page: Page, system = false, fixedBody?: string) {
   const templates = new Map([[101, original], [102, { ...original, id: 102, name: "현재 연결 문구", body: "최근 저장한 안내문 #{학생이름}" }]]);
   const state = { linked: 101, nextId: 200, creates: 0, connects: 0, sends: 0, failLink: false, failLoad: false, failSave: false };
   const updates: number[] = [];
+  let releaseInitialConfigs!: () => void;
+  const initialConfigsReady = new Promise<void>((resolve) => { releaseInitialConfigs = resolve; });
   const config = () => {
     const template = templates.get(state.linked)!;
     return { id: 1, trigger: fixed ? "withdrawal_complete" : "clinic_reminder", template: template.id,
@@ -36,6 +38,7 @@ async function setup(page: Page, system = false, fixedBody?: string) {
     if (path === "/core/subscription/") return route.fulfill({ json: { tenant_name: "문구 검증학원" } });
     if (path === "/messaging/info/") return route.fulfill({ json: { alimtalk_available: true, tenant_messaging_enabled: true, can_manage_messaging: true, messaging_disabled: false } });
     if (path === "/messaging/auto-send/") {
+      if (request.method() === "GET") await initialConfigsReady;
       if (request.method() === "PATCH") {
         state.connects++;
         if (state.failLink) return route.fulfill({ status: 503, json: { detail: "연결을 저장하지 못했습니다." } });
@@ -72,7 +75,15 @@ async function setup(page: Page, system = false, fixedBody?: string) {
   });
   const openPage = async () => {
     await page.goto(`${base}/workspace/message/auto-send`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: fixed ? "가입/등록" : "클리닉/상담", exact: true }).click();
+    const section = page.getByRole("button", { name: fixed ? "가입/등록" : "클리닉/상담", exact: true });
+    try {
+      // A real API response can arrive after the user chooses a section.
+      // Keep that choice across the loading skeleton instead of dropping it.
+      await section.click();
+      await expect(section).toHaveAttribute("aria-current", "true");
+    } finally {
+      releaseInitialConfigs();
+    }
     await expect(page.getByRole("button", { name: fixed ? "내용 보기" : "문구 수정", exact: true })).toBeVisible();
   };
   await openPage();
@@ -108,7 +119,7 @@ for (const fixedBody of ["", "과거에 저장한 미사용 메모"]) {
 }
 
 for (const width of [1100, 1366, 390]) {
-  test(`${width}px 현재 연결 문구 수정 → 저장 → 예시 → 새로고침`, async ({ page }, testInfo) => {
+  test(`${width}px 로딩 중 메뉴 선택 → 현재 연결 문구 수정 → 저장 → 예시 → 새로고침`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const { state, templates, updates, openPage } = await setup(page);
     state.linked = 102;
