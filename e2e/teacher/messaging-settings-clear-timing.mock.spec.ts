@@ -24,6 +24,7 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     let failToggle = true;
     let templateBody = "클리닉 시작 안내입니다.";
     let failPreview = false;
+    let canManage = true;
 
     await page.route("**/api/v1/**", async (route) => {
       const request = route.request();
@@ -59,6 +60,7 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
           alimtalk_available: true,
           delivery_policy: "verified_tenant_or_common_alimtalk",
           messaging_disabled: false,
+          can_manage_messaging: canManage,
         });
       }
       if (path === "/messaging/auto-send/" && request.method() === "PATCH") {
@@ -180,6 +182,18 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     await expect(page.getByText(`${nextTiming}${scenario.label}`, { exact: true })).toBeVisible();
     await page.getByTitle("설정 편집").click();
     await expect(page.getByRole("spinbutton", { name: scenario.label })).toHaveValue(nextTiming);
+    const lastSaved = savedBody;
+    canManage = false;
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(autoToggle).toBeDisabled();
+    await expect(page.getByText(/자동발송 여부와 발송 시점은 대표 또는 관리자만/)).toBeVisible();
+    await page.getByTitle("내용 보기").click();
+    await expect(page.getByRole("spinbutton", { name: scenario.label })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "발송 시점 저장" })).toHaveCount(0);
+    await page.getByRole("button", { name: "미리보기", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "템플릿 미리보기" }).getByLabel("카카오톡 실제 발송 미리보기"))
+      .toContainText("다른 화면에서 방금 저장한 안내입니다.");
+    expect(savedBody).toEqual(lastSaved);
   });
   }
 });
