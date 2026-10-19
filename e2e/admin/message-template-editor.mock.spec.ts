@@ -498,7 +498,7 @@ async function openGuardedSender(page: Page) {
   });
   await page.getByRole("checkbox", { name: "모바일순서학생 선택" }).check();
   await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
-  const modal = page.getByRole("dialog", { name: "알림톡 발송", exact: true });
+  const modal = page.getByRole("dialog", { name: /^알림톡 발송/ });
   await expect(modal.getByRole("textbox", { name: "안내문", exact: true })).toContainText("오늘 수업 안내입니다.");
   return { modal, sends, releaseFailure: () => releaseFailure?.() };
 }
