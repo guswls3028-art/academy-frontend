@@ -158,15 +158,16 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     await reopenedTimingInput.fill("-1");
     await expect(page.getByRole("alert")).toContainText("0 이상의 값");
     await expect(page.getByRole("button", { name: "발송 시점 저장" })).toBeDisabled();
-    await reopenedTimingInput.fill("2");
+    const nextTiming = scenario.unit === 1 ? "2" : "1.1";
+    await reopenedTimingInput.fill(nextTiming);
     await page.getByRole("button", { name: "발송 시점 저장" }).click();
     await expect(reopenedTimingInput).toBeHidden();
-    expect(minutesBefore).toBe(2 * scenario.unit);
+    expect(minutesBefore).toBe(Math.round(Number(nextTiming) * scenario.unit));
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(autoToggle).toHaveAttribute("aria-checked", "false");
-    await expect(page.getByText(`2${scenario.label}`, { exact: true })).toBeVisible();
+    await expect(page.getByText(`${nextTiming}${scenario.label}`, { exact: true })).toBeVisible();
     await page.getByTitle("설정 편집").click();
-    await expect(page.getByRole("spinbutton", { name: scenario.label })).toHaveValue("2");
+    await expect(page.getByRole("spinbutton", { name: scenario.label })).toHaveValue(nextTiming);
   });
   }
 });

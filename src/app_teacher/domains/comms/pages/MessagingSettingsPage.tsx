@@ -325,8 +325,10 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
     if (!open) return;
     setMinutesBefore(config.minutes_before != null ? String(config.minutes_before / timingUnit) : "");
   }, [open, config, timingUnit]);
-  const minutesValue = minutesBefore.trim() ? Number(minutesBefore) * timingUnit : null;
-  const invalidTiming = minutesValue != null && (!Number.isFinite(minutesValue) || minutesValue < 0 || !Number.isInteger(minutesValue));
+  const rawMinutes = minutesBefore.trim() ? Number(minutesBefore) * timingUnit : null;
+  const minutesValue = rawMinutes == null ? null : Math.round(rawMinutes);
+  // Decimal day/hour input can carry a floating-point residue (1.1 days = 1584 minutes).
+  const invalidTiming = rawMinutes != null && (!Number.isFinite(rawMinutes) || rawMinutes < 0 || Math.abs(rawMinutes - Math.round(rawMinutes)) > 0.000001);
 
   const saveMut = useMutation({
     mutationFn: () => {
