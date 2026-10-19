@@ -312,6 +312,12 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                 updated_at: currentHomeworkVersions[index],
               },
             }] : [],
+            ...(options.includeSecondExam ? { exam_total: {
+              score: score == null ? 40 : score + 40,
+              max_score: examMaxScore + 50,
+              selected_count: 2, scored_count: score == null ? 1 : 2,
+              complete: score != null,
+            } } : {}),
             clinic_required: options.rowClinicRequired?.[index] ?? (score == null ? false : score < 60),
             name_highlight_clinic_target: options.rowNameHighlightClinicTarget?.[index] ?? false,
             ...(options.rowNameHighlightFollowupRequired ? {
@@ -2307,8 +2313,8 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     const firstRow = page.locator("tbody tr").filter({ hasText: "자동저장학생1" });
     const summaryCell = firstRow.locator('[data-col-type="exam-summary"]');
-    await expect(summaryCell).toContainText("137/155");
-    await expect(summaryCell).not.toContainText("137/137");
+    await expect(summaryCell).toContainText(/137\s*\/\s*155/);
+    await expect(summaryCell).not.toContainText(/137\s*\/\s*137/);
   });
 
   test("학생 상세 2차 재시험은 당시 만점을 보존해 수정한다", async ({ page }) => {

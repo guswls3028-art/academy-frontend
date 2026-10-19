@@ -46,7 +46,7 @@ for (const width of [1366, 390]) {
     await openCompositionScores(page);
     const harness = await installComposition(page);
     await page.reload();
-    const row = page.getByRole("row").filter({ hasText: "모바일순서학생" }).last();
+    const row = page.locator("tbody tr").filter({ hasText: "모바일순서학생" }).last();
     await expect(row.locator(".assessment-total-value").first()).toContainText("0 / 200");
     await expect(row.locator(".assessment-total-value").first()).toContainText("집계 중 · 1/2");
     await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();

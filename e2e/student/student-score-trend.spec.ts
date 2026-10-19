@@ -161,6 +161,7 @@ function gradesFor(points: TrendPoint[]) {
         final_pass: true,
         meta_status: null,
         retake_count: point.retake_count,
+        session_id: point.session_id,
         session_title: point.session_title,
         lecture_title: point.lecture_title,
         rank: point.rank,
@@ -955,7 +956,9 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
           await expect(firstCard.locator('aside[aria-label="학부모 코멘트"]')).toContainText("첫째의 첫 시험 관찰입니다.");
           const otherCard = page.getByRole("link", { name: /Ymath 주간 테스트 2회/ }).locator("..");
           await expect(otherCard.locator('aside[aria-label="학부모 코멘트"]')).toHaveCount(0);
-          await expect(page.getByRole("region", { name: "성적 입력 전 학부모 코멘트" })).toContainText("점수 입력 전 평가");
+          const unscoredComments = page.getByRole("region", { name: "성적 입력 전 학부모 코멘트" });
+          await expect(unscoredComments).toContainText("점수 입력 전 평가");
+          await expect(unscoredComments).not.toContainText("첫째의 첫 시험 관찰입니다.");
           await page.reload();
           await expect(firstCard).toContainText("첫째의 첫 시험 관찰입니다.");
           expect(requests.every(id => id === "11")).toBe(true);
