@@ -89,8 +89,13 @@ for (const fixedBody of ["", "과거에 저장한 미사용 메모"]) {
     await expect(page.getByRole("dialog")).not.toContainText("과거에 저장한 미사용 메모");
     const close = page.getByRole("dialog").getByRole("button", { name: "대화상자 종료", exact: true });
     await close.focus();
-    await page.keyboard.press("Tab");
-    await expect(close).toBeFocused();
+    let reachedClose = false;
+    for (let tab = 0; tab < 4; tab++) {
+      await page.keyboard.press("Tab");
+      await expect.poll(() => page.getByRole("dialog").evaluate((dialog) => dialog.contains(document.activeElement))).toBe(true);
+      reachedClose ||= await close.evaluate((button) => button === document.activeElement);
+    }
+    expect(reachedClose).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("fixed-alimtalk-preview.png") });
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toBeHidden();
