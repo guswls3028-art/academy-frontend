@@ -153,9 +153,10 @@ test("선생님은 저장 문구를 수정하고 서버의 학생별 전체 문�
   const editSheet = page.getByRole("dialog", { name: "문구 편집" });
   await editSheet.getByRole("textbox", { name: "안내 문구", exact: true }).fill("다음 주 상담 일정을 확인해 주세요.");
   await editSheet.getByRole("button", { name: "수정", exact: true }).click();
-  await expect(page.getByText("다음 주 상담 일정을 확인해 주세요.")).toBeVisible();
+  await expect(editSheet).toBeHidden();
+  await expect(page.getByText("다음 주 상담 일정을 확인해 주세요.", { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByText("다음 주 상담 일정을 확인해 주세요.")).toBeVisible();
+  await expect(page.getByText("다음 주 상담 일정을 확인해 주세요.", { exact: true })).toBeVisible();
 });
 
 for (const width of [390, 1366]) {
