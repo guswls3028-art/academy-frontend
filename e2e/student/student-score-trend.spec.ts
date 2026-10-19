@@ -965,8 +965,8 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
           await page.screenshot({ path: testInfo.outputPath(`assessment-parent-card-${width}.png`), fullPage: true });
           await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김둘째" }).click();
           await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+          await expect.poll(() => requests).toContain("12");
           await expect(page.getByText("첫째의 첫 시험 관찰입니다.", { exact: true })).toHaveCount(0);
-          expect(requests).toContain("12");
         } else {
           await expect(page.getByRole("link", { name: /Ymath 주간 테스트 1회/ })).toBeVisible();
           await page.reload();
