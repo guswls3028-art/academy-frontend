@@ -253,7 +253,7 @@ function TriggerCard({
           >
             {operationalDisabled ? "운영 중지" : !deliveryReady ? "발송 준비 필요" : isSystem ? "항상 발송" : channelActive ? "켜짐" : "꺼짐"}
           </span>
-          {config.template_body && (
+          {(config.template_body || getAlimtalkTemplateType(config.trigger)) && (
             <button
               type="button"
               onClick={() => setShowPreview(true)}

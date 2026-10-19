@@ -240,7 +240,6 @@ function TemplateEditSheet({ open, onClose, template, copy = false, onCopy }: {
       : createTemplate({ name, category, body, subject: template?.subject }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.templates });
-      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.autoSendConfigs });
       qc.invalidateQueries({ queryKey: messageAutoSendQueryKey });
       teacherToast.success(isEdit ? "템플릿이 수정되었습니다." : "템플릿이 생성되었습니다.");
       onClose();

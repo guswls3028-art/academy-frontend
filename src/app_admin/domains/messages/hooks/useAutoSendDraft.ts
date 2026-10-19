@@ -4,6 +4,7 @@ import useAuth from "@/auth/hooks/useAuth";
 import { readActiveAuthGenerationSafely } from "@/shared/auth/tokenSession";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { teacherMessageAutoSendQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 import { updateAutoSendConfigs, type AutoSendConfigItem } from "../api/messages.api";
 import {
   clearAutoSendDrafts,
@@ -30,7 +31,10 @@ export function useAutoSendDraft(configs: AutoSendConfigItem[]) {
         const currentGeneration = readActiveAuthGenerationSafely();
         return currentTenant && currentGeneration ? `${currentTenant}:${currentGeneration}` : null;
       },
-      () => feedback.success("자동발송 설정이 저장되었습니다."),
+      () => {
+        void qc.invalidateQueries({ queryKey: teacherMessageAutoSendQueryKey });
+        feedback.success("자동발송 설정이 저장되었습니다.");
+      },
     );
   }, [qc, scope, owner, generation]);
   useEffect(() => {

@@ -2,7 +2,8 @@ import { expect, test, type Page } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
-async function setup(page: Page, system = false) {
+async function setup(page: Page, system = false, fixedBody?: string) {
+  const fixed = fixedBody !== undefined;
   const base = getBaseUrl("admin");
   test.skip(!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(base), "격리된 route mock 전용");
   await installLocalAuthApiStubs(page);
@@ -13,20 +14,20 @@ async function setup(page: Page, system = false) {
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", `${access}-refresh`);
   }, token);
-  const original = { id: 101, category: "clinic", name: "기존 클리닉 문구", subject: "옛 제목",
-    body: "예전에 사용하던 안내문", is_system: system, is_user_default: false,
+  const original = { id: 101, category: fixed ? "signup" : "clinic", name: "기존 안내 문구", subject: "옛 제목",
+    body: fixedBody ?? "예전에 사용하던 안내문", is_system: system, is_user_default: false,
     solapi_template_id: "", solapi_status: "", created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z" };
   const templates = new Map([[101, original], [102, { ...original, id: 102, name: "현재 연결 문구", body: "최근 저장한 안내문 #{학생이름}" }]]);
   const state = { linked: 101, nextId: 200, creates: 0, connects: 0, sends: 0, failLink: false, failLoad: false, failSave: false };
   const updates: number[] = [];
   const config = () => {
     const template = templates.get(state.linked)!;
-    return { id: 1, trigger: "clinic_reminder", template: template.id,
+    return { id: 1, trigger: fixed ? "withdrawal_complete" : "clinic_reminder", template: template.id,
       template_name: template.name, template_subject: template.subject, template_body: template.body,
       template_is_system: template.is_system, enabled: true, message_mode: "alimtalk",
-      effective_template_type: "clinic_info", effective_template_source: "unified",
+      effective_template_type: fixed ? "notice_withdrawal" : "clinic_info", effective_template_source: "unified",
       effective_template_is_approved: true, effective_template_solapi_status: "APPROVED",
-      policy_mode: "AUTO_DEFAULT", implementation_status: "implemented", minutes_before: 30,
+      policy_mode: fixed ? "SYSTEM_AUTO" : "AUTO_DEFAULT", implementation_status: "implemented", minutes_before: 30,
       delay_mode: "immediate", delay_value: null, show_actual_time: false };
   };
   await page.route("**/api/v1/**", async (route) => {
@@ -71,11 +72,37 @@ async function setup(page: Page, system = false) {
   });
   const openPage = async () => {
     await page.goto(`${base}/workspace/message/auto-send`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "클리닉/상담", exact: true }).click();
-    await expect(page.getByRole("button", { name: "문구 수정", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: fixed ? "가입/등록" : "클리닉/상담", exact: true }).click();
+    await expect(page.getByRole("button", { name: fixed ? "내용 보기" : "문구 수정", exact: true })).toBeVisible();
   };
   await openPage();
   return { state, templates, updates, original, openPage };
+}
+
+for (const fixedBody of ["", "과거에 저장한 미사용 메모"]) {
+  test(`고정 안내는 ${fixedBody ? "과거 메모 대신" : "저장 메모가 없어도"} 승인 양식을 보여준다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: fixedBody ? 1366 : 390, height: 900 });
+    const { state, updates, templates } = await setup(page, false, fixedBody);
+    const previewButton = page.getByRole("button", { name: "미리보기", exact: true });
+    await previewButton.click();
+    await expect(page.getByRole("dialog")).toContainText("퇴원 처리가 완료되었습니다");
+    await expect(page.getByRole("dialog")).not.toContainText("과거에 저장한 미사용 메모");
+    const close = page.getByRole("dialog").getByRole("button", { name: "대화상자 종료", exact: true });
+    await close.focus();
+    await page.keyboard.press("Tab");
+    await expect(close).toBeFocused();
+    await page.screenshot({ path: testInfo.outputPath("fixed-alimtalk-preview.png") });
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toBeHidden();
+    await expect(previewButton).toBeFocused();
+    await page.getByRole("button", { name: "내용 보기", exact: true }).click();
+    await expect(page.getByRole("dialog")).toContainText("퇴원 처리가 완료되었습니다");
+    await expect(page.getByRole("dialog")).not.toContainText("과거에 저장한 미사용 메모");
+    await expect(page.getByRole("dialog").getByRole("button", { name: "저장하고 적용" })).toHaveCount(0);
+    expect(updates).toEqual([]);
+    expect(templates.get(101)?.body).toBe(fixedBody);
+    expect(state.sends).toBe(0);
+  });
 }
 
 for (const width of [1100, 1366, 390]) {

@@ -25,6 +25,12 @@ function templateNameFromConfig(config: AutoSendConfig): string | undefined {
   return typeof config.template === "object" && config.template ? config.template.name : undefined;
 }
 
+function timingForTrigger(trigger: string) {
+  return trigger.includes("days_before") ? { unit: 1440, label: "일" }
+    : trigger.includes("hours_before") ? { unit: 60, label: "시간" }
+    : { unit: 1, label: "분" };
+}
+
 export default function MessagingSettingsPage() {
   const navigate = useNavigate();
 
@@ -239,7 +245,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
   const toggleMut = useMutation({
     mutationFn: () => updateAutoSendConfig(config.trigger, { enabled: !enabled }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.autoSendConfigs });
+      qc.invalidateQueries({ queryKey: messageAutoSendQueryKey });
       teacherToast.success(!enabled ? "자동 발송을 켰습니다." : "자동 발송을 껐습니다.");
     },
   });
@@ -249,6 +255,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
   const templateName = templateNameFromConfig(config);
   const modeLabel = "알림톡";
   const minutesBefore = config.minutes_before;
+  const timing = timingForTrigger(triggerKey);
 
   return (
     <>
@@ -268,7 +275,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
             {operationalDisabled && <Badge tone="warning" size="xs">운영 중지</Badge>}
             {isSystem && templateReady && !operationalDisabled && <Badge tone="success" size="xs">항상 활성</Badge>}
             {minutesBefore != null && minutesBefore > 0 && (
-              <Badge tone="neutral" size="xs">{minutesBefore}분 전</Badge>
+              <Badge tone="neutral" size="xs">{minutesBefore / timing.unit}{timing.label} 전</Badge>
             )}
           </div>
           {templateName && (
@@ -276,6 +283,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
               템플릿: {templateName}
             </div>
           )}
+          {toggleMut.isError && <p role="alert" className="text-xs mt-1">자동 발송 설정을 변경하지 못했습니다. 다시 시도해 주세요.</p>}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button onClick={() => setEditOpen(true)} type="button"
@@ -290,7 +298,8 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
             aria-label={`${triggerLabel} 자동 발송`}
             aria-checked={enabled}
             className={`${styles.toggleButton} cursor-pointer`}
-            disabled={operationalDisabled || isUnimplemented || isSystem || !templateReady}
+            disabled={toggleMut.isPending || operationalDisabled || isUnimplemented || isSystem || !templateReady}
+            aria-busy={toggleMut.isPending}
           >
             <div className={`${styles.toggleTrack} ${enabled ? styles.toggleTrackOn : ""} w-10 h-5 rounded-full relative`}>
               <div className={`${styles.toggleKnob} ${enabled ? styles.toggleKnobOn : ""} absolute top-0.5 w-4 h-4 rounded-full bg-white shadow`} />
@@ -306,8 +315,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
 /* ─── Auto Send Edit Sheet ─── */
 function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: () => void; config: AutoSendConfig }) {
   const qc = useQueryClient();
-  const timingUnit = config.trigger.includes("days_before") ? 1440 : config.trigger.includes("hours_before") ? 60 : 1;
-  const timingLabel = timingUnit === 1440 ? "일" : timingUnit === 60 ? "시간" : "분";
+  const { unit: timingUnit, label: timingLabel } = timingForTrigger(config.trigger);
   const [minutesBefore, setMinutesBefore] = useState<string>(
     config.minutes_before != null ? String(config.minutes_before / timingUnit) : ""
   );
@@ -330,7 +338,6 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
       return updateAutoSendConfig(config.trigger, payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.autoSendConfigs });
       teacherToast.success("자동 발송 설정이 저장되었습니다.");
       qc.invalidateQueries({ queryKey: messageAutoSendQueryKey });
       onClose();

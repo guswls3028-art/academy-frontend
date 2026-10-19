@@ -268,7 +268,7 @@ function TriggerCard({
                       ? "활성화"
                       : "비활성화"}
           </span>
-          {config.template_body && (
+          {(config.template_body || getAlimtalkTemplateType(config.trigger)) && (
             <button
               type="button"
               onClick={() => setShowPreview(true)}

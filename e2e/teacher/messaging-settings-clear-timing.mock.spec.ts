@@ -20,6 +20,8 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
   test(`${scenario.label}: 저장 단위·빈 값·재조회와 중첩 미리보기`, async ({ page }) => {
     let minutesBefore: number | null = scenario.initial;
     let savedBody: unknown = null;
+    let enabled = true;
+    let failToggle = true;
 
     await page.route("**/api/v1/**", async (route) => {
       const request = route.request();
@@ -59,8 +61,12 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
       }
       if (path === "/messaging/auto-send/" && request.method() === "PATCH") {
         savedBody = request.postDataJSON();
-        const configs = (savedBody as { configs?: Array<{ minutes_before?: number | null }> }).configs ?? [];
-        minutesBefore = configs[0]?.minutes_before ?? null;
+        const config = (savedBody as { configs: Array<{ minutes_before?: number | null; enabled?: boolean }> }).configs[0];
+        if (typeof config.enabled === "boolean") {
+          if (failToggle) return json({ detail: "설정을 저장하지 못했습니다." }, 503);
+          enabled = config.enabled;
+        }
+        if ("minutes_before" in config) minutesBefore = config.minutes_before ?? null;
       }
       if (path === "/messaging/auto-send/") {
         return json([{
@@ -71,7 +77,7 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
           template_body: "클리닉 시작 안내입니다.",
           template_is_system: false,
           effective_template_is_approved: true,
-          enabled: true,
+          enabled,
           message_mode: "alimtalk",
           minutes_before: minutesBefore,
           policy_mode: "AUTO_DEFAULT",
@@ -96,6 +102,15 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     await expect(page.getByText("발송 상태", { exact: true })).toBeVisible();
     await expect(page.getByText("공급자", { exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    await expect(page.getByText(`${scenario.display}${scenario.label}`, { exact: true })).toBeVisible();
+    const autoToggle = page.getByRole("switch");
+    await autoToggle.click();
+    await expect(page.getByRole("alert")).toContainText("변경하지 못했습니다");
+    await expect(autoToggle).toHaveAttribute("aria-checked", "true");
+    failToggle = false;
+    await autoToggle.click();
+    await expect(autoToggle).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByRole("alert")).toHaveCount(0);
 
     await page.getByTitle("설정 편집").click();
     const timingInput = page.getByRole("spinbutton", { name: scenario.label });
@@ -148,6 +163,8 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     await expect(reopenedTimingInput).toBeHidden();
     expect(minutesBefore).toBe(2 * scenario.unit);
     await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(autoToggle).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByText(`2${scenario.label}`, { exact: true })).toBeVisible();
     await page.getByTitle("설정 편집").click();
     await expect(page.getByRole("spinbutton", { name: scenario.label })).toHaveValue("2");
   });

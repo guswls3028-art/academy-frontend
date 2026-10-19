@@ -182,7 +182,7 @@ export default function TemplateEditModal({
                   : "이 화면의 이름·날짜 등은 예시입니다. 수신자별 문구는 발송 화면에서 확인하세요."}
               </p>}
               <KakaoAlimtalkPreview channelLabel={TEMPLATE_CATEGORY_LABELS[selectedCategory]} subject={alimtalkType ? undefined : subject}>
-                {body
+                {body || alimtalkType
                   ? renderPlainMessagePreview(
                     alimtalkType
                       ? renderAlimtalkFullPreview(alimtalkType, hideInternalAlimtalkMemoToken(body, ""), undefined, { 학원명: academyName })
@@ -213,7 +213,7 @@ export default function TemplateEditModal({
               </div>
             )}
             <div className="message-template-edit-heading">
-              <span>안내문 작성</span>
+              <span>{readOnly ? "안내문 정보" : "안내문 작성"}</span>
               <span className="message-template-channel">알림톡</span>
             </div>
 
@@ -244,7 +244,7 @@ export default function TemplateEditModal({
             )}
 
             {/* 본문 — 2패널: 입력 | 삽입 블록 */}
-            <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
+            {(!readOnly || !alimtalkType || bodyEditableInEnvelope) && <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
               <div className="template-editor__body-input flex-1 min-w-0 flex flex-col">
                 <label className="template-editor__editor-title block mb-1">
                   {alimtalkType
@@ -350,7 +350,7 @@ export default function TemplateEditModal({
                   )}
                 </div>
               </div>
-            </div>
+            </div>}
           </div>
         </div>
       </ModalBody>
