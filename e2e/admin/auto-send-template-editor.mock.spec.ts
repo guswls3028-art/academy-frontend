@@ -92,6 +92,7 @@ async function setup(page: Page, system = false, fixedBody?: string, account = f
 
 test("계정 고정 안내는 예전 저장 본문을 실제 발송 예시로 표시하지 않는다", async ({ page }) => {
   await setup(page, true, "예전 계정 안내 본문", true);
+  await expect(page.getByText("예전 계정 안내 본문", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "미리보기", exact: true }).click();
   await expect(page.getByRole("dialog")).toContainText("발송 시점의 아이디·계정 정보");
   await expect(page.getByRole("dialog")).not.toContainText("예전 계정 안내 본문");
