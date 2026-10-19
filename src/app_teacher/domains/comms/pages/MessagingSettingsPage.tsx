@@ -17,6 +17,7 @@ import {
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { InlineHelp } from "@/shared/ui/guide";
 import { teacherCommsQueryKeys } from "../queryKeys";
+import { messageAutoSendQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 import styles from "./MessagingSettingsPage.module.css";
 
 function templateNameFromConfig(config: AutoSendConfig): string | undefined {
@@ -305,27 +306,33 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
 /* ─── Auto Send Edit Sheet ─── */
 function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: () => void; config: AutoSendConfig }) {
   const qc = useQueryClient();
+  const timingUnit = config.trigger.includes("days_before") ? 1440 : config.trigger.includes("hours_before") ? 60 : 1;
+  const timingLabel = timingUnit === 1440 ? "일" : timingUnit === 60 ? "시간" : "분";
   const [minutesBefore, setMinutesBefore] = useState<string>(
-    config.minutes_before != null ? String(config.minutes_before) : ""
+    config.minutes_before != null ? String(config.minutes_before / timingUnit) : ""
   );
   const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setMinutesBefore(config.minutes_before != null ? String(config.minutes_before) : "");
-  }, [open, config]);
+    setMinutesBefore(config.minutes_before != null ? String(config.minutes_before / timingUnit) : "");
+  }, [open, config, timingUnit]);
+  const minutesValue = minutesBefore.trim() ? Number(minutesBefore) * timingUnit : null;
+  const invalidTiming = minutesValue != null && (!Number.isFinite(minutesValue) || minutesValue < 0 || !Number.isInteger(minutesValue));
 
   const saveMut = useMutation({
     mutationFn: () => {
+      if (invalidTiming) throw new Error("발송 시점은 0 이상의 값으로 분 단위까지 입력해 주세요.");
       const payload: Record<string, unknown> = {
         message_mode: "alimtalk",
-        minutes_before: minutesBefore.trim() ? Number(minutesBefore) : null,
+        minutes_before: minutesValue,
       };
       return updateAutoSendConfig(config.trigger, payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.autoSendConfigs });
       teacherToast.success("자동 발송 설정이 저장되었습니다.");
+      qc.invalidateQueries({ queryKey: messageAutoSendQueryKey });
       onClose();
     },
     onError: () => teacherToast.error("저장에 실패했습니다."),
@@ -360,15 +367,17 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
           {showMinutesBefore && (
             <div>
               <label htmlFor={`auto-send-minutes-${triggerKey}`} className={`${styles.fieldLabel} text-[11px] font-semibold block mb-1`}>
-                {triggerKey.includes("hours_before") ? "시간 전" : triggerKey.includes("days_before") ? "일 전" : "분 전"}
+                {timingLabel} 전
               </label>
               <input id={`auto-send-minutes-${triggerKey}`} type="number" value={minutesBefore} onChange={(e) => setMinutesBefore(e.target.value)}
+                min={0} step="any" aria-invalid={invalidTiming}
                 placeholder="예: 10"
                 disabled={!canEditTiming}
                 className={`${styles.input} w-full text-sm`} />
               <p className={`${styles.mutedText} text-[11px] mt-1`}>
-                이벤트 발생 {minutesBefore || "--"} 단위 전에 자동 발송합니다.
+                {minutesBefore.trim() ? `이벤트 발생 ${minutesBefore}${timingLabel} 전에 자동 발송합니다.` : "비워 두면 별도의 사전 발송 시점을 지정하지 않습니다."}
               </p>
+              {invalidTiming && <p role="alert">0 이상의 값으로 분 단위까지 입력해 주세요.</p>}
             </div>
           )}
 
@@ -392,7 +401,7 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
           </div>
 
           {canEditTiming && (
-            <button type="button" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
+            <button type="button" onClick={() => saveMut.mutate()} disabled={saveMut.isPending || invalidTiming}
               className={`${styles.fullSaveButton} w-full text-sm font-bold cursor-pointer mt-1`}>
               {saveMut.isPending ? "저장 중…" : "발송 시점 저장"}
             </button>

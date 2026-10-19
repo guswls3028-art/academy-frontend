@@ -12,8 +12,13 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     serviceWorkers: "block",
   });
 
-  test("빈 발송 시점을 유지하고 중첩 미리보기만 닫는다", async ({ page }) => {
-    let minutesBefore: number | null = 30;
+  for (const scenario of [
+    { trigger: "clinic_reminder", unit: 1, label: "분 전", initial: 30, display: "30" },
+    { trigger: "exam_scheduled_days_before", unit: 1440, label: "일 전", initial: 1440, display: "1" },
+    { trigger: "assignment_due_hours_before", unit: 60, label: "시간 전", initial: 180, display: "3" },
+  ]) {
+  test(`${scenario.label}: 저장 단위·빈 값·재조회와 중첩 미리보기`, async ({ page }) => {
+    let minutesBefore: number | null = scenario.initial;
     let savedBody: unknown = null;
 
     await page.route("**/api/v1/**", async (route) => {
@@ -60,7 +65,7 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
       if (path === "/messaging/auto-send/") {
         return json([{
           id: 501,
-          trigger: "clinic_reminder",
+          trigger: scenario.trigger,
           template: 701,
           template_name: "클리닉 안내",
           template_body: "클리닉 시작 안내입니다.",
@@ -93,21 +98,21 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
     await page.getByTitle("설정 편집").click();
-    const timingInput = page.getByRole("spinbutton", { name: "분 전" });
-    await expect(timingInput).toHaveValue("30");
+    const timingInput = page.getByRole("spinbutton", { name: scenario.label });
+    await expect(timingInput).toHaveValue(scenario.display);
     await timingInput.fill("");
     await page.getByRole("button", { name: "발송 시점 저장" }).click();
 
     await expect.poll(() => savedBody).toEqual({
       configs: [{
-        trigger: "clinic_reminder",
+        trigger: scenario.trigger,
         message_mode: "alimtalk",
         minutes_before: null,
       }],
     });
 
     await page.getByTitle("설정 편집").click();
-    const reopenedTimingInput = page.getByRole("spinbutton", { name: "분 전" });
+    const reopenedTimingInput = page.getByRole("spinbutton", { name: scenario.label });
     await expect(reopenedTimingInput).toHaveValue("");
 
     await reopenedTimingInput.fill("45");
@@ -135,7 +140,16 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     await expect(reopenedTimingInput).toHaveValue("45");
     await expect(previewTrigger).toBeFocused();
 
-    await page.mouse.click(10, 10);
+    await reopenedTimingInput.fill("-1");
+    await expect(page.getByRole("alert")).toContainText("0 이상의 값");
+    await expect(page.getByRole("button", { name: "발송 시점 저장" })).toBeDisabled();
+    await reopenedTimingInput.fill("2");
+    await page.getByRole("button", { name: "발송 시점 저장" }).click();
     await expect(reopenedTimingInput).toBeHidden();
+    expect(minutesBefore).toBe(2 * scenario.unit);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTitle("설정 편집").click();
+    await expect(page.getByRole("spinbutton", { name: scenario.label })).toHaveValue("2");
   });
+  }
 });

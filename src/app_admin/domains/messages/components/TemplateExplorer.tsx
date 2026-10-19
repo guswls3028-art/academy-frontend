@@ -683,7 +683,7 @@ export default function TemplateExplorer() {
       {/* 템플릿 생성/수정 모달 */}
       <TemplateEditModal
         open={isCreate || isEditOrView}
-        onClose={() => setModalOpen(null)}
+        onClose={() => { createMut.reset(); updateMut.reset(); setModalOpen(null); }}
         category={modalCategory}
         initial={editing ?? undefined}
         copy={copying}

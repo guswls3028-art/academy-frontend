@@ -30,7 +30,7 @@ export default function AutoSendTemplateEditor({ trigger, onClose }: {
   const savedCopy = useRef<MessageTemplateItem | null>(null);
   const title = AUTO_SEND_TRIGGER_LABELS[trigger] ?? "자동발송";
   const source = useQuery({
-    queryKey: ["auto-send-template-editor", trigger],
+    queryKey: messageQueryKeys.autoSendEditor(trigger),
     gcTime: 0,
     staleTime: 0,
     refetchOnMount: "always",
@@ -48,7 +48,7 @@ export default function AutoSendTemplateEditor({ trigger, onClose }: {
   const templateType = getAlimtalkTemplateType(trigger);
   const editable = Boolean(templateType && isAlimtalkTemplateBodyEditable(templateType));
   const sourceTemplate = source.data?.template ?? null;
-  const copy = editable && Boolean(sourceTemplate?.is_system);
+  const copy = editable && Boolean(sourceTemplate?.is_system || sourceTemplate?.solapi_template_id || sourceTemplate?.solapi_status);
   const save = useMutation({
     mutationFn: async (payload: MessageTemplatePayload) => {
       if (!source.data || !editable) throw new Error("수정할 수 있는 안내문을 먼저 불러와 주세요.");
