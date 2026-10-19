@@ -548,11 +548,19 @@ export function observeReleaseTestResult(stdout) {
                     && value.listVisibleMs >= value.responseMs;
                 } else if (name === "releaseStrictBrowserDefect") {
                   destination = "strictBrowserDefects";
-                  valid &&= exactKeys(value, ["schema", "category", "source", "count"])
+                  const hasVendorDiagnostic = Object.hasOwn(value ?? {}, "vendorDiagnostic");
+                  valid &&= exactKeys(value, ["schema", "category", "source", "count", ...(hasVendorDiagnostic ? ["vendorDiagnostic"] : [])])
                     && value.schema === "strict-browser-defect/v1"
                     && ["net-err", "cors", "chunk", "resource", "runtime", "other"].includes(value.category)
                     && ["local", "api", "vendor", "unknown"].includes(value.source)
                     && Number.isInteger(value.count) && value.count >= 1 && value.count <= 1000;
+                  if (valid && hasVendorDiagnostic) {
+                    const diagnostic = value.vendorDiagnostic;
+                    valid &&= value.source === "vendor" && exactKeys(diagnostic, ["eventKind", "providerClass", "errorFamily"])
+                      && diagnostic.eventKind === "console-error"
+                      && ["youtube.com", "youtube-nocookie.com", "ytimg.com", "googlevideo.com", "gstatic.com", "google.com", "googleapis.com", "googleusercontent.com", "ggpht.com", "doubleclick.net", "googlesyndication.com", "googleadservices.com", "other"].includes(diagnostic.providerClass)
+                      && ["postmessage-origin", "permissions-policy", "autoplay-policy", "player-error", "other"].includes(diagnostic.errorFamily);
+                  }
                 } else if (name === "releaseStrictBrowserSuppression") {
                   destination = "strictBrowserSuppressions";
                   const smallCount = (count) => Number.isInteger(count) && count >= 0 && count <= 1000;
