@@ -312,6 +312,12 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                 updated_at: currentHomeworkVersions[index],
               },
             }] : [],
+            ...(options.includeSecondExam ? { exam_total: {
+              score: score == null ? 40 : score + 40,
+              max_score: examMaxScore + 50,
+              selected_count: 2, scored_count: score == null ? 1 : 2,
+              complete: score != null,
+            } } : {}),
             clinic_required: options.rowClinicRequired?.[index] ?? (score == null ? false : score < 60),
             name_highlight_clinic_target: options.rowNameHighlightClinicTarget?.[index] ?? false,
             ...(options.rowNameHighlightFollowupRequired ? {
@@ -1523,13 +1529,13 @@ test("완료형 과제 셀은 focus 시 version을 고정해 원격 저장 뒤 s
     });
 
     await pageBSelect.focus();
-    await expect(pageBSelect).toHaveValue("미완료");
+    await expect(pageBSelect).toHaveValue("미통과");
 
-    await pageASelect.selectOption("완료");
+    await pageASelect.selectOption("통과");
     await pageA.keyboard.press("Control+s");
     await expect.poll(() => currentHomeworkScores[0]).toBe(1);
     await expect.poll(() => pageBObservedHomeworkScore, { timeout: 10_000 }).toBe(1);
-    await expect(pageBSelect).toHaveValue("미완료");
+    await expect(pageBSelect).toHaveValue("미통과");
 
     await pageBSelect.selectOption("미입력");
     await pageB.keyboard.press("Control+s");
@@ -2307,8 +2313,8 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     const firstRow = page.locator("tbody tr").filter({ hasText: "자동저장학생1" });
     const summaryCell = firstRow.locator('[data-col-type="exam-summary"]');
-    await expect(summaryCell).toContainText("137/155");
-    await expect(summaryCell).not.toContainText("137/137");
+    await expect(summaryCell).toContainText(/137\s*\/\s*155/);
+    await expect(summaryCell).not.toContainText(/137\s*\/\s*137/);
   });
 
   test("학생 상세 2차 재시험은 당시 만점을 보존해 수정한다", async ({ page }) => {
@@ -2437,8 +2443,8 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     const completionSelect = page.getByRole("combobox", {
       name: "자동저장학생2 · 단원 복습 완료 상태",
     });
-    await expect(completionSelect).toHaveValue("미완료");
-    await completionSelect.selectOption("완료");
+    await expect(completionSelect).toHaveValue("미통과");
+    await completionSelect.selectOption("통과");
 
     await expect.poll(() => homeworkPatches.at(-1)?.score, { timeout: 10_000 }).toBe(1);
     expect(homeworkPatches.at(-1)).toMatchObject({
@@ -2446,7 +2452,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       homework_id: 9151,
       max_score: 1,
     });
-    await expect(completionSelect).toHaveValue("완료");
+    await expect(completionSelect).toHaveValue("통과");
     await page.screenshot({ path: "test-results/homework-completion/scores-completion-select.png", fullPage: true });
   });
 

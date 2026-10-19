@@ -56,6 +56,8 @@ async function setup(page: Page, kind: "exam" | "homework", failSecond = false) 
       return json({ count: rows.length, next: pageNumber * size < rows.length ? `?page=${pageNumber + 1}` : null,
         results: rows.slice((pageNumber - 1) * size, pageNumber * size) });
     }
+    // Exam detail consumes the unpaginated question-list contract after copy/reload.
+    if (path === "/exams/9001/questions/") return json([]);
     if (/^\/(exams|homeworks)\/9001\/$/.test(path)) return json(state.created[0] || {});
     if (path.endsWith("/enrollments/") && method === "PUT") return json({ selected_count: 0 });
     return json({ count: 0, results: [] });

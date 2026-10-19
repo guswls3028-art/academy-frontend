@@ -1321,14 +1321,14 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     const notSubmittedRow = detailOverlay
       .getByText("수학 일일 과제", { exact: true })
       .locator("xpath=ancestor::*[contains(@class,'tabRecord')][1]");
-    await expect(notSubmittedRow).toContainText("숫자 채점");
+    await expect(notSubmittedRow).toContainText("점수형 과제");
     await expect(notSubmittedRow).toContainText("미제출");
     await expect(notSubmittedRow).not.toContainText("0/30");
 
     const ungradedRow = detailOverlay
       .getByText("주말 복습 과제", { exact: true })
       .locator("xpath=ancestor::*[contains(@class,'tabRecord')][1]");
-    await expect(ungradedRow).toContainText("완료 체크");
+    await expect(ungradedRow).toContainText("통과형 과제");
     await expect(ungradedRow).toContainText("검사 전");
     await expect(detailOverlay.getByRole("tab", { name: /과제/ })).toContainText("미제출 1");
     await detailOverlay.screenshot({ path: "test-results/homework-completion/student-detail-1100.png" });

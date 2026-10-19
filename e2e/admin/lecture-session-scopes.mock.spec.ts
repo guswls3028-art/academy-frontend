@@ -1454,7 +1454,7 @@ test("같은 차시에서도 과제마다 숫자 채점과 완료 체크를 선�
   await page.getByRole("button", { name: "+ 추가", exact: true }).click();
   await page.getByLabel("과제 2 제목").fill("교재 지참 확인");
   await page.getByRole("group", { name: "과제 2 채점 방식" })
-    .getByRole("button", { name: "완료 체크" })
+    .getByRole("button", { name: "통과형 (O/X)" })
     .click();
   await expect(page.getByText("점수나 만점 없이 두 상태로만 검사합니다.")).toBeVisible();
   await page.setViewportSize({ width: 390, height: 480 });

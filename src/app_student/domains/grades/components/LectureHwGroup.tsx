@@ -3,6 +3,7 @@
  */
 import { IconClipboard } from "@student/shared/ui/icons/Icons";
 import GradeBadge from "./GradeBadge";
+import { ParentAssessmentComment } from "./ParentAssessmentComments";
 import type { MyHomeworkGradeSummary } from "../api/grades.api";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import styles from "./LectureGradeGroup.module.css";
@@ -36,7 +37,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
             ? h.max_score
             : null;
           const scoreText = gradingMode === "COMPLETION"
-            ? score == null ? "검사 전" : score > 0 ? "완료" : "미완료"
+            ? score == null ? "검사 전" : score > 0 ? "통과" : "미통과"
             : score == null
               ? maxScore == null ? "검사 전" : `–/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`
               : maxScore == null
@@ -61,7 +62,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   <div className={`stu-muted ${styles.meta}`}>
                     {h.session_title ?? "차시 미지정"}
                     <span aria-hidden> · </span>
-                    {gradingMode === "COMPLETION" ? "완료 체크" : "숫자 채점"}
+                    {gradingMode === "COMPLETION" ? "통과형 과제" : "점수형 과제"}
                   </div>
                 </div>
                 <div className={styles.homeworkStatus}>
@@ -69,7 +70,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   <GradeBadge
                     passed={badgePassed}
                     achievement={h.achievement}
-                    label={{ pass: "완료", fail: "미완료" }}
+                    label={gradingMode === "COMPLETION" ? { pass: "통과", fail: "미통과" } : { pass: "완료", fail: "미완료" }}
                     showNotSubmitted
                     notSubmittedLabel="미제출"
                     emptyLabel="검사 전"
@@ -78,6 +79,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   />
                 </div>
               </div>
+              <ParentAssessmentComment kind="homework" assessmentId={h.homework_id} sessionId={h.session_id} />
               {gradingMode === "SCORE" && maxScore != null && (
                 <progress
                   className={styles.homeworkProgress}

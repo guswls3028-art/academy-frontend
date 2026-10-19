@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
+import { openCompositionScores } from "../helpers/assessmentCompositionMock";
 import { getBaseUrl } from "../helpers/auth";
+import { realMessagingSkipReason } from "../helpers/safety";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 async function openTemplateEditor(page: Page, openEditor = true, initialBody = "한글 안내 #{시험총점}") {
@@ -455,4 +457,119 @@ test.describe("안내문 변수 편집", () => {
     await editor.press("Control+c");
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(original);
   });
+});
+
+async function openGuardedSender(page: Page) {
+  const baseUrl = getBaseUrl("admin");
+  const mockOnlyReason = realMessagingSkipReason(baseUrl, "", "0");
+  test.skip(
+    !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?:\/|$)/.test(baseUrl),
+    mockOnlyReason ?? "발송 초안 보호 route-mock 검증은 로컬 dev 서버 전용",
+  );
+  await openCompositionScores(page);
+  const sends: Record<string, unknown>[] = [];
+  let releaseFailure: (() => void) | undefined;
+  const failureGate = new Promise<void>(resolve => { releaseFailure = resolve; });
+  await page.route("**/api/v1/messaging/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/templates/")) return route.fulfill({ json: [{
+      id: 991, name: "안전한 수업 안내", category: "grades", subject: "", body: "오늘 수업 안내입니다.",
+      is_system: false, is_user_default: true, solapi_status: "", solapi_template_id: "",
+    }] });
+    if (path.endsWith("/send/preflight/")) {
+      const payload = route.request().postDataJSON();
+      return route.fulfill({ json: {
+        ok: true, can_send: true, mode: "now", send_to: payload.send_to,
+        recipient: { selected: 1, resolved: 1, valid_phone: 1, skipped_no_phone: 0, duplicate_phone: 0, unique_phone: 1, invalid_or_deleted: 0, limit: 500 },
+        template: { ok: true, source: "unified", name: "성적 안내", solapi_template_id: "E2E_GRADES", solapi_status: "APPROVED", detail: "", uses_unified_template: true, template_type: "grades" },
+        preview_recipients: [{ student_id: 9301, student_name: "모바일순서학생", phone: "010****0001", excluded: false, exclude_reason: "", full_message_body: payload.raw_body || "오늘 수업 안내입니다." }],
+        limits: { hourly_limit: 500, sent_last_hour: 0, remaining_this_hour: 500 }, blockers: [], warnings: [],
+      } });
+    }
+    if (path.endsWith("/send/")) {
+      const payload = route.request().postDataJSON(); sends.push(payload);
+      if (sends.length === 2) {
+        await failureGate;
+        return route.fulfill({ status: 503, json: { detail: "두 번째 대상 접수 응답 지연" } });
+      }
+      return route.fulfill({ json: { request_id: payload.client_request_id, accepted_count: 1, enqueued: 1, scheduled: 0, enqueue_failed: 0, skipped_no_phone: 0 } });
+    }
+    return route.fulfill({ json: {} });
+  });
+  await page.getByRole("checkbox", { name: "모바일순서학생 선택" }).check();
+  await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+  const modal = page.getByRole("dialog", { name: /^알림톡 발송/ });
+  await expect(modal.getByRole("textbox", { name: "안내문", exact: true })).toContainText("오늘 수업 안내입니다.");
+  return { modal, sends, releaseFailure: () => releaseFailure?.() };
+}
+
+for (const width of [1366, 390]) {
+  test(`발송 초안 닫기·양식 교체는 폐기를 확인하고 취소하면 보존한다 ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { modal, sends } = await openGuardedSender(page);
+    const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+    await editor.click(); await page.keyboard.press("Control+End"); await page.keyboard.insertText(" 작성 중인 내용");
+    await modal.getByRole("button", { name: "취소", exact: true }).click();
+    const closeConfirm = page.getByRole("alertdialog", { name: "작성한 문구를 닫을까요?" });
+    await expect(closeConfirm).toBeVisible();
+    await expect.poll(() => closeConfirm.evaluate(node =>
+      node.getAnimations({ subtree: true }).filter(animation => animation.playState === "running").length,
+    )).toBe(0);
+    await page.screenshot({ path: testInfo.outputPath(`message-draft-discard-confirm-${width}.png`), animations: "disabled" });
+    await closeConfirm.getByRole("button", { name: "계속 편집", exact: true }).click();
+    await expect(editor).toContainText("작성 중인 내용");
+    await modal.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+    await page.getByRole("button", { name: /직접 작성 보낼 안내문을 처음부터 작성합니다/ }).click();
+    const replaceConfirm = page.getByRole("alertdialog", { name: "작성한 문구를 바꿀까요?" });
+    await replaceConfirm.getByRole("button", { name: "계속 편집", exact: true }).click();
+    await expect(editor).toContainText("작성 중인 내용");
+    await modal.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+    await page.getByRole("button", { name: /직접 작성 보낼 안내문을 처음부터 작성합니다/ }).click();
+    await replaceConfirm.getByRole("button", { name: "수정 내용 버리고 바꾸기", exact: true }).click();
+    await expect(editor).toBeEmpty();
+    await editor.fill("새 초안");
+    await page.keyboard.press("Escape");
+    await closeConfirm.getByRole("button", { name: "수정 내용 버리고 닫기", exact: true }).click();
+    await expect(modal).toBeHidden();
+    expect(sends).toEqual([]);
+    await page.screenshot({ path: testInfo.outputPath(`message-draft-discard-${width}.png`), animations: "disabled" });
+  });
+}
+
+test("발송 중 Escape·배경·닫기를 막고 부분 실패 재시도는 같은 요청을 보존한다", async ({ page }) => {
+  const { modal, sends, releaseFailure } = await openGuardedSender(page);
+  await modal.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
+  await page.getByRole("dialog", { name: "보내기 전 마지막 확인" }).getByRole("button", { name: "발송하기", exact: true }).click();
+  await expect.poll(() => sends.length).toBe(2);
+  await expect(modal.getByRole("button", { name: "대화상자 종료", exact: true })).toHaveCount(0);
+  await expect(modal.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
+  await page.keyboard.press("Escape"); await page.mouse.click(2, 2);
+  await expect(modal).toBeVisible();
+  releaseFailure();
+  await expect(modal.getByRole("button", { name: "같은 요청으로 재시도", exact: true })).toBeVisible();
+  await modal.getByRole("button", { name: "취소", exact: true }).click();
+  const unresolved = page.getByRole("alertdialog", { name: "발송 결과 확인 전 나갈까요?" });
+  await expect(unresolved).toContainText("이미 접수된 대상이 있을 수 있습니다");
+  await unresolved.getByRole("button", { name: "돌아가서 확인", exact: true }).click();
+  await expect(modal).toBeVisible();
+  expect(sends).toHaveLength(2);
+  await modal.getByRole("button", { name: "같은 요청으로 재시도", exact: true }).click();
+  await expect(modal).toBeHidden();
+  expect(sends).toHaveLength(4);
+  expect(new Set(sends.map(payload => payload.client_request_id)).size).toBe(1);
+});
+
+
+test("편집하지 않은 문구도 부분 접수 뒤 닫기는 결과 미확인을 명시적으로 확인한다", async ({ page }) => {
+  const { modal, sends, releaseFailure } = await openGuardedSender(page);
+  await modal.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
+  await page.getByRole("dialog", { name: "보내기 전 마지막 확인" }).getByRole("button", { name: "발송하기", exact: true }).click();
+  await expect.poll(() => sends.length).toBe(2);
+  releaseFailure();
+  await expect(modal.getByRole("button", { name: "같은 요청으로 재시도", exact: true })).toBeVisible();
+  await modal.getByRole("button", { name: "취소", exact: true }).click();
+  await page.getByRole("alertdialog", { name: "발송 결과 확인 전 나갈까요?" })
+    .getByRole("button", { name: "결과 미확인 상태로 나가기", exact: true }).click();
+  await expect(modal).toBeHidden();
+  expect(sends).toHaveLength(2);
 });

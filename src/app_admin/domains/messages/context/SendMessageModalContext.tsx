@@ -18,6 +18,7 @@ import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/mod
 const SendMessageModal = lazy(() => import("../components/SendMessageModal"));
 
 export type OpenSendMessageOptions = {
+  sessionId?: number;
   studentIds?: number[];
   recipientLabel?: string;
   /** 삽입 블록 카테고리. 미지정 시 "default" (모든 블록) */
@@ -60,6 +61,7 @@ export function useSendMessageModal(): ContextValue {
 }
 
 export function SendMessageModalProvider({ children }: { children: ReactNode }) {
+  const [sessionId, setSessionId] = useState<number | undefined>();
   const [open, setOpen] = useState(false);
   const [studentIds, setStudentIds] = useState<number[]>([]);
   const [recipientLabel, setRecipientLabel] = useState<string | undefined>();
@@ -73,6 +75,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const onModalCloseRef = useRef<(() => void) | undefined>(undefined);
 
   const openSendMessageModal = useCallback((options: OpenSendMessageOptions) => {
+    setSessionId(options.sessionId);
     setStudentIds(options.studentIds ?? []);
     setRecipientLabel(options.recipientLabel);
     setBlockCategory(options.blockCategory);
@@ -120,6 +123,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
           <SendMessageModal
             open
             onClose={close}
+            sessionId={sessionId}
             initialStudentIds={studentIds}
             recipientLabel={recipientLabel}
             blockCategory={blockCategory}

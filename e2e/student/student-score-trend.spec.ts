@@ -161,6 +161,7 @@ function gradesFor(points: TrendPoint[]) {
         final_pass: true,
         meta_status: null,
         retake_count: point.retake_count,
+        session_id: point.session_id,
         session_title: point.session_title,
         lecture_title: point.lecture_title,
         rank: point.rank,
@@ -927,4 +928,56 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-score-trend/student-single-lecture-1440.png", fullPage: true });
   });
+  for (const width of [1366, 390]) {
+    for (const viewer of ["parent", "student"] as const) {
+      test(`@assessment-feedback ${width}px ${viewer} 평가별 코멘트와 자녀 범위`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        await installApi(page, viewer);
+        const requests: string[] = [];
+        await page.route("**/api/v1/results/parent/assessment-comments/", async route => {
+          const child = route.request().headers()["x-student-id"] ?? "missing";
+          requests.push(child);
+          await route.fulfill({ json: { items: child === "11" ? [{
+            session_id: 701, assessment_kind: "exam", assessment_id: 301,
+            assessment_title: "Ymath 주간 테스트 1회", session_title: "1차시", lecture_title: "Ymath 중등 심화",
+            text: "첫째의 첫 시험 관찰입니다.", version: 1, updated_at: "2026-10-19T09:00:00Z",
+          }, {
+            session_id: 9999, assessment_kind: "exam", assessment_id: 9999,
+            assessment_title: "점수 입력 전 평가", session_title: "예정 차시", lecture_title: "Ymath 중등 심화",
+            text: "미채점이어도 전달되는 관찰입니다.", version: 1, updated_at: "2026-10-19T09:00:00Z",
+          }] : [] } });
+        });
+        await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+        if (viewer === "parent") {
+          await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
+          await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" }).click();
+          await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+          const firstCard = page.getByRole("link", { name: /Ymath 주간 테스트 1회/ }).locator("..");
+          await expect(firstCard.locator('aside[aria-label="학부모 코멘트"]')).toContainText("첫째의 첫 시험 관찰입니다.");
+          const otherCard = page.getByRole("link", { name: /Ymath 주간 테스트 2회/ }).locator("..");
+          await expect(otherCard.locator('aside[aria-label="학부모 코멘트"]')).toHaveCount(0);
+          const unscoredComments = page.getByRole("region", { name: "성적 입력 전 학부모 코멘트" });
+          await expect(unscoredComments).toContainText("점수 입력 전 평가");
+          await expect(unscoredComments).not.toContainText("첫째의 첫 시험 관찰입니다.");
+          await page.reload();
+          await expect(firstCard).toContainText("첫째의 첫 시험 관찰입니다.");
+          expect(requests.every(id => id === "11")).toBe(true);
+          await page.screenshot({ path: testInfo.outputPath(`assessment-parent-card-${width}.png`), fullPage: true });
+          await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김둘째" }).click();
+          await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+          await expect.poll(() => requests).toContain("12");
+          await expect(page.getByText("첫째의 첫 시험 관찰입니다.", { exact: true })).toHaveCount(0);
+        } else {
+          await expect(page.getByRole("link", { name: /Ymath 주간 테스트 1회/ })).toBeVisible();
+          await page.reload();
+          await expect(page.getByRole("link", { name: /Ymath 주간 테스트 1회/ })).toBeVisible();
+          expect(requests).toEqual([]);
+          await expect(page.locator('aside[aria-label="학부모 코멘트"]')).toHaveCount(0);
+          await page.screenshot({ path: testInfo.outputPath(`assessment-student-no-comment-${width}.png`), fullPage: true });
+        }
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+      });
+    }
+  }
+
 });

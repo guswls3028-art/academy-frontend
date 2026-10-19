@@ -302,7 +302,7 @@ export default function HomeworkPolicyPanel({
                   : {}),
               })}
             >
-              <strong>숫자 채점</strong>
+              <strong>점수형</strong>
               <small>0/30처럼 수행량이나 점수를 입력합니다.</small>
             </button>
             <button
@@ -318,8 +318,8 @@ export default function HomeworkPolicyPanel({
                 roundUnitPercent: "1",
               })}
             >
-              <strong>완료 체크</strong>
-              <small>완료와 미완료 두 상태로만 검사합니다.</small>
+              <strong>통과형 (O/X)</strong>
+              <small>통과와 미통과만 검사하며 과제 총점에 합산하지 않습니다.</small>
             </button>
           </div>
           <span className={formStyles.helper}>

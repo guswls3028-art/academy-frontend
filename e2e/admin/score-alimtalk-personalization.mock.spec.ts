@@ -7,6 +7,7 @@ import {
 import { realMessagingSkipReason } from "../helpers/safety";
 
 type SendPayload = {
+  session_id?: number;
   student_ids?: number[];
   send_to?: string;
   template_id?: number;
@@ -53,6 +54,7 @@ async function installScoreAlimtalkRoutes(
             session_title: "개인화 검증 차시",
             lecture_title: "개인화 검증반",
             lecture_id: 9001,
+            total_config: { version: 0, exam_ids: [9101], homework_ids: [9151] },
             exams: [{
               exam_id: 9101,
               title: "주간 확인",
@@ -112,6 +114,8 @@ async function installScoreAlimtalkRoutes(
                 meta: {},
               },
             }],
+            exam_total: { score: examScore, max_score: 100, selected_count: 1, scored_count: 1, complete: true },
+            homework_total: { score: homeworkScore, max_score: 100, selected_count: 1, scored_count: 1, complete: true },
             clinic_required: examScore < 60 || homeworkScore < 60,
             progress_completed: false,
             updated_at: "2026-08-31T22:00:00+09:00",
@@ -430,6 +434,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await editor.fill("#{학생이름} 학생의 이번 수업 결과입니다.\n#{시험성적}");
     await modal.getByRole("button", { name: "성적 안내문 저장" }).click();
     await modal.getByPlaceholder("예: 출결 알림, 성적표 안내").fill("내 성적표");
+    await modal.getByRole("checkbox", { name: "성적 안내 기본으로 지정 · 이 학원 직원 공통" }).check();
     await modal.getByRole("button", { name: "저장", exact: true }).click();
     await expect.poll(() => templates.find((template) => template.id === 992)?.is_user_default).toBe(true);
     await expect(modal).toContainText("내 성적표");
@@ -562,4 +567,41 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     expect(await modal.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("score-alimtalk-stale-390.png") });
   });
+  for (const width of [1366, 390]) {
+    test(`@assessment-feedback ${width}px 수업 날짜 누락은 발송 차단하고 블록 제거로 복구한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const inspected: SendPayload[] = [], sent: SendPayload[] = [];
+      await openPersonalizedScores(page, "success", inspected, sent);
+      await page.route("**/api/v1/messaging/send/preflight/", async route => {
+        const payload = route.request().postDataJSON() as SendPayload;
+        if (!(payload.raw_body ?? "").includes("#{다음차시날짜}")) { await route.fallback(); return; }
+        inspected.push(payload);
+        expect(payload.session_id).toBe(9002);
+        for (const studentVars of Object.values(payload.alimtalk_extra_vars_per_student ?? {})) {
+          expect(studentVars._body_subst).toContain("#{날짜}");
+          expect(studentVars._body_subst).toContain("#{다음차시날짜}");
+        }
+        await route.fulfill({ json: { ok: false, can_send: false, send_to: payload.send_to, mode: "now",
+          recipient: { selected: 2, resolved: 2, valid_phone: 2, skipped_no_phone: 0, duplicate_phone: 0, unique_phone: 2, invalid_or_deleted: 0, limit: 200 },
+          template: { ok: true, source: "unified", name: "성적 안내", solapi_template_id: "E2E_GRADES", solapi_status: "APPROVED", detail: "", uses_unified_template: true, template_type: "score" },
+          limits: { hourly_limit: 500, sent_last_hour: 0, remaining_this_hour: 500 }, preview_recipients: [], warnings: [],
+          blockers: [{ code: "session_context_missing", title: "수업 정보 확인 필요", detail: "다음 수업 날짜가 비어 있습니다. 차시 설정에서 날짜를 등록하거나 날짜 블록을 지워 주세요." }] } });
+      });
+      await selectBothStudentsAndOpen(page);
+      const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+      const editor = modal.getByRole("textbox", { name: "안내문" });
+      await editor.fill("#{학생이름} · #{시험성적} · 발송 #{날짜} · 다음 수업 #{다음차시날짜}");
+      await expect(modal.getByText(/다음 수업 날짜가 비어 있습니다/).first()).toBeVisible();
+      await expect(modal.locator(".send-modal__send-btn")).toBeDisabled();
+      await expect(editor).toContainText("#{다음차시날짜}");
+      await page.screenshot({ path: testInfo.outputPath(`message-date-blocker-${width}.png`), fullPage: true });
+      await editor.fill("#{학생이름} · #{시험성적}");
+      await expect(modal.getByText(/다음 수업 날짜가 비어 있습니다/)).toHaveCount(0);
+      await expect(modal.locator(".send-modal__send-btn")).toBeEnabled();
+      expect(sent).toEqual([]);
+      expect(inspected.some(payload => payload.session_id === 9002)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`message-date-recovered-${width}.png`), fullPage: true });
+    });
+  }
+
 });

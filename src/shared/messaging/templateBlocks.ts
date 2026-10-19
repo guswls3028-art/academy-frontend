@@ -32,8 +32,8 @@ const B = {
   student_name_2:    { id: "student_name_2",    label: "이름 (뒤 2자)",    insertText: "#{학생이름2}",         previewValue: "길동",        description: "이름 뒤 2글자 (예: 홍길동→길동, 유현진→현진)" },
   student_name_3:    { id: "student_name_3",    label: "이름 (호환)",       insertText: "#{학생이름3}",         previewValue: "홍길동",      description: "학생이름과 동일 (기존 양식 호환용)" },
   site_link:         { id: "site_link",         label: "사이트 링크",      insertText: "#{사이트링크}",        previewValue: getTenantSiteUrl(), description: "학원 홈페이지 주소" },
-  date:              { id: "date",              label: "날짜",             insertText: "#{날짜}",              previewValue: "2026-03-11",  description: "발송일 날짜" },
-  time:              { id: "time",              label: "시간",             insertText: "#{시간}",              previewValue: "14:00",       description: "발송 시간" },
+  date:              { id: "date",              label: "발송 날짜",             insertText: "#{날짜}",              previewValue: "2026-03-11",  description: "발송일 날짜" },
+  time:              { id: "time",              label: "발송 시간",             insertText: "#{시간}",              previewValue: "14:00",       description: "발송 시간" },
   // 가입/등록
   student_id:        { id: "student_id",        label: "학생 아이디",      insertText: "#{학생아이디}",        previewValue: "S20250001",   description: "학생 로그인 아이디" },
   student_password:  { id: "student_password",  label: "학생 비밀번호",    insertText: "#{학생비밀번호}",      previewValue: "****" },
@@ -96,7 +96,13 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
   assignment: [...COMMON_MESSAGE, B.lecture_name, B.session_name, B.assignment_name, B.score],
   grades:     [
     // ── 공통 ──
-    ...COMMON_MESSAGE, B.lecture_name, B.session_name,
+    ...COMMON_MESSAGE, B.lecture_name, B.session_name, B.date, B.time,
+    ...[0, 1, 2, 3, 4, 5].flatMap((n) => {
+      const label = n === 0 ? "현재 수업" : n === 1 ? "다음 수업" : `${n}차시 뒤 수업`;
+      const token = n === 0 ? "현재차시" : n === 1 ? "다음차시" : `${n}차시후`;
+      return [{ id: `class_${n}_name`, label: `${label} 이름`, insertText: `#{${token}명}`, previewValue: n === 0 ? "함수 정리" : "도형 복습", description: "같은 강의·반의 실제 차시 순서와 제목" },
+        { id: `class_${n}_date`, label: `${label} 날짜`, insertText: `#{${token}날짜}`, previewValue: "2026-10-26", description: "해당 수업에 등록한 날짜. 발송 날짜와 다릅니다." }];
+    }),
     // ── 목록형 변수 (시험/과제 개수에 맞게 자동 렌더링 — 간단 양식에 추천) ──
     { id: "exam_list",    label: "시험 목록",  insertText: "#{시험목록}",  previewValue: "- 단원평가: 92/100 (92%) 합격\n- 쪽지시험: 45/50 (90%) 합격", description: "모든 시험 점수 자동 나열 (추천)" },
     { id: "exam_history", label: "시험 이력",  insertText: "#{시험이력}",  previewValue: "- 단원평가 1차시험 결과: 50/100 커트라인 70 불합격\n- 단원평가 2차시험 결과: 70/100 커트라인 60 합격", description: "1차·재시험 결과와 커트라인 자동 나열" },
@@ -105,6 +111,8 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     // ── 요약 수치 ──
     { id: "exam_total",     label: "시험 총점",     insertText: "#{시험총점}",   previewValue: "285",       description: "시험 점수 합계" },
     { id: "exam_total_max", label: "시험 총만점",   insertText: "#{시험총만점}", previewValue: "350",       description: "시험 만점 합계" },
+    { id: "hw_total", label: "과제 총점", insertText: "#{과제총점}", previewValue: "180", description: "선택한 과제 점수 합계" },
+    { id: "hw_total_max", label: "과제 총만점", insertText: "#{과제총만점}", previewValue: "200", description: "선택한 과제 만점 합계" },
     { id: "hw_completion",  label: "숙제 완성도",   insertText: "#{숙제완성도}", previewValue: "학생별 완료 수/전체 과제 수",  description: "교사 확인 또는 자동 완료된 과제 수 / 전체. 점수 입력만으로 완료되지 않습니다." },
     // ── 시험 개별 (번호별: 이름·점수·만점) ──
     // 시험 개수는 차시마다 다름. 양식에 필요한 만큼 삽입. 미사용 번호는 발송 시 자동 제거.
@@ -345,7 +353,8 @@ export const ALWAYS_AVAILABLE_VARS = new Set<string>([
   "클리닉기존일정", "클리닉변동사항", "클리닉수정자",
   "강의명", "차시명", "강의날짜", "강의시간",
   // 성적/과제 sub-vars — backend 학생별 자동 치환 (frontend missing 으로 잡지 말 것)
-  "시험성적", "시험총점", "시험총만점", "숙제완성도",
+  "시험성적", "시험총점", "시험총만점", "과제총점", "과제총만점", "숙제완성도",
+  "현재차시명", "현재차시날짜", "다음차시명", "다음차시날짜",
   "시험목록", "시험이력", "과제목록", "전체요약", "선생님메모", "공지내용", "내용",
   ...SCORE_SUB_VARS,
 ]);

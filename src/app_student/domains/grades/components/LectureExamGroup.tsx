@@ -2,6 +2,7 @@
  * 강좌별 시험 성적 그룹 — GradesPage에서 추출
  */
 import { Link } from "react-router";
+import { ParentAssessmentComment } from "./ParentAssessmentComments";
 import { IconExam, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import { Badge } from "@/shared/ui/ds";
 import { useWrongCompletionDisplay, wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
@@ -68,6 +69,7 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
               : null;
 
           return (
+            <div key={e.exam_id}>
             <Link
               key={e.exam_id}
               to={`/student/exams/${e.exam_id}/result`}
@@ -132,6 +134,8 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                 <IconChevronRight className={styles.chevron} />
               </div>
             </Link>
+              <ParentAssessmentComment kind="exam" assessmentId={e.exam_id} sessionId={e.session_id} />
+            </div>
           );
         })}
       </div>
