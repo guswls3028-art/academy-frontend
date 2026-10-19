@@ -343,6 +343,8 @@ export default function SendMessageModal({
   const [alimtalkFreeForm, setAlimtalkFreeForm] = useState(false);
   const [manualEnvelopeCategory, setManualEnvelopeCategory] = useState<TemplateCategory>("attendance");
   const [templateBodySnapshot, setTemplateBodySnapshot] = useState<string | null>(null);
+  const [subjectSnapshot, setSubjectSnapshot] = useState("");
+  const discardConfirmPendingRef = useRef(false);
   // 변수 팔레트 default 접힘 (학원장 임근혁 보고 — 본문 편집 영역이 좁아 보임)
   const [showVarPalette, setShowVarPalette] = useState(false);
   const [preflightResults, setPreflightResults] = useState<SendPreflightResponse[]>([]);
@@ -668,6 +670,7 @@ export default function SendMessageModal({
     };
     setTemplatesError(null);
     setSubject("");
+    setSubjectSnapshot("");
     setBody(initialDisplayBody);
     setSelectedTemplateId(initialTemplateId ?? null);
     setSelectedPresetId(initialLetterPresetId ?? null);
@@ -743,43 +746,73 @@ export default function SendMessageModal({
     return () => { cancelled = true; };
   }, [open, effectiveBlockCategory, templatesRetry]);
 
+  const hasDraftChanges = body !== (templateBodySnapshot ?? "") || subject !== subjectSnapshot;
+  const confirmDiscardDraft = useCallback(async (replacing = false, viewingResult = false) => {
+    if (sendingRef.current || discardConfirmPendingRef.current) return false;
+    const unresolvedAttempt = !viewingResult && sendAttempt != null && !sendAttempt.completed;
+    if (!hasDraftChanges && !unresolvedAttempt) return true;
+    discardConfirmPendingRef.current = true;
+    try {
+      return await confirm({
+        title: unresolvedAttempt ? "발송 결과 확인 전 나갈까요?" : replacing ? "작성한 문구를 바꿀까요?" : "작성한 문구를 닫을까요?",
+        message: unresolvedAttempt
+          ? "이미 접수된 대상이 있을 수 있습니다. 취소한 뒤 ‘이번 발송 결과 보기’ 또는 ‘같은 요청으로 재시도’를 이용해 주세요. 그대로 나가면 이 창의 재시도 정보가 사라지며 새 발송은 중복 접수될 수 있습니다."
+          : replacing ? "저장하지 않은 수정 내용은 사라집니다. 선택한 문구로 바꿀까요?" : "저장하지 않은 수정 내용은 사라집니다.",
+        confirmText: unresolvedAttempt ? "결과 미확인 상태로 나가기" : replacing ? "수정 내용 버리고 바꾸기" : "수정 내용 버리고 닫기",
+        cancelText: unresolvedAttempt ? "돌아가서 확인" : "계속 편집",
+        danger: true,
+      });
+    } finally { discardConfirmPendingRef.current = false; }
+  }, [confirm, hasDraftChanges, sendAttempt]);
+  const requestClose = async () => {
+    if (await confirmDiscardDraft()) onClose();
+  };
+
   // ─── Actions ───
   const insertBlock = useCallback((insertText: string) => {
     bodyEditorRef.current?.insert(insertText);
   }, []);
 
-  const selectTemplate = useCallback((t: MessageTemplateItem) => {
+  const selectTemplate = useCallback(async (t: MessageTemplateItem) => {
+    if (!await confirmDiscardDraft(true)) return;
     const nextBody = stripInternalAlimtalkMemoToken(t.body ?? "");
     setSelectedTemplateId(t.id);
     setSelectedPresetId(null);
     setSubject(t.subject ?? "");
+    setSubjectSnapshot(t.subject ?? "");
     setBody(nextBody);
     setTemplateBodySnapshot(nextBody);
     setAlimtalkFreeForm(false);
-  }, []);
+  }, [confirmDiscardDraft]);
 
-  const selectPreset = useCallback((preset: ProvidedTemplatePreset) => {
+  const selectPreset = useCallback(async (preset: ProvidedTemplatePreset) => {
+    if (!await confirmDiscardDraft(true)) return;
     setSelectedTemplateId(null);
     setSelectedPresetId(preset.id);
     setSubject("");
+    setSubjectSnapshot("");
     setBody(preset.body);
     setTemplateBodySnapshot(preset.body);
     setAlimtalkFreeForm(false);
-  }, []);
+  }, [confirmDiscardDraft]);
 
-  const selectFreeForm = useCallback(() => {
+  const selectFreeForm = useCallback(async () => {
+    if (!await confirmDiscardDraft(true)) return;
     setSelectedTemplateId(null);
     setSelectedPresetId(null);
     setBody("");
     setSubject("");
+    setSubjectSnapshot("");
     setTemplateBodySnapshot(null);
     setAlimtalkFreeForm(true);
-  }, []);
+  }, [confirmDiscardDraft]);
 
-  const selectEnvelopeCategory = useCallback((category: TemplateCategory) => {
+  const selectEnvelopeCategory = useCallback(async (category: TemplateCategory) => {
+    if (!await confirmDiscardDraft(true)) return;
     setManualEnvelopeCategory(category);
     setSelectedTemplateId(null);
     setSubject("");
+    setSubjectSnapshot("");
     const preset = getDefaultTemplatePreset(category);
     if (preset) {
       setSelectedPresetId(preset.id);
@@ -793,7 +826,7 @@ export default function SendMessageModal({
       setAlimtalkFreeForm(true);
     }
     setShowSaveForm(false);
-  }, []);
+  }, [confirmDiscardDraft]);
 
   const handleSaveTemplate = async () => {
     if (!saveTemplateName.trim() || !body.trim() || savingTemplate) return;
@@ -823,6 +856,7 @@ export default function SendMessageModal({
       setSelectedTemplateId(saved.id);
       setSelectedPresetId(null);
       setTemplateBodySnapshot(saved.body);
+      setSubjectSnapshot(saved.subject ?? "");
       if (defaultFailed) {
         feedback.error(`"${saved.name}" 문구는 저장됐지만 기본 지정에 실패했습니다. 기본으로 사용을 다시 눌러 주세요.`);
       } else {
@@ -845,6 +879,7 @@ export default function SendMessageModal({
       const updated = await updateMessageTemplate(selectedTemplate.id, { body, subject });
       setTemplates((prev) => prev.map((t) => t.id === updated.id ? updated : t));
       setTemplateBodySnapshot(updated.body);
+      setSubjectSnapshot(updated.subject ?? "");
       void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
       void queryClient.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       feedback.success(`"${updated.name}" 문구가 업데이트되었습니다.`);
@@ -859,6 +894,7 @@ export default function SendMessageModal({
         const saved = await updateMessageTemplate(id, { body, subject });
         setTemplates(prev => prev.map(t => t.id === id ? saved : t));
         setTemplateBodySnapshot(saved.body);
+        setSubjectSnapshot(saved.subject ?? "");
       }
       const updated = await setTemplateDefault(id);
       setTemplates((prev) => prev.map((t) => {
@@ -1056,7 +1092,7 @@ export default function SendMessageModal({
   // ─── Render ───
   return (
     <>
-    <AdminModal open={open} onClose={onClose} width={1080} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
+    <AdminModal open={open} onClose={() => void requestClose()} closeDisabled={sending} width={1080} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
       <ModalHeader
         noIcon
         title={
@@ -1558,7 +1594,8 @@ export default function SendMessageModal({
               <span>내용이나 대상이 바뀌었습니다. 새 발송 전에 이전 결과를 확인해 주세요.</span>
             )}
             <div className="send-modal__footer-right">
-              <Button intent="secondary" size="sm" disabled={sending} onClick={() => {
+              <Button intent="secondary" size="sm" disabled={sending} onClick={async () => {
+                if (!await confirmDiscardDraft(false, true)) return;
                 onClose();
                 viewRequestResult(sendAttempt.requestId);
               }}>이번 발송 결과 보기</Button>
@@ -1741,7 +1778,7 @@ export default function SendMessageModal({
                 {disableReason}
               </span>
             )}
-            <Button intent="secondary" onClick={onClose} disabled={sending} size="lg">취소</Button>
+            <Button intent="secondary" onClick={() => void requestClose()} disabled={sending} size="lg">취소</Button>
             <Button
               intent="primary"
               onClick={requestSend}

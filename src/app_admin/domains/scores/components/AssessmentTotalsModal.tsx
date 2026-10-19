@@ -35,12 +35,16 @@ export default function AssessmentTotalsModal({ sessionId, meta, onClose }: Prop
     setSaving(true);
     setError("");
     try {
+      const scoredHomeworkOrder = order.homework_ids.filter(Boolean);
+      let scoredHomeworkIndex = 0;
       await saveScoreTotalConfig(sessionId, {
         version,
         exam_ids: order.exam_ids.slice(0, order.exam_ids.indexOf(0)),
         homework_ids: order.homework_ids.slice(0, order.homework_ids.indexOf(0)),
         exam_order: order.exam_ids.filter(Boolean),
-        homework_order: [...order.homework_ids.filter(Boolean), ...meta.homeworks.filter((x) => x.grading_mode === "COMPLETION").map((x) => x.homework_id)],
+        // Completion items are edited in the table, so retain their positions here.
+        homework_order: meta.homeworks.map((item) => item.grading_mode === "COMPLETION"
+          ? item.homework_id : scoredHomeworkOrder[scoredHomeworkIndex++]),
       });
       await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       feedback.success("시험·과제 합산 설정을 저장했습니다.");
@@ -85,8 +89,8 @@ export default function AssessmentTotalsModal({ sessionId, meta, onClose }: Prop
           }}>
             <GripVertical size={ICON_FOR_BUTTON.sm} aria-hidden />
             <span>{id === 0 ? `Σ ${title}` : label}<small className="block">{id === 0 ? "위 항목만 합산" : index < order[key].indexOf(0) ? `${item?.max}점 만점 · 합산` : "합산 제외"}</small></span>
-            <Button size="sm" intent="ghost" iconOnly leftIcon={<ChevronUp size={ICON_FOR_BUTTON.sm} />} aria-label={`${label} 위로 이동`} disabled={index === 0} onClick={() => move(key, index, index - 1)} />
-            <Button size="sm" intent="ghost" iconOnly leftIcon={<ChevronDown size={ICON_FOR_BUTTON.sm} />} aria-label={`${label} 아래로 이동`} disabled={index === order[key].length - 1} onClick={() => move(key, index, index + 1)} />
+            <Button size="lg" className="h-11 shrink-0" intent="ghost" iconOnly leftIcon={<ChevronUp size={ICON_FOR_BUTTON.md} />} aria-label={`${label} 위로 이동`} disabled={index === 0} onClick={() => move(key, index, index - 1)} />
+            <Button size="lg" className="h-11 shrink-0" intent="ghost" iconOnly leftIcon={<ChevronDown size={ICON_FOR_BUTTON.md} />} aria-label={`${label} 아래로 이동`} disabled={index === order[key].length - 1} onClick={() => move(key, index, index + 1)} />
           </div>;
         }) : <p className="assessment-totals-help">합산할 점수형 항목이 없습니다.</p>}
       </fieldset>)}

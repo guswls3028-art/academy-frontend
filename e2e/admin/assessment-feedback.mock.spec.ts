@@ -98,6 +98,15 @@ for (const width of [1366, 390]) {
     await page.reload();
     await expect(row.locator(".assessment-total-value").last()).toHaveText("25 / 100");
 
+    // Saving the total settings must retain completion items among excluded columns.
+    const writesBeforeReopen = harness.writes.length;
+    await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+    await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect(modal).toBeHidden();
+    expect(harness.writes).toHaveLength(writesBeforeReopen + 1);
+    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9151, 9153, 9152] });
+    await page.reload();
+    await expect.poll(() => page.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9151, 9153, 9152]);
 
     await row.locator('[data-col-type="exam-summary"]').scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`assessment-totals-${width}.png`), animations: "disabled" });
@@ -113,7 +122,10 @@ for (const width of [1366, 390]) {
     await page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }).click();
     await page.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
     await expect(page.getByRole("dialog", { name: "학부모 코멘트" }).getByLabel("모바일순서학생", { exact: true })).toHaveValue(harness.comment().text);
+    await expect.poll(() => comment.evaluate(node =>
+      Math.abs(node.getBoundingClientRect().width - node.clientWidth),
+    )).toBeLessThan(1);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
-    await page.screenshot({ path: testInfo.outputPath(`assessment-parent-comment-${width}.png`), fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath(`assessment-parent-comment-${width}.png`), fullPage: true, animations: "disabled" });
   });
 }

@@ -25,6 +25,7 @@ import {
   seedBrowserAuth,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
+  type QaTokens,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
@@ -70,6 +71,63 @@ const sessionTitle = `QA 과제 1차시 ${runStamp}`;
 const homeworkTitle = `QA 과제 제출 채점 ${runStamp}`;
 const uploadName = `qa-homework-${runStamp}.png`;
 const parentUploadName = `qa-parent-homework-${runStamp}.png`;
+const parentHomeworkComment = "QA 과제 피드백: 풀이 과정을 꼼꼼히 기록했습니다.\n가정에서는 틀린 문제의 계산 순서를 소리 내어 설명하고, 스스로 채점한 뒤 다시 확인하는 연습을 도와주세요.";
+
+async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestContext, admin: QaTokens, studentName: string): Promise<void> {
+  const context = await parentPage.context().browser()!.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
+  try {
+    const staffPage = await context.newPage();
+    const boundary = await installQaStudentParentBoundary(staffPage, request);
+    const guards = attachStrictBrowserGuards(staffPage);
+    await seedBrowserAuth(staffPage, admin);
+    await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
+    const configPath = `/results/admin/sessions/${created.sessionId}/total-config/`;
+    await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
+    const totals = staffPage.getByRole("dialog", { name: "합산 설정", exact: true });
+    await totals.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
+    await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect(totals).toBeHidden();
+    expect((await expectApi<{ homework_ids: number[] }>(request, "GET", configPath, admin.access)).homework_ids).toEqual([]);
+    await staffPage.reload();
+    await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
+    await totals.getByRole("button", { name: "과제 총점 아래로 이동", exact: true }).click();
+    await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect(totals).toBeHidden();
+    expect((await expectApi<{ homework_ids: number[] }>(request, "GET", configPath, admin.access)).homework_ids).toEqual([created.homeworkId]);
+
+    for (const width of [1366, 390]) {
+      await staffPage.setViewportSize({ width, height: 900 });
+      await staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }).click();
+      await staffPage.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
+      const comment = staffPage.getByRole("dialog", { name: "학부모 코멘트", exact: true });
+      const text = `${parentHomeworkComment}\n${width}px 확인`;
+      await comment.getByLabel(studentName, { exact: true }).fill(text);
+      await comment.getByRole("button", { name: "학부모에게 공개", exact: true }).click();
+      await expect(comment.getByRole("status")).toContainText("학부모에게 공개했습니다.");
+      await staffPage.reload();
+      await staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }).click();
+      await staffPage.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
+      await expect(comment.getByLabel(studentName, { exact: true })).toHaveValue(text);
+      await assertNoHorizontalOverflow(staffPage);
+      await staffPage.reload();
+
+      await parentPage.setViewportSize({ width, height: 900 });
+      await reloadStudentApp(parentPage);
+      await parentPage.getByRole("button", { name: "과제 현황" }).click();
+      await expect(parentPage.locator('aside[aria-label="학부모 코멘트"]')).toHaveCount(1);
+      await expect(parentPage.locator('aside[aria-label="학부모 코멘트"]')).toContainText(text);
+      await parentPage.locator("summary").filter({ hasText: "차시별 총점" }).click();
+      const total = parentPage.getByRole("region", { name: `${lectureTitle} ${sessionTitle} 총점`, exact: true });
+      await expect(total).toContainText("과제 총점");
+      await expect(total).toContainText("92 / 100");
+      await assertNoHorizontalOverflow(parentPage);
+    }
+    boundary.assertClean(); guards.assertZeroDefects();
+  } finally {
+    await context.close();
+    await parentPage.setViewportSize({ width: 390, height: 844 });
+  }
+}
 
 async function waitForHomeworkSummary(
   request: APIRequestContext,
@@ -650,6 +708,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
     await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible();
     await assertSeparateHomeworkGroups(page);
+    await verifyHomeworkFeedback(page, request, admin, student.name);
 
     await reloadStudentApp(page);
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
@@ -659,6 +718,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
+    await expect(page.locator('aside[aria-label="학부모 코멘트"]')).toContainText(parentHomeworkComment);
 
     await logoutStudentApp(page);
     await loginThroughUi(page, student.ps_number, student.password);
@@ -672,6 +732,8 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await page.getByRole("button", { name: "과제 현황" }).click();
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
     await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible();
+    await expect(page.locator('aside[aria-label="학부모 코멘트"]')).toHaveCount(0);
+    await expect(page.getByText(parentHomeworkComment, { exact: false })).toHaveCount(0);
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await assertSeparateHomeworkGroups(page);
