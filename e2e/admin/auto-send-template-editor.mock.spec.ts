@@ -18,7 +18,7 @@ async function setup(page: Page, system = false, fixedBody?: string, account = f
     body: fixedBody ?? "예전에 사용하던 안내문", is_system: system, is_user_default: false,
     solapi_template_id: "", solapi_status: "", created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z" };
   const templates = new Map([[101, original], [102, { ...original, id: 102, name: "현재 연결 문구", body: "최근 저장한 안내문 #{학생이름}" }]]);
-  const state = { linked: 101, nextId: 200, creates: 0, connects: 0, sends: 0, failLink: false, failLoad: false, failSave: false };
+  const state = { linked: 101, nextId: 200, creates: 0, connects: 0, sends: 0, failLink: false, failLoad: false, failSave: false, canManage: true };
   const updates: number[] = [];
   let releaseInitialConfigs!: () => void;
   const initialConfigsReady = new Promise<void>((resolve) => { releaseInitialConfigs = resolve; });
@@ -36,7 +36,7 @@ async function setup(page: Page, system = false, fixedBody?: string, account = f
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
     if (path === "/core/subscription/") return route.fulfill({ json: { tenant_name: "문구 검증학원" } });
-    if (path === "/messaging/info/") return route.fulfill({ json: { alimtalk_available: true, tenant_messaging_enabled: true, can_manage_messaging: true, messaging_disabled: false } });
+    if (path === "/messaging/info/") return route.fulfill({ json: { alimtalk_available: true, tenant_messaging_enabled: true, can_manage_messaging: state.canManage, messaging_disabled: false } });
     if (path === "/messaging/auto-send/") {
       if (request.method() === "GET") await initialConfigsReady;
       if (request.method() === "PATCH") {
@@ -84,11 +84,26 @@ async function setup(page: Page, system = false, fixedBody?: string, account = f
     } finally {
       releaseInitialConfigs();
     }
-    await expect(page.getByRole("button", { name: fixed ? "내용 보기" : "문구 수정", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: fixed || !state.canManage ? "내용 보기" : "문구 수정", exact: true })).toBeVisible();
   };
   await openPage();
   return { state, templates, updates, original, openPage };
 }
+
+test("일반 선생님은 자동발송 설정을 조회하고 편집·연결 요청은 보내지 않는다", async ({ page }) => {
+  const { state, updates, openPage } = await setup(page);
+  state.canManage = false;
+  await openPage();
+  await expect(page.getByRole("button", { name: "문구 수정", exact: true })).toHaveCount(0);
+  const switches = page.getByRole("switch");
+  for (let index = 0; index < await switches.count(); index++) await expect(switches.nth(index)).toBeDisabled();
+  await page.getByRole("button", { name: "내용 보기", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("대표 또는 관리자만 변경");
+  await expect(dialog.getByRole("button", { name: "저장하고 적용", exact: true })).toHaveCount(0);
+  expect(updates).toEqual([]);
+  expect(state.creates + state.connects + state.sends).toBe(0);
+});
 
 test("계정 고정 안내는 예전 저장 본문을 실제 발송 예시로 표시하지 않는다", async ({ page }) => {
   await setup(page, true, "예전 계정 안내 본문", true);
