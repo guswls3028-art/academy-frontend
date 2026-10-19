@@ -457,6 +457,7 @@ export type SendToType = "student" | "parent";
 export type MessageMode = "alimtalk";
 
 export interface SendMessagePayload {
+  session_id?: number;
   /** One immutable draft across parent/student scopes and explicit retries. */
   client_request_id?: string;
   student_ids?: number[];

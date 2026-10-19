@@ -79,6 +79,7 @@ import "../styles/templateEditor.css";
 // ─── Types ───
 
 export type SendMessageModalProps = {
+  sessionId?: number;
   open: boolean;
   onClose: () => void;
   initialStudentIds?: number[];
@@ -162,6 +163,7 @@ function getVarStatuses(
     if (name === "내용") {
       return { name, status: freeContent?.trim() ? "provided" : "missing", value: freeContent?.trim() || undefined };
     }
+    if (/^(현재차시|다음차시|[1-9]\d?차시후)(명|날짜)$/.test(name)) return { name, status: "auto" as const };
     if (ALWAYS_AVAILABLE_VARS.has(name)) return { name, status: "auto" as const };
     if (extraVars && name in extraVars && extraVars[name]) {
       return { name, status: "provided" as const, value: extraVars[name] };
@@ -277,7 +279,7 @@ function pickAutoSelectTemplate(
   const userCat = blockCategory === "student" ? "default" : blockCategory;
 
   if (!systemOnly) {
-    const myMatchDefault = list.find((t) => !isSystemTpl(t) && t.category === userCat && t.is_user_default && isApprovedTpl(t));
+    const myMatchDefault = list.find((t) => !isSystemTpl(t) && t.category === userCat && t.is_user_default && (isApprovedTpl(t) || blockCategory === "grades"));
     if (myMatchDefault) return myMatchDefault;
 
     const myMatch = list.find((t) => !isSystemTpl(t) && t.category === userCat && isApprovedTpl(t));
@@ -297,6 +299,7 @@ function pickAutoSelectTemplate(
 export default function SendMessageModal({
   open,
   onClose,
+  sessionId,
   initialStudentIds = EMPTY_ID_LIST,
   recipientLabel,
   blockCategory = "default",
@@ -332,6 +335,7 @@ export default function SendMessageModal({
   const [templatesRetry, setTemplatesRetry] = useState(0);
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saveTemplateName, setSaveTemplateName] = useState("");
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   /** 양식 선택 모달 open */
   const [showPickerModal, setShowPickerModal] = useState(false);
@@ -431,6 +435,7 @@ export default function SendMessageModal({
     const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
     payload.student_ids = studentIds;
     if (selectedTemplateId) payload.template_id = selectedTemplateId;
+    if (sessionId != null) payload.session_id = sessionId;
     if (effectiveBlockCategory) payload.block_category = effectiveBlockCategory;
     const currentBody = body.trim();
     payload.raw_body = currentBody;
@@ -461,6 +466,7 @@ export default function SendMessageModal({
     effectiveBlockCategory,
     recomputePerStudentVarsRef,
     scheduledSendAtIso,
+    sessionId,
     selectedTemplateId,
     studentIds,
     subject,
@@ -801,7 +807,7 @@ export default function SendMessageModal({
       });
       let saved = created;
       let defaultFailed = false;
-      if (effectiveBlockCategory === "grades") {
+      if (effectiveBlockCategory === "grades" && saveAsDefault) {
         try {
           saved = await setTemplateDefault(created.id);
         } catch {
@@ -820,7 +826,7 @@ export default function SendMessageModal({
       if (defaultFailed) {
         feedback.error(`"${saved.name}" 문구는 저장됐지만 기본 지정에 실패했습니다. 기본으로 사용을 다시 눌러 주세요.`);
       } else {
-        feedback.success(effectiveBlockCategory === "grades"
+        feedback.success(effectiveBlockCategory === "grades" && saveAsDefault
           ? `"${saved.name}" 안내문이 성적 알림톡 기본 안내문으로 저장되었습니다.`
           : `"${saved.name}" 문구가 저장되었습니다.`);
       }
@@ -849,6 +855,11 @@ export default function SendMessageModal({
 
   const handleSetDefault = async (id: number) => {
     try {
+      if (id === selectedTemplate?.id && bodyModified) {
+        const saved = await updateMessageTemplate(id, { body, subject });
+        setTemplates(prev => prev.map(t => t.id === id ? saved : t));
+        setTemplateBodySnapshot(saved.body);
+      }
       const updated = await setTemplateDefault(id);
       setTemplates((prev) => prev.map((t) => {
         if (t.id === id) return updated;
@@ -1393,7 +1404,7 @@ export default function SendMessageModal({
               )}
               {effectiveBlockCategory === "grades" && selectedTemplate && !isSystemTpl(selectedTemplate) && !selectedTemplate.is_user_default && (
                 <Button size="sm" intent="secondary" onClick={() => void handleSetDefault(selectedTemplate.id)} disabled={sending}>
-                  기본으로 사용
+                  성적 안내 기본으로 지정
                 </Button>
               )}
 
@@ -1407,14 +1418,16 @@ export default function SendMessageModal({
               </Button>
             </div>
 
+            {effectiveBlockCategory === "grades" && <p className="send-modal__editor-hint">기본 성적 안내문은 이 학원 직원 공통입니다. 저장만으로 발송되지 않습니다.</p>}
             {/* ── 양식 이름 입력 form — 저장 액션 클릭 시에만 노출 ── */}
             {showSaveForm && (
               <div className="send-modal__save-form">
                 <div className="send-modal__save-form-label">
                   {effectiveBlockCategory === "grades"
-                    ? "이 안내문을 저장하고 다음 성적 알림톡의 기본 안내문으로 사용합니다. 발송은 별도로 확정해야 합니다."
+                    ? "이 학원의 모든 직원이 함께 사용하는 성적 안내문입니다. 저장과 발송은 별도입니다."
                     : "새 문구 이름을 입력하세요"}
                 </div>
+                {effectiveBlockCategory === "grades" && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={saveAsDefault} onChange={e => setSaveAsDefault(e.target.checked)} />성적 안내 기본으로 지정 · 이 학원 직원 공통</label>}
                 <div className="send-modal__save-form-row">
                   <Input
                     size="small"

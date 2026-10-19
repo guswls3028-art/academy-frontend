@@ -276,6 +276,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
         })
       : undefined;
     openSendMessageModal({
+      sessionId,
       studentIds: sid != null ? [sid] : [],
       recipientLabel: `${currentRow.student_name} 성적 발송`,
       blockCategory: "grades",

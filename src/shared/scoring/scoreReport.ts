@@ -222,8 +222,10 @@ function collectStats(row: SessionScoreRow, meta: SessionScoreMeta | null): Summ
     const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
     if (hw.block.score != null) {
       s.hwScored++;
-      s.hwSumScore += hw.block.score;
-      s.hwSumMax += max;
+      if (metaHw?.grading_mode !== "COMPLETION") {
+        s.hwSumScore += hw.block.score;
+        s.hwSumMax += max;
+      }
       if (hw.block.passed === true) s.hwPassed++;
     }
     if (hw.block.score == null && !isExplicitNotSubmitted(hw.block.meta?.status)) {
@@ -250,6 +252,10 @@ function renderHomeworkLines(row: SessionScoreRow, meta: SessionScoreMeta | null
   const lines = ["[과제]"];
   for (const hw of row.homeworks) {
     const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+    if (metaHw?.grading_mode === "COMPLETION") {
+      lines.push(`- ${hw.title}: ${hw.block.score == null ? missingScoreLabel("homework", hw.block.meta?.status) : hw.block.passed ? "통과 (O)" : "미통과 (X)"}`);
+      continue;
+    }
     const max = hw.block.max_score ?? metaHw?.max_score ?? null;
     lines.push(formatScoreLine(
       hw.title,
@@ -397,6 +403,10 @@ function renderScoreDetailHomeworkLines(
   const lines = ["[과제]"];
   for (const hw of row.homeworks) {
     const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+    if (metaHw?.grading_mode === "COMPLETION") {
+      appendScoreCard(lines, hw.title, hw.block.score == null ? missingScoreLabel("homework", hw.block.meta?.status) : hw.block.passed ? "통과 (O)" : "미통과 (X)");
+      continue;
+    }
     const max = hw.block.max_score ?? metaHw?.max_score ?? null;
     appendScoreCard(
       lines,
@@ -544,8 +554,6 @@ export function buildScoreVars(
 
   // 시험 변수 (번호 기반, 실제 데이터로 덮어쓰기)
   const exams = row.exams ?? [];
-  let examSumScore = 0;
-  let examSumMax = 0;
   for (let i = 0; i < exams.length; i++) {
     const exam = exams[i];
     const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
@@ -559,13 +567,14 @@ export function buildScoreVars(
       : missingScoreLabel("exam", exam.block.meta?.status);
     vars[`시험${n}만점`] = String(max);
     vars[`시험${n}명`] = exam.title || "";
-    if (exam.block.score != null && !subjectivePending) {
-      examSumScore += exam.block.score;
-      examSumMax += max;
-    }
   }
-  vars["시험총점"] = String(examSumScore);
-  vars["시험총만점"] = String(examSumMax);
+  const totalText = (total: SessionScoreRow["exam_total"]) => !total
+    ? "집계 정보 없음" : !total.selected_count ? "합산 대상 없음"
+    : total.complete ? String(total.score) : `집계 중 (${total.scored_count}/${total.selected_count})`;
+  vars["시험총점"] = totalText(row.exam_total);
+  vars["시험총만점"] = row.exam_total?.selected_count ? String(row.exam_total.max_score) : "-";
+  vars["과제총점"] = totalText(row.homework_total);
+  vars["과제총만점"] = row.homework_total?.selected_count ? String(row.homework_total.max_score) : "-";
 
   // 과제 변수 (번호 기반, 실제 데이터로 덮어쓰기)
   const homeworks = row.homeworks ?? [];
@@ -579,9 +588,9 @@ export function buildScoreVars(
     const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
     const n = i + 1;
     vars[`과제${n}`] = hw.block.score != null
-      ? String(hw.block.score)
+      ? metaHw?.grading_mode === "COMPLETION" ? (hw.block.score >= 1 ? "통과" : "미통과") : String(hw.block.score)
       : missingScoreLabel("homework", hw.block.meta?.status);
-    vars[`과제${n}만점`] = String(max);
+    vars[`과제${n}만점`] = metaHw?.grading_mode === "COMPLETION" ? "" : String(max);
     vars[`과제${n}명`] = hw.title || "";
   }
 
@@ -615,10 +624,11 @@ export function buildScoreVars(
       const hw = homeworks[i];
       const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
       const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
+      const completion = metaHw?.grading_mode === "COMPLETION";
       const scoreStr = hw.block.score != null
-        ? `${hw.block.score}/${max}`
+        ? completion ? (hw.block.score >= 1 ? "통과" : "미통과") : `${hw.block.score}/${max}`
         : missingScoreLabel("homework", hw.block.meta?.status);
-      const pctStr = hw.block.score != null && max > 0 ? ` (${Math.round((hw.block.score / max) * 100)}%)` : "";
+      const pctStr = !completion && hw.block.score != null && max > 0 ? ` (${Math.round((hw.block.score / max) * 100)}%)` : "";
       lines.push(`- ${hw.title}: ${scoreStr}${pctStr}`);
     }
     vars["과제목록"] = lines.join("\n");
@@ -671,6 +681,8 @@ export function substituteScoreVars(
 
   // 치환 수행
   let result = templateBody.replace(/#\{([^}]+)\}/g, (match, varName) => {
+    // Sending time and actual class facts are authoritative server values.
+    if (/^(날짜|시간|(?:현재차시|다음차시|[1-9]\d?차시후)(?:명|날짜))$/.test(varName)) return match;
     return vars[varName] !== undefined ? vars[varName] : match;
   });
 

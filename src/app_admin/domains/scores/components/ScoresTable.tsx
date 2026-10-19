@@ -10,7 +10,7 @@
  */
 
 import { useMemo, useRef, useEffect, Fragment, useCallback, forwardRef, useImperativeHandle, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -22,6 +22,13 @@ import {
   patchHomeworkQuick,
   type HomeworkScoreCellValue,
 } from "../api/patchHomeworkQuick";
+import AssessmentTotalValue from "./AssessmentTotalValue";
+import "./AssessmentTotalsModal.css";
+
+function insertTotal(cells: ReactNode[], index: number, total: ReactNode): ReactNode[] {
+  return [...cells.slice(0, index), total, ...cells.slice(index)];
+}
+
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
 import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
@@ -344,7 +351,7 @@ export type ScoreColumnDef =
       width: number;
       editable: boolean;
     }
-  | { type: "exam_summary"; sub: "score"; key: string; width: number; editable: false }
+  | { type: "exam_summary" | "homework_summary"; sub: "score"; key: string; width: number; editable: false }
   | { type: "clinic_target"; key: "clinic_target"; width: number; editable: false }
   | { type: "clinic_reason"; key: "clinic_reason"; width: number; editable: false };
 
@@ -436,6 +443,7 @@ type Props = {
 
   /** 컬럼 순서 변경 — 시험/과제 헤더 드래그앤드롭 (display_order patch).
    *  2026-05-13 학원장 결정: ◀▶ 버튼 폐기, drag-drop SSOT. fromId 를 toId 위치로 삽입. */
+  onOpenTotals?: () => void;
   onReorderColumnSwap?: (type: "exam" | "homework", fromId: number, toId: number) => void;
   /** 시험명 메뉴 — 선택한 OMR 검토 또는 직접 채점표를 연다. */
   onOpenExamGrading?: (
@@ -470,6 +478,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   onSelectCell,
   onSelectRow,
   onReorderColumnSwap,
+  onOpenTotals,
   onOpenExamGrading,
   deleteAssessmentLocked = false,
   onRequestMoveNext,
@@ -587,7 +596,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     const el = homeworkInputRefs.current[`${change.enrollmentId}-${change.homeworkId}`];
     if (homeworkGradingModeById.get(change.homeworkId) === "COMPLETION") {
-      const label = change.score == null ? "미입력" : change.score >= 1 ? "완료" : "미완료";
+      const label = change.score == null ? "미입력" : change.score >= 1 ? "통과" : "미통과";
       if (el instanceof HTMLSelectElement) el.value = label;
       else setCellText(el, label);
       el?.setAttribute(
@@ -848,13 +857,19 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   }, [applyChangeToDom, onPendingChange]);
 
   const examOptions = useMemo(
-    () => (viewFilter === "homework" ? [] : (meta?.exams ?? [])),
-    [viewFilter, meta?.exams],
+    () => (viewFilter === "homework" ? [] : [...(meta?.exams ?? [])].sort((a, b) => Number(meta?.total_config?.exam_ids.includes(b.exam_id) ?? true) - Number(meta?.total_config?.exam_ids.includes(a.exam_id) ?? true))),
+    [viewFilter, meta?.exams, meta?.total_config],
   );
   const homeworkOptions = useMemo(
-    () => (viewFilter === "exam" ? [] : (meta?.homeworks ?? [])),
-    [viewFilter, meta?.homeworks],
+    () => (viewFilter === "exam" ? [] : [...(meta?.homeworks ?? [])].sort((a, b) => Number(b.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(b.homework_id) ?? true)) - Number(a.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(a.homework_id) ?? true)))),
+    [viewFilter, meta?.homeworks, meta?.total_config],
   );
+  const includedExamIds = useMemo(() => examOptions.filter((item) => meta?.total_config?.exam_ids.includes(item.exam_id) ?? true).map((item) => item.exam_id), [examOptions, meta?.total_config]);
+  const includedHomeworkCount = homeworkOptions.filter((item) => item.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(item.homework_id) ?? true)).length;
+  const totalHeader = (kind: "exam" | "homework", count: number) => <th key={`${kind}-total`} scope="col" rowSpan={2} data-col-type={`${kind}-summary`} data-summary-start="" className="text-center font-medium">
+    <button type="button" onClick={onOpenTotals} className="assessment-total-value w-full" aria-label={`${kind === "exam" ? "시험" : "과제"} 총점 합산 설정`}><span>Σ {kind === "exam" ? "시험" : "과제"} 총점</span><small>{count}개 합산</small></button>
+  </th>;
+  const totalCell = (kind: "exam" | "homework", row: SessionScoreRow) => <td key={`${kind}-total`} data-col-type={`${kind}-summary`} data-summary="" className="text-center align-middle"><AssessmentTotalValue total={kind === "exam" ? row.exam_total : row.homework_total} /></td>;
   const examOrderIds = useMemo(
     () => examOptions.map((exam) => exam.exam_id),
     [examOptions],
@@ -883,7 +898,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         const metaStatus = block?.meta?.status;
         const score = block?.score;
         if (hw.grading_mode === "COMPLETION") {
-          const label = score == null ? "미입력" : score >= 1 ? "완료" : "미완료";
+          const label = score == null ? "미입력" : score >= 1 ? "통과" : "미통과";
           if (el instanceof HTMLSelectElement) el.value = label;
           else el.innerText = label;
           el.dataset.completionState = score == null ? "empty" : score >= 1 ? "complete" : "incomplete";
@@ -1047,24 +1062,24 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         }
       }
     });
-    if (examOptions.length > 1) {
-      // 합불(exam_summary_pass) 컬럼 제거(2026-05-12) — 학원장 피드백 "셀이 안 보인다" + "합불 셀 제거하고 색상으로 구분".
-      // 점수 셀 자체에 data-pass-status로 합격=녹/불합=적 색상 + 테두리 강조(table.css)로 즉시 식별.
-      list.push(
-        { type: "exam_summary", sub: "score", key: "exam_summary_score", width: 96, editable: false },
-      );
+    if (examOptions.length) {
+      const boundary = list.filter((column) => column.type === "exam" && includedExamIds.includes(column.examId)).length + 2;
+      list.splice(boundary, 0, { type: "exam_summary", sub: "score", key: "exam_summary_score", width: 112, editable: false });
     }
     homeworkOptions.forEach((h) => {
       list.push(
         { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "score", key: `hw_${h.homework_id}_score`, width: COL_SCORE, editable: isEditMode && homeworkEdit },
       );
     });
+    if (homeworkOptions.some((item) => item.grading_mode !== "COMPLETION")) {
+      list.splice(list.length - homeworkOptions.length + includedHomeworkCount, 0, { type: "homework_summary", sub: "score", key: "homework_summary_score", width: 112, editable: false });
+    }
     // P1-2 (2026-05-13): clinic_reason 컬럼 제거 — 판정 셀 안에 사유를 함께 표시.
     list.push(
       { type: "clinic_target", key: "clinic_target", width: COL_CLINIC_TARGET, editable: false }
     );
     return list;
-  }, [examOptions, homeworkOptions, isEditMode, scoreDisplayMode, examEditTotal, examEditObjective, examEditSubjective, homeworkEdit]);
+  }, [examOptions, homeworkOptions, includedExamIds, includedHomeworkCount, isEditMode, scoreDisplayMode, examEditTotal, examEditObjective, examEditSubjective, homeworkEdit]);
 
   /** Pre-computed O(1) lookup — replaces columns.filter() in the per-row render hot path */
   const examColsMap = useMemo((): Record<number, Extract<ScoreColumnDef, { type: "exam" }>[]> => {
@@ -1203,7 +1218,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           >
             출석
           </ResizableTh>
-          {examOptions.map((ex, exIdx) => {
+          {insertTotal(examOptions.map((ex, exIdx) => {
             const examColsList = examColsMap[ex.exam_id] ?? [];
             const colSpan = examColsList.length || 1;
             /* 단일 sub(합산)만 있을 때는 sub-row를 비우고 시험 헤더에 rowSpan=2 부여.
@@ -1318,22 +1333,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 {headerInner}
               </th>
             );
-          })}
-          {examOptions.length > 1 && (
-            <th
-              scope="col"
-              rowSpan={2}
-              className="text-center font-medium text-[var(--color-text-primary)]"
-              data-col-type="exam-summary"
-              data-summary-start=""
-            >
-              <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                <Badge variant="soft" tone="primary" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="총점">Σ</Badge>
-                <span>총점</span>
-              </span>
-            </th>
-          )}
-          {homeworkOptions.map((hw, idx) => (
+          }), includedExamIds.length, examOptions.length ? totalHeader("exam", includedExamIds.length) : null)}
+          {insertTotal(homeworkOptions.map((hw, idx) => (
             <ResizableTh
               key={`head-hw-${hw.homework_id}`}
               columnKey={`hw_${hw.homework_id}_score`}
@@ -1386,7 +1387,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     deleteLocked={deleteAssessmentLocked}
                   />
                   {hw.grading_mode === "COMPLETION" && (
-                    <Badge variant="soft" tone="success" size="xs" shape="square" ariaLabel="완료형 과제">✓</Badge>
+                    <Badge variant="soft" tone="success" size="xs" shape="square" ariaLabel="통과형 과제">✓</Badge>
                   )}
                 </span>
                 <CompactColumnOrderControls
@@ -1399,7 +1400,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 />
               </span>
             </ResizableTh>
-          ))}
+          )), includedHomeworkCount, homeworkOptions.some((item) => item.grading_mode !== "COMPLETION") ? totalHeader("homework", includedHomeworkCount) : null)}
           {/* 사용자 표시 옵션에 따라 종합 판정 또는 테스트 오답 확인 현황을 같은 마지막 열에 표시한다. */}
           <ResizableTh
             columnKey="clinic_target"
@@ -1549,7 +1550,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 </td>
 
                 {/* 시험: 컬럼 정의에 따라 합산/객관식/주관식/문항별/합불 */}
-                {examOptions.map((ex, exIdx) => {
+                {insertTotal(examOptions.map((ex, exIdx) => {
                   const entry = row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
                   const block = entry?.block;
                   const questions = (ex as { questions?: { question_id: number; number: number; max_score: number }[] }).questions ?? [];
@@ -2136,50 +2137,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       })}
                     </Fragment>
                   );
-                })}
-
-                {/* 시험 총점 요약 — 시험 2개 이상일 때만 표시 */}
-                {examOptions.length > 1 && (() => {
-                  let totalScore = 0;
-                  let totalMaxScore = 0;
-                  let hasAnyScore = false;
-                  let allPassed: boolean | null = null; // null = no data
-                  for (const ex of examOptions) {
-                    const entry = row.exams?.find((e) => e.exam_id === ex.exam_id);
-                    if (!entry) continue;
-                    const block = entry.block;
-                    if (block?.score != null) {
-                      hasAnyScore = true;
-                      totalScore += Number(block.score);
-                      totalMaxScore += ex.max_score ?? block.max_score ?? 100;
-                      if (block.passed != null) {
-                        if (allPassed === null) allPassed = block.passed;
-                        else if (!block.passed) allPassed = false;
-                      }
-                    }
-                  }
-                  const progressStyle = hasAnyScore ? scoreProgressStyle(totalScore, totalMaxScore) : undefined;
-                  return (
-                    <td
-                      className="min-w-0 text-center align-middle"
-                      data-col-type="exam-summary"
-                      data-summary-start=""
-                      data-summary=""
-                      {...(!hasAnyScore ? { "data-score-empty": "true" } : {})}
-                      {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
-                      {...(allPassed != null ? { "data-pass-status": allPassed ? "pass" : "fail" } : {})}
-                    >
-                      {hasAnyScore ? (
-                        <ScoreValue score={totalScore} maxScore={totalMaxScore} showMax />
-                      ) : (
-                        <span className="font-medium text-[var(--color-text-muted)]">-</span>
-                      )}
-                    </td>
-                  );
-                })()}
+                }), includedExamIds.length, examOptions.length ? totalCell("exam", row) : null)}
 
                 {/* 과제: 점수(점수만) | 합불 — canEditScore이면 block 없어도 입력 셀 표시 */}
-                {homeworkOptions.map((hw, hwBodyIdx) => {
+                {insertTotal(homeworkOptions.map((hw, hwBodyIdx) => {
                   const entry =
                     row.homeworks?.find(
                       (h) => h.homework_id === hw.homework_id
@@ -2258,7 +2219,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (!applyPendingChangeToMountedCell(pendingKey) && !isSelected) {
                                       const label = block?.score == null
                                         ? "미입력"
-                                        : block.score >= 1 ? "완료" : "미완료";
+                                        : block.score >= 1 ? "통과" : "미통과";
                                       el.value = label;
                                       el.dataset.completionState = block?.score == null
                                         ? "empty"
@@ -2269,7 +2230,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 className="ds-scores-completion-select"
                                 aria-label={`${row.student_name} · ${hw.title} 완료 상태`}
                                 disabled={Boolean(block?.is_locked)}
-                                defaultValue={block?.score == null ? "미입력" : block.score >= 1 ? "완료" : "미완료"}
+                                defaultValue={block?.score == null ? "미입력" : block.score >= 1 ? "통과" : "미통과"}
                                 onClick={(event) => event.stopPropagation()}
                                 onFocus={() => {
                                   const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
@@ -2277,9 +2238,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   if (!isSelected) onSelectCell(row, "homework", hw.homework_id);
                                 }}
                                 onChange={(event) => {
-                                  const score = event.target.value === "완료"
+                                  const score = event.target.value === "통과"
                                     ? 1
-                                    : event.target.value === "미완료" ? 0 : null;
+                                    : event.target.value === "미통과" ? 0 : null;
                                   const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
                                   const next: PendingChange = {
                                     type: "homework",
@@ -2298,8 +2259,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 }}
                               >
                                 <option value="미입력">미입력</option>
-                                <option value="미완료">미완료</option>
-                                <option value="완료">완료</option>
+                                <option value="미통과">미통과 (X)</option>
+                                <option value="통과">통과 (O)</option>
                               </select>
                             ) : block?.score != null ? (
                               <Badge
@@ -2307,7 +2268,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 tone={block.score >= 1 ? "success" : "danger"}
                                 size="xs"
                               >
-                                {block.score >= 1 ? "완료" : "미완료"}
+                                {block.score >= 1 ? "통과" : "미통과"}
                               </Badge>
                             ) : (
                               <span className="text-[var(--color-text-muted)]">미입력</span>
@@ -2590,7 +2551,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       )}
                     </Fragment>
                   );
-                })}
+                }), includedHomeworkCount, homeworkOptions.some((item) => item.grading_mode !== "COMPLETION") ? totalCell("homework", row) : null)}
 
                 {/* 마지막 열은 표시 옵션에 따라 종합 판정과 시험 오답 확인 요약을 교체한다. */}
                 <td

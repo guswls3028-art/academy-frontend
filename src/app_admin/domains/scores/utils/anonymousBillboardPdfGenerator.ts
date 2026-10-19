@@ -264,12 +264,16 @@ export const BILLBOARD_BASE_STYLE = `
 `;
 
 export function buildAnonymousBillboardDocument(params: AnonymousBillboardPdfParams): AnonymousBillboardDocument {
-  const exams = [...(params.meta.exams ?? [])].sort((a, b) => a.display_order - b.display_order);
+  const exams = [...(params.meta.exams ?? [])].filter((exam) => params.meta.total_config?.exam_ids.includes(exam.exam_id) ?? true).sort((a, b) => a.display_order - b.display_order);
   const totalMaxScore = exams.reduce((sum, exam) => sum + (toFiniteScore(exam.max_score) ?? 0), 0);
   const examIds = new Set(exams.map((exam) => exam.exam_id));
 
   const entries = filterPresent(params.rows, params.attendanceMap)
     .map((row, sourceIndex) => {
+      if (row.exam_total) {
+        return row.exam_total.complete && row.exam_total.score != null && row.exam_total.max_score === totalMaxScore
+          ? { sourceIndex, score: row.exam_total.score } : null;
+      }
       const examsById = new Map((row.exams ?? []).map((exam) => [exam.exam_id, exam]));
       if ([...examIds].some((examId) => isSubjectivePendingScoreBlock(examsById.get(examId)?.block))) {
         return null;

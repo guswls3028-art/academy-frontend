@@ -1,0 +1,12 @@
+.assessment-totals-help { color: var(--color-text-secondary); font-size: 13px; line-height: 1.65; margin: 0 0 16px; }
+.assessment-totals-group { border: 1px solid var(--color-border-divider); border-radius: 8px; padding: 12px; margin: 0 0 20px; min-width: 0; }
+.assessment-totals-group legend { font-size: 14px; font-weight: 600; padding: 0 6px; }
+.assessment-totals-option { display: flex; gap: 10px; align-items: center; min-height: 44px; cursor: pointer; border-radius: 6px; padding: 6px; transition: background-color 140ms; }
+.assessment-totals-option:hover { background: var(--color-bg-surface-hover); }
+.assessment-totals-divider { background: var(--color-bg-surface-hover); border-block: 1px solid var(--color-border-divider); font-weight: 600; }
+.assessment-totals-option span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.assessment-totals-option small { color: var(--color-text-muted); white-space: nowrap; }
+.assessment-totals-error { color: var(--color-danger); font-size: 13px; }
+.assessment-total-value { display: flex; flex-direction: column; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+.assessment-total-value small { color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .assessment-totals-option { transition: none; } }

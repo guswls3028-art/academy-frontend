@@ -443,6 +443,7 @@ export default function SessionAttendancePage({
 
         openSendMessageModal({
           studentIds,
+          sessionId,
           recipientLabel: `수업결과 발송 — ${selectedIds.length}명`,
           blockCategory: "grades",
           initialBody,

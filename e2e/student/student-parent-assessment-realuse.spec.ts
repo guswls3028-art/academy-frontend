@@ -420,6 +420,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
+    await verifyAssessmentFeedback(page, request, admin, primary, peer, primaryTokens, parentTokens, testInfo);
     await verifyScoreMessageTemplate(page, request, admin, primary);
     await verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens);
     await verifyAssessmentCopy(page, request, admin, primaryTokens, {
@@ -684,7 +685,10 @@ async function verifyScoreMessageTemplate(
   const boundary = await installQaStudentParentBoundary(page, request);
   const guards = attachStrictBrowserGuards(page);
   const templateName = `qa-message-editor-${runStamp}`;
+  let previousDefaultId: number | undefined;
   try {
+    const previous = await expectApi<Array<{ id: number; category: string; is_user_default: boolean; is_system: boolean }>>(request, "GET", "/messaging/templates/?category=grades", admin.access);
+    previousDefaultId = previous.find(item => item.category === "grades" && item.is_user_default && !item.is_system)?.id;
     await seedBrowserAuth(page, admin);
     await gotoAndSettle(page, `${QA_BASE}/workspace/message/templates`, { timeout: 30_000 });
     await page.getByRole("navigation", { name: "문구 카테고리" }).getByRole("button", { name: "성적", exact: true }).click();
@@ -774,11 +778,30 @@ async function verifyScoreMessageTemplate(
     expect(checked.preview_recipients[0]).toMatchObject({ student_id: student.id, excluded: false });
     expect(checked.preview_recipients[0].full_message_body).toContain(`학생 ${student.name} 점수 60 확인 완료`);
     await expect(send.locator(".send-modal__send-btn")).toBeEnabled();
+    const draft = send.getByRole("textbox", { name: "안내문", exact: true });
+    await draft.fill("학생 #{학생이름3} 점수 #{시험총점} 확인 완료 · #{99차시후명}");
+    await expect(send.getByText(/99차시 뒤 수업이 없습니다/).first()).toBeVisible();
+    await expect(send.locator(".send-modal__send-btn")).toBeDisabled();
+    await expect(draft).toContainText("#{99차시후명}");
+    await draft.fill("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
+    await expect(send.locator(".send-modal__send-btn")).toBeEnabled();
+    await send.getByRole("button", { name: "성적 안내 기본으로 지정", exact: true }).click();
+    const defaultRead = await expectApi<{ is_user_default: boolean }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access);
+    expect(defaultRead.is_user_default).toBe(true);
+    await page.reload();
+    await page.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
+    await expect(send.getByRole("textbox", { name: "안내문", exact: true })).toContainText("점수 #{시험총점} 확인 완료");
+    await expect(send).toContainText(templateName);
     await assertNoHorizontalOverflow(page);
     boundary.assertClean();
     guards.assertZeroDefects();
   } finally {
     await context.close();
+    if (previousDefaultId) {
+      const previousState = await expectApi<{ is_user_default: boolean }>(request, "GET", `/messaging/templates/${previousDefaultId}/`, admin.access);
+      if (!previousState.is_user_default) await expectApi(request, "POST", `/messaging/templates/${previousDefaultId}/set-default/`, admin.access, {});
+    }
     if (created.messageTemplateId) {
       const id = created.messageTemplateId;
       await expectApi(request, "DELETE", `/messaging/templates/${id}/`, admin.access, undefined, [204]);
@@ -787,4 +810,88 @@ async function verifyScoreMessageTemplate(
       created.messageTemplateId = undefined;
     }
   }
+}
+
+
+/** Same owned scenario and cascade cleanup; never calls the external send endpoint. */
+async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestContext, admin: QaTokens,
+  student: QaStudent, peer: QaStudent, studentTokens: QaTokens, parentTokens: QaTokens, testInfo: TestInfo): Promise<void> {
+  const context = await parentPage.context().browser()!.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
+  const page = await context.newPage();
+  const boundary = await installQaStudentParentBoundary(page, request);
+  const guards = attachStrictBrowserGuards(page);
+  const commentsPath = `/results/admin/sessions/${created.sessionId}/exam/${created.examId}/parent-comments/`;
+  const configPath = `/results/admin/sessions/${created.sessionId}/total-config/`;
+  try {
+    await seedBrowserAuth(page, admin);
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`, { timeout: 30_000 });
+      await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+      const totals = page.getByRole("dialog", { name: "합산 설정", exact: true });
+      await totals.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+      await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+      await expect(totals).toBeHidden();
+      const excluded = await expectApi<{ version: number; exam_ids: number[] }>(request, "GET", configPath, admin.access);
+      expect(excluded.exam_ids).toEqual([]);
+      await page.reload();
+      await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+      await totals.getByRole("button", { name: "시험 총점 아래로 이동", exact: true }).click();
+      await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+      await expect(totals).toBeHidden();
+      const restored = await expectApi<{ version: number; exam_ids: number[] }>(request, "GET", configPath, admin.access);
+      expect(restored.exam_ids).toEqual([created.examId]);
+      expect(restored.version).toBe(excluded.version + 1);
+      await page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }).click();
+      await page.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
+      const comment = page.getByRole("dialog", { name: "학부모 코멘트", exact: true });
+      const text = `QA 관찰 ${width}: 계산 과정을 차근차근 설명해 주세요.`;
+      await comment.getByLabel(student.name, { exact: true }).fill(text);
+      await comment.locator(".parent-comment-row").filter({ has: comment.getByLabel(student.name, { exact: true }) }).getByRole("button", { name: "학부모에게 공개", exact: true }).click();
+      await expect(comment.getByText("학부모에게 공개했습니다.", { exact: true })).toBeVisible();
+      const staffRead = await expectApi<{ items: Array<{ enrollment_id: number; text: string }> }>(request, "GET", commentsPath, admin.access);
+      expect(staffRead.items.find(row => row.enrollment_id === created.primaryEnrollmentId)?.text).toBe(text);
+      await page.reload();
+      await page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }).click();
+      await page.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
+      await expect(comment.getByLabel(student.name, { exact: true })).toHaveValue(text);
+      await parentPage.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(parentPage, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+      await expect(parentPage.getByRole("link").filter({ hasText: examTitle }).first().locator("..").locator('aside[aria-label="학부모 코멘트"]')).toContainText(text);
+      await reloadStudentApp(parentPage);
+      await expect(parentPage.getByText(text, { exact: true })).toBeVisible();
+      for (const child of [student, peer]) {
+        const response = await request.get(`${QA_API}/api/v1/results/parent/assessment-comments/`, { headers: { Authorization: `Bearer ${parentTokens.access}`, "X-Tenant-Code": QA_TENANT, "X-Student-Id": String(child.id) } });
+        expect(response.status()).toBe(200);
+        const result = await response.json() as { items: Array<{ text: string; assessment_id: number; session_id: number }> };
+        if (child.id === student.id) expect(result.items).toEqual(expect.arrayContaining([expect.objectContaining({ text, assessment_id: created.examId, session_id: created.sessionId })]));
+        else expect(result.items.some(item => item.text === text)).toBe(false);
+      }
+      await assertNoHorizontalOverflow(page);
+      await assertNoHorizontalOverflow(parentPage);
+      await page.screenshot({ path: testInfo.outputPath(`real-assessment-staff-${width}.png`), fullPage: true });
+      await parentPage.screenshot({ path: testInfo.outputPath(`real-assessment-parent-${width}.png`), fullPage: true });
+    }
+    const denied = await request.get(`${QA_API}/api/v1/results/parent/assessment-comments/`, { headers: { Authorization: `Bearer ${studentTokens.access}`, "X-Tenant-Code": QA_TENANT } });
+    expect(denied.status()).toBe(403);
+    const studentGrades = await expectApi<MyGradesSummary>(request, "GET", "/student/grades/", studentTokens.access);
+    expect(JSON.stringify(studentGrades)).not.toContain("QA 관찰");
+    const studentContext = await parentPage.context().browser()!.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    try {
+      const studentPage = await studentContext.newPage();
+      const studentBoundary = await installQaStudentParentBoundary(studentPage, request);
+      const studentGuards = attachStrictBrowserGuards(studentPage);
+      const commentRequests: string[] = [];
+      studentPage.on("request", entry => { if (new URL(entry.url()).pathname.endsWith("/results/parent/assessment-comments/")) commentRequests.push(entry.url()); });
+      await seedBrowserAuth(studentPage, studentTokens);
+      await gotoAndSettle(studentPage, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+      await expect(studentPage.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
+      await reloadStudentApp(studentPage);
+      await expect(studentPage.locator('aside[aria-label="학부모 코멘트"]')).toHaveCount(0);
+      expect(commentRequests).toEqual([]);
+      await studentPage.screenshot({ path: testInfo.outputPath("real-assessment-student-390.png"), fullPage: true });
+      studentBoundary.assertClean(); studentGuards.assertZeroDefects();
+    } finally { await studentContext.close(); }
+    boundary.assertClean(); guards.assertZeroDefects();
+  } finally { await context.close(); }
 }

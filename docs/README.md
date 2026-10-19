@@ -4,6 +4,7 @@
 
 | 문서 | 내용 |
 |------|------|
+| [ASSESSMENT-TOTALS.md](ASSESSMENT-TOTALS.md) | 시험·점수형 과제 선택 합산, 순서 이동, 미입력·충돌 복구와 역할별 후속 표시 |
 | [PROBLEM-CONVERSION.md](PROBLEM-CONVERSION.md) | 시험지 변환·문항 검수·AI 수정 제안·한글 3종 출력과 기존 도구 호환 |
 | [ORGANIZATION-SETTINGS.md](ORGANIZATION-SETTINGS.md) | 현재 학원 역할별 설정·결제·상담 접근, 조회/저장 실패 복구와 입력 초안 보존 |
 | [개발 저장공간·CI 캐시 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/concurrent-codex-sessions.md#session-output-lifecycle) | 원격 빌드 기본값, 작업별 임시 파일 수명주기, 종료된 PR 캐시 정리와 검증 기록 보존 |
@@ -113,3 +114,5 @@ e2e/
 - 코드 바로 옆에 필요한 모듈 README·refactor note는 `src/<app>/...`에 둘 수 있다. 단, 해당 모듈의 구조·API·검증 범위만 다루고 전역 규칙/운영 절차는 `frontend/docs/` 또는 repo 루트 문서로 올린다.
 - 스크린샷과 실행 보고서는 `test-results/`, `playwright-report/` 또는
   workspace `_artifacts/`에 저장하고 커밋하지 않음
+
+- [PARENT-ASSESSMENT-COMMENTS.md](PARENT-ASSESSMENT-COMMENTS.md) — 학부모 전용 평가 코멘트와 수정/조회 흐름

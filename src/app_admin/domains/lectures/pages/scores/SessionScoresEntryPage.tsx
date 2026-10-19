@@ -991,6 +991,7 @@ export default function SessionScoresEntryPage({
                 : {};
 
               openSendMessageModal({
+                sessionId: numericSessionId,
                 studentIds: activeStudentIds,
                 recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
                 blockCategory: "grades",

@@ -87,6 +87,7 @@ export type MyHomeworkGradeSummary = {
 };
 
 export type MyGradesSummary = {
+  session_totals?: SessionAssessmentTotals[];
   exams: MyExamGradeSummary[];
   homeworks: MyHomeworkGradeSummary[];
   exam_trend: StudentExamTrendPoint[];
@@ -103,6 +104,12 @@ const EMPTY_EXAM_SUMMARY: StudentExamSummary = {
   latest_score_pct: null,
   change_pct_points: null,
   best_score_pct: null,
+};
+
+export type SessionAssessmentTotals = {
+  session_id: number; lecture_id: number; session_title: string; lecture_title: string;
+  exam_total: import("@/shared/api/contracts/sessionScores").AssessmentTotal;
+  homework_total: import("@/shared/api/contracts/sessionScores").AssessmentTotal;
 };
 
 function plainOptional(value: string | null | undefined): string | null | undefined {
@@ -186,6 +193,7 @@ export async function fetchMyGradesSummary(): Promise<MyGradesSummary> {
   const data = res.data ?? {};
   return {
     exams: Array.isArray(data.exams) ? data.exams.map(normalizeExamGrade) : [],
+    session_totals: data.session_totals ?? [],
     homeworks: Array.isArray(data.homeworks) ? data.homeworks.map(normalizeHomeworkGrade) : [],
     exam_trend: Array.isArray(data.exam_trend)
       ? data.exam_trend.map((point) => ({
