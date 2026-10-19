@@ -68,6 +68,54 @@ async function openTemplateEditor(page: Page, openEditor = true, initialBody = "
 }
 
 test.describe("안내문 변수 편집", () => {
+  test("문구 관리 기본 지정은 중복 클릭과 응답 유실 재시도에도 지정 상태를 유지한다", async ({ page }) => {
+    await openTemplateEditor(page, false);
+    let saved = { id: 991, name: "수업 결과 검증 문구", category: "grades", subject: "", body: "한글 안내 #{시험총점}",
+      is_system: false, is_user_default: false, solapi_status: "", solapi_template_id: "" };
+    const intents: boolean[] = [];
+    let release = () => {};
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    let aborted = 0;
+    page.on("requestfailed", request => {
+      if (new URL(request.url()).pathname.endsWith("/991/set-default/")
+        && request.failure()?.errorText === "net::ERR_ABORTED") aborted++;
+    });
+    await page.route("**/api/v1/messaging/templates/**", async route => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith("/991/set-default/")) {
+        expect(route.request().method()).toBe("POST");
+        const desired = route.request().postDataJSON().is_user_default;
+        expect(typeof desired).toBe("boolean");
+        intents.push(desired);
+        if (intents.length === 1) await gate;
+        saved = { ...saved, is_user_default: desired };
+        if (intents.length === 1) return route.abort("aborted");
+        return route.fulfill({ json: saved });
+      }
+      if (path.endsWith("/templates/")) return route.fulfill({ json: [saved] });
+      return route.fallback();
+    });
+    try {
+      const button = page.getByRole("button", { name: "발송 기본으로 지정", exact: true });
+      await button.evaluate(node => { (node as HTMLButtonElement).click(); (node as HTMLButtonElement).click(); });
+      await expect.poll(() => intents.length).toBe(1);
+      await expect(page.getByRole("button", { name: "기본 설정 중…", exact: true })).toBeDisabled();
+      release();
+      await expect(page.getByText("기본 문구 지정에 실패했습니다.", { exact: true })).toBeVisible();
+      expect(saved.is_user_default).toBe(true);
+      expect(aborted).toBe(1);
+      await button.click();
+      await expect(page.getByRole("button", { name: "기본 해제", exact: true })).toBeVisible();
+      expect(intents).toEqual([true, true]);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("button", { name: "기본 해제", exact: true })).toBeVisible();
+      expect(saved.is_user_default).toBe(true);
+      expect(intents).toHaveLength(2);
+    } finally {
+      release();
+    }
+  });
+
   test("복제 초안 저장 실패 후 입력을 유지하고 재시도하면 원본을 보존한다", async ({ page }) => {
     const writes = await openTemplateEditor(page, false);
     let attempts = 0;
