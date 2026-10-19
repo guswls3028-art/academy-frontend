@@ -71,7 +71,7 @@ async function setup(page: Page, system = false) {
   });
   const openPage = async () => {
     await page.goto(`${base}/workspace/message/auto-send`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "클리닉", exact: true }).click();
+    await page.getByRole("button", { name: "클리닉/상담", exact: true }).click();
     await expect(page.getByRole("button", { name: "문구 수정", exact: true })).toBeVisible();
   };
   await openPage();
