@@ -555,6 +555,7 @@ test("옛 문구의 미입력 변수를 지우면 현재 본문으로 검사하�
   await page.route("**/api/v1/messaging/templates/", (route) => route.fulfill({ json: [{
     id: 897, name: "이전 과제 안내", category: "attendance", subject: "",
     body: "#{과제명}을 확인해 주세요.", is_system: false, is_user_default: true,
+    alimtalk_readiness: "ready", alimtalk_envelope_type: "attendance",
     solapi_status: "", solapi_template_id: "",
     created_at: "2026-10-02T00:00:00Z", updated_at: "2026-10-02T00:00:00Z",
   }] }));

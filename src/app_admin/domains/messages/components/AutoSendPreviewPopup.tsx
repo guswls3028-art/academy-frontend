@@ -81,7 +81,7 @@ export default function AutoSendPreviewPopup({
   const channelLabel = getAlimtalkTemplateLabel(alimtalkType);
 
   return (
-    <AdminModal open={open} onClose={onClose} width={420} zIndex={1050} type="inspect" noMinimize>
+    <AdminModal open={open} onClose={onClose} width={420} zIndex={1050} type="inspect" noMinimize trapFocus>
       <ModalHeader title={`${triggerLabel} 미리보기`} type="inspect" />
       <ModalBody>
           <div className={`template-preview-kakao ${styles.kakaoPreview}`}>

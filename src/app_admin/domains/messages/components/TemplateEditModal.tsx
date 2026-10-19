@@ -145,7 +145,7 @@ export default function TemplateEditModal({
   const fieldsDisabled = isPending || isDeleting || isSystem || readOnly;
 
   return (
-    <AdminModal open={open} onClose={() => void requestClose()} width={1160} className="message-template-edit-modal" zIndex={zIndex} onEnterConfirm={!fieldsDisabled ? handleSubmit : undefined}>
+    <AdminModal open={open} onClose={() => void requestClose()} width={1160} className="message-template-edit-modal" zIndex={zIndex} onEnterConfirm={!fieldsDisabled ? handleSubmit : undefined} trapFocus>
       <ModalHeader title={title} />
       <ModalBody>
         {description && <p className="message-template-context">{description}</p>}
