@@ -2,7 +2,7 @@ import { expect, test, type Page } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
-async function setup(page: Page, system = false, fixedBody?: string) {
+async function setup(page: Page, system = false, fixedBody?: string, account = false) {
   const fixed = fixedBody !== undefined;
   const base = getBaseUrl("admin");
   test.skip(!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(base), "격리된 route mock 전용");
@@ -24,10 +24,10 @@ async function setup(page: Page, system = false, fixedBody?: string) {
   const initialConfigsReady = new Promise<void>((resolve) => { releaseInitialConfigs = resolve; });
   const config = () => {
     const template = templates.get(state.linked)!;
-    return { id: 1, trigger: fixed ? "withdrawal_complete" : "clinic_reminder", template: template.id,
+    return { id: 1, trigger: account ? "registration_approved_student" : fixed ? "withdrawal_complete" : "clinic_reminder", template: template.id,
       template_name: template.name, template_subject: template.subject, template_body: template.body,
       template_is_system: template.is_system, enabled: true, message_mode: "alimtalk",
-      effective_template_type: fixed ? "notice_withdrawal" : "clinic_info", effective_template_source: "unified",
+      effective_template_type: account ? "" : fixed ? "notice_withdrawal" : "clinic_info", effective_template_source: account ? "owner_exact" : "unified",
       effective_template_is_approved: true, effective_template_solapi_status: "APPROVED",
       policy_mode: fixed ? "SYSTEM_AUTO" : "AUTO_DEFAULT", implementation_status: "implemented", minutes_before: 30,
       delay_mode: "immediate", delay_value: null, show_actual_time: false };
@@ -89,6 +89,18 @@ async function setup(page: Page, system = false, fixedBody?: string) {
   await openPage();
   return { state, templates, updates, original, openPage };
 }
+
+test("계정 고정 안내는 예전 저장 본문을 실제 발송 예시로 표시하지 않는다", async ({ page }) => {
+  await setup(page, true, "예전 계정 안내 본문", true);
+  await page.getByRole("button", { name: "미리보기", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("발송 시점의 아이디·계정 정보");
+  await expect(page.getByRole("dialog")).not.toContainText("예전 계정 안내 본문");
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "내용 보기", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("발송 시점의 아이디·계정 정보");
+  await expect(page.getByRole("dialog")).not.toContainText("예전 계정 안내 본문");
+  await expect(page.getByRole("dialog").getByRole("textbox", { name: "안내문", exact: true })).toHaveCount(0);
+});
 
 for (const fixedBody of ["", "과거에 저장한 미사용 메모"]) {
   test(`고정 안내는 ${fixedBody ? "과거 메모 대신" : "저장 메모가 없어도"} 승인 양식을 보여준다`, async ({ page }, testInfo) => {

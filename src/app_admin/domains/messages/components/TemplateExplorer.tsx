@@ -17,7 +17,8 @@ import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import TemplateCategoryTree from "./TemplateCategoryTree";
-import TemplateEditModal from "./TemplateEditModal";
+import { isFixedAlimtalkContent } from "@/shared/messaging/alimtalkEnvelope";
+import TemplateLibraryEditor from "./TemplateLibraryEditor";
 import TemplateRestorePanel from "./TemplateRestorePanel";
 import { AlimtalkEnvelopeGuide } from "./AlimtalkEnvelopeGuide";
 import {
@@ -323,6 +324,7 @@ export default function TemplateExplorer() {
   const renderTemplateCard = (t: MessageTemplateItem) => {
     const isConfirming = confirmAction?.id === t.id;
     const isDef = isDefaultTemplate(t);
+    const fixed = isFixedAlimtalkContent(t.category, t.name);
     return (
       <div
         key={t.id}
@@ -339,7 +341,7 @@ export default function TemplateExplorer() {
         }}
         onClick={() =>
           !isConfirming &&
-          setModalOpen({ template: t, mode: isDef ? "view" : "edit" })
+          setModalOpen({ template: t, mode: isDef || fixed ? "view" : "edit" })
         }
       >
         {/* 카드 헤더 */}
@@ -425,18 +427,18 @@ export default function TemplateExplorer() {
               <Button
                 intent="secondary"
                 size="sm"
-                leftIcon={isDef ? <FiEye size={16} /> : <FiEdit2 size={16} />}
+                leftIcon={isDef || fixed ? <FiEye size={16} /> : <FiEdit2 size={16} />}
                 onClick={(event) => {
                   event.stopPropagation();
-                  setModalOpen({ template: t, mode: isDef ? "view" : "edit" });
+                  setModalOpen({ template: t, mode: isDef || fixed ? "view" : "edit" });
                 }}
-              >{isDef ? "보기" : "수정"}</Button>
-              <IconAction
+              >{isDef || fixed ? "보기" : "수정"}</Button>
+              {!fixed && <IconAction
                 icon={<FiCopy size={16} />}
                 label="복제"
                 onClick={() => void handleDuplicate(t)}
                 disabled={createMut.isPending}
-              />
+              />}
               {t.category === "grades" && !isDef && (
                 <Button size="sm" intent="secondary" onClick={(event) => {
                   event.stopPropagation();
@@ -499,7 +501,7 @@ export default function TemplateExplorer() {
         </div>
 
         {/* 본문 미리보기 — 컬러 배지로 변수 표시 */}
-        {t.body && (
+        {!fixed && t.body && (
           <div
             style={{
               fontSize: 12,
@@ -681,7 +683,8 @@ export default function TemplateExplorer() {
       </div>
 
       {/* 템플릿 생성/수정 모달 */}
-      <TemplateEditModal
+      {modalOpen && <TemplateLibraryEditor
+        key={isCreate ? "create" : `${editing?.id}:${copying}`}
         open={isCreate || isEditOrView}
         onClose={() => { createMut.reset(); updateMut.reset(); setModalOpen(null); }}
         category={modalCategory}
@@ -703,7 +706,7 @@ export default function TemplateExplorer() {
         }}
         onDuplicate={(template) => void handleDuplicate(template)}
         isDeleting={deleteMut.isPending}
-      />
+      />}
     </div>
   );
 }

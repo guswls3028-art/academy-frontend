@@ -72,6 +72,8 @@ export default function AutoSendPreviewPopup({
     ? substituteVariables(hideInternalAlimtalkMemoToken(body, ""), previewContext)
     : "";
   const alimtalkType = getAlimtalkTemplateType(trigger);
+  const fixedAccount = ["registration_approved_student", "registration_approved_parent",
+    "password_find_otp", "password_reset_student", "password_reset_parent"].includes(trigger);
   const previewBody = alimtalkType
     ? renderAlimtalkFullPreview(alimtalkType, resolvedBody, undefined, { 학원명: academyName })
     : resolvedBody;
@@ -90,7 +92,7 @@ export default function AutoSendPreviewPopup({
                 <span className="template-preview-kakao__header-label">알림톡 도착</span>
                 <span className="template-preview-kakao__header-channel">{channelLabel}</span>
               </div>
-              {!alimtalkType && resolvedSubject && (
+              {!alimtalkType && !fixedAccount && resolvedSubject && (
                 <div
                   className={`template-preview-kakao__title ${styles.previewText}`}
                 >
@@ -100,7 +102,10 @@ export default function AutoSendPreviewPopup({
               <div
                 className={`template-preview-kakao__body ${styles.previewText}`}
               >
-                {body || alimtalkType ? renderBody(previewBody) : (
+                {fixedAccount ? <p role="note">
+                  계정 안내는 발송 시점의 아이디·계정 정보와 승인된 양식으로 작성합니다.
+                  보관함에 남아 있는 예전 본문은 이 안내의 미리보기로 사용하지 않습니다.
+                </p> : body || alimtalkType ? renderBody(previewBody) : (
                   <span className={styles.emptyText}>
                     보낼 내용이 아직 없습니다.
                   </span>

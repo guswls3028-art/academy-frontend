@@ -658,11 +658,18 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
   });
   const savedTemplates = templates.filter((template) =>
     !template.is_system
+    && template.category !== "signup"
+    && template.category !== "payment"
+    && template.alimtalk_envelope_type !== "notice_withdrawal"
+    && template.alimtalk_envelope_type !== "notice_payment"
     && template.category !== "grades"
     && template.alimtalk_envelope_type !== "score"
     && template.alimtalk_envelope_type !== "clinic_change");
   const hasPersonalizedOnlyTemplates = templates.some((template) =>
     !template.is_system && (template.category === "grades" || template.alimtalk_envelope_type === "score" || template.alimtalk_envelope_type === "clinic_change"));
+  const hasFixedTemplates = templates.some((template) => !template.is_system && (
+    template.category === "signup" || template.category === "payment"
+    || template.alimtalk_envelope_type === "notice_withdrawal" || template.alimtalk_envelope_type === "notice_payment"));
   const tooManyRecipients = students.length > 200;
   const recipientLabel = sendTo === "parent" ? "학부모" : "학생";
   const scheduledDate = sendTiming === "scheduled" && scheduledAt ? new Date(scheduledAt) : null;
@@ -878,6 +885,9 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
               : savedTemplates.length === 0 ? <p className="text-[11px] mt-1">저장한 문구가 없습니다. 아래에서 직접 작성할 수 있습니다.</p> : null}
           {hasPersonalizedOnlyTemplates && <p className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
             성적·일정 변경용 문구는 학생별 정보가 필요한 전용 발송 화면에서 사용합니다.
+          </p>}
+          {hasFixedTemplates && <p className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
+            계정·결제·퇴원 안내는 해당 업무 화면에서 승인된 고정 양식으로 발송합니다.
           </p>}
           <button type="button" onClick={() => { closeSheet(); navigate("/workspace/mobile/message-templates"); }}
             className="text-xs font-semibold underline mt-1" style={{ color: "var(--tc-primary)" }}>저장 문구 만들기·수정하기</button>
