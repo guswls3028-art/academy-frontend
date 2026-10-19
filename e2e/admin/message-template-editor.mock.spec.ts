@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { openCompositionScores } from "../helpers/assessmentCompositionMock";
 import { getBaseUrl } from "../helpers/auth";
+import { realMessagingSkipReason } from "../helpers/safety";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 async function openTemplateEditor(page: Page, openEditor = true, initialBody = "한글 안내 #{시험총점}") {
@@ -459,6 +460,12 @@ test.describe("안내문 변수 편집", () => {
 });
 
 async function openGuardedSender(page: Page) {
+  const baseUrl = getBaseUrl("admin");
+  const mockOnlyReason = realMessagingSkipReason(baseUrl, "", "0");
+  test.skip(
+    !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?(?:\/|$)/.test(baseUrl),
+    mockOnlyReason ?? "발송 초안 보호 route-mock 검증은 로컬 dev 서버 전용",
+  );
   await openCompositionScores(page);
   const sends: Record<string, unknown>[] = [];
   let releaseFailure: (() => void) | undefined;
