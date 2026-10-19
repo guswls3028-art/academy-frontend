@@ -51,16 +51,16 @@ for (const width of [1366, 390]) {
     await expect(row.locator(".assessment-total-value").first()).toContainText("집계 중 · 1/2");
     await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
     const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
+    // Wait for the opening scale animation before drag or visual capture.
+    await expect.poll(() => modal.evaluate(node =>
+      Math.abs(node.getBoundingClientRect().width - node.clientWidth),
+    )).toBeLessThan(1);
     if (width === 1366) {
-      // Ant Modal opens with a scale animation. Starting native drag while the
-      // source is still scaled presses at stale coordinates as it expands.
-      await expect.poll(() => modal.evaluate(node =>
-        Math.abs(node.getBoundingClientRect().width - node.clientWidth),
-      )).toBeLessThan(1);
       await modal.locator(".assessment-totals-divider").first().dragTo(modal.locator(".assessment-totals-option").filter({ has: page.getByRole("button", { name: "둘째 시험 위로 이동", exact: true }) }));
     } else { await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).press("Enter"); }
     await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산" })).toBeVisible();
     await modal.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
+    await page.screenshot({ path: testInfo.outputPath(`assessment-totals-modal-${width}.png`), animations: "disabled" });
     await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(modal.getByRole("alert")).toContainText("합산 저장 일시 실패");
     await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산" })).toBeVisible();
@@ -82,7 +82,8 @@ for (const width of [1366, 390]) {
     await page.reload();
     await expect(row.locator(".assessment-total-value").first()).toContainText("0 / 200");
     await expect(row.locator(".assessment-total-value").first()).toContainText("집계 중 · 1/2");
-    await page.screenshot({ path: testInfo.outputPath(`assessment-main-column-inclusion-${width}.png`), fullPage: true });
+    await row.locator('[data-col-type="exam-summary"]').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`assessment-main-column-inclusion-${width}.png`), animations: "disabled" });
     // Completion-only items can reorder within excluded columns but cannot enter the sum.
     if (width === 1366) {
       await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "준비물 통과형 작업 선택", exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 과제 작업 선택", exact: true }) }));
@@ -98,7 +99,10 @@ for (const width of [1366, 390]) {
     await expect(row.locator(".assessment-total-value").last()).toHaveText("25 / 100");
 
 
-    await page.screenshot({ path: testInfo.outputPath(`assessment-totals-${width}.png`), fullPage: true });
+    await row.locator('[data-col-type="exam-summary"]').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`assessment-totals-${width}.png`), animations: "disabled" });
+    await row.locator('[data-col-type="homework-summary"]').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`assessment-homework-totals-${width}.png`), animations: "disabled" });
     await page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }).click();
     await page.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
     const comment = page.getByRole("dialog", { name: "학부모 코멘트", exact: true });
