@@ -770,7 +770,19 @@ test("conflicting edit retains draft, reloads latest explicitly, and saves with 
   await page.getByRole("button", { name: "수정 내용 게시", exact: true }).click();
   await expect(page.getByRole("heading", { name: "최신 내용을 반영한 수정", exact: true })).toBeVisible();
   expect(patchPayloads[1].expected_updated_at).toBe("2026-10-06T01:00:00Z");
-  await page.reload(); await expect(page.getByRole("heading", { name: "최신 내용을 반영한 수정", exact: true })).toBeVisible();
+  const expectSavedDocuments = async () => {
+    for (const file of resource.files) {
+      const reader = page.getByRole("region", { name: `${file.filename} 본문`, exact: true });
+      await reader.scrollIntoViewIfNeeded();
+      await expect(reader.locator('[data-testid="matchup-pdf-page"][data-render-status="ready"]')).toHaveCount(1, { timeout: 60_000 });
+    }
+  };
+  // Verify the saved reader before reload, as in the adjacent saved-description
+  // journey, so navigation does not interrupt Vite module-worker initialization.
+  await expectSavedDocuments();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "최신 내용을 반영한 수정", exact: true })).toBeVisible();
+  await expectSavedDocuments();
 });
 
 test("tchul uses the current tenant brand on the shared public board", async ({ page }) => {

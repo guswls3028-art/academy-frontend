@@ -905,7 +905,12 @@ async function verifyScoreMessageTemplate(
     await expect(draft).toContainText("#{99차시후명}");
     await draft.fill("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
     await expect(send.locator(".send-modal__send-btn")).toBeEnabled();
+    const defaultResponse = page.waitForResponse(response => response.request().method() === "POST"
+      && new URL(response.url()).pathname.endsWith(`/api/v1/messaging/templates/${saved.id}/set-default/`));
     await send.getByRole("button", { name: "성적 안내 기본으로 지정", exact: true }).click();
+    const defaultSaved = await defaultResponse;
+    expect(defaultSaved.status()).toBe(200);
+    expect(await defaultSaved.json()).toMatchObject({ id: saved.id, is_user_default: true });
     const defaultRead = await expectApi<{ is_user_default: boolean }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access);
     expect(defaultRead.is_user_default).toBe(true);
     await page.reload();
@@ -967,7 +972,7 @@ async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestCon
       const comment = page.getByRole("dialog", { name: "학부모 코멘트", exact: true });
       const text = `QA 관찰 ${width}: 계산 과정을 차근차근 설명해 주세요.`;
       await comment.getByLabel(student.name, { exact: true }).fill(text);
-      await comment.locator(".parent-comment-row").filter({ has: comment.getByLabel(student.name, { exact: true }) }).getByRole("button", { name: "학부모에게 공개", exact: true }).click();
+      await comment.locator(".parent-comment-row").filter({ has: page.getByLabel(student.name, { exact: true }) }).getByRole("button", { name: "학부모에게 공개", exact: true }).click();
       await expect(comment.getByText("학부모에게 공개했습니다.", { exact: true })).toBeVisible();
       const staffRead = await expectApi<{ items: Array<{ enrollment_id: number; text: string }> }>(request, "GET", commentsPath, admin.access);
       expect(staffRead.items.find(row => row.enrollment_id === created.primaryEnrollmentId)?.text).toBe(text);
