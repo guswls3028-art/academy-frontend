@@ -421,7 +421,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await verifyAssessmentFeedback(page, request, admin, primary, peer, primaryTokens, parentTokens, testInfo);
-    await verifyScoreMessageTemplate(page, request, admin, primary);
+    await verifyScoreMessageTemplate(page, request, admin, primary, testInfo);
     await verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens);
     await verifyAssessmentCopy(page, request, admin, primaryTokens, {
       lectureId: created.lectureId!, sessionId: created.sessionId!, examId: created.examId!,
@@ -679,6 +679,7 @@ async function verifyScoreMessageTemplate(
   request: APIRequestContext,
   admin: QaTokens,
   student: QaStudent,
+  testInfo: TestInfo,
 ): Promise<void> {
   const context = await parentPage.context().browser()!.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
   const page = await context.newPage();
@@ -687,6 +688,28 @@ async function verifyScoreMessageTemplate(
   const templateName = `qa-message-editor-${runStamp}`;
   let previousDefaultId: number | undefined;
   try {
+    const currentLesson = await expectApi<{ title: string; date: string; section: number | null }>(
+      request, "GET", `/lectures/sessions/${created.sessionId}/`, admin.access,
+    );
+    const dateAfter = (days: number) => {
+      const date = new Date(`${currentLesson.date}T00:00:00Z`);
+      date.setUTCDate(date.getUTCDate() + days);
+      return date.toISOString().slice(0, 10);
+    };
+    // Unrelated titles and nonconsecutive lesson numbers must resolve through
+    // actual same-lecture/section rows, not title/lesson-number arithmetic.
+    const futureLessons = [
+      { title: `QA 탐구 마무리 ${runStamp}`, date: dateAfter(7), regular_order: 1001 },
+      { title: `QA 기초 연결 ${runStamp}`, date: dateAfter(14), regular_order: 2001 },
+    ];
+    for (const lesson of futureLessons) {
+      const future = await expectApi<{ id: number; regular_order: number; title: string; date: string }>(request, "POST", "/lectures/sessions/", admin.access, {
+        lecture: created.lectureId, section: currentLesson.section, ...lesson,
+      });
+      // Existing scenario cleanup deletes these exact rows before lecture cleanup.
+      created.copySessionIds.push(future.id);
+      expect(future).toMatchObject(lesson);
+    }
     const previous = await expectApi<Array<{ id: number; category: string; is_user_default: boolean; is_system: boolean }>>(request, "GET", "/messaging/templates/?category=grades", admin.access);
     previousDefaultId = previous.find(item => item.category === "grades" && item.is_user_default && !item.is_system)?.id;
     await seedBrowserAuth(page, admin);
@@ -779,6 +802,40 @@ async function verifyScoreMessageTemplate(
     expect(checked.preview_recipients[0].full_message_body).toContain(`학생 ${student.name} 점수 60 확인 완료`);
     await expect(send.locator(".send-modal__send-btn")).toBeEnabled();
     const draft = send.getByRole("textbox", { name: "안내문", exact: true });
+    const lessonBody = [
+      "학생 #{학생이름3} 점수 #{시험총점} 확인 완료",
+      "현재 수업 #{현재차시명} · 수업 날짜 #{현재차시날짜}",
+      "다음 수업 #{다음차시명} · 수업 날짜 #{다음차시날짜}",
+      "두 차시 뒤 수업 #{2차시후명} · 수업 날짜 #{2차시후날짜}",
+      "발송 날짜 #{날짜}",
+    ].join("\n");
+    const lessonPreflight = page.waitForResponse(response => {
+      if (response.request().method() !== "POST"
+        || !new URL(response.url()).pathname.endsWith("/api/v1/messaging/send/preflight/")) return false;
+      const payload = response.request().postDataJSON() as { session_id?: number; send_to?: string; raw_body?: string };
+      return payload.session_id === created.sessionId && payload.send_to === "parent" && payload.raw_body === lessonBody;
+    });
+    await draft.fill(lessonBody);
+    const lessonResponse = await lessonPreflight;
+    expect(lessonResponse.status()).toBe(200);
+    const resolvedLessons = await lessonResponse.json() as SendPreflightResponse;
+    expect(resolvedLessons).toMatchObject({ ok: true, can_send: true, blockers: [] });
+    const expectedLessonLines = [
+      `현재 수업 ${currentLesson.title} · 수업 날짜 ${currentLesson.date}`,
+      `다음 수업 ${futureLessons[0].title} · 수업 날짜 ${futureLessons[0].date}`,
+      `두 차시 뒤 수업 ${futureLessons[1].title} · 수업 날짜 ${futureLessons[1].date}`,
+    ];
+    const recipient = resolvedLessons.preview_recipients.find(item => item.student_id === student.id);
+    expect(recipient).toBeDefined();
+    const actualMessage = send.getByLabel("현재 학생의 실제 발송 문구");
+    for (const line of expectedLessonLines) {
+      expect(recipient!.full_message_body).toContain(line);
+      await expect(actualMessage).toContainText(line);
+    }
+    expect(recipient!.full_message_body).not.toMatch(/#\{(?:현재|다음|2차시후)/);
+    await expect(send.locator(".send-modal__send-btn")).toBeEnabled();
+    await actualMessage.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("message-real-lesson-dates-1366.png"), animations: "disabled" });
     await draft.fill("학생 #{학생이름3} 점수 #{시험총점} 확인 완료 · #{99차시후명}");
     await expect(send.getByText(/99차시 뒤 수업이 없습니다/).first()).toBeVisible();
     await expect(send.locator(".send-modal__send-btn")).toBeDisabled();
