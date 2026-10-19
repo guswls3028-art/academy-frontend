@@ -3578,3 +3578,23 @@ test("registration staff UI login preserves the real throttle window and rejects
     }
   });
 });
+
+test("official evidence retains closed external origin causes and rejects arbitrary host or raw fields", () => {
+  const observer = policyModule.createReleaseContextObservation(1);
+  const externalOrigin = { providerClass: "youtube.com", resourceType: "fetch", frameExists: true,
+    frameAdmitted: false, frameExactEmbed: true, trustedAncestor: false, frameDetached: false,
+    protocol: "https", hasPort: false, hasHash: false, hasCredentials: false };
+  observer.record({ phase: "route-handler", stage: "terminal", method: "POST", pathTemplate: null, externalOrigin });
+  const snapshot = observer.snapshot();
+  const observe = payload => observeReleaseTestResult(JSON.stringify(contextReport([{ releaseContextObservation: payload }])));
+  assert.deepEqual(observe(snapshot).contextObservations[0].events[0].externalOrigin, externalOrigin);
+  for (const patch of [{ providerClass: "private.example" }, { rawUrl: "https://private.example/?token=secret" },
+    { frameExists: "secret" }, { resourceType: "private-path" }, { protocol: "secret" }, { frameDetached: 3 }]) {
+    const payload = structuredClone(snapshot);
+    Object.assign(payload.events[0].externalOrigin, patch);
+    const observed = observe(payload);
+    assert.equal(observed.rejectedContextObservationCount, 1);
+    assert.deepEqual(observed.contextObservations, []);
+    assert.doesNotMatch(JSON.stringify(observed), /private\.example|token=secret|private-path/);
+  }
+});

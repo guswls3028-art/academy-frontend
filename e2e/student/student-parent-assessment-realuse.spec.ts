@@ -423,6 +423,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await verifyAssessmentFeedback(page, request, admin, primary, peer, primaryTokens, parentTokens, testInfo);
     await verifyScoreMessageTemplate(page, request, admin, primary, testInfo);
     await verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens);
+    await verifyExamOrderPersistence(page, request, admin, testInfo);
     await verifyAssessmentCopy(page, request, admin, primaryTokens, {
       lectureId: created.lectureId!, sessionId: created.sessionId!, examId: created.examId!,
       examTitle, enrollmentIds: created.enrollmentIds, date: todayKst,
@@ -672,6 +673,68 @@ async function verifyManualScorePrecision(
   } finally {
     await context.close();
   }
+}
+
+/** Real server order persistence; restore the existing selection before later copy/attendance checks. */
+async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestContext, admin: QaTokens, testInfo: TestInfo): Promise<void> {
+  const context = await parentPage.context().browser()!.newContext({ serviceWorkers: "block" });
+  const page = await context.newPage();
+  const boundary = await installQaStudentParentBoundary(page, request);
+  const guards = attachStrictBrowserGuards(page);
+  const configPath = `/results/admin/sessions/${created.sessionId}/total-config/`;
+  const scoresPath = `/results/admin/sessions/${created.sessionId}/scores/`;
+  type Config = { exam_ids: number[]; exam_order: number[] };
+  const original = await expectApi<Config>(request, "GET", configPath, admin.access);
+  expect(original.exam_order).toEqual([created.examId, created.manualExamId]);
+  const openTotals = async () => {
+    await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+    return page.getByRole("dialog", { name: "합산 설정", exact: true });
+  };
+  const save = async (modal: ReturnType<Page["getByRole"]>) => {
+    await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect(modal).toBeHidden();
+  };
+  const verify = async (order: number[], selected: number[]) => {
+    await expect.poll(() => page.locator('[data-testid^="score-column-order-exam-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual(order);
+    const config = await expectApi<Config>(request, "GET", configPath, admin.access);
+    expect(config.exam_order).toEqual(order);
+    expect(config.exam_ids).toEqual(selected);
+    const scores = await expectApi<{ meta: { exams: Array<{ exam_id: number }> } }>(request, "GET", scoresPath, admin.access);
+    expect(scores.meta.exams.map(exam => exam.exam_id)).toEqual(order);
+  };
+  try {
+    await seedBrowserAuth(page, admin);
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
+      const modal = await openTotals();
+      for (let index = original.exam_ids.length; index < 2; index++) await modal.getByRole("button", { name: "시험 총점 아래로 이동", exact: true }).click();
+      await save(modal);
+      await verify(original.exam_order, original.exam_order);
+      if (width === 1366) {
+        await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }));
+      } else await page.getByRole("button", { name: `${manualExamTitle} 이전 순서로 이동`, exact: true }).click();
+      const reversed = [created.manualExamId!, created.examId!];
+      await verify(reversed, reversed);
+      await page.reload();
+      await verify(reversed, reversed);
+      await page.locator('[data-testid^="score-column-order-exam-"]').first().scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`real-exam-order-${width}.png`), animations: "disabled" });
+      // Reverse the same UI move, then restore the exact original sum boundary.
+      await page.getByRole("button", { name: `${examTitle} 이전 순서로 이동`, exact: true }).click();
+      await verify(original.exam_order, original.exam_order);
+      const restore = await openTotals();
+      for (let index = original.exam_ids.length; index < 2; index++) await restore.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+      await save(restore);
+      const restored = await expectApi<Config>(request, "GET", configPath, admin.access);
+      expect(restored.exam_ids).toEqual(original.exam_ids);
+      expect(restored.exam_order).toEqual(original.exam_order);
+      await page.reload();
+      expect((await expectApi<Config>(request, "GET", configPath, admin.access)).exam_ids).toEqual(original.exam_ids);
+      await assertNoHorizontalOverflow(page);
+    }
+    boundary.assertClean(); guards.assertZeroDefects();
+  } finally { await context.close(); }
 }
 
 async function verifyScoreMessageTemplate(
