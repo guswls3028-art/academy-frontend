@@ -14,7 +14,7 @@ const PPTX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.present
 
 const PUBLIC_VIDEO_PROVIDERS = ["youtube.com", "youtube-nocookie.com", "ytimg.com", "googlevideo.com",
   "gstatic.com", "google.com", "googleapis.com", "googleusercontent.com", "ggpht.com",
-  "doubleclick.net", "googlesyndication.com", "googleadservices.com"];
+  "doubleclick.net", "googlesyndication.com", "googleadservices.com"] as const;
 
 function registerPublicVideoSources(payload: unknown, ids: Set<string>): void {
   if (!isRecord(payload)) return;
@@ -443,6 +443,14 @@ export type ReleaseObservationEvent = {
   endNavigationOrdinal?: number | null;
   category?: "cors" | "chunk" | "network" | "resource" | "runtime" | "other";
   sourceKind?: "local" | "api" | "vendor" | "unknown";
+  externalOrigin?: {
+    providerClass: typeof PUBLIC_VIDEO_PROVIDERS[number] | "other";
+    resourceType: "document" | "image" | "script" | "stylesheet" | "font" | "media" | "xhr" | "fetch" | "other";
+    frameExists: boolean; frameAdmitted: boolean; frameExactEmbed: boolean;
+    trustedAncestor: boolean; frameDetached: boolean | null;
+    protocol: "https" | "http" | "other";
+    hasPort: boolean; hasHash: boolean; hasCredentials: boolean;
+  };
 };
 
 export function safeNativeTransportCode(error: unknown): NativeTransportCode {
@@ -1017,12 +1025,14 @@ export async function installReleaseContextGuard(
     attemptStartedAt: number; startPage: ReturnType<typeof observation.requestPageState> }>();
   const recordRouteTransport = (request: Request, upstream: string,
     stage: ReleaseObservationEvent["stage"], error?: unknown,
-    phase: "route-fetch" | "route-fulfill" | "route-handler" = "route-fetch") => {
+    phase: "route-fetch" | "route-fulfill" | "route-handler" = "route-fetch",
+    externalOrigin?: ReleaseObservationEvent["externalOrigin"]) => {
     const method = safeTransportMethod(request.method().toUpperCase());
     const pathTemplate = safeRequestTransportPathTemplate(upstream);
     const timing = requestTimings.get(request);
     const endPage = observation.requestPageState(request);
     observation.record({ phase, stage, method, pathTemplate,
+      ...(externalOrigin ? { externalOrigin } : {}),
       ...(timing ? { requestOrdinal: timing.requestOrdinal, requestStartedElapsedMs: timing.requestStartedElapsedMs,
         attemptDurationMs: Math.max(0, Date.now() - timing.attemptStartedAt),
         pageOrdinal: timing.startPage?.pageOrdinal ?? null,
@@ -1050,6 +1060,7 @@ export async function installReleaseContextGuard(
       defects.push(`Release request rejected [${code}] ${request.method().toUpperCase()}${pathTemplate ? ` ${pathTemplate}` : ""}`);
       try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
     };
+    let externalOrigin: ReleaseObservationEvent["externalOrigin"];
     try {
       const upstream = developmentUpstream(boundary, request.url());
       const target = new URL(upstream);
@@ -1063,6 +1074,23 @@ export async function installReleaseContextGuard(
           if (publicVideoFrames.has(frame) && exactPublicVideoEmbed(boundary, frame.url(), publicVideoIds)) { trustedPlayerFrame = true; break; }
         }
         const publicVideoKind = publicVideoRequestKind(boundary, upstream, request.method(), request.resourceType(), publicVideoIds, trustedPlayerFrame);
+        if (!publicVideoKind) {
+          let frameAdmitted = false, frameExactEmbed = false, frameDetached: boolean | null = null;
+          try {
+            frameAdmitted = !!playerFrame && publicVideoFrames.has(playerFrame);
+            frameExactEmbed = !!playerFrame && exactPublicVideoEmbed(boundary, playerFrame.url(), publicVideoIds);
+            frameDetached = playerFrame?.isDetached() ?? null;
+          } catch { /* Observation must not change the fail-closed request policy. */ }
+          const resourceType = request.resourceType();
+          externalOrigin = {
+            providerClass: PUBLIC_VIDEO_PROVIDERS.find(host => target.hostname === host || target.hostname.endsWith(`.${host}`)) ?? "other",
+            resourceType: ["document", "image", "script", "stylesheet", "font", "media", "xhr", "fetch"].includes(resourceType)
+              ? resourceType as NonNullable<ReleaseObservationEvent["externalOrigin"]>["resourceType"] : "other",
+            frameExists: !!playerFrame, frameAdmitted, frameExactEmbed, trustedAncestor: trustedPlayerFrame, frameDetached,
+            protocol: target.protocol === "https:" ? "https" : target.protocol === "http:" ? "http" : "other",
+            hasPort: !!target.port, hasHash: !!target.hash, hasCredentials: !!(target.username || target.password),
+          };
+        }
         if (publicVideoKind) {
           const headers = await request.allHeaders();
           const parent = playerFrame?.parentFrame();
@@ -1509,7 +1537,7 @@ export async function installReleaseContextGuard(
       }
     } catch (error) {
       // Upstream errors can contain credential-bearing URLs. Emit no raw error.
-      recordRouteTransport(request, request.url(), "terminal", error, "route-handler");
+      recordRouteTransport(request, request.url(), "terminal", error, "route-handler", externalOrigin);
       await reject(releaseRequestFailureCode(error));
       return;
     }

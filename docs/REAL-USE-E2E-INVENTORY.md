@@ -199,3 +199,15 @@ pnpm test:e2e:gate
 exact `version.json` SHA, 공식 workflow 결과, post-deploy 조회 canary와
 rollback 상태를 함께 읽는다. 기존 계정 로그인과 검토된 dashboard observation의
 쓰기는 업무 데이터 mutation과 별도로 보고하며 전체 DB 쓰기 0으로 표현하지 않는다.
+
+### 외부 요청 차단 원인 관찰
+
+등록된 공개 영상 정책에 맞지 않는 외부 요청이 route-handler에서 최종 실패하면,
+기존 개수 제한이 있는 관찰 이벤트에 `externalOrigin` 분류를 기록한다. 요청 방식과
+리소스 종류, 기존 제공자 분류(`other` 포함), 프레임 등록·정확한 embed 일치·상위
+프레임 신뢰·분리 여부, 프로토콜과 port/hash/인증정보 존재 여부만 담는다.
+원본 host·URL·query·영상 ID·header·body·token·stack은 기록하지 않으며, 증거
+파서는 미등록 필드와 분류값을 거부한다. 기존 이벤트 한도와 누락 집계도 적용한다.
+이는 원인 확인용 진단이며 제품 수정이나 추가 요청 허용이 아니다. 제공자 허용,
+테넌트 격리, 재시도 정책과 배포 기준을 유지한다. native keepalive의 직접 거부는
+이 route-handler 분류를 생성하지 않는다.
