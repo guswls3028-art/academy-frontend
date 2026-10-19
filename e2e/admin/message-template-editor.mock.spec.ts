@@ -106,9 +106,11 @@ test.describe("안내문 변수 편집", () => {
           body: "다른 화면에서 저장한 최신 안내", is_system: false, alimtalk_envelope_type: "score" };
         let reads = 0;
         let writes = 0;
+        let failLoad = true;
         await page.route("**/api/v1/messaging/templates/991/", async (route) => {
           if (route.request().method() === "GET") {
-            if (++reads === 1) return route.fulfill({ status: 503, json: { detail: "최신 문구 조회 연결 실패" } });
+            reads++;
+            if (failLoad) return route.fulfill({ status: 503, json: { detail: "최신 문구 조회 연결 실패" } });
             return route.fulfill({ json: current });
           }
           if (route.request().method() === "PATCH") {
@@ -124,7 +126,10 @@ test.describe("안내문 변수 편집", () => {
         };
         await open(role);
         await expect(page.getByRole("alert")).toContainText("최신 문구 조회 연결 실패");
+        await expect(page.getByRole("dialog", { name: "문구 불러오기", exact: true })).toBeVisible();
         expect(writes).toBe(0);
+        const failedReads = reads;
+        failLoad = false;
         await page.getByRole("button", { name: "다시 불러오기", exact: true }).click();
         const dialog = page.getByRole("dialog", { name: role === "admin" ? "문구 수정" : "문구 편집", exact: true });
         const editor = dialog.getByRole("textbox", { name: role === "admin" ? "안내문" : "안내 문구", exact: true });
@@ -151,7 +156,7 @@ test.describe("안내문 변수 편집", () => {
         if (other === "teacher") await consumer.getByText("발송 형태 예시 보기", { exact: true }).click();
         await expect(consumer.getByLabel("카카오톡 실제 발송 미리보기")).toBeVisible();
         await expect(consumer.getByLabel("카카오톡 실제 발송 미리보기")).toContainText(`${role} ${width}px에서 정상 수정한 안내`);
-        expect(reads).toBe(3);
+        expect(reads).toBe(failedReads + 2);
         expect(writes).toBe(2);
       });
     }
