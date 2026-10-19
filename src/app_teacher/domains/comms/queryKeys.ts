@@ -13,4 +13,5 @@ export const teacherCommsQueryKeys = {
   templates: teacherMessageTemplatesQueryKey,
   messagingInfo: ["teacher-messaging-info"] as const,
   autoSendConfigs: teacherMessageAutoSendQueryKey,
+  autoSendPreview: (trigger: string) => ["teacher-auto-send-preview", trigger] as const,
 };

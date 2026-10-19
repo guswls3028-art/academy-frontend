@@ -22,6 +22,8 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     let savedBody: unknown = null;
     let enabled = true;
     let failToggle = true;
+    let templateBody = "클리닉 시작 안내입니다.";
+    let failPreview = false;
 
     await page.route("**/api/v1/**", async (route) => {
       const request = route.request();
@@ -69,12 +71,13 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
         if ("minutes_before" in config) minutesBefore = config.minutes_before ?? null;
       }
       if (path === "/messaging/auto-send/") {
+        if (request.method() === "GET" && failPreview) return json({ detail: "미리보기 연결 실패" }, 503);
         return json([{
           id: 501,
           trigger: scenario.trigger,
           template: 701,
           template_name: "클리닉 안내",
-          template_body: "클리닉 시작 안내입니다.",
+          template_body: templateBody,
           template_is_system: false,
           effective_template_is_approved: true,
           enabled,
@@ -131,11 +134,20 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     await expect(reopenedTimingInput).toHaveValue("");
 
     await reopenedTimingInput.fill("45");
+    templateBody = "다른 화면에서 방금 저장한 안내입니다. #{선생님메모}";
+    failPreview = true;
     const previewTrigger = page.getByRole("button", { name: "미리보기" });
     await previewTrigger.click();
 
     const previewSheet = page.getByRole("dialog", { name: "템플릿 미리보기" });
     await expect(previewSheet).toBeVisible();
+    await expect(previewSheet.getByRole("alert")).toContainText("미리보기 연결 실패");
+    failPreview = false;
+    await previewSheet.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+    const envelope = previewSheet.getByLabel("카카오톡 실제 발송 미리보기");
+    await expect(envelope).toContainText("다른 화면에서 방금 저장한 안내입니다.");
+    await expect(envelope).not.toContainText("클리닉 시작 안내입니다.");
+    await expect(envelope).not.toContainText("#{선생님메모}");
     await previewSheet.evaluate((sheet) => {
       const hiddenAncestor = document.createElement("div");
       hiddenAncestor.style.display = "none";

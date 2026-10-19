@@ -193,4 +193,9 @@ export function isFixedAlimtalkContent(category?: string, name?: string): boolea
   return category === "signup" || !isAlimtalkTemplateBodyEditable(getAlimtalkTemplateTypeFromCategory(category, name));
 }
 
+export function isAccountAlimtalkTrigger(trigger: string): boolean {
+  return ["registration_approved_student", "registration_approved_parent", "password_find_otp",
+    "password_reset_student", "password_reset_parent"].includes(trigger);
+}
+
 export { hideInternalAlimtalkMemoToken, stripInternalAlimtalkMemoToken } from "@/shared/notifications/teacherMemo";

@@ -19,6 +19,7 @@ import { InlineHelp } from "@/shared/ui/guide";
 import { teacherCommsQueryKeys } from "../queryKeys";
 import { messageAutoSendQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 import styles from "./MessagingSettingsPage.module.css";
+import AutoSendPreviewSheet from "./AutoSendPreviewSheet";
 
 function templateNameFromConfig(config: AutoSendConfig): string | undefined {
   if (config.template_name) return config.template_name;
@@ -259,7 +260,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
 
   return (
     <>
-      <div className={`${styles.autoSendRow} flex items-start gap-2`}>
+      <div className={`${styles.autoSendRow} flex items-start gap-2`} role="group" aria-label={triggerLabel}>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={`${styles.previewValue} text-[13px] font-semibold`}>{triggerLabel}</span>
@@ -350,7 +351,6 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
   const triggerKey: string = config.trigger ?? "";
   const triggerLabel = AUTO_SEND_TRIGGER_LABELS[triggerKey] || triggerKey;
   const templateName = templateNameFromConfig(config) || "정해진 알림톡";
-  const templateBody = config.template_body || (typeof config.template === "object" && config.template ? config.template.body : "");
   const canEditTiming = config.policy_mode !== "SYSTEM_AUTO" && config.implementation_status === "implemented";
   const showMinutesBefore = triggerKey.includes("minutes_before") || triggerKey.includes("reminder") || triggerKey.includes("days_before") || triggerKey.includes("hours_before");
 
@@ -394,12 +394,10 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className={`${styles.fieldLabel} text-[11px] font-semibold`}>템플릿</label>
-              {templateBody && (
-                <button onClick={() => setPreviewOpen(true)} type="button"
+              <button onClick={() => setPreviewOpen(true)} type="button"
                   className={`${styles.templatePreviewButton} flex items-center gap-0.5 text-[11px] font-semibold cursor-pointer`}>
                   <Eye size={ICON.xs} /> 미리보기
                 </button>
-              )}
             </div>
             <div className={`${styles.templateOption} text-left`}>
               <div className={`${styles.templateName} text-[13px] font-semibold`}>{templateName}</div>
@@ -418,23 +416,7 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
         </div>
       </BottomSheet>
 
-      {/* Preview */}
-      {templateBody && (
-        <BottomSheet open={previewOpen} onClose={() => setPreviewOpen(false)} title="템플릿 미리보기">
-          <div className={`${styles.sheetContent} flex flex-col gap-2`}>
-            <div>
-              <div className={`${styles.previewLabel} text-[11px]`}>이름</div>
-              <div className={`${styles.previewValue} text-sm font-semibold`}>{templateName}</div>
-            </div>
-            <div>
-              <div className={`${styles.previewLabel} text-[11px]`}>본문</div>
-              <div className={`${styles.previewBody} text-[13px] mt-1`}>
-                {templateBody}
-              </div>
-            </div>
-          </div>
-        </BottomSheet>
-      )}
+      {previewOpen && <AutoSendPreviewSheet trigger={config.trigger} onClose={() => setPreviewOpen(false)} />}
     </>
   );
 }

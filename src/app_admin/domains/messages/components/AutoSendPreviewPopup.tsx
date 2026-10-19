@@ -4,7 +4,7 @@
 
 import { AdminModal, ModalBody, ModalHeader } from "@/shared/ui/modal";
 import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
-import { hideInternalAlimtalkMemoToken } from "../constants/alimtalkEnvelope";
+import { hideInternalAlimtalkMemoToken, isAccountAlimtalkTrigger } from "../constants/alimtalkEnvelope";
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
 import {
   getAlimtalkTemplateLabel,
@@ -72,8 +72,7 @@ export default function AutoSendPreviewPopup({
     ? substituteVariables(hideInternalAlimtalkMemoToken(body, ""), previewContext)
     : "";
   const alimtalkType = getAlimtalkTemplateType(trigger);
-  const fixedAccount = ["registration_approved_student", "registration_approved_parent",
-    "password_find_otp", "password_reset_student", "password_reset_parent"].includes(trigger);
+  const fixedAccount = isAccountAlimtalkTrigger(trigger);
   const previewBody = alimtalkType
     ? renderAlimtalkFullPreview(alimtalkType, resolvedBody, undefined, { 학원명: academyName })
     : resolvedBody;

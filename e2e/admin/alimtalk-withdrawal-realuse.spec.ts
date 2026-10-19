@@ -145,6 +145,13 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       await review.getByRole("button", { name: "문구 수정", exact: true }).click();
       await expect(compose.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveText(mobileBody);
       await compose.getByRole("button", { name: "닫기", exact: true }).click();
+      await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/messaging-settings`);
+      const mobileReminder = page.getByRole("group").filter({ hasText: `QA editable ${family.students[0].id}` });
+      await mobileReminder.getByTitle("설정 편집").click();
+      await page.getByRole("button", { name: "미리보기", exact: true }).click();
+      const settingsPreview = page.getByRole("dialog", { name: "템플릿 미리보기", exact: true });
+      await expect(settingsPreview.getByLabel("카카오톡 실제 발송 미리보기")).toContainText(mobileBody);
+      await settingsPreview.getByRole("button", { name: "닫기", exact: true }).click();
       await gotoAndSettle(page, `${QA_BASE}/workspace/message/auto-send`);
       await page.getByRole("button", { name: "클리닉/상담", exact: true }).click();
       await expect(page.getByText(mobileBody, { exact: true })).toBeVisible();
