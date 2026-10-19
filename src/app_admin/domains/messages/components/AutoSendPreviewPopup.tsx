@@ -4,6 +4,8 @@
 
 import { useRef, useEffect } from "react";
 import { X } from "lucide-react";
+import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
+import { hideInternalAlimtalkMemoToken } from "../constants/alimtalkEnvelope";
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
 import {
   getAlimtalkTemplateLabel,
@@ -64,6 +66,7 @@ export default function AutoSendPreviewPopup({
   anchorRef,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const { data: academyName = "" } = useMessageAcademyName(open);
 
   // Close on outside click
   useEffect(() => {
@@ -97,11 +100,11 @@ export default function AutoSendPreviewPopup({
     ? substituteVariables(subject, previewContext)
     : "";
   const resolvedBody = body
-    ? substituteVariables(body, previewContext)
+    ? substituteVariables(hideInternalAlimtalkMemoToken(body, ""), previewContext)
     : "보낼 내용이 아직 없습니다.";
   const alimtalkType = getAlimtalkTemplateType(trigger);
   const previewBody = alimtalkType
-    ? renderAlimtalkFullPreview(alimtalkType, resolvedBody)
+    ? renderAlimtalkFullPreview(alimtalkType, resolvedBody, undefined, { 학원명: academyName })
     : resolvedBody;
 
   const triggerLabel =
@@ -149,7 +152,7 @@ export default function AutoSendPreviewPopup({
                 <span className="template-preview-kakao__header-label">알림톡 도착</span>
                 <span className="template-preview-kakao__header-channel">{channelLabel}</span>
               </div>
-              {resolvedSubject && (
+              {!alimtalkType && resolvedSubject && (
                 <div
                   className={`template-preview-kakao__title ${styles.previewText}`}
                 >
@@ -168,7 +171,7 @@ export default function AutoSendPreviewPopup({
             </div>
           </div>
           <p className={styles.footerNote}>
-            카카오톡 알림톡 예시입니다.
+            문구 배치 예시입니다. 이름·일정은 발송할 때 채워집니다.
           </p>
         </div>
       </div>

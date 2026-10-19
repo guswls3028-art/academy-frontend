@@ -196,12 +196,18 @@
 }
 
 .templateEditButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
   flex-shrink: 0;
-  padding: 4px;
+  padding: 6px 8px;
   border: none;
   border-radius: 4px;
   background: none;
-  color: var(--color-text-muted);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   transition: color 0.15s;
 }
