@@ -73,6 +73,30 @@ async function openTemplateEditor(page: Page, openEditor = true, initialBody = "
 }
 
 test.describe("안내문 변수 편집", () => {
+  test("고정 결제 안내는 과거 본문 편집·복제 대신 승인 양식을 보고 일반 안내로 돌아갈 수 있다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const writes = await openTemplateEditor(page, false);
+    const fixed = { id: 991, name: "고정 결제 안내", category: "payment", body: "예전 결제 본문", is_system: false };
+    await page.route("**/api/v1/messaging/templates/**", async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      return route.fulfill({ json: new URL(route.request().url()).pathname.endsWith("/991/") ? fixed : [fixed] });
+    });
+    await page.reload();
+    const categories = page.getByRole("navigation", { name: "문구 카테고리" });
+    await categories.getByRole("button", { name: "결제", exact: true }).click();
+    await expect(page.getByRole("button", { name: "새 문구", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "복제", exact: true })).toHaveCount(0);
+    await expect(page.getByText("예전 결제 본문", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "보기", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "안내 내용 보기", exact: true });
+    await expect(dialog.getByLabel("카카오톡 실제 발송 미리보기")).toContainText("결제가 완료되었습니다.");
+    await expect(dialog.getByRole("textbox", { name: "안내문", exact: true })).toHaveCount(0);
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await categories.getByRole("button", { name: "사용자", exact: true }).click();
+    await expect(page.getByRole("button", { name: "새 문구", exact: true })).toBeEnabled();
+    expect(writes).toEqual([]);
+  });
+
   for (const role of ["admin", "teacher"] as const) {
     for (const width of [1366, 390]) {
       test(`${role} ${width}px 보관함은 다른 화면에서 수정한 최신 문구를 열고 저장 실패·재열기를 복구한다`, async ({ page }, testInfo) => {

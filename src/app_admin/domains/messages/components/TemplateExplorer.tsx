@@ -220,6 +220,7 @@ export default function TemplateExplorer() {
   const [activeCategory, setActiveCategory] =
     useState<MessageTemplateCategory>("default");
   const [search, setSearch] = useState("");
+  const fixedCategory = isFixedAlimtalkContent(activeCategory);
   const [modalOpen, setModalOpen] = useState<ModalOpenState>(null);
   const [confirmAction, setConfirmAction] = useState<{
     type: "delete";
@@ -539,14 +540,14 @@ export default function TemplateExplorer() {
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <Button
+            {!fixedCategory && <Button
               intent="primary"
               size="sm"
               onClick={() => setModalOpen("create")}
               leftIcon={<FilePlus size={16} />}
             >
               새 문구
-            </Button>
+            </Button>}
           </div>
         </div>
         <details className="message-template-help">
@@ -601,8 +602,8 @@ export default function TemplateExplorer() {
                 tone="empty"
                 mode="embedded"
                 title="저장된 문구가 없습니다"
-                description={CATEGORY_DESCRIPTIONS[activeCategory]}
-                actions={
+                description={fixedCategory ? "이 분류는 승인된 고정 안내를 사용합니다. 수정할 안내문은 출결·성적·클리닉 등 해당 분류에서 만들 수 있습니다." : CATEGORY_DESCRIPTIONS[activeCategory]}
+                actions={!fixedCategory &&
                   <Button
                     intent="primary"
                     size="sm"
@@ -628,7 +629,8 @@ export default function TemplateExplorer() {
               )}
               <h3 className={panelStyles.sectionTitle}>내가 저장한 문구 · {savedTemplates.length}</h3>
               {savedTemplates.map(renderTemplateCard)}
-              {savedTemplates.length === 0 && <p>저장한 문구가 없습니다. 새 문구를 만들거나 제공 문구를 복제해 사용하세요.</p>}
+              {fixedCategory ? <p>승인된 고정 안내입니다. 기존 저장 내용은 보존하며 발송 문구를 직접 작성하거나 복제하지 않습니다.</p>
+                : savedTemplates.length === 0 && <p>저장한 문구가 없습니다. 새 문구를 만들거나 제공 문구를 복제해 사용하세요.</p>}
               {linkedSystemTemplates.length > 0 && (
                 <section className="message-template-group">
                   <h3 className={panelStyles.sectionTitle}>자동발송 설정에 연결된 문구</h3>
@@ -638,13 +640,13 @@ export default function TemplateExplorer() {
               {providedTemplates.length > 0 && (
                 <details className="message-template-group" open={Boolean(search)}>
                   <summary className={panelStyles.sectionTitle}>시스템 제공 문구 · {providedTemplates.length}</summary>
-                  <p>참고하거나 복제해서 쓰는 문구입니다. 여기에 있다는 이유만으로 발송되지는 않습니다.</p>
+                  <p>{fixedCategory ? "고정 안내의 정보를 확인할 수 있습니다." : "참고하거나 복제해서 쓰는 문구입니다."} 여기에 있다는 이유만으로 발송되지는 않습니다.</p>
                   {providedTemplates.map(renderTemplateCard)}
                 </details>
               )}
 
               {/* + 새 문구 추가 버튼 */}
-              <button
+              {!fixedCategory && <button
                 type="button"
                 onClick={() => setModalOpen("create")}
                 style={{
@@ -676,7 +678,7 @@ export default function TemplateExplorer() {
               >
                 <FilePlus size={16} />
                 새 문구 추가
-              </button>
+              </button>}
             </div>
           )}
         </div>
