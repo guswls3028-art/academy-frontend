@@ -123,6 +123,7 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       await page.reload({ waitUntil: "domcontentloaded" });
       await page.getByRole("button", { name: `QA editable ${family.students[0].id} 편집`, exact: true }).click();
       await expect(mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true })).toHaveText(mobileBody);
+      await expect(mobileEditor.getByRole("button", { name: "수정", exact: true })).toBeInViewport();
       await assertNoHorizontalOverflow(page);
       await page.screenshot({ path: testInfo.outputPath(`alimtalk-library-${width}.png`) });
       await mobileEditor.getByRole("button", { name: "닫기", exact: true }).click();

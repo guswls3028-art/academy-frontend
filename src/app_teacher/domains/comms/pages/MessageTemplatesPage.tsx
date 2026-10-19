@@ -276,8 +276,19 @@ function LoadedTemplateEditSheet({ open, onClose, template, copy = false, onCopy
     },
   });
 
+  const footer = readOnly
+    ? !fixed && <button type="button" className={styles.copyButton} onClick={onCopy}>이 문구를 복제해서 수정</button>
+    : <button onClick={() => mutation.mutate()} disabled={!name.trim() || !body.trim() || mutation.isPending}
+        className={styles.saveButton}>
+        {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "저장"}
+      </button>;
+  const preview = <section className={styles.preview} aria-label="저장할 문구 예시">
+    <p className={styles.help}>발송 형태 예시 · 학원·학생·일정 정보는 발송할 때 채워집니다. 수신자별 최종 문구는 발송 전 확인하세요.</p>
+    <KakaoAlimtalkPreview>{renderPlainMessagePreview(renderAlimtalkFullPreview(previewType, body))}</KakaoAlimtalkPreview>
+  </section>;
+
   return (
-    <BottomSheet open={open} onClose={() => void requestClose()} title={readOnly ? "안내 내용 보기" : isEdit ? "문구 편집" : "새 문구"}>
+    <BottomSheet open={open} onClose={() => void requestClose()} title={readOnly ? "안내 내용 보기" : isEdit ? "문구 편집" : "새 문구"} footer={footer}>
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
         <p className={styles.help}>{fixed
           ? "이 알림은 승인된 고정 안내문으로 발송합니다. 이전에 저장된 본문은 발송 문구에 반영되지 않습니다."
@@ -312,16 +323,10 @@ function LoadedTemplateEditSheet({ open, onClose, template, copy = false, onCopy
             ))}
           </div>}
         </div>}
-        {(!fixed || previewType) && <section className={styles.preview} aria-label="저장할 문구 예시">
-          <p className={styles.help}>발송 형태 예시 · 학원·학생·일정 정보는 발송할 때 채워집니다. 수신자별 최종 문구는 발송 전 확인하세요.</p>
-          <KakaoAlimtalkPreview>{renderPlainMessagePreview(renderAlimtalkFullPreview(previewType, body))}</KakaoAlimtalkPreview>
-        </section>}
-        {readOnly && !fixed && <button type="button" className={styles.copyButton} onClick={onCopy}>이 문구를 복제해서 수정</button>}
-        {!readOnly && <button onClick={() => mutation.mutate()} disabled={!name.trim() || !body.trim() || mutation.isPending}
-          className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: name.trim() && body.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: name.trim() && body.trim() ? "#fff" : "var(--tc-text-muted)" }}>
-          {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "저장"}
-        </button>}
+        {fixed ? previewType && preview : <details className={styles.previewDetails}>
+          <summary>발송 형태 예시 보기</summary>
+          {preview}
+        </details>}
       </div>
     </BottomSheet>
   );

@@ -107,6 +107,7 @@ export default function TemplateEditModal({
 
   const changed = !isSystem && !readOnly && (name !== initialName
     || subject !== (initial?.subject ?? "")
+    || selectedCategory !== (initial?.category ?? category)
     || body !== stripInternalAlimtalkMemoToken(initial?.body ?? ""));
   const requestClose = async () => {
     if (isPending || isDeleting) return;

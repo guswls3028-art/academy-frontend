@@ -124,6 +124,8 @@ test.describe("안내문 변수 편집", () => {
         await open(other);
         const consumer = page.getByRole("dialog", { name: other === "admin" ? "문구 수정" : "문구 편집", exact: true });
         await expect(consumer.getByRole("textbox", { name: other === "admin" ? "안내문" : "안내 문구", exact: true })).toContainText("정상 수정한 안내");
+        if (other === "teacher") await consumer.getByText("발송 형태 예시 보기", { exact: true }).click();
+        await expect(consumer.getByLabel("카카오톡 실제 발송 미리보기")).toBeVisible();
         await expect(consumer.getByLabel("카카오톡 실제 발송 미리보기")).toContainText(`${role} ${width}px에서 정상 수정한 안내`);
         expect(reads).toBe(3);
         expect(writes).toBe(2);
