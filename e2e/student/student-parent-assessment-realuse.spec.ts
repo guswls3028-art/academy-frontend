@@ -967,7 +967,7 @@ async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestCon
       const comment = page.getByRole("dialog", { name: "학부모 코멘트", exact: true });
       const text = `QA 관찰 ${width}: 계산 과정을 차근차근 설명해 주세요.`;
       await comment.getByLabel(student.name, { exact: true }).fill(text);
-      await comment.locator(".parent-comment-row").filter({ has: comment.getByLabel(student.name, { exact: true }) }).getByRole("button", { name: "학부모에게 공개", exact: true }).click();
+      await comment.locator(".parent-comment-row").filter({ has: page.getByLabel(student.name, { exact: true }) }).getByRole("button", { name: "학부모에게 공개", exact: true }).click();
       await expect(comment.getByText("학부모에게 공개했습니다.", { exact: true })).toBeVisible();
       const staffRead = await expectApi<{ items: Array<{ enrollment_id: number; text: string }> }>(request, "GET", commentsPath, admin.access);
       expect(staffRead.items.find(row => row.enrollment_id === created.primaryEnrollmentId)?.text).toBe(text);

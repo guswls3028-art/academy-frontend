@@ -854,7 +854,7 @@ export default function SendMessageModal({
       let defaultFailed = false;
       if (effectiveBlockCategory === "grades" && saveAsDefault) {
         try {
-          saved = await setTemplateDefault(created.id);
+          saved = await setTemplateDefault(created.id, true);
         } catch {
           defaultFailed = true;
         }
@@ -903,7 +903,10 @@ export default function SendMessageModal({
   };
 
   const handleSetDefault = async (id: number) => {
-    if (!beginTemplateMutation()) return;
+    const target = templates.find(template => template.id === id);
+    if (!target || !beginTemplateMutation()) return;
+    // Preserve click intent if a committed response is lost and the user retries.
+    const desired = !target.is_user_default;
     try {
       if (id === selectedTemplate?.id && bodyModified) {
         const saved = await updateMessageTemplate(id, { body, subject });
@@ -911,10 +914,10 @@ export default function SendMessageModal({
         setTemplateBodySnapshot(saved.body);
         setSubjectSnapshot(saved.subject ?? "");
       }
-      const updated = await setTemplateDefault(id);
+      const updated = await setTemplateDefault(id, desired);
       setTemplates((prev) => prev.map((t) => {
         if (t.id === id) return updated;
-        if (t.category === updated.category && t.is_user_default && t.id !== id) {
+        if (updated.is_user_default && t.category === updated.category && t.is_user_default && t.id !== id) {
           return { ...t, is_user_default: false };
         }
         return t;
