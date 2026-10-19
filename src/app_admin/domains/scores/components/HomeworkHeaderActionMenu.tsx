@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Popover } from "antd";
 import { ChevronDown } from "lucide-react";
@@ -13,7 +13,8 @@ import { deleteHomework, HomeworkPolicyPanel } from "@admin/domains/homework/pub
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/public/assessmentQueries";
 import { scoresQueryKeys } from "../api/queryKeys";
 import styles from "./ExamHeaderActionMenu.module.css";
-import ParentAssessmentCommentsPanel from "./ParentAssessmentCommentsPanel";
+
+const ParentAssessmentCommentsPanel = lazy(() => import("./ParentAssessmentCommentsPanel"));
 
 type Props = {
   homeworkId: number;
@@ -87,7 +88,11 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
 
   return (
     <>
-      {commentsOpen && <ParentAssessmentCommentsPanel sessionId={sessionId} assessmentKind="homework" assessmentId={homeworkId} title={homeworkTitle} onClose={() => setCommentsOpen(false)} />}
+      {commentsOpen && (
+        <Suspense fallback={<div role="status">학부모 코멘트를 불러오는 중...</div>}>
+          <ParentAssessmentCommentsPanel sessionId={sessionId} assessmentKind="homework" assessmentId={homeworkId} title={homeworkTitle} onClose={() => setCommentsOpen(false)} />
+        </Suspense>
+      )}
       <Popover content={menu} trigger="click" placement="bottom" open={menuOpen} onOpenChange={setMenuOpen} arrow={false} overlayClassName={styles.popover}>
         <button type="button" className="scores-table-exam-link" draggable={false} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`${homeworkTitle} 작업 선택`} title={`${homeworkTitle} — 작업 선택`} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}>
           <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{homeworkTitle}</span>

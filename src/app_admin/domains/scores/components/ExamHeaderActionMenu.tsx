@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Popover } from "antd";
 import {
@@ -15,8 +15,9 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { deleteSessionExam } from "@admin/domains/exams/public/sessionExamActions";
 import { invalidateSessionExamQueries } from "@admin/domains/sessions/public/assessmentQueries";
 import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
-import ParentAssessmentCommentsPanel from "./ParentAssessmentCommentsPanel";
 import styles from "./ExamHeaderActionMenu.module.css";
+
+const ParentAssessmentCommentsPanel = lazy(() => import("./ParentAssessmentCommentsPanel"));
 
 export type ExamHeaderAction = "manual" | "omr";
 
@@ -182,7 +183,11 @@ export default function ExamHeaderActionMenu({
 
   return (
     <>
-      {commentsOpen && <ParentAssessmentCommentsPanel sessionId={sessionId} assessmentKind="exam" assessmentId={examId} title={examTitle} onClose={() => setCommentsOpen(false)} />}
+      {commentsOpen && (
+        <Suspense fallback={<div role="status">학부모 코멘트를 불러오는 중...</div>}>
+          <ParentAssessmentCommentsPanel sessionId={sessionId} assessmentKind="exam" assessmentId={examId} title={examTitle} onClose={() => setCommentsOpen(false)} />
+        </Suspense>
+      )}
       <Popover
         content={menu}
         trigger="click"

@@ -30,9 +30,9 @@ import {
   matchesSessionScoreStudentSearch,
 } from "@/shared/scoring/sessionScoreRows";
 import type { ScoreActiveCell, ScoreActiveEditor } from "../api/scoreDraft";
-import AssessmentTotalsModal from "../components/AssessmentTotalsModal";
 
 const StudentScoresDrawer = lazy(() => import("../components/StudentScoresDrawer"));
+const AssessmentTotalsModal = lazy(() => import("../components/AssessmentTotalsModal"));
 
 type Props = {
   sessionId: number;
@@ -518,7 +518,11 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     <div className="flex flex-col gap-4">
       {secessionDialog}
       <div className="flex justify-end"><Button intent="secondary" size="sm" onClick={() => setTotalsOpen(true)}>합산 설정</Button></div>
-      {totalsOpen && meta && <AssessmentTotalsModal sessionId={sessionId} meta={meta} onClose={() => setTotalsOpen(false)} />}
+      {totalsOpen && meta && (
+        <Suspense fallback={<div role="status">합산 설정을 불러오는 중...</div>}>
+          <AssessmentTotalsModal sessionId={sessionId} meta={meta} onClose={() => setTotalsOpen(false)} />
+        </Suspense>
+      )}
       <div
         tabIndex={0}
         className="min-w-0 overflow-x-auto outline-none"
