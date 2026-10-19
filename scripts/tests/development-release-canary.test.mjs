@@ -369,7 +369,8 @@ test("strict browser guard never suppresses a net-err defect from a non-api sour
     location: () => ({ url: "https://static.cloudflareinsights.com/beacon.min.js" }) });
   assert.throws(() => guard.assertZeroDefects());
   assert.deepEqual(logs, [
-    { releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "vendor", count: 1 } },
+    { releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "vendor", count: 1,
+      vendorDiagnostic: { eventKind: "console-error", providerClass: "other", errorFamily: "other" } } },
     { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 0, recoveredTransportCount: 10, closingAbortCount: 0 } },
   ]);
 });
@@ -3596,5 +3597,59 @@ test("official evidence retains closed external origin causes and rejects arbitr
     assert.equal(observed.rejectedContextObservationCount, 1);
     assert.deepEqual(observed.contextObservations, []);
     assert.doesNotMatch(JSON.stringify(observed), /private\.example|token=secret|private-path/);
+  }
+});
+
+
+test("vendor console diagnostics are closed classifications and never weaken strict failure", () => {
+  const attach = loadAttachStrictBrowserGuards();
+  const scenarios = [
+    ["Failed to execute 'postMessage' on 'DOMWindow': The target origin 'https://private.example' does not match the recipient window's origin", "postmessage-origin"],
+    ["Permissions policy violation: private-feature is not allowed", "permissions-policy"],
+    ["play() failed because the user didn't interact with the document first", "autoplay-policy"],
+    ["YouTube player error private-user token=secret", "player-error"],
+    ["arbitrary private-user https://private.example/?token=secret", "other"],
+  ];
+  for (const [text, errorFamily] of scenarios) {
+    const logs = [];
+    const page = fakePage("http://localhost:4173/");
+    const guard = attach(page, { emit: value => logs.push(value), recoveredTransportCount: () => 10 });
+    page.__emit("console", { type: () => "error", text: () => text,
+      location: () => ({ url: "https://www.youtube.com/player/private-id?token=secret" }) });
+    assert.throws(() => guard.assertZeroDefects(), /브라우저 결함/);
+    assert.deepEqual(logs[0].releaseStrictBrowserDefect.vendorDiagnostic,
+      { eventKind: "console-error", providerClass: "youtube.com", errorFamily });
+    assert.equal(logs.at(-1).releaseStrictBrowserSuppression.suppressedNetErrDefects, 0);
+    assert.doesNotMatch(JSON.stringify(logs), /private-user|private-id|private\.example|token=secret|private-feature/);
+  }
+  const logs = [];
+  const page = fakePage("http://localhost:4173/");
+  const guard = attach(page, { emit: value => logs.push(value) });
+  page.__emit("console", { type: () => "error", text: () => "private-secret",
+    location: () => ({ url: "https://www.youtube.com.private.example/path?token=secret" }) });
+  assert.throws(() => guard.assertZeroDefects());
+  assert.deepEqual(logs[0].releaseStrictBrowserDefect.vendorDiagnostic,
+    { eventKind: "console-error", providerClass: "other", errorFamily: "other" });
+  assert.doesNotMatch(JSON.stringify(logs), /private|secret/);
+});
+
+test("vendor diagnostic evidence accepts v1 compatibility and rejects malformed sensitive additions", () => {
+  const base = { schema: "strict-browser-defect/v1", category: "other", source: "vendor", count: 1 };
+  const diagnostic = { eventKind: "console-error", providerClass: "youtube.com", errorFamily: "postmessage-origin" };
+  const observe = value => observeReleaseTestResult(JSON.stringify(contextReport([{ releaseStrictBrowserDefect: value }])));
+  assert.equal(observe(base).strictBrowserDefects.length, 1);
+  assert.deepEqual(observe({ ...base, vendorDiagnostic: diagnostic }).strictBrowserDefects[0].vendorDiagnostic, diagnostic);
+  const invalid = [
+    { ...base, source: "api", vendorDiagnostic: diagnostic },
+    ...[{ eventKind: "pageerror" }, { providerClass: "private.example" }, { errorFamily: "private-secret" },
+      { rawUrl: "https://private.example/?token=secret" }, { stack: "private-secret" }]
+      .map(patch => ({ ...base, vendorDiagnostic: { ...diagnostic, ...patch } })),
+    { ...base, count: 0, vendorDiagnostic: diagnostic }, { ...base, vendorDiagnostic: null },
+  ];
+  for (const value of invalid) {
+    const observed = observe(value);
+    assert.equal(observed.rejectedFailureObservationCount, 1);
+    assert.deepEqual(observed.strictBrowserDefects, []);
+    assert.doesNotMatch(JSON.stringify(observed), /private\.example|private-secret|token=secret/);
   }
 });
