@@ -41,6 +41,7 @@ import {
 
 export type TemplatePickerModalProps = {
   open: boolean;
+  busy?: boolean;
   onClose: () => void;
   templates: MessageTemplateItem[];
   defaultPresets?: ProvidedTemplatePreset[];
@@ -66,6 +67,7 @@ function isSystemTpl(t: MessageTemplateItem): boolean {
 
 export default function TemplatePickerModal({
   open,
+  busy = false,
   onClose,
   templates,
   defaultPresets = [],
@@ -202,6 +204,7 @@ export default function TemplatePickerModal({
   };
 
   const applyPreview = () => {
+    if (busy) return;
     if (previewTpl) onPick(previewTpl);
     else if (previewPreset) onPickPreset?.(previewPreset);
     onClose();
@@ -225,7 +228,7 @@ export default function TemplatePickerModal({
         data-preview={isPreview || undefined}
         data-selected={isSelected || undefined}
       >
-        <button
+        <button disabled={busy}
           type="button"
           onClick={() => showPreview(`template:${t.id}`)}
           onDoubleClick={() => { onPick(t); onClose(); }}
@@ -250,7 +253,7 @@ export default function TemplatePickerModal({
         </button>
 
         <div ref={menuOpenId === t.id ? menuRef : undefined} className="tpl-picker__card-menu">
-          <button
+          <button disabled={busy}
             type="button"
             onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === t.id ? null : t.id); }}
             className="tpl-picker__card-menu-btn"
@@ -260,16 +263,16 @@ export default function TemplatePickerModal({
           </button>
           {menuOpenId === t.id && (
             <div className="tpl-picker__card-menu-popup">
-              <button type="button" onClick={() => { onSetDefault(t.id); setMenuOpenId(null); }} className="tpl-picker__card-menu-item">
+              <button disabled={busy} type="button" onClick={() => { onSetDefault(t.id); setMenuOpenId(null); }} className="tpl-picker__card-menu-item">
                 <Star size={ICON.xs} className={t.is_user_default ? "tpl-picker__menu-star--active" : "tpl-picker__menu-star--idle"} />
                 {t.is_user_default ? "기본 해제" : "기본으로 지정"}
               </button>
-              <button type="button" onClick={() => { onDuplicate(t.id); setMenuOpenId(null); }} className="tpl-picker__card-menu-item">
+              <button disabled={busy} type="button" onClick={() => { onDuplicate(t.id); setMenuOpenId(null); }} className="tpl-picker__card-menu-item">
                 <Copy size={ICON.xs} className="tpl-picker__icon-muted" />
                 {isSys ? "복제해서 내 문구로" : "다른 이름으로 복제"}
               </button>
               {!isSys && (
-                <button type="button" onClick={() => { onDelete(t.id); setMenuOpenId(null); }} className="tpl-picker__card-menu-item tpl-picker__card-menu-item--danger">
+                <button disabled={busy} type="button" onClick={() => { onDelete(t.id); setMenuOpenId(null); }} className="tpl-picker__card-menu-item tpl-picker__card-menu-item--danger">
                   <Trash2 size={ICON.xs} />
                   삭제
                 </button>
@@ -291,7 +294,7 @@ export default function TemplatePickerModal({
         data-preview={isPreview || undefined}
         data-selected={isSelected || undefined}
       >
-        <button
+        <button disabled={busy}
           type="button"
           onClick={() => showPreview(`preset:${preset.id}`)}
           onDoubleClick={() => { onPickPreset?.(preset); onClose(); }}
@@ -318,7 +321,7 @@ export default function TemplatePickerModal({
   };
 
   return (
-    <AdminModal open={open} onClose={onClose} width={1040} zIndex={1100} className="tpl-picker-modal" noMinimize>
+    <AdminModal open={open} onClose={onClose} closeDisabled={busy} width={1040} zIndex={1100} className="tpl-picker-modal" noMinimize>
       <ModalHeader
         noIcon
         title={
@@ -364,7 +367,7 @@ export default function TemplatePickerModal({
 
             <div className="tpl-picker__list">
               {/* 직접 작성 — 항상 최상단 */}
-              <button
+              <button disabled={busy}
                 type="button"
                 onClick={() => { onPickFreeForm(); onClose(); }}
                 className="tpl-picker__freeform-btn"
@@ -453,6 +456,7 @@ export default function TemplatePickerModal({
                     intent="primary"
                     size="lg"
                     onClick={applyPreview}
+                    disabled={busy}
                     className="tpl-picker__apply-btn"
                   >
                     <Check size={ICON.sm} className="tpl-picker__apply-icon" />
@@ -473,12 +477,13 @@ export default function TemplatePickerModal({
       </ModalBody>
 
       <ModalFooter
+        left={busy ? <span role="status">문구 변경을 저장하고 있어요.</span> : undefined}
         right={
           <>
             {(previewTpl || previewPreset) && (
-              <Button intent="primary" onClick={applyPreview} size="lg" className="tpl-picker__mobile-apply" aria-label={isGradeNotice ? "이 안내문 적용" : "이 문구로 작성하기"}>{isGradeNotice ? "안내문 적용" : "문구 적용"}</Button>
+              <Button intent="primary" onClick={applyPreview} disabled={busy} size="lg" className="tpl-picker__mobile-apply" aria-label={isGradeNotice ? "이 안내문 적용" : "이 문구로 작성하기"}>{isGradeNotice ? "안내문 적용" : "문구 적용"}</Button>
             )}
-            <Button intent="secondary" onClick={onClose} size="lg">닫기</Button>
+            <Button intent="secondary" onClick={onClose} disabled={busy} size="lg">닫기</Button>
           </>
         }
       />

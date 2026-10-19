@@ -459,7 +459,7 @@ test.describe("안내문 변수 편집", () => {
   });
 });
 
-async function openGuardedSender(page: Page) {
+async function openGuardedSender(page: Page, initiallyDefault = true) {
   const baseUrl = getBaseUrl("admin");
   const mockOnlyReason = realMessagingSkipReason(baseUrl, "", "0");
   test.skip(
@@ -474,7 +474,7 @@ async function openGuardedSender(page: Page) {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/templates/")) return route.fulfill({ json: [{
       id: 991, name: "안전한 수업 안내", category: "grades", subject: "", body: "오늘 수업 안내입니다.",
-      is_system: false, is_user_default: true, solapi_status: "", solapi_template_id: "",
+      is_system: false, is_user_default: initiallyDefault, solapi_status: "", solapi_template_id: "",
     }] });
     if (path.endsWith("/send/preflight/")) {
       const payload = route.request().postDataJSON();
@@ -499,6 +499,12 @@ async function openGuardedSender(page: Page) {
   await page.getByRole("checkbox", { name: "모바일순서학생 선택" }).check();
   await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
   const modal = page.getByRole("dialog", { name: /^알림톡 발송/ });
+  if (!initiallyDefault) {
+    await modal.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+    await page.getByRole("button", { name: /^안전한 수업 안내/ }).click();
+    await expect(page.getByLabel("선택할 안내문 내용")).toHaveText("오늘 수업 안내입니다.");
+    await page.getByRole("button", { name: "이 안내문 적용", exact: true }).filter({ visible: true }).click();
+  }
   await expect(modal.getByRole("textbox", { name: "안내문", exact: true })).toContainText("오늘 수업 안내입니다.");
   return { modal, sends, releaseFailure: () => releaseFailure?.() };
 }
@@ -573,3 +579,88 @@ test("편집하지 않은 문구도 부분 접수 뒤 닫기는 결과 미확인
   await expect(modal).toBeHidden();
   expect(sends).toHaveLength(2);
 });
+
+for (const width of [1366, 390]) {
+  test(`문구 저장·기본 지정은 중복 요청과 초안 교체를 막고 실패 후 복구한다 ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { modal, sends } = await openGuardedSender(page, false);
+    let template = { id: 991, name: "안전한 수업 안내", category: "grades", subject: "", body: "오늘 수업 안내입니다.",
+      is_system: false, is_user_default: false, solapi_status: "", solapi_template_id: "" };
+    const created: typeof template[] = [];
+    let defaultCalls = 0;
+    let createCalls = 0;
+    let releaseDefault = () => {};
+    let releaseCreate = () => {};
+    const defaultGate = new Promise<void>(resolve => { releaseDefault = resolve; });
+    const createGate = new Promise<void>(resolve => { releaseCreate = resolve; });
+    await page.route("**/api/v1/messaging/templates/**", async route => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith("/991/set-default/")) {
+        defaultCalls++;
+        if (defaultCalls === 1) {
+          await defaultGate;
+          return route.fulfill({ status: 503, json: { detail: "일시적인 기본 지정 실패" } });
+        }
+        template = { ...template, is_user_default: !template.is_user_default };
+        return route.fulfill({ json: template });
+      }
+      if (path.endsWith("/templates/") && route.request().method() === "POST") {
+        createCalls++;
+        const payload = route.request().postDataJSON();
+        await createGate;
+        const saved = { ...template, ...payload, id: 994, is_user_default: false };
+        created.push(saved);
+        return route.fulfill({ status: 201, json: saved });
+      }
+      if (path.endsWith("/templates/")) return route.fulfill({ json: [template, ...created] });
+      return route.fallback();
+    });
+    try {
+      const defaultButton = modal.getByRole("button", { name: "성적 안내 기본으로 지정", exact: true });
+      await defaultButton.evaluate(button => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
+      await expect.poll(() => defaultCalls).toBe(1);
+      await expect(defaultButton).toBeDisabled();
+      await expect(modal.getByRole("button", { name: "안내문 바꾸기", exact: true })).toBeDisabled();
+      await expect(modal.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
+      await page.keyboard.press("Escape");
+      await expect(modal).toBeVisible();
+      releaseDefault();
+      await expect(page.getByText("기본 문구 지정에 실패했습니다.", { exact: true })).toBeVisible();
+      await expect(defaultButton).toBeEnabled();
+      await defaultButton.click();
+      await expect(defaultButton).toBeHidden();
+      expect(defaultCalls).toBe(2);
+      expect(template.is_user_default).toBe(true);
+
+      const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+      await editor.fill("다음에도 보존할 새 안내문");
+      await modal.getByRole("button", { name: "새 문구로 저장", exact: true }).click();
+      await modal.getByPlaceholder("예: 출결 알림, 성적표 안내").fill("보존한 성적 안내문");
+      await modal.getByRole("button", { name: "저장", exact: true }).click();
+      await expect.poll(() => createCalls).toBe(1);
+      await expect(modal.getByRole("status")).toContainText("문구 변경을 저장하고 있어요");
+      await expect(modal.getByRole("button", { name: "안내문 바꾸기", exact: true })).toBeDisabled();
+      await expect(editor).toHaveAttribute("contenteditable", "false");
+      await expect(modal.getByRole("button", { name: "대화상자 종료", exact: true })).toHaveCount(0);
+      await page.keyboard.press("Escape"); await page.mouse.click(2, 2);
+      await expect(modal).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`message-template-saving-${width}.png`), animations: "disabled" });
+      releaseCreate();
+      await expect(modal.locator(".send-modal__tpl-bar-name")).toHaveText("보존한 성적 안내문");
+      await expect(editor).toHaveAttribute("contenteditable", "true");
+      await expect(editor).toContainText("다음에도 보존할 새 안내문");
+      expect(created).toHaveLength(1);
+      expect(created[0].body).toBe("다음에도 보존할 새 안내문");
+      await modal.getByRole("button", { name: "취소", exact: true }).click();
+      await expect(modal).toBeHidden();
+      await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+      await expect(editor).toContainText("오늘 수업 안내입니다.");
+      await expect(defaultButton).toBeHidden();
+      await modal.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+      await expect(page.getByText("보존한 성적 안내문", { exact: true })).toBeVisible();
+      expect(sends).toEqual([]);
+    } finally {
+      releaseDefault(); releaseCreate();
+    }
+  });
+}
