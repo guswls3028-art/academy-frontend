@@ -22,7 +22,7 @@ import { getAlimtalkTemplateTypeFromCategory, isFixedAlimtalkContent } from "@/s
 import { renderAlimtalkFullPreview } from "@/shared/messaging/alimtalkPreview";
 import KakaoAlimtalkPreview from "@/shared/ui/notifications/KakaoAlimtalkPreview";
 import styles from "./MessageTemplatesPage.module.css";
-import { messageAutoSendQueryKey, suppressedTemplateDefaultsQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
+import { messageAutoSendQueryKey, messageTemplateEditorQueryKey, suppressedTemplateDefaultsQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 
 const CATEGORY_LABELS: Record<string, string> = {
   default: "일반 안내",
@@ -212,7 +212,7 @@ type TemplateEditSheetProps = {
 function TemplateEditSheet(props: TemplateEditSheetProps) {
   const id = props.template?.id;
   const source = useQuery({
-    queryKey: ["message-template-editor", "teacher", id],
+    queryKey: messageTemplateEditorQueryKey("teacher", id),
     queryFn: () => fetchTemplate(id!),
     enabled: id != null,
     staleTime: 0, gcTime: 0, refetchOnMount: "always",

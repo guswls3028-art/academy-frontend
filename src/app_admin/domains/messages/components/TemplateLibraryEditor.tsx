@@ -3,6 +3,7 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/mod
 import { Button } from "@/shared/ui/ds";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { isFixedAlimtalkContent } from "@/shared/messaging/alimtalkEnvelope";
+import { messageTemplateEditorQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 import { fetchMessageTemplate } from "../api/messages.api";
 import TemplateEditModal, { type TemplateEditModalProps } from "./TemplateEditModal";
 
@@ -10,7 +11,7 @@ import TemplateEditModal, { type TemplateEditModalProps } from "./TemplateEditMo
 export default function TemplateLibraryEditor(props: TemplateEditModalProps) {
   const id = props.initial?.id;
   const source = useQuery({
-    queryKey: ["message-template-editor", "admin", id],
+    queryKey: messageTemplateEditorQueryKey("admin", id),
     queryFn: () => fetchMessageTemplate(id!),
     enabled: id != null,
     staleTime: 0,
