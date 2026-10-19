@@ -17,11 +17,18 @@ import {
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { InlineHelp } from "@/shared/ui/guide";
 import { teacherCommsQueryKeys } from "../queryKeys";
+import { messageAutoSendQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 import styles from "./MessagingSettingsPage.module.css";
 
 function templateNameFromConfig(config: AutoSendConfig): string | undefined {
   if (config.template_name) return config.template_name;
   return typeof config.template === "object" && config.template ? config.template.name : undefined;
+}
+
+function timingForTrigger(trigger: string) {
+  return trigger.includes("days_before") ? { unit: 1440, label: "일" }
+    : trigger.includes("hours_before") ? { unit: 60, label: "시간" }
+    : { unit: 1, label: "분" };
 }
 
 export default function MessagingSettingsPage() {
@@ -238,7 +245,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
   const toggleMut = useMutation({
     mutationFn: () => updateAutoSendConfig(config.trigger, { enabled: !enabled }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.autoSendConfigs });
+      qc.invalidateQueries({ queryKey: messageAutoSendQueryKey });
       teacherToast.success(!enabled ? "자동 발송을 켰습니다." : "자동 발송을 껐습니다.");
     },
   });
@@ -248,6 +255,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
   const templateName = templateNameFromConfig(config);
   const modeLabel = "알림톡";
   const minutesBefore = config.minutes_before;
+  const timing = timingForTrigger(triggerKey);
 
   return (
     <>
@@ -267,7 +275,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
             {operationalDisabled && <Badge tone="warning" size="xs">운영 중지</Badge>}
             {isSystem && templateReady && !operationalDisabled && <Badge tone="success" size="xs">항상 활성</Badge>}
             {minutesBefore != null && minutesBefore > 0 && (
-              <Badge tone="neutral" size="xs">{minutesBefore}분 전</Badge>
+              <Badge tone="neutral" size="xs">{minutesBefore / timing.unit}{timing.label} 전</Badge>
             )}
           </div>
           {templateName && (
@@ -275,6 +283,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
               템플릿: {templateName}
             </div>
           )}
+          {toggleMut.isError && <p role="alert" className="text-xs mt-1">자동 발송 설정을 변경하지 못했습니다. 다시 시도해 주세요.</p>}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button onClick={() => setEditOpen(true)} type="button"
@@ -289,7 +298,8 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
             aria-label={`${triggerLabel} 자동 발송`}
             aria-checked={enabled}
             className={`${styles.toggleButton} cursor-pointer`}
-            disabled={operationalDisabled || isUnimplemented || isSystem || !templateReady}
+            disabled={toggleMut.isPending || operationalDisabled || isUnimplemented || isSystem || !templateReady}
+            aria-busy={toggleMut.isPending}
           >
             <div className={`${styles.toggleTrack} ${enabled ? styles.toggleTrackOn : ""} w-10 h-5 rounded-full relative`}>
               <div className={`${styles.toggleKnob} ${enabled ? styles.toggleKnobOn : ""} absolute top-0.5 w-4 h-4 rounded-full bg-white shadow`} />
@@ -305,27 +315,33 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
 /* ─── Auto Send Edit Sheet ─── */
 function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: () => void; config: AutoSendConfig }) {
   const qc = useQueryClient();
+  const { unit: timingUnit, label: timingLabel } = timingForTrigger(config.trigger);
   const [minutesBefore, setMinutesBefore] = useState<string>(
-    config.minutes_before != null ? String(config.minutes_before) : ""
+    config.minutes_before != null ? String(config.minutes_before / timingUnit) : ""
   );
   const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setMinutesBefore(config.minutes_before != null ? String(config.minutes_before) : "");
-  }, [open, config]);
+    setMinutesBefore(config.minutes_before != null ? String(config.minutes_before / timingUnit) : "");
+  }, [open, config, timingUnit]);
+  const rawMinutes = minutesBefore.trim() ? Number(minutesBefore) * timingUnit : null;
+  const minutesValue = rawMinutes == null ? null : Math.round(rawMinutes);
+  // Decimal day/hour input can carry a floating-point residue (1.1 days = 1584 minutes).
+  const invalidTiming = rawMinutes != null && (!Number.isFinite(rawMinutes) || rawMinutes < 0 || Math.abs(rawMinutes - Math.round(rawMinutes)) > 0.000001);
 
   const saveMut = useMutation({
     mutationFn: () => {
+      if (invalidTiming) throw new Error("발송 시점은 0 이상의 값으로 분 단위까지 입력해 주세요.");
       const payload: Record<string, unknown> = {
         message_mode: "alimtalk",
-        minutes_before: minutesBefore.trim() ? Number(minutesBefore) : null,
+        minutes_before: minutesValue,
       };
       return updateAutoSendConfig(config.trigger, payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.autoSendConfigs });
       teacherToast.success("자동 발송 설정이 저장되었습니다.");
+      qc.invalidateQueries({ queryKey: messageAutoSendQueryKey });
       onClose();
     },
     onError: () => teacherToast.error("저장에 실패했습니다."),
@@ -360,15 +376,17 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
           {showMinutesBefore && (
             <div>
               <label htmlFor={`auto-send-minutes-${triggerKey}`} className={`${styles.fieldLabel} text-[11px] font-semibold block mb-1`}>
-                {triggerKey.includes("hours_before") ? "시간 전" : triggerKey.includes("days_before") ? "일 전" : "분 전"}
+                {timingLabel} 전
               </label>
               <input id={`auto-send-minutes-${triggerKey}`} type="number" value={minutesBefore} onChange={(e) => setMinutesBefore(e.target.value)}
+                min={0} step="any" aria-invalid={invalidTiming}
                 placeholder="예: 10"
                 disabled={!canEditTiming}
                 className={`${styles.input} w-full text-sm`} />
               <p className={`${styles.mutedText} text-[11px] mt-1`}>
-                이벤트 발생 {minutesBefore || "--"} 단위 전에 자동 발송합니다.
+                {minutesBefore.trim() ? `이벤트 발생 ${minutesBefore}${timingLabel} 전에 자동 발송합니다.` : "비워 두면 별도의 사전 발송 시점을 지정하지 않습니다."}
               </p>
+              {invalidTiming && <p role="alert">0 이상의 값으로 분 단위까지 입력해 주세요.</p>}
             </div>
           )}
 
@@ -392,7 +410,7 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
           </div>
 
           {canEditTiming && (
-            <button type="button" onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
+            <button type="button" onClick={() => saveMut.mutate()} disabled={saveMut.isPending || invalidTiming}
               className={`${styles.fullSaveButton} w-full text-sm font-bold cursor-pointer mt-1`}>
               {saveMut.isPending ? "저장 중…" : "발송 시점 저장"}
             </button>

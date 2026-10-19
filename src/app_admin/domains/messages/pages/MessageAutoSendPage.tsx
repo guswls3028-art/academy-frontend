@@ -9,7 +9,6 @@ import { Switch } from "antd";
 import {
   fetchAutoSendConfigs,
   fetchMessageTemplates,
-  fetchMessageTemplate,
   updateMessageTemplate,
   createMessageTemplate,
   provisionDefaultTemplates,
@@ -28,11 +27,12 @@ import AutoSendSectionTree, {
   AUTO_SEND_SECTIONS,
   type AutoSendSectionId,
 } from "../components/AutoSendSectionTree";
+import AutoSendTemplateEditor from "../components/AutoSendTemplateEditor";
 import TemplateEditModal from "../components/TemplateEditModal";
 import AutoSendPreviewPopup from "../components/AutoSendPreviewPopup";
 import AutoSendTimingControl from "../components/AutoSendTimingControl";
 import { AlimtalkEnvelopeGuide, AlimtalkTriggerEnvelope } from "../components/AlimtalkEnvelopeGuide";
-import { getAlimtalkTemplateType } from "../constants/alimtalkEnvelope";
+import { getAlimtalkTemplateType, isAlimtalkTemplateBodyEditable } from "../constants/alimtalkEnvelope";
 import {
   canUseDelayTiming,
   isReminderTrigger,
@@ -189,7 +189,7 @@ function TriggerCard({
 }: {
   config: AutoSendConfigItem;
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
-  onEditTemplate?: (trigger: string, templateId: number | null) => void;
+  onEditTemplate?: (trigger: string) => void;
   operationalDisabled: boolean;
 }) {
   const [showPreview, setShowPreview] = useState(false);
@@ -268,7 +268,7 @@ function TriggerCard({
                       ? "활성화"
                       : "비활성화"}
           </span>
-          {config.template_body && (
+          {(config.template_body || getAlimtalkTemplateType(config.trigger)) && (
             <button
               type="button"
               onClick={() => setShowPreview(true)}
@@ -288,9 +288,11 @@ function TriggerCard({
         const hasTemplate = !!config.template;
         const status = getEffectiveTemplateStatus(config);
         const statusLabel = getEffectiveTemplateStatusLabel(config);
+        const type = getAlimtalkTemplateType(config.trigger);
+        const editable = Boolean(type && isAlimtalkTemplateBodyEditable(type));
 
         const handleEditClick = () => {
-          onEditTemplate?.(config.trigger, config.template);
+          onEditTemplate?.(config.trigger);
         };
 
         return (
@@ -317,10 +319,11 @@ function TriggerCard({
                     type="button"
                     onClick={handleEditClick}
                     className={styles.templateEditButton}
-                    title={config.template_is_system ? "내용 보기" : "내용 수정"}
-                    aria-label={config.template_is_system ? "내용 보기" : "내용 수정"}
+                    title={editable ? "문구 수정" : "내용 보기"}
+                    aria-label={editable ? "문구 수정" : "내용 보기"}
                   >
-                    {config.template_is_system ? <Eye size={14} /> : <FiEdit3 size={14} />}
+                    {editable ? <FiEdit3 size={14} /> : <Eye size={14} />}
+                    <span>{editable ? "문구 수정" : "내용 보기"}</span>
                   </button>
                   {hasTemplate && status && (
                     <span
@@ -386,9 +389,8 @@ function TriggerCard({
 export default function MessageAutoSendPage() {
   const qc = useQueryClient();
   const [selectedSection, setSelectedSection] = useState<AutoSendSectionId>("signup");
-  const [editingTemplate, setEditingTemplate] = useState<MessageTemplateItem | null>(null);
   const [editingTrigger, setEditingTrigger] = useState<string | null>(null);
-  const [creatingForTrigger, setCreatingForTrigger] = useState<string | null>(null);
+  const [customEditor, setCustomEditor] = useState<MessageTemplateItem | "new" | null>(null);
   const {
     data: messagingInfo,
     isLoading: messagingInfoLoading,
@@ -406,11 +408,6 @@ export default function MessageAutoSendPage() {
     queryFn: fetchAutoSendConfigs,
     staleTime: 30 * 1000,
   });
-  const { data: templates = [], isError: templatesError, refetch: refetchTemplates } = useQuery({
-    queryKey: messageQueryKeys.templates,
-    queryFn: () => fetchMessageTemplates(),
-    staleTime: 30 * 1000,
-  });
   const { data: customTemplates = [], isError: customTemplatesError, refetch: refetchCustomTemplates } = useQuery({
     queryKey: messageQueryKeys.customDefaultTemplate,
     queryFn: () => fetchMessageTemplates("default"),
@@ -421,34 +418,16 @@ export default function MessageAutoSendPage() {
   const globalSummary = getAutoSendSummary(localConfigs);
   const globalEnabled = isAllToggleableEnabled(globalSummary);
 
-  const editTemplateMut = useMutation({
-    mutationFn: (payload: MessageTemplatePayload) => {
-      if (!editingTemplate) throw new Error("no template");
-      return updateMessageTemplate(editingTemplate.id, payload);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
-      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
-      setEditingTemplate(null);
-      feedback.success("보낼 내용이 수정되었습니다.");
-    },
-    onError: () => {
-      feedback.error("내용 수정에 실패했습니다.");
-    },
-  });
-
-  const createTemplateMut = useMutation({
-    mutationFn: (payload: MessageTemplatePayload) => createMessageTemplate(payload),
-    onSuccess: (created) => {
-      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
-      if (creatingForTrigger && created?.id) {
-        saveConfigs([{ trigger: creatingForTrigger, template: created.id }]);
-      }
-      setCreatingForTrigger(null);
-      feedback.success("보낼 내용이 생성되었습니다.");
-    },
-    onError: () => {
-      feedback.error("내용 생성에 실패했습니다.");
+  const saveCustom = useMutation({
+    mutationFn: (payload: MessageTemplatePayload) => customEditor && customEditor !== "new"
+      ? updateMessageTemplate(customEditor.id, payload) : createMessageTemplate(payload),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: messageQueryKeys.templates }),
+        qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend }),
+      ]);
+      setCustomEditor(null);
+      feedback.success("문구를 저장했습니다.");
     },
   });
 
@@ -500,7 +479,7 @@ export default function MessageAutoSendPage() {
     );
   }
 
-  if (configsError || templatesError || customTemplatesError) {
+  if (configsError || customTemplatesError) {
     return (
       <div className={panelStyles.root}>
         <div className={panelStyles.header}>
@@ -509,7 +488,7 @@ export default function MessageAutoSendPage() {
           {saveError && <p role="alert" className={styles.saveError}>{saveError} <Button onClick={retrySave}>다시 저장</Button></p>}
           <Button
             intent="secondary"
-            onClick={() => void Promise.all([refetchConfigs(), refetchTemplates(), refetchCustomTemplates()])}
+            onClick={() => void Promise.all([refetchConfigs(), refetchCustomTemplates()])}
           >
             다시 시도
           </Button>
@@ -629,7 +608,7 @@ export default function MessageAutoSendPage() {
                   <div
                     key={t.id}
                     className={`${panelStyles.contentCard} ${styles.customTemplateCard}`}
-                    onClick={() => setEditingTemplate(t)}
+                    onClick={() => { saveCustom.reset(); setCustomEditor(t); }}
                   >
                     <div className={panelStyles.contentCardHeader}>
                       <div className={styles.customTemplateInfo}>
@@ -643,7 +622,7 @@ export default function MessageAutoSendPage() {
                           </div>
                         </div>
                       </div>
-                      <Button intent="secondary" size="sm" onClick={(e) => { e.stopPropagation(); setEditingTemplate(t); }}>
+                      <Button intent="secondary" size="sm" onClick={(e) => { e.stopPropagation(); saveCustom.reset(); setCustomEditor(t); }}>
                         수정하기
                       </Button>
                     </div>
@@ -651,7 +630,7 @@ export default function MessageAutoSendPage() {
                 ))}
                 <button
                   type="button"
-                  onClick={() => setCreatingForTrigger("custom_default")}
+                  onClick={() => { saveCustom.reset(); setCustomEditor("new"); }}
                   className={styles.addTemplateButton}
                 >
                   + 새 문구 추가
@@ -692,21 +671,7 @@ export default function MessageAutoSendPage() {
                     config={config}
                     onUpdate={handleUpdate}
                     operationalDisabled={operationalDisabled}
-                    onEditTemplate={(trigger, templateId) => {
-                      if (!templateId) {
-                        setCreatingForTrigger(trigger);
-                        return;
-                      }
-                      setEditingTrigger(trigger);
-                      const cached = templates.find((t) => t.id === templateId);
-                      if (cached) {
-                        setEditingTemplate(cached);
-                      } else {
-                        fetchMessageTemplate(templateId)
-                          .then((tpl) => setEditingTemplate(tpl))
-                          .catch(() => feedback.error("내용을 불러올 수 없습니다."));
-                      }
-                    }}
+                    onEditTemplate={setEditingTrigger}
                   />
                 ))}
               </>
@@ -716,30 +681,19 @@ export default function MessageAutoSendPage() {
       </div>
     </div>
 
-    {/* 수정 모달 */}
+    {editingTrigger && <AutoSendTemplateEditor
+      key={editingTrigger}
+      trigger={editingTrigger}
+      onClose={() => setEditingTrigger(null)}
+    />}
     <TemplateEditModal
-      open={editingTemplate !== null}
-      onClose={() => { setEditingTemplate(null); setEditingTrigger(null); }}
-      category={editingTemplate?.category ?? "default"}
-      initial={editingTemplate}
-      onSubmit={(payload) => editTemplateMut.mutate(payload)}
-      isPending={editTemplateMut.isPending}
-      trigger={editingTrigger ?? undefined}
-    />
-
-    {/* 생성 모달 (템플릿 미연결 trigger) */}
-    <TemplateEditModal
-      open={creatingForTrigger !== null}
-      onClose={() => setCreatingForTrigger(null)}
-      category={
-        AUTO_SEND_SECTIONS.find((s) =>
-          s.triggers.includes(creatingForTrigger ?? ""),
-        )?.id ?? "default"
-      }
-      initial={null}
-      onSubmit={(payload) => createTemplateMut.mutate(payload)}
-      isPending={createTemplateMut.isPending}
-      trigger={creatingForTrigger ?? undefined}
+      open={customEditor !== null}
+      onClose={() => setCustomEditor(null)}
+      category="default"
+      initial={customEditor && customEditor !== "new" ? customEditor : null}
+      onSubmit={(payload) => saveCustom.mutate(payload)}
+      isPending={saveCustom.isPending}
+      errorMessage={saveCustom.isError ? "문구를 저장하지 못했습니다. 입력한 내용은 유지됩니다. 다시 저장해 주세요." : undefined}
     />
   </>
   );

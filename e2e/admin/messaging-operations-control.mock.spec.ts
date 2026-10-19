@@ -244,7 +244,7 @@ test.describe("알림톡 전체 사용 운영 제어", () => {
     const box = await dialog.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.y).toBeGreaterThanOrEqual(-1);
-    expect(box!.y).toBeLessThanOrEqual(1);
+    await expect(dialog.getByRole("button", { name: "대화상자 종료", exact: true })).toBeInViewport({ ratio: 1 });
     expect(box!.y + box!.height).toBeLessThanOrEqual(845);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   });

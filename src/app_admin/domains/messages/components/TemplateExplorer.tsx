@@ -263,6 +263,7 @@ export default function TemplateExplorer() {
     }) => updateMessageTemplate(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
+      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       setModalOpen(null);
       feedback.success("문구가 수정되었습니다.");
     },
@@ -682,7 +683,7 @@ export default function TemplateExplorer() {
       {/* 템플릿 생성/수정 모달 */}
       <TemplateEditModal
         open={isCreate || isEditOrView}
-        onClose={() => setModalOpen(null)}
+        onClose={() => { createMut.reset(); updateMut.reset(); setModalOpen(null); }}
         category={modalCategory}
         initial={editing ?? undefined}
         copy={copying}
@@ -694,6 +695,9 @@ export default function TemplateExplorer() {
           }
         }}
         isPending={createMut.isPending || updateMut.isPending}
+        errorMessage={(editing && !copying ? updateMut.isError : createMut.isError)
+          ? extractApiError(editing && !copying ? updateMut.error : createMut.error, "저장하지 못했습니다. 입력한 내용은 유지됩니다. 다시 저장해 주세요.")
+          : undefined}
         onDelete={(id) => {
           deleteMut.mutate(id, { onSuccess: () => setModalOpen(null) });
         }}

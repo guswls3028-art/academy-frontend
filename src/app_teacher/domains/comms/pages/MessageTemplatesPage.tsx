@@ -19,7 +19,7 @@ import { stripInternalAlimtalkMemoToken } from "@/shared/notifications/teacherMe
 import MessageBodyEditor, { type MessageBodyEditorHandle } from "@/shared/messaging/MessageBodyEditor";
 import { getBlocksForCategory, type TemplateCategory } from "@/shared/messaging/templateBlocks";
 import styles from "./MessageTemplatesPage.module.css";
-import { suppressedTemplateDefaultsQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
+import { messageAutoSendQueryKey, suppressedTemplateDefaultsQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 
 const CATEGORY_LABELS: Record<string, string> = {
   default: "일반 안내",
@@ -240,6 +240,7 @@ function TemplateEditSheet({ open, onClose, template, copy = false, onCopy }: {
       : createTemplate({ name, category, body, subject: template?.subject }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.templates });
+      qc.invalidateQueries({ queryKey: messageAutoSendQueryKey });
       teacherToast.success(isEdit ? "템플릿이 수정되었습니다." : "템플릿이 생성되었습니다.");
       onClose();
     },

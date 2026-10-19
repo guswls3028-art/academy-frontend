@@ -194,7 +194,7 @@ test("클리닉 알림 설정은 예약부터 최종 전달까지 상태를 구�
   await expect(page.getByText(/SMS|LMS/)).toHaveCount(0);
 
   const reminderCard = page.locator('[data-channel-active="true"]').filter({ hasText: "클리닉 시작 N분 전" });
-  await reminderCard.getByRole("button", { name: /^수정하기/ }).click();
+  await reminderCard.getByRole("button", { name: /^문구 수정/ }).click();
   const editor = page.getByRole("dialog").filter({ hasText: "문구 수정" });
   await expect(editor.getByText("자동으로 들어가는 정보", { exact: true })).toBeVisible();
   await expect(editor.getByText("학원이름", { exact: true })).toBeVisible();

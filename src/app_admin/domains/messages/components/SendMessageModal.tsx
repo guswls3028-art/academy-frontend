@@ -387,16 +387,13 @@ export default function SendMessageModal({
   const presetBodyModified = selectedPreset != null && templateBodySnapshot != null && body !== templateBodySnapshot;
   const hasSelectedBodySource = !!selectedTemplate || !!selectedPreset || alimtalkFreeForm;
 
-  // 변수 상태는 selectedTemplate.body 기준 (이전 logic 복원, 2026-05-14 hotfix).
-  // 직전 fix에서 body 기준으로 변경했더니 학원장 양식의 #{시험1명}/#{시험1}/#{시험1만점} 등
-  // score sub-변수가 ALWAYS_AVAILABLE_VARS에 없어 missing으로 잡혀 발송 버튼 disabled 됨
-  // (학원장 limglish 보고). 양식 변수는 backend가 학생별 자동 치환 → frontend가 차단할 이유 없음.
-  // body 수정 path 의도(학원장이 양식 변수 일부 제거해도 발송 가능)는 양식 자체 편집 UI로 따로 해결.
+  // Validate the draft actually sent. Registered student/score variables remain
+  // automatic; the server preflight checks their recipient-specific values.
   const varStatuses = useMemo(() => {
-    const sourceBody = stripInternalAlimtalkMemoToken(selectedTemplate?.body ?? selectedPreset?.body ?? "");
+    const sourceBody = stripInternalAlimtalkMemoToken(body);
     if (!sourceBody) return [];
     return getVarStatuses(sourceBody, alimtalkExtraVars, freeContent);
-  }, [selectedTemplate, selectedPreset, alimtalkExtraVars, freeContent]);
+  }, [body, alimtalkExtraVars, freeContent]);
 
   // ─── Can Send ───
   // missing 변수 — #{내용}/#{공지내용}/#{선생님메모} 등 학원장 편집 영역(편지)이 비어있거나
@@ -843,6 +840,7 @@ export default function SendMessageModal({
       setTemplates((prev) => prev.map((t) => t.id === updated.id ? updated : t));
       setTemplateBodySnapshot(updated.body);
       void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       feedback.success(`"${updated.name}" 문구가 업데이트되었습니다.`);
     } catch {
       feedback.error("문구 업데이트에 실패했습니다.");

@@ -3,29 +3,21 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Switch } from "antd";
 import { FiZap, FiEdit3 } from "react-icons/fi";
 import { Eye } from "lucide-react";
 import {
   fetchAutoSendConfigs,
-  fetchMessageTemplates,
-  fetchMessageTemplate,
-  updateMessageTemplate,
-  createMessageTemplate,
-  deleteMessageTemplate,
   type AutoSendConfigItem,
   AUTO_SEND_TRIGGER_LABELS,
-  type MessageTemplateItem,
-  type MessageTemplatePayload,
 } from "../api/messages.api";
 import { useMessagingInfo } from "../hooks/useMessagingInfo";
-import { AUTO_SEND_SECTIONS } from "./AutoSendSectionTree";
-import TemplateEditModal from "./TemplateEditModal";
+import AutoSendTemplateEditor from "./AutoSendTemplateEditor";
 import AutoSendPreviewPopup from "./AutoSendPreviewPopup";
 import AutoSendTimingControl from "./AutoSendTimingControl";
 import { AlimtalkEnvelopeGuide, AlimtalkTriggerEnvelope } from "./AlimtalkEnvelopeGuide";
-import { getAlimtalkTemplateType } from "../constants/alimtalkEnvelope";
+import { getAlimtalkTemplateType, isAlimtalkTemplateBodyEditable } from "../constants/alimtalkEnvelope";
 import {
   canUseDelayTiming,
   isReminderTrigger,
@@ -39,7 +31,6 @@ import {
   type AutoSendSummary,
 } from "../utils/autoSendConfigState";
 import { Button } from "@/shared/ui/ds";
-import { feedback } from "@/shared/ui/feedback/feedback";
 import { messageQueryKeys } from "../queryKeys";
 import { useAutoSendDraft } from "../hooks/useAutoSendDraft";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
@@ -166,7 +157,7 @@ function TriggerCard({
   config: AutoSendConfigItem;
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
-  onEditTemplate?: (trigger: string, templateId: number | null) => void;
+  onEditTemplate?: (trigger: string) => void;
   channelMode?: "alimtalk";
   operationalDisabled: boolean;
 }) {
@@ -178,7 +169,7 @@ function TriggerCard({
   const deliveryReady = !operationalDisabled && Boolean(config.effective_template_is_approved);
 
   const handleEditClick = () => {
-    onEditTemplate?.(config.trigger, config.template);
+    onEditTemplate?.(config.trigger);
   };
 
   // channel-aware: is THIS channel active for this trigger?
@@ -214,6 +205,7 @@ function TriggerCard({
     ? hasTimingControl ? "channel-reminder" : "channel"
     : hasTimingControl ? "unified-reminder" : "unified";
   const envelopeType = config.effective_template_type || getAlimtalkTemplateType(config.trigger);
+  const canEditBody = Boolean(envelopeType && isAlimtalkTemplateBodyEditable(getAlimtalkTemplateType(config.trigger)));
 
   return (
     <div
@@ -261,7 +253,7 @@ function TriggerCard({
           >
             {operationalDisabled ? "운영 중지" : !deliveryReady ? "발송 준비 필요" : isSystem ? "항상 발송" : channelActive ? "켜짐" : "꺼짐"}
           </span>
-          {config.template_body && (
+          {(config.template_body || getAlimtalkTemplateType(config.trigger)) && (
             <button
               type="button"
               onClick={() => setShowPreview(true)}
@@ -300,11 +292,11 @@ function TriggerCard({
             disabled={saving}
             className={styles.templateButton}
           >
-            {config.template_is_system
+            {!canEditBody
               ? <Eye size={13} className={styles.templateEditIcon} aria-hidden />
               : <FiEdit3 size={13} className={styles.templateEditIcon} aria-hidden />}
             <span className={styles.templateButtonText}>
-              {config.template_is_system ? "내용 보기" : "수정하기"}
+              {canEditBody ? "문구 수정" : "내용 보기"}
             </span>
             {hasTemplate && status && (
               <span
@@ -445,7 +437,6 @@ export default function AutoSendSettingsPanel({
   description = "이벤트 발생 시 자동 발송하는 메시지를 설정합니다.",
   channelMode,
 }: AutoSendSettingsPanelProps) {
-  const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: messagingInfo } = useMessagingInfo();
   const operationalDisabled = Boolean(messagingInfo?.messaging_disabled);
@@ -454,12 +445,6 @@ export default function AutoSendSettingsPanel({
   const { data: allConfigs = EMPTY_CONFIGS, isLoading, isError, refetch } = useQuery({
     queryKey: messageQueryKeys.autoSend,
     queryFn: fetchAutoSendConfigs,
-    staleTime: 30_000,
-  });
-
-  const { data: templates = [] } = useQuery({
-    queryKey: messageQueryKeys.templates,
-    queryFn: () => fetchMessageTemplates(),
     staleTime: 30_000,
   });
 
@@ -478,58 +463,7 @@ export default function AutoSendSettingsPanel({
   const sectionSummary = getAutoSendSummary(filteredConfigs, isConfigEnabled);
   const sectionEnabled = isAllToggleableEnabled(sectionSummary);
 
-  // ---- Mutations ----
-  const [editingTemplate, setEditingTemplate] =
-    useState<MessageTemplateItem | null>(null);
   const [editingTrigger, setEditingTrigger] = useState<string | null>(null);
-  const [creatingForTrigger, setCreatingForTrigger] = useState<string | null>(
-    null,
-  );
-
-  const editTemplateMut = useMutation({
-    mutationFn: (payload: MessageTemplatePayload) => {
-      if (!editingTemplate) throw new Error("no template");
-      return updateMessageTemplate(editingTemplate.id, payload);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
-      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
-      setEditingTemplate(null);
-      feedback.success("보낼 내용이 수정되었습니다.");
-    },
-    onError: () => {
-      feedback.error("내용 수정에 실패했습니다.");
-    },
-  });
-
-  const deleteTemplateMut = useMutation({
-    mutationFn: (id: number) => deleteMessageTemplate(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
-      qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
-      setEditingTemplate(null);
-      feedback.success("보낼 내용이 삭제되었습니다.");
-    },
-    onError: () => {
-      feedback.error("삭제에 실패했습니다.");
-    },
-  });
-
-  const createTemplateMut = useMutation({
-    mutationFn: (payload: MessageTemplatePayload) =>
-      createMessageTemplate(payload),
-    onSuccess: (created) => {
-      qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
-      if (creatingForTrigger && created?.id) {
-        saveConfigs([{ trigger: creatingForTrigger, template: created.id }]);
-      }
-      setCreatingForTrigger(null);
-      feedback.success("보낼 내용이 생성되었습니다.");
-    },
-    onError: () => {
-      feedback.error("내용 생성에 실패했습니다.");
-    },
-  });
 
   // ---- Handlers ----
   const handleUpdate = (updated: Partial<AutoSendConfigItem>, debounce = false) => {
@@ -562,22 +496,6 @@ export default function AutoSendSettingsPanel({
       return Object.keys(patch).length > 1 ? [patch] : [];
     });
     if (patches.length > 0) saveConfigs(patches);
-  };
-
-  const handleEditTemplate = (trigger: string, templateId: number | null) => {
-    if (!templateId) {
-      setCreatingForTrigger(trigger);
-      return;
-    }
-    setEditingTrigger(trigger);
-    const cached = templates.find((t) => t.id === templateId);
-    if (cached) {
-      setEditingTemplate(cached);
-    } else {
-      fetchMessageTemplate(templateId)
-        .then((tpl) => setEditingTemplate(tpl))
-        .catch(() => feedback.error("내용을 불러올 수 없습니다."));
-    }
   };
 
   // ---- Loading state ----
@@ -704,7 +622,7 @@ export default function AutoSendSettingsPanel({
                 onUpdate={handleUpdate}
                 saving={saving}
                 operationalDisabled={operationalDisabled}
-                onEditTemplate={handleEditTemplate}
+                onEditTemplate={setEditingTrigger}
                 channelMode={channelMode}
               />
             ))}
@@ -712,33 +630,11 @@ export default function AutoSendSettingsPanel({
         </div>
       </div>
 
-      {/* Edit template modal */}
-      <TemplateEditModal
-        open={editingTemplate !== null}
-        onClose={() => { setEditingTemplate(null); setEditingTrigger(null); }}
-        category={editingTemplate?.category ?? "default"}
-        initial={editingTemplate}
-        onSubmit={(payload) => editTemplateMut.mutate(payload)}
-        isPending={editTemplateMut.isPending}
-        onDelete={(id) => deleteTemplateMut.mutate(id)}
-        isDeleting={deleteTemplateMut.isPending}
-        trigger={editingTrigger ?? undefined}
-      />
-
-      {/* Create template modal (for triggers without a linked template) */}
-      <TemplateEditModal
-        open={creatingForTrigger !== null}
-        onClose={() => setCreatingForTrigger(null)}
-        category={
-          AUTO_SEND_SECTIONS.find((s) =>
-            s.triggers.includes(creatingForTrigger ?? ""),
-          )?.id ?? "default"
-        }
-        initial={null}
-        onSubmit={(payload) => createTemplateMut.mutate(payload)}
-        isPending={createTemplateMut.isPending}
-        trigger={creatingForTrigger ?? undefined}
-      />
+      {editingTrigger && <AutoSendTemplateEditor
+        key={editingTrigger}
+        trigger={editingTrigger}
+        onClose={() => setEditingTrigger(null)}
+      />}
     </>
   );
 }

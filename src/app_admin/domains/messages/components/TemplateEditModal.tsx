@@ -42,6 +42,11 @@ export type TemplateEditModalProps = {
   category: TemplateCategory;
   initial?: MessageTemplateItem | null;
   copy?: boolean;
+  readOnly?: boolean;
+  heading?: string;
+  description?: string;
+  errorMessage?: string;
+  submitLabel?: string;
   onSubmit: (payload: MessageTemplatePayload) => void;
   isPending?: boolean;
   zIndex?: number;
@@ -59,6 +64,11 @@ export default function TemplateEditModal({
   category,
   initial = null,
   copy = false,
+  readOnly = false,
+  heading,
+  description,
+  errorMessage,
+  submitLabel,
   onSubmit,
   isPending = false,
   zIndex,
@@ -94,7 +104,7 @@ export default function TemplateEditModal({
     }
   }, [open, copy, initialName, initial?.id, initial?.subject, initial?.body, initial?.category, category]);
 
-  const changed = !isSystem && (name !== initialName
+  const changed = !isSystem && !readOnly && (name !== initialName
     || subject !== (initial?.subject ?? "")
     || body !== stripInternalAlimtalkMemoToken(initial?.body ?? ""));
   const requestClose = async () => {
@@ -115,6 +125,7 @@ export default function TemplateEditModal({
   );
 
   const handleSubmit = () => {
+    if (isPending || isDeleting || isSystem || readOnly) return;
     const n = name.trim();
     const b = stripInternalAlimtalkMemoToken(body);
     if (!n || !b) return;
@@ -130,13 +141,15 @@ export default function TemplateEditModal({
 
   if (!open) return null;
 
-  const title = isSystem ? "기본 문구 보기" : initial && !copy ? "문구 수정" : "문구 추가";
-  const fieldsDisabled = isPending || isDeleting || isSystem;
+  const title = heading ?? (isSystem ? "기본 문구 보기" : initial && !copy ? "문구 수정" : "문구 추가");
+  const fieldsDisabled = isPending || isDeleting || isSystem || readOnly;
 
   return (
-    <AdminModal open={open} onClose={() => void requestClose()} width={1160} className="message-template-edit-modal" zIndex={zIndex} onEnterConfirm={!fieldsDisabled ? handleSubmit : undefined}>
+    <AdminModal open={open} onClose={() => void requestClose()} width={1160} className="message-template-edit-modal" zIndex={zIndex} onEnterConfirm={!fieldsDisabled ? handleSubmit : undefined} trapFocus>
       <ModalHeader title={title} />
       <ModalBody>
+        {description && <p className="message-template-context">{description}</p>}
+        {errorMessage && <p role="alert" className="message-template-save-error">{errorMessage}</p>}
         <div className="template-editor flex gap-5">
           {/* 좌측: 카테고리 + 미리보기 */}
           <div
@@ -169,7 +182,7 @@ export default function TemplateEditModal({
                   : "이 화면의 이름·날짜 등은 예시입니다. 수신자별 문구는 발송 화면에서 확인하세요."}
               </p>}
               <KakaoAlimtalkPreview channelLabel={TEMPLATE_CATEGORY_LABELS[selectedCategory]} subject={alimtalkType ? undefined : subject}>
-                {body
+                {body || alimtalkType
                   ? renderPlainMessagePreview(
                     alimtalkType
                       ? renderAlimtalkFullPreview(alimtalkType, hideInternalAlimtalkMemoToken(body, ""), undefined, { 학원명: academyName })
@@ -187,7 +200,7 @@ export default function TemplateEditModal({
           {/* 우측: 편집 영역 */}
           <div className="template-editor__right flex-1 min-w-0 flex flex-col gap-2 p-4" style={{ position: "relative" }}>
             {/* 시스템 기본 템플릿 안내 */}
-            {isSystem && (
+            {isSystem && !readOnly && (
               <div style={{
                 display: "flex", alignItems: "center", gap: 8,
                 padding: "8px 14px", borderRadius: 8,
@@ -200,7 +213,7 @@ export default function TemplateEditModal({
               </div>
             )}
             <div className="message-template-edit-heading">
-              <span>안내문 작성</span>
+              <span>{readOnly ? "안내문 정보" : "안내문 작성"}</span>
               <span className="message-template-channel">알림톡</span>
             </div>
 
@@ -231,7 +244,7 @@ export default function TemplateEditModal({
             )}
 
             {/* 본문 — 2패널: 입력 | 삽입 블록 */}
-            <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
+            {(!readOnly || !alimtalkType || bodyEditableInEnvelope) && <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
               <div className="template-editor__body-input flex-1 min-w-0 flex flex-col">
                 <label className="template-editor__editor-title block mb-1">
                   {alimtalkType
@@ -240,6 +253,10 @@ export default function TemplateEditModal({
                       : "메모 (이 알림톡에는 표시되지 않음)"
                     : "본문"}
                 </label>
+                {alimtalkType && bodyEditableInEnvelope && <p className="message-template-preview-help">
+                  아래는 저장된 안내 문구입니다. 예전에 사용한 내용이 있으면 자유롭게 바꾸세요.
+                  학원·학생 정보와 일정은 바깥 양식에 자동으로 표시됩니다.
+                </p>}
                 <MessageBodyEditor
                   key={`${open}:${initial?.id ?? "new"}:${copy}`}
                   ref={bodyEditorRef}
@@ -333,7 +350,7 @@ export default function TemplateEditModal({
                   )}
                 </div>
               </div>
-            </div>
+            </div>}
           </div>
         </div>
       </ModalBody>
@@ -378,20 +395,20 @@ export default function TemplateEditModal({
         right={
           <>
             <Button intent="secondary" onClick={() => void requestClose()} disabled={isPending || isDeleting}>
-              {isSystem ? "닫기" : "취소"}
+              {isSystem || readOnly ? "닫기" : "취소"}
             </Button>
-            {isSystem && initial && onDuplicate && (
+            {isSystem && !readOnly && initial && onDuplicate && (
               <Button intent="primary" onClick={() => onDuplicate(initial)} disabled={isPending}>
                 {isPending ? "복제 중…" : "복제해서 수정"}
               </Button>
             )}
-            {!isSystem && (
+            {!isSystem && !readOnly && (
               <Button
                 intent="primary"
                 onClick={handleSubmit}
                 disabled={!name.trim() || !body.trim() || isPending || isDeleting}
               >
-                {isPending ? "저장 중…" : initial && !copy ? "수정" : "저장"}
+                {isPending ? "저장 중…" : submitLabel ?? (initial && !copy ? "수정" : "저장")}
               </Button>
             )}
           </>

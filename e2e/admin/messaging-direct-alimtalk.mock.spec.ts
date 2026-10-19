@@ -550,6 +550,32 @@ for (const width of [1366, 390]) {
   });
 }
 
+test("옛 문구의 미입력 변수를 지우면 현재 본문으로 검사하고 발송한다", async ({ page }) => {
+  const state = await installMocks(page);
+  await page.route("**/api/v1/messaging/templates/", (route) => route.fulfill({ json: [{
+    id: 897, name: "이전 과제 안내", category: "attendance", subject: "",
+    body: "#{과제명}을 확인해 주세요.", is_system: false, is_user_default: true,
+    alimtalk_readiness: "ready", alimtalk_envelope_type: "attendance",
+    solapi_status: "", solapi_template_id: "",
+    created_at: "2026-10-02T00:00:00Z", updated_at: "2026-10-02T00:00:00Z",
+  }] }));
+  await gotoAndSettle(page, `${BASE}/workspace/students/home?compose=alimtalk`);
+  await page.getByRole("checkbox", { name: "김알림 선택" }).check();
+  await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "안내문", exact: true });
+  await expect(editor).toContainText("과제명");
+  await expect(page.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeDisabled();
+  await editor.fill("오늘 준비물을 챙겨 주세요.");
+  await expect(page.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeEnabled();
+  await editor.fill("새 안내 #{과제명}");
+  await expect(page.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeDisabled();
+  await editor.fill("오늘 준비물을 챙겨 주세요.");
+  await confirmSend(page);
+  await expect(page.getByRole("button", { name: "이번 발송 결과 보기", exact: true })).toBeVisible();
+  expect(state.sends.length).toBeGreaterThan(0);
+  expect(state.sends.every((send) => send.raw_body === "오늘 준비물을 챙겨 주세요.")).toBe(true);
+});
+
 test("이번 발송: 수정한 본문과 완료 후 새 발송은 새 UUID를 쓴다", async ({ page }) => {
   const state = await installMocks(page);
   state.failure = "student_failure";

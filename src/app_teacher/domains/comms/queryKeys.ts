@@ -1,5 +1,5 @@
 // PATH: src/app_teacher/domains/comms/queryKeys.ts
-import { teacherMessageTemplatesQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
+import { teacherMessageAutoSendQueryKey, teacherMessageTemplatesQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 
 export const teacherCommsQueryKeys = {
   posts: ["teacher-comms"] as const,
@@ -12,5 +12,5 @@ export const teacherCommsQueryKeys = {
   messageLogDelivery: (id: number) => ["teacher-message-log", "provider-delivery", id] as const,
   templates: teacherMessageTemplatesQueryKey,
   messagingInfo: ["teacher-messaging-info"] as const,
-  autoSendConfigs: ["teacher-auto-send-configs"] as const,
+  autoSendConfigs: teacherMessageAutoSendQueryKey,
 };
