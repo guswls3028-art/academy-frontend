@@ -718,10 +718,12 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       await verify(reversed, reversed);
       await page.reload();
       await verify(reversed, reversed);
-      await page.locator('[data-testid^="score-column-order-exam-"]').first().scrollIntoViewIfNeeded();
+      await page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }).scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath(`real-exam-order-${width}.png`), animations: "disabled" });
       // Reverse the same UI move, then restore the exact original sum boundary.
-      await page.getByRole("button", { name: `${examTitle} 이전 순서로 이동`, exact: true }).click();
+      if (width === 1366) {
+        await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }));
+      } else await page.getByRole("button", { name: `${examTitle} 이전 순서로 이동`, exact: true }).click();
       await verify(original.exam_order, original.exam_order);
       const restore = await openTotals();
       for (let index = original.exam_ids.length; index < 2; index++) await restore.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
