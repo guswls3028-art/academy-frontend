@@ -180,6 +180,18 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await staffPage.screenshot({ path: test.info().outputPath(`real-homework-report-${width}.png`), animations: "disabled" });
       await report.getByRole("button", { name: "닫기", exact: true }).click();
       await expect(report).toBeHidden();
+      await staffPage.getByRole("button", { name: "성적 도구", exact: true }).click();
+      await staffPage.getByRole("menuitem", { name: /성적표 출력/ }).click();
+      const teacherReport = staffPage.getByRole("dialog", { name: "성적표 미리보기", exact: true });
+      await expect(teacherReport).toBeVisible();
+      const teacherPreview = staffPage.frameLocator('iframe[title="성적표 미리보기"]');
+      const teacherRow = teacherPreview.locator("tbody tr:not(.summary-row)").filter({ hasText: studentName });
+      await expect(teacherRow.locator(`[data-homework-id="${completion.id}"]`)).toHaveText(width === 1366 ? "통과 (O)" : "미통과 (X)");
+      await expect(teacherRow.locator('[data-total-kind="homework"]')).toHaveText("92 / 100");
+      await expect.poll(() => teacherReport.locator(".score-print-preview__viewport").evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await staffPage.screenshot({ path: test.info().outputPath(`real-teacher-homework-report-${width}.png`), animations: "disabled" });
+      await teacherReport.getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(teacherReport).toBeHidden();
       // Restore exact order via the same excluded-area UI before existing comment checks.
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
       await totals.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
@@ -224,6 +236,10 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       const completionCard = parentPage.locator('.stu-panel[data-session-type]').filter({ has: parentPage.getByText(completionTitle, { exact: true }) });
       await expect(completionCard).toContainText("통과형 과제");
       await expect(completionCard.locator("strong")).toHaveText(width === 1366 ? "통과" : "미통과");
+      await expect(parentPage.getByText("2건 · 평균 득점률 92%", { exact: true })).toBeVisible();
+      await parentPage.getByRole("tab", { name: "추이 분석", exact: true }).click();
+      await expect(parentPage.getByRole("region", { name: "과제 현황", exact: true }).getByText("92%", { exact: true })).toBeVisible();
+      await parentPage.getByRole("tab", { name: "요약", exact: true }).click();
       await assertNoHorizontalOverflow(parentPage);
     }
     // Keep later existing single-score-card/average assertions unchanged.

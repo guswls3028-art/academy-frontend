@@ -893,6 +893,13 @@ export default function SessionScoresEntryPage({
                 feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
                 return;
               }
+              const provisionalCount = selectedRows.reduce(
+                (count, row) => count + row.exams.filter(exam => exam.block.is_provisional).length, 0,
+              );
+              if (provisionalCount > 0) {
+                feedback.error(`채점을 확인 중인 시험이 ${provisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`);
+                return;
+              }
               const unenteredItemCount = selectedRows.reduce(
                 (count, row) => count + collectUnenteredScoreItems(row).length,
                 0,
@@ -920,6 +927,13 @@ export default function SessionScoresEntryPage({
               );
               if (finalPendingSubjectiveCount > 0) {
                 feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
+                return;
+              }
+              const finalProvisionalCount = selectedRows.reduce(
+                (count, row) => count + row.exams.filter(exam => exam.block.is_provisional).length, 0,
+              );
+              if (finalProvisionalCount > 0) {
+                feedback.error(`채점을 확인 중인 시험이 ${finalProvisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`);
                 return;
               }
               const finalUnenteredItemCount = selectedRows.reduce(

@@ -216,6 +216,32 @@ test("교사가 명시한 미응시·미제출 상태만 해당 문구로 표시
   expect(vars["과제1"]).toBe("미제출");
   expect(collectUnenteredScoreItems(row)).toEqual([]);
 });
+for (const score of [0, 90]) {
+  test(`미확정 시험 ${score}점은 성적 알림톡의 점수·평균·합격으로 확정하지 않는다`, () => {
+    const row = scoreRow(null);
+    row.homeworks = [];
+    row.exams[0].block = {
+      ...row.exams[0].block, score, passed: score >= 70, is_provisional: true,
+    };
+    row.exam_total = { score: null, max_score: 100, selected_count: 1, scored_count: 0, complete: false };
+    const vars = buildScoreVars(row, scoreMeta);
+    const detail = buildScoreDetail(row, scoreMeta);
+    expect(collectUnenteredScoreItems(row)).toEqual(["시험: 단원평가"]);
+    expect(vars["시험1"]).toBe("채점 확인 중");
+    expect(vars["시험목록"]).toContain("채점 확인 중");
+    expect(vars["시험성적"]).toContain("채점 확인 중");
+    expect(detail).toContain("채점 확인 중");
+    expect(detail).not.toContain(`${score}/100`);
+    expect(vars["전체요약"]).not.toContain("평균");
+    expect(vars["전체요약"]).not.toContain("최종: 합격");
+    expect(vars["전체요약"]).toContain("점수 확인 필요");
+    expect(vars["시험총점"]).toBe("집계 중 (0/1)");
+    row.exams[0].block.is_provisional = false;
+    expect(collectUnenteredScoreItems(row)).toEqual([]);
+    expect(buildScoreVars(row, scoreMeta)["시험1"]).toBe(String(score));
+  });
+}
+
 test("서술형 미완료 OMR의 객관식 점수는 발송·출력·순위·클리닉에 노출하지 않는다", () => {
   const row = scoreRow(null);
   row.exams[0].block = {

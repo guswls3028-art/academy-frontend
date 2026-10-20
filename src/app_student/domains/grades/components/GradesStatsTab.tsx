@@ -51,6 +51,7 @@ export default function GradesStatsTab({
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const examStats = useMemo(() => calculateExamStats(exams, wrongCompletionOnly), [exams, wrongCompletionOnly]);
   const hwStats = useMemo(() => calculateHomeworkStats(homeworks), [homeworks]);
+  const hasScoredHomework = homeworks.some((homework) => homework.grading_mode !== "COMPLETION");
 
   const rankInsight = useMemo(() => {
     const ranked = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED");
@@ -177,9 +178,10 @@ export default function GradesStatsTab({
         <div className={styles.sectionTitle}>과제 현황</div>
         <StatGrid>
           <StatCard label="처리 완료" value={`${hwStats.graded}/${hwStats.total}건`} />
-          <StatCard label="평균 득점률" value={hwStats.avgPct != null ? `${hwStats.avgPct}%` : "미채점"} />
+          <StatCard label="평균 득점률" value={hwStats.avgPct != null ? `${hwStats.avgPct}%` : hasScoredHomework ? "미채점" : "해당 없음"} />
           <StatCard label={wrongCompletionOnly ? "완료율" : "합격률"} value={hwStats.passRate == null ? "미판정" : `${hwStats.passRate}%`} accent={hwStats.passRate == null ? undefined : hwStats.passRate >= 70 ? "success" : "danger"} />
         </StatGrid>
+        {!hasScoredHomework && <p className="stu-muted text-xs mt-2">통과형 과제는 점수 평균에 포함하지 않습니다.</p>}
         {hwStats.total > 0 && (
           <svg className={styles.homeworkBar} viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
             <rect width="100" height="8" fill="var(--stu-surface-soft)" rx="4" />

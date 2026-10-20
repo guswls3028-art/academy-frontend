@@ -45,7 +45,7 @@ export function calculateHomeworkStats(homeworks: MyHomeworkGradeSummary[]) {
   });
   const passed = judgments.filter((status) => status === true).length;
   const failed = judgments.filter((status) => status === false).length;
-  const withMax = graded.filter((homework) => homework.score != null && homework.max_score != null && homework.max_score > 0);
+  const withMax = graded.filter((homework) => homework.grading_mode !== "COMPLETION" && homework.score != null && homework.max_score != null && homework.max_score > 0);
   const avgPct = withMax.length > 0
     ? Math.round(withMax.reduce((sum, homework) => sum + (homework.score! / homework.max_score!) * 100, 0) / withMax.length)
     : null;

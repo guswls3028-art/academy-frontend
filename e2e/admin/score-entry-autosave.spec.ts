@@ -31,7 +31,7 @@ type ScoreRouteOptions = {
   rowNameHighlightFollowupRequired?: boolean[];
   includeCorrectionPendingCounts?: boolean;
   scorePatchProjectionReady?: boolean;
-  scoreSheetReadSequence?: Array<"ready" | "pending" | "error">;
+  scoreSheetReadSequence?: Array<"ready" | "pending" | "provisional" | "error" | "missing-first">;
   activeEditors?: Array<{
     client_id: string;
     editor_user_id: number;
@@ -265,6 +265,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                   ? undefined
                   : score == null && options.nullScoresPassedFalse ? "FAIL" : undefined,
                 grading_status: subjectivePending && index === 0 ? "subjective_pending" : null,
+                is_provisional: (subjectivePending || readState === "provisional") && index === 0,
                 clinic_required: subjectivePending && index === 0 ? false : score == null ? false : score < 60,
                 is_locked: false,
                 objective_score: score,
@@ -328,7 +329,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             } : {}),
             progress_completed: false,
             updated_at: "2026-07-25T12:00:00+09:00",
-          })),
+          })).filter(row => readState !== "missing-first" || row.enrollment_id !== 9201),
         },
       });
       return;
@@ -1773,6 +1774,53 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
   });
 
+  for (const width of [1366, 390]) {
+    test(`@drawer-missing-score-row ${width}px 사라진 발송 대상은 이전 성적으로 열지 않고 정상 대상으로 복구한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await openScores(page, { initialScores: [65, 72], scoreSheetReadSequence: ["ready", "missing-first", "missing-first", "ready"] });
+      await page.getByText("자동저장학생1", { exact: true }).first().click();
+      const drawer = page.getByRole("complementary", { name: "자동저장학생1 학생 상세 열기", exact: true });
+      await expect(drawer).toBeVisible();
+      await drawer.getByRole("button", { name: "알림톡", exact: true }).click();
+      await expect(page.getByText("학생의 수강 또는 배정이 변경되었습니다. 목록에서 대상을 다시 선택해 주세요.", { exact: true })).toBeVisible();
+      await expect(drawer).toHaveCount(0);
+      await page.screenshot({ path: testInfo.outputPath(`drawer-target-changed-${width}.png`), animations: "disabled" });
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toHaveCount(0);
+      // The remaining valid student can immediately enter the normal modal.
+      await page.getByText("자동저장학생2", { exact: true }).first().click();
+      await page.getByRole("complementary", { name: "자동저장학생2 학생 상세 열기", exact: true }).getByRole("button", { name: "알림톡", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toBeVisible();
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toContainText("자동저장학생2");
+      // After roster restoration and reload, the original target also works normally.
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByText("자동저장학생1", { exact: true }).first().click();
+      await page.getByRole("complementary", { name: "자동저장학생1 학생 상세 열기", exact: true }).getByRole("button", { name: "알림톡", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toBeVisible();
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toContainText("자동저장학생1");
+    });
+  }
+
+  for (const width of [1366, 390]) {
+    test(`@drawer-pending-recovery ${width}px 단건 미확정 안내는 미응시 입력을 권하지 않고 채점 후 정상 복구한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await openScores(page, { initialScores: [65, 72], scoreSheetReadSequence: ["ready", "pending", "provisional", "ready"] });
+      await page.getByText("자동저장학생1", { exact: true }).first().click();
+      const drawer = page.getByRole("complementary", { name: "자동저장학생1 학생 상세 열기", exact: true });
+      await expect(drawer).toBeVisible();
+      await drawer.getByRole("button", { name: "알림톡", exact: true }).click();
+      await expect(page.getByText("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.", { exact: true })).toBeVisible();
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toHaveCount(0);
+      await drawer.getByRole("button", { name: "알림톡", exact: true }).click();
+      await expect(page.getByText("채점을 확인 중인 시험이 1건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.", { exact: true })).toBeVisible();
+      await expect(page.getByText(/점수를 입력하거나 \/로 미응시/)).toHaveCount(0);
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toHaveCount(0);
+      await drawer.getByRole("button", { name: "알림톡", exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: /^알림톡 발송/ });
+      await expect(dialog).toBeVisible();
+      await expect(dialog).toContainText("자동저장학생1");
+    });
+  }
+
   test("발송 직전 두 번째 조회가 서술형 대기로 바뀌면 이전 확정값으로 모달을 열지 않는다", async ({ page }) => {
     await openScores(page, {
       initialScores: [65, 52],
@@ -1785,6 +1833,23 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByText(/최신 성적에 서술형 점수 입력이 필요합니다/)).toBeVisible();
     await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
   });
+
+  for (const provisionalRead of [1, 2]) {
+    test(`발송 전 ${provisionalRead}번째 조회의 미확정 시험은 확인 후 정상 발송 준비로 복구한다`, async ({ page }) => {
+      await openScores(page, {
+        initialScores: [65, 52],
+        scoreSheetReadSequence: provisionalRead === 1
+          ? ["ready", "provisional", "ready"]
+          : ["ready", "ready", "provisional", "ready"],
+      });
+      await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
+      await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+      await expect(page.getByText(/채점을 확인 중인 시험이 1건 있습니다/)).toBeVisible();
+      await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
+      await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+      await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toBeVisible();
+    });
+  }
 
   test("발송 직전 두 번째 조회가 실패하면 이전 성적으로 모달을 열지 않는다", async ({ page }) => {
     await openScores(page, {

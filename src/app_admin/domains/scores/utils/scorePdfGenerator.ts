@@ -2,7 +2,8 @@
 // 교사용 차시 성적표 — A4 가로, 테넌트 브랜딩, 안전한 다중 페이지 출력
 
 import type {
-  SessionScoreExamEntry,
+  ScoreBlock,
+  AssessmentTotal,
   SessionScoreMeta,
   SessionScoreRow,
 } from "../api/sessionScores";
@@ -223,6 +224,8 @@ const SCORE_REPORT_STYLE = `
     word-break: keep-all;
     overflow-wrap: anywhere;
   }
+  td small { display: block; margin-top: 0.5mm; font-size: 6.5px; }
+  .total-cell { background: #edf3fa; font-weight: 850; }
   td.num { font-variant-numeric: tabular-nums; font-weight: 700; }
   td.no-score { color: #9aa5b5; }
   td.verdict-pass { color: #15613e; font-weight: 900; }
@@ -365,129 +368,126 @@ function buildBrandIdentity(params: ScorePdfParams): string {
   `;
 }
 
+type ReportColumn =
+  | { kind: "exam"; exam: SessionScoreMeta["exams"][number] }
+  | { kind: "homework"; homework: SessionScoreMeta["homeworks"][number] }
+  | { kind: "total"; source: "exam" | "homework" };
+
+function reportColumns(params: ScorePdfParams, source: "exam" | "homework"): ReportColumn[] {
+  const entries: ReportColumn[] = source === "exam"
+    ? (params.meta.exams ?? []).map(exam => ({ kind: "exam", exam }))
+    : (params.meta.homeworks ?? []).map(homework => ({ kind: "homework", homework }));
+  const ids = source === "exam" ? params.meta.total_config?.exam_ids : params.meta.total_config?.homework_ids;
+  const included = (column: ReportColumn) => column.kind === "exam"
+    ? !ids || ids.includes(column.exam.exam_id)
+    : column.kind === "homework" && column.homework.grading_mode !== "COMPLETION"
+      && (!ids || ids.includes(column.homework.homework_id));
+  const hasTotal = params.rows.some(row => (source === "exam" ? row.exam_total : row.homework_total) != null);
+  return [...entries.filter(included), ...(hasTotal ? [{ kind: "total" as const, source }] : []), ...entries.filter(column => !included(column))];
+}
+
+function examReady(block: ScoreBlock | undefined): boolean {
+  return block?.score != null && block.is_provisional !== true && !isSubjectivePendingScoreBlock(block);
+}
+
+function reportVerdict(row: SessionScoreRow) {
+  const verdict = getSessionScoresTableVerdict(row);
+  return row.exams?.some(entry => entry.block.is_provisional === true) && verdict !== "clinic_target"
+    ? "pending" : verdict;
+}
+
+function totalText(total: AssessmentTotal | undefined): string {
+  if (!total) return "-";
+  if (total.selected_count === 0) return "합산 없음";
+  const precise = (value: number | null) => value == null ? "-" : Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "");
+  return `${precise(total.score)} / ${precise(total.max_score)}${!total.complete ? `<small>집계 중 · ${total.scored_count}/${total.selected_count}</small>` : ""}`;
+}
+
+function missingHomework(block: ScoreBlock | undefined): string {
+  return !block ? "미배정" : block.meta?.status === "NOT_SUBMITTED" ? "미제출" : "미입력";
+}
+
 function buildTableHeader(params: ScorePdfParams, hasAttendance: boolean): string {
-  const exams = params.meta.exams ?? [];
-  const homeworks = params.meta.homeworks ?? [];
+  const exams = reportColumns(params, "exam"), homeworks = reportColumns(params, "homework");
   const groupCells = [
     '<th class="group-header" rowspan="2" style="width:9mm">No</th>',
     '<th class="group-header" rowspan="2" style="width:24mm">이름</th>',
     hasAttendance ? '<th class="group-header" rowspan="2" style="width:13mm">출결</th>' : "",
-    exams.length > 0 ? `<th class="group-header" colspan="${exams.length * 2}">시험</th>` : "",
-    homeworks.length > 0 ? `<th class="group-header" colspan="${homeworks.length}">과제</th>` : "",
+    exams.length ? `<th class="group-header" colspan="${exams.reduce((sum, column) => sum + (column.kind === "exam" ? 2 : 1), 0)}">시험</th>` : "",
+    homeworks.length ? `<th class="group-header" colspan="${homeworks.length}">과제</th>` : "",
     '<th class="group-header" rowspan="2" style="width:15mm">판정</th>',
   ].join("");
-  const detailCells = [
-    ...exams.flatMap((exam) => [
-      `<th>${escapeHtml(exam.title)}<small>${fmtScore(exam.max_score)}점</small></th>`,
-      '<th style="width:9mm">P/F</th>',
-    ]),
-    ...homeworks.map(
-      (homework) =>
-        `<th>${escapeHtml(homework.title)}<small>${fmtScore(homework.max_score)}점</small></th>`,
-    ),
-  ].join("");
+  const detailCells = [...exams, ...homeworks].map(column => {
+    if (column.kind === "total") return `<th class="total-cell">${column.source === "exam" ? "시험" : "과제"} 총점<small>선택 항목</small></th>`;
+    if (column.kind === "exam") return `<th>${escapeHtml(column.exam.title)}<small>${fmtScore(column.exam.max_score)}점</small></th><th style="width:9mm">P/F</th>`;
+    const homework = column.homework;
+    return `<th>${escapeHtml(homework.title)}<small>${homework.grading_mode === "COMPLETION" ? "O/X" : `${fmtScore(homework.max_score)}점`}</small></th>`;
+  }).join("");
   return `<thead><tr>${groupCells}</tr><tr>${detailCells}</tr></thead>`;
 }
 
-function buildBodyRows(
-  rows: SessionScoreRow[],
-  params: ScorePdfParams,
-  indexOffset: number,
-  hasAttendance: boolean,
-): string {
-  const exams = params.meta.exams ?? [];
-  const homeworks = params.meta.homeworks ?? [];
+function buildBodyRows(rows: SessionScoreRow[], params: ScorePdfParams, indexOffset: number, hasAttendance: boolean): string {
+  const columns = [...reportColumns(params, "exam"), ...reportColumns(params, "homework")];
   return rows.map((row, index) => {
-    const cells = [
-      `<td class="num">${indexOffset + index + 1}</td>`,
-      `<td class="name">${escapeHtml(row.student_name)}</td>`,
-    ];
-    if (hasAttendance) {
-      const status = params.attendanceMap?.[row.enrollment_id] ?? "";
-      cells.push(`<td>${escapeHtml(ATTENDANCE_LABEL[status] ?? "-")}</td>`);
+    const cells = [`<td class="num">${indexOffset + index + 1}</td>`, `<td class="name">${escapeHtml(row.student_name)}</td>`];
+    if (hasAttendance) cells.push(`<td>${escapeHtml(ATTENDANCE_LABEL[params.attendanceMap?.[row.enrollment_id] ?? ""] ?? "-")}</td>`);
+    for (const column of columns) {
+      if (column.kind === "total") {
+        cells.push(`<td class="num total-cell" data-total-kind="${column.source}">${totalText(column.source === "exam" ? row.exam_total : row.homework_total)}</td>`);
+      } else if (column.kind === "exam") {
+        const block = row.exams?.find(item => item.exam_id === column.exam.exam_id)?.block;
+        const ready = examReady(block);
+        const pending = block && isSubjectivePendingScoreBlock(block) ? "입력중" : block?.is_provisional === true ? "채점 확인 중" : "-";
+        cells.push(`<td data-exam-id="${column.exam.exam_id}" class="${ready ? "num" : "no-score"}">${ready ? fmtScore(block?.score) : pending}</td>`);
+        cells.push(`<td class="num">${ready ? passText(block?.passed) : "-"}</td>`);
+      } else {
+        const block = row.homeworks?.find(item => item.homework_id === column.homework.homework_id)?.block;
+        const completion = column.homework.grading_mode === "COMPLETION";
+        const value = block?.score == null ? missingHomework(block) : completion
+          ? block.passed === true ? "통과 (O)" : block.passed === false ? "미통과 (X)" : "판정 대기"
+          : fmtScore(block.score);
+        cells.push(`<td data-homework-id="${column.homework.homework_id}" class="${block?.score == null ? "no-score" : "num"}">${value}</td>`);
+      }
     }
-    for (const exam of exams) {
-      const entry = row.exams?.find((item) => item.exam_id === exam.exam_id);
-      const scoreReady = entry?.block.score != null && !isSubjectivePendingScoreBlock(entry.block);
-      cells.push(
-        scoreReady
-          ? `<td class="num">${fmtScore(entry.block.score)}</td>`
-          : `<td class="no-score">${entry && isSubjectivePendingScoreBlock(entry.block) ? "입력중" : "-"}</td>`,
-      );
-      cells.push(
-        scoreReady
-          ? `<td class="num">${passText(entry.block.passed)}</td>`
-          : '<td class="no-score">-</td>',
-      );
-    }
-    for (const homework of homeworks) {
-      const entry = row.homeworks?.find((item) => item.homework_id === homework.homework_id);
-      cells.push(
-        entry?.block.score != null
-          ? `<td class="num">${fmtScore(entry.block.score)}</td>`
-          : '<td class="no-score">-</td>',
-      );
-    }
-    const verdict = getSessionScoresTableVerdict(row);
-    const verdictMeta = verdict === "clinic_target"
-      ? ["클리닉", "verdict-clinic"]
-      : verdict === "review"
-        ? ["검수 대기", "verdict-review"]
-        : verdict === "incomplete"
-          ? ["미입력", "verdict-missing"]
-          : verdict === "fail"
-            ? ["미달", "verdict-fail"]
-            : verdict === "pass"
-              ? ["통과", "verdict-pass"]
-              : ["-", ""];
+    const verdict = reportVerdict(row);
+    const verdictMeta = verdict === "clinic_target" ? ["클리닉", "verdict-clinic"]
+      : verdict === "pending" ? ["채점 확인 중", "verdict-review"]
+        : verdict === "review" ? ["검수 대기", "verdict-review"]
+          : verdict === "incomplete" ? ["미입력", "verdict-missing"]
+            : verdict === "fail" ? ["미달", "verdict-fail"]
+              : verdict === "pass" ? ["통과", "verdict-pass"] : ["-", ""];
     cells.push(`<td class="${verdictMeta[1]}">${verdictMeta[0]}</td>`);
     return `<tr>${cells.join("")}</tr>`;
   }).join("");
 }
 
 function buildSummaryRow(params: ScorePdfParams, hasAttendance: boolean): string {
-  const { rows, meta } = params;
+  const { rows } = params;
   const cells = [`<td colspan="2" style="text-align:right">전체 ${rows.length}명</td>`];
   if (hasAttendance) cells.push("<td></td>");
-  for (const exam of meta.exams ?? []) {
-    const scores = rows
-      .map((row) => row.exams?.find((item) => item.exam_id === exam.exam_id))
-      .filter((entry): entry is SessionScoreExamEntry => (
-        entry != null && !isSubjectivePendingScoreBlock(entry.block)
-      ))
-      .map((entry) => entry.block.score)
-      .filter((score): score is number => score != null);
-    const average = scores.length > 0
-      ? scores.reduce((sum, score) => sum + score, 0) / scores.length
-      : null;
-    const passed = rows.filter(
-      (row) => {
-        const entry = row.exams?.find((item) => item.exam_id === exam.exam_id);
-        return entry != null
-          && !isSubjectivePendingScoreBlock(entry.block)
-          && entry.block.passed === true;
-      },
-    ).length;
-    cells.push(`<td class="num">${average == null ? "-" : average.toFixed(1)}</td>`);
-    cells.push(`<td class="num">${passed}/${scores.length}</td>`);
+  for (const column of [...reportColumns(params, "exam"), ...reportColumns(params, "homework")]) {
+    if (column.kind === "total") {
+      const totals = rows.map(row => column.source === "exam" ? row.exam_total : row.homework_total).filter((total): total is AssessmentTotal => total != null);
+      cells.push(`<td class="total-cell">${totals.length && totals.every(total => total.selected_count === 0) ? "합산 없음" : `완료 ${totals.filter(total => total.complete && total.selected_count > 0).length}/${totals.length}`}</td>`);
+    } else if (column.kind === "exam") {
+      const blocks = rows.map(row => row.exams?.find(item => item.exam_id === column.exam.exam_id)?.block).filter(block => examReady(block));
+      const average = blocks.length ? blocks.reduce((sum, block) => sum + block!.score!, 0) / blocks.length : null;
+      cells.push(`<td class="num" data-exam-id="${column.exam.exam_id}">${average == null ? "-" : average.toFixed(1)}</td>`);
+      cells.push(`<td class="num" data-exam-pass-id="${column.exam.exam_id}">${blocks.filter(block => block?.passed === true).length}/${blocks.length}</td>`);
+    } else {
+      const blocks = rows.map(row => row.homeworks?.find(item => item.homework_id === column.homework.homework_id)?.block).filter(block => block?.score != null);
+      const value = column.homework.grading_mode === "COMPLETION" ? `통과 ${blocks.filter(block => block?.passed === true).length}/${blocks.length}`
+        : blocks.length ? (blocks.reduce((sum, block) => sum + block!.score!, 0) / blocks.length).toFixed(1) : "-";
+      cells.push(`<td class="num" data-homework-id="${column.homework.homework_id}">${value}</td>`);
+    }
   }
-  for (const homework of meta.homeworks ?? []) {
-    const scores = rows
-      .map((row) => row.homeworks?.find((item) => item.homework_id === homework.homework_id)?.block.score)
-      .filter((score): score is number => score != null);
-    const average = scores.length > 0
-      ? scores.reduce((sum, score) => sum + score, 0) / scores.length
-      : null;
-    cells.push(`<td class="num">${average == null ? "-" : average.toFixed(1)}</td>`);
-  }
-  const passed = rows.filter((row) => getSessionScoresTableVerdict(row) === "pass").length;
-  cells.push(`<td class="num">${passed}/${rows.length}</td>`);
+  cells.push(`<td class="num">${rows.filter(row => reportVerdict(row) === "pass").length}/${rows.length}</td>`);
   return `<tr class="summary-row">${cells.join("")}</tr>`;
 }
 
 function buildSummaryBand(params: ScorePdfParams): string {
-  const passed = params.rows.filter((row) => getSessionScoresTableVerdict(row) === "pass").length;
-  const clinic = params.rows.filter((row) => getSessionScoresTableVerdict(row) === "clinic_target").length;
+  const passed = params.rows.filter((row) => reportVerdict(row) === "pass").length;
+  const clinic = params.rows.filter((row) => reportVerdict(row) === "clinic_target").length;
   const evaluationCount = (params.meta.exams?.length ?? 0) + (params.meta.homeworks?.length ?? 0);
   const passRate = params.rows.length > 0 ? Math.round((passed / params.rows.length) * 100) : 0;
   return `
@@ -511,8 +511,8 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
     params.attendanceMap && Object.keys(params.attendanceMap).length > 0,
   );
   const columnCount = 3
-    + ((params.meta.exams?.length ?? 0) * 2)
-    + (params.meta.homeworks?.length ?? 0)
+    + reportColumns(params, "exam").reduce((sum, column) => sum + (column.kind === "exam" ? 2 : 1), 0)
+    + reportColumns(params, "homework").length
     + (hasAttendance ? 1 : 0);
   const density = columnCount > 12 ? "density-dense" : columnCount > 9 ? "density-compact" : "";
   const date = resolveDate(params.date);
@@ -547,7 +547,7 @@ export function buildScorePdfHtml(params: ScorePdfParams): string {
             <span class="report-footer__legend">
               <span><b>O</b> 통과</span>
               <span><b>X</b> 미달</span>
-              <span>평균은 점수가 입력된 학생 기준</span>
+              <span>평균은 확정 점수 기준 · O/X는 통과/입력 인원 · 총점은 서버 선택 기준</span>
             </span>
             <span class="report-footer__page">${pageIndex + 1} / ${pages.length}쪽</span>
           </footer>

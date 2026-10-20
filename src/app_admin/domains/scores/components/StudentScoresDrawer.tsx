@@ -221,12 +221,27 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
           queryFn: () => fetchSessionScores(sessionId),
           staleTime: 0,
         });
-        currentRow = freshScores.rows.find((candidate) => candidate.enrollment_id === row.enrollment_id) ?? row;
+        const refreshedRow = freshScores.rows.find((candidate) => candidate.enrollment_id === row.enrollment_id);
+        if (!refreshedRow) {
+          feedback.warning("학생의 수강 또는 배정이 변경되었습니다. 목록에서 대상을 다시 선택해 주세요.");
+          onClose();
+          return;
+        }
+        currentRow = refreshedRow;
         currentMeta = freshScores.meta ?? meta;
       } catch {
         feedback.error("최신 성적을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
         return;
       }
+    }
+    if (currentRow.exams.some(exam => exam.block.grading_status === "subjective_pending")) {
+      feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
+      return;
+    }
+    const provisionalCount = currentRow.exams.filter(exam => exam.block.is_provisional === true).length;
+    if (provisionalCount > 0) {
+      feedback.error(`채점을 확인 중인 시험이 ${provisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`);
+      return;
     }
     const unenteredItems = collectUnenteredScoreItems(currentRow);
     if (unenteredItems.length > 0) {
@@ -291,7 +306,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       },
       recomputePerStudentVars,
     });
-  }, [hasUnsavedChanges, row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId]);
+  }, [hasUnsavedChanges, row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId, onClose]);
 
   return (
     <div className="student-scores-drawer-side-panel">

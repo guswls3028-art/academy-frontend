@@ -392,6 +392,10 @@ async function installApi(
     const rawSelectedId = request.headers()["x-student-id"];
     const selectedId = rawSelectedId ?? "11";
     const selectedPoints = selectedId === "12" ? trendB : (options.studentPoints ?? trendA);
+    if (path.endsWith("/results/parent/assessment-comments/")) {
+      await route.fulfill({ json: { items: [] } });
+      return;
+    }
     if (path.endsWith("/student/grades/analytics/")) {
       selectedHeaders.push(rawSelectedId ?? "missing");
       options.analyticsRequests?.push(path);
@@ -428,6 +432,60 @@ async function installApi(
 test.describe("학생·학부모 회차별 누적 성적", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock visual contract spec.");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
+
+  for (const viewer of ["student", "parent"] as const) {
+    for (const width of [390, 1366]) {
+      test(`${viewer}: OX 과제는 점수 평균에서 제외하고 완료율에는 반영한다 ${width}px`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        const scored: MyHomeworkGradeSummary = {
+          ...unscoredHomework, lecture_id: 501, grading_mode: "SCORE",
+          title: "점수형 과제", score: 92, passed: true, achievement: "PASS",
+        };
+        const completion: MyHomeworkGradeSummary[] = [
+          { ...scored, homework_id: 903, title: "통과형 확인", grading_mode: "COMPLETION", score: 1, max_score: 1 },
+          { ...scored, homework_id: 904, title: "통과형 보완", grading_mode: "COMPLETION", score: 0, max_score: 1, passed: false, achievement: "FAIL" },
+        ];
+        const summary: Partial<MyGradesSummary> = { exams: [], homeworks: [scored, ...completion] };
+        await installApi(page, viewer, { studentPoints: [], wrongCompletionOnly: false, gradeSummary: summary });
+        await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+        if (viewer === "parent") {
+          await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" }).click();
+          await expect(page).toHaveURL(/\/student\/dashboard/);
+          await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+        }
+        await page.getByRole("button", { name: "과제 현황 3" }).click();
+        await expect(page.getByText("3건 · 평균 득점률 92%", { exact: true })).toBeVisible();
+        await page.getByRole("tab", { name: "추이 분석", exact: true }).click();
+        const homework = page.getByRole("region", { name: "과제 현황", exact: true });
+        await expect(homework.getByText("92%", { exact: true })).toBeVisible();
+        await expect(homework.getByText("3/3건", { exact: true })).toBeVisible();
+        await expect(homework.getByText("67%", { exact: true })).toBeVisible();
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(homework.getByText("92%", { exact: true })).toBeVisible();
+
+        // An actual zero is still a scored grade; internal O/X values are not.
+        summary.homeworks = [{ ...scored, score: 0, passed: false, achievement: "FAIL" }, ...completion];
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(homework.getByText("0%", { exact: true })).toBeVisible();
+        await expect(homework.getByText("33%", { exact: true })).toBeVisible();
+
+        summary.homeworks = completion;
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(homework.getByText("해당 없음", { exact: true })).toBeVisible();
+        await expect(homework.getByText("통과형 과제는 점수 평균에 포함하지 않습니다.", { exact: true })).toBeVisible();
+        await expect(homework.getByText("2/2건", { exact: true })).toBeVisible();
+        await expect(homework.getByText("50%", { exact: true })).toBeVisible();
+        await expect(homework.getByText("미채점", { exact: true })).toHaveCount(0);
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+        await homework.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath(`completion-only-${viewer}-${width}.png`) });
+        await page.getByRole("tab", { name: "요약", exact: true }).click();
+        await page.getByRole("button", { name: "과제 현황 2" }).click();
+        await expect(page.getByText("2건", { exact: true })).toBeVisible();
+        await expect(page.getByText(/평균 득점률/)).toHaveCount(0);
+      });
+    }
+  }
 
   for (const viewer of ["student", "parent"] as const) {
     test(`${viewer}: 미응시는 중립 상태이고 점수 없는 교사 완료 과제는 평균에 포함하지 않는다`, async ({ page }) => {
