@@ -323,8 +323,8 @@ test("@total-config-background-error 390px 배경 성적 재조회 실패에도 
   await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
 });
 
-test("@total-config-filter 390px 검색 결과가 없어도 최소화한 합산 초안을 복원하고 저장한다", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 900 });
+for (const width of [1366, 390]) test(`@total-config-filter ${width}px 검색과 출결 이동 뒤에도 최소화한 합산 초안을 복원하고 저장한다`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
   await openCompositionScores(page);
   const harness = await installScopedComposition(page);
   await page.reload();
@@ -340,7 +340,15 @@ test("@total-config-filter 390px 검색 결과가 없어도 최소화한 합산 
   await expect(modal.getByRole("group", { name: /시험 총점/ })).toHaveAccessibleName("시험 총점 · 1개 합산");
   await modal.getByTitle("최소화", { exact: true }).click();
   await search.fill("");
-  await page.locator(".modal-taskbar__tab-restore").filter({ hasText: "합산 설정" }).click();
+  await page.getByRole("tab", { name: "출결", exact: true }).click();
+  await expect(page).toHaveURL(/\/attendance$/);
+  await expect(page.getByRole("tab", { name: "출결", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("button", { name: "시험 총점 합산 설정", exact: true })).toHaveCount(0);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/scores$/);
+  await expect(page.getByRole("tab", { name: "성적", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+  await expect(modal.getByRole("group", { name: /시험 총점/ })).toHaveAccessibleName("시험 총점 · 1개 합산");
   await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
   await expect(modal).toBeHidden();
   expect(harness.writes).toEqual([{ sessionId: 9002, body: { expected_version: 0,
