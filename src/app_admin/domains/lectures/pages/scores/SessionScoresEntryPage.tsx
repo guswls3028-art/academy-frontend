@@ -16,6 +16,7 @@ import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, Hear
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
+import { buildScoreCsv } from "@admin/domains/scores/public/scoreCsvGenerator";
 import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraft";
 import type { ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
 import {
@@ -1042,42 +1043,20 @@ export default function SessionScoresEntryPage({
               size="sm"
               onClick={async () => {
                 if (!await saveScoresNow()) return;
-                const freshData = (await refetch()).data ?? data;
-                const rows = freshData?.rows ?? [];
-                const selected = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-                if (selected.length === 0) {
-                  feedback.info("선택한 학생이 없습니다.");
+                let freshData;
+                try {
+                  freshData = await fetchSessionScores(numericSessionId);
+                } catch {
+                  feedback.error("최신 성적을 불러오지 못했습니다. 다시 다운로드해 주세요.");
                   return;
                 }
-                const metaExams = freshData?.meta?.exams ?? [];
-                const metaHomeworks = freshData?.meta?.homeworks ?? [];
-                const headers = ["이름"];
-                metaExams.forEach((e) => headers.push(`${e.title ?? "시험"} (점수)`));
-                metaHomeworks.forEach((h) => headers.push(`${h.title ?? "과제"} (점수)`));
-
-                const csvRows = [headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(",")];
-                for (const row of selected) {
-                  const cells: string[] = [row.student_name ?? ""];
-                  // Match by exam_id/homework_id to ensure column alignment with headers
-                  for (const metaExam of metaExams) {
-                    const entry = (row.exams ?? []).find((e) => e.exam_id === metaExam.exam_id);
-                    cells.push(
-                      entry?.block.grading_status === "subjective_pending"
-                        ? "서술형 입력 필요"
-                        : entry?.block.score != null
-                          ? String(entry.block.score)
-                          : "",
-                    );
-                  }
-                  for (const metaHw of metaHomeworks) {
-                    const entry = (row.homeworks ?? []).find((h) => h.homework_id === metaHw.homework_id);
-                    cells.push(entry?.block.score != null ? String(entry.block.score) : "");
-                  }
-                  csvRows.push(cells.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","));
+                const selected = freshData.rows.filter(row => selectedEnrollmentIds.includes(row.enrollment_id));
+                if (selected.length === 0 || selected.length !== selectedEnrollmentIds.length) {
+                  feedback.info("학생의 수강 또는 배정이 변경되었습니다. 목록에서 대상을 다시 선택해 주세요.");
+                  await refetch();
+                  return;
                 }
-
-                const bom = "\uFEFF";
-                const blob = new Blob([bom + csvRows.join("\n")], { type: "text/csv;charset=utf-8" });
+                const blob = new Blob([buildScoreCsv(freshData.meta, selected)], { type: "text/csv;charset=utf-8" });
                 const { downloadBlob } = await import("@/shared/utils/safeDownload");
                 downloadBlob(blob, `성적_${selected.length}명.csv`);
                 feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);

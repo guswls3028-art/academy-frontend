@@ -3,9 +3,11 @@ import { getBaseUrl } from "../helpers/auth";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { realMessagingSkipReason } from "../helpers/safety";
 import { createScoreExitReceiver } from "../helpers/scoreExitReceiver";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 
 type ScoreRouteOptions = {
+  studentNames?: string[];
+  examTitle?: string;
   initialScores?: Array<number | null>;
   examMaxScore?: number;
   rowExamMaxScores?: number[];
@@ -19,6 +21,7 @@ type ScoreRouteOptions = {
   initialHomeworkScores?: Array<number | null>;
   homeworkAssignedRows?: boolean[];
   homeworkGradingMode?: "SCORE" | "COMPLETION";
+  homeworkMetaStatuses?: string[];
   scoreSummaryColumnDefault?: "exam_wrong";
   assessmentStatusDisplay?: "wrong_completion";
   nullScoresPassedFalse?: boolean;
@@ -214,7 +217,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             lecture_id: 9001,
             exams: [{
               exam_id: 9101,
-              title: "주간 확인",
+              title: options.examTitle ?? "주간 확인",
               pass_score: 60,
               max_score: examMaxScore,
               objective_max_score: 80,
@@ -241,7 +244,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
           rows: currentScores.map((score, index) => ({
             enrollment_id: 9201 + index,
             student_id: 9301 + index,
-            student_name: `자동저장학생${index + 1}`,
+            student_name: options.studentNames?.[index] ?? `자동저장학생${index + 1}`,
             attendance_status: options.attendanceStatuses?.[index] ?? "PRESENT",
             assessment_todo_eligible: options.assessmentTodoEligible?.[index] ?? true,
             lecture_title: "자동 저장 검증반",
@@ -309,7 +312,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                     ? currentHomeworkScores[index]! < 1
                     : currentHomeworkScores[index]! < 60,
                 is_locked: false,
-                meta: {},
+                meta: { status: options.homeworkMetaStatuses?.[index] ?? null },
                 updated_at: currentHomeworkVersions[index],
               },
             }] : [],
@@ -2725,4 +2728,72 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       expect(headers["x-score-session-id"]).toMatch(/^\d+$/);
     }
   });
+});
+
+for (const width of [1366, 390]) {
+  test(`@score-csv ${width}px 최신 조회 실패·사라진 대상 복구 후 실제 CSV 상태를 구분한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const readState: NonNullable<ScoreRouteOptions["scoreSheetReadSequence"]> = ["ready"];
+    await openScores(page, {
+      initialScores: [90, 0, null, 70, 80, 60], includeHomework: true,
+      homeworkGradingMode: "COMPLETION", homeworkMaxScore: 1,
+      initialHomeworkScores: [1, 0, null, null, null, 1],
+      homeworkAssignedRows: [true, true, true, true, false, true],
+      homeworkMetaStatuses: ["", "", "", "NOT_SUBMITTED"],
+      scoreSheetReadSequence: readState,
+    });
+    for (let index = 1; index <= 6; index++) {
+      await page.getByRole("checkbox", { name: `자동저장학생${index} 선택`, exact: true }).check();
+    }
+    const downloads: string[] = [];
+    page.on("download", download => downloads.push(download.suggestedFilename()));
+    const exportButton = page.getByRole("button", { name: "엑셀 다운로드", exact: true });
+    readState[0] = "error";
+    await exportButton.click();
+    await expect(page.getByText("최신 성적을 불러오지 못했습니다. 다시 다운로드해 주세요.", { exact: true })).toBeVisible();
+    expect(downloads).toEqual([]);
+    readState[0] = "missing-first";
+    await exportButton.click();
+    await expect(page.getByText("학생의 수강 또는 배정이 변경되었습니다. 목록에서 대상을 다시 선택해 주세요.", { exact: true })).toBeVisible();
+    expect(downloads).toEqual([]);
+    readState[0] = "provisional";
+    await page.reload({ waitUntil: "domcontentloaded" });
+    for (let index = 1; index <= 6; index++) {
+      await page.getByRole("checkbox", { name: `자동저장학생${index} 선택`, exact: true }).check();
+    }
+    const downloaded = page.waitForEvent("download");
+    await exportButton.click();
+    const download = await downloaded;
+    const path = testInfo.outputPath("score-states.csv");
+    await download.saveAs(path);
+    const csv = await readFile(path, "utf8");
+    expect(csv.replace(/^\uFEFF/, "").split("\r\n")).toEqual([
+      '"이름","주간 확인 (점수)","단원 복습 (O/X)"',
+      '"자동저장학생1","채점 확인 중","O"',
+      '"자동저장학생2","0","X"',
+      '"자동저장학생3","미입력","미입력"',
+      '"자동저장학생4","70","미제출"',
+      '"자동저장학생5","80","미배정"',
+      '"자동저장학생6","60","O"',
+    ]);
+    expect(downloads).toHaveLength(1);
+    expect(download.suggestedFilename()).toBe("성적_6명.csv");
+  });
+}
+
+test("@score-csv 수식형 이름·평가명은 리터럴로 내보내고 CSV 특수문자와 숫자0을 보존한다", async ({ page }, testInfo) => {
+  const names = ["=1+1", "+1", "-1", "@name", "\t=1+1", '따옴표",쉼표\n줄바꿈'];
+  await openScores(page, { initialScores: names.map(() => 0), studentNames: names, examTitle: "=1+1" });
+  await page.getByRole("checkbox", { name: "전체 선택", exact: true }).check();
+  const downloaded = page.waitForEvent("download");
+  await page.getByRole("button", { name: "엑셀 다운로드", exact: true }).click();
+  const download = await downloaded;
+  const path = testInfo.outputPath("literal-text.csv");
+  await download.saveAs(path);
+  const csv = await readFile(path, "utf8");
+  const quote = (value: string) => `"${value.replace(/"/g, '""')}"`;
+  expect(csv).toBe("\uFEFF" + [
+    ["이름", "'=1+1 (점수)"].map(quote).join(","),
+    ...names.map((name, index) => [index < 5 ? `'${name}` : name, "0"].map(quote).join(",")),
+  ].join("\r\n"));
 });
