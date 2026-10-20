@@ -146,6 +146,9 @@ async function switchCompositionSession(page: Page, sessionId: 9002 | 9003) {
   const date = sessionId === 9002 ? "2026-08-25" : "2026-08-26";
   await page.locator("button.session-block").filter({ hasText: date }).click();
   await expect(page).toHaveURL(new RegExp(`/sessions/${sessionId}/scores`));
+  // React Router can update the address before committing the destination UI.
+  // Wait for the same session selection that keys the score-entry page.
+  await expect(page.locator("button.session-block--selected").filter({ hasText: date })).toBeVisible();
   await expect(page.getByRole("button", { name: "시험 총점 합산 설정", exact: true })).toBeVisible();
 }
 
@@ -214,6 +217,7 @@ test("@total-config-delayed-scope 1366px 이전 차시 저장 응답은 현재 �
     // Browser Back is real SPA navigation even while A's response is pending.
     await page.goBack();
     await expect(page).toHaveURL(/\/sessions\/9003\/scores/);
+    await expect(page.locator("button.session-block--selected").filter({ hasText: "2026-08-26" })).toBeVisible();
     await expect(modal).toBeHidden();
     await open();
     await expect(group.locator(".assessment-totals-option").first()).toContainText("둘째 시험");

@@ -46,10 +46,7 @@ import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useProgram } from "@/shared/program";
 import { InlineHelp } from "@/shared/ui/guide";
-import SessionOmrUploadAction, {
-  SessionOmrUploadModal,
-  type SessionOmrUploadTarget,
-} from "./SessionOmrUploadAction";
+import type { SessionOmrUploadTarget } from "./SessionOmrUploadAction";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
 import { useTrackedTask } from "@/shared/productAnalytics";
@@ -117,6 +114,10 @@ function resolveExamGradingMode(
   return hasEssay ? "written" : "choice";
 }
 
+// Keep the OMR upload workspace (batch ledger, file preparation and upload UI)
+// outside the score-entry module. Both exports share the same lazy chunk.
+const SessionOmrUploadAction = lazy(() => import("./SessionOmrUploadAction"));
+const SessionOmrUploadModal = lazy(() => import("./SessionOmrUploadAction").then(module => ({ default: module.SessionOmrUploadModal })));
 const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ScorePrintPreviewModal"));
 const StudentScoreReportModal = lazy(() => import("@admin/domains/scores/public/StudentScoreReportModal"));
 const ClinicPrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ClinicPrintPreviewModal"));
@@ -1273,6 +1274,11 @@ export default function SessionScoresEntryPage({
       {/* ── 그룹 1: OMR 주 동선 ──
           SSOT: 차시 성적 화면에서 OMR 스캔 등록을 가장 먼저 보여준다.
           시험 상세/제출관리는 등록이 아니라 조회/재처리 보조 동선으로 둔다. */}
+      <Suspense fallback={omrExamOptions.length > 0 ? (
+        <Button intent="primary" size="md" className="scores-omr-primary" disabled aria-busy="true" leftIcon={<Upload size={ICON_FOR_BUTTON.md} />}>
+          OMR 등록 준비 중…
+        </Button>
+      ) : null}>
       <SessionOmrUploadAction
         exams={omrExamOptions}
         onRefresh={invalidateScores}
@@ -1298,6 +1304,7 @@ export default function SessionScoresEntryPage({
           draft.draftStatus === "error"
         }
       />
+      </Suspense>
 
       {/* ── 그룹 2: 안전한 수정 시작 / 저장 완료 ── */}
       <Button
@@ -1988,6 +1995,7 @@ export default function SessionScoresEntryPage({
         </Suspense>
       )}
 
+      {omrUploadExam && <Suspense fallback={<div role="status">OMR 등록 화면을 불러오는 중…</div>}>
       <SessionOmrUploadModal
         target={omrUploadExam}
         onClose={() => setOmrUploadExam(null)}
@@ -1995,6 +2003,7 @@ export default function SessionScoresEntryPage({
           if (omrUploadExam) invalidateExamWorkflow(omrUploadExam.examId);
         }}
       />
+      </Suspense>}
 
       {/* 성적표 인쇄 미리보기 */}
       {showPrintPreview && data?.meta && (
