@@ -1632,7 +1632,7 @@ export default function SessionScoresEntryPage({
         <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />
       )}
 
-      {!isLoading && isError && (
+      {!isLoading && isError && !data && (
         <EmptyState
           scope="panel"
           tone="error"
@@ -1726,7 +1726,7 @@ export default function SessionScoresEntryPage({
         </section>
       )}
 
-      {!isLoading && !isError && (
+      {data && (
         <SessionScoresPanel
           ref={setPanelHandle}
           sessionId={numericSessionId}

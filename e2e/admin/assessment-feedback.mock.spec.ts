@@ -82,6 +82,270 @@ async function installComposition(page: Page, includeRefreshRow = false, totalRe
   };
 }
 
+// Shared exams are legitimate across sessions; homework remains session-owned.
+// Keep both versions equal so a scope leak cannot hide behind a 409 response.
+async function installScopedComposition(page: Page) {
+  await installComposition(page);
+  const states: Record<number, { version: number; examIds: number[]; examOrder: number[] }> = {
+    9002: { version: 0, examIds: [9101, 9102], examOrder: [9101, 9102] },
+    9003: { version: 0, examIds: [9102], examOrder: [9102, 9101] },
+  };
+  const writes: Array<{ sessionId: number; body: Record<string, unknown> }> = [];
+  let holdNextSave: Promise<void> | undefined;
+  const sessions = [9002, 9003].map((id, index) => ({ id, lecture: 9001, order: index + 1,
+    regular_order: index + 1, session_type: "REGULAR", title: index ? "다음 합산 차시" : "모바일 순서 검증 차시",
+    date: index ? "2026-08-26" : "2026-08-25" }));
+  await page.route("**/api/v1/lectures/sessions/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() !== "GET") { await route.fallback(); return; }
+    const session = sessions.find(item => path.endsWith(`/sessions/${item.id}/`));
+    if (session) { await route.fulfill({ json: session }); return; }
+    if (path.endsWith("/sessions/")) { await route.fulfill({ json: sessions }); return; }
+    await route.fallback();
+  });
+  await page.route(/\/api\/v1\/results\/admin\/sessions\/900[23]\//, async route => {
+    const path = new URL(route.request().url()).pathname;
+    const sessionId = Number(path.match(/sessions\/(\d+)/)?.[1]);
+    const state = states[sessionId];
+    if (path.endsWith("/score-draft/") && route.request().method() === "GET") {
+      await route.fulfill({ json: { changes: [], active_editors: [], stale: false } }); return;
+    }
+    if (path.endsWith("/total-config/") && route.request().method() === "PUT") {
+      const body = route.request().postDataJSON();
+      writes.push({ sessionId, body });
+      if (body.expected_version !== state.version) {
+        await route.fulfill({ status: 409, json: { detail: "동시 수정" } }); return;
+      }
+      expect([...body.exam_order].sort()).toEqual([9101, 9102]);
+      expect(body.homework_ids).toEqual([]);
+      expect(body.homework_order).toEqual([]);
+      expect(body.exam_ids.every((id: number) => state.examOrder.includes(id))).toBe(true);
+      state.examIds = [...body.exam_ids]; state.examOrder = [...body.exam_order]; state.version++;
+      const held = holdNextSave; holdNextSave = undefined;
+      if (held) await held;
+      await route.fulfill({ json: { version: state.version, exam_ids: state.examIds, homework_ids: [] } }); return;
+    }
+    if (!path.endsWith("/scores/")) { await route.fallback(); return; }
+    await route.fulfill({ json: { meta: { session_title: sessions.find(item => item.id === sessionId)!.title,
+      lecture_title: "모바일 순서 검증반", lecture_id: 9001,
+      total_config: { version: state.version, exam_ids: state.examIds, homework_ids: [] },
+      exams: state.examOrder.map((id, index) => ({ exam_id: id, title: id === 9101 ? "첫 시험" : "둘째 시험",
+        max_score: 100, pass_score: 60, display_order: index, objective_max_score: 100, subjective_max_score: 0 })), homeworks: [] },
+      rows: [{ enrollment_id: 9201, student_id: 9301, student_name: "모바일순서학생", lecture_title: "모바일 순서 검증반",
+        exams: [9101, 9102].map(id => ({ exam_id: id, title: id === 9101 ? "첫 시험" : "둘째 시험", attempt_count: 1,
+          block: { score: id === 9101 ? 0 : 40, max_score: 100, passed: false, is_locked: false, meta: {}, correction_status: "NOT_REQUIRED" } })),
+        homeworks: [], exam_total: { score: state.examIds.includes(9102) ? 40 : 0, max_score: state.examIds.length * 100,
+          selected_count: state.examIds.length, scored_count: state.examIds.length, complete: state.examIds.length > 0 },
+        homework_total: { score: null, max_score: 0, selected_count: 0, scored_count: 0, complete: false },
+        clinic_required: false, progress_completed: false }] } });
+  });
+  return { states, writes, holdSave: (promise: Promise<void>) => { holdNextSave = promise; } };
+}
+
+async function switchCompositionSession(page: Page, sessionId: 9002 | 9003) {
+  const date = sessionId === 9002 ? "2026-08-25" : "2026-08-26";
+  await page.locator("button.session-block").filter({ hasText: date }).click();
+  await expect(page).toHaveURL(new RegExp(`/sessions/${sessionId}/scores`));
+  await expect(page.getByRole("button", { name: "시험 총점 합산 설정", exact: true })).toBeVisible();
+}
+
+for (const width of [1366, 390]) {
+  test(`@total-config-scope ${width}px 차시를 오가도 합산 초안과 저장 대상은 섞이지 않는다`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openCompositionScores(page);
+    const harness = await installScopedComposition(page);
+    await page.reload();
+    // Warm B through real SPA navigation before editing A: both queries must be cached.
+    await switchCompositionSession(page, 9003);
+    await switchCompositionSession(page, 9002);
+    const open = () => page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+    const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
+    const group = modal.getByRole("group", { name: /시험 총점/ });
+    await open();
+    await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+    await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
+    await modal.getByTitle("최소화", { exact: true }).click();
+    await switchCompositionSession(page, 9003);
+    await expect(modal).toBeHidden();
+    await open();
+    // B's one selected exam is SECOND; A's one selected exam is FIRST.
+    await expect(group.locator(".assessment-totals-option").first()).toContainText("둘째 시험");
+    await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
+    await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect(modal).toBeHidden();
+    expect(harness.writes).toEqual([{ sessionId: 9003, body: { expected_version: 0,
+      exam_ids: [9102], homework_ids: [], exam_order: [9102, 9101], homework_order: [] } }]);
+    await switchCompositionSession(page, 9002);
+    await open();
+    await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
+    await expect(group.locator(".assessment-totals-option").first()).toContainText("첫 시험");
+    await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect(modal).toBeHidden();
+    expect(harness.writes[1]).toEqual({ sessionId: 9002, body: { expected_version: 0,
+      exam_ids: [9101], homework_ids: [], exam_order: [9101, 9102], homework_order: [] } });
+    await page.reload();
+    await open();
+    await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
+    await expect(group.locator(".assessment-totals-option").first()).toContainText("첫 시험");
+    expect(harness.states[9002].version).toBe(1);
+    expect(harness.states[9003].examIds).toEqual([9102]);
+  });
+}
+
+test("@total-config-delayed-scope 1366px 이전 차시 저장 응답은 현재 차시의 합산 초안을 닫거나 바꾸지 않는다", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await openCompositionScores(page);
+  const harness = await installScopedComposition(page);
+  await page.reload();
+  await switchCompositionSession(page, 9003);
+  await switchCompositionSession(page, 9002);
+  const open = () => page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+  const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
+  const group = modal.getByRole("group", { name: /시험 총점/ });
+  await open();
+  await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+  let releaseSave!: () => void;
+  harness.holdSave(new Promise<void>(resolve => { releaseSave = resolve; }));
+  try {
+    await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect.poll(() => harness.writes.length).toBe(1);
+    expect(harness.writes[0]).toEqual({ sessionId: 9002, body: { expected_version: 0,
+      exam_ids: [9101], homework_ids: [], exam_order: [9101, 9102], homework_order: [] } });
+    // Browser Back is real SPA navigation even while A's response is pending.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/sessions\/9003\/scores/);
+    await expect(modal).toBeHidden();
+    await open();
+    await expect(group.locator(".assessment-totals-option").first()).toContainText("둘째 시험");
+    await modal.getByRole("button", { name: "시험 총점 아래로 이동", exact: true }).click();
+    await expect(group).toHaveAccessibleName("시험 총점 · 2개 합산");
+    const response = page.waitForResponse(item => item.url().includes("/sessions/9002/total-config/") && item.request().method() === "PUT");
+    releaseSave();
+    expect((await response).status()).toBe(200);
+    await expect(modal).toBeVisible();
+    await expect(group).toHaveAccessibleName("시험 총점 · 2개 합산");
+    await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect(modal).toBeHidden();
+    expect(harness.writes[1]).toEqual({ sessionId: 9003, body: { expected_version: 0,
+      exam_ids: [9102, 9101], homework_ids: [], exam_order: [9102, 9101], homework_order: [] } });
+    await page.reload();
+    await open();
+    await expect(group).toHaveAccessibleName("시험 총점 · 2개 합산");
+    await expect(group.locator(".assessment-totals-option").first()).toContainText("둘째 시험");
+    expect(harness.states[9002].examIds).toEqual([9101]);
+    expect(harness.states[9003].version).toBe(1);
+  } finally { releaseSave(); }
+});
+
+test("@total-config-close-draft 1366px 복원 초안의 닫기를 취소하거나 명시적으로 버릴 수 있다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await openCompositionScores(page);
+  const harness = await installScopedComposition(page);
+  await page.reload();
+  const open = () => page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+  const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
+  const group = modal.getByRole("group", { name: /시험 총점/ });
+  await open();
+  await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+  await modal.getByTitle("최소화", { exact: true }).click();
+  await switchCompositionSession(page, 9003);
+  await switchCompositionSession(page, 9002);
+  await open();
+  await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
+  await modal.getByRole("button", { name: "취소", exact: true }).click();
+  const confirm = page.getByRole("alertdialog", { name: "저장하지 않은 합산 설정", exact: true });
+  await expect(confirm).toBeVisible();
+  await confirm.screenshot({ path: testInfo.outputPath("total-draft-close-confirm-1366.png"), animations: "disabled" });
+  await confirm.getByRole("button", { name: "계속 편집", exact: true }).click();
+  await expect(confirm).toBeHidden();
+  await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
+  expect(harness.writes).toHaveLength(0);
+  await modal.getByRole("button", { name: "취소", exact: true }).click();
+  await confirm.getByRole("button", { name: "저장하지 않고 닫기", exact: true }).click();
+  await expect(modal).toBeHidden();
+  await open();
+  await expect(group).toHaveAccessibleName("시험 총점 · 2개 합산");
+  await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+  await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+  await expect(modal).toBeHidden();
+  await open();
+  await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
+  await modal.getByRole("button", { name: "취소", exact: true }).click();
+  await expect(modal).toBeHidden();
+  await expect(confirm).toBeHidden();
+  expect(harness.writes[0]).toEqual({ sessionId: 9002, body: { expected_version: 0,
+    exam_ids: [9101], homework_ids: [], exam_order: [9101, 9102], homework_order: [] } });
+});
+
+test("@total-config-background-error 390px 배경 성적 재조회 실패에도 합산 초안을 유지하고 복구 뒤 저장한다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await openCompositionScores(page);
+  const harness = await installScopedComposition(page);
+  let failRead = false;
+  await page.route("**/api/v1/results/admin/sessions/9002/score-draft/", async route => {
+    await route.fulfill({ json: { changes: [], active_editors: [], stale: false } });
+  });
+  await page.route("**/api/v1/results/admin/sessions/9002/scores/", async route => {
+    if (failRead) { await route.fulfill({ status: 503, json: { detail: "성적 조회 일시 실패" } }); return; }
+    await route.fallback();
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "수정", exact: true }).click();
+  await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+  const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
+  const group = modal.getByRole("group", { name: /시험 총점/ });
+  await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+  const failedRead = page.waitForResponse(response => response.url().includes("/sessions/9002/scores/") && response.status() === 503);
+  failRead = true;
+  await failedRead; // Normal edit-mode polling, not a synthetic query-client invocation.
+  await expect(modal).toBeVisible();
+  await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
+  await modal.screenshot({ path: testInfo.outputPath("total-draft-background-error-390.png"), animations: "disabled" });
+  await modal.getByTitle("최소화", { exact: true }).click();
+  await expect(page.getByText("성적을 불러오지 못했습니다", { exact: true }).first()).toBeVisible();
+  failRead = false;
+  const recovered = page.waitForResponse(response => response.url().includes("/sessions/9002/scores/") && response.status() === 200);
+  await page.getByRole("button", { name: "다시 시도", exact: true }).first().click();
+  await recovered;
+  await page.locator(".modal-taskbar__tab-restore").filter({ hasText: "합산 설정" }).click();
+  await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
+  await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+  await expect(modal).toBeHidden();
+  expect(harness.writes).toEqual([{ sessionId: 9002, body: { expected_version: 0,
+    exam_ids: [9101], homework_ids: [], exam_order: [9101, 9102], homework_order: [] } }]);
+  await page.reload();
+  await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+  await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
+});
+
+test("@total-config-filter 390px 검색 결과가 없어도 최소화한 합산 초안을 복원하고 저장한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await openCompositionScores(page);
+  const harness = await installScopedComposition(page);
+  await page.reload();
+  await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+  const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
+  await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+  await modal.getByTitle("최소화", { exact: true }).click();
+  const search = page.getByRole("searchbox", { name: "학생 이름 검색" });
+  await search.fill("검색결과없는학생");
+  await expect(page.locator(".modal-taskbar__tab-restore").filter({ hasText: "합산 설정" })).toBeVisible();
+  await page.locator(".modal-taskbar__tab-restore").filter({ hasText: "합산 설정" }).click();
+  await expect(modal).toBeVisible();
+  await expect(modal.getByRole("group", { name: /시험 총점/ })).toHaveAccessibleName("시험 총점 · 1개 합산");
+  await modal.getByTitle("최소화", { exact: true }).click();
+  await search.fill("");
+  await page.locator(".modal-taskbar__tab-restore").filter({ hasText: "합산 설정" }).click();
+  await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+  await expect(modal).toBeHidden();
+  expect(harness.writes).toEqual([{ sessionId: 9002, body: { expected_version: 0,
+    exam_ids: [9101], homework_ids: [], exam_order: [9101, 9102], homework_order: [] } }]);
+  await page.reload();
+  await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+  await expect(modal.getByRole("group", { name: /시험 총점/ })).toHaveAccessibleName("시험 총점 · 1개 합산");
+});
+
 for (const width of [1366, 390]) {
   test(`@parent-comment-refresh-draft ${width}px 최신 코멘트를 기다리며 고친 초안은 화면 전환 뒤에도 유지한다`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
@@ -211,7 +475,11 @@ for (const width of [1366, 390]) {
       Math.abs(node.getBoundingClientRect().width - node.clientWidth),
     )).toBeLessThan(1);
     if (width === 1366) {
-      await modal.locator(".assessment-totals-divider").first().dragTo(modal.locator(".assessment-totals-option").filter({ has: page.getByRole("button", { name: "둘째 시험 위로 이동", exact: true }) }));
+      // Drag the visible grip, not the row center where text/actions can intercept the pointer.
+      await modal.locator(".assessment-totals-divider").first().dragTo(
+        modal.locator(".assessment-totals-option").filter({ has: page.getByRole("button", { name: "둘째 시험 위로 이동", exact: true }) }),
+        { sourcePosition: { x: 14, y: 22 }, targetPosition: { x: 14, y: 22 } },
+      );
     } else { await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).press("Enter"); }
     await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산" })).toBeVisible();
     await modal.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();

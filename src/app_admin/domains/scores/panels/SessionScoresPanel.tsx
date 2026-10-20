@@ -133,7 +133,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     if (handle != null) tableRef.current = handle;
   }, []);
   const qc = useQueryClient();
-  const [totalsOpen, setTotalsOpen] = useState(false);
+  const [totalsEditor, setTotalsEditor] = useState<{ sessionId: number; meta: SessionScoreMeta } | null>(null);
   /** 읽기 모드 — 학생 상세 드로어 (이름 클릭) */
   const [drawerEnrollmentId, setDrawerEnrollmentId] = useState<number | null>(null);
   /** 답안 상세 드로어 (StudentScoresDrawer → 답안 상세 보기) */
@@ -152,6 +152,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return data?.rows ?? [];
   }, [data]);
   const meta: SessionScoreMeta | null = data?.meta ?? null;
+  const openTotals = () => { if (meta) setTotalsEditor({ sessionId, meta }); };
   const attendancePageSize = allRows.length > 50 ? Math.min(allRows.length, 500) : undefined;
   const { data: attendanceList } = useQuery({
     queryKey: [...scoresQueryKeys.attendance(sessionId), attendancePageSize ?? "default"] as const,
@@ -477,12 +478,9 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     onActiveCellChange?.(selectedCell);
   }, [isEditMode, onActiveCellChange, selectedCell]);
 
-  if (isLoading) {
-    return <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />;
-  }
-
-  if (isError || !data) {
-    return (
+  const emptyState = isLoading
+    ? <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />
+    : isError || !data ? (
       <EmptyState
         scope="panel"
         tone="error"
@@ -498,11 +496,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           </button>
         }
       />
-    );
-  }
-
-  if (rows.length === 0) {
-    return (
+    ) : rows.length === 0 ? (
       <EmptyState
         scope="panel"
         tone="empty"
@@ -511,18 +505,19 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           ? "이름 검색어나 테스트 오답 필터를 바꿔보세요."
           : "이 세션에 수강생을 먼저 등록해주세요. 등록 후 자동으로 성적 입력표가 만들어집니다."}
       />
-    );
-  }
+    ) : null;
 
   return (
     <div className="flex flex-col gap-4">
       {secessionDialog}
-      <div className="flex justify-end"><Button intent="secondary" size="sm" onClick={() => setTotalsOpen(true)}>합산 설정</Button></div>
-      {totalsOpen && meta && (
+      {totalsEditor?.sessionId === sessionId && (
         <Suspense fallback={<div role="status">합산 설정을 불러오는 중...</div>}>
-          <AssessmentTotalsModal sessionId={sessionId} meta={meta} onClose={() => setTotalsOpen(false)} />
+          <AssessmentTotalsModal key={totalsEditor.sessionId} sessionId={totalsEditor.sessionId} meta={totalsEditor.meta}
+            onClose={() => setTotalsEditor(current => current === totalsEditor ? null : current)} />
         </Suspense>
       )}
+      {emptyState ?? <>
+      <div className="flex justify-end"><Button intent="secondary" size="sm" onClick={openTotals}>합산 설정</Button></div>
       <div
         tabIndex={0}
         className="min-w-0 overflow-x-auto outline-none"
@@ -588,7 +583,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
           onReorderColumnSwap={handleReorderSwap}
-          onOpenTotals={() => setTotalsOpen(true)}
+          onOpenTotals={openTotals}
           onOpenExamGrading={onOpenExamGrading}
           deleteAssessmentLocked={assessmentDeleteLocked}
         />
@@ -624,6 +619,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
         />
       )}
 
+      </>}
     </div>
   );
 });
