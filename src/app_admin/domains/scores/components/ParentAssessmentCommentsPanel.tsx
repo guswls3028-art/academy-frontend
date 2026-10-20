@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { assessmentCommentQueryKeys, fetchAdminParentComments, saveParentComment, type AdminParentComment, type AssessmentKind } from "@/shared/api/assessmentComments";
 import { AdminModal, ModalHeader, ModalBody, MODAL_WIDTH } from "@/shared/ui/modal";
@@ -39,6 +39,13 @@ function CommentEditor({ row, sessionId, assessmentKind, assessmentId, onSaved, 
   const [message, setMessage] = useState("");
   const [conflict, setConflict] = useState(false);
   const [history, setHistory] = useState(row.history);
+  useEffect(() => {
+    // Keep unpublished drafts on their original baseline. Once clean again,
+    // consume a newer server revision; never undo a completed save with stale props.
+    if (busy || text !== savedText || row.version <= version) return;
+    setText(row.text); setSavedText(row.text); setVersion(row.version);
+    setHistory(row.history); setConflict(false); setMessage("");
+  }, [row, busy, text, savedText, version]);
   async function save() {
     setBusy(true); onBusy(true); setMessage("");
     try {

@@ -168,6 +168,18 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await verifyMixed([completion.id, created.homeworkId!], [created.homeworkId!], width === 1366 ? 1 : 0);
       await staffPage.locator(`[data-score-cell="homework:${created.enrollmentId}:${completion.id}"]`).scrollIntoViewIfNeeded();
       await staffPage.screenshot({ path: test.info().outputPath(`real-mixed-homework-${width}.png`), animations: "disabled" });
+      await staffPage.getByRole("button", { name: "개인 성적표", exact: true }).click();
+      const report = staffPage.getByRole("dialog");
+      await report.getByRole("combobox", { name: "성적표 학생 선택" }).selectOption(String(created.enrollmentId));
+      const preview = staffPage.frameLocator(`iframe[title="${studentName} 개인 성적표 미리보기"]`);
+      const completionResult = preview.locator(".assessment-row").filter({ has: preview.getByText(completionTitle, { exact: true }) });
+      await expect(completionResult.locator(".assessment-score")).toHaveText(width === 1366 ? "통과 (O)" : "미통과 (X)");
+      await expect(preview.locator(".session-fact").filter({ hasText: "과제 총점" })).toHaveText("과제 총점92 / 100");
+      await expect(preview.locator(".session-fact").filter({ hasText: "과제 평균" })).toHaveText("과제 평균92%");
+      await completionResult.scrollIntoViewIfNeeded();
+      await staffPage.screenshot({ path: test.info().outputPath(`real-homework-report-${width}.png`), animations: "disabled" });
+      await report.getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(report).toBeHidden();
       // Restore exact order via the same excluded-area UI before existing comment checks.
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
       await totals.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();

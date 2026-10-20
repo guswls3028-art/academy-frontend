@@ -1,4 +1,4 @@
-import { readFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 import path from "path";
 import type { Page } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
@@ -12,6 +12,8 @@ const SESSION_ID = 990102;
 const DENSE_EXAM_TITLE = "매우 긴 한국어 시험 제목으로 줄바꿈과 페이지 경계를 확인하는 누적 종합 평가 내용을 학부모에게 충분히 설명하는 평가";
 
 type InstallApiOptions = {
+  homeworkModes?: boolean;
+  totalState?: "zero" | "pending" | "none";
   denseReport?: boolean;
   omrIssue?: boolean;
   omrIssueEnrollmentId?: number;
@@ -331,11 +333,48 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     "access-control-allow-headers": "authorization,content-type,x-client,x-client-version,x-tenant-code",
     "access-control-allow-methods": "GET,POST,PUT,PATCH,OPTIONS",
   };
-  const activeScoreRows = options.scoreRowCount
+  const initialScoreRows = options.homeworkModes
+    ? scoreRows.map((row) => ({
+        ...row,
+        exam_total: { score: 82, max_score: 100, selected_count: 1, scored_count: 1, complete: true },
+        homework_total: { score: 25, max_score: 50, selected_count: 1, scored_count: 1, complete: true },
+        homeworks: [
+          { ...scoreRows[0].homeworks[0], block: { ...scoreRows[0].homeworks[0].block, score: 25, max_score: 50 } },
+          ...[
+            { id: 4102, title: "준비물 확인", score: 1, passed: true, status: "PASS" },
+            { id: 4103, title: "풀이 설명", score: 0, passed: false, status: "FAIL" },
+            { id: 4104, title: "오답 확인", score: null, passed: null, status: "UNSET" },
+            { id: 4105, title: "학습일지", score: null, passed: null, status: "NOT_SUBMITTED" },
+          ].map((item) => ({
+            homework_id: item.id,
+            title: item.title,
+            block: { score: item.score, max_score: 1, passed: item.passed, meta: { status: item.status } },
+          })),
+        ],
+      }))
+    : options.scoreRowCount
     ? expandedScoreRows(options.scoreRowCount)
     : options.denseReport
       ? denseScoreRows()
       : scoreRows;
+  const activeScoreRows = initialScoreRows.map((row) => {
+    if (!options.totalState) return row;
+    const score = options.totalState === "zero" ? 0 : null;
+    const total = {
+      score,
+      max_score: options.totalState === "none" ? 0 : 100,
+      selected_count: options.totalState === "none" ? 0 : 1,
+      scored_count: options.totalState === "zero" ? 1 : 0,
+      complete: options.totalState !== "pending",
+    };
+    return {
+      ...row,
+      exam_total: total,
+      homework_total: total,
+      exams: row.exams.map((exam) => ({ ...exam, block: { ...exam.block, score } })),
+      homeworks: row.homeworks.map((homework) => ({ ...homework, block: { ...homework.block, score } })),
+    };
+  });
   let studentGradesRequestCount = 0;
   let omrIssueResolved = false;
 
@@ -440,9 +479,15 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
             homework_id: 4101,
             title: "방정식 오답 과제",
             unit: null,
-            max_score: 100,
+            max_score: options.homeworkModes ? 50 : 100,
+            grading_mode: "SCORE",
             display_order: 1,
-          }],
+          }, ...(options.homeworkModes ? [
+            { homework_id: 4102, title: "준비물 확인", unit: null, max_score: 1, grading_mode: "COMPLETION", display_order: 2 },
+            { homework_id: 4103, title: "풀이 설명", unit: null, max_score: 1, grading_mode: "COMPLETION", display_order: 3 },
+            { homework_id: 4104, title: "오답 확인", unit: null, max_score: 1, grading_mode: "COMPLETION", display_order: 4 },
+            { homework_id: 4105, title: "학습일지", unit: null, max_score: 1, grading_mode: "COMPLETION", display_order: 5 },
+          ] : [])],
         },
         rows: activeScoreRows,
       });
@@ -510,6 +555,72 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 }
 
 test.describe("개인 성적표", () => {
+  for (const [totalState, expected] of [
+    ["zero", "0 / 100"],
+    ["pending", "- / 100집계 중 · 0/1개 입력"],
+    ["none", "합산 없음"],
+  ] as const) {
+    test(`@assessment-report-total ${totalState} 총점은 미입력·0점·합산 없음이 구분된다`, async ({ page }) => {
+      await installApi(page, { totalState });
+      await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+      const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
+      for (const label of ["시험 총점", "과제 총점"]) {
+        const fact = frame.locator(".session-fact").filter({ hasText: label });
+        await expect(fact).toHaveText(`${label}${expected}`);
+        await expect(fact.locator("small")).toHaveCount(totalState === "pending" ? 1 : 0);
+      }
+    });
+  }
+
+  for (const width of [1366, 390]) {
+    test(`@assessment-homework-report ${width}px 합불 과제와 선택 총점이 미리보기·PDF에서 구분된다`, async ({ page }, testInfo) => {
+      test.setTimeout(180_000);
+      await page.setViewportSize({ width, height: 900 });
+      await installApi(page, { homeworkModes: true });
+      await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
+      const assessment = (title: string) => frame.locator(".assessment-row").filter({ has: frame.getByText(title, { exact: true }) });
+      await expect(assessment("준비물 확인").locator(".assessment-score")).toHaveText("통과 (O)");
+      await expect(assessment("풀이 설명").locator(".assessment-score")).toHaveText("미통과 (X)");
+      await expect(assessment("오답 확인").locator(".assessment-score")).toHaveText("미입력");
+      await expect(assessment("학습일지").locator(".assessment-score")).toHaveText("미제출");
+      await expect(assessment("방정식 오답 과제").locator(".assessment-score")).toHaveText("25 / 50");
+      await expect(frame.locator(".session-fact").filter({ hasText: "과제 평균" })).toHaveText("과제 평균50%");
+      await expect(frame.locator(".session-fact").filter({ hasText: "시험 총점" })).toHaveText("시험 총점82 / 100");
+      await expect(frame.locator(".session-fact").filter({ hasText: "과제 총점" })).toHaveText("과제 총점25 / 50");
+      await expect(frame.locator(".student-report-page")).toHaveCount(2);
+      expect(await frame.locator(".student-report-page").evaluateAll((pages) => pages.every((reportPage) => {
+        const footer = reportPage.querySelector(".report-footer")!.getBoundingClientRect();
+        return Array.from(reportPage.children).filter((child) => !child.classList.contains("report-footer"))
+          .every((child) => child.getBoundingClientRect().bottom <= footer.top + 2);
+      }))).toBe(true);
+      await frame.locator(".student-report-page").first().screenshot({ path: testInfo.outputPath(`homework-modes-${width}.png`), animations: "disabled" });
+      if (width === 390) {
+        await frame.locator(".assessment-list").scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath("homework-modes-mobile-assessments.png"), animations: "disabled" });
+        await frame.locator(".session-summary").scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath("homework-modes-mobile-totals.png"), animations: "disabled" });
+      }
+      if (width === 1366) {
+        const [download] = await Promise.all([
+          page.waitForEvent("download"),
+          dialog.getByRole("button", { name: "개인 성적표 PDF 다운로드" }).click(),
+        ]);
+        const output = testInfo.outputPath("homework-modes.pdf");
+        await download.saveAs(output);
+        const pdfBytes = await readFile(output);
+        const pdf = await PDFDocument.load(pdfBytes);
+        expect(pdf.getPageCount()).toBe(2);
+        const pageImages = extractJpegImages(pdfBytes);
+        expect(pageImages.length).toBeGreaterThanOrEqual(2);
+        await writeFile(testInfo.outputPath("homework-modes-export-page1.jpg"), pageImages[0]);
+      }
+    });
+  }
+
   test("최신 성적 재조회가 실패하면 오래된 성적표를 열지 않는다", async ({ page }) => {
     await installApi(page);
     const baseUrl = getBaseUrl("admin");
