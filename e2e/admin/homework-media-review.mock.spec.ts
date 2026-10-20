@@ -21,6 +21,8 @@ function fakeJwt(): string {
 }
 
 type ReviewMockOptions = {
+  resultMode?: "SCORE" | "COMPLETION";
+  resultScores?: Array<number | null>;
   olderSubmission?: boolean;
   reviewImagesOnly?: boolean;
   reviewPdf?: boolean;
@@ -67,13 +69,13 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     session_id: SESSION_ID,
     homework_type: "regular",
     title: "도형 풀이 인증",
-    grading_mode: "SCORE",
-    max_score: 100,
+    grading_mode: options.resultMode ?? "SCORE",
+    max_score: options.resultMode === "COMPLETION" ? 1 : 100,
     cutline_mode: "PERCENT",
     cutline_value: 80,
     round_unit_percent: 5,
-    effective_cutline_mode: "PERCENT",
-    effective_cutline_value: 80,
+    effective_cutline_mode: options.resultMode === "COMPLETION" ? "COUNT" : "PERCENT",
+    effective_cutline_value: options.resultMode === "COMPLETION" ? 1 : 80,
     effective_round_unit_percent: 5,
     uses_session_cutline_default: false,
     meta: {},
@@ -108,6 +110,13 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     if (path === `/homeworks/${HOMEWORK_ID}/`) return json(homework);
     if (path === "/homework/assignments/") return json({ items: [] });
     if (path === `/results/admin/sessions/${SESSION_ID}/scores/`) {
+      if (options.resultMode) return json({ meta: { exams: [], homeworks: [] }, rows: (options.resultScores ?? []).map((score, index) => ({
+        enrollment_id: 9902 + index, student_id: 9950 + index, student_name: `결과학생${index + 1}`,
+        homeworks: [{ homework_id: HOMEWORK_ID, block: { score, max_score: options.resultMode === "COMPLETION" ? 1 : 100,
+          passed: score == null ? null : score >= (options.resultMode === "COMPLETION" ? 1 : 80),
+          clinic_required: score != null && score < (options.resultMode === "COMPLETION" ? 1 : 80),
+          meta: { status: score == null && index === 3 ? "NOT_SUBMITTED" : null } } }], exams: [],
+      })) });
       return json({
         meta: { exams: [], homeworks: [] },
         rows: [{ enrollment_id: 9902, student_name: "김하늘", exams: [], homeworks: scoreLocked ? [{ homework_id: HOMEWORK_ID, attempt_count: 1, block: { score: 0 } }] : [], updated_at: "2026-08-23T03:20:00Z" }],
@@ -475,4 +484,74 @@ test("신규 조교가 계정 안내 확인 후 모바일 과제 파일을 열�
   await expect(dialog).not.toHaveClass(/ant-zoom/);
   await expect(dialog).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath("mobile-homework-preview-1366.png"), fullPage: true, animations: "disabled" });
+});
+
+for (const width of [1366, 390]) {
+  test(`@homework-results ${width}px 통과형 결과는 OX·미입력·미제출로 구분하고 상세를 화면 안에서 확인한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await installApi(page, "submitted", false, { resultMode: "COMPLETION", resultScores: [1, 0, null, null] });
+    await openSubmissionReview(page);
+    await page.getByRole("tab", { name: "결과", exact: true }).click();
+    const table = page.getByRole("table");
+    await expect(table.getByRole("columnheader", { name: "O/X", exact: true })).toBeVisible();
+    await expect(page.getByText("점수 분포 (%)", { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/최소 1점/)).toHaveCount(0);
+    await expect(page.getByText("미입력 1명 · 미제출 처리 1명 · 판정 입력 2명", { exact: true })).toBeVisible();
+    for (const [index, value] of ["O", "X", "미입력", "미제출"].entries()) {
+      const row = table.getByRole("row").filter({ hasText: `결과학생${index + 1}` });
+      await expect(row.locator("td").nth(2)).toHaveText(value);
+    }
+    await page.getByRole("combobox", { name: "과제 결과 상태 필터" }).selectOption("ZERO");
+    await expect(table.locator("tbody tr")).toHaveCount(1);
+    await expect(table.locator("tbody tr")).toContainText("결과학생2");
+    await page.getByRole("combobox", { name: "과제 결과 상태 필터" }).selectOption("all");
+    const second = table.getByRole("row").filter({ hasText: "결과학생2" });
+    await second.locator("td").nth(2).click();
+    const detail = page.getByRole("complementary", { name: "선택 학생 상세", exact: true });
+    await expect(detail.getByText("X", { exact: true })).toBeVisible();
+    await detail.scrollIntoViewIfNeeded();
+    const bounds = await detail.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await table.evaluate(node => { if (node.parentElement) node.parentElement.scrollLeft = 0; });
+    await page.screenshot({ path: testInfo.outputPath(`completion-detail-${width}.png`), animations: "disabled" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "결과", exact: true }).click();
+    await expect(page.getByRole("table").getByRole("row").filter({ hasText: "결과학생2" }).locator("td").nth(2)).toHaveText("X");
+  });
+}
+
+test("@homework-results 점수형 소수점 경계는 분포에서 누락되지 않고 기존 점수를 유지한다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [0, 20, 20.5, 40, 40.5, 60, 60.5, 80, 80.5, 100] });
+  await openSubmissionReview(page);
+  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await expect(page.getByText("점수 분포 (%)", { exact: true })).toBeVisible();
+  for (const label of ["0-20", "20초과-40", "40초과-60", "60초과-80", "80초과-100"]) {
+    await expect(page.getByTitle(`${label}: 2명`, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole("table").getByRole("row").filter({ hasText: "결과학생3" }).locator("td").nth(2)).toHaveText("20.5 / 100");
+  const distribution = page.getByText("점수 분포 (%)", { exact: true }).locator("..");
+  await distribution.scrollIntoViewIfNeeded();
+  expect(await distribution.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  const bars = await distribution.locator('[title]').evaluateAll(nodes => nodes.map(node => {
+    const rect = node.firstElementChild!.getBoundingClientRect();
+    return { height: rect.height, bottom: rect.bottom };
+  }));
+  expect(bars).toHaveLength(5);
+  expect(Math.max(...bars.map(bar => bar.height)) - Math.min(...bars.map(bar => bar.height))).toBeLessThanOrEqual(1);
+  expect(Math.max(...bars.map(bar => bar.bottom)) - Math.min(...bars.map(bar => bar.bottom))).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: testInfo.outputPath("score-distribution-390.png"), animations: "disabled" });
+});
+
+test("@homework-results 전원 미입력은 제출률100% 대신 실제 입력 현황을 표시한다", async ({ page }) => {
+  await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [null, null, null] });
+  await openSubmissionReview(page);
+  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await expect(page.getByText("미입력 3명 · 미제출 처리 0명 · 채점 입력 0명", { exact: true })).toBeVisible();
+  await expect(page.getByText(/제출률/)).toHaveCount(0);
+  await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(3);
 });
