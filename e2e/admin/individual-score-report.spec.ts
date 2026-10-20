@@ -13,6 +13,7 @@ const DENSE_EXAM_TITLE = "매우 긴 한국어 시험 제목으로 줄바꿈과 
 
 type InstallApiOptions = {
   homeworkModes?: boolean;
+  provisionalExam?: boolean;
   totalState?: "zero" | "pending" | "none";
   denseReport?: boolean;
   omrIssue?: boolean;
@@ -358,6 +359,11 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       ? denseScoreRows()
       : scoreRows;
   const activeScoreRows = initialScoreRows.map((row) => {
+    if (options.provisionalExam) return {
+      ...row,
+      exam_total: { score: null, max_score: 100, selected_count: 1, scored_count: 0, complete: false },
+      exams: row.exams.map((exam) => ({ ...exam, block: { ...exam.block, is_provisional: true } })),
+    };
     if (!options.totalState) return row;
     const score = options.totalState === "zero" ? 0 : null;
     const total = {
@@ -365,7 +371,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       max_score: options.totalState === "none" ? 0 : 100,
       selected_count: options.totalState === "none" ? 0 : 1,
       scored_count: options.totalState === "zero" ? 1 : 0,
-      complete: options.totalState !== "pending",
+      complete: options.totalState === "zero",
     };
     return {
       ...row,
@@ -555,6 +561,31 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 }
 
 test.describe("개인 성적표", () => {
+  for (const width of [1366, 390]) {
+    test(`@assessment-report-provisional ${width}px 미확정 시험은 점수·평균·문항 분석으로 확정 표시하지 않는다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await installApi(page, { provisionalExam: true });
+      await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+      const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
+      const assessment = frame.locator(".assessment-row").filter({ has: frame.getByText("방정식 단원평가", { exact: true }) });
+      await expect(assessment.locator(".status")).toHaveText("채점 확인 중");
+      await expect(assessment.locator(".assessment-score")).toHaveText("- / 100");
+      await expect(assessment.locator(".assessment-title")).not.toContainText("객관");
+      await expect(frame.locator(".session-fact").filter({ hasText: "시험 평균" })).toHaveText("시험 평균-");
+      await expect(frame.locator(".session-fact").filter({ hasText: "시험 총점" })).toHaveText("시험 총점- / 100집계 중 · 0/1개 입력");
+      await expect(frame.getByRole("heading", { name: "현재 시험 문항별 득점", exact: true })).toHaveCount(0);
+      await expect(frame.locator(".coaching-box")).toContainText("채점 확인 중인 시험이 1건");
+      if (width === 390) {
+        const pending = frame.locator(".session-fact--total small");
+        expect(await pending.evaluate(node => Number.parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(10);
+        expect(await frame.locator(".session-fact--total").evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth))).toBe(true);
+      }
+      await assessment.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`report-provisional-${width}.png`), animations: "disabled" });
+    });
+  }
+
   for (const [totalState, expected] of [
     ["zero", "0 / 100"],
     ["pending", "- / 100집계 중 · 0/1개 입력"],
