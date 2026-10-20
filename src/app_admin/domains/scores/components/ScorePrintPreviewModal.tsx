@@ -37,7 +37,10 @@ export default function ScorePrintPreviewModal({
 }: Props) {
   const { program } = useProgram();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"fit" | "actual">("fit");
+  const [fitScale, setFitScale] = useState(0.85);
 
   const params = useMemo<ScorePdfParams>(
     () => ({
@@ -80,7 +83,22 @@ export default function ScorePrintPreviewModal({
   const previewHeight = `${(pageCount * 210) + (Math.max(0, pageCount - 1) * 8)}mm`;
   const previewStyle = {
     "--score-report-preview-height": previewHeight,
+    "--score-report-preview-scale": previewMode === "fit" ? fitScale : 1,
   } as CSSProperties;
+
+  useEffect(() => {
+    const preview = previewRef.current;
+    if (!open || !preview) return;
+    const updateScale = () => {
+      const style = getComputedStyle(preview);
+      const available = preview.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      setFitScale(Math.min(1, Math.max(0.1, available / (297 * 96 / 25.4))));
+    };
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(preview);
+    return () => observer.disconnect();
+  }, [open]);
 
   useEffect(() => {
     if (!open || !iframeRef.current) return;
@@ -118,22 +136,31 @@ export default function ScorePrintPreviewModal({
         className="print-preview-modal__panel print-preview-modal__panel--score bg-[var(--color-bg-surface)] rounded-lg shadow-2xl border border-[var(--color-border-divider)] flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border-divider)]">
-          <div className="flex items-center gap-3">
-            <FileText size={20} strokeWidth={2} className="text-[var(--color-text-muted)]" aria-hidden />
-            <h2 id="score-print-preview-title" className="text-base font-semibold text-[var(--color-text-primary)]">
+        <div className="score-print-preview__header flex items-center justify-between gap-3 px-5 py-3 border-b border-[var(--color-border-divider)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <FileText size={20} strokeWidth={2} className="shrink-0 text-[var(--color-text-muted)]" aria-hidden />
+            <h2 id="score-print-preview-title" className="whitespace-nowrap text-base font-semibold text-[var(--color-text-primary)]">
               성적표 미리보기
             </h2>
             <span className="text-xs text-[var(--color-text-muted)]">
               {params.rows.length}명 · A4 가로 {pageCount}쪽
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="score-print-preview__actions flex flex-wrap items-center gap-2">
+            <select
+              aria-label="성적표 미리보기 배율"
+              value={previewMode}
+              onChange={event => setPreviewMode(event.target.value === "actual" ? "actual" : "fit")}
+              className="h-9 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-2 text-sm"
+            >
+              <option value="fit">화면에 맞추기</option>
+              <option value="actual">100%</option>
+            </select>
             <button
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="h-9 px-5 rounded text-sm font-semibold bg-[var(--color-brand-primary)] text-white hover:opacity-90 disabled:opacity-60 flex items-center gap-2"
+              className="h-9 px-3 whitespace-nowrap rounded text-sm font-semibold bg-[var(--color-brand-primary)] text-white hover:opacity-90 disabled:opacity-60 flex items-center gap-2"
             >
               <Download size={16} strokeWidth={2} aria-hidden />
               {downloading ? "PDF 생성 중…" : "PDF 다운로드"}
@@ -141,7 +168,7 @@ export default function ScorePrintPreviewModal({
             <button
               type="button"
               onClick={onClose}
-              className="h-9 px-4 rounded text-sm font-medium border border-[var(--color-border-divider)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
+              className="h-9 px-3 whitespace-nowrap rounded text-sm font-medium border border-[var(--color-border-divider)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
             >
               닫기
             </button>
@@ -149,16 +176,18 @@ export default function ScorePrintPreviewModal({
         </div>
 
         {/* Preview area */}
-        <div className="flex-1 overflow-auto bg-[#e5e7eb] p-4">
+        <div ref={previewRef} className="score-print-preview__viewport flex-1 min-h-0 overflow-auto bg-[#e5e7eb] p-4">
           <div
-            className="print-preview-modal__paper print-preview-modal__paper--landscape mx-auto bg-white shadow-lg"
+            className="score-print-preview__scaled-page mx-auto"
             style={previewStyle}
           >
+            <div className="print-preview-modal__paper print-preview-modal__paper--landscape bg-white shadow-lg">
             <iframe
               ref={iframeRef}
               title="성적표 미리보기"
               className="print-preview-modal__iframe print-preview-modal__iframe--landscape"
             />
+            </div>
           </div>
         </div>
       </div>

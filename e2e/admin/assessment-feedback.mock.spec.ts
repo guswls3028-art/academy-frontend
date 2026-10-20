@@ -1,9 +1,12 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { openCompositionScores } from "../helpers/assessmentCompositionMock";
 
-async function installComposition(page: Page) {
+async function installComposition(page: Page, includeRefreshRow = false, totalRecovery?: "removed" | "lost-response") {
   const writes: Record<string, unknown>[] = [];
   let version = 0, text = "", commentVersion = 0, failSave = true;
+  let staleNextRead: { text: string; version: number } | undefined;
+  const commentWrites: number[] = [];
+  let refreshText = "", refreshVersion = 0, primaryAssigned = true, failCommentReads = false;
   let examIds = [9101, 9102], homeworkIds = [9151, 9152];
   let examOrder = [9101, 9102], homeworkOrder = [9151, 9152, 9153];
   const total = (ids: number[], values: Record<number, number | null>) => ({
@@ -15,17 +18,51 @@ async function installComposition(page: Page) {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/total-config/") && route.request().method() === "PUT") {
       const body = route.request().postDataJSON(); writes.push(body);
-      if (failSave) { failSave = false; await route.fulfill({ status: 503, json: { detail: "합산 저장 일시 실패" } }); return; }
+      if (totalRecovery === "removed" && failSave) {
+        failSave = false; examOrder = [9101]; examIds = [9101];
+        await route.fulfill({ status: 400, json: { detail: "차시 평가 목록이 변경되었습니다. 새 목록을 확인해 주세요." } }); return;
+      }
+      if (!totalRecovery && failSave) { failSave = false; await route.fulfill({ status: 503, json: { detail: "합산 저장 일시 실패" } }); return; }
+      if (body.expected_version !== version) {
+        await route.fulfill({ status: 409, json: { detail: "다른 선생님이 합산 설정을 변경했습니다." } }); return;
+      }
       expect(body.expected_version).toBe(version);
       examIds = body.exam_ids; homeworkIds = body.homework_ids;
       examOrder = body.exam_order ?? examOrder; homeworkOrder = body.homework_order ?? homeworkOrder; version++;
+      if (totalRecovery === "lost-response" && failSave) {
+        failSave = false; await route.abort("aborted"); return;
+      }
       await route.fulfill({ json: { version, exam_ids: examIds, homework_ids: homeworkIds } }); return;
     }
     if (path.includes("/exam/9101/parent-comments/")) {
-      if (route.request().method() === "PUT") { const body = route.request().postDataJSON(); expect(body.version).toBe(commentVersion); text = body.text; commentVersion++; }
+      if (route.request().method() === "GET" && failCommentReads) {
+        await route.fulfill({ status: 503, json: { detail: "코멘트 조회 일시 실패" } }); return;
+      }
+      if (route.request().method() === "PUT" && path.endsWith("/9202/")) {
+        const body = route.request().postDataJSON();
+        expect(body.version).toBe(refreshVersion);
+        refreshText = body.text; refreshVersion++;
+        await route.fulfill({ json: { enrollment_id: 9202, student_id: 9302, student_name: "함께 배정된 학생",
+          text: refreshText, version: refreshVersion, updated_by: 12, updated_at: "2026-10-19T10:00:00Z", history: [] } }); return;
+      }
+      if (route.request().method() === "PUT" && !primaryAssigned) {
+        await route.fulfill({ status: 404, json: { detail: "평가 배정 없음" } }); return;
+      }
+      if (route.request().method() === "PUT") {
+        const body = route.request().postDataJSON(); commentWrites.push(body.version);
+        if (body.version !== commentVersion) { await route.fulfill({ status: 409, json: { detail: "동시 수정" } }); return; }
+        text = body.text; commentVersion++;
+      }
       const row = { enrollment_id: 9201, student_id: 9301, student_name: "모바일순서학생", text, version: commentVersion,
         updated_by: 12, updated_at: "2026-10-19T10:00:00Z", history: text ? [{ version: commentVersion, text, author_id: 12, author_name: "선생님", created_at: "2026-10-19T10:00:00Z" }] : [] };
-      await route.fulfill({ json: route.request().method() === "PUT" ? row : { items: [row] } }); return;
+      if (route.request().method() === "GET" && staleNextRead) {
+        row.text = staleNextRead.text; row.version = staleNextRead.version;
+        staleNextRead = undefined;
+      }
+      await route.fulfill({ json: route.request().method() === "PUT" ? row : { items: [...(primaryAssigned ? [row] : []), ...(includeRefreshRow ? [{
+        enrollment_id: 9202, student_id: 9302, student_name: "함께 배정된 학생", text: refreshText,
+        version: refreshVersion, updated_by: 12, updated_at: "2026-10-19T10:00:00Z", history: [],
+      }] : [])] } }); return;
     }
     if (!path.endsWith("/scores/")) { await route.fallback(); return; }
     await route.fulfill({ json: { meta: { session_title: "모바일 순서 검증 차시", lecture_title: "모바일 순서 검증반", lecture_id: 9001,
@@ -37,7 +74,59 @@ async function installComposition(page: Page) {
         homeworks: [9151, 9152, 9153].map((id, i) => ({ homework_id: id, title: id === 9153 ? "준비물 통과형" : i ? "둘째 과제" : "첫 과제", block: { score: id === 9153 ? 1 : i ? 40 : 25, max_score: id === 9153 ? 1 : 100, passed: false, is_locked: false, meta: {} } })),
         exam_total: total(examIds, { 9101: 0, 9102: null }), homework_total: total(homeworkIds, { 9151: 25, 9152: 40 }), clinic_required: false, progress_completed: false }] } });
   });
-  return { writes, comment: () => ({ text, version: commentVersion }) };
+  return { writes, totals: () => ({ version, examIds: [...examIds], examOrder: [...examOrder] }), commentWrites, comment: () => ({ text, version: commentVersion }),
+    setCommentReadFailure: (value: boolean) => { failCommentReads = value; },
+    setAssigned: (value: boolean) => { primaryAssigned = value; },
+    serverEdit: (value: string) => { text = value; commentVersion++; },
+    staleNextCommentRead: (value: string, version: number) => { staleNextRead = { text: value, version }; },
+  };
+}
+
+for (const recovery of ["removed", "lost-response"] as const) {
+  const width = recovery === "removed" ? 1366 : 390;
+  test(`@assessment-total-recovery ${width}px ${recovery} 합산 설정 재조회·저장·새로고침`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openCompositionScores(page);
+    const harness = await installComposition(page, false, recovery);
+    await page.reload();
+    await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+    const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
+    await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+    await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산", exact: true })).toBeVisible();
+    await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    if (recovery === "lost-response") {
+      await expect(modal.getByRole("alert")).toBeVisible();
+      expect(harness.totals()).toEqual({ version: 1, examIds: [9101], examOrder: [9101, 9102] });
+      // Retrying the unchanged draft must not toggle or overwrite the committed selection.
+      await expect(modal.getByRole("button", { name: "합산 설정 저장", exact: true })).toBeEnabled();
+      await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+      await expect(modal.getByRole("alert")).toContainText("다른 선생님");
+      expect(harness.totals().version).toBe(1);
+    } else {
+      await expect(modal.getByRole("alert")).toContainText("차시 평가 목록이 변경");
+      expect(harness.totals()).toEqual({ version: 0, examIds: [9101], examOrder: [9101] });
+    }
+    await expect(modal.getByRole("button", { name: "합산 설정 저장", exact: true })).toBeDisabled();
+    await modal.getByRole("button", { name: "최신 설정으로 다시 시작", exact: true }).click();
+    await expect(modal.getByRole("button", { name: "합산 설정 저장", exact: true })).toBeEnabled();
+    await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산", exact: true })).toBeVisible();
+    await expect(modal.getByRole("button", { name: "둘째 시험 위로 이동", exact: true })).toHaveCount(recovery === "removed" ? 0 : 1);
+    await page.screenshot({ path: testInfo.outputPath(`total-config-${recovery}-${width}.png`), animations: "disabled" });
+    await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect(modal).toBeHidden();
+    expect(harness.writes.at(-1)).toMatchObject({ expected_version: recovery === "removed" ? 0 : 1,
+      exam_ids: [9101], exam_order: recovery === "removed" ? [9101] : [9101, 9102] });
+    expect(harness.totals().version).toBe(recovery === "removed" ? 1 : 2);
+    await page.reload();
+    const row = page.locator("tbody tr").filter({ hasText: "모바일순서학생" }).last();
+    await expect(row.locator(".assessment-total-value").first()).toHaveText("0 / 100");
+    if (recovery === "removed") {
+      await expect(page.getByRole("button", { name: "첫 시험 작업 선택", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "둘째 시험 작업 선택", exact: true })).toHaveCount(0);
+    } else {
+      await expect.poll(() => page.locator('[data-testid^="score-column-order-exam-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9101, 9102]);
+    }
+  });
 }
 
 for (const width of [1366, 390]) {
@@ -117,7 +206,7 @@ for (const width of [1366, 390]) {
     const comment = page.getByRole("dialog", { name: "학부모 코멘트", exact: true });
     await comment.getByLabel("모바일순서학생", { exact: true }).fill("풀이 과정을 설명하는 연습을 해 주세요.");
     await comment.getByRole("button", { name: "학부모에게 공개", exact: true }).click();
-    await expect(comment.getByRole("status")).toContainText("학부모에게 공개했습니다.");
+    await expect(comment.getByRole("status").filter({ hasText: "학부모에게 공개했습니다." })).toBeVisible();
     await page.reload();
     await page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }).click();
     await page.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
@@ -127,5 +216,135 @@ for (const width of [1366, 390]) {
     )).toBeLessThan(1);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
     await page.screenshot({ path: testInfo.outputPath(`assessment-parent-comment-${width}.png`), fullPage: true, animations: "disabled" });
+  });
+}
+
+for (const width of [1366, 390]) {
+  test(`@assessment-feedback ${width}px 열린 코멘트 재조회는 미편집 갱신·초안 충돌·저장 안내를 보존한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openCompositionScores(page);
+    const harness = await installComposition(page, true);
+    await page.reload();
+    await page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }).click();
+    await page.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
+    const modal = page.getByRole("dialog", { name: "학부모 코멘트", exact: true });
+    const editor = modal.locator(".parent-comment-row").filter({ has: page.getByLabel("모바일순서학생", { exact: true }) });
+    const refreshEditor = modal.locator(".parent-comment-row").filter({ has: page.getByLabel("함께 배정된 학생", { exact: true }) });
+    const input = modal.getByLabel("모바일순서학생", { exact: true });
+    await expect(input).toHaveValue("");
+    let refreshNumber = 0;
+    const refetch = async () => {
+      await refreshEditor.getByLabel("함께 배정된 학생", { exact: true }).fill(`다른 학생 공개 ${++refreshNumber}`);
+      await Promise.all([
+        page.waitForResponse(response => response.request().method() === "GET" && response.url().includes("/exam/9101/parent-comments/")),
+        refreshEditor.getByRole("button", { name: "학부모에게 공개", exact: true }).click(),
+      ]);
+    };
+    harness.serverEdit("다른 선생님의 첫 수정");
+    await refetch();
+    await expect(input).toHaveValue("다른 선생님의 첫 수정");
+    await modal.getByText("수정 이력 (1)", { exact: true }).click();
+    await expect(editor.locator("details p")).toHaveText("다른 선생님의 첫 수정");
+    await input.fill("보존할 작성 초안");
+    const unloadIsBlocked = () => page.evaluate(() => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event); return event.defaultPrevented;
+    });
+    expect(await unloadIsBlocked()).toBe(true);
+    // Real browser navigation must ask before discarding an unpublished draft.
+    const unloadDialog = page.waitForEvent("dialog");
+    // Invoke the real browser reload without waiting for a navigation that the
+    // user's dismissal intentionally cancels (page.reload waits until timeout).
+    const cancelledReload = page.evaluate(() => window.location.reload());
+    const warning = await unloadDialog;
+    expect(warning.type()).toBe("beforeunload");
+    await warning.dismiss();
+    await cancelledReload;
+    await expect(input).toHaveValue("보존할 작성 초안");
+    harness.serverEdit("다른 선생님의 두 번째 수정");
+    await refetch();
+    await expect(input).toHaveValue("보존할 작성 초안");
+    await expect(editor.locator("details p")).toHaveText("다른 선생님의 첫 수정");
+    // A different student's save can refetch a roster that no longer contains this draft.
+    harness.setAssigned(false);
+    await refetch();
+    await expect(input).toHaveValue("보존할 작성 초안");
+    await expect(editor.getByRole("button", { name: "학부모에게 공개", exact: true })).toBeDisabled();
+    await expect(editor.getByRole("status").filter({ hasText: "배정이 해제" })).toBeVisible();
+    await input.fill("보존할 작성 초안 수정");
+    await expect(input).toHaveValue("보존할 작성 초안 수정");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    await modal.screenshot({ path: testInfo.outputPath(`comment-unassigned-draft-${width}.png`), animations: "disabled" });
+    // Minimize to use the ordinary tabs, then browser-back into the score page.
+    // The editor unmounts on the attendance route; only scoped memory may recover it.
+    await modal.getByTitle("최소화", { exact: true }).click();
+    await page.getByRole("tab", { name: "출결", exact: true }).click();
+    await expect(page).toHaveURL(/\/attendance$/);
+    await expect(page.getByRole("button", { name: "첫 시험 작업 선택", exact: true })).toHaveCount(0);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/scores$/);
+    await page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }).click();
+    await page.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
+    await expect(input).toHaveValue("보존할 작성 초안 수정");
+    await expect(editor.getByRole("button", { name: "학부모에게 공개", exact: true })).toBeDisabled();
+    await modal.getByText("수정 이력 (1)", { exact: true }).click();
+    harness.setAssigned(true);
+    await editor.getByRole("button", { name: "배정 다시 확인", exact: true }).click();
+    await expect(editor.getByRole("button", { name: "학부모에게 공개", exact: true })).toBeEnabled();
+    await expect(input).toHaveValue("보존할 작성 초안 수정");
+    // Reverting the draft must consume the already-fetched newer server row.
+    await input.fill("다른 선생님의 첫 수정");
+    await expect(input).toHaveValue("다른 선생님의 두 번째 수정");
+    await expect(editor.locator("details p")).toHaveText("다른 선생님의 두 번째 수정");
+    await input.fill("보존할 작성 초안");
+    harness.serverEdit("다른 선생님의 세 번째 수정");
+    await refetch();
+    await expect(input).toHaveValue("보존할 작성 초안");
+    await editor.getByRole("button", { name: "학부모에게 공개", exact: true }).click();
+    await expect(editor.getByRole("status").filter({ hasText: "다른 선생님이 수정했습니다" })).toBeVisible();
+    expect(harness.commentWrites).toEqual([2]);
+    await modal.getByRole("button", { name: "최신 내용 확인", exact: true }).click();
+    await expect(editor.getByRole("status").filter({ hasText: "다른 선생님의 세 번째 수정" })).toBeVisible();
+    await expect(input).toHaveValue("보존할 작성 초안");
+    // The invalidation may return an older snapshot after PUT has already succeeded.
+    harness.staleNextCommentRead("다른 선생님의 두 번째 수정", 2);
+    await Promise.all([
+      page.waitForResponse(response => response.request().method() === "GET" && response.url().includes("/exam/9101/parent-comments/")),
+      editor.getByRole("button", { name: "학부모에게 공개", exact: true }).click(),
+    ]);
+    await expect(input).toHaveValue("보존할 작성 초안");
+    await expect(editor.getByRole("status").filter({ hasText: "학부모에게 공개했습니다" })).toBeVisible();
+    expect(harness.commentWrites).toEqual([2, 3]);
+    expect(harness.comment()).toEqual({ text: "보존할 작성 초안", version: 4 });
+    // A matching acknowledgement must retain the successful publication message.
+    await refetch();
+    await expect(input).toHaveValue("보존할 작성 초안");
+    await expect(editor.getByRole("status").filter({ hasText: "학부모에게 공개했습니다" })).toBeVisible();
+    // A failed refresh retains the assigned row; discard must reset its mounted editor too.
+    await input.fill("조회 실패 뒤 폐기할 초안");
+    harness.setCommentReadFailure(true);
+    await refetch();
+    await expect(modal.getByRole("alert")).toContainText("코멘트를 불러오지 못했습니다");
+    await expect(editor.getByRole("button", { name: "학부모에게 공개", exact: true })).toBeDisabled();
+    await editor.getByRole("button", { name: "초안 버리기", exact: true }).click();
+    await expect(input).toHaveValue("보존할 작성 초안");
+    expect(await unloadIsBlocked()).toBe(false);
+    harness.setCommentReadFailure(false);
+    await editor.getByRole("button", { name: "배정 다시 확인", exact: true }).click();
+    await expect(modal.getByRole("alert")).toHaveCount(0);
+    await input.fill("조회 복구 후 공개한 코멘트");
+    await editor.getByRole("button", { name: "학부모에게 공개", exact: true }).click();
+    await expect(editor.getByRole("status").filter({ hasText: "학부모에게 공개했습니다" })).toBeVisible();
+    expect(harness.comment()).toEqual({ text: "조회 복구 후 공개한 코멘트", version: 5 });
+    await input.fill("배정 해제 후 폐기할 초안");
+    harness.setAssigned(false);
+    await refetch();
+    await expect(input).toHaveValue("배정 해제 후 폐기할 초안");
+    await editor.getByRole("button", { name: "초안 버리기", exact: true }).click();
+    await expect(input).toHaveCount(0);
+    expect(await unloadIsBlocked()).toBe(false);
+    await page.keyboard.press("Escape");
+    await expect(modal).toBeHidden();
+    await expect(page.getByRole("dialog", { name: "작성 중인 코멘트" })).toHaveCount(0);
   });
 }

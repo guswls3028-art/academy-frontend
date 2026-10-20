@@ -3,9 +3,11 @@ import { getBaseUrl } from "../helpers/auth";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { realMessagingSkipReason } from "../helpers/safety";
 import { createScoreExitReceiver } from "../helpers/scoreExitReceiver";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 
 type ScoreRouteOptions = {
+  studentNames?: string[];
+  examTitle?: string;
   initialScores?: Array<number | null>;
   examMaxScore?: number;
   rowExamMaxScores?: number[];
@@ -19,8 +21,10 @@ type ScoreRouteOptions = {
   initialHomeworkScores?: Array<number | null>;
   homeworkAssignedRows?: boolean[];
   homeworkGradingMode?: "SCORE" | "COMPLETION";
+  homeworkMetaStatuses?: string[];
   scoreSummaryColumnDefault?: "exam_wrong";
   assessmentStatusDisplay?: "wrong_completion";
+  scoreOutputMode?: "anonymous_billboard";
   nullScoresPassedFalse?: boolean;
   nullHomeworkScoresPassedFalse?: boolean;
   examAssignedRows?: boolean[];
@@ -31,7 +35,7 @@ type ScoreRouteOptions = {
   rowNameHighlightFollowupRequired?: boolean[];
   includeCorrectionPendingCounts?: boolean;
   scorePatchProjectionReady?: boolean;
-  scoreSheetReadSequence?: Array<"ready" | "pending" | "error">;
+  scoreSheetReadSequence?: Array<"ready" | "pending" | "provisional" | "error" | "missing-first">;
   activeEditors?: Array<{
     client_id: string;
     editor_user_id: number;
@@ -68,6 +72,7 @@ async function openScores(
   );
   await installLocalAuthApiStubs(page, {
     programFeatureFlags: {
+      ...(routeOptions.scoreOutputMode ? { score_output_mode: routeOptions.scoreOutputMode } : {}),
       ...(routeOptions.scoreSummaryColumnDefault
         ? { score_summary_column_default: routeOptions.scoreSummaryColumnDefault }
         : {}),
@@ -214,7 +219,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             lecture_id: 9001,
             exams: [{
               exam_id: 9101,
-              title: "주간 확인",
+              title: options.examTitle ?? "주간 확인",
               pass_score: 60,
               max_score: examMaxScore,
               objective_max_score: 80,
@@ -241,7 +246,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
           rows: currentScores.map((score, index) => ({
             enrollment_id: 9201 + index,
             student_id: 9301 + index,
-            student_name: `자동저장학생${index + 1}`,
+            student_name: options.studentNames?.[index] ?? `자동저장학생${index + 1}`,
             attendance_status: options.attendanceStatuses?.[index] ?? "PRESENT",
             assessment_todo_eligible: options.assessmentTodoEligible?.[index] ?? true,
             lecture_title: "자동 저장 검증반",
@@ -265,6 +270,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                   ? undefined
                   : score == null && options.nullScoresPassedFalse ? "FAIL" : undefined,
                 grading_status: subjectivePending && index === 0 ? "subjective_pending" : null,
+                is_provisional: (subjectivePending || readState === "provisional") && index === 0,
                 clinic_required: subjectivePending && index === 0 ? false : score == null ? false : score < 60,
                 is_locked: false,
                 objective_score: score,
@@ -308,7 +314,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                     ? currentHomeworkScores[index]! < 1
                     : currentHomeworkScores[index]! < 60,
                 is_locked: false,
-                meta: {},
+                meta: { status: options.homeworkMetaStatuses?.[index] ?? null },
                 updated_at: currentHomeworkVersions[index],
               },
             }] : [],
@@ -328,7 +334,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             } : {}),
             progress_completed: false,
             updated_at: "2026-07-25T12:00:00+09:00",
-          })),
+          })).filter(row => readState !== "missing-first" || row.enrollment_id !== 9201),
         },
       });
       return;
@@ -1773,6 +1779,53 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
   });
 
+  for (const width of [1366, 390]) {
+    test(`@drawer-missing-score-row ${width}px 사라진 발송 대상은 이전 성적으로 열지 않고 정상 대상으로 복구한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await openScores(page, { initialScores: [65, 72], scoreSheetReadSequence: ["ready", "missing-first", "missing-first", "ready"] });
+      await page.getByText("자동저장학생1", { exact: true }).first().click();
+      const drawer = page.getByRole("complementary", { name: "자동저장학생1 학생 상세 열기", exact: true });
+      await expect(drawer).toBeVisible();
+      await drawer.getByRole("button", { name: "알림톡", exact: true }).click();
+      await expect(page.getByText("학생의 수강 또는 배정이 변경되었습니다. 목록에서 대상을 다시 선택해 주세요.", { exact: true })).toBeVisible();
+      await expect(drawer).toHaveCount(0);
+      await page.screenshot({ path: testInfo.outputPath(`drawer-target-changed-${width}.png`), animations: "disabled" });
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toHaveCount(0);
+      // The remaining valid student can immediately enter the normal modal.
+      await page.getByText("자동저장학생2", { exact: true }).first().click();
+      await page.getByRole("complementary", { name: "자동저장학생2 학생 상세 열기", exact: true }).getByRole("button", { name: "알림톡", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toBeVisible();
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toContainText("자동저장학생2");
+      // After roster restoration and reload, the original target also works normally.
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByText("자동저장학생1", { exact: true }).first().click();
+      await page.getByRole("complementary", { name: "자동저장학생1 학생 상세 열기", exact: true }).getByRole("button", { name: "알림톡", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toBeVisible();
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toContainText("자동저장학생1");
+    });
+  }
+
+  for (const width of [1366, 390]) {
+    test(`@drawer-pending-recovery ${width}px 단건 미확정 안내는 미응시 입력을 권하지 않고 채점 후 정상 복구한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await openScores(page, { initialScores: [65, 72], scoreSheetReadSequence: ["ready", "pending", "provisional", "ready"] });
+      await page.getByText("자동저장학생1", { exact: true }).first().click();
+      const drawer = page.getByRole("complementary", { name: "자동저장학생1 학생 상세 열기", exact: true });
+      await expect(drawer).toBeVisible();
+      await drawer.getByRole("button", { name: "알림톡", exact: true }).click();
+      await expect(page.getByText("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.", { exact: true })).toBeVisible();
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toHaveCount(0);
+      await drawer.getByRole("button", { name: "알림톡", exact: true }).click();
+      await expect(page.getByText("채점을 확인 중인 시험이 1건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.", { exact: true })).toBeVisible();
+      await expect(page.getByText(/점수를 입력하거나 \/로 미응시/)).toHaveCount(0);
+      await expect(page.getByRole("dialog", { name: /^알림톡 발송/ })).toHaveCount(0);
+      await drawer.getByRole("button", { name: "알림톡", exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: /^알림톡 발송/ });
+      await expect(dialog).toBeVisible();
+      await expect(dialog).toContainText("자동저장학생1");
+    });
+  }
+
   test("발송 직전 두 번째 조회가 서술형 대기로 바뀌면 이전 확정값으로 모달을 열지 않는다", async ({ page }) => {
     await openScores(page, {
       initialScores: [65, 52],
@@ -1785,6 +1838,23 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByText(/최신 성적에 서술형 점수 입력이 필요합니다/)).toBeVisible();
     await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
   });
+
+  for (const provisionalRead of [1, 2]) {
+    test(`발송 전 ${provisionalRead}번째 조회의 미확정 시험은 확인 후 정상 발송 준비로 복구한다`, async ({ page }) => {
+      await openScores(page, {
+        initialScores: [65, 52],
+        scoreSheetReadSequence: provisionalRead === 1
+          ? ["ready", "provisional", "ready"]
+          : ["ready", "ready", "provisional", "ready"],
+      });
+      await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
+      await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+      await expect(page.getByText(/채점을 확인 중인 시험이 1건 있습니다/)).toBeVisible();
+      await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
+      await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+      await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toBeVisible();
+    });
+  }
 
   test("발송 직전 두 번째 조회가 실패하면 이전 성적으로 모달을 열지 않는다", async ({ page }) => {
     await openScores(page, {
@@ -2661,3 +2731,106 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     }
   });
 });
+
+for (const width of [1366, 390]) {
+  test(`@score-csv ${width}px 최신 조회 실패·사라진 대상 복구 후 실제 CSV 상태를 구분한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const readState: NonNullable<ScoreRouteOptions["scoreSheetReadSequence"]> = ["ready"];
+    await openScores(page, {
+      initialScores: [90, 0, null, 70, 80, 60], includeHomework: true,
+      homeworkGradingMode: "COMPLETION", homeworkMaxScore: 1,
+      initialHomeworkScores: [1, 0, null, null, null, 1],
+      homeworkAssignedRows: [true, true, true, true, false, true],
+      homeworkMetaStatuses: ["", "", "", "NOT_SUBMITTED"],
+      scoreSheetReadSequence: readState,
+    });
+    for (let index = 1; index <= 6; index++) {
+      await page.getByRole("checkbox", { name: `자동저장학생${index} 선택`, exact: true }).check();
+    }
+    const downloads: string[] = [];
+    page.on("download", download => downloads.push(download.suggestedFilename()));
+    const exportButton = page.getByRole("button", { name: "엑셀 다운로드", exact: true });
+    readState[0] = "error";
+    await exportButton.click();
+    await expect(page.getByText("최신 성적을 불러오지 못했습니다. 다시 다운로드해 주세요.", { exact: true })).toBeVisible();
+    expect(downloads).toEqual([]);
+    readState[0] = "missing-first";
+    await exportButton.click();
+    await expect(page.getByText("학생의 수강 또는 배정이 변경되었습니다. 목록에서 대상을 다시 선택해 주세요.", { exact: true })).toBeVisible();
+    expect(downloads).toEqual([]);
+    readState[0] = "provisional";
+    await page.reload({ waitUntil: "domcontentloaded" });
+    for (let index = 1; index <= 6; index++) {
+      await page.getByRole("checkbox", { name: `자동저장학생${index} 선택`, exact: true }).check();
+    }
+    const downloaded = page.waitForEvent("download");
+    await exportButton.click();
+    const download = await downloaded;
+    const path = testInfo.outputPath("score-states.csv");
+    await download.saveAs(path);
+    const csv = await readFile(path, "utf8");
+    expect(csv.replace(/^\uFEFF/, "").split("\r\n")).toEqual([
+      '"이름","주간 확인 (점수)","단원 복습 (O/X)"',
+      '"자동저장학생1","채점 확인 중","O"',
+      '"자동저장학생2","0","X"',
+      '"자동저장학생3","미입력","미입력"',
+      '"자동저장학생4","70","미제출"',
+      '"자동저장학생5","80","미배정"',
+      '"자동저장학생6","60","O"',
+    ]);
+    expect(downloads).toHaveLength(1);
+    expect(download.suggestedFilename()).toBe("성적_6명.csv");
+  });
+}
+
+test("@score-csv 수식형 이름·평가명은 리터럴로 내보내고 CSV 특수문자와 숫자0을 보존한다", async ({ page }, testInfo) => {
+  const names = ["=1+1", "+1", "-1", "@name", "\t=1+1", '따옴표",쉼표\n줄바꿈'];
+  await openScores(page, { initialScores: names.map(() => 0), studentNames: names, examTitle: "=1+1" });
+  await page.getByRole("checkbox", { name: "전체 선택", exact: true }).check();
+  const downloaded = page.waitForEvent("download");
+  await page.getByRole("button", { name: "엑셀 다운로드", exact: true }).click();
+  const download = await downloaded;
+  const path = testInfo.outputPath("literal-text.csv");
+  await download.saveAs(path);
+  const csv = await readFile(path, "utf8");
+  const quote = (value: string) => `"${value.replace(/"/g, '""')}"`;
+  expect(csv).toBe("\uFEFF" + [
+    ["이름", "'=1+1 (점수)"].map(quote).join(","),
+    ...names.map((name, index) => [index < 5 ? `'${name}` : name, "0"].map(quote).join(",")),
+  ].join("\r\n"));
+});
+
+for (const report of [
+  { menu: "성적표 출력", title: "성적표 미리보기", width: 1366 },
+  { menu: "클리닉 대상", title: "클리닉 대상자 미리보기", width: 390 },
+  { menu: "익명 순위표", title: "익명 순위표 미리보기", width: 1366 },
+] as const) {
+  test(`@score-print-recovery ${report.menu} 최신 조회 실패 뒤 재시도하면 현재 성적을 출력한다`, async ({ page }) => {
+    await page.setViewportSize({ width: report.width, height: 900 });
+    const readState: NonNullable<ScoreRouteOptions["scoreSheetReadSequence"]> = ["ready"];
+    const clinicRequired = [true];
+    await openScores(page, {
+      initialScores: [50], rowClinicRequired: clinicRequired,
+      scoreOutputMode: report.menu === "익명 순위표" ? "anonymous_billboard" : undefined,
+      scoreSheetReadSequence: readState,
+    });
+    await page.getByRole("button", { name: "성적 도구", exact: true }).click();
+    readState[0] = "error";
+    await page.getByRole("menuitem").filter({ hasText: report.menu }).click();
+    await expect(page.getByText("최신 성적을 불러오지 못했습니다. 다시 시도해 주세요.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: report.title, exact: true })).toHaveCount(0);
+    readState[0] = "ready";
+    currentScores[0] = report.menu === "클리닉 대상" ? 95 : 55;
+    clinicRequired[0] = false;
+    await page.getByRole("menuitem").filter({ hasText: report.menu }).click();
+    await expect(page.getByRole("dialog", { name: report.title, exact: true })).toBeVisible();
+    const frame = page.frameLocator(`iframe[title="${report.title}"]`);
+    if (report.menu === "클리닉 대상") {
+      await expect(frame.locator("body")).toHaveAttribute("data-clinic-student-count", "0");
+      await expect(frame.locator("body")).not.toContainText("자동저장학생1");
+    } else {
+      await expect(frame.locator("body")).toContainText("55");
+      await expect(frame.locator("body")).not.toContainText("50 / 100");
+    }
+  });
+}

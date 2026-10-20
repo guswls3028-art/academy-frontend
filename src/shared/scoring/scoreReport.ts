@@ -58,6 +58,7 @@ export function collectUnenteredScoreItems(row: SessionScoreRow): string[] {
     ...(row.exams ?? [])
       .filter((exam) => (
         isSubjectivePendingScoreBlock(exam.block)
+        || exam.block.is_provisional === true
         || (exam.block.score == null && !isExplicitNotSubmitted(exam.block.meta?.status))
       ))
       .map((exam) => `시험: ${exam.title}`),
@@ -125,6 +126,7 @@ function buildExamDisplayLines(
   if (isSubjectivePendingScoreBlock(exam.block)) {
     return [`- ${exam.title}: 서술형 입력 필요`];
   }
+  if (exam.block.is_provisional) return [`- ${exam.title}: 채점 확인 중`];
   const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
   const max = exam.block.max_score ?? metaExam?.max_score ?? null;
   const finalPass = finalPassForExam(exam);
@@ -201,15 +203,15 @@ function collectStats(row: SessionScoreRow, meta: SessionScoreMeta | null): Summ
     s.examTotal++;
     const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
     const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
-    const subjectivePending = isSubjectivePendingScoreBlock(exam.block);
-    if (exam.block.score != null && !subjectivePending) {
+    const scorePending = isSubjectivePendingScoreBlock(exam.block) || exam.block.is_provisional === true;
+    if (exam.block.score != null && !scorePending) {
       s.examScored++;
       s.examSumScore += exam.block.score;
       s.examSumMax += max;
       if (finalPassForExam(exam) === true) s.examPassed++;
     }
     const finalPass = finalPassForExam(exam);
-    if (subjectivePending || (exam.block.score == null && !isExplicitNotSubmitted(exam.block.meta?.status))) {
+    if (scorePending || (exam.block.score == null && !isExplicitNotSubmitted(exam.block.meta?.status))) {
       s.pendingItems.push(exam.title);
     } else if (isExplicitNotSubmitted(exam.block.meta?.status) || finalPass === false) {
       s.failedItems.push(exam.title);
@@ -335,6 +337,10 @@ function buildExamDetailCardLines(
   const lines: string[] = [];
   if (isSubjectivePendingScoreBlock(exam.block)) {
     appendScoreCard(lines, exam.title, "서술형 입력 필요");
+    return lines;
+  }
+  if (exam.block.is_provisional) {
+    appendScoreCard(lines, exam.title, "채점 확인 중");
     return lines;
   }
   const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
@@ -562,6 +568,8 @@ export function buildScoreVars(
     const subjectivePending = isSubjectivePendingScoreBlock(exam.block);
     vars[`시험${n}`] = subjectivePending
       ? "서술형 입력 필요"
+      : exam.block.is_provisional
+      ? "채점 확인 중"
       : exam.block.score != null
       ? String(exam.block.score)
       : missingScoreLabel("exam", exam.block.meta?.status);
