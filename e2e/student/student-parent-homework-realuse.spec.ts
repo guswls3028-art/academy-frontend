@@ -88,6 +88,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
     const guards = attachStrictBrowserGuards(staffPage);
     await seedBrowserAuth(staffPage, admin);
     await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
+    await acknowledgeInitialAccountPromptsIfVisible(staffPage);
     const configPath = `/results/admin/sessions/${created.sessionId}/total-config/`;
     await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
     const totals = staffPage.getByRole("dialog", { name: "합산 설정", exact: true });
