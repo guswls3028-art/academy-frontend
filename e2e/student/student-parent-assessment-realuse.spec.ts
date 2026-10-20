@@ -832,24 +832,31 @@ async function verifyScoreMessageTemplate(
     await expect(picker.getByLabel("선택할 안내문 내용"))
       .toContainText("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
     await expect(picker.getByLabel("카카오톡 실제 발송 미리보기")).toHaveCount(0);
-    // Start the response timer at the action that selects this non-default template.
-    const preflightResponse = page.waitForResponse((response) => {
-      if (response.request().method() !== "POST"
-        || !new URL(response.url()).pathname.endsWith("/api/v1/messaging/send/preflight/")) return false;
-      const payload = response.request().postDataJSON() as {
-        send_to?: string;
-        template_id?: number;
-        alimtalk_extra_vars_per_student?: Record<string, { _body_subst?: string }>;
-      };
-      return payload.send_to === "parent" && payload.template_id === saved.id
-        && payload.alimtalk_extra_vars_per_student?.[String(student.id)]?._body_subst
-          === `학생 ${student.name} 점수 60 확인 완료`;
-    });
-    await picker.getByRole("button", { name: "이 안내문 적용", exact: true }).click();
-    await expect(picker).toBeHidden();
-    await expect(send.getByLabel("현재 학생의 실제 발송 문구"))
-      .toContainText(`학생 ${student.name} 점수 60 확인 완료`);
-    const checkedResponse = await preflightResponse;
+    // Consume both promises immediately: a payload mismatch must fail explicitly,
+    // rather than hiding behind an unhandled response-wait timeout.
+    const [checkedResponse] = await Promise.all([
+      page.waitForResponse((response) => {
+        if (response.request().method() !== "POST"
+          || !new URL(response.url()).pathname.endsWith("/api/v1/messaging/send/preflight/")) return false;
+        const payload = response.request().postDataJSON() as { send_to?: string; template_id?: number };
+        return payload.send_to === "parent" && payload.template_id === saved.id;
+      }).then(response => {
+        const payload = response.request().postDataJSON() as {
+          raw_body?: string;
+          alimtalk_extra_vars_per_student?: Record<string, { _body_subst?: string }>;
+        };
+        expect(payload.raw_body).toBe("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
+        expect(payload.alimtalk_extra_vars_per_student?.[String(student.id)]?._body_subst)
+          .toBe(`학생 ${student.name} 점수 60 확인 완료`);
+        return response;
+      }),
+      (async () => {
+        await picker.getByRole("button", { name: "이 안내문 적용", exact: true }).click();
+        await expect(picker).toBeHidden();
+        await expect(send.getByLabel("현재 학생의 실제 발송 문구"))
+          .toContainText(`학생 ${student.name} 점수 60 확인 완료`);
+      })(),
+    ]);
     expect(checkedResponse.status()).toBe(200);
     const checked = await checkedResponse.json() as SendPreflightResponse;
     expect(checked).toMatchObject({
@@ -952,6 +959,7 @@ async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestCon
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`, { timeout: 30_000 });
+      await acknowledgeInitialAccountPromptsIfVisible(page);
       await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
       const totals = page.getByRole("dialog", { name: "합산 설정", exact: true });
       await totals.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
