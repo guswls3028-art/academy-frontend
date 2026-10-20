@@ -12,12 +12,12 @@
  * - HomeworkScore 생성 ❌
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { HomeworkTabKey, HomeworkSummary } from "../types";
 
 import HomeworkHeader from "./common/HomeworkHeader";
 import HomeworkTabs from "./common/HomeworkTabs";
-import { EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import { useAdminHomework } from "../hooks/useAdminHomework";
 import HomeworkSetupPanel from "../panels/HomeworkSetupPanel";
 import HomeworkAssetsPanel from "../panels/HomeworkAssetsPanel";
@@ -40,10 +40,17 @@ export default function AdminHomeworkDetail({
 }) {
   const [activeTab, setActiveTab] = useState<HomeworkTabKey>("setup");
   const { confirmDiscard } = useAssessmentEditGuard();
-  const { data, isLoading, isError } = useAdminHomework(homeworkId);
+  const readErrorRef = useRef<HTMLDivElement>(null);
+  const { data, isLoading, isError, isFetching, refetch } = useAdminHomework(homeworkId);
 
   // homeworkId 변경 시 탭 리셋
   useEffect(() => { setActiveTab("setup"); }, [homeworkId]);
+
+  useEffect(() => {
+    if (!isError || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+    readErrorRef.current?.focus({ preventScroll: true });
+    readErrorRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [isError]);
 
   if (!Number.isFinite(homeworkId) || homeworkId <= 0) {
     return <EmptyState scope="panel" tone="error" title="과제 ID가 올바르지 않습니다." />;
@@ -53,8 +60,8 @@ export default function AdminHomeworkDetail({
     return <EmptyState scope="panel" tone="loading" title="과제 정보 불러오는 중…" />;
   }
 
-  if (isError || !data) {
-    return <EmptyState scope="panel" tone="error" title="과제 정보를 불러오지 못했습니다." />;
+  if (!data) {
+    return <EmptyState scope="panel" tone="error" title="과제 정보를 불러오지 못했습니다." actions={<Button type="button" intent="secondary" size="lg" className="h-11" disabled={isFetching} onClick={() => void refetch()}>다시 시도</Button>} />;
   }
 
   const changeTab = (nextTab: HomeworkTabKey) => {
@@ -82,7 +89,13 @@ export default function AdminHomeworkDetail({
 
   return (
     <div className="space-y-6">
+      {isError && <div ref={readErrorRef} role="alert" tabIndex={-1} className="scroll-mt-20 text-sm">
+        과제 정보를 다시 확인하지 못했습니다. 현재 입력은 유지하며 확인 전에는 저장할 수 없습니다.
+        <Button type="button" intent="secondary" size="lg" className="h-11" disabled={isFetching} onClick={() => void refetch()}>다시 시도</Button>
+      </div>}
+      <fieldset disabled={isError} className="m-0 min-w-0 space-y-6 border-0 p-0">
       <HomeworkHeader
+        readError={isError} readPending={isFetching} onRetryRead={() => void refetch()}
         homework={summary}
         sessionId={sessionIdFromRoute ?? data?.session_id}
         primaryAction={primaryAction}
@@ -121,6 +134,7 @@ export default function AdminHomeworkDetail({
       {activeTab === "results" && (
         <HomeworkResultsPanel homeworkId={homeworkId} />
       )}
+      </fieldset>
     </div>
   );
 }

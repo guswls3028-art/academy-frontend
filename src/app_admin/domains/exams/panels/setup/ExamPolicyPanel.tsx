@@ -158,11 +158,23 @@ export default function ExamPolicyPanel({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [conflictDetected, setConflictDetected] = useState(false);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  const [latestError, setLatestError] = useState("");
+  const latestRequestRef = useRef(false);
+  const activeResourceRef = useRef({ id: examId });
+  if (activeResourceRef.current.id !== examId) activeResourceRef.current = { id: examId };
+  const disposedRef = useRef(false);
+  useEffect(() => { disposedRef.current = false; return () => { disposedRef.current = true; }; }, []);
   const initializedExamId = useRef<number | null>(null);
   const baseFormRef = useRef<ExamPolicyForm | null>(null);
   const baseUpdatedAtRef = useRef("");
 
   const syncFromExam = useCallback((nextExam: Exam) => {
+    if (initializedExamId.current !== nextExam.id) {
+      latestRequestRef.current = false;
+      setLoadingLatest(false);
+      setLatestError("");
+    }
     const nextForm = formFromExam(nextExam);
     initializedExamId.current = nextExam.id;
     baseFormRef.current = nextForm;
@@ -282,8 +294,8 @@ export default function ExamPolicyPanel({
     dirty && !patchMutation.isPending,
   );
 
-  if (isError) {
-    return <EmptyState mode="embedded" scope="panel" tone="error" title="시험 설정을 불러오지 못했습니다." />;
+  if (isError && (!exam || !form)) {
+    return <EmptyState mode="embedded" scope="panel" tone="error" title="시험 설정을 불러오지 못했습니다." actions={<Button onClick={() => void refetch()}>다시 시도</Button>} />;
   }
   if (isLoading || !exam || !form) {
     return <EmptyState mode="embedded" scope="panel" tone="loading" title="시험 설정 불러오는 중…" />;
@@ -321,19 +333,38 @@ export default function ExamPolicyPanel({
   };
 
   const loadLatest = async () => {
-    if (dirty) {
-      const confirmed = await confirm({
-        title: "최신 설정 불러오기",
-        message: "현재 입력한 변경사항을 버리고 다른 사용자가 저장한 최신 설정을 불러옵니다.",
-        confirmText: "최신 설정 불러오기",
-        danger: true,
-      });
-      if (!confirmed) return;
-    }
-    const result = await refetch();
-    if (result.data) {
-      clearDraft();
-      syncFromExam(result.data);
+    if (latestRequestRef.current || patchMutation.isPending) return;
+    latestRequestRef.current = true;
+    setLoadingLatest(true);
+    setLatestError("");
+    const requestedResource = activeResourceRef.current;
+    try {
+      if (dirty) {
+        const confirmed = await confirm({
+          title: "최신 설정 불러오기",
+          message: "현재 입력한 변경사항을 버리고 다른 사용자가 저장한 최신 설정을 불러옵니다.",
+          confirmText: "최신 설정 불러오기",
+          danger: true,
+        });
+        if (!confirmed) return;
+      }
+      const result = await refetch();
+      if (disposedRef.current || activeResourceRef.current !== requestedResource) return;
+      if (result.isError || !result.data) {
+        setLatestError("최신 설정을 불러오지 못했습니다. 현재 입력은 유지됩니다. 다시 시도해 주세요.");
+        return;
+      }
+      if (result.data) {
+        clearDraft();
+        syncFromExam(result.data);
+      }
+    } catch {
+      if (!disposedRef.current && activeResourceRef.current === requestedResource) setLatestError("최신 설정을 불러오지 못했습니다. 현재 입력은 유지됩니다. 다시 시도해 주세요.");
+    } finally {
+      if (!disposedRef.current && activeResourceRef.current === requestedResource) {
+        latestRequestRef.current = false;
+        setLoadingLatest(false);
+      }
     }
   };
 
@@ -362,6 +393,8 @@ export default function ExamPolicyPanel({
             </span>
             <span className={formStyles.policyEditLabel}>설정 변경</span>
           </summary>
+        <fieldset disabled={loadingLatest || patchMutation.isPending} className="m-0 min-w-0 border-0 p-0">
+        {loadingLatest && <p role="status" className={formStyles.description}>최신 설정을 확인하고 있습니다. 확인이 끝나면 편집할 수 있습니다.</p>}
         <div className={formStyles.body}>
           {recoverableDraftSavedAt && (
             <div className={formStyles.inlineStatus} role="status" data-testid="assessment-draft-recovery">
@@ -612,6 +645,7 @@ export default function ExamPolicyPanel({
             </div>
           )}
           {validationError && <p className={formStyles.error} role="alert">{validationError}</p>}
+          {latestError && <p className={formStyles.error} role="alert">{latestError}</p>}
         </div>
 
         <div className={formStyles.footer}>
@@ -622,13 +656,14 @@ export default function ExamPolicyPanel({
             type="button"
             intent="primary"
             size="md"
-            disabled={!dirty || Boolean(validationError) || conflictDetected || remoteChanged || patchMutation.isPending}
+            disabled={isError || loadingLatest || !dirty || Boolean(validationError) || conflictDetected || remoteChanged || patchMutation.isPending}
             loading={patchMutation.isPending}
             onClick={() => patchMutation.mutate(form)}
           >
             {patchMutation.isPending ? "저장 중…" : "운영 설정 저장"}
           </Button>
         </div>
+        </fieldset>
         </details>
       </section>
 

@@ -26,6 +26,14 @@ type MockState = {
   recalculations?: number;
   failRecalculation?: boolean;
   answerKeyPresent?: boolean;
+  failExamRead?: boolean;
+  examReadGate?: Promise<void>;
+  examReadCount?: number;
+  secondExam?: Record<string, unknown>;
+  templateSaves?: Array<Record<string, unknown>>;
+  pdfUploads?: number;
+  savedAnswers?: Record<string, string>;
+  answerWrites?: number;
 };
 
 const session = {
@@ -52,6 +60,17 @@ async function installApi(page: Page, state: MockState) {
       body: JSON.stringify(body),
     });
 
+    if (path === `/exams/${EXAM_ID}/save-as-template/` && method === "POST") {
+      state.templateSaves ??= [];
+      state.templateSaves.push(request.postDataJSON());
+      state.exam = { ...state.exam, template_exam_id: 9990 };
+      return json(state.exam);
+    }
+    if (path === "/exams/pdf-extract/" && method === "POST") {
+      state.pdfUploads = (state.pdfUploads ?? 0) + 1;
+      return json({ status: "source_saved", message: "원본 저장 완료" });
+    }
+    if (state.secondExam && path === `/exams/${EXAM_ID + 1}/`) return json(state.secondExam);
     if (method === "OPTIONS") return route.fulfill({ status: 204 });
     if (path === "/core/program/") {
       return json({
@@ -96,7 +115,7 @@ async function installApi(page: Page, state: MockState) {
         close_at: state.exam.close_at,
         allow_retake: state.exam.allow_retake,
         max_attempts: state.exam.max_attempts,
-      }]);
+      }, ...(state.secondExam ? [{ exam_id: EXAM_ID + 1, title: state.secondExam.title }] : [])]);
     }
     if (path === `/results/admin/sessions/${SESSION_ID}/exams/summary/`) {
       return json({
@@ -134,18 +153,28 @@ async function installApi(page: Page, state: MockState) {
       return json({ exam_id: EXAM_ID, total: 2, graded: state.failRecalculation ? 1 : 2, skipped: 0,
         failed: state.failRecalculation ? [{ submission_id: 601, status: "done", detail: "fixture failure" }] : [] });
     }
-    if (path === `/exams/${EXAM_ID}/`) return json(state.exam);
-    if (path === `/exams/${EXAM_ID}/questions/`) {
+    if (path === `/exams/${EXAM_ID}/`) {
+      state.examReadCount = (state.examReadCount ?? 0) + 1;
+      if (state.examReadGate) await state.examReadGate;
+      return state.failExamRead ? json({ detail: "시험 설정 조회 실패" }, 503) : json(state.exam);
+    }
+    if (path === `/exams/${EXAM_ID}/questions/` || (state.secondExam && path === `/exams/${EXAM_ID + 1}/questions/`)) {
       return json([
         { id: 1, sheet: 1, number: 1, question_kind: "choice", score: 50 },
         { id: 2, sheet: 1, number: 2, question_kind: "essay", score: 50 },
       ]);
     }
+    if (path === `/exams/${EXAM_ID}/explanations/`) return json([]);
+    if (path === "/exams/answer-keys/9980/" && method === "PUT") {
+      state.answerWrites = (state.answerWrites ?? 0) + 1;
+      state.savedAnswers = (request.postDataJSON() as { answers: Record<string, string> }).answers;
+      return json({ id: 9980, exam: EXAM_ID, answers: state.savedAnswers });
+    }
     if (path === "/exams/answer-keys/" && method === "GET") {
       return json(state.answerKeyPresent === false ? [] : [{
         id: 9980,
         exam: EXAM_ID,
-        answers: { "1": "1" },
+        answers: state.savedAnswers ?? { "1": "1" },
         created_at: "2026-08-02T00:00:00Z",
         updated_at: "2026-08-02T00:00:00Z",
       }]);
@@ -173,7 +202,7 @@ async function installApi(page: Page, state: MockState) {
   });
 }
 
-async function openExam(page: Page, state: MockState) {
+async function openExam(page: Page, state: MockState, initialFailure = false) {
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "평가 운영 워크스페이스 route-mock 검증은 로컬 dev 서버 전용");
   await installTenantOneInitScript(page);
   await page.addInitScript((jwt) => {
@@ -186,6 +215,7 @@ async function openExam(page: Page, state: MockState) {
     { waitUntil: "domcontentloaded", timeout: 45_000 },
   );
   await waitForRenderSettled(page, { timeout: 30_000 });
+  if (initialFailure) return;
   await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible({ timeout: 30_000 });
   const settings = page.locator("#assessment-policy > details");
   await expect(settings).not.toHaveAttribute("open", "");
@@ -406,6 +436,82 @@ test("0점 합격 기준을 저장하고 서버 필드 오류를 입력값과 �
   expect(state.exam.max_score).toBe(16);
 });
 
+function recoveryExamState(): MockState {
+  return {
+    exam: {
+      id: EXAM_ID, title: "재조회 복구 평가", description: "", subject: "",
+      exam_type: "regular", is_active: true, allow_retake: false, max_attempts: 1,
+      pass_score: 80, max_score: 100, grading_mode: "choice", manual_grading_method: "score",
+      choice_question_count: 0, segmentation_status: "ready", source_filename: "평가.pdf",
+      display_order: 0, open_at: null, close_at: null, template_exam_id: null,
+      structure_owner_id: EXAM_ID, can_edit_structure: true, answer_visibility: "hidden",
+      created_at: "2026-08-02T00:00:00Z", updated_at: "2026-08-02T00:00:00Z",
+    },
+    examPatchPayloads: [],
+    selectedEnrollmentIds: [601, 602],
+  };
+}
+
+for (const width of [1366, 390]) {
+test(`@policy-recovery ${width}px 최신 시험 설정 조회 실패는 작성 중인 값을 유지하고 복구 후 다시 저장한다`, async ({ page }, testInfo) => {
+  const state = recoveryExamState();
+  await page.setViewportSize({ width, height: 844 });
+  await openExam(page, state);
+  const input = page.getByLabel("합격 기준");
+  await input.fill("79");
+  state.exam = { ...state.exam, pass_score: 75, updated_at: "2026-08-02T00:10:00Z" };
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "다른 화면에서 설정이 변경되었습니다" })).toBeVisible();
+  state.failExamRead = true;
+  await page.getByRole("button", { name: "최신 설정 불러오기", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "최신 설정 불러오기", exact: true }).click();
+  await expect(input).toHaveValue("79");
+  await expect(page.getByRole("button", { name: "운영 설정 저장", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toBeVisible();
+  await expect(input).toHaveValue("79");
+  await expect.poll(async () => {
+    const box = await page.getByRole("button", { name: "다시 시도", exact: true }).boundingBox();
+    return Boolean(box && box.height >= 44 && box.y >= 0 && box.y + box.height <= page.viewportSize()!.height);
+  }).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath(`exam-policy-read-failure-${width}.png`), animations: "disabled" });
+  state.failExamRead = false;
+  await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(input).toHaveValue("79");
+  let releaseRead!: () => void;
+  state.examReadGate = new Promise<void>(resolve => { releaseRead = resolve; });
+  const readsBefore = state.examReadCount ?? 0;
+  await page.getByRole("button", { name: "최신 설정 불러오기", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "최신 설정 불러오기", exact: true }).click();
+  try {
+    await expect(input).toBeDisabled();
+    await expect(page.getByRole("button", { name: "최신 설정 불러오기", exact: true })).toBeDisabled();
+    await expect.poll(() => state.examReadCount).toBe(readsBefore + 1);
+    await expect(input).toHaveValue("79");
+  } finally { state.examReadGate = undefined; releaseRead(); }
+  await expect(input).toHaveValue("75");
+  await input.fill("76");
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+  await expect.poll(() => state.exam.pass_score).toBe(76);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("#assessment-policy > details > summary").click();
+  await expect(input).toHaveValue("76");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+});
+}
+
+test("@policy-recovery 최초 시험 조회 실패도 재시도 후 설정을 편집·저장한다", async ({ page }) => {
+  const state = recoveryExamState();
+  state.failExamRead = true;
+  await openExam(page, state, true);
+  await expect(page.getByText("시험을 불러오지 못했습니다.", { exact: true })).toBeVisible();
+  state.failExamRead = false;
+  await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await page.locator("#assessment-policy > details > summary").click();
+  await page.getByLabel("합격 기준").fill("77");
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+  await expect.poll(() => state.exam.pass_score).toBe(77);
+});
+
 test("미저장 시험 설정은 탭 이동 전에 확인하고 동시 수정은 덮어쓰지 않는다", async ({ page }) => {
   const state: MockState = {
     exam: {
@@ -556,3 +662,139 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
   await page.locator("#assessment-policy > details > summary").click();
   await expect(page.getByTestId("assessment-draft-recovery")).toHaveCount(0);
 });
+
+async function reconnectWithStaleQuery(page: Page) {
+  await page.clock.install();
+  await page.clock.setFixedTime(new Date(Date.now() + 20_000));
+  await page.context().setOffline(true);
+  await page.context().setOffline(false);
+}
+
+test("@policy-recovery 열린 시험 템플릿은 재조회 실패 후 이름을 보존하고 복구 후 저장한다", async ({ page }) => {
+  const state = recoveryExamState();
+  await openExam(page, state);
+  await page.getByRole("button", { name: "템플릿으로 저장", exact: true }).click();
+  const modal = page.getByRole("dialog", { name: "템플릿으로 저장" });
+  const name = modal.getByRole("textbox");
+  await name.fill("보존할 시험 템플릿");
+  state.failExamRead = true;
+  await reconnectWithStaleQuery(page);
+  await expect(modal.getByRole("alert")).toContainText("현재 설정을 확인하지 못했습니다");
+  await expect(modal.getByRole("button", { name: "저장", exact: true })).toBeDisabled();
+  expect(state.templateSaves ?? []).toHaveLength(0);
+  await expect(name).toHaveValue("보존할 시험 템플릿");
+  state.failExamRead = false;
+  await modal.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(modal.getByRole("button", { name: "저장", exact: true })).toBeEnabled();
+  await modal.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(modal).not.toBeVisible();
+  expect(state.templateSaves).toEqual([{ title: "보존할 시험 템플릿" }]);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "템플릿으로 저장됨" })).toBeVisible();
+});
+
+test("@policy-recovery 390px 열린 원본 업로드는 재조회 실패 동안 파일을 보존하고 복구 후 업로드한다", async ({ page }, testInfo) => {
+  const state = recoveryExamState();
+  state.exam.segmentation_status = "none";
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openExam(page, state);
+  await page.getByRole("button", { name: "시험 자료 업로드", exact: true }).click();
+  const modal = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "닫기", exact: true }) });
+  await modal.locator('input[type="file"]').first().setInputFiles({ name: "보존할-원본.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF") });
+  state.failExamRead = true;
+  await reconnectWithStaleQuery(page);
+  await expect(modal.getByRole("alert")).toContainText("선택한 파일은 유지됩니다");
+  const upload = modal.getByRole("button", { name: "원본 보존 및 번호 인식", exact: true });
+  await expect(upload).toBeDisabled();
+  expect(state.pdfUploads ?? 0).toBe(0);
+  await expect(modal.getByText("보존할-원본.pdf", { exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("pdf-read-error-file-preserved-390.png"), animations: "disabled" });
+  state.failExamRead = false;
+  await modal.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(upload).toBeEnabled();
+  await upload.click();
+  await expect(modal.getByText("원본 저장 완료", { exact: true })).toBeVisible();
+  expect(state.pdfUploads).toBe(1);
+});
+
+
+test("@policy-recovery 캐시된 A→B→A 전환 후 옛 A 최신조회는 새 초안을 덮지 않는다", async ({ page }) => {
+  const state = recoveryExamState();
+  state.secondExam = { ...state.exam, id: EXAM_ID + 1, title: "비교 시험", pass_score: 65 };
+  await openExam(page, state);
+  const select = (title: string) => page.getByRole("button").filter({ has: page.getByText(title, { exact: true }) });
+  await select("비교 시험").click();
+  await expect(page.getByRole("heading", { name: "비교 시험", exact: true })).toBeVisible();
+  await select(String(state.exam.title)).click();
+  const details = page.locator("#assessment-policy > details");
+  if (await details.getAttribute("open") === null) await details.locator(":scope > summary").click();
+  const input = page.getByLabel("합격 기준");
+  await input.fill("79");
+  state.exam = { ...state.exam, pass_score: 75, updated_at: "2026-08-02T00:10:00Z" };
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+  await expect(page.getByRole("button", { name: "최신 설정 불러오기", exact: true })).toBeVisible();
+  let releaseRead!: () => void;
+  state.examReadGate = new Promise<void>(resolve => { releaseRead = resolve; });
+  await page.getByRole("button", { name: "최신 설정 불러오기", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "최신 설정 불러오기", exact: true }).click();
+  await expect(input).toBeDisabled();
+  await select("비교 시험").click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "저장하지 않고 이동", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "비교 시험", exact: true })).toBeVisible();
+  await select(String(state.exam.title)).click();
+  await expect(page.getByRole("heading", { name: String(state.exam.title), exact: true })).toBeVisible();
+  if (await details.getAttribute("open") === null) await details.locator(":scope > summary").click();
+  await expect(input).toBeEnabled();
+  await input.fill("78");
+  const lateResponse = page.waitForResponse(response => response.url().endsWith(`/exams/${EXAM_ID}/`) && response.request().method() === "GET");
+  state.examReadGate = undefined;
+  releaseRead();
+  await (await lateResponse).finished();
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(input).toHaveValue("78");
+  await expect(page.getByRole("button", { name: "운영 설정 저장", exact: true })).toBeEnabled();
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+  await expect.poll(() => state.exam.pass_score).toBe(78);
+  await page.reload();
+  await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
+  await page.locator("#assessment-policy > details > summary").click();
+  await expect(page.getByLabel("합격 기준")).toHaveValue("78");
+});
+
+
+for (const width of [1366, 390]) {
+  test(`@policy-recovery ${width}px 열린 답안 등록은 시험 조회 실패 후 입력을 보존하고 복구 뒤 저장한다`, async ({ page }, testInfo) => {
+    const state = recoveryExamState();
+    await page.setViewportSize({ width, height: 844 });
+    await openExam(page, state);
+    await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+    const modal = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "저장 (총 100점)", exact: true }) });
+    const bubble = modal.getByRole("checkbox", { name: "1번 2번 선택지", exact: true });
+    await expect(bubble).toBeEnabled();
+    await bubble.click();
+    await expect(bubble).toBeChecked();
+    state.failExamRead = true;
+    await reconnectWithStaleQuery(page);
+    await expect(modal.getByRole("alert").filter({ hasText: "시험 정보를 확인하지 못했습니다" })).toBeVisible();
+    await expect(bubble).toBeDisabled();
+    await expect(bubble).toBeChecked();
+    const save = modal.getByRole("button", { name: "저장 (총 100점)", exact: true });
+    await expect(save).toBeDisabled();
+    await modal.focus();
+    await page.keyboard.press("Enter");
+    expect(state.answerWrites ?? 0).toBe(0);
+    await page.screenshot({ path: testInfo.outputPath(`answer-key-read-failure-${width}.png`), animations: "disabled" });
+    state.failExamRead = false;
+    await modal.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(bubble).toBeEnabled();
+    await expect(bubble).toBeChecked();
+    await save.click();
+    await expect.poll(() => state.answerWrites).toBe(1);
+    expect(state.savedAnswers?.["1"]).toContain("2");
+    await expect(save).toBeEnabled();
+    await page.reload();
+    await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
+    await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+    await expect(bubble).toBeChecked();
+  });
+}

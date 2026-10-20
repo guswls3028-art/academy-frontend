@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useAdminExam } from "../hooks/useAdminExam";
 import type { ExamTabKey } from "../types";
 
 import ExamTabs from "./common/ExamTabs";
 import ExamHeader from "./common/ExamHeader";
-import { EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import { useAssessmentEditGuard } from "@/shared/ui/assessment/AssessmentEditGuard";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
@@ -23,8 +23,9 @@ type Props = {
 };
 
 export default function AdminExamDetail({ examId, mode = "design", sessionId }: Props) {
-  const { data: exam, isLoading, isError, refetch } = useAdminExam(examId);
+  const { data: exam, isLoading, isError, isFetching, refetch } = useAdminExam(examId);
   const { confirmDiscard } = useAssessmentEditGuard();
+  const readErrorRef = useRef<HTMLDivElement>(null);
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const [searchParams] = useSearchParams();
   const linkedTab = searchParams.get("examTab");
@@ -34,8 +35,14 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
     setTab(linkedTab === "results" ? "results" : "setup");
   }, [examId, linkedTab]);
 
+  useEffect(() => {
+    if (!isError || document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+    readErrorRef.current?.focus({ preventScroll: true });
+    readErrorRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [isError]);
+
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="시험 정보 불러오는 중…" />;
-  if (isError) return <EmptyState scope="panel" tone="error" title="시험을 불러오지 못했습니다." description="이전 값으로 수정하지 않도록 시험 작업을 잠갔습니다." actions={<button type="button" onClick={() => void refetch()}>다시 시도</button>} />;
+  if (isError && !exam) return <EmptyState scope="panel" tone="error" title="시험을 불러오지 못했습니다." description="다시 시도해 현재 설정을 확인해 주세요." actions={<Button type="button" intent="secondary" size="lg" className="h-11" disabled={isFetching} onClick={() => void refetch()}>다시 시도</Button>} />;
   if (!exam) return <EmptyState scope="panel" tone="error" title="시험을 불러오지 못했습니다." />;
 
   const changeTab = (nextTab: ExamTabKey) => {
@@ -55,7 +62,12 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
 
   return (
     <div className="space-y-6">
-      <ExamHeader exam={exam} sessionId={sessionId} primaryAction={primaryAction} />
+      {isError && <div ref={readErrorRef} role="alert" tabIndex={-1} className="scroll-mt-20 text-sm">
+        시험 정보를 다시 확인하지 못했습니다. 현재 입력은 유지하며 확인 전에는 저장할 수 없습니다.
+        <Button type="button" intent="secondary" size="lg" className="h-11" disabled={isFetching} onClick={() => void refetch()}>다시 시도</Button>
+      </div>}
+      <fieldset disabled={isError} className="m-0 min-w-0 space-y-6 border-0 p-0">
+      <ExamHeader readError={isError} readPending={isFetching} onRetryRead={() => void refetch()} exam={exam} sessionId={sessionId} primaryAction={primaryAction} />
 
       {exam.segmentation_status === "processing" && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800" role="status">
@@ -114,6 +126,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
       {tab === "results" && (
         <ExamResultsViewerPanel examId={examId} wrongCompletionOnly={wrongCompletionOnly} />
       )}
+      </fieldset>
     </div>
   );
 }
