@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { openCompositionScores } from "../helpers/assessmentCompositionMock";
 
-async function installComposition(page: Page, includeRefreshRow = false) {
+async function installComposition(page: Page, includeRefreshRow = false, totalRecovery?: "removed" | "lost-response") {
   const writes: Record<string, unknown>[] = [];
   let version = 0, text = "", commentVersion = 0, failSave = true;
   let staleNextRead: { text: string; version: number } | undefined;
@@ -18,10 +18,20 @@ async function installComposition(page: Page, includeRefreshRow = false) {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/total-config/") && route.request().method() === "PUT") {
       const body = route.request().postDataJSON(); writes.push(body);
-      if (failSave) { failSave = false; await route.fulfill({ status: 503, json: { detail: "합산 저장 일시 실패" } }); return; }
+      if (totalRecovery === "removed" && failSave) {
+        failSave = false; examOrder = [9101]; examIds = [9101];
+        await route.fulfill({ status: 400, json: { detail: "차시 평가 목록이 변경되었습니다. 새 목록을 확인해 주세요." } }); return;
+      }
+      if (!totalRecovery && failSave) { failSave = false; await route.fulfill({ status: 503, json: { detail: "합산 저장 일시 실패" } }); return; }
+      if (body.expected_version !== version) {
+        await route.fulfill({ status: 409, json: { detail: "다른 선생님이 합산 설정을 변경했습니다." } }); return;
+      }
       expect(body.expected_version).toBe(version);
       examIds = body.exam_ids; homeworkIds = body.homework_ids;
       examOrder = body.exam_order ?? examOrder; homeworkOrder = body.homework_order ?? homeworkOrder; version++;
+      if (totalRecovery === "lost-response" && failSave) {
+        failSave = false; await route.abort("aborted"); return;
+      }
       await route.fulfill({ json: { version, exam_ids: examIds, homework_ids: homeworkIds } }); return;
     }
     if (path.includes("/exam/9101/parent-comments/")) {
@@ -64,12 +74,59 @@ async function installComposition(page: Page, includeRefreshRow = false) {
         homeworks: [9151, 9152, 9153].map((id, i) => ({ homework_id: id, title: id === 9153 ? "준비물 통과형" : i ? "둘째 과제" : "첫 과제", block: { score: id === 9153 ? 1 : i ? 40 : 25, max_score: id === 9153 ? 1 : 100, passed: false, is_locked: false, meta: {} } })),
         exam_total: total(examIds, { 9101: 0, 9102: null }), homework_total: total(homeworkIds, { 9151: 25, 9152: 40 }), clinic_required: false, progress_completed: false }] } });
   });
-  return { writes, commentWrites, comment: () => ({ text, version: commentVersion }),
+  return { writes, totals: () => ({ version, examIds: [...examIds], examOrder: [...examOrder] }), commentWrites, comment: () => ({ text, version: commentVersion }),
     setCommentReadFailure: (value: boolean) => { failCommentReads = value; },
     setAssigned: (value: boolean) => { primaryAssigned = value; },
     serverEdit: (value: string) => { text = value; commentVersion++; },
     staleNextCommentRead: (value: string, version: number) => { staleNextRead = { text: value, version }; },
   };
+}
+
+for (const recovery of ["removed", "lost-response"] as const) {
+  const width = recovery === "removed" ? 1366 : 390;
+  test(`@assessment-total-recovery ${width}px ${recovery} 합산 설정 재조회·저장·새로고침`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openCompositionScores(page);
+    const harness = await installComposition(page, false, recovery);
+    await page.reload();
+    await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
+    const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
+    await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+    await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산", exact: true })).toBeVisible();
+    await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    if (recovery === "lost-response") {
+      await expect(modal.getByRole("alert")).toBeVisible();
+      expect(harness.totals()).toEqual({ version: 1, examIds: [9101], examOrder: [9101, 9102] });
+      // Retrying the unchanged draft must not toggle or overwrite the committed selection.
+      await expect(modal.getByRole("button", { name: "합산 설정 저장", exact: true })).toBeEnabled();
+      await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+      await expect(modal.getByRole("alert")).toContainText("다른 선생님");
+      expect(harness.totals().version).toBe(1);
+    } else {
+      await expect(modal.getByRole("alert")).toContainText("차시 평가 목록이 변경");
+      expect(harness.totals()).toEqual({ version: 0, examIds: [9101], examOrder: [9101] });
+    }
+    await expect(modal.getByRole("button", { name: "합산 설정 저장", exact: true })).toBeDisabled();
+    await modal.getByRole("button", { name: "최신 설정으로 다시 시작", exact: true }).click();
+    await expect(modal.getByRole("button", { name: "합산 설정 저장", exact: true })).toBeEnabled();
+    await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산", exact: true })).toBeVisible();
+    await expect(modal.getByRole("button", { name: "둘째 시험 위로 이동", exact: true })).toHaveCount(recovery === "removed" ? 0 : 1);
+    await page.screenshot({ path: testInfo.outputPath(`total-config-${recovery}-${width}.png`), animations: "disabled" });
+    await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect(modal).toBeHidden();
+    expect(harness.writes.at(-1)).toMatchObject({ expected_version: recovery === "removed" ? 0 : 1,
+      exam_ids: [9101], exam_order: recovery === "removed" ? [9101] : [9101, 9102] });
+    expect(harness.totals().version).toBe(recovery === "removed" ? 1 : 2);
+    await page.reload();
+    const row = page.locator("tbody tr").filter({ hasText: "모바일순서학생" }).last();
+    await expect(row.locator(".assessment-total-value").first()).toHaveText("0 / 100");
+    if (recovery === "removed") {
+      await expect(page.getByRole("button", { name: "첫 시험 작업 선택", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "둘째 시험 작업 선택", exact: true })).toHaveCount(0);
+    } else {
+      await expect.poll(() => page.locator('[data-testid^="score-column-order-exam-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9101, 9102]);
+    }
+  });
 }
 
 for (const width of [1366, 390]) {
@@ -149,7 +206,7 @@ for (const width of [1366, 390]) {
     const comment = page.getByRole("dialog", { name: "학부모 코멘트", exact: true });
     await comment.getByLabel("모바일순서학생", { exact: true }).fill("풀이 과정을 설명하는 연습을 해 주세요.");
     await comment.getByRole("button", { name: "학부모에게 공개", exact: true }).click();
-    await expect(comment.getByRole("status")).toContainText("학부모에게 공개했습니다.");
+    await expect(comment.getByRole("status").filter({ hasText: "학부모에게 공개했습니다." })).toBeVisible();
     await page.reload();
     await page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }).click();
     await page.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
@@ -213,7 +270,7 @@ for (const width of [1366, 390]) {
     await refetch();
     await expect(input).toHaveValue("보존할 작성 초안");
     await expect(editor.getByRole("button", { name: "학부모에게 공개", exact: true })).toBeDisabled();
-    await expect(editor.getByRole("status")).toContainText("배정이 해제");
+    await expect(editor.getByRole("status").filter({ hasText: "배정이 해제" })).toBeVisible();
     await input.fill("보존할 작성 초안 수정");
     await expect(input).toHaveValue("보존할 작성 초안 수정");
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
@@ -244,10 +301,10 @@ for (const width of [1366, 390]) {
     await refetch();
     await expect(input).toHaveValue("보존할 작성 초안");
     await editor.getByRole("button", { name: "학부모에게 공개", exact: true }).click();
-    await expect(editor.getByRole("status")).toContainText("다른 선생님이 수정했습니다");
+    await expect(editor.getByRole("status").filter({ hasText: "다른 선생님이 수정했습니다" })).toBeVisible();
     expect(harness.commentWrites).toEqual([2]);
     await modal.getByRole("button", { name: "최신 내용 확인", exact: true }).click();
-    await expect(editor.getByRole("status")).toContainText("다른 선생님의 세 번째 수정");
+    await expect(editor.getByRole("status").filter({ hasText: "다른 선생님의 세 번째 수정" })).toBeVisible();
     await expect(input).toHaveValue("보존할 작성 초안");
     // The invalidation may return an older snapshot after PUT has already succeeded.
     harness.staleNextCommentRead("다른 선생님의 두 번째 수정", 2);
@@ -256,13 +313,13 @@ for (const width of [1366, 390]) {
       editor.getByRole("button", { name: "학부모에게 공개", exact: true }).click(),
     ]);
     await expect(input).toHaveValue("보존할 작성 초안");
-    await expect(editor.getByRole("status")).toContainText("학부모에게 공개했습니다");
+    await expect(editor.getByRole("status").filter({ hasText: "학부모에게 공개했습니다" })).toBeVisible();
     expect(harness.commentWrites).toEqual([2, 3]);
     expect(harness.comment()).toEqual({ text: "보존할 작성 초안", version: 4 });
     // A matching acknowledgement must retain the successful publication message.
     await refetch();
     await expect(input).toHaveValue("보존할 작성 초안");
-    await expect(editor.getByRole("status")).toContainText("학부모에게 공개했습니다");
+    await expect(editor.getByRole("status").filter({ hasText: "학부모에게 공개했습니다" })).toBeVisible();
     // A failed refresh retains the assigned row; discard must reset its mounted editor too.
     await input.fill("조회 실패 뒤 폐기할 초안");
     harness.setCommentReadFailure(true);
@@ -277,7 +334,7 @@ for (const width of [1366, 390]) {
     await expect(modal.getByRole("alert")).toHaveCount(0);
     await input.fill("조회 복구 후 공개한 코멘트");
     await editor.getByRole("button", { name: "학부모에게 공개", exact: true }).click();
-    await expect(editor.getByRole("status")).toContainText("학부모에게 공개했습니다");
+    await expect(editor.getByRole("status").filter({ hasText: "학부모에게 공개했습니다" })).toBeVisible();
     expect(harness.comment()).toEqual({ text: "조회 복구 후 공개한 코멘트", version: 5 });
     await input.fill("배정 해제 후 폐기할 초안");
     harness.setAssigned(false);

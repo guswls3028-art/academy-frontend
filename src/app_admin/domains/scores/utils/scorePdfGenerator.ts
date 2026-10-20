@@ -467,8 +467,8 @@ function buildSummaryRow(params: ScorePdfParams, hasAttendance: boolean): string
   if (hasAttendance) cells.push("<td></td>");
   for (const column of [...reportColumns(params, "exam"), ...reportColumns(params, "homework")]) {
     if (column.kind === "total") {
-      const totals = rows.map(row => column.source === "exam" ? row.exam_total : row.homework_total).filter((total): total is AssessmentTotal => total != null);
-      cells.push(`<td class="total-cell">${totals.length && totals.every(total => total.selected_count === 0) ? "합산 없음" : `완료 ${totals.filter(total => total.complete && total.selected_count > 0).length}/${totals.length}`}</td>`);
+      const totals = rows.map(row => column.source === "exam" ? row.exam_total : row.homework_total).filter((total): total is AssessmentTotal => total != null && total.selected_count > 0);
+      cells.push(`<td class="total-cell">${totals.length ? `완료 ${totals.filter(total => total.complete).length}/${totals.length}` : "합산 없음"}</td>`);
     } else if (column.kind === "exam") {
       const blocks = rows.map(row => row.exams?.find(item => item.exam_id === column.exam.exam_id)?.block).filter(block => examReady(block));
       const average = blocks.length ? blocks.reduce((sum, block) => sum + block!.score!, 0) / blocks.length : null;

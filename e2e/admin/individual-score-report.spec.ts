@@ -15,6 +15,7 @@ type InstallApiOptions = {
   homeworkModes?: boolean;
   teacherPartialTotals?: boolean;
   teacherUnassigned?: boolean;
+  teacherMixedAssignments?: boolean;
   provisionalExam?: boolean;
   totalState?: "zero" | "pending" | "none";
   denseReport?: boolean;
@@ -360,7 +361,14 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     : options.denseReport
       ? denseScoreRows()
       : scoreRows;
-  const activeScoreRows = initialScoreRows.map((row) => {
+  const activeScoreRows = initialScoreRows.map((row, index) => {
+    if (options.teacherMixedAssignments && index > 0) return {
+      ...row,
+      exams: [],
+      homeworks: row.homeworks.filter(homework => homework.homework_id === 4102),
+      exam_total: { score: null, max_score: 0, selected_count: 0, scored_count: 0, complete: true },
+      homework_total: { score: null, max_score: 0, selected_count: 0, scored_count: 0, complete: true },
+    };
     if (options.provisionalExam) return {
       ...row,
       exam_total: { score: null, max_score: 100, selected_count: 1, scored_count: 0, complete: false },
@@ -980,6 +988,19 @@ test.describe("개인 성적표", () => {
 });
 
 test.describe("교사용 전체 성적표", () => {
+  test("@teacher-total-assignment 미배정 학생은 총점 완료 인원의 분모에서 제외한다", async ({ page }) => {
+    await installApi(page, { homeworkModes: true, teacherMixedAssignments: true });
+    await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /성적표 출력/ }).click();
+    await expect(page.getByRole("dialog", { name: "성적표 미리보기", exact: true })).toBeVisible();
+    const frame = page.frameLocator('iframe[title="성적표 미리보기"]');
+    const unassigned = frame.locator("tbody tr:not(.summary-row)").filter({ hasText: "박도윤" });
+    await expect(unassigned.locator('[data-total-kind="exam"]')).toHaveText("합산 없음");
+    await expect(unassigned.locator('[data-total-kind="homework"]')).toHaveText("합산 없음");
+    await expect(frame.locator(".summary-row .total-cell")).toHaveText(["완료 1/1", "완료 1/1"]);
+  });
+
   for (const width of [1366, 390]) {
     test(`@teacher-assessment-pdf ${width}px 합불·미확정·서버 총점을 전체 성적표에 구분한다`, async ({ page }, testInfo) => {
       test.setTimeout(180_000);
