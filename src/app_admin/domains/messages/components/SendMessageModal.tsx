@@ -1435,49 +1435,51 @@ export default function SendMessageModal({
                 )}
               </div>
 
-              {/* 저장 액션 — 양식/본문 상태에 따라 분기. 양식 변경 버튼과 같은 라인에 묶어 칸 효율. */}
-              {!showSaveForm && body.trim() && hasSelectedBodySource && (
-                <div className="send-modal__tpl-bar-save">
-                  {bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
-                    <>
-                      <Button size="sm" intent="secondary" onClick={handleUpdateTemplate} disabled={sending || savingTemplate}>
-                        변경 내용 저장
-                      </Button>
-                      <button
-                        type="button"
+              <div className="send-modal__tpl-bar-actions">
+                {/* 저장 액션 — 양식/본문 상태에 따라 분기. 양식 변경 버튼과 같은 라인에 묶어 칸 효율. */}
+                {!showSaveForm && body.trim() && hasSelectedBodySource && (
+                  <div className="send-modal__tpl-bar-save">
+                    {bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
+                      <>
+                        <Button size="sm" intent="secondary" onClick={handleUpdateTemplate} disabled={sending || savingTemplate}>
+                          변경 내용 저장
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
+                          disabled={sending || savingTemplate}
+                          className="send-modal__save-bar-link"
+                        >
+                          새 문구로 저장
+                        </button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        intent="secondary"
                         onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
                         disabled={sending || savingTemplate}
-                        className="send-modal__save-bar-link"
                       >
-                        새 문구로 저장
-                      </button>
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      intent="secondary"
-                      onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
-                      disabled={sending || savingTemplate}
-                    >
-                      {effectiveBlockCategory === "grades" ? "성적 안내문 저장" : "내 문구로 저장"}
-                    </Button>
-                  )}
-                </div>
-              )}
-              {effectiveBlockCategory === "grades" && selectedTemplate && !isSystemTpl(selectedTemplate) && !selectedTemplate.is_user_default && (
-                <Button size="sm" intent="secondary" onClick={() => void handleSetDefault(selectedTemplate.id)} disabled={sending || savingTemplate}>
-                  성적 안내 기본으로 지정
-                </Button>
-              )}
+                        {effectiveBlockCategory === "grades" ? "성적 안내문 저장" : "내 문구로 저장"}
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {effectiveBlockCategory === "grades" && selectedTemplate && !isSystemTpl(selectedTemplate) && !selectedTemplate.is_user_default && (
+                  <Button size="sm" intent="secondary" onClick={() => void handleSetDefault(selectedTemplate.id)} disabled={sending || savingTemplate}>
+                    성적 안내 기본으로 지정
+                  </Button>
+                )}
 
-              <Button
-                size="sm"
-                intent="primary"
-                onClick={() => setShowPickerModal(true)}
-                disabled={sending || savingTemplate}
-              >
-                {effectiveBlockCategory === "grades" ? "안내문 바꾸기" : hasSelectedBodySource ? "다른 문구 선택" : "문구 선택"}
-              </Button>
+                <Button
+                  size="sm"
+                  intent="primary"
+                  onClick={() => setShowPickerModal(true)}
+                  disabled={sending || savingTemplate}
+                >
+                  {effectiveBlockCategory === "grades" ? "안내문 바꾸기" : hasSelectedBodySource ? "다른 문구 선택" : "문구 선택"}
+                </Button>
+              </div>
             </div>
 
             {effectiveBlockCategory === "grades" && <p className="send-modal__editor-hint">기본 성적 안내문은 이 학원 직원 공통입니다. 저장만으로 발송되지 않습니다.</p>}
