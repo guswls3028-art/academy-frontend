@@ -434,6 +434,39 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
   for (const viewer of ["student", "parent"] as const) {
+    for (const width of [1366, 390]) {
+      test(`@grade-provisional ${viewer} ${width}px 미확정 시험은 미응시가 아니며 완료 후 점수·평균을 복구한다`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        const pending: MyExamGradeSummary = { ...unscoredExam, title: "확인 중 온라인 평가", lecture_id: 501,
+          achievement: null, meta_status: null, is_provisional: true, grading_status: null };
+        const summary: Partial<MyGradesSummary> = { exams: [pending, { ...pending, exam_id: 903,
+          title: "서술형 대기 평가", grading_status: "subjective_pending" }], homeworks: [] };
+        await installApi(page, viewer, { studentPoints: [], gradeSummary: summary, wrongCompletionOnly: false });
+        await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+        if (viewer === "parent") {
+          await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" }).click();
+          await expect(page).toHaveURL(/\/student\/dashboard/);
+          await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+        }
+        const card = page.getByRole("link", { name: /확인 중 온라인 평가/ });
+        await expect(card).toContainText("채점 확인 중");
+        await expect(card).not.toContainText(/미응시|불합격|합격|전 문항 정답/);
+        await expect(card.getByTestId("grade-wrong-summary")).toHaveCount(0);
+        await expect(page.getByRole("link", { name: /서술형 대기 평가/ })).toContainText("서술형 채점 중");
+        await expect(page.getByText(/평균 득점률/)).toHaveCount(0);
+        await card.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath(`provisional-${viewer}-${width}.png`), animations: "disabled" });
+        summary.exams![0] = { ...pending, total_score: 60, is_pass: true, achievement: "PASS", is_provisional: false };
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(card).toContainText("60/100점");
+        await expect(card).not.toContainText("채점 확인 중");
+        await expect(page.getByText(/평균 득점률 60%/)).toBeVisible();
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      });
+    }
+  }
+
+  for (const viewer of ["student", "parent"] as const) {
     for (const width of [390, 1366]) {
       test(`${viewer}: OX 과제는 점수 평균에서 제외하고 완료율에는 반영한다 ${width}px`, async ({ page }, testInfo) => {
         await page.setViewportSize({ width, height: 900 });

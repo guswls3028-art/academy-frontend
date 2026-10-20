@@ -192,6 +192,25 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await staffPage.screenshot({ path: test.info().outputPath(`real-teacher-homework-report-${width}.png`), animations: "disabled" });
       await teacherReport.getByRole("button", { name: "닫기", exact: true }).click();
       await expect(teacherReport).toBeHidden();
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/assignments?homeworkId=${completion.id}`);
+      await expect(staffPage.getByRole("heading", { name: completionTitle, exact: true })).toBeVisible();
+      await staffPage.getByRole("tab", { name: "결과", exact: true }).click();
+      const resultTable = staffPage.getByRole("table");
+      const resultRow = resultTable.getByRole("row").filter({ hasText: studentName });
+      const completionMark = width === 1366 ? "O" : "X";
+      await expect(resultTable.getByRole("columnheader", { name: "O/X", exact: true })).toBeVisible();
+      await expect(resultRow.locator("td").nth(2)).toHaveText(completionMark);
+      await expect(staffPage.getByText("점수 분포 (%)", { exact: true })).toHaveCount(0);
+      await resultRow.locator("td").nth(2).click();
+      const detail = staffPage.getByRole("complementary", { name: "선택 학생 상세", exact: true });
+      await expect(detail.getByText(completionMark, { exact: true })).toBeVisible();
+      await detail.scrollIntoViewIfNeeded();
+      await assertNoHorizontalOverflow(staffPage);
+      await staffPage.screenshot({ path: test.info().outputPath(`real-homework-result-${width}.png`), animations: "disabled" });
+      await staffPage.reload();
+      await staffPage.getByRole("tab", { name: "결과", exact: true }).click();
+      await expect(resultRow.locator("td").nth(2)).toHaveText(completionMark);
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
       // Restore exact order via the same excluded-area UI before existing comment checks.
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
       await totals.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
@@ -216,7 +235,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       const text = `${parentHomeworkComment}\n${width}px 확인`;
       await comment.getByLabel(studentName, { exact: true }).fill(text);
       await comment.getByRole("button", { name: "학부모에게 공개", exact: true }).click();
-      await expect(comment.getByRole("status")).toContainText("학부모에게 공개했습니다.");
+      await expect(comment.getByRole("status").filter({ hasText: "학부모에게 공개했습니다." })).toBeVisible();
       await staffPage.reload();
       await staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }).click();
       await staffPage.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
