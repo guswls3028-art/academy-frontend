@@ -88,6 +88,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
     const guards = attachStrictBrowserGuards(staffPage);
     await seedBrowserAuth(staffPage, admin);
     await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
+    await acknowledgeInitialAccountPromptsIfVisible(staffPage);
     const configPath = `/results/admin/sessions/${created.sessionId}/total-config/`;
     await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
     const totals = staffPage.getByRole("dialog", { name: "합산 설정", exact: true });
@@ -174,7 +175,9 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await expect(totals).toBeHidden();
       const restored = staffPage.waitForResponse(response => response.request().method() === "PUT"
         && new URL(response.url()).pathname === `/api/v1${configPath}`);
-      await staffPage.getByRole("button", { name: `${homeworkTitle} 이전 순서로 이동`, exact: true }).click();
+      if (width === 1366) {
+        await staffPage.locator(".scores-col-drag-handle").filter({ has: staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }) }).dragTo(staffPage.locator(".scores-col-drag-handle").filter({ has: staffPage.getByRole("button", { name: `${completionTitle} 작업 선택`, exact: true }) }));
+      } else await staffPage.getByRole("button", { name: `${homeworkTitle} 이전 순서로 이동`, exact: true }).click();
       expect((await restored).status()).toBe(200);
       await staffPage.reload();
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
@@ -809,8 +812,12 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await waitForHomeworkSummary(request, parentTokens.access, (row) => row.score === 92, student.id);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
-    await expect(page.getByText(homeworkTitle).first()).toBeVisible();
-    await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible();
+    const scoredHomeworkCard = page.locator('.stu-panel[data-session-type]').filter({
+      has: page.getByText(homeworkTitle, { exact: true }),
+    });
+    await expect(scoredHomeworkCard).toHaveCount(1);
+    await expect(scoredHomeworkCard.locator("strong")).toHaveText("92/100");
+    await expect(scoredHomeworkCard.locator("strong")).toBeVisible();
     await assertSeparateHomeworkGroups(page);
     await verifyHomeworkFeedback(page, request, admin, student.name);
 
@@ -834,8 +841,9 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     expect(graded.title).toBe(homeworkTitle);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
-    await expect(page.getByText(homeworkTitle).first()).toBeVisible();
-    await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible();
+    await expect(scoredHomeworkCard).toHaveCount(1);
+    await expect(scoredHomeworkCard.locator("strong")).toHaveText("92/100");
+    await expect(scoredHomeworkCard.locator("strong")).toBeVisible();
     await expect(page.locator('aside[aria-label="학부모 코멘트"]')).toHaveCount(0);
     await expect(page.getByText(parentHomeworkComment, { exact: false })).toHaveCount(0);
 
