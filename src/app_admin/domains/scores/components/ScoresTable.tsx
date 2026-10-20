@@ -160,8 +160,10 @@ function parseScoreInput(input: string, maxScore?: number | null): number | null
   const n = Number(v);
   if (Number.isFinite(n)) return n;
   if (maxScore != null && Number(maxScore) > 0 && v.endsWith("%")) {
-    const p = Number(v.slice(0, -1));
-    if (Number.isFinite(p)) return Math.round((p / 100) * Number(maxScore));
+    const percentage = v.slice(0, -1).trim();
+    if (!percentage) return null;
+    const p = Number(percentage);
+    if (Number.isFinite(p)) return (p / 100) * Number(maxScore);
   }
   return null;
 }
@@ -288,6 +290,16 @@ type ScoreEditHistoryEntry = {
   key: string;
   before: PendingChange;
   after: PendingChange;
+};
+
+type FocusedScoreEdit = {
+  key: string;
+  element: HTMLElement;
+  text: string;
+  pending?: PendingChange;
+  pendingSaved: boolean;
+  undo: ScoreEditHistoryEntry[];
+  redo: ScoreEditHistoryEntry[];
 };
 
 type HomeworkPendingChange = Extract<PendingChange, { type: "homework" }>;
@@ -507,6 +519,44 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   const redoStackRef = useRef<ScoreEditHistoryEntry[]>([]);
   const lastCommitInvalidRef = useRef(false);
   const liveHistoryKeyRef = useRef<string | null>(null);
+  const focusedEditRef = useRef<FocusedScoreEdit | null>(null);
+  const cancelledBlurRef = useRef<HTMLElement | null>(null);
+  const beginCellEdit = useCallback((key: string, element: HTMLElement) => {
+    focusedEditRef.current = {
+      key, element, text: firstLine(element.innerText),
+      pending: pendingRef.current.get(key), pendingSaved: false,
+      undo: [...undoStackRef.current], redo: [...redoStackRef.current],
+    };
+  }, []);
+  const cancelCellEdit = useCallback((element: HTMLElement | null | undefined, fallback: string, options: { invalid?: boolean; keepFocus?: boolean } = {}) => {
+    if (!element) return;
+    const edit = focusedEditRef.current;
+    if (edit?.element === element) {
+      if (edit.pending && !edit.pendingSaved) {
+        pendingRef.current.set(edit.key, edit.pending);
+        dirtyKeysRef.current.add(edit.key);
+      } else {
+        pendingRef.current.delete(edit.key);
+        dirtyKeysRef.current.delete(edit.key);
+      }
+      undoStackRef.current = edit.undo;
+      redoStackRef.current = edit.redo;
+      element.innerText = edit.text;
+      element.dataset.focusValue = edit.text;
+      focusedEditRef.current = null;
+      onPendingChange?.();
+    } else element.innerText = fallback;
+    liveHistoryKeyRef.current = null;
+    lastCommitInvalidRef.current = options.invalid ?? false;
+    if (document.activeElement === element) {
+      if (options.keepFocus) {
+        if (edit) beginCellEdit(edit.key, element);
+      } else {
+        cancelledBlurRef.current = element;
+        element.blur();
+      }
+    }
+  }, [beginCellEdit, onPendingChange]);
   const [homeworkConflicts, setHomeworkConflicts] = useState<Record<string, HomeworkCellConflict>>({});
   const homeworkMaxScoreById = useMemo(
     () => new Map((meta?.homeworks ?? []).map((homework) => [homework.homework_id, homework.max_score])),
@@ -687,7 +737,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   /** pending 항목 전부 API 호출 후 한 번만 invalidate.
    * 저장 도중 같은 셀이 다시 바뀌면 새 값을 지우지 않는다. */
   const flushPendingChanges = useCallback(async () => {
-    const list = Array.from(pendingRef.current.values());
+    const active = document.activeElement;
+    const edit = focusedEditRef.current;
+    // An older save may reach flush after the user has begun another edit.
+    // Do not include that new, still-active input in the older save.
+    const list = Array.from(pendingRef.current.values()).filter((change) => !(
+      edit && edit.element === active && pendingKeyForChange(change) === edit.key
+      && firstLine(edit.element.innerText) !== (edit.element.dataset.focusValue ?? "")
+    ));
     if (list.length === 0) return { savedCount: 0, projectionPendingCount: 0 };
     const failed: PendingChange[] = [];
     const succeeded: Array<{
@@ -744,10 +801,16 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     for (const { change: p, updatedAt } of succeeded) {
       const key = pendingKeyForChange(p);
       const current = pendingRef.current.get(key);
+      const focused = focusedEditRef.current;
+      if (focused?.key === key && focused.pending && samePendingChange(focused.pending, p)) {
+        focused.pendingSaved = true;
+      }
       if (current && samePendingChange(current, p)) {
         pendingRef.current.delete(key);
         dirtyKeysRef.current.delete(key);
-        applyChangeToDom(p);
+        const editingUncommitted = focused && focused.element === document.activeElement
+          && firstLine(focused.element.innerText) !== (focused.element.dataset.focusValue ?? "");
+        if (!editingUncommitted) applyChangeToDom(p);
       } else if (
         p.type === "homework"
         && current?.type === "homework"
@@ -774,6 +837,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         };
         undoStackRef.current = undoStackRef.current.map(updateHistoryVersion);
         redoStackRef.current = redoStackRef.current.map(updateHistoryVersion);
+        if (focused) {
+          if (focused.key === key && focused.pending?.type === "homework") {
+            focused.pending = { ...focused.pending, expectedUpdatedAt: updatedAt };
+          }
+          focused.undo = focused.undo.map(updateHistoryVersion);
+          focused.redo = focused.redo.map(updateHistoryVersion);
+        }
       }
       setHomeworkConflicts((conflicts) => {
         if (!(key in conflicts)) return conflicts;
@@ -841,9 +911,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     dirtyKeysRef.current.add(entry.key);
     applyChangeToDom(entry.before);
     redoStackRef.current.push(entry);
+    const activeEdit = focusedEditRef.current;
+    if (activeEdit && activeEdit.element === document.activeElement) beginCellEdit(activeEdit.key, activeEdit.element);
+    liveHistoryKeyRef.current = null;
     onPendingChange?.();
     return true;
-  }, [applyChangeToDom, onPendingChange]);
+  }, [applyChangeToDom, beginCellEdit, onPendingChange]);
 
   const redoLastChange = useCallback(() => {
     const entry = redoStackRef.current.pop();
@@ -852,9 +925,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     dirtyKeysRef.current.add(entry.key);
     applyChangeToDom(entry.after);
     undoStackRef.current.push(entry);
+    const activeEdit = focusedEditRef.current;
+    if (activeEdit && activeEdit.element === document.activeElement) beginCellEdit(activeEdit.key, activeEdit.element);
+    liveHistoryKeyRef.current = null;
     onPendingChange?.();
     return true;
-  }, [applyChangeToDom, onPendingChange]);
+  }, [applyChangeToDom, beginCellEdit, onPendingChange]);
 
   const examOptions = useMemo(
     () => (viewFilter === "homework" ? [] : [...(meta?.exams ?? [])].sort((a, b) => Number(meta?.total_config?.exam_ids.includes(b.exam_id) ?? true) - Number(meta?.total_config?.exam_ids.includes(a.exam_id) ?? true))),
@@ -1674,6 +1750,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     lastCommitInvalidRef.current = false;
                                     liveHistoryKeyRef.current = null;
                                     const focusValue = firstLine(el.innerText);
+                                    beginCellEdit(`examTotal:${row.enrollment_id}:${ex.exam_id}`, el);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] = focusValue;
                                     el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
@@ -1702,7 +1779,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       );
                                     }
                                   }}
-                                  onBlur={async () => {
+                                  onBlur={async (event) => {
+                                    if (cancelledBlurRef.current === event.currentTarget) {
+                                      cancelledBlurRef.current = null;
+                                      return;
+                                    }
                                     const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
@@ -1727,8 +1808,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     const metaMax = examMaxScore ?? 100;
                                     const parsed = parseScoreInput(raw, metaMax);
                                     if (parsed == null) {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                       feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다. 미응시는 / 를 입력해 주세요.");
                                     } else if (validateScore(parsed, metaMax)) {
                                       if (wasLiveChange) return;
@@ -1740,8 +1820,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                           : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: metaMax },
                                       );
                                     } else {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                     }
                                   }}
                                   onKeyDown={(e) => {
@@ -1749,8 +1828,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (e.key === "Escape") {
                                       e.preventDefault(); e.stopPropagation();
                                       const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] ?? "";
-                                      if (el) el.innerText = prev;
-                                      el?.blur();
+                                      cancelCellEdit(el, prev);
                                     } else if (e.key === "Enter") {
                                       e.preventDefault(); e.stopPropagation();
                                       const raw = el?.innerText?.trim() ?? "";
@@ -1778,7 +1856,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         // 숫자 입력 → 점수 저장
                                         const metaMax = examMaxScore ?? 100;
                                         const parsed = parseScoreInput(raw, metaMax);
-                                        if (parsed != null && validateScore(parsed, metaMax)) {
+                                        if (parsed == null || !validateScore(parsed, metaMax)) {
+                                          cancelCellEdit(el, el?.dataset.focusValue ?? "", { invalid: true, keepFocus: true });
+                                          if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다. 미응시는 / 를 입력해 주세요.");
+                                          return;
+                                        }
+                                        if (parsed != null) {
                                           const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
                                           stagePendingChange(
                                             cellKey,
@@ -1887,6 +1970,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     lastCommitInvalidRef.current = false;
                                     liveHistoryKeyRef.current = null;
                                     const focusValue = firstLine(el.innerText);
+                                    beginCellEdit(`examObjective:${row.enrollment_id}:${ex.exam_id}`, el);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] = focusValue;
                                     el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
@@ -1901,7 +1985,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: objScore ?? 0 },
                                     );
                                   }}
-                                  onBlur={async () => {
+                                  onBlur={async (event) => {
+                                    if (cancelledBlurRef.current === event.currentTarget) {
+                                      cancelledBlurRef.current = null;
+                                      return;
+                                    }
                                     const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
@@ -1912,8 +2000,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (raw === focusValue) return;
                                     const parsed = parseScoreInput(raw, objectiveMax);
                                     if (parsed == null) {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                       feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
                                     } else if (validateScore(parsed, objectiveMax)) {
                                       if (wasLiveChange) return;
@@ -1923,8 +2010,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: objScore ?? 0 },
                                       );
                                     } else {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                     }
                                   }}
                                   onKeyDown={(e) => {
@@ -1932,10 +2018,16 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (e.key === "Escape") {
                                       e.preventDefault(); e.stopPropagation();
                                       const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] ?? "";
-                                      if (el) el.innerText = prev;
-                                      el?.blur();
+                                      cancelCellEdit(el, prev);
                                     } else if (e.key === "Enter") {
                                       e.preventDefault(); e.stopPropagation();
+                                      const raw = firstLine(el?.innerText ?? "");
+                                      const parsed = parseScoreInput(raw, objectiveMax);
+                                      if (parsed == null || !validateScore(parsed, objectiveMax)) {
+                                        cancelCellEdit(el, el?.dataset.focusValue ?? "", { invalid: true, keepFocus: true });
+                                        if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
+                                        return;
+                                      }
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
@@ -2011,6 +2103,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     lastCommitInvalidRef.current = false;
                                     liveHistoryKeyRef.current = null;
                                     const focusValue = firstLine(el.innerText);
+                                    beginCellEdit(`examSubjective:${row.enrollment_id}:${ex.exam_id}`, el);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] = focusValue;
                                     el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
@@ -2025,7 +2118,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: subScore ?? 0 },
                                     );
                                   }}
-                                  onBlur={async () => {
+                                  onBlur={async (event) => {
+                                    if (cancelledBlurRef.current === event.currentTarget) {
+                                      cancelledBlurRef.current = null;
+                                      return;
+                                    }
                                     const el = examSubjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-subjective`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
@@ -2036,8 +2133,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (raw === focusValue) return;
                                     const parsed = parseScoreInput(raw, subjectiveMax);
                                     if (parsed == null) {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                       feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
                                     } else if (validateScore(parsed, subjectiveMax)) {
                                       if (wasLiveChange) return;
@@ -2047,8 +2143,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: subScore ?? 0 },
                                       );
                                     } else {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                     }
                                   }}
                                   onKeyDown={(e) => {
@@ -2056,10 +2151,16 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (e.key === "Escape") {
                                       e.preventDefault(); e.stopPropagation();
                                       const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] ?? "";
-                                      if (el) el.innerText = prev;
-                                      el?.blur();
+                                      cancelCellEdit(el, prev);
                                     } else if (e.key === "Enter") {
                                       e.preventDefault(); e.stopPropagation();
+                                      const raw = firstLine(el?.innerText ?? "");
+                                      const parsed = parseScoreInput(raw, subjectiveMax);
+                                      if (parsed == null || !validateScore(parsed, subjectiveMax)) {
+                                        cancelCellEdit(el, el?.dataset.focusValue ?? "", { invalid: true, keepFocus: true });
+                                        if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
+                                        return;
+                                      }
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
@@ -2301,6 +2402,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
                                 freezeObservedHomeworkVersion(`homework:${row.enrollment_id}:${hw.homework_id}`);
                                 const focusValue = firstLine(el.innerText);
+                                beginCellEdit(`homework:${row.enrollment_id}:${hw.homework_id}`, el);
                                 scoreValueOnFocusRef.current[key] = focusValue;
                                 el.dataset.focusValue = focusValue;
                                 requestAnimationFrame(() => selectAllScoreCell(el));
@@ -2338,7 +2440,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 el.focus();
                                 selectAllScoreCell(el);
                               }}
-                              onBlur={async () => {
+                              onBlur={async (event) => {
+                                if (cancelledBlurRef.current === event.currentTarget) {
+                                  cancelledBlurRef.current = null;
+                                  return;
+                                }
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
                                 const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
                                 const el = homeworkInputRefs.current[key];
@@ -2370,7 +2476,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 const parsed = parseScoreInput(raw, hw.max_score);
                                 if (parsed != null) {
                                   if (!validateScore(parsed, hw.max_score)) {
-                                    el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
+                                    cancelCellEdit(el, el.dataset.focusValue ?? "", { invalid: true });
                                     return;
                                   }
                                   if (wasLiveChange) return;
@@ -2380,7 +2486,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     serverValue,
                                   );
                                 } else {
-                                  el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
+                                  cancelCellEdit(el, el.dataset.focusValue ?? "", { invalid: true });
+                                  feedback.error("점수는 숫자 또는 %로 입력해 주세요.");
                                 }
                               }}
                               onKeyDown={async (e) => {
@@ -2391,8 +2498,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 if (e.key === "Escape") {
                                   e.preventDefault(); e.stopPropagation();
                                   const prev = scoreValueOnFocusRef.current[key] ?? "";
-                                  if (el) el.innerText = prev;
-                                  el?.blur();
+                                  cancelCellEdit(el, prev);
                                   return;
                                 }
                                 if (e.key === "Tab") {
@@ -2444,9 +2550,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     return;
                                   }
                                   const parsed = parseScoreInput(raw, hw.max_score);
+                                  if (parsed == null && raw !== "") {
+                                    cancelCellEdit(el, el?.dataset.focusValue ?? "", { invalid: true, keepFocus: true });
+                                    feedback.error("점수는 숫자 또는 %로 입력해 주세요.");
+                                    return;
+                                  }
                                   if (parsed != null) {
                                     if (!validateScore(parsed, hw.max_score)) {
-                                      if (el) el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
+                                      cancelCellEdit(el, el?.dataset.focusValue ?? "", { invalid: true, keepFocus: true });
                                       return;
                                     }
                                     const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;

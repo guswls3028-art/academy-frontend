@@ -148,6 +148,34 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await expect(cell).toBeVisible();
       const edit = staffPage.getByRole("button", { name: "수정", exact: true });
       if (await edit.isVisible()) await edit.click();
+      const numeric = staffPage.getByRole("textbox", { name: `${studentName} · ${homeworkTitle} 점수 입력`, exact: true });
+      const readNumericScore = async () => {
+        const data = await expectApi<{ rows: Array<{ enrollment_id: number; homeworks: Array<{ homework_id: number; block: { score: number | null } }> }> }>(request, "GET", scoresPath, admin.access);
+        return data.rows.find(row => row.enrollment_id === created.enrollmentId)!
+          .homeworks.find(item => item.homework_id === created.homeworkId)!.block.score;
+      };
+      await numeric.click();
+      await numeric.fill("97");
+      await numeric.press("Escape");
+      await expect(numeric).toHaveText("92");
+      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await expect(edit).toBeVisible();
+      expect(await readNumericScore()).toBe(92);
+      await edit.click();
+      await numeric.click();
+      await numeric.fill("92.5%");
+      const fractionalSave = staffPage.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
+        && response.request().postDataJSON()?.homework_id === created.homeworkId);
+      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      expect((await fractionalSave).status()).toBe(200);
+      await expect(edit).toBeVisible();
+      expect(await readNumericScore()).toBe(92.5);
+      await staffPage.reload();
+      await edit.click();
+      await expect(numeric).toHaveText("92.5");
+      await numeric.click();
+      await numeric.fill("92");
       const state = cell.getByRole("combobox", { name: `${studentName} · ${completionTitle} 완료 상태`, exact: true });
       await state.selectOption(width === 1366 ? "통과" : "미통과");
       const scored = staffPage.waitForResponse(response => response.request().method() === "PATCH"

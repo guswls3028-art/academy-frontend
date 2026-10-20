@@ -155,7 +155,14 @@ export function useScoreEditDraft({
       const queuedPanel = preservedPanel ?? panelRef.current;
       const savedCount = await inFlight;
       if (savePromiseRef.current === inFlight) savePromiseRef.current = null;
-      if ((queuedPanel?.getPendingSnapshot?.() ?? []).length > 0) {
+      const queuedPending = queuedPanel?.getPendingSnapshot?.() ?? [];
+      if (queuedPending.length > 0) {
+        if (queuedPanel?.hasUncommittedActiveCell?.()) {
+          writeLocalDraft(localDraftKey, queuedPending);
+          setHasPendingChanges(true);
+          setDraftStatus("dirty");
+          throw new Error("현재 입력을 마친 뒤 다시 저장해 주세요.");
+        }
         const queuedResult = await savePendingScores(queuedPanel);
         return {
           savedCount: savedCount.savedCount + queuedResult.savedCount,
@@ -256,6 +263,12 @@ export function useScoreEditDraft({
     }
     const remaining = panel?.getPendingSnapshot?.() ?? [];
     if (remaining.length > 0) {
+      if (panel?.hasUncommittedActiveCell?.()) {
+        writeLocalDraft(localDraftKey, remaining);
+        setHasPendingChanges(true);
+        setDraftStatus("dirty");
+        throw new Error("현재 입력을 마친 뒤 다시 저장해 주세요.");
+      }
       const remainingResult = await savePendingScores(panel);
       return {
         savedCount: savedCount.savedCount + remainingResult.savedCount,
