@@ -5,6 +5,7 @@
  */
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
+import type { StudentGradeReportLayout } from "@/shared/api/contracts/studentGradeReportLayout";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import {
   api,
@@ -78,6 +79,8 @@ const parentHomeworkComment = "QA 과제 피드백: 풀이 과정을 꼼꼼히 �
 async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestContext, admin: QaTokens, studentName: string): Promise<void> {
   const context = await parentPage.context().browser()!.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
   const editors = new Set<string>();
+  const layoutPath = "/core/student-grade-report-layout/";
+  let reportLayoutToRestore: StudentGradeReportLayout | null = null;
   try {
     const staffPage = await context.newPage();
     staffPage.on("request", outgoing => {
@@ -127,6 +130,17 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       expect(row.homeworks.find(item => item.homework_id === completion.id)?.block.score).toBe(completionScore);
       if (selected.length) expect(row.homework_total).toMatchObject({ score: 92, max_score: 100 });
     };
+    // The isolated YMath fixture hides homework statistics by default. Exercise
+    // the configurable section explicitly, preserving every other preference.
+    const originalLayout = await expectApi<StudentGradeReportLayout>(request, "GET", layoutPath, admin.access);
+    expect(originalLayout.sections.some(section => section.id === "homework_summary")).toBe(true);
+    if (!originalLayout.sections.find(section => section.id === "homework_summary")!.visible) {
+      reportLayoutToRestore = originalLayout;
+      const visibleLayout = { ...originalLayout, sections: originalLayout.sections.map(section =>
+        section.id === "homework_summary" ? { ...section, visible: true } : section) };
+      expect(await expectApi<StudentGradeReportLayout>(request, "PATCH", layoutPath, admin.access, visibleLayout)).toEqual(visibleLayout);
+      expect(await expectApi<StudentGradeReportLayout>(request, "GET", layoutPath, admin.access)).toEqual(visibleLayout);
+    }
     for (const width of [1366, 390]) {
       await staffPage.setViewportSize({ width, height: 900 });
       await staffPage.reload();
@@ -275,8 +289,15 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
         expect([200, 204]).toContain(released.status());
       }
     } finally {
-      await context.close();
-      await parentPage.setViewportSize({ width: 390, height: 844 });
+      try {
+        if (reportLayoutToRestore) {
+          await expectApi(request, "PATCH", layoutPath, admin.access, reportLayoutToRestore);
+          expect(await expectApi<StudentGradeReportLayout>(request, "GET", layoutPath, admin.access)).toEqual(reportLayoutToRestore);
+        }
+      } finally {
+        await context.close();
+        await parentPage.setViewportSize({ width: 390, height: 844 });
+      }
     }
   }
 }
