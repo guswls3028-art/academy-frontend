@@ -175,7 +175,9 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await expect(totals).toBeHidden();
       const restored = staffPage.waitForResponse(response => response.request().method() === "PUT"
         && new URL(response.url()).pathname === `/api/v1${configPath}`);
-      await staffPage.getByRole("button", { name: `${homeworkTitle} 이전 순서로 이동`, exact: true }).click();
+      if (width === 1366) {
+        await staffPage.locator(".scores-col-drag-handle").filter({ has: staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }) }).dragTo(staffPage.locator(".scores-col-drag-handle").filter({ has: staffPage.getByRole("button", { name: `${completionTitle} 작업 선택`, exact: true }) }));
+      } else await staffPage.getByRole("button", { name: `${homeworkTitle} 이전 순서로 이동`, exact: true }).click();
       expect((await restored).status()).toBe(200);
       await staffPage.reload();
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
