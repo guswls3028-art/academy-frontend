@@ -923,7 +923,16 @@ async function verifyScoreMessageTemplate(
     await page.reload();
     await page.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
     await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
-    await expect(send.getByRole("textbox", { name: "안내문", exact: true })).toContainText("점수 #{시험총점} 확인 완료");
+    const restoredDraft = send.getByRole("textbox", { name: "안내문", exact: true });
+    // Reopening restores the template; recipient choices start fresh for this send.
+    await send.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+    await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
+    await expect(restoredDraft).toContainText("확인 완료");
+    await expect(restoredDraft.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
+    await expect(restoredDraft.locator('[data-message-variable="학생이름3"]')).toHaveCount(1);
+    await expect(send.getByLabel("현재 학생의 실제 발송 문구"))
+      .toContainText(`학생 ${student.name} 점수 60 확인 완료`);
+    await expect(send.locator(".send-modal__send-btn")).toBeEnabled();
     await expect(send).toContainText(templateName);
     await assertNoHorizontalOverflow(page);
     boundary.assertClean();

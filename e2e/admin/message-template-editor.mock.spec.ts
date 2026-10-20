@@ -507,7 +507,7 @@ test.describe("안내문 변수 편집", () => {
   });
 });
 
-async function openGuardedSender(page: Page, initiallyDefault = true) {
+async function openGuardedSender(page: Page, initiallyDefault = true, approvedTemplate = false) {
   const baseUrl = getBaseUrl("admin");
   const mockOnlyReason = realMessagingSkipReason(baseUrl, "", "0");
   test.skip(
@@ -521,8 +521,9 @@ async function openGuardedSender(page: Page, initiallyDefault = true) {
   await page.route("**/api/v1/messaging/**", async route => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/templates/")) return route.fulfill({ json: [{
-      id: 991, name: "안전한 수업 안내", category: "grades", subject: "", body: "오늘 수업 안내입니다.",
-      is_system: false, is_user_default: initiallyDefault, solapi_status: "", solapi_template_id: "",
+      id: 991, name: approvedTemplate ? "안전한 수업 안내 · 학부모에게 전달할 긴 성적 안내문" : "안전한 수업 안내", category: "grades", subject: "", body: "오늘 수업 안내입니다.",
+      is_system: false, is_user_default: initiallyDefault,
+      solapi_status: approvedTemplate ? "APPROVED" : "", solapi_template_id: approvedTemplate ? "E2E_GRADES" : "",
     }] });
     if (path.endsWith("/send/preflight/")) {
       const payload = route.request().postDataJSON();
@@ -558,6 +559,28 @@ async function openGuardedSender(page: Page, initiallyDefault = true) {
 }
 
 for (const width of [1366, 390]) {
+  test(`성적 안내문 상태 배지와 저장 버튼이 눌리지 않고 표시된다 ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { modal, sends } = await openGuardedSender(page, false, true);
+    await modal.getByRole("textbox", { name: "안내문", exact: true })
+      .fill("오늘 수업 안내입니다. 학부모에게 전달할 추가 안내를 작성했습니다.");
+    const bar = modal.locator(".send-modal__tpl-bar");
+    await bar.scrollIntoViewIfNeeded();
+    for (const label of ["사용 가능", "수정됨"]) {
+      const badge = bar.getByText(label, { exact: true });
+      await expect(badge).toBeVisible();
+      await expect.poll(() => badge.evaluate(element => element.getBoundingClientRect().height)).toBeLessThanOrEqual(28);
+    }
+    for (const label of ["변경 내용 저장", "새 문구로 저장", "성적 안내 기본으로 지정", "안내문 바꾸기"]) {
+      const button = bar.getByRole("button", { name: label, exact: true });
+      await expect(button).toBeVisible();
+      expect(await button.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    }
+    await expect.poll(() => bar.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`message-template-header-${width}.png`), animations: "disabled" });
+    expect(sends).toHaveLength(0);
+  });
+
   test(`발송 초안 닫기·양식 교체는 폐기를 확인하고 취소하면 보존한다 ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const { modal, sends } = await openGuardedSender(page);
