@@ -37,7 +37,10 @@ import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helper
 import { verifyAssessmentCopy } from "../helpers/verifyAssessmentCopy";
 import { verifySubmissionInbox } from "../helpers/verifySubmissionInbox";
 
-test.setTimeout(360_000);
+// This scenario now spans submission, feedback, templates, grading, copy and
+// attendance journeys. Budget the combined flow without relaxing any individual
+// action, navigation, API or assertion deadline.
+test.setTimeout(540_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
 type CreatedState = {
@@ -336,7 +339,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     const [primary, peer] = created.family.students;
     await seedAssessment(request, admin.access, created.family);
 
-    await submitFirstStudentThroughUi(page, primary, created.examId!);
+    await test.step("student submission and persisted result", () => submitFirstStudentThroughUi(page, primary, created.examId!));
     const primaryTokens = await loginApi(request, primary.ps_number, primary.password);
     const primaryResult = await waitForResult(request, primaryTokens.access, created.examId!);
     expect(primaryResult).toMatchObject({
@@ -387,7 +390,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     expect(teacherProjection.user).toBeGreaterThan(0);
     expect(teacherProjection.meta.submitted_by_user_id).toBeGreaterThan(0);
     expect(teacherProjection.meta.submitted_by_user_id).not.toBe(teacherProjection.user);
-    await verifySubmissionInbox(page, request, admin, parentSubmissionId);
+    await test.step("teacher submission inbox", () => verifySubmissionInbox(page, request, admin, parentSubmissionId));
 
     await reloadStudentApp(page);
     await expect(page.getByRole("tab", { name: peer.name })).toHaveAttribute("aria-selected", "true");
@@ -420,16 +423,16 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
-    await verifyAssessmentFeedback(page, request, admin, primary, peer, primaryTokens, parentTokens, testInfo);
-    await verifyScoreMessageTemplate(page, request, admin, primary, testInfo);
-    await verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens);
-    await verifyExamOrderPersistence(page, request, admin, testInfo);
-    await verifyAssessmentCopy(page, request, admin, primaryTokens, {
+    await test.step("parent-only assessment feedback", () => verifyAssessmentFeedback(page, request, admin, primary, peer, primaryTokens, parentTokens, testInfo));
+    await test.step("score message template and defaults", () => verifyScoreMessageTemplate(page, request, admin, primary, testInfo));
+    await test.step("manual score precision and retake totals", () => verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens));
+    await test.step("exam order persistence", () => verifyExamOrderPersistence(page, request, admin, testInfo));
+    await test.step("assessment copy", () => verifyAssessmentCopy(page, request, admin, primaryTokens, {
       lectureId: created.lectureId!, sessionId: created.sessionId!, examId: created.examId!,
       examTitle, enrollmentIds: created.enrollmentIds, date: todayKst,
-    }, (sessionId) => { created.copySessionIds.push(sessionId); });
-    await verifyAttendancePriorityAndAbsentScores(page, request, admin, created.family, testInfo);
-    await verifyEndedCourseTodos(page, request, admin, primary, primaryTokens);
+    }, (sessionId) => { created.copySessionIds.push(sessionId); }));
+    await test.step("attendance priority and absent scores", () => verifyAttendancePriorityAndAbsentScores(page, request, admin, created.family!, testInfo));
+    await test.step("ended-course todos and restored eligibility", () => verifyEndedCourseTodos(page, request, admin, primary, primaryTokens));
     boundary.assertClean();
     browser.assertZeroDefects();
   });
