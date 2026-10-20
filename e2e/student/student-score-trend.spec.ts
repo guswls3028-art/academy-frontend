@@ -986,6 +986,54 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-score-trend/student-single-lecture-1440.png", fullPage: true });
   });
+  test("@assessment-comment-race 자녀 전환 뒤 늦게 도착한 이전 자녀 코멘트를 표시하지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await installApi(page, "parent");
+    let releaseFirst!: () => void;
+    const firstResponseGate = new Promise<void>(resolve => { releaseFirst = resolve; });
+    let firstRequestStarted!: () => void;
+    const firstRequested = new Promise<void>(resolve => { firstRequestStarted = resolve; });
+    const requestedChildren: string[] = [];
+    await page.route("**/api/v1/results/parent/assessment-comments/", async route => {
+      const childId = route.request().headers()["x-student-id"] ?? "missing";
+      requestedChildren.push(childId);
+      if (childId === "11") {
+        firstRequestStarted();
+        await firstResponseGate;
+      }
+      await route.fulfill({ json: { items: [{
+        session_id: 701, assessment_kind: "exam", assessment_id: 301,
+        text: childId === "11" ? "늦게 도착한 첫째 코멘트" : "현재 선택한 둘째 코멘트",
+        version: 1, updated_at: "2026-10-19T09:00:00Z",
+      }] } });
+    });
+    try {
+      await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+      await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" }).click();
+      await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+      await firstRequested;
+      await expect(page.getByRole("status").filter({ hasText: "학부모 코멘트를 불러오는 중" })).toBeVisible();
+      await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김둘째" }).click();
+      await expect(page).toHaveURL(/\/student\/dashboard/);
+      await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
+      await page.getByRole("dialog", { name: "메뉴", exact: true }).getByRole("link", { name: "성적", exact: true }).click();
+      await expect(page.getByText("현재 선택한 둘째 코멘트", { exact: true })).toBeVisible();
+      const lateResponse = page.waitForResponse(response => response.url().includes("/results/parent/assessment-comments/")
+        && response.request().headers()["x-student-id"] === "11");
+      releaseFirst();
+      await (await lateResponse).finished();
+      await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await expect(page.getByText("현재 선택한 둘째 코멘트", { exact: true })).toBeVisible();
+      await expect(page.getByText("늦게 도착한 첫째 코멘트", { exact: true })).toHaveCount(0);
+      await page.reload();
+      await expect(page.getByText("현재 선택한 둘째 코멘트", { exact: true })).toBeVisible();
+      await expect(page.getByText("늦게 도착한 첫째 코멘트", { exact: true })).toHaveCount(0);
+      expect(requestedChildren).toContain("11");
+      expect(requestedChildren).toContain("12");
+      expect(requestedChildren).not.toContain("missing");
+    } finally { releaseFirst(); }
+  });
+
   for (const width of [1366, 390]) {
     for (const viewer of ["parent", "student"] as const) {
       test(`@assessment-feedback ${width}px ${viewer} 평가별 코멘트와 자녀 범위`, async ({ page }, testInfo) => {
