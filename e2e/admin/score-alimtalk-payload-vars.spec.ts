@@ -396,3 +396,28 @@ test("@assessment-feedback 선택 시험만 PDF 분모·평균에 포함하고 0
   expect(pdf.rows.map(item => item.score)).toEqual([80, 0]);
   expect(pdf.rows.every(item => item.maxScore === 100)).toBe(true);
 });
+
+test("@assessment-feedback 소수 만점 합계의 부동소수 오차로 익명 순위표 참여자를 누락하지 않는다", () => {
+  const meta: SessionScoreMeta = {
+    ...scoreMeta,
+    total_config: { version: 1, exam_ids: [11, 12], homework_ids: [] },
+    exams: [
+      { exam_id: 11, title: "소수 배점 A", pass_score: 1, max_score: 1.1, display_order: 1 },
+      { exam_id: 12, title: "소수 배점 B", pass_score: 1, max_score: 2.2, display_order: 2 },
+    ],
+  };
+  const row = scoreRow(null);
+  row.exam_total = { score: 3.1, max_score: 3.3, selected_count: 2, scored_count: 2, complete: true };
+  const zero = { ...row, enrollment_id: 2, exam_total: { ...row.exam_total, score: 0 } };
+  const differentMaximum = { ...row, enrollment_id: 3, exam_total: { ...row.exam_total, max_score: 3.31 } };
+  const unassigned = { ...row, enrollment_id: 4, exam_total: { ...row.exam_total, selected_count: 1, scored_count: 1, max_score: 1.1 } };
+  const pending = { ...row, enrollment_id: 5, exam_total: { ...row.exam_total, complete: false, scored_count: 1 } };
+  const pdf = buildAnonymousBillboardDocument({
+    rows: [row, zero, differentMaximum, unassigned, pending], meta,
+    sessionTitle: "1차시", lectureTitle: "소수 배점",
+  });
+  expect(pdf.participantCount).toBe(2);
+  expect(pdf.rows.map(item => item.score)).toEqual([3.1, 0]);
+  expect(pdf.totalMaxScore).toBeCloseTo(3.3, 12);
+  expect(pdf.averageScore).toBeCloseTo(1.55, 12);
+});

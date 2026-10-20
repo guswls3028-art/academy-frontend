@@ -13,6 +13,8 @@ type ScoreRouteOptions = {
   rowExamMaxScores?: number[];
   includeExamRetake?: boolean;
   includeSecondExam?: boolean;
+  secondExamMaxScore?: number;
+  examTotalMaxScore?: number;
   initialSubjectiveScores?: Array<number | null>;
   initialCorrectionStatuses?: Array<"PENDING" | "COMPLETED" | "NOT_REQUIRED" | null>;
   initialDraft?: unknown[];
@@ -229,7 +231,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               exam_id: 9102,
               title: "두 번째 확인",
               pass_score: 30,
-              max_score: 50,
+              max_score: options.secondExamMaxScore ?? 50,
               objective_max_score: 50,
               subjective_max_score: 0,
               display_order: 2,
@@ -320,7 +322,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             }] : [],
             ...(options.includeSecondExam ? { exam_total: {
               score: score == null ? 40 : score + 40,
-              max_score: examMaxScore + 50,
+              max_score: options.examTotalMaxScore ?? (examMaxScore + (options.secondExamMaxScore ?? 50)),
               selected_count: 2, scored_count: score == null ? 1 : 2,
               complete: score != null,
             } } : {}),
@@ -2834,3 +2836,74 @@ for (const report of [
     }
   });
 }
+
+for (const width of [1366, 390]) {
+  test(`@billboard-fraction ${width}px 소수 만점 순위표는 학생을 유지하고 화면 안에서 내려받는다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openScores(page, {
+      initialScores: [50, 40], includeSecondExam: true,
+      examMaxScore: 61.1, secondExamMaxScore: 52.2, examTotalMaxScore: 113.3,
+      scoreOutputMode: "anonymous_billboard",
+    });
+    const open = async () => {
+      await page.getByRole("button", { name: "성적 도구", exact: true }).click();
+      await page.getByRole("menuitem").filter({ hasText: "익명 순위표" }).click();
+    };
+    await open();
+    const modal = page.getByRole("dialog", { name: "익명 순위표 미리보기", exact: true });
+    const frame = page.frameLocator('iframe[title="익명 순위표 미리보기"]');
+    await expect(frame.locator(".billboard-sub-row")).toContainText("응시 2명");
+    await expect(frame.locator(".billboard-average")).toContainText("85 / 113.3");
+    await expect(frame.locator(".score-cell").filter({ hasText: /^(90|80)$/ })).toHaveCount(2);
+    await expect(frame.locator("body")).not.toContainText("자동저장학생");
+    await expect.poll(() => modal.locator("iframe").evaluate(node => {
+      const viewport = node.closest('[role="dialog"]')!.querySelector(".overflow-auto")!;
+      return viewport.scrollWidth <= viewport.clientWidth + 1;
+    })).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`billboard-fraction-${width}.png`), animations: "disabled" });
+    if (width === 390) {
+      const downloaded = page.waitForEvent("download");
+      await modal.getByRole("button", { name: "PDF 다운로드", exact: true }).click();
+      const download = await downloaded;
+      const path = testInfo.outputPath("fractional-billboard.pdf");
+      await download.saveAs(path);
+      const pdf = await readFile(path);
+      expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+      expect(pdf.length).toBeGreaterThan(5_000);
+    }
+    await modal.getByRole("button", { name: "닫기", exact: true }).click();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await open();
+    await expect(frame.locator(".billboard-sub-row")).toContainText("응시 2명");
+  });
+}
+
+test("@billboard-fraction 여러 쪽 순위표의 마지막 순위까지 화면 맞춤과 100%로 확인한다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await openScores(page, {
+    initialScores: Array.from({ length: 37 }, (_, index) => 61 - index),
+    includeSecondExam: true, examMaxScore: 61.1, secondExamMaxScore: 52.2,
+    examTotalMaxScore: 113.3, scoreOutputMode: "anonymous_billboard",
+  });
+  await page.getByRole("button", { name: "성적 도구", exact: true }).click();
+  await page.getByRole("menuitem").filter({ hasText: "익명 순위표" }).click();
+  const modal = page.getByRole("dialog", { name: "익명 순위표 미리보기", exact: true });
+  const frame = page.frameLocator('iframe[title="익명 순위표 미리보기"]');
+  await expect(modal.getByText("A4 세로 2쪽", { exact: true })).toBeVisible();
+  await expect(frame.locator(".billboard-page")).toHaveCount(2);
+  const lastPage = frame.locator(".billboard-page").last();
+  await expect(lastPage.locator(".rank-cell").first()).toHaveText("37");
+  await expect(lastPage.locator(".score-cell").first()).toHaveText("65");
+  await lastPage.scrollIntoViewIfNeeded();
+  await expect(lastPage.locator(".rank-cell").first()).toBeInViewport();
+  expect(await frame.locator("html").evaluate(node => node.scrollHeight <= node.clientHeight + 1)).toBe(true);
+  const scale = modal.getByRole("combobox", { name: "익명 순위표 미리보기 배율" });
+  await scale.selectOption("actual");
+  await expect.poll(() => modal.locator(".billboard-print-preview__viewport").evaluate(node => node.scrollWidth > node.clientWidth)).toBe(true);
+  await scale.selectOption("fit");
+  await expect.poll(() => modal.locator(".billboard-print-preview__viewport").evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  await lastPage.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("billboard-last-page-390.png"), animations: "disabled" });
+  await modal.getByRole("button", { name: "닫기", exact: true }).click();
+  await expect(modal).toBeHidden();
+});

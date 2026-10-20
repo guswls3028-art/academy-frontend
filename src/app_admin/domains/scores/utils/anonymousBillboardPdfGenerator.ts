@@ -92,6 +92,10 @@ function getPageSize(totalRows: number): number {
   return 36;
 }
 
+export function getAnonymousBillboardPageCount(document: AnonymousBillboardDocument): number {
+  return Math.max(1, Math.ceil(document.rows.length / getPageSize(document.rows.length)));
+}
+
 function getDensity(totalRows: number): "comfortable" | "compact" | "dense" {
   if (totalRows <= 20) return "comfortable";
   if (totalRows <= 32) return "compact";
@@ -266,12 +270,16 @@ export const BILLBOARD_BASE_STYLE = `
 export function buildAnonymousBillboardDocument(params: AnonymousBillboardPdfParams): AnonymousBillboardDocument {
   const exams = [...(params.meta.exams ?? [])].filter((exam) => params.meta.total_config?.exam_ids.includes(exam.exam_id) ?? true).sort((a, b) => a.display_order - b.display_order);
   const totalMaxScore = exams.reduce((sum, exam) => sum + (toFiniteScore(exam.max_score) ?? 0), 0);
+  // The API sums decimals; JS can produce 3.3000000000000003 for 1.1 + 2.2.
+  // Only absorb arithmetic rounding, not a genuinely different assessment maximum.
+  const maximumTolerance = Number.EPSILON * Math.max(1, Math.abs(totalMaxScore)) * Math.max(1, exams.length);
   const examIds = new Set(exams.map((exam) => exam.exam_id));
 
   const entries = filterPresent(params.rows, params.attendanceMap)
     .map((row, sourceIndex) => {
       if (row.exam_total) {
-        return row.exam_total.complete && row.exam_total.score != null && row.exam_total.max_score === totalMaxScore
+        return row.exam_total.complete && row.exam_total.score != null
+          && Math.abs(row.exam_total.max_score - totalMaxScore) <= maximumTolerance
           ? { sourceIndex, score: row.exam_total.score } : null;
       }
       const examsById = new Map((row.exams ?? []).map((exam) => [exam.exam_id, exam]));
