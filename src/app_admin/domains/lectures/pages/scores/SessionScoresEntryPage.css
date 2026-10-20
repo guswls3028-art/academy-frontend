@@ -925,6 +925,6 @@
 
   .scores-roster-warning > .ds-button {
     width: 100%;
-    margin-left: 28px;
+    margin-left: 0;
   }
 }

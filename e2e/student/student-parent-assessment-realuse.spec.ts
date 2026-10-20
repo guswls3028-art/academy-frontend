@@ -45,6 +45,7 @@ test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off
 
 type CreatedState = {
   family: QaFamily | null;
+  otherFamily: QaFamily | null;
   adminAccess: string;
   lectureId?: number;
   sessionId?: number;
@@ -72,6 +73,7 @@ type ResultBody = {
 
 const created: CreatedState = {
   family: null,
+  otherFamily: null,
   adminAccess: "",
   enrollmentIds: [],
   sessionEnrollmentIds: [],
@@ -150,7 +152,13 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.sessionId) await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
   if (created.lectureId) await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
 
-  await cleanupQaFamily(request, created.adminAccess, created.family);
+  for (const family of [created.otherFamily, created.family]) {
+    try {
+      await cleanupQaFamily(request, created.adminAccess, family);
+    } catch (error) {
+      failures.push(`family ${family?.scenarioKey} cleanup -> ${String(error)}`);
+    }
+  }
   for (const [label, path] of [
     ...created.submissionIds.map((id) => [
       `submission ${id}`,
@@ -426,7 +434,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await test.step("parent-only assessment feedback", () => verifyAssessmentFeedback(page, request, admin, primary, peer, primaryTokens, parentTokens, testInfo));
     await test.step("score message template and defaults", () => verifyScoreMessageTemplate(page, request, admin, primary, testInfo));
     await test.step("manual score precision and retake totals", () => verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens));
-    await test.step("exam order persistence", () => verifyExamOrderPersistence(page, request, admin, testInfo));
+    await test.step("exam order and total-boundary persistence", () => verifyExamOrderPersistence(page, request, admin, parentTokens, testInfo));
     await test.step("assessment copy", () => verifyAssessmentCopy(page, request, admin, primaryTokens, {
       lectureId: created.lectureId!, sessionId: created.sessionId!, examId: created.examId!,
       examTitle, enrollmentIds: created.enrollmentIds, date: todayKst,
@@ -679,7 +687,7 @@ async function verifyManualScorePrecision(
 }
 
 /** Real server order persistence; restore the existing selection before later copy/attendance checks. */
-async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestContext, admin: QaTokens, testInfo: TestInfo): Promise<void> {
+async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestContext, admin: QaTokens, parentTokens: QaTokens, testInfo: TestInfo): Promise<void> {
   const context = await parentPage.context().browser()!.newContext({ serviceWorkers: "block" });
   const page = await context.newPage();
   const boundary = await installQaStudentParentBoundary(page, request);
@@ -689,6 +697,7 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
   type Config = { exam_ids: number[]; exam_order: number[] };
   const original = await expectApi<Config>(request, "GET", configPath, admin.access);
   expect(original.exam_order).toEqual([created.examId, created.manualExamId]);
+  expect(original.exam_ids).toEqual([created.examId]);
   const openTotals = async () => {
     await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
     return page.getByRole("dialog", { name: "합산 설정", exact: true });
@@ -705,15 +714,34 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
     const scores = await expectApi<{ meta: { exams: Array<{ exam_id: number }> } }>(request, "GET", scoresPath, admin.access);
     expect(scores.meta.exams.map(exam => exam.exam_id)).toEqual(order);
   };
+  const verifyParentTotal = async (score: number | null, maximum: number, selectedCount: number) => {
+    const response = await request.get(`${QA_API}/api/v1/student/grades/`, {
+      headers: { Authorization: `Bearer ${parentTokens.access}`, "X-Tenant-Code": QA_TENANT, "X-Student-Id": String(created.family!.students[0].id) },
+    });
+    expect(response.status()).toBe(200);
+    const grades = await response.json() as MyGradesSummary;
+    expect(grades.session_totals?.find(item => item.session_id === created.sessionId)?.exam_total)
+      .toMatchObject({ score, max_score: maximum, selected_count: selectedCount });
+    await gotoAndSettle(parentPage, `${QA_BASE}/student/grades`);
+    const section = parentPage.locator(`section[aria-label="${lectureTitle} ${sessionTitle} 총점"]`);
+    if (selectedCount) {
+      const disclosure = parentPage.locator("details").filter({ has: section });
+      if (!await disclosure.evaluate(node => (node as HTMLDetailsElement).open)) await disclosure.locator("summary").click();
+      await expect(section).toContainText(`${score} / ${maximum}`);
+    } else {
+      await expect(section).toHaveCount(0);
+    }
+  };
   try {
     await seedBrowserAuth(page, admin);
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
+      await parentPage.setViewportSize({ width, height: 900 });
       await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
-      const modal = await openTotals();
-      for (let index = original.exam_ids.length; index < 2; index++) await modal.getByRole("button", { name: "시험 총점 아래로 이동", exact: true }).click();
-      await save(modal);
-      await verify(original.exam_order, original.exam_order);
+      await verify(original.exam_order, original.exam_ids);
+      await verifyParentTotal(60, 100, 1);
+      // Start with the second exam excluded: this move must cross the rendered
+      // total boundary and change both the saved order and included assessment set.
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${manualExamTitle} 이전 순서로 이동`, exact: true }).click();
@@ -721,6 +749,16 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       await verify(reversed, reversed);
       await page.reload();
       await verify(reversed, reversed);
+      await verifyParentTotal(143.33, 200, 2);
+      const rosterWarning = page.getByRole("region", { name: "응시·제출 대상 미배정 안내", exact: true });
+      const assignAll = rosterWarning.getByRole("button", { name: "누락 전부 배정", exact: true });
+      await expect(assignAll).toBeVisible();
+      const warningBounds = await rosterWarning.boundingBox();
+      const buttonBounds = await assignAll.boundingBox();
+      expect(warningBounds).not.toBeNull();
+      expect(buttonBounds).not.toBeNull();
+      expect(buttonBounds!.x).toBeGreaterThanOrEqual(warningBounds!.x);
+      expect(buttonBounds!.x + buttonBounds!.width).toBeLessThanOrEqual(warningBounds!.x + warningBounds!.width);
       await page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }).scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath(`real-exam-order-${width}.png`), animations: "disabled" });
       // Reverse the same UI move, then restore the exact original sum boundary.
@@ -731,11 +769,26 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       const restore = await openTotals();
       for (let index = original.exam_ids.length; index < 2; index++) await restore.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
       await save(restore);
-      const restored = await expectApi<Config>(request, "GET", configPath, admin.access);
-      expect(restored.exam_ids).toEqual(original.exam_ids);
-      expect(restored.exam_order).toEqual(original.exam_order);
+      await verify(original.exam_order, original.exam_ids);
+      // Moving the included exam past an excluded one crosses the boundary in
+      // the other direction; neither score may remain in the displayed total.
+      if (width === 1366) {
+        await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }));
+      } else await page.getByRole("button", { name: `${examTitle} 다음 순서로 이동`, exact: true }).click();
+      await verify(reversed, []);
       await page.reload();
-      expect((await expectApi<Config>(request, "GET", configPath, admin.access)).exam_ids).toEqual(original.exam_ids);
+      await verify(reversed, []);
+      await verifyParentTotal(null, 0, 0);
+      if (width === 1366) {
+        await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }));
+      } else await page.getByRole("button", { name: `${manualExamTitle} 다음 순서로 이동`, exact: true }).click();
+      await verify(original.exam_order, []);
+      const finalRestore = await openTotals();
+      await finalRestore.getByRole("button", { name: "시험 총점 아래로 이동", exact: true }).click();
+      await save(finalRestore);
+      await page.reload();
+      await verify(original.exam_order, original.exam_ids);
+      await verifyParentTotal(60, 100, 1);
       await assertNoHorizontalOverflow(page);
     }
     boundary.assertClean(); guards.assertZeroDefects();
@@ -969,6 +1022,25 @@ async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestCon
   const commentsPath = `/results/admin/sessions/${created.sessionId}/exam/${created.examId}/parent-comments/`;
   const configPath = `/results/admin/sessions/${created.sessionId}/total-config/`;
   try {
+    created.otherFamily = await createQaFamily(request, admin.access, "assessment-other-family", 1);
+    const otherParent = await loginApi(request, created.otherFamily.parentPhone, created.otherFamily.parentPassword);
+    const privateMemos = {
+      attendance: `QA 출결 전용 메모 ${runStamp}`,
+      student: `QA 학생 내부 메모 ${runStamp}`,
+    };
+    const attendance = await expectApi<Array<{ id: number }>>(request, "POST", "/lectures/attendance/bulk_create/", admin.access,
+      { session: created.sessionId, students: [student.id] }, [201]);
+    expect(attendance).toHaveLength(1);
+    created.attendanceIds.push(attendance[0].id);
+    const memoRecords = [
+      { path: `/lectures/attendance/${attendance[0].id}/`, field: "memo", value: privateMemos.attendance },
+      { path: `/students/${student.id}/`, field: "memo", value: privateMemos.student },
+    ];
+    for (const record of memoRecords) {
+      await expectApi(request, "PATCH", record.path, admin.access, { [record.field]: record.value });
+      const persisted = await expectApi<Record<string, unknown>>(request, "GET", record.path, admin.access);
+      expect(persisted[record.field]).toBe(record.value);
+    }
     await seedBrowserAuth(page, admin);
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
@@ -1011,8 +1083,32 @@ async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestCon
         const response = await request.get(`${QA_API}/api/v1/results/parent/assessment-comments/`, { headers: { Authorization: `Bearer ${parentTokens.access}`, "X-Tenant-Code": QA_TENANT, "X-Student-Id": String(child.id) } });
         expect(response.status()).toBe(200);
         const result = await response.json() as { items: Array<{ text: string; assessment_id: number; session_id: number }> };
+        for (const memo of Object.values(privateMemos)) expect(JSON.stringify(result)).not.toContain(memo);
         if (child.id === student.id) expect(result.items).toEqual(expect.arrayContaining([expect.objectContaining({ text, assessment_id: created.examId, session_id: created.sessionId })]));
         else expect(result.items.some(item => item.text === text)).toBe(false);
+      }
+      const parentGrades = await request.get(`${QA_API}/api/v1/student/grades/`, {
+        headers: { Authorization: `Bearer ${parentTokens.access}`, "X-Tenant-Code": QA_TENANT, "X-Student-Id": String(student.id) },
+      });
+      expect(parentGrades.status()).toBe(200);
+      const parentGradeBody = JSON.stringify(await parentGrades.json());
+      for (const memo of Object.values(privateMemos)) {
+        expect(parentGradeBody).not.toContain(memo);
+        await expect(parentPage.locator("body")).not.toContainText(memo);
+      }
+      for (const path of ["/results/parent/assessment-comments/", "/student/grades/"]) {
+        const forbidden = await request.get(`${QA_API}/api/v1${path}`, {
+          headers: { Authorization: `Bearer ${otherParent.access}`, "X-Tenant-Code": QA_TENANT, "X-Student-Id": String(student.id) },
+        });
+        expect(forbidden.status(), `other family cannot select this student: ${path}`).toBe(403);
+        expect(JSON.stringify(await forbidden.json())).not.toContain(text);
+        const ownChild = await request.get(`${QA_API}/api/v1${path}`, {
+          headers: { Authorization: `Bearer ${otherParent.access}`, "X-Tenant-Code": QA_TENANT, "X-Student-Id": String(created.otherFamily.students[0].id) },
+        });
+        expect(ownChild.status()).toBe(200);
+        const ownChildBody = JSON.stringify(await ownChild.json());
+        expect(ownChildBody).not.toContain(text);
+        for (const memo of Object.values(privateMemos)) expect(ownChildBody).not.toContain(memo);
       }
       await assertNoHorizontalOverflow(page);
       await assertNoHorizontalOverflow(parentPage);
@@ -1023,6 +1119,7 @@ async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestCon
     expect(denied.status()).toBe(403);
     const studentGrades = await expectApi<MyGradesSummary>(request, "GET", "/student/grades/", studentTokens.access);
     expect(JSON.stringify(studentGrades)).not.toContain("QA 관찰");
+    for (const memo of Object.values(privateMemos)) expect(JSON.stringify(studentGrades)).not.toContain(memo);
     const studentContext = await parentPage.context().browser()!.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
     try {
       const studentPage = await studentContext.newPage();
