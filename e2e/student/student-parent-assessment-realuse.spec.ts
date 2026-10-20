@@ -1060,8 +1060,13 @@ async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestCon
       await search.fill("");
       await page.getByRole("tab", { name: "출결", exact: true }).click();
       await expect(page).toHaveURL(/\/attendance$/);
+      // A URL change precedes the React route commit. Prove that the editor
+      // actually unmounted before testing recovery from its scoped memory.
+      await expect(page.getByRole("tab", { name: "출결", exact: true })).toHaveAttribute("aria-selected", "true");
+      await expect(page.getByRole("button", { name: "시험 총점 합산 설정", exact: true })).toHaveCount(0);
       await page.goBack();
       await expect(page).toHaveURL(/\/scores$/);
+      await expect(page.getByRole("tab", { name: "성적", exact: true })).toHaveAttribute("aria-selected", "true");
       await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
       await expect(totals.getByRole("group", { name: "시험 총점 · 0개 합산", exact: true })).toBeVisible();
       await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
