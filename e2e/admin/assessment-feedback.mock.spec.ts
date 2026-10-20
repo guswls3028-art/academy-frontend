@@ -82,6 +82,72 @@ async function installComposition(page: Page, includeRefreshRow = false, totalRe
   };
 }
 
+for (const width of [1366, 390]) {
+  test(`@parent-comment-refresh-draft ${width}px 최신 코멘트를 기다리며 고친 초안은 화면 전환 뒤에도 유지한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openCompositionScores(page);
+    const harness = await installComposition(page);
+    await page.reload();
+    const openComments = async () => {
+      await page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }).click();
+      await page.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
+    };
+    await openComments();
+    const modal = page.getByRole("dialog", { name: "학부모 코멘트", exact: true });
+    const input = modal.getByLabel("모바일순서학생", { exact: true });
+    await input.fill("최신 내용 확인 전 초안");
+    harness.serverEdit("다른 선생님이 공개한 코멘트");
+    await modal.getByRole("button", { name: "학부모에게 공개", exact: true }).click();
+    await expect(modal.getByRole("status").filter({ hasText: "다른 선생님이 수정했습니다" })).toBeVisible();
+    harness.setCommentReadFailure(true);
+    await modal.getByRole("button", { name: "최신 내용 확인", exact: true }).click();
+    await expect(modal.getByRole("status").filter({ hasText: "최신 내용을 불러오지 못했습니다" })).toBeVisible();
+    await expect(input).toHaveValue("최신 내용 확인 전 초안");
+    harness.setCommentReadFailure(false);
+    let releaseRead!: () => void;
+    const heldRead = new Promise<void>(resolve => { releaseRead = resolve; });
+    let readStarted = false;
+    await page.route("**/api/v1/results/admin/sessions/9002/exam/9101/parent-comments/", async route => {
+      if (route.request().method() === "GET" && !readStarted) {
+        readStarted = true;
+        await heldRead;
+      }
+      await route.fallback();
+    });
+    try {
+      await modal.getByRole("button", { name: "최신 내용 확인", exact: true }).click();
+      await expect.poll(() => readStarted).toBe(true);
+      await expect(modal.getByRole("button", { name: "최신 내용 확인 중…", exact: true })).toBeDisabled();
+      await expect(modal.getByRole("button", { name: "학부모에게 공개", exact: true })).toBeDisabled();
+      await page.keyboard.press("Escape");
+      await expect(modal).toBeVisible();
+      await input.fill("기다리는 동안 더 자세히 작성한 최종 초안");
+      releaseRead();
+      await expect(modal.getByRole("status").filter({ hasText: "최신 코멘트:" })).toContainText("다른 선생님이 공개한 코멘트");
+      await expect(input).toHaveValue("기다리는 동안 더 자세히 작성한 최종 초안");
+      await modal.getByTitle("최소화", { exact: true }).click();
+      await page.getByRole("tab", { name: "출결", exact: true }).click();
+      await expect(page).toHaveURL(/\/attendance$/);
+      await expect(page.getByRole("button", { name: "첫 시험 작업 선택", exact: true })).toHaveCount(0);
+      await page.goBack();
+      await expect(page).toHaveURL(/\/scores$/);
+      await openComments();
+      await expect(input).toHaveValue("기다리는 동안 더 자세히 작성한 최종 초안");
+      await modal.getByRole("button", { name: "학부모에게 공개", exact: true }).click();
+      await expect(modal.getByRole("status").filter({ hasText: "학부모에게 공개했습니다" })).toBeVisible();
+      expect(harness.comment()).toEqual({ text: "기다리는 동안 더 자세히 작성한 최종 초안", version: 2 });
+      await modal.screenshot({ path: testInfo.outputPath(`comment-latest-draft-${width}.png`), animations: "disabled" });
+      await page.keyboard.press("Escape");
+      await expect(modal).toBeHidden();
+      await page.reload();
+      await openComments();
+      await expect(input).toHaveValue("기다리는 동안 더 자세히 작성한 최종 초안");
+    } finally {
+      releaseRead();
+    }
+  });
+}
+
 for (const recovery of ["removed", "lost-response"] as const) {
   const width = recovery === "removed" ? 1366 : 390;
   test(`@assessment-total-recovery ${width}px ${recovery} 합산 설정 재조회·저장·새로고침`, async ({ page }, testInfo) => {

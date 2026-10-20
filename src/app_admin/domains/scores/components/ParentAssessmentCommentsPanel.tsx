@@ -99,6 +99,10 @@ function CommentEditor({ row, sessionId, assessmentKind, assessmentId, onSaved, 
   const [savedText, setSavedText] = useState(recovery?.savedText ?? row.text);
   const [version, setVersion] = useState(recovery?.version ?? row.version);
   const [busy, setBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const pending = useRef(false);
+  const latestText = useRef(text);
+  latestText.current = text;
   const [message, setMessage] = useState("");
   const [conflict, setConflict] = useState(false);
   const [history, setHistory] = useState(recovery?.history ?? row.history);
@@ -110,7 +114,8 @@ function CommentEditor({ row, sessionId, assessmentKind, assessmentId, onSaved, 
     setHistory(row.history); setConflict(false); setMessage("");
   }, [row, busy, text, savedText, version]);
   async function save() {
-    if (!assigned) return;
+    if (!assigned || pending.current) return;
+    pending.current = true;
     setBusy(true); onBusy(true); setMessage("");
     try {
       const saved = await saveParentComment(sessionId, assessmentKind, assessmentId, row.enrollment_id, text, version);
@@ -119,24 +124,33 @@ function CommentEditor({ row, sessionId, assessmentKind, assessmentId, onSaved, 
       const e = error as { response?: { status?: number } };
       setConflict(e.response?.status === 409);
       setMessage(e.response?.status === 409 ? "다른 선생님이 수정했습니다. 입력한 내용은 유지됩니다. 최신 내용을 확인한 후 다시 저장해 주세요." : "저장하지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해 주세요.");
-    } finally { setBusy(false); onBusy(false); }
+    } finally { pending.current = false; setBusy(false); onBusy(false); }
   }
   async function reload() {
+    if (pending.current) return;
+    pending.current = true;
+    setRefreshing(true); onBusy(true);
     try {
       const current = (await fetchAdminParentComments(sessionId, assessmentKind, assessmentId)).find(r => r.enrollment_id === row.enrollment_id);
-      if (current) { setVersion(current.version); setHistory(current.history); setSavedText(current.text); onDraft(text !== current.text ? { row, text, savedText: current.text, version: current.version, history: current.history } : null); setMessage(`최신 코멘트: ${current.text || "(비어 있음)"} · 현재 입력 내용을 저장하면 최신 코멘트를 변경합니다.`); setConflict(false); }
+      if (current) {
+        const currentDraft = latestText.current;
+        setVersion(current.version); setHistory(current.history); setSavedText(current.text);
+        onDraft(currentDraft !== current.text ? { row, text: currentDraft, savedText: current.text, version: current.version, history: current.history } : null);
+        setMessage(`최신 코멘트: ${current.text || "(비어 있음)"} · 현재 입력 내용을 저장하면 최신 코멘트를 변경합니다.`); setConflict(false);
+      }
       else { setMessage("이 평가의 배정이 변경되었습니다. 작성 내용을 복사한 뒤 창을 닫고 배정을 확인해 주세요."); }
     } catch { setMessage("최신 내용을 불러오지 못했습니다. 다시 시도해 주세요."); }
+    finally { pending.current = false; setRefreshing(false); onBusy(false); }
   }
   return <div className="parent-comment-row">
     <label className="block font-medium" htmlFor={`parent-comment-${row.enrollment_id}`}>{row.student_name}</label>
     <div className="parent-comment-editor">
     <textarea id={`parent-comment-${row.enrollment_id}`} value={text} maxLength={2000} disabled={busy} onChange={e => { setText(e.target.value); onDraft(e.target.value !== savedText ? { row, text: e.target.value, savedText, version, history } : null); }} rows={3} placeholder="관찰한 사실과 가정에서 도울 행동을 적어 주세요." />
-    <div className="parent-comment-actions"><span>{text.length}/2000</span><Button size="sm" intent="primary" disabled={busy || !assigned || conflict || text === savedText} onClick={() => void save()}>{busy ? "공개 중…" : text.trim() ? "학부모에게 공개" : "코멘트 비우기"}</Button>{conflict && <Button size="sm" onClick={() => void reload()}>최신 내용 확인</Button>}</div>
+    <div className="parent-comment-actions"><span>{text.length}/2000</span><Button size="sm" intent="primary" disabled={busy || refreshing || !assigned || conflict || text === savedText} onClick={() => void save()}>{busy ? "공개 중…" : text.trim() ? "학부모에게 공개" : "코멘트 비우기"}</Button>{conflict && <Button size="sm" disabled={refreshing} onClick={() => void reload()}>{refreshing ? "최신 내용 확인 중…" : "최신 내용 확인"}</Button>}</div>
     {!assigned && <div role="status" className="text-sm">
       {assignmentState === "checking" ? "현재 배정을 확인하고 있습니다. 입력은 유지됩니다." : assignmentState === "error" ? "현재 배정을 확인하지 못했습니다. 입력은 유지되며 확인 후 공개할 수 있습니다." : "이 평가의 배정이 해제되어 공개할 수 없습니다. 입력은 유지됩니다. 내용을 편집·복사하거나 배정을 복구한 후 공개할 수 있습니다."}
-      <Button size="sm" disabled={busy || assignmentState === "checking"} onClick={onRecheck}>{assignmentState === "checking" ? "배정 확인 중…" : "배정 다시 확인"}</Button>
-      <Button size="sm" disabled={busy} onClick={() => { setText(savedText); setConflict(false); setMessage(""); onDraft(null); }}>초안 버리기</Button>
+      <Button size="sm" disabled={busy || refreshing || assignmentState === "checking"} onClick={onRecheck}>{assignmentState === "checking" ? "배정 확인 중…" : "배정 다시 확인"}</Button>
+      <Button size="sm" disabled={busy || refreshing} onClick={() => { setText(savedText); setConflict(false); setMessage(""); onDraft(null); }}>초안 버리기</Button>
     </div>}
     {message && <p role="status" className="text-sm whitespace-pre-wrap">{message}</p>}
     {history.length > 0 && <details><summary>수정 이력 ({history.length})</summary>{history.map(h => <div key={h.version} className="text-sm border-t py-2"><span>{h.author_name} · </span><time>{new Date(h.created_at).toLocaleString("ko-KR")}</time><p className="whitespace-pre-wrap break-words">{h.text || "코멘트 비움"}</p></div>)}</details>}
