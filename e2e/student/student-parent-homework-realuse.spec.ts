@@ -5,6 +5,7 @@
  */
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
+import type { StudentGradeReportLayout } from "@/shared/api/contracts/studentGradeReportLayout";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import {
   api,
@@ -78,6 +79,8 @@ const parentHomeworkComment = "QA 과제 피드백: 풀이 과정을 꼼꼼히 �
 async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestContext, admin: QaTokens, studentName: string): Promise<void> {
   const context = await parentPage.context().browser()!.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
   const editors = new Set<string>();
+  const layoutPath = "/core/student-grade-report-layout/";
+  let reportLayoutToRestore: StudentGradeReportLayout | null = null;
   try {
     const staffPage = await context.newPage();
     staffPage.on("request", outgoing => {
@@ -127,6 +130,17 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       expect(row.homeworks.find(item => item.homework_id === completion.id)?.block.score).toBe(completionScore);
       if (selected.length) expect(row.homework_total).toMatchObject({ score: 92, max_score: 100 });
     };
+    // The isolated YMath fixture hides homework statistics by default. Exercise
+    // the configurable section explicitly, preserving every other preference.
+    const originalLayout = await expectApi<StudentGradeReportLayout>(request, "GET", layoutPath, admin.access);
+    expect(originalLayout.sections.some(section => section.id === "homework_summary")).toBe(true);
+    if (!originalLayout.sections.find(section => section.id === "homework_summary")!.visible) {
+      reportLayoutToRestore = originalLayout;
+      const visibleLayout = { ...originalLayout, sections: originalLayout.sections.map(section =>
+        section.id === "homework_summary" ? { ...section, visible: true } : section) };
+      expect(await expectApi<StudentGradeReportLayout>(request, "PATCH", layoutPath, admin.access, visibleLayout)).toEqual(visibleLayout);
+      expect(await expectApi<StudentGradeReportLayout>(request, "GET", layoutPath, admin.access)).toEqual(visibleLayout);
+    }
     for (const width of [1366, 390]) {
       await staffPage.setViewportSize({ width, height: 900 });
       await staffPage.reload();
@@ -134,6 +148,34 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await expect(cell).toBeVisible();
       const edit = staffPage.getByRole("button", { name: "수정", exact: true });
       if (await edit.isVisible()) await edit.click();
+      const numeric = staffPage.getByRole("textbox", { name: `${studentName} · ${homeworkTitle} 점수 입력`, exact: true });
+      const readNumericScore = async () => {
+        const data = await expectApi<{ rows: Array<{ enrollment_id: number; homeworks: Array<{ homework_id: number; block: { score: number | null } }> }> }>(request, "GET", scoresPath, admin.access);
+        return data.rows.find(row => row.enrollment_id === created.enrollmentId)!
+          .homeworks.find(item => item.homework_id === created.homeworkId)!.block.score;
+      };
+      await numeric.click();
+      await numeric.fill("97");
+      await numeric.press("Escape");
+      await expect(numeric).toHaveText("92");
+      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await expect(edit).toBeVisible();
+      expect(await readNumericScore()).toBe(92);
+      await edit.click();
+      await numeric.click();
+      await numeric.fill("92.5%");
+      const fractionalSave = staffPage.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
+        && response.request().postDataJSON()?.homework_id === created.homeworkId);
+      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      expect((await fractionalSave).status()).toBe(200);
+      await expect(edit).toBeVisible();
+      expect(await readNumericScore()).toBe(92.5);
+      await staffPage.reload();
+      await edit.click();
+      await expect(numeric).toHaveText("92.5");
+      await numeric.click();
+      await numeric.fill("92");
       const state = cell.getByRole("combobox", { name: `${studentName} · ${completionTitle} 완료 상태`, exact: true });
       await state.selectOption(width === 1366 ? "통과" : "미통과");
       const scored = staffPage.waitForResponse(response => response.request().method() === "PATCH"
@@ -275,8 +317,15 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
         expect([200, 204]).toContain(released.status());
       }
     } finally {
-      await context.close();
-      await parentPage.setViewportSize({ width: 390, height: 844 });
+      try {
+        if (reportLayoutToRestore) {
+          await expectApi(request, "PATCH", layoutPath, admin.access, reportLayoutToRestore);
+          expect(await expectApi<StudentGradeReportLayout>(request, "GET", layoutPath, admin.access)).toEqual(reportLayoutToRestore);
+        }
+      } finally {
+        await context.close();
+        await parentPage.setViewportSize({ width: 390, height: 844 });
+      }
     }
   }
 }

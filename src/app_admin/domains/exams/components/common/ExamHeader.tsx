@@ -13,6 +13,9 @@ import "@/shared/ui/assessment/AssessmentDetailHeader.css";
  * 시험 헤더: 제목 + 템플릿 저장(regular만).
  */
 type Props = {
+  readError?: boolean;
+  readPending?: boolean;
+  onRetryRead?: () => void;
   exam: Exam;
   sessionId?: number | null;
   primaryAction?: {
@@ -21,7 +24,7 @@ type Props = {
   };
 };
 
-export default function ExamHeader({ exam, primaryAction }: Props) {
+export default function ExamHeader({ exam, primaryAction, readError = false, readPending = false, onRetryRead }: Props) {
   const qc = useQueryClient();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -60,6 +63,7 @@ export default function ExamHeader({ exam, primaryAction }: Props) {
   }, [templateDropdownOpen]);
 
   const handleTemplateSaveConfirm = () => {
+    if (readError || readPending) return;
     saveAsTemplateMut.mutate();
   };
 
@@ -81,7 +85,7 @@ export default function ExamHeader({ exam, primaryAction }: Props) {
               intent="secondary"
               size="sm"
               onClick={() => setTemplateModalOpen(true)}
-              disabled={saveAsTemplateMut.isPending}
+              disabled={readError || readPending || saveAsTemplateMut.isPending}
               className="assessment-template-button"
               leftIcon={<FiSave size={ICON_FOR_BUTTON.sm} />}
             >
@@ -157,6 +161,10 @@ export default function ExamHeader({ exam, primaryAction }: Props) {
       >
         <ModalHeader type="action" title="템플릿으로 저장" />
         <ModalBody>
+          {readError && <div role="alert" className="mb-4 text-sm">
+            현재 설정을 확인하지 못했습니다. 입력은 유지됩니다. 다시 확인한 뒤 저장해 주세요.
+            <Button intent="secondary" size="lg" className="h-11" disabled={readPending} onClick={onRetryRead}>다시 시도</Button>
+          </div>}
           <div className="space-y-4">
             <label className="block">
               <span className="mb-1 block text-sm font-semibold text-[var(--color-text-primary)]">
@@ -187,7 +195,7 @@ export default function ExamHeader({ exam, primaryAction }: Props) {
                 intent="primary"
                 size="xl"
                 onClick={handleTemplateSaveConfirm}
-                disabled={saveAsTemplateMut.isPending}
+                disabled={readError || readPending || saveAsTemplateMut.isPending}
                 loading={saveAsTemplateMut.isPending}
               >
                 저장

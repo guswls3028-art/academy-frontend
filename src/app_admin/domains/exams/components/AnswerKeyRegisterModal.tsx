@@ -339,7 +339,7 @@ export default function AnswerKeyRegisterModal({
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<"answer" | "image" | "omr">(initialTab);
   const [downloaded, setDownloaded] = useState(false);
-  const { data: exam } = useAdminExam(examId);
+  const { data: exam, isError: examReadError, isFetching: examReadPending, refetch: refetchExam } = useAdminExam(examId);
   const navigate = useNavigate();
   const confirm = useConfirm();
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
@@ -370,6 +370,7 @@ export default function AnswerKeyRegisterModal({
       return;
     }
     if (
+      examReadError || examReadPending ||
       !needsStructureEnsure ||
       ensuredExamId === examId ||
       ensureAttemptedExamId === examId ||
@@ -379,7 +380,7 @@ export default function AnswerKeyRegisterModal({
     }
     setEnsureAttemptedExamId(examId);
     ensureStructureMut.mutate(examId);
-  }, [open, needsStructureEnsure, ensuredExamId, ensureAttemptedExamId, examId, ensureStructureMut]);
+  }, [open, examReadError, examReadPending, needsStructureEnsure, ensuredExamId, ensureAttemptedExamId, examId, ensureStructureMut]);
 
   const { data: questionsData } = useQuery({
     queryKey: adminExamsQueryKeys.examQuestions(examId),
@@ -528,7 +529,8 @@ export default function AnswerKeyRegisterModal({
     () => sortedQuestions.reduce((sum, q) => sum + (scoreDraft[q.id] ?? q.score ?? 0), 0),
     [sortedQuestions, scoreDraft]
   );
-  const canEditStructure = canEditQuestions && structureReady && !saveBusy;
+  const readBlocked = examReadError || examReadPending;
+  const canEditStructure = canEditQuestions && structureReady && !saveBusy && !readBlocked;
   const draftFingerprint = JSON.stringify([draft, scoreDraft, scoreAdjustmentDraft, questionTypes]);
   const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.objective;
   const essayTotalScore = essayQuestions.reduce((sum, q) => sum + getScore(q), 0) + scoreAdjustmentDraft.subjective;
@@ -672,6 +674,7 @@ export default function AnswerKeyRegisterModal({
 
   const initMut = useMutation({
     mutationFn: async (overrides?: ApplyQuestionOverrides) => {
+      if (examReadError || examReadPending) throw new Error("시험 정보를 다시 확인한 뒤 문항을 반영해 주세요.");
       if (overrides?.questionTypes) {
         if (overrides.questionTypes.length < 1) throw new Error("문항 수는 1개 이상이어야 합니다.");
         if (overrides.questionTypes.length > MAX_EXAM_QUESTIONS) {
@@ -1106,6 +1109,7 @@ export default function AnswerKeyRegisterModal({
   };
 
   const handleSaveExplanations = async () => {
+    if (readBlocked || explanationSaveBusy) return;
     setExplanationSaveBusy(true);
     try {
       const items = sortedQuestions
@@ -1197,7 +1201,7 @@ export default function AnswerKeyRegisterModal({
       type="action"
       width={MODAL_WIDTH.answerKey}
       onEnterConfirm={
-        activeTab === "answer" && hasQuestions && answerKeyHydrated && canEditStructure && !saveBusy && !pendingVerification && !initMut.isPending
+        readBlocked ? () => undefined : activeTab === "answer" && hasQuestions && answerKeyHydrated && canEditStructure && !saveBusy && !pendingVerification && !initMut.isPending
           ? handleSave
           : undefined
       }
@@ -1221,7 +1225,7 @@ export default function AnswerKeyRegisterModal({
               intent="ghost"
               size="sm"
               onClick={() => setPdfModalOpen(true)}
-              disabled={!structureReady}
+              disabled={!structureReady || readBlocked}
               title="시험 자료 원본을 올리면 지원 형식은 AI가 문항을 자동 인식합니다"
             >
               시험 자료 업로드
@@ -1237,12 +1241,18 @@ export default function AnswerKeyRegisterModal({
 
       {/* 시험 자료 업로드 통합 모달 — 현재 구조 소유자에 업로드 */}
       <ExamPdfUploadModal
+        readError={examReadError} readPending={examReadPending} onRetryRead={() => void refetchExam()}
         open={pdfModalOpen}
         onClose={() => setPdfModalOpen(false)}
         examId={effectiveStructureOwnerId}
       />
 
       <ModalBody>
+        {examReadError && <div role="alert" className="mb-4 text-sm">
+          시험 정보를 확인하지 못했습니다. 입력한 답안·배점·해설은 유지됩니다. 다시 확인한 뒤 저장해 주세요.
+          <Button intent="secondary" size="lg" className="h-11" disabled={examReadPending} onClick={() => void refetchExam()}>다시 시도</Button>
+        </div>}
+        <fieldset disabled={readBlocked} className="m-0 min-w-0 border-0 p-0">
         <div className="modal-scroll-body modal-scroll-body--compact answer-key-panel">
           {!structureReady && (
             <div className="answer-key-empty">
@@ -1720,6 +1730,7 @@ export default function AnswerKeyRegisterModal({
                     <tbody>
                       {sortedQuestions.map((q) => (
                         <ExplanationRow
+                          readBlocked={readBlocked}
                           key={q.id}
                           displayLabel={questionLabel(q)}
                           examId={examId}
@@ -1755,6 +1766,7 @@ export default function AnswerKeyRegisterModal({
             />
           )}
         </div>
+        </fieldset>
       </ModalBody>
 
       <ModalFooter
@@ -1781,7 +1793,7 @@ export default function AnswerKeyRegisterModal({
             {activeTab === "image" && sortedQuestions.length > 0 && (
               <Button
                 intent="primary"
-                disabled={explanationSaveBusy}
+                disabled={explanationSaveBusy || readBlocked}
                 loading={explanationSaveBusy}
                 onClick={handleSaveExplanations}
               >
@@ -2059,12 +2071,14 @@ function EssayRow({
 
 /** 문제 이미지·해설 이미지 공통 셀 — 클릭: 포커스(Ctrl+V 붙여넣기), 더블클릭: 파일 선택 */
 function ImageCell({
+  readBlocked = false,
   label,
   imageUrl,
   onImageChange,
   onClear,
   examId,
 }: {
+  readBlocked?: boolean;
   label: string;
   imageUrl: string | null;
   onImageChange: (url: string, key?: string) => void;
@@ -2076,6 +2090,7 @@ function ImageCell({
   const [uploading, setUploading] = useState(false);
 
   const uploadAndSet = useCallback(async (file: File) => {
+    if (readBlocked) return;
     if (!examId) {
       onImageChange(URL.createObjectURL(file));
       return;
@@ -2090,7 +2105,7 @@ function ImageCell({
     } finally {
       setUploading(false);
     }
-  }, [examId, onImageChange]);
+  }, [examId, onImageChange, readBlocked]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const file = e.clipboardData?.files?.[0];
@@ -2178,11 +2193,13 @@ function ImageCell({
 }
 
 function ExplanationRow({
+  readBlocked,
   displayLabel,
   examId,
   explanation,
   onChange,
 }: {
+  readBlocked: boolean;
   displayLabel: string;
   examId: number;
   explanation: ExplanationState;
@@ -2200,6 +2217,7 @@ function ExplanationRow({
       <td className="answer-key-explanation-table__td--problem">
         <div className="answer-key-explanation-cell">
           <ImageCell
+            readBlocked={readBlocked}
             label="문제 이미지"
             imageUrl={problemUrl}
             examId={examId}
@@ -2211,6 +2229,7 @@ function ExplanationRow({
       <td className="answer-key-explanation-table__td--explanation">
         <div className="answer-key-explanation-cell answer-key-explanation-cell--explanation">
           <ImageCell
+            readBlocked={readBlocked}
             label="해설 이미지"
             imageUrl={explanationUrl}
             examId={examId}

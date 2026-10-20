@@ -80,11 +80,23 @@ export default function HomeworkPolicyPanel({
   const { data: homework, isLoading, isError, refetch } = useAdminHomework(homeworkId);
   const [form, setForm] = useState<HomeworkPolicyForm | null>(null);
   const [conflictDetected, setConflictDetected] = useState(false);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  const [latestError, setLatestError] = useState("");
+  const latestRequestRef = useRef(false);
+  const activeResourceRef = useRef({ id: homeworkId });
+  if (activeResourceRef.current.id !== homeworkId) activeResourceRef.current = { id: homeworkId };
+  const disposedRef = useRef(false);
+  useEffect(() => { disposedRef.current = false; return () => { disposedRef.current = true; }; }, []);
   const initializedHomeworkId = useRef<number | null>(null);
   const baseFormRef = useRef<HomeworkPolicyForm | null>(null);
   const baseUpdatedAtRef = useRef("");
 
   const syncFromHomework = useCallback((nextHomework: AdminHomeworkDetail) => {
+    if (initializedHomeworkId.current !== nextHomework.id) {
+      latestRequestRef.current = false;
+      setLoadingLatest(false);
+      setLatestError("");
+    }
     const nextForm = formFromHomework(nextHomework);
     initializedHomeworkId.current = nextHomework.id;
     baseFormRef.current = nextForm;
@@ -198,29 +210,48 @@ export default function HomeworkPolicyPanel({
   );
 
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
-  useEffect(() => { onSavingChange?.(updateMutation.isPending); }, [updateMutation.isPending, onSavingChange]);
+  useEffect(() => { onSavingChange?.(updateMutation.isPending || loadingLatest); }, [updateMutation.isPending, loadingLatest, onSavingChange]);
 
-  if (isError) {
-    return <EmptyState mode="embedded" scope="panel" tone="error" title="과제 설정을 불러오지 못했습니다." />;
+  if (isError && (!homework || !form)) {
+    return <EmptyState mode="embedded" scope="panel" tone="error" title="과제 설정을 불러오지 못했습니다." actions={<Button onClick={() => void refetch()}>다시 시도</Button>} />;
   }
   if (isLoading || !homework || !form) {
     return <EmptyState mode="embedded" scope="panel" tone="loading" title="과제 설정 불러오는 중…" />;
   }
 
   const loadLatest = async () => {
-    if (dirty) {
-      const confirmed = await confirm({
-        title: "최신 설정 불러오기",
-        message: "현재 입력한 변경사항을 버리고 다른 사용자가 저장한 최신 설정을 불러옵니다.",
-        confirmText: "최신 설정 불러오기",
-        danger: true,
-      });
-      if (!confirmed) return;
-    }
-    const result = await refetch();
-    if (result.data) {
-      clearDraft();
-      syncFromHomework(result.data);
+    if (latestRequestRef.current || updateMutation.isPending) return;
+    latestRequestRef.current = true;
+    setLoadingLatest(true);
+    setLatestError("");
+    const requestedResource = activeResourceRef.current;
+    try {
+      if (dirty) {
+        const confirmed = await confirm({
+          title: "최신 설정 불러오기",
+          message: "현재 입력한 변경사항을 버리고 다른 사용자가 저장한 최신 설정을 불러옵니다.",
+          confirmText: "최신 설정 불러오기",
+          danger: true,
+        });
+        if (!confirmed) return;
+      }
+      const result = await refetch();
+      if (disposedRef.current || activeResourceRef.current !== requestedResource) return;
+      if (result.isError || !result.data) {
+        setLatestError("최신 설정을 불러오지 못했습니다. 현재 입력은 유지됩니다. 다시 시도해 주세요.");
+        return;
+      }
+      if (result.data) {
+        clearDraft();
+        syncFromHomework(result.data);
+      }
+    } catch {
+      if (!disposedRef.current && activeResourceRef.current === requestedResource) setLatestError("최신 설정을 불러오지 못했습니다. 현재 입력은 유지됩니다. 다시 시도해 주세요.");
+    } finally {
+      if (!disposedRef.current && activeResourceRef.current === requestedResource) {
+        latestRequestRef.current = false;
+        setLoadingLatest(false);
+      }
     }
   };
 
@@ -235,6 +266,8 @@ export default function HomeworkPolicyPanel({
         </div>
       </div>
 
+      <fieldset disabled={loadingLatest || updateMutation.isPending} className="m-0 min-w-0 border-0 p-0">
+      {loadingLatest && <p role="status" className={formStyles.description}>최신 설정을 확인하고 있습니다. 확인이 끝나면 편집할 수 있습니다.</p>}
       <div className={formStyles.body}>
         {recoverableDraftSavedAt && (
           <div className={formStyles.inlineStatus} role="status" data-testid="assessment-draft-recovery">
@@ -430,6 +463,7 @@ export default function HomeworkPolicyPanel({
           </div>
         )}
         {validationError && <p className={formStyles.error} role="alert">{validationError}</p>}
+        {latestError && <p className={formStyles.error} role="alert">{latestError}</p>}
       </div>
 
       <div className={formStyles.footer}>
@@ -440,13 +474,14 @@ export default function HomeworkPolicyPanel({
           type="button"
           intent="primary"
           size="md"
-          disabled={!dirty || Boolean(validationError) || conflictDetected || remoteChanged || updateMutation.isPending}
+          disabled={isError || loadingLatest || !dirty || Boolean(validationError) || conflictDetected || remoteChanged || updateMutation.isPending}
           loading={updateMutation.isPending}
           onClick={() => updateMutation.mutate(form)}
         >
           {updateMutation.isPending ? "저장 중…" : "운영 설정 저장"}
         </Button>
       </div>
+      </fieldset>
     </section>
   );
 }

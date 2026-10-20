@@ -113,6 +113,7 @@ export default function HomeworkAssetsPanel({ homeworkId }: { homeworkId: number
 
       {sourceExamId && (
         <ExamPdfUploadModal
+          readError={homeworkQuery.isError} readPending={homeworkQuery.isFetching} onRetryRead={() => void homeworkQuery.refetch()}
           open={uploadOpen}
           onClose={() => {
             setUploadOpen(false);
