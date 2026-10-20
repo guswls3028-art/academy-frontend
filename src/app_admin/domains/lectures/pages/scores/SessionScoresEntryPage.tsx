@@ -1248,13 +1248,17 @@ export default function SessionScoresEntryPage({
     );
   }
 
-  const openStudentScoreReport = async () => {
-    if (!await saveScoresNow()) return;
+  const prepareScorePrint = async () => {
+    if (!await saveScoresNow()) return false;
     const refreshed = await refetch();
-    if (refreshed.isError) {
+    if (refreshed.isError || !refreshed.data) {
       feedback.error("최신 성적을 불러오지 못했습니다. 다시 시도해 주세요.");
-      return;
+      return false;
     }
+    return true;
+  };
+  const openStudentScoreReport = async () => {
+    if (!await prepareScorePrint()) return;
     setShowStudentReport(true);
     setShowMoreMenu(false);
   };
@@ -1406,8 +1410,7 @@ export default function SessionScoresEntryPage({
               <span className="scores-tools-menu__label">출력 · 후속관리</span>
               <div className="scores-tools-menu__grid">
                 <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
-                  if (!await saveScoresNow()) return;
-                  await refetch();
+                  if (!await prepareScorePrint()) return;
                   setShowPrintPreview(true);
                   setShowMoreMenu(false);
                 }}>
@@ -1420,8 +1423,7 @@ export default function SessionScoresEntryPage({
                 </button>
                 {isAnonymousBillboardMode ? (
                   <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
-                    if (!await saveScoresNow()) return;
-                    await refetch();
+                    if (!await prepareScorePrint()) return;
                     setShowBillboardPreview(true);
                     setShowMoreMenu(false);
                   }}>
@@ -1430,8 +1432,7 @@ export default function SessionScoresEntryPage({
                   </button>
                 ) : (
                   <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
-                    if (!await saveScoresNow()) return;
-                    await refetch();
+                    if (!await prepareScorePrint()) return;
                     setShowClinicPreview(true);
                     setShowMoreMenu(false);
                   }}>

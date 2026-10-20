@@ -24,6 +24,7 @@ type ScoreRouteOptions = {
   homeworkMetaStatuses?: string[];
   scoreSummaryColumnDefault?: "exam_wrong";
   assessmentStatusDisplay?: "wrong_completion";
+  scoreOutputMode?: "anonymous_billboard";
   nullScoresPassedFalse?: boolean;
   nullHomeworkScoresPassedFalse?: boolean;
   examAssignedRows?: boolean[];
@@ -71,6 +72,7 @@ async function openScores(
   );
   await installLocalAuthApiStubs(page, {
     programFeatureFlags: {
+      ...(routeOptions.scoreOutputMode ? { score_output_mode: routeOptions.scoreOutputMode } : {}),
       ...(routeOptions.scoreSummaryColumnDefault
         ? { score_summary_column_default: routeOptions.scoreSummaryColumnDefault }
         : {}),
@@ -2797,3 +2799,38 @@ test("@score-csv 수식형 이름·평가명은 리터럴로 내보내고 CSV �
     ...names.map((name, index) => [index < 5 ? `'${name}` : name, "0"].map(quote).join(",")),
   ].join("\r\n"));
 });
+
+for (const report of [
+  { menu: "성적표 출력", title: "성적표 미리보기", width: 1366 },
+  { menu: "클리닉 대상", title: "클리닉 대상자 미리보기", width: 390 },
+  { menu: "익명 순위표", title: "익명 순위표 미리보기", width: 1366 },
+] as const) {
+  test(`@score-print-recovery ${report.menu} 최신 조회 실패 뒤 재시도하면 현재 성적을 출력한다`, async ({ page }) => {
+    await page.setViewportSize({ width: report.width, height: 900 });
+    const readState: NonNullable<ScoreRouteOptions["scoreSheetReadSequence"]> = ["ready"];
+    const clinicRequired = [true];
+    await openScores(page, {
+      initialScores: [50], rowClinicRequired: clinicRequired,
+      scoreOutputMode: report.menu === "익명 순위표" ? "anonymous_billboard" : undefined,
+      scoreSheetReadSequence: readState,
+    });
+    await page.getByRole("button", { name: "성적 도구", exact: true }).click();
+    readState[0] = "error";
+    await page.getByRole("menuitem").filter({ hasText: report.menu }).click();
+    await expect(page.getByText("최신 성적을 불러오지 못했습니다. 다시 시도해 주세요.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: report.title, exact: true })).toHaveCount(0);
+    readState[0] = "ready";
+    currentScores[0] = report.menu === "클리닉 대상" ? 95 : 55;
+    clinicRequired[0] = false;
+    await page.getByRole("menuitem").filter({ hasText: report.menu }).click();
+    await expect(page.getByRole("dialog", { name: report.title, exact: true })).toBeVisible();
+    const frame = page.frameLocator(`iframe[title="${report.title}"]`);
+    if (report.menu === "클리닉 대상") {
+      await expect(frame.locator("body")).toHaveAttribute("data-clinic-student-count", "0");
+      await expect(frame.locator("body")).not.toContainText("자동저장학생1");
+    } else {
+      await expect(frame.locator("body")).toContainText("55");
+      await expect(frame.locator("body")).not.toContainText("50 / 100");
+    }
+  });
+}
