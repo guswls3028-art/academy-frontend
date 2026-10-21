@@ -619,11 +619,94 @@
 
 .stat {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   padding: 8px 4px;
+  border-radius: var(--stu-radius-sm);
+  color: inherit;
+  text-align: center;
+  text-decoration: none;
+  transition: background 140ms ease, transform 140ms ease;
+}
+
+.stat:hover,
+.stat:focus-visible {
+  background: var(--stu-surface-1);
+}
+
+.stat:focus-visible,
+.learningFeedback button:focus-visible {
+  outline: 2px solid var(--stu-primary);
+  outline-offset: 2px;
+}
+
+.stat:active {
+  transform: translateY(1px);
+}
+
+.statPlaceholder {
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.8;
+}
+
+.statScope {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  color: var(--stu-text-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.statScope svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.learningFeedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.learningFeedback button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius-sm);
+  background: var(--stu-surface);
+  color: var(--stu-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.learningFeedback button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat {
+    transition: none;
+  }
+
+  .stat:active {
+    transform: none;
+  }
 }
 
 .statLabel {
