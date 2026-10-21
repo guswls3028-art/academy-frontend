@@ -91,60 +91,103 @@ test("선생님은 저장 문구를 수정하고 서버의 학생별 전체 문�
   let sendPayload: Record<string, unknown> | null = null;
   await installMessagingMocks(page, () => ++preflightCalls === 1, (payload) => { sendPayload = payload; });
 
-  await page.setViewportSize({ width: 1100, height: 800 });
-  await page.goto(`${BASE}/workspace/mobile/students`, { waitUntil: "commit" });
-  await expect(page.getByText("학생 관리", { exact: true })).toBeVisible({ timeout: 45_000 });
-  await page.getByRole("button", { name: "선택", exact: true }).click();
-  await page.getByRole("button", { name: "전체 선택" }).click();
-  await page.getByRole("button", { name: "알림톡", exact: true }).click();
+  let releaseEditor!: () => void;
+  const editorLoading = new Promise<void>((resolve) => { releaseEditor = resolve; });
+  const holdEditor = async (route: Route) => {
+    await editorLoading;
+    await route.continue();
+  };
+  const editorModule = "**/src/shared/messaging/MessageBodyEditorImpl.tsx*";
+  await page.route(editorModule, holdEditor);
 
-  const sheet = page.getByRole("dialog", { name: "2명에게 알림톡" });
-  await expect(sheet.getByRole("option", { name: "성적용 문구" })).toHaveCount(0);
-  await expect(sheet).toContainText("성적·일정 변경용 문구는 학생별 정보가 필요한 전용 발송 화면에서 사용합니다.");
-  await sheet.getByLabel("저장한 문구 불러오기").selectOption("41");
-  await expect(sheet.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveText("저장한 문구");
-  await sheet.getByLabel("선생님 안내문 (자유롭게 수정)").fill("이번 주 과제를 확인해 주세요.");
-  await sheet.getByRole("button", { name: "수신자별 발송 문구 확인" }).click();
-  await expect(sheet.getByRole("alert")).toContainText("사전 확인 연결 실패");
-  expect(sendPayload).toBeNull();
+  try {
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await page.goto(`${BASE}/workspace/mobile/students`, { waitUntil: "commit" });
+    await expect(page.getByText("학생 관리", { exact: true })).toBeVisible({ timeout: 45_000 });
+    await page.getByRole("button", { name: "선택", exact: true }).click();
+    await page.getByRole("button", { name: "전체 선택" }).click();
+    await page.getByRole("button", { name: "알림톡", exact: true }).click();
 
-  await sheet.getByRole("button", { name: "수신자별 발송 문구 확인" }).click();
-  const review = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
-  await expect(review).toContainText("김민준 학생님.");
-  await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText("이번 주 과제를 확인해 주세요.");
-  await review.getByLabel("문구를 확인할 학생").selectOption("910002");
-  await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText("박서연 학생님.");
-  expect(sendPayload).toBeNull();
+    const sheet = page.getByRole("dialog", { name: "2명에게 알림톡" });
+    await expect(sheet.getByRole("option", { name: "성적용 문구" })).toHaveCount(0);
+    await expect(sheet).toContainText("성적·일정 변경용 문구는 학생별 정보가 필요한 전용 발송 화면에서 사용합니다.");
+    try {
+      await expect(sheet.getByRole("status")).toHaveText("편집기를 여는 중…");
+      await sheet.getByLabel("저장한 문구 불러오기").selectOption("41");
+      await expect(sheet).toContainText("6자 · 여기서 고친 내용");
+    } finally {
+      releaseEditor();
+    }
+    await expect(sheet.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveText("저장한 문구");
+    await expect(sheet).toContainText("6자 · 여기서 고친 내용");
+    await sheet.getByLabel("선생님 안내문 (자유롭게 수정)").fill("이번 주 과제를 확인해 주세요.");
+    await sheet.getByRole("button", { name: "수신자별 발송 문구 확인" }).click();
+    await expect(sheet.getByRole("alert")).toContainText("사전 확인 연결 실패");
+    expect(sendPayload).toBeNull();
 
-  await page.setViewportSize({ width: 390, height: 844 });
-  expect(await review.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
-  await review.getByRole("button", { name: "문구 수정" }).click();
-  await expect(page.getByRole("dialog", { name: "2명에게 알림톡" }).getByLabel("선생님 안내문 (자유롭게 수정)"))
-    .toHaveText("이번 주 과제를 확인해 주세요.");
-  await page.getByRole("dialog", { name: "2명에게 알림톡" }).getByRole("button", { name: "수신자별 발송 문구 확인" }).click();
-  await page.getByRole("dialog", { name: "보내기 전 마지막 확인" }).getByRole("button", { name: "학부모 2건 발송하기" }).click();
-  await expect.poll(() => sendPayload).toMatchObject({
-    student_ids: [910001, 910002],
-    send_to: "parent",
-    message_mode: "alimtalk",
-    raw_body: "이번 주 과제를 확인해 주세요.",
-    block_category: "attendance",
-  });
-  expect(preflightCalls).toBe(3);
+    await sheet.getByRole("button", { name: "수신자별 발송 문구 확인" }).click();
+    const review = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+    await expect(review).toContainText("김민준 학생님.");
+    await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText("이번 주 과제를 확인해 주세요.");
+    await review.getByLabel("문구를 확인할 학생").selectOption("910002");
+    await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText("박서연 학생님.");
+    expect(sendPayload).toBeNull();
 
-  await page.goto(`${BASE}/workspace/mobile/message-templates`, { waitUntil: "commit" });
-  await expect(page.getByRole("heading", { name: "알림톡 문구" })).toBeVisible();
-  await expect(page.getByText("성적용 문구", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "상담 안내 편집" }).click();
-  const editSheet = page.getByRole("dialog", { name: "문구 편집" });
-  await editSheet.getByRole("textbox", { name: "본문", exact: true }).fill("다음 주 상담 일정을 확인해 주세요.");
-  await editSheet.getByRole("button", { name: "수정", exact: true }).click();
-  await expect(page.getByText("다음 주 상담 일정을 확인해 주세요.")).toBeVisible();
-  await page.reload();
-  await expect(page.getByText("다음 주 상담 일정을 확인해 주세요.")).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await review.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    await review.getByRole("button", { name: "문구 수정" }).click();
+    await expect(page.getByRole("dialog", { name: "2명에게 알림톡" }).getByLabel("선생님 안내문 (자유롭게 수정)"))
+      .toHaveText("이번 주 과제를 확인해 주세요.");
+    await page.getByRole("dialog", { name: "2명에게 알림톡" }).getByRole("button", { name: "수신자별 발송 문구 확인" }).click();
+    await page.getByRole("dialog", { name: "보내기 전 마지막 확인" }).getByRole("button", { name: "학부모 2건 발송하기" }).click();
+    await expect.poll(() => sendPayload).toMatchObject({
+      student_ids: [910001, 910002],
+      send_to: "parent",
+      message_mode: "alimtalk",
+      raw_body: "이번 주 과제를 확인해 주세요.",
+      block_category: "attendance",
+    });
+    expect(preflightCalls).toBe(3);
+
+    await page.goto(`${BASE}/workspace/mobile/message-templates`, { waitUntil: "commit" });
+    await expect(page.getByRole("heading", { name: "알림톡 문구" })).toBeVisible();
+    await expect(page.getByText("성적용 문구", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "상담 안내 편집" }).click();
+    const editSheet = page.getByRole("dialog", { name: "문구 편집" });
+    await editSheet.getByRole("textbox", { name: "본문", exact: true }).fill("다음 주 상담 일정을 확인해 주세요.");
+    await editSheet.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(page.getByText("다음 주 상담 일정을 확인해 주세요.")).toBeVisible();
+    await page.reload();
+    await expect(page.getByText("다음 주 상담 일정을 확인해 주세요.")).toBeVisible();
+  } finally {
+    releaseEditor();
+    await page.unroute(editorModule, holdEditor);
+  }
 });
 
 for (const width of [390, 1366]) {
+  test(`문구 불러오기와 편집 상태 변경은 본문을 되돌리지 않는다 ${width}px`, async ({ page }) => {
+    test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/e2e-message-body-editor-harness.html`);
+    const editor = page.getByRole("textbox", { name: "안내문", exact: true });
+    await expect(editor).toHaveAttribute("contenteditable", "false");
+    await page.getByRole("button", { name: "문구 불러와 편집하기" }).click();
+    await expect(editor).toHaveAttribute("contenteditable", "true");
+    await expect(editor).toHaveText("저장한 문구");
+    await expect(page.getByLabel("부모 본문")).toHaveText("저장한 문구");
+    await expect(page.getByLabel("본문 변경 횟수")).toHaveText("0");
+    await editor.fill("직접 수정한 문구");
+    await expect(page.getByLabel("부모 본문")).toHaveText("직접 수정한 문구");
+    const changes = await page.getByLabel("본문 변경 횟수").textContent();
+    await page.getByRole("button", { name: "편집 상태 전환" }).click();
+    await expect(editor).toHaveAttribute("contenteditable", "false");
+    await page.getByRole("button", { name: "편집 상태 전환" }).click();
+    await expect(editor).toHaveAttribute("contenteditable", "true");
+    await expect(editor).toHaveText("직접 수정한 문구");
+    await expect(page.getByLabel("본문 변경 횟수")).toHaveText(changes!);
+  });
+
   test(`선생님 문구 편집은 변수·실행 취소·복제·미저장 복구를 지원한다 ${width}px`, async ({ page }, testInfo) => {
     test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
     let sends = 0;
