@@ -1,6 +1,94 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { openCompositionScores } from "../helpers/assessmentCompositionMock";
 
+for (const width of [1366, 1100, 390]) {
+  test(`@score-table-fit ${width}px 성적표 자동 맞춤과 직접 조절을 복원한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    if (width === 1100) {
+      await page.addInitScript(() => { Object.defineProperty(window, "ResizeObserver", { value: undefined, configurable: true }); });
+    }
+    await page.route(/\/api\/v1\/lectures\/sessions\/\?/, route => route.fulfill({ json: [
+      { id: 9002, lecture: 9001, order: 1, session_type: "REGULAR", title: "표 너비 검증", date: "2026-08-25" },
+    ] }));
+    await openCompositionScores(page);
+    const count = width === 1100 ? 2 : 4;
+    const exams = Array.from({ length: count }, (_, i) => ({ exam_id: 9101 + i,
+      title: ["어휘", "본문암기", "어법", "서술형 긴 평가명 확인"][i],
+      max_score: 100, pass_score: 60, objective_max_score: 100, subjective_max_score: 0, display_order: i }));
+    const homeworks = Array.from({ length: count }, (_, i) => ({ homework_id: 9151 + i,
+      title: ["하프모의", "본문핵심부분암기", "객관식 변형문제", "서술형 대비과제"][i],
+      max_score: 100, grading_mode: "SCORE", display_order: i, unit: "점" }));
+    const total = { score: count * 80, max_score: count * 100, selected_count: count, scored_count: count, complete: true };
+    await page.route("**/api/v1/results/admin/sessions/9002/scores/", route => route.fulfill({ json: {
+      meta: { session_title: "표 너비 검증", lecture_title: "검증반", lecture_id: 9001,
+        total_config: { version: 0, exam_ids: exams.map(exam => exam.exam_id), homework_ids: homeworks.map(hw => hw.homework_id) },
+        exams, homeworks },
+      rows: [{ enrollment_id: 9201, student_id: 9301, student_name: "김가나다라마바사", lecture_title: "검증반",
+        exams: exams.map(exam => ({ exam_id: exam.exam_id, title: exam.title, attempt_count: 1,
+          block: { score: 80, max_score: 100, passed: true, is_locked: false, meta: {}, correction_status: "NOT_REQUIRED" } })),
+        homeworks: homeworks.map(hw => ({ homework_id: hw.homework_id, title: hw.title,
+          block: { score: 80, max_score: 100, passed: true, is_locked: false, meta: {} } })),
+        exam_total: total, homework_total: total, clinic_required: false, progress_completed: true }],
+    } }));
+    await page.reload();
+    const table = page.locator(".ds-scores-table");
+    const viewport = page.locator(".ds-table-wrap").filter({ has: table });
+    await expect(table).toHaveAttribute("data-width-mode", "fit");
+    await expect(table.locator("tbody tr")).toHaveCount(1);
+    await expect(table.locator("col")).toHaveCount(count * 2 + 6);
+    await table.scrollIntoViewIfNeeded();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+    if (width !== 390) {
+      await expect.poll(() => viewport.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+      const finalCell = table.locator("tbody td").last();
+      await expect(finalCell).toBeInViewport();
+      if (width === 1100) {
+        const before = await table.evaluate(el => el.getBoundingClientRect().width);
+        await page.setViewportSize({ width: 1200, height: 900 });
+        await expect.poll(() => table.evaluate(el => el.getBoundingClientRect().width)).toBeGreaterThan(before);
+        await page.setViewportSize({ width, height: 900 });
+        await expect.poll(() => viewport.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+      }
+    } else {
+      await expect.poll(() => viewport.evaluate(el => el.scrollWidth - el.clientWidth)).toBeGreaterThan(0);
+      await viewport.evaluate(el => { el.scrollLeft = el.scrollWidth; });
+      await expect(table.locator("tbody td").last()).toBeInViewport();
+      await viewport.evaluate(el => { el.scrollLeft = 0; });
+      await expect(table.locator('tbody td[data-col-type="name"]')).toBeInViewport();
+    }
+    await page.getByRole("button", { name: "어휘 작업 선택", exact: true }).click();
+    await expect(page.getByRole("menuitem", { name: "수정", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    if (width === 390) {
+      const controls = page.getByTestId("score-column-order-exam-9101");
+      const header = controls.locator("xpath=ancestor::th");
+      const controlsBox = await controls.boundingBox();
+      const headerBox = await header.boundingBox();
+      expect(controlsBox!.width).toBeLessThanOrEqual(headerBox!.width - 12);
+    }
+    await page.screenshot({ path: testInfo.outputPath(`scores-fit-${width}.png`), animations: "disabled" });
+    if (width === 1366) {
+      const handle = table.getByRole("separator", { name: "name 컬럼 너비 조절", exact: true });
+      const box = await handle.boundingBox();
+      expect(box).not.toBeNull();
+      const oldWidth = await table.locator('tbody td[data-col-type="name"]').evaluate(el => el.getBoundingClientRect().width);
+      await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(box!.x + box!.width / 2 + 35, box!.y + box!.height / 2, { steps: 5 });
+      await page.mouse.up();
+      await expect(table).toHaveAttribute("data-width-mode", "manual");
+      await page.reload();
+      await expect(table).toHaveAttribute("data-width-mode", "manual");
+      await expect.poll(() => table.locator('tbody td[data-col-type="name"]').evaluate(el => el.getBoundingClientRect().width)).toBeGreaterThan(oldWidth + 25);
+      await page.getByRole("button", { name: "화면에 맞춤", exact: true }).click();
+      await expect.poll(() => viewport.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+      await page.reload();
+      await expect(table).toHaveAttribute("data-width-mode", "fit");
+      await expect.poll(() => viewport.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+    }
+  });
+}
+
 async function installComposition(page: Page, includeRefreshRow = false, totalRecovery?: "removed" | "lost-response") {
   const writes: Record<string, unknown>[] = [];
   let version = 0, text = "", commentVersion = 0, failSave = true;
