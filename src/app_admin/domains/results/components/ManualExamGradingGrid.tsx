@@ -2418,6 +2418,14 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
                 }
               />
             )}
+            {question.kind === "essay" && cell.answer && (
+              <details className={styles.studentAnswer}>
+                <summary aria-label={`${row.student_name} ${questionLabels.get(question.question_id) ?? `${question.number}번`} 학생 답안`}>
+                  학생 답안
+                </summary>
+                <div>{cell.answer}</div>
+              </details>
+            )}
           </td>
         );
       })}

@@ -18,7 +18,7 @@ function fakeJwt(): string {
 
 type Viewer = "student" | "parent";
 
-async function installApi(page: Page, viewer: Viewer = "student"): Promise<{
+async function installApi(page: Page, viewer: Viewer = "student", essay = false): Promise<{
   submissions: Array<Record<string, unknown>>;
   studentScopedHeaders: Array<string | undefined>;
 }> {
@@ -66,7 +66,7 @@ async function installApi(page: Page, viewer: Viewer = "student"): Promise<{
       await route.fulfill({
         json: [
           { id: 1001, number: 1, score: 5, answer_format: "text" },
-          { id: 1021, number: 21, score: 10, answer_format: "integer_0_999" },
+          { id: 1021, number: 21, score: 10, question_kind: "essay", answer_format: essay ? "text" : "integer_0_999" },
         ],
       });
       return;
@@ -74,6 +74,10 @@ async function installApi(page: Page, viewer: Viewer = "student"): Promise<{
     if (path.endsWith("/student/exams/901/submit/") && request.method() === "POST") {
       studentScopedHeaders.push(request.headers()["x-student-id"]);
       submissions.push(request.postDataJSON() as Record<string, unknown>);
+      if (essay && submissions.length === 1) {
+        await route.fulfill({ status: 409, json: { detail: "시험의 문항·정답 준비가 완료되지 않았습니다. 선생님 확인 후 다시 제출해 주세요." } });
+        return;
+      }
       await route.fulfill({ json: { submission_id: 7001, status: "submitted" } });
       return;
     }
@@ -85,15 +89,19 @@ async function installApi(page: Page, viewer: Viewer = "student"): Promise<{
           title: "수학 숫자 단답 검증",
           open_at: null,
           close_at: null,
-          allow_retake: false,
-          max_attempts: 1,
+          allow_retake: essay,
+          max_attempts: essay ? 2 : 1,
           pass_score: 60,
           max_score: 100,
           status: "open",
-          has_result: false,
-          attempt_count: 0,
+          has_result: essay,
+          attempt_count: essay ? 1 : 0,
         },
       });
+      return;
+    }
+    if (essay && path.endsWith("/student/results/me/exams/901/")) {
+      await route.fulfill({ json: { exam_id: 901, student_results_published: false, grading_status: "subjective_pending", can_retake: false } });
       return;
     }
     await route.fulfill({ json: { count: 0, items: [], results: [] } });
@@ -104,6 +112,33 @@ async function installApi(page: Page, viewer: Viewer = "student"): Promise<{
 test.describe("학생 수학 숫자 단답", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock contract spec.");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
+
+  for (const width of [390, 1366]) {
+    test(`서술형 재응시·설정 오류 복구·긴 답안 보존 ${width}px`, async ({ page }) => {
+      const { submissions } = await installApi(page, "student", true);
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${BASE}/student/exams/901/submit`);
+      const answer = "첫 번째 풀이를 충분히 길게 작성합니다.\n다음 줄에서도 근거와 결론을 이어서 설명합니다.";
+      await page.getByLabel("1번 답", { exact: true }).fill("2");
+      await page.getByLabel("21번 답").fill(answer);
+      await expect(page.getByLabel("21번 답")).toHaveJSProperty("tagName", "TEXTAREA");
+      await page.reload();
+      await expect(page.getByLabel("21번 답")).toHaveValue(answer);
+      await page.getByRole("button", { name: "제출하기" }).click();
+      await page.locator("[data-confirm-dialog]").getByRole("button", { name: "제출", exact: true }).click();
+      await expect(page.getByRole("alert").filter({ hasText: "정답 준비" }).first()).toBeVisible();
+      await expect(page.getByLabel("21번 답")).toHaveValue(answer);
+      await page.getByRole("button", { name: "제출하기" }).click();
+      await page.locator("[data-confirm-dialog]").getByRole("button", { name: "제출", exact: true }).click();
+      await expect(page).toHaveURL(/\/result$/);
+      await expect(page.getByText("서술형 채점 중입니다.")).toBeVisible();
+      expect(submissions).toHaveLength(2);
+      expect(submissions[1]).toEqual(submissions[0]);
+      expect(JSON.stringify(submissions[1])).toContain(JSON.stringify(answer).slice(1, -1));
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: `test-results/online-submit-pending-${width}.png`, fullPage: true });
+    });
+  }
 
   test("0~999 입력과 같은 계정 재조회를 보존하고 제출 시 앞자리 0을 정규화한다", async ({ page }) => {
     const { submissions } = await installApi(page);
