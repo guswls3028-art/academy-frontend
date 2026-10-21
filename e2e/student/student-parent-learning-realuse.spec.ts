@@ -27,6 +27,7 @@ import {
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
+import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
 import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
 
 test.setTimeout(300_000);
@@ -378,6 +379,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginThroughUi(page, primary.ps_number, primary.password);
+    await verifyStudentLearningSummary(page, QA_BASE);
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
     const attendanceLink = page.getByRole("link").filter({ hasText: lectureTitle }).first();
     await expect(attendanceLink).toBeVisible();
@@ -406,6 +408,9 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
     await selectParentStudentThroughUi(page, primary);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await verifyStudentLearningSummary(page, QA_BASE);
+    await page.setViewportSize({ width: 390, height: 844 });
     const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
     const missingSelection = await request.get(
       `${QA_API}/api/v1/student/video/sessions/${created.sessionId}/videos/?enrollment=${created.enrollmentIds[0]}`,

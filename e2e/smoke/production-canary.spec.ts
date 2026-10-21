@@ -3,6 +3,7 @@ import { test, expect } from "../fixtures/strictTest";
 import { getApiBaseUrl, getBaseUrl, loginViaUI } from "../helpers/auth";
 import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
 import { captureGuideEvidence } from "../helpers/guideEvidence";
+import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
 
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const API_BASE = getApiBaseUrl().replace(/\/+$/, "");
@@ -193,6 +194,11 @@ test.describe("Production canary", () => {
     const guard = attachProductionRequestGuard(page);
 
     await loginViaUI(page, "student", { landingPath: "/student/dashboard" });
+
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await verifyStudentLearningSummary(page, BASE);
+    }
 
     expect(page.url()).toMatch(/\/student(\/|$)/);
     await expect(page.locator("[class*='tabbar'], [class*='tab-bar'], nav, main").first()).toBeVisible();
