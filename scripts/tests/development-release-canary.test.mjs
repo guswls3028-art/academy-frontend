@@ -3150,12 +3150,12 @@ test("context teardown counts an aborted in-flight API request as closingAborts,
   await teardown.guard.beginClose();
   const apiRequest = makeInFlightRoute(`${development.apiOrigin}/api/v1/core/tenant/by-host/`);
   await teardown.handler(apiRequest.route);
-  assert.equal(apiRequest.wasAborted(), "blockedbyclient");
+  assert.equal(apiRequest.wasAborted(), "aborted");
   assert.equal(teardown.guard.transport.closingAborts, 1);
 
   const webRequest = makeInFlightRoute(`${development.webOrigin}/favicon.ico`);
   await teardown.handler(webRequest.route);
-  assert.equal(webRequest.wasAborted(), "blockedbyclient", "a non-API request is still aborted on teardown");
+  assert.equal(webRequest.wasAborted(), "aborted", "a non-API request is still aborted on teardown");
   assert.equal(teardown.guard.transport.closingAborts, 1, "but only an API-origin abort extends the strict-browser suppression cap");
 });
 
@@ -3398,6 +3398,102 @@ test("intentional context close drains active requests and blocks new teardown t
   realFailure.route.fetch = async () => ({ status: () => 200, headers: () => ({}) });
   await realFailure.handler(realFailure.route);
   assert.throws(() => realFailure.guard.assertClean(), /Release request rejected \[cors\]/);
+});
+
+test("real Chromium close cancels late traffic without an error document and preserves policy failures", async () => {
+  const bounded = async (promise) => {
+    let timer;
+    try {
+      return await Promise.race([promise, new Promise((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error("Local close-boundary state was not observed")), 10_000);
+      })]);
+    } finally { clearTimeout(timer); }
+  };
+  const received = [];
+  let heldResponse;
+  let markStarted;
+  const started = new Promise((resolve) => { markStarted = resolve; });
+  let webOrigin;
+  const api = http.createServer((request, response) => {
+    received.push(request.url);
+    if (request.url === "/api/v1/core/program/") {
+      heldResponse = response;
+      markStarted();
+    } else { response.writeHead(500); response.end("unexpected"); }
+  });
+  const web = http.createServer((request, response) => {
+    received.push(request.url);
+    response.setHeader("content-type", "text/html");
+    response.end("<!doctype html><link rel='icon' href='data:,'><title>Close boundary</title>");
+  });
+  await Promise.all([api, web].map((server) => new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))));
+  webOrigin = `http://127.0.0.1:${web.address().port}`;
+  const boundary = { ...production, webOrigin, apiOrigin: `http://127.0.0.1:${api.address().port}` };
+  let browser;
+  try {
+    browser = await chromium.launch();
+    const context = await browser.newContext({ serviceWorkers: "block" });
+    const guard = await installReleaseContextGuard(context, boundary);
+    await context.addInitScript(() => localStorage.setItem("close-contract", "ready"));
+    const page = await context.newPage();
+    const browserErrors = [];
+    page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
+    page.on("pageerror", (error) => browserErrors.push(error.message));
+    await page.goto(webOrigin);
+    const active = page.evaluate(async ({ apiOrigin, tenantCode }) => {
+      const response = await fetch(`${apiOrigin}/api/v1/core/program/`, { headers: { "x-tenant-code": tenantCode } });
+      return { status: response.status, body: await response.json() };
+    }, boundary);
+    await bounded(Promise.race([started, active.then(() => { throw new Error("Inspected request was not held"); })]));
+    let drained = false;
+    const draining = guard.beginClose().then(() => { drained = true; });
+    const lateFailed = [];
+    page.on("requestfailed", (request) => lateFailed.push(request.failure().errorText));
+    await bounded(page.evaluate(async ({ apiOrigin, tenantCode }) => {
+      const api = fetch(`${apiOrigin}/api/v1/student/grades/`, { headers: { "x-tenant-code": tenantCode } })
+        .then(() => { throw new Error("Late API escaped"); }, () => undefined);
+      const script = new Promise((resolve, reject) => {
+        const element = document.createElement("script");
+        element.src = "/late-script.js";
+        element.onload = () => reject(new Error("Late script escaped"));
+        element.onerror = resolve;
+        document.head.append(element);
+      });
+      await Promise.all([api, script]);
+    }, boundary));
+    await assert.rejects(page.goto(`${webOrigin}/late-navigation`), /net::ERR_ABORTED/);
+    assert.equal(page.url(), `${webOrigin}/`, "cancelled navigation must retain the valid document");
+    assert.equal(await page.evaluate(() => localStorage.getItem("close-contract")), "ready");
+    assert.equal(drained, false, "late traffic must not discard the inspected request");
+    heldResponse.writeHead(200, { "content-type": "application/json", "access-control-allow-origin": webOrigin,
+      "access-control-allow-credentials": "true" });
+    heldResponse.end('{"ready":true}');
+    assert.deepEqual(await bounded(active), { status: 200, body: { ready: true } });
+    await bounded(draining);
+    assert.deepEqual(lateFailed, ["net::ERR_ABORTED", "net::ERR_ABORTED", "net::ERR_ABORTED"]);
+    assert.deepEqual(received, ["/", "/api/v1/core/program/"], "no late request reaches either upstream");
+    guard.assertClean();
+    assert.deepEqual(browserErrors, [], "strict browser observation stays enabled until close");
+    await context.close();
+
+    const rejectedContext = await browser.newContext({ serviceWorkers: "block" });
+    const rejectedGuard = await installReleaseContextGuard(rejectedContext, boundary);
+    const rejectedPage = await rejectedContext.newPage();
+    await rejectedPage.goto(webOrigin);
+    const rejected = rejectedPage.waitForEvent("requestfailed");
+    await rejectedPage.evaluate(async ({ apiOrigin, tenantCode }) => {
+      await fetch(`${apiOrigin}/api/v1/community/posts/`, { method: "POST", headers: { "x-tenant-code": tenantCode } })
+        .then(() => { throw new Error("Production mutation escaped"); }, () => undefined);
+    }, boundary);
+    assert.match((await rejected).failure().errorText, /ERR_BLOCKED_BY_CLIENT/);
+    assert.throws(() => rejectedGuard.assertClean(), /Release API boundary failed/);
+    assert.deepEqual(received, ["/", "/api/v1/core/program/", "/"]);
+    await rejectedContext.close();
+  } finally {
+    await browser?.close();
+    for (const server of [api, web]) server.closeAllConnections();
+    await Promise.all([api, web].map((server) => new Promise((resolve) => server.close(resolve))));
+  }
 });
 
 test("real Chromium receives the unmodified loopback HTTP response through the transport boundary", async () => {
