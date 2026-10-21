@@ -12,7 +12,8 @@
 모든 필수 서술형 채점 후 결과·성적표가 갱신된다. 권한·정답 완전성·시도 제한·
 성적 공개 결정은 backend 시험 채점 계약이 소유한다. 학부모의 선택 자녀 범위는
 유지한다. `numeric-short-answer.spec.ts`는 desktop/390px 입력·오류 복구·임시저장을,
-`exam-roundtrip-realuse.spec.ts`는 격리 환경의 제출→교사 채점→결과 reload를 검증한다.
+자동 배포의 필수 `student-parent-assessment-realuse.spec.ts`가
+`verifyOnlineWrittenSubmission.ts`를 호출해 격리 환경의 제출→교사 채점→결과 reload를 검증한다.
 
 ## 목적과 화면 원칙
 

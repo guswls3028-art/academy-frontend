@@ -14,7 +14,7 @@ import { acknowledgeFirstLoginGuideIfVisible } from "../helpers/firstLoginGuide"
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 
-test.setTimeout(360_000);
+test.setTimeout(240_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
 const ENABLED = process.env.E2E_EXAM_ROUNDTRIP_REALUSE === "1";
@@ -126,14 +126,7 @@ async function expectApi<T = unknown>(
 }
 
 async function seedBrowser(page: Page, tokens: Tokens): Promise<void> {
-  // The page is already on BASE. Replace the active session once; stacking
-  // init scripts would replay earlier roles in an unspecified order on reload.
-  await page.evaluate(({ access, refresh, code }) => {
-    for (const key of Object.keys(localStorage)) {
-      if (key.startsWith("academy:auth-") || key === "access" || key === "refresh") {
-        localStorage.removeItem(key);
-      }
-    }
+  await page.addInitScript(({ access, refresh, code }) => {
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", refresh);
     localStorage.setItem("tenant_code", code);
@@ -193,100 +186,6 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     if (result.status !== 404) failures.push(`exam ${created.examId} residue -> ${result.status}`);
   }
   expect(failures, failures.join("\n")).toEqual([]);
-  created.examId = 0;
-  created.submissionIds = [];
-}
-
-async function verifyWrittenRoundtrip(
-  page: Page, request: APIRequestContext, admin: Tokens, student: Tokens, enrollmentId: number,
-): Promise<void> {
-  const exam = await expectApi<{ id: number }>(request, "POST", "/exams/", admin.access, {
-    title: `${MARKER} 서술형 제출·교사 채점`, session_id: SESSION_ID, exam_type: "regular",
-    max_score: 100, pass_score: 50, grading_mode: "mixed", choice_question_count: 1,
-    manual_grading_method: "score", allow_retake: true, max_attempts: 2,
-  });
-  created.examId = exam.id;
-  const questions = await expectApi<QuestionRow[]>(request, "POST", `/exams/${exam.id}/questions/init/`, admin.access, {
-    choice_count: 1, choice_score: 50, essay_count: 1, essay_score: 50,
-  });
-  questions.sort((a, b) => a.number - b.number);
-  await expectApi(request, "PUT", `/exams/${exam.id}/enrollments/?session_id=${SESSION_ID}`, admin.access, {
-    enrollment_ids: [enrollmentId],
-  });
-  const answer = "첫 번째 줄에서 풀이의 근거를 설명합니다.\n두 번째 줄에서 계산 과정과 결론을 충분히 길게 작성합니다.";
-  const answers = [
-    { exam_question_id: questions[0].id, answer: "2" },
-    { exam_question_id: questions[1].id, answer },
-  ];
-  // A setup error must not create a stuck submission or consume the first attempt.
-  await expectApi(request, "POST", `/student/exams/${exam.id}/submit/`, student.access, { answers }, [409]);
-  await expectApi(request, "POST", "/exams/answer-keys/", admin.access, { exam: exam.id, answers: {} });
-  await expectApi(request, "POST", `/student/exams/${exam.id}/submit/`, student.access, { answers }, [409]);
-  await expectApi(request, "POST", "/exams/answer-keys/", admin.access, {
-    exam: exam.id, answers: { [questions[0].id]: "2" },
-  });
-  const before = await expectApi<{ attempt_count: number }>(request, "GET", `/student/exams/${exam.id}/`, student.access);
-  expect(before.attempt_count).toBe(0);
-  await seedBrowser(page, student);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await gotoAndSettle(page, `${BASE}/student/exams/${exam.id}/submit`);
-  await page.getByLabel("1번 답", { exact: true }).fill("2");
-  await page.locator("textarea").fill(answer);
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.locator("textarea")).toHaveValue(answer);
-  const submitted = page.waitForResponse((response) => response.request().method() === "POST"
-    && new URL(response.url()).pathname === `/api/v1/student/exams/${exam.id}/submit/`);
-  await page.getByRole("button", { name: "제출하기" }).click();
-  await page.locator("[data-confirm-dialog]").getByRole("button", { name: "제출", exact: true }).click();
-  const response = await submitted;
-  expect(response.status()).toBe(201);
-  created.submissionIds.push(Number((await response.json() as { submission_id: number }).submission_id));
-  await expect(page.getByText("서술형 채점 중입니다.")).toBeVisible();
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.getByText("서술형 채점 중입니다.")).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-
-  const grid = await expectApi<{ rows: Array<{ enrollment_id: number; student_name: string }> }>(
-    request, "GET", `/results/admin/exams/${exam.id}/manual-grading/`, admin.access,
-  );
-  const name = grid.rows.find((row) => row.enrollment_id === enrollmentId)!.student_name;
-  await seedBrowser(page, admin);
-  const gradingUrl = `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${exam.id}`;
-  for (const width of [390, 1366]) {
-    await page.setViewportSize({ width, height: 900 });
-    await gotoAndSettle(page, gradingUrl);
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
-    const row = page.getByRole("row").filter({ hasText: name });
-    await row.locator("summary").filter({ hasText: "학생 답안" }).click();
-    await expect(row.locator("details[open] div")).toHaveText(answer);
-    await expect(row.getByRole("spinbutton", { name: /50점 만점 점수/ })).toHaveValue("");
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  }
-  const score = page.getByRole("row").filter({ hasText: name }).getByRole("spinbutton", { name: /50점 만점 점수/ });
-  await score.fill("35");
-  await page.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
-  const saved = page.waitForResponse((res) => res.request().method() === "POST"
-    && new URL(res.url()).pathname.endsWith(`/exams/${exam.id}/manual-grading/`)
-    && Boolean((res.request().postDataJSON() as { apply?: boolean }).apply));
-  await page.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
-  expect((await saved).status()).toBe(200);
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
-  await expect(page.getByRole("row").filter({ hasText: name }).getByRole("spinbutton", { name: /50점 만점 점수/ })).toHaveValue("35");
-
-  await seedBrowser(page, student);
-  for (const width of [1366, 390]) {
-    await page.setViewportSize({ width, height: 900 });
-    await gotoAndSettle(page, `${BASE}/student/exams/${exam.id}/result`);
-    const result = await waitForResult(request, student.access, exam.id);
-    expect(result.total_score).toBe(85);
-    await expect(page.getByText("85 / 100점", { exact: true })).toBeVisible();
-    await expect(page.getByText("서술형 채점 중입니다.")).toHaveCount(0);
-    await page.reload({ waitUntil: "domcontentloaded" });
-    expect((await waitForResult(request, student.access, exam.id)).total_score).toBe(85);
-    await expect(page.getByText("85 / 100점", { exact: true })).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  }
 }
 
 test.describe.serial("[real-use] 학생 온라인 시험 roundtrip", () => {
@@ -435,9 +334,6 @@ test.describe.serial("[real-use] 학생 온라인 시험 roundtrip", () => {
     await waitForRenderSettled(page, { timeout: 20_000 });
     await expect(gradeCard).toBeVisible();
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-
-    await cleanup(request);
-    await verifyWrittenRoundtrip(page, request, admin, primary, primaryEnrollment!.id);
 
     const logBody = await expectApi<{ count: number }>(
       request,
