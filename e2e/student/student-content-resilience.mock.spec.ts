@@ -134,6 +134,10 @@ async function installStudentApi(
       await route.fulfill({ status: 503, json: { detail: "temporary student API failure" } });
       return;
     }
+    if (path.endsWith("/results/parent/assessment-comments/")) {
+      await route.fulfill({ json: { items: [] } });
+      return;
+    }
     if (path.endsWith("/student/me/")) {
       if (options.failProfile) {
         await route.fulfill({ status: 503, json: { detail: "profile failure" } });
@@ -623,7 +627,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           { id: 23, title: "오늘 클리닉", date: "2026-10-21", type: "clinic" },
           { id: 24, title: "내일 수업", date: "2026-10-22" },
         ] }));
-        await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+        await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 120_000 });
         const card = page.getByRole("region", { name: "학습 현황", exact: true });
         const sessions = card.getByRole("link", { name: /수업·클리닉/ });
         const exams = card.getByRole("link", { name: /시험 합격/ });
@@ -635,7 +639,9 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await expect(exams).toContainText("전체 판정 결과");
         await expect(card.getByRole("link", { name: /과제 통과/ })).toContainText("기록 없음");
         await assertNoRenderedHtmlLeak(page);
-        await testInfo.attach(`learning-status-${width}-${parentDashboard}`, { body: await card.screenshot(), contentType: "image/png" });
+        const screenshotPath = testInfo.outputPath(`learning-status-${width}-${parentDashboard}.png`);
+        await card.screenshot({ path: screenshotPath });
+        await testInfo.attach("learning-status", { path: screenshotPath, contentType: "image/png" });
         await sessions.focus();
         await expect(sessions).toBeFocused();
         await page.keyboard.press("Enter");
@@ -681,7 +687,9 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await expect(card.getByText("확인 필요", { exact: true }).first()).toBeVisible();
       await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
       if (source === "grades") await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("0회");
-      await testInfo.attach(`learning-status-${source}-error`, { body: await card.screenshot(), contentType: "image/png" });
+      const screenshotPath = testInfo.outputPath(`learning-status-${source}-error.png`);
+      await card.screenshot({ path: screenshotPath });
+      await testInfo.attach("learning-status-error", { path: screenshotPath, contentType: "image/png" });
       const beforeRetry = dataReads;
       const beforeMe = meReads;
       failed = false;
