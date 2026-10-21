@@ -259,7 +259,8 @@ function StudentLayoutInner() {
 
       <main className="student-layout__main">
         <div className="student-layout__content">
-          {studentContextReady && <Outlet />}
+          {/* 자녀 전환 시 이전 쿼리 observer의 placeholder와 로컬 화면 상태도 폐기한다. */}
+          {studentContextReady && <Outlet key={selectedParentStudentId ?? "self"} />}
           {(parentNeedsSelection || parentHasNoStudent) && (
             <section className="student-layout__parent-gate" aria-labelledby="parent-student-gate-title">
               <div className="student-layout__parent-gate-icon" aria-hidden>

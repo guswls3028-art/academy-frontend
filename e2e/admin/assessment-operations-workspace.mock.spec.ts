@@ -726,12 +726,18 @@ test("@policy-recovery 캐시된 A→B→A 전환 후 옛 A 최신조회는 새 
   await select("비교 시험").click();
   await expect(page.getByRole("heading", { name: "비교 시험", exact: true })).toBeVisible();
   await select(String(state.exam.title)).click();
+  await expect(page.getByRole("heading", { name: String(state.exam.title), exact: true })).toBeVisible();
   const details = page.locator("#assessment-policy > details");
   if (await details.getAttribute("open") === null) await details.locator(":scope > summary").click();
   const input = page.getByLabel("합격 기준");
+  await expect(input).toHaveValue("80");
   await input.fill("79");
   state.exam = { ...state.exam, pass_score: 75, updated_at: "2026-08-02T00:10:00Z" };
+  const conflictResponse = page.waitForResponse(response => response.url().endsWith(`/exams/${EXAM_ID}/`) && response.request().method() === "PATCH");
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+  const conflict = await conflictResponse;
+  expect(conflict.request().headers()["x-expected-updated-at"]).toBe("2026-08-02T00:00:00Z");
+  expect(conflict.status()).toBe(409);
   await expect(page.getByRole("button", { name: "최신 설정 불러오기", exact: true })).toBeVisible();
   let releaseRead!: () => void;
   state.examReadGate = new Promise<void>(resolve => { releaseRead = resolve; });
