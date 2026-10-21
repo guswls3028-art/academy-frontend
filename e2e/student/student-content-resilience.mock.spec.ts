@@ -769,6 +769,52 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await assertNoRenderedHtmlLeak(page);
   });
 
+  test("학습 현황은 오프라인 자녀 전환 중 이전 값이나 0을 표시하지 않고 연결 후 복구한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.clock.setFixedTime(new Date("2026-10-21T09:00:00+09:00"));
+    await installStudentApi(page, { parentDashboard: true });
+    await page.route("**/api/v1/core/me/", (route) => route.fulfill({ json: {
+      id: 11, username: "parent-11", name: "보호자", is_staff: false, is_superuser: false,
+      tenantRole: "parent", linkedStudents: [{ id: 11, name: "학생 11" }, { id: 12, name: "학생 12" }],
+    } }));
+    const selectedReads: string[] = [];
+    await page.route("**/api/v1/student/sessions/me/", (route) => route.fulfill({ json:
+      route.request().headers()["x-student-id"] === "11"
+        ? [{ id: 21, title: "첫째만의 수업", date: "2026-10-21" }] : [],
+    }));
+    await page.route("**/api/v1/student/grades/", (route) => {
+      const selectedId = route.request().headers()["x-student-id"];
+      selectedReads.push(selectedId);
+      const grades = emptyGrades(701);
+      const passed = selectedId === "11";
+      return route.fulfill({ json: {
+        ...grades, exams: [{ ...grades.exams[0], is_pass: passed, achievement: passed ? "PASS" : "FAIL" }],
+      } });
+    });
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+    await page.getByRole("tab", { name: "학생 11", exact: true }).click();
+    const card = page.getByRole("region", { name: "학습 현황", exact: true });
+    await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("100%");
+    await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("1회");
+    // Pause queries through the browser connectivity event while keeping Vite assets available.
+    await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+    await page.getByRole("tab", { name: "학생 12", exact: true }).click();
+    await expect(page.getByRole("tab", { name: "학생 12", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("status").filter({ hasText: "연결을 기다리고 있어요" })).toBeVisible();
+    await expect(card).toHaveCount(0);
+    await expect(page.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+    selectedReads.length = 0;
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("0%");
+    await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("0회");
+    expect(selectedReads.length).toBeGreaterThan(0);
+    expect(selectedReads.every((id) => id === "12")).toBe(true);
+    await page.reload();
+    await expect(page.getByRole("tab", { name: "학생 12", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("0%");
+    await assertNoRenderedHtmlLeak(page);
+  });
+
   for (const width of [390, 1366]) {
     for (const area of ["detail", "payments"] as const) {
       test(`수납 ${area} 조회 실패를 구분하고 다시 시도해 복구한다 ${width}`, async ({ page }, testInfo) => {

@@ -217,18 +217,18 @@ export default function DashboardPage() {
   const examsQ = useStudentExams({ include_upcoming: true });
   const notificationCountsQ = useNotificationCounts();
   const dashboard = dashboardQ.data;
-  const dashLoading = dashboardQ.isLoading;
+  const dashLoading = dashboardQ.isPending;
   const dashError = dashboardQ.isError;
   const sessions = sessionsQ.data;
-  const sessionsLoading = sessionsQ.isLoading;
+  const sessionsLoading = sessionsQ.isPending;
   const sessionsError = sessionsQ.isError;
   const grades = gradesQ.data;
   const examsResp = examsQ.data;
   const notificationCounts = notificationCountsQ.data;
-  const countsLoading = notificationCountsQ.isLoading;
+  const countsLoading = notificationCountsQ.isPending;
   const countsError = notificationCountsQ.isError;
   const todoDataError = dashError || gradesQ.isError || examsQ.isError || countsError;
-  const todoDataPending = (dashLoading || gradesQ.isLoading || examsQ.isLoading || countsLoading) && !todoDataError;
+  const todoDataPending = (dashLoading || gradesQ.isPending || examsQ.isPending || countsLoading) && !todoDataError;
   const isParent = user?.tenantRole === "parent";
 
   const now = useLearningClock();
@@ -329,6 +329,11 @@ export default function DashboardPage() {
   if (dashLoading && sessionsLoading) {
     return (
       <div style={{ padding: "var(--stu-space-4) 0" }}>
+        <p role="status" style={{ color: "var(--stu-text-muted)", marginBottom: 12 }}>
+          {dashboardQ.isPaused || sessionsQ.isPaused
+            ? "연결을 기다리고 있어요. 연결되면 학습 현황을 다시 확인해요."
+            : "학습 현황을 확인하고 있어요."}
+        </p>
         <div className="stu-skel" style={{ height: 80, borderRadius: "var(--stu-radius-md)" }} />
         <div className="stu-skel" style={{ height: 100, marginTop: 12, borderRadius: "var(--stu-radius-md)" }} />
         <div className="stu-skel" style={{ height: 120, marginTop: 12, borderRadius: "var(--stu-radius-md)" }} />
@@ -1006,8 +1011,8 @@ function LearningStatusCard({
 
   const gradesError = gradesQ.isError;
   const sessionsError = sessionsQ.isError;
-  const gradesPending = gradesQ.isLoading;
-  const sessionsPending = sessionsQ.isLoading;
+  const gradesPending = gradesQ.isPending;
+  const sessionsPending = sessionsQ.isPending;
   const hasError = gradesError || sessionsError;
   const hasPending = gradesPending || sessionsPending;
   const hasData = (sessions?.length ?? 0) > 0 || hwCount > 0 || (grades?.exams.length ?? 0) > 0;
