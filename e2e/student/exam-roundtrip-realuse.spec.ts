@@ -126,7 +126,14 @@ async function expectApi<T = unknown>(
 }
 
 async function seedBrowser(page: Page, tokens: Tokens): Promise<void> {
-  await page.addInitScript(({ access, refresh, code }) => {
+  // The page is already on BASE. Replace the active session once; stacking
+  // init scripts would replay earlier roles in an unspecified order on reload.
+  await page.evaluate(({ access, refresh, code }) => {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith("academy:auth-") || key === "access" || key === "refresh") {
+        localStorage.removeItem(key);
+      }
+    }
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", refresh);
     localStorage.setItem("tenant_code", code);
@@ -273,9 +280,11 @@ async function verifyWrittenRoundtrip(
     await gotoAndSettle(page, `${BASE}/student/exams/${exam.id}/result`);
     const result = await waitForResult(request, student.access, exam.id);
     expect(result.total_score).toBe(85);
+    await expect(page.getByText("85 / 100점", { exact: true })).toBeVisible();
     await expect(page.getByText("서술형 채점 중입니다.")).toHaveCount(0);
     await page.reload({ waitUntil: "domcontentloaded" });
     expect((await waitForResult(request, student.access, exam.id)).total_score).toBe(85);
+    await expect(page.getByText("85 / 100점", { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
 }
