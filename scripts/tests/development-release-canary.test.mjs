@@ -536,22 +536,30 @@ test("assessment copy failure observations keep only reviewed phases and source"
   assert.equal(wrongSpec.rejectedFailureObservationCount, 2);
 });
 
-test("assessment copy session cleanup follows its owned enrollment deletion and verifies absence", async () => {
+test("assessment copy and template retry cleanup removes owned rows and verifies absence", async () => {
   const source = readFileSync(new URL("../../e2e/student/student-parent-assessment-realuse.spec.ts", import.meta.url), "utf8");
   const body = stripTypeScriptTypes(source.slice(source.indexOf("async function cleanup("), source.indexOf("async function seedAssessment(")));
   const calls = [];
-  const created = { adminAccess: "secret-token", submissionIds: [], attendanceIds: [9], sessionEnrollmentIds: [], enrollmentIds: [11], copySessionIds: [22] };
+  const created = { adminAccess: "secret-token", submissionIds: [], messageTemplateRetryIds: [31, 32], attendanceIds: [9], sessionEnrollmentIds: [], enrollmentIds: [11], copySessionIds: [22] };
   let enrollmentRemoved = false;
+  let retainedTemplate = false;
   const api = async (_request, method, endpoint) => {
     calls.push([method, endpoint]);
-    if (method === "GET") return { status: 404 };
+    if (method === "GET") return { status: retainedTemplate && endpoint === "/messaging/templates/32/" ? 200 : 404 };
     if (endpoint === "/enrollments/11/") enrollmentRemoved = true;
     if (endpoint === "/lectures/sessions/22/" && !enrollmentRemoved) return { status: 403 };
     return { status: 204 };
   };
   const cleanup = new Function("api", "cleanupQaFamily", "created", `${body}; return cleanup;`)(api, async () => {}, created);
   await cleanup({});
-  assert.deepEqual(calls, [["DELETE", "/lectures/attendance/9/"], ["DELETE", "/enrollments/11/"], ["DELETE", "/lectures/sessions/22/"], ["GET", "/lectures/sessions/22/"]]);
+  assert.deepEqual(calls, [
+    ["DELETE", "/messaging/templates/31/"], ["DELETE", "/messaging/templates/32/"],
+    ["DELETE", "/lectures/attendance/9/"], ["DELETE", "/enrollments/11/"],
+    ["DELETE", "/lectures/sessions/22/"], ["GET", "/lectures/sessions/22/"],
+    ["GET", "/messaging/templates/31/"], ["GET", "/messaging/templates/32/"],
+  ]);
+  retainedTemplate = true;
+  await assert.rejects(cleanup({}), /verify retry message template 32 absent -> 200/);
 });
 
 test("transport truth rejects unsafe markers and accepts old snapshots without guessing missing counters", () => {

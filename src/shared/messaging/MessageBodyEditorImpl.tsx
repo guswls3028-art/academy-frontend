@@ -125,7 +125,9 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
   });
   currentEditor.current = editor;
 
-  useEffect(() => { editor?.setEditable(!disabled); }, [editor, disabled]);
+  // Changing editability must not send the editor's previous document back to
+  // the parent before the external value below has been synchronized.
+  useEffect(() => { editor?.setEditable(!disabled, false); }, [editor, disabled]);
   useEffect(() => {
     if (editor && messageText(editor.getJSON()) !== value) {
       editor.commands.setContent(messageDocument(value), { emitUpdate: false });

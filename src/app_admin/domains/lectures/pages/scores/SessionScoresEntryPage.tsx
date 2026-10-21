@@ -965,6 +965,7 @@ export default function SessionScoresEntryPage({
 
               let initialBody: string | undefined;
               let initialTemplateId: number | null = null;
+              let initialTemplateUpdatedAt: string | undefined;
               let initialLetterPresetId: string | null = null;
               let scoreDetail = "";
 
@@ -979,6 +980,7 @@ export default function SessionScoresEntryPage({
                   ? chosenTpl.body
                   : buildGenericScoreTemplate(reportOptions);
                 initialTemplateId = chosenTpl?.id ?? null;
+                initialTemplateUpdatedAt = chosenTpl?.updated_at;
                 initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
                 scoreDetail = buildScoreDetail(selectedRows[0], meta);
               } catch {
@@ -1013,6 +1015,7 @@ export default function SessionScoresEntryPage({
                 blockCategory: "grades",
                 initialBody,
                 initialTemplateId,
+                initialTemplateUpdatedAt,
                 initialLetterPresetId,
                 alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
                 recomputePerStudentVars,

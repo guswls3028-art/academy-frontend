@@ -27,6 +27,8 @@ export type OpenSendMessageOptions = {
   initialBody?: string;
   /** 사전 적용된 저장 양식 ID */
   initialTemplateId?: number | null;
+  /** 사전 입력 본문과 동일 조회에서 읽은 저장 양식 수정 시각 */
+  initialTemplateUpdatedAt?: string;
   /** 사전 적용된 기본 제공 편지지 프리셋 ID */
   initialLetterPresetId?: string | null;
   /** 알림톡 추가 치환 변수 (성적 발송 시 시험명/강의명/시험성적 등) */
@@ -68,6 +70,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const [blockCategory, setBlockCategory] = useState<TemplateCategory | undefined>();
   const [initialBody, setInitialBody] = useState<string | undefined>();
   const [initialTemplateId, setInitialTemplateId] = useState<number | null | undefined>();
+  const [initialTemplateUpdatedAt, setInitialTemplateUpdatedAt] = useState<string | undefined>();
   const [initialLetterPresetId, setInitialLetterPresetId] = useState<string | null | undefined>();
   const [alimtalkExtraVars, setAlimtalkExtraVars] = useState<Record<string, string> | undefined>();
   const [alimtalkExtraVarsPerStudent, setAlimtalkExtraVarsPerStudent] = useState<Record<number, Record<string, string>> | undefined>();
@@ -81,6 +84,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setBlockCategory(options.blockCategory);
     setInitialBody(options.initialBody);
     setInitialTemplateId(options.initialTemplateId);
+    setInitialTemplateUpdatedAt(options.initialTemplateUpdatedAt);
     setInitialLetterPresetId(options.initialLetterPresetId);
     setAlimtalkExtraVars(options.alimtalkExtraVars);
     setAlimtalkExtraVarsPerStudent(options.alimtalkExtraVarsPerStudent);
@@ -96,6 +100,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setBlockCategory(undefined);
     setInitialBody(undefined);
     setInitialTemplateId(undefined);
+    setInitialTemplateUpdatedAt(undefined);
     setInitialLetterPresetId(undefined);
     setAlimtalkExtraVars(undefined);
     setAlimtalkExtraVarsPerStudent(undefined);
@@ -129,6 +134,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
             blockCategory={blockCategory}
             initialBody={initialBody}
             initialTemplateId={initialTemplateId}
+            initialTemplateUpdatedAt={initialTemplateUpdatedAt}
             initialLetterPresetId={initialLetterPresetId}
             alimtalkExtraVars={alimtalkExtraVars}
             alimtalkExtraVarsPerStudent={alimtalkExtraVarsPerStudent}
