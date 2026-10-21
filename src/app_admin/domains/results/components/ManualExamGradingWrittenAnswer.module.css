@@ -1,0 +1,33 @@
+.studentAnswer {
+  width: 160px;
+  max-width: 100%;
+  margin-top: 6px;
+  text-align: left;
+  font-size: 12px;
+}
+
+.studentAnswer summary {
+  cursor: pointer;
+  padding: 6px 4px;
+  color: var(--color-text-secondary);
+}
+
+.studentAnswer div {
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  padding: 6px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .studentAnswer[open] div {
+    animation: studentAnswerReveal 140ms ease-out;
+  }
+}
+
+@keyframes studentAnswerReveal {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}

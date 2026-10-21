@@ -49,6 +49,7 @@ type PublishedExamResult = {
 
 type UnpublishedExamResult = {
   student_results_published: false;
+  grading_status?: "subjective_pending";
   exam_id: number;
   allow_retake: boolean;
   max_attempts: number;

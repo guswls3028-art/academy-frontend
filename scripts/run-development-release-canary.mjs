@@ -78,6 +78,7 @@ const SAFE_FAILURE_SOURCE_FILES = new Set([
   ...Object.keys(FLOW_COUNTS),
   "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
   "verifyAssessmentCopy.ts",
+  "verifyOnlineWrittenSubmission.ts",
 ]);
 const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
   "/api/v1/clinic/idcard/",
