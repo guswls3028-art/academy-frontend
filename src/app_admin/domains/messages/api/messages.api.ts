@@ -414,15 +414,15 @@ export async function fetchMessageTemplate(id: number): Promise<MessageTemplateI
 }
 
 export async function createMessageTemplate(
-  payload: MessageTemplatePayload
-): Promise<MessageTemplateItem> {
-  const res = await api.post<MessageTemplateItem>(`${PREFIX}/templates/`, normalizeTemplatePayload(payload));
+  payload: MessageTemplatePayload & { client_request_id?: string }
+): Promise<MessageTemplateItem & { creation_content_changed?: boolean }> {
+  const res = await api.post<MessageTemplateItem & { creation_content_changed?: boolean }>(`${PREFIX}/templates/`, normalizeTemplatePayload(payload));
   return res.data;
 }
 
 export async function updateMessageTemplate(
   id: number,
-  payload: Partial<MessageTemplatePayload>
+  payload: Partial<MessageTemplatePayload> & { expected_updated_at?: string }
 ): Promise<MessageTemplateItem> {
   const res = await api.patch<MessageTemplateItem>(`${PREFIX}/templates/${id}/`, normalizeTemplatePayload(payload));
   return res.data;

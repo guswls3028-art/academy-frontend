@@ -59,6 +59,7 @@ type CreatedState = {
   copySessionIds: number[];
   submissionIds: number[];
   messageTemplateId?: number;
+  messageTemplateRetryIds: number[];
 };
 
 type ResultBody = {
@@ -80,6 +81,7 @@ const created: CreatedState = {
   attendanceIds: [],
   copySessionIds: [],
   submissionIds: [],
+  messageTemplateRetryIds: [],
 };
 
 const runStamp = Date.now();
@@ -131,6 +133,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.messageTemplateId) {
     await remove("DELETE", `/messaging/templates/${created.messageTemplateId}/`);
   }
+  for (const id of created.messageTemplateRetryIds) {
+    await remove("DELETE", `/messaging/templates/${id}/`);
+  }
   if (created.examId && created.sessionId) {
     await remove("DELETE", `/exams/${created.examId}/?session_id=${created.sessionId}`);
   }
@@ -175,6 +180,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     ...created.copySessionIds.map((id) => [`copy session ${id}`, `/lectures/sessions/${id}/`] as const),
     ...(created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
     ...(created.messageTemplateId ? [[`message template ${created.messageTemplateId}`, `/messaging/templates/${created.messageTemplateId}/`] as const] : []),
+    ...created.messageTemplateRetryIds.map(id => [`retry message template ${id}`, `/messaging/templates/${id}/`] as const),
   ]) {
     const residue = await api(request, "GET", path, created.adminAccess);
     if (residue.status !== 404) failures.push(`verify ${label} absent -> ${residue.status}`);
@@ -970,6 +976,41 @@ async function verifyScoreMessageTemplate(
     await expect(draft).toContainText("#{99차시후명}");
     await draft.fill("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
     await expect(send.locator(".send-modal__send-btn")).toBeEnabled();
+    // A second staff editing session saves the same owned synthetic template.
+    // No external messages or production rows participate in this conflict.
+    const beforeConcurrent = await expectApi<{ updated_at: string }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access);
+    const concurrentBody = "학생 #{학생이름3} 점수 #{시험총점} 확인 완료 · 다음 수업 안내도 확인해 주세요.";
+    const concurrent = await expectApi<{ updated_at: string }>(request, "PATCH", `/messaging/templates/${saved.id}/`, admin.access, {
+      body: concurrentBody, expected_updated_at: beforeConcurrent.updated_at,
+    });
+    const draftBody = "학생 #{학생이름3} 점수 #{시험총점} 확인 완료 · 과제도 함께 확인해 주세요.";
+    await draft.fill(draftBody);
+    const [conflictResponse] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname.endsWith(`/api/v1/messaging/templates/${saved.id}/`)),
+      send.getByRole("button", { name: "변경 내용 저장", exact: true }).click(),
+    ]);
+    expect(conflictResponse.status()).toBe(409);
+    expect(conflictResponse.request().postDataJSON().expected_updated_at).toBe(beforeConcurrent.updated_at);
+    const conflict = send.getByRole("region", { name: "문구 수정 충돌" });
+    await expect(conflict).toContainText(concurrentBody);
+    await expect(draft).toContainText(draftBody);
+    const unchanged = await expectApi<{ body: string; updated_at: string }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access);
+    expect(unchanged).toMatchObject({ body: concurrentBody, updated_at: concurrent.updated_at });
+    const combinedBody = `${concurrentBody}\n과제도 함께 확인해 주세요.`;
+    await draft.fill(combinedBody);
+    await send.getByRole("button", { name: "변경 내용 저장", exact: true }).click();
+    const [combinedResponse] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname.endsWith(`/api/v1/messaging/templates/${saved.id}/`)),
+      page.getByRole("alertdialog", { name: "현재 초안으로 저장할까요?" })
+        .getByRole("button", { name: "이 초안 저장", exact: true }).click(),
+    ]);
+    expect(combinedResponse.status()).toBe(200);
+    expect(combinedResponse.request().postDataJSON().expected_updated_at).toBe(concurrent.updated_at);
+    await expect(conflict).toBeHidden();
+    const combinedReadback = await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access);
+    expect(combinedReadback.body).toBe(combinedBody);
     const defaultResponse = page.waitForResponse(response => response.request().method() === "POST"
       && new URL(response.url()).pathname.endsWith(`/api/v1/messaging/templates/${saved.id}/set-default/`));
     await send.getByRole("button", { name: "성적 안내 기본으로 지정", exact: true }).click();
@@ -986,6 +1027,8 @@ async function verifyScoreMessageTemplate(
     await send.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
     await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
     await expect(restoredDraft).toContainText("확인 완료");
+    await expect(restoredDraft).toContainText("다음 수업 안내도 확인해 주세요.");
+    await expect(restoredDraft).toContainText("과제도 함께 확인해 주세요.");
     await expect(restoredDraft.locator('[data-message-variable="시험총점"]')).toHaveCount(1);
     await expect(restoredDraft.locator('[data-message-variable="학생이름3"]')).toHaveCount(1);
     await expect(send.getByLabel("현재 학생의 실제 발송 문구"))
@@ -993,6 +1036,48 @@ async function verifyScoreMessageTemplate(
     await expect(send.locator(".send-modal__send-btn")).toBeEnabled();
     await expect(send).toContainText(templateName);
     await assertNoHorizontalOverflow(page);
+
+    // Forward each UI POST through the same guarded, isolated real API, then
+    // lose only its first acknowledgement. No response body is mocked.
+    const retryName = `${templateName}-retry`;
+    const createRequests: Array<Record<string, unknown>> = [];
+    const createStatuses: number[] = [];
+    await page.route("**/api/v1/messaging/templates/", async route => {
+      if (route.request().method() !== "POST") return route.fallback();
+      const payload = route.request().postDataJSON() as Record<string, unknown>;
+      if (payload.name !== retryName) return route.fallback();
+      createRequests.push(payload);
+      const result = await api<{ id?: number }>(request, "POST", "/messaging/templates/", admin.access, payload);
+      createStatuses.push(result.status);
+      if (Number.isInteger(result.body?.id) && result.body.id! > 0
+        && !created.messageTemplateRetryIds.includes(result.body.id!)) created.messageTemplateRetryIds.push(result.body.id!);
+      if (createRequests.length === 1) return route.abort("aborted");
+      return route.fulfill({ status: result.status, json: result.body });
+    });
+    await send.getByRole("button", { name: "성적 안내문 저장", exact: true }).click();
+    await send.getByPlaceholder("예: 출결 알림, 성적표 안내").fill(retryName);
+    await send.getByRole("checkbox", { name: "성적 안내 기본으로 지정 · 이 학원 직원 공통", exact: true }).check();
+    await send.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(send.getByRole("button", { name: "저장 확인·재시도", exact: true })).toBeVisible();
+    expect(createStatuses).toEqual([201]);
+    await expect(restoredDraft).toHaveAttribute("contenteditable", "false");
+    await send.getByRole("button", { name: "저장 확인·재시도", exact: true }).click();
+    await expect(send.locator(".send-modal__tpl-bar-name")).toHaveText(retryName);
+    expect(createStatuses).toEqual([201, 200]);
+    expect(createRequests).toHaveLength(2);
+    expect(createRequests[0].client_request_id).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(createRequests[1]).toEqual(createRequests[0]);
+    const retryRows = await expectApi<Array<{ id: number; name: string; body: string; is_user_default: boolean }>>(request, "GET", "/messaging/templates/?category=grades", admin.access);
+    expect(retryRows.filter(row => row.name === retryName)).toEqual([
+      expect.objectContaining({ id: created.messageTemplateRetryIds[0], body: combinedBody, is_user_default: true }),
+    ]);
+    expect(created.messageTemplateRetryIds).toHaveLength(1);
+    await page.reload();
+    await page.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
+    await expect(send.locator(".send-modal__tpl-bar-name")).toHaveText(retryName);
+    await expect(restoredDraft).toContainText("다음 수업 안내도 확인해 주세요.");
+    await expect(restoredDraft).toContainText("과제도 함께 확인해 주세요.");
     boundary.assertClean();
     guards.assertZeroDefects();
   } finally {
@@ -1008,6 +1093,11 @@ async function verifyScoreMessageTemplate(
       expect(residue.status).toBe(404);
       created.messageTemplateId = undefined;
     }
+    for (const id of created.messageTemplateRetryIds) {
+      await expectApi(request, "DELETE", `/messaging/templates/${id}/`, admin.access, undefined, [204]);
+      expect((await api(request, "GET", `/messaging/templates/${id}/`, admin.access)).status).toBe(404);
+    }
+    created.messageTemplateRetryIds = [];
   }
 }
 
