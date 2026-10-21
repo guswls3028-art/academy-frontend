@@ -1099,6 +1099,11 @@ async function verifyScoreMessageTemplate(
     } finally {
       await page.unroute(entryRaceRoute, holdCallerSnapshot);
     }
+    // The conflict exercise used fill(), which leaves raw variable text in the
+    // current editor. Re-enter from persisted data before checking restored blocks.
+    await page.reload();
+    await page.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
     const restoredDraft = send.getByRole("textbox", { name: "안내문", exact: true });
     // Reopening restores the template; recipient choices start fresh for this send.
     await send.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
