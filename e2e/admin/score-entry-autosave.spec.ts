@@ -1416,6 +1416,9 @@ test("같은 과제 셀 경쟁은 conflict로 서버값을 보존하고 내 초�
     await pageAInput.fill("77");
     await pageA.keyboard.press("Control+s");
     await expect.poll(() => currentHomeworkScores[0]).toBe(77);
+    // A is now observing this cell; an active editor intentionally keeps its value.
+    await pageA.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" }).click();
+    await expect(pageAInput).not.toBeFocused();
     await expect.poll(() => pageBScoreReads, { timeout: 10_000 }).toBeGreaterThan(readsBeforeWinner);
     await expect(pageBInput).toHaveText("88");
 
