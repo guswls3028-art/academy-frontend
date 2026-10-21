@@ -20,9 +20,10 @@ import { AUTO_SEND_SECTIONS } from "./AutoSendSectionTree";
 import TemplateEditModal from "./TemplateEditModal";
 
 /** Mounted for one editing session. Never initialize from the template-list cache. */
-export default function AutoSendTemplateEditor({ trigger, onClose }: {
+export default function AutoSendTemplateEditor({ trigger, onClose, viewOnly = false }: {
   trigger: string;
   onClose: () => void;
+  viewOnly?: boolean;
 }) {
   const qc = useQueryClient();
   // Retain a successfully created copy if connecting it fails, so retry never
@@ -46,7 +47,8 @@ export default function AutoSendTemplateEditor({ trigger, onClose }: {
     },
   });
   const templateType = getAlimtalkTemplateType(trigger);
-  const editable = Boolean(templateType && isAlimtalkTemplateBodyEditable(templateType));
+  const editableBody = Boolean(templateType && isAlimtalkTemplateBodyEditable(templateType));
+  const editable = editableBody && !viewOnly;
   const sourceTemplate = source.data?.template ?? null;
   const copy = editable && Boolean(sourceTemplate?.is_system || sourceTemplate?.solapi_template_id || sourceTemplate?.solapi_status);
   const save = useMutation({
@@ -104,7 +106,9 @@ export default function AutoSendTemplateEditor({ trigger, onClose }: {
     ? source.data.configs.filter((config) => config.template === sourceTemplate.id && config.trigger !== trigger)
       .map((config) => AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? "다른 자동발송")
     : [];
-  const description = editable
+  const description = viewOnly && editableBody
+    ? "현재 자동발송에 연결된 안내문입니다. 자동발송 연결과 설정은 대표 또는 관리자만 변경할 수 있습니다. 사용자 문구는 문구 관리에서 수정할 수 있습니다."
+    : editable
     ? `저장하면 ‘${title}’에 이 안내문을 사용합니다. ${copy ? "기본 문구는 보존하고 수정본을 연결합니다. " : ""}저장만으로 알림톡을 보내지는 않습니다.`
       + (otherUses.length ? ` 같은 문구를 쓰는 ${otherUses.join(", ")}에도 변경 내용이 반영됩니다.` : "")
     : "이 알림은 승인된 고정 안내문으로 발송합니다. 이름과 계정·일정 정보는 발송할 때 자동으로 채워집니다.";

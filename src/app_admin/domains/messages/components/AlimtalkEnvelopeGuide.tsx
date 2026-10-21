@@ -86,13 +86,13 @@ export function AlimtalkTriggerEnvelope({
               <span className={styles.templateBadge}>내용 수정 불가</span>
             </div>
             <div className={styles.triggerMeta}>
-              정해진 내용으로 발송됩니다. 미리보기에서 내용을 확인해 주세요.
+              승인된 고정 양식에 발송 시점의 정보를 채워 보냅니다.
             </div>
           </div>
           <div className={styles.memoPreview}>
             <div className={styles.memoPreviewLabel}>발송 내용</div>
             <div className={`${styles.memoPreviewBody} ${styles.fixedMemo}`}>
-              {body?.trim() || "정해진 본문으로 발송"}
+              정해진 본문으로 발송
             </div>
           </div>
         </div>

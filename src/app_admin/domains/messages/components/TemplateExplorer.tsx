@@ -17,7 +17,8 @@ import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import TemplateCategoryTree from "./TemplateCategoryTree";
-import TemplateEditModal from "./TemplateEditModal";
+import { isFixedAlimtalkContent } from "@/shared/messaging/alimtalkEnvelope";
+import TemplateLibraryEditor from "./TemplateLibraryEditor";
 import TemplateRestorePanel from "./TemplateRestorePanel";
 import { AlimtalkEnvelopeGuide } from "./AlimtalkEnvelopeGuide";
 import {
@@ -219,6 +220,7 @@ export default function TemplateExplorer() {
   const [activeCategory, setActiveCategory] =
     useState<MessageTemplateCategory>("default");
   const [search, setSearch] = useState("");
+  const fixedCategory = isFixedAlimtalkContent(activeCategory);
   const [modalOpen, setModalOpen] = useState<ModalOpenState>(null);
   const defaultRequestRef = useRef(false);
   const [pendingDefaultId, setPendingDefaultId] = useState<number | null>(null);
@@ -332,6 +334,7 @@ export default function TemplateExplorer() {
   const renderTemplateCard = (t: MessageTemplateItem) => {
     const isConfirming = confirmAction?.id === t.id;
     const isDef = isDefaultTemplate(t);
+    const fixed = isFixedAlimtalkContent(t.category, t.name);
     return (
       <div
         key={t.id}
@@ -348,7 +351,7 @@ export default function TemplateExplorer() {
         }}
         onClick={() =>
           !isConfirming &&
-          setModalOpen({ template: t, mode: isDef ? "view" : "edit" })
+          setModalOpen({ template: t, mode: isDef || fixed ? "view" : "edit" })
         }
       >
         {/* 카드 헤더 */}
@@ -434,18 +437,18 @@ export default function TemplateExplorer() {
               <Button
                 intent="secondary"
                 size="sm"
-                leftIcon={isDef ? <FiEye size={16} /> : <FiEdit2 size={16} />}
+                leftIcon={isDef || fixed ? <FiEye size={16} /> : <FiEdit2 size={16} />}
                 onClick={(event) => {
                   event.stopPropagation();
-                  setModalOpen({ template: t, mode: isDef ? "view" : "edit" });
+                  setModalOpen({ template: t, mode: isDef || fixed ? "view" : "edit" });
                 }}
-              >{isDef ? "보기" : "수정"}</Button>
-              <IconAction
+              >{isDef || fixed ? "보기" : "수정"}</Button>
+              {!fixed && <IconAction
                 icon={<FiCopy size={16} />}
                 label="복제"
                 onClick={() => void handleDuplicate(t)}
                 disabled={createMut.isPending}
-              />
+              />}
               {t.category === "grades" && !isDef && (
                 <Button size="sm" intent="secondary" disabled={pendingDefaultId !== null} onClick={(event) => {
                   event.stopPropagation();
@@ -508,7 +511,7 @@ export default function TemplateExplorer() {
         </div>
 
         {/* 본문 미리보기 — 컬러 배지로 변수 표시 */}
-        {t.body && (
+        {!fixed && t.body && (
           <div
             style={{
               fontSize: 12,
@@ -546,14 +549,14 @@ export default function TemplateExplorer() {
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <Button
+            {!fixedCategory && <Button
               intent="primary"
               size="sm"
               onClick={() => setModalOpen("create")}
               leftIcon={<FilePlus size={16} />}
             >
               새 문구
-            </Button>
+            </Button>}
           </div>
         </div>
         <details className="message-template-help">
@@ -608,8 +611,8 @@ export default function TemplateExplorer() {
                 tone="empty"
                 mode="embedded"
                 title="저장된 문구가 없습니다"
-                description={CATEGORY_DESCRIPTIONS[activeCategory]}
-                actions={
+                description={fixedCategory ? "이 분류는 승인된 고정 안내를 사용합니다. 수정할 안내문은 출결·성적·클리닉 등 해당 분류에서 만들 수 있습니다." : CATEGORY_DESCRIPTIONS[activeCategory]}
+                actions={!fixedCategory &&
                   <Button
                     intent="primary"
                     size="sm"
@@ -635,7 +638,8 @@ export default function TemplateExplorer() {
               )}
               <h3 className={panelStyles.sectionTitle}>내가 저장한 문구 · {savedTemplates.length}</h3>
               {savedTemplates.map(renderTemplateCard)}
-              {savedTemplates.length === 0 && <p>저장한 문구가 없습니다. 새 문구를 만들거나 제공 문구를 복제해 사용하세요.</p>}
+              {fixedCategory ? <p>승인된 고정 안내입니다. 기존 저장 내용은 보존하며 발송 문구를 직접 작성하거나 복제하지 않습니다.</p>
+                : savedTemplates.length === 0 && <p>저장한 문구가 없습니다. 새 문구를 만들거나 제공 문구를 복제해 사용하세요.</p>}
               {linkedSystemTemplates.length > 0 && (
                 <section className="message-template-group">
                   <h3 className={panelStyles.sectionTitle}>자동발송 설정에 연결된 문구</h3>
@@ -645,13 +649,13 @@ export default function TemplateExplorer() {
               {providedTemplates.length > 0 && (
                 <details className="message-template-group" open={Boolean(search)}>
                   <summary className={panelStyles.sectionTitle}>시스템 제공 문구 · {providedTemplates.length}</summary>
-                  <p>참고하거나 복제해서 쓰는 문구입니다. 여기에 있다는 이유만으로 발송되지는 않습니다.</p>
+                  <p>{fixedCategory ? "고정 안내의 정보를 확인할 수 있습니다." : "참고하거나 복제해서 쓰는 문구입니다."} 여기에 있다는 이유만으로 발송되지는 않습니다.</p>
                   {providedTemplates.map(renderTemplateCard)}
                 </details>
               )}
 
               {/* + 새 문구 추가 버튼 */}
-              <button
+              {!fixedCategory && <button
                 type="button"
                 onClick={() => setModalOpen("create")}
                 style={{
@@ -683,14 +687,15 @@ export default function TemplateExplorer() {
               >
                 <FilePlus size={16} />
                 새 문구 추가
-              </button>
+              </button>}
             </div>
           )}
         </div>
       </div>
 
       {/* 템플릿 생성/수정 모달 */}
-      <TemplateEditModal
+      {modalOpen && <TemplateLibraryEditor
+        key={isCreate ? "create" : `${editing?.id}:${copying}`}
         open={isCreate || isEditOrView}
         onClose={() => { createMut.reset(); updateMut.reset(); setModalOpen(null); }}
         category={modalCategory}
@@ -712,7 +717,7 @@ export default function TemplateExplorer() {
         }}
         onDuplicate={(template) => void handleDuplicate(template)}
         isDeleting={deleteMut.isPending}
-      />
+      />}
     </div>
   );
 }

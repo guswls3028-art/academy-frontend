@@ -153,6 +153,7 @@ function TriggerCard({
   onEditTemplate,
   channelMode,
   operationalDisabled,
+  canManage,
 }: {
   config: AutoSendConfigItem;
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
@@ -160,6 +161,7 @@ function TriggerCard({
   onEditTemplate?: (trigger: string) => void;
   channelMode?: "alimtalk";
   operationalDisabled: boolean;
+  canManage: boolean;
 }) {
   const [showPreview, setShowPreview] = useState(false);
   const hasTemplate = Boolean(config.template || config.effective_template_is_approved);
@@ -205,7 +207,7 @@ function TriggerCard({
     ? hasTimingControl ? "channel-reminder" : "channel"
     : hasTimingControl ? "unified-reminder" : "unified";
   const envelopeType = config.effective_template_type || getAlimtalkTemplateType(config.trigger);
-  const canEditBody = Boolean(envelopeType && isAlimtalkTemplateBodyEditable(getAlimtalkTemplateType(config.trigger)));
+  const canEditBody = canManage && Boolean(envelopeType && isAlimtalkTemplateBodyEditable(getAlimtalkTemplateType(config.trigger)));
 
   return (
     <div
@@ -243,7 +245,7 @@ function TriggerCard({
           <Switch
             checked={channelActive}
             onChange={handleChannelToggle}
-            disabled={operationalDisabled || isUnimplemented || isSystem || !config.effective_template_is_approved}
+            disabled={!canManage || operationalDisabled || isUnimplemented || isSystem || !config.effective_template_is_approved}
             aria-label={`${AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger} 자동 발송`}
             size="small"
           />
@@ -324,7 +326,7 @@ function TriggerCard({
             <AutoSendTimingControl
               config={config}
               onUpdate={onUpdate}
-              disabled={isUnimplemented}
+              disabled={!canManage || isUnimplemented}
             />
           </div>
         )}
@@ -344,7 +346,7 @@ function TriggerCard({
                   message_mode: "alimtalk",
                 })
               }
-              disabled={isUnimplemented}
+              disabled={!canManage || isUnimplemented}
             >
               <option value="alimtalk">알림톡</option>
             </select>
@@ -439,6 +441,7 @@ export default function AutoSendSettingsPanel({
 }: AutoSendSettingsPanelProps) {
   const navigate = useNavigate();
   const { data: messagingInfo } = useMessagingInfo();
+  const canManage = Boolean(messagingInfo?.can_manage_messaging);
   const operationalDisabled = Boolean(messagingInfo?.messaging_disabled);
 
   // ---- Data fetching ----
@@ -467,10 +470,12 @@ export default function AutoSendSettingsPanel({
 
   // ---- Handlers ----
   const handleUpdate = (updated: Partial<AutoSendConfigItem>, debounce = false) => {
+    if (!canManage) return;
     saveConfigs([updated], debounce);
   };
 
   const handleSectionToggle = (checked: boolean) => {
+    if (!canManage) return;
     const next = localConfigs.map((c) => {
       if (!triggerKeys.includes(c.trigger)) return c;
       if (!canBulkToggleAutoSendConfig(c)) return c;
@@ -587,7 +592,7 @@ export default function AutoSendSettingsPanel({
                 checked={sectionEnabled}
                 onChange={handleSectionToggle}
                 disabled={
-                  operationalDisabled || sectionSummary.toggleable === 0
+                  !canManage || operationalDisabled || sectionSummary.toggleable === 0
                 }
                 aria-label={`${title} 전체 자동 발송`}
                 size="small"
@@ -606,6 +611,7 @@ export default function AutoSendSettingsPanel({
             </p>
           )}
           <AlimtalkEnvelopeGuide variant="compact" />
+          {messagingInfo && !canManage && <p>자동발송 연결과 설정은 대표 또는 관리자만 변경할 수 있습니다. 현재 내용과 미리보기는 확인할 수 있습니다.</p>}
         </div>
 
         {/* Trigger cards */}
@@ -622,6 +628,7 @@ export default function AutoSendSettingsPanel({
                 onUpdate={handleUpdate}
                 saving={saving}
                 operationalDisabled={operationalDisabled}
+                canManage={canManage}
                 onEditTemplate={setEditingTrigger}
                 channelMode={channelMode}
               />
@@ -631,6 +638,7 @@ export default function AutoSendSettingsPanel({
       </div>
 
       {editingTrigger && <AutoSendTemplateEditor
+        viewOnly={!canManage}
         key={editingTrigger}
         trigger={editingTrigger}
         onClose={() => setEditingTrigger(null)}

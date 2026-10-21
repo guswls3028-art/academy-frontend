@@ -91,6 +91,7 @@ export default function TemplateEditModal({
   const individualRegionId = useId();
   const blocks = getBlocksForCategory(selectedCategory);
   const isSystem = !!initial?.is_system && !copy;
+  const fixedAccount = (readOnly || isSystem) && selectedCategory === "signup" && !alimtalkType;
   const initialName = copy ? buildDuplicateTemplateName(initial?.name ?? "") : initial?.name ?? "";
 
   useEffect(() => {
@@ -106,6 +107,7 @@ export default function TemplateEditModal({
 
   const changed = !isSystem && !readOnly && (name !== initialName
     || subject !== (initial?.subject ?? "")
+    || selectedCategory !== (initial?.category ?? category)
     || body !== stripInternalAlimtalkMemoToken(initial?.body ?? ""));
   const requestClose = async () => {
     if (isPending || isDeleting) return;
@@ -137,7 +139,7 @@ export default function TemplateEditModal({
     });
   };
 
-  const showSubject = !alimtalkType;
+  const showSubject = !alimtalkType && !fixedAccount;
 
   if (!open) return null;
 
@@ -181,7 +183,10 @@ export default function TemplateEditModal({
                 {isAcademyError ? <span role="alert">발송 학원명을 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => void refetchAcademy()}>다시 확인</Button></span>
                   : "이 화면의 이름·날짜 등은 예시입니다. 수신자별 문구는 발송 화면에서 확인하세요."}
               </p>}
-              <KakaoAlimtalkPreview channelLabel={TEMPLATE_CATEGORY_LABELS[selectedCategory]} subject={alimtalkType ? undefined : subject}>
+              {fixedAccount ? <p role="note" className="message-template-preview-help">
+                계정 안내는 발송 시점의 아이디·계정 정보와 승인된 양식으로 작성합니다.
+                보관함에 남아 있는 예전 본문은 편집하거나 미리보기로 사용하지 않습니다.
+              </p> : <KakaoAlimtalkPreview channelLabel={TEMPLATE_CATEGORY_LABELS[selectedCategory]} subject={alimtalkType ? undefined : subject}>
                 {body || alimtalkType
                   ? renderPlainMessagePreview(
                     alimtalkType
@@ -190,7 +195,7 @@ export default function TemplateEditModal({
                     { 학원명: academyName, 학원이름: academyName },
                   )
                   : "본문을 입력하면 미리보기가 표시됩니다."}
-              </KakaoAlimtalkPreview>
+              </KakaoAlimtalkPreview>}
               <p className="message-template-preview-help">
                 저장한 문구는 발송 전 서버 확인을 거쳐 학생별 전체 문구로 표시됩니다.
               </p>
@@ -244,7 +249,7 @@ export default function TemplateEditModal({
             )}
 
             {/* 본문 — 2패널: 입력 | 삽입 블록 */}
-            {(!readOnly || !alimtalkType || bodyEditableInEnvelope) && <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
+            {!fixedAccount && (!readOnly || !alimtalkType || bodyEditableInEnvelope) && <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
               <div className="template-editor__body-input flex-1 min-w-0 flex flex-col">
                 <label className="template-editor__editor-title block mb-1">
                   {alimtalkType

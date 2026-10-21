@@ -19,6 +19,7 @@ import { InlineHelp } from "@/shared/ui/guide";
 import { teacherCommsQueryKeys } from "../queryKeys";
 import { messageAutoSendQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 import styles from "./MessagingSettingsPage.module.css";
+import AutoSendPreviewSheet from "./AutoSendPreviewSheet";
 
 function templateNameFromConfig(config: AutoSendConfig): string | undefined {
   if (config.template_name) return config.template_name;
@@ -145,9 +146,12 @@ export default function MessagingSettingsPage() {
           {Array.isArray(autoConfigs) && autoConfigs.length > 0 && (
             <Card>
               <SectionHeader icon={<Send size={ICON.sm} />} title="자동 발송" desc="승인 양식이 준비된 알림만 켤 수 있습니다." badge={`${readyAutoCount}/${autoConfigs.length} 준비`} />
+              {!info?.can_manage_messaging && <p className={`${styles.mutedText} text-[12px]`}>
+                자동발송 여부와 발송 시점은 대표 또는 관리자만 변경할 수 있습니다. 연결된 문구와 발송 형태는 확인할 수 있습니다.
+              </p>}
               <div className="flex flex-col gap-1.5">
                 {autoConfigs.map((cfg, i) => (
-                  <AutoSendRow key={cfg.id ?? i} config={cfg} operationalDisabled={messagingDisabled} />
+                  <AutoSendRow key={cfg.id ?? i} config={cfg} operationalDisabled={messagingDisabled} canManage={Boolean(info?.can_manage_messaging)} />
                 ))}
               </div>
             </Card>
@@ -233,7 +237,7 @@ function StatusChip({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
-function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; operationalDisabled: boolean }) {
+function AutoSendRow({ config, operationalDisabled, canManage }: { config: AutoSendConfig; operationalDisabled: boolean; canManage: boolean }) {
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const implStatus = config.implementation_status;
@@ -259,7 +263,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
 
   return (
     <>
-      <div className={`${styles.autoSendRow} flex items-start gap-2`}>
+      <div className={`${styles.autoSendRow} flex items-start gap-2`} role="group" aria-label={triggerLabel}>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className={`${styles.previewValue} text-[13px] font-semibold`}>{triggerLabel}</span>
@@ -288,8 +292,8 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
         <div className="flex items-center gap-1.5 shrink-0">
           <button onClick={() => setEditOpen(true)} type="button"
             className={`${styles.iconButton} flex p-1 cursor-pointer`}
-            title={config.template_is_system ? "내용 보기" : "설정 편집"}>
-            {config.template_is_system ? <Eye size={ICON.sm} /> : <Pencil size={ICON.sm} />}
+            title={!canManage || config.template_is_system ? "내용 보기" : "설정 편집"}>
+            {!canManage || config.template_is_system ? <Eye size={ICON.sm} /> : <Pencil size={ICON.sm} />}
           </button>
           <button
             onClick={() => { if (!isUnimplemented) toggleMut.mutate(); }}
@@ -298,7 +302,7 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
             aria-label={`${triggerLabel} 자동 발송`}
             aria-checked={enabled}
             className={`${styles.toggleButton} cursor-pointer`}
-            disabled={toggleMut.isPending || operationalDisabled || isUnimplemented || isSystem || !templateReady}
+            disabled={!canManage || toggleMut.isPending || operationalDisabled || isUnimplemented || isSystem || !templateReady}
             aria-busy={toggleMut.isPending}
           >
             <div className={`${styles.toggleTrack} ${enabled ? styles.toggleTrackOn : ""} w-10 h-5 rounded-full relative`}>
@@ -307,13 +311,13 @@ function AutoSendRow({ config, operationalDisabled }: { config: AutoSendConfig; 
           </button>
         </div>
       </div>
-      <AutoSendEditSheet open={editOpen} onClose={() => setEditOpen(false)} config={config} />
+      <AutoSendEditSheet open={editOpen} onClose={() => setEditOpen(false)} config={config} canManage={canManage} />
     </>
   );
 }
 
 /* ─── Auto Send Edit Sheet ─── */
-function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: () => void; config: AutoSendConfig }) {
+function AutoSendEditSheet({ open, onClose, config, canManage }: { open: boolean; onClose: () => void; config: AutoSendConfig; canManage: boolean }) {
   const qc = useQueryClient();
   const { unit: timingUnit, label: timingLabel } = timingForTrigger(config.trigger);
   const [minutesBefore, setMinutesBefore] = useState<string>(
@@ -350,8 +354,7 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
   const triggerKey: string = config.trigger ?? "";
   const triggerLabel = AUTO_SEND_TRIGGER_LABELS[triggerKey] || triggerKey;
   const templateName = templateNameFromConfig(config) || "정해진 알림톡";
-  const templateBody = config.template_body || (typeof config.template === "object" && config.template ? config.template.body : "");
-  const canEditTiming = config.policy_mode !== "SYSTEM_AUTO" && config.implementation_status === "implemented";
+  const canEditTiming = canManage && config.policy_mode !== "SYSTEM_AUTO" && config.implementation_status === "implemented";
   const showMinutesBefore = triggerKey.includes("minutes_before") || triggerKey.includes("reminder") || triggerKey.includes("days_before") || triggerKey.includes("hours_before");
 
   return (
@@ -394,12 +397,10 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className={`${styles.fieldLabel} text-[11px] font-semibold`}>템플릿</label>
-              {templateBody && (
-                <button onClick={() => setPreviewOpen(true)} type="button"
+              <button onClick={() => setPreviewOpen(true)} type="button"
                   className={`${styles.templatePreviewButton} flex items-center gap-0.5 text-[11px] font-semibold cursor-pointer`}>
                   <Eye size={ICON.xs} /> 미리보기
                 </button>
-              )}
             </div>
             <div className={`${styles.templateOption} text-left`}>
               <div className={`${styles.templateName} text-[13px] font-semibold`}>{templateName}</div>
@@ -418,23 +419,7 @@ function AutoSendEditSheet({ open, onClose, config }: { open: boolean; onClose: 
         </div>
       </BottomSheet>
 
-      {/* Preview */}
-      {templateBody && (
-        <BottomSheet open={previewOpen} onClose={() => setPreviewOpen(false)} title="템플릿 미리보기">
-          <div className={`${styles.sheetContent} flex flex-col gap-2`}>
-            <div>
-              <div className={`${styles.previewLabel} text-[11px]`}>이름</div>
-              <div className={`${styles.previewValue} text-sm font-semibold`}>{templateName}</div>
-            </div>
-            <div>
-              <div className={`${styles.previewLabel} text-[11px]`}>본문</div>
-              <div className={`${styles.previewBody} text-[13px] mt-1`}>
-                {templateBody}
-              </div>
-            </div>
-          </div>
-        </BottomSheet>
-      )}
+      {previewOpen && <AutoSendPreviewSheet trigger={config.trigger} onClose={() => setPreviewOpen(false)} />}
     </>
   );
 }

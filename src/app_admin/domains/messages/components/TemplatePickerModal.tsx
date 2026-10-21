@@ -336,6 +336,7 @@ export default function TemplatePickerModal({
       />
 
       <ModalBody>
+        <p className="message-template-preview-help">계정·결제·퇴원 고정 안내는 해당 업무 화면에서 발송합니다.</p>
         <div className="tpl-picker__layout">
 
           {/* ═══ 좌측: 검색 + 필터 + 카드 리스트 ═══ */}

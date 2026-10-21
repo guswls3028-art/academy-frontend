@@ -186,11 +186,13 @@ function TriggerCard({
   onUpdate,
   onEditTemplate,
   operationalDisabled,
+  canManage,
 }: {
   config: AutoSendConfigItem;
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   onEditTemplate?: (trigger: string) => void;
   operationalDisabled: boolean;
+  canManage: boolean;
 }) {
   const [showPreview, setShowPreview] = useState(false);
 
@@ -246,7 +248,7 @@ function TriggerCard({
           <Switch
             checked={isSystem ? deliveryReady : isUnimplemented ? false : config.enabled}
             onChange={(checked) => onUpdate({ trigger: config.trigger, enabled: checked })}
-            disabled={operationalDisabled || isSystem || isDisabled || isUnimplemented || !config.effective_template_is_approved}
+            disabled={!canManage || operationalDisabled || isSystem || isDisabled || isUnimplemented || !config.effective_template_is_approved}
             aria-label={`${AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger} 자동 발송`}
             size="small"
           />
@@ -289,7 +291,7 @@ function TriggerCard({
         const status = getEffectiveTemplateStatus(config);
         const statusLabel = getEffectiveTemplateStatusLabel(config);
         const type = getAlimtalkTemplateType(config.trigger);
-        const editable = Boolean(type && isAlimtalkTemplateBodyEditable(type));
+        const editable = canManage && Boolean(type && isAlimtalkTemplateBodyEditable(type));
 
         const handleEditClick = () => {
           onEditTemplate?.(config.trigger);
@@ -351,7 +353,7 @@ function TriggerCard({
                   <AutoSendTimingControl
                     config={config}
                     onUpdate={onUpdate}
-                    disabled={isUnimplemented}
+                    disabled={!canManage || isUnimplemented}
                   />
                 </div>
               )}
@@ -365,7 +367,7 @@ function TriggerCard({
                   className={`ds-select ${styles.channelSelect}`}
                   value="alimtalk"
                   onChange={() => onUpdate({ trigger: config.trigger, message_mode: "alimtalk" })}
-                  disabled={isUnimplemented}
+                  disabled={!canManage || isUnimplemented}
                 >
                   <option value="alimtalk">알림톡</option>
                 </select>
@@ -450,6 +452,7 @@ export default function MessageAutoSendPage() {
   });
 
   const handleUpdate = (updated: Partial<AutoSendConfigItem>, debounce = false) => {
+    if (!canManageMessaging) return;
     saveConfigs([updated], debounce);
   };
 
@@ -536,7 +539,7 @@ export default function MessageAutoSendPage() {
                   .map((c) => ({ trigger: c.trigger, enabled: c.enabled }));
                 if (patches.length > 0) saveConfigs(patches);
               }}
-              disabled={operationalDisabled || globalSummary.toggleable === 0}
+              disabled={!canManageMessaging || operationalDisabled || globalSummary.toggleable === 0}
               aria-label="전체 자동 발송"
               size="small"
             />
@@ -650,7 +653,7 @@ export default function MessageAutoSendPage() {
                 <Button
                   intent="primary"
                   onClick={() => provisionMut.mutate()}
-                  disabled={provisionMut.isPending}
+                  disabled={!canManageMessaging || provisionMut.isPending}
                 >
                   {provisionMut.isPending ? "생성 중…" : "기본 내용 생성하기"}
                 </Button>
@@ -671,6 +674,7 @@ export default function MessageAutoSendPage() {
                     config={config}
                     onUpdate={handleUpdate}
                     operationalDisabled={operationalDisabled}
+                    canManage={canManageMessaging}
                     onEditTemplate={setEditingTrigger}
                   />
                 ))}
@@ -682,6 +686,7 @@ export default function MessageAutoSendPage() {
     </div>
 
     {editingTrigger && <AutoSendTemplateEditor
+      viewOnly={!canManageMessaging}
       key={editingTrigger}
       trigger={editingTrigger}
       onClose={() => setEditingTrigger(null)}

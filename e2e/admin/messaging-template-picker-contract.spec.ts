@@ -28,10 +28,11 @@ test.describe("저장 알림톡 문구 재사용 계약", () => {
   });
 
   test("계정용 signup 문구는 일반 수동 발송 목록에 섞지 않는다", () => {
-    expect(isTemplateVisibleInPicker({
-      ...savedWebsiteNotice,
-      category: "signup",
-    }, "attendance", false)).toBeFalsy();
+    for (const category of ["signup", "payment"] as const) {
+      for (const showAll of [true, false]) {
+        expect(isTemplateVisibleInPicker({ ...savedWebsiteNotice, category }, "attendance", showAll)).toBeFalsy();
+      }
+    }
   });
 
   test("성적 화면에서 클리닉 문구를 재사용해도 성적 봉투를 유지한다", () => {
