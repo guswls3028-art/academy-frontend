@@ -16,13 +16,22 @@ test("온라인 서술형 답안을 모바일과 데스크톱에서 열고 점�
   const studentName = "QA online-written-submission-20261021 자녀 1";
   const answer = "첫 번째 줄에서 풀이의 근거를 설명합니다.\n두 번째 줄에서 계산 과정과 결론을 충분히 길게 작성합니다.";
   await installApi(page, { gradingMode: "mixed", manualGradingMethod: "score", onlineWrittenAnswer: answer, studentName });
-  for (const width of [390, 1366]) {
+  for (const width of [390, 1100, 1366]) {
     await page.setViewportSize({ width, height: 900 });
     await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
     const row = page.getByRole("row").filter({ hasText: studentName });
     await expect(row).toHaveCount(1);
-    await row.locator("summary").filter({ hasText: "학생 답안" }).click();
+    const summary = row.locator("summary").filter({ hasText: "학생 답안" });
+    await summary.evaluate((element) => element.scrollIntoView({ block: "center", inline: "center" }));
+    await expect.poll(() => summary.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const rect = range.getBoundingClientRect();
+      return rect.width > 0 && [rect.left + 1, rect.right - 1].every((x) =>
+        element.contains(document.elementFromPoint(x, rect.top + rect.height / 2)));
+    })).toBe(true);
+    await summary.click();
     await expect(row.locator("details[open] div")).toHaveText(answer);
     await row.getByRole("spinbutton", { name: /60점 만점 점수/ }).fill("35");
     await expect(row.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("35");

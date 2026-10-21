@@ -95,7 +95,16 @@ export async function verifyOnlineWrittenSubmission(
       await teacherPage.getByRole("tab", { name: "채점·결과", exact: true }).click();
       await expect(teacherPage).toHaveURL(gradingUrl);
       await expect(teacherRow).toHaveCount(1);
-      await teacherRow.locator("summary").filter({ hasText: "학생 답안" }).click();
+      const summary = teacherRow.locator("summary").filter({ hasText: "학생 답안" });
+      await summary.evaluate((element) => element.scrollIntoView({ block: "center", inline: "center" }));
+      await expect.poll(() => summary.evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const rect = range.getBoundingClientRect();
+        return rect.width > 0 && [rect.left + 1, rect.right - 1].every((x) =>
+          element.contains(document.elementFromPoint(x, rect.top + rect.height / 2)));
+      })).toBe(true);
+      await summary.click();
       await expect(teacherRow.locator("details[open] div")).toHaveText(answer);
       await expect(teacherRow.getByRole("spinbutton", { name: /50점 만점 점수/ })).toHaveValue("");
       await assertNoHorizontalOverflow(teacherPage);

@@ -1,0 +1,49 @@
+[data-manual-grading-table-wrap] .studentColumn {
+  position: sticky;
+  z-index: 2;
+  left: 0;
+  width: 170px;
+  min-width: 170px;
+  max-width: 170px;
+  text-align: left;
+}
+
+[data-manual-grading-table-wrap] .studentColumn > div {
+  width: 156px;
+  max-width: 156px;
+}
+
+[data-manual-grading-table-wrap] th.studentColumn,
+[data-manual-grading-table-wrap] th.attendanceColumn {
+  z-index: 5;
+}
+
+[data-manual-grading-table-wrap] .attendanceColumn {
+  position: sticky;
+  z-index: 2;
+  left: 170px;
+  min-width: 60px;
+}
+
+[data-manual-grading-table-wrap] tr:focus-within .studentColumn,
+[data-manual-grading-table-wrap] tr:focus-within .attendanceColumn {
+  background: color-mix(in srgb, #0f766e 5%, #fff);
+}
+
+@media (max-width: 720px) {
+  [data-manual-grading-table-wrap] .studentColumn {
+    left: auto;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+  }
+
+  [data-manual-grading-table-wrap] .studentColumn > div {
+    width: 126px;
+    max-width: 126px;
+  }
+
+  [data-manual-grading-table-wrap] .attendanceColumn {
+    left: auto;
+  }
+}

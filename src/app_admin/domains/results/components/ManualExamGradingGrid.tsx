@@ -62,6 +62,7 @@ import {
   type ManualGradingShortcutSettings,
 } from "../utils/manualGradingShortcuts";
 import styles from "./ManualExamGradingGrid.module.css";
+import fixedColumnStyles from "./ManualExamGradingFixedColumns.module.css";
 import weightStyles from "./ManualExamGradingWeights.module.css";
 import overviewStyles from "./ManualExamGradingOverview.module.css";
 import writtenAnswerStyles from "./ManualExamGradingWrittenAnswer.module.css";
@@ -1991,7 +1992,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
         <span className={isOverviewMode ? overviewStyles.overviewHint : undefined} role="status">
           {isOverviewMode
             ? "전체 조망 중 · 색상 흐름을 살펴보고, 입력은 50% 이상에서 이어가세요."
-            : "학생 이름과 응시는 고정되며, 표만 가로·세로로 이동합니다."}
+            : "채점표 안에서 가로·세로로 이동할 수 있습니다."}
         </span>
         <div className={overviewStyles.scaleControl} role="group" aria-label="채점표 배율">
           <button
@@ -2064,8 +2065,8 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
         >
           <thead>
             <tr>
-              <th className={styles.studentColumn}>학생</th>
-              <th className={styles.attendanceColumn}>응시</th>
+              <th className={fixedColumnStyles.studentColumn}>학생</th>
+              <th className={fixedColumnStyles.attendanceColumn}>응시</th>
               {visibleQuestions.map((question) => {
                 const key = String(question.question_id);
                 // Exact fractional bounds need enough space to remain readable when zoomed.
@@ -2292,7 +2293,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
 }: ManualGradingTableRowProps) {
   return (
     <tr>
-      <td className={styles.studentColumn}>
+      <td className={fixedColumnStyles.studentColumn}>
         <div className={overviewStyles.studentDetail}>
           <StudentNameWithLectureChip
             name={row.student_name}
@@ -2331,7 +2332,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
         </div>
         <span className={overviewStyles.overviewStudentName}>{row.student_name}</span>
       </td>
-      <td className={styles.attendanceColumn}>
+      <td className={fixedColumnStyles.attendanceColumn}>
         <button
           type="button"
           className={`${styles.attendanceButton} ${overviewStyles.attendanceButton} ${

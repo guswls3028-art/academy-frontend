@@ -698,36 +698,6 @@
   font-weight: 600;
 }
 
-.table .studentColumn {
-  position: sticky;
-  z-index: 2;
-  left: 0;
-  width: 170px;
-  min-width: 170px;
-  max-width: 170px;
-  text-align: left;
-}
-
-.table .studentColumn > div {
-  width: 156px;
-  max-width: 156px;
-}
-
-.table th.studentColumn {
-  z-index: 5;
-}
-
-.table .attendanceColumn {
-  position: sticky;
-  z-index: 2;
-  left: 170px;
-  min-width: 60px;
-}
-
-.table th.attendanceColumn {
-  z-index: 5;
-}
-
 .gradeCell {
   position: relative;
   min-width: 66px !important;
@@ -737,11 +707,6 @@
 
 .table tbody tr:focus-within td {
   background: color-mix(in srgb, #0f766e 3%, #fff);
-}
-
-.table tbody tr:focus-within .studentColumn,
-.table tbody tr:focus-within .attendanceColumn {
-  background: color-mix(in srgb, #0f766e 5%, #fff);
 }
 
 .correctnessCell {
@@ -987,20 +952,6 @@
     white-space: normal;
   }
 
-  .table .studentColumn {
-    width: 140px;
-    min-width: 140px;
-    max-width: 140px;
-  }
-
-  .table .studentColumn > div {
-    width: 126px;
-    max-width: 126px;
-  }
-
-  .table .attendanceColumn {
-    left: 140px;
-  }
 
 }
 
