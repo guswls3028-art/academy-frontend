@@ -2917,6 +2917,8 @@ test.describe("문항별 직접 채점", () => {
     await dialog.getByLabel("채점표 배율 선택").selectOption("10");
     await expect(dialog.getByText("전체 조망 중", { exact: false })).toBeVisible();
     await expect(dialog.locator("[data-manual-grade-cell]").first()).toBeDisabled();
+    await expect(dialog.locator("[data-manual-grading-table-wrap] th").nth(1)).toHaveCSS("left", "auto");
+    await expect(dialog.locator("[data-manual-grading-table-wrap] tbody tr").first().locator("td").nth(1)).toHaveCSS("left", "auto");
   });
 
   test("짧은 모바일 화면에서도 모든 채점 설정과 저장 버튼에 접근한다", async ({ page }) => {
