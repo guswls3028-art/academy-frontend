@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
+import { assertReleaseRequestSafe } from "../helpers/releaseApiBoundary";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const IS_LOCAL_BASE = /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE);
@@ -613,6 +614,20 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await page.setViewportSize({ width, height: 900 });
         await page.clock.setFixedTime(new Date("2026-10-21T00:10:00+09:00"));
         await installStudentApi(page, { parentDashboard });
+        const observedScreens = new Set<string>();
+        await page.route("**/api/v1/students/me/activity/", async (route) => {
+          const request = route.request();
+          if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
+          const payload = request.postDataJSON();
+          // Exercise the real screen emitter against the production contract; fulfill locally.
+          expect(assertReleaseRequestSafe({
+            mode: "readonly", apiOrigin: "https://api.hakwonplus.com",
+            webOrigin: "https://hakwonplus.com", tenantCode: "hakwonplus",
+          }, "https://api.hakwonplus.com/api/v1/students/me/activity/", request.method(),
+          request.headers()["x-tenant-code"], payload)).toBe("observation");
+          observedScreens.add(payload.screen_id);
+          await route.fulfill({ status: 204 });
+        });
         let releaseGrades!: () => void;
         const gradesReady = new Promise<void>((resolve) => { releaseGrades = resolve; });
         const grades = emptyGrades(701);
@@ -649,6 +664,9 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await expect(exams).toContainText("100%");
         await expect(sessions).toContainText("2회");
         await assertNoRenderedHtmlLeak(page);
+        await expect.poll(() => [...observedScreens].sort()).toEqual(parentDashboard ? [] : [
+          "student.dashboard.home", "student.grades.home", "student.session.list",
+        ]);
       });
     }
   }

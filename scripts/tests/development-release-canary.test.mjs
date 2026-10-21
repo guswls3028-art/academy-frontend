@@ -2773,11 +2773,11 @@ test("APIRequestContext retries one transport rejection only for GET/HEAD and re
 
 test("only the reviewed canary screen observation schemas are permitted", () => {
   const url = "https://api.hakwonplus.com/api/v1/students/me/activity/";
-  for (const screen_id of ["student.dashboard.home", "student.guide.home", "student.assignment.submit"]) {
+  for (const screen_id of ["student.dashboard.home", "student.session.list", "student.grades.home", "student.guide.home", "student.assignment.submit"]) {
     for (const device_class of ["desktop", "tablet", "mobile"]) {
       const valid = { screen_id, device_class };
       assert.equal(assertReleaseRequestSafe(production, url, "POST", production.tenantCode, valid), "observation");
-      for (const data of [undefined, {}, [], { ...valid, score: 100 }, { ...valid, homework_id: 1 }, { ...valid, screen_id: "student.video.player" }, { ...valid, screen_id: "student.guide.unknown" }, { ...valid, screen_id: [screen_id] }, { ...valid, device_class: "unknown" }, { ...valid, device_class: [device_class] }]) {
+      for (const data of [undefined, {}, [], { ...valid, score: 100 }, { ...valid, homework_id: 1 }, { ...valid, screen_id: "student.video.player" }, { ...valid, screen_id: "student.session.detail" }, { ...valid, screen_id: "student.grades.unknown" }, { ...valid, screen_id: "student.guide.unknown" }, { ...valid, screen_id: [screen_id] }, { ...valid, device_class: "unknown" }, { ...valid, device_class: [device_class] }]) {
         assert.throws(() => assertReleaseRequestSafe(production, url, "POST", production.tenantCode, data), /observation payload/);
       }
       for (const tenant of [undefined, "foreign-tenant"]) {

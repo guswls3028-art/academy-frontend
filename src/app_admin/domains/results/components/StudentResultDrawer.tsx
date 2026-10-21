@@ -206,7 +206,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     return items1st;
   }, [items1st, questionSource, detail]);
 
-  const hasData = items1st.length > 0 && items1st.some((it) => (it.answer && it.answer.trim() !== "") || it.score > 0);
+  const hasData = items1st.length > 0 && items1st.some((it) => (it.answer && it.answer.trim() !== "") || (it.score ?? 0) > 0 || it.grading_status === "pending");
   const hasQuestions = mergedItems.length > 0;
 
   const qNumMap = useMemo(() => {
@@ -261,7 +261,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   const isItemCorrect = useCallback((it: ExamResultItem) => {
     const ca = correctAnswersMap[String(it.question_id)] ?? "";
     if (ca && isChoiceAnswer(it.answer) && isChoiceAnswer(ca)) return choiceAnswerMatches(it.answer, ca);
-    return it.is_correct;
+    return it.is_correct === true;
   }, [correctAnswersMap]);
 
   // 선택형/서술형 분리
@@ -589,7 +589,7 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjec
 }) {
   const pct = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
   const choiceCorrect = choiceItems.filter((it) => it.answer && isItemCorrect(it)).length;
-  const objectiveScore = choiceItems.reduce((sum, item) => sum + item.score, 0);
+  const objectiveScore = choiceItems.reduce((sum, item) => sum + (item.score ?? 0), 0);
 
   return (
     <div className="srd-read">
@@ -599,7 +599,9 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjec
           {subjectivePending ? (
             <>
               <span className="srd-read__score-val">객관 {objectiveScore}점</span>
-              <Badge variant="solid" size="sm" tone="warning">서술형 입력 필요</Badge>
+              <Badge variant="solid" size="sm" tone="warning">
+                {essayItems.some((item) => item.grading_status === "pending") ? "서술형 채점 대기" : "서술형 입력 필요"}
+              </Badge>
             </>
           ) : (
             <>
@@ -615,7 +617,7 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjec
             <span>
               {subjectivePending
                 ? "서술형 입력 필요"
-                : `서술 ${essayItems.reduce((s, it) => s + it.score, 0)}/${essayItems.reduce((s, it) => s + it.max_score, 0)}`}
+                : `서술 ${essayItems.reduce((s, it) => s + (it.score ?? 0), 0)}/${essayItems.reduce((s, it) => s + it.max_score, 0)}`}
             </span>
           )}
         </div>
@@ -656,8 +658,8 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjec
                   <div key={it.question_id} className="srd-read__essay-row">
                     <span className="srd-read__essay-num" title={num == null ? "문항 번호 미확인" : undefined}>{num ?? "—"}</span>
                     <span className="srd-read__essay-ans">{it.answer || "—"}</span>
-                    <span className={`srd-read__essay-score ${it.score > 0 ? "srd-read__essay-score--has" : ""}`}>
-                      {it.score}/{it.max_score}
+                    <span className={`srd-read__essay-score ${(it.score ?? 0) > 0 ? "srd-read__essay-score--has" : ""}`}>
+                      {it.grading_status === "pending" ? "채점 대기" : `${it.score ?? 0}/${it.max_score}`}
                     </span>
                   </div>
                 );
