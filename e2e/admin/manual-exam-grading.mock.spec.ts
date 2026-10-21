@@ -27,7 +27,9 @@ test("온라인 서술형 답안을 모바일과 데스크톱에서 열고 점�
     await page.setViewportSize({ width, height: 900 });
     await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
-    await expect(page.getByRole("row").filter({ hasText: studentName })).toHaveCount(2);
+    const results = page.getByRole("region", { name: "시험 학생별 결과", exact: true });
+    await expect(results.getByRole(width === 390 ? "button" : "row").filter({ hasText: studentName })).toHaveCount(1);
+    await expect(page.getByRole("row").filter({ hasText: studentName })).toHaveCount(width === 390 ? 1 : 2);
     const row = page.getByRole("region", { name: "혼합 채점 워크스페이스", exact: true })
       .getByRole("row").filter({ hasText: studentName });
     await expect(row).toHaveCount(1);
