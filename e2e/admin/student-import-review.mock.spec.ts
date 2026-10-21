@@ -112,7 +112,10 @@ async function openExcelRegistration(
   await expect(addStudentButton).toBeVisible({ timeout: 60_000 });
   await addStudentButton.click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByText("엑셀 업로드", { exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await expectAnimationsSettled(dialog);
+  await dialog.getByRole("button", { name: "엑셀 업로드", exact: true }).click();
+  await expect(dialog.getByText("학생 명단 선택", { exact: true })).toBeVisible();
   await dialog.locator('input[type="file"]').setInputFiles({
     name: "동명이인-학생등록.xlsx",
     mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
