@@ -23,7 +23,7 @@
   일정은 한국 날짜 기준 오늘을 포함한 28일의 수업·클리닉이며 출석률이 아니다.
   과제는 전체 과제, 시험·오답은 전체 판정 결과이므로 각 지표에 집계 범위를 따로
   표시한다. 최근 4주 밖에 일정이 있어도 전체 학습 기록이 없다고 안내하지 않는다.
-  합격률은 성적 통계와 같은 `getExamPassStatus` 판정을 사용한다. 보강 완료를
+  합격률은 성적 통계와 같은 `grades/public/examPassStatus`의 `getExamPassStatus` 판정을 사용한다. 보강 완료를
   포함하고 미응시·미판정은 제외하여 분자·분모의 판정 집합을 일치시킨다.
   일정·과제·시험 지표를 누르면 각각 `/student/sessions`,
   `/student/grades?view=homework`, `/student/grades`로 이동한다.

@@ -24,7 +24,7 @@ import type { StudentDashboardResponse } from "../api/dashboard.api";
 import { useMySessions } from "@student/domains/sessions/hooks/useStudentSessions";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
-import { getExamPassStatus } from "@student/domains/grades/utils/gradeStats";
+import { getExamPassStatus } from "@student/domains/grades/public/examPassStatus";
 import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import {
