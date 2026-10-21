@@ -87,7 +87,8 @@ export async function verifyOnlineWrittenSubmission(
     expect(pendingRow?.cells[String(questions[1].id)]).toMatchObject({ answer, score: null });
 
     const gradingUrl = `${QA_BASE}/workspace/lectures/${scope.lectureId}/sessions/${scope.sessionId}/exams?examId=${exam.id}`;
-    const teacherRow = teacherPage.getByRole("row").filter({ hasText: scope.studentName });
+    const teacherRow = teacherPage.getByRole("region", { name: "혼합 채점 워크스페이스", exact: true })
+      .getByRole("row").filter({ hasText: scope.studentName });
     for (const width of [390, 1366]) {
       await teacherPage.setViewportSize({ width, height: 900 });
       await gotoAndSettle(teacherPage, gradingUrl);
