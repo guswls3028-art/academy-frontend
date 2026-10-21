@@ -40,8 +40,9 @@ export type ExamResultItem = {
   question_number?: number | null;
   question_kind?: "choice" | "essay" | null;
   answer: string;
-  is_correct: boolean;
-  score: number;
+  is_correct: boolean | null;
+  score: number | null;
+  grading_status?: "pending";
   max_score: number;
 
   /**

@@ -399,7 +399,7 @@ export function assertReleaseRequestSafe(
     const payload = data as Record<string, unknown> | null;
     if (!payload || typeof payload !== "object" || Array.isArray(payload)
       || Object.keys(payload).sort().join(",") !== "device_class,screen_id"
-      || !["student.dashboard.home", "student.guide.home", "student.assignment.submit"].some((screenId) => payload.screen_id === screenId)
+      || !["student.dashboard.home", "student.session.list", "student.grades.home", "student.guide.home", "student.assignment.submit"].some((screenId) => payload.screen_id === screenId)
       || !["desktop", "tablet", "mobile"].some((deviceClass) => payload.device_class === deviceClass)) {
       throw new Error("Production observation payload is outside the reviewed screen-view schema");
     }

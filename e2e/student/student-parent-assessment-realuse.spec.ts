@@ -36,11 +36,12 @@ import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 import { verifyAssessmentCopy } from "../helpers/verifyAssessmentCopy";
 import { verifySubmissionInbox } from "../helpers/verifySubmissionInbox";
+import { verifyOnlineWrittenSubmission } from "../helpers/verifyOnlineWrittenSubmission";
 
 // This scenario now spans submission, feedback, templates, grading, copy and
-// attendance journeys. Budget the combined flow without relaxing any individual
+// attendance and online written-answer journeys. Budget the combined flow without relaxing any individual
 // action, navigation, API or assertion deadline.
-test.setTimeout(540_000);
+test.setTimeout(660_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
 type CreatedState = {
@@ -51,6 +52,7 @@ type CreatedState = {
   sessionId?: number;
   examId?: number;
   manualExamId?: number;
+  onlineWrittenExamId?: number;
   manualStaffId?: number;
   primaryEnrollmentId?: number;
   enrollmentIds: number[];
@@ -142,6 +144,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.manualExamId && created.sessionId) {
     await remove("DELETE", `/exams/${created.manualExamId}/?session_id=${created.sessionId}`);
   }
+  if (created.onlineWrittenExamId && created.sessionId) {
+    await remove("DELETE", `/exams/${created.onlineWrittenExamId}/?session_id=${created.sessionId}`);
+  }
   // Staff deletion deactivates tenant access; the outer owned-tenant cleanup proves User zero.
   if (created.manualStaffId) await remove("DELETE", `/staffs/${created.manualStaffId}/`);
   for (const id of created.attendanceIds) await remove("DELETE", `/lectures/attendance/${id}/`);
@@ -174,6 +179,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       : []),
     ...(created.manualExamId && created.sessionId
       ? [[`manual exam ${created.manualExamId}`, `/exams/${created.manualExamId}/?session_id=${created.sessionId}`] as const]
+      : []),
+    ...(created.onlineWrittenExamId && created.sessionId
+      ? [[`online written exam ${created.onlineWrittenExamId}`, `/exams/${created.onlineWrittenExamId}/?session_id=${created.sessionId}`] as const]
       : []),
     ...(created.manualStaffId ? [[`manual staff ${created.manualStaffId}`, `/staffs/${created.manualStaffId}/`] as const] : []),
     ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
@@ -447,6 +455,10 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     }, (sessionId) => { created.copySessionIds.push(sessionId); }));
     await test.step("attendance priority and absent scores", () => verifyAttendancePriorityAndAbsentScores(page, request, admin, created.family!, testInfo));
     await test.step("ended-course todos and restored eligibility", () => verifyEndedCourseTodos(page, request, admin, primary, primaryTokens));
+    await test.step("online written submission and teacher grading", () => verifyOnlineWrittenSubmission(page, request, admin, primaryTokens, {
+      lectureId: created.lectureId!, sessionId: created.sessionId!,
+      enrollmentId: created.primaryEnrollmentId!, studentName: primary.name,
+    }, (id) => { created.onlineWrittenExamId = id; }, (id) => { created.submissionIds.push(id); }, testInfo));
     boundary.assertClean();
     browser.assertZeroDefects();
   });

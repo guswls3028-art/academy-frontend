@@ -88,12 +88,19 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       await page.getByRole("button", { name: "클리닉/상담", exact: true }).click();
       const reminderCard = page.locator('[data-card-state]').filter({ hasText: `QA editable ${family.students[0].id}` });
       await reminderCard.getByRole("button", { name: "문구 수정", exact: true }).click();
-      const editorDialog = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "저장하고 적용" }) });
+      // The submit label becomes "저장 중…" while PATCH is in flight.
+      // Keep the dialog locator stable until the successful save really closes it.
+      const editorDialog = page.getByRole("dialog").filter({ has: page.getByRole("textbox", { name: "안내문", exact: true }) });
       const newBody = `${width}px에서 직접 수정한 안내문입니다.\n시간에 맞춰 준비해 주세요.`;
       await editorDialog.getByRole("textbox", { name: "안내문", exact: true }).fill(newBody);
       await assertNoHorizontalOverflow(page);
       await page.screenshot({ path: testInfo.outputPath(`alimtalk-editable-${width}.png`) });
+      const saved = page.waitForResponse((response) => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1/messaging/templates/${editableTemplateId}/`);
       await editorDialog.getByRole("button", { name: "저장하고 적용" }).click();
+      const saveResponse = await saved;
+      expect(saveResponse.status()).toBe(200);
+      expect((await saveResponse.json() as { body: string }).body).toBe(newBody);
       await expect(editorDialog).toBeHidden();
       const stored = await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${editableTemplateId}/`, access);
       expect(stored.body).toBe(newBody);

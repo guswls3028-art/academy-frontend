@@ -73,8 +73,11 @@ export default function ExamResultPage() {
         }
       >
         <EmptyState
-          title="성적 공개 전입니다."
-          description="선생님이 공개하면 이 화면에서 점수와 문항별 결과를 확인할 수 있어요."
+          title={r.grading_status === "subjective_pending" ? "서술형 채점 중입니다." : "성적 공개 전입니다."}
+          description={r.grading_status === "subjective_pending"
+            ? "답안이 제출되었습니다. 선생님이 채점을 마치면 점수와 문항별 결과를 확인할 수 있어요."
+            : "선생님이 공개하면 이 화면에서 점수와 문항별 결과를 확인할 수 있어요."}
+          onRetry={() => resultQ.refetch()}
         />
       </StudentPageShell>
     );
