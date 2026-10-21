@@ -418,9 +418,10 @@ release readonly strict browser는 이 exact host/path/SHA-512 mismatch 한 줄�
 - 기존 계정의 정확한 `POST /api/v1/token/`, `POST /api/v1/token/refresh/` 인증.
 - `POST /api/v1/students/me/activity/`의 정확한 두 키
   `{screen_id, device_class: "desktop"|"tablet"|"mobile"}`. `screen_id`는 운영 canary가
-  실제 방문하는 `student.dashboard.home`, `student.guide.home`,
-  `student.assignment.submit` 세 값만 허용한다. 가이드에서 과제 제출 화면으로 이동하고
-  돌아와 새로고침하는 흐름도 이 동일한 화면 열기 API를 사용한다.
+  실제 방문하는 `student.dashboard.home`, `student.session.list`, `student.grades.home`,
+  `student.guide.home`, `student.assignment.submit` 다섯 값만 허용한다. 홈 학습 현황에서
+  일정·과제·시험 내역으로 이동해 새로고침하는 흐름과 가이드에서 과제 제출 화면으로
+  이동하고 돌아오는 흐름 모두 이 동일한 화면 열기 API를 사용한다.
   추가 키(과제 ID 등), 다른 screen/method와 `/activity/homework-open/`은 거부한다.
   이 요청은 append-only 화면 관측 감사 로그다.
   인증·관측 attempted/accepted를 각각 보고하며 전체 DB read-only 또는 총 쓰기 0으로
@@ -432,10 +433,14 @@ SQL mutation이 `ops_audit_log` INSERT 1건이고 platform push 0,
 ProductUsageEvent/DailyActor 변화 0임을 검사한다. 도메인 설명은 backend의
 `docs/domain/student-support-audit.md`, 환경/IAM 경계는
 `docs/operations/persistent-development-runtime.md`가 소유한다.
-추가된 두 screen도 backend `apps/domains/students/services/activity.py`의 `SCREEN_PRESENTATION`에서
+허용된 다섯 screen은 backend `apps/domains/students/services/activity.py`의 `SCREEN_PRESENTATION`에서
 동일한 `record_student_screen_view` → `_create_activity` 경로를 사용한다.
-허용된 세 화면 × 세 기기, 추가 데이터·다른 화면·다른 tenant·업무 mutation 거부는
+허용된 다섯 화면 × 세 기기, 추가 데이터·다른 화면·다른 tenant·업무 mutation 거부는
 `scripts/tests/development-release-canary.test.mjs`의 canary screen observation 회귀가 검증한다.
+`e2e/student/student-content-resilience.mock.spec.ts`는 390/1100/1366px의 실제 화면 이동에서
+앱이 보낸 관측 payload를 이 운영 계약으로 검사하고, 요청 자체는 로컬 mock에서 완료한다.
+학부모는 이 학생 관측 요청을 보내지 않는 것도 확인한다. 새 canary 경로를 추가할 때는
+해당 화면의 관측 계약을 함께 검토해야 하며, 거부를 무시하거나 실제 업무 쓰기를 허용하지 않는다.
 운영 canary 직후 `production-guide-evidence`에는 `live-guide-*.png`만 별도로 보존한다.
 이는 가이드의 정적 버튼·첫 단계·완료 기준·문제 해결 영역만 캡처하며 계정 헤더,
 전체 화면, trace는 포함하지 않는다. 후속 Playwright 실행이 `test-results/`를 정리하기
@@ -484,6 +489,11 @@ helper가 `phone_last4`로 만든 부모는 합성 전화번호의 뒤 4자리�
 비밀번호를 덮어써 테스트를 통과시키지 않는다. 로그인·OMR API 실패는
 `METHOD /path returned <status>` 형식으로 기록해 기존 안전한 reporter가 상태와
 허용된 경로만 추출하도록 하며, 계정명·비밀번호·원문 응답을 오류 문구에 넣지 않는다.
+
+`student-parent-assessment-realuse.spec.ts`는 제출·제출함·코멘트·메시지 양식·수기 점수
+정밀도·시험 순서·복사·출결·종료 강좌를 함께 검증하므로 전체 테스트 예산은 540초다.
+각 하위 여정은 고정된 이름의 `test.step`으로 구분해 실패 단계를 추적한다. 개별 동작·
+화면 이동·API·expect의 제한시간, retry 0, 역할·테넌트 격리와 cleanup zero 기준은 유지한다.
 
 수동 가입 승인은 현재 `가입 승인 최종 확인` 창에서 신청자가 선택한 학생·학부모
 비밀번호의 보존을 확인한다. 확인 창이 보인 뒤 승인 응답 대기와 클릭을 함께 await해,

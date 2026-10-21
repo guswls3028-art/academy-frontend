@@ -40,6 +40,7 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
   let examOrder: number[] = [...EXAM_IDS];
   let homeworkOrder: number[] = [...HOMEWORK_IDS];
   let failNextReorder = true;
+  let version = 0;
   const reorderPayloads: OrderingHarness["reorderPayloads"] = [];
   const unexpectedMutations: string[] = [];
   const deletedAssessments: string[] = [];
@@ -91,10 +92,13 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
     }
 
     if (
-      path.endsWith(`/results/admin/sessions/${SESSION_ID}/reorder/`)
-      && method === "POST"
+      path.endsWith(`/results/admin/sessions/${SESSION_ID}/total-config/`)
+      && method === "PUT"
     ) {
-      const payload = request.postDataJSON() as { exams?: number[]; homeworks?: number[] };
+      const body = request.postDataJSON() as { expected_version: number; exam_order: number[]; homework_order: number[] };
+      expect(body.expected_version).toBe(version);
+      const payload = JSON.stringify(body.exam_order) !== JSON.stringify(examOrder)
+        ? { exams: body.exam_order } : { homeworks: body.homework_order };
       reorderPayloads.push(payload);
       if (failNextReorder) {
         failNextReorder = false;
@@ -103,7 +107,8 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
       }
       if (payload.exams) examOrder = [...payload.exams];
       if (payload.homeworks) homeworkOrder = [...payload.homeworks];
-      await route.fulfill({ json: { ok: true } });
+      version++;
+      await route.fulfill({ json: { version, exam_ids: examOrder, homework_ids: homeworkOrder, exam_order: examOrder, homework_order: homeworkOrder } });
       return;
     }
 
@@ -114,6 +119,7 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
       await route.fulfill({
         json: {
           meta: {
+            total_config: { version, exam_ids: examOrder, homework_ids: homeworkOrder, exam_order: examOrder, homework_order: homeworkOrder },
             session_title: "모바일 순서 검증 차시",
             lecture_title: "모바일 순서 검증반",
             lecture_id: LECTURE_ID,

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Popover } from "antd";
 import { ChevronDown } from "lucide-react";
@@ -14,6 +14,8 @@ import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/public/asses
 import { scoresQueryKeys } from "../api/queryKeys";
 import styles from "./ExamHeaderActionMenu.module.css";
 
+const ParentAssessmentCommentsPanel = lazy(() => import("./ParentAssessmentCommentsPanel"));
+
 type Props = {
   homeworkId: number;
   homeworkTitle: string;
@@ -25,6 +27,7 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -79,11 +82,17 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
         </div>
       </div>
       <p className={styles.menuDescription}>과제명과 운영 기준을 수정하거나 이 차시에서 삭제합니다.</p>
+      <button type="button" role="menuitem" className={styles.menuAction} onClick={() => { setMenuOpen(false); setCommentsOpen(true); }}><span className={styles.menuActionCopy}><strong>학부모 코멘트</strong><span>학생별 과제 전달사항 작성 · 학부모에게만 공개</span></span></button>
     </div>
   );
 
   return (
     <>
+      {commentsOpen && (
+        <Suspense fallback={<div role="status">학부모 코멘트를 불러오는 중...</div>}>
+          <ParentAssessmentCommentsPanel sessionId={sessionId} assessmentKind="homework" assessmentId={homeworkId} title={homeworkTitle} onClose={() => setCommentsOpen(false)} />
+        </Suspense>
+      )}
       <Popover content={menu} trigger="click" placement="bottom" open={menuOpen} onOpenChange={setMenuOpen} arrow={false} overlayClassName={styles.popover}>
         <button type="button" className="scores-table-exam-link" draggable={false} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`${homeworkTitle} 작업 선택`} title={`${homeworkTitle} — 작업 선택`} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}>
           <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{homeworkTitle}</span>

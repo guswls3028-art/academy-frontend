@@ -210,6 +210,6 @@
 
   .overviewTable th:nth-child(2),
   .overviewTable td:nth-child(2) {
-    left: max(140px, var(--manual-grading-overview-student-width));
+    left: auto;
   }
 }

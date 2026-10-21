@@ -610,7 +610,7 @@ export default function CreateHomeworkModal({
                   </button>
                 </div>
                 <span className="text-xs text-[var(--color-text-muted)]">
-                  완료형 과제는 완료/미완료만 선택합니다.
+                  통과형 과제는 통과(O)/미통과(X)만 기록합니다. 점수 합계에는 포함하지 않습니다.
                 </span>
               </div>
 
@@ -682,7 +682,7 @@ export default function CreateHomeworkModal({
                           aria-pressed={row.gradingMode === "SCORE"}
                           onClick={() => updateRow(row.key, "gradingMode", "SCORE")}
                         >
-                          숫자 채점
+                          점수형
                         </button>
                         <button
                           type="button"
@@ -694,7 +694,7 @@ export default function CreateHomeworkModal({
                           aria-pressed={row.gradingMode === "COMPLETION"}
                           onClick={() => updateRow(row.key, "gradingMode", "COMPLETION")}
                         >
-                          완료 체크
+                          통과형 (O/X)
                         </button>
                       </div>
                     </div>
@@ -737,7 +737,7 @@ export default function CreateHomeworkModal({
                     ) : (
                       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
                         <div className="grid content-center gap-1 rounded-lg bg-[var(--color-bg-surface-soft)] px-3 py-2 text-xs text-[var(--color-text-secondary)]">
-                          <strong className="text-[var(--color-text-primary)]">완료 / 미완료</strong>
+                          <strong className="text-[var(--color-text-primary)]">통과 / 미통과</strong>
                           <span>점수나 만점 없이 두 상태로만 검사합니다.</span>
                         </div>
                         <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">

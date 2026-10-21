@@ -12,7 +12,7 @@ import ExamSegmentationReview from "../components/ExamSegmentationReview";
 import BlockReason from "../components/BlockReason";
 
 export default function ExamAssetsPanel({ examId }: { examId: number }) {
-  const { data: exam } = useAdminExam(examId);
+  const { data: exam, isError, isFetching, refetch } = useAdminExam(examId);
   const assetsQuery = useExamAssets(examId);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
@@ -97,6 +97,7 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
       </div>
 
       <ExamPdfUploadModal
+        readError={isError} readPending={isFetching} onRetryRead={() => void refetch()}
         open={pdfModalOpen}
         onClose={() => setPdfModalOpen(false)}
         examId={examId}

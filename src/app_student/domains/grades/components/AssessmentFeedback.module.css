@@ -1,0 +1,17 @@
+.totals { margin-bottom: 16px; padding: 14px 16px; border: 1px solid var(--color-border-divider); border-radius: 12px; background: var(--color-bg-surface); }
+.totals summary { cursor: pointer; font-weight: 600; min-height: 28px; }
+.totals summary span, .help, .total small { color: var(--color-text-secondary); font-size: 12px; font-weight: 400; }
+.totals summary span { margin-left: 8px; }
+.help { margin-top: 10px; line-height: 1.65; }
+.session { padding: 12px 0; border-top: 1px solid var(--color-border-divider); margin-top: 12px; }
+.session h3 { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; margin: 0 0 8px; }
+.total { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; margin: 7px 0; }
+.total strong { margin-left: auto; font-variant-numeric: tabular-nums; }
+.total > small { width: 100%; text-align: right; }
+.comment { padding: 12px 14px; border-left: 3px solid var(--color-brand-primary); background: var(--color-bg-surface-hover); border-radius: 0 0 8px 8px; margin-top: 6px; font-size: 13px; animation: feedback-appear 140ms ease-out; }
+.comment strong { font-size: 12px; font-weight: 600; }
+.comment p { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+.comment time { font-size: 11px; color: var(--color-text-secondary); }
+.error { padding: 12px; font-size: 13px; }
+@keyframes feedback-appear { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .comment { animation: none; } }

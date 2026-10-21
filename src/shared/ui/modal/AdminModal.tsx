@@ -79,6 +79,8 @@ export default function AdminModal({
   const contentBg = getModalBackground();
   const modalId = useId();
   const ctx = useModalWindow();
+  // The context object changes when the taskbar changes; that is not an unmount.
+  const removeMinimizedModal = ctx?.remove;
   const [minimized, setMinimized] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
@@ -136,18 +138,18 @@ export default function AdminModal({
   useEffect(() => {
     if (!open) {
       setMinimized(false);
-      ctx?.remove(modalId);
+      removeMinimizedModal?.(modalId);
       reset();
     }
-  }, [open, modalId, ctx, reset]);
+  }, [open, modalId, removeMinimizedModal, reset]);
 
   // 컴포넌트 언마운트 시 cleanup
   useEffect(() => {
     return () => {
-      ctx?.remove(modalId);
+      removeMinimizedModal?.(modalId);
       restoreTriggerFocus();
     };
-  }, [ctx, modalId, restoreTriggerFocus]);
+  }, [removeMinimizedModal, modalId, restoreTriggerFocus]);
 
   const actuallyOpen = open && !minimized;
   useModalKeyboard(actuallyOpen, requestClose, onEnterConfirm);

@@ -1,4 +1,4 @@
-import { readFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 import path from "path";
 import type { Page } from "@playwright/test";
 import { PDFDocument } from "pdf-lib";
@@ -12,6 +12,12 @@ const SESSION_ID = 990102;
 const DENSE_EXAM_TITLE = "매우 긴 한국어 시험 제목으로 줄바꿈과 페이지 경계를 확인하는 누적 종합 평가 내용을 학부모에게 충분히 설명하는 평가";
 
 type InstallApiOptions = {
+  homeworkModes?: boolean;
+  teacherPartialTotals?: boolean;
+  teacherUnassigned?: boolean;
+  teacherMixedAssignments?: boolean;
+  provisionalExam?: boolean;
+  totalState?: "zero" | "pending" | "none";
   denseReport?: boolean;
   omrIssue?: boolean;
   omrIssueEnrollmentId?: number;
@@ -331,11 +337,67 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     "access-control-allow-headers": "authorization,content-type,x-client,x-client-version,x-tenant-code",
     "access-control-allow-methods": "GET,POST,PUT,PATCH,OPTIONS",
   };
-  const activeScoreRows = options.scoreRowCount
+  const initialScoreRows = options.homeworkModes
+    ? scoreRows.map((row) => ({
+        ...row,
+        exam_total: { score: 82, max_score: 100, selected_count: 1, scored_count: 1, complete: true },
+        homework_total: { score: 25, max_score: 50, selected_count: 1, scored_count: 1, complete: true },
+        homeworks: [
+          { ...scoreRows[0].homeworks[0], block: { ...scoreRows[0].homeworks[0].block, score: 25, max_score: 50 } },
+          ...[
+            { id: 4102, title: "준비물 확인", score: 1, passed: true, status: "PASS" },
+            { id: 4103, title: "풀이 설명", score: 0, passed: false, status: "FAIL" },
+            { id: 4104, title: "오답 확인", score: null, passed: null, status: "UNSET" },
+            { id: 4105, title: "학습일지", score: null, passed: null, status: "NOT_SUBMITTED" },
+          ].map((item) => ({
+            homework_id: item.id,
+            title: item.title,
+            block: { score: item.score, max_score: 1, passed: item.passed, meta: { status: item.status } },
+          })),
+        ],
+      }))
+    : options.scoreRowCount
     ? expandedScoreRows(options.scoreRowCount)
     : options.denseReport
       ? denseScoreRows()
       : scoreRows;
+  const activeScoreRows = initialScoreRows.map((row, index) => {
+    if (options.teacherMixedAssignments && index > 0) return {
+      ...row,
+      exams: [],
+      homeworks: row.homeworks.filter(homework => homework.homework_id === 4102),
+      exam_total: { score: null, max_score: 0, selected_count: 0, scored_count: 0, complete: true },
+      homework_total: { score: null, max_score: 0, selected_count: 0, scored_count: 0, complete: true },
+    };
+    if (options.provisionalExam) return {
+      ...row,
+      exam_total: { score: null, max_score: 100, selected_count: 1, scored_count: 0, complete: false },
+      exams: row.exams.map((exam) => ({ ...exam, block: { ...exam.block, is_provisional: true } })),
+    };
+    if (options.teacherPartialTotals) return {
+      ...row,
+      exam_total: { score: 82.25, max_score: 200.25, selected_count: 2, scored_count: 1, complete: false },
+      exams: [{ ...row.exams[0], exam_id: 3103, title: "합산 제외 시험", block: { ...row.exams[0].block, score: 55 } },
+        ...row.exams.map(exam => ({ ...exam, block: { ...exam.block, score: 82.25 } })), { ...row.exams[0], exam_id: 3102, title: "추가 미채점 시험",
+        block: { ...row.exams[0].block, score: null, passed: null } }],
+    };
+    if (!options.totalState) return row;
+    const score = options.totalState === "zero" ? 0 : null;
+    const total = {
+      score,
+      max_score: options.totalState === "none" ? 0 : 100,
+      selected_count: options.totalState === "none" ? 0 : 1,
+      scored_count: options.totalState === "zero" ? 1 : 0,
+      complete: options.totalState === "zero",
+    };
+    return {
+      ...row,
+      exam_total: total,
+      homework_total: total,
+      exams: row.exams.map((exam) => ({ ...exam, block: { ...exam.block, score } })),
+      homeworks: row.homeworks.map((homework) => ({ ...homework, block: { ...homework.block, score } })),
+    };
+  });
   let studentGradesRequestCount = 0;
   let omrIssueResolved = false;
 
@@ -417,7 +479,8 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           session_title: "4차시",
           lecture_title: "중등 수학 심화",
           lecture_id: LECTURE_ID,
-          exams: [{
+          ...(options.teacherPartialTotals ? { total_config: { version: 1, exam_ids: [3101, 3102], homework_ids: [4101] } } : {}),
+          exams: [...(options.teacherPartialTotals ? [{ exam_id: 3103, title: "합산 제외 시험", pass_score: 70, max_score: 100, display_order: 0 }] : []), {
             exam_id: 3101,
             title: "방정식 단원평가",
             pass_score: 70,
@@ -435,14 +498,20 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
                   { question_id: 4929, number: 2, max_score: 4, kind: "choice" },
                   { question_id: 4930, number: 3, max_score: 6, kind: "essay" },
                 ],
-          }],
+          }, ...(options.teacherPartialTotals ? [{ exam_id: 3102, title: "추가 미채점 시험", pass_score: 70, max_score: 100.25, display_order: 2 }] : [])],
           homeworks: [{
             homework_id: 4101,
             title: "방정식 오답 과제",
             unit: null,
-            max_score: 100,
+            max_score: options.homeworkModes ? 50 : 100,
+            grading_mode: "SCORE",
             display_order: 1,
-          }],
+          }, ...(options.homeworkModes ? [
+            { homework_id: 4102, title: "준비물 확인", unit: null, max_score: 1, grading_mode: "COMPLETION", display_order: 2 },
+            { homework_id: 4103, title: "풀이 설명", unit: null, max_score: 1, grading_mode: "COMPLETION", display_order: 3 },
+            { homework_id: 4104, title: "오답 확인", unit: null, max_score: 1, grading_mode: "COMPLETION", display_order: 4 },
+            { homework_id: 4105, title: "학습일지", unit: null, max_score: 1, grading_mode: "COMPLETION", display_order: 5 },
+          ] : []), ...(options.teacherUnassigned ? [{ homework_id: 4106, title: "미배정 확인", grading_mode: "COMPLETION", max_score: 1, display_order: 6 }] : [])],
         },
         rows: activeScoreRows,
       });
@@ -510,6 +579,97 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 }
 
 test.describe("개인 성적표", () => {
+  for (const width of [1366, 390]) {
+    test(`@assessment-report-provisional ${width}px 미확정 시험은 점수·평균·문항 분석으로 확정 표시하지 않는다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await installApi(page, { provisionalExam: true });
+      await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+      const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
+      const assessment = frame.locator(".assessment-row").filter({ has: frame.getByText("방정식 단원평가", { exact: true }) });
+      await expect(assessment.locator(".status")).toHaveText("채점 확인 중");
+      await expect(assessment.locator(".assessment-score")).toHaveText("- / 100");
+      await expect(assessment.locator(".assessment-title")).not.toContainText("객관");
+      await expect(frame.locator(".session-fact").filter({ hasText: "시험 평균" })).toHaveText("시험 평균-");
+      await expect(frame.locator(".session-fact").filter({ hasText: "시험 총점" })).toHaveText("시험 총점- / 100집계 중 · 0/1개 입력");
+      await expect(frame.getByRole("heading", { name: "현재 시험 문항별 득점", exact: true })).toHaveCount(0);
+      await expect(frame.locator(".coaching-box")).toContainText("채점 확인 중인 시험이 1건");
+      if (width === 390) {
+        const pending = frame.locator(".session-fact--total small");
+        expect(await pending.evaluate(node => Number.parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(10);
+        expect(await frame.locator(".session-fact--total").evaluateAll(nodes => nodes.every(node => node.scrollWidth <= node.clientWidth))).toBe(true);
+      }
+      await assessment.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`report-provisional-${width}.png`), animations: "disabled" });
+    });
+  }
+
+  for (const [totalState, expected] of [
+    ["zero", "0 / 100"],
+    ["pending", "- / 100집계 중 · 0/1개 입력"],
+    ["none", "합산 없음"],
+  ] as const) {
+    test(`@assessment-report-total ${totalState} 총점은 미입력·0점·합산 없음이 구분된다`, async ({ page }) => {
+      await installApi(page, { totalState });
+      await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+      const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
+      for (const label of ["시험 총점", "과제 총점"]) {
+        const fact = frame.locator(".session-fact").filter({ hasText: label });
+        await expect(fact).toHaveText(`${label}${expected}`);
+        await expect(fact.locator("small")).toHaveCount(totalState === "pending" ? 1 : 0);
+      }
+    });
+  }
+
+  for (const width of [1366, 390]) {
+    test(`@assessment-homework-report ${width}px 합불 과제와 선택 총점이 미리보기·PDF에서 구분된다`, async ({ page }, testInfo) => {
+      test.setTimeout(180_000);
+      await page.setViewportSize({ width, height: 900 });
+      await installApi(page, { homeworkModes: true });
+      await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
+      const assessment = (title: string) => frame.locator(".assessment-row").filter({ has: frame.getByText(title, { exact: true }) });
+      await expect(assessment("준비물 확인").locator(".assessment-score")).toHaveText("통과 (O)");
+      await expect(assessment("풀이 설명").locator(".assessment-score")).toHaveText("미통과 (X)");
+      await expect(assessment("오답 확인").locator(".assessment-score")).toHaveText("미입력");
+      await expect(assessment("학습일지").locator(".assessment-score")).toHaveText("미제출");
+      await expect(assessment("방정식 오답 과제").locator(".assessment-score")).toHaveText("25 / 50");
+      await expect(frame.locator(".session-fact").filter({ hasText: "과제 평균" })).toHaveText("과제 평균50%");
+      await expect(frame.locator(".session-fact").filter({ hasText: "시험 총점" })).toHaveText("시험 총점82 / 100");
+      await expect(frame.locator(".session-fact").filter({ hasText: "과제 총점" })).toHaveText("과제 총점25 / 50");
+      await expect(frame.locator(".student-report-page")).toHaveCount(2);
+      expect(await frame.locator(".student-report-page").evaluateAll((pages) => pages.every((reportPage) => {
+        const footer = reportPage.querySelector(".report-footer")!.getBoundingClientRect();
+        return Array.from(reportPage.children).filter((child) => !child.classList.contains("report-footer"))
+          .every((child) => child.getBoundingClientRect().bottom <= footer.top + 2);
+      }))).toBe(true);
+      await frame.locator(".student-report-page").first().screenshot({ path: testInfo.outputPath(`homework-modes-${width}.png`), animations: "disabled" });
+      if (width === 390) {
+        await frame.locator(".assessment-list").scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath("homework-modes-mobile-assessments.png"), animations: "disabled" });
+        await frame.locator(".session-summary").scrollIntoViewIfNeeded();
+        await page.screenshot({ path: testInfo.outputPath("homework-modes-mobile-totals.png"), animations: "disabled" });
+      }
+      if (width === 1366) {
+        const [download] = await Promise.all([
+          page.waitForEvent("download"),
+          dialog.getByRole("button", { name: "개인 성적표 PDF 다운로드" }).click(),
+        ]);
+        const output = testInfo.outputPath("homework-modes.pdf");
+        await download.saveAs(output);
+        const pdfBytes = await readFile(output);
+        const pdf = await PDFDocument.load(pdfBytes);
+        expect(pdf.getPageCount()).toBe(2);
+        const pageImages = extractJpegImages(pdfBytes);
+        expect(pageImages.length).toBeGreaterThanOrEqual(2);
+        await writeFile(testInfo.outputPath("homework-modes-export-page1.jpg"), pageImages[0]);
+      }
+    });
+  }
+
   test("최신 성적 재조회가 실패하면 오래된 성적표를 열지 않는다", async ({ page }) => {
     await installApi(page);
     const baseUrl = getBaseUrl("admin");
@@ -828,6 +988,105 @@ test.describe("개인 성적표", () => {
 });
 
 test.describe("교사용 전체 성적표", () => {
+  test("@teacher-total-assignment 미배정 학생은 총점 완료 인원의 분모에서 제외한다", async ({ page }) => {
+    await installApi(page, { homeworkModes: true, teacherMixedAssignments: true });
+    await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem", { name: /성적표 출력/ }).click();
+    await expect(page.getByRole("dialog", { name: "성적표 미리보기", exact: true })).toBeVisible();
+    const frame = page.frameLocator('iframe[title="성적표 미리보기"]');
+    const unassigned = frame.locator("tbody tr:not(.summary-row)").filter({ hasText: "박도윤" });
+    await expect(unassigned.locator('[data-total-kind="exam"]')).toHaveText("합산 없음");
+    await expect(unassigned.locator('[data-total-kind="homework"]')).toHaveText("합산 없음");
+    await expect(frame.locator(".summary-row .total-cell")).toHaveText(["완료 1/1", "완료 1/1"]);
+  });
+
+  for (const width of [1366, 390]) {
+    test(`@teacher-assessment-pdf ${width}px 합불·미확정·서버 총점을 전체 성적표에 구분한다`, async ({ page }, testInfo) => {
+      test.setTimeout(180_000);
+      await page.setViewportSize({ width, height: 900 });
+      await installApi(page, { homeworkModes: true, provisionalExam: true, teacherUnassigned: true });
+      await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await page.getByRole("button", { name: "성적 도구" }).click();
+      await page.getByRole("menuitem", { name: /성적표 출력/ }).click();
+      const dialog = page.getByRole("dialog", { name: "성적표 미리보기" });
+      await expect(page.getByRole("dialog", { name: "성적표 미리보기", exact: true })).toBeVisible();
+      const viewport = dialog.locator(".score-print-preview__viewport");
+      const zoom = dialog.getByRole("combobox", { name: "성적표 미리보기 배율" });
+      await expect(zoom).toHaveValue("fit");
+      await expect.poll(() => viewport.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      const frame = page.frameLocator('iframe[title="성적표 미리보기"]');
+      const row = frame.locator("tbody tr:not(.summary-row)").filter({ hasText: "김서윤" });
+      await expect(row).toContainText("통과 (O)");
+      await expect(row).toContainText("미통과 (X)");
+      await expect(row).toContainText("미입력");
+      await expect(row).toContainText("미제출");
+      await expect(row).toContainText("미배정");
+      await expect(row).toContainText("채점 확인 중");
+      await expect(row.locator('[data-total-kind="exam"]')).toContainText("집계 중 · 0/1");
+      await expect(row.locator('[data-total-kind="homework"]')).toHaveText("25 / 50");
+      await expect(frame.locator('.summary-row [data-homework-id="4102"]')).toContainText("통과 2/2");
+      await expect(frame.locator('.summary-row [data-exam-id="3101"]')).toHaveText("-");
+      await expect(frame.locator('.summary-row [data-exam-pass-id="3101"]')).toHaveText("0/0");
+      await expect(frame.locator(".summary-metric").filter({ hasText: "최종 통과" })).toContainText("0명");
+      const pages = frame.locator(".score-report-page");
+      await expect(pages).toHaveCount(1);
+      expect(await pages.evaluateAll(nodes => nodes.every(node => node.scrollHeight <= node.clientHeight + 2 && node.scrollWidth <= node.clientWidth + 2))).toBe(true);
+      await pages.first().screenshot({ path: testInfo.outputPath(`teacher-mixed-${width}.png`), animations: "disabled" });
+      await page.screenshot({ path: testInfo.outputPath(`teacher-preview-fit-${width}.png`), animations: "disabled" });
+      if (width === 390) {
+        await expect(dialog.getByRole("button", { name: "PDF 다운로드", exact: true })).toBeInViewport();
+        await expect(dialog.getByRole("button", { name: "닫기", exact: true })).toBeInViewport();
+        await zoom.selectOption("actual");
+        await expect.poll(() => viewport.evaluate(node => node.scrollWidth > node.clientWidth)).toBe(true);
+        await viewport.evaluate(node => { node.scrollLeft = node.scrollWidth - node.clientWidth; });
+        await expect.poll(() => viewport.evaluate(node => node.scrollLeft > 0)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath("teacher-mixed-mobile-right.png"), animations: "disabled" });
+        await zoom.selectOption("fit");
+        await expect.poll(() => viewport.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+        await page.setViewportSize({ width: 1366, height: 900 });
+        await expect.poll(() => viewport.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+        await page.setViewportSize({ width: 390, height: 900 });
+        await expect.poll(() => viewport.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      }
+      if (width === 1366) {
+        const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("button", { name: "PDF 다운로드", exact: true }).click()]);
+        const output = testInfo.outputPath("teacher-mixed.pdf");
+        await download.saveAs(output);
+        const bytes = await readFile(output);
+        expect((await PDFDocument.load(bytes)).getPageCount()).toBe(1);
+        // The teacher exporter embeds PNG pages; JPEG byte scanning would
+        // produce false image artifacts from compressed streams.
+      }
+    });
+  }
+
+  for (const state of ["zero", "pending", "none", "partial"] as const) {
+    test(`@teacher-total-state ${state} 서버 총점을 새로 계산하지 않고 구분한다`, async ({ page }) => {
+      await page.setViewportSize({ width: 1366, height: 900 });
+      await installApi(page, state === "partial" ? { teacherPartialTotals: true } : { totalState: state });
+      await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await page.getByRole("button", { name: "성적 도구" }).click();
+      await page.getByRole("menuitem", { name: /성적표 출력/ }).click();
+      await expect(page.getByRole("dialog", { name: "성적표 미리보기", exact: true })).toBeVisible();
+      const frame = page.frameLocator('iframe[title="성적표 미리보기"]');
+      const row = frame.locator("tbody tr:not(.summary-row)").filter({ hasText: "김서윤" });
+      const examTotal = row.locator('[data-total-kind="exam"]');
+      if (state === "zero") await expect(examTotal).toHaveText("0 / 100");
+      else if (state === "none") await expect(examTotal).toHaveText("합산 없음");
+      else if (state === "partial") {
+        await expect(examTotal).toContainText("82.25 / 200.25");
+        await expect(examTotal).toContainText("집계 중 · 1/2");
+        expect(await row.locator("td").evaluateAll(cells => cells.flatMap(cell => cell.hasAttribute("data-exam-id")
+          ? [`exam:${cell.getAttribute("data-exam-id")}`] : cell.getAttribute("data-total-kind") === "exam" ? ["total:exam"] : []))).toEqual(["exam:3101", "exam:3102", "total:exam", "exam:3103"]);
+      } else {
+        await expect(examTotal).toContainText("- / 100");
+        await expect(examTotal).toContainText("집계 중 · 0/1");
+      }
+      if (state !== "partial") await expect(row.locator('[data-total-kind="homework"]')).toHaveText(await examTotal.textContent() ?? "");
+    });
+  }
+
   test("브랜드 로고와 긴 학생 목록을 A4 가로 여러 쪽에 맞춰 다운로드", async ({ page }, testInfo) => {
     test.setTimeout(180_000);
     await page.setViewportSize({ width: 1366, height: 900 });

@@ -5717,6 +5717,166 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/landing-public/videos/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["public_videos_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/videos/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["public_videos_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/videos/capabilities/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["landing_public_videos_capabilities_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/videos/manage/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["managed_videos_list"];
+        put?: never;
+        post: operations["landing_public_videos_manage_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/videos/manage/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["managed_videos_detail"];
+        put?: never;
+        post?: never;
+        delete: operations["landing_public_videos_manage_destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["landing_public_videos_manage_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/landing-public/videos/manage/{id}/publish/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["landing_public_videos_manage_publish_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/videos/manage/{id}/unpublish/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["landing_public_videos_manage_unpublish_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/videos/manage/showcase/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["landing_public_videos_manage_showcase_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["landing_public_videos_manage_showcase_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/landing-public/videos/resolve/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["landing_public_videos_resolve_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/videos/showcase/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["landing_public_videos_showcase_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/lectures/attendance/": {
         parameters: {
             query?: never;
@@ -8600,6 +8760,40 @@ export interface paths {
         patch: operations["results_admin_reported_scores_review_partial_update"];
         trace?: never;
     };
+    "/api/v1/results/admin/sessions/{session_id}/{kind}/{assessment_id}/parent-comments/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Staff-only assigned student rows and explicit parent-facing comment edit history, scoped to the request tenant and live session assessment. */
+        get: operations["results_admin_parent_assessment_comments_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/admin/sessions/{session_id}/{kind}/{assessment_id}/parent-comments/{enrollment_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Atomically save parent-facing text and a revision. Version 0 creates the first comment; a stale version returns current state with 409. Blank/whitespace-only text clears publication without deleting history. */
+        put: operations["results_admin_parent_assessment_comment_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/admin/sessions/{session_id}/exams/": {
         parameters: {
             query?: never;
@@ -8747,6 +8941,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/admin/sessions/{session_id}/total-config/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Staff-only tenant-scoped selected assessments and session-local column order. Newly linked assessments append to order; removed assessments disappear. */
+        get: operations["results_admin_session_total_config_retrieve"];
+        /** @description Atomically replace numeric-assessment selection and optional complete session-local order using expected_version. Completion-only homework is excluded from sums. Stale versions return 409; validation failure preserves the previous configuration. */
+        put: operations["results_admin_session_total_config_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/admin/student-grades/": {
         parameters: {
             query?: never;
@@ -8885,6 +9097,23 @@ export interface paths {
             cookie?: never;
         };
         get: operations["results_me_exams_attempts_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/parent/assessment-comments/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Parent-only read projection for the selected child, including unscored assessment titles. Student accounts are denied. Internal memos and edit history are never included. */
+        get: operations["results_parent_assessment_comments_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -11865,6 +12094,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tools/problem-studio/conversions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tools_problem_studio_conversions_list"];
+        put?: never;
+        post: operations["tools_problem_studio_conversions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tools/problem-studio/conversions/{conversion_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tools_problem_studio_conversions_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["tools_problem_studio_conversions_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/tools/problem-studio/conversions/{conversion_id}/actions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tools_problem_studio_conversions_actions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tools/problem-studio/document-style/": {
         parameters: {
             query?: never;
@@ -12354,6 +12631,29 @@ export interface components {
             /** Format: date-time */
             submitted_at: string | null;
         };
+        AdminParentCommentListItem: {
+            enrollment_id: number;
+            history: components["schemas"]["ParentCommentRevision"][];
+            student_id: number;
+            student_name: string;
+            text: string;
+            /** Format: date-time */
+            updated_at: string | null;
+            updated_by: number | null;
+            version: number;
+        };
+        AdminParentCommentListResponse: {
+            items: components["schemas"]["AdminParentCommentListItem"][];
+        };
+        AdminParentCommentResponse: {
+            enrollment_id: number;
+            history: components["schemas"]["ParentCommentRevision"][];
+            text: string;
+            /** Format: date-time */
+            updated_at: string | null;
+            updated_by: number | null;
+            version: number;
+        };
         AnswerKey: {
             /** @description key=ExamQuestion.id (string), value=correct answer */
             answers: unknown;
@@ -12383,6 +12683,9 @@ export interface components {
         /** @description 묶음 적용 요청 */
         ApplyBundleRequest: {
             session_id: number;
+        };
+        AssessmentDetailError: {
+            detail: string;
         };
         Attendance: {
             readonly amount: number;
@@ -13137,6 +13440,10 @@ export interface components {
          * @enum {string}
          */
         CodeEnum: "self_registration_disabled";
+        CommentWriteRequest: {
+            text: string;
+            version: number;
+        };
         /**
          * @description * `PENDING` - PENDING
          *     * `COMPLETED` - COMPLETED
@@ -14599,6 +14906,43 @@ export interface components {
          * @enum {string}
          */
         LockReasonEnum: "GRADING" | "PUBLISHED" | "MANUAL" | "OTHER";
+        ManagedShowcase: {
+            description: string;
+            /** Format: uuid */
+            hero_video_id: string | null;
+            revision: number;
+            title: string;
+        };
+        ManagedVideo: {
+            /** Format: uri */
+            canonical_url: string;
+            channel_title: string;
+            /** Format: date-time */
+            created_at: string;
+            draft_content: components["schemas"]["VideoContent"];
+            /** Format: uuid */
+            id: string;
+            metadata_ready: boolean;
+            /** Format: date-time */
+            published_at: string | null;
+            published_content: components["schemas"]["VideoContent"] | null;
+            revision: number;
+            source_title: string;
+            status: components["schemas"]["PublicVideoStatus"];
+            /** Format: uri */
+            thumbnail_url: string;
+            /** Format: date-time */
+            updated_at: string;
+            youtube_video_id: string;
+        };
+        ManagedVideoPage: {
+            count: number;
+            /** Format: uri */
+            next: string | null;
+            /** Format: uri */
+            previous: string | null;
+            results: components["schemas"]["ManagedVideo"][];
+        };
         ManualAnswerQuestion: {
             answer: string;
             is_correct: boolean;
@@ -14747,6 +15091,17 @@ export interface components {
             session_id?: number | null;
             total_count: number;
         };
+        OmrUploadBatchItemSummary: {
+            admission_status: string;
+            failure_code: string | null;
+            failure_message: string | null;
+            id: string;
+            identifier_status: string | null;
+            ordinal: number;
+            status: string;
+            submission_id: number | null;
+            submission_status: string | null;
+        };
         OmrUploadBatchRetryRequestRequest: {
             item_ordinals: number[];
         };
@@ -14768,6 +15123,7 @@ export interface components {
             grading_status: string;
             /** Format: uuid */
             id: string;
+            items: components["schemas"]["OmrUploadBatchItemSummary"][];
             lecture_id: number | null;
             overall_status: string;
             pending_admission_ordinals: number[];
@@ -14799,6 +15155,7 @@ export interface components {
             grading_status: string;
             /** Format: uuid */
             id: string;
+            items: components["schemas"]["OmrUploadBatchItemSummary"][];
             lecture_id: number | null;
             overall_status: string;
             pending_admission_ordinals: number[];
@@ -14828,6 +15185,7 @@ export interface components {
             grading_status: string;
             /** Format: uuid */
             id: string;
+            items: components["schemas"]["OmrUploadBatchItemSummary"][];
             lecture_id: number | null;
             overall_status: string;
             pending_admission_ordinals: number[];
@@ -15654,6 +16012,41 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["WorkMonthLock"][];
+        };
+        ParentAssessmentCommentItem: {
+            assessment_id: number;
+            assessment_kind: components["schemas"]["TypeEnum"];
+            assessment_title: string | null;
+            lecture_title: string;
+            session_id: number;
+            session_title: string;
+            text: string;
+            /** Format: date-time */
+            updated_at: string;
+            version: number;
+        };
+        ParentAssessmentCommentsResponse: {
+            items: components["schemas"]["ParentAssessmentCommentItem"][];
+        };
+        ParentCommentConflict: {
+            current: components["schemas"]["ParentCommentSnapshot"];
+            detail: string;
+        };
+        ParentCommentRevision: {
+            author_id: number | null;
+            author_name: string;
+            /** Format: date-time */
+            created_at: string;
+            text: string;
+            version: number;
+        };
+        ParentCommentSnapshot: {
+            enrollment_id: number;
+            text: string;
+            /** Format: date-time */
+            updated_at: string | null;
+            updated_by: number | null;
+            version: number;
         };
         ParentInitialPasswordChoiceRequest: {
             parent_initial_password?: string;
@@ -16521,6 +16914,17 @@ export interface components {
             phone?: string | null;
             subject?: string | null;
         };
+        PatchedVideoEditRequest: {
+            draft_content?: components["schemas"]["VideoContentRequest"];
+            expected_revision?: number;
+        };
+        PatchedVideoShowcaseRequest: {
+            description?: string;
+            expected_revision?: number;
+            /** Format: uuid */
+            hero_video_id?: string | null;
+            title?: string;
+        };
         PayrollSnapshot: {
             readonly approved_expense_amount: number;
             /** Format: date-time */
@@ -17128,10 +17532,63 @@ export interface components {
             subject?: string;
             title?: string;
         };
+        PublicVideo: {
+            /** Format: uri */
+            canonical_url: string;
+            /** @default interview */
+            category: components["schemas"]["PublicVideoCategory"];
+            category_label?: string;
+            channel_title: string;
+            format: components["schemas"]["PublicVideoFormat"];
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            published_at: string;
+            source_title: string;
+            /** @default  */
+            summary: string;
+            /** Format: uri */
+            thumbnail_url: string;
+            title: string;
+            youtube_video_id: string;
+        };
+        /**
+         * @description * `interview` - interview
+         *     * `lesson` - lesson
+         *     * `news` - news
+         * @enum {string}
+         */
+        PublicVideoCategory: "interview" | "lesson" | "news";
+        /**
+         * @description * `landscape` - landscape
+         *     * `vertical` - vertical
+         * @enum {string}
+         */
+        PublicVideoFormat: "landscape" | "vertical";
+        PublicVideoHero: {
+            description: string;
+            hero: components["schemas"]["PublicVideo"] | null;
+            title: string;
+        };
+        PublicVideoPage: {
+            count: number;
+            /** Format: uri */
+            next: string | null;
+            /** Format: uri */
+            previous: string | null;
+            results: components["schemas"]["PublicVideo"][];
+        };
         PublicVideoSession: {
             lecture_id: number;
             session_id: number;
         };
+        /**
+         * @description * `draft` - draft
+         *     * `published` - published
+         *     * `unpublished` - unpublished
+         * @enum {string}
+         */
+        PublicVideoStatus: "draft" | "published" | "unpublished";
         PublicViewCount: {
             readonly view_count: number;
         };
@@ -17505,6 +17962,13 @@ export interface components {
             level: components["schemas"]["LevelEnum"];
             session?: number | null;
         };
+        ScoreTotalConfigResponse: {
+            exam_ids: number[];
+            exam_order: number[];
+            homework_ids: number[];
+            homework_order: number[];
+            version: number;
+        };
         /**
          * @description ✅ FINAL SEALED VERSION (SaaS production)
          *
@@ -17845,6 +18309,7 @@ export interface components {
              * @default parent
              */
             send_to: components["schemas"]["ManualSendRecipientScope"];
+            session_id?: number | null;
             /** @description legacy field. 직원 대상 범용 발송은 비활성화됨. */
             staff_ids?: number[];
             /** @description 수신 대상 학생 ID 목록 (send_to가 student/parent일 때 사용) */
@@ -19414,6 +19879,13 @@ export interface components {
             mustChangePassword: boolean;
             userId: number;
         };
+        TotalConfigRequest: {
+            exam_ids: number[];
+            exam_order?: number[];
+            expected_version: number;
+            homework_ids: number[];
+            homework_order?: number[];
+        };
         TrustedTimerDistributionRequired: {
             code: string;
             detail: string;
@@ -19436,6 +19908,57 @@ export interface components {
         VideoBulkPolicyResponse: {
             changed: number;
             updated: number;
+        };
+        VideoCapability: {
+            can_publish: boolean;
+        };
+        VideoContent: {
+            /** @default interview */
+            category: components["schemas"]["PublicVideoCategory"];
+            category_label?: string;
+            format: components["schemas"]["PublicVideoFormat"];
+            /** @default  */
+            summary: string;
+            title: string;
+        };
+        VideoContentRequest: {
+            /** @default interview */
+            category: components["schemas"]["PublicVideoCategory"];
+            category_label?: string;
+            format: components["schemas"]["PublicVideoFormat"];
+            /** @default  */
+            summary: string;
+            title: string;
+        };
+        VideoCreateRequest: {
+            draft_content: components["schemas"]["VideoContentRequest"];
+            /** Format: uuid */
+            request_id: string;
+            url: string;
+        };
+        VideoPublication: {
+            showcase_revision: number;
+            video: components["schemas"]["ManagedVideo"];
+        };
+        VideoPublishRequest: {
+            expected_revision: number;
+            expected_showcase_revision: number;
+            /** @default false */
+            set_as_hero: boolean;
+        };
+        VideoResolveRequestRequest: {
+            /** Format: uri */
+            url: string;
+        };
+        VideoResolveResult: {
+            /** Format: uri */
+            canonical_url: string;
+            channel_title: string;
+            format: components["schemas"]["PublicVideoFormat"];
+            source_title: string;
+            /** Format: uri */
+            thumbnail_url: string;
+            youtube_video_id: string;
         };
         /**
          * @description * `ENROLLED` - 수강생 전용
@@ -28462,6 +28985,334 @@ export interface operations {
             };
         };
     };
+    public_videos_list: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicVideoPage"];
+                };
+            };
+        };
+    };
+    public_videos_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicVideo"];
+                };
+            };
+        };
+    };
+    landing_public_videos_capabilities_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoCapability"];
+                };
+            };
+        };
+    };
+    managed_videos_list: {
+        parameters: {
+            query?: {
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedVideoPage"];
+                };
+            };
+        };
+    };
+    landing_public_videos_manage_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["VideoCreateRequest"];
+                "multipart/form-data": components["schemas"]["VideoCreateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedVideo"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedVideo"];
+                };
+            };
+        };
+    };
+    managed_videos_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedVideo"];
+                };
+            };
+        };
+    };
+    landing_public_videos_manage_destroy: {
+        parameters: {
+            query: {
+                expected_revision: number;
+                expected_showcase_revision: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    landing_public_videos_manage_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedVideoEditRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedVideoEditRequest"];
+                "multipart/form-data": components["schemas"]["PatchedVideoEditRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedVideo"];
+                };
+            };
+        };
+    };
+    landing_public_videos_manage_publish_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoPublishRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["VideoPublishRequest"];
+                "multipart/form-data": components["schemas"]["VideoPublishRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPublication"];
+                };
+            };
+        };
+    };
+    landing_public_videos_manage_unpublish_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoPublishRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["VideoPublishRequest"];
+                "multipart/form-data": components["schemas"]["VideoPublishRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPublication"];
+                };
+            };
+        };
+    };
+    landing_public_videos_manage_showcase_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedShowcase"];
+                };
+            };
+        };
+    };
+    landing_public_videos_manage_showcase_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedVideoShowcaseRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedVideoShowcaseRequest"];
+                "multipart/form-data": components["schemas"]["PatchedVideoShowcaseRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedShowcase"];
+                };
+            };
+        };
+    };
+    landing_public_videos_resolve_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoResolveRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["VideoResolveRequestRequest"];
+                "multipart/form-data": components["schemas"]["VideoResolveRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoResolveResult"];
+                };
+            };
+        };
+    };
+    landing_public_videos_showcase_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicVideoHero"];
+                };
+            };
+        };
+    };
     lectures_attendance_list: {
         parameters: {
             query?: {
@@ -33273,6 +34124,111 @@ export interface operations {
             };
         };
     };
+    results_admin_parent_assessment_comments_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assessment_id: number;
+                /** @description The exact session-linked assessment type. */
+                kind: "exam" | "homework";
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminParentCommentListResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentDetailError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentDetailError"];
+                };
+            };
+        };
+    };
+    results_admin_parent_assessment_comment_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assessment_id: number;
+                enrollment_id: number;
+                /** @description The exact session-linked assessment type. */
+                kind: "exam" | "homework";
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CommentWriteRequest"];
+                "multipart/form-data": components["schemas"]["CommentWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminParentCommentResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentDetailError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentDetailError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParentCommentConflict"];
+                };
+            };
+        };
+    };
     results_admin_sessions_exams_retrieve: {
         parameters: {
             query?: never;
@@ -33453,6 +34409,104 @@ export interface operations {
             };
         };
     };
+    results_admin_session_total_config_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoreTotalConfigResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentDetailError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentDetailError"];
+                };
+            };
+        };
+    };
+    results_admin_session_total_config_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TotalConfigRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TotalConfigRequest"];
+                "multipart/form-data": components["schemas"]["TotalConfigRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoreTotalConfigResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentDetailError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentDetailError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentDetailError"];
+                };
+            };
+        };
+    };
     results_admin_student_grades_retrieve: {
         parameters: {
             query?: never;
@@ -33590,6 +34644,36 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    results_parent_assessment_comments_list: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Explicitly selected active child owned by the authenticated parent in the request tenant. */
+                "X-Student-Id": number;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParentAssessmentCommentsResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssessmentDetailError"];
+                };
             };
         };
     };
@@ -38508,6 +39592,171 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    tools_problem_studio_conversions_list: {
+        parameters: {
+            query?: {
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    tools_problem_studio_conversions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** @description JSON title and options; external_ai_confirmed must be true. */
+                    payload: string;
+                    source_files: string[];
+                };
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    tools_problem_studio_conversions_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    tools_problem_studio_conversions_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+                "application/x-www-form-urlencoded": {
+                    [key: string]: unknown;
+                };
+                "multipart/form-data": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    tools_problem_studio_conversions_actions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+                "application/x-www-form-urlencoded": {
+                    [key: string]: unknown;
+                };
+                "multipart/form-data": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };

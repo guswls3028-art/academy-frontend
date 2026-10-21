@@ -15,6 +15,9 @@ import { QUERY_KEYS } from "../../queryKeys";
 import "@/shared/ui/assessment/AssessmentDetailHeader.css";
 
 type Props = {
+  readError?: boolean;
+  readPending?: boolean;
+  onRetryRead?: () => void;
   homework: HomeworkSummary;
   sessionId?: number | null;
   primaryAction?: {
@@ -23,7 +26,7 @@ type Props = {
   };
 };
 
-export default function HomeworkHeader({ homework, primaryAction }: Props) {
+export default function HomeworkHeader({ homework, primaryAction, readError = false, readPending = false, onRetryRead }: Props) {
   const qc = useQueryClient();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
@@ -75,7 +78,7 @@ export default function HomeworkHeader({ homework, primaryAction }: Props) {
               intent="secondary"
               size="sm"
               onClick={() => setTemplateModalOpen(true)}
-              disabled={saveAsTemplateMut.isPending}
+              disabled={readError || readPending || saveAsTemplateMut.isPending}
               className="assessment-template-button"
             >
               <FiSave className="shrink-0" size={16} aria-hidden />
@@ -140,6 +143,10 @@ export default function HomeworkHeader({ homework, primaryAction }: Props) {
       >
         <ModalHeader type="action" title="템플릿으로 저장" />
         <ModalBody>
+          {readError && <div role="alert" className="mb-4 text-sm">
+            현재 설정을 확인하지 못했습니다. 입력은 유지됩니다. 다시 확인한 뒤 저장해 주세요.
+            <Button intent="secondary" size="lg" className="h-11" disabled={readPending} onClick={onRetryRead}>다시 시도</Button>
+          </div>}
           <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
             템플릿으로 저장하면 다른 강의·차시에서도 동일한 과제를 불러와 사용할 수 있습니다.
             여러 강의의 통계를 합산해 볼 수 있습니다. 템플릿으로 저장하시겠습니까?
@@ -155,8 +162,8 @@ export default function HomeworkHeader({ homework, primaryAction }: Props) {
               <Button
                 intent="primary"
                 size="xl"
-                onClick={() => saveAsTemplateMut.mutate()}
-                disabled={saveAsTemplateMut.isPending}
+                onClick={() => { if (!readError && !readPending) saveAsTemplateMut.mutate(); }}
+                disabled={readError || readPending || saveAsTemplateMut.isPending}
                 loading={saveAsTemplateMut.isPending}
               >
                 저장

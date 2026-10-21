@@ -5,6 +5,7 @@
  */
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
+import type { StudentGradeReportLayout } from "@/shared/api/contracts/studentGradeReportLayout";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import {
   api,
@@ -25,6 +26,7 @@ import {
   seedBrowserAuth,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
+  type QaTokens,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
@@ -49,6 +51,7 @@ type CreatedState = {
   lectureId?: number;
   sessionId?: number;
   homeworkId?: number;
+  completionHomeworkId?: number;
   staffId?: number;
   enrollmentId?: number;
   duplicateLectureId?: number;
@@ -68,8 +71,264 @@ const todayKst = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).fo
 const lectureTitle = `QA 과제 projection ${runStamp}`;
 const sessionTitle = `QA 과제 1차시 ${runStamp}`;
 const homeworkTitle = `QA 과제 제출 채점 ${runStamp}`;
+const completionTitle = `QA 준비물 통과형 ${runStamp}`;
 const uploadName = `qa-homework-${runStamp}.png`;
 const parentUploadName = `qa-parent-homework-${runStamp}.png`;
+const parentHomeworkComment = "QA 과제 피드백: 풀이 과정을 꼼꼼히 기록했습니다.\n가정에서는 틀린 문제의 계산 순서를 소리 내어 설명하고, 스스로 채점한 뒤 다시 확인하는 연습을 도와주세요.";
+
+async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestContext, admin: QaTokens, studentName: string): Promise<void> {
+  const context = await parentPage.context().browser()!.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
+  const editors = new Set<string>();
+  const layoutPath = "/core/student-grade-report-layout/";
+  let reportLayoutToRestore: StudentGradeReportLayout | null = null;
+  try {
+    const staffPage = await context.newPage();
+    staffPage.on("request", outgoing => {
+      const editor = outgoing.headers()["x-score-editor-client"];
+      if (editor) editors.add(editor);
+    });
+    const boundary = await installQaStudentParentBoundary(staffPage, request);
+    const guards = attachStrictBrowserGuards(staffPage);
+    await seedBrowserAuth(staffPage, admin);
+    await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
+    await acknowledgeInitialAccountPromptsIfVisible(staffPage);
+    const configPath = `/results/admin/sessions/${created.sessionId}/total-config/`;
+    await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
+    const totals = staffPage.getByRole("dialog", { name: "합산 설정", exact: true });
+    await totals.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
+    await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect(totals).toBeHidden();
+    expect((await expectApi<{ homework_ids: number[] }>(request, "GET", configPath, admin.access)).homework_ids).toEqual([]);
+    await staffPage.reload();
+    await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
+    await totals.getByRole("button", { name: "과제 총점 아래로 이동", exact: true }).click();
+    await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+    await expect(totals).toBeHidden();
+    expect((await expectApi<{ homework_ids: number[] }>(request, "GET", configPath, admin.access)).homework_ids).toEqual([created.homeworkId]);
+
+    const completion = await expectApi<{ id: number; grading_mode: string }>(request, "POST", "/homeworks/", admin.access, {
+      session: created.sessionId, session_id: created.sessionId, title: completionTitle,
+      grading_mode: "COMPLETION", max_score: 1,
+    }, [201]);
+    created.completionHomeworkId = completion.id;
+    expect(completion.grading_mode).toBe("COMPLETION");
+    await expectApi(request, "PUT", `/homework/assignments/?homework_id=${completion.id}`, admin.access,
+      { enrollment_ids: [created.enrollmentId] }, [200]);
+    const originalOrder = [created.homeworkId!, completion.id];
+    const scoresPath = `/results/admin/sessions/${created.sessionId}/scores/`;
+    const verifyMixed = async (order: number[], selected: number[], completionScore: number) => {
+      const included = new Set(selected);
+      const rendered = [...order.filter(id => included.has(id)), ...order.filter(id => !included.has(id))];
+      await expect.poll(() => staffPage.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual(rendered);
+      const config = await expectApi<{ homework_ids: number[]; homework_order: number[] }>(request, "GET", configPath, admin.access);
+      expect(config.homework_ids).toEqual(selected);
+      expect(config.homework_order).toEqual(order);
+      const scores = await expectApi<{ meta: { homeworks: Array<{ homework_id: number; grading_mode: string }> }; rows: Array<{ enrollment_id: number; homeworks: Array<{ homework_id: number; block: { score: number | null } }>; homework_total: { score: number | null; max_score: number } }> }>(request, "GET", scoresPath, admin.access);
+      expect(scores.meta.homeworks.map(item => item.homework_id)).toEqual(order);
+      expect(scores.meta.homeworks.find(item => item.homework_id === completion.id)?.grading_mode).toBe("COMPLETION");
+      const row = scores.rows.find(item => item.enrollment_id === created.enrollmentId)!;
+      expect(row.homeworks.find(item => item.homework_id === completion.id)?.block.score).toBe(completionScore);
+      if (selected.length) expect(row.homework_total).toMatchObject({ score: 92, max_score: 100 });
+    };
+    // The isolated YMath fixture hides homework statistics by default. Exercise
+    // the configurable section explicitly, preserving every other preference.
+    const originalLayout = await expectApi<StudentGradeReportLayout>(request, "GET", layoutPath, admin.access);
+    expect(originalLayout.sections.some(section => section.id === "homework_summary")).toBe(true);
+    if (!originalLayout.sections.find(section => section.id === "homework_summary")!.visible) {
+      reportLayoutToRestore = originalLayout;
+      const visibleLayout = { ...originalLayout, sections: originalLayout.sections.map(section =>
+        section.id === "homework_summary" ? { ...section, visible: true } : section) };
+      expect(await expectApi<StudentGradeReportLayout>(request, "PATCH", layoutPath, admin.access, visibleLayout)).toEqual(visibleLayout);
+      expect(await expectApi<StudentGradeReportLayout>(request, "GET", layoutPath, admin.access)).toEqual(visibleLayout);
+    }
+    for (const width of [1366, 390]) {
+      await staffPage.setViewportSize({ width, height: 900 });
+      await staffPage.reload();
+      const cell = staffPage.locator(`[data-score-cell="homework:${created.enrollmentId}:${completion.id}"]`);
+      await expect(cell).toBeVisible();
+      const edit = staffPage.getByRole("button", { name: "수정", exact: true });
+      if (await edit.isVisible()) await edit.click();
+      const numeric = staffPage.getByRole("textbox", { name: `${studentName} · ${homeworkTitle} 점수 입력`, exact: true });
+      const readNumericScore = async () => {
+        const data = await expectApi<{ rows: Array<{ enrollment_id: number; homeworks: Array<{ homework_id: number; block: { score: number | null } }> }> }>(request, "GET", scoresPath, admin.access);
+        return data.rows.find(row => row.enrollment_id === created.enrollmentId)!
+          .homeworks.find(item => item.homework_id === created.homeworkId)!.block.score;
+      };
+      await numeric.click();
+      await numeric.fill("97");
+      await numeric.press("Escape");
+      await expect(numeric).toHaveText("92");
+      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await expect(edit).toBeVisible();
+      expect(await readNumericScore()).toBe(92);
+      await edit.click();
+      await numeric.click();
+      await numeric.fill("92.5%");
+      const fractionalSave = staffPage.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
+        && response.request().postDataJSON()?.homework_id === created.homeworkId);
+      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      expect((await fractionalSave).status()).toBe(200);
+      await expect(edit).toBeVisible();
+      expect(await readNumericScore()).toBe(92.5);
+      await staffPage.reload();
+      await edit.click();
+      await expect(numeric).toHaveText("92.5");
+      await numeric.click();
+      await numeric.fill("92");
+      const state = cell.getByRole("combobox", { name: `${studentName} · ${completionTitle} 완료 상태`, exact: true });
+      await state.selectOption(width === 1366 ? "통과" : "미통과");
+      const scored = staffPage.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
+        && response.request().postDataJSON()?.homework_id === completion.id);
+      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      const scoreResponse = await scored;
+      expect(scoreResponse.status()).toBe(200);
+      expect(await scoreResponse.json()).toMatchObject({ score: width === 1366 ? 1 : 0 });
+      await expect(edit).toBeVisible();
+      await staffPage.reload();
+      await verifyMixed(originalOrder, [created.homeworkId!], width === 1366 ? 1 : 0);
+      // Put both items after the total, reorder there, and prove completion never enters the sum.
+      await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
+      await totals.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
+      await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+      await expect(totals).toBeHidden();
+      const moved = staffPage.waitForResponse(response => response.request().method() === "PUT"
+        && new URL(response.url()).pathname === `/api/v1${configPath}`);
+      if (width === 1366) {
+        await staffPage.locator(".scores-col-drag-handle").filter({ has: staffPage.getByRole("button", { name: `${completionTitle} 작업 선택`, exact: true }) }).dragTo(staffPage.locator(".scores-col-drag-handle").filter({ has: staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }) }));
+      } else await staffPage.getByRole("button", { name: `${completionTitle} 이전 순서로 이동`, exact: true }).click();
+      expect((await moved).status()).toBe(200);
+      await staffPage.reload();
+      await verifyMixed([completion.id, created.homeworkId!], [], width === 1366 ? 1 : 0);
+      // Restore scoring while preserving the completion item's stored position.
+      await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
+      await totals.getByRole("button", { name: "과제 총점 아래로 이동", exact: true }).click();
+      await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+      await expect(totals).toBeHidden();
+      await staffPage.reload();
+      await verifyMixed([completion.id, created.homeworkId!], [created.homeworkId!], width === 1366 ? 1 : 0);
+      await staffPage.locator(`[data-score-cell="homework:${created.enrollmentId}:${completion.id}"]`).scrollIntoViewIfNeeded();
+      await staffPage.screenshot({ path: test.info().outputPath(`real-mixed-homework-${width}.png`), animations: "disabled" });
+      await staffPage.getByRole("button", { name: "개인 성적표", exact: true }).click();
+      const report = staffPage.getByRole("dialog");
+      await report.getByRole("combobox", { name: "성적표 학생 선택" }).selectOption(String(created.enrollmentId));
+      const preview = staffPage.frameLocator(`iframe[title="${studentName} 개인 성적표 미리보기"]`);
+      const completionResult = preview.locator(".assessment-row").filter({ has: preview.getByText(completionTitle, { exact: true }) });
+      await expect(completionResult.locator(".assessment-score")).toHaveText(width === 1366 ? "통과 (O)" : "미통과 (X)");
+      await expect(preview.locator(".session-fact").filter({ hasText: "과제 총점" })).toHaveText("과제 총점92 / 100");
+      await expect(preview.locator(".session-fact").filter({ hasText: "과제 평균" })).toHaveText("과제 평균92%");
+      await completionResult.scrollIntoViewIfNeeded();
+      await staffPage.screenshot({ path: test.info().outputPath(`real-homework-report-${width}.png`), animations: "disabled" });
+      await report.getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(report).toBeHidden();
+      await staffPage.getByRole("button", { name: "성적 도구", exact: true }).click();
+      await staffPage.getByRole("menuitem", { name: /성적표 출력/ }).click();
+      const teacherReport = staffPage.getByRole("dialog", { name: "성적표 미리보기", exact: true });
+      await expect(teacherReport).toBeVisible();
+      const teacherPreview = staffPage.frameLocator('iframe[title="성적표 미리보기"]');
+      const teacherRow = teacherPreview.locator("tbody tr:not(.summary-row)").filter({ hasText: studentName });
+      await expect(teacherRow.locator(`[data-homework-id="${completion.id}"]`)).toHaveText(width === 1366 ? "통과 (O)" : "미통과 (X)");
+      await expect(teacherRow.locator('[data-total-kind="homework"]')).toHaveText("92 / 100");
+      await expect.poll(() => teacherReport.locator(".score-print-preview__viewport").evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await staffPage.screenshot({ path: test.info().outputPath(`real-teacher-homework-report-${width}.png`), animations: "disabled" });
+      await teacherReport.getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(teacherReport).toBeHidden();
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/assignments?homeworkId=${completion.id}`);
+      await expect(staffPage.getByRole("heading", { name: completionTitle, exact: true })).toBeVisible();
+      await staffPage.getByRole("tab", { name: "결과", exact: true }).click();
+      const resultTable = staffPage.getByRole("table");
+      const resultRow = resultTable.getByRole("row").filter({ hasText: studentName });
+      const completionMark = width === 1366 ? "O" : "X";
+      await expect(resultTable.getByRole("columnheader", { name: "O/X", exact: true })).toBeVisible();
+      await expect(resultRow.locator("td").nth(2)).toHaveText(completionMark);
+      await expect(staffPage.getByText("점수 분포 (%)", { exact: true })).toHaveCount(0);
+      await resultRow.locator("td").nth(2).click();
+      const detail = staffPage.getByRole("complementary", { name: "선택 학생 상세", exact: true });
+      await expect(detail.getByText(completionMark, { exact: true })).toBeVisible();
+      await detail.scrollIntoViewIfNeeded();
+      await assertNoHorizontalOverflow(staffPage);
+      await staffPage.screenshot({ path: test.info().outputPath(`real-homework-result-${width}.png`), animations: "disabled" });
+      await staffPage.reload();
+      await staffPage.getByRole("tab", { name: "결과", exact: true }).click();
+      await expect(resultRow.locator("td").nth(2)).toHaveText(completionMark);
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
+      // Restore exact order via the same excluded-area UI before existing comment checks.
+      await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
+      await totals.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
+      await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+      await expect(totals).toBeHidden();
+      const restored = staffPage.waitForResponse(response => response.request().method() === "PUT"
+        && new URL(response.url()).pathname === `/api/v1${configPath}`);
+      if (width === 1366) {
+        await staffPage.locator(".scores-col-drag-handle").filter({ has: staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }) }).dragTo(staffPage.locator(".scores-col-drag-handle").filter({ has: staffPage.getByRole("button", { name: `${completionTitle} 작업 선택`, exact: true }) }));
+      } else await staffPage.getByRole("button", { name: `${homeworkTitle} 이전 순서로 이동`, exact: true }).click();
+      expect((await restored).status()).toBe(200);
+      await staffPage.reload();
+      await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
+      await totals.getByRole("button", { name: "과제 총점 아래로 이동", exact: true }).click();
+      await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
+      await expect(totals).toBeHidden();
+      await verifyMixed(originalOrder, [created.homeworkId!], width === 1366 ? 1 : 0);
+
+      await staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }).click();
+      await staffPage.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
+      const comment = staffPage.getByRole("dialog", { name: "학부모 코멘트", exact: true });
+      const text = `${parentHomeworkComment}\n${width}px 확인`;
+      await comment.getByLabel(studentName, { exact: true }).fill(text);
+      await comment.getByRole("button", { name: "학부모에게 공개", exact: true }).click();
+      await expect(comment.getByRole("status").filter({ hasText: "학부모에게 공개했습니다." })).toBeVisible();
+      await staffPage.reload();
+      await staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }).click();
+      await staffPage.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
+      await expect(comment.getByLabel(studentName, { exact: true })).toHaveValue(text);
+      await assertNoHorizontalOverflow(staffPage);
+      await staffPage.reload();
+
+      await parentPage.setViewportSize({ width, height: 900 });
+      await reloadStudentApp(parentPage);
+      await parentPage.getByRole("button", { name: "과제 현황" }).click();
+      await expect(parentPage.locator('aside[aria-label="학부모 코멘트"]')).toHaveCount(1);
+      await expect(parentPage.locator('aside[aria-label="학부모 코멘트"]')).toContainText(text);
+      await parentPage.locator("summary").filter({ hasText: "차시별 총점" }).click();
+      const total = parentPage.getByRole("region", { name: `${lectureTitle} ${sessionTitle} 총점`, exact: true });
+      await expect(total).toContainText("과제 총점");
+      await expect(total).toContainText("92 / 100");
+      const completionCard = parentPage.locator('.stu-panel[data-session-type]').filter({ has: parentPage.getByText(completionTitle, { exact: true }) });
+      await expect(completionCard).toContainText("통과형 과제");
+      await expect(completionCard.locator("strong")).toHaveText(width === 1366 ? "통과" : "미통과");
+      await expect(parentPage.getByText("2건 · 평균 득점률 92%", { exact: true })).toBeVisible();
+      await parentPage.getByRole("tab", { name: "추이 분석", exact: true }).click();
+      await expect(parentPage.getByRole("region", { name: "과제 현황", exact: true }).getByText("92%", { exact: true })).toBeVisible();
+      await parentPage.getByRole("tab", { name: "요약", exact: true }).click();
+      await assertNoHorizontalOverflow(parentPage);
+    }
+    // Keep later existing single-score-card/average assertions unchanged.
+    await expectApi(request, "DELETE", `/homeworks/${completion.id}/`, admin.access, undefined, [204]);
+    expect((await api(request, "GET", `/homeworks/${completion.id}/`, admin.access)).status).toBe(404);
+    boundary.assertClean(); guards.assertZeroDefects();
+  } finally {
+    try {
+      for (const editor of editors) {
+        const released = await request.post(`${QA_API}/api/v1/results/admin/sessions/${created.sessionId}/score-draft/commit/`, {
+          headers: { Authorization: `Bearer ${admin.access}`, "X-Tenant-Code": QA_TENANT, "X-Score-Editor-Client": editor },
+          data: { release_lease: true }, timeout: 60_000,
+        });
+        expect([200, 204]).toContain(released.status());
+      }
+    } finally {
+      try {
+        if (reportLayoutToRestore) {
+          await expectApi(request, "PATCH", layoutPath, admin.access, reportLayoutToRestore);
+          expect(await expectApi<StudentGradeReportLayout>(request, "GET", layoutPath, admin.access)).toEqual(reportLayoutToRestore);
+        }
+      } finally {
+        await context.close();
+        await parentPage.setViewportSize({ width: 390, height: 844 });
+      }
+    }
+  }
+}
 
 async function waitForHomeworkSummary(
   request: APIRequestContext,
@@ -107,6 +366,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       failures.push(`${method} ${path} -> ${String(error)}`);
     }
   };
+  if (created.completionHomeworkId) await remove("DELETE", `/homeworks/${created.completionHomeworkId}/`);
   if (created.homeworkId) await remove("DELETE", `/homeworks/${created.homeworkId}/`);
   if (created.duplicateHomeworkId) await remove("DELETE", `/homeworks/${created.duplicateHomeworkId}/`);
   for (const id of created.sessionEnrollmentIds) {
@@ -123,6 +383,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   // the remaining synthetic User/token/audit cleanup and its zero-residue proof.
   await cleanupQaFamily(request, created.adminAccess, created.family);
   for (const [label, path] of [
+    ...(created.completionHomeworkId ? [["completion homework", `/homeworks/${created.completionHomeworkId}/`] as const] : []),
     ...(created.homeworkId ? [[`homework ${created.homeworkId}`, `/homeworks/${created.homeworkId}/`] as const] : []),
     ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
     ...(created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
@@ -647,9 +908,14 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await waitForHomeworkSummary(request, parentTokens.access, (row) => row.score === 92, student.id);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
-    await expect(page.getByText(homeworkTitle).first()).toBeVisible();
-    await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible();
+    const scoredHomeworkCard = page.locator('.stu-panel[data-session-type]').filter({
+      has: page.getByText(homeworkTitle, { exact: true }),
+    });
+    await expect(scoredHomeworkCard).toHaveCount(1);
+    await expect(scoredHomeworkCard.locator("strong")).toHaveText("92/100");
+    await expect(scoredHomeworkCard.locator("strong")).toBeVisible();
     await assertSeparateHomeworkGroups(page);
+    await verifyHomeworkFeedback(page, request, admin, student.name);
 
     await reloadStudentApp(page);
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
@@ -659,6 +925,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
+    await expect(page.locator('aside[aria-label="학부모 코멘트"]')).toContainText(parentHomeworkComment);
 
     await logoutStudentApp(page);
     await loginThroughUi(page, student.ps_number, student.password);
@@ -670,8 +937,11 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     expect(graded.title).toBe(homeworkTitle);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
-    await expect(page.getByText(homeworkTitle).first()).toBeVisible();
-    await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible();
+    await expect(scoredHomeworkCard).toHaveCount(1);
+    await expect(scoredHomeworkCard.locator("strong")).toHaveText("92/100");
+    await expect(scoredHomeworkCard.locator("strong")).toBeVisible();
+    await expect(page.locator('aside[aria-label="학부모 코멘트"]')).toHaveCount(0);
+    await expect(page.getByText(parentHomeworkComment, { exact: false })).toHaveCount(0);
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await assertSeparateHomeworkGroups(page);

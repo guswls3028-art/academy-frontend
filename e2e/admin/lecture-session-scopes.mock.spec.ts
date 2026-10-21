@@ -140,6 +140,13 @@ type MockState = {
   answerKeyWriteFailure?: boolean;
   answerKeyWriteCount?: number;
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
+  failHomeworkRead?: boolean;
+  homeworkTemplateSaves?: number;
+  homeworkPdfUploads?: number;
+  homeworkSourceReads?: number;
+  homeworkReadGate?: Promise<void>;
+  homeworkReadCount?: number;
+  enforceHomeworkVersion?: boolean;
   homeworkAssignmentIds?: number[];
   homeworkAssignmentPuts?: number[][];
   homeworkAssignmentDelayMs?: number;
@@ -495,6 +502,10 @@ async function installApi(page: Page, state: MockState) {
       return json({ selected_count: payload.enrollment_ids?.length ?? 0 });
     }
     if (path === "/exams/pdf-extract/" && method === "POST") {
+      if (state.homeworkPdfUploads !== undefined) {
+        state.homeworkPdfUploads += 1;
+        return json({ status: "source_saved", message: "워크북 원본 저장 완료" });
+      }
       state.examRequestSequence?.push("pdf-extract");
       state.examPdfExtractRequests = (state.examPdfExtractRequests ?? 0) + 1;
       if ((state.examPdfExtractDelayMs ?? 0) > 0) {
@@ -514,17 +525,35 @@ async function installApi(page: Page, state: MockState) {
       }));
       return json({ count: rows.length, results: rows });
     }
+    if (path === "/exams/9988/" && method === "GET") {
+      state.homeworkSourceReads = (state.homeworkSourceReads ?? 0) + 1;
+      return json({ detail: "원본시험 상세는 이 fixture의 지원 경로가 아닙니다." }, 404);
+    }
+    if (path === "/homeworks/9961/save-as-template/" && method === "POST") {
+      state.homeworkTemplateSaves = (state.homeworkTemplateSaves ?? 0) + 1;
+      state.createdHomeworkPayloads![0] = { ...state.createdHomeworkPayloads![0], template_homework_id: 9999 };
+      return json({ id: 9999 });
+    }
     const homeworkDetailMatch = path.match(/^\/homeworks\/(\d+)\/$/);
     if (homeworkDetailMatch) {
       const id = Number(homeworkDetailMatch[1]);
       const index = id - 9961;
       const existing = state.createdHomeworkPayloads?.[index];
       if (!existing) return json({ detail: "과제를 찾을 수 없습니다." }, 404);
+      if (method === "GET") {
+        state.homeworkReadCount = (state.homeworkReadCount ?? 0) + 1;
+        if (state.homeworkReadGate) await state.homeworkReadGate;
+        if (state.failHomeworkRead) return json({ detail: "과제 설정 조회 실패" }, 503);
+      }
       if (method === "PATCH") {
+        if (state.enforceHomeworkVersion && request.headers()["x-expected-updated-at"] !== (existing.updated_at ?? "2026-08-02T00:00:00Z")) {
+          return json({ code: "stale_resource", detail: "다른 화면에서 설정이 변경되었습니다." }, 409);
+        }
         const payload = request.postDataJSON() as Record<string, unknown>;
         state.homeworkPatchPayloads ??= [];
         state.homeworkPatchPayloads.push({ id, ...payload });
-        state.createdHomeworkPayloads![index] = { ...existing, ...payload };
+        state.createdHomeworkPayloads![index] = { ...existing, ...payload,
+          ...(state.enforceHomeworkVersion ? { updated_at: "2026-08-03T00:00:00Z" } : {}) };
       }
       const current = state.createdHomeworkPayloads![index];
       const usesSessionDefault = current.uses_session_cutline_default === true;
@@ -532,6 +561,9 @@ async function installApi(page: Page, state: MockState) {
         id,
         session: REGULAR_SESSION_ID,
         homework_type: "regular",
+        template_homework_id: current.template_homework_id ?? null,
+        source_exam_id: current.source_exam_id ?? null,
+        source_status: current.source_status ?? "none",
         title: current.title,
         grading_mode: current.grading_mode ?? "SCORE",
         max_score: current.grading_mode === "COMPLETION" ? 1 : current.max_score,
@@ -544,7 +576,7 @@ async function installApi(page: Page, state: MockState) {
         uses_session_cutline_default: usesSessionDefault,
         meta: current.meta ?? {},
         created_at: "2026-08-02T00:00:00Z",
-        updated_at: "2026-08-02T00:00:00Z",
+        updated_at: current.updated_at ?? "2026-08-02T00:00:00Z",
       });
     }
     if (path === "/homework/assignments/" && method === "GET") {
@@ -1454,7 +1486,7 @@ test("같은 차시에서도 과제마다 숫자 채점과 완료 체크를 선�
   await page.getByRole("button", { name: "+ 추가", exact: true }).click();
   await page.getByLabel("과제 2 제목").fill("교재 지참 확인");
   await page.getByRole("group", { name: "과제 2 채점 방식" })
-    .getByRole("button", { name: "완료 체크" })
+    .getByRole("button", { name: "통과형 (O/X)" })
     .click();
   await expect(page.getByText("점수나 만점 없이 두 상태로만 검사합니다.")).toBeVisible();
   await page.setViewportSize({ width: 390, height: 480 });
@@ -1769,4 +1801,112 @@ test("다른 강의로 SPA 이동하면 이전 강의의 분리 보기 상태를
   await expect(page.getByRole("button", { name: "전체 보기", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("tab", { name: /정규 수업/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /1차시/ })).toBeVisible();
+});
+
+for (const width of [1366, 390]) {
+  test(`@policy-recovery ${width}px 과제 최초 조회·재조회 실패는 초안을 지키고 최신 설정 저장으로 복구한다`, async ({ page }, testInfo) => {
+    const state: MockState = { supplementTitle: "보강", patchTitles: [], enforceHomeworkVersion: true, failHomeworkRead: true,
+      createdHomeworkPayloads: [{ title: "복구 과제", max_score: 20, cutline_mode: "COUNT", cutline_value: 15, round_unit_percent: 5 }], homeworkPatchPayloads: [] };
+    await page.setViewportSize({ width, height: 900 });
+    await openLecture(page, state);
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/assignments?homeworkId=9961`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("과제 정보를 불러오지 못했습니다.", { exact: true })).toBeVisible();
+    state.failHomeworkRead = false;
+    await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    const input = page.getByLabel("합격 기준 (점)", { exact: true });
+    await expect(input).toHaveValue("15");
+    await input.fill("17");
+    state.createdHomeworkPayloads![0] = { ...state.createdHomeworkPayloads![0], cutline_value: 16, updated_at: "2026-08-02T01:00:00Z" };
+    await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "다른 화면에서 설정이 변경되었습니다" })).toBeVisible();
+    state.failHomeworkRead = true;
+    await page.getByRole("button", { name: "최신 설정 불러오기", exact: true }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "최신 설정 불러오기", exact: true }).click();
+    await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toBeVisible();
+    await expect(input).toHaveValue("17");
+    await expect(page.getByRole("button", { name: "운영 설정 저장", exact: true })).toBeDisabled();
+        await expect.poll(async () => {
+      const box = await page.getByRole("button", { name: "다시 시도", exact: true }).boundingBox();
+      return Boolean(box && box.height >= 44 && box.y >= 0 && box.y + box.height <= page.viewportSize()!.height);
+    }).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`homework-policy-read-failure-${width}.png`), animations: "disabled" });
+    state.failHomeworkRead = false;
+    await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(input).toBeEnabled();
+    await expect(input).toHaveValue("17");
+    let releaseRead!: () => void;
+    state.homeworkReadGate = new Promise<void>(resolve => { releaseRead = resolve; });
+    const readsBefore = state.homeworkReadCount ?? 0;
+    await page.getByRole("button", { name: "최신 설정 불러오기", exact: true }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "최신 설정 불러오기", exact: true }).click();
+    try {
+      await expect(input).toBeDisabled();
+      await expect(input).toHaveValue("17");
+      await expect(page.getByRole("button", { name: "최신 설정 불러오기", exact: true })).toBeDisabled();
+      await expect.poll(() => state.homeworkReadCount).toBe(readsBefore + 1);
+    } finally { state.homeworkReadGate = undefined; releaseRead(); }
+    await expect(input).toHaveValue("16");
+    await input.fill("18");
+    await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+    await expect.poll(() => state.createdHomeworkPayloads![0].cutline_value).toBe(18);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(input).toHaveValue("18");
+    expect(state.homeworkPatchPayloads).toHaveLength(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  });
+}
+
+
+test("@policy-recovery 390px 열린 과제 템플릿은 조회 실패 중 저장을 막고 복구 후 연결한다", async ({ page }) => {
+  const state: MockState = { supplementTitle: "보강", patchTitles: [],
+    createdHomeworkPayloads: [{ title: "보존할 과제", max_score: 20, cutline_mode: "COUNT", cutline_value: 15 }] };
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openLecture(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/assignments?assessment=homework%3A9961`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "템플릿으로 저장", exact: true }).click();
+  const modal = page.getByRole("dialog", { name: "템플릿으로 저장" });
+  state.failHomeworkRead = true;
+  await page.clock.install();
+  await page.clock.setFixedTime(new Date(Date.now() + 20_000));
+  await page.context().setOffline(true);
+  await page.context().setOffline(false);
+  await expect(modal.getByRole("alert")).toContainText("현재 설정을 확인하지 못했습니다");
+  await expect(modal.getByRole("button", { name: "저장", exact: true })).toBeDisabled();
+  expect(state.homeworkTemplateSaves ?? 0).toBe(0);
+  state.failHomeworkRead = false;
+  await modal.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(modal.getByRole("button", { name: "저장", exact: true })).toBeEnabled();
+  await modal.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(modal).not.toBeVisible();
+  expect(state.homeworkTemplateSaves).toBe(1);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "템플릿으로 저장됨", exact: true })).toBeVisible();
+});
+
+
+test("@policy-recovery 열린 워크북 업로드는 과제 조회 실패 뒤 파일을 유지하고 복구 후 저장한다", async ({ page }) => {
+  const state: MockState = { supplementTitle: "보강", patchTitles: [], homeworkPdfUploads: 0,
+    createdHomeworkPayloads: [{ title: "원본 복구 과제", max_score: 20, cutline_mode: "COUNT", cutline_value: 15, source_exam_id: 9988, source_status: "none" }] };
+  await openLecture(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/assignments?assessment=homework%3A9961`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "워크북 자료 올리기", exact: true }).click();
+  const modal = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "닫기", exact: true }) });
+  await modal.locator('input[type="file"]').first().setInputFiles({ name: "보존할-워크북.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF") });
+  state.failHomeworkRead = true;
+  await page.clock.install();
+  await page.clock.setFixedTime(new Date(Date.now() + 20_000));
+  await page.context().setOffline(true);
+  await page.context().setOffline(false);
+  await expect(modal.getByRole("alert")).toContainText("선택한 파일은 유지됩니다");
+  const upload = modal.getByRole("button", { name: "원본 보존 및 번호 인식", exact: true });
+  await expect(upload).toBeDisabled();
+  expect(state.homeworkPdfUploads ?? 0).toBe(0);
+  await expect(modal.getByText("보존할-워크북.pdf", { exact: true })).toBeVisible();
+  state.failHomeworkRead = false;
+  await modal.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(upload).toBeEnabled();
+  await upload.click();
+  await expect(modal.getByText("워크북 원본 저장 완료", { exact: true })).toBeVisible();
+  expect(state.homeworkPdfUploads).toBe(1);
+  expect(state.homeworkSourceReads ?? 0).toBe(0);
 });

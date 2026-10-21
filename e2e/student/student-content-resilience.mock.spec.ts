@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
+import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
+import { assertReleaseRequestSafe } from "../helpers/releaseApiBoundary";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const IS_LOCAL_BASE = /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE);
@@ -132,6 +134,10 @@ async function installStudentApi(
     }
     if (options.failDataRequests) {
       await route.fulfill({ status: 503, json: { detail: "temporary student API failure" } });
+      return;
+    }
+    if (path.endsWith("/results/parent/assessment-comments/")) {
+      await route.fulfill({ json: { items: [] } });
       return;
     }
     if (path.endsWith("/student/me/")) {
@@ -602,6 +608,231 @@ function imageNotice() {
 test.describe("학생·학부모 콘텐츠 안정성", () => {
   test.skip(!IS_LOCAL_BASE, "Local route-mock contract spec.");
 
+  for (const width of [390, 1100, 1366]) {
+    for (const parentDashboard of [false, true]) {
+      test(`학습 현황은 조회 대기·집계 범위를 구분하고 상세 내역을 연다 ${width} ${parentDashboard ? "학부모" : "학생"}`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.clock.setFixedTime(new Date("2026-10-21T00:10:00+09:00"));
+        await installStudentApi(page, { parentDashboard });
+        const observedScreens = new Set<string>();
+        await page.route("**/api/v1/students/me/activity/", async (route) => {
+          const request = route.request();
+          if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
+          const payload = request.postDataJSON();
+          // Exercise the real screen emitter against the production contract; fulfill locally.
+          expect(assertReleaseRequestSafe({
+            mode: "readonly", apiOrigin: "https://api.hakwonplus.com",
+            webOrigin: "https://hakwonplus.com", tenantCode: "hakwonplus",
+          }, "https://api.hakwonplus.com/api/v1/students/me/activity/", request.method(),
+          request.headers()["x-tenant-code"], payload)).toBe("observation");
+          observedScreens.add(payload.screen_id);
+          await route.fulfill({ status: 204 });
+        });
+        let releaseGrades!: () => void;
+        const gradesReady = new Promise<void>((resolve) => { releaseGrades = resolve; });
+        const grades = emptyGrades(701);
+        // Old results remain part of the explicitly labelled whole-history rate.
+        grades.exams[0].submitted_at = "2025-01-01T09:00:00+09:00";
+        await page.route("**/api/v1/student/grades/", async (route) => {
+          await gradesReady;
+          await route.fulfill({ json: grades });
+        });
+        await page.route("**/api/v1/student/sessions/me/", (route) => route.fulfill({ json: [
+          { id: 21, title: "기간 밖 수업", date: "2026-09-23" },
+          { id: 22, title: "기간 첫날 수업", date: "2026-09-24" },
+          { id: 23, title: "오늘 클리닉", date: "2026-10-21", type: "clinic" },
+          { id: 24, title: "내일 수업", date: "2026-10-22" },
+        ] }));
+        await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+        const card = page.getByRole("region", { name: "학습 현황", exact: true });
+        const sessions = card.getByRole("link", { name: /수업·클리닉/ });
+        const exams = card.getByRole("link", { name: /시험 합격/ });
+        await expect(sessions).toContainText("2회");
+        await expect(exams).toContainText("확인 중");
+        await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+        releaseGrades();
+        await expect(exams).toContainText("100%");
+        await expect(exams).toContainText("전체 판정 결과");
+        await expect(card.getByRole("link", { name: /과제 통과/ })).toContainText("기록 없음");
+        await assertNoRenderedHtmlLeak(page);
+        const screenshotPath = testInfo.outputPath(`learning-status-${width}-${parentDashboard}.png`);
+        await card.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
+        await card.screenshot({ path: screenshotPath });
+        await testInfo.attach("learning-status", { path: screenshotPath, contentType: "image/png" });
+        await verifyStudentLearningSummary(page, BASE);
+        await page.reload();
+        await expect(exams).toContainText("100%");
+        await expect(sessions).toContainText("2회");
+        await assertNoRenderedHtmlLeak(page);
+        await expect.poll(() => [...observedScreens].sort()).toEqual(parentDashboard ? [] : [
+          "student.dashboard.home", "student.grades.home", "student.session.list",
+        ]);
+      });
+    }
+  }
+
+  for (const source of ["grades", "sessions"] as const) {
+    test(`학습 현황은 ${source} 실패를 0으로 숨기지 않고 재시도로 복구한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await installStudentApi(page, { parentDashboard: true });
+      let failed = true;
+      let dataReads = 0;
+      let meReads = 0;
+      page.on("request", (request) => {
+        if (new URL(request.url()).pathname.endsWith("/core/me/")) meReads += 1;
+      });
+      await page.route(source === "grades" ? "**/api/v1/student/grades/" : "**/api/v1/student/sessions/me/", (route) => {
+        dataReads += 1;
+        return route.fulfill(failed
+          ? { status: 400, json: { detail: "temporary read failure" } }
+          : { json: source === "grades" ? emptyGrades() : [] });
+      });
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      const card = page.getByRole("region", { name: "학습 현황", exact: true });
+      await expect(card.getByRole("alert")).toContainText(source === "grades" ? "성적을 불러오지 못했어요" : "일정을 불러오지 못했어요");
+      await expect(card.getByText("확인 필요", { exact: true }).first()).toBeVisible();
+      await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+      if (source === "grades") await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("0회");
+      const screenshotPath = testInfo.outputPath(`learning-status-${source}-error.png`);
+      await card.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
+      await card.screenshot({ path: screenshotPath });
+      await testInfo.attach("learning-status-error", { path: screenshotPath, contentType: "image/png" });
+      const beforeRetry = dataReads;
+      const beforeMe = meReads;
+      failed = false;
+      await card.getByRole("button", { name: "다시 시도", exact: true }).click();
+      await expect(card.getByRole("alert")).toHaveCount(0);
+      await expect(card.getByText("아직 학습 기록이 없어요")).toBeVisible();
+      // Notification counts independently read grades too; only document reload is forbidden.
+      expect(dataReads).toBeGreaterThan(beforeRetry);
+      expect(meReads).toBe(beforeMe);
+      await page.reload();
+      await expect(card.getByText("아직 학습 기록이 없어요")).toBeVisible();
+      await assertNoRenderedHtmlLeak(page);
+    });
+  }
+
+  test("학습 현황은 실제 0%·보강 완료·미응시·결과 대기를 성적 통계와 같은 기준으로 계산한다", async ({ page }) => {
+    await installStudentApi(page);
+    const grades = emptyGrades(701);
+    grades.exams[0].is_pass = false;
+    grades.exams[0].achievement = "FAIL";
+    await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+      ...grades,
+      exams: grades.exams,
+      homeworks: [{ homework_id: 801, enrollment_id: 301, title: "제출할 과제", passed: false, achievement: "FAIL" }],
+    } }));
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+    const card = page.getByRole("region", { name: "학습 현황", exact: true });
+    await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("0%");
+    await expect(card.getByRole("link", { name: /과제 통과/ })).toContainText("0%");
+    await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+    await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+      ...grades,
+      exams: [
+        ...grades.exams,
+        { ...grades.exams[0], exam_id: 702, is_pass: null, achievement: "REMEDIATED" },
+        { ...grades.exams[0], exam_id: 703, is_pass: false, achievement: "NOT_SUBMITTED", meta_status: "NOT_SUBMITTED" },
+      ],
+    } }));
+    await page.reload();
+    await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("50%");
+    await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+      ...grades, exams: [{ ...grades.exams[0], is_pass: null, achievement: null }],
+    } }));
+    await page.reload();
+    await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("결과 대기");
+  });
+
+  for (const date of ["2026-09-23", "2026-10-22"]) {
+    test(`학습 현황은 집계 기간 밖 일정 ${date}을 기록 없음으로 오인하지 않는다`, async ({ page }) => {
+      const parentDashboard = date === "2026-10-22";
+      await page.setViewportSize({ width: parentDashboard ? 390 : 1366, height: 900 });
+      await page.clock.setFixedTime(new Date("2026-10-21T00:10:00+09:00"));
+      await installStudentApi(page, { parentDashboard });
+      await page.route("**/api/v1/student/sessions/me/", (route) => route.fulfill({ json: [
+        { id: 21, title: "기간 밖 수업", date },
+      ] }));
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      const card = page.getByRole("region", { name: "학습 현황", exact: true });
+      await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("0회");
+      await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("기록 없음");
+      await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+      await page.reload();
+      await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("0회");
+      await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+      await assertNoRenderedHtmlLeak(page);
+    });
+  }
+
+  test("학습 현황의 오답 완료율은 판정 대기와 미응시를 제외한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installStudentApi(page, { parentDashboard: true, completedFollowupExam: "correction" });
+    const grades = emptyGrades(701);
+    await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+      ...grades,
+      exams: [
+        { ...grades.exams[0], correction_status: "COMPLETED" },
+        { ...grades.exams[0], exam_id: 702, correction_status: "NOT_REQUIRED" },
+        { ...grades.exams[0], exam_id: 703, correction_status: "PENDING" },
+        { ...grades.exams[0], exam_id: 704, correction_status: null },
+        { ...grades.exams[0], exam_id: 705, correction_status: "PENDING", achievement: "NOT_SUBMITTED", meta_status: "NOT_SUBMITTED" },
+      ],
+    } }));
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+    const card = page.getByRole("region", { name: "학습 현황", exact: true });
+    await expect(card.getByRole("link", { name: /오답 완료/ })).toContainText("67%");
+    await page.reload();
+    await expect(card.getByRole("link", { name: /오답 완료/ })).toContainText("67%");
+    await assertNoRenderedHtmlLeak(page);
+  });
+
+  test("학습 현황은 오프라인 자녀 전환 중 이전 값이나 0을 표시하지 않고 연결 후 복구한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.clock.setFixedTime(new Date("2026-10-21T09:00:00+09:00"));
+    await installStudentApi(page, { parentDashboard: true });
+    await page.route("**/api/v1/core/me/", (route) => route.fulfill({ json: {
+      id: 11, username: "parent-11", name: "보호자", is_staff: false, is_superuser: false,
+      tenantRole: "parent", linkedStudents: [{ id: 11, name: "학생 11" }, { id: 12, name: "학생 12" }],
+    } }));
+    const selectedReads: string[] = [];
+    await page.route("**/api/v1/student/sessions/me/", (route) => route.fulfill({ json:
+      route.request().headers()["x-student-id"] === "11"
+        ? [{ id: 21, title: "첫째만의 수업", date: "2026-10-21" }] : [],
+    }));
+    await page.route("**/api/v1/student/grades/", (route) => {
+      const selectedId = route.request().headers()["x-student-id"];
+      selectedReads.push(selectedId);
+      const grades = emptyGrades(701);
+      const passed = selectedId === "11";
+      return route.fulfill({ json: {
+        ...grades, exams: [{ ...grades.exams[0], is_pass: passed, achievement: passed ? "PASS" : "FAIL" }],
+      } });
+    });
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+    await page.getByRole("tab", { name: "학생 11", exact: true }).click();
+    const card = page.getByRole("region", { name: "학습 현황", exact: true });
+    await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("100%");
+    await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("1회");
+    // Pause queries through the browser connectivity event while keeping Vite assets available.
+    await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+    await page.getByRole("tab", { name: "학생 12", exact: true }).click();
+    await expect(page.getByRole("tab", { name: "학생 12", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("status").filter({ hasText: "연결을 기다리고 있어요" })).toBeVisible();
+    await expect(card).toHaveCount(0);
+    await expect(page.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+    selectedReads.length = 0;
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("0%");
+    await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("0회");
+    expect(selectedReads.length).toBeGreaterThan(0);
+    expect(selectedReads.every((id) => id === "12")).toBe(true);
+    await page.reload();
+    await expect(page.getByRole("tab", { name: "학생 12", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("0%");
+    await assertNoRenderedHtmlLeak(page);
+  });
+
   for (const width of [390, 1366]) {
     for (const area of ["detail", "payments"] as const) {
       test(`수납 ${area} 조회 실패를 구분하고 다시 시도해 복구한다 ${width}`, async ({ page }, testInfo) => {
@@ -732,7 +963,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await expect(summary.getByText("정리됨", { exact: true })).toHaveCount(0);
       await expect(summary.getByText("안정", { exact: true })).toHaveCount(0);
       failed = false;
-      await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+      await page.getByRole("alert").filter({ hasText: "일부 정보를 확인하지 못했어요" }).getByRole("button", { name: "다시 시도", exact: true }).click();
       await expect(summary.getByText("정리됨", { exact: true })).toBeVisible();
       await assertNoRenderedHtmlLeak(page);
     });

@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   fetchSessionScores,
+  saveScoreTotalConfig,
   type SessionScoreRow,
   type SessionScoreMeta,
   type SessionScoresExamReviewFilter,
@@ -20,10 +21,9 @@ import ScoresTable, {
   type ScoresTableHandle,
 } from "../components/ScoresTable";
 import StudentResultDrawer from "@admin/domains/results/components/StudentResultDrawer";
-import { EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm";
-import { reorderSession } from "../api/reorderSession";
 import type { ExamHeaderAction } from "../components/ExamHeaderActionMenu";
 import {
   matchesSessionRowExamReviewFilter,
@@ -32,6 +32,7 @@ import {
 import type { ScoreActiveCell, ScoreActiveEditor } from "../api/scoreDraft";
 
 const StudentScoresDrawer = lazy(() => import("../components/StudentScoresDrawer"));
+const AssessmentTotalsModal = lazy(() => import("../components/AssessmentTotalsModal"));
 
 type Props = {
   sessionId: number;
@@ -132,6 +133,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     if (handle != null) tableRef.current = handle;
   }, []);
   const qc = useQueryClient();
+  const [totalsEditor, setTotalsEditor] = useState<{ sessionId: number; meta: SessionScoreMeta } | null>(null);
   /** 읽기 모드 — 학생 상세 드로어 (이름 클릭) */
   const [drawerEnrollmentId, setDrawerEnrollmentId] = useState<number | null>(null);
   /** 답안 상세 드로어 (StudentScoresDrawer → 답안 상세 보기) */
@@ -150,6 +152,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return data?.rows ?? [];
   }, [data]);
   const meta: SessionScoreMeta | null = data?.meta ?? null;
+  const openTotals = () => { if (meta) setTotalsEditor({ sessionId, meta }); };
   const attendancePageSize = allRows.length > 50 ? Math.min(allRows.length, 500) : undefined;
   const { data: attendanceList } = useQuery({
     queryKey: [...scoresQueryKeys.attendance(sessionId), attendancePageSize ?? "default"] as const,
@@ -164,21 +167,40 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
    *  기존 ◀▶ 버튼 + direction("up"|"down") 시그니처 → fromId→toId 스왑 시그니처. */
   const handleReorderSwap = useCallback(async (type: "exam" | "homework", fromId: number, toId: number) => {
     if (!meta || fromId === toId) return;
-    const list = type === "exam"
-      ? meta.exams.map((e) => e.exam_id)
-      : meta.homeworks.map((h) => h.homework_id);
-    const fromIdx = list.indexOf(fromId);
-    const toIdx = list.indexOf(toId);
+    const config = meta.total_config ?? {
+      version: 0, exam_ids: meta.exams.map(e => e.exam_id),
+      homework_ids: meta.homeworks.filter(h => h.grading_mode !== "COMPLETION").map(h => h.homework_id),
+    };
+    const ids = type === "exam" ? meta.exams.map(e => e.exam_id) : meta.homeworks.map(h => h.homework_id);
+    const completionIds = new Set(meta.homeworks.filter(h => h.grading_mode === "COMPLETION").map(h => h.homework_id));
+    const selected = new Set(type === "exam" ? config.exam_ids : config.homework_ids.filter(id => !completionIds.has(id)));
+    // Match the rendered columns, including the total boundary between groups.
+    const displayed = [...ids.filter(id => selected.has(id)), 0, ...ids.filter(id => !selected.has(id))];
+    const fromIdx = displayed.indexOf(fromId);
+    const toIdx = displayed.indexOf(toId);
     if (fromIdx < 0 || toIdx < 0) return;
-    // from 을 빼고 to 위치에 다시 삽입 (drag-drop 자연 순서)
-    const newList = [...list];
-    const [moved] = newList.splice(fromIdx, 1);
-    newList.splice(toIdx, 0, moved);
+    const movedOrder = [...displayed];
+    const [moved] = movedOrder.splice(fromIdx, 1);
+    movedOrder.splice(toIdx, 0, moved);
+    const included = movedOrder.slice(0, movedOrder.indexOf(0))
+      .filter(id => type === "exam" || !completionIds.has(id));
+    const includedSet = new Set(included);
+    // Completion-only homework always remains behind the total, even when dragged across it.
+    const order = [...included, ...movedOrder.filter(id => id !== 0 && !includedSet.has(id))];
     try {
-      await reorderSession(sessionId, type === "exam" ? { exams: newList } : { homeworks: newList });
+      await saveScoreTotalConfig(sessionId, {
+        ...config,
+        exam_ids: type === "exam" ? included : config.exam_ids,
+        homework_ids: type === "homework" ? included : config.homework_ids,
+        exam_order: type === "exam" ? order : meta.exams.map(e => e.exam_id),
+        homework_order: type === "homework" ? order : meta.homeworks.map(h => h.homework_id),
+      });
       void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-    } catch {
-      feedback.error("순서 변경 실패");
+    } catch (cause) {
+      if ((cause as { response?: { status?: number } }).response?.status === 409) {
+        await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+        feedback.error("다른 선생님이 합산 설정을 변경했습니다. 최신 순서를 확인한 뒤 다시 이동해 주세요.");
+      } else feedback.error("순서 변경 실패");
     }
   }, [meta, sessionId, qc]);
 
@@ -456,12 +478,9 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     onActiveCellChange?.(selectedCell);
   }, [isEditMode, onActiveCellChange, selectedCell]);
 
-  if (isLoading) {
-    return <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />;
-  }
-
-  if (isError || !data) {
-    return (
+  const emptyState = isLoading
+    ? <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />
+    : isError || !data ? (
       <EmptyState
         scope="panel"
         tone="error"
@@ -477,11 +496,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           </button>
         }
       />
-    );
-  }
-
-  if (rows.length === 0) {
-    return (
+    ) : rows.length === 0 ? (
       <EmptyState
         scope="panel"
         tone="empty"
@@ -490,12 +505,19 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           ? "이름 검색어나 테스트 오답 필터를 바꿔보세요."
           : "이 세션에 수강생을 먼저 등록해주세요. 등록 후 자동으로 성적 입력표가 만들어집니다."}
       />
-    );
-  }
+    ) : null;
 
   return (
     <div className="flex flex-col gap-4">
       {secessionDialog}
+      {totalsEditor?.sessionId === sessionId && (
+        <Suspense fallback={<div role="status">합산 설정을 불러오는 중...</div>}>
+          <AssessmentTotalsModal key={totalsEditor.sessionId} sessionId={totalsEditor.sessionId} meta={totalsEditor.meta}
+            onClose={() => setTotalsEditor(current => current === totalsEditor ? null : current)} />
+        </Suspense>
+      )}
+      {emptyState ?? <>
+      <div className="flex justify-end"><Button intent="secondary" size="sm" onClick={openTotals}>합산 설정</Button></div>
       <div
         tabIndex={0}
         className="min-w-0 overflow-x-auto outline-none"
@@ -561,6 +583,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
           onReorderColumnSwap={handleReorderSwap}
+          onOpenTotals={openTotals}
           onOpenExamGrading={onOpenExamGrading}
           deleteAssessmentLocked={assessmentDeleteLocked}
         />
@@ -596,6 +619,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
         />
       )}
 
+      </>}
     </div>
   );
 });

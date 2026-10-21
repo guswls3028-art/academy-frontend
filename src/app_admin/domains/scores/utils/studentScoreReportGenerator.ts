@@ -1,4 +1,5 @@
 import type {
+  AssessmentTotal,
   ScoreBlock,
   SessionScoreMeta,
   SessionScoreRow,
@@ -355,6 +356,7 @@ const REPORT_STYLE = `
   }
   .session-fact:last-child { border-bottom: 0; }
   .session-fact strong { color: #172033; font-size: 9px; }
+  .session-fact small { display: block; font-size: 7px; font-weight: 500; text-align: right; }
   .trend-panel {
     min-height: 67mm;
     padding: 4mm 4mm 2mm;
@@ -570,6 +572,9 @@ const REPORT_STYLE = `
     }
     .session-fact:nth-child(even) { border-right: 1px solid #e2e8f0; }
     .session-fact strong { font-size: 11px; }
+    .session-fact--total { grid-column: 1 / -1; min-height: 44px; gap: 12px; }
+    .session-fact--total:nth-child(even) { border-right: 0; }
+    .session-fact small { font-size: 10px; line-height: 1.5; }
     .trend-panel { min-height: 0; padding: 14px 10px 8px; border-radius: 9px; }
     .trend-chart { height: auto; }
     .trend-note { margin-top: 4px; font-size: 9px; }
@@ -661,13 +666,26 @@ function scorePercent(score: number | null | undefined, maxScore: number | null 
   return Math.round((score / maxScore) * 1000) / 10;
 }
 
-function resultLabel(block: ScoreBlock | null | undefined): { text: string; className: string } {
+function isReportExamPending(block: ScoreBlock | null | undefined): boolean {
+  return isSubjectivePendingScoreBlock(block) || block?.is_provisional === true;
+}
+
+function resultLabel(block: ScoreBlock | null | undefined, kind: "exam" | "homework" = "exam"): { text: string; className: string } {
+  if (kind === "homework") {
+    if (!block) return { text: "미배정", className: "status--missing" };
+    if (block.score == null) {
+      return { text: block.meta?.status === "NOT_SUBMITTED" ? "미제출" : "미입력", className: "status--missing" };
+    }
+  }
   if (!block) return { text: "미응시", className: "status--missing" };
   if (isSubjectivePendingScoreBlock(block)) {
     return { text: "서술형 입력 필요", className: "status--warn" };
   }
   if (getScoreBlockOmrReviewStatus(block) === "review") {
     return { text: "검토중", className: "status--warn" };
+  }
+  if (kind === "exam" && block.is_provisional) {
+    return { text: "채점 확인 중", className: "status--warn" };
   }
   if (block.score == null) return { text: "미응시", className: "status--missing" };
   const finalPass = deriveFinalPass({
@@ -681,6 +699,16 @@ function resultLabel(block: ScoreBlock | null | undefined): { text: string; clas
   if (finalPass === true) return { text: "통과", className: "status--pass" };
   if (finalPass === false) return { text: "보완필요", className: "status--warn" };
   return { text: "입력됨", className: "" };
+}
+
+function buildTotalFact(label: string, total: AssessmentTotal | undefined): string {
+  if (!total) return "";
+  const value = total.selected_count === 0
+    ? "합산 없음"
+    : `${formatNumber(total.score, total.score != null && !Number.isInteger(total.score) ? 2 : 0)} / ${formatNumber(total.max_score, Number.isInteger(total.max_score) ? 0 : 2)}`;
+  const pending = total.selected_count > 0 && !total.complete
+    ? `<small>집계 중 · ${total.scored_count}/${total.selected_count}개 입력</small>` : "";
+  return `<div class="session-fact session-fact--total"><span>${label}</span><strong>${value}${pending}</strong></div>`;
 }
 
 function scopeGrades(grades: StudentGradesResponse | null | undefined, lectureId: number | null | undefined) {
@@ -740,15 +768,15 @@ function buildTrendSvg(points: StudentExamTrendPoint[], theme: StudentScoreRepor
 function buildCurrentAssessments(row: SessionScoreRow, meta: SessionScoreMeta) {
   const examRows = (meta.exams ?? []).map((exam) => {
     const entry = row.exams.find((item) => item.exam_id === exam.exam_id);
-    const subjectivePending = isSubjectivePendingScoreBlock(entry?.block);
-    const score = subjectivePending ? null : entry?.block.score;
+    const scorePending = isReportExamPending(entry?.block);
+    const score = scorePending ? null : entry?.block.score;
     const maxScore = exam.max_score ?? entry?.block.max_score;
     const result = resultLabel(entry?.block);
     const scoreParts = [
       "시험",
       `통과 ${formatNumber(exam.pass_score)}점`,
-      !subjectivePending && entry?.block.objective_score != null ? `객관 ${formatNumber(entry.block.objective_score)}점` : null,
-      !subjectivePending && entry?.block.subjective_score != null ? `주관 ${formatNumber(entry.block.subjective_score)}점` : null,
+      !scorePending && entry?.block.objective_score != null ? `객관 ${formatNumber(entry.block.objective_score)}점` : null,
+      !scorePending && entry?.block.subjective_score != null ? `주관 ${formatNumber(entry.block.subjective_score)}점` : null,
     ].filter(Boolean).join(" · ");
     return `
       <div class="assessment-row">
@@ -761,12 +789,18 @@ function buildCurrentAssessments(row: SessionScoreRow, meta: SessionScoreMeta) {
   const homeworkRows = (meta.homeworks ?? []).map((homework) => {
     const entry = row.homeworks.find((item) => item.homework_id === homework.homework_id);
     const score = entry?.block.score;
-    const maxScore = entry?.block.max_score ?? homework.max_score;
-    const result = resultLabel(entry?.block);
+    const maxScore = homework.max_score ?? entry?.block.max_score;
+    const result = resultLabel(entry?.block, "homework");
+    const completion = homework.grading_mode === "COMPLETION";
+    const completionText = score == null ? result.text
+      : entry?.block.passed === true ? "통과 (O)"
+        : entry?.block.passed === false ? "미통과 (X)" : "판정 대기";
+    const scoreMarkup = completion ? completionText
+      : `${formatNumber(score, score != null && !Number.isInteger(score) ? 1 : 0)} <small>/ ${formatNumber(maxScore)}</small>`;
     return `
       <div class="assessment-row">
-        <div class="assessment-title"><strong>${escapeHtml(homework.title)}</strong><span>과제${homework.unit ? ` · ${escapeHtml(homework.unit)}` : ""}</span></div>
-        <div class="assessment-score">${formatNumber(score, score != null && !Number.isInteger(score) ? 1 : 0)} <small>/ ${formatNumber(maxScore)}</small></div>
+        <div class="assessment-title"><strong>${escapeHtml(homework.title)}</strong><span>${completion ? "합불형 과제" : "점수형 과제"}${homework.unit ? ` · ${escapeHtml(homework.unit)}` : ""}</span></div>
+        <div class="assessment-score">${scoreMarkup}</div>
         <span class="status ${result.className}">${result.text}</span>
       </div>
     `;
@@ -825,7 +859,7 @@ function buildItemAnalysis(
   meta: SessionScoreMeta,
 ): { examTitle: string; rows: string; hasItems: boolean; itemCount: number } {
   const exam = row.exams.find((entry) => (
-    !isSubjectivePendingScoreBlock(entry.block) && (entry.items?.length ?? 0) > 0
+    !isReportExamPending(entry.block) && (entry.items?.length ?? 0) > 0
   ));
   const items = exam?.items ?? [];
   if (!exam || items.length === 0) {
@@ -888,7 +922,7 @@ function buildCoachingPoints(
 ): string[] {
   const points: string[] = [];
   const missingCount = [
-    ...row.exams.map((entry) => (
+    ...row.exams.filter((entry) => !entry.block.is_provisional || isSubjectivePendingScoreBlock(entry.block)).map((entry) => (
       isSubjectivePendingScoreBlock(entry.block) ? null : entry.block.score
     )),
     ...row.homeworks.map((entry) => entry.block.score),
@@ -907,6 +941,10 @@ function buildCoachingPoints(
   }
 
   if (missingCount > 0) points.push(`현재 차시에 미응시·미입력 평가가 ${missingCount}건 있습니다.`);
+  const provisionalCount = row.exams.filter((entry) => (
+    entry.block.is_provisional && !isSubjectivePendingScoreBlock(entry.block)
+  )).length;
+  if (provisionalCount > 0) points.push(`채점 확인 중인 시험이 ${provisionalCount}건 있습니다. 확정 후 점수와 문항별 득점을 확인해 주세요.`);
   if (row.clinic_required) points.push("현재 차시 기준 클리닉 보완 대상으로 표시되어 있습니다.");
   if (retakeCount > 0) points.push(`현재 차시에서 재응시 ${retakeCount}회가 기록되어 있습니다.`);
   if (missingCount === 0 && !row.clinic_required && retakeCount === 0) {
@@ -985,7 +1023,7 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
     (meta.exams ?? []).map((exam) => [exam.exam_id, exam.max_score]),
   );
   const currentExamScores = row.exams
-    .filter((entry) => !isSubjectivePendingScoreBlock(entry.block))
+    .filter((entry) => !isReportExamPending(entry.block))
     .map((entry) => scorePercent(
       entry.block.score,
       currentExamMaxScores.get(entry.exam_id) ?? entry.block.max_score,
@@ -994,8 +1032,10 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
   const currentExamAverage = currentExamScores.length > 0
     ? currentExamScores.reduce((sum, value) => sum + value, 0) / currentExamScores.length
     : null;
+  const currentHomeworkMeta = new Map(meta.homeworks.map((homework) => [homework.homework_id, homework]));
   const currentHomeworkScores = row.homeworks
-    .map((entry) => scorePercent(entry.block.score, entry.block.max_score))
+    .filter((entry) => currentHomeworkMeta.get(entry.homework_id)?.grading_mode !== "COMPLETION")
+    .map((entry) => scorePercent(entry.block.score, currentHomeworkMeta.get(entry.homework_id)?.max_score ?? entry.block.max_score))
     .filter((value): value is number => value != null);
   const currentHomeworkAverage = currentHomeworkScores.length > 0
     ? currentHomeworkScores.reduce((sum, value) => sum + value, 0) / currentHomeworkScores.length
@@ -1040,6 +1080,8 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
           </div>
           <aside class="session-summary">
             <div class="session-summary-title">현재 차시 요약</div>
+            ${buildTotalFact("시험 총점", row.exam_total)}
+            ${buildTotalFact("과제 총점", row.homework_total)}
             <div class="session-fact"><span>시험 평균</span><strong>${formatPercent(currentExamAverage)}</strong></div>
             <div class="session-fact"><span>과제 평균</span><strong>${formatPercent(currentHomeworkAverage)}</strong></div>
             <div class="session-fact"><span>출결</span><strong>${ATTENDANCE_LABEL[params.attendanceStatus ?? ""] ?? "-"}</strong></div>

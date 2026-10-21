@@ -216,6 +216,32 @@ test("교사가 명시한 미응시·미제출 상태만 해당 문구로 표시
   expect(vars["과제1"]).toBe("미제출");
   expect(collectUnenteredScoreItems(row)).toEqual([]);
 });
+for (const score of [0, 90]) {
+  test(`미확정 시험 ${score}점은 성적 알림톡의 점수·평균·합격으로 확정하지 않는다`, () => {
+    const row = scoreRow(null);
+    row.homeworks = [];
+    row.exams[0].block = {
+      ...row.exams[0].block, score, passed: score >= 70, is_provisional: true,
+    };
+    row.exam_total = { score: null, max_score: 100, selected_count: 1, scored_count: 0, complete: false };
+    const vars = buildScoreVars(row, scoreMeta);
+    const detail = buildScoreDetail(row, scoreMeta);
+    expect(collectUnenteredScoreItems(row)).toEqual(["시험: 단원평가"]);
+    expect(vars["시험1"]).toBe("채점 확인 중");
+    expect(vars["시험목록"]).toContain("채점 확인 중");
+    expect(vars["시험성적"]).toContain("채점 확인 중");
+    expect(detail).toContain("채점 확인 중");
+    expect(detail).not.toContain(`${score}/100`);
+    expect(vars["전체요약"]).not.toContain("평균");
+    expect(vars["전체요약"]).not.toContain("최종: 합격");
+    expect(vars["전체요약"]).toContain("점수 확인 필요");
+    expect(vars["시험총점"]).toBe("집계 중 (0/1)");
+    row.exams[0].block.is_provisional = false;
+    expect(collectUnenteredScoreItems(row)).toEqual([]);
+    expect(buildScoreVars(row, scoreMeta)["시험1"]).toBe(String(score));
+  });
+}
+
 test("서술형 미완료 OMR의 객관식 점수는 발송·출력·순위·클리닉에 노출하지 않는다", () => {
   const row = scoreRow(null);
   row.exams[0].block = {
@@ -232,6 +258,8 @@ test("서술형 미완료 OMR의 객관식 점수는 발송·출력·순위·클
     score: 10,
     passed: true,
   };
+  row.exam_total = { score: null, max_score: 100, selected_count: 1, scored_count: 0, complete: false };
+  row.homework_total = { score: 10, max_score: 10, selected_count: 1, scored_count: 1, complete: true };
 
   const vars = buildScoreVars(row, scoreMeta);
   const detail = buildScoreDetail(row, scoreMeta);
@@ -251,7 +279,7 @@ test("서술형 미완료 OMR의 객관식 점수는 발송·출력·순위·클
 
   expect(collectUnenteredScoreItems(row)).toEqual(["시험: 단원평가"]);
   expect(vars["시험1"]).toBe("서술형 입력 필요");
-  expect(vars["시험총점"]).toBe("0");
+  expect(vars["시험총점"]).toBe("집계 중 (0/1)");
   expect(detail).toContain("서술형 입력 필요");
   expect(detail).not.toContain("80/100");
   expect(scorePdf).toContain("입력중");
@@ -307,4 +335,89 @@ test("서술형 미완료 시험이 있어도 다른 확정 시험의 클리닉 
     passedCount: 0,
     totalPresent: 1,
   });
+});
+
+
+test("@assessment-feedback 학생별 본문은 발송일과 실제 차시 블록을 서버까지 보존한다", () => {
+  const body = "발송 #{날짜} #{시간} / 수업 #{현재차시날짜} / #{다음차시명} #{12차시후날짜}";
+  const substituted = substituteScoreVars(body, scoreRow(null), scoreMeta, { date: "2001-01-01" });
+  expect(substituted).toBe(body);
+  const compact = compactGradesPerStudentPayloadVars(body, { 101: { _body_subst: substituted, 날짜: "2001-01-01" } });
+  expect(compact?.[101]).toEqual({ _body_subst: body });
+});
+
+
+test("@assessment-feedback 합산 총점 변수는 서버 선택·진짜 0점·미입력을 구분한다", () => {
+  const row = scoreRow(null);
+  row.exams[0].block.score = 0;
+  row.homeworks[0].block.score = 0;
+  row.exam_total = { score: 0, max_score: 100, selected_count: 1, scored_count: 1, complete: true };
+  row.homework_total = { score: 0, max_score: 10, selected_count: 1, scored_count: 1, complete: true };
+  let vars = buildScoreVars(row, scoreMeta);
+  expect(vars["시험총점"]).toBe("0");
+  expect(vars["시험총만점"]).toBe("100");
+  expect(vars["과제총점"]).toBe("0");
+  expect(vars["과제총만점"]).toBe("10");
+  row.exam_total = { score: null, max_score: 100, selected_count: 1, scored_count: 0, complete: false };
+  row.homework_total = { score: null, max_score: 10, selected_count: 1, scored_count: 0, complete: false };
+  vars = buildScoreVars(row, scoreMeta);
+  expect(vars["시험총점"]).toBe("집계 중 (0/1)");
+  expect(vars["과제총점"]).toBe("집계 중 (0/1)");
+  row.exam_total = { score: null, max_score: 0, selected_count: 0, scored_count: 0, complete: false };
+  row.homework_total = undefined;
+  vars = buildScoreVars(row, scoreMeta);
+  expect(vars["시험총점"]).toBe("합산 대상 없음");
+  expect(vars["시험총만점"]).toBe("-");
+  expect(vars["과제총점"]).toBe("집계 정보 없음");
+});
+
+test("@assessment-feedback 선택 시험만 PDF 분모·평균에 포함하고 0점은 참여자로 유지한다", () => {
+  const meta: SessionScoreMeta = { ...scoreMeta,
+    total_config: { version: 1, exam_ids: [11], homework_ids: [21] },
+    exams: [...scoreMeta.exams, { exam_id: 12, title: "합산 제외 평가", pass_score: 100, max_score: 500, display_order: 2 }],
+  };
+  const row = scoreRow(null);
+  row.exams[0].block.score = 80;
+  row.exams.push({ exam_id: 12, title: "합산 제외 평가", pass_score: 100, block: { score: 499, max_score: 500, passed: true, clinic_required: false, meta: {} } });
+  row.exam_total = { score: 80, max_score: 100, selected_count: 1, scored_count: 1, complete: true };
+  row.homework_total = { score: 7, max_score: 10, selected_count: 1, scored_count: 1, complete: true };
+  const vars = buildScoreVars(row, meta);
+  expect(vars["시험총점"]).toBe("80"); expect(vars["시험총만점"]).toBe("100");
+  expect(vars["과제총점"]).toBe("7"); expect(vars["과제총만점"]).toBe("10");
+  const zero = { ...row, enrollment_id: 2, student_id: 102,
+    exam_total: { score: 0, max_score: 100, selected_count: 1, scored_count: 1, complete: true } };
+  const pending = { ...row, enrollment_id: 3, student_id: 103,
+    exam_total: { score: null, max_score: 100, selected_count: 1, scored_count: 0, complete: false } };
+  const pdf = buildAnonymousBillboardDocument({ rows: [row, zero, pending], meta, sessionTitle: "1차시", lectureTitle: "수학" });
+  expect(pdf.examTitles).toEqual(["단원평가"]);
+  expect(pdf.totalMaxScore).toBe(100);
+  expect(pdf.participantCount).toBe(2);
+  expect(pdf.averageScore).toBe(40);
+  expect(pdf.rows.map(item => item.score)).toEqual([80, 0]);
+  expect(pdf.rows.every(item => item.maxScore === 100)).toBe(true);
+});
+
+test("@assessment-feedback 소수 만점 합계의 부동소수 오차로 익명 순위표 참여자를 누락하지 않는다", () => {
+  const meta: SessionScoreMeta = {
+    ...scoreMeta,
+    total_config: { version: 1, exam_ids: [11, 12], homework_ids: [] },
+    exams: [
+      { exam_id: 11, title: "소수 배점 A", pass_score: 1, max_score: 1.1, display_order: 1 },
+      { exam_id: 12, title: "소수 배점 B", pass_score: 1, max_score: 2.2, display_order: 2 },
+    ],
+  };
+  const row = scoreRow(null);
+  row.exam_total = { score: 3.1, max_score: 3.3, selected_count: 2, scored_count: 2, complete: true };
+  const zero = { ...row, enrollment_id: 2, exam_total: { ...row.exam_total, score: 0 } };
+  const differentMaximum = { ...row, enrollment_id: 3, exam_total: { ...row.exam_total, max_score: 3.31 } };
+  const unassigned = { ...row, enrollment_id: 4, exam_total: { ...row.exam_total, selected_count: 1, scored_count: 1, max_score: 1.1 } };
+  const pending = { ...row, enrollment_id: 5, exam_total: { ...row.exam_total, complete: false, scored_count: 1 } };
+  const pdf = buildAnonymousBillboardDocument({
+    rows: [row, zero, differentMaximum, unassigned, pending], meta,
+    sessionTitle: "1차시", lectureTitle: "소수 배점",
+  });
+  expect(pdf.participantCount).toBe(2);
+  expect(pdf.rows.map(item => item.score)).toEqual([3.1, 0]);
+  expect(pdf.totalMaxScore).toBeCloseTo(3.3, 12);
+  expect(pdf.averageScore).toBeCloseTo(1.55, 12);
 });

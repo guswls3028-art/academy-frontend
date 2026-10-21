@@ -432,9 +432,10 @@ export async function deleteMessageTemplate(id: number): Promise<void> {
   await api.delete(`${PREFIX}/templates/${id}/`);
 }
 
-/** 기본 양식 지정/해제 토글 */
-export async function setTemplateDefault(id: number): Promise<MessageTemplateItem> {
-  const res = await api.post<MessageTemplateItem>(`${PREFIX}/templates/${id}/set-default/`);
+/** 명시 상태는 재시도해도 유지한다. 생략한 기존 호출은 toggle 호환. */
+export async function setTemplateDefault(id: number, desired?: boolean): Promise<MessageTemplateItem> {
+  const res = await api.post<MessageTemplateItem>(`${PREFIX}/templates/${id}/set-default/`,
+    desired === undefined ? undefined : { is_user_default: desired });
   return res.data;
 }
 
@@ -457,6 +458,7 @@ export type SendToType = "student" | "parent";
 export type MessageMode = "alimtalk";
 
 export interface SendMessagePayload {
+  session_id?: number;
   /** One immutable draft across parent/student scopes and explicit retries. */
   client_request_id?: string;
   student_ids?: number[];

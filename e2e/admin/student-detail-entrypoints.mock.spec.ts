@@ -48,6 +48,9 @@ for (const width of [1366, 390]) {
     await dialog.locator('input[type="file"]').setInputFiles({ ...file, name: "broken.xlsx", buffer: Buffer.from("not-an-xlsx") });
     await expect(dialog.getByRole("button", { name: "3명 등록 요청", exact: true })).toHaveCount(0);
     await expect(dialog.getByRole("region", { name: "엑셀 파일 확인 결과" })).toHaveCount(0);
+    await expect(page.getByText("엑셀 파일의 내부 구조를 읽을 수 없습니다. 올바른 .xlsx 파일인지 확인해 주세요.", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("status").filter({ hasText: "엑셀 파일을 읽고 있습니다…" })).toHaveCount(0);
+    await expect(dialog.locator('input[type="file"]')).toBeEnabled();
     await dialog.locator('input[type="file"]').setInputFiles(file);
     await expect(dialog.getByRole("button", { name: "3명 등록 요청", exact: true })).toBeEnabled();
   });

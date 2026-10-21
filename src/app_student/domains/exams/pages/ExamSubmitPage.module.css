@@ -118,7 +118,20 @@
 
 .answerInput {
   flex: 1;
+  min-width: 0;
   min-height: 40px;
+}
+
+.answerRow[data-essay="true"] {
+  flex-wrap: wrap;
+}
+
+.essayInput {
+  flex: 1 1 100%;
+  min-width: 0;
+  min-height: 112px;
+  resize: vertical;
+  line-height: 1.6;
 }
 
 .submitButton {

@@ -14,6 +14,9 @@ import styles from "./ExamPdfUploadModal.module.css";
 
 type Props = {
   open: boolean;
+  readError?: boolean;
+  readPending?: boolean;
+  onRetryRead?: () => void;
   onClose: () => void;
   examId: number;
   sourceKind?: "exam" | "workbook";
@@ -28,7 +31,7 @@ const STATUS_LABELS: Record<PdfExtractStatus, string> = {
   failed: "처리 실패",
 };
 
-export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind = "exam" }: Props) {
+export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind = "exam", readError = false, readPending = false, onRetryRead }: Props) {
   const { status, error, progress, result, upload, reset } = usePdfQuestionExtract(examId);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [answerFile, setAnswerFile] = useState<File | null>(null);
@@ -51,7 +54,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
   };
 
   const handleUpload = () => {
-    if (!selectedFile) return;
+    if (!selectedFile || readError || readPending) return;
     upload(selectedFile, answerFile, explanationFile);
   };
 
@@ -81,6 +84,10 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
       />
 
       <ModalBody>
+        {readError && <div role="alert" className="mb-4 text-sm">
+          현재 설정을 확인하지 못했습니다. 선택한 파일은 유지됩니다. 다시 확인한 뒤 업로드해 주세요.
+          <Button intent="secondary" size="lg" className="h-11" disabled={readPending} onClick={onRetryRead}>다시 시도</Button>
+        </div>}
         <div className={`modal-scroll-body modal-scroll-body--compact ${styles.body}`}>
           <div className={styles.sourceModes} aria-label="지원하는 자료 구성">
             <div>
@@ -267,7 +274,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
                   닫기
                 </Button>
                 {selectedFile && status === "idle" && (
-                  <Button intent="primary" onClick={handleUpload}>
+                  <Button intent="primary" disabled={readError || readPending} onClick={handleUpload}>
                     원본 보존 및 번호 인식
                   </Button>
                 )}
@@ -277,7 +284,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
                   </Button>
                 )}
                 {isFailed && selectedFile && (
-                  <Button intent="primary" onClick={handleUpload}>
+                  <Button intent="primary" disabled={readError || readPending} onClick={handleUpload}>
                     재시도
                   </Button>
                 )}

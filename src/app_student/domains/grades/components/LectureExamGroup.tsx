@@ -2,6 +2,7 @@
  * 강좌별 시험 성적 그룹 — GradesPage에서 추출
  */
 import { Link } from "react-router";
+import { ParentAssessmentComment } from "./ParentAssessmentComments";
 import { IconExam, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import { Badge } from "@/shared/ui/ds";
 import { useWrongCompletionDisplay, wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
@@ -26,6 +27,7 @@ function fmtScore(total: number | null, max: number): string {
 
 function examScoreLabel(exam: MyExamGradeSummary): string {
   if (exam.grading_status === "subjective_pending") return "채점 진행 중";
+  if (exam.is_provisional) return "채점 확인 중";
   return fmtScore(exam.total_score, exam.max_score);
 }
 
@@ -47,12 +49,13 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
       <div className={styles.list}>
         {group.exams.map((e) => {
           const subjectivePending = e.grading_status === "subjective_pending";
+          const provisional = subjectivePending || e.is_provisional === true;
           const hasQuestionAnalysis = Number(e.total_questions ?? 0) > 0
             && e.meta_status !== "NOT_SUBMITTED"
-            && !subjectivePending;
+            && !provisional;
           const wrongCount = Number(e.wrong_count ?? 0);
           const wrongNumbers = wrongPreview(e);
-          const correction = wrongCompletionOnly
+          const correction = provisional ? null : wrongCompletionOnly
             ? {
                 label: wrongCompletionLabel(e.correction_status),
                 tone: e.correction_status == null
@@ -68,6 +71,7 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
               : null;
 
           return (
+            <div key={e.exam_id}>
             <Link
               key={e.exam_id}
               to={`/student/exams/${e.exam_id}/result`}
@@ -83,8 +87,8 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                     {e.session_title && `${e.session_title} · `}
                     {examScoreLabel(e)}
                   </div>
-                  {subjectivePending && (
-                    <Badge size="xs" tone="warning">서술형 채점 중</Badge>
+                  {provisional && (
+                    <Badge size="xs" tone="warning">{subjectivePending ? "서술형 채점 중" : "채점 확인 중"}</Badge>
                   )}
                   {(hasQuestionAnalysis || correction) && (
                     <div
@@ -113,16 +117,16 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                   )}
                 </div>
                 <div className={styles.statusBlock}>
-                  {!wrongCompletionOnly && !subjectivePending && (
+                  {!wrongCompletionOnly && !provisional && (
                     <GradeBadge passed={e.is_pass} achievement={e.achievement} label={labels} />
                   )}
                   <div className={styles.statusMeta}>
-                    {e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED" && (
+                    {!provisional && e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED" && (
                       <span className={styles.rankBadge}>
                         {e.rank}/{e.cohort_size}등
                       </span>
                     )}
-                    {e.total_score != null && e.max_score > 0 && (
+                    {!provisional && e.total_score != null && e.max_score > 0 && (
                       <span className={styles.scorePercent}>
                         {Math.round((e.total_score / e.max_score) * 100)}%
                       </span>
@@ -132,6 +136,8 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                 <IconChevronRight className={styles.chevron} />
               </div>
             </Link>
+              <ParentAssessmentComment kind="exam" assessmentId={e.exam_id} sessionId={e.session_id} />
+            </div>
           );
         })}
       </div>

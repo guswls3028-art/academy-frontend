@@ -1,20 +1,9 @@
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "../api/grades.api";
+import { getExamPassStatus } from "../public/examPassStatus";
+export { getExamPassStatus } from "../public/examPassStatus";
 
 export function gradeLectureKey(grade: Pick<MyExamGradeSummary, "lecture_id" | "enrollment_id">): string {
   return grade.lecture_id != null ? `lecture:${grade.lecture_id}` : `enrollment:${grade.enrollment_id}`;
-}
-
-// 원점수와 최종 판정은 독립적이다. 미판정을 불합격으로 집계하지 않는다.
-export function getExamPassStatus(exam: MyExamGradeSummary, wrongCompletionOnly: boolean): boolean | null {
-  if (exam.achievement === "NOT_SUBMITTED" || exam.meta_status === "NOT_SUBMITTED") return null;
-  if (wrongCompletionOnly) {
-    if (exam.correction_status === "PENDING") return false;
-    if (exam.correction_status === "COMPLETED" || exam.correction_status === "NOT_REQUIRED") return true;
-    return null;
-  }
-  if (exam.achievement === "PASS" || exam.achievement === "REMEDIATED") return true;
-  if (exam.achievement === "FAIL") return false;
-  return exam.is_pass ?? null;
 }
 
 export function calculateExamStats(exams: MyExamGradeSummary[], wrongCompletionOnly: boolean) {
@@ -45,7 +34,7 @@ export function calculateHomeworkStats(homeworks: MyHomeworkGradeSummary[]) {
   });
   const passed = judgments.filter((status) => status === true).length;
   const failed = judgments.filter((status) => status === false).length;
-  const withMax = graded.filter((homework) => homework.score != null && homework.max_score != null && homework.max_score > 0);
+  const withMax = graded.filter((homework) => homework.grading_mode !== "COMPLETION" && homework.score != null && homework.max_score != null && homework.max_score > 0);
   const avgPct = withMax.length > 0
     ? Math.round(withMax.reduce((sum, homework) => sum + (homework.score! / homework.max_score!) * 100, 0) / withMax.length)
     : null;

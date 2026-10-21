@@ -78,6 +78,7 @@ const SAFE_FAILURE_SOURCE_FILES = new Set([
   ...Object.keys(FLOW_COUNTS),
   "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
   "verifyAssessmentCopy.ts",
+  "verifyOnlineWrittenSubmission.ts",
 ]);
 const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
   "/api/v1/clinic/idcard/",
@@ -357,7 +358,7 @@ function observeReleaseContextSnapshot(payload) {
   const required = ["phase", "stage", "elapsedMs", "closing", "activeRouteCount"];
   const timingKeys = ["requestOrdinal", "requestStartedElapsedMs", "attemptDurationMs"];
   const pageKeys = ["pageOrdinal", "startDocumentLoadOrdinal", "endDocumentLoadOrdinal", "startNavigationOrdinal", "endNavigationOrdinal"];
-  const optional = ["method", "pathTemplate", "nativeCode", "nativeKind", "category", "sourceKind", ...timingKeys, ...pageKeys];
+  const optional = ["method", "pathTemplate", "nativeCode", "nativeKind", "category", "sourceKind", "externalOrigin", ...timingKeys, ...pageKeys];
   for (const event of payload.events) {
     if (!record(event) || required.some((key) => !Object.hasOwn(event, key))
       || Object.keys(event).some((key) => !required.includes(key) && !optional.includes(key))
@@ -372,6 +373,18 @@ function observeReleaseContextSnapshot(payload) {
       || pageKeys.some((key) => Object.hasOwn(event, key) && event[key] !== null && !count(event[key]))
       || (Object.hasOwn(event, "category") && !["cors", "chunk", "network", "resource", "runtime", "other"].includes(event.category))
       || (Object.hasOwn(event, "sourceKind") && !["local", "api", "vendor", "unknown"].includes(event.sourceKind))) return null;
+    if (Object.hasOwn(event, "externalOrigin")) {
+      const external = event.externalOrigin;
+      const booleans = ["frameExists", "frameAdmitted", "frameExactEmbed", "trustedAncestor", "hasPort", "hasHash", "hasCredentials"];
+      const externalKeys = [...booleans, "providerClass", "resourceType", "frameDetached", "protocol"];
+      if (event.phase !== "route-handler" || event.stage !== "terminal" || !record(external)
+        || Object.keys(external).sort().join(",") !== externalKeys.sort().join(",")
+        || booleans.some(key => typeof external[key] !== "boolean")
+        || (external.frameDetached !== null && typeof external.frameDetached !== "boolean")
+        || !["youtube.com", "youtube-nocookie.com", "ytimg.com", "googlevideo.com", "gstatic.com", "google.com", "googleapis.com", "googleusercontent.com", "ggpht.com", "doubleclick.net", "googlesyndication.com", "googleadservices.com", "other"].includes(external.providerClass)
+        || !["document", "image", "script", "stylesheet", "font", "media", "xhr", "fetch", "other"].includes(external.resourceType)
+        || !["https", "http", "other"].includes(external.protocol)) return null;
+    }
     if (phases.includes(event.phase) || event.phase === "route-handler") {
       if (!Object.hasOwn(event, "method") || !Object.hasOwn(event, "pathTemplate")) return null;
       if (event.phase === "route-handler" && event.stage !== "terminal") return null;
@@ -536,11 +549,19 @@ export function observeReleaseTestResult(stdout) {
                     && value.listVisibleMs >= value.responseMs;
                 } else if (name === "releaseStrictBrowserDefect") {
                   destination = "strictBrowserDefects";
-                  valid &&= exactKeys(value, ["schema", "category", "source", "count"])
+                  const hasVendorDiagnostic = Object.hasOwn(value ?? {}, "vendorDiagnostic");
+                  valid &&= exactKeys(value, ["schema", "category", "source", "count", ...(hasVendorDiagnostic ? ["vendorDiagnostic"] : [])])
                     && value.schema === "strict-browser-defect/v1"
                     && ["net-err", "cors", "chunk", "resource", "runtime", "other"].includes(value.category)
                     && ["local", "api", "vendor", "unknown"].includes(value.source)
                     && Number.isInteger(value.count) && value.count >= 1 && value.count <= 1000;
+                  if (valid && hasVendorDiagnostic) {
+                    const diagnostic = value.vendorDiagnostic;
+                    valid &&= value.source === "vendor" && exactKeys(diagnostic, ["eventKind", "providerClass", "errorFamily"])
+                      && diagnostic.eventKind === "console-error"
+                      && ["youtube.com", "youtube-nocookie.com", "ytimg.com", "googlevideo.com", "gstatic.com", "google.com", "googleapis.com", "googleusercontent.com", "ggpht.com", "doubleclick.net", "googlesyndication.com", "googleadservices.com", "other"].includes(diagnostic.providerClass)
+                      && ["postmessage-origin", "permissions-policy", "autoplay-policy", "player-error", "other"].includes(diagnostic.errorFamily);
+                  }
                 } else if (name === "releaseStrictBrowserSuppression") {
                   destination = "strictBrowserSuppressions";
                   const smallCount = (count) => Number.isInteger(count) && count >= 0 && count <= 1000;

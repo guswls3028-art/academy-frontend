@@ -2,7 +2,7 @@
 // PATH: src/app_admin/domains/messages/components/TemplateExplorer.tsx
 // 템플릿 저장 — "기본"=사용자 커스텀 | 나머지=자동발송 동일 카테고리 (기본 템플릿 구분 표시) (R-11 baseline 동결)
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -222,6 +222,8 @@ export default function TemplateExplorer() {
   const [search, setSearch] = useState("");
   const fixedCategory = isFixedAlimtalkContent(activeCategory);
   const [modalOpen, setModalOpen] = useState<ModalOpenState>(null);
+  const defaultRequestRef = useRef(false);
+  const [pendingDefaultId, setPendingDefaultId] = useState<number | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
     type: "delete";
     id: number;
@@ -307,12 +309,19 @@ export default function TemplateExplorer() {
   };
 
   const handleSetDefault = async (template: MessageTemplateItem) => {
+    if (defaultRequestRef.current) return;
+    defaultRequestRef.current = true;
+    setPendingDefaultId(template.id);
+    const desired = !template.is_user_default;
     try {
-      const updated = await setTemplateDefault(template.id);
+      const updated = await setTemplateDefault(template.id, desired);
       await qc.invalidateQueries({ queryKey: messageQueryKeys.templates });
       feedback.success(updated.is_user_default ? "성적표 발송 기본 문구로 지정했습니다." : "기본 문구 지정을 해제했습니다.");
     } catch {
       feedback.error("기본 문구 지정에 실패했습니다.");
+    } finally {
+      defaultRequestRef.current = false;
+      setPendingDefaultId(null);
     }
   };
 
@@ -441,11 +450,11 @@ export default function TemplateExplorer() {
                 disabled={createMut.isPending}
               />}
               {t.category === "grades" && !isDef && (
-                <Button size="sm" intent="secondary" onClick={(event) => {
+                <Button size="sm" intent="secondary" disabled={pendingDefaultId !== null} onClick={(event) => {
                   event.stopPropagation();
                   void handleSetDefault(t);
                 }}>
-                  {t.is_user_default ? "기본 해제" : "발송 기본으로 지정"}
+                  {pendingDefaultId === t.id ? "기본 설정 중…" : t.is_user_default ? "기본 해제" : "발송 기본으로 지정"}
                 </Button>
               )}
               {(t.can_delete ?? !t.is_system) && (

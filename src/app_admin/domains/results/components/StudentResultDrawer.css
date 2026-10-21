@@ -376,7 +376,7 @@
   font-size: 13px;
 }
 .srd-read__essay-num { width: 22px; flex-shrink: 0; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; color: var(--color-text-muted, #9ca3af); }
-.srd-read__essay-ans { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-primary, #111827); }
+.srd-read__essay-ans { flex: 1; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; color: var(--color-text-primary, #111827); }
 .srd-read__essay-score { flex-shrink: 0; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text-muted, #9ca3af); }
 .srd-read__essay-score--has { color: var(--color-text-primary, #111827); }
 

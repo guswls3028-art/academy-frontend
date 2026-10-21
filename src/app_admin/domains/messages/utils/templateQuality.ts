@@ -41,7 +41,7 @@ const SUPPORTED_FIXED_VARS = new Set([
   "시험이력",
   "과제목록",
   "전체요약",
-  "시험총점",
+  "시험총점", "과제총점", "과제총만점", "현재차시명", "현재차시날짜", "다음차시명", "다음차시날짜",
   "시험총만점",
   "숙제완성도",
   "클리닉명",
@@ -90,7 +90,7 @@ function extractVars(text: string): string[] {
 }
 
 function isSupportedVar(name: string, extraVars?: Record<string, string>): boolean {
-  if (SUPPORTED_FIXED_VARS.has(name)) return true;
+  if (SUPPORTED_FIXED_VARS.has(name) || /^[1-9]\d?차시후(명|날짜)$/.test(name)) return true;
   if (extraVars && Object.prototype.hasOwnProperty.call(extraVars, name)) return true;
   if (/^(시험|과제)\d+(명|만점)?$/.test(name)) return true;
   return false;

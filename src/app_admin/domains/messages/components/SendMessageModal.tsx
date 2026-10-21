@@ -79,6 +79,7 @@ import "../styles/templateEditor.css";
 // ─── Types ───
 
 export type SendMessageModalProps = {
+  sessionId?: number;
   open: boolean;
   onClose: () => void;
   initialStudentIds?: number[];
@@ -162,6 +163,7 @@ function getVarStatuses(
     if (name === "내용") {
       return { name, status: freeContent?.trim() ? "provided" : "missing", value: freeContent?.trim() || undefined };
     }
+    if (/^(현재차시|다음차시|[1-9]\d?차시후)(명|날짜)$/.test(name)) return { name, status: "auto" as const };
     if (ALWAYS_AVAILABLE_VARS.has(name)) return { name, status: "auto" as const };
     if (extraVars && name in extraVars && extraVars[name]) {
       return { name, status: "provided" as const, value: extraVars[name] };
@@ -277,7 +279,7 @@ function pickAutoSelectTemplate(
   const userCat = blockCategory === "student" ? "default" : blockCategory;
 
   if (!systemOnly) {
-    const myMatchDefault = list.find((t) => !isSystemTpl(t) && t.category === userCat && t.is_user_default && isApprovedTpl(t));
+    const myMatchDefault = list.find((t) => !isSystemTpl(t) && t.category === userCat && t.is_user_default && (isApprovedTpl(t) || blockCategory === "grades"));
     if (myMatchDefault) return myMatchDefault;
 
     const myMatch = list.find((t) => !isSystemTpl(t) && t.category === userCat && isApprovedTpl(t));
@@ -297,6 +299,7 @@ function pickAutoSelectTemplate(
 export default function SendMessageModal({
   open,
   onClose,
+  sessionId,
   initialStudentIds = EMPTY_ID_LIST,
   recipientLabel,
   blockCategory = "default",
@@ -332,13 +335,17 @@ export default function SendMessageModal({
   const [templatesRetry, setTemplatesRetry] = useState(0);
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saveTemplateName, setSaveTemplateName] = useState("");
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const templateMutationRef = useRef(false);
   /** 양식 선택 모달 open */
   const [showPickerModal, setShowPickerModal] = useState(false);
   /** 양식 없이 자유 입력 모드 */
   const [alimtalkFreeForm, setAlimtalkFreeForm] = useState(false);
   const [manualEnvelopeCategory, setManualEnvelopeCategory] = useState<TemplateCategory>("attendance");
   const [templateBodySnapshot, setTemplateBodySnapshot] = useState<string | null>(null);
+  const [subjectSnapshot, setSubjectSnapshot] = useState("");
+  const discardConfirmPendingRef = useRef(false);
   // 변수 팔레트 default 접힘 (학원장 임근혁 보고 — 본문 편집 영역이 좁아 보임)
   const [showVarPalette, setShowVarPalette] = useState(false);
   const [preflightResults, setPreflightResults] = useState<SendPreflightResponse[]>([]);
@@ -431,6 +438,7 @@ export default function SendMessageModal({
     const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
     payload.student_ids = studentIds;
     if (selectedTemplateId) payload.template_id = selectedTemplateId;
+    if (sessionId != null) payload.session_id = sessionId;
     if (effectiveBlockCategory) payload.block_category = effectiveBlockCategory;
     const currentBody = body.trim();
     payload.raw_body = currentBody;
@@ -461,6 +469,7 @@ export default function SendMessageModal({
     effectiveBlockCategory,
     recomputePerStudentVarsRef,
     scheduledSendAtIso,
+    sessionId,
     selectedTemplateId,
     studentIds,
     subject,
@@ -520,6 +529,7 @@ export default function SendMessageModal({
       || preflightResults.length !== expectedPreflightCount
     );
   const canSend = frontendReady
+    && !savingTemplate
     && preflightReady
     && preflightPreviewReady
     && preflightBlockers.length === 0;
@@ -662,6 +672,7 @@ export default function SendMessageModal({
     };
     setTemplatesError(null);
     setSubject("");
+    setSubjectSnapshot("");
     setBody(initialDisplayBody);
     setSelectedTemplateId(initialTemplateId ?? null);
     setSelectedPresetId(initialLetterPresetId ?? null);
@@ -737,43 +748,84 @@ export default function SendMessageModal({
     return () => { cancelled = true; };
   }, [open, effectiveBlockCategory, templatesRetry]);
 
+  const hasDraftChanges = body !== (templateBodySnapshot ?? "") || subject !== subjectSnapshot;
+  const confirmDiscardDraft = useCallback(async (replacing = false, viewingResult = false) => {
+    if (sendingRef.current || templateMutationRef.current || discardConfirmPendingRef.current) return false;
+    const unresolvedAttempt = !viewingResult && sendAttempt != null && !sendAttempt.completed;
+    if (!hasDraftChanges && !unresolvedAttempt) return true;
+    discardConfirmPendingRef.current = true;
+    try {
+      return await confirm({
+        title: unresolvedAttempt ? "발송 결과 확인 전 나갈까요?" : replacing ? "작성한 문구를 바꿀까요?" : "작성한 문구를 닫을까요?",
+        message: unresolvedAttempt
+          ? "이미 접수된 대상이 있을 수 있습니다. 취소한 뒤 ‘이번 발송 결과 보기’ 또는 ‘같은 요청으로 재시도’를 이용해 주세요. 그대로 나가면 이 창의 재시도 정보가 사라지며 새 발송은 중복 접수될 수 있습니다."
+          : replacing ? "저장하지 않은 수정 내용은 사라집니다. 선택한 문구로 바꿀까요?" : "저장하지 않은 수정 내용은 사라집니다.",
+        confirmText: unresolvedAttempt ? "결과 미확인 상태로 나가기" : replacing ? "수정 내용 버리고 바꾸기" : "수정 내용 버리고 닫기",
+        cancelText: unresolvedAttempt ? "돌아가서 확인" : "계속 편집",
+        danger: true,
+      });
+    } finally { discardConfirmPendingRef.current = false; }
+  }, [confirm, hasDraftChanges, sendAttempt]);
+  const requestClose = async () => {
+    if (await confirmDiscardDraft()) onClose();
+  };
+
   // ─── Actions ───
+  const beginTemplateMutation = () => {
+    // A ref also rejects a second click before React commits the busy state.
+    if (sendingRef.current || templateMutationRef.current) return false;
+    templateMutationRef.current = true;
+    setSavingTemplate(true);
+    return true;
+  };
+  const finishTemplateMutation = () => {
+    templateMutationRef.current = false;
+    setSavingTemplate(false);
+  };
   const insertBlock = useCallback((insertText: string) => {
     bodyEditorRef.current?.insert(insertText);
   }, []);
 
-  const selectTemplate = useCallback((t: MessageTemplateItem) => {
+  const selectTemplate = useCallback(async (t: MessageTemplateItem) => {
+    if (!await confirmDiscardDraft(true)) return;
     const nextBody = stripInternalAlimtalkMemoToken(t.body ?? "");
     setSelectedTemplateId(t.id);
     setSelectedPresetId(null);
     setSubject(t.subject ?? "");
+    setSubjectSnapshot(t.subject ?? "");
     setBody(nextBody);
     setTemplateBodySnapshot(nextBody);
     setAlimtalkFreeForm(false);
-  }, []);
+  }, [confirmDiscardDraft]);
 
-  const selectPreset = useCallback((preset: ProvidedTemplatePreset) => {
+  const selectPreset = useCallback(async (preset: ProvidedTemplatePreset) => {
+    if (!await confirmDiscardDraft(true)) return;
     setSelectedTemplateId(null);
     setSelectedPresetId(preset.id);
     setSubject("");
+    setSubjectSnapshot("");
     setBody(preset.body);
     setTemplateBodySnapshot(preset.body);
     setAlimtalkFreeForm(false);
-  }, []);
+  }, [confirmDiscardDraft]);
 
-  const selectFreeForm = useCallback(() => {
+  const selectFreeForm = useCallback(async () => {
+    if (!await confirmDiscardDraft(true)) return;
     setSelectedTemplateId(null);
     setSelectedPresetId(null);
     setBody("");
     setSubject("");
+    setSubjectSnapshot("");
     setTemplateBodySnapshot(null);
     setAlimtalkFreeForm(true);
-  }, []);
+  }, [confirmDiscardDraft]);
 
-  const selectEnvelopeCategory = useCallback((category: TemplateCategory) => {
+  const selectEnvelopeCategory = useCallback(async (category: TemplateCategory) => {
+    if (!await confirmDiscardDraft(true)) return;
     setManualEnvelopeCategory(category);
     setSelectedTemplateId(null);
     setSubject("");
+    setSubjectSnapshot("");
     const preset = getDefaultTemplatePreset(category);
     if (preset) {
       setSelectedPresetId(preset.id);
@@ -787,11 +839,10 @@ export default function SendMessageModal({
       setAlimtalkFreeForm(true);
     }
     setShowSaveForm(false);
-  }, []);
+  }, [confirmDiscardDraft]);
 
   const handleSaveTemplate = async () => {
-    if (!saveTemplateName.trim() || !body.trim() || savingTemplate) return;
-    setSavingTemplate(true);
+    if (!saveTemplateName.trim() || !body.trim() || !beginTemplateMutation()) return;
     try {
       const created = await createMessageTemplate({
         category: toPersistedTemplateCategory(effectiveBlockCategory),
@@ -801,9 +852,9 @@ export default function SendMessageModal({
       });
       let saved = created;
       let defaultFailed = false;
-      if (effectiveBlockCategory === "grades") {
+      if (effectiveBlockCategory === "grades" && saveAsDefault) {
         try {
-          saved = await setTemplateDefault(created.id);
+          saved = await setTemplateDefault(created.id, true);
         } catch {
           defaultFailed = true;
         }
@@ -817,10 +868,11 @@ export default function SendMessageModal({
       setSelectedTemplateId(saved.id);
       setSelectedPresetId(null);
       setTemplateBodySnapshot(saved.body);
+      setSubjectSnapshot(saved.subject ?? "");
       if (defaultFailed) {
         feedback.error(`"${saved.name}" 문구는 저장됐지만 기본 지정에 실패했습니다. 기본으로 사용을 다시 눌러 주세요.`);
       } else {
-        feedback.success(effectiveBlockCategory === "grades"
+        feedback.success(effectiveBlockCategory === "grades" && saveAsDefault
           ? `"${saved.name}" 안내문이 성적 알림톡 기본 안내문으로 저장되었습니다.`
           : `"${saved.name}" 문구가 저장되었습니다.`);
       }
@@ -829,30 +881,43 @@ export default function SendMessageModal({
     } catch {
       feedback.error("문구 저장에 실패했습니다.");
     } finally {
-      setSavingTemplate(false);
+      finishTemplateMutation();
     }
   };
 
   const handleUpdateTemplate = async () => {
-    if (!selectedTemplate || isSystemTpl(selectedTemplate) || !body.trim()) return;
+    if (!selectedTemplate || isSystemTpl(selectedTemplate) || !body.trim() || !beginTemplateMutation()) return;
     try {
       const updated = await updateMessageTemplate(selectedTemplate.id, { body, subject });
       setTemplates((prev) => prev.map((t) => t.id === updated.id ? updated : t));
       setTemplateBodySnapshot(updated.body);
+      setSubjectSnapshot(updated.subject ?? "");
       void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
       void queryClient.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
       feedback.success(`"${updated.name}" 문구가 업데이트되었습니다.`);
     } catch {
       feedback.error("문구 업데이트에 실패했습니다.");
+    } finally {
+      finishTemplateMutation();
     }
   };
 
   const handleSetDefault = async (id: number) => {
+    const target = templates.find(template => template.id === id);
+    if (!target || !beginTemplateMutation()) return;
+    // Preserve click intent if a committed response is lost and the user retries.
+    const desired = !target.is_user_default;
     try {
-      const updated = await setTemplateDefault(id);
+      if (id === selectedTemplate?.id && bodyModified) {
+        const saved = await updateMessageTemplate(id, { body, subject });
+        setTemplates(prev => prev.map(t => t.id === id ? saved : t));
+        setTemplateBodySnapshot(saved.body);
+        setSubjectSnapshot(saved.subject ?? "");
+      }
+      const updated = await setTemplateDefault(id, desired);
       setTemplates((prev) => prev.map((t) => {
         if (t.id === id) return updated;
-        if (t.category === updated.category && t.is_user_default && t.id !== id) {
+        if (updated.is_user_default && t.category === updated.category && t.is_user_default && t.id !== id) {
           return { ...t, is_user_default: false };
         }
         return t;
@@ -861,10 +926,13 @@ export default function SendMessageModal({
       feedback.success(updated.is_user_default ? `"${updated.name}" 을(를) 기본 문구로 지정했습니다.` : "기본 문구 지정을 해제했습니다.");
     } catch {
       feedback.error("기본 문구 지정에 실패했습니다.");
+    } finally {
+      finishTemplateMutation();
     }
   };
 
   const handleDuplicate = async (id: number) => {
+    if (!beginTemplateMutation()) return;
     try {
       const dup = await duplicateMessageTemplate(id);
       setTemplates((prev) => [dup, ...prev]);
@@ -872,10 +940,13 @@ export default function SendMessageModal({
       feedback.success(`"${dup.name}" 문구가 복제되었습니다.`);
     } catch {
       feedback.error("문구 복제에 실패했습니다.");
+    } finally {
+      finishTemplateMutation();
     }
   };
 
   const handleDeleteTemplate = async (id: number) => {
+    if (sendingRef.current || templateMutationRef.current) return;
     const target = templates.find((t) => t.id === id);
     if (!target) return;
     const ok = await confirm({
@@ -885,7 +956,7 @@ export default function SendMessageModal({
       cancelText: "취소",
       danger: true,
     });
-    if (!ok) return;
+    if (!ok || !beginTemplateMutation()) return;
     try {
       await deleteMessageTemplate(id);
       setTemplates((prev) => prev.filter((t) => t.id !== id));
@@ -899,11 +970,13 @@ export default function SendMessageModal({
       feedback.success("문구가 삭제되었습니다.");
     } catch {
       feedback.error("문구 삭제에 실패했습니다.");
+    } finally {
+      finishTemplateMutation();
     }
   };
 
   const requestSend = () => {
-    if (!canSend) return;
+    if (!canSend || templateMutationRef.current) return;
     setConfirmPreviewStudentId((current) => (
       confirmSendableRecipients.some((recipient) => recipient.studentId === current)
         ? current
@@ -918,7 +991,7 @@ export default function SendMessageModal({
   };
 
   const handleSend = async (retryAttempt = false) => {
-    if (sendingRef.current || (retryAttempt ? !canRetryAttempt : !canSend)) return;
+    if (sendingRef.current || templateMutationRef.current || (retryAttempt ? !canRetryAttempt : !canSend)) return;
     const attempt: SendAttempt = sendAttempt && !sendAttempt.completed
       && sendAttempt.draftKey === preflightKey
       ? sendAttempt
@@ -1045,7 +1118,7 @@ export default function SendMessageModal({
   // ─── Render ───
   return (
     <>
-    <AdminModal open={open} onClose={onClose} width={1080} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
+    <AdminModal open={open} onClose={() => void requestClose()} closeDisabled={sending || savingTemplate} width={1080} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
       <ModalHeader
         noIcon
         title={
@@ -1086,11 +1159,11 @@ export default function SendMessageModal({
               {hasRecipients && (
                 <div className="send-modal__recipient-targets">
                   <label className="send-modal__check">
-                    <input type="checkbox" checked={sendToParent} onChange={(e) => setSendToParent(e.target.checked)} disabled={sending} />
+                    <input type="checkbox" checked={sendToParent} onChange={(e) => setSendToParent(e.target.checked)} disabled={sending || savingTemplate} />
                     <span>학부모</span>
                   </label>
                   <label className="send-modal__check">
-                    <input type="checkbox" checked={sendToStudent} onChange={(e) => setSendToStudent(e.target.checked)} disabled={sending} />
+                    <input type="checkbox" checked={sendToStudent} onChange={(e) => setSendToStudent(e.target.checked)} disabled={sending || savingTemplate} />
                     <span>학생</span>
                   </label>
                   {sendToTargets.length === 0 && (
@@ -1198,7 +1271,7 @@ export default function SendMessageModal({
                   className="send-modal__timing-option"
                   data-active={sendTiming === "now"}
                   onClick={() => setSendTiming("now")}
-                  disabled={sending}
+                  disabled={sending || savingTemplate}
                 >
                   즉시
                 </button>
@@ -1207,7 +1280,7 @@ export default function SendMessageModal({
                   className="send-modal__timing-option"
                   data-active={sendTiming === "scheduled"}
                   onClick={() => setSendTiming("scheduled")}
-                  disabled={sending}
+                  disabled={sending || savingTemplate}
                 >
                   예약
                 </button>
@@ -1222,7 +1295,7 @@ export default function SendMessageModal({
                     value={scheduledAt}
                     min={minScheduledLocalValue()}
                     onChange={(e) => setScheduledAt(e.target.value)}
-                    disabled={sending}
+                    disabled={sending || savingTemplate}
                     className="send-modal__schedule-input"
                     aria-label="예약 발송 시각"
                   />
@@ -1314,7 +1387,7 @@ export default function SendMessageModal({
                       className="send-modal__envelope-option"
                       data-active={manualEnvelopeCategory === option.category}
                       onClick={() => selectEnvelopeCategory(option.category)}
-                      disabled={sending}
+                      disabled={sending || savingTemplate}
                     >
                       <span>{option.label}</span>
                       <small>{option.hint}</small>
@@ -1362,59 +1435,64 @@ export default function SendMessageModal({
                 )}
               </div>
 
-              {/* 저장 액션 — 양식/본문 상태에 따라 분기. 양식 변경 버튼과 같은 라인에 묶어 칸 효율. */}
-              {!showSaveForm && body.trim() && hasSelectedBodySource && (
-                <div className="send-modal__tpl-bar-save">
-                  {bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
-                    <>
-                      <Button size="sm" intent="secondary" onClick={handleUpdateTemplate} disabled={sending || savingTemplate}>
-                        변경 내용 저장
-                      </Button>
-                      <button
-                        type="button"
+              <div className="send-modal__tpl-bar-actions">
+                {/* 저장 액션 — 양식/본문 상태에 따라 분기. 양식 변경 버튼과 같은 라인에 묶어 칸 효율. */}
+                {!showSaveForm && body.trim() && hasSelectedBodySource && (
+                  <div className="send-modal__tpl-bar-save">
+                    {bodyModified && selectedTemplate && !isSystemTpl(selectedTemplate) ? (
+                      <>
+                        <Button size="sm" intent="secondary" onClick={handleUpdateTemplate} disabled={sending || savingTemplate}>
+                          변경 내용 저장
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
+                          disabled={sending || savingTemplate}
+                          className="send-modal__save-bar-link"
+                        >
+                          새 문구로 저장
+                        </button>
+                      </>
+                    ) : (
+                      <Button
+                        size="sm"
+                        intent="secondary"
                         onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
-                        disabled={sending}
-                        className="send-modal__save-bar-link"
+                        disabled={sending || savingTemplate}
                       >
-                        새 문구로 저장
-                      </button>
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      intent="secondary"
-                      onClick={() => { setShowSaveForm(true); setSaveTemplateName(""); }}
-                      disabled={sending}
-                    >
-                      {effectiveBlockCategory === "grades" ? "성적 안내문 저장" : "내 문구로 저장"}
-                    </Button>
-                  )}
-                </div>
-              )}
-              {effectiveBlockCategory === "grades" && selectedTemplate && !isSystemTpl(selectedTemplate) && !selectedTemplate.is_user_default && (
-                <Button size="sm" intent="secondary" onClick={() => void handleSetDefault(selectedTemplate.id)} disabled={sending}>
-                  기본으로 사용
-                </Button>
-              )}
+                        {effectiveBlockCategory === "grades" ? "성적 안내문 저장" : "내 문구로 저장"}
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {effectiveBlockCategory === "grades" && selectedTemplate && !isSystemTpl(selectedTemplate) && !selectedTemplate.is_user_default && (
+                  <Button size="sm" intent="secondary" onClick={() => void handleSetDefault(selectedTemplate.id)} disabled={sending || savingTemplate}>
+                    성적 안내 기본으로 지정
+                  </Button>
+                )}
 
-              <Button
-                size="sm"
-                intent="primary"
-                onClick={() => setShowPickerModal(true)}
-                disabled={sending}
-              >
-                {effectiveBlockCategory === "grades" ? "안내문 바꾸기" : hasSelectedBodySource ? "다른 문구 선택" : "문구 선택"}
-              </Button>
+                <Button
+                  size="sm"
+                  intent="primary"
+                  onClick={() => setShowPickerModal(true)}
+                  disabled={sending || savingTemplate}
+                >
+                  {effectiveBlockCategory === "grades" ? "안내문 바꾸기" : hasSelectedBodySource ? "다른 문구 선택" : "문구 선택"}
+                </Button>
+              </div>
             </div>
 
+            {effectiveBlockCategory === "grades" && <p className="send-modal__editor-hint">기본 성적 안내문은 이 학원 직원 공통입니다. 저장만으로 발송되지 않습니다.</p>}
+            {savingTemplate && <p className="send-modal__editor-hint" role="status">문구 변경을 저장하고 있어요. 잠시만 기다려 주세요.</p>}
             {/* ── 양식 이름 입력 form — 저장 액션 클릭 시에만 노출 ── */}
             {showSaveForm && (
               <div className="send-modal__save-form">
                 <div className="send-modal__save-form-label">
                   {effectiveBlockCategory === "grades"
-                    ? "이 안내문을 저장하고 다음 성적 알림톡의 기본 안내문으로 사용합니다. 발송은 별도로 확정해야 합니다."
+                    ? "이 학원의 모든 직원이 함께 사용하는 성적 안내문입니다. 저장과 발송은 별도입니다."
                     : "새 문구 이름을 입력하세요"}
                 </div>
+                {effectiveBlockCategory === "grades" && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={saveAsDefault} onChange={e => setSaveAsDefault(e.target.checked)} disabled={savingTemplate} />성적 안내 기본으로 지정 · 이 학원 직원 공통</label>}
                 <div className="send-modal__save-form-row">
                   <Input
                     size="small"
@@ -1422,13 +1500,14 @@ export default function SendMessageModal({
                     value={saveTemplateName}
                     onChange={(e) => setSaveTemplateName(e.target.value)}
                     onPressEnter={handleSaveTemplate}
+                    disabled={savingTemplate}
                     className="send-modal__save-form-input"
                     autoFocus
                   />
                   <Button size="sm" intent="primary" onClick={handleSaveTemplate} disabled={!saveTemplateName.trim() || !body.trim() || savingTemplate}>
                     {savingTemplate ? "저장 중…" : "저장"}
                   </Button>
-                  <Button size="sm" intent="secondary" onClick={() => setShowSaveForm(false)}>취소</Button>
+                  <Button size="sm" intent="secondary" onClick={() => setShowSaveForm(false)} disabled={savingTemplate}>취소</Button>
                 </div>
               </div>
             )}
@@ -1480,7 +1559,7 @@ export default function SendMessageModal({
                   ref={bodyEditorRef}
                   value={body}
                   onChange={(value) => { setBody(value); if (!alimtalkFreeForm && !selectedTemplate && !selectedPreset) setAlimtalkFreeForm(true); }}
-                  disabled={sending}
+                  disabled={sending || savingTemplate}
                   placeholder="학원장님이 학생/학부모에게 전할 안내 메시지를 자유롭게 입력하세요."
                 />
               </div>
@@ -1497,7 +1576,7 @@ export default function SendMessageModal({
                   <div className="send-modal__var-palette-title">정보 넣기</div>
                   <div className="send-modal__var-palette-desc">클릭하면 커서 위치에 추가됩니다</div>
                   {effectiveBlockCategory === "grades" ? (
-                    <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending} currentBody={body} />
+                    <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending || savingTemplate} currentBody={body} />
                   ) : (
                     <div className="send-modal__var-palette-list">
                       {blocks.map((block) => {
@@ -1508,7 +1587,7 @@ export default function SendMessageModal({
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => { if (!alimtalkFreeForm && !selectedTemplate && !selectedPreset) setAlimtalkFreeForm(true); insertBlock(block.insertText); }}
-                              disabled={sending}
+                              disabled={sending || savingTemplate}
                               className="template-editor__block-tag send-modal__var-palette-block-btn"
                               // 블록 ID별 고유 색상 동적 적용 — getBlockColor() 반환값(static SSOT). className 으로는 N종 색상 표현 불가.
                               // eslint-disable-next-line no-restricted-syntax
@@ -1545,11 +1624,12 @@ export default function SendMessageModal({
               <span>내용이나 대상이 바뀌었습니다. 새 발송 전에 이전 결과를 확인해 주세요.</span>
             )}
             <div className="send-modal__footer-right">
-              <Button intent="secondary" size="sm" disabled={sending} onClick={() => {
+              <Button intent="secondary" size="sm" disabled={sending || savingTemplate} onClick={async () => {
+                if (!await confirmDiscardDraft(false, true)) return;
                 onClose();
                 viewRequestResult(sendAttempt.requestId);
               }}>이번 발송 결과 보기</Button>
-              <Button intent="primary" size="sm" disabled={!canRetryAttempt} onClick={() => void handleSend(true)}>
+              <Button intent="primary" size="sm" disabled={!canRetryAttempt || savingTemplate} onClick={() => void handleSend(true)}>
                 같은 요청으로 재시도
               </Button>
             </div>
@@ -1711,7 +1791,7 @@ export default function SendMessageModal({
               <Button intent="secondary" onClick={() => setShowConfirm(false)} className="send-modal__confirm-back-btn">
                 돌아가기
               </Button>
-              <Button intent="primary" onClick={() => void handleSend()} disabled={sending} className="send-modal__confirm-send-btn">
+              <Button intent="primary" onClick={() => void handleSend()} disabled={sending || savingTemplate} className="send-modal__confirm-send-btn">
                 {sending ? "발송 중…" : sendTiming === "scheduled" ? "예약하기" : "발송하기"}
               </Button>
             </div>
@@ -1728,7 +1808,7 @@ export default function SendMessageModal({
                 {disableReason}
               </span>
             )}
-            <Button intent="secondary" onClick={onClose} disabled={sending} size="lg">취소</Button>
+            <Button intent="secondary" onClick={() => void requestClose()} disabled={sending || savingTemplate} size="lg">취소</Button>
             <Button
               intent="primary"
               onClick={requestSend}
@@ -1746,7 +1826,8 @@ export default function SendMessageModal({
     {/* ─── 양식 선택 큰 모달 (별도 1040px 팝업) ─── */}
     <TemplatePickerModal
       open={showPickerModal}
-      onClose={() => setShowPickerModal(false)}
+      busy={savingTemplate}
+      onClose={() => { if (!templateMutationRef.current) setShowPickerModal(false); }}
       templates={templates}
       defaultPresets={providedPresets}
       blockCategory={effectiveBlockCategory}

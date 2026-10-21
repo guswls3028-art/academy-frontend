@@ -57,16 +57,26 @@ function KpiCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatusBadge({ status }: { status: HomeworkStatus }) {
+function statusLabel(status: HomeworkStatus, completion: boolean) {
+  return completion && status === "ZERO" ? "미통과" : completion && status === "SCORED" ? "통과" : homeworkStatusLabel(status);
+}
+
+function resultValue(row: HomeworkResultRow, completion: boolean) {
+  if (row.status === "NOT_SUBMITTED") return "미제출";
+  if (row.score == null) return "미입력";
+  return completion ? (row.score >= 1 ? "O" : "X") : `${row.score}${row.max_score != null ? ` / ${row.max_score}` : ""}`;
+}
+
+function StatusBadge({ status, completion = false }: { status: HomeworkStatus; completion?: boolean }) {
   const tone =
     status === "NOT_SUBMITTED"
       ? "danger"
-      : status === "SCORED" || status === "ZERO"
+      : completion && status === "ZERO" ? "danger" : status === "SCORED" || status === "ZERO"
       ? "success"
       : "neutral";
   return (
     <Badge variant="solid" tone={tone}>
-      {homeworkStatusLabel(status)}
+      {statusLabel(status, completion)}
     </Badge>
   );
 }
@@ -79,6 +89,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
   const labels = useTenantLabels();
   const homeworkQ = useAdminHomework(homeworkId);
   const { data: homework, isLoading: hwLoading } = homeworkQ;
+  const completion = homework?.grading_mode === "COMPLETION";
   const sessionId = useMemo(() => Number(homework?.session_id) || 0, [homework?.session_id]);
 
   const scoresQ = useQuery({
@@ -89,7 +100,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
   const { data: scoresData, isLoading: scoresLoading } = scoresQ;
 
   const { rows, summary } = useMemo(() => {
-    if (!scoresData?.rows || !homeworkId) return { rows: [] as HomeworkResultRow[], summary: { assigned: 0, notSubmitted: 0, graded: 0, passCount: 0, failCount: 0, clinic: 0 } };
+    if (!scoresData?.rows || !homeworkId) return { rows: [] as HomeworkResultRow[], summary: { assigned: 0, unset: 0, notSubmitted: 0, graded: 0, passCount: 0, failCount: 0, clinic: 0 } };
     const rows: HomeworkResultRow[] = [];
     let notSubmitted = 0;
     let graded = 0;
@@ -135,6 +146,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
       rows,
       summary: {
         assigned: rows.length,
+        unset: rows.filter(row => row.status === "UNSET").length,
         notSubmitted,
         graded,
         passCount,
@@ -181,14 +193,14 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
   const histogram = useMemo(() => {
     const BUCKETS = [
       { label: "0-20", min: 0, max: 20 },
-      { label: "21-40", min: 21, max: 40 },
-      { label: "41-60", min: 41, max: 60 },
-      { label: "61-80", min: 61, max: 80 },
-      { label: "81-100", min: 81, max: 100 },
+      { label: "20초과-40", min: 20, max: 40 },
+      { label: "40초과-60", min: 40, max: 60 },
+      { label: "60초과-80", min: 60, max: 80 },
+      { label: "80초과-100", min: 80, max: 100 },
     ];
     return BUCKETS.map((b) => ({
       ...b,
-      count: scoresForHistogram.filter((s) => s >= b.min && s <= b.max).length,
+      count: scoresForHistogram.filter((s) => (b.min === 0 ? s >= 0 : s > b.min) && s <= b.max).length,
     }));
   }, [scoresForHistogram]);
   const maxHist = Math.max(1, ...histogram.map((h) => h.count));
@@ -219,7 +231,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
 
   const cutlineMode = homework.effective_cutline_mode;
   const cutlineValue = homework.effective_cutline_value;
-  const cutlineLabel = cutlineMode === "COUNT" ? `최소 ${cutlineValue}점` : `커트라인 ${cutlineValue}%`;
+  const cutlineLabel = cutlineMode === "COUNT" ? `최소 ${cutlineValue}점` : `${cutlineValue}%`;
   const hasData = summary.assigned > 0;
 
   return (
@@ -228,7 +240,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
       <section className="space-y-6 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-5">
         <div>
           <div className="text-lg font-semibold">채점결과</div>
-          <div className="text-xs text-[var(--color-text-muted)]">과제 제출·채점 기준 요약입니다. 커트라인은 기본설정에서 이 과제별로 설정할 수 있습니다.</div>
+          <div className="text-xs text-[var(--color-text-muted)]">{completion ? "통과형 과제는 O/X로 확인합니다. 점수 합계와 점수 분포에는 포함하지 않습니다." : "과제 제출·채점 기준 요약입니다. 커트라인은 기본설정에서 이 과제별로 설정할 수 있습니다."}</div>
         </div>
 
         {!hasData ? (
@@ -240,20 +252,20 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
               <KpiCard label="대상" value={`${summary.assigned}명`} />
               <KpiCard label="미제출" value={`${summary.notSubmitted}명`} />
-              <KpiCard label="채점완료" value={`${summary.graded}명`} />
+              <KpiCard label={completion ? "판정 입력" : "채점완료"} value={`${summary.graded}명`} />
               <KpiCard label={labels.pass} value={`${summary.passCount}명`} />
               <KpiCard label={labels.fail} value={`${summary.failCount}명`} />
               <KpiCard label="클리닉 대상" value={`${summary.clinic}명`} />
             </div>
 
             <div className="text-xs text-[var(--color-text-muted)]">
-              커트라인: <strong className="text-[var(--color-text-primary)]">{cutlineLabel}</strong>
+              {completion ? "판정 방식: " : "커트라인: "}<strong className="text-[var(--color-text-primary)]">{completion ? "O 통과 · X 미통과" : cutlineLabel}</strong>
               {summary.graded > 0 && (
                 <> (합격 {summary.passCount}명 / 불합격 {summary.failCount}명)</>
               )}
             </div>
 
-            {scoresForHistogram.length > 0 && (
+            {!completion && scoresForHistogram.length > 0 && (
               <div className="space-y-2">
                 <div className="text-sm font-semibold text-[var(--color-text-primary)]">점수 분포 (%)</div>
                 <div className="flex items-end gap-1 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-3">
@@ -267,7 +279,10 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                           background: "var(--color-primary)",
                         }}
                       />
-                      <span className="text-[10px] text-[var(--color-text-muted)]">{h.label}</span>
+                      <span className="flex h-8 flex-col justify-center text-center text-[10px] leading-4 text-[var(--color-text-muted)]">
+                        <span className="whitespace-nowrap">{h.min} {h.min === 0 ? "이상" : "초과"}</span>
+                        <span className="whitespace-nowrap">{h.max} 이하</span>
+                      </span>
                       <span className="text-xs font-medium">{h.count}</span>
                     </div>
                   ))}
@@ -286,10 +301,10 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
       <section className="space-y-6 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-5">
         <div>
           <div className="text-lg font-semibold">통계</div>
-          <div className="text-xs text-[var(--color-text-muted)]">제출·채점 현황 요약입니다. 워크북 문항별 O/X/복습 표시는 위 채점표에서 관리합니다.</div>
+          <div className="text-xs text-[var(--color-text-muted)]">성적에 기록된 입력 현황입니다. 실제 파일 제출 여부는 제출관리에서 확인하세요. 워크북 문항별 O/X/복습 표시는 위 채점표에서 관리합니다.</div>
         </div>
         <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
-          제출률 {summary.assigned > 0 ? ((summary.assigned - summary.notSubmitted) / summary.assigned * 100).toFixed(1) : 0}% · 채점완료 {summary.graded}명
+          미입력 {summary.unset}명 · 미제출 처리 {summary.notSubmitted}명 · {completion ? "판정 입력" : "채점 입력"} {summary.graded}명
         </div>
       </section>
 
@@ -297,7 +312,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
       <section className="space-y-4 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-5">
         <div>
           <div className="text-lg font-semibold">학생별 결과</div>
-          <div className="text-xs text-[var(--color-text-muted)]">학생을 선택하면 우측에 상세를 볼 수 있습니다. 점수 입력·미제출 처리·잠금은 세션 &gt; 성적 탭에서 진행하세요.</div>
+          <div className="text-xs text-[var(--color-text-muted)]">학생을 선택하면 상세를 볼 수 있습니다. 점수 입력·미제출 처리·잠금은 세션 &gt; 성적 탭에서 진행하세요.</div>
         </div>
 
         {rows.length > 0 && (
@@ -319,8 +334,8 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
               <option value="all">상태 전체</option>
               <option value="NOT_SUBMITTED">미제출</option>
               <option value="UNSET">미입력</option>
-              <option value="ZERO">0점</option>
-              <option value="SCORED">채점완료</option>
+              <option value="ZERO">{completion ? "미통과 (X)" : "0점"}</option>
+              <option value="SCORED">{completion ? "통과 (O)" : "채점완료"}</option>
             </select>
             <select
               className="ds-input h-9 min-w-0 text-sm"
@@ -329,14 +344,14 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
               aria-label="과제 결과 정렬"
             >
               <option value="student_name">이름 가나다순</option>
-              <option value="score_desc">점수 높은순</option>
-              <option value="score_asc">점수 낮은순</option>
+              <option value="score_desc">{completion ? "O 먼저" : "점수 높은순"}</option>
+              <option value="score_asc">{completion ? "X 먼저" : "점수 낮은순"}</option>
               <option value="status">상태순</option>
             </select>
           </div>
         )}
 
-        <div className="flex gap-0">
+        <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:gap-0">
           {/* Student list table */}
           <div className="min-w-0 flex-1 overflow-hidden">
             {rows.length === 0 ? (
@@ -354,7 +369,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                     <tr className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)]">
                       <th className="px-3 py-2 text-left font-medium text-[var(--color-text-secondary)]">이름</th>
                       <th className="px-3 py-2 text-left font-medium text-[var(--color-text-secondary)]">상태</th>
-                      <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">점수</th>
+                      <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">{completion ? "O/X" : "점수"}</th>
                       <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">합불</th>
                       <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">클리닉</th>
                       <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">잠금</th>
@@ -391,10 +406,10 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                             </StudentDetailLink>
                           </td>
                           <td className="px-3 py-2">
-                            <StatusBadge status={r.status} />
+                            <StatusBadge status={r.status} completion={completion} />
                           </td>
                           <td className="px-3 py-2 text-center text-[var(--color-text-primary)]">
-                            {r.score != null ? `${r.score}${r.max_score != null ? ` / ${r.max_score}` : ""}` : "—"}
+                            {resultValue(r, completion)}
                           </td>
                           <td className="px-3 py-2 text-center">
                             {r.passed == null ? (
@@ -437,8 +452,8 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
           {/* Divider + detail aside */}
           {selectedRow && (
             <>
-              <div className="w-px shrink-0 bg-[var(--color-border-divider)]" />
-              <aside className="w-72 shrink-0 rounded-r border border-l-0 border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
+              <div className="hidden w-px shrink-0 bg-[var(--color-border-divider)] lg:block" />
+              <aside aria-label="선택 학생 상세" className="w-full min-w-0 shrink-0 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] lg:w-72 lg:rounded-l-none lg:border-l-0">
                 {/* Header */}
                 <div className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">선택 학생 상세</div>
@@ -461,15 +476,13 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                     <div>
                       <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">상태</dt>
                       <dd className="mt-1">
-                        <StatusBadge status={selectedRow.status} />
+                        <StatusBadge status={selectedRow.status} completion={completion} />
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">점수</dt>
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{completion ? "O/X" : "점수"}</dt>
                       <dd className="mt-1 font-medium text-[var(--color-text-primary)]">
-                        {selectedRow.score != null
-                          ? `${selectedRow.score}${selectedRow.max_score != null ? ` / ${selectedRow.max_score}` : ""}`
-                          : "—"}
+                        {resultValue(selectedRow, completion)}
                       </dd>
                     </div>
                     <div>
