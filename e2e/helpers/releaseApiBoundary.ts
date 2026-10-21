@@ -1562,17 +1562,16 @@ export async function installReleaseContextGuard(
       (code) => defects.push(`Release native keepalive rejected [${code}]`));
     await context.route("**/*", async (route) => {
       if (closing) {
-        // Context teardown aborts any still in-flight request. The browser
-        // still logs its own net::ERR_* console.error for that abort (a
-        // net-err/api defect), but this path never touches readFetchRetries/
-        // mutationReplays or recordRouteTransport -- count it here, before
-        // the abort itself, so it is attributed regardless of whether the
-        // abort call succeeds.
+        // Only requests arriving after explicit close begins reach this path;
+        // already-inspected routes are drained by beginClose(). Cancel these
+        // as lifecycle aborts, not policy violations: blockedbyclient can make
+        // Chromium create an error document and report synthetic page errors.
+        // Keep API attribution without changing retries or live policy rejects.
         try {
           const upstream = developmentUpstream(boundary, route.request().url());
           if (new URL(upstream).origin === boundary.apiOrigin) transport.closingAborts += 1;
         } catch { /* best-effort attribution only -- still abort below */ }
-        try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
+        try { await route.abort("aborted"); } catch { /* Context teardown already owns this request. */ }
         return;
       }
       const handling = handleRoute(route);
