@@ -15,12 +15,23 @@ test("온라인 서술형 답안을 모바일과 데스크톱에서 열고 점�
   test.skip(!isLocalBase(BASE), "Local route-mock spec.");
   const studentName = "QA online-written-submission-20261021 자녀 1";
   const answer = "첫 번째 줄에서 풀이의 근거를 설명합니다.\n두 번째 줄에서 계산 과정과 결론을 충분히 길게 작성합니다.";
-  await installApi(page, { gradingMode: "mixed", manualGradingMethod: "score", onlineWrittenAnswer: answer, studentName });
+  await installApi(page, {
+    gradingMode: "mixed", manualGradingMethod: "score", onlineWrittenAnswer: answer, studentName,
+    resultRows: [{
+      enrollment_id: ENROLLMENT_ID, student_name: studentName, result_status: "DONE",
+      rank: 1, ranking_score: 40, final_score: 40, cohort_size: 1, achievement: "FAIL",
+      lecture_title: "공통수학2 정규반", lecture_chip_label: "수2",
+    }],
+  });
   for (const width of [390, 1100, 1366]) {
     await page.setViewportSize({ width, height: 900 });
     await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
-    const row = page.getByRole("row").filter({ hasText: studentName });
+    const results = page.getByRole("region", { name: "시험 학생별 결과", exact: true });
+    await expect(results.getByRole(width === 390 ? "button" : "row").filter({ hasText: studentName })).toHaveCount(1);
+    await expect(page.getByRole("row").filter({ hasText: studentName })).toHaveCount(width === 390 ? 1 : 2);
+    const row = page.getByRole("region", { name: "혼합 채점 워크스페이스", exact: true })
+      .getByRole("row").filter({ hasText: studentName });
     await expect(row).toHaveCount(1);
     const summary = row.locator("summary").filter({ hasText: "학생 답안" });
     await summary.evaluate((element) => element.scrollIntoView({ block: "center", inline: "center" }));
