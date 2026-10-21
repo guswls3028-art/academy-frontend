@@ -299,7 +299,12 @@ exact tenant 경계를 그대로 적용한다.
 명시적 browser context 종료는 새 요청을 먼저 차단하고, 이미 검사 중인 route를 실제
 응답 또는 실패까지 drain한 뒤 경계 결함을 검사하고 context를 닫는다. 따라서 종료와
 겹친 정상 요청은 브라우저가 중간 폐기하지 않으며, drain 중 발생한 upstream/CORS 오류는
-그대로 실패한다. 종료 차단 이후 새로 시작된 background 요청만 transport 전에 abort한다.
+그대로 실패한다. 종료 차단 이후 새로 시작된 요청만 transport 전에 `aborted`로 취소한다.
+이는 명시적 종료의 취소이며, 실행 중 정책 위반의 `blockedbyclient` 거부와 구분한다.
+console/pageerror 허용목록이나 strict assertion은 완화하지 않는다.
+`development-release-canary.test.mjs`의 실제 Chromium 회귀는 drain 중 새 API·script·navigation의
+upstream 도달 0, 취소 코드, 정상 문서 유지와 오류 0을 검증하고, 별도 context의 정책 위반은
+계속 거부되고 경계 검증이 실패하는지 확인한다.
 drain에서 허용 경로의 transport 실패를 발견한 경우에는 method/path template/read·mutation/
 initial·retry/고정 transport code만 담은 진단을 먼저 stdout에 남긴 뒤 같은 경계 assertion으로
 테스트를 실패시킨다. assertion이 진단 출력을 건너뛰거나 진단이 실패를 완화하는 것은 허용하지 않는다.

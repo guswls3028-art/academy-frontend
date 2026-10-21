@@ -391,6 +391,7 @@ export default function SessionAttendancePage({
         let sessionTitle = "";
         let initialBody: string | undefined;
         let initialTemplateId: number | null = null;
+        let initialTemplateUpdatedAt: string | undefined;
         let initialLetterPresetId: string | null = null;
         let scoreDetail = "";
         let firstScoreVars: Record<string, string> = {};
@@ -420,6 +421,7 @@ export default function SessionAttendancePage({
 
           initialBody = chosenTpl?.body ?? buildGenericScoreTemplate({ lectureName, sessionTitle });
           initialTemplateId = chosenTpl?.id ?? null;
+          initialTemplateUpdatedAt = chosenTpl?.updated_at;
           initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
           // SSOT (2026-05-14): modal이 currentBody (학원장 수정본) 기반으로 학생별 재계산.
           // 직전 결함: 사전 계산된 _body_subst 만 보내면 학원장 textarea 수정이 silent discard.
@@ -448,6 +450,7 @@ export default function SessionAttendancePage({
           blockCategory: "grades",
           initialBody,
           initialTemplateId,
+          initialTemplateUpdatedAt,
           initialLetterPresetId,
           alimtalkExtraVars: {
             강의명: lectureName,

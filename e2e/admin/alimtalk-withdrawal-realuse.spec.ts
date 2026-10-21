@@ -127,31 +127,54 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       await mobileEditor.getByRole("button", { name: "수정", exact: true }).click();
       await expect(mobileEditor).toBeHidden();
       expect((await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${editableTemplateId}/`, access)).body).toBe(mobileBody);
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await page.getByRole("button", { name: `QA editable ${family.students[0].id} 편집`, exact: true }).click();
-      await expect(mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true })).toHaveText(mobileBody);
-      await expect(mobileEditor.getByRole("button", { name: "수정", exact: true })).toBeInViewport();
-      await assertNoHorizontalOverflow(page);
-      await page.screenshot({ path: testInfo.outputPath(`alimtalk-library-${width}.png`) });
-      await mobileEditor.getByRole("button", { name: "닫기", exact: true }).click();
-      await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/students`);
-      await page.getByPlaceholder("이름, 아이디, 전화번호, 학교").fill(student.name);
-      await expect(page.getByRole("status").filter({ hasText: "총 1명 · 1명 표시" })).toBeVisible();
-      await page.getByRole("button", { name: "선택", exact: true }).click();
-      await expect(page.getByRole("button", { name: "전체 선택", exact: true })).toBeVisible();
-      await expect(page.getByText(student.name, { exact: true })).toBeVisible();
-      await page.getByRole("button", { name: "전체 선택", exact: true }).click();
-      await page.getByRole("button", { name: "알림톡", exact: true }).click();
-      const compose = page.getByRole("dialog", { name: "1명에게 알림톡", exact: true });
-      await compose.getByLabel("저장한 문구 불러오기").selectOption(String(editableTemplateId));
-      await expect(compose.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveText(mobileBody);
-      await compose.getByRole("button", { name: "수신자별 발송 문구 확인", exact: true }).click();
-      const review = page.getByRole("dialog", { name: "보내기 전 마지막 확인", exact: true });
-      await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText(mobileBody);
-      await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText(student.name);
-      await review.getByRole("button", { name: "문구 수정", exact: true }).click();
-      await expect(compose.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveText(mobileBody);
-      await compose.getByRole("button", { name: "닫기", exact: true }).click();
+      // A new context has no prior cookies, local storage or query cache.
+      // Log in through the UI and consume the persisted copy in a new session.
+      const reconnectedContext = await page.context().browser()!.newContext({
+        viewport: { width, height: 900 }, serviceWorkers: "block",
+      });
+      try {
+        const page = await reconnectedContext.newPage();
+        const reconnectBoundary = await installQaStudentParentBoundary(page, request);
+        const reconnectBrowser = attachStrictBrowserGuards(page);
+        await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`, { timeout: 45_000 });
+        await page.getByTestId("login-username").fill(QA_ADMIN_USER);
+        await page.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
+        await page.getByTestId("login-submit").click();
+        await expect(page).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+        await acknowledgeInitialAccountPromptsIfVisible(page);
+        await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/message-templates`);
+        const mobileEditor = page.getByRole("dialog", { name: "문구 편집", exact: true });
+        await page.getByRole("button", { name: `QA editable ${family.students[0].id} 편집`, exact: true }).click();
+        await expect(mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true })).toHaveText(mobileBody);
+        await expect(mobileEditor).not.toContainText("예전에 저장한 합성 안내문");
+        await expect(mobileEditor.getByRole("button", { name: "수정", exact: true })).toBeInViewport();
+        await assertNoHorizontalOverflow(page);
+        await page.screenshot({ path: testInfo.outputPath(`alimtalk-library-${width}.png`) });
+        await mobileEditor.getByRole("button", { name: "닫기", exact: true }).click();
+        await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/students`);
+        await page.getByPlaceholder("이름, 아이디, 전화번호, 학교").fill(student.name);
+        await expect(page.getByRole("status").filter({ hasText: "총 1명 · 1명 표시" })).toBeVisible();
+        await page.getByRole("button", { name: "선택", exact: true }).click();
+        await expect(page.getByRole("button", { name: "전체 선택", exact: true })).toBeVisible();
+        await expect(page.getByText(student.name, { exact: true })).toBeVisible();
+        await page.getByRole("button", { name: "전체 선택", exact: true }).click();
+        await page.getByRole("button", { name: "알림톡", exact: true }).click();
+        const compose = page.getByRole("dialog", { name: "1명에게 알림톡", exact: true });
+        await compose.getByLabel("저장한 문구 불러오기").selectOption(String(editableTemplateId));
+        await expect(compose.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveText(mobileBody);
+        await compose.getByRole("button", { name: "수신자별 발송 문구 확인", exact: true }).click();
+        const review = page.getByRole("dialog", { name: "보내기 전 마지막 확인", exact: true });
+        await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText(mobileBody);
+        await expect(review).not.toContainText("예전에 저장한 합성 안내문");
+        await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText(student.name);
+        await review.getByRole("button", { name: "문구 수정", exact: true }).click();
+        await expect(compose.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveText(mobileBody);
+        await compose.getByRole("button", { name: "닫기", exact: true }).click();
+        reconnectBoundary.assertClean();
+        reconnectBrowser.assertZeroDefects();
+      } finally {
+        await reconnectedContext.close();
+      }
       await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/messaging-settings`);
       const mobileReminder = page.getByRole("group").filter({ hasText: `QA editable ${family.students[0].id}` });
       await mobileReminder.getByTitle("설정 편집").click();

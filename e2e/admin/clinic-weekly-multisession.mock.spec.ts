@@ -628,9 +628,13 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   const openCalendar = page.getByRole("button", { name: "달력으로 이동" });
   await expect(openCalendar).toBeVisible({ timeout: 45_000 });
   await openCalendar.click();
-  const saturdayCell = page.getByRole("gridcell", { name: new RegExp(`${saturdayLabel} 토요일, 클리닉 3개`) });
+  const calendarDialog = page.getByRole("dialog", { name: "날짜 이동", exact: true });
+  await expect(calendarDialog).toBeVisible();
+  await expect(calendarDialog).not.toHaveClass(/ant-zoom-(?:appear|enter)/);
+  const saturdayCell = calendarDialog.getByRole("gridcell", { name: new RegExp(`${saturdayLabel} 토요일, 클리닉 3개`) });
   await expect(saturdayCell).toContainText("3개", { timeout: 20_000 });
   await saturdayCell.click();
+  await expect(calendarDialog).toBeHidden();
   const selectedDay = page.getByRole("grid", { name: /클리닉 예약 일정/ })
     .getByRole("gridcell", { name: new RegExp(`^${saturdayLabel}`) });
   await expect(selectedDay.getByRole("article")).toHaveCount(3);

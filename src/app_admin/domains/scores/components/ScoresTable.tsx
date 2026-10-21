@@ -54,14 +54,12 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
 import "./ScoreCollaborationPresence.css";
+import "./ScoresTableLayout.css";
+import { useScoreTableLayout } from "./useScoreTableLayout";
 
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
-// 2026-05-13 4차 Visual Polish:
-// 1100 narrow viewport (학원장 PC 기본 폭 일부) wrap 836 안에 들어가도록 default 재조정.
-// 직전 합산 1284px → 836 < 1284 → 가로 스크롤 강요. 신규 합산 813px ≤ 836 → viewport 내 안착.
-// 합산 계산: 36 + 196 + 64 + 125*3 + 96 + 96 = 863 + alpha
-// 학원장이 폭 부족 시 ResizableTh 드래그로 직접 조정 가능 (5/13 1차 fix).
+// Preferred widths; the default fit mode contracts these to the available viewport.
 const COL_NAME = 196;
 const COL_ATTENDANCE = 78;
 const COL_SCORE = 125;
@@ -1176,7 +1174,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         key: c.key,
         label: c.key,
         defaultWidth: c.width,
-        minWidth: c.key === "name" ? 100 : c.key === "attendance" ? 72 : c.key === "clinic_target" ? 80 : 48,
+        minWidth: c.key === "name" ? 136 : c.key === "attendance" ? 72
+          : c.type === "exam_summary" || c.type === "homework_summary" || c.key === "clinic_target" ? 88 : 64,
         maxWidth: 500,
       })),
     ];
@@ -1184,7 +1183,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
   /* 2026-05-18 Product Polish:
      v6 bump → 출석 기본 폭 + 상태 색상 density 조정 default 반영. */
-  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores-v6", columnDefs);
+  const { columnWidths: preferredWidths, setColumnWidth: saveColumnWidth } = useTableColumnPrefs("session-scores-v6", columnDefs);
+  const { containerRef, widths: columnWidths, autoFit, changeAutoFit, resizeColumn: setColumnWidth } =
+    useScoreTableLayout(columnDefs, preferredWidths, saveColumnWidth);
 
   const tableCols = useMemo(() => {
     return [
@@ -1216,7 +1217,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     selectableRows.every((r) => selectedSet.has(r.enrollment_id));
 
   return (
-    <div>
+    <div ref={containerRef} className="scores-table-layout">
+      <div className="scores-table-layout-controls" role="group" aria-label="성적표 열 너비">
+        <Button size="sm" intent={autoFit ? "primary" : "secondary"} aria-pressed={autoFit} onClick={() => changeAutoFit(true)}>
+          화면에 맞춤
+        </Button>
+        <Button size="sm" intent={!autoFit ? "primary" : "secondary"} aria-pressed={!autoFit} onClick={() => changeAutoFit(false)}>
+          직접 조절
+        </Button>
+      </div>
       {/* P0-2 (2026-05-13): 테이블 위 absolute OMR 미니버튼 제거.
           학원장 캡처에서 헤더 위 "+OMR +OMR" 줄이 시각 노이즈 + 툴바 OMR 버튼과 중복.
           전체 시험 대상 업로드는 툴바, 한 시험의 업로드는 시험명 작업 화면에서 제공한다. */}
@@ -1226,6 +1235,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       dataAttributes={{
         ...(isEditMode ? { "data-edit-mode": "true" } : {}),
         "data-summary-column": summaryColumnMode,
+        "data-width-mode": autoFit ? "fit" : "manual",
       }}
     >
       <colgroup>
@@ -1273,7 +1283,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           <ResizableTh
             columnKey="name"
             width={columnWidths.name ?? COL_NAME}
-            minWidth={100}
+            minWidth={136}
             maxWidth={400}
             onWidthChange={setColumnWidth}
             rowSpan={2}

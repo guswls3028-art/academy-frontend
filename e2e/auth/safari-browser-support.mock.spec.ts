@@ -2,6 +2,7 @@ import { expect, test, type Page } from "../fixtures/strictTest";
 import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5173").replace(/\/+$/, "");
+const STUDENT_PROFILE_NAME = "브라우저 점검학생";
 
 type SafariCapabilityProfile = {
   name: string;
@@ -56,6 +57,20 @@ async function stubStudentLogin(page: Page): Promise<void> {
   await page.route("**/api/v1/**", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
   });
+  // A missing profile id triggers notification retries, which can race the reload
+  // below. Exercise a valid signed-in student, including the profile consumer.
+  await page.route("**/api/v1/student/me/", async (route) => {
+    await route.fulfill({
+      json: { id: 901, name: STUDENT_PROFILE_NAME, profile_photo_url: null },
+    });
+  });
+  // Clinic counts require a list response. An invalid {} retries the whole
+  // notification query after two seconds and races the document reload.
+  await page.route("**/api/v1/clinic/participants/**", async (route) => {
+    await route.fulfill({
+      json: { count: 0, next: null, previous: null, results: [] },
+    });
+  });
   await page.route("**/api/v1/core/program/**", async (route) => {
     await route.fulfill({
       status: 200,
@@ -105,6 +120,8 @@ async function expectStudentShell(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/student(?:\/|$)/);
   await expect(page.locator(".student-layout")).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole("region", { name: "자주 쓰는 일" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: "프로필 메뉴", exact: true }))
+    .toHaveText(STUDENT_PROFILE_NAME.slice(0, 1));
   await page.waitForLoadState("networkidle", { timeout: 30_000 });
   expect(await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
