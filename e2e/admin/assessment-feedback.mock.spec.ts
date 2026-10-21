@@ -4,6 +4,9 @@ import { openCompositionScores } from "../helpers/assessmentCompositionMock";
 for (const width of [1366, 1100, 390]) {
   test(`@score-table-fit ${width}px 성적표 자동 맞춤과 직접 조절을 복원한다`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
+    if (width === 1100) {
+      await page.addInitScript(() => { Object.defineProperty(window, "ResizeObserver", { value: undefined, configurable: true }); });
+    }
     await page.route(/\/api\/v1\/lectures\/sessions\/\?/, route => route.fulfill({ json: [
       { id: 9002, lecture: 9001, order: 1, session_type: "REGULAR", title: "표 너비 검증", date: "2026-08-25" },
     ] }));
@@ -39,6 +42,13 @@ for (const width of [1366, 1100, 390]) {
       await expect.poll(() => viewport.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
       const finalCell = table.locator("tbody td").last();
       await expect(finalCell).toBeInViewport();
+      if (width === 1100) {
+        const before = await table.evaluate(el => el.getBoundingClientRect().width);
+        await page.setViewportSize({ width: 1200, height: 900 });
+        await expect.poll(() => table.evaluate(el => el.getBoundingClientRect().width)).toBeGreaterThan(before);
+        await page.setViewportSize({ width, height: 900 });
+        await expect.poll(() => viewport.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+      }
     } else {
       await expect.poll(() => viewport.evaluate(el => el.scrollWidth - el.clientWidth)).toBeGreaterThan(0);
       await viewport.evaluate(el => { el.scrollLeft = el.scrollWidth; });

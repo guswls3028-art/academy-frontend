@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ResizeObserverPolyfill from "resize-observer-polyfill";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import { getLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
@@ -22,6 +23,8 @@ export function useScoreTableLayout(
     if (!viewport) return;
     const measure = () => setAvailableWidth(viewport.clientWidth);
     measure();
+    // Assessment menus use the same browser API; install the existing shim for both.
+    if (typeof window.ResizeObserver === "undefined") window.ResizeObserver = ResizeObserverPolyfill;
     const observer = new ResizeObserver(measure);
     observer.observe(viewport);
     return () => observer.disconnect();
