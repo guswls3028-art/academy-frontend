@@ -79,6 +79,13 @@ export async function verifyOnlineWrittenSubmission(
     await studentPage.reload({ waitUntil: "domcontentloaded" });
     await expect(studentPage.getByText("서술형 채점 중입니다.")).toBeVisible();
 
+    const sheet = await expectApi<{
+      rows: Array<{ enrollment_id: number; student_name: string; cells: Record<string, { answer: string; score: number | null }> }>;
+    }>(request, "GET", `/results/admin/exams/${exam.id}/manual-grading/`, admin.access);
+    const pendingRow = sheet.rows.find((row) => row.enrollment_id === scope.enrollmentId);
+    expect(pendingRow?.student_name).toBe(scope.studentName);
+    expect(pendingRow?.cells[String(questions[1].id)]).toMatchObject({ answer, score: null });
+
     const gradingUrl = `${QA_BASE}/workspace/lectures/${scope.lectureId}/sessions/${scope.sessionId}/exams?examId=${exam.id}`;
     const teacherRow = teacherPage.getByRole("row").filter({ hasText: scope.studentName });
     for (const width of [390, 1366]) {
@@ -86,7 +93,18 @@ export async function verifyOnlineWrittenSubmission(
       await gotoAndSettle(teacherPage, gradingUrl);
       await acknowledgeInitialAccountPromptsIfVisible(teacherPage);
       await teacherPage.getByRole("tab", { name: "채점·결과", exact: true }).click();
-      await teacherRow.locator("summary").filter({ hasText: "학생 답안" }).click();
+      await expect(teacherPage).toHaveURL(gradingUrl);
+      await expect(teacherRow).toHaveCount(1);
+      const summary = teacherRow.locator("summary").filter({ hasText: "학생 답안" });
+      await summary.evaluate((element) => element.scrollIntoView({ block: "center", inline: "center" }));
+      await expect.poll(() => summary.evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const rect = range.getBoundingClientRect();
+        return rect.width > 0 && [rect.left + 1, rect.right - 1].every((x) =>
+          element.contains(document.elementFromPoint(x, rect.top + rect.height / 2)));
+      })).toBe(true);
+      await summary.click();
       await expect(teacherRow.locator("details[open] div")).toHaveText(answer);
       await expect(teacherRow.getByRole("spinbutton", { name: /50점 만점 점수/ })).toHaveValue("");
       await assertNoHorizontalOverflow(teacherPage);

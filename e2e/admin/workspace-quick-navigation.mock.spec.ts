@@ -310,8 +310,10 @@ test.describe("업무 화면 기능 검색", () => {
     await expect(finder.getByRole("alert")).toContainText("권한 정보를 불러오지 못해");
     await expect(finder.getByRole("button", { name: /확정 급여·정산 내역/ })).toHaveCount(0);
     await search.press("ArrowDown");
-    state.failPermissions = false;
+    // Shared identity observers may retry while the click is becoming actionable.
+    // Keep those requests failing until the user actually clicks manual recovery.
     await finder.getByRole("button", { name: "다시 시도", exact: true }).click();
+    state.failPermissions = false;
     await expect(search).toHaveValue("세전 세후");
     await expect(finder.getByRole("button", { name: /확정 급여·정산 내역/ })).toBeVisible();
     await search.press("Enter");
