@@ -602,6 +602,122 @@ function imageNotice() {
 test.describe("학생·학부모 콘텐츠 안정성", () => {
   test.skip(!IS_LOCAL_BASE, "Local route-mock contract spec.");
 
+  for (const width of [390, 1100, 1366]) {
+    for (const parentDashboard of [false, true]) {
+      test(`학습 현황은 조회 대기·집계 범위를 구분하고 상세 내역을 연다 ${width} ${parentDashboard ? "학부모" : "학생"}`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.clock.setFixedTime(new Date("2026-10-21T00:10:00+09:00"));
+        await installStudentApi(page, { parentDashboard });
+        let releaseGrades!: () => void;
+        const gradesReady = new Promise<void>((resolve) => { releaseGrades = resolve; });
+        const grades = emptyGrades(701);
+        // Old results remain part of the explicitly labelled whole-history rate.
+        grades.exams[0].submitted_at = "2025-01-01T09:00:00+09:00";
+        await page.route("**/api/v1/student/grades/", async (route) => {
+          await gradesReady;
+          await route.fulfill({ json: grades });
+        });
+        await page.route("**/api/v1/student/sessions/me/", (route) => route.fulfill({ json: [
+          { id: 21, title: "기간 밖 수업", date: "2026-09-23" },
+          { id: 22, title: "기간 첫날 수업", date: "2026-09-24" },
+          { id: 23, title: "오늘 클리닉", date: "2026-10-21", type: "clinic" },
+          { id: 24, title: "내일 수업", date: "2026-10-22" },
+        ] }));
+        await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+        const card = page.getByRole("region", { name: "학습 현황", exact: true });
+        const sessions = card.getByRole("link", { name: /수업·클리닉/ });
+        const exams = card.getByRole("link", { name: /시험 합격/ });
+        await expect(sessions).toContainText("2회");
+        await expect(exams).toContainText("확인 중");
+        await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+        releaseGrades();
+        await expect(exams).toContainText("100%");
+        await expect(exams).toContainText("전체 판정 결과");
+        await expect(card.getByRole("link", { name: /과제 통과/ })).toContainText("기록 없음");
+        await assertNoRenderedHtmlLeak(page);
+        await testInfo.attach(`learning-status-${width}-${parentDashboard}`, { body: await card.screenshot(), contentType: "image/png" });
+        await sessions.focus();
+        await expect(sessions).toBeFocused();
+        await page.keyboard.press("Enter");
+        await expect(page).toHaveURL(/\/student\/sessions$/);
+        await page.goBack();
+        await card.getByRole("link", { name: /과제 통과/ }).click();
+        await expect(page).toHaveURL(/\/student\/grades\?view=homework$/);
+        await expect(page.getByRole("button", { name: /^과제/ }).first()).toBeVisible();
+        await page.reload();
+        await expect(page).toHaveURL(/view=homework/);
+        await page.goBack();
+        await card.getByRole("link", { name: /시험 합격/ }).click();
+        await expect(page).toHaveURL(/\/student\/grades$/);
+        await expect(page.getByText("공통 진단평가").first()).toBeVisible();
+        await page.goBack();
+        await page.reload();
+        await expect(exams).toContainText("100%");
+        await expect(sessions).toContainText("2회");
+        await assertNoRenderedHtmlLeak(page);
+      });
+    }
+  }
+
+  for (const source of ["grades", "sessions"] as const) {
+    test(`학습 현황은 ${source} 실패를 0으로 숨기지 않고 재시도로 복구한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await installStudentApi(page, { parentDashboard: true });
+      let failed = true;
+      let dataReads = 0;
+      let meReads = 0;
+      page.on("request", (request) => {
+        if (new URL(request.url()).pathname.endsWith("/core/me/")) meReads += 1;
+      });
+      await page.route(source === "grades" ? "**/api/v1/student/grades/" : "**/api/v1/student/sessions/me/", (route) => {
+        dataReads += 1;
+        return route.fulfill(failed
+          ? { status: 400, json: { detail: "temporary read failure" } }
+          : { json: source === "grades" ? emptyGrades() : [] });
+      });
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      const card = page.getByRole("region", { name: "학습 현황", exact: true });
+      await expect(card.getByRole("alert")).toContainText(source === "grades" ? "성적을 불러오지 못했어요" : "일정을 불러오지 못했어요");
+      await expect(card.getByText("확인 필요", { exact: true }).first()).toBeVisible();
+      await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+      if (source === "grades") await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("0회");
+      await testInfo.attach(`learning-status-${source}-error`, { body: await card.screenshot(), contentType: "image/png" });
+      const beforeRetry = dataReads;
+      const beforeMe = meReads;
+      failed = false;
+      await card.getByRole("button", { name: "다시 시도", exact: true }).click();
+      await expect(card.getByRole("alert")).toHaveCount(0);
+      await expect(card.getByText("아직 학습 기록이 없어요")).toBeVisible();
+      expect(dataReads).toBe(beforeRetry + 1);
+      expect(meReads).toBe(beforeMe);
+      await page.reload();
+      await expect(card.getByText("아직 학습 기록이 없어요")).toBeVisible();
+      await assertNoRenderedHtmlLeak(page);
+    });
+  }
+
+  test("학습 현황은 실제 0%와 결과 대기를 구분하고 같은 판정 집합으로 비율을 계산한다", async ({ page }) => {
+    await installStudentApi(page);
+    const grades = emptyGrades(701);
+    grades.exams[0].is_pass = false;
+    grades.exams[0].achievement = "FAIL";
+    await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+      ...grades,
+      exams: [...grades.exams, { ...grades.exams[0], exam_id: 702, is_pass: null, achievement: "REMEDIATED" }],
+      homeworks: [{ homework_id: 801, enrollment_id: 301, title: "제출할 과제", passed: false, achievement: "FAIL" }],
+    } }));
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+    const card = page.getByRole("region", { name: "학습 현황", exact: true });
+    await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("0%");
+    await expect(card.getByRole("link", { name: /과제 통과/ })).toContainText("0%");
+    await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+    await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+      ...grades, exams: [{ ...grades.exams[0], is_pass: null, achievement: null }],
+    } }));
+    await page.reload();
+    await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("결과 대기");
+  });
+
   for (const width of [390, 1366]) {
     for (const area of ["detail", "payments"] as const) {
       test(`수납 ${area} 조회 실패를 구분하고 다시 시도해 복구한다 ${width}`, async ({ page }, testInfo) => {
@@ -732,7 +848,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await expect(summary.getByText("정리됨", { exact: true })).toHaveCount(0);
       await expect(summary.getByText("안정", { exact: true })).toHaveCount(0);
       failed = false;
-      await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+      await page.getByRole("region", { name: "학습 현황", exact: true }).getByRole("button", { name: "다시 시도", exact: true }).click();
       await expect(summary.getByText("정리됨", { exact: true })).toBeVisible();
       await assertNoRenderedHtmlLeak(page);
     });

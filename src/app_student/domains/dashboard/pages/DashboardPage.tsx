@@ -6,7 +6,7 @@
  *   1) 다음 일정 카운트다운
  *   2) 오늘 할 일 (긍정/중립/부정 혼합, 비어 있으면 응원 메시지)
  *   3) 오늘 수업
- *   4) 학습 현황 (활동성 우선, 시험 평균은 완화 컬러)
+ *   4) 학습 현황 (집계 범위·조회 상태와 상세 진입)
  *   5) 공지 (긴급 1건+ 또는 신규 있을 때만 강조, 비어 있으면 1행 라인 링크)
  *   6) 앱 아이콘 (탭바 중복 제거 + 퇴실용 패스카드, 8개)
  *   7) 학원문의 (1행 압축, 분점 다수일 때만 펼침)
@@ -23,7 +23,7 @@ import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import type { StudentDashboardResponse } from "../api/dashboard.api";
 import { useMySessions } from "@student/domains/sessions/hooks/useStudentSessions";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
-import type { MyExamGradeSummary, MyGradesSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
+import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import {
@@ -364,6 +364,9 @@ export default function DashboardPage() {
 
   const hasUrgentNotice = (dashboard?.notices ?? []).some((n) => n.is_urgent === true);
   const hasNotices = (dashboard?.notices?.length ?? 0) > 0;
+  const learningStatus = (
+    <LearningStatusCard gradesQ={gradesQ} sessionsQ={sessionsQ} now={now} wrongCompletionOnly={wrongCompletionOnly} />
+  );
   const partialFailureBanner = todoDataError || sessionsError ? (
     <div className={styles.heroDone} role="alert">
       <div>
@@ -399,8 +402,7 @@ export default function DashboardPage() {
         summaryError={todoDataError || sessionsError}
         todoCount={todoCount}
         clinicCount={clinicCount}
-        grades={grades ?? null}
-        sessions={sessions ?? null}
+        learningStatus={learningStatus}
         notices={dashboard?.notices ?? []}
         hasUrgentNotice={hasUrgentNotice}
         hasNotices={hasNotices}
@@ -649,7 +651,7 @@ export default function DashboardPage() {
       )}
 
       <div data-guide="dash-stats">
-        <LearningStatusCard grades={grades ?? null} sessions={sessions ?? null} wrongCompletionOnly={wrongCompletionOnly} />
+        {learningStatus}
       </div>
 
       {!hasUrgentNotice && (
@@ -709,8 +711,7 @@ type ParentDashboardViewProps = {
   summaryError: boolean;
   todoCount: number;
   clinicCount: number;
-  grades: MyGradesSummary | null;
-  sessions: StudentSession[] | null;
+  learningStatus: ReactNode;
   notices: Array<{ id: number; title: string; created_at: string | null; is_urgent?: boolean }>;
   hasUrgentNotice: boolean;
   hasNotices: boolean;
@@ -735,8 +736,7 @@ function ParentDashboardView({
   summaryError,
   todoCount,
   clinicCount,
-  grades,
-  sessions,
+  learningStatus,
   notices,
   hasUrgentNotice,
   hasNotices,
@@ -927,7 +927,7 @@ function ParentDashboardView({
         </section>
       )}
 
-      <LearningStatusCard grades={grades} sessions={sessions} wrongCompletionOnly={wrongCompletionOnly} />
+      {learningStatus}
 
       {!hasUrgentNotice && (
         <NoticeStrip notices={notices} hasNotices={hasNotices} />
@@ -963,28 +963,29 @@ function ParentMetric({
 }
 
 /* ============================================================================
- * 학습 현황 — 활동성 + 시험 평균 (완화 컬러)
+ * 학습 현황 — 조회별 상태와 집계 범위를 유지하며 상세 내역으로 연결
  * ========================================================================== */
 
 function LearningStatusCard({
-  grades,
-  sessions,
+  gradesQ,
+  sessionsQ,
+  now,
   wrongCompletionOnly,
 }: {
-  grades: MyGradesSummary | null;
-  sessions: StudentSession[] | null;
+  gradesQ: ReturnType<typeof useMyGradesSummary>;
+  sessionsQ: ReturnType<typeof useMySessions>;
+  now: number;
   wrongCompletionOnly: boolean;
 }) {
-  /* 최근 4주 수업 활동 */
+  const grades = gradesQ.data;
+  const sessions = sessionsQ.data;
+  const today = learningDate(now);
+  const cutoff = learningDate(now - 27 * 24 * 60 * 60 * 1000);
+  /* 오늘을 포함한 한국 날짜 28일. 수업 목록에는 클리닉도 포함된다. */
   const recentSessionCount = useMemo(() => {
     if (!sessions?.length) return 0;
-    const cutoff = Date.now() - 28 * 24 * 60 * 60 * 1000;
-    return sessions.filter((s) => {
-      if (!s.date) return false;
-      const t = new Date(s.date).getTime();
-      return t >= cutoff && t <= Date.now();
-    }).length;
-  }, [sessions]);
+    return sessions.filter((s) => s.date && s.date >= cutoff && s.date <= today).length;
+  }, [sessions, cutoff, today]);
 
   /* 과제 통과율 */
   const hwCount = grades?.homeworks?.length ?? 0;
@@ -997,19 +998,28 @@ function LearningStatusCard({
   const hwRate = hwCount > 0 ? Math.round((passedHw / hwCount) * 100) : null;
 
   /* 시험 합격률 (점수 평균 대신 합격/총합 비율) */
-  const examTotal = grades?.exams?.filter((e) => wrongCompletionOnly
+  const evaluatedExams = grades?.exams?.filter((e) => wrongCompletionOnly
     ? e.correction_status != null
-    : e.is_pass != null).length ?? 0;
-  const examPassed = grades?.exams?.filter((e) => wrongCompletionOnly
+    : e.is_pass != null) ?? [];
+  const examTotal = evaluatedExams.length;
+  const examPassed = evaluatedExams.filter((e) => wrongCompletionOnly
     ? e.correction_status === "COMPLETED" || e.correction_status === "NOT_REQUIRED"
     : (
       e.achievement === "PASS"
       || e.achievement === "REMEDIATED"
       || (e.achievement == null && e.is_pass === true)
-    )).length ?? 0;
+    )).length;
   const examRate = examTotal > 0 ? Math.round((examPassed / examTotal) * 100) : null;
 
-  const hasData = recentSessionCount > 0 || hwCount > 0 || examTotal > 0;
+  const gradesError = gradesQ.isError;
+  const sessionsError = sessionsQ.isError;
+  const gradesPending = gradesQ.isLoading;
+  const sessionsPending = sessionsQ.isLoading;
+  const hasError = gradesError || sessionsError;
+  const hasPending = gradesPending || sessionsPending;
+  const hasData = recentSessionCount > 0 || hwCount > 0 || (grades?.exams.length ?? 0) > 0;
+  const retrying = (gradesError && gradesQ.isFetching) || (sessionsError && sessionsQ.isFetching);
+  const placeholder = (error: boolean, pending: boolean, empty: string) => error ? "확인 필요" : pending ? "확인 중" : empty;
 
   /* 컬러 임계값 완화: 70% 이상 녹색, 그 외 회색. 빨강 제거. */
   const tone = (rate: number | null): string => {
@@ -1019,20 +1029,35 @@ function LearningStatusCard({
   };
 
   return (
-    <section className={`stu-panel ${styles.surface}`}>
+    <section className={`stu-panel ${styles.surface}`} aria-label="학습 현황">
       <div className={styles.surfaceHeader}>
-        <div className={styles.surfaceEyebrow}>나의 학습 현황</div>
-        <span className={styles.surfaceMeta}>최근 4주</span>
+        <div className={styles.surfaceEyebrow}>학습 현황</div>
+        <span className={styles.surfaceMeta}>항목을 누르면 상세 내역</span>
       </div>
-      {hasData ? (
-        <div className={styles.statGrid}>
-          <Stat label="수업" value={recentSessionCount} unit="회" tone="var(--stu-text)" />
-          <Divider />
-          <Stat label={wrongCompletionOnly ? "과제 완료" : "과제 통과"} value={hwRate} unit={hwRate != null ? "%" : ""} tone={tone(hwRate)} />
-          <Divider />
-          <Stat label={wrongCompletionOnly ? "오답 완료" : "시험 합격"} value={examRate} unit={examRate != null ? "%" : ""} tone={tone(examRate)} />
+      <div className={styles.statGrid}>
+        <Stat to="/student/sessions" label="수업·클리닉" scope="최근 4주 일정"
+          value={sessionsError || sessionsPending ? null : recentSessionCount} unit="회"
+          placeholder={placeholder(sessionsError, sessionsPending, "기록 없음")} tone="var(--stu-text)" />
+        <Divider />
+        <Stat to="/student/grades?view=homework" label={wrongCompletionOnly ? "과제 완료" : "과제 통과"} scope="전체 과제"
+          value={gradesError || gradesPending ? null : hwRate} unit="%"
+          placeholder={placeholder(gradesError, gradesPending, "기록 없음")} tone={tone(hwRate)} />
+        <Divider />
+        <Stat to="/student/grades" label={wrongCompletionOnly ? "오답 완료" : "시험 합격"} scope="전체 판정 결과"
+          value={gradesError || gradesPending ? null : examRate} unit="%"
+          placeholder={placeholder(gradesError, gradesPending, (grades?.exams.length ?? 0) > 0 ? "결과 대기" : "기록 없음")} tone={tone(examRate)} />
+      </div>
+      {hasError ? (
+        <div className={styles.learningFeedback} role="alert">
+          <span>{gradesError && sessionsError ? "학습 현황을" : gradesError ? "성적을" : "일정을"} 불러오지 못했어요.</span>
+          <button type="button" disabled={retrying} onClick={() => {
+            if (gradesError) void gradesQ.refetch();
+            if (sessionsError) void sessionsQ.refetch();
+          }}>{retrying ? "다시 확인 중" : "다시 시도"}</button>
         </div>
-      ) : (
+      ) : hasPending ? (
+        <div className={styles.learningFeedback} role="status">학습 현황을 확인하고 있어요.</div>
+      ) : !hasData ? (
         <div className={styles.learningEmpty}>
           <div className={styles.learningEmptyIcon}>
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
@@ -1050,22 +1075,25 @@ function LearningStatusCard({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
 
-function Stat({ label, value, unit, tone }: { label: string; value: number | null; unit: string; tone: string }) {
+function Stat({ to, label, scope, value, unit, tone, placeholder }: {
+  to: string; label: string; scope: string; value: number | null; unit: string; tone: string; placeholder: string;
+}) {
   return (
-    <div className={styles.stat}>
+    <Link to={to} className={styles.stat}>
       <span className={styles.statLabel}>{label}</span>
       <div>
-        <span className={styles.statValue} style={{ "--stat-tone": tone } as CSSProperties}>
-          {value != null ? value : "-"}
+        <span className={value == null ? styles.statPlaceholder : styles.statValue} style={{ "--stat-tone": tone } as CSSProperties}>
+          {value != null ? value : placeholder}
         </span>
-        <span className={styles.statUnit}>{unit}</span>
+        {value != null && <span className={styles.statUnit}>{unit}</span>}
       </div>
-    </div>
+      <span className={styles.statScope}>{scope}<IconChevronRight /></span>
+    </Link>
   );
 }
 
