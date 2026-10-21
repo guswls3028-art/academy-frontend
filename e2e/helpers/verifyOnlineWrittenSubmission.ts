@@ -36,11 +36,14 @@ export async function verifyOnlineWrittenSubmission(
     { exam_question_id: questions[1].id, answer },
   ];
   await expectApi(request, "POST", `/student/exams/${exam.id}/submit/`, student.access, { answers }, [409]);
-  await expectApi(request, "POST", "/exams/answer-keys/", admin.access, { exam: exam.id, answers: {} });
-  await expectApi(request, "POST", `/student/exams/${exam.id}/submit/`, student.access, { answers }, [409]);
-  await expectApi(request, "POST", "/exams/answer-keys/", admin.access, {
-    exam: exam.id, answers: { [questions[0].id]: "2" },
+  const answerKey = await expectApi<{ id: number }>(request, "POST", "/exams/answer-keys/", admin.access, {
+    exam: exam.id, answers: {},
   });
+  await expectApi(request, "POST", `/student/exams/${exam.id}/submit/`, student.access, { answers }, [409]);
+  // Match the teacher editor: update an existing answer key by its id.
+  await expectApi(request, "PUT", `/exams/answer-keys/${answerKey.id}/`, admin.access, {
+    exam: exam.id, answers: { [questions[0].id]: "2" },
+  }, [200]);
   const before = await expectApi<{ attempt_count: number }>(request, "GET", `/student/exams/${exam.id}/`, student.access);
   expect(before.attempt_count).toBe(0);
 
