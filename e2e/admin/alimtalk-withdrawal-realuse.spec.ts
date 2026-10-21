@@ -113,7 +113,10 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       await page.getByRole("navigation", { name: "문구 카테고리" }).getByRole("button", { name: /^클리닉/ }).click();
       await page.getByText(`QA editable ${family.students[0].id}`, { exact: true }).click();
       const library = page.getByRole("dialog", { name: "문구 수정", exact: true });
-      await expect(library.getByRole("textbox", { name: "안내문", exact: true })).toHaveText(newBody);
+      // Tiptap renders each saved line as a paragraph; textContent joins those
+      // paragraphs without separators. Check every line and its order instead.
+      await expect(library.getByRole("textbox", { name: "안내문", exact: true }).locator("p"))
+        .toHaveText(newBody.split("\n"));
       const libraryBody = `${width}px 보관함에서 저장한 안내문입니다.`;
       await library.getByRole("textbox", { name: "안내문", exact: true }).fill(libraryBody);
       await library.getByRole("button", { name: "수정", exact: true }).click();
