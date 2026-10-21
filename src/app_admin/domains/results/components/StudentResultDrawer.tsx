@@ -599,7 +599,9 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjec
           {subjectivePending ? (
             <>
               <span className="srd-read__score-val">객관 {objectiveScore}점</span>
-              <Badge variant="solid" size="sm" tone="warning">서술형 채점 대기</Badge>
+              <Badge variant="solid" size="sm" tone="warning">
+                {essayItems.some((item) => item.grading_status === "pending") ? "서술형 채점 대기" : "서술형 입력 필요"}
+              </Badge>
             </>
           ) : (
             <>
