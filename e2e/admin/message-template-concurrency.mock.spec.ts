@@ -7,12 +7,13 @@ const original = {
   created_at: "2026-10-21T00:00:00Z", updated_at: "2026-10-21T00:00:00Z",
 };
 
-async function openSharedTemplate(page: Page, loseFirstAcknowledgement = false, initiallyDefault = true) {
+async function openSharedTemplate(page: Page, loseFirstAcknowledgement = false, initiallyDefault = true, changeBeforeModalRead = false) {
   await openCompositionScores(page);
   let saved = { ...original, is_user_default: initiallyDefault };
   const writes: Record<string, unknown>[] = [];
   const sends: string[] = [];
   let defaults = 0;
+  let templateReads = 0;
   await page.route("**/api/v1/messaging/**", async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -22,7 +23,13 @@ async function openSharedTemplate(page: Page, loseFirstAcknowledgement = false, 
       template: { ok: true, source: "unified", name: "성적 안내", detail: "", uses_unified_template: true, template_type: "grades" },
       preview_recipients: [], limits: { hourly_limit: 500, sent_last_hour: 0, remaining_this_hour: 500 }, blockers: [], warnings: [],
     } });
-    if (path.endsWith("/templates/")) return route.fulfill({ json: [saved] });
+    if (path.endsWith("/templates/")) {
+      const response = { ...saved };
+      if (++templateReads === 1 && changeBeforeModalRead) {
+        saved = { ...saved, body: "창을 여는 동안 다른 선생님이 저장한 안내입니다.", updated_at: "2026-10-21T00:00:01Z" };
+      }
+      return route.fulfill({ json: [response] });
+    }
     if (path.endsWith("/991/set-default/")) {
       defaults++;
       saved = { ...saved, is_user_default: request.postDataJSON().is_user_default };
@@ -57,6 +64,21 @@ async function openSharedTemplate(page: Page, loseFirstAcknowledgement = false, 
   await expect(editor).toContainText(original.body);
   return { modal, editor, writes, sends, read: () => saved, defaults: () => defaults,
     otherEdit: (body: string) => { saved = { ...saved, body, updated_at: "2026-10-21T00:00:01Z" }; } };
+}
+
+for (const width of [1366, 390]) {
+  test(`발송창 진입 중 변경된 공유 문구는 처음 읽은 본문 버전으로 충돌을 감지한다 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { modal, editor, writes, read } = await openSharedTemplate(page, false, true, true);
+    await editor.fill("처음 문구를 바탕으로 작성한 내 초안입니다.");
+    await modal.getByRole("button", { name: "변경 내용 저장", exact: true }).click();
+    await expect.poll(() => writes.length).toBe(1);
+    expect(writes[0].expected_updated_at).toBe(original.updated_at);
+    await expect(modal.getByRole("region", { name: "문구 수정 충돌" }))
+      .toContainText("창을 여는 동안 다른 선생님이 저장한 안내입니다.");
+    await expect(editor).toContainText("처음 문구를 바탕으로 작성한 내 초안입니다.");
+    expect(read().body).toBe("창을 여는 동안 다른 선생님이 저장한 안내입니다.");
+  });
 }
 
 for (const width of [1366, 390]) {

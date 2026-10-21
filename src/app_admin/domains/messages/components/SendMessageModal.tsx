@@ -89,6 +89,7 @@ export type SendMessageModalProps = {
   blockCategory?: TemplateCategory;
   initialBody?: string;
   initialTemplateId?: number | null;
+  initialTemplateUpdatedAt?: string;
   initialLetterPresetId?: string | null;
   alimtalkExtraVars?: Record<string, string>;
   /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */
@@ -307,6 +308,7 @@ export default function SendMessageModal({
   blockCategory = "default",
   initialBody,
   initialTemplateId,
+  initialTemplateUpdatedAt,
   initialLetterPresetId,
   alimtalkExtraVars,
   alimtalkExtraVarsPerStudent,
@@ -693,7 +695,7 @@ export default function SendMessageModal({
     };
     setTemplatesError(null);
     setTemplateCreateAttempt(null);
-    setTemplateVersion(undefined);
+    setTemplateVersion(initialTemplateId ? initialTemplateUpdatedAt : undefined);
     setTemplateConflict(null);
     setSubject("");
     setSubjectSnapshot("");
@@ -722,7 +724,7 @@ export default function SendMessageModal({
     sendingRef.current = false;
     setSendAttempt(null);
     setSendAttemptError(null);
-  }, [open, blockCategory, initialBody, initialTemplateId, initialLetterPresetId]);
+  }, [open, blockCategory, initialBody, initialTemplateId, initialTemplateUpdatedAt, initialLetterPresetId]);
 
   // 자동 선택: 본 테넌트 양식 (카테고리 일치) > 시스템 기본.
   // initialBody가 있어도 봉투(카카오 검수 통과 승인 양식)는 카테고리에 맞춰 자동 선택해야 함.

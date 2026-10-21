@@ -263,6 +263,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     // 사용자 기본(is_user_default) → 기본 제공 편지지 프리셋
     let body: string;
     let initialTemplateId: number | null = null;
+    let initialTemplateUpdatedAt: string | undefined;
     let initialLetterPresetId: string | null = null;
     try {
       const templates = await fetchMessageTemplates("grades");
@@ -271,6 +272,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
         ? chosenTpl.body
         : buildGenericScoreTemplate(reportOptions);
       initialTemplateId = chosenTpl?.id ?? null;
+      initialTemplateUpdatedAt = chosenTpl?.updated_at;
       initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
     } catch {
       feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
@@ -297,6 +299,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       blockCategory: "grades",
       initialBody: body,
       initialTemplateId,
+      initialTemplateUpdatedAt,
       initialLetterPresetId,
       alimtalkExtraVars: {
         강의명: lectureName,
