@@ -64,6 +64,13 @@ async function stubStudentLogin(page: Page): Promise<void> {
       json: { id: 901, name: STUDENT_PROFILE_NAME, profile_photo_url: null },
     });
   });
+  // Clinic counts require a list response. An invalid {} retries the whole
+  // notification query after two seconds and races the document reload.
+  await page.route("**/api/v1/clinic/participants/**", async (route) => {
+    await route.fulfill({
+      json: { count: 0, next: null, previous: null, results: [] },
+    });
+  });
   await page.route("**/api/v1/core/program/**", async (route) => {
     await route.fulfill({
       status: 200,
