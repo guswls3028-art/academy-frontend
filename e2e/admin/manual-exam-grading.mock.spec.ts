@@ -11,6 +11,25 @@ const DONE_SUBMISSION_ID = 1801;
 const NOID_SUBMISSION_ID = 1802;
 const QUESTION_IDS = [1001, 1002] as const;
 
+test("온라인 서술형 답안을 모바일과 데스크톱에서 열고 점수를 입력한다", async ({ page }) => {
+  test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+  const studentName = "QA online-written-submission-20261021 자녀 1";
+  const answer = "첫 번째 줄에서 풀이의 근거를 설명합니다.\n두 번째 줄에서 계산 과정과 결론을 충분히 길게 작성합니다.";
+  await installApi(page, { gradingMode: "mixed", manualGradingMethod: "score", onlineWrittenAnswer: answer, studentName });
+  for (const width of [390, 1366]) {
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    const row = page.getByRole("row").filter({ hasText: studentName });
+    await expect(row).toHaveCount(1);
+    await row.locator("summary").filter({ hasText: "학생 답안" }).click();
+    await expect(row.locator("details[open] div")).toHaveText(answer);
+    await row.getByRole("spinbutton", { name: /60점 만점 점수/ }).fill("35");
+    await expect(row.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("35");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+});
+
 if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
   test("@guide-recording 시험 문항별 직접 채점", async ({ page }, info) => {
     const recording = await guideRecording(page, info, { id: "manual-grading", title: "시험 문항별 직접 채점", topics: ["admin/grade-exam"] });
@@ -127,6 +146,8 @@ type InstallApiOptions = {
   omrBatches?: Array<Record<string, unknown>>;
   examCloseAt?: string | null;
   failFirstRotateRescan?: boolean;
+  onlineWrittenAnswer?: string;
+  studentName?: string;
 };
 
 async function installApi(page: Page, options: InstallApiOptions = {}) {
@@ -163,6 +184,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   ] as const;
 
   type PersistedCell = {
+    answer?: string;
     editable: boolean;
     entry_method: "correctness" | "score" | "omr";
     state: GradeState;
@@ -193,6 +215,8 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           ? editable && gradingMode !== "choice"
           : questionEditable()[questionIndex] ?? (editable && gradingMode !== "choice");
         return [String(questionId), {
+          ...(questionIndex === 1 && options.onlineWrittenAnswer
+            ? { answer: options.onlineWrittenAnswer } : {}),
           editable: isEditable,
           entry_method: isEditable ? manualGradingMethod : "omr",
           state,
@@ -774,7 +798,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
               const persisted = ensurePersistedRow(ENROLLMENT_ID);
               return [{
             enrollment_id: ENROLLMENT_ID,
-            student_name: "김학생",
+            student_name: options.studentName ?? "김학생",
             school: "테스트고",
             lectures: [{
               id: LECTURE_ID,

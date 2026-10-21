@@ -702,8 +702,15 @@
   position: sticky;
   z-index: 2;
   left: 0;
+  width: 170px;
   min-width: 170px;
+  max-width: 170px;
   text-align: left;
+}
+
+.table .studentColumn > div {
+  width: 156px;
+  max-width: 156px;
 }
 
 .table th.studentColumn {
@@ -981,7 +988,14 @@
   }
 
   .table .studentColumn {
+    width: 140px;
     min-width: 140px;
+    max-width: 140px;
+  }
+
+  .table .studentColumn > div {
+    width: 126px;
+    max-width: 126px;
   }
 
   .table .attendanceColumn {
