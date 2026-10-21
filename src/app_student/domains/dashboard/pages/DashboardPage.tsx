@@ -24,6 +24,7 @@ import type { StudentDashboardResponse } from "../api/dashboard.api";
 import { useMySessions } from "@student/domains/sessions/hooks/useStudentSessions";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
+import { getExamPassStatus } from "@student/domains/grades/utils/gradeStats";
 import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import {
@@ -998,17 +999,9 @@ function LearningStatusCard({
   const hwRate = hwCount > 0 ? Math.round((passedHw / hwCount) * 100) : null;
 
   /* 시험 합격률 (점수 평균 대신 합격/총합 비율) */
-  const evaluatedExams = grades?.exams?.filter((e) => wrongCompletionOnly
-    ? e.correction_status != null
-    : e.is_pass != null) ?? [];
-  const examTotal = evaluatedExams.length;
-  const examPassed = evaluatedExams.filter((e) => wrongCompletionOnly
-    ? e.correction_status === "COMPLETED" || e.correction_status === "NOT_REQUIRED"
-    : (
-      e.achievement === "PASS"
-      || e.achievement === "REMEDIATED"
-      || (e.achievement == null && e.is_pass === true)
-    )).length;
+  const examJudgments = grades?.exams.map((exam) => getExamPassStatus(exam, wrongCompletionOnly)) ?? [];
+  const examTotal = examJudgments.filter((status) => status != null).length;
+  const examPassed = examJudgments.filter((status) => status === true).length;
   const examRate = examTotal > 0 ? Math.round((examPassed / examTotal) * 100) : null;
 
   const gradesError = gradesQ.isError;
@@ -1017,7 +1010,7 @@ function LearningStatusCard({
   const sessionsPending = sessionsQ.isLoading;
   const hasError = gradesError || sessionsError;
   const hasPending = gradesPending || sessionsPending;
-  const hasData = recentSessionCount > 0 || hwCount > 0 || (grades?.exams.length ?? 0) > 0;
+  const hasData = (sessions?.length ?? 0) > 0 || hwCount > 0 || (grades?.exams.length ?? 0) > 0;
   const retrying = (gradesError && gradesQ.isFetching) || (sessionsError && sessionsQ.isFetching);
   const placeholder = (error: boolean, pending: boolean, empty: string) => error ? "확인 필요" : pending ? "확인 중" : empty;
 
