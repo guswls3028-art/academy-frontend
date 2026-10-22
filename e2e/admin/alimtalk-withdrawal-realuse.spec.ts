@@ -55,7 +55,9 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     access = (await loginAdmin(request)).access;
-    family = await createQaFamily(request, access, "alimtalk-withdrawal", 2);
+    // Keep the synthetic recipient name within the approved 23-character field
+    // so the preview can assert its complete identity without truncation.
+    family = await createQaFamily(request, access, "alimtalk", 2);
     const configs = await expectApi<Config[]>(request, "GET", "/messaging/auto-send/", access);
     previous = configs.find((item) => item.trigger === "withdrawal_complete");
     previousReminder = configs.find((item) => item.trigger === "clinic_reminder");
