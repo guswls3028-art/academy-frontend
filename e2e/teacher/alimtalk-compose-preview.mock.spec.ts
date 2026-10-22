@@ -3,6 +3,7 @@ import type { Page, Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { realMessagingSkipReason } from "../helpers/safety";
+import { openTeacherAlimtalkComposer } from "../helpers/teacherAlimtalkComposer";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5173").replace(/\/+$/, "");
 const STUDENTS = [
@@ -66,14 +67,15 @@ async function installMessagingMocks(page: Page, onPreflight: (payload: Record<s
     if (path === "/messaging/send/preflight/" && request.method() === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       if (onPreflight(payload)) return route.fulfill({ status: 503, json: { detail: "사전 확인 연결 실패" } });
+      const recipients = STUDENTS.filter((student) => (payload.student_ids as number[]).includes(student.id));
       return route.fulfill({ json: {
         ok: true,
         can_send: true,
         mode: "now",
         send_to: payload.send_to,
-        recipient: { selected: 2, resolved: 2, valid_phone: 2, skipped_no_phone: 0, duplicate_phone: 0, unique_phone: 2, invalid_or_deleted: 0, limit: 500 },
+        recipient: { selected: recipients.length, resolved: recipients.length, valid_phone: recipients.length, skipped_no_phone: 0, duplicate_phone: 0, unique_phone: recipients.length, invalid_or_deleted: 0, limit: 500 },
         template: { ok: true, name: "출석 안내", detail: "" },
-        preview_recipients: STUDENTS.map((student) => ({
+        preview_recipients: recipients.map((student) => ({
           student_id: student.id,
           student_name: student.name,
           phone: `010****${student.parent_phone.slice(-4)}`,
@@ -115,11 +117,7 @@ test("선생님은 저장 문구를 수정하고 서버의 학생별 전체 문�
     await page.setViewportSize({ width: 1100, height: 800 });
     await page.goto(`${BASE}/workspace/mobile/students`, { waitUntil: "commit" });
     await expect(page.getByText("학생 관리", { exact: true })).toBeVisible({ timeout: 45_000 });
-    await page.getByRole("button", { name: "선택", exact: true }).click();
-    await page.getByRole("button", { name: "전체 선택" }).click();
-    await page.getByRole("button", { name: "알림톡", exact: true }).click();
-
-    const sheet = page.getByRole("dialog", { name: "2명에게 알림톡" });
+    const sheet = await openTeacherAlimtalkComposer(page, STUDENTS.map((student) => student.name));
     await expect(sheet.getByRole("option", { name: "성적용 문구" })).toHaveCount(0);
     await expect(sheet.getByRole("option", { name: "결제 고정 문구" })).toHaveCount(0);
     await expect(sheet.getByRole("option", { name: "계정 고정 문구" })).toHaveCount(0);
@@ -174,6 +172,31 @@ test("선생님은 저장 문구를 수정하고 서버의 학생별 전체 문�
     await expect(page.getByText("다음 주 상담 일정을 확인해 주세요.", { exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByText("다음 주 상담 일정을 확인해 주세요.", { exact: true })).toBeVisible();
+    sendPayload = null;
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${BASE}/workspace/mobile/students`, { waitUntil: "commit" });
+      // Keep both search results present but select only the requested student,
+      // using the same entry path as the isolated real-API acceptance test.
+      const compose = await openTeacherAlimtalkComposer(page, [STUDENTS[0].name]);
+      await compose.getByLabel("저장한 문구 불러오기").selectOption("41");
+      await expect(compose.getByLabel("선생님 안내문 (자유롭게 수정)"))
+        .toHaveText("다음 주 상담 일정을 확인해 주세요.");
+      await compose.getByRole("button", { name: "수신자별 발송 문구 확인", exact: true }).click();
+      const review = page.getByRole("dialog", { name: "보내기 전 마지막 확인", exact: true });
+      await expect(review.getByLabel("카카오톡 실제 발송 미리보기"))
+        .toContainText("다음 주 상담 일정을 확인해 주세요.");
+      await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText(STUDENTS[0].name);
+      await expect(review).not.toContainText(STUDENTS[1].name);
+      await expect(review.getByRole("button", { name: "학부모 1건 발송하기", exact: true })).toBeVisible();
+      await review.getByRole("button", { name: "문구 수정", exact: true }).click();
+      await expect(compose.getByLabel("선생님 안내문 (자유롭게 수정)"))
+        .toHaveText("다음 주 상담 일정을 확인해 주세요.");
+      await compose.getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(compose).toBeHidden();
+    }
+    expect(sendPayload).toBeNull();
+    expect(preflightCalls).toBe(5);
   } finally {
     releaseEditor();
     await page.unroute(editorModule, holdEditor);
