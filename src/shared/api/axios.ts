@@ -12,6 +12,7 @@ import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { captureApiError } from "@/shared/lib/sentryContext";
+import { isPublicVideoLocation } from "@/shared/auth/publicVideoLocation";
 import {
   getSessionItem,
   removeSessionItem,
@@ -217,6 +218,8 @@ function endExpiredSession(expectedGeneration?: string | null) {
     window.location.href = "/support-preview-ended";
     return;
   }
+
+  if (isPublicVideoLocation()) return;
 
   markSessionEnding();
   try {

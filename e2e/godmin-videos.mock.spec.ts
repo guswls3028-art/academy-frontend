@@ -18,7 +18,7 @@ test.afterEach(async () => {
 });
 
 async function prepare(page: Page, publisher = false, published = false, authenticated = publisher) {
-  const state = { related: [] as PublicVideo[], capabilityFailure: false, canPublish: publisher, row: published ? managed() : null as ManagedVideo | null, hero: published ? ID : null as string | null, revision: published ? 1 : 0, conflict: false, unavailable: false, publicFailure: false, listFailure: false, deleteFailure: false, presentation: { title: "영상", description: "" } };
+  const state = { related: [] as PublicVideo[], sessionExpired: false, capabilityFailure: false, canPublish: publisher, row: published ? managed() : null as ManagedVideo | null, hero: published ? ID : null as string | null, revision: published ? 1 : 0, conflict: false, unavailable: false, publicFailure: false, listFailure: false, deleteFailure: false, presentation: { title: "영상", description: "" } };
   const publicRow = (): PublicVideo | null => state.row?.status === "published" ? { ...source, id: ID, ...(state.row.published_content || initial), published_at: "2026-10-14T00:00:00Z", youtube_published_at: "2026-10-14T00:00:00Z", youtube_view_count: 375, youtube_statistics_checked_at: "2026-10-15T00:00:00Z" } : null;
   server = createServer(async (request, response) => {
     const url = new URL(request.url || "/", "http://localhost");
@@ -26,7 +26,8 @@ async function prepare(page: Page, publisher = false, published = false, authent
     const json = (body: unknown, status = 200) => { response.writeHead(status, { ...headers, "Content-Type": "application/json", "Cache-Control": "no-store" }); response.end(JSON.stringify(body)); };
     if (request.method === "OPTIONS") { response.writeHead(204, headers); response.end(); return; }
     if (url.pathname.endsWith("/core/program/")) return json({ tenantCode: "godmin", display_name: "신과함께", ui_config: {}, feature_flags: {}, is_active: true });
-    if (url.pathname.endsWith("/core/me/")) return json({ id: 501, username: "qa-video-publisher", name: "QA 게시자", is_staff: true, tenantRole: "owner", must_change_password: false, first_login_guide_required: false });
+    if (url.pathname.endsWith("/core/me/")) return state.sessionExpired ? json({ detail: "Session expired" }, 401) : json({ id: 501, username: "qa-video-publisher", name: "QA 게시자", is_staff: true, tenantRole: "owner", must_change_password: false, first_login_guide_required: false });
+    if (url.pathname.endsWith("/token/refresh/")) return json({ detail: "Refresh expired" }, 401);
     if (url.pathname.endsWith("/core/landing/has-published/")) return json({ has_published: false });
     const path = url.pathname.replace("/api/v1/landing-public/videos/", "");
     const chunks: Buffer[] = []; for await (const chunk of request) chunks.push(Buffer.from(chunk));
@@ -105,7 +106,65 @@ async function prepare(page: Page, publisher = false, published = false, authent
 
 async function noOverflow(page: Page) { expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true); }
 
+async function expectNoSessionTokens(page: Page) {
+  expect(await page.evaluate(() => {
+    const generation = localStorage.getItem("academy:auth-active-generation:v1");
+    return generation ? localStorage.getItem(`academy:auth-tokens:v1:${generation}`) : null;
+  })).toBeNull();
+}
+
 for (const width of [1366, 390]) {
+  test(`expired session preserves public home/video viewing and filters at ${width}px`, async ({ page }) => {
+    const state = await prepare(page, true, true); state.sessionExpired = true;
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ["/landing", "/landing/videos?sort=popular", `/landing/videos/${ID}?sort=popular`]) {
+      await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("link", { name: "로그인", exact: true })).toBeVisible();
+      await expect(page).toHaveURL(`${BASE}${path}`);
+      await expectNoSessionTokens(page);
+      await expect(page.getByRole("link", { name: "영상 관리", exact: true })).toHaveCount(0);
+      await noOverflow(page);
+    }
+    await expect(page.locator("iframe")).toHaveCount(1);
+    await page.reload();
+    await expect(page.getByRole("link", { name: "로그인", exact: true })).toBeVisible();
+    await expect(page.locator("iframe")).toHaveCount(1);
+    await page.getByRole("link", { name: "← 영상 목록", exact: true }).click();
+    await expect(page.getByRole("button", { name: "인기순", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("heading", { name: initial.title, level: 3, exact: true })).toBeVisible();
+  });
+
+  test(`expired publisher session still requires login for the studio at ${width}px`, async ({ page }) => {
+    const state = await prepare(page, true, true); state.sessionExpired = true;
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/landing/admin/videos/new`);
+    await expect(page).toHaveURL(`${BASE}/login/godmin`);
+    await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
+    expect(await page.evaluate(() => sessionStorage.getItem("session_return_path"))).toBe("/landing/admin/videos/new");
+    await expect(page.getByLabel("01 · YouTube 링크", { exact: true })).toHaveCount(0);
+  });
+
+  test(`expiry during public watching removes publisher controls without replacing the iframe at ${width}px`, async ({ page }) => {
+    const state = await prepare(page, true, true);
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/landing/videos/${ID}?sort=popular`);
+    await expect(page.getByRole("link", { name: "영상 관리", exact: true })).toBeVisible();
+    await expect(page.locator("iframe")).toHaveCount(1);
+    await page.locator("iframe").evaluate((frame) => frame.setAttribute("data-expiry-probe", "same-player"));
+    state.sessionExpired = true;
+    if (width === 390) await page.evaluate(() => {
+      const generation = localStorage.getItem("academy:auth-active-generation:v1");
+      if (generation) localStorage.removeItem(`academy:auth-tokens:v1:${generation}`);
+    });
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await expect(page.getByRole("link", { name: "로그인", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "영상 관리", exact: true })).toHaveCount(0);
+    await expect(page.locator("iframe")).toHaveAttribute("data-expiry-probe", "same-player");
+    await expect(page).toHaveURL(`${BASE}/landing/videos/${ID}?sort=popular`);
+    await expectNoSessionTokens(page);
+    await noOverflow(page);
+  });
+
   test(`public hero → single native player → close and detail/Shorts at ${width}px`, async ({ page }, testInfo) => {
     const state = await prepare(page, false, true); await page.setViewportSize({ width, height: 900 });
     if (width === 390) await page.addInitScript(() => {

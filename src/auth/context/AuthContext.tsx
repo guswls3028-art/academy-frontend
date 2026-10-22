@@ -20,6 +20,7 @@ import {
 } from "@/shared/utils/safeSessionStorage";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import { isStudentSupportWindow } from "@/shared/auth/supportPreviewSession";
+import { isPublicVideoLocation } from "@/shared/auth/publicVideoLocation";
 import {
   AUTH_ACTIVE_GENERATION_KEY,
   AUTH_TOKEN_STORAGE_ERROR_EVENT,
@@ -247,8 +248,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!access) {
         // 이전에 로그인 상태였으면 세션 만료 → 로그인으로
         if (user) {
-          setUser(null);
-          setAuthUnavailable(false);
+          clearAuth();
+          if (isPublicVideoLocation()) return;
           feedback.warn("세션이 만료되었습니다. 다시 로그인해 주세요.");
           saveReturnPath();
           window.location.href = "/login";
