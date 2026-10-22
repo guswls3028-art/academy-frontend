@@ -11,7 +11,7 @@ interface Env {
   ASSETS: Fetcher;
 }
 
-const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest)(\?.*)?$/i;
+const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest|mp4|vtt)(\?.*)?$/i;
 const STATIC_HTML_PATHS = new Set(["/omr-sheet", "/omr-sheet.html"]);
 
 function createCspNonce(): string {
@@ -83,6 +83,8 @@ function contentTypeForPath(pathname: string): string {
   if (/\.(js|mjs)(\?.*)?$/i.test(pathname)) return "application/javascript; charset=utf-8";
   if (/\.css(\?.*)?$/i.test(pathname)) return "text/css; charset=utf-8";
   if (/\.json(\?.*)?$/i.test(pathname)) return "application/json";
+  if (/\.mp4(\?.*)?$/i.test(pathname)) return "video/mp4";
+  if (/\.vtt(\?.*)?$/i.test(pathname)) return "text/vtt; charset=utf-8";
   return "application/octet-stream";
 }
 
@@ -142,6 +144,10 @@ const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
     title: "자주 묻는 질문 | 학원플러스",
     description: "요금, 자료 이전, 채점, 영상, 알림톡 등 학원플러스를 사용하기 전에 자주 묻는 질문을 확인하세요.",
   },
+  "/promo/guide": {
+    title: "전체 사용 가이드 | 학원플러스",
+    description: "실제 프로그램과 동일한 관리자·선생님, 직원·강사, 학생 사용 가이드를 로그인 없이 확인하세요. 준비사항부터 사용 순서, 완료 확인과 문제 해결까지 안내합니다.",
+  },
   "/promo/contact": {
     title: "사용 상담 | 학원플러스",
     description: "현재 수업 방식과 필요한 기능을 알려주시면 사용할 내용과 시작 일정을 함께 정리해드립니다.",
@@ -167,6 +173,7 @@ const HAKWONPLUS_INDEXABLE_PROMO_ROUTES = [
   "/promo/pricing",
   "/promo/updates",
   "/promo/faq",
+  "/promo/guide",
 ];
 
 interface TenantPwaMeta {

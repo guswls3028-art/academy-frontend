@@ -40,7 +40,13 @@
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
-   현재 19개 파일·30건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
+   현재 20개 파일·37건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
+   첫 실패 후에는 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.
+   이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 37건 모두의
+   통과와 cleanup0이 필요하다. 이미 실패한 실행이 장시간 영상 검증까지 계속되는 비용을 줄인다.
+   동일 산출물 서버는 가이드 JPEG·MP4·VTT를 각각 `image/jpeg`, `video/mp4`,
+   `text/vtt`로 제공한다. 일반 강사의 첫 접속 안내 확인 뒤 사진·영상·자막을
+   검증하는 흐름은 [프로그램 내 사용 가이드](IN-APP-GUIDE.md)를 따른다.
    홈페이지 영상은 두 지정 게시자의 링크 등록·초안 reload·대표 공개·익명 조회·
    다른 게시자 수정·비공개를 동일 산출물의 격리 tenant에서 확인한다.
    직원 급여 흐름은 계정·출퇴근·일괄 시급·날짜 정정·환급·월마감·퇴사 이력을
@@ -57,6 +63,11 @@
    QA scope로 전체 실사용을 검증한다. 보안 한도·캐시를 변경하거나 실패한 POST를
    재전송하지 않는다. 가입 응답 검사는 정확한 200/201 조건을 유지하며, 실패
    진단에는 응답의 HTTP 상태만 남기고 원문 응답·계정 정보는 게시하지 않는다.
+   등록 실사용의 관리자 UI 로그인도 token 응답 200과 workspace 진입을 각각 검증한다.
+   사전 API 로그인과 UI 로그인이 공유하는 계정별 5분 10회 제한에서 실제 429와
+   유효한 `Retry-After`(1–300초)를 받은 경우에만 전체 대기시간 후 UI 제출을 한 번
+   재시도한다. 그 외 오류, 누락·잘못된 대기시간, 두 번째 429는 상태 코드만 기록하고
+   실패한다. 보안 제한·업무 쓰기 재시도 금지·37건 전체 통과 조건은 유지한다.
    가입 실사용 검사는 유효한 입력 후 `가입 신청 최종 확인`에서 학부모 초기
    비밀번호 방식을 명시적으로 선택하고 최종 신청을 누른 뒤 정확한 응답을 기다린다.
    첫 신청 버튼이 최종 POST를 보낸다고 가정하지 않으며 수동·자동 승인과 이후
@@ -174,6 +185,11 @@ PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency
 chain으로 직렬 실행한다. 별도 세 job은 API proxy를 `http://127.0.0.1:9`로 닫고
 route-mock 전체 목록을 Playwright의 `--shard=1/3`, `2/3`, `3/3`으로 나눈다.
+`pr-route-mocks`와 `pr-iphone-webkit`은 `serviceWorkers: "block"`으로 앱의 SW가
+등록·응답을 가로채지 않게 한다. [Playwright routing 정본](https://playwright.dev/docs/api/class-browsercontext#browser-context-route)에 따라
+모의 API의 요청 interception을 보장하며, 브라우저 offline/online 전환·재생 유지 검사는
+기존대로 수행한다. 이 격리 설정만으로 WebKit의 reload 중 취소 오류가 해결됐다고
+판정하지 않으며, console/pageerror 검사와 재시도 0·필수 시나리오 목록을 유지한다.
 route-mock project는 실패 시 자동 screenshot과 첫 실패 trace를 보존하고,
 성공 후 자동 screenshot과 매 실행의 화면 녹화는 생략한다. 각 테스트가 직접
 촬영하는 UI 증거는 그대로 남긴다. 이 정책은 mock project에만 적용하며 운영
@@ -283,7 +299,12 @@ exact tenant 경계를 그대로 적용한다.
 명시적 browser context 종료는 새 요청을 먼저 차단하고, 이미 검사 중인 route를 실제
 응답 또는 실패까지 drain한 뒤 경계 결함을 검사하고 context를 닫는다. 따라서 종료와
 겹친 정상 요청은 브라우저가 중간 폐기하지 않으며, drain 중 발생한 upstream/CORS 오류는
-그대로 실패한다. 종료 차단 이후 새로 시작된 background 요청만 transport 전에 abort한다.
+그대로 실패한다. 종료 차단 이후 새로 시작된 요청만 transport 전에 `aborted`로 취소한다.
+이는 명시적 종료의 취소이며, 실행 중 정책 위반의 `blockedbyclient` 거부와 구분한다.
+console/pageerror 허용목록이나 strict assertion은 완화하지 않는다.
+`development-release-canary.test.mjs`의 실제 Chromium 회귀는 drain 중 새 API·script·navigation의
+upstream 도달 0, 취소 코드, 정상 문서 유지와 오류 0을 검증하고, 별도 context의 정책 위반은
+계속 거부되고 경계 검증이 실패하는지 확인한다.
 drain에서 허용 경로의 transport 실패를 발견한 경우에는 method/path template/read·mutation/
 initial·retry/고정 transport code만 담은 진단을 먼저 stdout에 남긴 뒤 같은 경계 assertion으로
 테스트를 실패시킨다. assertion이 진단 출력을 건너뛰거나 진단이 실패를 완화하는 것은 허용하지 않는다.
@@ -401,8 +422,13 @@ release readonly strict browser는 이 exact host/path/SHA-512 mismatch 한 줄�
 
 - 기존 계정의 정확한 `POST /api/v1/token/`, `POST /api/v1/token/refresh/` 인증.
 - `POST /api/v1/students/me/activity/`의 정확한 두 키
-  `{screen_id: "student.dashboard.home", device_class: "desktop"|"tablet"|"mobile"}`.
-  추가 키, 다른 screen/method는 거부한다. 이 요청은 append-only 화면 관측 감사 로그다.
+  `{screen_id, device_class: "desktop"|"tablet"|"mobile"}`. `screen_id`는 운영 canary가
+  실제 방문하는 `student.dashboard.home`, `student.session.list`, `student.grades.home`,
+  `student.guide.home`, `student.assignment.submit` 다섯 값만 허용한다. 홈 학습 현황에서
+  일정·과제·시험 내역으로 이동해 새로고침하는 흐름과 가이드에서 과제 제출 화면으로
+  이동하고 돌아오는 흐름 모두 이 동일한 화면 열기 API를 사용한다.
+  추가 키(과제 ID 등), 다른 screen/method와 `/activity/homework-open/`은 거부한다.
+  이 요청은 append-only 화면 관측 감사 로그다.
   인증·관측 attempted/accepted를 각각 보고하며 전체 DB read-only 또는 총 쓰기 0으로
   표현하지 않는다. 진도·출결·성적·완료·결제·발송·product-usage mutation은 허용하지 않는다.
 
@@ -412,13 +438,28 @@ SQL mutation이 `ops_audit_log` INSERT 1건이고 platform push 0,
 ProductUsageEvent/DailyActor 변화 0임을 검사한다. 도메인 설명은 backend의
 `docs/domain/student-support-audit.md`, 환경/IAM 경계는
 `docs/operations/persistent-development-runtime.md`가 소유한다.
+허용된 다섯 screen은 backend `apps/domains/students/services/activity.py`의 `SCREEN_PRESENTATION`에서
+동일한 `record_student_screen_view` → `_create_activity` 경로를 사용한다.
+허용된 다섯 화면 × 세 기기, 추가 데이터·다른 화면·다른 tenant·업무 mutation 거부는
+`scripts/tests/development-release-canary.test.mjs`의 canary screen observation 회귀가 검증한다.
+`e2e/student/student-content-resilience.mock.spec.ts`는 390/1100/1366px의 실제 화면 이동에서
+앱이 보낸 관측 payload를 이 운영 계약으로 검사하고, 요청 자체는 로컬 mock에서 완료한다.
+학부모는 이 학생 관측 요청을 보내지 않는 것도 확인한다. 새 canary 경로를 추가할 때는
+해당 화면의 관측 계약을 함께 검토해야 하며, 거부를 무시하거나 실제 업무 쓰기를 허용하지 않는다.
+운영 canary 직후 `production-guide-evidence`에는 `live-guide-*.png`만 별도로 보존한다.
+이는 가이드의 정적 버튼·첫 단계·완료 기준·문제 해결 영역만 캡처하며 계정 헤더,
+전체 화면, trace는 포함하지 않는다. 후속 Playwright 실행이 `test-results/`를 정리하기
+전에 업로드하여 PC/390px 운영 가이드의 시각 확인 증거가 유지된다.
+운영 read-only runner도 PR E2E와 동일하게 Playwright를 `--with-deps chromium`으로
+설치하여 한글 표시에 필요한 시스템 글꼴을 갖춘다. PNG의 한글이 네모로 표시되면
+기능 검증 성공과 구분하여 시각 검증 실패로 취급하고, 글꼴 설치 후 새 증거로 확인한다.
 
 공식 main 배포는 먼저 `backend-readiness`에서 backend의 진행 중인 main release run과
 successful manifest·active development host를 읽는다. 진행 중인 release만 최대
 45분 동안 30초 간격으로 기다린다. 최신 run이 취소됐어도 이전 active run을 확인한다.
 잘못된 host identity/IAM, 읽기 오류, 종료된
 release와 manifest/host 불일치는 즉시 실패한다. 대기는 별도 job과 임시 인증으로
-수행해 real-use의 60분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
+수행해 real-use의 75분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
 최신 immutable backend revision, IAM, SSM 문서, host를 다시 검사하므로 대기 중
 성공한 관측으로 이후 검증을 생략하지 않는다. 관측은 PII 없는
 `backend-readiness-evidence`에 남긴다. 대기 이후 새 release가 시작되어 다시
@@ -453,6 +494,11 @@ helper가 `phone_last4`로 만든 부모는 합성 전화번호의 뒤 4자리�
 비밀번호를 덮어써 테스트를 통과시키지 않는다. 로그인·OMR API 실패는
 `METHOD /path returned <status>` 형식으로 기록해 기존 안전한 reporter가 상태와
 허용된 경로만 추출하도록 하며, 계정명·비밀번호·원문 응답을 오류 문구에 넣지 않는다.
+
+`student-parent-assessment-realuse.spec.ts`는 제출·제출함·코멘트·메시지 양식·수기 점수
+정밀도·시험 순서·복사·출결·종료 강좌를 함께 검증하므로 전체 테스트 예산은 540초다.
+각 하위 여정은 고정된 이름의 `test.step`으로 구분해 실패 단계를 추적한다. 개별 동작·
+화면 이동·API·expect의 제한시간, retry 0, 역할·테넌트 격리와 cleanup zero 기준은 유지한다.
 
 수동 가입 승인은 현재 `가입 승인 최종 확인` 창에서 신청자가 선택한 학생·학부모
 비밀번호의 보존을 확인한다. 확인 창이 보인 뒤 승인 응답 대기와 클릭을 함께 await해,
@@ -526,11 +572,11 @@ scoped state에만 기존 영상 1개, 접근/PROCTORED 접근/진도 각 2개, 
 기존 비지정 범위 계약을 유지한다. 서버 query와 fixture identity 규칙은 backend의
 `docs/operations/persistent-development-runtime.md`가 소유한다.
 계정·학습·수강·영상 시나리오 전체를 한 worker에서 순차 실행하므로 Playwright 자식
-프로세스에는 30분을 허용한다. 40분 개발 카나리 job 안에서 결과 JSON 생성과 exact
-Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 30분을 넘기면 기존처럼 실패
+프로세스에는 60분을 허용한다. 75분 개발 카나리 job 안에서 결과 JSON 생성과 exact
+Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 60분을 넘기면 기존처럼 실패
 폐쇄하고 cleanup 0이 증명되기 전에는 운영 승격하지 않는다.
 
-고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup만 사용하고 임의 shell 입력,
+고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup과 합성 등록 계정용 AccountProbe만 사용하고 임의 shell 입력,
 기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup이 실패해도
 exact `DEVELOPMENT_QA_FAILED` safe schema에서 positive tenant ID가 검증되면 동일 256-bit run
 capability로 cleanup/readback을 시도한다. 실패 schema에는 tenant code를 허용하지 않는다.
@@ -632,11 +678,17 @@ runner는 Setup 전부터 `passed:false`/`cleanup:null`인 미완료 증거를 �
 실패/timeout은 finally로 들어가 test process를 먼저 stop/reap한 뒤 Cleanup을 시도하고,
 소유 SSM session들의 종료 API와 Active/History readback 후 최종 증거를 쓴다. Cleanup
 실패·소유 session ID/종료 readback 누락은 각각 실패 분류로 남아 승격을 차단한다.
-전체 실사용 child 한도는 50분, 이를 제공하는 SSM 터널은 55분, CI job은 설치·정리와
-증거 업로드 여유를 포함해 60분이다. 이전 28분 36초 실행은 serial OMR 한 건 실패·한 건
-건너뛰기를 포함해 두 건의 각 10분 한도를 추가하면 48분 36초 미만이다. 기존 30분
-한도를 넘긴 실행은 전체 결과를 보고하기 전에 종료됐다. OMR 각 10분,
-영상 test 17분, 단일 worker·재시도 0·필수 23건·690초 재생 및 cleanup0 요구는 유지한다.
+전체 실사용 child 한도는 60분, 이를 제공하는 로컬·서버 SSM 터널은 65분, CI job은
+설치·정리와 증거 업로드 여유를 포함해 75분이다. QA OIDC 요청은 4500초(75분)로,
+backend 소유 QA 역할의 MaxSessionDuration=4500초와 맞춰 정리 중 인증 만료를 막는다.
+별도 backend-readiness job의 50분·3600초 계약은 유지한다. 역할의 trust·action·resource,
+고정 포트와 5분 idle 제한은 바꾸지 않는다. 서버 문서·역할의 실제 적용과 readback은
+backend `docs/operations/persistent-development-runtime.md`를 따른다.
+실행38843507538은 36건이 39분24초에 통과한 뒤 마지막 영상 검증 도중 50분 parent
+timeout으로 중단됐다. 부분 진행은 성공 보고서가 아니며, 당시 양쪽 tenant/user/R2/
+process/listener 정리 0은 확인됐지만 운영 승격은 차단됐다. 60분은 마지막 영상의
+전체 17분 한도까지 포함할 여유를 두며, 같은 산출물의 새 전체 실행으로 검증한다. OMR 각 10분,
+영상 test 17분, 단일 worker·재시도 0·필수 37건·690초 재생 및 cleanup0 요구는 유지한다.
 `development-release-progress.json`은 테스트 시작/종료마다 허용 spec 파일명·행·상태·
 소요 시간만 저장해 child timeout 시 마지막 진행 지점을 보존한다. 제목·오류 원문·
 API 데이터·인증정보는 기록하지 않는다. 이 진단 파일이나 일부 통과 결과로 전체 JSON
@@ -665,6 +717,27 @@ allowlist된 path template이 있을 때만 method, read/mutation, initial/retry
 
 전송·브라우저 종료 진단은 같은 `observeReleaseTestResult` 정제 단계를 거쳐 공식
 `development-release.json`의 `realUseObservation.contextObservations`에 보존한다.
+공개 자료 검증의 상태·크기·파일 시그니처·형식·다운로드 disposition·manifest·scope
+실패는 각각 고정 `resource-*` 코드로 구분한다. 기존 허용 조건은 동일하다.
+fetch/fulfill 전용 처리 밖의 예외는 `route-handler/terminal` 관측으로 남기며,
+정제된 method/path template/native code와 요청 순서·시간만 보존한다.
+서명 URL, 응답 본문, 원문 예외는 저장하지 않고 재전송 정책도 바꾸지 않는다.
+AccountProbe는 성공 exit와 정확한 proof를 모두 요구한다. 실패 시 후보의 고정
+`account_probe_failure` allowlist 코드를 공식 `failures`에 보존한다. 일반 `probe-failed`는
+후보가 이미 반환하는 `error_type`이 고정 예외 목록에 있을 때만 assertion/attribute/
+import/database 등의 고정 코드로 구분한다. 목록 밖의 이름은 원래 일반 코드로 남긴다.
+예외 메시지·traceback·임의 클래스 이름은 보관하지 않는다. 잘못되거나
+누락·중복된 proof와 프로세스 실패도 고정 코드로 실패하며 브라우저에는 동일한
+502 응답을 돌려준다. 비밀번호·토큰·SSM stdout 원문은 증거에 포함하지 않는다.
+등록 fixture의 학생 이름은 소유권 prefix를 유지하면서 실제 50자 제한을 지킨다.
+긴 시나리오 이름은 고정 hash suffix로 구분하여 기존 학부모 연결 두 사례가
+서로 다른 50자 이름으로 저장·재조회·인증되는 경계도 검증한다.
+공개 가입의 수동 승인 시나리오는 학생·학부모 로그인과 AccountProbe 뒤 승인 이력의
+`approved` 상태·정확한 학생 연결을 다시 조회한다. 가입 이력은
+[backend의 이력 보존 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/student-core.md)에 따라
+일반 DELETE로 지우지 않는다. 시나리오 종료 시 가입 설정을 복원하고 브라우저를
+닫으며, 합성 가입 이력은 실행 전체의 exact disposable-tenant Cleanup에서 제거한다.
+양쪽 QA tenant/user·R2·프로세스 잔여 0 확인과 37건 전체 통과 조건은 유지한다.
 `release-context-observation/v1`은 worker 내부의 고유 `observationOrdinal`, 선택적인
 browser `contextOrdinal`, 증가하는 `snapshotSequence`로 한 관측의 교체 snapshot을
 식별한다. assertion 전 snapshot은 실패해도 먼저 남기고, native context 종료나
@@ -771,7 +844,7 @@ parser 테스트가 소유한다. snapshot 복사·중복/역순 교체·상한�
 두 종료 순서·listener 해제, canonical clinic/OPTIONS, mutation 재전송 0 및 기존
 500ms 조회 재시도 정책을 검증한다. 로컬 선택 테스트는 공식 real-use gate가 아니다.
 
-로컬 child 제한은 QA operation 240초, tests 50분, tunnel은 tests보다 5분 긴 55분이다. timeout은 TERM 후
+로컬 child 제한은 QA operation 240초, tests 60분, tunnel은 tests보다 5분 긴 65분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
 20초 제한이다. SIGINT/SIGTERM은 작업 중 child를 중단하여 finally를 시도하고 무조건
 실패 처리한다. 정리 중 추가 신호는 새 작업을 시작하지 않으며 cleanup 완료를 기다린다.
@@ -785,7 +858,7 @@ test child를 기다리는 동안 runner는 60초마다 내용 없는 진행 신
 stop reason, 경과 시간만 보존한다. 미종료 상태는 null이며 raw 출력·세션 식별자는
 포함하지 않는다. 최종 cleanup 뒤 기존 evidence 쓰기에서 함께 저장하며, 관측 callback은
 성공 여부나 gate 조건을 변경하지 않는다.
-job timeout은 60분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
+job timeout은 75분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
 
 GitHub 강제 취소의 짧은 grace, SIGKILL, runner/host 소실, IAM·네트워크 상실에서는
 finally 실행·evidence 업로드·tenant cleanup을 보장할 수 없다. 미완료 파일이 있으면

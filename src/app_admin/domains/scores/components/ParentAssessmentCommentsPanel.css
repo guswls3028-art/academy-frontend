@@ -1,0 +1,11 @@
+.parent-comment-help { font-size: 13px; line-height: 1.65; color: var(--color-text-secondary); margin-bottom: 16px; }
+.parent-comment-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; border-top: 1px solid var(--color-border-divider); padding: 16px 0; }
+.parent-comment-row > label { overflow-wrap: anywhere; font-size: 14px; padding-top: 10px; }
+.parent-comment-editor { min-width: 0; }
+.parent-comment-editor textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid var(--color-border-divider); border-radius: 8px; background: var(--color-bg-surface); color: var(--color-text-primary); padding: 10px 12px; line-height: 1.6; font-size: 14px; }
+.parent-comment-editor textarea:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
+.parent-comment-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.parent-comment-actions > span { margin-right: auto; color: var(--color-text-muted); font-size: 12px; }
+.parent-comment-editor details { margin-top: 10px; font-size: 12px; color: var(--color-text-secondary); }
+.parent-comment-editor summary { cursor: pointer; min-height: 24px; }
+@media (max-width: 600px) { .parent-comment-row { grid-template-columns: 1fr; gap: 8px; } .parent-comment-row > label { padding-top: 0; } }

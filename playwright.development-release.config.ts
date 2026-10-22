@@ -8,6 +8,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
+  maxFailures: 1,
   timeout: 17 * 60_000,
   expect: { timeout: 10_000 },
   reporter: [["json"], ["./scripts/release-canary-progress-reporter.mjs"]],

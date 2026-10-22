@@ -20,7 +20,19 @@ function fakeJwt(): string {
   })}.sig`;
 }
 
-async function installApi(page: Page, submissionStatus = "submitted", newAssistant = false, olderSubmission = false) {
+type ReviewMockOptions = {
+  resultMode?: "SCORE" | "COMPLETION";
+  resultScores?: Array<number | null>;
+  olderSubmission?: boolean;
+  reviewImagesOnly?: boolean;
+  reviewPdf?: boolean;
+  scoreLocked?: boolean;
+  failFirstReview?: boolean;
+  failFirstImage?: boolean;
+};
+
+async function installApi(page: Page, submissionStatus = "submitted", newAssistant = false, options: ReviewMockOptions = {}) {
+  const olderSubmission = options.olderSubmission ?? false;
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
     "과제 파일 검수 route-mock 검증은 로컬 dev 서버 전용",
@@ -28,6 +40,13 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
   await installTenantOneInitScript(page);
   const token = fakeJwt();
   let firstLoginGuideRequired = newAssistant;
+  let reviewed = false;
+  let reviewUpdatedAt: string | null = null;
+  let scoreLocked = options.scoreLocked ?? false;
+  let reviewPosts = 0;
+  let lastReviewPayload: Record<string, unknown> | null = null;
+  let imagePreviews = 0;
+  let mediaFingerprint = "a".repeat(64);
   await page.addInitScript((jwt) => {
     localStorage.setItem("access", jwt);
     localStorage.setItem("refresh", `${jwt}-refresh`);
@@ -50,13 +69,13 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     session_id: SESSION_ID,
     homework_type: "regular",
     title: "도형 풀이 인증",
-    grading_mode: "SCORE",
-    max_score: 100,
+    grading_mode: options.resultMode ?? "SCORE",
+    max_score: options.resultMode === "COMPLETION" ? 1 : 100,
     cutline_mode: "PERCENT",
     cutline_value: 80,
     round_unit_percent: 5,
-    effective_cutline_mode: "PERCENT",
-    effective_cutline_value: 80,
+    effective_cutline_mode: options.resultMode === "COMPLETION" ? "COUNT" : "PERCENT",
+    effective_cutline_value: options.resultMode === "COMPLETION" ? 1 : 80,
     effective_round_unit_percent: 5,
     uses_session_cutline_default: false,
     meta: {},
@@ -91,10 +110,31 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     if (path === `/homeworks/${HOMEWORK_ID}/`) return json(homework);
     if (path === "/homework/assignments/") return json({ items: [] });
     if (path === `/results/admin/sessions/${SESSION_ID}/scores/`) {
+      if (options.resultMode) return json({ meta: { exams: [], homeworks: [] }, rows: (options.resultScores ?? []).map((score, index) => ({
+        enrollment_id: 9902 + index, student_id: 9950 + index, student_name: `결과학생${index + 1}`,
+        homeworks: [{ homework_id: HOMEWORK_ID, block: { score, max_score: options.resultMode === "COMPLETION" ? 1 : 100,
+          passed: score == null ? null : score >= (options.resultMode === "COMPLETION" ? 1 : 80),
+          clinic_required: score != null && score < (options.resultMode === "COMPLETION" ? 1 : 80),
+          meta: { status: score == null && index === 3 ? "NOT_SUBMITTED" : null } } }], exams: [],
+      })) });
       return json({
         meta: { exams: [], homeworks: [] },
-        rows: [{ enrollment_id: 9902, student_name: "김하늘", exams: [], homeworks: [], updated_at: "2026-08-23T03:20:00Z" }],
+        rows: [{ enrollment_id: 9902, student_name: "김하늘", exams: [], homeworks: scoreLocked ? [{ homework_id: HOMEWORK_ID, attempt_count: 1, block: { score: 0 } }] : [], updated_at: "2026-08-23T03:20:00Z" }],
       });
+    }
+    if (path === `/results/admin/sessions/${SESSION_ID}/score-correction/` && request.method() === "PATCH") {
+      reviewPosts += 1;
+      lastReviewPayload = request.postDataJSON() as Record<string, unknown>;
+      if (options.failFirstReview && reviewPosts === 1) {
+        reviewUpdatedAt = "2026-08-23T03:25:00Z";
+        return json({ detail: "다른 화면에서 판정이 변경되었습니다. 새로고침 후 다시 확인해 주세요.", code: "ASSESSMENT_CORRECTION_CONFLICT" }, 409);
+      }
+      if (lastReviewPayload.expected_updated_at !== reviewUpdatedAt) {
+        return json({ detail: "판정 시각이 맞지 않습니다." }, 409);
+      }
+      reviewed = lastReviewPayload.completed === true;
+      reviewUpdatedAt = reviewPosts === 1 ? "2026-08-23T03:30:00Z" : "2026-08-23T03:35:00Z";
+      return json({ correction_status: reviewed ? "completed" : "pending", correction_updated_at: reviewUpdatedAt });
     }
     if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/`) {
       const submission = {
@@ -111,6 +151,12 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
         lecture_color: "#2563eb",
         lecture_chip_label: "수",
         name_highlight_clinic_target: false,
+        teacher_reviewed: reviewed,
+        teacher_review_source: reviewed ? "manual" : null,
+        teacher_review_note: reviewed ? "제출 파일 직접 확인" : "",
+        teacher_reviewed_at: reviewed ? "2026-08-23T03:30:00Z" : null,
+        teacher_review_updated_at: reviewUpdatedAt,
+        media_set_fingerprint: mediaFingerprint,
         created_at: "2026-08-23T03:20:00Z",
         files: [
           {
@@ -130,11 +176,11 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
           },
           {
             id: "9912",
-            legacy: false,
+            legacy: options.reviewPdf ?? false,
             position: 1,
-            original_filename: "풀이 설명.mp4",
-            media_kind: "video",
-            mime_type: "video/mp4",
+            original_filename: options.reviewPdf ? "풀이 자료.pdf" : options.reviewImagesOnly ? "풀이 뒷면.jpg" : "풀이 설명.mp4",
+            media_kind: options.reviewImagesOnly || options.reviewPdf ? "image" : "video",
+            mime_type: options.reviewPdf ? "application/pdf" : options.reviewImagesOnly ? "image/jpeg" : "video/mp4",
             file_size: 3500000,
             status: "uploaded",
             error_message: "",
@@ -177,19 +223,34 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
       });
     }
     if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/media/9911/preview/`) {
+      imagePreviews += 1;
       const svg = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#eef2ff"/><text x="400" y="300" text-anchor="middle" font-size="38">homework preview</text></svg>');
       return json({
-        url: `data:image/svg+xml,${svg}`,
+        url: options.failFirstImage && imagePreviews === 1 ? "data:image/png;base64,invalid" : `data:image/svg+xml,${svg}`,
         media_kind: "image",
         mime_type: "image/jpeg",
         original_filename: "풀이 앞면.jpg",
         expires_in: 600,
       });
     }
+    if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/media/9912/preview/` && options.reviewImagesOnly) {
+      const svg = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#dcfce7"/></svg>');
+      return json({ url: `data:image/svg+xml,${svg}`, media_kind: "image", mime_type: "image/jpeg", original_filename: "풀이 뒷면.jpg", expires_in: 600 });
+    }
+    if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/media/9912/preview/` && options.reviewPdf) {
+      return json({ url: `${BASE}/__homework_pdf_fixture.pdf`, media_kind: "image", mime_type: "application/pdf", original_filename: "풀이 자료.pdf", expires_in: 600 });
+    }
     if (path === "/enrollments/" || path === "/enrollments/session-enrollments/") return json([]);
     if (path === "/staffs/currently-working/") return json([]);
     return json({ count: 0, results: [] });
   });
+  return {
+    reviewPosts: () => reviewPosts,
+    imagePreviews: () => imagePreviews,
+    changeMediaFingerprint: () => { mediaFingerprint = "b".repeat(64); },
+    lastReviewPayload: () => lastReviewPayload,
+    setScoreLocked: (value: boolean) => { scoreLocked = value; },
+  };
 }
 
 async function openSubmissionReview(page: Page) {
@@ -205,7 +266,7 @@ async function openSubmissionReview(page: Page) {
 test("관리자가 200건 뒤의 과제 파일을 PC와 모바일에서 열고 새로고침한다", async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1366, height: 900 });
-  await installApi(page, "submitted", false, true);
+  await installApi(page, "submitted", false, { olderSubmission: true });
   await openSubmissionReview(page);
   await expect(page.getByText("제출 학생").locator("..")).toContainText("201");
   const imageRow = page.locator('[class*="fileRow"]').filter({ hasText: "풀이 앞면.jpg" });
@@ -260,6 +321,138 @@ test("선생님이 학생별 제출 묶음에서 사진·동영상·오류를 �
   await testInfo.attach("teacher-homework-media-390", { path: mobileScreenshot, contentType: "image/png" });
 });
 
+test("관리자 PC에서 모든 제출 파일 확인 후 저장·새로고침·취소하고 0점 기록 시 잠근다", async ({ page }) => {
+  const api = await installApi(page, "submitted", false, { reviewImagesOnly: true });
+  await openSubmissionReview(page);
+
+  const complete = page.getByRole("button", { name: "직접 확인 완료" });
+  await expect(page.locator('[aria-label="제출 요약"] > div').filter({ hasText: "확인 대기" })).toContainText("1");
+  await expect(complete).toBeDisabled();
+  for (const filename of ["풀이 앞면.jpg", "풀이 뒷면.jpg"]) {
+    await page.locator('[class*="fileRow"]').filter({ hasText: filename }).getByRole("button", { name: "미리보기" }).click();
+    const dialog = page.getByRole("dialog").filter({ hasText: filename });
+    await expect(dialog.getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
+    await dialog.getByRole("button", { name: "닫기" }).click();
+  }
+  await expect(page.getByText("제출 파일 2/2개를 열었습니다.")).toBeVisible();
+  await expect(complete).toBeEnabled();
+  await complete.click();
+  await page.getByRole("button", { name: "확인 완료", exact: true }).click();
+  await expect(page.locator('[aria-label="제출 요약"] > div').filter({ hasText: "확인 완료" })).toContainText("1");
+  expect(api.reviewPosts()).toBe(1);
+  expect(api.lastReviewPayload()).toMatchObject({
+    enrollment_id: 9902, source_type: "homework", source_id: HOMEWORK_ID,
+    completed: true, expected_updated_at: null, expected_media_set_fingerprint: "a".repeat(64),
+  });
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+  const cancel = page.getByRole("button", { name: "확인 완료 취소" });
+  await expect(cancel).toBeEnabled();
+  await cancel.click();
+  await page.getByRole("button", { name: "확인 취소", exact: true }).click();
+  await expect(page.locator('[aria-label="제출 요약"] > div').filter({ hasText: "확인 대기" })).toContainText("1");
+  expect(api.reviewPosts()).toBe(2);
+  expect(api.lastReviewPayload()).toMatchObject({ completed: false, expected_updated_at: "2026-08-23T03:30:00Z" });
+
+  api.setScoreLocked(true);
+  await page.getByRole("button", { name: "새로고침" }).click();
+  await expect(page.getByText("점수가 입력되어 성적 화면에서 결과를 관리합니다.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "직접 확인 완료" })).toHaveCount(0);
+  expect(api.reviewPosts()).toBe(2);
+});
+
+test("파일 주소 조회 성공 뒤 이미지 로드가 실패해도 재발급 후 검수를 완료한다", async ({ page }) => {
+  const api = await installApi(page, "submitted", false, { reviewImagesOnly: true, failFirstImage: true });
+  await openSubmissionReview(page);
+  await page.locator('[class*="fileRow"]').filter({ hasText: "풀이 앞면.jpg" }).getByRole("button", { name: "미리보기" }).click();
+  const dialog = page.getByRole("dialog").filter({ hasText: "풀이 앞면.jpg" });
+  await expect(dialog.getByRole("alert")).toContainText("파일을 불러오지 못했습니다");
+  await dialog.getByRole("button", { name: "다시 시도" }).click();
+  const image = dialog.getByRole("img", { name: /과제 제출 미리보기/ });
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  expect(api.imagePreviews()).toBe(2);
+  await dialog.getByRole("button", { name: "닫기" }).click();
+  await expect(page.getByText("제출 파일 1/2개를 열었습니다.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
+  expect(api.reviewPosts()).toBe(0);
+  await page.locator('[class*="fileRow"]').filter({ hasText: "풀이 뒷면.jpg" }).getByRole("button", { name: "미리보기" }).click();
+  await expect(page.getByRole("dialog").getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
+  await page.getByRole("button", { name: "닫기" }).click();
+  await page.getByRole("button", { name: "직접 확인 완료" }).click();
+  await page.getByRole("button", { name: "확인 완료", exact: true }).click();
+  await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+  expect(api.reviewPosts()).toBe(1);
+});
+
+test("제출 파일 구성이 바뀌면 이전 열람 기록을 재사용하지 않고 다시 확인한다", async ({ page }) => {
+  const api = await installApi(page, "submitted", false, { reviewImagesOnly: true });
+  await openSubmissionReview(page);
+  const viewFiles = async () => {
+    for (const filename of ["풀이 앞면.jpg", "풀이 뒷면.jpg"]) {
+      await page.locator('[class*="fileRow"]').filter({ hasText: filename }).getByRole("button", { name: "미리보기" }).click();
+      const image = page.getByRole("dialog").getByRole("img", { name: /과제 제출 미리보기/ });
+      await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+      await page.getByRole("button", { name: "닫기" }).click();
+    }
+  };
+  await viewFiles();
+  await expect(page.getByRole("button", { name: "직접 확인 완료" })).toBeEnabled();
+  api.changeMediaFingerprint();
+  await page.getByRole("button", { name: "새로고침" }).click();
+  await expect(page.getByText("제출 파일 0/2개를 열었습니다.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
+  expect(api.reviewPosts()).toBe(0);
+  await viewFiles();
+  await page.getByRole("button", { name: "직접 확인 완료" }).click();
+  await page.getByRole("button", { name: "확인 완료", exact: true }).click();
+  await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+  expect(api.lastReviewPayload()).toMatchObject({ expected_media_set_fingerprint: "b".repeat(64) });
+  expect(api.imagePreviews()).toBe(2);
+});
+
+test("관리자 PC 검수의 동시 수정 충돌을 표시하고 최신 상태로 재시도한다", async ({ page }) => {
+  const api = await installApi(page, "submitted", false, { reviewImagesOnly: true, failFirstReview: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openSubmissionReview(page);
+
+  for (const filename of ["풀이 앞면.jpg", "풀이 뒷면.jpg"]) {
+    await page.locator('[class*="fileRow"]').filter({ hasText: filename }).getByRole("button", { name: "미리보기" }).click();
+    await expect(page.getByRole("dialog").filter({ hasText: filename }).getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
+    await page.getByRole("button", { name: "닫기" }).click();
+  }
+  await page.getByRole("button", { name: "직접 확인 완료" }).click();
+  await page.getByRole("button", { name: "확인 완료", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("다른 화면에서 판정이 변경되었습니다.");
+  expect(api.reviewPosts()).toBe(1);
+  await page.getByRole("button", { name: "최신 상태 확인" }).click();
+  await page.getByRole("button", { name: "직접 확인 완료" }).click();
+  await page.getByRole("button", { name: "확인 완료", exact: true }).click();
+  await expect(page.locator('[aria-label="제출 요약"] > div').filter({ hasText: "확인 완료" })).toContainText("1");
+  expect(api.reviewPosts()).toBe(2);
+  expect(api.lastReviewPayload()).toMatchObject({ completed: true, expected_updated_at: "2026-08-23T03:25:00Z" });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
+test("기존 PDF 제출 파일은 새 창 원본 열기와 명시 열람 확인을 제공한다", async ({ page }) => {
+  await installApi(page, "submitted", false, { reviewPdf: true });
+  await openSubmissionReview(page);
+  const pdfRow = page.locator('[class*="fileRow"]').filter({ hasText: "풀이 자료.pdf" });
+  await expect(pdfRow).toContainText("PDF");
+  await pdfRow.getByRole("button", { name: "미리보기" }).click();
+  const dialog = page.getByRole("dialog").filter({ hasText: "풀이 자료.pdf" });
+  const pdfLink = dialog.getByRole("link", { name: "PDF 원본 열기" });
+  await expect(pdfLink).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "열람 확인" })).toBeDisabled();
+  const [popup] = await Promise.all([page.waitForEvent("popup"), pdfLink.click()]);
+  await expect(popup).toHaveURL(/__homework_pdf_fixture\.pdf$/);
+  await popup.close();
+  await dialog.getByRole("button", { name: "열람 확인" }).click();
+  await dialog.getByRole("button", { name: "닫기" }).click();
+  await expect(page.getByText("제출 파일 1/2개를 열었습니다.")).toBeVisible();
+});
+
 test("신규 조교가 계정 안내 확인 후 모바일 과제 파일을 열고 새로고침해도 확인한다", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installApi(page, "done", true);
@@ -291,4 +484,74 @@ test("신규 조교가 계정 안내 확인 후 모바일 과제 파일을 열�
   await expect(dialog).not.toHaveClass(/ant-zoom/);
   await expect(dialog).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath("mobile-homework-preview-1366.png"), fullPage: true, animations: "disabled" });
+});
+
+for (const width of [1366, 390]) {
+  test(`@homework-results ${width}px 통과형 결과는 OX·미입력·미제출로 구분하고 상세를 화면 안에서 확인한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await installApi(page, "submitted", false, { resultMode: "COMPLETION", resultScores: [1, 0, null, null] });
+    await openSubmissionReview(page);
+    await page.getByRole("tab", { name: "결과", exact: true }).click();
+    const table = page.getByRole("table");
+    await expect(table.getByRole("columnheader", { name: "O/X", exact: true })).toBeVisible();
+    await expect(page.getByText("점수 분포 (%)", { exact: true })).toHaveCount(0);
+    await expect(page.getByText(/최소 1점/)).toHaveCount(0);
+    await expect(page.getByText("미입력 1명 · 미제출 처리 1명 · 판정 입력 2명", { exact: true })).toBeVisible();
+    for (const [index, value] of ["O", "X", "미입력", "미제출"].entries()) {
+      const row = table.getByRole("row").filter({ hasText: `결과학생${index + 1}` });
+      await expect(row.locator("td").nth(2)).toHaveText(value);
+    }
+    await page.getByRole("combobox", { name: "과제 결과 상태 필터" }).selectOption("ZERO");
+    await expect(table.locator("tbody tr")).toHaveCount(1);
+    await expect(table.locator("tbody tr")).toContainText("결과학생2");
+    await page.getByRole("combobox", { name: "과제 결과 상태 필터" }).selectOption("all");
+    const second = table.getByRole("row").filter({ hasText: "결과학생2" });
+    await second.locator("td").nth(2).click();
+    const detail = page.getByRole("complementary", { name: "선택 학생 상세", exact: true });
+    await expect(detail.getByText("X", { exact: true })).toBeVisible();
+    await detail.scrollIntoViewIfNeeded();
+    const bounds = await detail.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await table.evaluate(node => { if (node.parentElement) node.parentElement.scrollLeft = 0; });
+    await page.screenshot({ path: testInfo.outputPath(`completion-detail-${width}.png`), animations: "disabled" });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "결과", exact: true }).click();
+    await expect(page.getByRole("table").getByRole("row").filter({ hasText: "결과학생2" }).locator("td").nth(2)).toHaveText("X");
+  });
+}
+
+test("@homework-results 점수형 소수점 경계는 분포에서 누락되지 않고 기존 점수를 유지한다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [0, 20, 20.5, 40, 40.5, 60, 60.5, 80, 80.5, 100] });
+  await openSubmissionReview(page);
+  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await expect(page.getByText("점수 분포 (%)", { exact: true })).toBeVisible();
+  for (const label of ["0-20", "20초과-40", "40초과-60", "60초과-80", "80초과-100"]) {
+    await expect(page.getByTitle(`${label}: 2명`, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole("table").getByRole("row").filter({ hasText: "결과학생3" }).locator("td").nth(2)).toHaveText("20.5 / 100");
+  const distribution = page.getByText("점수 분포 (%)", { exact: true }).locator("..");
+  await distribution.scrollIntoViewIfNeeded();
+  expect(await distribution.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  const bars = await distribution.locator('[title]').evaluateAll(nodes => nodes.map(node => {
+    const rect = node.firstElementChild!.getBoundingClientRect();
+    return { height: rect.height, bottom: rect.bottom };
+  }));
+  expect(bars).toHaveLength(5);
+  expect(Math.max(...bars.map(bar => bar.height)) - Math.min(...bars.map(bar => bar.height))).toBeLessThanOrEqual(1);
+  expect(Math.max(...bars.map(bar => bar.bottom)) - Math.min(...bars.map(bar => bar.bottom))).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: testInfo.outputPath("score-distribution-390.png"), animations: "disabled" });
+});
+
+test("@homework-results 전원 미입력은 제출률100% 대신 실제 입력 현황을 표시한다", async ({ page }) => {
+  await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [null, null, null] });
+  await openSubmissionReview(page);
+  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await expect(page.getByText("미입력 3명 · 미제출 처리 0명 · 채점 입력 0명", { exact: true })).toBeVisible();
+  await expect(page.getByText(/제출률/)).toHaveCount(0);
+  await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(3);
 });

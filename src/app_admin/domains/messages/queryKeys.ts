@@ -1,9 +1,10 @@
-import { messageTemplatesQueryKey, suppressedTemplateDefaultsQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
+import { messageTemplatesQueryKey, messageAutoSendQueryKey, suppressedTemplateDefaultsQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 
 export const messageQueryKeys = {
   withViewerScope: (key: readonly unknown[], viewerScope: readonly unknown[]) => [...key, ...viewerScope] as const,
   academyName: (tenantCode: string | undefined) => ["messaging", "academy-name", tenantCode] as const,
-  autoSend: ["messaging", "auto-send"] as const,
+  autoSend: messageAutoSendQueryKey,
+  autoSendEditor: (trigger: string) => ["auto-send-template-editor", trigger] as const,
   info: ["messaging", "info"] as const,
   log: ["messaging", "log"] as const,
   logList: (params: object) => ["messaging", "log", params] as const,

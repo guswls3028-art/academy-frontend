@@ -29,6 +29,8 @@ type AdminModalProps = {
   onEnterConfirm?: () => void;
   /** 우측 상단 최소화 버튼(━) 숨김 — 단발성 모달(발송/확인 등)에서 사용 */
   noMinimize?: boolean;
+  /** 단순 미리보기의 Tab/Shift+Tab 이동을 대화상자 안에 유지 */
+  trapFocus?: boolean;
   /** 저장·처리 중 Escape, 배경, 닫기 버튼으로 이탈하지 못하게 함 */
   closeDisabled?: boolean;
   children: React.ReactNode;
@@ -69,6 +71,7 @@ export default function AdminModal({
   className,
   onEnterConfirm,
   noMinimize = false,
+  trapFocus = false,
   closeDisabled = false,
   children,
 }: AdminModalProps) {
@@ -76,6 +79,8 @@ export default function AdminModal({
   const contentBg = getModalBackground();
   const modalId = useId();
   const ctx = useModalWindow();
+  // The context object changes when the taskbar changes; that is not an unmount.
+  const removeMinimizedModal = ctx?.remove;
   const [minimized, setMinimized] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
@@ -133,18 +138,18 @@ export default function AdminModal({
   useEffect(() => {
     if (!open) {
       setMinimized(false);
-      ctx?.remove(modalId);
+      removeMinimizedModal?.(modalId);
       reset();
     }
-  }, [open, modalId, ctx, reset]);
+  }, [open, modalId, removeMinimizedModal, reset]);
 
   // 컴포넌트 언마운트 시 cleanup
   useEffect(() => {
     return () => {
-      ctx?.remove(modalId);
+      removeMinimizedModal?.(modalId);
       restoreTriggerFocus();
     };
-  }, [ctx, modalId, restoreTriggerFocus]);
+  }, [removeMinimizedModal, modalId, restoreTriggerFocus]);
 
   const actuallyOpen = open && !minimized;
   useModalKeyboard(actuallyOpen, requestClose, onEnterConfirm);
@@ -204,6 +209,24 @@ export default function AdminModal({
         modalRender={(modal) => (
           <div
             ref={wrapperRef}
+            onKeyDownCapture={trapFocus ? (event) => {
+              if (event.key !== "Tab") return;
+              const root = event.currentTarget.closest<HTMLElement>('[role="dialog"]');
+              if (!root || !(event.target instanceof HTMLElement) || event.target.closest('[role="dialog"]') !== root) return;
+              const focusable = [...root.querySelectorAll<HTMLElement>(
+                'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+              )].filter((element) => element.getClientRects().length > 0
+                && !element.closest('[hidden], [aria-hidden="true"], [inert]')
+                && getComputedStyle(element).visibility !== "hidden");
+              const first = focusable[0];
+              const last = focusable[focusable.length - 1];
+              if (!first || (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+                event.preventDefault();
+                event.stopPropagation();
+                (event.shiftKey ? last : first)?.focus();
+                if (!first) root.focus();
+              }
+            } : undefined}
             onMouseDown={onMouseDown}
             onTouchStart={onTouchStart}
             style={

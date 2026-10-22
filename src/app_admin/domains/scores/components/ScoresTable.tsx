@@ -10,7 +10,7 @@
  */
 
 import { useMemo, useRef, useEffect, Fragment, useCallback, forwardRef, useImperativeHandle, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -22,6 +22,13 @@ import {
   patchHomeworkQuick,
   type HomeworkScoreCellValue,
 } from "../api/patchHomeworkQuick";
+import AssessmentTotalValue from "./AssessmentTotalValue";
+import "./AssessmentTotalsModal.css";
+
+function insertTotal(cells: ReactNode[], index: number, total: ReactNode): ReactNode[] {
+  return [...cells.slice(0, index), total, ...cells.slice(index)];
+}
+
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
 import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
@@ -47,14 +54,12 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
 import "./ScoreCollaborationPresence.css";
+import "./ScoresTableLayout.css";
+import { useScoreTableLayout } from "./useScoreTableLayout";
 
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
-// 2026-05-13 4차 Visual Polish:
-// 1100 narrow viewport (학원장 PC 기본 폭 일부) wrap 836 안에 들어가도록 default 재조정.
-// 직전 합산 1284px → 836 < 1284 → 가로 스크롤 강요. 신규 합산 813px ≤ 836 → viewport 내 안착.
-// 합산 계산: 36 + 196 + 64 + 125*3 + 96 + 96 = 863 + alpha
-// 학원장이 폭 부족 시 ResizableTh 드래그로 직접 조정 가능 (5/13 1차 fix).
+// Preferred widths; the default fit mode contracts these to the available viewport.
 const COL_NAME = 196;
 const COL_ATTENDANCE = 78;
 const COL_SCORE = 125;
@@ -153,8 +158,10 @@ function parseScoreInput(input: string, maxScore?: number | null): number | null
   const n = Number(v);
   if (Number.isFinite(n)) return n;
   if (maxScore != null && Number(maxScore) > 0 && v.endsWith("%")) {
-    const p = Number(v.slice(0, -1));
-    if (Number.isFinite(p)) return Math.round((p / 100) * Number(maxScore));
+    const percentage = v.slice(0, -1).trim();
+    if (!percentage) return null;
+    const p = Number(percentage);
+    if (Number.isFinite(p)) return (p / 100) * Number(maxScore);
   }
   return null;
 }
@@ -283,6 +290,16 @@ type ScoreEditHistoryEntry = {
   after: PendingChange;
 };
 
+type FocusedScoreEdit = {
+  key: string;
+  element: HTMLElement;
+  text: string;
+  pending?: PendingChange;
+  pendingSaved: boolean;
+  undo: ScoreEditHistoryEntry[];
+  redo: ScoreEditHistoryEntry[];
+};
+
 type HomeworkPendingChange = Extract<PendingChange, { type: "homework" }>;
 
 type HomeworkCellConflict = {
@@ -344,7 +361,7 @@ export type ScoreColumnDef =
       width: number;
       editable: boolean;
     }
-  | { type: "exam_summary"; sub: "score"; key: string; width: number; editable: false }
+  | { type: "exam_summary" | "homework_summary"; sub: "score"; key: string; width: number; editable: false }
   | { type: "clinic_target"; key: "clinic_target"; width: number; editable: false }
   | { type: "clinic_reason"; key: "clinic_reason"; width: number; editable: false };
 
@@ -436,6 +453,7 @@ type Props = {
 
   /** 컬럼 순서 변경 — 시험/과제 헤더 드래그앤드롭 (display_order patch).
    *  2026-05-13 학원장 결정: ◀▶ 버튼 폐기, drag-drop SSOT. fromId 를 toId 위치로 삽입. */
+  onOpenTotals?: () => void;
   onReorderColumnSwap?: (type: "exam" | "homework", fromId: number, toId: number) => void;
   /** 시험명 메뉴 — 선택한 OMR 검토 또는 직접 채점표를 연다. */
   onOpenExamGrading?: (
@@ -470,6 +488,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   onSelectCell,
   onSelectRow,
   onReorderColumnSwap,
+  onOpenTotals,
   onOpenExamGrading,
   deleteAssessmentLocked = false,
   onRequestMoveNext,
@@ -498,6 +517,44 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   const redoStackRef = useRef<ScoreEditHistoryEntry[]>([]);
   const lastCommitInvalidRef = useRef(false);
   const liveHistoryKeyRef = useRef<string | null>(null);
+  const focusedEditRef = useRef<FocusedScoreEdit | null>(null);
+  const cancelledBlurRef = useRef<HTMLElement | null>(null);
+  const beginCellEdit = useCallback((key: string, element: HTMLElement) => {
+    focusedEditRef.current = {
+      key, element, text: firstLine(element.innerText),
+      pending: pendingRef.current.get(key), pendingSaved: false,
+      undo: [...undoStackRef.current], redo: [...redoStackRef.current],
+    };
+  }, []);
+  const cancelCellEdit = useCallback((element: HTMLElement | null | undefined, fallback: string, options: { invalid?: boolean; keepFocus?: boolean } = {}) => {
+    if (!element) return;
+    const edit = focusedEditRef.current;
+    if (edit?.element === element) {
+      if (edit.pending && !edit.pendingSaved) {
+        pendingRef.current.set(edit.key, edit.pending);
+        dirtyKeysRef.current.add(edit.key);
+      } else {
+        pendingRef.current.delete(edit.key);
+        dirtyKeysRef.current.delete(edit.key);
+      }
+      undoStackRef.current = edit.undo;
+      redoStackRef.current = edit.redo;
+      element.innerText = edit.text;
+      element.dataset.focusValue = edit.text;
+      focusedEditRef.current = null;
+      onPendingChange?.();
+    } else element.innerText = fallback;
+    liveHistoryKeyRef.current = null;
+    lastCommitInvalidRef.current = options.invalid ?? false;
+    if (document.activeElement === element) {
+      if (options.keepFocus) {
+        if (edit) beginCellEdit(edit.key, element);
+      } else {
+        cancelledBlurRef.current = element;
+        element.blur();
+      }
+    }
+  }, [beginCellEdit, onPendingChange]);
   const [homeworkConflicts, setHomeworkConflicts] = useState<Record<string, HomeworkCellConflict>>({});
   const homeworkMaxScoreById = useMemo(
     () => new Map((meta?.homeworks ?? []).map((homework) => [homework.homework_id, homework.max_score])),
@@ -587,7 +644,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     const el = homeworkInputRefs.current[`${change.enrollmentId}-${change.homeworkId}`];
     if (homeworkGradingModeById.get(change.homeworkId) === "COMPLETION") {
-      const label = change.score == null ? "미입력" : change.score >= 1 ? "완료" : "미완료";
+      const label = change.score == null ? "미입력" : change.score >= 1 ? "통과" : "미통과";
       if (el instanceof HTMLSelectElement) el.value = label;
       else setCellText(el, label);
       el?.setAttribute(
@@ -678,7 +735,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   /** pending 항목 전부 API 호출 후 한 번만 invalidate.
    * 저장 도중 같은 셀이 다시 바뀌면 새 값을 지우지 않는다. */
   const flushPendingChanges = useCallback(async () => {
-    const list = Array.from(pendingRef.current.values());
+    const active = document.activeElement;
+    const edit = focusedEditRef.current;
+    // An older save may reach flush after the user has begun another edit.
+    // Do not include that new, still-active input in the older save.
+    const list = Array.from(pendingRef.current.values()).filter((change) => !(
+      edit && edit.element === active && pendingKeyForChange(change) === edit.key
+      && firstLine(edit.element.innerText) !== (edit.element.dataset.focusValue ?? "")
+    ));
     if (list.length === 0) return { savedCount: 0, projectionPendingCount: 0 };
     const failed: PendingChange[] = [];
     const succeeded: Array<{
@@ -735,10 +799,16 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     for (const { change: p, updatedAt } of succeeded) {
       const key = pendingKeyForChange(p);
       const current = pendingRef.current.get(key);
+      const focused = focusedEditRef.current;
+      if (focused?.key === key && focused.pending && samePendingChange(focused.pending, p)) {
+        focused.pendingSaved = true;
+      }
       if (current && samePendingChange(current, p)) {
         pendingRef.current.delete(key);
         dirtyKeysRef.current.delete(key);
-        applyChangeToDom(p);
+        const editingUncommitted = focused && focused.element === document.activeElement
+          && firstLine(focused.element.innerText) !== (focused.element.dataset.focusValue ?? "");
+        if (!editingUncommitted) applyChangeToDom(p);
       } else if (
         p.type === "homework"
         && current?.type === "homework"
@@ -765,6 +835,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         };
         undoStackRef.current = undoStackRef.current.map(updateHistoryVersion);
         redoStackRef.current = redoStackRef.current.map(updateHistoryVersion);
+        if (focused) {
+          if (focused.key === key && focused.pending?.type === "homework") {
+            focused.pending = { ...focused.pending, expectedUpdatedAt: updatedAt };
+          }
+          focused.undo = focused.undo.map(updateHistoryVersion);
+          focused.redo = focused.redo.map(updateHistoryVersion);
+        }
       }
       setHomeworkConflicts((conflicts) => {
         if (!(key in conflicts)) return conflicts;
@@ -832,9 +909,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     dirtyKeysRef.current.add(entry.key);
     applyChangeToDom(entry.before);
     redoStackRef.current.push(entry);
+    const activeEdit = focusedEditRef.current;
+    if (activeEdit && activeEdit.element === document.activeElement) beginCellEdit(activeEdit.key, activeEdit.element);
+    liveHistoryKeyRef.current = null;
     onPendingChange?.();
     return true;
-  }, [applyChangeToDom, onPendingChange]);
+  }, [applyChangeToDom, beginCellEdit, onPendingChange]);
 
   const redoLastChange = useCallback(() => {
     const entry = redoStackRef.current.pop();
@@ -843,18 +923,27 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     dirtyKeysRef.current.add(entry.key);
     applyChangeToDom(entry.after);
     undoStackRef.current.push(entry);
+    const activeEdit = focusedEditRef.current;
+    if (activeEdit && activeEdit.element === document.activeElement) beginCellEdit(activeEdit.key, activeEdit.element);
+    liveHistoryKeyRef.current = null;
     onPendingChange?.();
     return true;
-  }, [applyChangeToDom, onPendingChange]);
+  }, [applyChangeToDom, beginCellEdit, onPendingChange]);
 
   const examOptions = useMemo(
-    () => (viewFilter === "homework" ? [] : (meta?.exams ?? [])),
-    [viewFilter, meta?.exams],
+    () => (viewFilter === "homework" ? [] : [...(meta?.exams ?? [])].sort((a, b) => Number(meta?.total_config?.exam_ids.includes(b.exam_id) ?? true) - Number(meta?.total_config?.exam_ids.includes(a.exam_id) ?? true))),
+    [viewFilter, meta?.exams, meta?.total_config],
   );
   const homeworkOptions = useMemo(
-    () => (viewFilter === "exam" ? [] : (meta?.homeworks ?? [])),
-    [viewFilter, meta?.homeworks],
+    () => (viewFilter === "exam" ? [] : [...(meta?.homeworks ?? [])].sort((a, b) => Number(b.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(b.homework_id) ?? true)) - Number(a.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(a.homework_id) ?? true)))),
+    [viewFilter, meta?.homeworks, meta?.total_config],
   );
+  const includedExamIds = useMemo(() => examOptions.filter((item) => meta?.total_config?.exam_ids.includes(item.exam_id) ?? true).map((item) => item.exam_id), [examOptions, meta?.total_config]);
+  const includedHomeworkCount = homeworkOptions.filter((item) => item.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(item.homework_id) ?? true)).length;
+  const totalHeader = (kind: "exam" | "homework", count: number) => <th key={`${kind}-total`} scope="col" rowSpan={2} data-col-type={`${kind}-summary`} data-summary-start="" className="text-center font-medium">
+    <button type="button" onClick={onOpenTotals} className="assessment-total-value w-full" aria-label={`${kind === "exam" ? "시험" : "과제"} 총점 합산 설정`}><span>Σ {kind === "exam" ? "시험" : "과제"} 총점</span><small>{count}개 합산</small></button>
+  </th>;
+  const totalCell = (kind: "exam" | "homework", row: SessionScoreRow) => <td key={`${kind}-total`} data-col-type={`${kind}-summary`} data-summary="" className="text-center align-middle"><AssessmentTotalValue total={kind === "exam" ? row.exam_total : row.homework_total} /></td>;
   const examOrderIds = useMemo(
     () => examOptions.map((exam) => exam.exam_id),
     [examOptions],
@@ -883,7 +972,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         const metaStatus = block?.meta?.status;
         const score = block?.score;
         if (hw.grading_mode === "COMPLETION") {
-          const label = score == null ? "미입력" : score >= 1 ? "완료" : "미완료";
+          const label = score == null ? "미입력" : score >= 1 ? "통과" : "미통과";
           if (el instanceof HTMLSelectElement) el.value = label;
           else el.innerText = label;
           el.dataset.completionState = score == null ? "empty" : score >= 1 ? "complete" : "incomplete";
@@ -1047,24 +1136,24 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         }
       }
     });
-    if (examOptions.length > 1) {
-      // 합불(exam_summary_pass) 컬럼 제거(2026-05-12) — 학원장 피드백 "셀이 안 보인다" + "합불 셀 제거하고 색상으로 구분".
-      // 점수 셀 자체에 data-pass-status로 합격=녹/불합=적 색상 + 테두리 강조(table.css)로 즉시 식별.
-      list.push(
-        { type: "exam_summary", sub: "score", key: "exam_summary_score", width: 96, editable: false },
-      );
+    if (examOptions.length) {
+      const boundary = list.filter((column) => column.type === "exam" && includedExamIds.includes(column.examId)).length + 2;
+      list.splice(boundary, 0, { type: "exam_summary", sub: "score", key: "exam_summary_score", width: 112, editable: false });
     }
     homeworkOptions.forEach((h) => {
       list.push(
         { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "score", key: `hw_${h.homework_id}_score`, width: COL_SCORE, editable: isEditMode && homeworkEdit },
       );
     });
+    if (homeworkOptions.some((item) => item.grading_mode !== "COMPLETION")) {
+      list.splice(list.length - homeworkOptions.length + includedHomeworkCount, 0, { type: "homework_summary", sub: "score", key: "homework_summary_score", width: 112, editable: false });
+    }
     // P1-2 (2026-05-13): clinic_reason 컬럼 제거 — 판정 셀 안에 사유를 함께 표시.
     list.push(
       { type: "clinic_target", key: "clinic_target", width: COL_CLINIC_TARGET, editable: false }
     );
     return list;
-  }, [examOptions, homeworkOptions, isEditMode, scoreDisplayMode, examEditTotal, examEditObjective, examEditSubjective, homeworkEdit]);
+  }, [examOptions, homeworkOptions, includedExamIds, includedHomeworkCount, isEditMode, scoreDisplayMode, examEditTotal, examEditObjective, examEditSubjective, homeworkEdit]);
 
   /** Pre-computed O(1) lookup — replaces columns.filter() in the per-row render hot path */
   const examColsMap = useMemo((): Record<number, Extract<ScoreColumnDef, { type: "exam" }>[]> => {
@@ -1085,7 +1174,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         key: c.key,
         label: c.key,
         defaultWidth: c.width,
-        minWidth: c.key === "name" ? 100 : c.key === "attendance" ? 72 : c.key === "clinic_target" ? 80 : 48,
+        minWidth: c.key === "name" ? 136 : c.key === "attendance" ? 72
+          : c.type === "exam_summary" || c.type === "homework_summary" || c.key === "clinic_target" ? 88 : 64,
         maxWidth: 500,
       })),
     ];
@@ -1093,7 +1183,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
   /* 2026-05-18 Product Polish:
      v6 bump → 출석 기본 폭 + 상태 색상 density 조정 default 반영. */
-  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores-v6", columnDefs);
+  const { columnWidths: preferredWidths, setColumnWidth: saveColumnWidth } = useTableColumnPrefs("session-scores-v6", columnDefs);
+  const { containerRef, widths: columnWidths, autoFit, changeAutoFit, resizeColumn: setColumnWidth } =
+    useScoreTableLayout(columnDefs, preferredWidths, saveColumnWidth);
 
   const tableCols = useMemo(() => {
     return [
@@ -1125,7 +1217,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     selectableRows.every((r) => selectedSet.has(r.enrollment_id));
 
   return (
-    <div>
+    <div ref={containerRef} className="scores-table-layout">
+      <div className="scores-table-layout-controls" role="group" aria-label="성적표 열 너비">
+        <Button size="sm" intent={autoFit ? "primary" : "secondary"} aria-pressed={autoFit} onClick={() => changeAutoFit(true)}>
+          화면에 맞춤
+        </Button>
+        <Button size="sm" intent={!autoFit ? "primary" : "secondary"} aria-pressed={!autoFit} onClick={() => changeAutoFit(false)}>
+          직접 조절
+        </Button>
+      </div>
       {/* P0-2 (2026-05-13): 테이블 위 absolute OMR 미니버튼 제거.
           학원장 캡처에서 헤더 위 "+OMR +OMR" 줄이 시각 노이즈 + 툴바 OMR 버튼과 중복.
           전체 시험 대상 업로드는 툴바, 한 시험의 업로드는 시험명 작업 화면에서 제공한다. */}
@@ -1135,6 +1235,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       dataAttributes={{
         ...(isEditMode ? { "data-edit-mode": "true" } : {}),
         "data-summary-column": summaryColumnMode,
+        "data-width-mode": autoFit ? "fit" : "manual",
       }}
     >
       <colgroup>
@@ -1182,7 +1283,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           <ResizableTh
             columnKey="name"
             width={columnWidths.name ?? COL_NAME}
-            minWidth={100}
+            minWidth={136}
             maxWidth={400}
             onWidthChange={setColumnWidth}
             rowSpan={2}
@@ -1203,7 +1304,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           >
             출석
           </ResizableTh>
-          {examOptions.map((ex, exIdx) => {
+          {insertTotal(examOptions.map((ex, exIdx) => {
             const examColsList = examColsMap[ex.exam_id] ?? [];
             const colSpan = examColsList.length || 1;
             /* 단일 sub(합산)만 있을 때는 sub-row를 비우고 시험 헤더에 rowSpan=2 부여.
@@ -1318,22 +1419,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 {headerInner}
               </th>
             );
-          })}
-          {examOptions.length > 1 && (
-            <th
-              scope="col"
-              rowSpan={2}
-              className="text-center font-medium text-[var(--color-text-primary)]"
-              data-col-type="exam-summary"
-              data-summary-start=""
-            >
-              <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                <Badge variant="soft" tone="primary" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="총점">Σ</Badge>
-                <span>총점</span>
-              </span>
-            </th>
-          )}
-          {homeworkOptions.map((hw, idx) => (
+          }), includedExamIds.length, examOptions.length ? totalHeader("exam", includedExamIds.length) : null)}
+          {insertTotal(homeworkOptions.map((hw, idx) => (
             <ResizableTh
               key={`head-hw-${hw.homework_id}`}
               columnKey={`hw_${hw.homework_id}_score`}
@@ -1386,7 +1473,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     deleteLocked={deleteAssessmentLocked}
                   />
                   {hw.grading_mode === "COMPLETION" && (
-                    <Badge variant="soft" tone="success" size="xs" shape="square" ariaLabel="완료형 과제">✓</Badge>
+                    <Badge variant="soft" tone="success" size="xs" shape="square" ariaLabel="통과형 과제">✓</Badge>
                   )}
                 </span>
                 <CompactColumnOrderControls
@@ -1399,7 +1486,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 />
               </span>
             </ResizableTh>
-          ))}
+          )), includedHomeworkCount, homeworkOptions.some((item) => item.grading_mode !== "COMPLETION") ? totalHeader("homework", includedHomeworkCount) : null)}
           {/* 사용자 표시 옵션에 따라 종합 판정 또는 테스트 오답 확인 현황을 같은 마지막 열에 표시한다. */}
           <ResizableTh
             columnKey="clinic_target"
@@ -1549,7 +1636,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 </td>
 
                 {/* 시험: 컬럼 정의에 따라 합산/객관식/주관식/문항별/합불 */}
-                {examOptions.map((ex, exIdx) => {
+                {insertTotal(examOptions.map((ex, exIdx) => {
                   const entry = row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
                   const block = entry?.block;
                   const questions = (ex as { questions?: { question_id: number; number: number; max_score: number }[] }).questions ?? [];
@@ -1673,6 +1760,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     lastCommitInvalidRef.current = false;
                                     liveHistoryKeyRef.current = null;
                                     const focusValue = firstLine(el.innerText);
+                                    beginCellEdit(`examTotal:${row.enrollment_id}:${ex.exam_id}`, el);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] = focusValue;
                                     el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
@@ -1701,7 +1789,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       );
                                     }
                                   }}
-                                  onBlur={async () => {
+                                  onBlur={async (event) => {
+                                    if (cancelledBlurRef.current === event.currentTarget) {
+                                      cancelledBlurRef.current = null;
+                                      return;
+                                    }
                                     const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
@@ -1726,8 +1818,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     const metaMax = examMaxScore ?? 100;
                                     const parsed = parseScoreInput(raw, metaMax);
                                     if (parsed == null) {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                       feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다. 미응시는 / 를 입력해 주세요.");
                                     } else if (validateScore(parsed, metaMax)) {
                                       if (wasLiveChange) return;
@@ -1739,8 +1830,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                           : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: metaMax },
                                       );
                                     } else {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                     }
                                   }}
                                   onKeyDown={(e) => {
@@ -1748,8 +1838,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (e.key === "Escape") {
                                       e.preventDefault(); e.stopPropagation();
                                       const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] ?? "";
-                                      if (el) el.innerText = prev;
-                                      el?.blur();
+                                      cancelCellEdit(el, prev);
                                     } else if (e.key === "Enter") {
                                       e.preventDefault(); e.stopPropagation();
                                       const raw = el?.innerText?.trim() ?? "";
@@ -1777,7 +1866,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         // 숫자 입력 → 점수 저장
                                         const metaMax = examMaxScore ?? 100;
                                         const parsed = parseScoreInput(raw, metaMax);
-                                        if (parsed != null && validateScore(parsed, metaMax)) {
+                                        if (parsed == null || !validateScore(parsed, metaMax)) {
+                                          cancelCellEdit(el, el?.dataset.focusValue ?? "", { invalid: true, keepFocus: true });
+                                          if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다. 미응시는 / 를 입력해 주세요.");
+                                          return;
+                                        }
+                                        if (parsed != null) {
                                           const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
                                           stagePendingChange(
                                             cellKey,
@@ -1886,6 +1980,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     lastCommitInvalidRef.current = false;
                                     liveHistoryKeyRef.current = null;
                                     const focusValue = firstLine(el.innerText);
+                                    beginCellEdit(`examObjective:${row.enrollment_id}:${ex.exam_id}`, el);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] = focusValue;
                                     el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
@@ -1900,7 +1995,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: objScore ?? 0 },
                                     );
                                   }}
-                                  onBlur={async () => {
+                                  onBlur={async (event) => {
+                                    if (cancelledBlurRef.current === event.currentTarget) {
+                                      cancelledBlurRef.current = null;
+                                      return;
+                                    }
                                     const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
@@ -1911,8 +2010,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (raw === focusValue) return;
                                     const parsed = parseScoreInput(raw, objectiveMax);
                                     if (parsed == null) {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                       feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
                                     } else if (validateScore(parsed, objectiveMax)) {
                                       if (wasLiveChange) return;
@@ -1922,8 +2020,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: objScore ?? 0 },
                                       );
                                     } else {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                     }
                                   }}
                                   onKeyDown={(e) => {
@@ -1931,10 +2028,16 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (e.key === "Escape") {
                                       e.preventDefault(); e.stopPropagation();
                                       const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] ?? "";
-                                      if (el) el.innerText = prev;
-                                      el?.blur();
+                                      cancelCellEdit(el, prev);
                                     } else if (e.key === "Enter") {
                                       e.preventDefault(); e.stopPropagation();
+                                      const raw = firstLine(el?.innerText ?? "");
+                                      const parsed = parseScoreInput(raw, objectiveMax);
+                                      if (parsed == null || !validateScore(parsed, objectiveMax)) {
+                                        cancelCellEdit(el, el?.dataset.focusValue ?? "", { invalid: true, keepFocus: true });
+                                        if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
+                                        return;
+                                      }
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
@@ -2010,6 +2113,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     lastCommitInvalidRef.current = false;
                                     liveHistoryKeyRef.current = null;
                                     const focusValue = firstLine(el.innerText);
+                                    beginCellEdit(`examSubjective:${row.enrollment_id}:${ex.exam_id}`, el);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] = focusValue;
                                     el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
@@ -2024,7 +2128,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: subScore ?? 0 },
                                     );
                                   }}
-                                  onBlur={async () => {
+                                  onBlur={async (event) => {
+                                    if (cancelledBlurRef.current === event.currentTarget) {
+                                      cancelledBlurRef.current = null;
+                                      return;
+                                    }
                                     const el = examSubjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-subjective`];
                                     if (!el) return;
                                     const raw = firstLine(el.innerText);
@@ -2035,8 +2143,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (raw === focusValue) return;
                                     const parsed = parseScoreInput(raw, subjectiveMax);
                                     if (parsed == null) {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                       feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
                                     } else if (validateScore(parsed, subjectiveMax)) {
                                       if (wasLiveChange) return;
@@ -2046,8 +2153,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: subScore ?? 0 },
                                       );
                                     } else {
-                                      lastCommitInvalidRef.current = true;
-                                      el.innerText = focusValue;
+                                      cancelCellEdit(el, focusValue, { invalid: true });
                                     }
                                   }}
                                   onKeyDown={(e) => {
@@ -2055,10 +2161,16 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (e.key === "Escape") {
                                       e.preventDefault(); e.stopPropagation();
                                       const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] ?? "";
-                                      if (el) el.innerText = prev;
-                                      el?.blur();
+                                      cancelCellEdit(el, prev);
                                     } else if (e.key === "Enter") {
                                       e.preventDefault(); e.stopPropagation();
+                                      const raw = firstLine(el?.innerText ?? "");
+                                      const parsed = parseScoreInput(raw, subjectiveMax);
+                                      if (parsed == null || !validateScore(parsed, subjectiveMax)) {
+                                        cancelCellEdit(el, el?.dataset.focusValue ?? "", { invalid: true, keepFocus: true });
+                                        if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
+                                        return;
+                                      }
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
@@ -2136,50 +2248,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       })}
                     </Fragment>
                   );
-                })}
-
-                {/* 시험 총점 요약 — 시험 2개 이상일 때만 표시 */}
-                {examOptions.length > 1 && (() => {
-                  let totalScore = 0;
-                  let totalMaxScore = 0;
-                  let hasAnyScore = false;
-                  let allPassed: boolean | null = null; // null = no data
-                  for (const ex of examOptions) {
-                    const entry = row.exams?.find((e) => e.exam_id === ex.exam_id);
-                    if (!entry) continue;
-                    const block = entry.block;
-                    if (block?.score != null) {
-                      hasAnyScore = true;
-                      totalScore += Number(block.score);
-                      totalMaxScore += ex.max_score ?? block.max_score ?? 100;
-                      if (block.passed != null) {
-                        if (allPassed === null) allPassed = block.passed;
-                        else if (!block.passed) allPassed = false;
-                      }
-                    }
-                  }
-                  const progressStyle = hasAnyScore ? scoreProgressStyle(totalScore, totalMaxScore) : undefined;
-                  return (
-                    <td
-                      className="min-w-0 text-center align-middle"
-                      data-col-type="exam-summary"
-                      data-summary-start=""
-                      data-summary=""
-                      {...(!hasAnyScore ? { "data-score-empty": "true" } : {})}
-                      {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
-                      {...(allPassed != null ? { "data-pass-status": allPassed ? "pass" : "fail" } : {})}
-                    >
-                      {hasAnyScore ? (
-                        <ScoreValue score={totalScore} maxScore={totalMaxScore} showMax />
-                      ) : (
-                        <span className="font-medium text-[var(--color-text-muted)]">-</span>
-                      )}
-                    </td>
-                  );
-                })()}
+                }), includedExamIds.length, examOptions.length ? totalCell("exam", row) : null)}
 
                 {/* 과제: 점수(점수만) | 합불 — canEditScore이면 block 없어도 입력 셀 표시 */}
-                {homeworkOptions.map((hw, hwBodyIdx) => {
+                {insertTotal(homeworkOptions.map((hw, hwBodyIdx) => {
                   const entry =
                     row.homeworks?.find(
                       (h) => h.homework_id === hw.homework_id
@@ -2258,7 +2330,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     if (!applyPendingChangeToMountedCell(pendingKey) && !isSelected) {
                                       const label = block?.score == null
                                         ? "미입력"
-                                        : block.score >= 1 ? "완료" : "미완료";
+                                        : block.score >= 1 ? "통과" : "미통과";
                                       el.value = label;
                                       el.dataset.completionState = block?.score == null
                                         ? "empty"
@@ -2269,7 +2341,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 className="ds-scores-completion-select"
                                 aria-label={`${row.student_name} · ${hw.title} 완료 상태`}
                                 disabled={Boolean(block?.is_locked)}
-                                defaultValue={block?.score == null ? "미입력" : block.score >= 1 ? "완료" : "미완료"}
+                                defaultValue={block?.score == null ? "미입력" : block.score >= 1 ? "통과" : "미통과"}
                                 onClick={(event) => event.stopPropagation()}
                                 onFocus={() => {
                                   const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
@@ -2277,9 +2349,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   if (!isSelected) onSelectCell(row, "homework", hw.homework_id);
                                 }}
                                 onChange={(event) => {
-                                  const score = event.target.value === "완료"
+                                  const score = event.target.value === "통과"
                                     ? 1
-                                    : event.target.value === "미완료" ? 0 : null;
+                                    : event.target.value === "미통과" ? 0 : null;
                                   const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
                                   const next: PendingChange = {
                                     type: "homework",
@@ -2298,8 +2370,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 }}
                               >
                                 <option value="미입력">미입력</option>
-                                <option value="미완료">미완료</option>
-                                <option value="완료">완료</option>
+                                <option value="미통과">미통과 (X)</option>
+                                <option value="통과">통과 (O)</option>
                               </select>
                             ) : block?.score != null ? (
                               <Badge
@@ -2307,7 +2379,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 tone={block.score >= 1 ? "success" : "danger"}
                                 size="xs"
                               >
-                                {block.score >= 1 ? "완료" : "미완료"}
+                                {block.score >= 1 ? "통과" : "미통과"}
                               </Badge>
                             ) : (
                               <span className="text-[var(--color-text-muted)]">미입력</span>
@@ -2340,6 +2412,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
                                 freezeObservedHomeworkVersion(`homework:${row.enrollment_id}:${hw.homework_id}`);
                                 const focusValue = firstLine(el.innerText);
+                                beginCellEdit(`homework:${row.enrollment_id}:${hw.homework_id}`, el);
                                 scoreValueOnFocusRef.current[key] = focusValue;
                                 el.dataset.focusValue = focusValue;
                                 requestAnimationFrame(() => selectAllScoreCell(el));
@@ -2377,7 +2450,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 el.focus();
                                 selectAllScoreCell(el);
                               }}
-                              onBlur={async () => {
+                              onBlur={async (event) => {
+                                if (cancelledBlurRef.current === event.currentTarget) {
+                                  cancelledBlurRef.current = null;
+                                  return;
+                                }
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
                                 const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
                                 const el = homeworkInputRefs.current[key];
@@ -2409,7 +2486,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 const parsed = parseScoreInput(raw, hw.max_score);
                                 if (parsed != null) {
                                   if (!validateScore(parsed, hw.max_score)) {
-                                    el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
+                                    cancelCellEdit(el, el.dataset.focusValue ?? "", { invalid: true });
                                     return;
                                   }
                                   if (wasLiveChange) return;
@@ -2419,7 +2496,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     serverValue,
                                   );
                                 } else {
-                                  el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
+                                  cancelCellEdit(el, el.dataset.focusValue ?? "", { invalid: true });
+                                  feedback.error("점수는 숫자 또는 %로 입력해 주세요.");
                                 }
                               }}
                               onKeyDown={async (e) => {
@@ -2430,8 +2508,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 if (e.key === "Escape") {
                                   e.preventDefault(); e.stopPropagation();
                                   const prev = scoreValueOnFocusRef.current[key] ?? "";
-                                  if (el) el.innerText = prev;
-                                  el?.blur();
+                                  cancelCellEdit(el, prev);
                                   return;
                                 }
                                 if (e.key === "Tab") {
@@ -2483,9 +2560,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     return;
                                   }
                                   const parsed = parseScoreInput(raw, hw.max_score);
+                                  if (parsed == null && raw !== "") {
+                                    cancelCellEdit(el, el?.dataset.focusValue ?? "", { invalid: true, keepFocus: true });
+                                    feedback.error("점수는 숫자 또는 %로 입력해 주세요.");
+                                    return;
+                                  }
                                   if (parsed != null) {
                                     if (!validateScore(parsed, hw.max_score)) {
-                                      if (el) el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
+                                      cancelCellEdit(el, el?.dataset.focusValue ?? "", { invalid: true, keepFocus: true });
                                       return;
                                     }
                                     const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
@@ -2590,7 +2672,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       )}
                     </Fragment>
                   );
-                })}
+                }), includedHomeworkCount, homeworkOptions.some((item) => item.grading_mode !== "COMPLETION") ? totalCell("homework", row) : null)}
 
                 {/* 마지막 열은 표시 옵션에 따라 종합 판정과 시험 오답 확인 요약을 교체한다. */}
                 <td

@@ -8,8 +8,9 @@ import {
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
+import { openTeacherAlimtalkComposer } from "../helpers/teacherAlimtalkComposer";
 
-test.setTimeout(300_000);
+test.setTimeout(420_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
 type Config = { trigger: string; template: number | null; enabled: boolean };
@@ -20,6 +21,9 @@ let family: QaFamily | null = null;
 let templateId: number | null = null;
 let previous: Config | undefined;
 let configured = false;
+let editableTemplateId: number | null = null;
+let previousReminder: Config | undefined;
+let reminderConfigured = false;
 
 test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", () => {
   test.describe.configure({ retries: 0 });
@@ -27,6 +31,15 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
   test.beforeAll(() => assertQaStudentParentRuntime());
   test.afterAll(async ({ request }) => {
     if (!access) return;
+    if (reminderConfigured) {
+      await expectApi(request, "PATCH", "/messaging/auto-send/", access, { configs: [{
+        trigger: "clinic_reminder", template_id: previousReminder?.template ?? null, enabled: previousReminder?.enabled ?? false,
+      }] });
+    }
+    if (editableTemplateId != null) {
+      expect((await api(request, "DELETE", `/messaging/templates/${editableTemplateId}/`, access)).status).toBe(204);
+      expect((await api(request, "GET", `/messaging/templates/${editableTemplateId}/`, access)).status).toBe(404);
+    }
     if (configured) {
       await expectApi(request, "PATCH", "/messaging/auto-send/", access, { configs: [{
         trigger: "withdrawal_complete", template_id: previous?.template ?? null, enabled: previous?.enabled ?? false,
@@ -43,9 +56,19 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     access = (await loginAdmin(request)).access;
-    family = await createQaFamily(request, access, "alimtalk-withdrawal", 2);
+    // Keep the synthetic recipient name within the approved 23-character field
+    // so the preview can assert its complete identity without truncation.
+    family = await createQaFamily(request, access, "alimtalk", 2);
     const configs = await expectApi<Config[]>(request, "GET", "/messaging/auto-send/", access);
     previous = configs.find((item) => item.trigger === "withdrawal_complete");
+    previousReminder = configs.find((item) => item.trigger === "clinic_reminder");
+    editableTemplateId = (await expectApi<{ id: number }>(request, "POST", "/messaging/templates/", access, {
+      name: `QA editable ${family.students[0].id}`, category: "clinic", body: "예전에 저장한 합성 안내문",
+    })).id;
+    await expectApi(request, "PATCH", "/messaging/auto-send/", access, { configs: [{
+      trigger: "clinic_reminder", template_id: editableTemplateId, enabled: false, message_mode: "alimtalk",
+    }] });
+    reminderConfigured = true;
     const template = await expectApi<{ id: number }>(request, "POST", "/messaging/templates/", access, {
       name: `QA withdrawal ${family.students[0].id}`, category: "default", body: "#{학생이름} 퇴원 안내",
     });
@@ -64,6 +87,120 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
     for (const [index, width] of [1366, 390].entries()) {
       const student = family.students[index];
       await page.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(page, `${QA_BASE}/workspace/message/auto-send`);
+      await page.getByRole("button", { name: "클리닉/상담", exact: true }).click();
+      const reminderCard = page.locator('[data-card-state]').filter({ hasText: `QA editable ${family.students[0].id}` });
+      await reminderCard.getByRole("button", { name: "문구 수정", exact: true }).click();
+      // The submit label becomes "저장 중…" while PATCH is in flight.
+      // Keep the dialog locator stable until the successful save really closes it.
+      const editorDialog = page.getByRole("dialog").filter({ has: page.getByRole("textbox", { name: "안내문", exact: true }) });
+      const newBody = `${width}px에서 직접 수정한 안내문입니다.\n시간에 맞춰 준비해 주세요.`;
+      await editorDialog.getByRole("textbox", { name: "안내문", exact: true }).fill(newBody);
+      await assertNoHorizontalOverflow(page);
+      await page.screenshot({ path: testInfo.outputPath(`alimtalk-editable-${width}.png`) });
+      const saved = page.waitForResponse((response) => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1/messaging/templates/${editableTemplateId}/`);
+      await editorDialog.getByRole("button", { name: "저장하고 적용" }).click();
+      const saveResponse = await saved;
+      expect(saveResponse.status()).toBe(200);
+      expect((await saveResponse.json() as { body: string }).body).toBe(newBody);
+      await expect(editorDialog).toBeHidden();
+      const stored = await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${editableTemplateId}/`, access);
+      expect(stored.body).toBe(newBody);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "클리닉/상담", exact: true }).click();
+      await expect(page.getByText(newBody, { exact: true })).toBeVisible();
+      // Exercise both independent libraries against the real tenant API, then
+      // consume the saved text in the mobile send UI before any submission.
+      await gotoAndSettle(page, `${QA_BASE}/workspace/message/templates`);
+      await page.getByRole("navigation", { name: "문구 카테고리" }).getByRole("button", { name: /^클리닉/ }).click();
+      await page.getByText(`QA editable ${family.students[0].id}`, { exact: true }).click();
+      const library = page.getByRole("dialog", { name: "문구 수정", exact: true });
+      // Tiptap renders each saved line as a paragraph; textContent joins those
+      // paragraphs without separators. Check every line and its order instead.
+      await expect(library.getByRole("textbox", { name: "안내문", exact: true }).locator("p"))
+        .toHaveText(newBody.split("\n"));
+      const libraryBody = `${width}px 보관함에서 저장한 안내문입니다.`;
+      await library.getByRole("textbox", { name: "안내문", exact: true }).fill(libraryBody);
+      await library.getByRole("button", { name: "수정", exact: true }).click();
+      await expect(library).toBeHidden();
+      await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/message-templates`);
+      await page.getByRole("button", { name: `QA editable ${family.students[0].id} 편집`, exact: true }).click();
+      const mobileEditor = page.getByRole("dialog", { name: "문구 편집", exact: true });
+      await expect(mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true })).toHaveText(libraryBody);
+      const mobileBody = `${width}px 선생님 화면에서 저장한 최종 안내문입니다.`;
+      await mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true }).fill(mobileBody);
+      await mobileEditor.getByRole("button", { name: "수정", exact: true }).click();
+      await expect(mobileEditor).toBeHidden();
+      expect((await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${editableTemplateId}/`, access)).body).toBe(mobileBody);
+      // A new context has no prior cookies, local storage or query cache.
+      // Log in through the UI and consume the persisted copy in a new session.
+      const reconnectedContext = await page.context().browser()!.newContext({
+        viewport: { width, height: 900 }, serviceWorkers: "block",
+      });
+      try {
+        const page = await reconnectedContext.newPage();
+        const reconnectBoundary = await installQaStudentParentBoundary(page, request);
+        const reconnectBrowser = attachStrictBrowserGuards(page);
+        await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`, { timeout: 45_000 });
+        await page.getByTestId("login-username").fill(QA_ADMIN_USER);
+        await page.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
+        await page.getByTestId("login-submit").click();
+        await expect(page).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+        await acknowledgeInitialAccountPromptsIfVisible(page);
+        await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/message-templates`);
+        const mobileEditor = page.getByRole("dialog", { name: "문구 편집", exact: true });
+        await page.getByRole("button", { name: `QA editable ${family.students[0].id} 편집`, exact: true }).click();
+        await expect(mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true })).toHaveText(mobileBody);
+        await expect(mobileEditor).not.toContainText("예전에 저장한 합성 안내문");
+        await expect(mobileEditor.getByRole("button", { name: "수정", exact: true })).toBeInViewport();
+        await assertNoHorizontalOverflow(page);
+        await page.screenshot({ path: testInfo.outputPath(`alimtalk-library-${width}.png`) });
+        await mobileEditor.getByRole("button", { name: "닫기", exact: true }).click();
+        await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/students`);
+        const searched = page.waitForResponse((response) => response.request().method() === "GET"
+          && new URL(response.url()).pathname === "/api/v1/students/"
+          && new URL(response.url()).searchParams.get("search") === student.name);
+        await page.getByPlaceholder("이름, 아이디, 전화번호, 학교").fill(student.name);
+        expect((await searched).status()).toBe(200);
+        // Multi-field search can also match a sibling's shared parent phone.
+        // Select the intended named row instead of selecting every search hit.
+        const compose = await openTeacherAlimtalkComposer(page, [student.name]);
+        await compose.getByLabel("저장한 문구 불러오기").selectOption(String(editableTemplateId));
+        await expect(compose.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveText(mobileBody);
+        await compose.getByRole("button", { name: "수신자별 발송 문구 확인", exact: true }).click();
+        const review = page.getByRole("dialog", { name: "보내기 전 마지막 확인", exact: true });
+        await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText(mobileBody);
+        await expect(review).not.toContainText("예전에 저장한 합성 안내문");
+        await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText(student.name);
+        await review.getByRole("button", { name: "문구 수정", exact: true }).click();
+        await expect(compose.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveText(mobileBody);
+        await compose.getByRole("button", { name: "닫기", exact: true }).click();
+        reconnectBoundary.assertClean();
+        reconnectBrowser.assertZeroDefects();
+      } finally {
+        await reconnectedContext.close();
+      }
+      await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/messaging-settings`);
+      const mobileReminder = page.getByRole("group").filter({ hasText: `QA editable ${family.students[0].id}` });
+      await mobileReminder.getByTitle("설정 편집").click();
+      await page.getByRole("button", { name: "미리보기", exact: true }).click();
+      const settingsPreview = page.getByRole("dialog", { name: "템플릿 미리보기", exact: true });
+      await expect(settingsPreview.getByLabel("카카오톡 실제 발송 미리보기")).toContainText(mobileBody);
+      await settingsPreview.getByRole("button", { name: "닫기", exact: true }).click();
+      await gotoAndSettle(page, `${QA_BASE}/workspace/message/auto-send`);
+      await page.getByRole("button", { name: "클리닉/상담", exact: true }).click();
+      await expect(page.getByText(mobileBody, { exact: true })).toBeVisible();
+      const rendered = await expectApi<{ can_send: boolean; preview_recipients: Array<{ full_message_body: string }> }>(
+        request, "POST", "/messaging/send/preflight/", access, {
+          template_id: editableTemplateId, student_ids: [student.id], send_to: "parent", message_mode: "alimtalk",
+          block_category: "clinic", alimtalk_extra_vars: { 클리닉장소: "QA 강의실", 클리닉날짜: "2026-10-19", 클리닉시간: "18:00" },
+        },
+      );
+      expect(rendered.can_send).toBe(true);
+      expect(rendered.preview_recipients).toHaveLength(1);
+      expect(rendered.preview_recipients[0].full_message_body).toContain(mobileBody);
+      expect(rendered.preview_recipients[0].full_message_body).not.toContain("예전에 저장한 합성 안내문");
       await gotoAndSettle(page, `${QA_BASE}/workspace/students/home`);
       await page.locator('[data-guide="students-search"]').fill(student.name);
       await page.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();

@@ -198,17 +198,28 @@ test("390px 선생님 가이드에서 시험 생성 PC 화면으로 이어지고
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/mobile/guide`, { timeout: 20_000 });
 
-  for (const title of ["학생 추가", "강의 개설", "차시 생성", "수강생 등록", "시험 등록", "과제 등록과 배정", "클리닉 운영", "영상 등록과 시청 확인"]) {
-    await expect(page.getByText(title, { exact: true })).toBeVisible();
+  const contents = page.getByRole("navigation", { name: "주요 기능 이용 순서" });
+  for (const title of ["오늘 수업과 처리할 일", "학생 검색·상세·메모", "모바일 출결 입력", "모바일 성적 입력과 확인", "시험·과제·제출 대기 확인", "모바일 클리닉 운영", "기능 찾기와 PC 업무 이어가기"]) {
+    await expect(contents.getByRole("button", { name: new RegExp(title) })).toBeVisible();
   }
   await expectNoHorizontalOverflow(page);
-  await page.getByText("시험 등록", { exact: true }).click();
-  await page.getByRole("button", { name: "PC 화면에서 시작" }).click();
-  await expect(page).toHaveURL(/\/workspace\/lectures$/);
+  await contents.getByRole("button", { name: /기능 찾기와 PC 업무 이어가기/ }).click();
+  await page.getByRole("link", { name: "기능 찾기와 PC 업무 이어가기 화면 열기" }).click();
+  await expect(page).toHaveURL(/\/workspace\/mobile\/desktop-only$/);
+  await expect(page.getByRole("heading", { name: "기능 찾기", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "PC 버전 홈", exact: true }).click();
+  await expect(page).toHaveURL(/\/workspace\/dashboard$/);
 
   await gotoAndSettle(page, `${BASE}/workspace/guide`, { timeout: 20_000 });
-  await expect(page.getByRole("heading", { name: "첫 수업을 여는 순서부터 따라오세요." })).toBeVisible();
-  await expect(page.getByText("과제 등록과 배정하기", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "학원 운영, 처음부터 끝까지" })).toBeVisible();
+  await expect(contents.getByRole("button", { name: /과제 배정·제출 확인·평가/ })).toBeVisible();
+  await contents.getByRole("button", { name: /시험 생성·답안·응시 대상/ }).click();
+  await expect(page.getByRole("article").getByRole("heading", { name: "시작 전에" })).toBeVisible();
+  await expectNoHorizontalOverflow(page);
+  await page.getByRole("link", { name: "시험 생성·답안·응시 대상 화면 열기" }).click();
+  await expect(page).toHaveURL(/\/workspace\/exams$/);
+  await expect(page.locator(".domain-layout__title")).toHaveText("시험");
+  await expect(page.getByRole("tab", { name: "강의별 시험", exact: true })).toHaveAttribute("aria-selected", "true");
   await expectNoHorizontalOverflow(page);
   expect(apiRequests.filter(({ method }) => method !== "GET")).toEqual([]);
 });

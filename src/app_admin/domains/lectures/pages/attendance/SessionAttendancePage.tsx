@@ -138,13 +138,14 @@ export default function SessionAttendancePage({
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, sort]);
+  }, [search, statusFilter]);
 
   useEffect(() => {
     setBulkPresentUndo(null);
   }, [sessionId]);
 
   useEffect(() => {
+    setPage(1);
     setSort(getStoredAttendanceSort(sortStorageKey, previousSortStorageKey));
   }, [previousSortStorageKey, sortStorageKey]);
 
@@ -172,7 +173,7 @@ export default function SessionAttendancePage({
     return () => document.removeEventListener("mousedown", close);
   }, [openStatusRowAttId]);
 
-  const { data: attendanceResult, isLoading } = useQuery({
+  const { data: attendanceResult, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter, sort),
     queryFn: () =>
       fetchAttendance(sessionId, {
@@ -286,7 +287,19 @@ export default function SessionAttendancePage({
   const tableWidth = fixedColsWidth;
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
-  if (attendanceResult == null) return <EmptyState scope="panel" tone="error" title="출결 데이터를 불러올 수 없습니다." />;
+  if (isError || attendanceResult == null) return (
+    <EmptyState
+      scope="panel"
+      tone="error"
+      title="출결 데이터를 불러올 수 없습니다."
+      description="저장된 출결은 유지됩니다. 같은 검색·필터·정렬로 다시 불러와 주세요."
+      actions={
+        <Button type="button" intent="secondary" onClick={() => void refetch()} disabled={isFetching}>
+          {isFetching ? "다시 불러오는 중…" : "다시 시도"}
+        </Button>
+      }
+    />
+  );
 
   const allIds = sorted.map((att) => att.id);
   const allSelected = sorted.length > 0 && allIds.every((attendanceId: number) => selectedSet.has(attendanceId));
@@ -378,6 +391,7 @@ export default function SessionAttendancePage({
         let sessionTitle = "";
         let initialBody: string | undefined;
         let initialTemplateId: number | null = null;
+        let initialTemplateUpdatedAt: string | undefined;
         let initialLetterPresetId: string | null = null;
         let scoreDetail = "";
         let firstScoreVars: Record<string, string> = {};
@@ -407,6 +421,7 @@ export default function SessionAttendancePage({
 
           initialBody = chosenTpl?.body ?? buildGenericScoreTemplate({ lectureName, sessionTitle });
           initialTemplateId = chosenTpl?.id ?? null;
+          initialTemplateUpdatedAt = chosenTpl?.updated_at;
           initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
           // SSOT (2026-05-14): modal이 currentBody (학원장 수정본) 기반으로 학생별 재계산.
           // 직전 결함: 사전 계산된 _body_subst 만 보내면 학원장 textarea 수정이 silent discard.
@@ -430,10 +445,12 @@ export default function SessionAttendancePage({
 
         openSendMessageModal({
           studentIds,
+          sessionId,
           recipientLabel: `수업결과 발송 — ${selectedIds.length}명`,
           blockCategory: "grades",
           initialBody,
           initialTemplateId,
+          initialTemplateUpdatedAt,
           initialLetterPresetId,
           alimtalkExtraVars: {
             강의명: lectureName,
@@ -587,6 +604,21 @@ export default function SessionAttendancePage({
 
   const filterSlot = (
     <>
+      <Button
+        type="button"
+        intent={sort === "not_arrived" ? "primary" : "secondary"}
+        size="sm"
+        aria-pressed={sort === "not_arrived"}
+        title="미입력·결석 학생을 먼저 표시합니다. 출결을 저장하면 순서가 갱신됩니다."
+        onClick={() => {
+          const nextSort = sort === "not_arrived" ? DEFAULT_ATTENDANCE_SORT : "not_arrived";
+          setPage(1);
+          setSort(nextSort);
+          if (sortStorageKey) setLocalItem(sortStorageKey, nextSort);
+        }}
+      >
+        미도착 우선
+      </Button>
       <span ref={statusTriggerRef}>
         <Button
           type="button"
@@ -654,6 +686,7 @@ export default function SessionAttendancePage({
       : sort === descending
         ? DEFAULT_ATTENDANCE_SORT
         : colKey;
+    setPage(1);
     setSort(nextSort);
     if (!sortStorageKey) return;
     setLocalItem(sortStorageKey, nextSort);
@@ -794,9 +827,9 @@ export default function SessionAttendancePage({
                     <span className="inline-flex items-center gap-1">이름 <span aria-hidden style={{ fontSize: 10, opacity: sort === "name" || sort === "-name" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "name" ? "▲" : sort === "-name" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
                   <ResizableTh columnKey="status" width={columnWidths.status ?? col.statusBadge} minWidth={isCompactAttendance ? 60 : 520} maxWidth={isCompactAttendance ? 140 : 660} onWidthChange={setColumnWidth} scope="col" className="text-center">
-                    <span className="inline-flex items-center gap-1" title="출결을 바꿔도 학생 명단 순서는 유지됩니다.">
-                      {!isCompactAttendance && <ShieldCheck size={12} aria-hidden />}
-                      {isCompactAttendance ? "상태" : "출결 상태 · 선택해도 명단 순서 유지"}
+                    <span className="inline-flex items-center gap-1" title={sort === "not_arrived" ? "미입력·결석 학생을 먼저 표시하며 출결 저장 후 순서가 갱신됩니다." : "출결을 바꿔도 학생 명단 순서는 유지됩니다."}>
+                      {!isCompactAttendance && sort !== "not_arrived" && <ShieldCheck size={12} aria-hidden />}
+                      {isCompactAttendance ? "상태" : sort === "not_arrived" ? "출결 상태 · 미입력·결석 우선" : "출결 상태 · 선택해도 명단 순서 유지"}
                     </span>
                   </ResizableTh>
                   {isSupplementSession && (

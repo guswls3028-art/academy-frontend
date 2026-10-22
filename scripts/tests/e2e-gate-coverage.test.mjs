@@ -169,11 +169,11 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   assert.match(e2eWorkflow, /VITE_DEV_PROXY_TARGET: http:\/\/127\.0\.0\.1:9/);
   assert.ok(e2eWorkflow.includes("playwright install --with-deps chromium ${{ matrix.shard == 3 && 'webkit' || '' }}"));
   assert.equal((e2eWorkflow.match(/if: matrix.shard == 3/g) || []).length, 5);
-  const excelStep = e2eWorkflow.match(/      - name: Verify synthetic Excel format and profile contracts[\s\S]*?(?=      - name:)/)?.[0] ?? "";
+  const excelStep = e2eWorkflow.match(/      - name: Verify synthetic Excel and score message contracts[\s\S]*?(?=      - name:)/)?.[0] ?? "";
   assert.match(excelStep, /if: matrix.shard == 1/);
-  assert.match(excelStep, /playwright test e2e\/admin\/excel-import-compatibility.spec.ts --project=chromium --workers=1 --retries=0/);
+  assert.match(excelStep, /playwright test e2e\/admin\/excel-import-compatibility.spec.ts e2e\/admin\/score-alimtalk-payload-vars.spec.ts --project=chromium --workers=1 --retries=0/);
   assert.doesNotMatch(excelStep, /secrets\.|continue-on-error|E2E_ALLOW_PRODUCTION_WRITES: "1"/);
-  // Only the synthetic parser check runs on shard 1; mandatory browser gates stay on shard 3.
+  // Synthetic parser/message contracts run on shard 1; mandatory browser gates stay on shard 3.
   assert.doesNotMatch(e2eWorkflow.replace(excelStep, ""), /matrix.shard == 1/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:readonly --reporter=github,html/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:mock --reporter=github,html/);
@@ -182,6 +182,11 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   assert.doesNotMatch(prGateConfig, /fullyParallel:\s*true/);
   assert.match(prGateConfig, /name: "pr-route-mocks",[\s\S]*?screenshot: "only-on-failure",[\s\S]*?trace: "retain-on-failure",[\s\S]*?video: "off"/);
   assert.equal((prGateConfig.match(/video: "off"/g) || []).length, 1);
+  for (const project of ["pr-route-mocks", "pr-iphone-webkit"]) {
+    const use = prGateConfig.match(new RegExp(`name: "${project}",[\\s\\S]*?use: \\{([^}]+)\\}`))?.[1];
+    assert.ok(use, `${project} must declare its own browser options`);
+    assert.match(use, /serviceWorkers: "block"/, `${project} must keep route interception authoritative`);
+  }
 });
 
 test("runtime assets, lockfile and development gate inputs trigger PR E2E", () => {
@@ -196,8 +201,8 @@ test("runtime assets, lockfile and development gate inputs trigger PR E2E", () =
 
 test("development inventory preserves all required real-use cases and unique files", () => {
   const entries = Object.entries(developmentRealUseCases);
-  assert.equal(entries.length, 19);
-  assert.equal(entries.reduce((sum, [, count]) => sum + count, 0), 30);
+  assert.equal(entries.length, 20);
+  assert.equal(entries.reduce((sum, [, count]) => sum + count, 0), 37);
   assert.equal(new Set(entries.map(([file]) => path.basename(file))).size, entries.length);
   for (const [file, count] of entries) {
     assert.ok(Number.isSafeInteger(count) && count > 0);
@@ -210,6 +215,7 @@ test("development inventory preserves all required real-use cases and unique fil
   assert.equal(developmentRealUseCases["admin/fees-overdue-realuse.spec.ts"], 1);
   assert.equal(developmentRealUseCases["admin/staff-payroll-realuse.spec.ts"], 1);
   assert.equal(developmentRealUseCases["student/video-playback-renewal.realuse.spec.ts"], 1);
+  assert.equal(developmentRealUseCases["student/student-parent-registration-realuse.spec.ts"], 7);
 });
 
 test("production auth retries only throttle and transport failures within one bounded owner", () => {

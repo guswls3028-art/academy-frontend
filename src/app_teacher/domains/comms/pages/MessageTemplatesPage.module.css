@@ -2,3 +2,10 @@
 .variable { border: 1px solid var(--tc-border-strong); border-radius: var(--tc-radius-sm); background: var(--tc-surface-soft); color: var(--tc-text); padding: 7px 10px; min-height: 36px; cursor: pointer; font: inherit; font-size: 12px; }
 .variable:focus-visible, .copyButton:focus-visible { outline: 2px solid var(--tc-primary); outline-offset: 2px; }
 .copyButton { border: 0; border-radius: var(--tc-radius); background: var(--tc-primary); color: white; padding: 12px; font: inherit; font-weight: 700; cursor: pointer; }
+.help { margin: 0; color: var(--tc-text-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.error { margin: 0; padding: 10px; border-radius: var(--tc-radius-sm); background: var(--tc-surface-soft); color: var(--tc-danger); font-size: 12px; line-height: 1.6; }
+.preview { min-width: 0; display: grid; gap: 8px; }
+.previewDetails > summary { padding: 10px 0; color: var(--tc-primary); cursor: pointer; font-size: 13px; font-weight: 600; }
+.previewDetails > summary:focus-visible, .saveButton:focus-visible { outline: 2px solid var(--tc-primary); outline-offset: 2px; }
+.saveButton { width: 100%; padding: 12px; border: 0; border-radius: var(--tc-radius); background: var(--tc-primary); color: white; font: inherit; font-weight: 700; cursor: pointer; }
+.saveButton:disabled { background: var(--tc-surface-soft); color: var(--tc-text-muted); cursor: default; }

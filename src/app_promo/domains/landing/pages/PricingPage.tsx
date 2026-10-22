@@ -1,11 +1,13 @@
 // PATH: src/app_promo/domains/landing/pages/PricingPage.tsx
 import { Link } from "react-router";
 import CtaSection from "../components/CtaSection";
+import GettingStartedSection from "../components/GettingStartedSection";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import {
   AUGUST_PRICE_GUARANTEE,
   AUGUST_PROMOTION_LABEL,
   CONSULT_PHONE_DISPLAY,
+  START_GUIDANCE_NOTICE,
   AUGUST_MONTHLY_SUPPLY_AMOUNT,
   AUGUST_MONTHLY_TAX_AMOUNT,
   AUGUST_MONTHLY_TOTAL_AMOUNT,
@@ -109,8 +111,9 @@ export default function PricingPage() {
         <div className={styles.sectionWrap}>
           <div className={styles.sectionHead}>
             <span>한 가지 요금</span>
-            <h2 id="plan-title">안내된 기능을 모두 이용할 수 있습니다</h2>
+            <h2 id="plan-title">현재 제공 중인 기능을 모두 이용할 수 있습니다</h2>
             <p>수강생 수나 계정 수에 따른 추가 요금은 없습니다.</p>
+            <p>{START_GUIDANCE_NOTICE}</p>
           </div>
 
           <div className={styles.planGrid}>
@@ -203,6 +206,7 @@ export default function PricingPage() {
         </div>
       </section>
 
+      <GettingStartedSection />
       <CtaSection
         title="월 요금과 사용할 기능을 확인해 보세요"
         subtitle="기본 기능, 별도 비용과 시작 일정을 함께 안내합니다."

@@ -116,6 +116,16 @@ pnpm build
 pnpm exec playwright test --config playwright.theme.config.ts --project=chromium --reporter=list
 ```
 
+## 모달 최소화와 복원
+
+관리자 공용 `AdminModal`의 최소화는 입력 상태를 유지한 채 하단 작업 표시줄에
+창을 남긴다. 표시줄에서 누르면 같은 창과 입력을 복원하고, 실제 닫기 또는
+화면 이탈로 창이 해제될 때만 해당 표시줄 항목을 정리한다. 다른 창이 최소화되어
+표시줄 목록이 바뀌거나 부모 화면이 다시 렌더링되는 것은 닫기가 아니다.
+복원은 저장 요청을 보내지 않으며, 저장 중 이탈 제한과 미저장 확인은 각 화면의
+계약을 유지한다. 합산 설정의 검색·복원·저장 및 PC/390px 회귀는
+`assessment-feedback.mock.spec.ts`와 [합산 구성](ASSESSMENT-TOTALS.md)이 소유한다.
+
 ## 회귀 검증
 
 `e2e/admin/design-system-theme.mock.spec.ts`는 실제 설정 화면에서 12개 미리보기와

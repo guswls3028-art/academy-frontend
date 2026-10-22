@@ -2,12 +2,42 @@ import type { AccountPasswordPolicy } from "@/shared/api/contracts/students";
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { guideRecording } from "../helpers/guideRecording";
 import {
   installLocalAuthApiStubs,
   installTenantOneInitScript,
 } from "../helpers/localAuthApiStubs";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5173").replace(/\/+$/, "");
+
+if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
+  test("@guide-recording 학생 한 명 등록하기", async ({ page }, info) => {
+    const recording = await guideRecording(page, info, { id: "register-student", title: "학생 한 명 등록하기", topics: ["admin/register-student"] });
+    let created: Record<string, unknown> | null = null;
+    await installTeacherStudentPage(page, (payload) => { created = payload; });
+    await page.goto(`${BASE}/workspace/students`);
+    const add = page.locator("[data-guide=students-add-btn]");
+    await recording.screen("학생 등록 열기", "학생 메뉴에서 학생 등록을 누릅니다.", add);
+    await add.click();
+    await page.getByRole("button", { name: "1명만 등록", exact: true }).click();
+    const form = page.getByRole("dialog", { name: "학생 등록", exact: true });
+    await form.getByPlaceholder("이름", { exact: true }).fill("예시학생");
+    await form.getByPlaceholder("0000").nth(0).fill("0000");
+    await form.getByPlaceholder("0000").nth(1).fill("0001");
+    await recording.screen("학생 정보 입력", "이름과 학부모 연락처 등 필수 정보를 입력하고 등록을 누릅니다.", form);
+    await form.getByRole("button", { name: "등록", exact: true }).click();
+    const confirmation = page.getByRole("alertdialog", { name: "학생 등록 최종 확인" });
+    await confirmation.getByRole("group", { name: "학생 초기 비밀번호", exact: true }).getByRole("radio", { name: "랜덤 번호", exact: true }).check();
+    await confirmation.getByRole("group", { name: "학부모 초기 비밀번호", exact: true }).getByRole("radio", { name: "랜덤 번호", exact: true }).check();
+    await recording.screen("계정과 최종 정보 확인", "학생·학부모의 초기 비밀번호 방식을 각각 선택하고 확인하고 등록을 누릅니다.", confirmation);
+    await confirmation.getByRole("button", { name: "확인하고 등록", exact: true }).click();
+    await expect.poll(() => created).not.toBeNull();
+    await recording.screen("등록 결과 확인", "발급된 로그인 ID와 등록 완료 안내를 확인합니다. 수업 참여는 강의에서 별도로 등록합니다.", page.getByText(/로그인 ID: QA-STUDENT-101/));
+    await page.reload();
+    await recording.screen("명부에서 다시 확인", "학생 목록을 다시 열어 방금 등록한 학생이 남아 있는지 확인합니다.", page.getByText("예시학생", { exact: true }).first());
+    await recording.finish();
+  });
+}
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");

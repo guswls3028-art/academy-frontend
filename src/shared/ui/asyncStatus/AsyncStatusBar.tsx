@@ -22,6 +22,7 @@ import { Badge, ICON } from "@/shared/ui/ds";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
 import { workboxTenantMismatch } from "./workboxTelemetry";
 import StudentImportResultDialog from "./StudentImportResultDialog";
+import OmrBatchLedger from "./OmrBatchLedger";
 import {
   invalidateExcelProgressCaches,
   invalidateExcelSuccessCaches,
@@ -617,6 +618,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           )}
         </div>
       </div>
+      {task.omrBatch && <OmrBatchLedger batch={task.omrBatch} />}
       {task.status === "pending" && (
         <div className="async-status-bar__progress-wrap">
           {task.encodingStep ? (

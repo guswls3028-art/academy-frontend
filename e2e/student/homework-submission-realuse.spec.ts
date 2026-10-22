@@ -359,7 +359,11 @@ test.describe.serial("[E2E] 학생 과제 제출 실사용 검증", () => {
     await gotoAndSettle(page, `${BASE}/student/grades`, { timeout: 30_000 });
     await waitForRenderSettled(page, { timeout: 20_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
-    await expect(page.getByText(HOMEWORK_TITLE).first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible({ timeout: 15_000 });
+    const scoredHomeworkCard = page.locator('.stu-panel[data-session-type]').filter({
+      has: page.getByText(HOMEWORK_TITLE, { exact: true }),
+    });
+    await expect(scoredHomeworkCard).toHaveCount(1, { timeout: 15_000 });
+    await expect(scoredHomeworkCard.locator("strong")).toHaveText("92/100", { timeout: 15_000 });
+    await expect(scoredHomeworkCard.locator("strong")).toBeVisible({ timeout: 15_000 });
   });
 });

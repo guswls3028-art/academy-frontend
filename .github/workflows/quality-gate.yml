@@ -379,7 +379,7 @@ jobs:
   development-canary:
     name: Same-artifact isolated development real-use
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 75
     needs: [quality-check, hangul-companion-check, candidate-preview, backend-readiness]
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
@@ -417,7 +417,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::809466760795:role/academy-frontend-development-qa
           role-session-name: academy-fe-qa-${{ github.run_id }}-${{ github.run_attempt }}
-          role-duration-seconds: 3600
+          role-duration-seconds: 4500
           aws-region: ap-northeast-2
           allowed-account-ids: 809466760795
       - name: Run required real-use and exact cleanup-zero gate
@@ -910,7 +910,7 @@ jobs:
         run: pnpm install --frozen-lockfile --shamefully-hoist
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Wait for current Cloudflare build to propagate
         run: |
@@ -1018,6 +1018,15 @@ jobs:
 
       - name: Run production canary (login smoke)
         run: pnpm test:e2e:canary --retries=0
+
+      - name: Upload PII-free production guide evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: production-guide-evidence
+          path: test-results/**/live-guide-*.png
+          retention-days: 7
+          if-no-files-found: error
 
       - name: Verify all tenant public screens are open
         run: pnpm verify:tenant-availability

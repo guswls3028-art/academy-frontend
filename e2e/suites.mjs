@@ -6,6 +6,7 @@ export const productionReadOnlySpecs = [
 ];
 
 export const routeMockSpecs = [
+  "e2e/promo-guide.mock.spec.ts",
   "e2e/admin/problem-conversion.mock.spec.ts",
   "e2e/admin/submission-inbox-pages.mock.spec.ts",
   "e2e/admin/assessment-copy-pages.mock.spec.ts",
@@ -60,6 +61,7 @@ export const routeMockSpecs = [
   "e2e/admin/homework-media-review.mock.spec.ts",
   "e2e/admin/messaging-operations-control.mock.spec.ts",
   "e2e/admin/auto-send-save-recovery.mock.spec.ts",
+  "e2e/admin/auto-send-template-editor.mock.spec.ts",
   "e2e/admin/messaging-log-ux.mock.spec.ts",
   "e2e/admin/operational-notification-polling.mock.spec.ts",
   "e2e/admin/exam-wrong-note-export.mock.spec.ts",
@@ -74,7 +76,10 @@ export const routeMockSpecs = [
   "e2e/admin/score-entry-autosave.spec.ts",
   "e2e/admin/score-alimtalk-personalization.mock.spec.ts",
   "e2e/admin/message-template-editor.mock.spec.ts",
+  "e2e/admin/message-template-concurrency.mock.spec.ts",
   "e2e/admin/score-column-mobile-ordering.mock.spec.ts",
+  "e2e/admin/assessment-feedback.mock.spec.ts",
+  "e2e/admin/individual-score-report.spec.ts",
   "e2e/admin/ppt-mobile-slide-ordering.mock.spec.ts",
   "e2e/admin/ppt-manual-pdf-crop.mock.spec.ts",
   "e2e/admin/ppt-job-recovery.mock.spec.ts",
@@ -193,6 +198,7 @@ export const developmentRealUseCases = Object.freeze({
   "flows/qna-roundtrip.spec.ts": 4,
   "flows/clinic-roundtrip.spec.ts": 4,
   "student/student-parent-account-realuse.spec.ts": 1,
+  "student/student-parent-registration-realuse.spec.ts": 7,
   "student/student-parent-assessment-realuse.spec.ts": 1,
   "student/student-clinic-required-cancel-realuse.spec.ts": 1,
   "student/student-parent-clinic-realuse.spec.ts": 1,

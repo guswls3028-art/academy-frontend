@@ -3,6 +3,7 @@ import type { Page, Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle } from "../helpers/wait";
+import { guideRecording } from "../helpers/guideRecording";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 9101;
@@ -199,6 +200,53 @@ async function dropLargeVideo(dialog: ReturnType<Page["getByRole"]>, name: strin
 
 test.use({ serviceWorkers: "block" });
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
+
+if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
+  test("@guide-recording 영상 파일 올리고 순서 정하기", async ({ page }, info) => {
+    const recording = await guideRecording(page, info, {
+      id: "upload-video", title: "영상 파일 올리고 순서 정하기", topics: ["admin/upload-video"],
+    });
+    const evidence = await installApp(page);
+    const uploadedVideos = () => evidence.initRequests.map((item, index) => ({
+        id: 9201 + index, session_id: SESSION_ID, title: item.title, order: index + 2,
+        status: evidence.completedVideoIds.includes(9201 + index) ? "READY" : "UPLOADING", source_type: "s3",
+      }));
+    await page.route(/\/api\/v1\/media\/videos\/(?:\?.*)?$/, (route) => {
+      const rows = [
+        { id: 8101, session_id: SESSION_ID, title: "지난 수업 복습", order: 1, status: "READY", source_type: "s3" },
+        ...uploadedVideos(),
+      ];
+      const status = new URL(route.request().url()).searchParams.get("status");
+      return route.fulfill({ json: status ? rows.filter((item) => item.status === status) : rows });
+    });
+    await page.route(/\/api\/v1\/media\/videos\/92\d+\/$/, (route) => {
+      const id = Number(new URL(route.request().url()).pathname.split("/").at(-2));
+      return route.fulfill({ json: uploadedVideos().find((item) => item.id === id) });
+    });
+    await page.goto(`${BASE}/workspace/videos/tree`);
+    const add = page.locator('[title="영상 추가"]').first();
+    await recording.screen("강의와 차시를 확인하기", "영상 메뉴에서 올릴 강의와 차시를 확인한 뒤 영상 추가를 누릅니다.", add);
+    await add.click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByTestId("video-batch-file-input").setInputFiles([
+      { name: "01 함수 개념.mp4", mimeType: "video/mp4", buffer: Buffer.from("synthetic-guide-file-one") },
+      { name: "02 함수 문제풀이.mp4", mimeType: "video/mp4", buffer: Buffer.from("synthetic-guide-file-two") },
+    ]);
+    await recording.screen("파일을 선택하기", "파일 여러 개를 한 번에 선택할 수 있습니다. 학생에게 표시할 제목을 확인합니다.", dialog);
+    await dialog.getByLabel("1번째 영상 제목").fill("함수 개념 정리");
+    await dialog.getByRole("button", { name: "2번째 영상을 위로 이동" }).click();
+    await recording.screen("제목과 순서를 정하기", "제목은 직접 수정하고 화살표로 순서를 바꿉니다. 아래에서 재생 제한 설정도 확인합니다.", dialog);
+    await dialog.getByRole("button", { name: "업로드 (2개)" }).click();
+    await expect.poll(() => evidence.completedVideoIds.length).toBe(2);
+    await expect(dialog).toBeHidden();
+    const uploaded = page.getByText("함수 개념 정리", { exact: true }).first();
+    await recording.screen("파일 전송과 처리 확인", "파일 전송과 영상 처리는 별도입니다. 전송 중에는 창을 닫지 말고 작업박스에서 처리 완료를 확인합니다.", uploaded);
+    await page.reload();
+    await recording.screen("목록에서 다시 확인하기", "새로고침 후 제목과 순서를 확인합니다. 처리 완료 후 재생과 학생별 접근 권한도 확인해 주세요.", uploaded);
+    expect(evidence.initRequests.map((item) => item.title)).toEqual(["02 함수 문제풀이", "함수 개념 정리"]);
+    await recording.finish();
+  });
+}
 
 test("다건 영상은 선택·드롭·개별 제목·재생 순서를 업로드 전에 확정한다", async ({ page }, testInfo) => {
   test.setTimeout(90_000);

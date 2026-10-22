@@ -359,6 +359,11 @@ export async function fetchAllTemplates(): Promise<MsgTemplate[]> {
   return listFromApiResponse<MsgTemplate>(res.data);
 }
 
+export async function fetchTemplate(id: number): Promise<MsgTemplate> {
+  const res = await api.get(`/messaging/templates/${id}/`);
+  return res.data;
+}
+
 export async function createTemplate(payload: { name: string; category: string; body: string; subject?: string }): Promise<MsgTemplate> {
   const res = await api.post("/messaging/templates/", payload);
   return res.data;

@@ -1,0 +1,24 @@
+.scores-table-layout { min-width: 0; max-width: 100%; }
+.scores-table-layout-controls { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 8px; }
+.scores-table-layout .ds-scores-table thead .ds-resizable-th > span:first-child {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table[data-width-mode="fit"] th,
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table[data-width-mode="fit"] td {
+  padding-inline: 6px;
+}
+.ds-scores-table[data-width-mode="fit"] .scores-col-drag-handle { flex-direction: column; gap: 3px; width: 100%; }
+.ds-scores-table[data-width-mode="fit"] thead span:has(> .scores-col-drag-handle) {
+  flex-direction: column;
+  width: 100%;
+  gap: 4px;
+}
+.ds-scores-table[data-width-mode="fit"] .scores-table-exam-link { padding-inline: 0; gap: 2px; }
+.ds-scores-table[data-width-mode="fit"] .scores-table-head-title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.ds-scores-table[data-width-mode="fit"] .assessment-total-value small { white-space: normal; }

@@ -1,9 +1,65 @@
-import { type Page } from "@playwright/test";
+import { type Locator, type Page, type TestInfo } from "@playwright/test";
 import { test, expect } from "../fixtures/strictTest";
 import { getApiBaseUrl, getBaseUrl, loginViaUI } from "../helpers/auth";
+import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
+import { captureGuideEvidence } from "../helpers/guideEvidence";
+import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
 
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const API_BASE = getApiBaseUrl().replace(/\/+$/, "");
+
+async function verifyGuideJourney(
+  page: Page,
+  testInfo: TestInfo,
+  guide: { scope: string; path: string; topic: string; title: string; target: string; targetReady: Locator },
+) {
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const guideUrl = `${BASE}${guide.path}?topic=${guide.topic}`;
+    await page.goto(guideUrl, { waitUntil: "domcontentloaded" });
+    const article = page.getByRole("article", { name: guide.title });
+    await expect(article.getByRole("heading", { name: "여기까지 확인하면 완료" })).toBeVisible();
+    const action = article.getByRole("link", { name: `${guide.title} 화면 열기` });
+    await assertInteractiveSurface(page, article, action);
+    await captureGuideEvidence(article, action, testInfo, `live-guide-${guide.scope}-${width}`);
+    const media = article.getByRole("region", { name: "화면으로 따라하기" });
+    await expect(media).toBeVisible();
+    const photo = media.locator("figure img");
+    await photo.scrollIntoViewIfNeeded();
+    await expect.poll(() => photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    const firstPhoto = await photo.getAttribute("src");
+    await media.getByRole("button", { name: "다음 화면 →", exact: true }).click();
+    await expect(photo).not.toHaveAttribute("src", firstPhoto!);
+    await expect.poll(() => photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    await testInfo.attach(`live-guide-${guide.scope}-${width}-photo`, {
+      body: await photo.screenshot({ path: testInfo.outputPath(`live-guide-${guide.scope}-${width}-photo.png`) }), contentType: "image/png",
+    });
+    await media.locator("summary").click();
+    const video = media.locator("video");
+    await video.scrollIntoViewIfNeeded();
+    await video.evaluate((element: HTMLVideoElement) => element.play());
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).toBeGreaterThan(0.2);
+    await video.evaluate((element: HTMLVideoElement) => { element.currentTime = Math.min(5, element.duration / 2); });
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.seeking)).toBe(false);
+    await video.evaluate((element: HTMLVideoElement) => { element.textTracks[0].mode = "hidden"; });
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.textTracks[0].cues?.length ?? 0)).toBeGreaterThan(1);
+    await testInfo.attach(`live-guide-${guide.scope}-${width}-video`, {
+      body: await video.screenshot({ path: testInfo.outputPath(`live-guide-${guide.scope}-${width}-video.png`) }), contentType: "image/png",
+    });
+    await media.locator("summary").click();
+    await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
+    await action.click();
+    await expect(page).toHaveURL(`${BASE}${guide.target}`);
+    await expect(guide.targetReady).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(guideUrl);
+    await expect(article).toBeVisible();
+    await page.reload();
+    await expect(article).toBeVisible();
+    await expect(photo).toHaveAttribute("src", firstPhoto!);
+  }
+}
 
 function trackedHostnames(): Set<string> {
   const hosts = new Set<string>();
@@ -84,7 +140,7 @@ test.describe("Production canary", () => {
     guard.assertClean();
   });
 
-  test("admin dashboard login survives production edge", async ({ page }) => {
+  test("admin dashboard login survives production edge", async ({ page }, testInfo) => {
     test.setTimeout(420_000);
     const guard = attachProductionRequestGuard(page);
 
@@ -120,18 +176,38 @@ test.describe("Production canary", () => {
     await expect(page.getByRole("button", { name: /^강의목록 \(\d+\)$/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "강의 추가", exact: true })).toBeEnabled();
     await expect(page.locator("text=Not Found")).not.toBeVisible();
+    await verifyGuideJourney(page, testInfo, {
+      scope: "admin", path: "/workspace/guide", topic: "homework",
+      title: "과제 배정·제출 확인·평가", target: "/workspace/lectures",
+      targetReady: page.getByRole("button", { name: "강의 추가", exact: true }),
+    });
+    await verifyGuideJourney(page, testInfo, {
+      scope: "teacher", path: "/workspace/mobile/guide", topic: "attendance",
+      title: "모바일 출결 입력", target: "/workspace/mobile/classes",
+      targetReady: page.getByRole("heading", { name: "강의 관리", exact: true }),
+    });
     guard.assertClean();
   });
 
-  test("student dashboard login survives production edge", async ({ page }) => {
+  test("student dashboard login survives production edge", async ({ page }, testInfo) => {
     test.setTimeout(420_000);
     const guard = attachProductionRequestGuard(page);
 
     await loginViaUI(page, "student", { landingPath: "/student/dashboard" });
 
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await verifyStudentLearningSummary(page, BASE);
+    }
+
     expect(page.url()).toMatch(/\/student(\/|$)/);
     await expect(page.locator("[class*='tabbar'], [class*='tab-bar'], nav, main").first()).toBeVisible();
     await expect(page.locator("text=Not Found")).not.toBeVisible();
+    await verifyGuideJourney(page, testInfo, {
+      scope: "student", path: "/student/guide", topic: "submit-assignment",
+      title: "과제 사진·동영상 제출", target: "/student/submit/assignment",
+      targetReady: page.getByRole("heading", { name: "과제 제출", exact: true }),
+    });
     guard.assertClean();
   });
 });

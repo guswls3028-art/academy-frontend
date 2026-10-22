@@ -1,10 +1,37 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { guideRecording } from "../helpers/guideRecording";
 import { gotoAndSettle } from "../helpers/wait";
 import { realMessagingSkipReason } from "../helpers/safety";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5214").replace(/\/+$/, "");
+
+if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
+  test("@guide-recording 알림톡 대상부터 결과까지", async ({ page }, info) => {
+    const recording = await guideRecording(page, info, { id: "send-alimtalk", title: "알림톡 대상부터 결과까지", topics: ["admin/send-message"] });
+    const state = await installMocks(page);
+    await page.route("**/api/v1/submissions/submissions/omr/batches/", (route) => route.fulfill({ json: [] }));
+    await gotoAndSettle(page, `${BASE}/workspace/students/home?compose=alimtalk`);
+    const recipient = page.getByRole("checkbox", { name: "김알림 선택" });
+    await recording.screen("발송 대상 선택", "학생 메뉴에서 대상자를 선택합니다. 이 시연은 예시이며 실제 메시지가 발송되지 않습니다.", recipient);
+    await recipient.check();
+    await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
+    const message = page.getByRole("textbox", { name: "안내문", exact: true });
+    await recording.screen("승인 양식과 내용 확인", "승인된 양식과 대상·수신자를 확인합니다. 안내문에는 실제로 전달할 내용만 입력합니다.", message);
+    await page.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
+    const confirmation = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+    await recording.screen("발송 전 마지막 확인", "받는 사람과 최종 문구·요청 건수를 확인한 뒤 발송합니다.", confirmation);
+    await confirmation.getByRole("button", { name: "발송하기", exact: true }).click();
+    const result = page.getByRole("button", { name: "이번 발송 결과 보기", exact: true });
+    await recording.screen("접수 뒤 결과로 이동", "접수는 수신 성공과 다릅니다. 이번 발송 결과 보기를 눌러 대상별 상태를 확인합니다.", result);
+    await result.click();
+    const summary = page.getByRole("region", { name: "이번 발송 접수 요약" });
+    await recording.screen("발송 처리 상태 확인", "처리 중이면 잠시 후 새로고침해 확인합니다. 접수와 실제 수신을 구분하고 실패한 대상의 사유를 확인합니다.", summary);
+    expect(state.sends).toHaveLength(2);
+    await recording.finish();
+  });
+}
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -333,6 +360,10 @@ for (const action of ["delete", "duplicate"] as const) {
     const compose = page.getByRole("dialog").filter({ hasText: "알림톡 발송" });
     await compose.getByRole("button", { name: /^(다른 문구 선택|문구 선택)$/ }).click();
     const picker = page.locator(".tpl-picker-modal");
+    await expect(picker).toBeVisible();
+    await picker.evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished));
+    });
     await picker.getByRole("button", { name: "더보기", exact: true }).click();
     await picker.getByRole("button", { name: action === "delete" ? "삭제" : "다른 이름으로 복제", exact: true }).click();
     if (action === "delete") {
@@ -518,6 +549,32 @@ for (const width of [1366, 390]) {
     expect(state.sends.filter((send) => send.send_to === "parent")).toHaveLength(2);
   });
 }
+
+test("옛 문구의 미입력 변수를 지우면 현재 본문으로 검사하고 발송한다", async ({ page }) => {
+  const state = await installMocks(page);
+  await page.route("**/api/v1/messaging/templates/", (route) => route.fulfill({ json: [{
+    id: 897, name: "이전 과제 안내", category: "attendance", subject: "",
+    body: "#{과제명}을 확인해 주세요.", is_system: false, is_user_default: true,
+    alimtalk_readiness: "ready", alimtalk_envelope_type: "attendance",
+    solapi_status: "", solapi_template_id: "",
+    created_at: "2026-10-02T00:00:00Z", updated_at: "2026-10-02T00:00:00Z",
+  }] }));
+  await gotoAndSettle(page, `${BASE}/workspace/students/home?compose=alimtalk`);
+  await page.getByRole("checkbox", { name: "김알림 선택" }).check();
+  await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "안내문", exact: true });
+  await expect(editor).toContainText("과제명");
+  await expect(page.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeDisabled();
+  await editor.fill("오늘 준비물을 챙겨 주세요.");
+  await expect(page.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeEnabled();
+  await editor.fill("새 안내 #{과제명}");
+  await expect(page.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeDisabled();
+  await editor.fill("오늘 준비물을 챙겨 주세요.");
+  await confirmSend(page);
+  await expect(page.getByRole("button", { name: "이번 발송 결과 보기", exact: true })).toBeVisible();
+  expect(state.sends.length).toBeGreaterThan(0);
+  expect(state.sends.every((send) => send.raw_body === "오늘 준비물을 챙겨 주세요.")).toBe(true);
+});
 
 test("이번 발송: 수정한 본문과 완료 후 새 발송은 새 UUID를 쓴다", async ({ page }) => {
   const state = await installMocks(page);

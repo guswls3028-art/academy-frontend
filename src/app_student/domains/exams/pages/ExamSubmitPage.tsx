@@ -346,6 +346,7 @@ export default function ExamSubmitPage() {
                   <div
                     key={q.id}
                     className={styles.answerRow}
+                    data-essay={q.question_kind === "essay" && q.answer_format !== "integer_0_999"}
                   >
                     <span className={styles.questionNumber}>
                       {questionLabel(q)}
@@ -353,7 +354,17 @@ export default function ExamSubmitPage() {
                     <span className={`stu-muted ${styles.scoreLabel}`}>
                       배점 {q.score}
                     </span>
-                    <input
+                    {q.question_kind === "essay" && q.answer_format !== "integer_0_999" ? (
+                      <textarea
+                        className={`stu-input ${styles.essayInput}`}
+                        value={answers[q.id] ?? ""}
+                        onChange={(e) => updateAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                        placeholder="풀이와 답을 입력하세요."
+                        rows={4}
+                        maxLength={4000}
+                        aria-label={`${questionLabel(q)} 답`}
+                      />
+                    ) : <input
                       className={`stu-input ${styles.answerInput}`}
                       type="text"
                       inputMode={q.answer_format === "integer_0_999" ? "numeric" : "text"}
@@ -371,7 +382,7 @@ export default function ExamSubmitPage() {
                       placeholder={q.answer_format === "integer_0_999" ? "0~999" : "1~5, O/X, 단답"}
                       maxLength={q.answer_format === "integer_0_999" ? 3 : 20}
                       aria-label={`${questionLabel(q)} 답`}
-                    />
+                    />}
                   </div>
                 ))}
               </div>

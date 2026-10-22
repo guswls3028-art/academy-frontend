@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Popover } from "antd";
 import {
@@ -16,6 +16,8 @@ import { deleteSessionExam } from "@admin/domains/exams/public/sessionExamAction
 import { invalidateSessionExamQueries } from "@admin/domains/sessions/public/assessmentQueries";
 import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
 import styles from "./ExamHeaderActionMenu.module.css";
+
+const ParentAssessmentCommentsPanel = lazy(() => import("./ParentAssessmentCommentsPanel"));
 
 export type ExamHeaderAction = "manual" | "omr";
 
@@ -87,6 +89,7 @@ export default function ExamHeaderActionMenu({
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const canOpenManualGrading = gradingMode !== "choice";
@@ -165,6 +168,7 @@ export default function ExamHeaderActionMenu({
         onClick={() => selectAction("omr")}
       />
       <div className={styles.menuDivider} />
+      <MenuAction title="학부모 코멘트" description="학생별 시험 전달사항 작성 · 학부모에게만 공개" icon={<ClipboardCheck size={ICON_FOR_BUTTON.md} />} onClick={() => { setMenuOpen(false); setCommentsOpen(true); }} />
       <MenuAction
         title="시험 설정"
         description="채점 방식 · 시험명 · 만점 · 커트라인 관리"
@@ -179,6 +183,11 @@ export default function ExamHeaderActionMenu({
 
   return (
     <>
+      {commentsOpen && (
+        <Suspense fallback={<div role="status">학부모 코멘트를 불러오는 중...</div>}>
+          <ParentAssessmentCommentsPanel sessionId={sessionId} assessmentKind="exam" assessmentId={examId} title={examTitle} onClose={() => setCommentsOpen(false)} />
+        </Suspense>
+      )}
       <Popover
         content={menu}
         trigger="click"

@@ -69,6 +69,8 @@ export type SessionScoreHomeworkEntry = {
 };
 
 export type SessionScoreRow = {
+  exam_total?: AssessmentTotal;
+  homework_total?: AssessmentTotal;
   enrollment_id: number;
   student_id?: number | null;
   student_name: string;
@@ -91,6 +93,7 @@ export type SessionScoreRow = {
 };
 
 export type SessionScoreMeta = {
+  total_config?: ScoreTotalConfig;
   session_title?: string;
   lecture_title?: string;
   lecture_id?: number | null;
@@ -129,6 +132,24 @@ export type SessionScoresResponse = {
   rows: SessionScoreRow[];
 };
 
+export type AssessmentTotal = {
+  score: number | null;
+  max_score: number;
+  selected_count: number;
+  scored_count: number;
+  complete: boolean;
+};
+
+export type ScoreTotalConfig = { version: number; exam_ids: number[]; homework_ids: number[]; exam_order?: number[]; homework_order?: number[] };
+
+export async function saveScoreTotalConfig(sessionId: number, config: ScoreTotalConfig & { exam_order?: number[]; homework_order?: number[] }) {
+  const { version, ...selection } = config;
+  const res = await api.put<ScoreTotalConfig>(`/results/admin/sessions/${sessionId}/total-config/`, {
+    ...selection, expected_version: version,
+  });
+  return res.data;
+}
+
 export async function fetchSessionScores(sessionId: number) {
   const res = await api.get(`/results/admin/sessions/${sessionId}/scores/`);
   return res.data as SessionScoresResponse;
@@ -143,6 +164,7 @@ export async function patchAssessmentCorrection(
     completed: boolean;
     note?: string;
     expected_updated_at?: string | null;
+    expected_media_set_fingerprint?: string;
   },
 ) {
   const res = await api.patch(

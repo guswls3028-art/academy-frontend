@@ -10,6 +10,7 @@ import { gunzipSync } from "node:zlib";
 import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "./release-playback-end-proxy.mjs";
 import { binarySafeSsmEnvironment } from "./binary-safe-ssm.mjs";
 import { createFixedQaRunner, writeQaCheckpoint } from "./development-qa-operations.mjs";
+import { accountProbeParameters, accountProbeResult, createAccountProbeHandler } from "./development-account-probe.mjs";
 export { createFixedQaRunner, observeFixedOperationResult, setupTenantIdFromOperation, fixedOperationParameters } from "./development-qa-operations.mjs";
 import { developmentRealUseCases } from "../e2e/suites.mjs";
 
@@ -25,9 +26,11 @@ const PASSWORD_PARAMETER = "/academy/api/development/ymath-realuse-password";
 // requests, surfacing as unexplained transport failures indistinguishable
 // from a stale-socket drop. 5 minutes of margin covers tunnel startup
 // (before the tests start) and the tests' own teardown (after they finish).
-// The previous 28m36s run failed/skipped two serial OMR cases (10m each).
-// Keep individual assertions/deadlines unchanged and budget for all 23 cases.
-const REAL_USE_SUITE_TIMEOUT_MS = 50 * 60_000;
+// Run 38843507538 completed 36 cases in 39m24s, then the 50min parent
+// deadline interrupted the final video test (17min individual deadline).
+// Reserve the full final-test budget and cleanup time without shortening
+// playback, skipping cases or retrying mutations.
+const REAL_USE_SUITE_TIMEOUT_MS = 60 * 60_000;
 const TUNNEL_TIMEOUT_MS = REAL_USE_SUITE_TIMEOUT_MS + 5 * 60_000;
 const WEB_ORIGIN = "http://localhost:4173";
 const API_ORIGIN = "http://127.0.0.1:18000";
@@ -53,6 +56,8 @@ const SYNTHETIC_LONG_VIDEO_MEDIA_GZIP = "H4sIAAAAAAACCu2ZQYscRRiGv5mQBUMQkURymMM
 const RELEASE_BOUNDARY_CODES = new Set([
   "api-origin", "context-disposed", "cors", "credentials", "mutation", "observation-schema",
   "origin", "redirect", "public-video-redirect", "tenant", "transport", "fetch-transport", "fulfill-transport",
+  "resource-manifest", "resource-scope", "resource-format", "resource-status", "resource-size",
+  "resource-signature", "resource-type", "resource-disposition",
 ]);
 // Mirrors e2e/helpers/releaseApiBoundary.ts's SESSION_DELETE_BLOCKER_LABELS /
 // LECTURE_ONLY_DELETE_BLOCKER_LABELS (itself mirroring the fixed label
@@ -73,6 +78,7 @@ const SAFE_FAILURE_SOURCE_FILES = new Set([
   ...Object.keys(FLOW_COUNTS),
   "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
   "verifyAssessmentCopy.ts",
+  "verifyOnlineWrittenSubmission.ts",
 ]);
 const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
   "/api/v1/clinic/idcard/",
@@ -352,11 +358,11 @@ function observeReleaseContextSnapshot(payload) {
   const required = ["phase", "stage", "elapsedMs", "closing", "activeRouteCount"];
   const timingKeys = ["requestOrdinal", "requestStartedElapsedMs", "attemptDurationMs"];
   const pageKeys = ["pageOrdinal", "startDocumentLoadOrdinal", "endDocumentLoadOrdinal", "startNavigationOrdinal", "endNavigationOrdinal"];
-  const optional = ["method", "pathTemplate", "nativeCode", "nativeKind", "category", "sourceKind", ...timingKeys, ...pageKeys];
+  const optional = ["method", "pathTemplate", "nativeCode", "nativeKind", "category", "sourceKind", "externalOrigin", ...timingKeys, ...pageKeys];
   for (const event of payload.events) {
     if (!record(event) || required.some((key) => !Object.hasOwn(event, key))
       || Object.keys(event).some((key) => !required.includes(key) && !optional.includes(key))
-      || ![...phases, "browser-console", "browser-pageerror", "page-close", "page-crash", "context-close", "browser-disconnected"].includes(event.phase)
+      || ![...phases, "route-handler", "browser-console", "browser-pageerror", "page-close", "page-crash", "context-close", "browser-disconnected"].includes(event.phase)
       || !["initial", "retry", "recovered", "terminal"].includes(event.stage)
       || !count(event.elapsedMs, 2 * 60 * 60_000) || !count(event.activeRouteCount) || typeof event.closing !== "boolean"
       || (Object.hasOwn(event, "method") && !["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE", "other"].includes(event.method))
@@ -367,8 +373,21 @@ function observeReleaseContextSnapshot(payload) {
       || pageKeys.some((key) => Object.hasOwn(event, key) && event[key] !== null && !count(event[key]))
       || (Object.hasOwn(event, "category") && !["cors", "chunk", "network", "resource", "runtime", "other"].includes(event.category))
       || (Object.hasOwn(event, "sourceKind") && !["local", "api", "vendor", "unknown"].includes(event.sourceKind))) return null;
-    if (phases.includes(event.phase)) {
+    if (Object.hasOwn(event, "externalOrigin")) {
+      const external = event.externalOrigin;
+      const booleans = ["frameExists", "frameAdmitted", "frameExactEmbed", "trustedAncestor", "hasPort", "hasHash", "hasCredentials"];
+      const externalKeys = [...booleans, "providerClass", "resourceType", "frameDetached", "protocol"];
+      if (event.phase !== "route-handler" || event.stage !== "terminal" || !record(external)
+        || Object.keys(external).sort().join(",") !== externalKeys.sort().join(",")
+        || booleans.some(key => typeof external[key] !== "boolean")
+        || (external.frameDetached !== null && typeof external.frameDetached !== "boolean")
+        || !["youtube.com", "youtube-nocookie.com", "ytimg.com", "googlevideo.com", "gstatic.com", "google.com", "googleapis.com", "googleusercontent.com", "ggpht.com", "doubleclick.net", "googlesyndication.com", "googleadservices.com", "other"].includes(external.providerClass)
+        || !["document", "image", "script", "stylesheet", "font", "media", "xhr", "fetch", "other"].includes(external.resourceType)
+        || !["https", "http", "other"].includes(external.protocol)) return null;
+    }
+    if (phases.includes(event.phase) || event.phase === "route-handler") {
       if (!Object.hasOwn(event, "method") || !Object.hasOwn(event, "pathTemplate")) return null;
+      if (event.phase === "route-handler" && event.stage !== "terminal") return null;
     } else if (event.stage !== "terminal") return null;
   }
   return { ...Object.fromEntries(keys.map((key) => [key, payload[key]])),
@@ -530,11 +549,19 @@ export function observeReleaseTestResult(stdout) {
                     && value.listVisibleMs >= value.responseMs;
                 } else if (name === "releaseStrictBrowserDefect") {
                   destination = "strictBrowserDefects";
-                  valid &&= exactKeys(value, ["schema", "category", "source", "count"])
+                  const hasVendorDiagnostic = Object.hasOwn(value ?? {}, "vendorDiagnostic");
+                  valid &&= exactKeys(value, ["schema", "category", "source", "count", ...(hasVendorDiagnostic ? ["vendorDiagnostic"] : [])])
                     && value.schema === "strict-browser-defect/v1"
                     && ["net-err", "cors", "chunk", "resource", "runtime", "other"].includes(value.category)
                     && ["local", "api", "vendor", "unknown"].includes(value.source)
                     && Number.isInteger(value.count) && value.count >= 1 && value.count <= 1000;
+                  if (valid && hasVendorDiagnostic) {
+                    const diagnostic = value.vendorDiagnostic;
+                    valid &&= value.source === "vendor" && exactKeys(diagnostic, ["eventKind", "providerClass", "errorFamily"])
+                      && diagnostic.eventKind === "console-error"
+                      && ["youtube.com", "youtube-nocookie.com", "ytimg.com", "googlevideo.com", "gstatic.com", "google.com", "googleapis.com", "googleusercontent.com", "ggpht.com", "doubleclick.net", "googlesyndication.com", "googleadservices.com", "other"].includes(diagnostic.providerClass)
+                      && ["postmessage-origin", "permissions-policy", "autoplay-policy", "player-error", "other"].includes(diagnostic.errorFamily);
+                  }
                 } else if (name === "releaseStrictBrowserSuppression") {
                   destination = "strictBrowserSuppressions";
                   const smallCount = (count) => Number.isInteger(count) && count >= 0 && count <= 1000;
@@ -949,11 +976,17 @@ export function artifactFingerprint(directory) {
   return sha(canonical(entries.sort(([a], [b]) => a.localeCompare(b))));
 }
 
-function serveArtifact(directory, playbackBoundary) {
+function serveArtifact(directory, playbackBoundary, accountBoundary) {
   const playbackProxy = createPlaybackEndProxy(playbackBoundary);
+  const accountProbe = createAccountProbeHandler(accountBoundary);
   const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
-    ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp" };
+    ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp",
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".mp4": "video/mp4", ".vtt": "text/vtt; charset=utf-8" };
   const server = http.createServer((request, response) => {
+    if (request.url?.startsWith("/__qa__/account-registration")) {
+      void accountProbe(request, response);
+      return;
+    }
     if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH) || request.url?.startsWith(SCORE_EXIT_PROXY_PATH)) {
       playbackProxy.handle(request, response);
       return;
@@ -1307,9 +1340,22 @@ export async function run() {
     });
     await waitPort(18000, () => interrupted);
     remember(tunnel);
+    const accountCapability = crypto.randomBytes(32).toString("hex");
+    const accountScope = sha(JSON.stringify([tenant, scenario.tenant_id, manifest.releaseImageTag, manifest.images["academy-api"].digest]));
     server = await serveArtifact(path.join(bundle, "dist"), {
       apiOrigin: API_ORIGIN, webOrigin: WEB_ORIGIN, tenantCodes: [tenant, crossTenant],
       onFailure: (code) => failures.push(`development native playback proxy failed [${code}]`),
+    }, {
+      capability: accountCapability, tenantId: scenario.tenant_id, scope: accountScope,
+      onFailure: (code) => failures.push(`development account probe failed [${code}]`),
+      execute: async (input) => {
+        assert.equal(interrupted, false, "Development run interrupted");
+        const probe = session(QA_DOCUMENT, accountProbeParameters(common, scenario.tenant_id, input));
+        const result = await probe.done;
+        remember(probe);
+        assert.equal(interrupted, false, "Development run interrupted");
+        return accountProbeResult(result, accountScope, input);
+      },
     });
     const secret = aws(["ssm", "get-parameter", "--name", PASSWORD_PARAMETER, "--with-decryption"]);
     assert.equal(secret.Parameter.Name, PASSWORD_PARAMETER);
@@ -1319,6 +1365,7 @@ export async function run() {
       env: { ...process.env, E2E_BASE_URL: WEB_ORIGIN, E2E_API_URL: API_ORIGIN, API_BASE_URL: API_ORIGIN,
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
         E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",
+        E2E_ACCOUNT_PROBE_CAPABILITY: accountCapability,
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
         E2E_CROSS_TENANT_CODE: crossTenant,
         E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_TENANT_ID: String(scenario.tenant_id),

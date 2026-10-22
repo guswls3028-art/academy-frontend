@@ -2,8 +2,9 @@
 // 자동발송 미리보기 팝업 — 카카오톡 알림톡 카드 스타일
 // SendMessageModal의 카카오 미리보기와 동일한 CSS 클래스 사용
 
-import { useRef, useEffect } from "react";
-import { X } from "lucide-react";
+import { AdminModal, ModalBody, ModalHeader } from "@/shared/ui/modal";
+import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
+import { hideInternalAlimtalkMemoToken, isAccountAlimtalkTrigger } from "../constants/alimtalkEnvelope";
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
 import {
   getAlimtalkTemplateLabel,
@@ -21,8 +22,6 @@ type Props = {
   body: string;
   /** 변수 치환용 컨텍스트. key=변수명(#{...} 안), value=치환값 */
   previewContext?: Record<string, string>;
-  /** 팝업 위치 기준 anchor (없으면 화면 중앙) */
-  anchorRef?: React.RefObject<HTMLElement | null>;
 };
 
 /** #{변수명} 패턴을 previewContext 값으로 치환 */
@@ -61,35 +60,8 @@ export default function AutoSendPreviewPopup({
   subject,
   body,
   previewContext = {},
-  anchorRef,
 }: Props) {
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        (!anchorRef?.current || !anchorRef.current.contains(e.target as Node))
-      ) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open, onClose, anchorRef]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
+  const { data: academyName = "" } = useMessageAcademyName(open);
 
   if (!open) return null;
 
@@ -97,11 +69,12 @@ export default function AutoSendPreviewPopup({
     ? substituteVariables(subject, previewContext)
     : "";
   const resolvedBody = body
-    ? substituteVariables(body, previewContext)
-    : "보낼 내용이 아직 없습니다.";
+    ? substituteVariables(hideInternalAlimtalkMemoToken(body, ""), previewContext)
+    : "";
   const alimtalkType = getAlimtalkTemplateType(trigger);
+  const fixedAccount = isAccountAlimtalkTrigger(trigger);
   const previewBody = alimtalkType
-    ? renderAlimtalkFullPreview(alimtalkType, resolvedBody)
+    ? renderAlimtalkFullPreview(alimtalkType, resolvedBody, undefined, { 학원명: academyName })
     : resolvedBody;
 
   const triggerLabel =
@@ -109,47 +82,16 @@ export default function AutoSendPreviewPopup({
   const channelLabel = getAlimtalkTemplateLabel(alimtalkType);
 
   return (
-    <div
-      role="dialog"
-      aria-label={`${triggerLabel} 미리보기`}
-      className={styles.overlay}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        ref={panelRef}
-        className={styles.panel}
-      >
-        {/* Header */}
-        <div className={styles.header}>
-          <div>
-            <div className={styles.triggerLabel}>
-              {triggerLabel}
-            </div>
-            <div className={styles.subtitle}>
-              알림톡 미리보기
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="닫기"
-            className={styles.closeButton}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Kakao card preview */}
-        <div className={styles.content}>
+    <AdminModal open={open} onClose={onClose} width={420} zIndex={1050} type="inspect" noMinimize trapFocus>
+      <ModalHeader title={`${triggerLabel} 미리보기`} type="inspect" />
+      <ModalBody>
           <div className={`template-preview-kakao ${styles.kakaoPreview}`}>
             <div className="template-preview-kakao__card">
               <div className="template-preview-kakao__header">
                 <span className="template-preview-kakao__header-label">알림톡 도착</span>
                 <span className="template-preview-kakao__header-channel">{channelLabel}</span>
               </div>
-              {resolvedSubject && (
+              {!alimtalkType && !fixedAccount && resolvedSubject && (
                 <div
                   className={`template-preview-kakao__title ${styles.previewText}`}
                 >
@@ -159,7 +101,10 @@ export default function AutoSendPreviewPopup({
               <div
                 className={`template-preview-kakao__body ${styles.previewText}`}
               >
-                {body ? renderBody(previewBody) : (
+                {fixedAccount ? <p role="note">
+                  계정 안내는 발송 시점의 아이디·계정 정보와 승인된 양식으로 작성합니다.
+                  보관함에 남아 있는 예전 본문은 이 안내의 미리보기로 사용하지 않습니다.
+                </p> : body || alimtalkType ? renderBody(previewBody) : (
                   <span className={styles.emptyText}>
                     보낼 내용이 아직 없습니다.
                   </span>
@@ -168,10 +113,9 @@ export default function AutoSendPreviewPopup({
             </div>
           </div>
           <p className={styles.footerNote}>
-            카카오톡 알림톡 예시입니다.
+            문구 배치 예시입니다. 이름·일정은 발송할 때 채워집니다.
           </p>
-        </div>
-      </div>
-    </div>
+      </ModalBody>
+    </AdminModal>
   );
 }

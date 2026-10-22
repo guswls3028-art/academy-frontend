@@ -49,14 +49,15 @@ export default function GradesBlockPanel({
   currentBody?: string;
 }) {
   const [showIndividual, setShowIndividual] = useState(false);
+  const [futureOffset, setFutureOffset] = useState(2);
 
   // 블록 분류
   const commonBlocks = blocks.filter((b) =>
     !b.id.startsWith("exam_") && !b.id.startsWith("hw_") && b.id !== "full_summary" &&
     !["exam_score", "assignment_score", "clinic_result", "exam_total", "exam_total_max", "hw_completion"].includes(b.id)
   );
-  const listBlocks = blocks.filter((b) => ["exam_list", "hw_list", "full_summary"].includes(b.id));
-  const summaryBlocks = blocks.filter((b) => ["exam_total", "exam_total_max", "hw_completion"].includes(b.id));
+  const listBlocks = blocks.filter((b) => ["exam_list", "exam_history", "hw_list", "full_summary"].includes(b.id));
+  const summaryBlocks = blocks.filter((b) => ["exam_total", "exam_total_max", "hw_total", "hw_total_max", "hw_completion"].includes(b.id));
   const etcBlocks = blocks.filter((b) => ["exam_score", "assignment_score", "clinic_result"].includes(b.id));
   const bodyForSlots = currentBody ?? "";
   const examMaxNumber = findMaxUsedNumber(bodyForSlots, "시험");
@@ -68,7 +69,7 @@ export default function GradesBlockPanel({
     const tone = getBlockTone(block.id);
     const toneIndex = index % 3;
     return (
-      <button key={block.id} type="button" onMouseDown={(e) => e.preventDefault()}
+      <button title={block.description} key={block.id} type="button" onMouseDown={(e) => e.preventDefault()}
         onClick={() => onInsert(block.insertText)} disabled={disabled}
         className={`template-editor__block-tag template-editor__block-tag--compact template-editor__block-tag--${tone} template-editor__block-tag--n${toneIndex}`}>
         {block.label}
@@ -98,6 +99,14 @@ export default function GradesBlockPanel({
       {/* 공통 */}
       <div className="grades-block-panel__tag-row">{commonBlocks.map(renderTag)}</div>
 
+      <div className="grades-block-panel__group-label">지정 차시 뒤 수업 · 같은 강의·반의 실제 수업 순서</div>
+      <div className="grades-block-panel__add-row">
+        <label>몇 차시 뒤 <input aria-label="몇 차시 뒤" type="number" min={1} max={99} value={futureOffset} disabled={disabled}
+          onChange={e => setFutureOffset(Math.max(1, Math.min(99, Number(e.target.value) || 1)))} className="w-16 border rounded p-1" /></label>
+        <button type="button" disabled={disabled} className="grades-block-panel__add-btn" onClick={() => onInsert(`#{${futureOffset}차시후명}`)}>수업 이름 넣기</button>
+        <button type="button" disabled={disabled} className="grades-block-panel__add-btn" onClick={() => onInsert(`#{${futureOffset}차시후날짜}`)}>수업 날짜 넣기</button>
+      </div>
+      <div className="grades-block-panel__hint">수업 날짜는 차시에 등록된 날짜입니다. 발송 날짜와 다르며, 비어 있으면 발송 전에 안내합니다.</div>
       {/* 목록형 (추천) */}
       <div className="grades-block-panel__group-label">자동 목록 — 시험/과제 개수에 맞게 자동 생성됩니다</div>
       <div className="grades-block-panel__tag-row">{listBlocks.map(renderTag)}</div>

@@ -14,7 +14,7 @@ const PPTX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.present
 
 const PUBLIC_VIDEO_PROVIDERS = ["youtube.com", "youtube-nocookie.com", "ytimg.com", "googlevideo.com",
   "gstatic.com", "google.com", "googleapis.com", "googleusercontent.com", "ggpht.com",
-  "doubleclick.net", "googlesyndication.com", "googleadservices.com"];
+  "doubleclick.net", "googlesyndication.com", "googleadservices.com"] as const;
 
 function registerPublicVideoSources(payload: unknown, ids: Set<string>): void {
   if (!isRecord(payload)) return;
@@ -250,6 +250,9 @@ function releaseRequestFailureCode(error: unknown): string {
   if (message.includes("business mutation refused")) return "mutation";
   if (message.includes("redirect refused")) return "redirect";
   if (message.includes("CORS boundary mismatch")) return "cors";
+  if (message === "Resource reader QA manifest limit") return "resource-manifest";
+  if (message === "Resource reader asset escaped exact development scope") return "resource-scope";
+  if (message === "Resource reader format is outside exact development scope") return "resource-format";
   if (message.startsWith("route.fetch: Request context disposed.")) return "context-disposed";
   return "transport";
 }
@@ -396,9 +399,9 @@ export function assertReleaseRequestSafe(
     const payload = data as Record<string, unknown> | null;
     if (!payload || typeof payload !== "object" || Array.isArray(payload)
       || Object.keys(payload).sort().join(",") !== "device_class,screen_id"
-      || payload.screen_id !== "student.dashboard.home"
-      || !["desktop", "tablet", "mobile"].includes(String(payload.device_class))) {
-      throw new Error("Production observation payload is outside the reviewed dashboard schema");
+      || !["student.dashboard.home", "student.session.list", "student.grades.home", "student.guide.home", "student.assignment.submit"].some((screenId) => payload.screen_id === screenId)
+      || !["desktop", "tablet", "mobile"].some((deviceClass) => payload.device_class === deviceClass)) {
+      throw new Error("Production observation payload is outside the reviewed screen-view schema");
     }
     return "observation";
   }
@@ -423,7 +426,7 @@ export type RequestTransportDiagnostic = {
 type NativeTransportCode = "ECONNRESET" | "ECONNREFUSED" | "EPIPE" | "ETIMEDOUT" | "timeout" | "context-disposed" | "other";
 type NativeTransportKind = "socket-hang-up" | "response-aborted" | "decompression" | NativeTransportCode;
 export type ReleaseObservationEvent = {
-  phase: "route-fetch" | "route-fulfill" | "api-request" | "browser-console" | "browser-pageerror"
+  phase: "route-fetch" | "route-fulfill" | "route-handler" | "api-request" | "browser-console" | "browser-pageerror"
     | "page-close" | "page-crash" | "context-close" | "browser-disconnected";
   stage: "initial" | "retry" | "recovered" | "terminal";
   method?: RequestTransportDiagnostic["method"] | "other";
@@ -440,6 +443,14 @@ export type ReleaseObservationEvent = {
   endNavigationOrdinal?: number | null;
   category?: "cors" | "chunk" | "network" | "resource" | "runtime" | "other";
   sourceKind?: "local" | "api" | "vendor" | "unknown";
+  externalOrigin?: {
+    providerClass: typeof PUBLIC_VIDEO_PROVIDERS[number] | "other";
+    resourceType: "document" | "image" | "script" | "stylesheet" | "font" | "media" | "xhr" | "fetch" | "other";
+    frameExists: boolean; frameAdmitted: boolean; frameExactEmbed: boolean;
+    trustedAncestor: boolean; frameDetached: boolean | null;
+    protocol: "https" | "http" | "other";
+    hasPort: boolean; hasHash: boolean; hasCredentials: boolean;
+  };
 };
 
 export function safeNativeTransportCode(error: unknown): NativeTransportCode {
@@ -1014,12 +1025,14 @@ export async function installReleaseContextGuard(
     attemptStartedAt: number; startPage: ReturnType<typeof observation.requestPageState> }>();
   const recordRouteTransport = (request: Request, upstream: string,
     stage: ReleaseObservationEvent["stage"], error?: unknown,
-    phase: "route-fetch" | "route-fulfill" = "route-fetch") => {
+    phase: "route-fetch" | "route-fulfill" | "route-handler" = "route-fetch",
+    externalOrigin?: ReleaseObservationEvent["externalOrigin"]) => {
     const method = safeTransportMethod(request.method().toUpperCase());
     const pathTemplate = safeRequestTransportPathTemplate(upstream);
     const timing = requestTimings.get(request);
     const endPage = observation.requestPageState(request);
     observation.record({ phase, stage, method, pathTemplate,
+      ...(externalOrigin ? { externalOrigin } : {}),
       ...(timing ? { requestOrdinal: timing.requestOrdinal, requestStartedElapsedMs: timing.requestStartedElapsedMs,
         attemptDurationMs: Math.max(0, Date.now() - timing.attemptStartedAt),
         pageOrdinal: timing.startPage?.pageOrdinal ?? null,
@@ -1047,6 +1060,7 @@ export async function installReleaseContextGuard(
       defects.push(`Release request rejected [${code}] ${request.method().toUpperCase()}${pathTemplate ? ` ${pathTemplate}` : ""}`);
       try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
     };
+    let externalOrigin: ReleaseObservationEvent["externalOrigin"];
     try {
       const upstream = developmentUpstream(boundary, request.url());
       const target = new URL(upstream);
@@ -1060,6 +1074,23 @@ export async function installReleaseContextGuard(
           if (publicVideoFrames.has(frame) && exactPublicVideoEmbed(boundary, frame.url(), publicVideoIds)) { trustedPlayerFrame = true; break; }
         }
         const publicVideoKind = publicVideoRequestKind(boundary, upstream, request.method(), request.resourceType(), publicVideoIds, trustedPlayerFrame);
+        if (!publicVideoKind) {
+          let frameAdmitted = false, frameExactEmbed = false, frameDetached: boolean | null = null;
+          try {
+            frameAdmitted = !!playerFrame && publicVideoFrames.has(playerFrame);
+            frameExactEmbed = !!playerFrame && exactPublicVideoEmbed(boundary, playerFrame.url(), publicVideoIds);
+            frameDetached = playerFrame?.isDetached() ?? null;
+          } catch { /* Observation must not change the fail-closed request policy. */ }
+          const resourceType = request.resourceType();
+          externalOrigin = {
+            providerClass: PUBLIC_VIDEO_PROVIDERS.find(host => target.hostname === host || target.hostname.endsWith(`.${host}`)) ?? "other",
+            resourceType: ["document", "image", "script", "stylesheet", "font", "media", "xhr", "fetch"].includes(resourceType)
+              ? resourceType as NonNullable<ReleaseObservationEvent["externalOrigin"]>["resourceType"] : "other",
+            frameExists: !!playerFrame, frameAdmitted, frameExactEmbed, trustedAncestor: trustedPlayerFrame, frameDetached,
+            protocol: target.protocol === "https:" ? "https" : target.protocol === "http:" ? "http" : "other",
+            hasPort: !!target.port, hasHash: !!target.hash, hasCredentials: !!(target.username || target.password),
+          };
+        }
         if (publicVideoKind) {
           const headers = await request.allHeaders();
           const parent = playerFrame?.parentFrame();
@@ -1161,11 +1192,13 @@ export async function installReleaseContextGuard(
               : readerContentType === "image/gif"
                 ? ["GIF87a", "GIF89a"].includes(body.subarray(0, 6).toString("ascii"))
                 : body.subarray(0, 4).toString("ascii") === "RIFF" && body.subarray(8, 12).toString("ascii") === "WEBP");
-        if (response.status() !== 200 || !body.length || body.length > (readerContentType ? 60 : 30) * 1024 * 1024
-          || !readerSignatureMatches
-          || (readerContentType ? actualType !== readerContentType
-            : !["application/pdf", "application/x-hwp", "application/hwp+zip", "application/octet-stream"].includes(actualType)
-              || !response.headers()["content-disposition"]?.startsWith("attachment;"))) { await reject("transport"); return; }
+        const responseFailure = response.status() !== 200 ? "resource-status"
+          : !body.length || body.length > (readerContentType ? 60 : 30) * 1024 * 1024 ? "resource-size"
+            : !readerSignatureMatches ? "resource-signature"
+              : (readerContentType ? actualType !== readerContentType
+                : !["application/pdf", "application/x-hwp", "application/hwp+zip", "application/octet-stream"].includes(actualType)) ? "resource-type"
+                : !readerContentType && !response.headers()["content-disposition"]?.startsWith("attachment;") ? "resource-disposition" : null;
+        if (responseFailure) { await reject(responseFailure); return; }
         if (preview && !["*", boundary.webOrigin].includes(response.headers()["access-control-allow-origin"])) {
           await reject("cors"); return;
         }
@@ -1504,6 +1537,7 @@ export async function installReleaseContextGuard(
       }
     } catch (error) {
       // Upstream errors can contain credential-bearing URLs. Emit no raw error.
+      recordRouteTransport(request, request.url(), "terminal", error, "route-handler", externalOrigin);
       await reject(releaseRequestFailureCode(error));
       return;
     }
@@ -1528,17 +1562,16 @@ export async function installReleaseContextGuard(
       (code) => defects.push(`Release native keepalive rejected [${code}]`));
     await context.route("**/*", async (route) => {
       if (closing) {
-        // Context teardown aborts any still in-flight request. The browser
-        // still logs its own net::ERR_* console.error for that abort (a
-        // net-err/api defect), but this path never touches readFetchRetries/
-        // mutationReplays or recordRouteTransport -- count it here, before
-        // the abort itself, so it is attributed regardless of whether the
-        // abort call succeeds.
+        // Only requests arriving after explicit close begins reach this path;
+        // already-inspected routes are drained by beginClose(). Cancel these
+        // as lifecycle aborts, not policy violations: blockedbyclient can make
+        // Chromium create an error document and report synthetic page errors.
+        // Keep API attribution without changing retries or live policy rejects.
         try {
           const upstream = developmentUpstream(boundary, route.request().url());
           if (new URL(upstream).origin === boundary.apiOrigin) transport.closingAborts += 1;
         } catch { /* best-effort attribution only -- still abort below */ }
-        try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
+        try { await route.abort("aborted"); } catch { /* Context teardown already owns this request. */ }
         return;
       }
       const handling = handleRoute(route);

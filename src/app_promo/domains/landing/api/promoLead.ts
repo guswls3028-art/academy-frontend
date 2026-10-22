@@ -25,15 +25,19 @@ function truncate(value: string, max: number) {
   return value.trim().slice(0, max);
 }
 
-function linesToMessage(lines: Array<[string, string | undefined]>) {
-  return truncate(
-    lines
-      .map(([label, value]) => [label, (value || "").trim()] as const)
-      .filter(([, value]) => value.length > 0)
-      .map(([label, value]) => `${label}: ${value}`)
-      .join("\n"),
-    MESSAGE_MAX,
-  );
+function linesToMessage(lines: Array<[string, string | undefined]>, attribution?: string) {
+  const message = lines
+    .map(([label, value]) => [label, (value || "").trim()] as const)
+    .filter(([, value]) => value.length > 0)
+    .map(([label, value]) => `${label}: ${value}`)
+    .join("\n");
+  if (message.length > MESSAGE_MAX) {
+    throw new Error("입력한 내용이 너무 깁니다. 문의 내용이나 추가 정보를 조금 줄여 다시 보내주세요.");
+  }
+  // Optional campaign metadata must never displace what the visitor wrote.
+  const tracking = attribution?.trim();
+  const withTracking = tracking ? `${message}\n유입 정보: ${tracking}` : message;
+  return withTracking.length <= MESSAGE_MAX ? withTracking : message;
 }
 
 function postPromoLead(payload: PromoLeadPayload) {
@@ -42,7 +46,6 @@ function postPromoLead(payload: PromoLeadPayload) {
     {
       ...payload,
       interest: truncate(payload.interest, INTEREST_MAX),
-      message: truncate(payload.message, MESSAGE_MAX),
     },
     { skipAuth: true } as ApiRequestConfig,
   );
@@ -67,14 +70,13 @@ export function submitPromoDemoLead(input: {
   const interest = input.interests.length > 0 ? input.interests.join(", ") : "데모 요청";
   const message = linesToMessage([
     ["개인정보 수집·이용", "동의"],
-    ["유입 정보", input.attribution],
     ["소속/수업명", input.academyName],
     ["이메일", input.email],
     ["담당 수강생 수", input.studentCount],
     ["현재 수업 관리 방식", input.currentWorkflow],
     ["관심 기능", interest],
     ["요청 사항", input.message],
-  ]);
+  ], input.attribution);
 
   return postPromoLead({
     name: input.name,
@@ -105,13 +107,12 @@ export function submitPromoContactLead(input: {
   }
   const message = linesToMessage([
     ["개인정보 수집·이용", "동의"],
-    ["유입 정보", input.attribution],
     ["문의 유형", input.inquiryType],
     ["소속/수업명", input.academyName],
     ["이메일", input.email],
     ["담당 수강생 수", input.studentCount],
     ["문의 내용", input.message],
-  ]);
+  ], input.attribution);
 
   return postPromoLead({
     name: input.name,
@@ -128,12 +129,12 @@ export function submitPromoContactLead(input: {
 export function getPromoLeadErrorMessage(error: unknown) {
   const detail = (
     error as {
-      response?: { data?: { detail?: string | string[] } };
+      response?: { data?: { detail?: unknown } };
     }
   )?.response?.data?.detail;
 
-  if (Array.isArray(detail)) return detail[0] || "전송 실패. 잠시 후 다시 시도해주세요.";
-  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail.find((item): item is string => typeof item === "string" && item.length > 0) || "전송 실패. 잠시 후 다시 시도해주세요.";
+  if (typeof detail === "string" && detail.trim()) return detail;
   if (error instanceof Error && error.message) return error.message;
   return "전송 실패. 잠시 후 다시 시도해주세요.";
 }

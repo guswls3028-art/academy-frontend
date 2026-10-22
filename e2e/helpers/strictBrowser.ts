@@ -104,6 +104,30 @@ function classifyDefectSource(url: string | null, pageOrigin: string | null, api
   return "unknown";
 }
 
+const VENDOR_DIAGNOSTIC_PROVIDERS = ["youtube.com", "youtube-nocookie.com", "ytimg.com", "googlevideo.com",
+  "gstatic.com", "google.com", "googleapis.com", "googleusercontent.com", "ggpht.com",
+  "doubleclick.net", "googlesyndication.com", "googleadservices.com"] as const;
+type VendorDiagnostic = {
+  eventKind: "console-error";
+  providerClass: typeof VENDOR_DIAGNOSTIC_PROVIDERS[number] | "other";
+  errorFamily: "postmessage-origin" | "permissions-policy" | "autoplay-policy" | "player-error" | "other";
+};
+
+function classifyVendorDiagnostic(text: string, rawSource: string | null): VendorDiagnostic {
+  let providerClass: VendorDiagnostic["providerClass"] = "other";
+  try {
+    const url = new URL(rawSource ?? "");
+    if (["https:", "http:"].includes(url.protocol)) providerClass = VENDOR_DIAGNOSTIC_PROVIDERS
+      .find(host => url.hostname === host || url.hostname.endsWith(`.${host}`)) ?? "other";
+  } catch { /* Unknown sources remain in a closed class. */ }
+  const errorFamily: VendorDiagnostic["errorFamily"] =
+    /^Failed to execute ['"]postMessage['"] on ['"]DOMWindow['"]:.*(?:target origin|recipient window)/i.test(text) ? "postmessage-origin"
+      : /^(?:Permissions policy violation:|Potential permissions policy violation:|Permissions-Policy:)/i.test(text) ? "permissions-policy"
+        : /^(?:play\(\) failed because the user didn't interact|NotAllowedError:.*(?:play\(\)|user.*interact|autoplay))/i.test(text) ? "autoplay-policy"
+          : /^(?:YouTube player error|The player is reporting an error)/i.test(text) ? "player-error" : "other";
+  return { eventKind: "console-error", providerClass, errorFamily };
+}
+
 export type StrictBrowserGuards = {
   /** 누적 콘솔 error·pageerror 가 허용 목록 외 있으면 모드에 따라 실패/경고 */
   assertZeroDefects: () => void;
@@ -215,12 +239,12 @@ export function attachStrictBrowserGuards(
         (failure) => !failure.recovered || failure.resourceFailureText === null,
       );
       const entries = [
-        ...consoleErrors.map((c) => ({ text: c.text, url: c.url, line: `console.error: ${c.text}` })),
-        ...pageErrors.map((p) => ({ text: p, url: null as string | null, line: `pageerror: ${p}` })),
+        ...consoleErrors.map((c) => ({ text: c.text, url: c.url, line: `console.error: ${c.text}`, eventKind: "console-error" })),
+        ...pageErrors.map((p) => ({ text: p, url: null as string | null, line: `pageerror: ${p}`, eventKind: "pageerror" })),
         ...unresolvedRecoveredCors.flatMap((failure) => [
-          { text: failure.consoleText, url: failure.url, line: `console.error: ${failure.consoleText}` },
+          { text: failure.consoleText, url: failure.url, line: `console.error: ${failure.consoleText}`, eventKind: "console-error" },
           ...(failure.resourceFailureText
-            ? [{ text: failure.resourceFailureText, url: failure.url, line: `console.error: ${failure.resourceFailureText}` }]
+            ? [{ text: failure.resourceFailureText, url: failure.url, line: `console.error: ${failure.resourceFailureText}`, eventKind: "console-error" }]
             : []),
         ]),
       ];
@@ -233,16 +257,21 @@ export function attachStrictBrowserGuards(
       let pageOrigin: string | null = null;
       try { pageOrigin = new URL(page.url()).origin; } catch { /* about:blank etc. */ }
       const apiOrigin = options?.apiOrigin ?? null;
-      const classified = entries.map((entry) => ({ ...entry,
-        category: classifyDefectCategory(entry.text), source: classifyDefectSource(entry.url, pageOrigin, apiOrigin) }));
+      const classified = entries.map((entry) => {
+        const source = classifyDefectSource(entry.url, pageOrigin, apiOrigin);
+        return { ...entry, category: classifyDefectCategory(entry.text), source,
+          vendorDiagnostic: source === "vendor" && entry.eventKind === "console-error"
+            ? classifyVendorDiagnostic(entry.text, entry.url) : undefined };
+      });
       const defectCounts = new Map<string, number>();
-      for (const { category, source } of classified) {
-        const key = `${category}:${source}`;
+      for (const { category, source, vendorDiagnostic } of classified) {
+        const key = JSON.stringify([category, source, vendorDiagnostic ?? null]);
         defectCounts.set(key, (defectCounts.get(key) ?? 0) + 1);
       }
       for (const [key, count] of defectCounts) {
-        const [category, source] = key.split(":") as [DefectCategory, DefectSource];
-        emit({ releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category, source, count } });
+        const [category, source, vendorDiagnostic] = JSON.parse(key) as [DefectCategory, DefectSource, VendorDiagnostic | null];
+        emit({ releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category, source, count,
+          ...(vendorDiagnostic ? { vendorDiagnostic } : {}) } });
       }
 
       // A route-fetch retry that recovers the request, or a context-teardown

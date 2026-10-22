@@ -4,6 +4,7 @@
 
 | 문서 | 내용 |
 |------|------|
+| [ASSESSMENT-TOTALS.md](ASSESSMENT-TOTALS.md) | 시험·점수형 과제 선택 합산, 순서 이동, 미입력·충돌 복구와 역할별 후속 표시 |
 | [PROBLEM-CONVERSION.md](PROBLEM-CONVERSION.md) | 시험지 변환·문항 검수·AI 수정 제안·한글 3종 출력과 기존 도구 호환 |
 | [ORGANIZATION-SETTINGS.md](ORGANIZATION-SETTINGS.md) | 현재 학원 역할별 설정·결제·상담 접근, 조회/저장 실패 복구와 입력 초안 보존 |
 | [개발 저장공간·CI 캐시 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/concurrent-codex-sessions.md#session-output-lifecycle) | 원격 빌드 기본값, 작업별 임시 파일 수명주기, 종료된 PR 캐시 정리와 검증 기록 보존 |
@@ -11,6 +12,7 @@
 | [PUBLIC-RESOURCE-BOARD.md](PUBLIC-RESOURCE-BOARD.md) | godmin 공개 자료게시판·게시자·파일·오류 복구·PC/모바일 검증 |
 | [PUBLIC-VIDEOS.md](PUBLIC-VIDEOS.md) | 공개 YouTube 영상·히어로·두 게시자 스튜디오·초안/공개·오류 복구 |
 | [ROUTING.md](ROUTING.md) | 공개 URL 네이밍, 권한 분리, 기존 경로 호환 규칙 |
+| [PROMO-GUIDE-AND-SUPPORT.md](PROMO-GUIDE-AND-SUPPORT.md) | 공개 전체 사용 가이드, 개발자 시작 안내, 전화 부재 회신과 온라인 결제 예정 고지 |
 | [API-CONTRACTS.md](API-CONTRACTS.md) | 백엔드 OpenAPI 고정 SHA와 생성 TypeScript 타입 드리프트 계약 |
 | [FEES-OPERATIONS.md](FEES-OPERATIONS.md) | 학원 수납의 전체 목록, 조회 복구, 미납 필터, 월말 납부기한과 검증 계약 |
 | [VIDEO-DIRECT-ACCESS.md](VIDEO-DIRECT-ACCESS.md) | 수강 등록 없이 영상 1개만 여는 관리자 승인·회수와 학생 무쓰기 재생 계약 |
@@ -21,6 +23,7 @@
 | [BROWSER-COMPATIBILITY.md](BROWSER-COMPATIBILITY.md) | 구형 iOS·Android의 legacy 로더·스타일·런타임 보완과 로그인·학습·영상 검증 범위 |
 | [DATA-LIST-CONTRACT.md](DATA-LIST-CONTRACT.md) | 테이블·성적 그리드·선택 모달의 정렬, 필터, 동률, 페이지·390px 계약 |
 | [USER-GUIDE-ADMIN.md](USER-GUIDE-ADMIN.md) | 관리자 앱 사용 가이드 |
+| [IN-APP-GUIDE.md](IN-APP-GUIDE.md) | 관리자·선생님·학생/학부모 AtoZ 가이드의 흐름·검색·권한·검증 계약 |
 | [USER-GUIDE-STUDENT.md](USER-GUIDE-STUDENT.md) | 학생 앱 사용 가이드 |
 | [STUDENT-PARENT-APP-CONTRACT.md](STUDENT-PARENT-APP-CONTRACT.md) | 학생·학부모 앱의 표시 경계, 모바일 레이아웃, 권한·자녀 선택·알림 읽음 계약 |
 | [STUDENT-GRADE-REPORT.md](STUDENT-GRADE-REPORT.md) | 학원별 성장 그래프 섹션 표시·순서 편집과 학생 시험 카드의 오답 완료/미완료 표시 계약 |
@@ -111,3 +114,5 @@ e2e/
 - 코드 바로 옆에 필요한 모듈 README·refactor note는 `src/<app>/...`에 둘 수 있다. 단, 해당 모듈의 구조·API·검증 범위만 다루고 전역 규칙/운영 절차는 `frontend/docs/` 또는 repo 루트 문서로 올린다.
 - 스크린샷과 실행 보고서는 `test-results/`, `playwright-report/` 또는
   workspace `_artifacts/`에 저장하고 커밋하지 않음
+
+- [PARENT-ASSESSMENT-COMMENTS.md](PARENT-ASSESSMENT-COMMENTS.md) — 학부모 전용 평가 코멘트와 수정/조회 흐름

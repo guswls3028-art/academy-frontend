@@ -12,9 +12,19 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     serviceWorkers: "block",
   });
 
-  test("빈 발송 시점을 유지하고 중첩 미리보기만 닫는다", async ({ page }) => {
-    let minutesBefore: number | null = 30;
+  for (const scenario of [
+    { trigger: "clinic_reminder", unit: 1, label: "분 전", initial: 30, display: "30" },
+    { trigger: "exam_scheduled_days_before", unit: 1440, label: "일 전", initial: 1440, display: "1" },
+    { trigger: "assignment_due_hours_before", unit: 60, label: "시간 전", initial: 180, display: "3" },
+  ]) {
+  test(`${scenario.label}: 저장 단위·빈 값·재조회와 중첩 미리보기`, async ({ page }) => {
+    let minutesBefore: number | null = scenario.initial;
     let savedBody: unknown = null;
+    let enabled = true;
+    let failToggle = true;
+    let templateBody = "클리닉 시작 안내입니다.";
+    let failPreview = false;
+    let canManage = true;
 
     await page.route("**/api/v1/**", async (route) => {
       const request = route.request();
@@ -50,23 +60,29 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
           alimtalk_available: true,
           delivery_policy: "verified_tenant_or_common_alimtalk",
           messaging_disabled: false,
+          can_manage_messaging: canManage,
         });
       }
       if (path === "/messaging/auto-send/" && request.method() === "PATCH") {
         savedBody = request.postDataJSON();
-        const configs = (savedBody as { configs?: Array<{ minutes_before?: number | null }> }).configs ?? [];
-        minutesBefore = configs[0]?.minutes_before ?? null;
+        const config = (savedBody as { configs: Array<{ minutes_before?: number | null; enabled?: boolean }> }).configs[0];
+        if (typeof config.enabled === "boolean") {
+          if (failToggle) return json({ detail: "설정을 저장하지 못했습니다." }, 503);
+          enabled = config.enabled;
+        }
+        if ("minutes_before" in config) minutesBefore = config.minutes_before ?? null;
       }
       if (path === "/messaging/auto-send/") {
+        if (request.method() === "GET" && failPreview) return json({ detail: "미리보기 연결 실패" }, 503);
         return json([{
           id: 501,
-          trigger: "clinic_reminder",
+          trigger: scenario.trigger,
           template: 701,
           template_name: "클리닉 안내",
-          template_body: "클리닉 시작 안내입니다.",
+          template_body: templateBody,
           template_is_system: false,
           effective_template_is_approved: true,
-          enabled: true,
+          enabled,
           message_mode: "alimtalk",
           minutes_before: minutesBefore,
           policy_mode: "AUTO_DEFAULT",
@@ -91,31 +107,49 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     await expect(page.getByText("발송 상태", { exact: true })).toBeVisible();
     await expect(page.getByText("공급자", { exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    await expect(page.getByText(`${scenario.display}${scenario.label}`, { exact: true })).toBeVisible();
+    const autoToggle = page.getByRole("switch");
+    await autoToggle.click();
+    await expect(page.getByRole("alert")).toContainText("변경하지 못했습니다");
+    await expect(autoToggle).toHaveAttribute("aria-checked", "true");
+    failToggle = false;
+    await autoToggle.click();
+    await expect(autoToggle).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByRole("alert")).toHaveCount(0);
 
     await page.getByTitle("설정 편집").click();
-    const timingInput = page.getByRole("spinbutton", { name: "분 전" });
-    await expect(timingInput).toHaveValue("30");
+    const timingInput = page.getByRole("spinbutton", { name: scenario.label });
+    await expect(timingInput).toHaveValue(scenario.display);
     await timingInput.fill("");
     await page.getByRole("button", { name: "발송 시점 저장" }).click();
 
     await expect.poll(() => savedBody).toEqual({
       configs: [{
-        trigger: "clinic_reminder",
+        trigger: scenario.trigger,
         message_mode: "alimtalk",
         minutes_before: null,
       }],
     });
 
     await page.getByTitle("설정 편집").click();
-    const reopenedTimingInput = page.getByRole("spinbutton", { name: "분 전" });
+    const reopenedTimingInput = page.getByRole("spinbutton", { name: scenario.label });
     await expect(reopenedTimingInput).toHaveValue("");
 
     await reopenedTimingInput.fill("45");
+    templateBody = "다른 화면에서 방금 저장한 안내입니다. #{선생님메모}";
+    failPreview = true;
     const previewTrigger = page.getByRole("button", { name: "미리보기" });
     await previewTrigger.click();
 
     const previewSheet = page.getByRole("dialog", { name: "템플릿 미리보기" });
     await expect(previewSheet).toBeVisible();
+    await expect(previewSheet.getByRole("alert")).toContainText("미리보기 연결 실패");
+    failPreview = false;
+    await previewSheet.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+    const envelope = previewSheet.getByLabel("카카오톡 실제 발송 미리보기");
+    await expect(envelope).toContainText("다른 화면에서 방금 저장한 안내입니다.");
+    await expect(envelope).not.toContainText("클리닉 시작 안내입니다.");
+    await expect(envelope).not.toContainText("#{선생님메모}");
     await previewSheet.evaluate((sheet) => {
       const hiddenAncestor = document.createElement("div");
       hiddenAncestor.style.display = "none";
@@ -135,7 +169,31 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
     await expect(reopenedTimingInput).toHaveValue("45");
     await expect(previewTrigger).toBeFocused();
 
-    await page.mouse.click(10, 10);
+    await reopenedTimingInput.fill("-1");
+    await expect(page.getByRole("alert")).toContainText("0 이상의 값");
+    await expect(page.getByRole("button", { name: "발송 시점 저장" })).toBeDisabled();
+    const nextTiming = scenario.unit === 1 ? "2" : "1.1";
+    await reopenedTimingInput.fill(nextTiming);
+    await page.getByRole("button", { name: "발송 시점 저장" }).click();
     await expect(reopenedTimingInput).toBeHidden();
+    expect(minutesBefore).toBe(Math.round(Number(nextTiming) * scenario.unit));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(autoToggle).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByText(`${nextTiming}${scenario.label}`, { exact: true })).toBeVisible();
+    await page.getByTitle("설정 편집").click();
+    await expect(page.getByRole("spinbutton", { name: scenario.label })).toHaveValue(nextTiming);
+    const lastSaved = savedBody;
+    canManage = false;
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(autoToggle).toBeDisabled();
+    await expect(page.getByText(/자동발송 여부와 발송 시점은 대표 또는 관리자만/)).toBeVisible();
+    await page.getByTitle("내용 보기").click();
+    await expect(page.getByRole("spinbutton", { name: scenario.label })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "발송 시점 저장" })).toHaveCount(0);
+    await page.getByRole("button", { name: "미리보기", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "템플릿 미리보기" }).getByLabel("카카오톡 실제 발송 미리보기"))
+      .toContainText("다른 화면에서 방금 저장한 안내입니다.");
+    expect(savedBody).toEqual(lastSaved);
   });
+  }
 });

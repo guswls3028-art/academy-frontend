@@ -10,6 +10,8 @@ import { IconGrade } from "@student/shared/ui/icons/Icons";
 import { useMyGradesAnalytics } from "../hooks/useMyGradesAnalytics";
 import { useMyGradesSummary } from "../hooks/useMyGradesSummary";
 import GradesHomeTab from "../components/GradesHomeTab";
+import SessionAssessmentTotals from "../components/SessionAssessmentTotals";
+import ParentAssessmentComments from "../components/ParentAssessmentComments";
 import GradesStatsTab from "../components/GradesStatsTab";
 import {
   defaultStudentGradeReportLayout,
@@ -71,7 +73,10 @@ export default function GradesPage() {
       )}
 
       {!isLoading && !isError && tab === "home" && (
-        <GradesHomeTab exams={exams} homeworks={homeworks} labels={labels} />
+        <ParentAssessmentComments exams={exams} homeworks={homeworks}>
+          <SessionAssessmentTotals items={data?.session_totals ?? []} />
+          <GradesHomeTab exams={exams} homeworks={homeworks} labels={labels} />
+        </ParentAssessmentComments>
       )}
 
       {!isLoading && !isError && tab === "stats" && (

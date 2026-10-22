@@ -13,6 +13,7 @@ const VideoPlatformPage = lazy(() => import("../domains/landing/pages/VideoPlatf
 const PricingPage = lazy(() => import("../domains/landing/pages/PricingPage"));
 const UpdatesPage = lazy(() => import("../domains/landing/pages/UpdatesPage"));
 const FaqPage = lazy(() => import("../domains/landing/pages/FaqPage"));
+const GuidePage = lazy(() => import("../domains/landing/pages/GuidePage"));
 const ContactPage = lazy(() => import("../domains/landing/pages/ContactPage"));
 const DemoPage = lazy(() => import("../domains/landing/pages/DemoPage"));
 const LandingSamplesPage = lazy(() => import("@/landing/pages/LandingSamplesPage"));
@@ -50,6 +51,7 @@ export default function PromoRouter() {
         <Route path="pricing" element={renderPromoPage(PricingPage)} />
         <Route path="updates" element={renderPromoPage(UpdatesPage)} />
         <Route path="faq" element={renderPromoPage(FaqPage)} />
+        <Route path="guide" element={renderPromoPage(GuidePage)} />
         <Route path="contact" element={renderPromoPage(ContactPage)} />
         <Route path="demo" element={renderPromoPage(DemoPage)} />
         <Route path="*" element={<Navigate to="/promo" replace />} />

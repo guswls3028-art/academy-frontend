@@ -16,6 +16,7 @@ import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, Hear
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
+import { buildScoreCsv } from "@admin/domains/scores/public/scoreCsvGenerator";
 import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraft";
 import type { ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
 import {
@@ -45,10 +46,7 @@ import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useProgram } from "@/shared/program";
 import { InlineHelp } from "@/shared/ui/guide";
-import SessionOmrUploadAction, {
-  SessionOmrUploadModal,
-  type SessionOmrUploadTarget,
-} from "./SessionOmrUploadAction";
+import type { SessionOmrUploadTarget } from "./SessionOmrUploadAction";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
 import { useTrackedTask } from "@/shared/productAnalytics";
@@ -116,6 +114,10 @@ function resolveExamGradingMode(
   return hasEssay ? "written" : "choice";
 }
 
+// Keep the OMR upload workspace (batch ledger, file preparation and upload UI)
+// outside the score-entry module. Both exports share the same lazy chunk.
+const SessionOmrUploadAction = lazy(() => import("./SessionOmrUploadAction"));
+const SessionOmrUploadModal = lazy(() => import("./SessionOmrUploadAction").then(module => ({ default: module.SessionOmrUploadModal })));
 const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ScorePrintPreviewModal"));
 const StudentScoreReportModal = lazy(() => import("@admin/domains/scores/public/StudentScoreReportModal"));
 const ClinicPrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ClinicPrintPreviewModal"));
@@ -530,20 +532,18 @@ export default function SessionScoresEntryPage({
 
   const examReviewOverview = useMemo(() => {
     const searchedRows = (data?.rows ?? [])
-      .filter((row) => row.assessment_todo_eligible !== false)
-      .filter((row) => (row.exams?.length ?? 0) > 0 || (row.homeworks?.length ?? 0) > 0)
       .filter((row) => matchesSessionScoreStudentSearch(row.student_name ?? "", searchInput));
     const counts = { all: searchedRows.length, incomplete: 0, pending: 0, resolved: 0 };
-    const visibleEnrollmentIds: number[] = [];
+    const selectableEnrollmentIds: number[] = [];
     for (const row of searchedRows) {
       const kind = getSessionRowExamReviewSummary(row).kind;
       if (kind === "incomplete" || kind === "pending") counts[kind] += 1;
       if (kind === "complete" || kind === "clear") counts.resolved += 1;
-      if (matchesSessionRowExamReviewFilter(row, examReviewFilter)) {
-        visibleEnrollmentIds.push(row.enrollment_id);
+      if (row.assessment_todo_eligible !== false && matchesSessionRowExamReviewFilter(row, examReviewFilter)) {
+        selectableEnrollmentIds.push(row.enrollment_id);
       }
     }
-    return { counts, visibleEnrollmentIds };
+    return { counts, selectableEnrollmentIds };
   }, [data?.rows, examReviewFilter, searchInput]);
 
   const hasSubjectiveExam = useMemo(
@@ -895,6 +895,13 @@ export default function SessionScoresEntryPage({
                 feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
                 return;
               }
+              const provisionalCount = selectedRows.reduce(
+                (count, row) => count + row.exams.filter(exam => exam.block.is_provisional).length, 0,
+              );
+              if (provisionalCount > 0) {
+                feedback.error(`채점을 확인 중인 시험이 ${provisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`);
+                return;
+              }
               const unenteredItemCount = selectedRows.reduce(
                 (count, row) => count + collectUnenteredScoreItems(row).length,
                 0,
@@ -924,6 +931,13 @@ export default function SessionScoresEntryPage({
                 feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
                 return;
               }
+              const finalProvisionalCount = selectedRows.reduce(
+                (count, row) => count + row.exams.filter(exam => exam.block.is_provisional).length, 0,
+              );
+              if (finalProvisionalCount > 0) {
+                feedback.error(`채점을 확인 중인 시험이 ${finalProvisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`);
+                return;
+              }
               const finalUnenteredItemCount = selectedRows.reduce(
                 (count, row) => count + collectUnenteredScoreItems(row).length,
                 0,
@@ -951,6 +965,7 @@ export default function SessionScoresEntryPage({
 
               let initialBody: string | undefined;
               let initialTemplateId: number | null = null;
+              let initialTemplateUpdatedAt: string | undefined;
               let initialLetterPresetId: string | null = null;
               let scoreDetail = "";
 
@@ -965,6 +980,7 @@ export default function SessionScoresEntryPage({
                   ? chosenTpl.body
                   : buildGenericScoreTemplate(reportOptions);
                 initialTemplateId = chosenTpl?.id ?? null;
+                initialTemplateUpdatedAt = chosenTpl?.updated_at;
                 initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
                 scoreDetail = buildScoreDetail(selectedRows[0], meta);
               } catch {
@@ -993,11 +1009,13 @@ export default function SessionScoresEntryPage({
                 : {};
 
               openSendMessageModal({
+                sessionId: numericSessionId,
                 studentIds: activeStudentIds,
                 recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
                 blockCategory: "grades",
                 initialBody,
                 initialTemplateId,
+                initialTemplateUpdatedAt,
                 initialLetterPresetId,
                 alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
                 recomputePerStudentVars,
@@ -1029,42 +1047,20 @@ export default function SessionScoresEntryPage({
               size="sm"
               onClick={async () => {
                 if (!await saveScoresNow()) return;
-                const freshData = (await refetch()).data ?? data;
-                const rows = freshData?.rows ?? [];
-                const selected = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-                if (selected.length === 0) {
-                  feedback.info("선택한 학생이 없습니다.");
+                let freshData;
+                try {
+                  freshData = await fetchSessionScores(numericSessionId);
+                } catch {
+                  feedback.error("최신 성적을 불러오지 못했습니다. 다시 다운로드해 주세요.");
                   return;
                 }
-                const metaExams = freshData?.meta?.exams ?? [];
-                const metaHomeworks = freshData?.meta?.homeworks ?? [];
-                const headers = ["이름"];
-                metaExams.forEach((e) => headers.push(`${e.title ?? "시험"} (점수)`));
-                metaHomeworks.forEach((h) => headers.push(`${h.title ?? "과제"} (점수)`));
-
-                const csvRows = [headers.map((h) => `"${h.replace(/"/g, '""')}"`).join(",")];
-                for (const row of selected) {
-                  const cells: string[] = [row.student_name ?? ""];
-                  // Match by exam_id/homework_id to ensure column alignment with headers
-                  for (const metaExam of metaExams) {
-                    const entry = (row.exams ?? []).find((e) => e.exam_id === metaExam.exam_id);
-                    cells.push(
-                      entry?.block.grading_status === "subjective_pending"
-                        ? "서술형 입력 필요"
-                        : entry?.block.score != null
-                          ? String(entry.block.score)
-                          : "",
-                    );
-                  }
-                  for (const metaHw of metaHomeworks) {
-                    const entry = (row.homeworks ?? []).find((h) => h.homework_id === metaHw.homework_id);
-                    cells.push(entry?.block.score != null ? String(entry.block.score) : "");
-                  }
-                  csvRows.push(cells.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","));
+                const selected = freshData.rows.filter(row => selectedEnrollmentIds.includes(row.enrollment_id));
+                if (selected.length === 0 || selected.length !== selectedEnrollmentIds.length) {
+                  feedback.info("학생의 수강 또는 배정이 변경되었습니다. 목록에서 대상을 다시 선택해 주세요.");
+                  await refetch();
+                  return;
                 }
-
-                const bom = "\uFEFF";
-                const blob = new Blob([bom + csvRows.join("\n")], { type: "text/csv;charset=utf-8" });
+                const blob = new Blob([buildScoreCsv(freshData.meta, selected)], { type: "text/csv;charset=utf-8" });
                 const { downloadBlob } = await import("@/shared/utils/safeDownload");
                 downloadBlob(blob, `성적_${selected.length}명.csv`);
                 feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
@@ -1233,11 +1229,11 @@ export default function SessionScoresEntryPage({
                 size="sm"
                 leftIcon={<Users size={ICON_FOR_BUTTON.sm} />}
                 onClick={() => {
-                  setSelectedEnrollmentIds(examReviewOverview.visibleEnrollmentIds);
-                  feedback.success(`현재 결과 ${examReviewOverview.visibleEnrollmentIds.length}명을 선택했습니다.`);
+                  setSelectedEnrollmentIds(examReviewOverview.selectableEnrollmentIds);
+                  feedback.success(`현재 결과의 평가 대상 ${examReviewOverview.selectableEnrollmentIds.length}명을 선택했습니다.`);
                 }}
-                disabled={isEditMode || examReviewOverview.visibleEnrollmentIds.length === 0}
-                title={isEditMode ? "점수를 저장하고 잠근 뒤 선택할 수 있습니다." : "검색과 오답 필터에 보이는 학생만 선택합니다."}
+                disabled={isEditMode || examReviewOverview.selectableEnrollmentIds.length === 0}
+                title={isEditMode ? "점수를 저장하고 잠근 뒤 선택할 수 있습니다." : "현재 결과에서 평가 대상 학생만 선택합니다. 결석 학생은 제외됩니다."}
               >
                 현재 결과 선택
               </Button>
@@ -1256,13 +1252,17 @@ export default function SessionScoresEntryPage({
     );
   }
 
-  const openStudentScoreReport = async () => {
-    if (!await saveScoresNow()) return;
+  const prepareScorePrint = async () => {
+    if (!await saveScoresNow()) return false;
     const refreshed = await refetch();
-    if (refreshed.isError) {
+    if (refreshed.isError || !refreshed.data) {
       feedback.error("최신 성적을 불러오지 못했습니다. 다시 시도해 주세요.");
-      return;
+      return false;
     }
+    return true;
+  };
+  const openStudentScoreReport = async () => {
+    if (!await prepareScorePrint()) return;
     setShowStudentReport(true);
     setShowMoreMenu(false);
   };
@@ -1277,6 +1277,11 @@ export default function SessionScoresEntryPage({
       {/* ── 그룹 1: OMR 주 동선 ──
           SSOT: 차시 성적 화면에서 OMR 스캔 등록을 가장 먼저 보여준다.
           시험 상세/제출관리는 등록이 아니라 조회/재처리 보조 동선으로 둔다. */}
+      <Suspense fallback={omrExamOptions.length > 0 ? (
+        <Button intent="primary" size="md" className="scores-omr-primary" disabled aria-busy="true" leftIcon={<Upload size={ICON_FOR_BUTTON.md} />}>
+          OMR 등록 준비 중…
+        </Button>
+      ) : null}>
       <SessionOmrUploadAction
         exams={omrExamOptions}
         onRefresh={invalidateScores}
@@ -1302,6 +1307,7 @@ export default function SessionScoresEntryPage({
           draft.draftStatus === "error"
         }
       />
+      </Suspense>
 
       {/* ── 그룹 2: 안전한 수정 시작 / 저장 완료 ── */}
       <Button
@@ -1414,8 +1420,7 @@ export default function SessionScoresEntryPage({
               <span className="scores-tools-menu__label">출력 · 후속관리</span>
               <div className="scores-tools-menu__grid">
                 <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
-                  if (!await saveScoresNow()) return;
-                  await refetch();
+                  if (!await prepareScorePrint()) return;
                   setShowPrintPreview(true);
                   setShowMoreMenu(false);
                 }}>
@@ -1428,8 +1433,7 @@ export default function SessionScoresEntryPage({
                 </button>
                 {isAnonymousBillboardMode ? (
                   <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
-                    if (!await saveScoresNow()) return;
-                    await refetch();
+                    if (!await prepareScorePrint()) return;
                     setShowBillboardPreview(true);
                     setShowMoreMenu(false);
                   }}>
@@ -1438,8 +1442,7 @@ export default function SessionScoresEntryPage({
                   </button>
                 ) : (
                   <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
-                    if (!await saveScoresNow()) return;
-                    await refetch();
+                    if (!await prepareScorePrint()) return;
                     setShowClinicPreview(true);
                     setShowMoreMenu(false);
                   }}>
@@ -1471,7 +1474,7 @@ export default function SessionScoresEntryPage({
             <Button type="button" intent="secondary" size="md" leftIcon={<Plus size={ICON_FOR_BUTTON.md} />} onClick={openCreateHomework}>
               과제 추가
             </Button>
-            <Link className="scores-start-panel__guide" to="/workspace/guide#exam-score-guide">시험·성적표 사용 순서</Link>
+            <Link className="scores-start-panel__guide" to="/workspace/guide?topic=create-exam">시험·성적표 사용 순서</Link>
           </div>
         </section>
       )}
@@ -1639,7 +1642,7 @@ export default function SessionScoresEntryPage({
         <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />
       )}
 
-      {!isLoading && isError && (
+      {!isLoading && isError && !data && (
         <EmptyState
           scope="panel"
           tone="error"
@@ -1733,7 +1736,7 @@ export default function SessionScoresEntryPage({
         </section>
       )}
 
-      {!isLoading && !isError && (
+      {data && (
         <SessionScoresPanel
           ref={setPanelHandle}
           sessionId={numericSessionId}
@@ -1995,6 +1998,7 @@ export default function SessionScoresEntryPage({
         </Suspense>
       )}
 
+      {omrUploadExam && <Suspense fallback={<div role="status">OMR 등록 화면을 불러오는 중…</div>}>
       <SessionOmrUploadModal
         target={omrUploadExam}
         onClose={() => setOmrUploadExam(null)}
@@ -2002,6 +2006,7 @@ export default function SessionScoresEntryPage({
           if (omrUploadExam) invalidateExamWorkflow(omrUploadExam.examId);
         }}
       />
+      </Suspense>}
 
       {/* 성적표 인쇄 미리보기 */}
       {showPrintPreview && data?.meta && (

@@ -19,6 +19,7 @@ import "./release-resource-download-boundary.test.mjs";
 import "./release-public-video-boundary.test.mjs";
 import "./binary-safe-ssm.test.mjs";
 import "./development-qa-operations.test.mjs";
+import "./development-account-probe.test.mjs";
 import "./release-canary-progress.test.mjs";
 import "./development-backend-readiness.test.mjs";
 import "./release-governance-metadata.test.mjs";
@@ -368,7 +369,8 @@ test("strict browser guard never suppresses a net-err defect from a non-api sour
     location: () => ({ url: "https://static.cloudflareinsights.com/beacon.min.js" }) });
   assert.throws(() => guard.assertZeroDefects());
   assert.deepEqual(logs, [
-    { releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "vendor", count: 1 } },
+    { releaseStrictBrowserDefect: { schema: "strict-browser-defect/v1", category: "net-err", source: "vendor", count: 1,
+      vendorDiagnostic: { eventKind: "console-error", providerClass: "other", errorFamily: "other" } } },
     { releaseStrictBrowserSuppression: { schema: "strict-browser-suppression/v1", suppressedNetErrDefects: 0, recoveredTransportCount: 10, closingAbortCount: 0 } },
   ]);
 });
@@ -534,22 +536,30 @@ test("assessment copy failure observations keep only reviewed phases and source"
   assert.equal(wrongSpec.rejectedFailureObservationCount, 2);
 });
 
-test("assessment copy session cleanup follows its owned enrollment deletion and verifies absence", async () => {
+test("assessment copy and template retry cleanup removes owned rows and verifies absence", async () => {
   const source = readFileSync(new URL("../../e2e/student/student-parent-assessment-realuse.spec.ts", import.meta.url), "utf8");
   const body = stripTypeScriptTypes(source.slice(source.indexOf("async function cleanup("), source.indexOf("async function seedAssessment(")));
   const calls = [];
-  const created = { adminAccess: "secret-token", submissionIds: [], sessionEnrollmentIds: [], enrollmentIds: [11], copySessionIds: [22] };
+  const created = { adminAccess: "secret-token", submissionIds: [], messageTemplateRetryIds: [31, 32], attendanceIds: [9], sessionEnrollmentIds: [], enrollmentIds: [11], copySessionIds: [22] };
   let enrollmentRemoved = false;
+  let retainedTemplate = false;
   const api = async (_request, method, endpoint) => {
     calls.push([method, endpoint]);
-    if (method === "GET") return { status: 404 };
+    if (method === "GET") return { status: retainedTemplate && endpoint === "/messaging/templates/32/" ? 200 : 404 };
     if (endpoint === "/enrollments/11/") enrollmentRemoved = true;
     if (endpoint === "/lectures/sessions/22/" && !enrollmentRemoved) return { status: 403 };
     return { status: 204 };
   };
   const cleanup = new Function("api", "cleanupQaFamily", "created", `${body}; return cleanup;`)(api, async () => {}, created);
   await cleanup({});
-  assert.deepEqual(calls, [["DELETE", "/enrollments/11/"], ["DELETE", "/lectures/sessions/22/"], ["GET", "/lectures/sessions/22/"]]);
+  assert.deepEqual(calls, [
+    ["DELETE", "/messaging/templates/31/"], ["DELETE", "/messaging/templates/32/"],
+    ["DELETE", "/lectures/attendance/9/"], ["DELETE", "/enrollments/11/"],
+    ["DELETE", "/lectures/sessions/22/"], ["GET", "/lectures/sessions/22/"],
+    ["GET", "/messaging/templates/31/"], ["GET", "/messaging/templates/32/"],
+  ]);
+  retainedTemplate = true;
+  await assert.rejects(cleanup({}), /verify retry message template 32 absent -> 200/);
 });
 
 test("transport truth rejects unsafe markers and accepts old snapshots without guessing missing counters", () => {
@@ -1493,10 +1503,11 @@ test("production promotion requires the non-skipped isolated development canary"
 
 test("expanded development real-use suite keeps time to report and clean up", () => {
   const runner = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
-  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 50 \* 60_000;/);
+  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 60 \* 60_000;/);
   assert.doesNotMatch(runner, /REAL_USE_SUITE_TIMEOUT_MS = 20 \* 60_000/);
   assert.match(runner, /}, REAL_USE_SUITE_TIMEOUT_MS\);/);
-  assert.match(job("development-canary"), /timeout-minutes: 60/);
+  assert.match(job("development-canary"), /timeout-minutes: 75/);
+  assert.match(job("development-canary"), /role-duration-seconds: 4500/);
 });
 
 test("the SSM tunnel outlives the real-use suite it serves", () => {
@@ -1557,9 +1568,10 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 30, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 37, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 4,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
+      "student-parent-registration-realuse.spec.ts": 7,
       "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
       "student-clinic-required-cancel-realuse.spec.ts": 1,
       "student-parent-homework-realuse.spec.ts": 1,
@@ -1800,6 +1812,25 @@ test("cross-file snapshots identify the latest emitting file without claiming or
   assert.equal(Object.hasOwn(observed.contextObservations[0], "specFile"), false);
 });
 
+test("official evidence keeps terminal handler failures and fixed resource causes without raw data", () => {
+  const observer = policyModule.createReleaseContextObservation(1);
+  observer.record({ phase: "route-handler", stage: "terminal", method: "GET", pathTemplate: null, nativeCode: "other" });
+  const report = contextReport([{ releaseContextObservation: observer.snapshot() }], "public-resource-realuse.spec.ts");
+  report.suites[0].specs[0].tests[0].results[0].errors = [{ message: "Release request rejected [resource-type] GET" }];
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.deepEqual(observed.boundaryCodes, ["resource-type"]);
+  assert.equal(observed.contextObservations[0].events[0].phase, "route-handler");
+  assert.equal(observed.rejectedContextObservationCount, 0);
+  for (const patch of [{ stage: "retry" }, { rawError: "private-token" }, { nativeCode: "private-token" }]) {
+    const payload = observer.snapshot();
+    Object.assign(payload.events[0], patch);
+    const invalid = observeReleaseTestResult(JSON.stringify(contextReport([{ releaseContextObservation: payload }])));
+    assert.deepEqual(invalid.contextObservations, []);
+    assert.equal(invalid.rejectedContextObservationCount, 1);
+    assert.doesNotMatch(JSON.stringify(invalid), /private-token/);
+  }
+});
+
 test("official context observation sanitizer rejects unsafe fields and bounds context count", () => {
   const observer = policyModule.createReleaseContextObservation(null);
   observer.record({ phase: "api-request", stage: "terminal", method: "POST", pathTemplate: null, nativeCode: "other" });
@@ -1828,7 +1859,7 @@ test("official context observation sanitizer rejects unsafe fields and bounds co
   assert.equal(bounded.contextObservations[0].unknownPathEventCounts["api-request"], 1);
 });
 
-test("all twenty-nine real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
+test("all thirty-seven real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
   assert.doesNotThrow(() => assertReleaseSummary(completeFlowReport()));
   const corrupt = [
     (report) => report.suites.pop(),
@@ -2017,6 +2048,7 @@ test("development config discovers every required case without executing any API
       E2E_STUDENT_PASS: "development-discovery-only" },
   });
   const report = JSON.parse(output);
+  assert.equal(report.config.maxFailures, 1, "a failed gate stops further scenarios before exact cleanup");
   let discovered = 0;
   const counts = {};
   const visit = (suite) => {
@@ -2031,7 +2063,7 @@ test("development config discovers every required case without executing any API
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 30);
+  assert.equal(discovered, 37);
   assert.deepEqual(counts, Object.fromEntries(Object.entries(developmentRealUseCases)
     .map(([file, count]) => [file.split("/").at(-1), count])), "collection must match the same release inventory by file");
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
@@ -2747,14 +2779,24 @@ test("APIRequestContext retries one transport rejection only for GET/HEAD and re
   assert.doesNotMatch(JSON.stringify(diagnostics), /student-secret|parents\/by-login/);
 });
 
-test("only the reviewed dashboard observation schema is permitted", () => {
+test("only the reviewed canary screen observation schemas are permitted", () => {
   const url = "https://api.hakwonplus.com/api/v1/students/me/activity/";
-  const valid = { screen_id: "student.dashboard.home", device_class: "desktop" };
-  assert.equal(assertReleaseRequestSafe(production, url, "POST", production.tenantCode, valid), "observation");
-  for (const data of [undefined, {}, [], { ...valid, score: 100 }, { ...valid, screen_id: "student.video.player" }, { ...valid, device_class: "unknown" }]) {
-    assert.throws(() => assertReleaseRequestSafe(production, url, "POST", production.tenantCode, data), /observation payload/);
+  for (const screen_id of ["student.dashboard.home", "student.session.list", "student.grades.home", "student.guide.home", "student.assignment.submit"]) {
+    for (const device_class of ["desktop", "tablet", "mobile"]) {
+      const valid = { screen_id, device_class };
+      assert.equal(assertReleaseRequestSafe(production, url, "POST", production.tenantCode, valid), "observation");
+      for (const data of [undefined, {}, [], { ...valid, score: 100 }, { ...valid, homework_id: 1 }, { ...valid, screen_id: "student.video.player" }, { ...valid, screen_id: "student.session.detail" }, { ...valid, screen_id: "student.grades.unknown" }, { ...valid, screen_id: "student.guide.unknown" }, { ...valid, screen_id: [screen_id] }, { ...valid, device_class: "unknown" }, { ...valid, device_class: [device_class] }]) {
+        assert.throws(() => assertReleaseRequestSafe(production, url, "POST", production.tenantCode, data), /observation payload/);
+      }
+      for (const tenant of [undefined, "foreign-tenant"]) {
+        assert.throws(() => assertReleaseRequestSafe(production, url, "POST", tenant, valid), /missing or foreign QA tenant/);
+      }
+      for (const method of ["PUT", "PATCH", "DELETE"]) {
+        assert.throws(() => assertReleaseRequestSafe(production, url, method, production.tenantCode, valid), /mutation refused/);
+      }
+      assert.throws(() => assertReleaseRequestSafe(production, `${url}homework-open/`, "POST", production.tenantCode, { homework_id: 1 }), /mutation refused/);
+    }
   }
-  assert.throws(() => assertReleaseRequestSafe(production, url, "PATCH", production.tenantCode, valid), /mutation refused/);
 });
 
 test("same-artifact proxy preserves the real response and never sends credentials to an external origin", async () => {
@@ -3108,12 +3150,12 @@ test("context teardown counts an aborted in-flight API request as closingAborts,
   await teardown.guard.beginClose();
   const apiRequest = makeInFlightRoute(`${development.apiOrigin}/api/v1/core/tenant/by-host/`);
   await teardown.handler(apiRequest.route);
-  assert.equal(apiRequest.wasAborted(), "blockedbyclient");
+  assert.equal(apiRequest.wasAborted(), "aborted");
   assert.equal(teardown.guard.transport.closingAborts, 1);
 
   const webRequest = makeInFlightRoute(`${development.webOrigin}/favicon.ico`);
   await teardown.handler(webRequest.route);
-  assert.equal(webRequest.wasAborted(), "blockedbyclient", "a non-API request is still aborted on teardown");
+  assert.equal(webRequest.wasAborted(), "aborted", "a non-API request is still aborted on teardown");
   assert.equal(teardown.guard.transport.closingAborts, 1, "but only an API-origin abort extends the strict-browser suppression cap");
 });
 
@@ -3358,6 +3400,102 @@ test("intentional context close drains active requests and blocks new teardown t
   assert.throws(() => realFailure.guard.assertClean(), /Release request rejected \[cors\]/);
 });
 
+test("real Chromium close cancels late traffic without an error document and preserves policy failures", async () => {
+  const bounded = async (promise) => {
+    let timer;
+    try {
+      return await Promise.race([promise, new Promise((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error("Local close-boundary state was not observed")), 10_000);
+      })]);
+    } finally { clearTimeout(timer); }
+  };
+  const received = [];
+  let heldResponse;
+  let markStarted;
+  const started = new Promise((resolve) => { markStarted = resolve; });
+  let webOrigin;
+  const api = http.createServer((request, response) => {
+    received.push(request.url);
+    if (request.url === "/api/v1/core/program/") {
+      heldResponse = response;
+      markStarted();
+    } else { response.writeHead(500); response.end("unexpected"); }
+  });
+  const web = http.createServer((request, response) => {
+    received.push(request.url);
+    response.setHeader("content-type", "text/html");
+    response.end("<!doctype html><link rel='icon' href='data:,'><title>Close boundary</title>");
+  });
+  await Promise.all([api, web].map((server) => new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))));
+  webOrigin = `http://127.0.0.1:${web.address().port}`;
+  const boundary = { ...production, webOrigin, apiOrigin: `http://127.0.0.1:${api.address().port}` };
+  let browser;
+  try {
+    browser = await chromium.launch();
+    const context = await browser.newContext({ serviceWorkers: "block" });
+    const guard = await installReleaseContextGuard(context, boundary);
+    await context.addInitScript(() => localStorage.setItem("close-contract", "ready"));
+    const page = await context.newPage();
+    const browserErrors = [];
+    page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
+    page.on("pageerror", (error) => browserErrors.push(error.message));
+    await page.goto(webOrigin);
+    const active = page.evaluate(async ({ apiOrigin, tenantCode }) => {
+      const response = await fetch(`${apiOrigin}/api/v1/core/program/`, { headers: { "x-tenant-code": tenantCode } });
+      return { status: response.status, body: await response.json() };
+    }, boundary);
+    await bounded(Promise.race([started, active.then(() => { throw new Error("Inspected request was not held"); })]));
+    let drained = false;
+    const draining = guard.beginClose().then(() => { drained = true; });
+    const lateFailed = [];
+    page.on("requestfailed", (request) => lateFailed.push(request.failure().errorText));
+    await bounded(page.evaluate(async ({ apiOrigin, tenantCode }) => {
+      const api = fetch(`${apiOrigin}/api/v1/student/grades/`, { headers: { "x-tenant-code": tenantCode } })
+        .then(() => { throw new Error("Late API escaped"); }, () => undefined);
+      const script = new Promise((resolve, reject) => {
+        const element = document.createElement("script");
+        element.src = "/late-script.js";
+        element.onload = () => reject(new Error("Late script escaped"));
+        element.onerror = resolve;
+        document.head.append(element);
+      });
+      await Promise.all([api, script]);
+    }, boundary));
+    await assert.rejects(page.goto(`${webOrigin}/late-navigation`), /net::ERR_ABORTED/);
+    assert.equal(page.url(), `${webOrigin}/`, "cancelled navigation must retain the valid document");
+    assert.equal(await page.evaluate(() => localStorage.getItem("close-contract")), "ready");
+    assert.equal(drained, false, "late traffic must not discard the inspected request");
+    heldResponse.writeHead(200, { "content-type": "application/json", "access-control-allow-origin": webOrigin,
+      "access-control-allow-credentials": "true" });
+    heldResponse.end('{"ready":true}');
+    assert.deepEqual(await bounded(active), { status: 200, body: { ready: true } });
+    await bounded(draining);
+    assert.deepEqual(lateFailed, ["net::ERR_ABORTED", "net::ERR_ABORTED", "net::ERR_ABORTED"]);
+    assert.deepEqual(received, ["/", "/api/v1/core/program/"], "no late request reaches either upstream");
+    guard.assertClean();
+    assert.deepEqual(browserErrors, [], "strict browser observation stays enabled until close");
+    await context.close();
+
+    const rejectedContext = await browser.newContext({ serviceWorkers: "block" });
+    const rejectedGuard = await installReleaseContextGuard(rejectedContext, boundary);
+    const rejectedPage = await rejectedContext.newPage();
+    await rejectedPage.goto(webOrigin);
+    const rejected = rejectedPage.waitForEvent("requestfailed");
+    await rejectedPage.evaluate(async ({ apiOrigin, tenantCode }) => {
+      await fetch(`${apiOrigin}/api/v1/community/posts/`, { method: "POST", headers: { "x-tenant-code": tenantCode } })
+        .then(() => { throw new Error("Production mutation escaped"); }, () => undefined);
+    }, boundary);
+    assert.match((await rejected).failure().errorText, /ERR_BLOCKED_BY_CLIENT/);
+    assert.throws(() => rejectedGuard.assertClean(), /Release API boundary failed/);
+    assert.deepEqual(received, ["/", "/api/v1/core/program/", "/"]);
+    await rejectedContext.close();
+  } finally {
+    await browser?.close();
+    for (const server of [api, web]) server.closeAllConnections();
+    await Promise.all([api, web].map((server) => new Promise((resolve) => server.close(resolve))));
+  }
+});
+
 test("real Chromium receives the unmodified loopback HTTP response through the transport boundary", async () => {
   const observed = [];
   let webOrigin;
@@ -3439,5 +3577,183 @@ test("real 307/308 authentication redirects never forward the credential body to
   } finally {
     await browser?.close();
     await Promise.all([foreign, web, api].map((server) => new Promise((resolve) => server.close(resolve))));
+  }
+});
+
+test("registration staff UI login preserves the real throttle window and rejects other failures", async (t) => {
+  const source = readFileSync(new URL("../../e2e/student/student-parent-registration-realuse.spec.ts", import.meta.url), "utf8");
+  const body = stripTypeScriptTypes(source.slice(source.indexOf("async function staffLogin("), source.indexOf("async function openRegistration(")));
+  function harness(replies, redirect = true) {
+    const state = { clicks: 0, waits: [], acknowledged: 0, url: "/login/qa-registration" };
+    let pending;
+    const response = (status = 200, retryAfter = "", url = "https://api.hakwonplus.com/api/v1/token/", method = "POST") => ({
+      status: () => status, headers: () => ({ "retry-after": retryAfter }), url: () => url,
+      request: () => ({ method: () => method }),
+    });
+    const page = {
+      getByTestId: (id) => ({
+        fill: async () => assert.ok(["login-username", "login-password"].includes(id)),
+        click: async () => {
+          assert.equal(id, "login-submit");
+          assert.ok(pending, "response observation must precede the UI click");
+          const reply = replies[state.clicks++];
+          assert.ok(reply, "unexpected extra login submission");
+          if (reply.clickError) {
+            const reject = pending.reject;
+            queueMicrotask(() => reject(new Error("response closed after click failure")));
+            pending = null;
+            throw new Error("login button unavailable");
+          }
+          if (reply instanceof Error) pending.reject(reply);
+          else {
+            if (reply[0] === 200 && redirect) state.url = "/workspace";
+            pending.resolve(response(...reply));
+          }
+          pending = null;
+        },
+      }),
+      waitForResponse: (predicate, options) => {
+        assert.equal(options.timeout, 60_000);
+        assert.equal(predicate(response()), true);
+        assert.equal(predicate(response(200, "", "http://127.0.0.1:18000/api/v1/token/")), true);
+        for (const [url, method] of [
+          ["https://foreign.invalid/api/v1/token/", "POST"],
+          ["https://api.hakwonplus.com/api/v1/token/?other=1", "POST"],
+          ["https://api.hakwonplus.com/api/v1/token/refresh/", "POST"],
+          ["https://api.hakwonplus.com/api/v1/token/", "GET"],
+        ]) assert.equal(predicate(response(200, "", url, method)), false);
+        return new Promise((resolve, reject) => { pending = { resolve, reject }; });
+      },
+    };
+    const expectUi = (value, message) => ({
+      toBe: (expected) => assert.equal(value, expected, message),
+      toHaveURL: async (pattern, options) => {
+        assert.equal(value, page);
+        assert.equal(options.timeout, 45_000);
+        assert.match(state.url, pattern, "workspace entry remains mandatory");
+      },
+    });
+    const run = new Function("gotoAndSettle", "QA_BASE", "QA_TENANT", "QA_API", "QA_ADMIN_USER", "QA_ADMIN_PASSWORD",
+      "expect", "acknowledgeInitialAccountPromptsIfVisible", "setTimeout", `${body}; return staffLogin;`)(
+      async () => {}, "http://localhost:4173", "qa-registration", "http://127.0.0.1:18000", "synthetic", "synthetic",
+      expectUi, async () => { state.acknowledged++; }, (resolve, ms) => { state.waits.push(ms); resolve(); });
+    return { state, run: () => run(page) };
+  }
+  await t.test("successful login enters the workspace without waiting or retrying", async () => {
+    const h = harness([[200]]);
+    await h.run();
+    assert.deepEqual(h.state, { clicks: 1, waits: [], acknowledged: 1, url: "/workspace" });
+  });
+  for (const seconds of [124, 300]) await t.test(`429 honors all ${seconds} server seconds before one successful UI retry`, async () => {
+    const h = harness([[429, String(seconds)], [200]]);
+    await h.run();
+    assert.equal(h.state.clicks, 2);
+    assert.deepEqual(h.state.waits, [(seconds + 1) * 1000]);
+    assert.equal(h.state.acknowledged, 1);
+  });
+  for (const status of [401, 403, 500]) await t.test(`${status} is never retried`, async () => {
+    const h = harness([[status, "2"]]);
+    await assert.rejects(h.run(), new RegExp(`POST /api/v1/token/ returned ${status}`));
+    assert.equal(h.state.clicks, 1);
+    assert.deepEqual(h.state.waits, []);
+  });
+  for (const header of ["", "0", "-1", "1.5", "301", "2 seconds"]) await t.test(`invalid Retry-After ${JSON.stringify(header)} fails closed`, async () => {
+    const h = harness([[429, header]]);
+    await assert.rejects(h.run(), /POST \/api\/v1\/token\/ returned 429/);
+    assert.equal(h.state.clicks, 1);
+    assert.deepEqual(h.state.waits, []);
+  });
+  await t.test("a second throttle is a failure with no third submission", async () => {
+    const h = harness([[429, "2"], [429, "2"]]);
+    await assert.rejects(h.run(), /POST \/api\/v1\/token\/ returned 429/);
+    assert.equal(h.state.clicks, 2);
+    assert.deepEqual(h.state.waits, [3000]);
+  });
+  await t.test("transport, click and workspace failures cannot be retried into success", async () => {
+    for (const [replies, redirect, error] of [
+      [[new Error("response timed out")], true, /response timed out/],
+      [[{ clickError: true }], true, /login button unavailable/],
+      [[[200]], false, /workspace entry remains mandatory/],
+    ]) {
+      const h = harness(replies, redirect);
+      await assert.rejects(h.run(), error);
+      assert.equal(h.state.clicks, 1);
+      assert.deepEqual(h.state.waits, []);
+      assert.equal(h.state.acknowledged, 0);
+    }
+  });
+});
+
+test("official evidence retains closed external origin causes and rejects arbitrary host or raw fields", () => {
+  const observer = policyModule.createReleaseContextObservation(1);
+  const externalOrigin = { providerClass: "youtube.com", resourceType: "fetch", frameExists: true,
+    frameAdmitted: false, frameExactEmbed: true, trustedAncestor: false, frameDetached: false,
+    protocol: "https", hasPort: false, hasHash: false, hasCredentials: false };
+  observer.record({ phase: "route-handler", stage: "terminal", method: "POST", pathTemplate: null, externalOrigin });
+  const snapshot = observer.snapshot();
+  const observe = payload => observeReleaseTestResult(JSON.stringify(contextReport([{ releaseContextObservation: payload }])));
+  assert.deepEqual(observe(snapshot).contextObservations[0].events[0].externalOrigin, externalOrigin);
+  for (const patch of [{ providerClass: "private.example" }, { rawUrl: "https://private.example/?token=secret" },
+    { frameExists: "secret" }, { resourceType: "private-path" }, { protocol: "secret" }, { frameDetached: 3 }]) {
+    const payload = structuredClone(snapshot);
+    Object.assign(payload.events[0].externalOrigin, patch);
+    const observed = observe(payload);
+    assert.equal(observed.rejectedContextObservationCount, 1);
+    assert.deepEqual(observed.contextObservations, []);
+    assert.doesNotMatch(JSON.stringify(observed), /private\.example|token=secret|private-path/);
+  }
+});
+
+
+test("vendor console diagnostics are closed classifications and never weaken strict failure", () => {
+  const attach = loadAttachStrictBrowserGuards();
+  const scenarios = [
+    ["Failed to execute 'postMessage' on 'DOMWindow': The target origin 'https://private.example' does not match the recipient window's origin", "postmessage-origin"],
+    ["Permissions policy violation: private-feature is not allowed", "permissions-policy"],
+    ["play() failed because the user didn't interact with the document first", "autoplay-policy"],
+    ["YouTube player error private-user token=secret", "player-error"],
+    ["arbitrary private-user https://private.example/?token=secret", "other"],
+  ];
+  for (const [text, errorFamily] of scenarios) {
+    const logs = [];
+    const page = fakePage("http://localhost:4173/");
+    const guard = attach(page, { emit: value => logs.push(value), recoveredTransportCount: () => 10 });
+    page.__emit("console", { type: () => "error", text: () => text,
+      location: () => ({ url: "https://www.youtube.com/player/private-id?token=secret" }) });
+    assert.throws(() => guard.assertZeroDefects(), /브라우저 결함/);
+    assert.deepEqual(logs[0].releaseStrictBrowserDefect.vendorDiagnostic,
+      { eventKind: "console-error", providerClass: "youtube.com", errorFamily });
+    assert.equal(logs.at(-1).releaseStrictBrowserSuppression.suppressedNetErrDefects, 0);
+    assert.doesNotMatch(JSON.stringify(logs), /private-user|private-id|private\.example|token=secret|private-feature/);
+  }
+  const logs = [];
+  const page = fakePage("http://localhost:4173/");
+  const guard = attach(page, { emit: value => logs.push(value) });
+  page.__emit("console", { type: () => "error", text: () => "private-secret",
+    location: () => ({ url: "https://www.youtube.com.private.example/path?token=secret" }) });
+  assert.throws(() => guard.assertZeroDefects());
+  assert.deepEqual(logs[0].releaseStrictBrowserDefect.vendorDiagnostic,
+    { eventKind: "console-error", providerClass: "other", errorFamily: "other" });
+  assert.doesNotMatch(JSON.stringify(logs), /private|secret/);
+});
+
+test("vendor diagnostic evidence accepts v1 compatibility and rejects malformed sensitive additions", () => {
+  const base = { schema: "strict-browser-defect/v1", category: "other", source: "vendor", count: 1 };
+  const diagnostic = { eventKind: "console-error", providerClass: "youtube.com", errorFamily: "postmessage-origin" };
+  const observe = value => observeReleaseTestResult(JSON.stringify(contextReport([{ releaseStrictBrowserDefect: value }])));
+  assert.equal(observe(base).strictBrowserDefects.length, 1);
+  assert.deepEqual(observe({ ...base, vendorDiagnostic: diagnostic }).strictBrowserDefects[0].vendorDiagnostic, diagnostic);
+  const invalid = [
+    { ...base, source: "api", vendorDiagnostic: diagnostic },
+    ...[{ eventKind: "pageerror" }, { providerClass: "private.example" }, { errorFamily: "private-secret" },
+      { rawUrl: "https://private.example/?token=secret" }, { stack: "private-secret" }]
+      .map(patch => ({ ...base, vendorDiagnostic: { ...diagnostic, ...patch } })),
+    { ...base, count: 0, vendorDiagnostic: diagnostic }, { ...base, vendorDiagnostic: null },
+  ];
+  for (const value of invalid) {
+    const observed = observe(value);
+    assert.equal(observed.rejectedFailureObservationCount, 1);
+    assert.deepEqual(observed.strictBrowserDefects, []);
+    assert.doesNotMatch(JSON.stringify(observed), /private\.example|private-secret|token=secret/);
   }
 });

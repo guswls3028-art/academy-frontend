@@ -158,3 +158,34 @@ test("native player telemetry cannot carry application credentials, redirect or 
     }
   }
 });
+
+test("unclassified external POST records only closed origin causes and remains denied", async () => {
+  const fixture = await setup();
+  const parent = { url: () => boundary.webOrigin, parentFrame: () => null };
+  const frame = { url: () => embed, parentFrame: () => parent, isDetached: () => false };
+  assert.deepEqual(await fixture.request("https://www.youtube.com/youtubei/v1/log_event?secret=private-token", {
+    method: "POST", type: "fetch", frame,
+  }), { relayed: 0, aborted: 1 });
+  assert.throws(() => fixture.guard.assertClean(), /origin/);
+  const event = fixture.guard.observation.snapshot().events.find(event => event.externalOrigin);
+  assert.equal(event.phase, "route-handler");
+  assert.deepEqual(event.externalOrigin, { providerClass: "youtube.com", resourceType: "fetch",
+    frameExists: true, frameAdmitted: false, frameExactEmbed: true, trustedAncestor: false,
+    frameDetached: false, protocol: "https", hasPort: false, hasHash: false, hasCredentials: false });
+  assert.doesNotMatch(JSON.stringify(event), /private-token|log_event|secret|www\.youtube/);
+  assert.equal(fixture.fetches.length, 0, "diagnostic cannot admit an unregistered frame");
+});
+
+test("unknown provider without a frame stays denied without exposing its host", async () => {
+  const fixture = await setup();
+  assert.deepEqual(await fixture.request("https://private-origin.example/collect?token=private-token", {
+    method: "POST", type: "fetch",
+  }), { relayed: 0, aborted: 1 });
+  assert.throws(() => fixture.guard.assertClean(), /origin/);
+  const event = fixture.guard.observation.snapshot().events.find(event => event.externalOrigin);
+  assert.deepEqual(event.externalOrigin, { providerClass: "other", resourceType: "fetch",
+    frameExists: false, frameAdmitted: false, frameExactEmbed: false, trustedAncestor: false,
+    frameDetached: null, protocol: "https", hasPort: false, hasHash: false, hasCredentials: false });
+  assert.doesNotMatch(JSON.stringify(event), /private-origin|private-token|collect|token/);
+  assert.equal(fixture.fetches.length, 0);
+});

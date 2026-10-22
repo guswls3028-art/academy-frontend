@@ -13,6 +13,8 @@ export type ManualGradeQuestion = {
 };
 
 export type ManualGradeCell = {
+  answer?: string;
+  grading_status?: "pending" | "graded" | null;
   editable: boolean;
   entry_method: "omr" | "correctness" | "score";
   state: ManualGradeState | null;

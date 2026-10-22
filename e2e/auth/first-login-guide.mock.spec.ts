@@ -2,6 +2,8 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { dismissDevelopmentFirstLoginGuide } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
+import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
+import { captureGuideEvidence } from "../helpers/guideEvidence";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
 
@@ -353,7 +355,7 @@ test.describe("생애 첫 접속 계정 안내", () => {
 
     await gotoAndSettle(page, `${BASE}/workspace/guide`, { timeout: 20_000 });
     const backgroundAction = page.getByRole("button", {
-      name: /학원 정보와 공개 고지부터 확인/,
+      name: /내 정보·학원 정보·홈페이지·구독/,
     });
     await expect(backgroundAction).toBeVisible();
     await expect(backgroundAction).toBeEnabled();
@@ -391,7 +393,8 @@ test.describe("생애 첫 접속 계정 안내", () => {
     await expect(backgroundAction).toBeVisible();
     await expect(backgroundAction).toBeEnabled();
     await backgroundAction.click();
-    await expect(page).toHaveURL(/\/workspace\/settings\/organization$/);
+    await page.getByRole("link", { name: "내 정보·학원 정보·홈페이지·구독 화면 열기" }).click();
+    await expect(page).toHaveURL(/\/workspace\/settings\/profile$/);
     expect(apiState.completionCount()).toBe(1);
   });
 
@@ -489,5 +492,102 @@ test.describe("생애 첫 접속 계정 안내", () => {
       "안내 확인을 저장하지 못했습니다. 다시 시도해 주세요.",
     );
     expect(apiState.completionCount()).toBe(1);
+  });
+});
+
+test.describe("업무별 AtoZ 가이드", () => {
+  const cases = [
+    { role: "admin" as const, path: "/workspace/guide", topic: "homework", title: "과제 배정·제출 확인·평가", query: "자동 배정", target: "/workspace/lectures" },
+    { role: "student" as const, path: "/student/guide", topic: "submit-assignment", title: "과제 사진·동영상 제출", query: "실패한 파일", target: "/student/submit/assignment" },
+    { role: "teacher" as const, path: "/workspace/mobile/guide", topic: "attendance", title: "모바일 출결 입력", query: "스와이프", target: "/workspace/mobile/classes" },
+  ];
+
+  for (const scenario of cases) {
+    for (const width of [390, 1366]) {
+      test(`${scenario.role} ${width}px 검색 → 안내 → 복구 → 새로고침 → 다음 안내`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        if (scenario.role === "student" && width === 390) {
+          await page.addInitScript(() => localStorage.setItem("hakwonplus:student-theme-mode", "dark"));
+        }
+        await stubAuthenticatedApp(page, { role: scenario.role, required: false });
+        await gotoAndSettle(page, BASE + scenario.path);
+        const search = page.getByRole("searchbox", { name: "어떤 작업이 필요한가요?" });
+        await expect(search).toBeVisible();
+        await testInfo.attach(`guide-overview-${scenario.role}-${width}`, {
+          body: await page.screenshot(), contentType: "image/png",
+        });
+        await search.fill(scenario.query);
+        await page.getByRole("navigation", { name: "주요 기능 이용 순서" })
+          .getByRole("button", { name: new RegExp(scenario.title) }).press("Enter");
+        await expect(search).toHaveValue(scenario.query);
+        await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe(scenario.query);
+        const article = page.getByRole("article");
+        await expect(article.getByRole("heading", { level: 2, name: scenario.title })).toBeFocused();
+        await expect(page).toHaveURL(new RegExp(`topic=${scenario.topic}`));
+        await expect(article.getByRole("heading", { name: "시작 전에", exact: true })).toBeVisible();
+        await expect(article.getByRole("heading", { name: "여기까지 확인하면 완료", exact: true })).toBeVisible();
+        const recovery = article.locator("section").filter({ hasText: "막혔을 때" }).locator("details").first();
+        await recovery.locator("summary").click();
+        await expect(recovery.locator("p")).toBeVisible();
+        const action = article.getByRole("link", { name: scenario.title + " 화면 열기" });
+        await expect(action).toHaveAttribute("href", scenario.target);
+        await assertInteractiveSurface(page, article, action);
+        await captureGuideEvidence(article, action, testInfo, `guide-${scenario.role}-${width}`);
+
+        await page.reload();
+        await expect(search).toHaveValue(scenario.query);
+        await expect(page.getByRole("article").getByRole("heading", { level: 2 })).toHaveText(scenario.title);
+        const next = page.getByRole("region", { name: "다음 이용 흐름" }).getByRole("button").first();
+        await next.click();
+        await expect(page.getByRole("article").getByRole("heading", { level: 2 })).not.toHaveText(scenario.title);
+        await page.goBack();
+        await expect(page.getByRole("article").getByRole("heading", { level: 2 })).toHaveText(scenario.title);
+        await expect(search).toHaveValue(scenario.query);
+        await page.getByRole("button", { name: "목차로 돌아가기" }).click();
+        await expect(page.getByRole("navigation", { name: "주요 기능 이용 순서" })).toBeFocused();
+        await expect(search).toHaveValue(scenario.query);
+        await expect(page.getByRole("article")).toHaveCount(0);
+      });
+    }
+  }
+
+  test("1100px 분류·키보드 탐색과 빈 검색 복구", async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await stubAuthenticatedApp(page, { role: "admin", required: false });
+    await gotoAndSettle(page, BASE + "/workspace/guide");
+    const category = page.getByRole("button", { name: "학습·평가", exact: true });
+    await category.click();
+    await expect(category).toHaveAttribute("aria-pressed", "true");
+    const firstTopic = page.getByRole("navigation", { name: "주요 기능 이용 순서" })
+      .getByRole("button", { name: /시험 생성·답안·응시 대상/ });
+    await firstTopic.focus();
+    await expect(firstTopic).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("article").getByRole("heading", { level: 2 })).toBeFocused();
+    await assertInteractiveSurface(page, page.getByRole("article"), page.getByRole("article").getByRole("link").first());
+    await page.getByRole("searchbox").fill("존재하지않는안내123");
+    await expect(page.getByText("일치하는 안내가 없습니다.", { exact: false })).toBeVisible();
+    await page.getByRole("button", { name: "검색 초기화", exact: true }).click();
+    await expect(page.getByRole("searchbox")).toHaveValue("");
+    await expect(page.getByRole("button", { name: "전체", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("navigation", { name: "주요 기능 이용 순서" }).getByRole("button").first()).toBeVisible();
+  });
+
+  test("학부모는 자녀 범위 안내를 읽고 잘못된 안내 주소에서 복구한다", async ({ page }) => {
+    await stubAuthenticatedApp(page, { role: "parent", required: false });
+    await gotoAndSettle(page, BASE + "/student/guide?topic=daily-routine");
+    await expect(page.getByRole("article").getByRole("heading", { name: "학부모는 자녀 확인" })).toBeVisible();
+    await gotoAndSettle(page, BASE + "/student/guide?topic=missing-topic");
+    await expect(page.getByText("이 안내를 찾을 수 없거나 현재 계정에서 이용할 수 없습니다.")).toBeVisible();
+    await page.getByRole("button", { name: "전체 가이드 보기" }).click();
+    await expect(page).not.toHaveURL(/topic=/);
+    await expect(page.getByRole("button", { name: "첫 단계부터 시작" })).toBeVisible();
+  });
+
+  test("일반 교직원에게 권한 밖 수납·직원 바로가기를 제공하지 않는다", async ({ page }) => {
+    await stubAuthenticatedApp(page, { role: "staff", required: false });
+    await gotoAndSettle(page, BASE + "/workspace/guide?topic=fees");
+    await expect(page.getByText("이 안내를 찾을 수 없거나 현재 계정에서 이용할 수 없습니다.")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "주요 기능 이용 순서" }).getByRole("button", { name: /수납 비목|직원 계정/ })).toHaveCount(0);
   });
 });

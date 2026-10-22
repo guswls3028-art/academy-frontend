@@ -85,8 +85,10 @@ test("readiness precedes expensive QA and keeps its credentials and timeout inde
   const qa = workflow.split("\n  development-canary:")[1].split("\n  deploy:")[0];
   assert.match(readiness, /node scripts\/wait-development-backend\.mjs/);
   assert.doesNotMatch(readiness, /pnpm install|start-session|send-command/);
+  assert.match(readiness, /timeout-minutes: 50/);
+  assert.match(readiness, /role-duration-seconds: 3600/);
   assert.match(qa, /needs: \[quality-check, hangul-companion-check, candidate-preview, backend-readiness\]/);
-  assert.match(qa, /timeout-minutes: 60/);
-  assert.match(qa, /role-duration-seconds: 3600/);
+  assert.match(qa, /timeout-minutes: 75/);
+  assert.match(qa, /role-duration-seconds: 4500/);
   assert.match(qa, /node scripts\/run-development-release-canary\.mjs/);
 });

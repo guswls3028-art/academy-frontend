@@ -1,5 +1,6 @@
 import type { MessageTemplateItem } from "../api/messages.api";
 import type { TemplateCategory } from "../constants/templateBlocks";
+import { isFixedAlimtalkContent } from "@/shared/messaging/alimtalkEnvelope";
 
 export function isSystemMessageTemplate(
   template: Pick<MessageTemplateItem, "is_system" | "name">,
@@ -12,8 +13,8 @@ export function isTemplateVisibleInPicker(
   blockCategory: TemplateCategory,
   showAllCategories: boolean,
 ): boolean {
+  if (isFixedAlimtalkContent(template.category, template.name)) return false;
   if (showAllCategories) return true;
-  if (template.category === "signup") return false;
   if (!isSystemMessageTemplate(template)) return true;
   if (blockCategory === "default" || blockCategory === "student") {
     return template.category === "default" || isSystemMessageTemplate(template);
