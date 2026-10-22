@@ -68,6 +68,7 @@ export function harness(options = {}) {
       require(specifier) {
         if (importMocks[specifier]) return importMocks[specifier];
         if (specifier === '@/shared/api/axios') return load('src/shared/api/axios.ts');
+        if (specifier === '@/shared/auth/publicVideoLocation') return load('src/shared/auth/publicVideoLocation.ts');
         if (specifier === '@student/shared/api/student.api') return load('src/app_student/shared/api/student.api.ts');
         if (specifier.startsWith('.')) return load(path.relative(root, path.resolve(path.dirname(file), `${specifier}.ts`)));
         throw new Error(`Unmocked import: ${specifier}`);
