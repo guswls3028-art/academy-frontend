@@ -8,6 +8,7 @@ import {
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
+import { openTeacherAlimtalkComposer } from "../helpers/teacherAlimtalkComposer";
 
 test.setTimeout(420_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -164,14 +165,7 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
         expect((await searched).status()).toBe(200);
         // Multi-field search can also match a sibling's shared parent phone.
         // Select the intended named row instead of selecting every search hit.
-        const recipientRow = page.getByRole("button").filter({ has: page.getByText(student.name, { exact: true }) });
-        await expect(recipientRow).toHaveCount(1);
-        await expect(recipientRow).toBeVisible();
-        await page.getByRole("button", { name: "선택", exact: true }).click();
-        await expect(page.getByRole("button", { name: "전체 선택", exact: true })).toBeVisible();
-        await recipientRow.click();
-        await page.getByRole("button", { name: "알림톡", exact: true }).click();
-        const compose = page.getByRole("dialog", { name: "1명에게 알림톡", exact: true });
+        const compose = await openTeacherAlimtalkComposer(page, [student.name]);
         await compose.getByLabel("저장한 문구 불러오기").selectOption(String(editableTemplateId));
         await expect(compose.getByLabel("선생님 안내문 (자유롭게 수정)")).toHaveText(mobileBody);
         await compose.getByRole("button", { name: "수신자별 발송 문구 확인", exact: true }).click();
