@@ -40,5 +40,5 @@ export async function saveVideo(row: ManagedVideo, draft_content: VideoContent) 
 export async function publishVideo(row: ManagedVideo, showcase: VideoShowcase, set_as_hero: boolean, action: "publish" | "unpublish" = "publish") {
   return (await api.post<{ video: ManagedVideo; showcase_revision: number }>(`${base}manage/${row.id}/${action}/`, {
     expected_revision: row.revision, expected_showcase_revision: showcase.revision, set_as_hero,
-  })).data;
+  }, action === "publish" ? { timeout: 45_000 } : undefined)).data;
 }
