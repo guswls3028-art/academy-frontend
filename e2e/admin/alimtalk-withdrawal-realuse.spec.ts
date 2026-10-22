@@ -157,12 +157,19 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
         await page.screenshot({ path: testInfo.outputPath(`alimtalk-library-${width}.png`) });
         await mobileEditor.getByRole("button", { name: "닫기", exact: true }).click();
         await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/students`);
+        const searched = page.waitForResponse((response) => response.request().method() === "GET"
+          && new URL(response.url()).pathname === "/api/v1/students/"
+          && new URL(response.url()).searchParams.get("search") === student.name);
         await page.getByPlaceholder("이름, 아이디, 전화번호, 학교").fill(student.name);
-        await expect(page.getByRole("status").filter({ hasText: "총 1명 · 1명 표시" })).toBeVisible();
+        expect((await searched).status()).toBe(200);
+        // Multi-field search can also match a sibling's shared parent phone.
+        // Select the intended named row instead of selecting every search hit.
+        const recipientRow = page.getByRole("button").filter({ has: page.getByText(student.name, { exact: true }) });
+        await expect(recipientRow).toHaveCount(1);
+        await expect(recipientRow).toBeVisible();
         await page.getByRole("button", { name: "선택", exact: true }).click();
         await expect(page.getByRole("button", { name: "전체 선택", exact: true })).toBeVisible();
-        await expect(page.getByText(student.name, { exact: true })).toBeVisible();
-        await page.getByRole("button", { name: "전체 선택", exact: true }).click();
+        await recipientRow.click();
         await page.getByRole("button", { name: "알림톡", exact: true }).click();
         const compose = page.getByRole("dialog", { name: "1명에게 알림톡", exact: true });
         await compose.getByLabel("저장한 문구 불러오기").selectOption(String(editableTemplateId));
