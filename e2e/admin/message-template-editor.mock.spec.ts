@@ -104,8 +104,9 @@ test.describe("안내문 변수 편집", () => {
       test(`${role} ${width}px 보관함은 다른 화면에서 수정한 최신 문구를 열고 저장 실패·재열기를 복구한다`, async ({ page }, testInfo) => {
         await page.setViewportSize({ width, height: 900 });
         await openTemplateEditor(page, false, "목록에 남아 있는 이전 본문");
+        const latestBody = "다른 화면에서 저장한 최신 안내\n다음 줄의 안내도 그대로 유지합니다.";
         let current = { id: 991, name: "수업 결과 검증 문구", category: "grades", subject: "",
-          body: "다른 화면에서 저장한 최신 안내", is_system: false, alimtalk_envelope_type: "score" };
+          body: latestBody, is_system: false, alimtalk_envelope_type: "score" };
         let reads = 0;
         let writes = 0;
         let failLoad = true;
@@ -135,7 +136,7 @@ test.describe("안내문 변수 편집", () => {
         await page.getByRole("button", { name: "다시 불러오기", exact: true }).click();
         const dialog = page.getByRole("dialog", { name: role === "admin" ? "문구 수정" : "문구 편집", exact: true });
         const editor = dialog.getByRole("textbox", { name: role === "admin" ? "안내문" : "안내 문구", exact: true });
-        await expect(editor).toHaveText(current.body);
+        await expect(editor.locator("p")).toHaveText(latestBody.split("\n"));
         await expect(editor).not.toContainText("목록에 남아 있는 이전 본문");
         const changed = `${role} ${width}px에서 정상 수정한 안내\n#{학생이름} 학생의 학습을 응원합니다.`;
         await editor.fill(changed);
@@ -143,7 +144,7 @@ test.describe("안내문 변수 편집", () => {
         await save.click();
         await expect(dialog.getByRole("alert")).toContainText("문구 저장 연결 실패");
         await expect(editor).toContainText("정상 수정한 안내");
-        expect(current.body).toBe("다른 화면에서 저장한 최신 안내");
+        expect(current.body).toBe(latestBody);
         await expect.poll(() => dialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
         await page.screenshot({ path: testInfo.outputPath(`library-${role}-${width}.png`) });
         await save.click();
