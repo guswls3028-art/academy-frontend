@@ -1,3 +1,5 @@
+import { isSessionEnding } from "@/shared/auth/sessionEnding";
+
 const RELOAD_PARAM = "__hplus_reload";
 
 type HardReloadOptions = {
@@ -43,6 +45,9 @@ export function stripHardReloadParam(): void {
 }
 
 export function hardReloadWithCacheBust({ key, cooldownMs }: HardReloadOptions): boolean {
+  // Safari rejects pending imports when an auth redirect starts. Retrying the
+  // old document here would cancel that redirect and lose its login destination.
+  if (isSessionEnding) return false;
   const now = Date.now();
   const lastReload = getSessionNumber(key);
   if (now - lastReload < cooldownMs) return false;

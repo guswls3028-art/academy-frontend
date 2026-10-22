@@ -78,7 +78,16 @@ test.describe("[real-use] public video publishing", () => {
         const visitor = await open(width); await visitor.goto(`${QA_BASE}/landing/videos`);
         await expect(visitor.getByRole("heading", { name: `QA 영상 자료 ${width}`, exact: true })).toBeVisible();
         await expect(visitor.getByText("게시자가 직접 정한 영상 소개입니다.", { exact: true })).toBeVisible();
-        await visitor.goto(`${QA_BASE}/landing/videos/${row.id}`);
+        await visitor.getByRole("navigation", { name: "영상 종류" }).getByRole("button", { name: index ? "Shorts" : "동영상", exact: true }).click();
+        await visitor.getByRole("button", { name: "인기순", exact: true }).click();
+        await expect(visitor.getByText(/^YouTube 조회수 [\d,]+회$/).first()).toBeVisible({ timeout: 30_000 });
+        await visitor.reload();
+        await expect(visitor.getByRole("button", { name: "인기순", exact: true })).toHaveAttribute("aria-pressed", "true");
+        await visitor.getByRole("button", { name: "오래된순", exact: true }).click();
+        await visitor.getByRole("textbox", { name: "영상 검색", exact: true }).fill(title);
+        await visitor.getByRole("button", { name: "검색", exact: true }).click();
+        await expect(visitor.getByRole("heading", { level: 3 })).toHaveCount(1);
+        await visitor.getByRole("link").filter({ has: visitor.getByRole("heading", { name: title, level: 3, exact: true }) }).click();
         await expect(visitor.getByRole("heading", { name: title, exact: true })).toBeVisible(); await visitor.reload(); await expect(visitor.locator("iframe")).toHaveCount(1);
         await expect(visitor.getByText(`직접 정한 분류 ${width}`, { exact: true })).toBeVisible();
         await expect(visitor.locator("iframe")).toHaveAttribute("src", /autoplay=0/); await expect(visitor.getByRole("link", { name: "YouTube에서 보기 · 좋아요" })).toBeVisible();
@@ -87,6 +96,9 @@ test.describe("[real-use] public video publishing", () => {
         await expect(player.locator(".ytp-error")).toBeHidden();
         await assertNoHorizontalOverflow(visitor); await visitor.screenshot({ path: testInfo.outputPath(`public-video-${width}.png`), fullPage: true });
         await visitor.getByRole("link", { name: "← 영상 목록", exact: true }).click(); await expect(visitor.locator("iframe")).toHaveCount(0);
+        await expect(visitor.getByRole("textbox", { name: "영상 검색", exact: true })).toHaveValue(title);
+        await expect(visitor.getByRole("button", { name: "오래된순", exact: true })).toHaveAttribute("aria-pressed", "true");
+        await visitor.getByRole("button", { name: "검색 지우기", exact: true }).click();
         await page.goto(`${QA_BASE}/landing/videos/${row.id}`);
         await expect(page.getByRole("link", { name: "로그인", exact: true })).toHaveCount(0);
         await expect(page.getByRole("link", { name: "영상 관리", exact: true })).toBeVisible();
