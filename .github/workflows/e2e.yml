@@ -191,7 +191,7 @@ jobs:
         run: |
           # Prefer the same official HTTPS mirrors over slow Azure native downloads.
           # Distribution sources and package signature checks remain unchanged.
-          if [ "${{ matrix.shard }}" = "3" ] && [ -f /etc/apt/apt-mirrors.txt ]; then
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
             printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\nhttp://azure.archive.ubuntu.com/ubuntu/\tpriority:3\n' \
               | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
           fi
