@@ -13,6 +13,8 @@ import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { captureApiError } from "@/shared/lib/sentryContext";
 import { isPublicVideoLocation } from "@/shared/auth/publicVideoLocation";
+import { isSessionEnding, markSessionEnding } from "@/shared/auth/sessionEnding";
+export { isSessionEnding, markSessionEnding, resetSessionEnding } from "@/shared/auth/sessionEnding";
 import {
   getSessionItem,
   removeSessionItem,
@@ -179,17 +181,6 @@ export function consumeReturnPath(): string | null {
   } catch {
     return null;
   }
-}
-
-/** 세션 종료 중복 방지 플래그 — axios interceptor가 이미 /login 리다이렉트 중이면 true */
-export let isSessionEnding = false;
-
-export function markSessionEnding() {
-  isSessionEnding = true;
-}
-
-export function resetSessionEnding() {
-  isSessionEnding = false;
 }
 
 function getExpiredSessionLoginPath(): string {

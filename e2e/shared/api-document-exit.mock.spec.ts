@@ -79,3 +79,31 @@ test("logout cancels queued reads before pagehide and a new login can request ag
   expect(result).toEqual({ queued: "ERR_CANCELED", late: "ERR_CANCELED", login: 200, restored: 200 });
   expect(requests).toEqual(["/api/v1/token/", "/api/v1/student/me/"]);
 });
+
+test("chunk recovery cannot replace an auth redirect and resumes after a new login", async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { markSessionEnding } = await new Function("return import('/src/shared/api/axios.ts')")();
+    const { hardReloadWithCacheBust } = await new Function("return import('/src/shared/utils/hardReload.ts')")();
+    sessionStorage.setItem("session_return_path", "/landing/admin/videos/new");
+    markSessionEnding();
+    return {
+      reloaded: hardReloadWithCacheBust({ key: "chunk_reload_ts", cooldownMs: 10_000 }),
+      retryTimestamp: sessionStorage.getItem("chunk_reload_ts"),
+      returnPath: sessionStorage.getItem("session_return_path"),
+    };
+  });
+  expect(result).toEqual({ reloaded: false, retryTimestamp: null, returnPath: "/landing/admin/videos/new" });
+  await expect(page).toHaveURL(`${BASE}/__api-document-exit__`);
+
+  await page.route("**/__api-document-exit__?*", (route) => route.fulfill({
+    contentType: "text/html", body: "<!doctype html><title>Recovered document</title>",
+  }));
+  await page.evaluate(async () => {
+    const { resetSessionEnding } = await new Function("return import('/src/shared/api/axios.ts')")();
+    const { hardReloadWithCacheBust } = await new Function("return import('/src/shared/utils/hardReload.ts')")();
+    resetSessionEnding();
+    hardReloadWithCacheBust({ key: "chunk_reload_ts", cooldownMs: 10_000 });
+  });
+  await expect(page).toHaveURL(/\/__api-document-exit__\?__hplus_reload=\d+$/);
+  await expect(page).toHaveTitle("Recovered document");
+});
