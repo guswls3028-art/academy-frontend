@@ -142,17 +142,46 @@ async function cleanup(request: APIRequestContext): Promise<void> {
 
 async function seedLearningGraph(request: APIRequestContext, adminAccess: string, family: QaFamily, enrollmentPage: Page, testInfo: TestInfo): Promise<void> {
   const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", adminAccess, {
-    title: lectureTitle,
+    title: `${lectureTitle} 수정 전`,
     name: "QA학습",
     subject: "수학",
     description: "qa-* student/parent learning projection",
     start_date: todayKst,
+    end_date: todayKst,
     lecture_time: "목 19:00 ~ 21:00",
     color: "#0f766e",
     chip_label: "학습",
     is_active: true,
   });
   created.lectureId = Number(lecture.id);
+
+  // Edit through the same-artifact staff UI; all later student/parent checks
+  // consume this saved title and the existing tenant-local learning graph.
+  await enrollmentPage.setViewportSize({ width: 1366, height: 900 });
+  await gotoAndSettle(enrollmentPage, `${QA_BASE}/workspace/lectures`, { timeout: 30_000 });
+  await enrollmentPage.getByRole("button", { name: `${lectureTitle} 수정 전 설정`, exact: true }).click();
+  await enrollmentPage.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
+  const editor = enrollmentPage.getByRole("dialog", { name: "강의 수정", exact: true });
+  await expect(editor.getByLabel("강의 이름 (필수)")).toHaveValue(`${lectureTitle} 수정 전`);
+  await expect(editor.getByLabel("과목 (필수)")).toHaveValue("수학");
+  await expect(editor.getByLabel("담당 강사 (필수)")).toContainText("QA학습");
+  await expect(editor.getByLabel("설명", { exact: true })).toHaveValue("qa-* student/parent learning projection");
+  await editor.screenshot({ path: testInfo.outputPath("lecture-edit-desktop.png") });
+  await enrollmentPage.setViewportSize({ width: 390, height: 844 });
+  await editor.getByLabel("강의 이름 (필수)").fill(lectureTitle);
+  await editor.getByRole("button", { name: "종료일 지우기", exact: true }).click();
+  await assertNoHorizontalOverflow(enrollmentPage);
+  await editor.screenshot({ path: testInfo.outputPath("lecture-edit-390.png") });
+  const editResponse = enrollmentPage.waitForResponse((response) =>
+    response.url().endsWith(`/lectures/lectures/${created.lectureId}/`) && response.request().method() === "PATCH",
+  );
+  await editor.getByRole("button", { name: "수정", exact: true }).click();
+  expect((await editResponse).status()).toBe(200);
+  await expect(editor).toHaveCount(0);
+  const persisted = await expectApi<Record<string, unknown>>(request, "GET", `/lectures/lectures/${created.lectureId}/`, adminAccess);
+  expect(persisted).toMatchObject({ title: lectureTitle, name: "QA학습", subject: "수학", end_date: null, chip_label: "학습", color: "#0f766e", lecture_time: "목 19:00 ~ 21:00" });
+  await enrollmentPage.reload({ waitUntil: "domcontentloaded" });
+  await expect(enrollmentPage.getByRole("link", { name: `${lectureTitle} 강의 열기`, exact: true })).toBeVisible();
 
   // Exercise the staff entry before any session exists, then consume the same
   // persisted enrollments throughout teacher/student/parent learning checks.

@@ -94,7 +94,7 @@ async function openLectureFromList(page: Page, lecture: TargetLecture): Promise<
 
   const lectureRow = table.locator("tbody tr").filter({ hasText: lecture.title }).first();
   await expect(lectureRow, `lecture row "${lecture.title}"`).toBeVisible({ timeout: 10_000 });
-  const lectureOpenButton = lectureRow.getByRole("button", {
+  const lectureOpenButton = lectureRow.getByRole("link", {
     name: `${lecture.title} 강의 열기`,
     exact: true,
   });
