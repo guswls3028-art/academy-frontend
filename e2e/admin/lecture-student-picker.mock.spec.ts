@@ -25,7 +25,8 @@ type State = {
   matrixGate: Promise<void> | null;
 };
 
-async function openPicker(page: Page) {
+async function openPicker(page: Page, names: Record<number, string> = {}) {
+  const roster = students.map((student) => ({ ...student, name: names[student.id] ?? student.name }));
   const state: State = {
     statuses: new Map([[1, "ACTIVE"], [2, "INACTIVE"], [3, "PENDING"]]),
     posts: [], unexpectedWrites: [], failRoster: false, failSave: false, failReadback: false, saveGate: null,
@@ -53,7 +54,7 @@ async function openPicker(page: Page) {
       if (state.saveGate) await state.saveGate;
       if (state.failSave) return json({ detail: "일시적인 등록 실패" }, 400);
       body.students.forEach((id) => state.statuses.set(id, "ACTIVE"));
-      return json(body.students.map((id) => ({ id: 1000 + id, status: "ACTIVE", student: students[id - 1] })), 201);
+      return json(body.students.map((id) => ({ id: 1000 + id, status: "ACTIVE", student: roster[id - 1] })), 201);
     }
     if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
       if (/^\/(?:lectures|enrollments|students)\//.test(path)) state.unexpectedWrites.push(`${request.method()} ${path}`);
@@ -65,12 +66,12 @@ async function openPicker(page: Page) {
       state.searchRequests.push({ search, page: pageNumber });
       if (search && state.searchGate) await state.searchGate;
       if (search && state.failSearch) return json({ detail: "검색 실패" }, 503);
-      const found = students.filter((student) => student.name.includes(search) || student.parent_phone.includes(search));
+      const found = roster.filter((student) => student.name.includes(search) || student.parent_phone.includes(search));
       return json({ count: found.length, page_size: 50, results: found.slice((pageNumber - 1) * 50, pageNumber * 50) });
     }
     if (path === "/enrollments/") {
       if (state.failRoster || (state.failReadback && state.posts.length)) return json({ count: 1, results: [], next: null });
-      return json([...state.statuses].map(([id, status]) => ({ id: 1000 + id, status, student: students[id - 1] })));
+      return json([...state.statuses].map(([id, status]) => ({ id: 1000 + id, status, student: roster[id - 1] })));
     }
     if (path === "/lectures/attendance/matrix/") {
       if (state.matrixGate) await state.matrixGate;
@@ -81,7 +82,7 @@ async function openPicker(page: Page) {
   await page.goto(`${BASE}/workspace/lectures/${LECTURE}`);
   await page.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
   const dialog = page.getByRole("dialog", { name: "수강생 등록", exact: true });
-  await expect(dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true })).toBeEnabled();
+  await expect(dialog.getByRole("checkbox", { name: `${roster[1].name} 선택`, exact: true }).first()).toBeEnabled();
   return { state, dialog };
 }
 
@@ -308,4 +309,23 @@ test("낮은 모바일 화면·다크 테마에서도 선택과 저장 버튼에
   await dialog.screenshot({ path: info.outputPath("lecture-picker-short-dark.png") });
   await save.click();
   await expect(dialog).toHaveCount(0);
+});
+
+test("동명이인은 연락처로 구분하고 검색해도 선택한 학생의 이름이 바뀌지 않는다", async ({ page }) => {
+  const { state, dialog } = await openPicker(page, { 2: "김학생", 3: "김학생" });
+  const second = dialog.locator(".lecture-enroll-picker__row").filter({ hasText: "010-8000-0002" });
+  await expect(second.getByRole("checkbox")).toHaveAccessibleDescription(/김학생.*학부모 010-8000-0002/);
+  await second.getByRole("checkbox").check();
+  await dialog.getByRole("textbox", { name: "학생 검색" }).fill("010-8000-0003");
+  const third = dialog.locator(".lecture-enroll-picker__row").filter({ hasText: "010-8000-0003" });
+  await third.getByRole("checkbox").check();
+  await expect(dialog.locator(".lecture-enroll-picker__identity strong")).toHaveText("김학생");
+  await expect(dialog.getByRole("button", { name: /김학생, .*010-8000-0002 선택 해제/ })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /김학생, .*010-8000-0003 선택 해제/ })).toBeVisible();
+  await dialog.getByRole("button", { name: "2명 강의에 추가", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(state.posts).toEqual([{ lecture: LECTURE, students: [2, 3] }]);
+  await page.getByPlaceholder("이름 / 전화번호 검색", { exact: true }).fill("김학생2");
+  await expect(page.getByText("김학생2", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("김학생1", { exact: true })).toHaveCount(0);
 });
