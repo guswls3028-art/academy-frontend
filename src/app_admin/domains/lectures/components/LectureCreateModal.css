@@ -211,7 +211,8 @@ body:has(.lecture-create-modal-form) .time-picker--portaled {
     gap: 12px;
   }
 
-  .lecture-create-field-grid {
+  .lecture-create-field-grid,
+  .lecture-create-details-column .lecture-create-field-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 

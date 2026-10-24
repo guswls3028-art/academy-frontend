@@ -74,7 +74,7 @@ export default function LectureActionsMenu({ lecture, isPast, onEdit, onChanged 
       trigger={["click"]}
       placement="bottomRight"
       autoFocus
-      overlayClassName="lecture-actions-dropdown"
+      classNames={{ root: "lecture-actions-dropdown" }}
       menu={{
         items,
         onClick: ({ key, domEvent }) => {

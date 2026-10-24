@@ -127,15 +127,21 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
       await expect(page.getByRole("dialog", { name: "강의 설정", exact: true })).toHaveCount(0);
       const menu = page.getByRole("menu");
       await expect(menu).toBeVisible();
-      await page.screenshot({ path: testInfo.outputPath(`lecture-menu-${width}.png`) });
+      await page.screenshot({ path: testInfo.outputPath(`lecture-menu-${width}.png`), animations: "disabled" });
       await page.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
+      await expect(menu).toBeHidden();
       await expect(modal.getByLabel("강의 이름 (필수)")).toHaveValue("Alpha");
       await expect(modal.getByLabel("과목 (필수)")).toHaveValue(width === 1366 ? "과학" : "물리");
       await expect(modal.getByLabel("설명", { exact: true })).toHaveValue("기존 설명을 보존합니다.");
       await expect(modal.getByLabel("담당 강사 (필수)")).toContainText("관리자");
       await expect(modal.locator(".shared-date-picker-trigger").first()).toContainText("2026");
       await expect(modal.getByRole("button", { name: "시작 시간 선택", exact: true })).toContainText("오전 9:00");
-      await page.screenshot({ path: testInfo.outputPath(`lecture-edit-${width}.png`) });
+      await page.screenshot({ path: testInfo.outputPath(`lecture-edit-${width}.png`), animations: "disabled" });
+      if (width === 390) {
+        const instructor = await modal.getByLabel("담당 강사 (필수)").boundingBox();
+        const subject = await modal.getByLabel("과목 (필수)").boundingBox();
+        expect(subject!.y).toBeGreaterThan(instructor!.y + instructor!.height);
+      }
       const dimensions = await modal.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
       expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client + 1);
       await modal.getByLabel("강의 이름 (필수)").fill("취소할 초안");
