@@ -149,6 +149,7 @@ export default function RichTextEditor({
 
   const attachImages = useCallback(
     (files: File[]) => {
+      if (readOnly) return;
       const accepted = files.filter((file) => {
         if (!file.type.startsWith("image/")) return false;
         if (file.size > MAX_IMAGE_SIZE_BYTES) {
@@ -164,7 +165,7 @@ export default function RichTextEditor({
       }
       onFileAttach(accepted);
     },
-    [onFileAttach],
+    [onFileAttach, readOnly],
   );
 
   const editor = useEditor({
@@ -197,19 +198,20 @@ export default function RichTextEditor({
     },
     editorProps: {
       handlePaste: (_view, event) => {
+        if (readOnly) return false;
         const items = event.clipboardData?.items;
         if (!items) return false;
-        for (const item of Array.from(items)) {
-          if (item.type.startsWith("image/")) {
-            event.preventDefault();
-            const file = item.getAsFile();
-            if (file) attachImages([file]);
-            return true;
-          }
-        }
-        return false;
+        const images = Array.from(items)
+          .filter((item) => item.type.startsWith("image/"))
+          .map((item) => item.getAsFile())
+          .filter((file): file is File => file != null);
+        if (images.length === 0) return false;
+        event.preventDefault();
+        attachImages(images);
+        return true;
       },
       handleDrop: (_view, event) => {
+        if (readOnly) return false;
         const files = event.dataTransfer?.files;
         if (!files || files.length === 0) return false;
         const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
@@ -220,6 +222,10 @@ export default function RichTextEditor({
       },
     },
   });
+
+  useEffect(() => {
+    editor?.setEditable(!readOnly, false);
+  }, [editor, readOnly]);
 
   // Sync external value changes (e.g., navigating between posts)
   useEffect(() => {
@@ -243,11 +249,11 @@ export default function RichTextEditor({
   const handleFileAttach = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
-      if (!files || !onFileAttach) return;
+      if (!files || !onFileAttach || readOnly) return;
       onFileAttach(Array.from(files));
       e.target.value = "";
     },
-    [onFileAttach],
+    [onFileAttach, readOnly],
   );
 
   // --- Link ---

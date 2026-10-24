@@ -426,6 +426,22 @@ for (const width of [1366, 390]) {
   });
 }
 
+test("rapid format and sort changes preserve both selections before the next render", async ({ page }) => {
+  const state = await prepare(page, false, true);
+  state.related.push({ ...source, ...initial, id: "84444444-4444-4444-8444-000000000030", title: "연속 선택 Shorts", format: "vertical", published_at: "2026-10-14T00:00:00Z", youtube_view_count: 100 });
+  await page.goto(`${BASE}/landing/videos`);
+  const controls = page.getByRole("button", { name: /^(Shorts|인기순)$/ });
+  await expect(controls).toHaveCount(2);
+  // Dispatch in one turn to reproduce history changing before React commits.
+  await controls.evaluateAll((buttons) => buttons.forEach((button) => (button as HTMLButtonElement).click()));
+  await expect(page).toHaveURL(`${BASE}/landing/videos?format=vertical&sort=popular`);
+  await expect(page.getByRole("heading", { level: 3 }).first()).toHaveText("연속 선택 Shorts");
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Shorts", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "인기순", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("heading", { level: 3 }).first()).toHaveText("연속 선택 Shorts");
+});
+
 test("popularity provider failure is explicit and switching to latest recovers", async ({ page }) => {
   const state = await prepare(page, false, false);
   state.related.push({ ...source, ...initial, id: ID, published_at: "2026-10-14T00:00:00Z", youtube_view_count: null });

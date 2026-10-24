@@ -36,11 +36,14 @@ import { resolveScopeType } from "../utils/scopeBadge";
 import PostReadView from "../components/PostReadView";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
-import { stripHtml, formatFileSize } from "../utils/communityHelpers";
+import { stripHtml } from "../utils/communityHelpers";
+import { selectNoticeFiles } from "../utils/noticeFiles";
+import NoticeAttachments, { NoticeDraftFiles } from "../components/NoticeAttachments";
 import { createClientRequestKey, getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import "@admin/domains/community/qna-inbox.css";
 import "@admin/domains/community/notice-tree.css";
 import "@admin/domains/community/board-admin.css";
+import "../notice-attachments.css";
 
 const SNIPPET_LEN = 72;
 
@@ -275,6 +278,7 @@ export default function NoticeAdminPage({ embedded = false }: NoticeAdminPagePro
           <CommunityEmptyState variant="no-selection" postType="notice" />
         ) : (
           <NoticeDetailView
+            key={selectedId}
             postId={selectedId}
             onClose={() => setSelectedId(null)}
             onDeleted={() => setSelectedId(null)}
@@ -362,7 +366,7 @@ function NoticeDetailView({
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { data: post, isLoading } = useQuery({
+  const { data: post, isLoading, isError, refetch } = useQuery({
     queryKey: adminCommunityQueryKeys.post(postId),
     queryFn: () => fetchPost(postId),
     enabled: postId != null,
@@ -370,17 +374,29 @@ function NoticeDetailView({
 
   const [editingContent, setEditingContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const [contentSaved, setContentSaved] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [saveError, setSaveError] = useState("");
+  const [pendingUpload, setPendingUpload] = useState(false);
+  const savedContent = useRef("");
+  const uploadKey = useRef<string | null>(null);
+  const saving = useRef(false);
 
   const [editingTitle, setEditingTitle] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
 
   useEffect(() => {
-    setEditingContent(post?.content ?? "");
-    setEditingTitle(post?.title ?? "");
-    setIsEditing(false);
-    setIsEditingTitle(false);
-  }, [post?.id, post?.content, post?.title]);
+    if (!isEditing) setEditingContent(post?.content ?? "");
+  }, [post?.content, isEditing]);
+  useEffect(() => {
+    if (!isEditingTitle) setEditingTitle(post?.title ?? "");
+  }, [post?.title, isEditingTitle]);
+
+  useEffect(() => {
+    if (!isEditing && !isEditingTitle) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isEditing, isEditingTitle]);
 
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
@@ -426,19 +442,59 @@ function NoticeDetailView({
   });
 
   const updateContentMut = useMutation({
-    mutationFn: (content: string) => updatePost(postId, { content }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
+    mutationFn: async () => {
+      saving.current = true;
+      setSaveError("");
+      try {
+        if (editingContent !== savedContent.current) {
+          await updatePost(postId, { content: editingContent });
+          savedContent.current = editingContent;
+        }
+        if (files.length) {
+          uploadKey.current ??= createClientRequestKey();
+          setPendingUpload(true);
+          try {
+            await uploadPostAttachments(postId, files, uploadKey.current);
+          } catch (error) {
+            // A validation rejection occurs before storage; only then may the
+            // user replace the batch instead of retrying the exact same files.
+            if ((error as { response?: { status?: number } }).response?.status === 400) {
+              uploadKey.current = null;
+              setPendingUpload(false);
+            }
+            throw error;
+          }
+        }
+      } finally {
+        saving.current = false;
+      }
+    },
+    onSuccess: async () => {
+      setFiles([]);
+      setPendingUpload(false);
+      uploadKey.current = null;
+      await qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.noticePosts });
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.boardPosts });
-      setContentSaved(true);
+      setIsEditing(false);
       feedback.success("내용이 저장되었습니다.");
-      setTimeout(() => setContentSaved(false), 2000);
     },
     onError: (e: unknown) => {
-      feedback.error((e as Error)?.message ?? "저장에 실패했습니다.");
+      const message = (e as { response?: { data?: { detail?: string } } }).response?.data?.detail ?? "저장에 실패했습니다. 다시 시도해 주세요.";
+      setSaveError(savedContent.current === editingContent && files.length
+        ? `본문은 저장되어 있습니다. 첨부파일을 저장하지 못했습니다. 선택한 파일은 유지됩니다. ${message}`
+        : message);
     },
   });
+
+  const attachmentsLocked = updateContentMut.isPending || pendingUpload;
+  const addFiles = (selected: File[]) => {
+    if (attachmentsLocked) return;
+    setFiles(selectNoticeFiles(files, selected, post?.attachments?.length ?? 0));
+    setSaveError("");
+  };
+
+  if (isError) return <CommunityEmptyState variant="error" postType="notice" title="공지를 불러오지 못했습니다" action={<Button intent="secondary" onClick={() => void refetch()}>다시 시도</Button>} />;
 
   if (isLoading || !post) {
     return (
@@ -463,6 +519,7 @@ function NoticeDetailView({
                   onChange={(e) => setEditingTitle(e.target.value)}
                   autoFocus
                   onKeyDown={(e) => {
+                    if (e.nativeEvent.isComposing || updateTitleMut.isPending) return;
                     const val = (e.currentTarget as HTMLInputElement).value.trim();
                     if (e.key === "Enter" && val && val !== post.title) {
                       updateTitleMut.mutate(val, { onSuccess: () => setIsEditingTitle(false) });
@@ -495,13 +552,14 @@ function NoticeDetailView({
                 </Button>
               </div>
             ) : (
-              <h1
-                className="qna-inbox__thread-title qna-inbox__thread-title--editable"
+              <h1 className="qna-inbox__thread-title">
+                <button type="button" className="notice-title-edit"
                 onClick={() => { setEditingTitle(post.title ?? ""); setIsEditingTitle(true); }}
                 title="클릭하여 제목 수정"
               >
                 {post.title}
                 <span className="qna-inbox__thread-title-edit-mark">✎</span>
+                </button>
               </h1>
             )}
             <div className="qna-inbox__thread-meta">
@@ -536,7 +594,10 @@ function NoticeDetailView({
             >
               {post.is_urgent ? "🔴 중요 해제" : "🔴 중요"}
             </Button>
-            <Button intent="ghost" size="sm" onClick={onClose}>
+            <Button intent="ghost" size="sm" disabled={updateContentMut.isPending} onClick={async () => {
+              if ((isEditing || isEditingTitle) && !await confirm({ title: "수정 종료", message: "저장하지 않은 내용과 선택한 파일을 버리고 목록으로 돌아갈까요?", confirmText: "돌아가기" })) return;
+              onClose();
+            }}>
               목록
             </Button>
             <Button
@@ -545,7 +606,7 @@ function NoticeDetailView({
               onClick={async () => {
                 if (await confirm({ title: "공지 삭제", message: "이 공지를 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate();
               }}
-              disabled={deleteMut.isPending}
+              disabled={deleteMut.isPending || updateContentMut.isPending}
             >
               삭제
             </Button>
@@ -558,7 +619,7 @@ function NoticeDetailView({
           <div className="cms-detail__section-label cms-detail__section-label--actions">
             <span>내용</span>
             {!isEditing && (
-              <Button intent="ghost" size="sm" onClick={() => { setEditingContent(post.content ?? ""); setIsEditing(true); }}>
+              <Button intent="ghost" size="sm" onClick={() => { savedContent.current = post.content ?? ""; setEditingContent(post.content ?? ""); setSaveError(""); setIsEditing(true); }}>
                 수정
               </Button>
             )}
@@ -570,40 +631,48 @@ function NoticeDetailView({
                 onChange={setEditingContent}
                 placeholder="공지 내용을 입력하세요."
                 minHeight={200}
+                onFileAttach={addFiles}
+                readOnly={attachmentsLocked}
               />
             ) : (
               <PostReadView html={post.content ?? ""} />
             )}
           </div>
           {isEditing && (
+            <NoticeDraftFiles files={files} disabled={attachmentsLocked} onRemove={(index) => setFiles((current) => current.filter((_, i) => i !== index))} />
+          )}
+          {saveError && <p role="alert" className="community-field__error">{saveError}</p>}
+          {pendingUpload && <p className="cms-attach__hint">같은 파일로 첨부만 다시 시도합니다. 재시도가 끝날 때까지 선택한 파일을 유지해 주세요.</p>}
+          {isEditing && (
             <div className="cms-detail__content-actions">
               <Button
                 intent="primary"
                 size="sm"
                 onClick={() => {
-                  updateContentMut.mutate(editingContent, {
-                    onSuccess: () => setIsEditing(false),
-                  });
+                  if (!saving.current && !updateContentMut.isPending) updateContentMut.mutate();
                 }}
-                disabled={updateContentMut.isPending || editingContent === (post.content ?? "")}
+                disabled={updateContentMut.isPending || (!files.length && editingContent === (post.content ?? ""))}
               >
-                {updateContentMut.isPending ? "저장 중…" : "저장"}
+                {updateContentMut.isPending ? "저장 중…" : pendingUpload ? "첨부 다시 시도" : "저장"}
               </Button>
               <Button
                 intent="ghost"
                 size="sm"
-                onClick={() => { setEditingContent(post.content ?? ""); setIsEditing(false); }}
+                onClick={async () => {
+                  if (pendingUpload && !await confirm({ title: "첨부 재시도 종료", message: "본문은 저장되어 있습니다. 첨부 결과를 다시 확인하고 수정을 종료할까요?", confirmText: "확인 후 종료" })) return;
+                  setFiles([]); setPendingUpload(false); uploadKey.current = null; setSaveError("");
+                  await qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
+                  setIsEditing(false);
+                }}
                 disabled={updateContentMut.isPending}
               >
                 취소
               </Button>
-              {contentSaved && (
-                <span className="cms-detail__saved-msg">저장되었습니다.</span>
-              )}
             </div>
           )}
         </div>
 
+        <NoticeAttachments postId={postId} attachments={post.attachments ?? []} disabled={attachmentsLocked} />
       </div>
     </>
   );
@@ -642,13 +711,13 @@ function NoticeCreatePane({
     : "전체 대상";
 
   const canSubmit = title.trim().length > 0 && resolvedScope.kind !== "invalid" && !submitting;
-  const attachmentsLocked = createdPostId != null;
+  const attachmentsLocked = submitting || createdPostId != null;
 
   const addFiles = useCallback((selectedFiles: File[]) => {
     if (attachmentsLocked || selectedFiles.length === 0) return;
     attachmentUploadKeyRef.current = null;
-    setFiles((previous) => [...previous, ...selectedFiles].slice(0, 10));
-  }, [attachmentsLocked]);
+    setFiles(selectNoticeFiles(files, selectedFiles));
+  }, [attachmentsLocked, files]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -730,27 +799,10 @@ function NoticeCreatePane({
                 첨부파일 ({files.length}/10)
               </label>
             </div>
-            <div className="cms-attach__list">
-              {files.map((file, index) => (
-                <div key={`${file.name}-${index}`} className="cms-attach__item">
-                  <span className="cms-attach__item-name">{file.name}</span>
-                  <span className="cms-attach__item-size">{formatFileSize(file.size)}</span>
-                  <button
-                    type="button"
-                    className="cms-attach__item-remove"
-                    onClick={() => {
-                      if (attachmentsLocked) return;
-                      attachmentUploadKeyRef.current = null;
-                      setFiles((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
-                    }}
-                    disabled={attachmentsLocked}
-                    aria-label={`${file.name} 제거`}
-                  >
-                    &times;
-                  </button>
-                </div>
-              ))}
-            </div>
+            <NoticeDraftFiles files={files} disabled={attachmentsLocked} onRemove={(index) => {
+              attachmentUploadKeyRef.current = null;
+              setFiles((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
+            }} />
             {attachmentsLocked && (
               <p className="text-xs text-[var(--color-text-muted)] mt-2">
                 공지가 이미 저장되어 첨부파일을 변경할 수 없습니다. 같은 파일로 다시 시도해 주세요.

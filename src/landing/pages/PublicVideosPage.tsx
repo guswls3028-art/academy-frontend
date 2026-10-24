@@ -59,7 +59,15 @@ export default function PublicVideosPage() {
     catch { setShare("주소창의 링크를 복사해 공유해주세요."); }
   }
   function updateBrowse(next: { format?: VideoContent["format"]; sort?: VideoSort; q?: string; page?: number }) {
-    setParams(videoBrowseQuery(next.format || format, next.sort || sort, next.q ?? query, next.page || 1));
+    // History changes before BrowserRouter's transition commits. Read the URL
+    // so a rapid second filter change preserves the preceding selection.
+    const current = new URLSearchParams(window.location.search);
+    const currentFormat = current.get("format"); const currentSort = current.get("sort");
+    setParams(videoBrowseQuery(
+      next.format ?? (currentFormat === "vertical" || currentFormat === "landscape" ? currentFormat : video?.format || "landscape"),
+      next.sort ?? (currentSort === "popular" || currentSort === "oldest" ? currentSort : "latest"),
+      next.q ?? (current.get("q") || "").trim().slice(0, 90), next.page ?? 1,
+    ));
   }
   const filters = <div className={s.browseControls}>
     <nav className={s.formatTabs} aria-label="영상 종류">
