@@ -345,9 +345,10 @@ API의 media ID와 일치해야 하며 SigV4 만료는 최대 600초다. 등록 
 `release-homework-image-boundary.test.mjs`가 등록·거부 경계를 검사하고 기존 공식
 `student-parent-homework-realuse.spec.ts`가 파일 decode와 reload를 검증한다.
 
-개발 QnA 첨부 사진은 인증·QA tenant·CORS를 통과한 정확한
-`GET /api/v1/community/posts/<post_id>/` 또는 `post_type=qna` 목록의 200 응답에서
-게시글·첨부 ID를 현재 browser context에 등록한다. 목록에서 진입한 학생 상세 화면이
+개발 공지·QnA 첨부 사진은 인증·QA tenant·CORS를 통과한 정확한
+`GET /api/v1/community/posts/<post_id>/`의 200 응답에서 `post_type`이 `notice` 또는
+`qna`인 게시글·첨부 ID를 현재 browser context에 등록한다. `post_type=qna` 목록은
+응답의 게시글 유형도 `qna`인 경우만 등록한다. 학생 상세 화면이
 `GET /api/v1/community/posts/<post_id>/attachments/<att_id>/download/`를 호출하면
 앞서 등록한 동일 게시글·첨부와 원본 파일명이 일치하는 200 응답의 URL만 추가 등록한다.
 URL은 Setup tenant와 해당 게시글의
@@ -357,8 +358,9 @@ URL은 Setup tenant와 해당 게시글의
 등록된 정확한 image GET만 인증 header 없이 전달하고 redirect·다른 bucket·tenant·
 게시글·변형된 서명 query를 거부한다. 200 응답의 MIME과 이미지 시그니처를 확인한 실제
 bytes만 브라우저에 전달한다. direct APIRequestContext의 외부 origin 경계는 유지한다.
-`release-community-image-boundary.test.mjs`가 허용·거부를 검사하며 QnA 실사용
-브라우저 검증은 사진 decode, 확대·회전·답변, 학생 화면 반영과 cleanup zero를 요구한다.
+`release-community-image-boundary.test.mjs`가 두 유형의 허용·거부와 목록 유형 일치를
+검사한다. 공지 실사용은 관리자 사진만 추가·저장·reload와 학생 사진 decode·reload를,
+QnA 실사용은 사진 decode, 확대·회전·답변, 학생 화면 반영을 검증하며 모두 cleanup zero를 요구한다.
 
 개발 transport는 artifact가 가리키는 정확한 `https://api.hakwonplus.com/api/`만
 SSM의 `http://127.0.0.1:<port>/api/`로 전달한다. 웹 origin은 개발 settings가 실제로

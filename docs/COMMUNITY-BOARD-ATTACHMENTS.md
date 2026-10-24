@@ -142,6 +142,11 @@ QA 다운로드 경계는 인증된 게시물·첨부 ID·파일명·크기를 �
 집합 동결, 같은 게시물·파일·요청 키로의 재시도, 중복 게시물 없음, 상세·새로고침
 지속성, 데스크톱·390px 무가로넘침을 검증한다.
 
+동일 산출물 개발 실사용은 `e2e/flows/notice-roundtrip.spec.ts`에서 관리자 작성→기존
+공지에 사진만 추가→저장·reload→학생 이미지 로딩·reload와 정확한 생성 글 정리를 검증한다.
+인증된 공지 상세 응답에 묶인 QA 첨부만 읽는 검증 환경의 경계는
+[배포·E2E 운영 계약](DEPLOYMENT-OPERATIONS.md)이 소유한다.
+
 `e2e/admin/community-workspace-polish.mock.spec.ts`와
 `e2e/teacher/comms-reply-mobile.mock.spec.ts`는 정상 `204`, endpoint별 exact
 부분 완료 count, 잘못된 `502` 거부, 삭제 상세 닫기·목록 재조회와 DELETE 1회만 전송도

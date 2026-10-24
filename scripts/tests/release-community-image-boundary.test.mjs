@@ -112,12 +112,22 @@ test("student QnA list binds attachment ID to an exact authorized download URL",
   ]) rejected(await exercise({ list: true, download: true, ...options }));
 });
 
-test("QnA registration rejects foreign API responses and loose R2 URL scopes", async () => {
+test("notice detail binds saved photos and refreshed student download URLs", async () => {
+  for (const download of [false, true]) {
+    const result = await exercise({ postType: "notice", download });
+    result.guard.assertClean();
+    assert.equal(result.aborted, 0);
+    assert.deepEqual(result.fetched, [{ url: download ? downloadUrl : url, method: "GET", headers: { accept: "image/png" }, maxRedirects: 0 }]);
+    assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/png" }, body: png }]);
+  }
+});
+
+for (const postType of ["qna", "notice"]) test(`${postType} registration rejects foreign API responses and loose R2 URL scopes`, async () => {
   for (const options of [
     { apiStatus: 403 }, { apiStatus: 302 }, { apiMethod: "POST" },
     { apiHeaders: { authorization: "" } }, { apiHeaders: { "x-tenant-code": "qa-ymath-realuse-other" } },
     { corsOrigin: "https://foreign.invalid" }, { apiPath: "/api/v1/community/posts/124/" },
-    { apiPath: "/api/v1/community/posts/123/?extra=1" }, { postId: 124 }, { postType: "notice" },
+    { apiPath: "/api/v1/community/posts/123/?extra=1" }, { postId: 124 }, { postType: "counsel" }, { postType: ["notice"] },
     { attachments: Array.from({ length: 11 }, () => ({ content_type: "image/png", download_url: url })) },
     { boundary: { ...boundary, mode: "readonly" } }, { boundary: { ...boundary, omrR2TenantId: undefined } },
     ...[
@@ -127,7 +137,7 @@ test("QnA registration rejects foreign API responses and loose R2 URL scopes", a
       url.replace("Expires=3600", "Expires=3601"), url.replace("response-content-type=image%2Fpng", "response-content-type=image%2Fjpeg"),
       `${url}&extra=1`, `${url}#fragment`, url.replace("tenants/352/", "tenants/353/../352/"),
     ].map((registerUrl) => ({ registerUrl })),
-  ]) rejected(await exercise(options));
+  ]) rejected(await exercise({ postType, ...options }));
 });
 
 test("QnA signed image rejects credentials, mutation, non-image use and invalid R2 responses", async () => {
@@ -143,7 +153,7 @@ test("QnA signed image rejects credentials, mutation, non-image use and invalid 
   }
 });
 
-test("QnA file download requires bound post/attachment metadata and exact development bytes", async () => {
+for (const postType of ["qna", "notice"]) test(`${postType} file downloads require bound metadata and exact development bytes`, async () => {
   for (const [extension, contentType, body, unicodeName] of [
     ["txt", "text/plain", Buffer.from("QA attachment\n")],
     ["pdf", "application/pdf", Buffer.from("%PDF-1.4\n%%EOF")],
@@ -157,14 +167,14 @@ test("QnA file download requires bound post/attachment metadata and exact develo
     fileUrl.searchParams.set("response-content-type", contentType);
     fileUrl.searchParams.set("response-content-disposition", disposition);
     const attachments = [{ id: 456, original_name: name, content_type: contentType, size_bytes: body.length }];
-    const options = { download: true, downloadUrl: fileUrl.href, downloadName: name, resourceType: "document",
+    const options = { postType, download: true, downloadUrl: fileUrl.href, downloadName: name, resourceType: "document",
       attachments, body, contentType, disposition };
     const result = await exercise(options);
     result.guard.assertClean();
     assert.deepEqual(result.fetched, [{ url: fileUrl.href, method: "GET", headers: { accept: contentType }, maxRedirects: 0 }]);
     assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": contentType, "content-disposition": disposition }, body }]);
     for (const invalid of [
-      { register: false }, { downloadStatus: 403 }, { postId: 124 }, { postType: "notice" },
+      { register: false }, { downloadStatus: 403 }, { postId: 124 }, { postType: "counsel" },
       { downloadPath: "/api/v1/community/posts/123/attachments/457/download/" },
       { downloadHeaders: { authorization: "" } }, { downloadName: "another.txt" },
       { downloadUrl: fileUrl.href.replace("tenants/352/", "tenants/353/") },

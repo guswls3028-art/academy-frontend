@@ -991,8 +991,10 @@ export async function installReleaseContextGuard(
     inventoryOriginal?: InventoryOriginal }>();
   const inventoryOriginals = new Map<string, InventoryOriginal>();
   const communityAttachments = new Map<string, { contentType: string; originalName: string; sizeBytes?: number }>();
-  const registerQnaPost = (post: unknown) => {
-    if (!isRecord(post) || post.post_type !== "qna" || typeof post.id !== "number" || !Number.isSafeInteger(post.id)
+  const registerCommunityPost = (post: unknown, expectedType?: "qna" | "notice") => {
+    if (!isRecord(post) || (post.post_type !== "qna" && post.post_type !== "notice")
+      || (expectedType !== undefined && post.post_type !== expectedType)
+      || typeof post.id !== "number" || !Number.isSafeInteger(post.id)
       || Number(post.id) < 1 || !Array.isArray(post.attachments) || post.attachments.length > 10) return;
     const postId = Number(post.id);
     for (const attachment of post.attachments) {
@@ -1506,10 +1508,10 @@ export async function installReleaseContextGuard(
           && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")
           && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
           const payload = await response.json();
-          if (communityPost && payload?.id === Number(communityPost[1])) registerQnaPost(payload);
+          if (communityPost && payload?.id === Number(communityPost[1])) registerCommunityPost(payload);
           if (communityList) {
             const posts = Array.isArray(payload) ? payload : payload?.results;
-            if (Array.isArray(posts) && posts.length <= 200) posts.forEach(registerQnaPost);
+            if (Array.isArray(posts) && posts.length <= 200) posts.forEach((post) => registerCommunityPost(post, "qna"));
           }
           if (communityDownload) {
             const postId = Number(communityDownload[1]);
