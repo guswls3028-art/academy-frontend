@@ -3,8 +3,8 @@
 
 import { useMemo, useState, useCallback, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
-import { ChevronDown, ChevronUp, GripVertical, Settings } from "lucide-react";
+import { Link, useNavigate } from "react-router";
+import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
@@ -12,14 +12,15 @@ import { DomainListToolbar, DomainTable, ResizableTh, useTableColumnPrefs } from
 import type { TableColumnDef } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import LectureCreateModal from "../../components/LectureCreateModal";
-import LectureSettingsModal from "../../components/LectureSettingsModal";
+import LectureActionsMenu from "../../components/LectureActionsMenu";
 import { adminLectureQueryKeys } from "../../queryKeys";
 import { invalidateLectureStatusCaches } from "@/shared/ui/asyncStatus/asyncStatusQueryInvalidations";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import "./LecturesPage.css";
 
 /** 강의 목록 테이블 컬럼 정의 (useTableColumnPrefs SSOT) */
 const LECTURES_TABLE_COLUMN_DEFS: TableColumnDef[] = [
-  { key: "title", label: "강의 이름", defaultWidth: 180, minWidth: 120 },
+  { key: "title", label: "강의 이름", defaultWidth: 240, minWidth: 120 },
   { key: "active_enrollment_count", label: "수강생", defaultWidth: 92, minWidth: 80 },
   { key: "subject", label: "과목", defaultWidth: 100, minWidth: 70 },
   { key: "name", label: "강사", defaultWidth: 80, minWidth: 70 },
@@ -150,7 +151,7 @@ function LectureSortableTh({
       aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
       className="cursor-pointer select-none"
     >
-      <span className="inline-flex items-center justify-center gap-2">
+      <button type="button" className="lecture-sort-button" onClick={(event) => { event.stopPropagation(); onSort(colKey); }} aria-label={`${label} 정렬`}>
         {label}
         <span
           aria-hidden
@@ -158,7 +159,7 @@ function LectureSortableTh({
         >
           {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
         </span>
-      </span>
+      </button>
     </ResizableTh>
   );
 }
@@ -172,7 +173,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
   const [dragOverLectureId, setDragOverLectureId] = useState<number | null>(null);
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("lectures-v2-order", LECTURES_TABLE_COLUMN_DEFS);
 
-  const { data = [], isLoading, error, isFetching } = useQuery({
+  const { data = [], isLoading, error, isFetching, refetch } = useQuery({
     queryKey: adminLectureQueryKeys.lectures,
     queryFn: async (): Promise<LectureItem[]> => {
       const res = await api.get("/lectures/lectures/");
@@ -199,7 +200,6 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
     return { activeLectures: active, pastLectures: past };
   }, [data]);
 
-  const [settingsLecture, setSettingsLecture] = useState<LectureItem | null>(null);
   const [editLectureId, setEditLectureId] = useState<number | null>(null);
   const qc = useQueryClient();
 
@@ -362,6 +362,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
             <input
               data-guide="lectures-search"
               placeholder="강의 검색 (강의명/과목/강사/기간)"
+              aria-label="강의 검색"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               className="ds-input max-w-[360px]"
@@ -394,13 +395,13 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
           {isLoading ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
           ) : error ? (
-            <EmptyState scope="panel" tone="error" title="문제가 발생했습니다." />
+            <EmptyState scope="panel" tone="error" title="강의를 불러오지 못했습니다." actions={<Button intent="secondary" onClick={() => void refetch()}>다시 시도</Button>} />
           ) : list.length === 0 ? (
-            <EmptyState scope="panel" tone="empty" title="표시할 강의가 없습니다." />
+            <EmptyState scope="panel" tone="empty" title={q.trim() ? "검색한 강의가 없습니다." : tab === "past" ? "지난 강의가 없습니다." : "등록된 강의가 없습니다."} actions={q.trim() ? <Button intent="secondary" onClick={() => setQ("")}>검색 초기화</Button> : undefined} />
           ) : (
             <div data-guide="lectures-table">
               <DomainTable
-                tableClassName="ds-table--flat ds-table--center"
+                tableClassName="ds-table--flat ds-table--center ds-table--lectures"
                 tableStyle={{ tableLayout: "fixed", width: "100%", minWidth: tableWidth }}
               >
                 <colgroup>
@@ -417,7 +418,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                       colKey="title"
                       label="강의 이름"
                       widthKey="title"
-                      width={columnWidths.title ?? 180}
+                      width={columnWidths.title ?? 240}
                       sort={sort}
                       onSort={handleSort}
                       onWidthChange={setColumnWidth}
@@ -550,15 +551,12 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                           </div>
                         </div>
                       </td>
-                      <td className="font-semibold">
-                        <button
-                          type="button"
+                      <td className="lecture-title-cell">
+                        <Link
+                          to={`/workspace/lectures/${lec.id}`}
                           aria-label={`${lec.title} 강의 열기`}
-                          className="inline-flex items-center gap-[10px] rounded bg-transparent text-left text-inherit focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            navigate(`/workspace/lectures/${lec.id}`);
-                          }}
+                          className="lecture-title-link"
+                          onClick={(event) => event.stopPropagation()}
                         >
                           <LectureChip
                             lectureName={lec.title}
@@ -566,37 +564,32 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                             chipLabel={lec.chip_label}
                             size={32}
                           />
-                          {lec.title}
-                        </button>
+                          <span className="lecture-title-text" title={lec.title}>{lec.title}</span>
+                        </Link>
                       </td>
                       <td>
-                        <span className="inline-flex min-w-[56px] items-center justify-center rounded-full border border-[var(--color-border-divider)] bg-[var(--color-bg-elevated)] px-2 py-1 text-xs font-semibold text-[var(--color-text-primary)]">
+                        <span className="lecture-enrollment-count">
                           {lec.active_enrollment_count}명
                         </span>
                       </td>
                       <td>{lec.subject || <span className="text-[var(--color-text-muted)]">미입력</span>}</td>
                       <td>{lec.name || <span className="text-[var(--color-text-muted)]">미배정</span>}</td>
                       <td>{lec.lecture_time || <span className="text-[var(--color-text-muted)]">미설정</span>}</td>
-                      <td className="font-semibold">
+                      <td className="lecture-date-cell">
                         {lec.start_date && lec.end_date
                           ? `${lec.start_date} ~ ${lec.end_date}`
                           : lec.start_date
-                            ? `${lec.start_date} ~`
+                            ? `${lec.start_date}부터`
                             : <span className="font-normal text-[var(--color-text-muted)]">미설정</span>}
                       </td>
                       <td onClick={(e) => e.stopPropagation()} className="align-middle px-2 py-1">
-                        <button
-                          type="button"
-                          className="flex items-center justify-center w-9 h-9 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setSettingsLecture(lec);
-                          }}
-                          aria-label="설정"
-                        >
-                          <Settings size={18} strokeWidth={2} />
-                        </button>
+                        <LectureActionsMenu lecture={lec} isPast={tab === "past"} onEdit={setEditLectureId} onChanged={(action) => {
+                          void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
+                          void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lecture(lec.id) });
+                          invalidateLectureStatusCaches(qc);
+                          if (action === "end") navigate("/workspace/lectures/past");
+                          if (action === "restore") navigate("/workspace/lectures");
+                        }} />
                       </td>
                     </tr>
                   ))}
@@ -624,28 +617,6 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
         />
       )}
 
-      {settingsLecture && (
-        <LectureSettingsModal
-          open
-          onClose={() => setSettingsLecture(null)}
-          lecture={settingsLecture}
-          isPast={tab === "past"}
-          onEdit={(id) => {
-            setSettingsLecture(null);
-            setEditLectureId(id);
-          }}
-          onAfterEnd={() => {
-            qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
-            invalidateLectureStatusCaches(qc);
-            navigate("/workspace/lectures/past");
-          }}
-          onAfterRestore={() => {
-            qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
-            invalidateLectureStatusCaches(qc);
-          }}
-          onAfterDelete={() => qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures })}
-        />
-      )}
     </>
   );
 }
