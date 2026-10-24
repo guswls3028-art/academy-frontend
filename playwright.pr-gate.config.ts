@@ -65,6 +65,7 @@ export default defineConfig({
         matchSpec("e2e/auth/safari-browser-support.mock.spec.ts"),
         matchSpec("e2e/shared/api-document-exit.mock.spec.ts"),
         matchSpec("e2e/admin/community-workspace-polish.mock.spec.ts"),
+        matchSpec("e2e/admin/lecture-student-picker.mock.spec.ts"),
       ],
       dependencies: [],
       use: { ...webkit, serviceWorkers: "block" },
