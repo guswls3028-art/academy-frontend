@@ -165,6 +165,9 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
     await picker.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
   }
   await assertNoHorizontalOverflow(enrollmentPage);
+  await expect(picker.getByRole("textbox", { name: "학생 검색" })).toBeInViewport();
+  await expect(picker.getByRole("button", { name: "2명 강의에 추가", exact: true })).toBeInViewport();
+  expect(await picker.locator(".modal-body").evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
   await picker.screenshot({ path: testInfo.outputPath("lecture-enrollment-390.png") });
   const enrollmentResponse = enrollmentPage.waitForResponse((response) =>
     response.url().endsWith("/enrollments/bulk_create/") && response.request().method() === "POST",

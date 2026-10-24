@@ -432,6 +432,8 @@ jobs:
           name: development-release-evidence
           path: |
             test-results/development-release.json
+            test-results/**/lecture-enrollment-390.png
+            test-results/**/lecture-enrollment-desktop.png
             test-results/development-release-progress.json
           retention-days: 14
           if-no-files-found: error

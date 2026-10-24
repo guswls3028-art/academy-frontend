@@ -209,6 +209,7 @@ test("키보드 선택과 지연된 등록 중 중복 제출·닫기를 막는�
 
 test("검색 중 이전 명단을 잠그고 페이지 캐시·현재 페이지 해제로 빠르게 선택한다", async ({ page }) => {
   const { state, dialog } = await openPicker(page);
+  const initialPageRequests = state.searchRequests.filter((request) => request.search === "" && request.page === 1).length;
   await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
   await dialog.getByRole("button", { name: "다음", exact: true }).click();
   await dialog.getByRole("checkbox", { name: "기존학생051 선택", exact: true }).check();
@@ -218,7 +219,7 @@ test("검색 중 이전 명단을 잠그고 페이지 캐시·현재 페이지 �
   await expect(dialog.getByRole("status")).toHaveText("1명 선택");
   await dialog.getByRole("button", { name: "이전", exact: true }).click();
   await expect(dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true })).toBeChecked();
-  expect(state.searchRequests.filter((request) => request.search === "" && request.page === 1)).toHaveLength(1);
+  expect(state.searchRequests.filter((request) => request.search === "" && request.page === 1)).toHaveLength(initialPageRequests);
   let finishSearch: () => void = () => {};
   state.searchGate = new Promise<void>((resolve) => { finishSearch = resolve; });
   try {
