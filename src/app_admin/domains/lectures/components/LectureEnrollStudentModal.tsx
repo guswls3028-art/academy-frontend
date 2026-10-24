@@ -213,12 +213,13 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
                         data-selected={selected.has(student.id)} data-enrolled={enrolled}>
                         <input type="checkbox" checked={selected.has(student.id)}
                           disabled={busy || enrolled || !!student.deletedAt}
+                          aria-describedby={`lecture-student-identity-${student.id} lecture-student-contact-${student.id}`}
                           aria-label={`${student.name} 선택`} onChange={() => toggle(student)} />
-                        <span className="lecture-enroll-picker__identity">
-                          <strong>{student.displayName || student.name}</strong>
+                        <span id={`lecture-student-identity-${student.id}`} className="lecture-enroll-picker__identity">
+                          <strong>{student.name}</strong>
                           <span>{[student.school, student.grade ? `${student.grade}학년` : null].filter(Boolean).join(" · ") || "학교 정보 없음"}</span>
                         </span>
-                        <span className="lecture-enroll-picker__contact">
+                        <span id={`lecture-student-contact-${student.id}`} className="lecture-enroll-picker__contact">
                           <span>학부모 {formatPhone(student.parentPhone) || "—"}</span>
                           <span>학생 {formatPhone(student.studentPhone) || "—"}</span>
                         </span>
@@ -243,10 +244,10 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
             {selected.size > 0 ? <div className="lecture-enroll-picker__chips">
               {[...selected.values()].map((student) => <button key={student.id} type="button" disabled={selectionLocked}
                 title={[student.name, student.school, formatPhone(student.parentPhone)].filter(Boolean).join(" · ")}
-                aria-label={`${student.name} 선택 해제`} onClick={() => {
+                aria-label={`${student.name}, ${student.school || "학교 정보 없음"}, 학부모 ${formatPhone(student.parentPhone) || "연락처 없음"} 선택 해제`} onClick={() => {
                   setSelected((previous) => { const next = new Map(previous); next.delete(student.id); return next; });
                   setSelectionMessage("");
-                }}>{student.displayName || student.name}<span aria-hidden> ×</span></button>)}
+                }}>{student.name}<span aria-hidden> ×</span></button>)}
             </div> : <p>이름을 눌러 선택하세요.<br />검색·페이지를 바꿔도 선택은 유지됩니다.</p>}
           </section>
           {selectionMessage && <p role="status" className="lecture-enroll-picker__notice">{selectionMessage}</p>}

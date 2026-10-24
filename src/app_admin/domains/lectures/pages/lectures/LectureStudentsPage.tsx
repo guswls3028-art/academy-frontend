@@ -190,6 +190,7 @@ export default function LectureStudentsPage() {
     return students.filter(
       (s) =>
         (s.name || "").toLowerCase().includes(k) ||
+        (s.displayName || "").toLowerCase().includes(k) ||
         (phoneSearch && (s.phone ?? "").replace(/\D/g, "").includes(digits)) ||
         (phoneSearch && (s.parent_phone ?? "").replace(/\D/g, "").includes(digits))
     );
