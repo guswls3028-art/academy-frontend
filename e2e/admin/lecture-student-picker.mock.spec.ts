@@ -79,11 +79,14 @@ async function openPicker(page: Page) {
 
 for (const width of [1366, 1100, 390]) {
   test(`${width}px 차시 없이 기존 학생을 검색·다중 선택하고 저장·reload한다`, async ({ page }, info) => {
-    await page.setViewportSize({ width, height: 900 });
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     const { state, dialog } = await openPicker(page);
     await expect(dialog.getByRole("checkbox", { name: "기존학생001 선택", exact: true })).toBeDisabled();
     await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
     await dialog.getByRole("checkbox", { name: "기존학생003 선택", exact: true }).check();
+    const searchBox = await dialog.getByRole("textbox", { name: "학생 검색" }).boundingBox();
+    expect(searchBox!.height).toBeGreaterThanOrEqual(width === 390 ? 44 : 40);
+    await dialog.screenshot({ path: info.outputPath(`lecture-picker-list-${width}.png`) });
     await dialog.getByRole("button", { name: "다음", exact: true }).click();
     await dialog.getByRole("checkbox", { name: "기존학생051 선택", exact: true }).check();
     await dialog.getByRole("textbox", { name: "학생 검색" }).fill("010-8000-0052");
