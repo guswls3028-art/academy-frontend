@@ -153,6 +153,44 @@ async function installApi(page: Page) {
   });
 }
 
+async function installEditableNotice(page: Page, options: { ambiguousUpload?: boolean; rejectContent?: boolean } = {}) {
+  const state = {
+    post: { id: 998, post_type: "notice", title: "36번 정답 정정", content: "<p>36번 정답은 3번입니다.</p>",
+      attachments: [] as PostAttachment[], mappings: [], created_at: "2026-10-24T15:12:00Z", is_pinned: false },
+    patches: [] as Record<string, unknown>[], uploadKeys: [] as string[],
+  };
+  await page.route("**/api/v1/community/admin/posts/**", (route) => route.fulfill({
+    status: 200, headers: CORS_HEADERS, contentType: "application/json",
+    body: JSON.stringify({ count: 1, results: [state.post] }),
+  }));
+  await page.route("**/api/v1/community/posts/998/", async (route) => {
+    if (route.request().method() === "PATCH") {
+      const body = route.request().postDataJSON();
+      state.patches.push(body);
+      if (options.rejectContent && "content" in body) {
+        options.rejectContent = false;
+        return route.fulfill({ status: 503, headers: CORS_HEADERS, contentType: "application/json", body: JSON.stringify({ detail: "본문 저장 실패" }) });
+      }
+      Object.assign(state.post, body);
+    }
+    return route.fulfill({ status: 200, headers: CORS_HEADERS, contentType: "application/json", body: JSON.stringify(state.post) });
+  });
+  await page.route("**/api/v1/community/posts/998/attachments/", async (route) => {
+    const body = route.request().postDataBuffer()?.toString("utf8") ?? "";
+    state.uploadKeys.push(body.match(/name="idempotency_key"\r\n\r\n([^\r\n]+)/)?.[1] ?? "");
+    state.post.attachments = [{ id: 910, original_name: "정답-정정.png", size_bytes: 68, content_type: "image/png", created_at: "2026-10-24T15:12:00Z", download_url: IMAGE_DATA_URL }];
+    const fail = options.ambiguousUpload && state.uploadKeys.length === 1;
+    return route.fulfill({ status: fail ? 503 : 201, headers: CORS_HEADERS, contentType: "application/json",
+      body: JSON.stringify(fail ? { detail: "업로드 응답 연결이 끊겼습니다." } : state.post.attachments) });
+  });
+  return state;
+}
+
+const CORRECTION_IMAGE = {
+  name: "정답-정정.png", mimeType: "image/png",
+  buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+};
+
 test("커뮤니티 DELETE는 정확한 부분 완료 응답만 삭제 완료로 분류한다", async () => {
   const clientFor = (error?: unknown) => ({
     delete: async () => {
@@ -195,6 +233,71 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await seed(page);
     await installApi(page);
     await installLocalAuthApiStubs(page);
+  });
+
+  for (const width of [1366, 390]) {
+    test(`${width}px 기존 공지에 사진만 추가하고 저장·새로고침한다`, async ({ page }) => {
+      const state = await installEditableNotice(page);
+      await page.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(page, `${BASE}/workspace/community/notice?id=998`, { timeout: 60_000 });
+      await page.getByRole("button", { name: "수정", exact: true }).click();
+      await page.locator('input[type="file"][accept="image/*"]').setInputFiles(CORRECTION_IMAGE);
+      await expect(page.getByAltText("정답-정정.png 미리보기")).toBeVisible();
+      await expect(page.locator(".ProseMirror img")).toHaveCount(0);
+      await page.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(page.getByText("내용이 저장되었습니다.")).toBeVisible();
+      expect(state.uploadKeys).toHaveLength(1);
+      expect(state.uploadKeys[0]).not.toBe("");
+      expect(state.patches).toHaveLength(0);
+      await page.reload();
+      const attachments = page.getByRole("region", { name: "첨부파일", exact: true });
+      await expect(attachments.getByAltText("정답-정정.png", { exact: true })).toBeVisible();
+      await expect.poll(() => attachments.getByRole("img").evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: test.info().outputPath(`notice-edit-attachments-${width}.png`) });
+    });
+  }
+
+  test("공지 첨부 응답 유실은 같은 키로 재시도하고 본문을 다시 저장하지 않는다", async ({ page }) => {
+    const state = await installEditableNotice(page, { ambiguousUpload: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/notice?id=998`, { timeout: 60_000 });
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await page.locator(".ProseMirror").fill("정정 내용을 추가했습니다.");
+    await page.locator('input[type="file"][accept="image/*"]').setInputFiles(CORRECTION_IMAGE);
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "선택한 파일은 유지됩니다" })).toBeVisible();
+    await expect(page.locator(".ProseMirror")).toHaveAttribute("contenteditable", "false");
+    await expect(page.getByRole("button", { name: "정답-정정.png 제거", exact: true })).toBeDisabled();
+    await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
+    await expect(page.getByText("내용이 저장되었습니다.")).toBeVisible();
+    expect(state.uploadKeys).toHaveLength(2);
+    expect(state.uploadKeys[0]).toBeTruthy();
+    expect(state.uploadKeys[1]).toBe(state.uploadKeys[0]);
+    expect(state.patches.filter((body) => "content" in body)).toHaveLength(1);
+    await page.reload();
+    await expect(page.getByRole("region", { name: "첨부파일", exact: true }).getByRole("img")).toHaveCount(1);
+  });
+
+  test("공지 제목 재조회와 본문 저장 실패 뒤에도 초안·사진을 보존한다", async ({ page }) => {
+    const state = await installEditableNotice(page, { rejectContent: true });
+    await gotoAndSettle(page, `${BASE}/workspace/community/notice?id=998`, { timeout: 60_000 });
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await page.locator(".ProseMirror").fill("아직 저장하지 않은 정정 설명");
+    await page.locator('input[type="file"][accept="image/*"]').setInputFiles(CORRECTION_IMAGE);
+    await page.getByTitle("클릭하여 제목 수정").click();
+    await page.locator(".cms-detail__title-input").fill("36번 정답 정정 안내");
+    await page.locator(".cms-detail__title-edit-row").getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.getByText("제목이 수정되었습니다.")).toBeVisible();
+    await expect(page.locator(".ProseMirror")).toContainText("아직 저장하지 않은 정정 설명");
+    await page.locator(".cms-detail__content-actions").getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "본문 저장 실패" })).toBeVisible();
+    expect(state.uploadKeys).toHaveLength(0);
+    await expect(page.locator(".ProseMirror")).toContainText("아직 저장하지 않은 정정 설명");
+    await expect(page.getByAltText("정답-정정.png 미리보기")).toBeVisible();
+    await page.locator(".cms-detail__content-actions").getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.getByText("내용이 저장되었습니다.")).toBeVisible();
+    expect(state.uploadKeys).toHaveLength(1);
   });
 
   test("부분 삭제는 재전송 없이 목록과 새로고침에 반영하고 정리 대기를 알린다", async ({ page }) => {
