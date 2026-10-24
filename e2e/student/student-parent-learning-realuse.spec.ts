@@ -3,7 +3,7 @@
  * and the same child's parent. All records are synthetic and tenant-local.
  */
 import { expect, test } from "../fixtures/strictTest";
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 import {
   api,
   assertNoHorizontalOverflow,
@@ -140,7 +140,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (failures.length) throw new Error(`student/parent learning cleanup failed:\n${failures.join("\n")}`);
 }
 
-async function seedLearningGraph(request: APIRequestContext, adminAccess: string, family: QaFamily, enrollmentPage: Page): Promise<void> {
+async function seedLearningGraph(request: APIRequestContext, adminAccess: string, family: QaFamily, enrollmentPage: Page, testInfo: TestInfo): Promise<void> {
   const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", adminAccess, {
     title: lectureTitle,
     name: "QA학습",
@@ -165,6 +165,7 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
     await picker.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
   }
   await assertNoHorizontalOverflow(enrollmentPage);
+  await picker.screenshot({ path: testInfo.outputPath("lecture-enrollment-390.png") });
   const enrollmentResponse = enrollmentPage.waitForResponse((response) =>
     response.url().endsWith("/enrollments/bulk_create/") && response.request().method() === "POST",
   );
@@ -184,6 +185,7 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   await picker.getByRole("textbox", { name: "학생 검색" }).fill(family.students[0].name);
   await expect(picker.getByRole("checkbox", { name: `${family.students[0].name} 선택`, exact: true })).toBeDisabled();
   await assertNoHorizontalOverflow(enrollmentPage);
+  await picker.screenshot({ path: testInfo.outputPath("lecture-enrollment-desktop.png") });
   await picker.getByRole("button", { name: "취소", exact: true }).click();
   const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", adminAccess, {
     lecture: created.lectureId,
@@ -280,7 +282,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
       const enrollmentBoundary = await installQaStudentParentBoundary(enrollmentPage, request);
       const enrollmentBrowser = attachStrictBrowserGuards(enrollmentPage);
       await seedBrowserAuth(enrollmentPage, admin);
-      await seedLearningGraph(request, admin.access, created.family, enrollmentPage);
+      await seedLearningGraph(request, admin.access, created.family, enrollmentPage, testInfo);
       enrollmentBoundary.assertClean();
       enrollmentBrowser.assertZeroDefects();
     } finally {

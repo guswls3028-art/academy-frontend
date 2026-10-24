@@ -94,8 +94,10 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
   const leave = async (next: () => void) => {
     if (savingRef.current) return;
     if (selected.size && !await confirm({
-      title: "선택한 학생을 등록하지 않고 나갈까요?",
-      message: `선택한 ${selected.size}명은 아직 이 강의에 등록되지 않았습니다.`,
+      title: saveError ? "등록 결과 확인을 종료할까요?" : "선택한 학생을 등록하지 않고 나갈까요?",
+      message: saveError
+        ? "등록 여부가 불확실할 수 있습니다. 나간 뒤 강의 명단에서 등록 결과를 확인해 주세요."
+        : `선택한 ${selected.size}명은 아직 이 강의에 등록되지 않았습니다.`,
       confirmText: "선택 취소하고 나가기",
       danger: true,
     })) return;

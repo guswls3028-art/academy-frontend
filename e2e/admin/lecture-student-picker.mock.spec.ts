@@ -18,12 +18,13 @@ type State = {
   failRoster: boolean;
   failSave: boolean;
   failReadback: boolean;
+  saveGate: Promise<void> | null;
 };
 
 async function openPicker(page: Page) {
   const state: State = {
     statuses: new Map([[1, "ACTIVE"], [2, "INACTIVE"], [3, "PENDING"]]),
-    posts: [], unexpectedWrites: [], failRoster: false, failSave: false, failReadback: false,
+    posts: [], unexpectedWrites: [], failRoster: false, failSave: false, failReadback: false, saveGate: null,
   };
   await installTenantOneInitScript(page);
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -44,6 +45,7 @@ async function openPicker(page: Page) {
     if (path === "/enrollments/bulk_create/" && request.method() === "POST") {
       const body = request.postDataJSON() as { lecture: number; students: number[] };
       state.posts.push(body);
+      if (state.saveGate) await state.saveGate;
       if (state.failSave) return json({ detail: "일시적인 등록 실패" }, 400);
       body.students.forEach((id) => state.statuses.set(id, "ACTIVE"));
       return json(body.students.map((id) => ({ id: 1000 + id, status: "ACTIVE", student: students[id - 1] })), 201);
@@ -164,4 +166,28 @@ test("명단 불완전 응답과 등록 실패를 표시하고 선택을 보존�
   await dialog.getByRole("button", { name: "다시 불러오기", exact: true }).click();
   await expect(dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true })).toBeDisabled();
   await expect(dialog.getByRole("checkbox", { name: "기존학생003 선택", exact: true })).toBeEnabled();
+});
+
+test("키보드 선택과 지연된 등록 중 중복 제출·닫기를 막는다", async ({ page }) => {
+  const { state, dialog } = await openPicker(page);
+  const checkbox = dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true });
+  await checkbox.focus();
+  await page.keyboard.press("Space");
+  await expect(checkbox).toBeChecked();
+  let finishSave: () => void = () => {};
+  state.saveGate = new Promise<void>((resolve) => { finishSave = resolve; });
+  try {
+    await dialog.getByRole("button", { name: "1명 강의에 추가", exact: true }).evaluate((element) => {
+      (element as HTMLButtonElement).click();
+      (element as HTMLButtonElement).click();
+    });
+    await expect.poll(() => state.posts.length).toBe(1);
+    await expect(dialog.getByRole("button", { name: "등록 확인 중…", exact: true })).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+  } finally {
+    finishSave();
+  }
+  await expect(dialog).toHaveCount(0);
+  expect(state.posts).toHaveLength(1);
 });
