@@ -316,10 +316,12 @@ test.describe("커뮤니티 QnA 작업대", () => {
     });
     await expect(page.getByRole("button", { name: "붙여넣기-1.svg 제거", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "붙여넣기-2.svg 제거", exact: true })).toBeVisible();
+    await page.locator(".ProseMirror").scrollIntoViewIfNeeded();
     await page.locator(".ProseMirror").evaluate((element) => {
       const transfer = new DataTransfer();
       transfer.items.add(new File(['<svg xmlns="http://www.w3.org/2000/svg"/>'], "넘친-이미지.svg", { type: "image/svg+xml" }));
-      element.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true }));
+      const rect = element.getBoundingClientRect();
+      element.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, clientX: rect.left + 10, clientY: rect.top + 10, bubbles: true, cancelable: true }));
     });
     await expect(page.getByText("첨부파일은 기존 파일을 포함해 최대 10개까지 가능합니다.")).toBeVisible();
     await expect(page.getByRole("button", { name: "넘친-이미지.svg 제거", exact: true })).toHaveCount(0);
