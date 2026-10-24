@@ -24,6 +24,8 @@ export const adminLectureQueryKeys = {
   sessionEnrollments: (sessionId: number | null | undefined) => ["session-enrollments", sessionId] as const,
 
   sessionVideos: (sessionId: number | null | undefined) => ["session-videos", sessionId] as const,
+  lectureEnrollStudents: (lectureId: number, search: string, page: number) =>
+    ["lecture-enroll-students", lectureId, search, page] as const,
   sessionEnrollModalStudents: ["session-enroll-modal-students"] as const,
   sessionEnrollModalStudentsList: (
     search: string,

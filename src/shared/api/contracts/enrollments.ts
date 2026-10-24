@@ -11,6 +11,8 @@ import {
 export type LectureEnrollmentStudent = {
   id: number | null;
   name: string | null;
+  phone?: string | null;
+  parent_phone?: string | null;
   grade?: number | null;
   high_school?: string | null;
   middle_school?: string | null;
@@ -67,6 +69,8 @@ function normalizeLectureEnrollment(raw: unknown): LectureEnrollmentRow {
       ? {
           id: asNullableNumber(student.id),
           name: asNullableString(student.name),
+          phone: asNullableString(student.phone),
+          parent_phone: asNullableString(student.parent_phone),
           grade: asNullableNumber(student.grade),
           high_school: asNullableString(student.high_school),
           middle_school: asNullableString(student.middle_school),

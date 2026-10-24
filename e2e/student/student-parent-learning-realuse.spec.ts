@@ -3,7 +3,7 @@
  * and the same child's parent. All records are synthetic and tenant-local.
  */
 import { expect, test } from "../fixtures/strictTest";
-import type { APIRequestContext } from "@playwright/test";
+import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 import {
   api,
   assertNoHorizontalOverflow,
@@ -140,7 +140,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (failures.length) throw new Error(`student/parent learning cleanup failed:\n${failures.join("\n")}`);
 }
 
-async function seedLearningGraph(request: APIRequestContext, adminAccess: string, family: QaFamily): Promise<void> {
+async function seedLearningGraph(request: APIRequestContext, adminAccess: string, family: QaFamily, enrollmentPage: Page, testInfo: TestInfo): Promise<void> {
   const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", adminAccess, {
     title: lectureTitle,
     name: "QA학습",
@@ -154,6 +154,39 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   });
   created.lectureId = Number(lecture.id);
 
+  // Exercise the staff entry before any session exists, then consume the same
+  // persisted enrollments throughout teacher/student/parent learning checks.
+  await enrollmentPage.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(enrollmentPage, `${QA_BASE}/workspace/lectures/${created.lectureId}`, { timeout: 30_000 });
+  await enrollmentPage.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
+  const picker = enrollmentPage.getByRole("dialog", { name: "수강생 등록", exact: true });
+  for (const student of family.students) {
+    await picker.getByRole("textbox", { name: "학생 검색" }).fill(student.name);
+    await picker.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
+  }
+  await assertNoHorizontalOverflow(enrollmentPage);
+  await picker.screenshot({ path: testInfo.outputPath("lecture-enrollment-390.png") });
+  const enrollmentResponse = enrollmentPage.waitForResponse((response) =>
+    response.url().endsWith("/enrollments/bulk_create/") && response.request().method() === "POST",
+  );
+  await picker.getByRole("button", { name: "2명 강의에 추가", exact: true }).click();
+  const saved = await enrollmentResponse;
+  expect(saved.status()).toBe(201);
+  const enrollments = await saved.json() as Array<{ id: number; student: { id: number }; status: string }>;
+  created.enrollmentIds = enrollments.map((row) => Number(row.id));
+  expect(enrollments).toHaveLength(2);
+  expect(enrollments.every((row) => row.status === "ACTIVE")).toBe(true);
+  created.enrollmentIds = family.students.map((student) => enrollments.find((row) => row.student.id === student.id)!.id);
+  await expect(picker).toHaveCount(0);
+  await enrollmentPage.reload({ waitUntil: "domcontentloaded" });
+  for (const student of family.students) await expect(enrollmentPage.getByText(student.name, { exact: true }).first()).toBeVisible();
+  await enrollmentPage.setViewportSize({ width: 1366, height: 900 });
+  await enrollmentPage.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
+  await picker.getByRole("textbox", { name: "학생 검색" }).fill(family.students[0].name);
+  await expect(picker.getByRole("checkbox", { name: `${family.students[0].name} 선택`, exact: true })).toBeDisabled();
+  await assertNoHorizontalOverflow(enrollmentPage);
+  await picker.screenshot({ path: testInfo.outputPath("lecture-enrollment-desktop.png") });
+  await picker.getByRole("button", { name: "취소", exact: true }).click();
   const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", adminAccess, {
     lecture: created.lectureId,
     title: sessionTitle,
@@ -162,14 +195,7 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   });
   created.sessionId = Number(session.id);
 
-  const enrollments = await expectApi<Array<{ id: number }>>(
-    request,
-    "POST",
-    "/enrollments/bulk_create/",
-    adminAccess,
-    { lecture: created.lectureId, students: family.students.map((student) => student.id) },
-  );
-  created.enrollmentIds = enrollments.map((row) => Number(row.id));
+
   const sessionEnrollments = await expectApi<Array<{ id: number }>>(
     request,
     "POST",
@@ -250,7 +276,18 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     created.adminAccess = admin.access;
     created.family = await createQaFamily(request, admin.access, "learning", 2);
     const [primary, sibling] = created.family.students;
-    await seedLearningGraph(request, admin.access, created.family);
+    const enrollmentContext = await page.context().browser()!.newContext({ serviceWorkers: "block" });
+    try {
+      const enrollmentPage = await enrollmentContext.newPage();
+      const enrollmentBoundary = await installQaStudentParentBoundary(enrollmentPage, request);
+      const enrollmentBrowser = attachStrictBrowserGuards(enrollmentPage);
+      await seedBrowserAuth(enrollmentPage, admin);
+      await seedLearningGraph(request, admin.access, created.family, enrollmentPage, testInfo);
+      enrollmentBoundary.assertClean();
+      enrollmentBrowser.assertZeroDefects();
+    } finally {
+      await enrollmentContext.close();
+    }
 
     // The same synthetic video must also reach the teacher list through the real
     // API. Failure/retry injection remains in public-video-preparation.mock.spec.
