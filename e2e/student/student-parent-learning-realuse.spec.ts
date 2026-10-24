@@ -148,7 +148,7 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
     description: "qa-* student/parent learning projection",
     start_date: todayKst,
     end_date: todayKst,
-    lecture_time: "목 19:00 ~ 21:00",
+    lecture_time: "19:00~21:00",
     color: "#0f766e",
     chip_label: "학습",
     is_active: true,
@@ -179,7 +179,7 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   expect((await editResponse).status()).toBe(200);
   await expect(editor).toHaveCount(0);
   const persisted = await expectApi<Record<string, unknown>>(request, "GET", `/lectures/lectures/${created.lectureId}/`, adminAccess);
-  expect(persisted).toMatchObject({ title: lectureTitle, name: "QA학습", subject: "수학", end_date: null, chip_label: "학습", color: "#0f766e", lecture_time: "목 19:00 ~ 21:00" });
+  expect(persisted).toMatchObject({ title: lectureTitle, name: "QA학습", subject: "수학", end_date: null, chip_label: "학습", color: "#0f766e", lecture_time: "19:00~21:00" });
   await enrollmentPage.reload({ waitUntil: "domcontentloaded" });
   await expect(enrollmentPage.getByRole("link", { name: `${lectureTitle} 강의 열기`, exact: true })).toBeVisible();
 

@@ -134,7 +134,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
       await expect(modal.getByLabel("설명", { exact: true })).toHaveValue("기존 설명을 보존합니다.");
       await expect(modal.getByLabel("담당 강사 (필수)")).toContainText("관리자");
       await expect(modal.locator(".shared-date-picker-trigger").first()).toContainText("2026");
-      await expect(modal.getByRole("button", { name: "시작 시간 선택", exact: true })).toContainText("09:00");
+      await expect(modal.getByRole("button", { name: "시작 시간 선택", exact: true })).toContainText("오전 9:00");
       await page.screenshot({ path: testInfo.outputPath(`lecture-edit-${width}.png`) });
       const dimensions = await modal.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
       expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client + 1);
