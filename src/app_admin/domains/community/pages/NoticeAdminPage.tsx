@@ -43,6 +43,7 @@ import { createClientRequestKey, getCommunityStorageCleanupNotice } from "@/shar
 import "@admin/domains/community/qna-inbox.css";
 import "@admin/domains/community/notice-tree.css";
 import "@admin/domains/community/board-admin.css";
+import "../notice-attachments.css";
 
 const SNIPPET_LEN = 72;
 

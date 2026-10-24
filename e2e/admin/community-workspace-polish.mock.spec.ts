@@ -300,6 +300,33 @@ test.describe("커뮤니티 QnA 작업대", () => {
     expect(state.uploadKeys).toHaveLength(1);
   });
 
+  test("공지 여러 장 붙여넣기·드롭은 선택 목록에 남고 기존 첨부 포함 한도를 알린다", async ({ page }) => {
+    const state = await installEditableNotice(page);
+    state.post.attachments = Array.from({ length: 8 }, (_, index) => ({
+      id: 100 + index, original_name: `기존-${index}.txt`, size_bytes: 10, content_type: "text/plain", created_at: "2026-10-24T15:12:00Z",
+    }));
+    await gotoAndSettle(page, `${BASE}/workspace/community/notice?id=998`, { timeout: 60_000 });
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await page.locator(".ProseMirror").evaluate((element) => {
+      const clipboard = new DataTransfer();
+      for (const name of ["붙여넣기-1.svg", "붙여넣기-2.svg"]) {
+        clipboard.items.add(new File(['<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"/>'], name, { type: "image/svg+xml" }));
+      }
+      element.dispatchEvent(new ClipboardEvent("paste", { clipboardData: clipboard, bubbles: true, cancelable: true }));
+    });
+    await expect(page.getByRole("button", { name: "붙여넣기-1.svg 제거", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "붙여넣기-2.svg 제거", exact: true })).toBeVisible();
+    await page.locator(".ProseMirror").evaluate((element) => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(['<svg xmlns="http://www.w3.org/2000/svg"/>'], "넘친-이미지.svg", { type: "image/svg+xml" }));
+      element.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true }));
+    });
+    await expect(page.getByText("첨부파일은 기존 파일을 포함해 최대 10개까지 가능합니다.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "넘친-이미지.svg 제거", exact: true })).toHaveCount(0);
+    await expect(page.locator(".ProseMirror img")).toHaveCount(0);
+    expect(state.uploadKeys).toHaveLength(0);
+  });
+
   test("부분 삭제는 재전송 없이 목록과 새로고침에 반영하고 정리 대기를 알린다", async ({ page }) => {
     let deleteRequests = 0;
     let deleted = false;
