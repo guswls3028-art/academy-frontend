@@ -8,12 +8,14 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import { compareKoreanText } from "@/shared/utils/dataOrdering";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { fetchLectureEnrollments } from "@/shared/api/contracts/enrollments";
+import type { AttendanceMatrixStudent } from "@/shared/api/contracts/attendance";
 
 import { fetchAttendanceMatrix, downloadAttendanceExcel } from "@admin/domains/lectures/api/attendance";
 import { sortSessionsByDateDesc } from "@admin/domains/lectures/api/sessions";
 import LectureEnrollStudentModal from "@admin/domains/lectures/components/LectureEnrollStudentModal";
 import LectureEnrollExcelModal from "@admin/domains/lectures/components/LectureEnrollExcelModal";
-import SessionCreateModal from "@admin/domains/lectures/components/SessionCreateModal";
+
 import { adminLectureQueryKeys } from "@admin/domains/lectures/queryKeys";
 
 import AttendanceStatusBadge, { type AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
@@ -85,7 +87,7 @@ export default function LectureStudentsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [showLectureEnroll, setShowLectureEnroll] = useState(false);
-  const [showSessionCreateModal, setShowSessionCreateModal] = useState(false);
+
   const [showEnrollExcelModal, setShowEnrollExcelModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [sort, setSort] = useState("name");
@@ -103,6 +105,11 @@ export default function LectureStudentsPage() {
     enabled: validLectureId,
   });
   const matrix = matrixQ.data;
+  const enrollmentsQ = useQuery({
+    queryKey: adminLectureQueryKeys.lectureEnrollments(lectureIdNum),
+    queryFn: () => fetchLectureEnrollments(lectureIdNum),
+    enabled: validLectureId,
+  });
 
   const lectureQ = useQuery({
     queryKey: adminLectureQueryKeys.lecture(lectureIdNum),
@@ -110,10 +117,30 @@ export default function LectureStudentsPage() {
     enabled: validLectureId,
   });
   const lecture = lectureQ.data;
-  const isLoading = matrixQ.isLoading || lectureQ.isLoading;
-  const isError = matrixQ.isError || lectureQ.isError;
+  const isLoading = matrixQ.isLoading || lectureQ.isLoading || enrollmentsQ.isLoading;
+  const isError = matrixQ.isError || lectureQ.isError || enrollmentsQ.isError;
 
-  const rawStudents = matrix?.students ?? [];
+  // Attendance includes session members/history. Add active lecture-only members
+  // without fabricating session assignments or overwriting existing attendance.
+  const rawStudents = useMemo(() => {
+    const byStudent = new Map<number, AttendanceMatrixStudent>(
+      (matrix?.students ?? []).map((student) => [student.student_id, student]),
+    );
+    for (const enrollment of enrollmentsQ.data ?? []) {
+      const student = enrollment.student;
+      if (enrollment.status !== "ACTIVE" || !student?.id || byStudent.has(student.id)) continue;
+      byStudent.set(student.id, {
+        student_id: student.id,
+        name: student.name ?? "",
+        phone: student.phone ?? null,
+        parent_phone: student.parent_phone ?? null,
+        profile_photo_url: student.profile_photo_url,
+        name_highlight_clinic_target: student.name_highlight_clinic_target,
+        attendance: {},
+      });
+    }
+    return [...byStudent.values()];
+  }, [matrix?.students, enrollmentsQ.data]);
   const sessions = matrix?.sessions ?? [];
   const sessionCounts = useMemo(() => ({
     REGULAR: sessions.filter((session) => session.session_type !== "SUPPLEMENT").length,
@@ -228,7 +255,7 @@ export default function LectureStudentsPage() {
         </Button>
         <span className="text-[var(--color-border-divider)]">|</span>
       <Button intent="secondary" size="sm" onClick={() => downloadAttendanceExcel(lectureIdNum)} disabled={isLoading || isError}>
-        엑셀 다운로드
+        출결 엑셀 다운로드
       </Button>
       </div>
     </div>
@@ -301,20 +328,20 @@ export default function LectureStudentsPage() {
               tone="error"
               title="수강생과 출결 정보를 불러오지 못했습니다"
               description="불완전한 명단에서 등록·다운로드하지 않도록 작업을 잠갔습니다."
-              actions={<Button intent="secondary" onClick={() => { void matrixQ.refetch(); void lectureQ.refetch(); }}>다시 시도</Button>}
+              actions={<Button intent="secondary" onClick={() => { void matrixQ.refetch(); void lectureQ.refetch(); void enrollmentsQ.refetch(); }}>다시 시도</Button>}
             />
           ) : !sortedFiltered.length ? (
             <EmptyState
               scope="panel"
               tone="empty"
-              title="수강 중인 학생이 없습니다."
-              description={"'수강생 등록'으로 학생 명단을 만든 뒤, 각 차시 안에서 그 차시 수강생을 추가하세요."}
+              title={search ? "검색 결과가 없습니다." : "수강 중인 학생이 없습니다."}
+              description={search ? "다른 이름이나 전화번호로 검색해 주세요." : "'수강생 등록'에서 기존 학생을 골라 바로 추가하세요. 차시를 먼저 만들 필요가 없습니다."}
               actions={
                 <Button intent="primary" onClick={() => setShowLectureEnroll(true)}>
                   수강생 등록
                 </Button>
               }
-              extra="매주 새로 등록할 필요 없어요 — 차시에서 '직전 차시에서 불러오기'로 지난주 수강생을 한 번에 가져올 수 있고, 엑셀 일괄 등록도 지원합니다."
+              extra="출결 대상은 각 차시에서 '강의 수강생 불러오기'로 선택할 수 있습니다. 엑셀 일괄 등록도 지원합니다."
             />
           ) : (
             <div className="overflow-x-auto w-full">
@@ -468,16 +495,10 @@ export default function LectureStudentsPage() {
           qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureIdNum) });
           setShowLectureEnroll(false);
         }}
-        onChooseSessionCreate={() => setShowSessionCreateModal(true)}
+
         onChooseExcelUpload={() => setShowEnrollExcelModal(true)}
       />
 
-      {showSessionCreateModal && (
-        <SessionCreateModal
-          lectureId={lectureIdNum}
-          onClose={() => setShowSessionCreateModal(false)}
-        />
-      )}
 
       <LectureEnrollExcelModal
         lectureId={lectureIdNum}

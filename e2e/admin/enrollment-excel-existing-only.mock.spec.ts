@@ -171,7 +171,7 @@ async function openEnrollmentExcel(
   const enrollButton = page.getByRole("button", { name: "수강생 등록" }).first();
   await expect(enrollButton).toBeVisible({ timeout: 30_000 });
   await enrollButton.click();
-  await page.getByText("엑셀로 일괄 등록 (추천)", { exact: true }).click();
+  await page.getByRole("button", { name: "엑셀로 일괄 등록", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading", { name: "수강생 엑셀 업로드" })).toBeVisible();
   await dialog.locator('input[type="file"]').setInputFiles({
