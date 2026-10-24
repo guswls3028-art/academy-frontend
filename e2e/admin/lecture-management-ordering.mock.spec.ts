@@ -102,7 +102,7 @@ async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boole
     localStorage.setItem("refresh", `${jwt}-refresh`);
   }, localJwt());
 
-  return { reorderPayloads, edits, recoverDetail: () => { failDetail = false; } };
+  return { reorderPayloads, edits, recoverDetail: () => { failDetail = false; }, updateSubject: (subject: string) => { lectures[0].subject = subject; } };
 }
 
 async function rowTitles(page: Page) {
@@ -115,7 +115,7 @@ async function normalizedRowTitles(page: Page) {
 
 test.describe("강의 관리 영구 순서와 레이아웃", () => {
   test("기존 강의를 다시 열어도 입력값을 유지하며 저장 실패 복구·종료일 해제를 저장한다", async ({ page }, testInfo) => {
-    const { edits } = await seedLectureAdmin(page, { failFirstEdit: true });
+    const { edits, updateSubject } = await seedLectureAdmin(page, { failFirstEdit: true });
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
     const settings = page.getByRole("button", { name: "Alpha 설정", exact: true });
@@ -130,7 +130,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
       await page.screenshot({ path: testInfo.outputPath(`lecture-menu-${width}.png`) });
       await page.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
       await expect(modal.getByLabel("강의 이름 (필수)")).toHaveValue("Alpha");
-      await expect(modal.getByLabel("과목 (필수)")).toHaveValue("과학");
+      await expect(modal.getByLabel("과목 (필수)")).toHaveValue(width === 1366 ? "과학" : "물리");
       await expect(modal.getByLabel("설명", { exact: true })).toHaveValue("기존 설명을 보존합니다.");
       await expect(modal.getByLabel("담당 강사 (필수)")).toContainText("관리자");
       await expect(modal.locator(".shared-date-picker-trigger").first()).toContainText("2026");
@@ -140,6 +140,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
       expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client + 1);
       await modal.getByLabel("강의 이름 (필수)").fill("취소할 초안");
       await modal.getByRole("button", { name: "취소", exact: true }).click();
+      updateSubject("물리");
     }
     await settings.click();
     await page.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
@@ -152,7 +153,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await modal.getByRole("button", { name: "수정", exact: true }).click();
     await expect(modal).toHaveCount(0);
     expect(edits).toHaveLength(2);
-    expect(edits[1]).toMatchObject({ title: "수정된 과학 강의", name: "관리자", subject: "과학", description: "기존 설명을 보존합니다.", start_date: "2026-08-01", end_date: null, lecture_time: "09:00~10:00", color: "#3b82f6", chip_label: "A" });
+    expect(edits[1]).toMatchObject({ title: "수정된 과학 강의", name: "관리자", subject: "물리", description: "기존 설명을 보존합니다.", start_date: "2026-08-01", end_date: null, lecture_time: "09:00~10:00", color: "#3b82f6", chip_label: "A" });
     await page.reload();
     await expect(page.getByRole("link", { name: "수정된 과학 강의 강의 열기", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "수정된 과학 강의 설정", exact: true }).click();

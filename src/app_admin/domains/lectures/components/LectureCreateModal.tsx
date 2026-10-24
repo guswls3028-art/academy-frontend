@@ -128,16 +128,19 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
     queryKey: adminLectureQueryKeys.lecture(lectureId),
     queryFn: () => fetchLecture(lectureId!),
     enabled: isOpen && isEditMode && lectureId != null,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
   const existingLecture = existingLectureQ.data;
   const isLoadingLecture = existingLectureQ.isLoading;
   const requiredDataError = (instructorQ.isError && !instructorQ.data)
-    || (isEditMode && existingLectureQ.isError && !existingLecture);
+    || (isEditMode && existingLectureQ.isError && !hydrated);
   const formReady = !requiredDataError && !instructorQ.isLoading && (!isEditMode || hydrated);
 
   useEffect(() => {
     // A modal session owns its draft. Cache refreshes must never replace user input.
-    if (!isOpen || !isEditMode || !existingLecture || hydratedRef.current) return;
+    if (!isOpen || !isEditMode || !existingLecture || hydratedRef.current
+      || existingLectureQ.isFetching || existingLectureQ.isError) return;
     hydratedRef.current = true;
     setTitle(existingLecture.title ?? "");
     setName(existingLecture.name ?? "");
@@ -150,7 +153,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
     const chip = (existingLecture as { chip_label?: string | null }).chip_label;
     setChipLabel(chip ?? (existingLecture.title ?? "").slice(0, 2));
     setHydrated(true);
-  }, [isOpen, isEditMode, existingLecture, instructorOptions, usedColors]);
+  }, [isOpen, isEditMode, existingLecture, existingLectureQ.isFetching, existingLectureQ.isError, usedColors]);
 
   useEffect(() => {
     if (isOpen && !isEditMode && instructorOptions.length > 0 && !name) {
@@ -535,7 +538,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
               {/* 담당 강사 · 과목 */}
               <div className="lecture-create-field-grid">
                 <div className="modal-form-group">
-              <div className="lecture-field-label">담당 강사 <span>필수</span></div>
+              <label className="lecture-field-label" htmlFor="lecture-instructor">담당 강사 <span>필수</span></label>
               <Popover
                 open={instructorPopoverOpen}
                 onOpenChange={(open) => {
@@ -547,6 +550,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
               >
                 <button
                   type="button"
+                  id="lecture-instructor"
                   className="lecture-create-instructor-trigger lecture-create-caret-hidden ds-input w-full min-w-0"
                   data-required="true"
                   data-invalid={hasAttemptedSubmit && !name.trim() ? "true" : "false"}
@@ -651,8 +655,9 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
               {/* 시작일(필수) · 종료일(선택) */}
               <div className="lecture-create-date-grid">
                 <div className="modal-form-group" data-required="true" data-invalid={hasAttemptedSubmit && !startDate.trim() ? "true" : "false"}>
-                  <div className="lecture-field-label">시작일 <span>필수</span></div>
+                  <label className="lecture-field-label" htmlFor="lecture-start-date">시작일 <span>필수</span></label>
                   <DatePicker
+                    id="lecture-start-date"
                     value={startDate}
                     onChange={setStartDate}
                     placeholder="시작일 (필수)"
@@ -660,8 +665,9 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
                   />
                 </div>
                 <div className="modal-form-group modal-form-group--neutral">
-                  <div className="lecture-field-label">종료일 <span>선택</span></div>
+                  <label className="lecture-field-label" htmlFor="lecture-end-date">종료일 <span>선택</span></label>
                   <DatePicker
+                    id="lecture-end-date"
                     value={endDate}
                     onChange={setEndDate}
                     placeholder="종료일 (선택)"
