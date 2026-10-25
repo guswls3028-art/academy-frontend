@@ -63,7 +63,8 @@ for (const width of [390, 1366]) for (const role of ["student", "parent"]) {
     });
     await openStudentYoutubeScenario(page, BASE);
     await expect(page.getByText("재생 화면을 준비하고 있어요…")).toHaveCount(0);
-    await expect.poll(async () => (await youtube.snapshot()).players.some((player) => !player.destroyed)).toBe(true);
+    await expect(page.locator("[data-youtube-sdk-fixture]")).toBeVisible();
+    await expect.poll(async () => (await youtube.snapshot()).players.some((player) => !player.destroyed && player.ready)).toBe(true);
     await page.getByRole("button", { name: "재생", exact: true }).click();
     await expect.poll(async () => (await youtube.snapshot()).players.some((player) => !player.destroyed && player.state === 1)).toBe(true);
     // Genuine focus events exercise the production controller queue, not a test-only save API.
