@@ -178,13 +178,19 @@ test("like failure rolls back visibly and a retry persists through reload", asyn
   const { state } = await installWatchScenario(page);
   state.likeFail = true;
   await openWatch(page);
+  // The heading precedes the lazy comments/profile queries. Let the complete
+  // page settle so WebKit does not abort their initialization during reload.
+  await expect(page.getByText(state.comments[0].content, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "좋아요", exact: true }).click();
   await expect(page.getByText("좋아요를 저장하지 못했습니다. 다시 시도해 주세요.", { exact: true })).toBeVisible();
   await expect(page.locator(".vpp-like-btn")).toHaveAttribute("aria-pressed", "false");
   state.likeFail = false;
   await page.locator(".vpp-like-btn").click();
   await expect(page.locator(".vpp-like-btn")).toHaveAttribute("aria-pressed", "true");
+  // aria-pressed is optimistic; persistence requires the confirmed response.
+  await expect(page.locator(".vpp-like-btn")).toBeEnabled();
   await page.reload();
+  await expect(page.getByText(state.comments[0].content, { exact: true })).toBeVisible();
   await expect(page.locator(".vpp-like-btn")).toHaveAttribute("aria-pressed", "true");
 });
 
