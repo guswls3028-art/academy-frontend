@@ -6,6 +6,7 @@ import { ADMIN_WORKFLOWS } from "../src/shared/ui/guide/content/adminWorkflows";
 import { TEACHER_WORKFLOWS } from "../src/shared/ui/guide/content/teacherWorkflows";
 import { STUDENT_WORKFLOWS } from "../src/shared/ui/guide/content/studentWorkflows";
 import type { GuideMediaSource } from "../src/shared/ui/guide/guideMediaData";
+import { verifyFeatureGuideImages } from "./helpers/featureGuideEvidence";
 const featureBooks = JSON.parse(readFileSync(new URL("../src/shared/ui/guide/content/feature-guide-books.json", import.meta.url), "utf8")) as typeof import("../src/shared/ui/guide/content/feature-guide-books.json").default;
 
 const mediaCatalog = JSON.parse(readFileSync(new URL("../src/shared/ui/guide/content/guide-media.json", import.meta.url), "utf8")) as Record<string, GuideMediaSource>;
@@ -132,6 +133,7 @@ for (const width of [390, 1366]) {
     const pdf = await page.request.get(`${BASE}${featureBooks.summary.pdf}`);
     expect(pdf.ok()).toBeTruthy();
     expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+    await verifyFeatureGuideImages(page, info, `candidate-feature-reader-${width}`);
   });
 }
 
