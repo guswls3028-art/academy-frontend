@@ -201,8 +201,9 @@ test("runtime assets, lockfile and development gate inputs trigger PR E2E", () =
 
 test("development inventory preserves all required real-use cases and unique files", () => {
   const entries = Object.entries(developmentRealUseCases);
-  assert.equal(entries.length, 20);
-  assert.equal(entries.reduce((sum, [, count]) => sum + count, 0), 37);
+  assert.equal(entries.length, 21);
+  assert.equal(entries.reduce((sum, [, count]) => sum + count, 0), 39);
+  assert.equal(developmentRealUseCases["admin/board-attachments-realuse.spec.ts"], 2);
   assert.equal(new Set(entries.map(([file]) => path.basename(file))).size, entries.length);
   for (const [file, count] of entries) {
     assert.ok(Number.isSafeInteger(count) && count > 0);

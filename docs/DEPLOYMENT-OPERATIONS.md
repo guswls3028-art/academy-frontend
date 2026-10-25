@@ -40,9 +40,9 @@
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
-   현재 20개 파일·37건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
+   현재 21개 파일·39건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
    첫 실패 후에는 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.
-   이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 37건 모두의
+   이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 39건 모두의
    통과와 cleanup0이 필요하다. 이미 실패한 실행이 장시간 영상 검증까지 계속되는 비용을 줄인다.
    동일 산출물 서버는 가이드 JPEG·MP4·VTT를 각각 `image/jpeg`, `video/mp4`,
    `text/vtt`로 제공한다. 일반 강사의 첫 접속 안내 확인 뒤 사진·영상·자막을
@@ -67,7 +67,7 @@
    사전 API 로그인과 UI 로그인이 공유하는 계정별 5분 10회 제한에서 실제 429와
    유효한 `Retry-After`(1–300초)를 받은 경우에만 전체 대기시간 후 UI 제출을 한 번
    재시도한다. 그 외 오류, 누락·잘못된 대기시간, 두 번째 429는 상태 코드만 기록하고
-   실패한다. 보안 제한·업무 쓰기 재시도 금지·37건 전체 통과 조건은 유지한다.
+   실패한다. 보안 제한·업무 쓰기 재시도 금지·39건 전체 통과 조건은 유지한다.
    가입 실사용 검사는 유효한 입력 후 `가입 신청 최종 확인`에서 학부모 초기
    비밀번호 방식을 명시적으로 선택하고 최종 신청을 누른 뒤 정확한 응답을 기다린다.
    첫 신청 버튼이 최종 POST를 보낸다고 가정하지 않으며 수동·자동 승인과 이후
@@ -345,9 +345,9 @@ API의 media ID와 일치해야 하며 SigV4 만료는 최대 600초다. 등록 
 `release-homework-image-boundary.test.mjs`가 등록·거부 경계를 검사하고 기존 공식
 `student-parent-homework-realuse.spec.ts`가 파일 decode와 reload를 검증한다.
 
-개발 공지·QnA 첨부 사진은 인증·QA tenant·CORS를 통과한 정확한
-`GET /api/v1/community/posts/<post_id>/`의 200 응답에서 `post_type`이 `notice` 또는
-`qna`인 게시글·첨부 ID를 현재 browser context에 등록한다. `post_type=qna` 목록은
+개발 공지·QnA·일반 게시판·자료실·상담 첨부 사진은 인증·QA tenant·CORS를 통과한 정확한
+`GET /api/v1/community/posts/<post_id>/`의 200 응답에서 `post_type`이 `notice`,
+`qna`, `board`, `materials`, `counsel`인 게시글·첨부 ID를 현재 browser context에 등록한다. `post_type=qna` 목록은
 응답의 게시글 유형도 `qna`인 경우만 등록한다. 학생 상세 화면이
 `GET /api/v1/community/posts/<post_id>/attachments/<att_id>/download/`를 호출하면
 앞서 등록한 동일 게시글·첨부와 원본 파일명이 일치하는 200 응답의 URL만 추가 등록한다.
@@ -358,9 +358,21 @@ URL은 Setup tenant와 해당 게시글의
 등록된 정확한 image GET만 인증 header 없이 전달하고 redirect·다른 bucket·tenant·
 게시글·변형된 서명 query를 거부한다. 200 응답의 MIME과 이미지 시그니처를 확인한 실제
 bytes만 브라우저에 전달한다. direct APIRequestContext의 외부 origin 경계는 유지한다.
-`release-community-image-boundary.test.mjs`가 두 유형의 허용·거부와 목록 유형 일치를
+`release-community-image-boundary.test.mjs`가 각 유형의 허용·거부와 목록 유형 일치를
 검사한다. 공지 실사용은 관리자 사진만 추가·저장·reload와 학생 사진 decode·reload를,
 QnA 실사용은 사진 decode, 확대·회전·답변, 학생 화면 반영을 검증하며 모두 cleanup zero를 요구한다.
+
+공개 게시판·후기 사진도 같은 인증·QA tenant·CORS를 통과한 정확한
+`GET /landing-public/(board|reviews)/<id>/`의 200 응답과 일치하는 ID에서만 등록한다.
+최대 8개 `meta.photos`/`photos` URL 중 개발 버킷의
+`landing-public/reviews/<Setup tenant>/users/<positive user>/<sha256>.(png|jpg|jpeg|webp)`와
+604800초 host-only SigV4 서명이 일치하는 URL만 위 이미지 전달 경계에 넣는다.
+업로드 응답이나 임의 URL, 외부 APIRequestContext 읽기를 허용하지 않는다. 동일 경계
+회귀가 다른 tenant·bucket·ID·인증 누락·리다이렉트·잘못된 이미지 bytes를 거부한다.
+`e2e/admin/board-attachments-realuse.spec.ts` 2건은 내부 게시판/자료실 생성·사진 수정,
+모바일 교사 첨부, 학생 조회 권한과 공개 글/후기 사진 저장·작성자 수정·PC/390px reload,
+후기 승인 전후 공개 범위를 실제 API/R2로 확인한다. QA 홈페이지 설정·글·사진은
+해당 disposable tenant에만 생성하며 기존 전체 tenant/user/R2 cleanup0 계약에 포함된다.
 
 개발 transport는 artifact가 가리키는 정확한 `https://api.hakwonplus.com/api/`만
 SSM의 `http://127.0.0.1:<port>/api/`로 전달한다. 웹 origin은 개발 settings가 실제로
@@ -690,7 +702,7 @@ backend `docs/operations/persistent-development-runtime.md`를 따른다.
 timeout으로 중단됐다. 부분 진행은 성공 보고서가 아니며, 당시 양쪽 tenant/user/R2/
 process/listener 정리 0은 확인됐지만 운영 승격은 차단됐다. 60분은 마지막 영상의
 전체 17분 한도까지 포함할 여유를 두며, 같은 산출물의 새 전체 실행으로 검증한다. OMR 각 10분,
-영상 test 17분, 단일 worker·재시도 0·필수 37건·690초 재생 및 cleanup0 요구는 유지한다.
+영상 test 17분, 단일 worker·재시도 0·필수 39건·690초 재생 및 cleanup0 요구는 유지한다.
 `development-release-progress.json`은 테스트 시작/종료마다 허용 spec 파일명·행·상태·
 소요 시간만 저장해 child timeout 시 마지막 진행 지점을 보존한다. 제목·오류 원문·
 API 데이터·인증정보는 기록하지 않는다. 이 진단 파일이나 일부 통과 결과로 전체 JSON
@@ -739,7 +751,7 @@ import/database 등의 고정 코드로 구분한다. 목록 밖의 이름은 �
 [backend의 이력 보존 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/student-core.md)에 따라
 일반 DELETE로 지우지 않는다. 시나리오 종료 시 가입 설정을 복원하고 브라우저를
 닫으며, 합성 가입 이력은 실행 전체의 exact disposable-tenant Cleanup에서 제거한다.
-양쪽 QA tenant/user·R2·프로세스 잔여 0 확인과 37건 전체 통과 조건은 유지한다.
+양쪽 QA tenant/user·R2·프로세스 잔여 0 확인과 39건 전체 통과 조건은 유지한다.
 `release-context-observation/v1`은 worker 내부의 고유 `observationOrdinal`, 선택적인
 browser `contextOrdinal`, 증가하는 `snapshotSequence`로 한 관측의 교체 snapshot을
 식별한다. assertion 전 snapshot은 실패해도 먼저 남기고, native context 종료나

@@ -25,7 +25,7 @@ import { adminCommunityQueryKeys } from "../queryKeys";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/shared/api/contracts/sessions";
 import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import CmsTreeNav from "../components/CmsTreeNav";
-import { Button, Badge } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import ScopeBadge from "../components/ScopeBadge";
@@ -158,16 +158,16 @@ export default function MaterialsBoardPage() {
   });
 
   useEffect(() => {
-    if (selectedId == null || showCreate || postsQ.isLoading) return;
+    if (selectedId == null || showCreate || postsQ.isFetching) return;
     if (!filtered.some((p) => p.id === selectedId)) setSelectedId(null);
-  }, [filtered, selectedId, showCreate, postsQ.isLoading, setSelectedId]);
+  }, [filtered, selectedId, showCreate, postsQ.isFetching, setSelectedId]);
 
   // j/k keyboard nav
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (filtered.length === 0) return;
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "TEXTAREA" || tag === "INPUT") return;
+      const element = e.target as HTMLElement;
+      if (["TEXTAREA", "INPUT", "SELECT"].includes(element.tagName) || element.isContentEditable || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const idx = selectedId != null ? filtered.findIndex((p) => p.id === selectedId) : -1;
       if (e.key === "j") { e.preventDefault(); setSelectedId(filtered[Math.min(idx + 1, filtered.length - 1)].id); }

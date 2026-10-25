@@ -232,7 +232,7 @@ test.describe("landing route island", () => {
     await page.route("**/api/v1/landing-public/uploads/review-photo/", route => { uploads += 1; return route.fulfill({ status: 201, json: { key, url: "https://photo.example.test/photo.png" } }); });
     await page.goto(`${BASE}/landing/board/778/edit`, { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("board-edit-title")).toHaveValue("내 글");
-    await page.locator('input[accept="image/*"]').setInputFiles({ name: "추가.png", mimeType: "image/png", buffer: Buffer.from("png") });
+    await page.locator('input[accept="image/*"]').setInputFiles({ name: "추가.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=", "base64") });
     await page.getByTestId("board-edit-submit").click();
     await expect(page.getByText("본문 저장 연결 오류")).toBeVisible();
     await expect(page.getByTestId("board-edit-title")).toHaveValue("내 글");
@@ -252,6 +252,8 @@ test.describe("landing route island", () => {
       return route.fulfill({ status: keys.length === 1 ? 503 : 201, json: keys.length === 1 ? { detail: "첨부 응답 유실" } : [] });
     });
     await page.route("**/api/v1/community/posts/779/", route => route.fulfill({ json: { id: 779, post_type: "board", title: "복구 글", content: "복구 본문", attachments: [], replies: [], mappings: [] } }));
+    await page.route("**/api/v1/community/posts/779/replies/", route => route.fulfill({ json: [] }));
+    await page.route("**/api/v1/community/posts/779/neighbors/", route => route.fulfill({ json: {} }));
     await page.goto(`${BASE}/landing/community/board/write`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("landing-community-write-title").fill("복구 글");
     await page.getByTestId("landing-community-write-content").fill("복구 본문");

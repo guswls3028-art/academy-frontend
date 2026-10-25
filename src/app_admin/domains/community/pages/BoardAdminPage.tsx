@@ -29,7 +29,7 @@ import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { adminCommunityQueryKeys } from "../queryKeys";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/shared/api/contracts/sessions";
 import CmsTreeNav from "../components/CmsTreeNav";
-import { Button, Badge } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import ScopeBadge from "../components/ScopeBadge";

@@ -10,6 +10,7 @@ const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const API_BASE = process.env.E2E_API_URL || "http://127.0.0.1:8000";
 const POST_ID = 4401;
 const FILE_NAME = "29번-정답-정오.jpg";
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=", "base64");
 
 async function seed(page: Page) {
   test.skip(
@@ -34,7 +35,8 @@ async function publishLocalAdminAuth(page: Page) {
   }, API_BASE);
 }
 
-async function installApi(page: Page, postType = "board") {
+async function installApi(page: Page, postType = "board", existing = false) {
+  await page.route("https://cdn.example.test/**", route => route.fulfill({ contentType: "image/png", body: PNG }));
   const state = {
     contentUpdates: 0,
     createCount: 0,
@@ -90,7 +92,7 @@ async function installApi(page: Page, postType = "board") {
       });
     }
     if (path === "/community/admin/posts/") {
-      return json({ count: state.createCount > 0 ? 1 : 0, results: state.createCount > 0 ? [post()] : [] });
+      return json({ count: existing || state.createCount > 0 ? 1 : 0, results: existing || state.createCount > 0 ? [post()] : [] });
     }
     if (path === "/community/posts/" && request.method() === "POST") {
       state.createCount += 1;
@@ -146,7 +148,7 @@ async function composePhotoPost(page: Page, postType = "board") {
   await page.locator(".cms-form__file-input--hidden").setInputFiles({
     name: FILE_NAME,
     mimeType: "image/jpeg",
-    buffer: Buffer.from("board photo persistence"),
+    buffer: PNG,
   });
 
   const editor = page.locator(".cms-form__body .ProseMirror");
@@ -160,10 +162,10 @@ for (const postType of ["board", "materials"]) test.describe(`${postType} 사진
   });
 
   test("기존 글에 사진만 추가할 때 본문 PATCH 없이 같은 첨부 요청을 재시도한다", async ({ page }) => {
-    const state = await installApi(page, postType);
+    const state = await installApi(page, postType, true);
     await gotoAndSettle(page, `${BASE}/workspace/community/${postType}?id=${POST_ID}`, { timeout: 60_000 });
     await page.getByRole("button", { name: "수정", exact: true }).click();
-    await page.locator('.rich-editor input[accept="image/*"]').setInputFiles({ name: FILE_NAME, mimeType: "image/jpeg", buffer: Buffer.from("photo") });
+    await page.locator('.rich-editor input[accept="image/*"]').setInputFiles({ name: FILE_NAME, mimeType: "image/jpeg", buffer: PNG });
     await expect(page.getByAltText(`${FILE_NAME} 미리보기`)).toBeVisible();
     await page.getByRole("button", { name: postType === "board" ? "내용 저장" : "저장", exact: true }).click();
     await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeVisible();
