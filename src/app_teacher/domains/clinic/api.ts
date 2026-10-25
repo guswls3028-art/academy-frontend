@@ -41,11 +41,8 @@ export type TeacherClinicNotificationOutcome = {
   send_to: TeacherClinicRecipient;
 };
 
-export type TeacherClinicActionResponse = Partial<TeacherClinicParticipant> & {
-  notification?: TeacherClinicNotificationOutcome | null;
-};
-
 export type TeacherClinicParticipant = {
+  notification?: TeacherClinicNotificationOutcome | null;
   id: number;
   session?: number | null;
   student?: number | null;
@@ -122,7 +119,7 @@ export async function patchParticipantStatus(
     is_late?: boolean;
     send_to?: TeacherClinicRecipient;
   },
-): Promise<TeacherClinicActionResponse> {
+): Promise<Partial<TeacherClinicParticipant>> {
   const res = await api.patch(`/clinic/participants/${participantId}/set_status/`, payload);
   return res.data;
 }
@@ -135,7 +132,7 @@ export async function remindParticipant(
     interval_minutes?: number;
     repeat_until?: string;
   },
-): Promise<TeacherClinicActionResponse> {
+): Promise<Partial<TeacherClinicParticipant>> {
   const { data } = await api.post(`/clinic/participants/${participantId}/remind/`, payload);
   return {
     ...data,
@@ -155,7 +152,7 @@ export async function checkoutParticipant(
     expected_session_id?: number;
     expected_student_id?: number;
   },
-): Promise<TeacherClinicActionResponse> {
+): Promise<Partial<TeacherClinicParticipant>> {
   const res = await api.post(`/clinic/participants/${participantId}/checkout/`, payload);
   return res.data;
 }
@@ -171,7 +168,7 @@ export async function changeParticipantBooking(
     booking_start_time?: string;
     booking_end_time?: string;
   },
-): Promise<TeacherClinicActionResponse> {
+): Promise<Partial<TeacherClinicParticipant>> {
   const res = await api.post(`/clinic/participants/${participantId}/change-booking/`, payload);
   return res.data;
 }
@@ -180,7 +177,7 @@ export async function changeParticipantBooking(
 export async function completeParticipant(
   participantId: number,
   payload: { send_to?: TeacherClinicRecipient } = {},
-): Promise<TeacherClinicActionResponse> {
+): Promise<Partial<TeacherClinicParticipant>> {
   const res = await api.post(`/clinic/participants/${participantId}/complete/`, payload);
   return res.data;
 }
