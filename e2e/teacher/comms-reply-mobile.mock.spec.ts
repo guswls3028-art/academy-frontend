@@ -497,7 +497,7 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
     const sheet = page.getByRole("dialog", { name: "공지사항 작성" });
     await sheet.getByPlaceholder("공지사항 제목").fill(createdPost.title);
     await sheet.locator(".ProseMirror").fill("첨부 실패를 확인합니다.");
-    await sheet.locator('input[type="file"]:not([accept])').setInputFiles({
+    await sheet.locator('.rich-editor input[type="file"]:not([accept])').setInputFiles({
       name: "실패-첨부.pdf",
       mimeType: "application/pdf",
       buffer: Buffer.from("attachment upload failure"),
