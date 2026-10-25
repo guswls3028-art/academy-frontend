@@ -1,12 +1,14 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/comms/components/PostDetail.tsx
 // 게시글 상세 + Q&A 답변 + 편집/삭제 기능
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
-import { fetchPostReplies, createReply, deleteReply, updatePost, deletePost, togglePostPin, fetchPostAttachmentDownload } from "../api";
+import { fetchPostDetail, fetchPostReplies, createReply, deleteReply, updatePost, deletePost, togglePostPin, fetchPostAttachmentDownload } from "../api";
 import type { Post, Reply, PostAttachment } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
+import MobileRichEditor from "@teacher/shared/ui/MobileRichEditor";
+import { usePostAttachmentBatch } from "@/shared/hooks/usePostAttachmentBatch";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save, Star, AlertCircle, Paperclip, Download } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
@@ -33,6 +35,15 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   const [editTitle, setEditTitle] = useState(initialPost.title);
   const [editContent, setEditContent] = useState(initialPost.content);
   const [menuOpen, setMenuOpen] = useState(false);
+  const saved = useRef({ title: initialPost.title, content: initialPost.content });
+  const batch = usePostAttachmentBatch(post.attachments?.length ?? 0);
+  const editingDirty = editing && (editTitle !== saved.current.title || editContent !== saved.current.content || batch.files.length > 0);
+  useEffect(() => {
+    if (!editingDirty) return;
+    const preventExit = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", preventExit);
+    return () => window.removeEventListener("beforeunload", preventExit);
+  }, [editingDirty]);
 
   // Staff members can edit/delete posts created by staff
   const isStaffPost = post.author_role === "staff";
@@ -61,7 +72,15 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   const canSubmitReply = replyText.trim().length > 0 && !replyMutation.isPending;
 
   const updateMutation = useMutation({
-    mutationFn: () => updatePost(post.id, { title: editTitle, content: editContent }),
+    mutationFn: async () => {
+      if (editTitle !== saved.current.title || editContent !== saved.current.content) {
+        const updated = await updatePost(post.id, { title: editTitle.trim(), content: editContent });
+        saved.current = { title: editTitle, content: editContent };
+        setPost(updated);
+      }
+      await batch.upload(post.id);
+      return fetchPostDetail(post.id);
+    },
     onSuccess: (updated) => {
       setPost(updated);
       setEditing(false);
@@ -70,6 +89,21 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     },
     onError: (e) => teacherToast.error(extractApiError(e, "게시글을 수정하지 못했습니다.")),
   });
+
+  const cancelEdit = async () => {
+    if (updateMutation.isPending) return;
+    if (editingDirty && !await confirm({ title: "수정 취소", message: "저장하지 않은 변경을 취소할까요? 이미 저장된 내용과 첨부는 유지됩니다.", confirmText: "수정 취소" })) return;
+    try {
+      const current = await fetchPostDetail(post.id);
+      setPost(current); setEditTitle(current.title); setEditContent(current.content);
+      batch.reset(); setEditing(false); updateMutation.reset();
+    } catch (error) { teacherToast.error(extractApiError(error, "저장 상태를 확인하지 못했습니다. 다시 시도해 주세요.")); }
+  };
+  const goBack = async () => {
+    if (updateMutation.isPending) return;
+    if (editingDirty && !await confirm({ title: "목록으로 이동", message: "저장하지 않은 변경이 있습니다. 목록으로 돌아갈까요?", confirmText: "돌아가기" })) return;
+    onBack();
+  };
 
   const deleteMutation = useMutation({
     mutationFn: () => deletePost(post.id),
@@ -145,7 +179,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
     <div className="flex flex-col gap-3">
       {/* Header */}
       <div className="flex items-center gap-2 py-0.5">
-        <button onClick={onBack} className="flex p-1 cursor-pointer" aria-label="목록으로 돌아가기" title="목록으로 돌아가기" style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
+        <button onClick={() => void goBack()} disabled={updateMutation.isPending} className="flex p-1 cursor-pointer" aria-label="목록으로 돌아가기" title="목록으로 돌아가기" style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
           <ChevronLeft size={ICON.lg} />
         </button>
         <h1 className="text-base font-bold truncate flex-1" style={{ color: "var(--tc-text)" }}>
@@ -164,7 +198,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
                 <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-8 rounded-lg shadow-lg"
                   style={{ background: "var(--tc-surface)", border: "1px solid var(--tc-border)", zIndex: 100, minWidth: 120 }}>
-                  <button onClick={() => { setEditing(true); setMenuOpen(false); }}
+                  <button onClick={() => { setEditTitle(post.title); setEditContent(post.content); saved.current = { title: post.title, content: post.content }; setEditing(true); setMenuOpen(false); }}
                     className="flex items-center gap-2 w-full text-left text-sm cursor-pointer"
                     style={{ padding: "10px 14px", background: "none", border: "none", color: "var(--tc-text)" }}>
                     <Pencil size={ICON.xs} /> 편집
@@ -195,19 +229,22 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       <div className="rounded-xl" style={{ padding: "var(--tc-space-4)", background: "var(--tc-surface)", border: "1px solid var(--tc-border-subtle)" }}>
         {editing ? (
           <div className="flex flex-col gap-2">
-            <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
+            <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} readOnly={updateMutation.isPending || batch.locked} aria-label="게시글 제목"
               className="w-full ds-text-name font-bold"
               style={{ padding: "6px 8px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
-            <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={6}
-              className="w-full text-sm"
-              style={{ padding: "6px 8px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none", resize: "vertical" }} />
+            <MobileRichEditor value={editContent} onChange={setEditContent} onFileAttach={batch.add} readOnly={updateMutation.isPending || batch.locked} />
+            {batch.files.map((file, index) => <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex items-center gap-2 text-xs">
+              <span className="min-w-0 flex-1 break-all">{file.name}</span>
+              <button type="button" disabled={updateMutation.isPending || batch.locked} aria-label={`${file.name} 제거`} onClick={() => batch.remove(index)}><X size={ICON.sm} /></button>
+            </div>)}
+            {updateMutation.error && <p role="alert" className="text-sm">{extractApiError(updateMutation.error, "저장하지 못했습니다. 내용과 파일을 유지한 채 다시 시도해 주세요.")}</p>}
             <div className="flex gap-2">
-              <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}
+              <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending || !editTitle.trim()}
                 className="flex items-center gap-1 text-xs font-bold cursor-pointer"
                 style={{ padding: "7px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-                <Save size={ICON.sm} /> 저장
+                <Save size={ICON.sm} /> {updateMutation.isPending ? "저장 중…" : batch.locked ? "첨부 다시 시도" : "저장"}
               </button>
-              <button onClick={() => { setEditing(false); setEditTitle(post.title); setEditContent(post.content); }}
+              <button onClick={() => void cancelEdit()} disabled={updateMutation.isPending}
                 className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
                 style={{ padding: "7px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)" }}>
                 <X size={ICON.sm} /> 취소
@@ -221,7 +258,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
                 <span className="text-[10px] font-bold shrink-0 rounded px-1"
                   style={{ background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}>긴급</span>
               )}
-              <h2 className="ds-text-name font-bold" style={{ color: "var(--tc-text)" }}>{editTitle || post.title}</h2>
+              <h2 className="ds-text-name font-bold" style={{ color: "var(--tc-text)" }}>{post.title}</h2>
             </div>
             <div className="text-xs mb-3" style={{ color: "var(--tc-text-muted)" }}>
               {authorName} · {new Date(post.created_at).toLocaleDateString("ko-KR")}
@@ -337,7 +374,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
         )}
       >
         <div className="flex flex-col gap-3">
-          <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)}
+          <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} disabled={replyMutation.isPending}
             placeholder={isAnswerPost ? "답변을 입력하세요…" : "댓글을 입력하세요…"} rows={5}
             className="w-full text-sm"
             style={{ padding: "var(--tc-space-3)", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", resize: "vertical", outline: "none" }} />

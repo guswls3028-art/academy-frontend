@@ -377,6 +377,56 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
     expect(deleteRequests).toBe(1);
   });
 
+  test("모바일 편집은 첨부 응답 유실 뒤 본문 중복 저장 없이 같은 요청으로 복구한다", async ({ page }) => {
+    let patches = 0;
+    const keys: string[] = [];
+    let post = {
+      id: POST_ID, post_type: "notice", title: "사진 수정 공지", content: "<p>기존 내용</p>",
+      author_display_name: "선생님", author_role: "staff", replies_count: 0,
+      created_at: "2026-09-13T00:00:00.000Z", attachments: [] as unknown[],
+    };
+    await page.route("**/api/v1/**", async (route: Route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+      const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+      if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
+      if (path === "/core/program/") return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+      if (path === "/core/me/") return json({ id: 101, username: "teacher", name: "선생님", is_staff: true, is_superuser: false, tenantRole: "admin" });
+      if (path === "/community/posts/") return json({ count: 1, results: [post] });
+      if (path === `/community/posts/${POST_ID}/`) {
+        if (request.method() === "PATCH") { patches += 1; post = { ...post, ...request.postDataJSON() }; }
+        return json(post);
+      }
+      if (path === `/community/posts/${POST_ID}/attachments/` && request.method() === "POST") {
+        keys.push(request.postDataBuffer()?.toString("latin1").match(/name="idempotency_key"\r\n\r\n([^\r\n]+)/)?.[1] ?? "");
+        post.attachments = [{ id: 991, original_name: "수정사진.png", size_bytes: 68, content_type: "image/png" }];
+        return keys.length === 1 ? json({ detail: "사진 응답 확인 실패" }, 503) : json(post.attachments, 201);
+      }
+      return json({ count: 0, results: [] });
+    });
+    await page.addInitScript(() => {
+      localStorage.setItem("access", "mock-access"); localStorage.setItem("refresh", "mock-refresh");
+      localStorage.setItem("tenant_code", "hakwonplus"); sessionStorage.setItem("tenantCode", "hakwonplus");
+    });
+    await page.goto(`${BASE}/workspace/mobile/comms?tab=notice&id=${POST_ID}`);
+    await page.getByRole("button", { name: "게시글 작업 메뉴" }).click();
+    await page.getByRole("button", { name: "편집", exact: true }).click();
+    await expect(page.locator(".ProseMirror")).toHaveText("기존 내용");
+    await page.locator(".ProseMirror").fill("수정한 본문");
+    await page.locator('.rich-editor input[accept="image/*"]').setInputFiles({ name: "수정사진.png", mimeType: "image/png", buffer: Buffer.from("mock image") });
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("사진 응답 확인 실패");
+    await expect(page.getByRole("button", { name: "수정사진.png 제거" })).toBeDisabled();
+    await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
+    await expect(page.getByText("첨부파일 1개", { exact: true })).toBeVisible();
+    expect(patches).toBe(1); expect(keys).toHaveLength(2);
+    expect(keys[0]).not.toBe(""); expect(keys[1]).toBe(keys[0]);
+    await page.reload();
+    await expect(page.getByText("첨부파일 1개", { exact: true })).toBeVisible();
+    await expect(page.getByText("수정한 본문", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
   test("첨부 응답 실패는 글을 삭제하지 않고 같은 글과 요청으로 재시도한다", async ({ page }) => {
     let listRequests = 0;
     let createRequests = 0;

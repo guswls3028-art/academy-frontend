@@ -70,10 +70,19 @@ test.describe("[real-use] board attachment persistence", () => {
       await sheet.getByRole("button", { name: "공지사항 등록", exact: true }).click();
       const id = Number((await (await created).json()).id); owned.push(id);
       await expect(sheet).toBeHidden();
+      await page.goto(`${QA_BASE}/workspace/mobile/comms?tab=notice&id=${id}`);
+      await page.getByRole("button", { name: "게시글 작업 메뉴" }).click();
+      await page.getByRole("button", { name: "편집", exact: true }).click();
+      await page.locator('.rich-editor input[accept="image/*"]').setInputFiles(photo("qa-mobile-edit.png"));
+      await page.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(page.getByText("첨부파일 2개", { exact: true })).toBeVisible();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByText("첨부파일 2개", { exact: true })).toBeVisible();
+      await assertNoHorizontalOverflow(page);
       const read = await expectApi<{ attachments: unknown[] }>(request, "GET", `/community/posts/${id}/`, student.access);
-      expect(read.attachments).toHaveLength(1);
+      expect(read.attachments).toHaveLength(2);
       await page.goto(`${QA_BASE}/workspace/community/notice?id=${id}`);
-      await verifyImages(page, 1, ".notice-attach__image");
+      await verifyImages(page, 2, ".notice-attach__image");
     } finally {
       for (const id of owned) expect((await api(request, "DELETE", `/community/posts/${id}/`, admin.access)).status).toBe(204);
       guard.assertClean();
