@@ -336,6 +336,7 @@ export default function VideoPlayerPage() {
       return updateVideoProgress(videoId, data, effectiveEnrollmentId);
     },
     onSuccess: (confirmed) => {
+      void queryClient.invalidateQueries({ queryKey: studentVideoQueryKeys.stats(queryScope) });
       if (sessionId == null) return;
       const key = studentVideoQueryKeys.sessionVideos(queryScope, sessionId, effectiveEnrollmentId ?? null);
       const progress = Number.isFinite(confirmed.progress_percent)

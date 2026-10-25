@@ -209,6 +209,51 @@ test("a new playback end saves completion immediately, supports cancel, and adva
   await expect(page.getByRole("heading", { name: SECOND_TITLE })).toBeVisible({ timeout: 10_000 });
 });
 
+for (const width of [1366, 390]) {
+  test(`confirmed completion refreshes previously cached statistics at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { state, youtube, vendorRequests } = await installWatchScenario(page);
+    let statsFetches = 0;
+    await page.route("**/api/v1/student/video/me/", (route) => route.fulfill({
+      json: { public: null, lectures: [], archived_lectures: [] },
+    }));
+    await page.route("**/api/v1/student/video/me/stats/", (route) => {
+      statsFetches++;
+      const complete = state.progress.some((entry) => entry.videoId === 562 && entry.body.completed === true);
+      return route.fulfill({ json: {
+        total_videos: 1, completed_videos: complete ? 1 : 0, completion_rate: complete ? 100 : 0,
+        total_watch_duration: complete ? 600 : 0, total_content_duration: 600, lectures: [],
+      } });
+    });
+    await page.goto(`${BASE}/student/video`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "통계", exact: true }).click();
+    await expect(page.locator(".video-stats-overview__title")).toHaveText("0% 완료");
+    const before = statsFetches;
+    // Retain the same query client to exercise a still-fresh cached response.
+    await page.evaluate(() => {
+      history.pushState({}, "", "/student/video/play?video=562&enrollment=1304&session=394");
+      dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await expect.poll(async () => (await youtube.snapshot()).players.some((player) => player.ready)).toBe(true);
+    await youtube.finish();
+    await expect.poll(() => state.progress.some((entry) => entry.body.completed === true)).toBe(true);
+    await page.getByRole("button", { name: /다음 항목.*취소/ }).click();
+    await page.evaluate(() => {
+      history.pushState({}, "", "/student/video");
+      dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await page.getByRole("tab", { name: "통계", exact: true }).click();
+    await expect(page.locator(".video-stats-overview__title")).toHaveText("100% 완료");
+    expect(statsFetches).toBeGreaterThan(before);
+    await page.reload();
+    await page.getByRole("tab", { name: "통계", exact: true }).click();
+    await expect(page.locator(".video-stats-overview__title")).toHaveText("100% 완료");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`confirmed-progress-stats-${width}.png`) });
+    expect(vendorRequests).toEqual([]);
+  });
+}
+
 test("deleting the root preserves an existing teacher reply without showing deleted content", async ({ page }) => {
   const { state } = await installWatchScenario(page);
   state.comments[0] = { ...state.comments[0], is_deleted: true, content: "숨겨야 하는 삭제 내용", reply_count: 1,
