@@ -11,7 +11,7 @@ export function VideoPlayer({ video }: { video: Playable }) {
   return <div className={s.playerArea}>
     <div className={s.playerStage}><div className={`${s.player} ${video.format === "vertical" ? s.verticalPlayer : ""}`}>
       <iframe key={video.youtube_video_id} title={video.title} src={`https://www.youtube.com/embed/${video.youtube_video_id}?${params}`}
-        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; compute-pressure https://www.youtube.com" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
     </div></div>
     <div className={s.playerLinks}><p className={s.playerHelp}>재생 버튼을 눌러 시청해주세요. 재생이 안 되면 YouTube에서 볼 수 있습니다.</p>
       <a className={s.external} href={video.canonical_url} target="_blank" rel="noopener noreferrer">YouTube에서 보기 · 좋아요 <ArrowUpRight size={ICON.sm} /></a>

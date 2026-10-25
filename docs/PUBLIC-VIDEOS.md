@@ -87,6 +87,12 @@ godmin의 신민/박철은 기존 자료게시판의 정확한 두 지정 계정
 조회수는 YouTube의 유효 재생 판정에 따라 원본 영상·채널에 귀속된다. 자동 재생,
 스크립트 playVideo, 자체 좋아요·조회수는 구현하지 않는다. iframe autoplay=0,
 playsinline=1, origin, strict-origin-when-cross-origin과 기본 컨트롤을 유지한다.
+실제 YouTube 플레이어가 사용하는 `compute-pressure`는 iframe의 고정
+`https://www.youtube.com` origin에만 허용한다. 이는 장치 CPU 부하의 거친 단계 정보를
+사용하는 [표준 API](https://www.w3.org/TR/2026/CRD-compute-pressure-20260514/#policy-control)이며,
+다른 iframe origin이나 카메라·마이크·위치 권한은 확대하지 않는다. 해당 기능이 있는
+브라우저에서 기존 누락은 공급자의 `Permissions policy violation`을 일으켰다.
+오류 무시 목록이나 QA 성공 조건을 바꾸지 않고 실제 iframe 정책을 일치시킨다.
 좋아요/댓글은 원본 YouTube에서 로그인 후 직접 한다. 임베드 제한/제공자 장애 시 원본
 링크가 항상 보인다. Shorts도 최소 200×200 이상의 실제 플레이어 하나로 연다.
 

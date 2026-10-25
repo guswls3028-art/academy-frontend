@@ -178,6 +178,7 @@ for (const width of [1366, 390]) {
     await expect(trigger).toBeVisible(); await trigger.click();
     const frame = page.getByRole("dialog").locator("iframe"); await expect(frame).toHaveCount(1);
     await expect(frame).toHaveAttribute("src", /autoplay=0/); await expect(frame).toHaveAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+    await expect(frame).toHaveAttribute("allow", "accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; compute-pressure https://www.youtube.com");
     await noOverflow(page); await page.getByRole("button", { name: "영상 닫기" }).click(); await expect(page.locator("iframe")).toHaveCount(0); await expect(trigger).toBeFocused();
     await testInfo.attach(`video-home-${width}`, { body: await page.screenshot({ fullPage: false }), contentType: "image/png" });
     state.row!.published_content = { ...initial, format: "vertical" };
