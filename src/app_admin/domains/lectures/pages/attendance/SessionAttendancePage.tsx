@@ -53,6 +53,7 @@ import { arrivalOverviewQueryKey } from "@/shared/api/contracts/arrivalOverview"
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
 import AttendanceStatusInlineRail from "./AttendanceStatusInlineRail";
+import AttendanceSortButtons from "./AttendanceSortButtons";
 import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
 import { DEFAULT_ATTENDANCE_SORT, getStoredAttendanceSort, type AttendanceSort, type AttendanceSortColumn } from "./attendanceSort";
 import "./attendance-ui.css";
@@ -604,21 +605,7 @@ export default function SessionAttendancePage({
 
   const filterSlot = (
     <>
-      <Button
-        type="button"
-        intent={sort === "not_arrived" ? "primary" : "secondary"}
-        size="sm"
-        aria-pressed={sort === "not_arrived"}
-        title="미입력·결석 학생을 먼저 표시합니다. 출결을 저장하면 순서가 갱신됩니다."
-        onClick={() => {
-          const nextSort = sort === "not_arrived" ? DEFAULT_ATTENDANCE_SORT : "not_arrived";
-          setPage(1);
-          setSort(nextSort);
-          if (sortStorageKey) setLocalItem(sortStorageKey, nextSort);
-        }}
-      >
-        미도착 우선
-      </Button>
+      <AttendanceSortButtons sort={sort} onChange={changeSort} />
       <span ref={statusTriggerRef}>
         <Button
           type="button"
@@ -678,6 +665,12 @@ export default function SessionAttendancePage({
     </>
   );
 
+  function changeSort(nextSort: AttendanceSort) {
+    setPage(1);
+    setSort(nextSort);
+    if (sortStorageKey) setLocalItem(sortStorageKey, nextSort);
+  }
+
   /** 정렬 토글 핸들러 */
   function toggleSort(colKey: AttendanceSortColumn) {
     const descending = `-${colKey}` as AttendanceSort;
@@ -686,10 +679,7 @@ export default function SessionAttendancePage({
       : sort === descending
         ? DEFAULT_ATTENDANCE_SORT
         : colKey;
-    setPage(1);
-    setSort(nextSort);
-    if (!sortStorageKey) return;
-    setLocalItem(sortStorageKey, nextSort);
+    changeSort(nextSort);
   }
 
   return (

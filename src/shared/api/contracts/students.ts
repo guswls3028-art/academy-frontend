@@ -412,7 +412,8 @@ export async function fetchStudents(
   filters: StudentFilters = {},
   sort: string = "",
   page: number = 1,
-  deleted: boolean = false
+  deleted: boolean = false,
+  signal?: AbortSignal,
 ): Promise<{ data: ClientStudent[]; count: number; pageSize: number }> {
   const ordering = buildOrdering(sort);
 
@@ -431,7 +432,7 @@ export async function fetchStudents(
     params.grade = Number(filters.grade);
   }
 
-  const res = await api.get("/students/", { params });
+  const res = await api.get("/students/", { params, signal });
 
   const response = asRecord(res.data) as ListEnvelope;
   const items = asList(res.data);

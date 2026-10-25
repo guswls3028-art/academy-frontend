@@ -11,7 +11,7 @@ interface Env {
   ASSETS: Fetcher;
 }
 
-const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest|mp4|vtt)(\?.*)?$/i;
+const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest|mp4|vtt|pdf)(\?.*)?$/i;
 const STATIC_HTML_PATHS = new Set(["/omr-sheet", "/omr-sheet.html"]);
 
 function createCspNonce(): string {
@@ -83,6 +83,9 @@ function contentTypeForPath(pathname: string): string {
   if (/\.(js|mjs)(\?.*)?$/i.test(pathname)) return "application/javascript; charset=utf-8";
   if (/\.css(\?.*)?$/i.test(pathname)) return "text/css; charset=utf-8";
   if (/\.json(\?.*)?$/i.test(pathname)) return "application/json";
+  if (/\.pdf(\?.*)?$/i.test(pathname)) return "application/pdf";
+  if (/\.webp(\?.*)?$/i.test(pathname)) return "image/webp";
+  if (/\.jpe?g(\?.*)?$/i.test(pathname)) return "image/jpeg";
   if (/\.mp4(\?.*)?$/i.test(pathname)) return "video/mp4";
   if (/\.vtt(\?.*)?$/i.test(pathname)) return "text/vtt; charset=utf-8";
   return "application/octet-stream";
@@ -115,6 +118,10 @@ const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
   "/promo/features": {
     title: "기능과 실제 화면 | 학원플러스",
     description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 목적별로 확인하세요.",
+  },
+  "/promo/features/tour": {
+    title: "기능 둘러보기 · 실제 화면 설명서 | 학원플러스",
+    description: "알림톡·영상·엑셀 업로드·정오표의 실제 화면을 5쪽 요약과 43쪽 상세 이미지로 확인하세요. 현재 제공 기능, 도입 검수와 맞춤 개발 범위를 구분합니다.",
   },
   "/promo/matchup-ppt": {
     title: "적중 매치업과 칠판용 PPT | 학원플러스",
@@ -166,6 +173,7 @@ const HAKWONPLUS_PROMO_ROUTES = new Set([
 const HAKWONPLUS_INDEXABLE_PROMO_ROUTES = [
   "/promo",
   "/promo/features",
+  "/promo/features/tour",
   "/promo/matchup-ppt",
   "/promo/parent-trust",
   "/promo/ai-grading",
