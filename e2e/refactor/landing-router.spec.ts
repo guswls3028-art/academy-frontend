@@ -165,7 +165,7 @@ test.describe("landing route island", () => {
   for (const kind of ["board", "reviews"] as const) test(`${kind} 사진 실패 후 파일을 유지하고 저장·새로고침까지 완료한다`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await authenticateLandingUser(page, 12, "student");
-    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aRXsAAAAASUVORK5CYII=", "base64");
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
     const key = `landing-public/reviews/1/users/12/${"a".repeat(64)}.png`;
     const photoUrl = "https://photo.example.test/signed.png";
     let uploads = 0;
@@ -235,7 +235,7 @@ test.describe("landing route island", () => {
     await page.route("**/api/v1/landing-public/uploads/review-photo/", route => { uploads += 1; return route.fulfill({ status: 201, json: { key, url: "https://photo.example.test/photo.png" } }); });
     await page.goto(`${BASE}/landing/board/778/edit`, { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("board-edit-title")).toHaveValue("내 글");
-    await page.locator('input[accept="image/*"]').setInputFiles({ name: "추가.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=", "base64") });
+    await page.locator('input[accept="image/*"]').setInputFiles({ name: "추가.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64") });
     await page.getByTestId("board-edit-submit").click();
     await expect(page.getByText("본문 저장 연결 오류")).toBeVisible();
     await expect(page.getByTestId("board-edit-title")).toHaveValue("내 글");

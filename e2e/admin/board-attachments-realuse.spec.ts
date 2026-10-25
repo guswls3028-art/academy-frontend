@@ -7,7 +7,7 @@ import type { Page } from "@playwright/test";
 
 test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
-const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=", "base64");
+const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
 const photo = (name: string) => ({ name, mimeType: "image/png", buffer: png });
 const isCreate = (path: string) => (response: { url(): string; request(): { method(): string } }) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api/v1${path}`;
 

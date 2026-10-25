@@ -10,7 +10,7 @@ const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const API_BASE = process.env.E2E_API_URL || "http://127.0.0.1:8000";
 const POST_ID = 4401;
 const FILE_NAME = "29번-정답-정오.jpg";
-const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=", "base64");
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
 
 async function seed(page: Page) {
   test.skip(
