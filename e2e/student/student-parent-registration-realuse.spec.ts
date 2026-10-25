@@ -1,4 +1,4 @@
-/** Seven required candidate-only journeys; never retarget legacy production suites. */
+/** Eight required candidate-only journeys; never retarget legacy production suites. */
 import { createHash } from "node:crypto";
 import type { APIRequestContext, Locator, Page } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
@@ -278,62 +278,74 @@ test("existing Parent: a new child's choice preserves the exact existing Parent 
   await proveFamily(page, request, secondFamily, 1366);
 });
 
-test("public signup: submitted Parent choice survives changed defaults and staff approval", async ({ page, request }) => {
-  const settings = "/students/registration_requests/settings/";
-  const original = await expectApi<{ auto_approve: boolean }>(request, "GET", settings, admin);
-  const row = fixture("signup");
-  const context = await page.context().browser()!.newContext({ viewport: { width: 390, height: 900 }, serviceWorkers: "block" });
-  const signupPage = await context.newPage();
-  const signupBoundary = await installQaStudentParentBoundary(signupPage, request);
-  const signupGuards = attachStrictBrowserGuards(signupPage);
-  try {
-    await expectApi(request, "PATCH", settings, admin, { auto_approve: false });
-    await gotoAndSettle(signupPage, `${QA_BASE}/login/${QA_TENANT}`);
-    await signupPage.getByRole("button", { name: "회원가입", exact: true }).click();
-    const dialog = signupPage.getByRole("dialog", { name: "학생 회원가입" });
-    for (const [id, value] of [["name", row.name], ["username", row.username], ["pw", direct], ["pw-confirm", direct], ["high", "QA 격리고등학교"], ["address", "QA 합성 주소"]]) await dialog.locator(`#signup-${id}`).fill(value);
-    await dialog.getByRole("group", { name: "성별", exact: true }).getByRole("button", { name: "여", exact: true }).click();
-    await dialog.locator("#signup-grade").selectOption("1");
-    if (await dialog.locator("#signup-origin").isVisible()) await dialog.locator("#signup-origin").fill("QA 격리중학교");
-    for (const [label, phone] of [["휴대전화", row.phone], ["학부모 연락처", row.parentPhone]]) {
-      await dialog.getByLabel(`${label} 앞 4자리`).fill(phone.slice(3, 7));
-      await dialog.getByLabel(`${label} 뒤 4자리`).fill(phone.slice(7));
-    }
-    await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
-    const confirmation = signupPage.getByRole("alertdialog", { name: "가입 신청 최종 확인" });
-    await expect(confirmation.locator('input[type="radio"]:checked')).toHaveCount(0);
-    await choose(confirmation, "학부모", "fixed");
-    const submitted = signupPage.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith("/students/registration_requests/"));
-    await confirmation.getByRole("button", { name: "가입 신청", exact: true }).click();
-    const response = await submitted;
-    expect(response.status()).toBe(201);
-    const registrationId = (await response.json() as { id: number }).id;
-    // A later academy policy cannot rewrite the pending applicant's explicit choice.
-    await expectApi(request, "PATCH", policyPath, admin, { parent_mode: "random" });
-    await gotoAndSettle(page, `${QA_BASE}/workspace/students/requests`);
-    await page.locator(".students-requests__card").filter({ hasText: row.name }).click();
-    await page.getByRole("dialog").filter({ hasText: "가입 신청 상세" }).getByRole("button", { name: "승인", exact: true }).click();
-    const approval = page.getByRole("alertdialog", { name: "가입 승인 최종 확인" });
-    await expect(approval.locator('input[type="radio"]')).toHaveCount(0);
-    const approved = page.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith(`/registration_requests/${registrationId}/approve/`));
-    await approval.getByRole("button", { name: "승인", exact: true }).click();
-    const approvalResponse = await approved;
-    expect(approvalResponse.status()).toBe(200);
-    const student = await approvalResponse.json() as QaStudent;
-    const family = { scenarioKey: row.key, parentPhone: row.parentPhone, parentPassword: direct, students: [{ ...student, password: direct }] };
-    families.push(family);
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await proveFamily(page, request, family);
-    await probe(student.id, "verify", "fixed");
-    const history = await expectApi<{ status: string; student: number }>(request, "GET", `/students/registration_requests/${registrationId}/`, admin);
-    expect(history).toMatchObject({ status: "approved", student: student.id });
-    signupBoundary.assertClean(); signupGuards.assertZeroDefects();
-  } finally {
-    // Registration history is immutable; the exact disposable-tenant Cleanup removes it.
+for (const autoApprove of [false, true]) {
+  test(`public signup: submitted Parent choice survives ${autoApprove ? "automatic approval" : "changed defaults and staff approval"}`, async ({ page, request }) => {
+    const settings = "/students/registration_requests/settings/";
+    const original = await expectApi<{ auto_approve: boolean }>(request, "GET", settings, admin);
+    const row = fixture(autoApprove ? "signup-auto" : "signup");
+    const context = await page.context().browser()!.newContext({ viewport: { width: 390, height: 900 }, serviceWorkers: "block" });
+    const signupPage = await context.newPage();
+    const signupBoundary = await installQaStudentParentBoundary(signupPage, request);
+    const signupGuards = attachStrictBrowserGuards(signupPage);
     try {
-      await expectApi(request, "PATCH", settings, admin, { auto_approve: original.auto_approve });
+      await expectApi(request, "PATCH", settings, admin, { auto_approve: autoApprove });
+      await gotoAndSettle(signupPage, `${QA_BASE}/login/${QA_TENANT}`);
+      await signupPage.getByRole("button", { name: "회원가입", exact: true }).click();
+      const dialog = signupPage.getByRole("dialog", { name: "학생 회원가입" });
+      for (const [id, value] of [["name", row.name], ["username", row.username], ["pw", direct], ["pw-confirm", direct], ["high", "QA 격리고등학교"], ["address", "QA 합성 주소"]]) await dialog.locator(`#signup-${id}`).fill(value);
+      await dialog.getByRole("group", { name: "성별", exact: true }).getByRole("button", { name: "여", exact: true }).click();
+      await dialog.locator("#signup-grade").selectOption("1");
+      if (await dialog.locator("#signup-origin").isVisible()) await dialog.locator("#signup-origin").fill("QA 격리중학교");
+      for (const [label, phone] of [["휴대전화", row.phone], ["학부모 연락처", row.parentPhone]]) {
+        await dialog.getByLabel(`${label} 앞 4자리`).fill(phone.slice(3, 7));
+        await dialog.getByLabel(`${label} 뒤 4자리`).fill(phone.slice(7));
+      }
+      await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
+      const confirmation = signupPage.getByRole("alertdialog", { name: "가입 신청 최종 확인" });
+      await expect(confirmation.locator('input[type="radio"]:checked')).toHaveCount(0);
+      await choose(confirmation, "학부모", "fixed");
+      const submitted = signupPage.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith("/students/registration_requests/"));
+      await confirmation.getByRole("button", { name: "가입 신청", exact: true }).click();
+      const response = await submitted;
+      expect(response.status()).toBe(autoApprove ? 200 : 201);
+      let student: QaStudent;
+      let registrationId: number | undefined;
+      if (autoApprove) {
+        student = await response.json() as QaStudent;
+        await expect(dialog.getByText("가입이 완료되었습니다. 지금 로그인할 수 있습니다.", { exact: true })).toBeVisible();
+        await expect(dialog.getByText("신청이 완료되었습니다. 승인 후 로그인해 주세요.", { exact: true })).toHaveCount(0);
+      } else {
+        registrationId = (await response.json() as { id: number }).id;
+        // A later academy policy cannot rewrite the pending applicant's explicit choice.
+        await expectApi(request, "PATCH", policyPath, admin, { parent_mode: "random" });
+        await gotoAndSettle(page, `${QA_BASE}/workspace/students/requests`);
+        await page.locator(".students-requests__card").filter({ hasText: row.name }).click();
+        await page.getByRole("dialog").filter({ hasText: "가입 신청 상세" }).getByRole("button", { name: "승인", exact: true }).click();
+        const approval = page.getByRole("alertdialog", { name: "가입 승인 최종 확인" });
+        await expect(approval.locator('input[type="radio"]')).toHaveCount(0);
+        const approved = page.waitForResponse((r) => r.request().method() === "POST" && r.url().endsWith(`/registration_requests/${registrationId}/approve/`));
+        await approval.getByRole("button", { name: "승인", exact: true }).click();
+        const approvalResponse = await approved;
+        expect(approvalResponse.status()).toBe(200);
+        student = await approvalResponse.json() as QaStudent;
+      }
+      const family = { scenarioKey: row.key, parentPhone: row.parentPhone, parentPassword: direct, students: [{ ...student, password: direct }] };
+      families.push(family);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await proveFamily(page, request, family);
+      await probe(student.id, "verify", "fixed");
+      if (registrationId !== undefined) {
+        const history = await expectApi<{ status: string; student: number }>(request, "GET", `/students/registration_requests/${registrationId}/`, admin);
+        expect(history).toMatchObject({ status: "approved", student: student.id });
+      }
+      signupBoundary.assertClean(); signupGuards.assertZeroDefects();
     } finally {
-      await context.close();
+      // Registration history is immutable; the exact disposable-tenant Cleanup removes it.
+      try {
+        await expectApi(request, "PATCH", settings, admin, { auto_approve: original.auto_approve });
+      } finally {
+        await context.close();
+      }
     }
-  }
-});
+  });
+}

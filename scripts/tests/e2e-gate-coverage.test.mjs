@@ -202,7 +202,7 @@ test("runtime assets, lockfile and development gate inputs trigger PR E2E", () =
 test("development inventory preserves all required real-use cases and unique files", () => {
   const entries = Object.entries(developmentRealUseCases);
   assert.equal(entries.length, 21);
-  assert.equal(entries.reduce((sum, [, count]) => sum + count, 0), 39);
+  assert.equal(entries.reduce((sum, [, count]) => sum + count, 0), 40);
   assert.equal(developmentRealUseCases["admin/board-attachments-realuse.spec.ts"], 2);
   assert.equal(new Set(entries.map(([file]) => path.basename(file))).size, entries.length);
   for (const [file, count] of entries) {
@@ -216,7 +216,7 @@ test("development inventory preserves all required real-use cases and unique fil
   assert.equal(developmentRealUseCases["admin/fees-overdue-realuse.spec.ts"], 1);
   assert.equal(developmentRealUseCases["admin/staff-payroll-realuse.spec.ts"], 1);
   assert.equal(developmentRealUseCases["student/video-playback-renewal.realuse.spec.ts"], 1);
-  assert.equal(developmentRealUseCases["student/student-parent-registration-realuse.spec.ts"], 7);
+  assert.equal(developmentRealUseCases["student/student-parent-registration-realuse.spec.ts"], 8);
 });
 
 test("production auth retries only throttle and transport failures within one bounded owner", () => {
