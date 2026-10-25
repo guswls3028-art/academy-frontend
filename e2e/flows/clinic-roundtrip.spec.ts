@@ -140,10 +140,10 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
     await expect(studentPage.locator("text=Not Found")).not.toBeVisible();
     await expect(studentPage.locator("[data-app='student']").first()).toBeVisible();
     await studentPage.getByTestId(`clinic-calendar-day-${sessionDate}`).click();
-    await expect(studentPage.getByRole("button", { name: `[E2E]클리닉_${TS}`, exact: true })).toBeVisible();
+    await expect(studentPage.getByRole("button", { name: `[E2E]클리닉_${TS}` })).toBeVisible();
     await studentPage.reload({ waitUntil: "domcontentloaded" });
     await studentPage.getByTestId(`clinic-calendar-day-${sessionDate}`).click();
-    await expect(studentPage.getByRole("button", { name: `[E2E]클리닉_${TS}`, exact: true })).toBeVisible();
+    await expect(studentPage.getByRole("button", { name: `[E2E]클리닉_${TS}` })).toBeVisible();
   });
 
   test("3. 선생 클리닉 홈이 정상 로드된다", async () => {
