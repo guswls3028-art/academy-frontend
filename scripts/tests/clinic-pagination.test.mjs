@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "./clinic-notification-outcome.test.mjs";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
