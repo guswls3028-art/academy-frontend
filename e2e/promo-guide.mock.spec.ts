@@ -6,6 +6,7 @@ import { ADMIN_WORKFLOWS } from "../src/shared/ui/guide/content/adminWorkflows";
 import { TEACHER_WORKFLOWS } from "../src/shared/ui/guide/content/teacherWorkflows";
 import { STUDENT_WORKFLOWS } from "../src/shared/ui/guide/content/studentWorkflows";
 import type { GuideMediaSource } from "../src/shared/ui/guide/guideMediaData";
+import featureBooks from "../src/shared/ui/guide/content/feature-guide-books.json";
 
 const mediaCatalog = JSON.parse(readFileSync(new URL("../src/shared/ui/guide/content/guide-media.json", import.meta.url), "utf8")) as Record<string, GuideMediaSource>;
 const findGuideMedia = (scope: string, topic: string) => mediaCatalog[`${scope}/${topic}`];
@@ -43,9 +44,16 @@ test("Cloudflare public guide supports direct reading URLs and canonical metadat
     const sitemap = await documentRequest("/sitemap.xml");
     expect(sitemap.status).toBe(200);
     const xml = await sitemap.text();
+    expect(xml).toContain("<loc>https://hakwonplus.com/promo/features/tour</loc>");
     expect(xml.match(/<loc>https:\/\/hakwonplus\.com\/promo\/guide<\/loc>/g)).toHaveLength(1);
     expect(xml).not.toContain("/promo/guide?");
-    for (const pathname of ["/promo/guide/not-a-route", "/promo/not-a-route"]) {
+    const tour = await documentRequest("/promo/features/tour?guideBook=detail&guidePage=23");
+    expect(tour.status).toBe(200);
+    const tourHtml = await tour.text();
+    expect(tourHtml).toContain(`<title>${PROMO_META["/promo/features/tour"].title}</title>`);
+    expect(tourHtml).toContain('<link rel="canonical" href="https://hakwonplus.com/promo/features/tour" />');
+    expect((await documentRequest("/promo/features/tour/?guidePage=2")).headers.get("Location")).toBe("https://hakwonplus.com/promo/features/tour?guidePage=2");
+    for (const pathname of ["/promo/guide/not-a-route", "/promo/not-a-route", "/promo/features/tour/not-a-route"]) {
       expect((await documentRequest(pathname)).status).toBe(404);
     }
   } finally {
@@ -54,6 +62,88 @@ test("Cloudflare public guide supports direct reading URLs and canonical metadat
 });
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+
+test("feature books contain 5/43 complete hashed image pages and optional valid PDFs", () => {
+  expect(featureBooks.summary.pages).toHaveLength(5);
+  expect(featureBooks.detail.pages).toHaveLength(43);
+  for (const book of [featureBooks.summary, featureBooks.detail]) {
+    for (const page of book.pages) {
+      for (const src of [page.src, page.largeSrc]) {
+        expect(src).toMatch(/^\/feature-guides\/20261025\/[a-z]+-\d+-\d+-[a-f0-9]{12}\.webp$/);
+        const data = readFileSync(new URL(`../public${src}`, import.meta.url));
+        expect(data.subarray(0, 4).toString()).toBe("RIFF");
+        expect(data.subarray(8, 12).toString()).toBe("WEBP");
+        expect(data.byteLength).toBeLessThan(400_000);
+      }
+      expect(page.bytes.small).toBeLessThan(100_000);
+    }
+    expect(readFileSync(new URL(`../public${book.pdf}`, import.meta.url)).subarray(0, 5).toString()).toBe("%PDF-");
+  }
+});
+
+for (const width of [390, 1366]) {
+  test(`feature image reader loads one page, restores position and enlarges at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    const requested: string[] = [];
+    page.on("request", (request) => { if (request.url().includes("/feature-guides/")) requested.push(request.url()); });
+    await page.goto(`${BASE}/promo/features`);
+    await page.getByRole("link", { name: "기능 둘러보기 →", exact: true }).click();
+    const reader = page.getByRole("region", { name: "기능 둘러보기", exact: true });
+    await expect(reader.getByRole("img")).toHaveCount(1);
+    await reader.getByRole("img").scrollIntoViewIfNeeded();
+    await expect.poll(() => reader.getByRole("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    expect(requested.length).toBeGreaterThan(0);
+    expect(requested.every((url) => /summary-01-.*\.webp$/.test(url))).toBeTruthy();
+    expect(requested.some((url) => url.endsWith(".pdf"))).toBeFalsy();
+    await reader.getByRole("button", { name: "다음 쪽 →" }).click();
+    await expect(reader.getByLabel("설명서 페이지")).toHaveValue("2");
+    const enlarge = reader.getByRole("button", { name: "글씨 크게 보기 ↗" });
+    await enlarge.click();
+    const dialog = page.getByRole("dialog", { name: "설명서 글씨 확대" });
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => dialog.getByRole("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(2200);
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    await expect(enlarge).toBeFocused();
+    await reader.getByRole("button", { name: "상세 설명 43쪽" }).click();
+    await reader.getByRole("navigation", { name: "핵심 기능 바로 읽기" }).getByRole("button", { name: "정오표·문항별 채점" }).click();
+    await expect(reader.getByLabel("설명서 페이지")).toHaveValue("23");
+    await page.reload();
+    await expect(reader.getByLabel("설명서 페이지")).toHaveValue("23");
+    await page.goBack();
+    await expect(reader.getByLabel("설명서 페이지")).toHaveValue("1");
+    await reader.getByLabel("설명서 페이지").selectOption("43");
+    await expect(reader.getByRole("button", { name: "다음 쪽 →" })).toBeDisabled();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+    await reader.getByLabel("설명서 페이지").scrollIntoViewIfNeeded();
+    await info.attach(`feature-reader-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+    const pdf = await page.request.get(`${BASE}${featureBooks.summary.pdf}`);
+    expect(pdf.ok()).toBeTruthy();
+    expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+  });
+}
+
+test("feature reader recovers invalid image and preserves guide search parameters", async ({ page }) => {
+  let fail = true;
+  await page.route("**/feature-guides/**/*.webp", (route) => fail
+    ? route.fulfill({ status: 200, contentType: "image/webp", body: "invalid image" }) : route.continue());
+  await page.goto(`${BASE}/promo/guide?role=teacher&topic=attendance&q=출결&guideBook=detail&guidePage=bad`);
+  const reader = page.getByRole("region", { name: "기능 둘러보기", exact: true });
+  await reader.getByRole("img").scrollIntoViewIfNeeded();
+  await expect(reader.getByText(/설명서 이미지를 불러오지 못했습니다/)).toBeVisible();
+  fail = false;
+  await reader.getByRole("button", { name: "이미지 다시 불러오기" }).click();
+  await expect.poll(() => reader.getByRole("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+  await reader.getByRole("button", { name: "다음 쪽 →" }).click();
+  const params = new URL(page.url()).searchParams;
+  expect(params.get("role")).toBe("teacher");
+  expect(params.get("topic")).toBe("attendance");
+  expect(params.get("q")).toBe("출결");
+  await reader.locator("summary").click();
+  await expect(reader.getByRole("heading", { name: "현재 제공하는 기능" })).toHaveCount(4);
+  await expect(reader.getByRole("heading", { name: "도입 시 추가 검수" })).toHaveCount(4);
+  await expect(reader.getByRole("heading", { name: "맞춤 개발 협의" })).toHaveCount(4);
+});
 
 test("Cloudflare guide videos preserve byte ranges and missing media never returns an app shell", async () => {
   const request = new Request("https://hakwonplus.com/guide-media/example/walkthrough.mp4", { headers: { Range: "bytes=0-3" } });
@@ -64,7 +154,7 @@ test("Cloudflare guide videos preserve byte ranges and missing media never retur
   expect(partial.status).toBe(206);
   expect(partial.headers.get("Content-Range")).toBe("bytes 0-3/100");
   expect(await partial.text()).toBe("ftyp");
-  for (const [file, mime] of [["walkthrough.mp4", "video/mp4"], ["captions.vtt", "text/vtt; charset=utf-8"]]) {
+  for (const [file, mime] of [["walkthrough.mp4", "video/mp4"], ["captions.vtt", "text/vtt; charset=utf-8"], ["summary.pdf", "application/pdf"], ["page.webp", "image/webp"]]) {
     const missing = await onRequestGet({
       request: new Request(`https://hakwonplus.com/guide-media/missing/${file}`),
       env: { ASSETS: { fetch: async () => new Response("<html>SPA fallback</html>", { headers: { "Content-Type": "text/html" } }) } },

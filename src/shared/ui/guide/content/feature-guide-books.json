@@ -1,0 +1,543 @@
+{
+  "updatedAt": "2026.10.25",
+  "summary": {
+    "title": "핵심 요약",
+    "pages": [
+      {
+        "title": "핵심 기능 한눈에 보기",
+        "src": "/feature-guides/20261025/summary-01-1000-6c6cc9e26661.webp",
+        "largeSrc": "/feature-guides/20261025/summary-01-2200-385e1df38fde.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 52836,
+          "large": 136744
+        }
+      },
+      {
+        "title": "알림톡",
+        "src": "/feature-guides/20261025/summary-02-1000-7213334c51bc.webp",
+        "largeSrc": "/feature-guides/20261025/summary-02-2200-7dd6b3d3632a.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 51152,
+          "large": 134088
+        }
+      },
+      {
+        "title": "수업 영상",
+        "src": "/feature-guides/20261025/summary-03-1000-95afcb523e40.webp",
+        "largeSrc": "/feature-guides/20261025/summary-03-2200-b4700c772a4e.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 47066,
+          "large": 130236
+        }
+      },
+      {
+        "title": "엑셀 업로드",
+        "src": "/feature-guides/20261025/summary-04-1000-171d8e5ee06d.webp",
+        "largeSrc": "/feature-guides/20261025/summary-04-2200-1911b5bdffe2.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 50514,
+          "large": 140982
+        }
+      },
+      {
+        "title": "정오표·문항별 채점",
+        "src": "/feature-guides/20261025/summary-05-1000-e643f7af2a8a.webp",
+        "largeSrc": "/feature-guides/20261025/summary-05-2200-244c3a5c82f1.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 55834,
+          "large": 155734
+        }
+      }
+    ],
+    "pdf": "/feature-guides/20261025/summary-cd6570f8d11a.pdf"
+  },
+  "detail": {
+    "title": "상세 설명",
+    "pages": [
+      {
+        "title": "표지",
+        "src": "/feature-guides/20261025/detail-01-1000-4f07f7530cc6.webp",
+        "largeSrc": "/feature-guides/20261025/detail-01-2200-1e95626914f5.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 46974,
+          "large": 128590
+        }
+      },
+      {
+        "title": "자료 안내",
+        "src": "/feature-guides/20261025/detail-02-1000-763bbe6e0fd4.webp",
+        "largeSrc": "/feature-guides/20261025/detail-02-2200-e0361677fe5e.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 58978,
+          "large": 147392
+        }
+      },
+      {
+        "title": "기능 목차",
+        "src": "/feature-guides/20261025/detail-03-1000-cda1675dde01.webp",
+        "largeSrc": "/feature-guides/20261025/detail-03-2200-2170eda88c97.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 41234,
+          "large": 108728
+        }
+      },
+      {
+        "title": "알림톡",
+        "src": "/feature-guides/20261025/detail-04-1000-31c559cfe3f4.webp",
+        "largeSrc": "/feature-guides/20261025/detail-04-2200-041d3cd9a5cd.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 33744,
+          "large": 88376
+        }
+      },
+      {
+        "title": "알림톡 01 - 대상 학생을 선택합니다",
+        "src": "/feature-guides/20261025/detail-05-1000-cb922cd7d90c.webp",
+        "largeSrc": "/feature-guides/20261025/detail-05-2200-b988f9dac572.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 29866,
+          "large": 81664
+        }
+      },
+      {
+        "title": "알림톡 02 - 수업에 맞는 안내문을 고릅니다",
+        "src": "/feature-guides/20261025/detail-06-1000-26ee250f5958.webp",
+        "largeSrc": "/feature-guides/20261025/detail-06-2200-7b8aede40c3f.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 39660,
+          "large": 94440
+        }
+      },
+      {
+        "title": "알림톡 03 - 안내문과 자동 정보를 편집합니다",
+        "src": "/feature-guides/20261025/detail-07-1000-63cf1e26cc84.webp",
+        "largeSrc": "/feature-guides/20261025/detail-07-2200-29b1a0942059.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 48938,
+          "large": 130256
+        }
+      },
+      {
+        "title": "알림톡 04 - 학생별 성적 미리보기를 읽습니다",
+        "src": "/feature-guides/20261025/detail-08-1000-a5e69f1e4b0b.webp",
+        "largeSrc": "/feature-guides/20261025/detail-08-2200-85c612041d78.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 27526,
+          "large": 69120
+        }
+      },
+      {
+        "title": "알림톡 05 - 받는 사람과 발송 시점을 확정합니다",
+        "src": "/feature-guides/20261025/detail-09-1000-c8a5c960e01c.webp",
+        "largeSrc": "/feature-guides/20261025/detail-09-2200-6b2165011992.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 34334,
+          "large": 94084
+        }
+      },
+      {
+        "title": "수업 영상",
+        "src": "/feature-guides/20261025/detail-10-1000-0e5c81426903.webp",
+        "largeSrc": "/feature-guides/20261025/detail-10-2200-83bef7269beb.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 34104,
+          "large": 90118
+        }
+      },
+      {
+        "title": "수업 영상 01 - 영상을 연결할 수업을 엽니다",
+        "src": "/feature-guides/20261025/detail-11-1000-f8222d52884a.webp",
+        "largeSrc": "/feature-guides/20261025/detail-11-2200-92d987e8d8fe.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 24252,
+          "large": 66586
+        }
+      },
+      {
+        "title": "수업 영상 02 - 파일 또는 YouTube 링크를 선택합니다",
+        "src": "/feature-guides/20261025/detail-12-1000-f822ac07295d.webp",
+        "largeSrc": "/feature-guides/20261025/detail-12-2200-9aa67ae4403a.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 36128,
+          "large": 90900
+        }
+      },
+      {
+        "title": "수업 영상 03 - 제목과 재생 순서를 정합니다",
+        "src": "/feature-guides/20261025/detail-13-1000-271617ca5e47.webp",
+        "largeSrc": "/feature-guides/20261025/detail-13-2200-b6a1f43f9157.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 26770,
+          "large": 70366
+        }
+      },
+      {
+        "title": "수업 영상 04 - 시청 정책을 설정합니다",
+        "src": "/feature-guides/20261025/detail-14-1000-8418b5d7334d.webp",
+        "largeSrc": "/feature-guides/20261025/detail-14-2200-dc857bc37379.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 28438,
+          "large": 73142
+        }
+      },
+      {
+        "title": "수업 영상 05 - 업로드를 요청하고 진행을 확인합니다",
+        "src": "/feature-guides/20261025/detail-15-1000-3df291877570.webp",
+        "largeSrc": "/feature-guides/20261025/detail-15-2200-2de06bc42ba2.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 35110,
+          "large": 88142
+        }
+      },
+      {
+        "title": "엑셀 업로드·내보내기",
+        "src": "/feature-guides/20261025/detail-16-1000-b082c23c8698.webp",
+        "largeSrc": "/feature-guides/20261025/detail-16-2200-bf0f3c4dfa42.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 36608,
+          "large": 94930
+        }
+      },
+      {
+        "title": "엑셀 업로드·내보내기 01 - 학생 등록 방식을 선택합니다",
+        "src": "/feature-guides/20261025/detail-17-1000-df3acfae7fc5.webp",
+        "largeSrc": "/feature-guides/20261025/detail-17-2200-d44baa008b23.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 25288,
+          "large": 63346
+        }
+      },
+      {
+        "title": "엑셀 업로드·내보내기 02 - 양식을 받고 파일을 선택합니다",
+        "src": "/feature-guides/20261025/detail-18-1000-0666a7d6b8e9.webp",
+        "largeSrc": "/feature-guides/20261025/detail-18-2200-6817b921c181.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 33926,
+          "large": 82370
+        }
+      },
+      {
+        "title": "엑셀 업로드·내보내기 03 - 정상 행과 입력 오류를 구분합니다",
+        "src": "/feature-guides/20261025/detail-19-1000-ce800dc343d4.webp",
+        "largeSrc": "/feature-guides/20261025/detail-19-2200-dc6a30855e2e.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 48206,
+          "large": 109736
+        }
+      },
+      {
+        "title": "엑셀 업로드·내보내기 04 - 등록 인원과 제외 행을 재확인합니다",
+        "src": "/feature-guides/20261025/detail-20-1000-ca0d4eeafab1.webp",
+        "largeSrc": "/feature-guides/20261025/detail-20-2200-34fa245197fe.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 36086,
+          "large": 92026
+        }
+      },
+      {
+        "title": "엑셀 업로드·내보내기 05 - 초기 비밀번호 방식을 선택합니다",
+        "src": "/feature-guides/20261025/detail-21-1000-50746dee8039.webp",
+        "largeSrc": "/feature-guides/20261025/detail-21-2200-39cbf71dd7d2.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 40406,
+          "large": 96902
+        }
+      },
+      {
+        "title": "엑셀 업로드·내보내기 06 - 처리 결과와 최종 명부를 확인합니다",
+        "src": "/feature-guides/20261025/detail-22-1000-659dc94db79d.webp",
+        "largeSrc": "/feature-guides/20261025/detail-22-2200-f02fd2c37345.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 36188,
+          "large": 104006
+        }
+      },
+      {
+        "title": "정오표·문항별 채점",
+        "src": "/feature-guides/20261025/detail-23-1000-bffc5a25f875.webp",
+        "largeSrc": "/feature-guides/20261025/detail-23-2200-c6dd4c20b07d.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 35810,
+          "large": 92592
+        }
+      },
+      {
+        "title": "정오표·문항별 채점 01 - 시험과 문항 구성을 확인합니다",
+        "src": "/feature-guides/20261025/detail-24-1000-732c9b9a2f39.webp",
+        "largeSrc": "/feature-guides/20261025/detail-24-2200-06d493ece1c0.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 43556,
+          "large": 126102
+        }
+      },
+      {
+        "title": "정오표·문항별 채점 02 - O·X·복습 지정으로 빠르게 입력합니다",
+        "src": "/feature-guides/20261025/detail-25-1000-10bf2a64fa62.webp",
+        "largeSrc": "/feature-guides/20261025/detail-25-2200-0fc2a9180f76.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 45810,
+          "large": 129124
+        }
+      },
+      {
+        "title": "정오표·문항별 채점 03 - 한 학생의 빈칸을 채워 자동 저장합니다",
+        "src": "/feature-guides/20261025/detail-26-1000-59dc16e08b1c.webp",
+        "largeSrc": "/feature-guides/20261025/detail-26-2200-18a257fa246a.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 45684,
+          "large": 126178
+        }
+      },
+      {
+        "title": "정오표·문항별 채점 04 - 성적표에 반영된 결과를 확인합니다",
+        "src": "/feature-guides/20261025/detail-27-1000-f36790450130.webp",
+        "largeSrc": "/feature-guides/20261025/detail-27-2200-c8d35c7b3a8c.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 33218,
+          "large": 90218
+        }
+      },
+      {
+        "title": "성적표·수업 분석",
+        "src": "/feature-guides/20261025/detail-28-1000-8b1e637fae56.webp",
+        "largeSrc": "/feature-guides/20261025/detail-28-2200-b9e82f17b720.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 41356,
+          "large": 118418
+        }
+      },
+      {
+        "title": "학생별 오답노트",
+        "src": "/feature-guides/20261025/detail-29-1000-6ba0c6b33745.webp",
+        "largeSrc": "/feature-guides/20261025/detail-29-2200-c623eb5f6bfb.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 36272,
+          "large": 95636
+        }
+      },
+      {
+        "title": "시험 운영·OMR",
+        "src": "/feature-guides/20261025/detail-30-1000-f24e07254d42.webp",
+        "largeSrc": "/feature-guides/20261025/detail-30-2200-97ad87523736.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 42598,
+          "large": 125482
+        }
+      },
+      {
+        "title": "숙제·과제 관리",
+        "src": "/feature-guides/20261025/detail-31-1000-027f3b2b0315.webp",
+        "largeSrc": "/feature-guides/20261025/detail-31-2200-bb69fca2f091.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 34976,
+          "large": 101884
+        }
+      },
+      {
+        "title": "클리닉·재시험 관리",
+        "src": "/feature-guides/20261025/detail-32-1000-775cafcc3d8b.webp",
+        "largeSrc": "/feature-guides/20261025/detail-32-2200-f065e70bfdbc.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 44502,
+          "large": 126532
+        }
+      },
+      {
+        "title": "강의·차시·출결",
+        "src": "/feature-guides/20261025/detail-33-1000-454c704b0ae6.webp",
+        "largeSrc": "/feature-guides/20261025/detail-33-2200-42398012f719.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 43806,
+          "large": 123058
+        }
+      },
+      {
+        "title": "학생·학부모 관리",
+        "src": "/feature-guides/20261025/detail-34-1000-467d49107661.webp",
+        "largeSrc": "/feature-guides/20261025/detail-34-2200-7b661c80af23.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 34090,
+          "large": 94002
+        }
+      },
+      {
+        "title": "매치업·적중 보고서",
+        "src": "/feature-guides/20261025/detail-35-1000-19db1625573e.webp",
+        "largeSrc": "/feature-guides/20261025/detail-35-2200-e31e5560c257.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 38072,
+          "large": 107340
+        }
+      },
+      {
+        "title": "시험지 한글 변환",
+        "src": "/feature-guides/20261025/detail-36-1000-333b9c5655a7.webp",
+        "largeSrc": "/feature-guides/20261025/detail-36-2200-2ae399928ee2.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 35532,
+          "large": 103274
+        }
+      },
+      {
+        "title": "PPT·수업 준비 도구",
+        "src": "/feature-guides/20261025/detail-37-1000-dab2881a2279.webp",
+        "largeSrc": "/feature-guides/20261025/detail-37-2200-227d8d9a763f.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 35706,
+          "large": 98702
+        }
+      },
+      {
+        "title": "문제 리뷰 리포트",
+        "src": "/feature-guides/20261025/detail-38-1000-bc48f57091c8.webp",
+        "largeSrc": "/feature-guides/20261025/detail-38-2200-1fe26c7a4b5e.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 42992,
+          "large": 118284
+        }
+      },
+      {
+        "title": "질문·상담·자료 공유",
+        "src": "/feature-guides/20261025/detail-39-1000-05581ff6f063.webp",
+        "largeSrc": "/feature-guides/20261025/detail-39-2200-2f8039918f40.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 28052,
+          "large": 78492
+        }
+      },
+      {
+        "title": "학생 업무 도우미",
+        "src": "/feature-guides/20261025/detail-40-1000-b2d8d2692e5e.webp",
+        "largeSrc": "/feature-guides/20261025/detail-40-2200-a036041100e0.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 33796,
+          "large": 90754
+        }
+      },
+      {
+        "title": "맞춤 개발 협의 범위 - 핵심 업무",
+        "src": "/feature-guides/20261025/detail-41-1000-1928919d870c.webp",
+        "largeSrc": "/feature-guides/20261025/detail-41-2200-d710b0e37da0.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 53672,
+          "large": 140820
+        }
+      },
+      {
+        "title": "맞춤 개발 협의 범위 - 연결 기능",
+        "src": "/feature-guides/20261025/detail-42-1000-dcafc6261630.webp",
+        "largeSrc": "/feature-guides/20261025/detail-42-2200-13479f022bc5.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 50104,
+          "large": 130430
+        }
+      },
+      {
+        "title": "도입 검수 기준",
+        "src": "/feature-guides/20261025/detail-43-1000-e5a0603db0bd.webp",
+        "largeSrc": "/feature-guides/20261025/detail-43-2200-3d7607e83ea1.webp",
+        "width": 1400,
+        "height": 1050,
+        "bytes": {
+          "small": 40730,
+          "large": 109786
+        }
+      }
+    ],
+    "pdf": "/feature-guides/20261025/detail-ac1813f7b597.pdf"
+  }
+}

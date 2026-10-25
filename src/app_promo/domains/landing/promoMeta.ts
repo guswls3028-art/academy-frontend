@@ -14,6 +14,10 @@ export const PROMO_META: Record<string, PromoMeta> = {
     description:
       "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 목적별로 확인하세요.",
   },
+  "/promo/features/tour": {
+    title: "기능 둘러보기 · 실제 화면 설명서 | 학원플러스",
+    description: "알림톡·영상·엑셀 업로드·정오표의 실제 화면을 5쪽 요약과 43쪽 상세 이미지로 확인하세요. 현재 제공 기능, 도입 검수와 맞춤 개발 범위를 구분합니다.",
+  },
   "/promo/matchup-ppt": {
     title: "적중 매치업과 칠판용 PPT | 학원플러스",
     description:

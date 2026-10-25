@@ -1,0 +1,7 @@
+.page { max-width: 1320px; margin: 0 auto; padding: 40px 24px 64px; color: #172f40; }
+.intro a, .more a { color: #086875; font-weight: 650; text-underline-offset: 4px; }
+.intro h1 { margin: 24px 0 14px; font-size: clamp(28px, 4vw, 44px); line-height: 1.3; letter-spacing: -.045em; }
+.intro p { color: #526575; line-height: 1.8; }
+.more { margin: 24px 0; text-align: center; }
+.page a:focus-visible { outline: 3px solid #086875; outline-offset: 3px; }
+@media (max-width: 700px) { .page { padding: 24px 12px 40px; } .intro { padding: 0 4px; } }

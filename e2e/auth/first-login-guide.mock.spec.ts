@@ -511,6 +511,16 @@ test.describe("업무별 AtoZ 가이드", () => {
         }
         await stubAuthenticatedApp(page, { role: scenario.role, required: false });
         await gotoAndSettle(page, BASE + scenario.path);
+        const imageReader = page.getByRole("region", { name: "기능 둘러보기", exact: true });
+        if (scenario.role !== "student") {
+          await expect(imageReader).toBeVisible();
+          await imageReader.getByRole("button", { name: "다음 쪽 →" }).click();
+          await expect(imageReader.getByLabel("설명서 페이지")).toHaveValue("2");
+          await page.reload();
+          await expect(imageReader.getByLabel("설명서 페이지")).toHaveValue("2");
+        } else {
+          await expect(imageReader).toHaveCount(0);
+        }
         const search = page.getByRole("searchbox", { name: "어떤 작업이 필요한가요?" });
         await expect(search).toBeVisible();
         await testInfo.attach(`guide-overview-${scenario.role}-${width}`, {

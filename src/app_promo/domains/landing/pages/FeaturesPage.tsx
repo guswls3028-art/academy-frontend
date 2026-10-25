@@ -463,7 +463,8 @@ export default function FeaturesPage() {
               칠판용 PPT·매치업과 학원 홈페이지까지 수업 전후에 필요한 기능을 제공합니다.
             </p>
             <div className={styles.heroActions}>
-              <a href="#feature-catalog-title" className={styles.primaryCta}>
+              <Link to="/promo/features/tour" className={styles.primaryCta}>기능 둘러보기 →</Link>
+              <a href="#feature-catalog-title" className={styles.secondaryCta}>
                 업무별 기능 보기
                 <LayoutDashboard size={18} />
               </a>
@@ -472,6 +473,7 @@ export default function FeaturesPage() {
                 <Smartphone size={18} />
               </Link>
             </div>
+            <p>실제 화면 설명서 · 핵심 요약 5쪽 / 사용 순서 상세 43쪽<br />알림톡·영상·엑셀·정오표의 현재 기능과 도입 검수 범위를 확인하세요.</p>
           </div>
 
           <aside className={styles.heroProofStack} aria-label="학원 운영 실제 화면 미리보기">
