@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { waitForRenderSettled } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE = 9965;
@@ -47,6 +48,7 @@ async function openPicker(page: Page, names: Record<number, string> = {}) {
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
     if (path === "/core/program/") return json({ tenantCode: "hakwonplus", isPlatformAdmin: true, display_name: "학원플러스", feature_flags: {}, is_active: true });
     if (path === "/core/me/") return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    if (path === "/staffs/currently-working/") return json([]);
     if (path === `/lectures/lectures/${LECTURE}/`) return json({ id: LECTURE, title: "기말고사 새 강의", name: "기말고사 새 강의", is_active: true });
     if (path === "/enrollments/bulk_create/" && request.method() === "POST") {
       const body = request.postDataJSON() as { lecture: number; students: number[] };
@@ -80,6 +82,7 @@ async function openPicker(page: Page, names: Record<number, string> = {}) {
     return json({ count: 0, results: [], next: null });
   });
   await page.goto(`${BASE}/workspace/lectures/${LECTURE}`);
+  await waitForRenderSettled(page);
   await page.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
   const dialog = page.getByRole("dialog", { name: "수강생 등록", exact: true });
   await expect(dialog.getByRole("checkbox", { name: `${roster[1].name} 선택`, exact: true }).first()).toBeEnabled();
@@ -117,7 +120,11 @@ for (const width of [1366, 1100, 390]) {
     await expect(dialog).toHaveCount(0);
     expect(state.posts).toEqual([{ lecture: LECTURE, students: [2, 3, 51, 52] }]);
     expect(state.unexpectedWrites).toEqual([]);
+    // Let the roster refresh and shell reads finish before crossing documents.
+    // WebKit can report a canceled in-flight mock as an access-control error.
+    await waitForRenderSettled(page);
     await page.reload();
+    await waitForRenderSettled(page);
     for (const id of [2, 3, 51, 52]) await expect(page.getByText(students[id - 1].name, { exact: true }).first()).toBeVisible();
     await page.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
     await expect(dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true })).toBeDisabled();
