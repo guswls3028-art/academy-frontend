@@ -301,7 +301,8 @@ test("낮은 모바일 화면·다크 테마에서도 선택과 저장 버튼에
   await page.setViewportSize({ width: 390, height: 600 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   const { dialog } = await openPicker(page);
-  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "modern-dark"));
+  await expect(dialog.locator(".modal-body")).toHaveCSS("background-color", "rgb(17, 24, 39)");
   await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
   const save = dialog.getByRole("button", { name: "1명 강의에 추가", exact: true });
   await expect(save).toBeInViewport();
