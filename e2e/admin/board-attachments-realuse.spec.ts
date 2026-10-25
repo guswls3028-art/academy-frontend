@@ -5,7 +5,7 @@ import { api, assertNoHorizontalOverflow, assertQaStudentParentRuntime, expectAp
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import type { Page } from "@playwright/test";
 
-test.setTimeout(360_000);
+test.setTimeout(420_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
 const photo = (name: string) => ({ name, mimeType: "image/png", buffer: png });
@@ -29,7 +29,7 @@ test.describe("[real-use] board attachment persistence", () => {
   test.describe.configure({ retries: 0 });
   test.skip(!STUDENT_PARENT_REALUSE_ENABLED, "Requires the exact isolated development release boundary.");
 
-  test("board/materials create and edit photos → desktop/390px reload → student access; mobile teacher upload", async ({ page, request }) => {
+  test("board/materials/mobile teacher create and edit photos; landing community → desktop/390px reload → student access", async ({ page, request }) => {
     assertQaStudentParentRuntime();
     const guard = await installQaStudentParentBoundary(page, request);
     const admin = await loginAdmin(request);
@@ -83,6 +83,21 @@ test.describe("[real-use] board attachment persistence", () => {
       expect(read.attachments).toHaveLength(2);
       await page.goto(`${QA_BASE}/workspace/community/notice?id=${id}`);
       await verifyImages(page, 2, ".notice-attach__image");
+
+      await expectApi(request, "PUT", "/core/landing/admin/", admin.access, {});
+      await expectApi(request, "POST", "/core/landing/publish/", admin.access, {});
+      await page.goto(`${QA_BASE}/landing/community/board/write`);
+      await page.getByTestId("landing-community-write-title").fill(`qa-landing-photo-${Date.now()}`);
+      await page.getByTestId("landing-community-write-content").fill("홈페이지 학원 커뮤니티 사진 저장과 상세 표시 확인");
+      await page.getByTestId("landing-community-write-files").setInputFiles(photo("qa-landing-community.png"));
+      const landingCreated = page.waitForResponse(isCreate("/community/posts/"));
+      await page.getByTestId("landing-community-write-submit").click();
+      const landingResult = await landingCreated; expect(landingResult.status()).toBe(201);
+      const landingId = Number((await landingResult.json()).id); owned.push(landingId);
+      await expect(page).toHaveURL(`${QA_BASE}/landing/community/board/posts/${landingId}`);
+      await verifyImages(page, 1, ".public-photos__gallery img");
+      const landingRead = await expectApi<{ attachments: unknown[] }>(request, "GET", `/community/posts/${landingId}/`, student.access);
+      expect(landingRead.attachments).toHaveLength(1);
     } finally {
       for (const id of owned) expect((await api(request, "DELETE", `/community/posts/${id}/`, admin.access)).status).toBe(204);
       guard.assertClean();
