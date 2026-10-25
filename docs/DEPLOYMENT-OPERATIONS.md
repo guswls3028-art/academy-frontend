@@ -133,6 +133,13 @@ readback하며, drift이면 upload 전에 실패한다.
 각각의 비정상 종료를 확인했으며, 애플리케이션의 기능 검증은 기존 CI/E2E와 동일
 산출물 개발 실사용·cleanup0·운영 검증이 계속 담당한다.
 
+### Windows 한글 도우미 검증 SDK
+
+Windows COM 계약 job은 .NET SDK `8.0.427`을 고정해서 설치하고 release build와
+COM 삽입 계약을 모두 실행한다. `8.0.x` 채널의 `aka.ms` 리다이렉트가 HTTP 409를
+반환하더라도 공식 Microsoft 버전별 SDK 주소로 설치할 수 있게 한 설정이다.
+SDK 갱신은 동일한 Windows build·COM 계약 통과를 확인한 뒤 버전을 올린다.
+
 ## 2. 권한과 secret
 
 전역 Cloudflare API key와 `CLOUDFLARE_EMAIL`은 사용하지 않는다.
