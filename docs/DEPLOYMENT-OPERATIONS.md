@@ -473,7 +473,7 @@ successful manifest·active development host를 읽는다. 진행 중인 release
 45분 동안 30초 간격으로 기다린다. 최신 run이 취소됐어도 이전 active run을 확인한다.
 잘못된 host identity/IAM, 읽기 오류, 종료된
 release와 manifest/host 불일치는 즉시 실패한다. 대기는 별도 job과 임시 인증으로
-수행해 real-use의 75분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
+수행해 real-use의 100분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
 최신 immutable backend revision, IAM, SSM 문서, host를 다시 검사하므로 대기 중
 성공한 관측으로 이후 검증을 생략하지 않는다. 관측은 PII 없는
 `backend-readiness-evidence`에 남긴다. 대기 이후 새 release가 시작되어 다시
@@ -586,8 +586,8 @@ scoped state에만 기존 영상 1개, 접근/PROCTORED 접근/진도 각 2개, 
 기존 비지정 범위 계약을 유지한다. 서버 query와 fixture identity 규칙은 backend의
 `docs/operations/persistent-development-runtime.md`가 소유한다.
 계정·학습·수강·영상 시나리오 전체를 한 worker에서 순차 실행하므로 Playwright 자식
-프로세스에는 60분을 허용한다. 75분 개발 카나리 job 안에서 결과 JSON 생성과 exact
-Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 60분을 넘기면 기존처럼 실패
+프로세스에는 85분을 허용한다. 100분 개발 카나리 job 안에서 결과 JSON 생성과 exact
+Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 85분을 넘기면 기존처럼 실패
 폐쇄하고 cleanup 0이 증명되기 전에는 운영 승격하지 않는다.
 
 고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup과 합성 등록 계정용 AccountProbe만 사용하고 임의 shell 입력,
@@ -692,16 +692,18 @@ runner는 Setup 전부터 `passed:false`/`cleanup:null`인 미완료 증거를 �
 실패/timeout은 finally로 들어가 test process를 먼저 stop/reap한 뒤 Cleanup을 시도하고,
 소유 SSM session들의 종료 API와 Active/History readback 후 최종 증거를 쓴다. Cleanup
 실패·소유 session ID/종료 readback 누락은 각각 실패 분류로 남아 승격을 차단한다.
-전체 실사용 child 한도는 60분, 이를 제공하는 로컬·서버 SSM 터널은 65분, CI job은
-설치·정리와 증거 업로드 여유를 포함해 75분이다. QA OIDC 요청은 4500초(75분)로,
-backend 소유 QA 역할의 MaxSessionDuration=4500초와 맞춰 정리 중 인증 만료를 막는다.
+전체 실사용 child 한도는 85분, 이를 제공하는 로컬·서버 SSM 터널은 90분, CI job은
+설치·정리와 증거 업로드 여유를 포함해 100분이다. QA OIDC 요청은 6000초(100분)로,
+backend 소유 QA 역할의 MaxSessionDuration=6000초와 맞춰 정리 중 인증 만료를 막는다.
 별도 backend-readiness job의 50분·3600초 계약은 유지한다. 역할의 trust·action·resource,
 고정 포트와 5분 idle 제한은 바꾸지 않는다. 서버 문서·역할의 실제 적용과 readback은
 backend `docs/operations/persistent-development-runtime.md`를 따른다.
 실행38843507538은 36건이 39분24초에 통과한 뒤 마지막 영상 검증 도중 50분 parent
 timeout으로 중단됐다. 부분 진행은 성공 보고서가 아니며, 당시 양쪽 tenant/user/R2/
-process/listener 정리 0은 확인됐지만 운영 승격은 차단됐다. 60분은 마지막 영상의
-전체 17분 한도까지 포함할 여유를 두며, 같은 산출물의 새 전체 실행으로 검증한다. OMR 각 10분,
+process/listener 정리 0은 확인됐지만 운영 승격은 차단됐다. 이후 실행40168553418은
+기존 36건에 47.79분이 걸려 60분 한도로 마지막 영상을 완료하지 못했다. 마지막 영상의
+17분과 추가 사진 흐름 2건의 각 7분 한도를 더한 78.79분에 여유를 둬 전체 85분으로
+맞춘다. 같은 산출물의 새 전체 실행으로 검증한다. OMR 각 10분,
 영상 test 17분, 단일 worker·재시도 0·필수 39건·690초 재생 및 cleanup0 요구는 유지한다.
 `development-release-progress.json`은 테스트 시작/종료마다 허용 spec 파일명·행·상태·
 소요 시간만 저장해 child timeout 시 마지막 진행 지점을 보존한다. 제목·오류 원문·
@@ -858,7 +860,7 @@ parser 테스트가 소유한다. snapshot 복사·중복/역순 교체·상한�
 두 종료 순서·listener 해제, canonical clinic/OPTIONS, mutation 재전송 0 및 기존
 500ms 조회 재시도 정책을 검증한다. 로컬 선택 테스트는 공식 real-use gate가 아니다.
 
-로컬 child 제한은 QA operation 240초, tests 60분, tunnel은 tests보다 5분 긴 65분이다. timeout은 TERM 후
+로컬 child 제한은 QA operation 240초, tests 85분, tunnel은 tests보다 5분 긴 90분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
 20초 제한이다. SIGINT/SIGTERM은 작업 중 child를 중단하여 finally를 시도하고 무조건
 실패 처리한다. 정리 중 추가 신호는 새 작업을 시작하지 않으며 cleanup 완료를 기다린다.
@@ -872,7 +874,7 @@ test child를 기다리는 동안 runner는 60초마다 내용 없는 진행 신
 stop reason, 경과 시간만 보존한다. 미종료 상태는 null이며 raw 출력·세션 식별자는
 포함하지 않는다. 최종 cleanup 뒤 기존 evidence 쓰기에서 함께 저장하며, 관측 callback은
 성공 여부나 gate 조건을 변경하지 않는다.
-job timeout은 75분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
+job timeout은 100분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
 
 GitHub 강제 취소의 짧은 grace, SIGKILL, runner/host 소실, IAM·네트워크 상실에서는
 finally 실행·evidence 업로드·tenant cleanup을 보장할 수 없다. 미완료 파일이 있으면
