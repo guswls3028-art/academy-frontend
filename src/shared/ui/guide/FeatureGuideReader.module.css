@@ -17,7 +17,7 @@
 .note { color: var(--reader-muted); font-size: 13px; }
 .reader button, .reader select { font: inherit; color: var(--reader-text); background: var(--reader-bg); border: 1px solid var(--reader-border); border-radius: 9px; min-height: 44px; padding: 8px 14px; }
 .reader button { cursor: pointer; transition: background 160ms ease, border-color 160ms ease; }
-.reader button:hover:not(:disabled) { background: var(--reader-soft); border-color: var(--reader-accent); }
+.reader button:hover:not(:disabled):not([aria-pressed="true"]) { background: var(--reader-soft); border-color: var(--reader-accent); }
 .reader button:disabled { opacity: .45; cursor: default; }
 .reader :is(button, a, select, summary):focus-visible { outline: 3px solid var(--reader-accent); outline-offset: 3px; }
 .books { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 8px; }
