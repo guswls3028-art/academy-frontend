@@ -5,15 +5,17 @@ import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import { createPost, resolvePostNodeIdsForCreate, type CommunityScopeParams, type ScopeNodeMinimal } from "../api/community.api";
 import { usePostAttachmentBatch } from "../hooks/usePostAttachmentBatch";
+import type { PostDraftStateChange } from "../hooks/usePostDraftNavigation";
 import { NoticeDraftFiles } from "./NoticeAttachments";
 import "../notice-attachments.css";
 
-export default function PostCreatePane({ postType, scopeNodes, scopeParams, onCancel, onSuccess }: {
+export default function PostCreatePane({ postType, scopeNodes, scopeParams, onCancel, onSuccess, onDraftStateChange }: {
   postType: "board" | "materials";
   scopeNodes: ScopeNodeMinimal[];
   scopeParams: CommunityScopeParams;
   onCancel: () => void;
   onSuccess: (postId: number) => void;
+  onDraftStateChange?: PostDraftStateChange;
 }) {
   const confirm = useConfirm();
   const [title, setTitle] = useState("");
@@ -33,6 +35,10 @@ export default function PostCreatePane({ postType, scopeNodes, scopeParams, onCa
     : scopeParams.scope === "lecture"
       ? scopeNodes.find((node) => node.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의" : "전체 대상";
   const dirty = Boolean(title || content || batch.files.length);
+  useEffect(() => {
+    onDraftStateChange?.(dirty, busy);
+    return () => onDraftStateChange?.(false, false);
+  }, [onDraftStateChange, dirty, busy]);
   const locked = busy || createdId != null;
   useEffect(() => {
     if (!dirty) return;

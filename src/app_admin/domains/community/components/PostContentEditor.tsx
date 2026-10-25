@@ -9,10 +9,11 @@ import PostReadView from "./PostReadView";
 import { updatePost, type PostEntity } from "../api/community.api";
 import { adminCommunityQueryKeys } from "../queryKeys";
 import { usePostAttachmentBatch } from "../hooks/usePostAttachmentBatch";
+import type { PostDraftStateChange } from "../hooks/usePostDraftNavigation";
 import { NoticeDraftFiles } from "./NoticeAttachments";
 import "../notice-attachments.css";
 
-export default function PostContentEditor({ post, saveLabel = "저장" }: { post: PostEntity; saveLabel?: string }) {
+export default function PostContentEditor({ post, saveLabel = "저장", onDraftStateChange }: { post: PostEntity; saveLabel?: string; onDraftStateChange?: PostDraftStateChange }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
@@ -23,6 +24,10 @@ export default function PostContentEditor({ post, saveLabel = "저장" }: { post
   const saving = useRef(false);
   const batch = usePostAttachmentBatch(post.attachments?.length ?? 0);
   const dirty = editing && (content !== saved.current || batch.files.length > 0);
+  useEffect(() => {
+    onDraftStateChange?.(dirty, busy);
+    return () => onDraftStateChange?.(false, false);
+  }, [onDraftStateChange, dirty, busy]);
 
   useEffect(() => {
     if (!dirty) return;

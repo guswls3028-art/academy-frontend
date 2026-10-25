@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
@@ -6,10 +6,11 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import type { PostAttachment } from "../api/community.api";
 import { adminCommunityQueryKeys } from "../queryKeys";
 import { usePostAttachmentBatch } from "../hooks/usePostAttachmentBatch";
+import type { PostDraftStateChange } from "../hooks/usePostDraftNavigation";
 import NoticeAttachments, { NoticeDraftFiles } from "./NoticeAttachments";
 import "../notice-attachments.css";
 
-export default function PostAttachmentManager({ postId, attachments, nativePicker = false }: { postId: number; attachments: PostAttachment[]; nativePicker?: boolean }) {
+export default function PostAttachmentManager({ postId, attachments, nativePicker = false, onDraftStateChange }: { postId: number; attachments: PostAttachment[]; nativePicker?: boolean; onDraftStateChange?: PostDraftStateChange }) {
   const qc = useQueryClient();
   const batch = usePostAttachmentBatch(attachments.length);
   const input = useRef<HTMLInputElement>(null);
@@ -17,6 +18,10 @@ export default function PostAttachmentManager({ postId, attachments, nativePicke
   const saving = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+    onDraftStateChange?.(batch.files.length > 0, busy);
+    return () => onDraftStateChange?.(false, false);
+  }, [onDraftStateChange, batch.files.length, busy]);
   const upload = async () => {
     if (saving.current) return;
     saving.current = true;

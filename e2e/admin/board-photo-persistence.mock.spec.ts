@@ -161,6 +161,31 @@ for (const postType of ["board", "materials"]) test.describe(`${postType} 사진
     await seed(page);
   });
 
+  test("다른 작성 화면과 목록으로 이동하기 전에 본문과 사진 선택을 보존한다", async ({ page }) => {
+    const state = await installApi(page, postType, true);
+    await gotoAndSettle(page, `${BASE}/workspace/community/${postType}?id=${POST_ID}`, { timeout: 60_000 });
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await page.locator(".ProseMirror").fill("저장 전 본문");
+    await page.locator('.rich-editor input[accept="image/*"]').setInputFiles({ name: FILE_NAME, mimeType: "image/jpeg", buffer: PNG });
+    const newPost = page.getByRole("button", { name: postType === "board" ? "+ 글쓰기" : "+ 자료 등록", exact: true });
+    const dialog = page.getByRole("alertdialog", { name: "저장하지 않은 변경이 있습니다" });
+    await newPost.click();
+    await dialog.getByRole("button", { name: "계속 편집" }).click();
+    await expect(page.locator(".ProseMirror")).toHaveText("저장 전 본문");
+    await expect(page.getByAltText(`${FILE_NAME} 미리보기`)).toBeVisible();
+    expect(state.contentUpdates).toBe(0); expect(state.uploadAttempts).toBe(0);
+    await newPost.click();
+    await dialog.getByRole("button", { name: "저장하지 않고 이동" }).click();
+    await page.locator('.rich-editor input[accept="image/*"]').setInputFiles({ name: FILE_NAME, mimeType: "image/jpeg", buffer: PNG });
+    await page.locator(".cms-list-card").click();
+    await dialog.getByRole("button", { name: "계속 편집" }).click();
+    await expect(page.getByAltText(`${FILE_NAME} 미리보기`)).toBeVisible();
+    await page.locator(".cms-list-card").click();
+    await dialog.getByRole("button", { name: "저장하지 않고 이동" }).click();
+    await expect(page).toHaveURL(new RegExp(`id=${POST_ID}`));
+    await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+  });
+
   test("기존 글에 사진만 추가할 때 본문 PATCH 없이 같은 첨부 요청을 재시도한다", async ({ page }) => {
     const state = await installApi(page, postType, true);
     await gotoAndSettle(page, `${BASE}/workspace/community/${postType}?id=${POST_ID}`, { timeout: 60_000 });

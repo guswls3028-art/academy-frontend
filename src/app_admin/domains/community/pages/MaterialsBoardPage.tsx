@@ -19,6 +19,7 @@ import {
 } from "../api/community.api";
 import { useScopeFilteredPosts } from "../hooks/useScopeFilteredPosts";
 import { useScopeNavigation } from "../hooks/useScopeNavigation";
+import { usePostDraftNavigation, type PostDraftStateChange } from "../hooks/usePostDraftNavigation";
 import { useTreeCounts } from "../hooks/useTreeCounts";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { adminCommunityQueryKeys } from "../queryKeys";
@@ -48,6 +49,7 @@ const SNIPPET_LEN = 80;
 /* ─── Main Page ─────────────────────────────────────── */
 export default function MaterialsBoardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { run: runNavigation, hasPending, onCreateStateChange, onContentStateChange, onAttachmentStateChange } = usePostDraftNavigation();
   const selectedIdParam = searchParams.get("id");
   const selectedId =
     selectedIdParam && /^\d+$/.test(selectedIdParam) ? Number(selectedIdParam) : null;
@@ -158,9 +160,9 @@ export default function MaterialsBoardPage() {
   });
 
   useEffect(() => {
-    if (selectedId == null || showCreate || postsQ.isFetching) return;
+    if (selectedId == null || showCreate || postsQ.isFetching || hasPending()) return;
     if (!filtered.some((p) => p.id === selectedId)) setSelectedId(null);
-  }, [filtered, selectedId, showCreate, postsQ.isFetching, setSelectedId]);
+  }, [filtered, selectedId, showCreate, postsQ.isFetching, setSelectedId, hasPending]);
 
   // j/k keyboard nav
   useEffect(() => {
@@ -168,14 +170,16 @@ export default function MaterialsBoardPage() {
       if (filtered.length === 0) return;
       const element = e.target as HTMLElement;
       if (["TEXTAREA", "INPUT", "SELECT"].includes(element.tagName) || element.isContentEditable || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const idx = selectedId != null ? filtered.findIndex((p) => p.id === selectedId) : -1;
-      if (e.key === "j") { e.preventDefault(); setSelectedId(filtered[Math.min(idx + 1, filtered.length - 1)].id); }
-      else if (e.key === "k") { e.preventDefault(); const t = idx <= 0 ? filtered.length - 1 : idx - 1; setSelectedId(filtered[Math.max(t, 0)].id); }
+      const target = e.key === "j" ? Math.min(idx + 1, filtered.length - 1) : e.key === "k" ? (idx <= 0 ? filtered.length - 1 : idx - 1) : null;
+      if (target != null) {
+        e.preventDefault();
+        if (filtered[target].id !== selectedId) void runNavigation(() => setSelectedId(filtered[target].id));
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [filtered, selectedId, setSelectedId]);
+  }, [filtered, selectedId, setSelectedId, runNavigation]);
 
   if (scopeNodesQ.isError || lecturesQ.isError || sessionsQ.isError) {
     return (
@@ -216,9 +220,9 @@ export default function MaterialsBoardPage() {
         sessionsLoading={sessionsLoading}
         expandedLectureId={expandedLectureId}
         onExpandLecture={setExpandedLectureId}
-        onSelectAll={selectAll}
-        onSelectLecture={selectLecture}
-        onSelectSession={selectSession}
+        onSelectAll={() => void runNavigation(selectAll)}
+        onSelectLecture={(id) => void runNavigation(() => selectLecture(id))}
+        onSelectSession={(lecture, session) => void runNavigation(() => selectSession(lecture, session))}
       />
 
       {/* ═══ 2nd pane: List ═══ */}
@@ -233,7 +237,7 @@ export default function MaterialsBoardPage() {
                 sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
               />
             </div>
-            {canShowList && <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 자료 등록</Button>}
+            {canShowList && <Button intent="primary" size="sm" onClick={() => void runNavigation(() => { setShowCreate(true); setSelectedId(null); })}>+ 자료 등록</Button>}
           </div>
           <div className="flex items-center gap-2">
             <input type="search" className="ds-input flex-1 min-w-0" placeholder="제목 · 내용 · 작성자" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} aria-label="자료실 검색" />
@@ -258,7 +262,7 @@ export default function MaterialsBoardPage() {
             />
           ) : (
             filtered.map((p) => (
-              <MatPostCard key={p.id} post={p} isActive={p.id === selectedId} onClick={() => setSelectedId(p.id)} />
+              <MatPostCard key={p.id} post={p} isActive={p.id === selectedId} onClick={() => { if (p.id !== selectedId || showCreate) void runNavigation(() => setSelectedId(p.id)); }} />
             ))
           )}
         </div>
@@ -267,7 +271,7 @@ export default function MaterialsBoardPage() {
       {/* ═══ 3rd pane: Detail / Create ═══ */}
       <main className="qna-inbox__thread">
         {showCreate ? (
-          <PostCreatePane postType="materials"
+          <PostCreatePane postType="materials" onDraftStateChange={onCreateStateChange}
             scopeNodes={scopeNodes}
             scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
@@ -284,7 +288,9 @@ export default function MaterialsBoardPage() {
         ) : (
           <MatDetailView
             postId={selectedId}
-            onClose={() => setSelectedId(null)}
+            onContentStateChange={onContentStateChange}
+            onAttachmentStateChange={onAttachmentStateChange}
+            onClose={() => void runNavigation(() => setSelectedId(null))}
             onDeleted={() => {
               setSelectedId(null);
               qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.materialsPosts });
@@ -334,7 +340,7 @@ function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: 
 }
 
 /* ─── Detail View ────────────────────────────────────── */
-function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose: () => void; onDeleted: () => void }) {
+function MatDetailView({ postId, onClose, onDeleted, onContentStateChange, onAttachmentStateChange }: { postId: number; onClose: () => void; onDeleted: () => void; onContentStateChange: PostDraftStateChange; onAttachmentStateChange: PostDraftStateChange }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { data: post, isLoading } = useQuery({ queryKey: adminCommunityQueryKeys.post(postId), queryFn: () => fetchPost(postId), enabled: postId != null });
@@ -423,14 +429,14 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
 
         {/* Section: 첨부파일 (파일 우선 노출) */}
         <div className="cms-detail__section">
-          <PostAttachmentManager key={postId} postId={postId} attachments={post.attachments ?? []} nativePicker />
+          <PostAttachmentManager key={postId} postId={postId} onDraftStateChange={onAttachmentStateChange} attachments={post.attachments ?? []} nativePicker />
         </div>
 
         {/* Section: 내용 */}
         <div className="cms-detail__section">
           <div className="cms-detail__section-label">내용</div>
           <div className="cms-detail__content-card">
-            <PostContentEditor key={post.id} post={post} />
+            <PostContentEditor key={post.id} post={post} onDraftStateChange={onContentStateChange} />
           </div>
         </div>
 
