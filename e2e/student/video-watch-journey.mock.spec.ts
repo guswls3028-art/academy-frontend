@@ -234,6 +234,8 @@ for (const width of [1366, 390]) {
       history.pushState({}, "", "/student/video/play?video=562&enrollment=1304&session=394");
       dispatchEvent(new PopStateEvent("popstate"));
     });
+    await expect(page.getByRole("heading", { name: FIRST_TITLE })).toBeVisible();
+    await expect(page.locator("[data-youtube-sdk-fixture]")).toBeVisible();
     await expect.poll(async () => (await youtube.snapshot()).players.some((player) => player.ready)).toBe(true);
     await youtube.finish();
     await expect.poll(() => state.progress.some((entry) => entry.body.completed === true)).toBe(true);
