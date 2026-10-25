@@ -9,6 +9,89 @@ import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
+test.describe("expense list integrity", () => {
+  const expense = (id: number) => ({
+    id, staff: 1, staff_name: "김조교", date: "2026-08-22",
+    title: `환급 원장 ${id}`, amount: 1000, memo: "", status: "APPROVED",
+    approved_at: "2026-08-22T01:00:00Z", approved_by: 12, approved_by_name: "관리자",
+    created_at: "2026-08-22T01:00:00Z", updated_at: "2026-08-22T01:00:00Z",
+  });
+  const routeUrl = `${BASE}/workspace/staff/expenses?staffId=1&year=2026&month=8`;
+  test.beforeEach(async ({ page }) => { await seedAuth(page); });
+
+  for (const width of [1366, 390]) {
+    test(`malformed 200 shows error then ordinary create and reload recover at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.clock.setFixedTime(new Date("2026-08-22T12:00:00+09:00"));
+      let valid = false;
+      const saved: Array<Record<string, unknown>> = [expense(31)];
+      await mockStaffApi(page, { expenses: saved, onExpenseCreate: (body) => {
+        saved.push({ ...expense(92), ...body, status: "PENDING", approved_at: null,
+          approved_by: null, approved_by_name: null });
+      } });
+      await page.route("**/api/v1/staffs/expense-records/**", async (route) => {
+        if (route.request().method() !== "GET") return route.fallback();
+        return route.fulfill({ json: valid ? saved : { detail: "invalid successful envelope" } });
+      });
+      await gotoAndSettle(page, routeUrl);
+      await expect(page.getByText("선결제 환급 내역을 불러오지 못했습니다", { exact: true })).toBeVisible();
+      await expect(page.getByText("선결제 환급 없음", { exact: true })).toHaveCount(0);
+      await expect(page.getByTestId(/^staff-expense-\d+$/)).toHaveCount(0);
+      await expect(page.getByRole("group", { name: "선결제 환급 상태 필터" })).toHaveCount(0);
+      await page.screenshot({ path: `test-results/expense-integrity-error-${width}.png`, fullPage: true });
+      valid = true;
+      await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+      const section = page.getByRole("heading", { name: "직원 선결제 환급" }).locator("xpath=ancestor::section");
+      await expect(page.getByTestId("staff-expense-31")).toBeVisible();
+      await section.getByRole("button", { name: "추가", exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: "선결제 환급 추가" });
+      await dialog.getByLabel("항목 *", { exact: true }).fill("정상 복구 환급");
+      await dialog.getByLabel("금액(원) *", { exact: true }).fill("1500");
+      await dialog.getByRole("button", { name: "추가", exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+      await expect(page.getByTestId("staff-expense-92")).toContainText("정상 복구 환급");
+      await page.reload();
+      await expect(page.getByTestId("staff-expense-92")).toContainText("1,500원");
+      await expect(page.getByRole("group", { name: "선결제 환급 상태 필터" })).toContainText("2건 · 2,500원");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await page.screenshot({ path: `test-results/expense-integrity-recovery-${width}.png`, fullPage: true });
+    });
+
+    test(`501 paginated expenses retain every row and exact scope at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await mockStaffApi(page);
+      const rows = Array.from({ length: 501 }, (_, index) => expense(index + 1));
+      const pages: number[] = [];
+      let firstAuth: string | undefined;
+      await page.route("**/api/v1/staffs/expense-records/**", async (route) => {
+        const request = route.request();
+        const url = new URL(request.url());
+        const current = Number(url.searchParams.get("page") || 1);
+        expect(Object.fromEntries([...url.searchParams].filter(([key]) => key !== "page"))).toEqual({
+          staff: "1", date_from: "2026-08-01", date_to: "2026-08-31", page_size: "500",
+        });
+        const headers = await request.allHeaders();
+        expect(headers["x-tenant-code"]).toBe("hakwonplus");
+        expect(headers.authorization).toMatch(/^Bearer /);
+        firstAuth ??= headers.authorization;
+        expect(headers.authorization).toBe(firstAuth);
+        pages.push(current);
+        const next = new URL(url);
+        next.searchParams.set("page", "2");
+        return route.fulfill({ json: { count: 501, next: current === 1 ? next.href : null,
+          previous: current === 1 ? null : url.href, results: current === 1 ? rows.slice(0, 500) : rows.slice(500) } });
+      });
+      await gotoAndSettle(page, routeUrl);
+      await expect(page.getByTestId(/^staff-expense-\d+$/)).toHaveCount(501);
+      await expect(page.getByTestId("staff-expense-501")).toContainText("환급 원장 501");
+      await expect(page.getByRole("group", { name: "선결제 환급 상태 필터" })).toContainText("501건 · 501,000원");
+      expect(pages).toEqual([1, 2]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await page.screenshot({ path: `test-results/expense-integrity-501-${width}.png` });
+    });
+  }
+});
+
 async function expectWorkspaceTabsLayout(page: Page, expectedRows: number) {
   const tabs = page.getByRole("tab", { name: "근태 탭", exact: true }).locator("..");
   const layout = await tabs.evaluate((element) => {
