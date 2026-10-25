@@ -22,6 +22,7 @@ import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
 import ImageLightbox from "../components/ImageLightbox";
+import { PublicPhotoGallery } from "../components/PublicPhotos";
 import PublicRichContentStyle, { PUBLIC_RICH_CONTENT_CLASS, PUBLIC_RICH_CONTENT_PRESERVE_LINES_CLASS } from "../components/PublicRichContentStyle";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 import {
@@ -79,6 +80,7 @@ interface PostDetail {
   replies_count?: number;
   like_count?: number;
   is_liked?: boolean;
+  attachments?: Array<{ content_type: string; download_url?: string }>;
 }
 
 interface Reply {
@@ -488,6 +490,10 @@ export default function LandingCommunityPostPage() {
                 dangerouslySetInnerHTML={{ __html: safePostContent }}
               />
               <PublicRichContentStyle />
+              <PublicPhotoGallery
+                photos={(post.attachments ?? []).filter((file) => file.content_type.startsWith("image/") && file.download_url).map((file) => file.download_url!)}
+                onRefresh={async () => { const response = await api.get(`/community/posts/${post.id}/`); setPost(response.data as PostDetail); }}
+              />
               <style>{`[data-testid="landing-community-post-body"] img { cursor: zoom-in; }`}</style>
             </>
           )}

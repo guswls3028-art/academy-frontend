@@ -88,7 +88,7 @@ test("readiness precedes expensive QA and keeps its credentials and timeout inde
   assert.match(readiness, /timeout-minutes: 50/);
   assert.match(readiness, /role-duration-seconds: 3600/);
   assert.match(qa, /needs: \[quality-check, hangul-companion-check, candidate-preview, backend-readiness\]/);
-  assert.match(qa, /timeout-minutes: 75/);
-  assert.match(qa, /role-duration-seconds: 4500/);
+  assert.match(qa, /timeout-minutes: 100/);
+  assert.match(qa, /role-duration-seconds: 6000/);
   assert.match(qa, /node scripts\/run-development-release-canary\.mjs/);
 });

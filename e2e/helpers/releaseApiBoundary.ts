@@ -240,6 +240,16 @@ function isExactPublicTenantMetadataRead(boundary: ReleaseBoundary, target: URL,
     && target.searchParams.get("hostname") === new URL(boundary.webOrigin).hostname;
 }
 
+function developmentPublicPhotoType(boundary: ReleaseBoundary, rawUrl: string): "image/png" | "image/jpeg" | "image/webp" | undefined {
+  if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId) || Number(boundary.omrR2TenantId) < 1) return;
+  let target: URL;
+  try { target = new URL(rawUrl); } catch { return; }
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== `${target.origin}${target.pathname}${target.search}` || !hasExactHostSignature(target, 604800)) return;
+  const path = new RegExp(`^/academy-development-artifacts/landing-public/reviews/${boundary.omrR2TenantId}/users/[1-9][0-9]*/[a-f0-9]{64}\\.(png|jpg|jpeg|webp)$`).exec(target.pathname);
+  return !path ? undefined : path[1] === "png" ? "image/png" : path[1] === "webp" ? "image/webp" : "image/jpeg";
+}
+
 function releaseRequestFailureCode(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
   if (message.includes("missing or foreign QA tenant")) return "tenant";
@@ -992,7 +1002,7 @@ export async function installReleaseContextGuard(
   const inventoryOriginals = new Map<string, InventoryOriginal>();
   const communityAttachments = new Map<string, { contentType: string; originalName: string; sizeBytes?: number }>();
   const registerCommunityPost = (post: unknown, expectedType?: "qna" | "notice") => {
-    if (!isRecord(post) || (post.post_type !== "qna" && post.post_type !== "notice")
+    if (!isRecord(post) || !["qna", "notice", "board", "materials", "counsel"].includes(String(post.post_type)) || typeof post.post_type !== "string"
       || (expectedType !== undefined && post.post_type !== expectedType)
       || typeof post.id !== "number" || !Number.isSafeInteger(post.id)
       || Number(post.id) < 1 || !Array.isArray(post.attachments) || post.attachments.length > 10) return;
@@ -1493,6 +1503,20 @@ export async function installReleaseContextGuard(
           registerPublicVideoSources(await response.json(), publicVideoIds);
         }
         const communityTarget = new URL(upstream);
+        const publicPost = /^\/api\/v1\/landing-public\/(board|reviews)\/([1-9][0-9]*)\/$/.exec(communityTarget.pathname);
+        if (boundary.mode === "development" && publicPost && !communityTarget.search && request.method() === "GET"
+          && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")
+          && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
+          const payload = await response.json();
+          const photos = publicPost[1] === "board" ? payload?.meta?.photos : payload?.photos;
+          if (payload?.id === Number(publicPost[2]) && Array.isArray(photos) && photos.length <= 8) {
+            for (const photo of photos) {
+              if (typeof photo !== "string") continue;
+              const contentType = developmentPublicPhotoType(boundary, photo);
+              if (contentType) communityImageUrls.set(photo, contentType);
+            }
+          }
+        }
         const communityPost = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/$/.exec(communityTarget.pathname);
         const communityList = communityTarget.pathname === "/api/v1/community/posts/"
           && communityTarget.searchParams.getAll("post_type").length === 1

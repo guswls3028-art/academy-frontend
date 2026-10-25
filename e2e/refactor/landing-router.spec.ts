@@ -133,7 +133,7 @@ async function stubLandingBootstrap(page: Page) {
   });
 }
 
-async function authenticateLandingUser(page: Page, userId = 12) {
+async function authenticateLandingUser(page: Page, userId = 12, role = "teacher") {
   const token = localJwt(userId);
   await page.addInitScript(({ access }) => {
     localStorage.setItem("access", access);
@@ -147,9 +147,9 @@ async function authenticateLandingUser(page: Page, userId = 12) {
         id: userId,
         username: `dnb-teacher-${userId}`,
         name: "담당 강사",
-        is_staff: true,
+        is_staff: role === "teacher",
         is_superuser: false,
-        tenantRole: "teacher",
+        tenantRole: role,
         must_change_password: false,
         first_login_guide_required: false,
       }),
@@ -160,6 +160,119 @@ async function authenticateLandingUser(page: Page, userId = 12) {
 test.describe("landing route island", () => {
   test.beforeEach(async ({ page }) => {
     await stubLandingBootstrap(page);
+  });
+
+  for (const kind of ["board", "reviews"] as const) test(`${kind} 사진 실패 후 파일을 유지하고 저장·새로고침까지 완료한다`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await authenticateLandingUser(page, 12, "student");
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
+    const key = `landing-public/reviews/1/users/12/${"a".repeat(64)}.png`;
+    const photoUrl = "https://photo.example.test/signed.png";
+    let uploads = 0;
+    let creates = 0;
+    let photoReads = 0;
+    let stored: Record<string, unknown> = {};
+    const detail = () => ({ id: 778, title: "사진 저장 확인", content: "사진 저장을 확인하는 본문입니다.", category: "free", status: kind === "board" ? "published" : "pending", rating: 5, display_name: "학생", author_role: "student", created_at: "2026-10-25T00:00:00Z", is_owner_or_author: true, is_liked_by_me: false, is_anonymous: false, like_count: 0, reply_count: 0, view_count: 1, ...stored, photos: [photoUrl], meta: { photos: [photoUrl] } });
+    await page.route(photoUrl, route => { photoReads += 1; return route.fulfill({ contentType: "image/png", body: photoReads === 1 ? Buffer.from("temporary image decode failure") : png }); });
+    await page.route("**/api/v1/landing-public/uploads/review-photo/", route => {
+      uploads += 1;
+      return route.fulfill({ status: uploads === 1 ? 503 : 201, json: uploads === 1 ? { detail: "사진 저장 연결 오류" } : { key, url: photoUrl } });
+    });
+    await page.route(`**/api/v1/landing-public/${kind}/`, route => {
+      creates += 1;
+      stored = route.request().postDataJSON();
+      return route.fulfill({ status: 201, json: detail() });
+    });
+    await page.route(`**/api/v1/landing-public/${kind}/778/`, route => {
+      expect(route.request().headers().authorization).toMatch(/^Bearer /);
+      return route.fulfill({ json: detail() });
+    });
+    await page.route("**/api/v1/landing-public/board/778/view/", route => route.fulfill({ json: { view_count: 1 } }));
+    await page.goto(`${BASE}/landing/${kind}/write`, { waitUntil: "domcontentloaded" });
+    if (kind === "board") {
+      await page.getByTestId("board-write-title").fill("사진 저장 확인");
+      await page.locator(".ProseMirror").fill("사진 저장을 확인하는 본문입니다.");
+      await page.locator('input[accept="image/*"]').setInputFiles({ name: "사진.png", mimeType: "image/png", buffer: png });
+    } else {
+      await page.getByTestId("review-write-content").fill("사진 저장을 확인하는 본문입니다.");
+      await page.getByLabel("사진 첨부", { exact: true }).setInputFiles({ name: "사진.png", mimeType: "image/png", buffer: png });
+    }
+    await expect(page.getByAltText("사진.png 미리보기")).toBeVisible();
+    const submit = page.getByTestId(kind === "board" ? "board-write-submit" : "review-write-submit");
+    await submit.click();
+    await expect(page.getByText("사진 저장 연결 오류", { exact: false })).toBeVisible();
+    expect(creates).toBe(0);
+    await expect(page.getByAltText("사진.png 미리보기")).toBeVisible();
+    await submit.click();
+    await expect(page).toHaveURL(new RegExp(`/landing/${kind}/778$`));
+    await page.getByRole("button", { name: "사진 다시 보기", exact: true }).click();
+    await expect.poll(() => page.getByAltText("첨부 사진 1", { exact: true }).evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
+    expect(creates).toBe(1);
+    expect(uploads).toBe(2);
+    expect(kind === "board" ? (stored.meta as { photos: string[] }).photos : stored.photos).toEqual([key]);
+    await page.reload();
+    const image = page.getByAltText("첨부 사진 1", { exact: true });
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  });
+
+  test("공개 글 작성자는 사진 수정 실패 후 업로드를 반복하지 않고 같은 초안을 저장한다", async ({ page }) => {
+    await authenticateLandingUser(page, 12, "student");
+    let uploads = 0;
+    let patches = 0;
+    const key = `landing-public/reviews/1/users/12/${"b".repeat(64)}.png`;
+    const post = { id: 778, title: "내 글", content: "<p>기존 본문</p>", category: "free", is_anonymous: false, is_owner_or_author: true, meta: { custom: "preserve" } };
+    await page.route("**/api/v1/landing-public/board/778/", route => {
+      expect(route.request().headers().authorization).toMatch(/^Bearer /);
+      if (route.request().method() === "PATCH") {
+        patches += 1;
+        expect(route.request().postDataJSON().meta).toMatchObject({ custom: "preserve", photos: [key] });
+        return route.fulfill({ status: patches === 1 ? 503 : 200, json: patches === 1 ? { detail: "본문 저장 연결 오류" } : post });
+      }
+      return route.fulfill({ json: post });
+    });
+    await page.route("**/api/v1/landing-public/uploads/review-photo/", route => { uploads += 1; return route.fulfill({ status: 201, json: { key, url: "https://photo.example.test/photo.png" } }); });
+    await page.goto(`${BASE}/landing/board/778/edit`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("board-edit-title")).toHaveValue("내 글");
+    await page.locator('input[accept="image/*"]').setInputFiles({ name: "추가.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64") });
+    await page.getByTestId("board-edit-submit").click();
+    await expect(page.getByText("본문 저장 연결 오류")).toBeVisible();
+    await expect(page.getByTestId("board-edit-title")).toHaveValue("내 글");
+    await page.getByTestId("board-edit-submit").click();
+    await expect(page).toHaveURL(/\/landing\/board\/778$/);
+    expect(uploads).toBe(1);
+    expect(patches).toBe(2);
+  });
+
+  test("학원 커뮤니티는 사진 응답 유실과 reload 뒤에도 같은 글·배치로 재시도한다", async ({ page }) => {
+    await authenticateLandingUser(page);
+    let creates = 0;
+    const keys: string[] = [];
+    await page.route("**/api/v1/community/posts/", route => { creates += 1; return route.fulfill({ status: 201, json: { id: 779 } }); });
+    await page.route("**/api/v1/community/posts/779/attachments/", route => {
+      keys.push(route.request().postDataBuffer()?.toString("latin1").match(/name="idempotency_key"\r\n\r\n([^\r\n]+)/)?.[1] ?? "");
+      return route.fulfill({ status: keys.length === 1 ? 503 : 201, json: keys.length === 1 ? { detail: "첨부 응답 유실" } : [] });
+    });
+    await page.route("**/api/v1/community/posts/779/", route => route.fulfill({ json: { id: 779, post_type: "board", title: "복구 글", content: "복구 본문", attachments: [], replies: [], mappings: [] } }));
+    await page.route("**/api/v1/community/posts/779/replies/", route => route.fulfill({ json: [] }));
+    await page.route("**/api/v1/community/posts/779/neighbors/", route => route.fulfill({ json: {} }));
+    await page.goto(`${BASE}/landing/community/board/write`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("landing-community-write-title").fill("복구 글");
+    await page.getByTestId("landing-community-write-content").fill("복구 본문");
+    const file = { name: "복구.png", mimeType: "image/png", buffer: Buffer.from("photo") };
+    await page.getByTestId("landing-community-write-files").setInputFiles(file);
+    await page.getByTestId("landing-community-write-submit").click();
+    await expect(page.getByRole("alert")).toContainText("글은 저장됐습니다.");
+    await page.reload();
+    await page.getByRole("button", { name: "이어 작성", exact: true }).click();
+    await page.getByTestId("landing-community-write-files").setInputFiles(file);
+    await page.getByTestId("landing-community-write-submit").click();
+    await expect(page).toHaveURL(/\/landing\/community\/board\/posts\/779$/);
+    expect(creates).toBe(1);
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).not.toBe("");
+    expect(keys[1]).toBe(keys[0]);
   });
 
   test("renders the public landing home through the isolated router", async ({ page }) => {

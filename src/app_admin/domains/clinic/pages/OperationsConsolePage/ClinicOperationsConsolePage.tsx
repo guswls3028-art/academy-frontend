@@ -21,7 +21,7 @@ import ClinicConsoleSidebar from "./ClinicConsoleSidebar";
 import ClinicConsoleWorkspace from "./ClinicConsoleWorkspace";
 import ClinicCreatePanel, { type ClinicSessionUpdateNotice } from "../../components/ClinicCreatePanel";
 import { readClinicChangeNoticeNavigationState } from "../../components/clinicChangeNoticeNavigation";
-import PreviousWeekImportModal from "../../components/PreviousWeekImportModal";
+import ClinicScheduleImportModal from "../../components/ClinicScheduleImportModal";
 import AdminModal from "@/shared/ui/modal/AdminModal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -660,8 +660,8 @@ export default function ClinicOperationsConsolePage() {
         )}
       </AdminModal>
 
-      {/* 이전 주 불러오기 모달 */}
-      <PreviousWeekImportModal
+      {/* 지난 일정 불러오기 모달 */}
+      <ClinicScheduleImportModal
         open={importModalOpen}
         onClose={() => setImportModalOpen(false)}
         currentDate={selectedDate}

@@ -1503,11 +1503,11 @@ test("production promotion requires the non-skipped isolated development canary"
 
 test("expanded development real-use suite keeps time to report and clean up", () => {
   const runner = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
-  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 60 \* 60_000;/);
+  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 85 \* 60_000;/);
   assert.doesNotMatch(runner, /REAL_USE_SUITE_TIMEOUT_MS = 20 \* 60_000/);
   assert.match(runner, /}, REAL_USE_SUITE_TIMEOUT_MS\);/);
-  assert.match(job("development-canary"), /timeout-minutes: 75/);
-  assert.match(job("development-canary"), /role-duration-seconds: 4500/);
+  assert.match(job("development-canary"), /timeout-minutes: 100/);
+  assert.match(job("development-canary"), /role-duration-seconds: 6000/);
 });
 
 test("the SSM tunnel outlives the real-use suite it serves", () => {
@@ -1568,7 +1568,7 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 37, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 39, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 4,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
       "student-parent-registration-realuse.spec.ts": 7,
@@ -1582,6 +1582,7 @@ function completeFlowReport() {
       "alimtalk-withdrawal-realuse.spec.ts": 1,
       "public-resource-realuse.spec.ts": 2,
       "public-video-realuse.spec.ts": 1,
+      "board-attachments-realuse.spec.ts": 2,
       "problem-conversion-realuse.spec.ts": 1,
       "video-playback-renewal.realuse.spec.ts": 1 }).map(([file, count]) => ({
       file, specs: Array.from({ length: count }, () => ({ file, tests: [{ expectedStatus: "passed", status: "expected", results: [{ status: "passed" }] }] })),
@@ -2063,7 +2064,7 @@ test("development config discovers every required case without executing any API
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 37);
+  assert.equal(discovered, 39);
   assert.deepEqual(counts, Object.fromEntries(Object.entries(developmentRealUseCases)
     .map(([file, count]) => [file.split("/").at(-1), count])), "collection must match the same release inventory by file");
   // Playwright's --list reporter counts all unexecuted cases as skipped. These

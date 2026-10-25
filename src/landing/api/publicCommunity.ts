@@ -125,16 +125,15 @@ export async function fetchBoardList(params: {
   return data;
 }
 
-export async function fetchBoardDetail(id: number): Promise<PublicBoardPostDetail> {
+export async function fetchBoardDetail(id: number, options: { recordView?: boolean } = {}): Promise<PublicBoardPostDetail> {
   const { data } = await api.get<PublicBoardPostDetail>(
     `/landing-public/board/${id}/`,
-    { skipAuth: true } as ApiRequestConfig,
   );
+  if (options.recordView === false) return data;
   try {
     const view = await api.post<{ view_count: number }>(
       `/landing-public/board/${id}/view/`,
       undefined,
-      { skipAuth: true } as ApiRequestConfig,
     );
     return { ...data, view_count: view.data.view_count };
   } catch {
@@ -205,7 +204,6 @@ export async function fetchReviewsList(params: {
 export async function fetchReviewDetail(id: number): Promise<PublicReviewDetail> {
   const { data } = await api.get<PublicReviewDetail>(
     `/landing-public/reviews/${id}/`,
-    { skipAuth: true } as ApiRequestConfig,
   );
   return data;
 }

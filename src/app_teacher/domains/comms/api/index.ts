@@ -5,6 +5,7 @@ import { countFromApiResponse, listFromApiResponse } from "@/shared/api/response
 import {
   deleteCommunityPost,
   deleteCommunityPostAttachment,
+  uploadCommunityPostAttachments,
   type CommunityDeleteResult,
 } from "@/shared/api/contracts/community";
 
@@ -143,11 +144,8 @@ export async function togglePostPin(postId: number, isPinned: boolean): Promise<
 }
 
 /* ─── Attachments ─── */
-export async function uploadPostAttachment(postId: number, file: File): Promise<unknown> {
-  const formData = new FormData();
-  formData.append("files", file);
-  const res = await api.post(`/community/posts/${postId}/attachments/`, formData);
-  return res.data;
+export async function uploadPostAttachments(postId: number, files: File[], requestKey: string): Promise<unknown> {
+  return uploadCommunityPostAttachments(api, postId, files, requestKey);
 }
 
 export async function fetchPostAttachmentDownload(postId: number, attachmentId: number): Promise<{

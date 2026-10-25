@@ -18,6 +18,7 @@ import {
   IconPlus,
 } from "@student/shared/ui/icons/Icons";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
+import { selectCommunityFiles } from "@/shared/utils/selectCommunityFiles";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { richHtmlToPlainText, richHtmlToPreviewText } from "@/shared/utils/richHtml";
 import { formatCompactFileSize as formatAttachmentSize } from "@/shared/utils/fileSize";
@@ -954,10 +955,15 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           <span className="community-label">
             내용 <span className="community-required" aria-hidden>*</span>
           </span>
-          <RichTextEditor value={content} onChange={setContent} placeholder="질문 내용을 적어 주세요." minHeight={200} compact readOnly={mutation.isPending || pendingUpload != null} />
+          <RichTextEditor value={content} onChange={setContent} onFileAttach={(incoming) => {
+            if (mutation.isPending || pendingUpload) return;
+            setFiles(selectCommunityFiles(files, incoming));
+            setRestoredAttachmentMeta([]);
+            setAttachmentReselectRequired(false);
+          }} placeholder="질문 내용을 적어 주세요." minHeight={200} compact readOnly={mutation.isPending || pendingUpload != null} />
         </div>
         <FilePickerSection
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || Boolean(pendingUpload && !pendingUpload.canReplace && matchesPendingAttachments(files, pendingUpload))}
           files={files}
           onChange={(nextFiles) => {
             setFiles(nextFiles);
@@ -1431,10 +1437,15 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           <span className="community-label">
             상담 내용 <span className="community-required" aria-hidden>*</span>
           </span>
-          <RichTextEditor value={content} onChange={setContent} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} compact readOnly={mutation.isPending || pendingUpload != null} />
+          <RichTextEditor value={content} onChange={setContent} onFileAttach={(incoming) => {
+            if (mutation.isPending || pendingUpload) return;
+            setFiles(selectCommunityFiles(files, incoming));
+            setRestoredAttachmentMeta([]);
+            setAttachmentReselectRequired(false);
+          }} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} compact readOnly={mutation.isPending || pendingUpload != null} />
         </div>
         <FilePickerSection
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || Boolean(pendingUpload && !pendingUpload.canReplace && matchesPendingAttachments(files, pendingUpload))}
           files={files}
           onChange={(nextFiles) => {
             setFiles(nextFiles);
@@ -1716,7 +1727,6 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
 // FilePickerSection — file picker for forms
 // ═══════════════════════════════════════════
 // 백엔드 SSOT: backend/.../community/_common.py MAX_ATTACHMENT_SIZE / MAX_ATTACHMENTS_PER_POST
-const MAX_FILE_SIZE_MB = 50;
 const MAX_FILES = 10;
 
 function FilePickerSection({
@@ -1750,15 +1760,7 @@ function FilePickerSection({
     const newFiles = e.target.files;
     if (!newFiles) return;
     const incoming = Array.from(newFiles);
-    const oversized = incoming.filter((f) => f.size > MAX_FILE_SIZE_MB * 1024 * 1024);
-    const valid = incoming.filter((f) => f.size <= MAX_FILE_SIZE_MB * 1024 * 1024);
-    const merged = [...files, ...valid].slice(0, MAX_FILES);
-    onChange(merged);
-    if (oversized.length > 0) {
-      showWarn(`${MAX_FILE_SIZE_MB}MB를 초과한 파일은 제외했어요 (${oversized.length}개)`);
-    } else if ([...files, ...incoming].length > MAX_FILES) {
-      showWarn(`첨부는 최대 ${MAX_FILES}개까지 가능해요`);
-    }
+    onChange(selectCommunityFiles(files, incoming, 0, showWarn));
     e.target.value = "";
   };
 
@@ -1774,7 +1776,7 @@ function FilePickerSection({
             첨부파일 {files.length > 0 && `(${files.length}/${MAX_FILES})`}
           </span>
           <span className="community-file-picker__hint">
-            최대 {MAX_FILES}개 · 파일당 {MAX_FILE_SIZE_MB}MB 이하
+            최대 {MAX_FILES}개 · 이미지 5MB · 파일 50MB 이하
           </span>
         </div>
         <button

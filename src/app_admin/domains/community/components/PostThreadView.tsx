@@ -335,12 +335,14 @@ function ThreadComposer({
               onChange={setContent}
               placeholder={placeholder ?? "답변을 작성하세요…"}
               minHeight={80}
+              readOnly={createMut.isPending}
             />
           </div>
         ) : (
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
+            disabled={createMut.isPending}
             onKeyDown={(e) => {
               if (
                 (e.metaKey || e.ctrlKey) &&
@@ -358,7 +360,7 @@ function ThreadComposer({
         )}
         <div className="qna-inbox__composer-footer">
           {mode === "answer" ? (
-            <span className="qna-inbox__composer-hint">서식 지원 · 이미지 첨부 가능</span>
+            <span className="qna-inbox__composer-hint">텍스트 · 링크 · 서식 지원</span>
           ) : (
             <span className="qna-inbox__composer-hint">
               <kbd>Ctrl</kbd>

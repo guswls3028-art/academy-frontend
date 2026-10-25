@@ -461,6 +461,7 @@ export default function RichTextEditor({
           </button>
 
           {/* --- Image upload --- */}
+          {onFileAttach && <>
           <button
             type="button"
             className="rich-editor__toolbar-btn"
@@ -481,6 +482,7 @@ export default function RichTextEditor({
             className="rich-editor__hidden-input"
             onChange={handleImageUpload}
           />
+          </>}
 
           {/* --- File attach --- */}
           {onFileAttach && (

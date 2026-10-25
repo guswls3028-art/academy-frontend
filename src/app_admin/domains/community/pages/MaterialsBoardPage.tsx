@@ -2,7 +2,7 @@
 // 자료실 — 3-pane (좌측 강의/차시 트리 | 목록 | 상세·글쓰기)
 // 공지사항·게시판과 동일한 카테고리(트리) 디자인
 
-import { useState, useMemo, useCallback, useEffect, useId } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/useCommunityScope";
@@ -10,38 +10,34 @@ import {
   fetchAdminPosts,
   fetchScopeNodes,
   resolveNodeIdFromScope,
-  resolvePostNodeIdsForCreate,
   fetchPost,
-  createPost,
   updatePost,
   deletePost,
-  uploadPostAttachments,
-  getAttachmentDownloadUrl,
-  deletePostAttachment,
   type PostEntity,
-  type PostAttachment,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
 } from "../api/community.api";
 import { useScopeFilteredPosts } from "../hooks/useScopeFilteredPosts";
 import { useScopeNavigation } from "../hooks/useScopeNavigation";
+import { usePostDraftNavigation, type PostDraftStateChange } from "../hooks/usePostDraftNavigation";
 import { useTreeCounts } from "../hooks/useTreeCounts";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { adminCommunityQueryKeys } from "../queryKeys";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/shared/api/contracts/sessions";
 import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import CmsTreeNav from "../components/CmsTreeNav";
-import { Button, Badge } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import ScopeBadge from "../components/ScopeBadge";
 import { resolveScopeType } from "../utils/scopeBadge";
-import PostReadView from "../components/PostReadView";
+import PostCreatePane from "../components/PostCreatePane";
+import PostContentEditor from "../components/PostContentEditor";
+import PostAttachmentManager from "../components/PostAttachmentManager";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
-import { stripHtml, timeAgo, formatFileSize } from "../utils/communityHelpers";
+import { stripHtml, timeAgo } from "../utils/communityHelpers";
 import "@admin/domains/community/qna-inbox.css";
 import "@admin/domains/community/notice-tree.css";
 import "@admin/domains/community/board-admin.css";
@@ -53,6 +49,7 @@ const SNIPPET_LEN = 80;
 /* ─── Main Page ─────────────────────────────────────── */
 export default function MaterialsBoardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { run: runNavigation, hasPending, onCreateStateChange, onContentStateChange, onAttachmentStateChange } = usePostDraftNavigation();
   const selectedIdParam = searchParams.get("id");
   const selectedId =
     selectedIdParam && /^\d+$/.test(selectedIdParam) ? Number(selectedIdParam) : null;
@@ -163,24 +160,26 @@ export default function MaterialsBoardPage() {
   });
 
   useEffect(() => {
-    if (selectedId == null || showCreate || postsQ.isLoading) return;
+    if (selectedId == null || showCreate || postsQ.isFetching || hasPending()) return;
     if (!filtered.some((p) => p.id === selectedId)) setSelectedId(null);
-  }, [filtered, selectedId, showCreate, postsQ.isLoading, setSelectedId]);
+  }, [filtered, selectedId, showCreate, postsQ.isFetching, setSelectedId, hasPending]);
 
   // j/k keyboard nav
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (filtered.length === 0) return;
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === "TEXTAREA" || tag === "INPUT") return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const element = e.target as HTMLElement;
+      if (["TEXTAREA", "INPUT", "SELECT"].includes(element.tagName) || element.isContentEditable || e.ctrlKey || e.metaKey || e.altKey) return;
       const idx = selectedId != null ? filtered.findIndex((p) => p.id === selectedId) : -1;
-      if (e.key === "j") { e.preventDefault(); setSelectedId(filtered[Math.min(idx + 1, filtered.length - 1)].id); }
-      else if (e.key === "k") { e.preventDefault(); const t = idx <= 0 ? filtered.length - 1 : idx - 1; setSelectedId(filtered[Math.max(t, 0)].id); }
+      const target = e.key === "j" ? Math.min(idx + 1, filtered.length - 1) : e.key === "k" ? (idx <= 0 ? filtered.length - 1 : idx - 1) : null;
+      if (target != null) {
+        e.preventDefault();
+        if (filtered[target].id !== selectedId) void runNavigation(() => setSelectedId(filtered[target].id));
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [filtered, selectedId, setSelectedId]);
+  }, [filtered, selectedId, setSelectedId, runNavigation]);
 
   if (scopeNodesQ.isError || lecturesQ.isError || sessionsQ.isError) {
     return (
@@ -221,9 +220,9 @@ export default function MaterialsBoardPage() {
         sessionsLoading={sessionsLoading}
         expandedLectureId={expandedLectureId}
         onExpandLecture={setExpandedLectureId}
-        onSelectAll={selectAll}
-        onSelectLecture={selectLecture}
-        onSelectSession={selectSession}
+        onSelectAll={() => void runNavigation(selectAll)}
+        onSelectLecture={(id) => void runNavigation(() => selectLecture(id))}
+        onSelectSession={(lecture, session) => void runNavigation(() => selectSession(lecture, session))}
       />
 
       {/* ═══ 2nd pane: List ═══ */}
@@ -238,7 +237,7 @@ export default function MaterialsBoardPage() {
                 sessionName={sessionsOfLecture.find((s) => s.id === sessionId)?.title ?? null}
               />
             </div>
-            {canShowList && <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 자료 등록</Button>}
+            {canShowList && <Button intent="primary" size="sm" onClick={() => void runNavigation(() => { setShowCreate(true); setSelectedId(null); })}>+ 자료 등록</Button>}
           </div>
           <div className="flex items-center gap-2">
             <input type="search" className="ds-input flex-1 min-w-0" placeholder="제목 · 내용 · 작성자" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} aria-label="자료실 검색" />
@@ -263,7 +262,7 @@ export default function MaterialsBoardPage() {
             />
           ) : (
             filtered.map((p) => (
-              <MatPostCard key={p.id} post={p} isActive={p.id === selectedId} onClick={() => setSelectedId(p.id)} />
+              <MatPostCard key={p.id} post={p} isActive={p.id === selectedId} onClick={() => { if (p.id !== selectedId || showCreate) void runNavigation(() => setSelectedId(p.id)); }} />
             ))
           )}
         </div>
@@ -272,14 +271,15 @@ export default function MaterialsBoardPage() {
       {/* ═══ 3rd pane: Detail / Create ═══ */}
       <main className="qna-inbox__thread">
         {showCreate ? (
-          <MatCreatePane
+          <PostCreatePane postType="materials" onDraftStateChange={onCreateStateChange}
             scopeNodes={scopeNodes}
             scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
-            onSuccess={() => {
+            onSuccess={(postId) => {
               qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.materialsPosts });
               qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("materials") });
               setShowCreate(false);
+              setSelectedId(postId);
               feedback.success("자료가 등록되었습니다.");
             }}
           />
@@ -288,7 +288,9 @@ export default function MaterialsBoardPage() {
         ) : (
           <MatDetailView
             postId={selectedId}
-            onClose={() => setSelectedId(null)}
+            onContentStateChange={onContentStateChange}
+            onAttachmentStateChange={onAttachmentStateChange}
+            onClose={() => void runNavigation(() => setSelectedId(null))}
             onDeleted={() => {
               setSelectedId(null);
               qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.materialsPosts });
@@ -298,140 +300,6 @@ export default function MaterialsBoardPage() {
         )}
       </main>
     </div>
-  );
-}
-
-/* ─── Inline Create Pane ──────────────────────────────── */
-function MatCreatePane({
-  scopeNodes,
-  scopeParams,
-  onCancel,
-  onSuccess,
-}: {
-  scopeNodes: ScopeNodeMinimal[];
-  scopeParams: CommunityScopeParams;
-  onCancel: () => void;
-  onSuccess: () => void;
-}) {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const fileInputId = useId();
-
-  const resolvedScope = useMemo(
-    () => resolvePostNodeIdsForCreate(scopeNodes, scopeParams),
-    [scopeNodes, scopeParams]
-  );
-
-  const scopeLabel = scopeParams.scope === "session"
-    ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId && n.session === scopeParams.sessionId)?.session_title ?? "선택된 차시"
-    : scopeParams.scope === "lecture"
-    ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
-    : "전체 대상";
-
-  const canSubmit = title.trim().length > 0 && resolvedScope.kind !== "invalid" && !submitting;
-
-  const handleSubmit = async () => {
-    if (!canSubmit) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const post = await createPost({
-        post_type: "materials",
-        title: title.trim(),
-        content,
-        node_ids: resolvedScope.nodeIds,
-      });
-      if (files.length > 0 && post?.id) {
-        await uploadPostAttachments(post.id, files);
-      }
-      onSuccess();
-    } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? (e as Error)?.message ?? "등록에 실패했습니다.";
-      setError(msg);
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <>
-      <header className="qna-inbox__thread-header">
-        <div className="qna-inbox__thread-title-row">
-          <div className="qna-inbox__thread-title-group">
-            <h1 className="qna-inbox__thread-title">새 자료 등록</h1>
-            <div className="qna-inbox__thread-meta">
-              <Badge tone="primary">대상: {scopeLabel}</Badge>
-            </div>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              {scopeParams.scope === "all"
-                ? "이 자료는 전체 학생에게 보입니다."
-                : <>이 자료는 <strong>{scopeLabel}</strong> 학생에게만 보입니다.</>}
-            </p>
-          </div>
-          <div className="qna-inbox__thread-actions"><Button intent="secondary" size="sm" onClick={onCancel}>취소</Button></div>
-        </div>
-      </header>
-      <div className="cms-form__body">
-        <div className="cms-form__field">
-          <label className="community-field__label community-field__label--required">제목</label>
-          <input className="ds-input cms-form__input--full" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="자료 제목을 입력하세요" autoFocus />
-        </div>
-        <div className="cms-form__field">
-          <label className="community-field__label">내용</label>
-          <RichTextEditor value={content} onChange={setContent} placeholder="자료 내용을 입력하세요. 이미지를 삽입하거나 파일을 첨부할 수 있습니다." minHeight={250} />
-        </div>
-        <div className="cms-form__field">
-          <div className="cms-attach__header">
-            <label className="community-field__label cms-form__label--no-margin">
-              첨부파일 {files.length > 0 && `(${files.length}/10)`}
-            </label>
-            <label
-              htmlFor={fileInputId}
-              className="ds-button cms-attach__picker"
-              data-intent="ghost"
-              data-size="sm"
-              data-disabled={files.length >= 10 ? "true" : "false"}
-            >
-              <span className="ds-button__label">+ 파일 추가</span>
-              <input
-                id={fileInputId}
-                type="file"
-                multiple
-                aria-label="첨부할 파일 선택"
-                className="cms-attach__picker-input"
-                disabled={files.length >= 10}
-                onChange={(e) => {
-                  const selectedFiles = Array.from(e.currentTarget.files ?? []);
-                  if (selectedFiles.length === 0) return;
-                  setFiles((prev) => [...prev, ...selectedFiles].slice(0, 10));
-                  e.currentTarget.value = "";
-                }}
-              />
-            </label>
-          </div>
-          <p className="cms-attach__hint">파일당 최대 50MB · 최대 10개</p>
-          {files.length > 0 && (
-            <div className="cms-attach__list">
-              {files.map((f, i) => (
-                <div key={`${f.name}-${i}`} className="cms-attach__item">
-                  <span className="cms-attach__item-name">{f.name}</span>
-                  <span className="cms-attach__item-size">{formatFileSize(f.size)}</span>
-                  <button type="button" className="cms-attach__item-remove" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}>&times;</button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {error && <p className="community-field__error">{error}</p>}
-        <div className="cms-form__actions">
-          <Button intent="secondary" size="sm" onClick={onCancel}>취소</Button>
-          <Button intent="primary" size="sm" onClick={handleSubmit} disabled={!canSubmit}>{submitting ? "등록 중…" : "등록"}</Button>
-        </div>
-      </div>
-    </>
   );
 }
 
@@ -472,24 +340,22 @@ function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: 
 }
 
 /* ─── Detail View ────────────────────────────────────── */
-function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose: () => void; onDeleted: () => void }) {
+function MatDetailView({ postId, onClose, onDeleted, onContentStateChange, onAttachmentStateChange }: { postId: number; onClose: () => void; onDeleted: () => void; onContentStateChange: PostDraftStateChange; onAttachmentStateChange: PostDraftStateChange }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { data: post, isLoading } = useQuery({ queryKey: adminCommunityQueryKeys.post(postId), queryFn: () => fetchPost(postId), enabled: postId != null });
 
   const [editingTitle, setEditingTitle] = useState(false);
-  const [editingContent, setEditingContent] = useState(false);
   const [editTitle, setEditTitle] = useState("");
-  const [editContent, setEditContent] = useState("");
 
   useEffect(() => {
     setEditingTitle(false);
-    setEditingContent(false);
     if (post) {
       setEditTitle(post.title ?? "");
-      setEditContent(post.content ?? "");
     }
-  }, [post]);
+    // Reset only on a different post; attachment refresh must preserve title edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post?.id]);
 
   const updateMut = useMutation({
     mutationFn: (data: { title?: string; content?: string }) => updatePost(postId, data),
@@ -563,31 +429,14 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
 
         {/* Section: 첨부파일 (파일 우선 노출) */}
         <div className="cms-detail__section">
-          <MatAttachmentSection postId={postId} attachments={post.attachments ?? []} />
+          <PostAttachmentManager key={postId} postId={postId} onDraftStateChange={onAttachmentStateChange} attachments={post.attachments ?? []} nativePicker />
         </div>
 
         {/* Section: 내용 */}
         <div className="cms-detail__section">
           <div className="cms-detail__section-label">내용</div>
           <div className="cms-detail__content-card">
-            {editingContent ? (
-              <>
-                <RichTextEditor value={editContent} onChange={setEditContent} placeholder="내용을 입력하세요." minHeight={200} />
-                <div className="cms-detail__content-actions">
-                  <Button size="sm" intent="primary" onClick={() => updateMut.mutate({ content: editContent })} disabled={updateMut.isPending}>
-                    {updateMut.isPending ? "저장 중…" : "저장"}
-                  </Button>
-                  <Button size="sm" intent="secondary" onClick={() => { setEditContent(post.content ?? ""); setEditingContent(false); }}>취소</Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <PostReadView html={post.content ?? ""} />
-                <div className="cms-detail__content-actions">
-                  <Button size="sm" intent="ghost" onClick={() => setEditingContent(true)}>수정</Button>
-                </div>
-              </>
-            )}
+            <PostContentEditor key={post.id} post={post} onDraftStateChange={onContentStateChange} />
           </div>
         </div>
 
@@ -596,85 +445,3 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
     </>
   );
 }
-
-/* ─── Attachment Section ─────────────────────────────── */
-function MatAttachmentSection({ postId, attachments }: { postId: number; attachments: PostAttachment[] }) {
-  const qc = useQueryClient();
-  const confirm = useConfirm();
-  const fileInputId = useId();
-
-  const uploadMut = useMutation({
-    mutationFn: (files: File[]) => uploadPostAttachments(postId, files),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) }); feedback.success("파일이 첨부되었습니다."); },
-    onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "파일 업로드에 실패했습니다."); },
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: (attId: number) => deletePostAttachment(postId, attId),
-    onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
-      const cleanupNotice = getCommunityStorageCleanupNotice(result);
-      if (cleanupNotice) feedback.warning(cleanupNotice);
-      else feedback.success("첨부파일이 삭제되었습니다.");
-    },
-    onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."); },
-  });
-
-  const handleDownload = async (att: PostAttachment) => {
-    try {
-      const { url } = await getAttachmentDownloadUrl(postId, att.id);
-      const { downloadPresignedUrl } = await import("@/shared/utils/safeDownload");
-      downloadPresignedUrl(url, att.original_name);
-    } catch {
-      feedback.error("다운로드 URL을 가져오지 못했습니다.");
-    }
-  };
-
-  return (
-    <div className="cms-attach__section">
-      <div className="cms-attach__header">
-        <div className="cms-detail__section-label">
-          첨부파일{attachments.length > 0 ? ` (${attachments.length}개)` : ""}
-        </div>
-        <label
-          htmlFor={fileInputId}
-          className="ds-button cms-attach__picker"
-          data-intent="ghost"
-          data-size="sm"
-          data-disabled={uploadMut.isPending || attachments.length >= 10 ? "true" : "false"}
-        >
-          <span className="ds-button__label">{uploadMut.isPending ? "업로드 중…" : "+ 파일 추가"}</span>
-          <input
-            id={fileInputId}
-            type="file"
-            multiple
-            aria-label="첨부할 파일 선택"
-            className="cms-attach__picker-input"
-            disabled={uploadMut.isPending || attachments.length >= 10}
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                uploadMut.mutate(Array.from(e.target.files));
-                e.target.value = "";
-              }
-            }}
-          />
-        </label>
-      </div>
-      {attachments.length > 0 && (
-        <div className="cms-attach__inline-list">
-          {attachments.map((att) => (
-            <div key={att.id} className="cms-attach__inline-item">
-              <span className="cms-attach__inline-icon" aria-hidden="true">📎</span>
-              <span className="cms-attach__inline-name">{att.original_name}</span>
-              <span className="cms-attach__inline-size">{formatFileSize(att.size_bytes)}</span>
-              <Button intent="ghost" size="sm" className="cms-attach__inline-actions" onClick={() => handleDownload(att)}>다운로드</Button>
-              <button type="button" className="cms-attach__item-remove" onClick={async () => { if (await confirm({ title: "첨부파일 삭제", message: "이 파일을 삭제할까요?", confirmText: "삭제", danger: true })) deleteMut.mutate(att.id); }} disabled={deleteMut.isPending}>&times;</button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// MatCommentThread / MatCommentBlock / MatCommentComposer → PostThreadView로 통합

@@ -9,9 +9,10 @@ interface Props {
   placeholder?: string;
   minHeight?: number;
   readOnly?: boolean;
+  onFileAttach?: (files: File[]) => void;
 }
 
-export default function MobileRichEditor({ value, onChange, placeholder, minHeight = 150, readOnly }: Props) {
+export default function MobileRichEditor({ value, onChange, placeholder, minHeight = 150, readOnly, onFileAttach }: Props) {
   return (
     <RichTextEditor
       value={value}
@@ -19,6 +20,7 @@ export default function MobileRichEditor({ value, onChange, placeholder, minHeig
       placeholder={placeholder ?? "내용을 입력하세요"}
       minHeight={minHeight}
       readOnly={readOnly}
+      onFileAttach={onFileAttach}
       compact
     />
   );

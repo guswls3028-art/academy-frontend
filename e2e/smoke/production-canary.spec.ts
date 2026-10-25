@@ -202,6 +202,29 @@ test.describe("Production canary", () => {
       title: "모바일 출결 입력", target: "/workspace/mobile/classes",
       targetReady: page.getByRole("heading", { name: "강의 관리", exact: true }),
     });
+    // PR checks still observe the currently deployed version. The release job runs
+    // these assertions only after verifying this candidate's exact live version.
+    if (process.env.E2E_RELEASE_API_MODE === "readonly") {
+      for (const width of [1366, 390]) {
+        await page.setViewportSize({ width, height: 844 });
+        await page.goto(`${BASE}/workspace/clinic/schedule`, { waitUntil: "domcontentloaded" });
+        await page.getByRole("button", { name: "지난 일정 불러오기", exact: true }).click();
+        const dialog = page.getByRole("dialog", { name: "지난 일정 불러오기" });
+        await expect(dialog.getByLabel("가져올 주의 날짜", { exact: true })).toBeVisible();
+        await dialog.getByRole("button", { name: "4주 전", exact: true }).click();
+        await expect(dialog.locator(".clinic-import__loading")).toHaveCount(0);
+        await expect(dialog.getByRole("alert")).toHaveCount(0);
+        await expect(dialog.getByRole("button", { name: "선택하세요", exact: true })).toBeDisabled();
+        await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeInViewport();
+        expect(await page.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+        // Do not retain production schedule titles, locations, or background data.
+        await testInfo.attach(`live-clinic-import-${width}`, {
+          body: await dialog.screenshot({ mask: [dialog.locator(".clinic-import__list")] }), contentType: "image/png",
+        });
+        await dialog.getByRole("button", { name: "취소", exact: true }).click();
+        await expect(dialog).toHaveCount(0);
+      }
+    }
     guard.assertClean();
   });
 

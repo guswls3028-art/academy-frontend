@@ -1,6 +1,6 @@
 /**
  * 클리닉 왕복 플로우 E2E
- * 선생 세션 생성(API) → 학생/선생 화면 확인 → 달력 학생 배정/해제 → 정리
+ * 4주 전 합성 일정(API) → 지난 일정 불러오기(UI) → 학생/선생 확인 → 달력 학생 배정/해제 → 정리
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
@@ -67,6 +67,7 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
   let adminPage: Page;
   let studentPage: Page;
   let sessionId: number | null = null;
+  let sourceSessionId: number | null = null;
   let overnightSessionId: number | null = null;
   let sessionDate = "";
   let adminAccess = "";
@@ -82,17 +83,51 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
     await adminPage.goto(`${BASE}/workspace/clinic/home`);
     await adminPage.waitForLoadState("load");
 
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    sessionDate = tomorrow.toISOString().split("T")[0];
+    sessionDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })
+      .format(new Date(Date.now() + 86_400_000));
+    const sourceDateValue = new Date(`${sessionDate}T12:00:00Z`);
+    sourceDateValue.setUTCDate(sourceDateValue.getUTCDate() - 28);
+    const sourceDate = sourceDateValue.toISOString().slice(0, 10);
 
     const resp = await apiCall(adminPage, "POST", "/clinic/sessions/", {
-      date: sessionDate, start_time: "14:00", duration_minutes: 60,
+      date: sourceDate, start_time: "14:00", duration_minutes: 60,
       location: `E2E_${TS}`, max_participants: 5, title: `[E2E]클리닉_${TS}`,
       target_grade: null, target_school_type: null,
+      booking_mode: "fixed_slot", booking_interval_minutes: 60, booking_max_stay_minutes: 240,
+      allow_multi_slot_booking: false,
     });
     expect(resp.status).toBe(201);
-    sessionId = resp.body.id;
+    sourceSessionId = resp.body.id;
+
+    await gotoAndSettle(adminPage, `${BASE}/workspace/clinic/schedule?date=${sessionDate}`);
+    await adminPage.getByRole("button", { name: "지난 일정 불러오기", exact: true }).click();
+    const dialog = adminPage.getByRole("dialog", { name: "지난 일정 불러오기" });
+    await dialog.getByLabel("가져올 주의 날짜", { exact: true }).fill(sourceDate);
+    await dialog.locator(".clinic-import__session-item").filter({ hasText: `[E2E]클리닉_${TS}` }).click();
+    for (const width of [1366, 390]) {
+      await adminPage.setViewportSize({ width, height: 850 });
+      await expect(dialog.getByRole("button", { name: "1건 불러오기", exact: true })).toBeInViewport();
+      expect(await adminPage.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+      await testInfo.attach(`schedule-import-${width}`, { body: await adminPage.screenshot(), contentType: "image/png" });
+    }
+    const importedResponse = adminPage.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname.endsWith("/api/v1/clinic/sessions/"));
+    await dialog.getByRole("button", { name: "1건 불러오기", exact: true }).click();
+    const imported = await importedResponse;
+    expect(imported.status()).toBe(201);
+    const importedSession = await imported.json();
+    sessionId = importedSession.id;
+    expect(importedSession).toMatchObject({ date: sessionDate, start_time: "14:00:00", max_participants: 5, participant_count: 0, booking_mode: "fixed_slot" });
+    await expect(dialog).toHaveCount(0);
+    await adminPage.reload({ waitUntil: "domcontentloaded" });
+    await expect(adminPage.getByRole("article").filter({ hasText: `[E2E]클리닉_${TS}` })).toBeVisible();
+    const persisted = await apiCall(adminPage, "GET", `/clinic/sessions/${sessionId}/`);
+    expect(persisted.status).toBe(200);
+    expect(persisted.body).toMatchObject({ id: sessionId, date: sessionDate, participant_count: 0 });
+    await adminPage.getByRole("button", { name: "지난 일정 불러오기", exact: true }).click();
+    await dialog.getByLabel("가져올 주의 날짜", { exact: true }).fill(sourceDate);
+    await expect(dialog.locator(".clinic-import__session-item").filter({ hasText: `[E2E]클리닉_${TS}` })).toBeDisabled();
+    await dialog.getByRole("button", { name: "취소", exact: true }).click();
   });
 
   test("2. 학생 클리닉 화면에서 에러 없이 로드된다", async () => {
@@ -104,6 +139,11 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
     await studentPage.waitForLoadState("load");
     await expect(studentPage.locator("text=Not Found")).not.toBeVisible();
     await expect(studentPage.locator("[data-app='student']").first()).toBeVisible();
+    await studentPage.getByTestId(`clinic-calendar-day-${sessionDate}`).click();
+    await expect(studentPage.getByRole("button", { name: `[E2E]클리닉_${TS}` })).toBeVisible();
+    await studentPage.reload({ waitUntil: "domcontentloaded" });
+    await studentPage.getByTestId(`clinic-calendar-day-${sessionDate}`).click();
+    await expect(studentPage.getByRole("button", { name: `[E2E]클리닉_${TS}` })).toBeVisible();
   });
 
   test("3. 선생 클리닉 홈이 정상 로드된다", async () => {
@@ -318,7 +358,7 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
   test.afterAll(async () => {
     const cleanupErrors: unknown[] = [];
     try {
-      for (const cleanupId of [sessionId, overnightSessionId].filter((id): id is number => id != null)) {
+      for (const cleanupId of [sessionId, sourceSessionId, overnightSessionId].filter((id): id is number => id != null)) {
         if (!adminPage) continue;
         try {
           const cleanupResp = await apiCall(adminPage, "DELETE", `/clinic/sessions/${cleanupId}/`);

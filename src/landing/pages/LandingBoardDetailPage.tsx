@@ -7,6 +7,7 @@ import DOMPurify from "dompurify";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
+import { PublicPhotoGallery } from "../components/PublicPhotos";
 import { saveReturnPath } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -56,7 +57,7 @@ export default function LandingBoardDetailPage() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
   const isStaff = !!u?.is_superuser || ["owner", "admin", "staff", "teacher", "assistant"].includes(role);
@@ -99,7 +100,10 @@ export default function LandingBoardDetailPage() {
       .catch(() => setReplies([]));
   }, [id]);
 
-  useEffect(() => { loadDetail(); loadReplies(); }, [loadDetail, loadReplies]);
+  useEffect(() => {
+    if (authLoading) return;
+    loadDetail(); loadReplies();
+  }, [authLoading, isAuthenticated, loadDetail, loadReplies]);
 
   // SEO — Open Graph + JSON-LD Article (Phase 3 B)
   useEffect(() => {
@@ -287,6 +291,10 @@ export default function LandingBoardDetailPage() {
             className={`public-board-content ${PUBLIC_RICH_CONTENT_CLASS} ${PUBLIC_RICH_CONTENT_PRESERVE_LINES_CLASS}`}
             style={{ marginTop: 28, fontSize: 16, lineHeight: 1.75, color: textPrimary }}
             dangerouslySetInnerHTML={{ __html: sanitized }}
+          />
+          <PublicPhotoGallery
+            photos={Array.isArray(post.meta?.photos) ? post.meta.photos.filter((v): v is string => typeof v === "string") : []}
+            onRefresh={async () => { setPost(await fetchBoardDetail(id, { recordView: false })); }}
           />
           <PublicRichContentStyle />
 

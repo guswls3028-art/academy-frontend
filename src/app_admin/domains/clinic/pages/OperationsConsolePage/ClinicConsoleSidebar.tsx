@@ -252,7 +252,8 @@ export default function ClinicConsoleSidebar({
                 <button
                   type="button"
                   className="clinic-sidebar__section-action-btn"
-                  title="이전 주 불러오기"
+                  title="지난 일정 불러오기"
+                  aria-label="지난 일정 불러오기"
                   onClick={onImportClick}
                 >
                   <Copy size={16} aria-hidden />

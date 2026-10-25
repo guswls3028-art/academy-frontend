@@ -3,12 +3,14 @@
 // 등록 후 status=pending → 학원장 승인 후 외부 공개.
 /* eslint-disable no-restricted-syntax */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { fetchLandingPublic } from "../api";
-import { createReview, uploadReviewPhoto } from "../api/publicCommunity";
+import { createReview } from "../api/publicCommunity";
+import { usePublicPhotoDraft } from "../hooks/usePublicPhotoDraft";
+import { PublicPhotoPicker } from "../components/PublicPhotos";
 import type { LandingConfig, LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
@@ -49,8 +51,8 @@ export default function LandingReviewWritePage() {
   const [subject, setSubject] = useState("");
   const [months, setMonths] = useState(0);
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoDraft = usePublicPhotoDraft();
+  const submitLock = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,10 +73,12 @@ export default function LandingReviewWritePage() {
   const valid = rating >= 1 && rating <= 5 && content.trim().length >= 10;
 
   const onSubmit = async () => {
-    if (!valid || submitting) return;
+    if (!valid || submitLock.current) return;
+    submitLock.current = true;
     setSubmitting(true);
     setError(null);
     try {
+      const photos = await photoDraft.upload();
       const created = await createReview({
         rating,
         title: title.trim(),
@@ -89,6 +93,7 @@ export default function LandingReviewWritePage() {
     } catch (error: unknown) {
       setError(getApiErrorMessage(error, "후기 등록 실패. 잠시 후 다시 시도해주세요."));
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   };
@@ -124,6 +129,7 @@ export default function LandingReviewWritePage() {
           onSubmit={(e) => { e.preventDefault(); onSubmit(); }}
           style={{ marginTop: 28, display: "flex", flexDirection: "column", gap: 18 }}
         >
+          <fieldset disabled={submitting} style={{ display: "contents" }}>
           {/* 평점 */}
           <div>
             <label style={lblStyle(textSecondary)}>평점</label>
@@ -183,57 +189,7 @@ export default function LandingReviewWritePage() {
             <p style={{ marginTop: 6, fontSize: 11, color: textSecondary }}>현재 {content.trim().length}자 / 최소 10자</p>
           </div>
 
-          {/* 사진 첨부 (Phase 4-D) */}
-          <div data-testid="review-write-photos">
-            <label style={lblStyle(textSecondary)}>사진 첨부 (선택, 최대 8장)</label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-              {photos.map((url, i) => (
-                <div key={url} style={{ position: "relative", width: 96, height: 96, borderRadius: 10, overflow: "hidden", border: `1px solid ${border}` }}>
-                  <img src={url} alt={`photo ${i + 1}`} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                  <button type="button" onClick={() => setPhotos((p) => p.filter((x) => x !== url))}
-                    data-testid={`review-write-photo-remove-${i}`}
-                    aria-label="삭제"
-                    style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", border: "none", background: "rgba(0,0,0,0.6)", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700, lineHeight: 1 }}
-                  >×</button>
-                </div>
-              ))}
-              {photos.length < 8 && (
-                <label
-                  data-testid="review-write-photo-add"
-                  style={{
-                    width: 96, height: 96, borderRadius: 10, border: `1px dashed ${border}`,
-                    background: cardBg, display: "flex", alignItems: "center", justifyContent: "center",
-                    flexDirection: "column", gap: 4, cursor: uploadingPhoto ? "wait" : "pointer",
-                    color: textSecondary, fontSize: 11, fontWeight: 600,
-                  }}
-                >
-                  <span style={{ fontSize: 20 }}>{uploadingPhoto ? "⏳" : "＋"}</span>
-                  <span>{uploadingPhoto ? "업로드 중" : "사진 추가"}</span>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    hidden
-                    disabled={uploadingPhoto}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      e.target.value = "";
-                      if (!file) return;
-                      setUploadingPhoto(true);
-                      try {
-                        const { url } = await uploadReviewPhoto(file);
-                        setPhotos((prev) => [...prev, url].slice(0, 8));
-                      } catch (error: unknown) {
-                        window.alert(getApiErrorMessage(error, "사진 업로드 실패"));
-                      } finally {
-                        setUploadingPhoto(false);
-                      }
-                    }}
-                  />
-                </label>
-              )}
-            </div>
-            <p style={{ margin: 0, fontSize: 11, color: textSecondary }}>PNG / JPG / WebP · 1장 6MB 이하 · 개인정보(전화번호·주소·시험지 답 등)가 보이지 않게 가려주세요.</p>
-          </div>
+          <div data-testid="review-write-photos"><PublicPhotoPicker draft={photoDraft} disabled={submitting} /></div>
 
           <label data-testid="review-write-anonymous" style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: textSecondary }}>
             <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)}
@@ -266,6 +222,7 @@ export default function LandingReviewWritePage() {
               }}
             >{submitting ? "등록 중…" : "후기 등록"}</button>
           </div>
+          </fieldset>
         </form>
       </div>
     </Shell>

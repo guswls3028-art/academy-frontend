@@ -36,7 +36,7 @@ async function exercise(options = {}) {
       fetch: async () => ({ status: () => options.apiStatus ?? 200,
         headers: () => ({ "content-type": "application/json", "access-control-allow-origin": options.corsOrigin ?? boundary.webOrigin,
           "access-control-allow-credentials": "true" }),
-        json: async () => (options.list ? [{ id: options.postId ?? 123, post_type: options.postType ?? "qna",
+        json: async () => options.payload ?? (options.list ? [{ id: options.postId ?? 123, post_type: options.postType ?? "qna",
           attachments: options.attachments ?? [{ id: 456, original_name: "qa-problem.png",
             content_type: options.attachmentType ?? "image/png", download_url: options.registerUrl ?? url }] }]
           : { id: options.postId ?? 123, post_type: options.postType ?? "qna",
@@ -85,6 +85,29 @@ function rejected(result, fetches = 0) {
   });
 }
 
+for (const kind of ["board", "reviews"]) test(`public ${kind} photos require exact authenticated tenant detail and signed development object`, async () => {
+  const photoQuery = new URLSearchParams(query);
+  photoQuery.delete("response-content-type");
+  photoQuery.set("X-Amz-Expires", "604800");
+  const photo = `${origin}/academy-development-artifacts/landing-public/reviews/352/users/12/${"b".repeat(64)}.png?${photoQuery}`;
+  const defaults = { apiPath: `/api/v1/landing-public/${kind}/123/`, registerUrl: photo,
+    payload: { id: 123, ...(kind === "board" ? { meta: { photos: [photo] } } : { photos: [photo] }) } };
+  const accepted = await exercise(defaults);
+  accepted.guard.assertClean();
+  assert.deepEqual(accepted.fulfilled, [{ status: 200, headers: { "content-type": "image/png" }, body: png }]);
+  for (const options of [
+    { register: false }, { apiStatus: 403 }, { apiMethod: "POST" }, { apiHeaders: { authorization: "" } },
+    { apiHeaders: { "x-tenant-code": "qa-ymath-realuse-other" } }, { payload: { id: 124, photos: [photo], meta: { photos: [photo] } } },
+    { apiPath: `${defaults.apiPath}?extra=1` }, { headers: { authorization: "Bearer qa-token" } }, { status: 302 },
+    { body: Buffer.from("not an image") }, { boundary: { ...boundary, mode: "readonly" } },
+  ]) rejected(await exercise({ ...defaults, ...options }), options.status || options.body ? 1 : 0);
+  for (const invalid of [photo.replace("/352/", "/353/"), photo.replace("academy-development-artifacts", "academy-admin"),
+    photo.replace(origin, "https://foreign.invalid"), photo.replace("Expires=604800", "Expires=604801"),
+    photo.replace("/users/12/", "/users/0/"), `${photo}&extra=1`, `${photo}#fragment`]) {
+    rejected(await exercise({ ...defaults, registerUrl: invalid, payload: { id: 123, photos: [invalid], meta: { photos: [invalid] } } }));
+  }
+});
+
 test("QnA image requires exact authenticated post response and preserves R2 PNG bytes", async () => {
   const result = await exercise();
   result.guard.assertClean();
@@ -122,12 +145,15 @@ test("notice detail binds saved photos and refreshed student download URLs", asy
   }
 });
 
-for (const postType of ["qna", "notice"]) test(`${postType} registration rejects foreign API responses and loose R2 URL scopes`, async () => {
+for (const postType of ["qna", "notice", "board", "materials", "counsel"]) test(`${postType} registration rejects foreign API responses and loose R2 URL scopes`, async () => {
+  const accepted = await exercise({ postType });
+  accepted.guard.assertClean();
+  assert.equal(accepted.fulfilled.length, 1);
   for (const options of [
     { apiStatus: 403 }, { apiStatus: 302 }, { apiMethod: "POST" },
     { apiHeaders: { authorization: "" } }, { apiHeaders: { "x-tenant-code": "qa-ymath-realuse-other" } },
     { corsOrigin: "https://foreign.invalid" }, { apiPath: "/api/v1/community/posts/124/" },
-    { apiPath: "/api/v1/community/posts/123/?extra=1" }, { postId: 124 }, { postType: "counsel" }, { postType: ["notice"] },
+    { apiPath: "/api/v1/community/posts/123/?extra=1" }, { postId: 124 }, { postType: "private" }, { postType: ["notice"] },
     { attachments: Array.from({ length: 11 }, () => ({ content_type: "image/png", download_url: url })) },
     { boundary: { ...boundary, mode: "readonly" } }, { boundary: { ...boundary, omrR2TenantId: undefined } },
     ...[
@@ -153,7 +179,7 @@ test("QnA signed image rejects credentials, mutation, non-image use and invalid 
   }
 });
 
-for (const postType of ["qna", "notice"]) test(`${postType} file downloads require bound metadata and exact development bytes`, async () => {
+for (const postType of ["qna", "notice", "board", "materials", "counsel"]) test(`${postType} file downloads require bound metadata and exact development bytes`, async () => {
   for (const [extension, contentType, body, unicodeName] of [
     ["txt", "text/plain", Buffer.from("QA attachment\n")],
     ["pdf", "application/pdf", Buffer.from("%PDF-1.4\n%%EOF")],
@@ -174,7 +200,7 @@ for (const postType of ["qna", "notice"]) test(`${postType} file downloads requi
     assert.deepEqual(result.fetched, [{ url: fileUrl.href, method: "GET", headers: { accept: contentType }, maxRedirects: 0 }]);
     assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": contentType, "content-disposition": disposition }, body }]);
     for (const invalid of [
-      { register: false }, { downloadStatus: 403 }, { postId: 124 }, { postType: "counsel" },
+      { register: false }, { downloadStatus: 403 }, { postId: 124 }, { postType: "private" },
       { downloadPath: "/api/v1/community/posts/123/attachments/457/download/" },
       { downloadHeaders: { authorization: "" } }, { downloadName: "another.txt" },
       { downloadUrl: fileUrl.href.replace("tenants/352/", "tenants/353/") },
