@@ -12,7 +12,8 @@ type Lecture = {
   subject: string;
   lecture_time: string;
   start_date: string;
-  end_date: string;
+  end_date: string | null;
+  description?: string;
   color: string;
   chip_label: string;
   is_active: boolean;
@@ -35,11 +36,14 @@ const initialLectures: Lecture[] = [
   { id: 103, title: "Gamma", name: "관리자", subject: "영어", lecture_time: "11:00~12:00", start_date: "2026-08-03", end_date: "2026-09-03", color: "#eab308", chip_label: "G", is_active: true, display_order: 3, active_enrollment_count: 17 },
 ];
 
-async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boolean }) {
+async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boolean; failFirstEdit?: boolean; failDetail?: boolean }) {
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
-  let lectures = initialLectures.map((lecture) => ({ ...lecture }));
+  let lectures = initialLectures.map((lecture) => ({ ...lecture, description: "기존 설명을 보존합니다." }));
   let failFirstReorder = options?.failFirstReorder ?? false;
+  let failFirstEdit = options?.failFirstEdit ?? false;
+  let failDetail = options?.failDetail ?? false;
   const reorderPayloads: Array<{ scope: string; ordered_ids: number[] }> = [];
+  const edits: Array<Partial<Lecture>> = [];
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const url = new URL(route.request().url());
@@ -66,7 +70,21 @@ async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boole
       return json(lectures);
     }
     if (path === "/lectures/lectures/" && route.request().method() === "GET") return json(lectures);
-    if (path === "/lectures/lectures/101/") return json(lectures[0]);
+    const detail = path.match(/^\/lectures\/lectures\/(\d+)\/$/);
+    if (detail) {
+      const lecture = lectures.find((item) => item.id === Number(detail[1]));
+      if (!lecture) return json({ detail: "강의가 없습니다." }, 404);
+      if (route.request().method() === "PATCH") {
+        const payload = route.request().postDataJSON() as Partial<Lecture>;
+        edits.push(payload);
+        if (failFirstEdit) { failFirstEdit = false; return json({ detail: "저장 연결을 확인하고 다시 시도해 주세요." }, 400); }
+        Object.assign(lecture, payload);
+      } else if (route.request().method() === "DELETE") {
+        lectures = lectures.filter((item) => item.id !== lecture.id);
+        return route.fulfill({ status: 204 });
+      } else if (failDetail) return json({ detail: "강의 조회에 실패했습니다." }, 400);
+      return json(lecture);
+    }
     if (path === "/lectures/lectures/instructor-options/") return json([{ name: "관리자", type: "owner" }]);
     if (path === "/lectures/sessions/" && url.searchParams.get("lecture") === "101") {
       return json([{ id: 201, lecture: 101, order: 1, regular_order: 1, session_type: "REGULAR", title: "1차시", date: "2026-08-01" }]);
@@ -84,7 +102,7 @@ async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boole
     localStorage.setItem("refresh", `${jwt}-refresh`);
   }, localJwt());
 
-  return { reorderPayloads };
+  return { reorderPayloads, edits, recoverDetail: () => { failDetail = false; }, updateSubject: (subject: string) => { lectures[0].subject = subject; } };
 }
 
 async function rowTitles(page: Page) {
@@ -96,12 +114,105 @@ async function normalizedRowTitles(page: Page) {
 }
 
 test.describe("강의 관리 영구 순서와 레이아웃", () => {
+  test("기존 강의를 다시 열어도 입력값을 유지하며 저장 실패 복구·종료일 해제를 저장한다", async ({ page }, testInfo) => {
+    const { edits, updateSubject } = await seedLectureAdmin(page, { failFirstEdit: true });
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
+    const settings = page.getByRole("button", { name: "Alpha 설정", exact: true });
+    const modal = page.getByRole("dialog", { name: "강의 수정", exact: true });
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await settings.scrollIntoViewIfNeeded();
+      await settings.click();
+      await expect(page.getByRole("dialog", { name: "강의 설정", exact: true })).toHaveCount(0);
+      const menu = page.getByRole("menu");
+      await expect(menu).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`lecture-menu-${width}.png`), animations: "disabled" });
+      await page.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
+      await expect(menu).toBeHidden();
+      await expect(modal.getByLabel("강의 이름 (필수)")).toHaveValue("Alpha");
+      await expect(modal.getByLabel("과목 (필수)")).toHaveValue(width === 1366 ? "과학" : "물리");
+      await expect(modal.getByLabel("설명", { exact: true })).toHaveValue("기존 설명을 보존합니다.");
+      await expect(modal.getByLabel("담당 강사 (필수)")).toContainText("관리자");
+      await expect(modal.locator(".shared-date-picker-trigger").first()).toContainText("2026");
+      await expect(modal.getByRole("button", { name: "시작 시간 선택", exact: true })).toContainText("오전 9:00");
+      await page.screenshot({ path: testInfo.outputPath(`lecture-edit-${width}.png`), animations: "disabled" });
+      if (width === 390) {
+        const instructor = await modal.getByLabel("담당 강사 (필수)").boundingBox();
+        const subject = await modal.getByLabel("과목 (필수)").boundingBox();
+        expect(subject!.y).toBeGreaterThan(instructor!.y + instructor!.height);
+      }
+      const dimensions = await modal.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+      expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client + 1);
+      await modal.getByLabel("강의 이름 (필수)").fill("취소할 초안");
+      await modal.getByRole("button", { name: "취소", exact: true }).click();
+      updateSubject("물리");
+    }
+    await settings.click();
+    await page.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
+    await expect(modal.getByLabel("강의 이름 (필수)")).toHaveValue("Alpha");
+    await modal.getByLabel("강의 이름 (필수)").fill("수정된 과학 강의");
+    await modal.getByRole("button", { name: "종료일 지우기", exact: true }).click();
+    await modal.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(modal.getByRole("alert")).toContainText("다시 시도");
+    await expect(modal.getByLabel("강의 이름 (필수)")).toHaveValue("수정된 과학 강의");
+    await modal.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(modal).toHaveCount(0);
+    expect(edits).toHaveLength(2);
+    expect(edits[1]).toMatchObject({ title: "수정된 과학 강의", name: "관리자", subject: "물리", description: "기존 설명을 보존합니다.", start_date: "2026-08-01", end_date: null, lecture_time: "09:00~10:00", color: "#3b82f6", chip_label: "A" });
+    await page.reload();
+    await expect(page.getByRole("link", { name: "수정된 과학 강의 강의 열기", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "수정된 과학 강의 설정", exact: true }).click();
+    await page.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
+    await expect(modal.getByLabel("강의 이름 (필수)")).toHaveValue("수정된 과학 강의");
+    await expect(modal.getByRole("button", { name: "종료일 지우기", exact: true })).toHaveCount(0);
+  });
+
+  test("조회 실패는 재시도하고 메뉴의 종료 취소·종료·복원은 대상 강의에만 반영한다", async ({ page }) => {
+    const { edits, recoverDetail } = await seedLectureAdmin(page, { failDetail: true });
+    await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
+    const settings = page.getByRole("button", { name: "Alpha 설정", exact: true });
+    await settings.focus();
+    await settings.press("ArrowDown");
+    await expect(page.getByRole("menu")).toBeVisible();
+    await page.getByRole("menuitem", { name: "강의 수정", exact: true }).press("Escape");
+    await expect(settings).toBeFocused();
+    await settings.click();
+    await page.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
+    const modal = page.getByRole("dialog", { name: "강의 수정", exact: true });
+    await expect(modal.getByText("강의 정보를 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(modal.getByRole("button", { name: "수정", exact: true })).toBeDisabled();
+    recoverDetail();
+    await modal.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(modal.getByLabel("강의 이름 (필수)")).toHaveValue("Alpha");
+    await modal.getByRole("button", { name: "취소", exact: true }).click();
+    await settings.click();
+    await page.getByRole("menuitem", { name: "강의 종료", exact: true }).click();
+    const confirmation = page.getByRole("alertdialog", { name: "강의 종료", exact: true });
+    await expect(confirmation).toContainText("Alpha");
+    await confirmation.getByRole("button", { name: "취소", exact: true }).click();
+    expect(edits).toHaveLength(0);
+    await settings.click();
+    await page.getByRole("menuitem", { name: "강의 종료", exact: true }).click();
+    await confirmation.getByRole("button", { name: "종료", exact: true }).click();
+    await expect(page).toHaveURL(/\/workspace\/lectures\/past/);
+    await page.reload();
+    await expect(settings).toBeVisible();
+    await settings.click();
+    await page.getByRole("menuitem", { name: "강의 복원", exact: true }).click();
+    await expect(page).toHaveURL(/\/workspace\/lectures\/?$/);
+    await page.reload();
+    await expect(page.getByRole("link", { name: "Alpha 강의 열기", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Beta 강의 열기", exact: true })).toBeVisible();
+    expect(edits).toEqual([{ is_active: false }, { is_active: true }]);
+  });
+
   test("목록은 작은 순서 손잡이와 강의별·전체 수강 등록 요약을 보여 준다", async ({ page }) => {
     await seedLectureAdmin(page);
     await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
 
     await expect(page.getByText("강의 3개 · 수강 등록 36명", { exact: true })).toBeVisible();
-    const alphaRow = page.getByRole("button", { name: "Alpha 강의 열기", exact: true }).locator("xpath=ancestor::tr");
+    const alphaRow = page.getByRole("link", { name: "Alpha 강의 열기", exact: true }).locator("xpath=ancestor::tr");
     await expect(alphaRow.getByText("12명", { exact: true })).toBeVisible();
 
     const alphaHandle = page.getByRole("button", { name: "Alpha 순서 이동", exact: true });

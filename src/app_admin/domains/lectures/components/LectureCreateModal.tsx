@@ -22,6 +22,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { validateRequiredFields } from "@/shared/utils/modalValidation";
 import { getTenantLocalItem, setTenantLocalItem } from "@/shared/utils/safeLocalStorage";
 import { adminLectureQueryKeys } from "../queryKeys";
+import { invalidateLectureStatusCaches } from "@/shared/ui/asyncStatus/asyncStatusQueryInvalidations";
 import "./LectureCreateModal.css";
 
 const SAVED_SUBJECTS_KEY = "academy-lecture-saved-subjects";
@@ -74,16 +75,23 @@ interface CreateLecturePayload {
   is_active: boolean;
 }
 
-export default function LectureCreateModal({ isOpen, onClose, usedColors = [], lectureId }: Props) {
+export default function LectureCreateModal(props: Props) {
+  if (!props.isOpen) return null;
+  return <LectureForm key={props.lectureId ?? "create"} {...props} />;
+}
+
+function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const isEditMode = lectureId != null;
   const confirm = useConfirm();
   const confirmationInFlightRef = useRef(false);
+  const saveInFlightRef = useRef(false);
+  const hydratedRef = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
 
   const [title, setTitle] = useState("");
   const [name, setName] = useState("");
-  const [selectedInstructor, setSelectedInstructor] = useState<{ name: string; type: "owner" | "teacher" } | null>(null);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -106,6 +114,8 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     enabled: isOpen,
   });
   const instructorOptions = useMemo(() => instructorQ.data ?? [], [instructorQ.data]);
+  const selectedInstructor = instructorOptions.find((option) => option.name === name)
+    ?? (name ? { name, type: "teacher" as const } : null);
 
   const { data: staffMe } = useQuery({
     queryKey: staffWorkQueryKeys.identity,
@@ -118,13 +128,20 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     queryKey: adminLectureQueryKeys.lecture(lectureId),
     queryFn: () => fetchLecture(lectureId!),
     enabled: isOpen && isEditMode && lectureId != null,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
   const existingLecture = existingLectureQ.data;
   const isLoadingLecture = existingLectureQ.isLoading;
-  const requiredDataError = instructorQ.isError || existingLectureQ.isError;
+  const requiredDataError = (instructorQ.isError && !instructorQ.data)
+    || (isEditMode && existingLectureQ.isError && !hydrated);
+  const formReady = !requiredDataError && !instructorQ.isLoading && (!isEditMode || hydrated);
 
   useEffect(() => {
-    if (!isOpen || !isEditMode || !existingLecture) return;
+    // A modal session owns its draft. Cache refreshes must never replace user input.
+    if (!isOpen || !isEditMode || !existingLecture || hydratedRef.current
+      || existingLectureQ.isFetching || existingLectureQ.isError) return;
+    hydratedRef.current = true;
     setTitle(existingLecture.title ?? "");
     setName(existingLecture.name ?? "");
     setSubject(existingLecture.subject ?? "");
@@ -135,16 +152,14 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     setColor(existingLecture.color ?? getDefaultColorForPicker(usedColors));
     const chip = (existingLecture as { chip_label?: string | null }).chip_label;
     setChipLabel(chip ?? (existingLecture.title ?? "").slice(0, 2));
-    const opt = instructorOptions.find((o) => o.name === existingLecture.name);
-    setSelectedInstructor(opt ?? { name: existingLecture.name ?? "", type: "teacher" });
-  }, [isOpen, isEditMode, existingLecture, instructorOptions, usedColors]);
+    setHydrated(true);
+  }, [isOpen, isEditMode, existingLecture, existingLectureQ.isFetching, existingLectureQ.isError, usedColors]);
 
   useEffect(() => {
     if (isOpen && !isEditMode && instructorOptions.length > 0 && !name) {
       const first = instructorOptions[0];
       if (first) {
         setName(first.name);
-        setSelectedInstructor(first);
       }
     }
   }, [isOpen, isEditMode, instructorOptions, name]);
@@ -174,6 +189,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       if (isEditMode && lectureId != null) {
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lecture(lectureId) });
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureSessions });
+        invalidateLectureStatusCaches(qc);
       }
       feedback.success(isEditMode ? "강의가 수정되었습니다." : "강의가 등록되었습니다.");
       onClose();
@@ -182,26 +198,8 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       const msg = extractApiError(e, "저장에 실패했습니다.");
       setApiError(msg);
     },
+    onSettled: () => { saveInFlightRef.current = false; },
   });
-
-  useEffect(() => {
-    if (!isOpen) return;
-    // 편집 모드든 생성 모드든 열릴 때 폼 초기화 (편집 모드는 existingLecture 로드 후 덮어씀)
-    setTitle("");
-    setName("");
-    setSelectedInstructor(null);
-    setSubject("");
-    setDescription("");
-    setStartDate("");
-    setEndDate("");
-    setLectureTime("");
-    setColor(getDefaultColorForPicker(usedColors));
-    setChipLabel("");
-    setAddSubjectInput("");
-    setHasAttemptedSubmit(false);
-    setApiError("");
-    confirmationInFlightRef.current = false;
-  }, [isOpen, lectureId, usedColors]);
 
   if (!isOpen) return null;
 
@@ -209,7 +207,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
   const previewChipLabel = effectiveChipLabel || "강의";
 
   async function submit() {
-    if (isPending || confirmationInFlightRef.current) return;
+    if (!formReady || saveInFlightRef.current || isPending || confirmationInFlightRef.current) return;
     setApiError("");
     setHasAttemptedSubmit(true);
     const err = validateRequiredFields([
@@ -221,6 +219,10 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     ]);
     if (err) {
       feedback.error(err);
+      return;
+    }
+    if (endDate && endDate < startDate) {
+      setApiError("종료일은 시작일과 같거나 이후 날짜로 선택해 주세요.");
       return;
     }
 
@@ -235,7 +237,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       chip_label: effectiveChipLabel,
       is_active: true,
     };
-    if (endDate.trim()) payload.end_date = endDate.trim();
+    if (endDate.trim() || isEditMode) payload.end_date = endDate.trim() || null;
     if (!isEditMode) {
       confirmationInFlightRef.current = true;
       const confirmed = await confirm({
@@ -261,6 +263,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     }
     const trimmedSubject = subject.trim();
     if (trimmedSubject) setSavedSubjects(saveToList(SAVED_SUBJECTS_KEY, trimmedSubject));
+    saveInFlightRef.current = true;
     mutate(payload);
   }
 
@@ -410,7 +413,6 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                 className="saved-list-field-popover-item saved-list-field-popover-item--row flex-1 min-w-0 text-left"
                 onClick={() => {
                   setName(opt.name);
-                  setSelectedInstructor(opt);
                   setInstructorPopoverOpen(false);
                 }}
               >
@@ -451,12 +453,12 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
   );
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={760} className="lecture-create-modal" onEnterConfirm={!isPending && !requiredDataError ? submit : undefined}>
+    <AdminModal open={true} onClose={onClose} closeDisabled={isPending} type="action" width={760} className="lecture-create-modal" onEnterConfirm={!isPending && formReady ? submit : undefined}>
       <ModalHeader type="action" title={modalTitle} />
 
       <ModalBody>
         {apiError && (
-          <div className="lecture-create-api-error">
+          <div className="lecture-create-api-error" role="alert">
             {apiError}
           </div>
         )}
@@ -467,7 +469,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
             scope="modal"
             tone="error"
             title={isEditMode ? "강의 정보를 불러오지 못했습니다" : "담당 강사 목록을 불러오지 못했습니다"}
-            description={isEditMode ? "빈 폼으로 기존 강의를 덮어쓰지 않도록 수정을 중단했습니다." : "담당 강사를 확인한 뒤 강의를 만들 수 있습니다."}
+            description="연결 상태를 확인하고 다시 시도해 주세요."
             actions={
               <Button intent="secondary" size="sm" onClick={() => {
                 void instructorQ.refetch();
@@ -477,8 +479,8 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
               </Button>
             }
           />
-        ) : instructorQ.isLoading || (isEditMode && isLoadingLecture) ? (
-          <div className="flex items-center justify-center py-12 text-[var(--color-text-muted)] font-medium">
+        ) : !formReady || (isEditMode && isLoadingLecture) ? (
+          <div role="status" className="flex items-center justify-center py-12 text-[var(--color-text-muted)] font-medium">
             불러오는 중…
           </div>
         ) : (
@@ -516,9 +518,11 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
 
           <div className="lecture-create-content-grid">
             <div className="lecture-create-details-column">
-              {/* 강의 이름 — 필수, 라벨 없이 placeholder로 표시 */}
+              {/* 값이 채워져도 필드 이름을 확인할 수 있도록 라벨을 유지한다. */}
               <div className="modal-form-group">
+                <label className="lecture-field-label" htmlFor="lecture-title">강의 이름 <span>필수</span></label>
                 <input
+                  id="lecture-title"
                   className="ds-input"
                   placeholder="강의 이름 (필수)"
                   value={title}
@@ -531,9 +535,10 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                 />
               </div>
 
-              {/* 담당 강사 · 과목 — 라벨 없이 placeholder로 표시 */}
+              {/* 담당 강사 · 과목 */}
               <div className="lecture-create-field-grid">
                 <div className="modal-form-group">
+              <label className="lecture-field-label" htmlFor="lecture-instructor">담당 강사 <span>필수</span></label>
               <Popover
                 open={instructorPopoverOpen}
                 onOpenChange={(open) => {
@@ -545,6 +550,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
               >
                 <button
                   type="button"
+                  id="lecture-instructor"
                   className="lecture-create-instructor-trigger lecture-create-caret-hidden ds-input w-full min-w-0"
                   data-required="true"
                   data-invalid={hasAttemptedSubmit && !name.trim() ? "true" : "false"}
@@ -575,8 +581,10 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                 </Popover>
               </div>
               <div className="modal-form-group">
+                <label className="lecture-field-label" htmlFor="lecture-subject">과목 <span>필수</span></label>
                 <div className="flex gap-2 items-center min-w-0">
                 <input
+                  id="lecture-subject"
                   type="text"
                   className="ds-input flex-1 min-w-0"
                   placeholder="과목 (필수)"
@@ -627,9 +635,11 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
               </div>
             </div>
 
-              {/* 설명 — 라벨 없이 placeholder로 표시 */}
+              {/* 설명 */}
               <div className="modal-form-group modal-form-group--neutral">
+                <label className="lecture-field-label" htmlFor="lecture-description">설명 <span>선택</span></label>
                 <textarea
+                  id="lecture-description"
                   className="ds-textarea lecture-create-description w-full"
                   rows={4}
                   placeholder="설명"
@@ -642,10 +652,12 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
             </div>
 
             <div className="lecture-create-schedule-column">
-              {/* 시작일(필수) · 종료일(선택) — 라벨 없이 placeholder로 표시 */}
+              {/* 시작일(필수) · 종료일(선택) */}
               <div className="lecture-create-date-grid">
                 <div className="modal-form-group" data-required="true" data-invalid={hasAttemptedSubmit && !startDate.trim() ? "true" : "false"}>
+                  <label className="lecture-field-label" htmlFor="lecture-start-date">시작일 <span>필수</span></label>
                   <DatePicker
+                    id="lecture-start-date"
                     value={startDate}
                     onChange={setStartDate}
                     placeholder="시작일 (필수)"
@@ -653,17 +665,22 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                   />
                 </div>
                 <div className="modal-form-group modal-form-group--neutral">
+                  <label className="lecture-field-label" htmlFor="lecture-end-date">종료일 <span>선택</span></label>
                   <DatePicker
+                    id="lecture-end-date"
                     value={endDate}
                     onChange={setEndDate}
                     placeholder="종료일 (선택)"
+                    minDate={startDate || undefined}
                     disabled={isPending}
                   />
+                  {endDate && <button type="button" className="lecture-clear-date" disabled={isPending} onClick={() => setEndDate("")}>종료일 지우기</button>}
                 </div>
               </div>
 
               {/* 강의 시간 — 외부 블록 없이 TimeRangeInput만 (시작/종료 카드만 표시) */}
               <div data-required="true" data-invalid={hasAttemptedSubmit && !lectureTime.trim() ? "true" : "false"}>
+                <div className="lecture-field-label">강의 시간 <span>필수</span></div>
                 <TimeRangeInput
                   value={lectureTime}
                   onChange={setLectureTime}
@@ -686,7 +703,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
             <Button intent="secondary" onClick={onClose} disabled={isPending}>
               취소
             </Button>
-            <Button intent="primary" onClick={submit} disabled={requiredDataError || instructorQ.isLoading || isPending || (isEditMode && isLoadingLecture)}>
+            <Button intent="primary" onClick={submit} disabled={!formReady || isPending}>
               {isPending ? (isEditMode ? "수정 중…" : "등록 중…") : isEditMode ? "수정" : "등록"}
             </Button>
           </>

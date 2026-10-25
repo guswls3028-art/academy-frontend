@@ -1,0 +1,40 @@
+.ds-table.ds-table--lectures th,
+.ds-table.ds-table--lectures td { border-inline: 0; }
+.ds-table.ds-table--lectures tbody td { padding-block: 12px; }
+.ds-table.ds-table--lectures .lecture-title-cell { text-align: left; }
+.lecture-title-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 120ms ease;
+}
+.lecture-title-link:hover { color: var(--color-brand-primary); }
+.lecture-title-link:focus-visible,
+.lecture-sort-button:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 3px; }
+.lecture-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lecture-enrollment-count { font-weight: 600; font-variant-numeric: tabular-nums; }
+.lecture-date-cell { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lecture-sort-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 3px 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) { .lecture-title-link { transition: none; } }
