@@ -34,6 +34,8 @@ const postIds: number[] = [];
 const runStamp = Date.now();
 const qnaTitle = `QA 학부모 질문 ${runStamp}`;
 const counselTitle = `QA 학부모 상담 ${runStamp}`;
+const studentQuestionTitle = `QA 학생 답변 확인 ${runStamp}`;
+const answerContent = "QA 관리자 화면에서 저장한 학습 답변입니다.";
 
 async function cleanup(request: Parameters<typeof api>[0]): Promise<void> {
   if (!adminAccess) return;
@@ -170,6 +172,22 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await page.getByRole("button", { name: "상담", exact: true }).click();
     await expect(page.getByText(counselTitle, { exact: true })).toBeVisible();
     await assertNoHorizontalOverflow(page);
+    await logoutStudentApp(page);
+    await loginThroughUi(page, primary.ps_number, primary.password);
+    await gotoAndSettle(page, `${QA_BASE}/student/community`);
+    await page.getByRole("button", { name: "질문하기", exact: true }).click();
+    await page.getByPlaceholder("질문 제목").fill(studentQuestionTitle);
+    await page.locator(".ProseMirror").fill("QA 학생이 화면에서 등록한 학습 질문입니다.");
+    const studentSubmitted = page.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname === "/api/v1/community/posts/");
+    await page.getByRole("button", { name: "질문 보내기", exact: true }).click();
+    const studentResponse = await studentSubmitted;
+    expect(studentResponse.status()).toBe(201);
+    const studentQuestion = await studentResponse.json() as { id: number; created_by: number; author_role: string };
+    postIds.push(studentQuestion.id);
+    expect(studentQuestion).toMatchObject({ created_by: primary.id, author_role: "student" });
+    await reloadStudentApp(page);
+    await expect(page.getByText(studentQuestionTitle, { exact: true })).toBeVisible();
     boundary.assertClean();
     browser.assertZeroDefects();
 
@@ -186,6 +204,17 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       await adminPage.getByTestId("login-submit").click();
       await expect(adminPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
       await acknowledgeInitialAccountPromptsIfVisible(adminPage);
+      await gotoAndSettle(adminPage, `${QA_BASE}/workspace/community/qna?id=${studentQuestion.id}`);
+      await expect(adminPage.locator(".qna-inbox__thread-title")).toHaveText(studentQuestionTitle);
+      await adminPage.getByRole("button", { name: "답변하기", exact: true }).click();
+      await adminPage.locator(".qna-inbox__composer .ProseMirror").fill(answerContent);
+      const replied = adminPage.waitForResponse((response) => response.request().method() === "POST"
+        && new URL(response.url()).pathname === `/api/v1/community/posts/${studentQuestion.id}/replies/`);
+      await adminPage.getByRole("button", { name: "답변 등록", exact: true }).click();
+      expect((await replied).status()).toBe(201);
+      await adminPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(adminPage.getByText(answerContent, { exact: true })).toBeVisible();
+      await expect(adminPage.locator(".qna-inbox__thread-header")).toContainText("답변 완료");
       for (const width of [1366, 390]) {
         await adminPage.setViewportSize({ width, height: 900 });
         await gotoAndSettle(adminPage, `${QA_BASE}/workspace/community/qna?id=${qna.id}`);
@@ -256,5 +285,29 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     } finally {
       await adminContext.close();
     }
+    for (const role of ["student", "parent"] as const) {
+      if (role === "parent") {
+        await logoutStudentApp(page);
+        await loginThroughUi(page, family.parentPhone, family.parentPassword);
+        await selectParentStudentThroughUi(page, primary);
+      }
+      await page.setViewportSize({ width: role === "parent" ? 390 : 1366, height: 900 });
+      await openCommunityTab(page, "QnA");
+      await reloadStudentApp(page);
+      const question = page.getByText(studentQuestionTitle, { exact: true });
+      await expect(question.locator("xpath=ancestor::button[1]")).toContainText("답변 완료");
+      await question.click();
+      await expect(page.getByText(answerContent, { exact: true })).toBeVisible();
+      await reloadStudentApp(page);
+      await page.getByText(studentQuestionTitle, { exact: true }).click();
+      await expect(page.getByText(answerContent, { exact: true })).toBeVisible();
+      await assertNoHorizontalOverflow(page);
+    }
+    await selectParentStudentThroughUi(page, sibling);
+    await openCommunityTab(page, "QnA");
+    await expect(page.getByText(studentQuestionTitle, { exact: true })).toHaveCount(0);
+    await expect(page.getByText(answerContent, { exact: true })).toHaveCount(0);
+    boundary.assertClean();
+    browser.assertZeroDefects();
   });
 });
