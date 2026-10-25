@@ -7,6 +7,7 @@ import { ClinicActualTimePicker } from "@/shared/ui/clinic/ClinicActualTimePicke
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { changeParticipantBooking, fetchClinicAvailability, type TeacherClinicParticipant, type TeacherClinicRecipient, type TeacherClinicSession } from "../api";
 import { teacherClinicQueryKeys } from "../queryKeys";
+import { buildClinicOutcomeNotice } from "../notificationOutcome";
 
 type Props = {
   participant: TeacherClinicParticipant;
@@ -60,11 +61,13 @@ export default function RescheduleParticipantSheet({
           : {}),
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (!data) return;
       onClose();
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participantsAll });
-      teacherToast.success("보충 일정으로 이동했습니다.");
+      const notice = buildClinicOutcomeNotice("보충 일정 이동", data.notification);
+      teacherToast[notice.tone](notice.message);
     },
     onError: (e) => teacherToast.error(extractApiError(e, "보충 일정을 옮기지 못했습니다.")),
   });
