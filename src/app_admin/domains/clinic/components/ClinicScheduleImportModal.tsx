@@ -288,4 +288,3 @@ function ImportContent({ currentDate, onClose }: Omit<Props, "open">) {
     </AdminModal>
   );
 }
-
