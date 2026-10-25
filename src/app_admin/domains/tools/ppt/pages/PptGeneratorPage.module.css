@@ -334,6 +334,19 @@
   background: var(--bg-surface);
 }
 
+.readabilityWarning,
+.recoveryPanel .readabilityWarning {
+  margin: 10px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-warning-soft, #fff7e6);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
 .recoveryPanel h3 {
   margin: 0 0 12px;
   color: var(--color-text-primary);

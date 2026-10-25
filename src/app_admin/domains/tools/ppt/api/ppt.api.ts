@@ -35,6 +35,10 @@ export interface PptGenerateResponse {
   size_bytes: number;
   // PDF 모드 결과 분기. "question" = 문항 단위, "page" = 페이지 단위 fallback. 이미지 모드는 undefined.
   mode?: "question" | "page";
+  readability_warning?: {
+    narrow_slide_count: number;
+    slide_numbers: number[];
+  };
 }
 
 export interface JobProgressResponse {

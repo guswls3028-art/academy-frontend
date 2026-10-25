@@ -11,7 +11,7 @@ function jwt() {
   return `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "hakwonplus", user_id: 12 })}.sig`;
 }
 
-async function setup(page: Page, jobId: string, missingAfterReload = false) {
+async function setup(page: Page, jobId: string, missingAfterReload = false, narrow = false) {
   let postCount = 0;
   let statusGetCount = 0;
   let submittedMode = "";
@@ -46,6 +46,7 @@ async function setup(page: Page, jobId: string, missingAfterReload = false) {
         result: reloaded ? {
           download_url: "data:application/octet-stream;base64,UEs=",
           filename: "recovered.pptx", slide_count: 2, size_bytes: 2,
+          ...(narrow ? { readability_warning: { narrow_slide_count: 1, slide_numbers: [2] } } : {}),
         } : null,
       } });
       return;
@@ -129,7 +130,7 @@ for (const { workflow, width, expectedMode } of [
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 850 });
     const jobId = `ppt-${workflow}-recover`;
-    const state = await setup(page, jobId);
+    const state = await setup(page, jobId, false, workflow === "auto");
     if (workflow === "manual") {
       await page.getByRole("button", { name: "직접 자르기" }).click();
       await expect(page.getByText("1 / 3쪽")).toBeVisible();
@@ -148,6 +149,8 @@ for (const { workflow, width, expectedMode } of [
     state.markReloaded();
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("button", { name: /완료된 PPT 다운로드/ })).toBeVisible();
+    if (workflow === "auto") await expect(page.getByText(/좁게 배치된 슬라이드 1장 \(예: 2번\)/)).toBeVisible();
+    else await expect(page.getByText(/좁게 배치된 슬라이드/)).toHaveCount(0);
     const previousGetCount = state.statusGetCount;
     const download = page.waitForEvent("download");
     await page.getByRole("button", { name: /완료된 PPT 다운로드/ }).click();
