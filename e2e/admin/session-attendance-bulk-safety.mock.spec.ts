@@ -905,7 +905,7 @@ test(`일괄 삭제 일부 실패 뒤 재조회·재시도·새로고침을 유�
   await expect.poll(() => state.attendanceDeleteCalls).toEqual([501, 502]);
   await expect.poll(() => state.attendanceFetches).toBeGreaterThan(initialFetches);
   await expect(page.getByText("미입력학생", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("결석학생", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "결석학생 학생 상세 열기", exact: true })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "결석학생 선택" })).toBeChecked();
   await expect(page.getByText("1명은 제외했고 1명은 실패했습니다. 현재 목록을 다시 확인해 주세요.", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
