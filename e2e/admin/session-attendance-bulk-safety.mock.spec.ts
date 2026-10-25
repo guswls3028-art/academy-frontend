@@ -465,6 +465,8 @@ for (const width of [1366, 390]) {
     await expect(alphabetical).toBeInViewport();
     expect(await page.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`attendance-letter-suffix-${width}.png`), fullPage: true });
+    await names.first().scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`attendance-letter-suffix-roster-${width}.png`), fullPage: true });
   });
 
   test(`출결 정렬 조회와 저장 후 재조회 실패를 같은 조건으로 복구한다 (${width}px)`, async ({ page }, testInfo) => {

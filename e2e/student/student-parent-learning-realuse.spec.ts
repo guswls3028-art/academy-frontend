@@ -246,6 +246,7 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
     await enrollmentPage.setViewportSize({ width, height: 844 });
     await expect(alphabetical).toBeInViewport();
     await assertNoHorizontalOverflow(enrollmentPage);
+    await names.first().scrollIntoViewIfNeeded();
     await enrollmentPage.screenshot({ path: testInfo.outputPath(`attendance-letter-suffix-realuse-${width}.png`), fullPage: true });
   }
 
