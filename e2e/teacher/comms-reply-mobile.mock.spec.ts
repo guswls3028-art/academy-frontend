@@ -505,7 +505,8 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
     const listRequestsBeforeSubmit = listRequests;
     await sheet.getByRole("button", { name: "공지사항 등록" }).click();
 
-    await expect(page.getByRole("status")).toContainText("첨부 업로드 실패");
+    await expect(sheet.getByRole("alert")).toContainText("첨부 업로드 실패");
+    await expect(sheet.getByRole("status")).toContainText("글은 저장되었습니다.");
     await expect(sheet.getByText("실패-첨부.pdf", { exact: true })).toBeVisible();
     expect(deleteRequests).toBe(0);
     await sheet.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
