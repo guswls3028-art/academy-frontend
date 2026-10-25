@@ -10,6 +10,7 @@ import {
 } from "../helpers/qaStudentParentScenario";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { gotoAndSettle } from "../helpers/wait";
+import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -80,16 +81,43 @@ test.describe("[real-use] 직원 계정·근태·급여", () => {
 
     const staffToken = (await loginApi(request, username, QA_STUDENT_PASSWORD)).access;
     expect((await api(request, "GET", "/staffs/payroll-overview/?year=2026&month=8", staffToken)).status).toBe(403);
-    const started = await api<RecordRow>(request, "POST", `/staffs/${first.body.id}/work-records/start-work/`, staffToken, {
-      work_type: workType.body.id,
-    });
-    expect([200, 201]).toContain(started.status);
-    const current = await api<{ status: string; work_record_id: number }>(request, "GET", `/staffs/${first.body.id}/work-records/current/`, staffToken);
-    expect(current.status).toBe(200);
-    expect(current.body.status).toBe("WORKING");
-    expect(current.body.work_record_id).toBe(started.body.id);
-    const ended = await api<RecordRow>(request, "POST", `/staffs/work-records/${started.body.id}/end_work/`, staffToken, {});
-    expect(ended.status).toBe(200);
+    const { started, ended } = await (async () => {
+      const context = await page.context().browser()!.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
+      const staffPage = await context.newPage();
+      const staffBoundary = await installQaStudentParentBoundary(staffPage, request);
+      const guards = attachStrictBrowserGuards(staffPage);
+      try {
+        await gotoAndSettle(staffPage, `${QA_BASE}/login/${QA_TENANT}`);
+        await staffPage.getByTestId("login-username").fill(username);
+        await staffPage.getByTestId("login-password").fill(QA_STUDENT_PASSWORD);
+        await staffPage.getByTestId("login-submit").click();
+        await expect(staffPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+        await acknowledgeInitialAccountPromptsIfVisible(staffPage);
+        const choice = staffPage.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?", exact: true });
+        const startResponse = staffPage.waitForResponse((response) => response.request().method() === "POST"
+          && new URL(response.url()).pathname === `/api/v1/staffs/${first.body.id}/work-records/start-work/`);
+        await choice.getByRole("button", { name: `${workTypeName} 근무 시작`, exact: true }).click();
+        const start = await startResponse;
+        expect([200, 201]).toContain(start.status());
+        const started = { body: await start.json() as RecordRow };
+        await expect(choice).toBeHidden();
+        await gotoAndSettle(staffPage, `${QA_BASE}/workspace/profile/attendance`);
+        await staffPage.reload({ waitUntil: "domcontentloaded" });
+        const current = await api<{ status: string; work_record_id: number }>(request, "GET", `/staffs/${first.body.id}/work-records/current/`, staffToken);
+        expect(current.status).toBe(200);
+        expect(current.body).toMatchObject({ status: "WORKING", work_record_id: started.body.id });
+        const endResponse = staffPage.waitForResponse((response) => response.request().method() === "POST"
+          && new URL(response.url()).pathname === `/api/v1/staffs/work-records/${started.body.id}/end_work/`);
+        await staffPage.getByRole("button", { name: "퇴근", exact: true }).click();
+        const end = await endResponse;
+        expect(end.status()).toBe(200);
+        const ended = { body: await end.json() as RecordRow };
+        await staffPage.reload({ waitUntil: "domcontentloaded" });
+        await expect(staffPage.getByRole("button", { name: "퇴근", exact: true })).toHaveCount(0);
+        staffBoundary.assertClean(); guards.assertZeroDefects();
+        return { started, ended };
+      } finally { await context.close(); }
+    })();
     expect(ended.body.end_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(ended.body.resolved_hourly_wage).toBe(12345);
     const [clockYear, clockMonth] = ended.body.date.split("-");
@@ -203,6 +231,31 @@ test.describe("[real-use] 직원 계정·근태·급여", () => {
       .toEqual([308625, 10185, 298440, 2500, 300940]);
     await assertNoHorizontalOverflow(page);
     expect((await api(request, "PATCH", `/staffs/work-records/${record.body.id}/`, admin, { end_date: "2026-08-20" })).status).toBe(400);
+    const selfContext = await page.context().browser()!.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    const selfPage = await selfContext.newPage();
+    const selfBoundary = await installQaStudentParentBoundary(selfPage, request);
+    const selfGuards = attachStrictBrowserGuards(selfPage);
+    try {
+      await gotoAndSettle(selfPage, `${QA_BASE}/login/${QA_TENANT}`);
+      await selfPage.getByTestId("login-username").fill(username);
+      await selfPage.getByTestId("login-password").fill(QA_STUDENT_PASSWORD);
+      await selfPage.getByTestId("login-submit").click();
+      await expect(selfPage).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
+      await acknowledgeInitialAccountPromptsIfVisible(selfPage);
+      await selfPage.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?", exact: true })
+        .getByRole("button", { name: /^출근하지 않고 로그인/ }).click();
+      await gotoAndSettle(selfPage, `${QA_BASE}/workspace/mobile/my-records`);
+      for (const reload of [false, true]) {
+        if (reload) await selfPage.reload({ waitUntil: "domcontentloaded" });
+        await selfPage.getByLabel("조회 월").fill("2026-08");
+        await expect(selfPage.getByText("이체 예정액", { exact: true }).locator("..")).toContainText("300,940원");
+        await expect(selfPage.getByText("공제 후 급여", { exact: true }).locator("..")).toContainText("298,440원");
+        await expect(selfPage.getByText("적용 시급 12,345원", { exact: true })).toBeVisible();
+        await assertNoHorizontalOverflow(selfPage);
+      }
+      await selfPage.screenshot({ path: testInfo.outputPath("staff-self-payroll-390.png") });
+      selfBoundary.assertClean(); selfGuards.assertZeroDefects();
+    } finally { await selfContext.close(); }
     expect((await api(request, "PATCH", `/staffs/${first.body.id}/`, admin, { is_active: false })).status).toBe(200);
     const retired = await api<{ rows: OverviewRow[] }>(request, "GET", "/staffs/payroll-overview/?year=2026&month=8", admin);
     expect(retired.body.rows.find((row) => row.staff_id === first.body.id)).toMatchObject({

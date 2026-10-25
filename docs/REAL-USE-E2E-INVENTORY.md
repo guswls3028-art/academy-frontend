@@ -61,6 +61,10 @@ PC/390px에서 수정·저장·reload한 뒤 학생 홈 학원문의 반영까�
 허용하지 않는다. owner fixture는 backend의
 [격리 개발 런타임 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/persistent-development-runtime.md)을 따른다.
 
+교사 앱 성적 입력은 `teacher-score-parent-realuse.spec.ts`의 필수 1개 케이스로
+UI 저장 → 새로고침 → 학생·학부모 결과와 자녀 선택을 확인한다. 직원 급여 케이스는
+직원 본인의 UI 출퇴근 및 390px 월별 급여 조회·새로고침도 포함한다.
+
 계정 등록 후보 검증 `student-parent-registration-realuse.spec.ts`는 격리 개발에서
 역할별 설정 저장, 직접 입력, 각자의 전화 뒤 4자리, 랜덤 6자리, 번호 없는 학생의
 오류 복구, 기존 학부모 계정 보존, 공개 가입 신청 선택의 관리자 승인 후 유지와 자동 승인 직후 로그인을 8건으로 검증한다.
