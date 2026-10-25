@@ -1,4 +1,32 @@
-/* 강의 추가 모달 — 폼 전체 폰트 굵기, 블록 중첩 최소화 */
+/* 강의 추가·수정: 필드의 라벨과 입력만 남기고 중첩 카드 장식을 제거한다. */
+.lecture-create-modal-form .modal-form-group {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.lecture-field-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 7px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.lecture-field-label span { color: var(--color-text-muted); font-size: 11px; font-weight: 400; }
+.lecture-clear-date {
+  margin-top: 6px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.lecture-clear-date:hover { color: var(--color-brand-primary); text-decoration: underline; }
+.lecture-clear-date:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
 .lecture-create-modal-form {
   width: 100%;
   max-width: none;
@@ -16,7 +44,7 @@
 .lecture-create-modal-form .shared-time-range-btn,
 .lecture-create-modal-form .shared-date-picker-trigger,
 .lecture-create-modal-form .lecture-create-instructor-trigger {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* placeholder — 담당 강사 빈 상태와 동일 (색상·굵기) */
@@ -183,7 +211,8 @@ body:has(.lecture-create-modal-form) .time-picker--portaled {
     gap: 12px;
   }
 
-  .lecture-create-field-grid {
+  .lecture-create-field-grid,
+  .lecture-create-details-column .lecture-create-field-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 

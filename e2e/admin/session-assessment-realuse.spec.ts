@@ -94,11 +94,27 @@ async function openLectureFromList(page: Page, lecture: TargetLecture): Promise<
 
   const lectureRow = table.locator("tbody tr").filter({ hasText: lecture.title }).first();
   await expect(lectureRow, `lecture row "${lecture.title}"`).toBeVisible({ timeout: 10_000 });
-  const lectureOpenButton = lectureRow.getByRole("button", {
+  const lectureOpenButton = lectureRow.getByRole("link", {
     name: `${lecture.title} 강의 열기`,
     exact: true,
   });
   await expect(lectureOpenButton, `lecture open button "${lecture.title}"`).toBeVisible({ timeout: 10_000 });
+  // This same read-only journey also runs after promotion against the live bundle.
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const settings = lectureRow.getByRole("button", { name: `${lecture.title} 설정`, exact: true });
+    await settings.scrollIntoViewIfNeeded();
+    await settings.click();
+    const menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitem", { name: "강의 수정", exact: true })).toBeVisible();
+    const bounds = await menu.evaluate((element) => ({ left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right }));
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(width + 1);
+    await menu.getByRole("menuitem", { name: "강의 수정", exact: true }).press("Escape");
+    await expect(settings).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
   await lectureOpenButton.click();
 
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${lecture.id}(?:[/?#]|$)`), { timeout: 10_000 });

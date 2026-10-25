@@ -1,0 +1,33 @@
+.lecture-actions-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 120ms ease, color 120ms ease;
+}
+.lecture-actions-trigger:hover,
+.lecture-actions-trigger[aria-expanded="true"] {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-brand-primary);
+}
+.lecture-actions-trigger:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+.lecture-actions-trigger:disabled { cursor: wait; }
+.lecture-actions-dropdown .ant-dropdown-menu { min-width: 168px; padding: 6px; }
+.lecture-actions-dropdown .ant-dropdown-menu-item { min-height: 40px; gap: 6px; }
+.lecture-actions-spinner { animation: lecture-actions-spin 900ms linear infinite; }
+@keyframes lecture-actions-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .lecture-actions-trigger { transition: none; }
+  .lecture-actions-spinner { animation: none; }
+}
