@@ -377,8 +377,10 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
     expect(deleteRequests).toBe(1);
   });
 
-  test("첨부 업로드 실패의 보상 삭제가 부분 완료여도 원래 오류와 목록 갱신을 보존한다", async ({ page }) => {
+  test("첨부 응답 실패는 글을 삭제하지 않고 같은 글과 요청으로 재시도한다", async ({ page }) => {
     let listRequests = 0;
+    let createRequests = 0;
+    const uploadKeys: string[] = [];
     let deleteRequests = 0;
     const createdPost = {
       id: POST_ID,
@@ -412,9 +414,11 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
         listRequests += 1;
         return json({ count: 0, results: [] });
       }
-      if (path === "/community/posts/" && request.method() === "POST") return json(createdPost, 201);
+      if (path === "/community/posts/" && request.method() === "POST") { createRequests += 1; return json(createdPost, 201); }
       if (path === `/community/posts/${POST_ID}/attachments/` && request.method() === "POST") {
-        return json({ detail: "첨부 업로드 실패" }, 503);
+        const body = request.postDataBuffer()?.toString("latin1") ?? "";
+        uploadKeys.push(body.match(/name="idempotency_key"\r\n\r\n([^\r\n]+)/)?.[1] ?? "");
+        return uploadKeys.length === 1 ? json({ detail: "첨부 업로드 실패" }, 503) : json([], 201);
       }
       if (path === `/community/posts/${POST_ID}/` && request.method() === "DELETE") {
         deleteRequests += 1;
@@ -452,9 +456,16 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
     await sheet.getByRole("button", { name: "공지사항 등록" }).click();
 
     await expect(page.getByRole("status")).toContainText("첨부 업로드 실패");
-    await expect(page.getByRole("status")).toContainText("미완료 원본 파일 1개");
+    await expect(sheet.getByText("실패-첨부.pdf", { exact: true })).toBeVisible();
+    expect(deleteRequests).toBe(0);
+    await sheet.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
+    await expect(sheet).not.toBeVisible();
+    expect(createRequests).toBe(1);
+    expect(uploadKeys).toHaveLength(2);
+    expect(uploadKeys[0]).not.toBe("");
+    expect(uploadKeys[1]).toBe(uploadKeys[0]);
     await expect.poll(() => listRequests).toBeGreaterThan(listRequestsBeforeSubmit);
-    expect(deleteRequests).toBe(1);
+    expect(deleteRequests).toBe(0);
   });
 });
 

@@ -8,7 +8,7 @@
 // (backend `_can_edit` 와 정합). 권한 없으면 detail로 redirect.
 /* eslint-disable no-restricted-syntax */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
@@ -19,6 +19,8 @@ import {
   type BoardCategory,
   type PublicBoardPostDetail,
 } from "../api/publicCommunity";
+import { usePublicPhotoDraft } from "../hooks/usePublicPhotoDraft";
+import { PublicPhotoPicker } from "../components/PublicPhotos";
 import HitReportPicker from "../components/HitReportPicker";
 import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
@@ -69,19 +71,27 @@ export default function LandingBoardEditPage() {
   const [content, setContent] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [matchupReportIds, setMatchupReportIds] = useState<number[]>([]);
+  const photoDraft = usePublicPhotoDraft();
+  const { setExisting: setExistingPhotos } = photoDraft;
+  const submitLock = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { fetchLandingPublic().then(setLanding).catch(() => setLanding(null)); }, []);
 
   useEffect(() => {
+    if (authLoading || !isAuthenticated) return;
+    let active = true;
+    setLoadErr(null);
     const id = Number(postId);
     if (!Number.isFinite(id) || id <= 0) {
       setLoadErr("잘못된 글 번호입니다.");
       return;
     }
-    fetchBoardDetail(id)
+    fetchBoardDetail(id, { recordView: false })
       .then((p) => {
+        if (!active) return;
+        setExistingPhotos(Array.isArray(p.meta?.photos) ? p.meta.photos.filter((v): v is string => typeof v === "string") : []);
         setPost(p);
         setTitle(p.title);
         setCategory(p.category);
@@ -91,10 +101,12 @@ export default function LandingBoardEditPage() {
         if (Array.isArray(ids)) setMatchupReportIds(ids.filter((n) => typeof n === "number") as number[]);
       })
       .catch((e) => {
+        if (!active) return;
         const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
         setLoadErr(typeof detail === "string" ? detail : "글을 불러올 수 없습니다.");
       });
-  }, [postId]);
+    return () => { active = false; };
+  }, [postId, authLoading, isAuthenticated, setExistingPhotos]);
 
   // useAuth hydrate race 방어 — hydrate 끝나기 전 redirect 금지 (#74-1 패턴 정합)
   if (authLoading) return <CenterSpin />;
@@ -124,22 +136,25 @@ export default function LandingBoardEditPage() {
   const valid = title.trim().length >= 2 && content.replace(/<[^>]+>/g, "").trim().length >= 2;
 
   const onSubmit = async () => {
-    if (!valid || submitting) return;
+    if (!valid || submitLock.current) return;
+    submitLock.current = true;
     setSubmitting(true);
     setError(null);
     try {
+      const photos = await photoDraft.upload();
       await updateBoardPost(post.id, {
         title: title.trim(),
         content,
         category,
         is_anonymous: isAnonymous,
-        meta: matchupReportIds.length > 0 ? { matchup_report_ids: matchupReportIds } : {},
+        meta: { ...post.meta, matchup_report_ids: matchupReportIds, photos },
       });
       navigate(`/landing/board/${post.id}`, { replace: true });
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setError(typeof detail === "string" ? detail : "수정 실패. 잠시 후 다시 시도해주세요.");
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   };
@@ -171,6 +186,7 @@ export default function LandingBoardEditPage() {
           onSubmit={(e) => { e.preventDefault(); onSubmit(); }}
           style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 16 }}
         >
+          <fieldset disabled={submitting} style={{ display: "contents" }}>
           <div>
             <label style={lblStyle(textSecondary)}>카테고리</label>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -207,9 +223,11 @@ export default function LandingBoardEditPage() {
           <div>
             <label style={lblStyle(textSecondary)}>본문</label>
             <div data-app="admin" data-testid="board-edit-content-wrap" style={LANDING_RICH_EDITOR_THEME}>
-              <RichTextEditor value={content} onChange={setContent} placeholder="내용을 입력해주세요" minHeight={240} />
+              <RichTextEditor value={content} onChange={setContent} readOnly={submitting} onFileAttach={photoDraft.add} placeholder="내용을 입력해주세요" minHeight={240} />
             </div>
           </div>
+
+          <PublicPhotoPicker draft={photoDraft} disabled={submitting} />
 
           {isStaff && (
             <HitReportPicker selected={matchupReportIds} onChange={setMatchupReportIds} max={3} />
@@ -242,6 +260,7 @@ export default function LandingBoardEditPage() {
               }}
             >{submitting ? "저장 중…" : "저장"}</button>
           </div>
+          </fieldset>
         </form>
       </div>
     </Shell>

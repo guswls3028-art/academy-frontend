@@ -2,13 +2,15 @@
 // 자유게시판 글쓰기 — 학원 family 로그인 필수. parent 차단 (Comment-only role).
 /* eslint-disable no-restricted-syntax */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import { fetchLandingPublic } from "../api";
 import { createBoardPost, type BoardCategory } from "../api/publicCommunity";
+import { usePublicPhotoDraft } from "../hooks/usePublicPhotoDraft";
+import { PublicPhotoPicker } from "../components/PublicPhotos";
 import HitReportPicker from "../components/HitReportPicker";
 import type { LandingConfig, LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
@@ -55,6 +57,8 @@ export default function LandingBoardWritePage() {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [matchupReportIds, setMatchupReportIds] = useState<number[]>([]);
   const isStaff = !!u?.is_superuser || ["owner", "admin", "staff", "teacher", "assistant"].includes(role);
+  const photoDraft = usePublicPhotoDraft();
+  const submitLock = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,21 +79,24 @@ export default function LandingBoardWritePage() {
   const valid = title.trim().length >= 2 && content.replace(/<[^>]+>/g, "").trim().length >= 2;
 
   const onSubmit = async () => {
-    if (!valid || submitting) return;
+    if (!valid || submitLock.current) return;
+    submitLock.current = true;
     setSubmitting(true);
     setError(null);
     try {
+      const photos = await photoDraft.upload();
       const created = await createBoardPost({
         title: title.trim(),
         content,
         category,
         is_anonymous: isAnonymous,
-        meta: matchupReportIds.length > 0 ? { matchup_report_ids: matchupReportIds } : undefined,
+        meta: { matchup_report_ids: matchupReportIds, photos },
       });
       navigate(`/landing/board/${created.id}`, { replace: true });
     } catch (error: unknown) {
       setError(getApiErrorMessage(error, "글 등록 실패. 잠시 후 다시 시도해주세요."));
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   };
@@ -125,6 +132,7 @@ export default function LandingBoardWritePage() {
           onSubmit={(e) => { e.preventDefault(); onSubmit(); }}
           style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 16 }}
         >
+          <fieldset disabled={submitting} style={{ display: "contents" }}>
           {/* 카테고리 */}
           <div>
             <label style={lblStyle(textSecondary)}>카테고리</label>
@@ -165,10 +173,12 @@ export default function LandingBoardWritePage() {
           <div>
             <label style={lblStyle(textSecondary)}>본문</label>
             <div data-app="admin" data-testid="board-write-content-wrap" style={LANDING_RICH_EDITOR_THEME}>
-              <RichTextEditor value={content} onChange={setContent} placeholder="내용을 입력해주세요" minHeight={240} />
+              <RichTextEditor value={content} onChange={setContent} readOnly={submitting} onFileAttach={photoDraft.add} placeholder="내용을 입력해주세요" minHeight={240} />
             </div>
             <p style={{ marginTop: 6, fontSize: 11, color: textSecondary }}>이미지 / 링크 / 굵게 / 리스트 등 서식을 사용할 수 있어요.</p>
           </div>
+
+          <PublicPhotoPicker draft={photoDraft} disabled={submitting} />
 
           {/* 적중보고서 첨부 — staff 전용 */}
           {isStaff && (
@@ -203,6 +213,7 @@ export default function LandingBoardWritePage() {
               }}
             >{submitting ? "등록 중…" : "글 등록"}</button>
           </div>
+          </fieldset>
         </form>
       </div>
     </Shell>

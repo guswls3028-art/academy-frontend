@@ -17,7 +17,8 @@ import { LockKeyhole } from "lucide-react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
 import { useConfirm } from "@/shared/ui/confirm";
-import { feedback } from "@/shared/ui/feedback/feedback";
+import { createClientRequestKey, uploadCommunityPostAttachments } from "@/shared/api/contracts/community";
+import { selectCommunityFiles } from "@/shared/utils/selectCommunityFiles";
 import { useDurableDraft } from "@/shared/hooks/useDurableDraft";
 import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
 import { fetchLandingPublic } from "../api";
@@ -56,6 +57,7 @@ type LandingCommunityDraft = {
   isPinned?: boolean;
   hadAttachments?: boolean;
   attachments?: LandingDraftAttachmentMeta[];
+  pendingUpload?: { postId: number; requestKey: string; attachments: LandingDraftAttachmentMeta[]; canReplace?: boolean } | null;
 };
 
 type LandingDraftAttachmentMeta = {
@@ -87,6 +89,7 @@ function toLandingDraftAttachmentMeta(files: File[]): LandingDraftAttachmentMeta
 function isLandingCommunityDraft(value: unknown): value is LandingCommunityDraft {
   if (!value || typeof value !== "object") return false;
   const draft = value as Record<string, unknown>;
+  const pending = draft.pendingUpload as LandingCommunityDraft["pendingUpload"];
   return typeof draft.title === "string"
     && typeof draft.content === "string"
     && typeof draft.board === "string"
@@ -94,6 +97,10 @@ function isLandingCommunityDraft(value: unknown): value is LandingCommunityDraft
     && (draft.isUrgent == null || typeof draft.isUrgent === "boolean")
     && (draft.isPinned == null || typeof draft.isPinned === "boolean")
     && (draft.hadAttachments == null || typeof draft.hadAttachments === "boolean")
+    && (pending == null || (Number.isSafeInteger(pending.postId) && pending.postId > 0
+      && typeof pending.requestKey === "string" && /^[a-zA-Z0-9._-]{1,128}$/.test(pending.requestKey)
+      && (pending.canReplace == null || typeof pending.canReplace === "boolean")
+      && Array.isArray(pending.attachments) && pending.attachments.length > 0 && pending.attachments.length <= 5 && pending.attachments.every(isLandingDraftAttachmentMeta)))
     && (draft.attachments == null || (
       Array.isArray(draft.attachments)
       && draft.attachments.length <= 5
@@ -147,6 +154,10 @@ export default function LandingCommunityWritePage() {
   const [err, setErr] = useState<string | null>(null);
   // 이미지 첨부 (P3) — backend는 PostAttachment multipart endpoint 완비.
   const [files, setFiles] = useState<File[]>([]);
+  const [pendingUpload, setPendingUpload] = useState<LandingCommunityDraft["pendingUpload"]>(null);
+  const pendingRef = useRef<LandingCommunityDraft["pendingUpload"]>(null);
+  const submitLock = useRef(false);
+  const filesMatch = Boolean(pendingUpload && JSON.stringify(toLandingDraftAttachmentMeta(files)) === JSON.stringify(pendingUpload.attachments));
   const [attachmentReselectRequired, setAttachmentReselectRequired] = useState(false);
   const [restoredAttachmentMeta, setRestoredAttachmentMeta] = useState<LandingDraftAttachmentMeta[]>([]);
   // 사용자 작성 초안은 테넌트+계정+board 단위로만 복원한다. 소유자를 증명할 수
@@ -172,7 +183,8 @@ export default function LandingCommunityWritePage() {
     isPinned,
     hadAttachments: attachmentMeta.length > 0 || attachmentReselectRequired,
     attachments: attachmentMeta,
-  }), [attachmentMeta, attachmentReselectRequired, content, isPinned, isUrgent, selectedBoard, title]);
+    pendingUpload,
+  }), [attachmentMeta, attachmentReselectRequired, content, isPinned, isUrgent, selectedBoard, title, pendingUpload]);
   const draft = useDurableDraft({
     storageKey: draftStorageKey,
     value: draftValue,
@@ -185,6 +197,8 @@ export default function LandingCommunityWritePage() {
       setIsUrgent(!!restored.isUrgent);
       setIsPinned(!!restored.isPinned);
       setFiles([]);
+      pendingRef.current = restored.pendingUpload ?? null;
+      setPendingUpload(pendingRef.current);
       setRestoredAttachmentMeta(restored.attachments ?? []);
       setAttachmentReselectRequired(Boolean(restored.hadAttachments || restored.attachments?.length));
       setDraftRestored(true);
@@ -274,12 +288,13 @@ export default function LandingCommunityWritePage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting || draft.newerDraft) return;
+    if (submitLock.current || draft.newerDraft) return;
     setErr(null);
     if (!title.trim()) { setErr("제목을 입력해주세요."); return; }
     if (!content.trim()) { setErr("내용을 입력해주세요."); return; }
     if (!allowedBoards.includes(selectedBoard)) { setErr("선택한 게시판에 글을 쓸 권한이 없습니다."); return; }
     draft.flush();
+    submitLock.current = true;
     setSubmitting(true);
     try {
       // markdown → HTML 변환(#13). backend sanitize_html이 위험 태그 차단.
@@ -293,18 +308,26 @@ export default function LandingCommunityWritePage() {
         payload.is_urgent = isUrgent;
         payload.is_pinned = isPinned;
       }
-      const r = await api.post("/community/posts/", payload as object, { } as ApiRequestConfig);
-      const created = r.data as { id: number };
-      // 첨부 이미지가 있으면 multipart로 업로드(글 등록 직후). 부분 실패 시 안내만, 글 자체는 유지.
-      if (files.length > 0) {
+      let pending = pendingRef.current;
+      const created = pending ? { id: pending.postId } : (await api.post("/community/posts/", payload as object, { } as ApiRequestConfig)).data as { id: number };
+      const remember = (next: NonNullable<LandingCommunityDraft["pendingUpload"]>) => {
+        pendingRef.current = next;
+        setPendingUpload(next);
+        draft.flush({ ...draftValue, pendingUpload: next });
+      };
+      if (files.length && (!pending || pending.canReplace)) {
+        pending = { postId: created.id, requestKey: createClientRequestKey(), attachments: toLandingDraftAttachmentMeta(files) };
+        remember(pending);
+      }
+      if (pending) {
+        if (JSON.stringify(toLandingDraftAttachmentMeta(files)) !== JSON.stringify(pending.attachments)) {
+          throw new Error("처음 선택한 사진을 같은 순서로 다시 선택해 주세요.");
+        }
         try {
-          const form = new FormData();
-          files.forEach((f) => form.append("files", f));
-          await api.post(`/community/posts/${created.id}/attachments/`, form, {
-            headers: { "Content-Type": "multipart/form-data" },
-          } as ApiRequestConfig);
-        } catch {
-          feedback.warning("글은 등록되었지만 첨부 일부가 실패했습니다. 글 상세에서 다시 확인해 주세요.");
+          await uploadCommunityPostAttachments(api, created.id, files, pending.requestKey);
+        } catch (error) {
+          if ((error as { response?: { status?: number } }).response?.status === 400) remember({ ...pending, canReplace: true });
+          throw error;
         }
       }
       // 등록 성공 → unmount flush보다 먼저 exact draft 정리
@@ -312,7 +335,10 @@ export default function LandingCommunityWritePage() {
       navigate(`/landing/community/${selectedBoard}/posts/${created.id}`);
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string | string[] } } })?.response?.data?.detail;
-      setErr(Array.isArray(detail) ? detail[0] : (typeof detail === "string" ? detail : "글 등록 실패. 잠시 후 다시 시도해주세요."));
+      const message = Array.isArray(detail) ? detail[0] : typeof detail === "string" ? detail : e instanceof Error ? e.message : "글 등록 실패. 잠시 후 다시 시도해주세요.";
+      setErr(pendingRef.current ? `글은 저장됐습니다. 사진을 유지한 채 다시 시도해 주세요. ${message}` : message);
+    } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   };
@@ -384,7 +410,7 @@ export default function LandingCommunityWritePage() {
                 <select
                   value={selectedBoard}
                   onChange={(e) => setSelectedBoard(e.target.value as LandingCommunityBoard)}
-                  disabled={submitting}
+                  disabled={submitting || pendingUpload != null}
                   data-testid="landing-community-write-board-select"
                   style={{
                     width: "100%", padding: "11px 14px", borderRadius: 10,
@@ -413,7 +439,7 @@ export default function LandingCommunityWritePage() {
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  disabled={submitting}
+                  disabled={submitting || pendingUpload != null}
                   maxLength={200}
                   placeholder="제목을 입력하세요"
                   data-testid="landing-community-write-title"
@@ -451,7 +477,7 @@ export default function LandingCommunityWritePage() {
                   <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    disabled={submitting}
+                    disabled={submitting || pendingUpload != null}
                     rows={12}
                     maxLength={20000}
                     placeholder="본문 내용을 입력하세요. 줄바꿈은 그대로 표시됩니다."
@@ -473,10 +499,14 @@ export default function LandingCommunityWritePage() {
                   type="file"
                   multiple
                   accept="image/*"
-                  disabled={submitting}
+                  disabled={submitting || Boolean(pendingUpload && !pendingUpload.canReplace && filesMatch)}
                   data-testid="landing-community-write-files"
                   onChange={(e) => {
-                    const list = Array.from(e.target.files || []).slice(0, 5);
+                    const incoming = Array.from(e.target.files || []);
+                    e.currentTarget.value = "";
+                    const list = selectCommunityFiles([], incoming.filter((file) => file.type.startsWith("image/")).slice(0, 5), 0, setErr);
+                    if (incoming.length > 5) setErr("사진은 최대 5장까지 첨부할 수 있습니다.");
+                    if (incoming.some((file) => !file.type.startsWith("image/"))) setErr("이미지 파일만 첨부할 수 있습니다.");
                     setFiles(list);
                     setRestoredAttachmentMeta([]);
                     setAttachmentReselectRequired(false);
@@ -499,18 +529,18 @@ export default function LandingCommunityWritePage() {
               {isStaff && (
                 <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                   <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13.5, color: textPrimary, cursor: "pointer" }}>
-                    <input type="checkbox" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} disabled={submitting} />
+                    <input type="checkbox" checked={isPinned} onChange={(e) => setIsPinned(e.target.checked)} disabled={submitting || pendingUpload != null} />
                     상단 고정
                   </label>
                   <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13.5, color: textPrimary, cursor: "pointer" }}>
-                    <input type="checkbox" checked={isUrgent} onChange={(e) => setIsUrgent(e.target.checked)} disabled={submitting} />
+                    <input type="checkbox" checked={isUrgent} onChange={(e) => setIsUrgent(e.target.checked)} disabled={submitting || pendingUpload != null} />
                     중요 표시
                   </label>
                 </div>
               )}
 
               {err && (
-                <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)", color: "#fca5a5", fontSize: 13, fontWeight: 500 }}>{err}</div>
+                <div role="alert" style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)", color: "#fca5a5", fontSize: 13, fontWeight: 500 }}>{err}</div>
               )}
 
               <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
@@ -526,7 +556,7 @@ export default function LandingCommunityWritePage() {
                     fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em",
                     cursor: (submitting || !title.trim() || !content.trim()) ? "not-allowed" : "pointer",
                   }}
-                >{submitting ? "등록 중..." : "글 등록"}</button>
+                >{submitting ? "저장 중..." : pendingUpload ? "첨부 다시 시도" : "글 등록"}</button>
               </div>
             </form>
           )}

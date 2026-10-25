@@ -34,8 +34,9 @@ async function publishLocalAdminAuth(page: Page) {
   }, API_BASE);
 }
 
-async function installApi(page: Page) {
+async function installApi(page: Page, postType = "board") {
   const state = {
+    contentUpdates: 0,
     createCount: 0,
     uploadAttempts: 0,
     attachmentPersisted: false,
@@ -53,7 +54,7 @@ async function installApi(page: Page) {
   };
   const post = () => ({
     id: POST_ID,
-    post_type: "board",
+    post_type: postType,
     title: "1회차 생물 다양성 메인자료 유형출제 29번 정답 정오",
     content: "<p>정답</p><p>수정 전 ④</p><p>수정 후 ③</p>",
     created_by: 12,
@@ -108,7 +109,10 @@ async function installApi(page: Page) {
       state.attachmentPersisted = true;
       return json([attachment], 201);
     }
-    if (path === `/community/posts/${POST_ID}/`) return json(post());
+    if (path === `/community/posts/${POST_ID}/`) {
+      if (request.method() === "PATCH") state.contentUpdates += 1;
+      return json(post());
+    }
     if (path === `/community/posts/${POST_ID}/replies/`) return json([]);
     if (path === "/lectures/lectures/") return json([]);
     if (path === "/lectures/attendance/arrival-overview/") {
@@ -131,12 +135,12 @@ async function installApi(page: Page) {
   return state;
 }
 
-async function composePhotoPost(page: Page) {
-  const createButton = page.getByRole("button", { name: "+ 글쓰기" });
+async function composePhotoPost(page: Page, postType = "board") {
+  const createButton = page.getByRole("button", { name: postType === "board" ? "+ 글쓰기" : "+ 자료 등록" });
   await expect(createButton).toBeVisible({ timeout: 60_000 });
   await expect(createButton).toBeEnabled({ timeout: 60_000 });
   await createButton.click({ timeout: 60_000 });
-  await page.getByPlaceholder("게시물 제목을 입력하세요").fill(
+  await page.getByPlaceholder(postType === "board" ? "게시물 제목을 입력하세요" : "자료 제목을 입력하세요").fill(
     "1회차 생물 다양성 메인자료 유형출제 29번 정답 정오",
   );
   await page.locator(".cms-form__file-input--hidden").setInputFiles({
@@ -150,16 +154,34 @@ async function composePhotoPost(page: Page) {
   await expect(page.getByText(FILE_NAME, { exact: true })).toBeVisible();
 }
 
-test.describe("게시판 사진 첨부 저장", () => {
+for (const postType of ["board", "materials"]) test.describe(`${postType} 사진 첨부 저장`, () => {
   test.beforeEach(async ({ page }) => {
     await seed(page);
   });
 
+  test("기존 글에 사진만 추가할 때 본문 PATCH 없이 같은 첨부 요청을 재시도한다", async ({ page }) => {
+    const state = await installApi(page, postType);
+    await gotoAndSettle(page, `${BASE}/workspace/community/${postType}?id=${POST_ID}`, { timeout: 60_000 });
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await page.locator('.rich-editor input[accept="image/*"]').setInputFiles({ name: FILE_NAME, mimeType: "image/jpeg", buffer: Buffer.from("photo") });
+    await expect(page.getByAltText(`${FILE_NAME} 미리보기`)).toBeVisible();
+    await page.getByRole("button", { name: postType === "board" ? "내용 저장" : "저장", exact: true }).click();
+    await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeVisible();
+    expect(state.contentUpdates).toBe(0);
+    await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
+    await expect(page.getByText("내용이 저장되었습니다.", { exact: true })).toBeVisible();
+    expect(state.createCount).toBe(0);
+    expect(state.uploadKeys).toHaveLength(2);
+    expect(state.uploadKeys[1]).toBe(state.uploadKeys[0]);
+    await page.reload();
+    await expect(page.getByText("첨부파일 (1/10)", { exact: true })).toBeVisible();
+  });
+
   test("첨부 성공 응답 유실 뒤 파일을 동결하고 같은 요청으로만 재시도한다", async ({ page }) => {
-    const state = await installApi(page);
+    const state = await installApi(page, postType);
     await page.setViewportSize({ width: 1366, height: 900 });
-    await gotoAndSettle(page, `${BASE}/workspace/community/board`, { timeout: 60_000 });
-    await composePhotoPost(page);
+    await gotoAndSettle(page, `${BASE}/workspace/community/${postType}`, { timeout: 60_000 });
+    await composePhotoPost(page, postType);
 
     await page.getByRole("button", { name: "등록", exact: true }).click();
     await expect(page.getByText("게시물은 저장됐지만", { exact: false })).toBeVisible();
@@ -178,7 +200,7 @@ test.describe("게시판 사진 첨부 저장", () => {
 
     await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`\\?id=${POST_ID}$`));
-    await expect(page.getByText("첨부파일 (1)", { exact: true })).toBeVisible();
+    await expect(page.getByText("첨부파일 (1/10)", { exact: true })).toBeVisible();
     await expect(page.getByText(FILE_NAME, { exact: true })).toBeVisible();
     expect(state.createCount).toBe(1);
     expect(state.uploadAttempts).toBe(2);
@@ -188,15 +210,15 @@ test.describe("게시판 사진 첨부 저장", () => {
     expect(state.uploadFileNames[1]).toEqual(state.uploadFileNames[0]);
 
     await page.reload();
-    await expect(page.getByText("첨부파일 (1)", { exact: true })).toBeVisible();
+    await expect(page.getByText("첨부파일 (1/10)", { exact: true })).toBeVisible();
     await expect(page.getByText(FILE_NAME, { exact: true })).toBeVisible();
   });
 
   test("390px에서도 본문 작성 후 선택한 사진과 재시도 동선을 유지한다", async ({ page }) => {
-    await installApi(page);
+    await installApi(page, postType);
     await page.setViewportSize({ width: 390, height: 844 });
-    await gotoAndSettle(page, `${BASE}/workspace/community/board`, { timeout: 60_000 });
-    await composePhotoPost(page);
+    await gotoAndSettle(page, `${BASE}/workspace/community/${postType}`, { timeout: 60_000 });
+    await composePhotoPost(page, postType);
 
     await page.getByRole("button", { name: "등록", exact: true }).click();
     await expect(page.getByText(FILE_NAME, { exact: true })).toBeVisible();

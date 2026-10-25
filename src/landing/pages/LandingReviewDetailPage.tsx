@@ -6,6 +6,7 @@ import DOMPurify from "dompurify";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
+import { PublicPhotoGallery } from "../components/PublicPhotos";
 import { saveReturnPath } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -54,7 +55,7 @@ export default function LandingReviewDetailPage() {
   const { reviewId } = useParams<{ reviewId: string }>();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const u = user as { tenantRole?: string | null; is_superuser?: boolean } | null;
   const role = (u?.tenantRole ?? "").toLowerCase();
   const isStaff = !!u?.is_superuser || ["owner", "admin", "staff", "teacher", "assistant"].includes(role);
@@ -95,7 +96,10 @@ export default function LandingReviewDetailPage() {
       .catch(() => setReplies([]));
   }, [id]);
 
-  useEffect(() => { loadDetail(); loadReplies(); }, [loadDetail, loadReplies]);
+  useEffect(() => {
+    if (authLoading) return;
+    loadDetail(); loadReplies();
+  }, [authLoading, isAuthenticated, loadDetail, loadReplies]);
 
   // SEO — JSON-LD Review schema (Phase 3 B). 외부 검색 엔진이 별점/리뷰어/날짜 인덱싱.
   useEffect(() => {
@@ -280,15 +284,7 @@ export default function LandingReviewDetailPage() {
             <span>{formatDateTime(review.created_at)}</span>
           </div>
 
-          {review.photos && review.photos.length > 0 && (
-            <div style={{ marginTop: 24, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
-              {review.photos.map((src, i) => (
-                <a key={i} href={src} target="_blank" rel="noreferrer" style={{ display: "block", borderRadius: 12, overflow: "hidden", border: `1px solid ${border}` }}>
-                  <img src={src} alt={`review photo ${i + 1}`} style={{ width: "100%", height: 180, objectFit: "cover", display: "block" }} />
-                </a>
-              ))}
-            </div>
-          )}
+          <PublicPhotoGallery photos={review.photos ?? []} onRefresh={async () => { setReview(await fetchReviewDetail(id)); }} />
 
           <div
             data-testid="review-detail-content"

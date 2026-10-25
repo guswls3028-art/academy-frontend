@@ -1,0 +1,13 @@
+.public-photos { color: inherit; min-width: 0; margin: 16px 0; }
+.public-photos p { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; opacity: .85; }
+.public-photos__header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.public-photos button { border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; transition: opacity 140ms ease; }
+.public-photos button:disabled { cursor: default; opacity: .5; }
+.public-photos button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.public-photos__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.public-photos__grid figure { margin: 0; min-width: 0; }
+.public-photos__grid img { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 8px; }
+.public-photos__grid figcaption { font-size: 12px; overflow-wrap: anywhere; margin: 6px 0; }
+.public-photos__gallery { display: grid; gap: 12px; }
+.public-photos__gallery img { display: block; max-width: 100%; height: auto; border-radius: 10px; }
+@media (prefers-reduced-motion: reduce) { .public-photos button { transition: none; } }
