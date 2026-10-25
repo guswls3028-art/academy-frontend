@@ -188,7 +188,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await modal.getByRole("button", { name: "취소", exact: true }).click();
     await settings.click();
     await page.getByRole("menuitem", { name: "강의 종료", exact: true }).click();
-    const confirmation = page.getByRole("dialog", { name: "강의 종료", exact: true });
+    const confirmation = page.getByRole("alertdialog", { name: "강의 종료", exact: true });
     await expect(confirmation).toContainText("Alpha");
     await confirmation.getByRole("button", { name: "취소", exact: true }).click();
     expect(edits).toHaveLength(0);
