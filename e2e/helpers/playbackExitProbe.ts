@@ -22,6 +22,42 @@ type Prepare = (
 
 const END_PATH = "/api/v1/media/playback/end/";
 const EVENTS_PATH = "/api/v1/media/playback/events/";
+const END_PATHS = [END_PATH, "/api/v1/media/playback/v2/end/"];
+const EVENT_PATHS = [EVENTS_PATH, "/api/v1/media/playback/v2/events/"];
+type AuditEvent = { type?: unknown };
+type AuditBatch = { batch_id: string; events: AuditEvent[] };
+type AuditBody = { token?: unknown; events?: AuditEvent[]; batch?: AuditBatch; batches?: AuditBatch[] };
+
+async function verifiedAuditEvents(response: Response): Promise<AuditEvent[]> {
+  const pathname = new URL(response.url()).pathname;
+  const final = END_PATHS.includes(pathname);
+  expect(response.status(), "playback-audit:response-status").toBe(final ? 200 : 201);
+  const body = response.request().postDataJSON() as AuditBody;
+  const data = await response.json();
+  if (!pathname.includes("/v2/")) {
+    if (final) { expect(data.ok).toBe(true); return []; }
+    expect(Array.isArray(body.events)).toBe(true);
+    expect(data.stored).toBe(body.events!.length);
+    return body.events!;
+  }
+  const batches = final ? body.batches : body.batch ? [body.batch] : undefined;
+  expect(Array.isArray(batches), "playback-audit:exact-batches").toBe(true);
+  expect(data.protocol_version).toBe(2);
+  expect(final ? data.session_status === "ENDED" : ["ACTIVE", "ENDED"].includes(data.session_status)).toBe(true);
+  const acks = data.acknowledgements as Array<{ batch_id: string; event_count: number; duplicate: boolean }>;
+  expect(Array.isArray(acks)).toBe(true);
+  expect(acks).toHaveLength(batches!.length);
+  expect(new Set(acks.map((ack) => ack.batch_id)).size).toBe(batches!.length);
+  const inserted: AuditEvent[] = [];
+  for (const batch of batches!) {
+    const ack = acks.find((item) => item.batch_id === batch.batch_id);
+    expect(ack?.event_count).toBe(batch.events.length);
+    expect(typeof ack?.duplicate).toBe("boolean");
+    if (!ack!.duplicate) inserted.push(...batch.events);
+  }
+  expect(data.inserted_count).toBe(inserted.length);
+  return inserted;
+}
 const PROBE_SCHEMA = "student-playback-exit-probe/v1";
 const CHECKPOINT_SCHEMA = "student-playback-exit-checkpoint/v1";
 const STATE_KEYS = ["active_playback_sessions", "playback_sessions", "playback_events", "violated_events", "player_errors"] as const;
@@ -78,22 +114,21 @@ export async function exerciseFullscreenAudit(page: Page, expectedToken: unknown
     const eventType = entering ? "FULLSCREEN_ENTER" : "FULLSCREEN_EXIT";
     await revealPlaybackControls(page);
     const responsePromise = page.waitForResponse((response) => {
-      if (response.request().method() !== "POST" || new URL(response.url()).pathname !== EVENTS_PATH) return false;
-      const body = response.request().postDataJSON() as { events?: Array<{ type?: unknown }> };
-      return body.events?.some((event) => event.type === eventType) === true;
+      if (response.request().method() !== "POST" || !EVENT_PATHS.includes(new URL(response.url()).pathname)) return false;
+      const body = response.request().postDataJSON() as AuditBody;
+      return (body.batch?.events ?? body.events)?.some((event) => event.type === eventType) === true;
     });
     const [response] = await Promise.all([
       responsePromise,
       page.getByRole("button", { name: entering ? "전체화면" : "전체화면 종료", exact: true })
         .filter({ visible: true }).first().click(),
     ]);
-    const body = response.request().postDataJSON() as { token?: unknown; events?: Array<{ type?: unknown }> };
+    const body = response.request().postDataJSON() as AuditBody;
     expect(body.token === expectedToken, "playback-audit:session-token-match").toBe(true);
-    expect(response.status(), "playback-audit:events-status").toBe(201);
-    const payload = await response.json() as { stored?: unknown };
-    expect(Array.isArray(body.events) && body.events.length > 0, "playback-audit:events-shape").toBe(true);
-    expect(payload.stored, "playback-audit:complete-batch-stored").toBe(body.events!.length);
-    expect(body.events!.every((event) => ["FULLSCREEN_ENTER", "FULLSCREEN_EXIT", "FOCUS_LOST", "FOCUS_GAINED",
+    await verifiedAuditEvents(response);
+    const events = body.batch?.events ?? body.events;
+    expect(Array.isArray(events) && events.length > 0, "playback-audit:events-shape").toBe(true);
+    expect(events!.every((event) => ["FULLSCREEN_ENTER", "FULLSCREEN_EXIT", "FOCUS_LOST", "FOCUS_GAINED",
       "VISIBILITY_HIDDEN", "VISIBILITY_VISIBLE"].includes(String(event.type))), "playback-audit:nonviolating-types").toBe(true);
     await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(entering);
   }
@@ -142,34 +177,27 @@ export async function runPlaybackExitProbe(prepare: Prepare): Promise<void> {
         const responseGate = createSerialProofGate();
         const pending: Promise<void>[] = [];
         const observeRequest = (request: Request) => {
-          if (request.method() !== "POST" || new URL(request.url()).pathname !== END_PATH) return;
+          if (request.method() !== "POST" || !END_PATHS.includes(new URL(request.url()).pathname)) return;
           const body = request.postDataJSON() as { token?: unknown };
           attemptedEndTokens.push(typeof body.token === "string" ? body.token : "");
         };
         const observe = (response: Response) => {
           const request = response.request();
           const path = new URL(response.url()).pathname;
-          if (request.method() !== "POST" || ![END_PATH, EVENTS_PATH].includes(path)) return;
+          if (request.method() !== "POST" || ![...END_PATHS, ...EVENT_PATHS].includes(path)) return;
           const proof = responseGate(async () => {
             const body = request.postDataJSON() as { token?: unknown; events?: Array<{ type?: unknown }> };
             expect(typeof body.token === "string", "probe:token-shape").toBe(true);
-            if (path === END_PATH) {
+            const events = await verifiedAuditEvents(response);
+            if (END_PATHS.includes(path)) {
               endTokens.push(String(body.token));
-              expect(response.status(), "probe:end-status").toBe(200);
-              const payload = await response.json() as { ok?: unknown };
-              expect(payload.ok, "probe:end-ok").toBe(true);
               acceptedEndTokens.push(String(body.token));
-            } else {
-              expect(response.status(), "probe:events-status").toBe(201);
-              const payload = await response.json() as { stored?: unknown };
-              expect(Array.isArray(body.events), "probe:events-shape").toBe(true);
-              expect(payload.stored, "probe:events-stored").toBe(body.events!.length);
-              eventStoredCount += Number(payload.stored);
-              for (const event of body.events!) {
-                if (event.type === "FULLSCREEN_ENTER") fullscreenEnterStoredCount++;
-                else if (event.type === "FULLSCREEN_EXIT") fullscreenExitStoredCount++;
-                else if (!["FOCUS_LOST", "FOCUS_GAINED", "VISIBILITY_HIDDEN", "VISIBILITY_VISIBLE"].includes(String(event.type))) unexpectedEventTypeCount++;
-              }
+            }
+            eventStoredCount += events.length;
+            for (const event of events) {
+              if (event.type === "FULLSCREEN_ENTER") fullscreenEnterStoredCount++;
+              else if (event.type === "FULLSCREEN_EXIT") fullscreenExitStoredCount++;
+              else if (!["FOCUS_LOST", "FOCUS_GAINED", "VISIBILITY_HIDDEN", "VISIBILITY_VISIBLE"].includes(String(event.type))) unexpectedEventTypeCount++;
             }
           });
           pending.push(proof);
@@ -223,7 +251,7 @@ export async function runPlaybackExitProbe(prepare: Prepare): Promise<void> {
           await expect.poll(() => fullscreenExitStoredCount).toBeGreaterThanOrEqual(1);
           stage = "fullscreen-stored";
           const endResponse = page.waitForResponse((response) => response.request().method() === "POST"
-            && new URL(response.url()).pathname === END_PATH
+            && END_PATHS.includes(new URL(response.url()).pathname)
             && generationFor(String((response.request().postDataJSON() as { token?: unknown }).token)) === 2,
           { timeout: 45_000 });
           await page.locator('a[href="/student/video"]').filter({ visible: true }).first().click();

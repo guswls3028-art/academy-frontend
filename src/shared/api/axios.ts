@@ -32,6 +32,7 @@ import {
 import {
   endStudentSupportSession,
   getStudentSupportAccessToken,
+  getStudentSupportSessionInfo,
   isStudentSupportWindow,
 } from "@/shared/auth/supportPreviewSession";
 
@@ -49,7 +50,32 @@ type RetryConfig = ApiRequestConfig & {
 };
 
 /** AllowAny 엔드포인트(예: /core/program/) 호출 시 만료 토큰 401 방지 */
-export type ApiRequestConfig = AxiosRequestConfig & { skipAuth?: boolean; playbackUnload?: true };
+export type PlaybackEventScope = {
+  tenantCode: string | null;
+  studentId: number | null;
+  generation: string | null;
+  supportSessionId: string | null;
+};
+export type ApiRequestConfig = AxiosRequestConfig & {
+  skipAuth?: boolean;
+  playbackUnload?: true;
+  playbackEventScope?: PlaybackEventScope;
+};
+
+export function capturePlaybackEventScope(): PlaybackEventScope {
+  return {
+    tenantCode: getTenantCodeForApiRequest(), studentId: getParentStudentId(),
+    generation: isStudentSupportWindow() ? null : readAuthTokenEnvelopeSafely()?.generation ?? null,
+    supportSessionId: isStudentSupportWindow() ? getStudentSupportSessionInfo()?.sessionId ?? null : null,
+  };
+}
+
+export function isPlaybackEventScopeCurrent(scope: PlaybackEventScope): boolean {
+  const current = capturePlaybackEventScope();
+  return Boolean(scope.tenantCode && (scope.generation || scope.supportSessionId))
+    && current.tenantCode === scope.tenantCode && current.generation === scope.generation
+    && current.supportSessionId === scope.supportSessionId;
+}
 
 /** Reject a queued mutation if another login becomes active before its interceptor runs. */
 export function createAuthSessionBoundConfig(expectedGeneration: string, signal?: AbortSignal, expectedTenant?: string): ApiRequestConfig {
@@ -430,8 +456,8 @@ api.interceptors.request.use(async (config) => {
   requireActiveRequestDocument(cfg);
   const unloading = retryCfg.playbackUnload === true;
   if (retryCfg.playbackUnload !== undefined) {
-    if (retryCfg.playbackUnload !== true || String(cfg.method).toLowerCase() !== "post"
-      || cfg.url !== "/media/playback/end/" || cfg.params != null
+    if (!unloading || String(cfg.method).toLowerCase() !== "post"
+      || !["/media/playback/end/", "/media/playback/v2/end/"].includes(cfg.url ?? "") || cfg.params != null
       || cfg.baseURL !== `${API_BASE}/api/v1` || shouldSkipAuth(cfg.url, cfg)) {
       throw new axios.CanceledError("Invalid playback unload request.");
     }
@@ -440,6 +466,15 @@ api.interceptors.request.use(async (config) => {
     cfg.adapter = "fetch";
     cfg.fetchOptions = { ...cfg.fetchOptions, keepalive: true };
     cfg.withCredentials = false;
+  }
+  if (retryCfg.playbackEventScope) {
+    if (String(cfg.method).toLowerCase() !== "post"
+      || !["/media/playback/v2/events/", "/media/playback/v2/end/"].includes(cfg.url ?? "")
+      || cfg.params != null || cfg.baseURL !== `${API_BASE}/api/v1`
+      || shouldSkipAuth(cfg.url, cfg) || !isPlaybackEventScopeCurrent(retryCfg.playbackEventScope)) {
+      throw new axios.CanceledError("Playback event scope changed.");
+    }
+    retryCfg._authGeneration = retryCfg.playbackEventScope.generation;
   }
 
   // Attach Authorization if access exists (JWT)
@@ -499,12 +534,22 @@ api.interceptors.request.use(async (config) => {
   if (retryCfg._expectedTenant !== undefined && (!tenantCode || retryCfg._expectedTenant !== tenantCode)) {
     throw new axios.CanceledError("학원이 변경되었습니다. 파일을 다시 선택해주세요.");
   }
+  // An already-started old-child save may finish with its captured child header,
+  // but must never inherit a later account, tenant or support-preview session.
+  if (retryCfg.playbackEventScope) {
+    if (!isPlaybackEventScopeCurrent(retryCfg.playbackEventScope)) {
+      throw new axios.CanceledError("Playback event scope changed.");
+    }
+    if (retryCfg.playbackEventScope.studentId != null) {
+      setRequestHeader(cfg, "X-Student-Id", String(retryCfg.playbackEventScope.studentId));
+    }
+  }
   if (tenantCode) {
     setRequestHeader(cfg, "X-Tenant-Code", tenantCode);
   }
 
   const selectedStudentId = getParentSelectedStudentIdForHeader();
-  if (selectedStudentId && !hasRequestHeader(cfg, "X-Student-Id")) {
+  if (!retryCfg.playbackEventScope && selectedStudentId && !hasRequestHeader(cfg, "X-Student-Id")) {
     setRequestHeader(cfg, "X-Student-Id", selectedStudentId);
   }
 

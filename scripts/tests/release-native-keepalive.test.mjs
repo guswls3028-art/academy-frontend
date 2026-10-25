@@ -4,13 +4,56 @@ import http from "node:http";
 import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 import { chromium } from "@playwright/test";
-import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "../release-playback-end-proxy.mjs";
+import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, PLAYBACK_V2_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "../release-playback-end-proxy.mjs";
 
 const source = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const { installReleaseContextGuard } = await import(
   `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(source)).toString("base64")}`
 );
 const endpoint = "/api/v1/media/playback/end/";
+
+test("receipt-aware pagehide preserves final batches and selected-child headers through native transport", async () => {
+  await fixture(async ({ browser, boundary, received, proxyFailures }) => {
+    const context = await browser.newContext();
+    const guard = await installReleaseContextGuard(context, boundary);
+    const page = await context.newPage();
+    await page.goto(boundary.webOrigin);
+    const body = { token: "fixture-playback", batches: [{
+      batch_id: "12345678-1234-4234-8234-123456789abc",
+      events: [{ type: "FULLSCREEN_ENTER", occurred_at: 100, payload: {} }],
+    }] };
+    await installExit(page, boundary, { url: "https://api.hakwonplus.com/api/v1/media/playback/v2/end/", body, requestInput: true });
+    await page.reload();
+    await eventually(() => received.length === 1);
+    assert.equal(received[0].path, "/api/v1/media/playback/v2/end/");
+    assert.deepEqual(JSON.parse(received[0].body), body);
+    assert.equal(received[0].headers["x-student-id"], "731");
+    assert.deepEqual(proxyFailures, []);
+    guard.assertClean();
+    await context.close();
+  });
+});
+
+test("receipt-aware terminal proxy refuses malformed or oversized envelopes before upstream writes", async () => {
+  await fixture(async ({ boundary, received, proxyFailures }) => {
+    const batch = { batch_id: "12345678-1234-4234-8234-123456789abc",
+      events: [{ type: "FOCUS_GAINED", occurred_at: 100, payload: {} }] };
+    for (const body of [
+      { token: "fixture" }, { token: "fixture", batches: [], tenant: "foreign" },
+      { token: "fixture", batches: [batch, batch] },
+      { token: "fixture", batches: [{ ...batch, events: Array(51).fill(batch.events[0]) }] },
+      { token: "fixture", batches: [{ ...batch, events: [{ ...batch.events[0], payload: { text: "x".repeat(8192) } }] }] },
+    ]) {
+      const response = await fetch(`${boundary.webOrigin}${PLAYBACK_V2_END_PROXY_PATH}`, {
+        method: "POST", headers: { origin: boundary.webOrigin, "content-type": "application/json",
+          authorization: "Bearer fixture-access", "x-tenant-code": boundary.tenantCode }, body: JSON.stringify(body),
+      });
+      assert.equal(response.status, 502);
+    }
+    assert.equal(proxyFailures.length, 5);
+    assert.deepEqual(received, []);
+  });
+});
 
 async function server(handler) {
   const instance = http.createServer(handler);
@@ -53,7 +96,7 @@ async function fixture(run) {
     });
   });
   const web = await server((req, res) => {
-    if (req.url.startsWith(PLAYBACK_END_PROXY_PATH) || req.url.startsWith(SCORE_EXIT_PROXY_PATH)) { proxy.handle(req, res); return; }
+    if (req.url.startsWith(PLAYBACK_END_PROXY_PATH) || req.url.startsWith(PLAYBACK_V2_END_PROXY_PATH) || req.url.startsWith(SCORE_EXIT_PROXY_PATH)) { proxy.handle(req, res); return; }
     res.setHeader("Content-Type", "text/html");
     res.end("<!doctype html><title>Native keepalive boundary</title>ready");
   });

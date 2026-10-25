@@ -254,6 +254,7 @@ export default function VideoPlayerPage() {
       token: realToken || `student-${videoId}-${Date.now()}`,
       session_id: realSessionId || null,
       expires_at: realExpiresAt || null,
+      event_protocol_version: playbackData.event_protocol_version ?? 1,
       policy_version: Number(playbackData.policy_version),
       access_mode: accessMode,
       monitoring_enabled: playbackData.policy?.monitoring_enabled ?? false,
@@ -420,6 +421,7 @@ export default function VideoPlayerPage() {
     const expectedMonitoring = playbackData.policy?.monitoring_enabled ?? false;
     const expectedPolicyVersion = Number(playbackData.policy_version);
     const expectedSessionId = playbackData.playback_session_id ?? null;
+    const expectedEventProtocol = playbackData.event_protocol_version ?? 1;
     const renewalScopeKey = policyTransitionScopeKey;
     const renewalGeneration = policyTransitionGenerationRef.current;
     const isCurrentRenewal = () => (
@@ -469,6 +471,7 @@ export default function VideoPlayerPage() {
           renewed.access_mode !== expectedAccessMode
           || renewed.monitoring_enabled !== expectedMonitoring
           || renewed.policy_version !== expectedPolicyVersion
+          || (renewed.event_protocol_version ?? 1) !== expectedEventProtocol
           || !sessionMatches
         ) {
           setFatalError(POLICY_CHANGED_MESSAGE);
@@ -494,6 +497,7 @@ export default function VideoPlayerPage() {
               || current.playback_token !== playbackToken
               || (current.playback_session_id ?? null) !== expectedSessionId
               || Number(current.policy_version) !== expectedPolicyVersion
+              || (current.event_protocol_version ?? 1) !== expectedEventProtocol
               || currentMode !== expectedAccessMode
               || currentMonitoring !== expectedMonitoring
             ) return current;
@@ -564,6 +568,7 @@ export default function VideoPlayerPage() {
     playbackData?.policy?.monitoring_enabled,
     playbackData?.policy_version,
     playbackData?.playback_session_id,
+    playbackData?.event_protocol_version,
     policyTransitionScopeKey,
     queryClient,
     queryScope,

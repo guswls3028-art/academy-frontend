@@ -69,6 +69,7 @@ export type VideoMetaLite = {
 };
 
 export type PlaybackBootstrap = {
+  event_protocol_version?: 1 | 2;
   token: string;
   session_id: string | null;
   expires_at: number | null;

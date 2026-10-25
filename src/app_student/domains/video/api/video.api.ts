@@ -128,6 +128,7 @@ export type StudentVideoPlayback = {
   playback_token?: string | null;
   playback_session_id?: string | null;
   playback_expires_at?: number | null;
+  event_protocol_version?: 1 | 2;
   policy_version: number;
   detail?: string;
   policy: {
@@ -206,12 +207,20 @@ export async function fetchStudentVideoPlayback(
   const config = {
     params: Object.keys(params).length > 0 ? params : undefined,
   };
-  const res = await api.post(path, undefined, config);
+  // Release after every serving API supports v2; the actual response selects it.
+  const res = await api.post(path, { event_protocol_version: 2 }, config);
   const data = res?.data;
   if (data == null || typeof data !== "object") {
     throw new Error("재생 정보를 받지 못했습니다.");
   }
   const playback = data as StudentVideoPlayback;
+  if (playback.event_protocol_version != null && ![1, 2].includes(playback.event_protocol_version)) {
+    throw new Error("재생 기록 정보를 확인하지 못했습니다. 다시 시도해 주세요.");
+  }
+  if (playback.event_protocol_version === 2 && (!playback.playback_token || !playback.playback_session_id
+    || !Number.isInteger(playback.playback_expires_at) || playback.policy?.monitoring_enabled !== true)) {
+    throw new Error("재생 기록 정보를 확인하지 못했습니다. 다시 시도해 주세요.");
+  }
   return {
     ...playback,
     video: normalizeStudentVideoItem(playback.video),
@@ -255,6 +264,7 @@ export type StudentVideoPlaybackRenewal = {
   access_mode: "FREE_REVIEW" | "PROCTORED_CLASS";
   monitoring_enabled: boolean;
   policy_version: number;
+  event_protocol_version?: 1 | 2;
   play_url?: string | null;
 };
 
@@ -280,6 +290,7 @@ export async function renewStudentVideoPlayback(
       data.playback_session_id === null
       || typeof data.playback_session_id === "string"
     )
+    || (data.event_protocol_version != null && ![1, 2].includes(data.event_protocol_version))
     || !(
       data.play_url == null
       || (typeof data.play_url === "string" && data.play_url.length > 0)

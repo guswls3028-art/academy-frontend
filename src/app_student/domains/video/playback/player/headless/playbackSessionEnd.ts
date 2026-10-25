@@ -1,13 +1,15 @@
 import studentApi from "@student/shared/api/student.api";
 import { createPlaybackUnloadConfig } from "@/shared/api/axios";
+import type { PlaybackEventBatches } from "./playbackEventBatches";
 
 /** One terminal request for this controller only; never a device/tab-wide revoke. */
 export class PlaybackSessionEnd {
-  started = false;
+  private legacyStarted = false;
+  get started() { return this.receipts?.finishing ?? this.legacyStarted; }
   private timer: number | null = null;
   private finishingToken: string | null = null;
 
-  constructor(private readonly currentToken: () => string | null) {}
+  constructor(private readonly currentToken: () => string | null, private readonly receipts?: PlaybackEventBatches) {}
 
   private readonly onPageHide = (event: PageTransitionEvent) => {
     // Backgrounding and BFCache persistence are not terminal playback exits.
@@ -15,6 +17,7 @@ export class PlaybackSessionEnd {
   };
 
   listen(): void {
+    if (this.receipts) return;
     window.addEventListener("pagehide", this.onPageHide);
   }
 
@@ -26,7 +29,7 @@ export class PlaybackSessionEnd {
     if (this.started) return;
     this.removeListener();
     if (!token || token.startsWith("student-")) return;
-    this.started = true;
+    this.legacyStarted = true;
     if (this.timer !== null) window.clearTimeout(this.timer);
     this.timer = null;
     const config = unloading ? createPlaybackUnloadConfig() : undefined;
@@ -36,6 +39,7 @@ export class PlaybackSessionEnd {
   }
 
   finish(flushEvents: () => Promise<void>): void {
+    if (this.receipts) { this.receipts.finish(); return; }
     if (this.started) return;
     const token = this.currentToken();
     if (!token || token.startsWith("student-")) {

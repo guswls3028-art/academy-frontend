@@ -621,6 +621,8 @@ const SAFE_REQUEST_TRANSPORT_STATIC_PATHS = new Set([
   "/api/v1/core/tenant/by-host/",
   "/api/v1/media/playback/end/",
   "/api/v1/media/playback/events/",
+  "/api/v1/media/playback/v2/events/",
+  "/api/v1/media/playback/v2/end/",
   "/api/v1/media/playback/heartbeat/",
   "/api/v1/media/playback/refresh/",
   "/api/v1/media/playback/renew/",
@@ -880,7 +882,8 @@ async function installNativeKeepaliveGuard(
       if (boundary.mode !== "development") return refuse("mutation");
       const scoreMatch = /^\/api\/v1\/results\/admin\/sessions\/([1-9][0-9]*)\/score-draft\/commit\/$/.exec(target.pathname);
       const scoreExit = scoreMatch && Number.isSafeInteger(Number(scoreMatch[1]));
-      if (request.method !== "POST" || (target.pathname !== "/api/v1/media/playback/end/" && !scoreExit)
+      const receiptEnd = target.pathname === "/api/v1/media/playback/v2/end/";
+      if (request.method !== "POST" || (target.pathname !== "/api/v1/media/playback/end/" && !receiptEnd && !scoreExit)
         || target.search || target.hash || request.mode !== "cors"
         || request.credentials !== "omit"
         || !/^Bearer\s+\S+$/.test(request.headers.get("authorization") ?? "")) return refuse("shape");
@@ -897,7 +900,7 @@ async function installNativeKeepaliveGuard(
             || data.release_if_empty !== true || data.release_lease !== true) return refuse("shape");
         } catch { return refuse("shape"); }
       }
-      const upstream = `${boundary.webOrigin}${scoreExit ? `/__qa__/score-exit/${scoreMatch[1]}` : "/__qa__/playback-end"}`;
+      const upstream = `${boundary.webOrigin}${scoreExit ? `/__qa__/score-exit/${scoreMatch[1]}` : receiptEnd ? "/__qa__/playback-v2-end" : "/__qa__/playback-end"}`;
       // Retain the original JSON bytes, method, auth/tenant headers and native
       // keepalive flag, including Axios's Request input.
       // Never follow a redirect with the playback token or authorization header.

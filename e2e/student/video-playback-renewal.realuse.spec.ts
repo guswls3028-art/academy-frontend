@@ -583,7 +583,7 @@ async function prepareStudent(
     }
   });
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname === "/api/v1/media/playback/end/" && state.renewals.length === 0) {
+    if (["/api/v1/media/playback/end/", "/api/v1/media/playback/v2/end/"].includes(new URL(request.url()).pathname) && state.renewals.length === 0) {
       state.endBeforeRenewCount += 1;
     }
   });
@@ -821,7 +821,7 @@ async function finishStudent(
     expect(endCount).toBeGreaterThan(0);
     const homePosterCapturesBeforeExit = state.homePosterCaptureCount;
     const endResponse = page.waitForResponse((response) =>
-      new URL(response.url()).pathname === "/api/v1/media/playback/end/" && response.status() < 300,
+      ["/api/v1/media/playback/end/", "/api/v1/media/playback/v2/end/"].includes(new URL(response.url()).pathname) && response.status() < 300,
     { timeout: 45_000 });
     const homeResponse = page.waitForResponse((response) =>
       response.request().method() === "GET"
