@@ -36,11 +36,6 @@ import {
   getTenantUserLocalKey,
   setLocalItem,
 } from "@/shared/utils/safeLocalStorage";
-import {
-  getSessionItem,
-  removeSessionItem,
-  setSessionItem,
-} from "@/shared/utils/safeSessionStorage";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm";
@@ -60,51 +55,13 @@ import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
 import AttendanceStatusInlineRail from "./AttendanceStatusInlineRail";
 import AttendanceSortButtons from "./AttendanceSortButtons";
+import { useBulkPresentUndo } from "./useBulkPresentUndo";
 import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
 import { DEFAULT_ATTENDANCE_SORT, getStoredAttendanceSort, type AttendanceSort, type AttendanceSortColumn } from "./attendanceSort";
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
 const PAGE_SIZE = 50;
-type BulkPresentUndo = {
-  token: string;
-  updated: number;
-  expiresAt: number;
-};
-
-function bulkPresentUndoStorageKey(
-  tenantCode: string | null,
-  userId: number | null | undefined,
-  sessionId: number,
-): string | null {
-  if (!tenantCode || !userId || !Number.isInteger(sessionId) || sessionId <= 0) return null;
-  return `attendance:bulk-present-undo:v1:${encodeURIComponent(tenantCode)}:user:${userId}:session:${sessionId}`;
-}
-
-function parseBulkPresentUndo(value: string | null): BulkPresentUndo | null {
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value) as Partial<BulkPresentUndo>;
-    if (
-      typeof parsed.token !== "string"
-      || parsed.token.length === 0
-      || !Number.isInteger(parsed.updated)
-      || Number(parsed.updated) <= 0
-      || !Number.isFinite(parsed.expiresAt)
-      || Number(parsed.expiresAt) <= Date.now()
-    ) {
-      return null;
-    }
-    return {
-      token: parsed.token,
-      updated: Number(parsed.updated),
-      expiresAt: Number(parsed.expiresAt),
-    };
-  } catch {
-    return null;
-  }
-}
-
 type SessionAttendancePageProps = {
   sessionId: number;
   lectureId?: number;
@@ -133,10 +90,7 @@ export default function SessionAttendancePage({
   const isCompactAttendance = useIsMobile();
   const { user } = useAuth();
   const tenantCode = getTenantCodeForApiRequest();
-  const bulkPresentUndoKey = useMemo(
-    () => bulkPresentUndoStorageKey(tenantCode, user?.id, sessionId),
-    [sessionId, tenantCode, user?.id],
-  );
+  const [bulkPresentUndo, setBulkPresentUndo] = useBulkPresentUndo(tenantCode, user?.id, sessionId);
   const sortStorageKey = getTenantUserLocalKey("attendance:sort", user?.id);
   const previousSortStorageKey = user?.id ? `attendance:sort:u${user.id}` : null;
   const { openSendMessageModal } = useSendMessageModal();
@@ -144,17 +98,6 @@ export default function SessionAttendancePage({
   const [deleting, setDeleting] = useState(false);
   const [bulkPresentBusy, setBulkPresentBusy] = useState(false);
   const [pendingStatusIds, setPendingStatusIds] = useState<Set<number>>(() => new Set());
-  const [bulkPresentUndoState, setBulkPresentUndoState] = useState<{
-    key: string | null; value: BulkPresentUndo | null;
-  }>({ key: null, value: null });
-  const bulkPresentUndoScope = useRef(bulkPresentUndoKey);
-  bulkPresentUndoScope.current = bulkPresentUndoKey;
-  const bulkPresentUndo = bulkPresentUndoState.key === bulkPresentUndoKey ? bulkPresentUndoState.value : null;
-  const setBulkPresentUndo = (value: BulkPresentUndo | null) => {
-    if (bulkPresentUndoScope.current === bulkPresentUndoKey) {
-      setBulkPresentUndoState({ key: bulkPresentUndoKey, value });
-    }
-  };
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -196,31 +139,6 @@ export default function SessionAttendancePage({
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter]);
-
-  useEffect(() => {
-    if (!bulkPresentUndoKey) {
-      setBulkPresentUndo(null);
-      return;
-    }
-    const restored = parseBulkPresentUndo(getSessionItem(bulkPresentUndoKey));
-    if (!restored) removeSessionItem(bulkPresentUndoKey);
-    setBulkPresentUndo(restored);
-  }, [bulkPresentUndoKey]);
-
-  useEffect(() => {
-    if (!bulkPresentUndo) return undefined;
-    const remainingMs = bulkPresentUndo.expiresAt - Date.now();
-    if (remainingMs <= 0) {
-      if (bulkPresentUndoKey) removeSessionItem(bulkPresentUndoKey);
-      setBulkPresentUndo(null);
-      return undefined;
-    }
-    const timeout = window.setTimeout(() => {
-      if (bulkPresentUndoKey) removeSessionItem(bulkPresentUndoKey);
-      setBulkPresentUndo(null);
-    }, remainingMs);
-    return () => window.clearTimeout(timeout);
-  }, [bulkPresentUndo, bulkPresentUndoKey]);
 
   useEffect(() => {
     setPage(1);
@@ -631,13 +549,12 @@ export default function SessionAttendancePage({
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
       if (result.updated > 0 && result.undo_token) {
-        const undoRecord: BulkPresentUndo = {
+        const undoRecord = {
           token: result.undo_token,
           updated: result.updated,
           expiresAt: Date.now() + (result.undo_expires_in ?? 600) * 1000,
         };
         setBulkPresentUndo(undoRecord);
-        if (bulkPresentUndoKey) setSessionItem(bulkPresentUndoKey, JSON.stringify(undoRecord));
       }
       feedback.success(result.updated > 0 ? `${result.updated}명을 현장 출석으로 변경했습니다.` : "이미 전원 현장 출석입니다.");
     } catch (error) {
@@ -655,7 +572,6 @@ export default function SessionAttendancePage({
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
-      if (bulkPresentUndoKey) removeSessionItem(bulkPresentUndoKey);
       setBulkPresentUndo(null);
       feedback.success(`${result.restored}명의 이전 출결 상태를 복구했습니다.`);
     } catch (error) {
@@ -859,7 +775,6 @@ export default function SessionAttendancePage({
               intent="ghost"
               size="sm"
               onClick={() => {
-                if (bulkPresentUndoKey) removeSessionItem(bulkPresentUndoKey);
                 setBulkPresentUndo(null);
               }}
               aria-label="최근 작업 기록 닫기"
