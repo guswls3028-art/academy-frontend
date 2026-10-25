@@ -39,7 +39,8 @@ export default function FeatureGuideReader({ mode = "app" }: { mode?: "app" | "p
   const [enlarged, setEnlarged] = useState(false);
 
   function selectPage(nextBook: BookKey, nextPage: number) {
-    const next = new URLSearchParams(params);
+    // Keep a search/topic change that reached the URL before this render committed.
+    const next = new URLSearchParams(window.location.search);
     next.set("guideBook", nextBook);
     next.set("guidePage", String(nextPage));
     setParams(next, { preventScrollReset: true });
