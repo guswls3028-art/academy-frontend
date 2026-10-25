@@ -28,7 +28,7 @@ import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { clinicQueryKeys } from "../../queryKeys";
 import ClinicCreatePanel from "../../components/ClinicCreatePanel";
 import { clinicChangeNoticeNavigationState } from "../../components/clinicChangeNoticeNavigation";
-import PreviousWeekImportModal from "../../components/PreviousWeekImportModal";
+import ClinicScheduleImportModal from "../../components/ClinicScheduleImportModal";
 import styles from "./ClinicSchedulePage.module.css";
 
 dayjs.locale("ko");
@@ -264,7 +264,7 @@ export default function ClinicSchedulePage() {
               leftIcon={<Copy size={ICON_FOR_BUTTON.md} />}
               onClick={() => setImportOpen(true)}
             >
-              이전 주 복사
+              지난 일정 불러오기
             </Button>
             <Button
               intent="primary"
@@ -606,7 +606,7 @@ export default function ClinicSchedulePage() {
         )}
       </AdminModal>
 
-      <PreviousWeekImportModal
+      <ClinicScheduleImportModal
         open={importOpen}
         onClose={() => {
           setImportOpen(false);
