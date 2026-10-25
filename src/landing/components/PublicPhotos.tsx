@@ -36,12 +36,13 @@ export function PublicPhotoPicker({ draft, disabled }: { draft: ReturnType<typeo
 export function PublicPhotoGallery({ photos, onRefresh }: { photos: string[]; onRefresh: () => Promise<void> }) {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [generation, setGeneration] = useState(0);
   if (!photos.length) return null;
   return <section className="public-photos" aria-label="첨부 사진">
-    <div className="public-photos__gallery">{photos.map((url, index) => <a key={url} href={url} target="_blank" rel="noreferrer"><img src={url} alt={`첨부 사진 ${index + 1}`} onError={() => setFailed(true)} /></a>)}</div>
-    {failed && <div role="alert">사진을 불러오지 못했습니다. <button type="button" disabled={busy} onClick={async () => {
+    <div className="public-photos__gallery">{photos.map((url, index) => <a key={`${generation}:${url}`} href={url} target="_blank" rel="noreferrer"><img src={url} alt={`첨부 사진 ${index + 1}`} onError={() => setFailed(true)} /></a>)}</div>
+    {(failed || busy) && <div role="alert">사진을 불러오지 못했습니다. <button type="button" disabled={busy} onClick={async () => {
       setBusy(true);
-      try { await onRefresh(); setFailed(false); } catch { setFailed(true); } finally { setBusy(false); }
+      try { await onRefresh(); setFailed(false); setGeneration((value) => value + 1); } catch { setFailed(true); } finally { setBusy(false); }
     }}>{busy ? "불러오는 중…" : "사진 다시 보기"}</button></div>}
   </section>;
 }

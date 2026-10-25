@@ -423,7 +423,7 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
 
         {/* Section: 첨부파일 (파일 우선 노출) */}
         <div className="cms-detail__section">
-          <PostAttachmentManager key={postId} postId={postId} attachments={post.attachments ?? []} />
+          <PostAttachmentManager key={postId} postId={postId} attachments={post.attachments ?? []} nativePicker />
         </div>
 
         {/* Section: 내용 */}

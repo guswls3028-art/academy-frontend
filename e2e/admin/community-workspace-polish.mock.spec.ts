@@ -374,6 +374,7 @@ test.describe("커뮤니티 QnA 작업대", () => {
 
     await expect(page.locator(".qna-inbox__reference-pane")).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".qna-inbox__answer-pane")).toBeVisible();
+    await expect(page.locator(".qna-inbox__answer-pane").getByTitle("이미지 삽입", { exact: true })).toHaveCount(0);
     await expect(page.getByTitle("답변 필요 질문 1건").first()).toBeVisible();
     await expect(page.getByRole("tab", { name: "QnA 1" })).toBeVisible();
     // WebKit needs the initial font/layout paint before geometry and pointer input.
@@ -817,7 +818,7 @@ test.describe("커뮤니티 QnA 작업대", () => {
       });
 
       await expect(page.getByText("암기TEST.pdf", { exact: true })).toBeVisible();
-      await expect(page.getByText("파일당 최대 50MB · 최대 10개")).toBeVisible();
+      await expect(page.getByText("저장하면 본문 아래에 첨부됩니다.", { exact: false })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow).toBeLessThanOrEqual(1);
       await page.getByRole("button", { name: "등록", exact: true }).click();
@@ -892,7 +893,7 @@ test.describe("커뮤니티 QnA 작업대", () => {
     expect(overflow).toBeLessThanOrEqual(1);
     await page.getByRole("button", { name: "등록", exact: true }).click();
     await expect.poll(() => uploadRequests).toBe(1);
-    await expect(page.getByText("첨부 저장 실패", { exact: true })).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText("첨부 저장 실패");
     await expect(title).toHaveValue("선택 보존 자료");
     await expect(page.getByText("보존자료.pdf", { exact: true })).toBeVisible();
     expect(uploadRequests).toBe(1);

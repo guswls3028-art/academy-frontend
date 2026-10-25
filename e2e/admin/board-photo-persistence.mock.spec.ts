@@ -145,7 +145,7 @@ async function composePhotoPost(page: Page, postType = "board") {
   await page.getByPlaceholder(postType === "board" ? "게시물 제목을 입력하세요" : "자료 제목을 입력하세요").fill(
     "1회차 생물 다양성 메인자료 유형출제 29번 정답 정오",
   );
-  await page.locator(".cms-form__file-input--hidden").setInputFiles({
+  await page.getByLabel("첨부할 파일 선택", { exact: true }).setInputFiles({
     name: FILE_NAME,
     mimeType: "image/jpeg",
     buffer: PNG,
@@ -189,9 +189,9 @@ for (const postType of ["board", "materials"]) test.describe(`${postType} 사진
     await expect(page.getByText("게시물은 저장됐지만", { exact: false })).toBeVisible();
     await expect(page.getByText(FILE_NAME, { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "+ 파일 추가", exact: true })).toBeDisabled();
+    if (postType === "board") await expect(page.getByRole("button", { name: "+ 파일 추가", exact: true })).toBeDisabled();
     await expect(page.locator(".cms-attach__item-remove")).toBeDisabled();
-    await expect(page.locator(".cms-form__file-input--hidden")).toBeDisabled();
+    await expect(page.getByLabel("첨부할 파일 선택", { exact: true })).toBeDisabled();
     await expect(page.getByText("같은 파일로 다시 시도", { exact: false })).toBeVisible();
     await page.locator(".cms-attach__item-remove").click({ force: true });
     await expect(page.getByText(FILE_NAME, { exact: true })).toBeVisible();

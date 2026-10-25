@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Badge, Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
@@ -24,6 +24,7 @@ export default function PostCreatePane({ postType, scopeNodes, scopeParams, onCa
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  const inputId = useId();
   const batch = usePostAttachmentBatch();
   const resolvedScope = useMemo(() => resolvePostNodeIdsForCreate(scopeNodes, scopeParams), [scopeNodes, scopeParams]);
   const label = postType === "materials" ? "자료" : "게시물";
@@ -81,12 +82,15 @@ export default function PostCreatePane({ postType, scopeNodes, scopeParams, onCa
       </div>
       <div className="cms-form__field">
         <div className="cms-attach__header"><label className="community-field__label cms-form__label--no-margin">첨부파일 ({batch.files.length}/10)</label>
-          <Button intent="ghost" size="sm" disabled={busy || batch.locked || batch.files.length >= 10} onClick={() => input.current?.click()}>+ 파일 추가</Button>
-          <input ref={input} type="file" multiple className="cms-form__file-input--hidden" aria-label="첨부할 파일 선택" disabled={busy || batch.locked} onChange={(event) => {
+          {postType !== "materials" && <Button intent="ghost" size="sm" disabled={busy || batch.locked || batch.files.length >= 10} onClick={() => input.current?.click()}>+ 파일 추가</Button>}
+          <label htmlFor={inputId} className={postType === "materials" ? "ds-button cms-attach__picker" : "cms-form__file-input--hidden"} data-intent="ghost" data-size="sm" data-disabled={busy || batch.locked || batch.files.length >= 10 ? "true" : "false"}>
+          {postType === "materials" && <span className="ds-button__label">+ 파일 추가</span>}
+          <input id={inputId} ref={input} type="file" multiple className={postType === "materials" ? "cms-attach__picker-input" : "cms-form__file-input--hidden"} aria-label="첨부할 파일 선택" disabled={busy || batch.locked || batch.files.length >= 10} onChange={(event) => {
             const files = Array.from(event.currentTarget.files ?? []);
             event.currentTarget.value = "";
             batch.add(files);
           }} />
+          </label>
         </div>
         <NoticeDraftFiles files={batch.files} disabled={busy || batch.locked} onRemove={batch.remove} />
         {batch.locked && <p className="cms-attach__hint">게시물이 이미 저장되어 첨부파일을 변경할 수 없습니다. 같은 파일로 다시 시도해 주세요.</p>}

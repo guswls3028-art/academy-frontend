@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
@@ -9,10 +9,11 @@ import { usePostAttachmentBatch } from "../hooks/usePostAttachmentBatch";
 import NoticeAttachments, { NoticeDraftFiles } from "./NoticeAttachments";
 import "../notice-attachments.css";
 
-export default function PostAttachmentManager({ postId, attachments }: { postId: number; attachments: PostAttachment[] }) {
+export default function PostAttachmentManager({ postId, attachments, nativePicker = false }: { postId: number; attachments: PostAttachment[]; nativePicker?: boolean }) {
   const qc = useQueryClient();
   const batch = usePostAttachmentBatch(attachments.length);
   const input = useRef<HTMLInputElement>(null);
+  const inputId = useId();
   const saving = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -33,12 +34,15 @@ export default function PostAttachmentManager({ postId, attachments }: { postId:
     <NoticeAttachments postId={postId} attachments={attachments} disabled={busy || batch.locked} />
     <div className="cms-attach__header">
       {!attachments.length && <div className="cms-detail__section-label">첨부파일</div>}
-      <Button intent="ghost" size="sm" disabled={busy || batch.locked || attachments.length + batch.files.length >= 10} onClick={() => input.current?.click()}>+ 파일 추가</Button>
-      <input ref={input} type="file" multiple hidden aria-label="첨부할 파일 선택" disabled={busy || batch.locked} onChange={(event) => {
+      {!nativePicker && <Button intent="ghost" size="sm" disabled={busy || batch.locked || attachments.length + batch.files.length >= 10} onClick={() => input.current?.click()}>+ 파일 추가</Button>}
+      <label htmlFor={inputId} className={nativePicker ? "ds-button cms-attach__picker" : "cms-form__file-input--hidden"} data-intent="ghost" data-size="sm" data-disabled={busy || batch.locked || attachments.length + batch.files.length >= 10 ? "true" : "false"}>
+      {nativePicker && <span className="ds-button__label">+ 파일 추가</span>}
+      <input id={inputId} ref={input} type="file" multiple className={nativePicker ? "cms-attach__picker-input" : "cms-form__file-input--hidden"} aria-label="첨부할 파일 선택" disabled={busy || batch.locked || attachments.length + batch.files.length >= 10} onChange={(event) => {
         const files = Array.from(event.currentTarget.files ?? []);
         event.currentTarget.value = "";
         batch.add(files);
       }} />
+      </label>
     </div>
     <NoticeDraftFiles files={batch.files} disabled={busy || batch.locked} onRemove={batch.remove} />
     {error && <p role="alert" className="community-field__error">{error}</p>}

@@ -170,9 +170,10 @@ test.describe("landing route island", () => {
     const photoUrl = "https://photo.example.test/signed.png";
     let uploads = 0;
     let creates = 0;
+    let photoReads = 0;
     let stored: Record<string, unknown> = {};
     const detail = () => ({ id: 778, title: "사진 저장 확인", content: "사진 저장을 확인하는 본문입니다.", category: "free", status: kind === "board" ? "published" : "pending", rating: 5, display_name: "학생", author_role: "student", created_at: "2026-10-25T00:00:00Z", is_owner_or_author: true, is_liked_by_me: false, is_anonymous: false, like_count: 0, reply_count: 0, view_count: 1, ...stored, photos: [photoUrl], meta: { photos: [photoUrl] } });
-    await page.route(photoUrl, route => route.fulfill({ contentType: "image/png", body: png }));
+    await page.route(photoUrl, route => { photoReads += 1; return route.fulfill({ contentType: "image/png", body: photoReads === 1 ? Buffer.from("temporary image decode failure") : png }); });
     await page.route("**/api/v1/landing-public/uploads/review-photo/", route => {
       uploads += 1;
       return route.fulfill({ status: uploads === 1 ? 503 : 201, json: uploads === 1 ? { detail: "사진 저장 연결 오류" } : { key, url: photoUrl } });
@@ -204,6 +205,8 @@ test.describe("landing route island", () => {
     await expect(page.getByAltText("사진.png 미리보기")).toBeVisible();
     await submit.click();
     await expect(page).toHaveURL(new RegExp(`/landing/${kind}/778$`));
+    await page.getByRole("button", { name: "사진 다시 보기", exact: true }).click();
+    await expect.poll(() => page.getByAltText("첨부 사진 1", { exact: true }).evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
     expect(creates).toBe(1);
     expect(uploads).toBe(2);
     expect(kind === "board" ? (stored.meta as { photos: string[] }).photos : stored.photos).toEqual([key]);
