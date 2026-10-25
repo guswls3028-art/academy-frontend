@@ -3,6 +3,7 @@ import { test, expect } from "../fixtures/strictTest";
 import { getApiBaseUrl, getBaseUrl, loginViaUI } from "../helpers/auth";
 import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
 import { captureGuideEvidence } from "../helpers/guideEvidence";
+import { verifyFeatureGuideImages } from "../helpers/featureGuideEvidence";
 import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
 
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
@@ -58,6 +59,9 @@ async function verifyGuideJourney(
     await page.reload();
     await expect(article).toBeVisible();
     await expect(photo).toHaveAttribute("src", firstPhoto!);
+    if (guide.scope !== "student") {
+      await verifyFeatureGuideImages(page, testInfo, `live-guide-${guide.scope}-${width}-feature-reader`);
+    }
   }
 }
 
@@ -137,6 +141,18 @@ test.describe("Production canary", () => {
     await expect(page.locator("text=Not Found")).not.toBeVisible();
     const bodyText = (await page.locator("body").innerText({ timeout: 10_000 })).trim();
     expect(bodyText.length).toBeGreaterThan(20);
+    guard.assertClean();
+  });
+
+  test("public feature tab opens the image guide at desktop and mobile widths", async ({ page }, testInfo) => {
+    const guard = attachProductionRequestGuard(page);
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${BASE}/promo/features`, { waitUntil: "domcontentloaded" });
+      await page.getByRole("link", { name: "기능 둘러보기 →", exact: true }).click();
+      await expect(page).toHaveURL(`${BASE}/promo/features/tour`);
+      await verifyFeatureGuideImages(page, testInfo, `live-guide-public-${width}-feature-reader`);
+    }
     guard.assertClean();
   });
 

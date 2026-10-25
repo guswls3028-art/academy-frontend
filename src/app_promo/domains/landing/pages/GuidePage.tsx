@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from "react-router";
 import GuideCatalog from "@/shared/ui/guide/GuideCatalog";
+import FeatureGuideReader from "@/shared/ui/guide/FeatureGuideReader";
 import { GUIDES, GUIDE_ROLES as ROLES, type GuideRole } from "../promoGuides";
 import CtaSection from "../components/CtaSection";
 import styles from "./GuidePage.module.css";
@@ -34,6 +35,7 @@ export default function GuidePage() {
             </button>
           ))}
         </div>
+        {role !== "student" && <FeatureGuideReader mode="public" />}
         <GuideCatalog key={role} articles={guide.articles} scope={role} mode="public"
           title={`${guide.label} 사용 가이드`}
           description="준비사항과 사용 순서부터 완료 확인, 막혔을 때 해결 방법까지 차례대로 확인하세요. 실제 업무 화면은 가입 후 해당 권한으로 로그인하여 이용합니다." />
