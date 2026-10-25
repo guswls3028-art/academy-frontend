@@ -118,8 +118,12 @@ for (const width of [390, 1366]) {
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
     await expect(enlarge).toBeFocused();
-    await reader.getByRole("button", { name: "상세 설명 43쪽" }).click();
-    await reader.getByRole("navigation", { name: "핵심 기능 바로 읽기" }).getByRole("button", { name: "정오표·문항별 채점" }).click();
+    // Dispatch without a render in between: the shortcut must use the latest URL book.
+    await reader.evaluate((element) => {
+      const buttons = [...element.querySelectorAll<HTMLButtonElement>("button")];
+      buttons.find((button) => button.textContent === "상세 설명 43쪽")!.click();
+      buttons.find((button) => button.textContent === "정오표·문항별 채점")!.click();
+    });
     await expect(reader.getByLabel("설명서 페이지")).toHaveValue("23");
     await page.reload();
     await expect(reader.getByLabel("설명서 페이지")).toHaveValue("23");

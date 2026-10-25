@@ -41,11 +41,17 @@ export default function FeatureGuideReader({ mode = "app" }: { mode?: "app" | "p
   const enlargeButton = useRef<HTMLButtonElement>(null);
   const [enlarged, setEnlarged] = useState(false);
 
-  function selectPage(nextBook: BookKey, nextPage: number) {
+  function selectPage(nextBook: BookKey | null, nextPage: number | ((book: BookKey, current: number) => number)) {
     // Keep a search/topic change that reached the URL before this render committed.
     const next = new URLSearchParams(window.location.search);
-    next.set("guideBook", nextBook);
-    next.set("guidePage", String(nextPage));
+    const currentBook = next.get("guideBook") === "detail" ? "detail" : "summary";
+    const selectedBook = nextBook ?? currentBook;
+    const requested = Number(next.get("guidePage"));
+    const currentPage = Number.isInteger(requested) && requested >= 1
+      ? Math.min(requested, books[currentBook].pages.length) : 1;
+    const selectedPage = typeof nextPage === "function" ? nextPage(currentBook, currentPage) : nextPage;
+    next.set("guideBook", selectedBook);
+    next.set("guidePage", String(Math.max(1, Math.min(selectedPage, books[selectedBook].pages.length))));
     setParams(next, { preventScrollReset: true });
   }
 
@@ -73,12 +79,12 @@ export default function FeatureGuideReader({ mode = "app" }: { mode?: "app" | "p
       </div>
       <nav className={styles.shortcuts} aria-label="핵심 기능 바로 읽기">
         {summary.features.map((feature, index) => (
-          <button type="button" key={feature.id} onClick={() => selectPage(bookKey, bookKey === "summary" ? index + 2 : feature.detailPage)}>{feature.title}</button>
+          <button type="button" key={feature.id} onClick={() => selectPage(null, (currentBook) => currentBook === "summary" ? index + 2 : feature.detailPage)}>{feature.title}</button>
         ))}
       </nav>
       <div className={styles.toolbar}>
         <label>설명서 페이지
-          <select value={pageNumber} onChange={(event) => selectPage(bookKey, Number(event.target.value))}>
+          <select value={pageNumber} onChange={(event) => selectPage(null, Number(event.target.value))}>
             {book.pages.map((item, index) => <option key={item.src} value={index + 1}>{index + 1}. {item.title}</option>)}
           </select>
         </label>
@@ -89,9 +95,9 @@ export default function FeatureGuideReader({ mode = "app" }: { mode?: "app" | "p
         <figcaption aria-live="polite">{book.title} · {pageNumber} / {book.pages.length}쪽 — {page.title}</figcaption>
       </figure>
       <div className={styles.controls}>
-        <button type="button" disabled={pageNumber === 1} onClick={() => selectPage(bookKey, pageNumber - 1)}>← 이전 쪽</button>
+        <button type="button" disabled={pageNumber === 1} onClick={() => selectPage(null, (_, current) => current - 1)}>← 이전 쪽</button>
         <span>{pageNumber} / {book.pages.length}</span>
-        <button type="button" disabled={pageNumber === book.pages.length} onClick={() => selectPage(bookKey, pageNumber + 1)}>다음 쪽 →</button>
+        <button type="button" disabled={pageNumber === book.pages.length} onClick={() => selectPage(null, (_, current) => current + 1)}>다음 쪽 →</button>
       </div>
       <details className={styles.textGuide}>
         <summary>현재 기능·도입 검수·맞춤 개발 범위를 글로 읽기</summary>
