@@ -408,7 +408,7 @@ export default function SubmitAssignmentPage() {
         : `파일 ${retryableCount}개 제출하기`;
 
   return (
-    <StudentPageShell title="과제 제출" description="풀이 사진과 동영상을 한 번에 고르고, 파일별 결과를 확인하세요." descriptionMode="help" onBack={() => window.history.back()}>
+    <StudentPageShell title="과제 제출" description="풀이 사진과 동영상을 제출하고 선생님 확인 결과를 학습 현황에서 확인하세요." descriptionMode="help" onBack={() => window.history.back()}>
       <div className={`stu-section stu-section--nested ${styles.section}`}>
         {(uploadMut.isError || error) && <div role="alert" className={styles.errorMessage}>{error || apiErrorMessage(uploadMut.error)}</div>}
         {requestedSessionId != null && (
@@ -418,7 +418,7 @@ export default function SubmitAssignmentPage() {
           </div>
         )}
         {uploadMut.isSuccess && uploadMut.data?.failed.length === 0 && uploadMut.data.reviewLocked !== true && (
-          <div className={styles.successMessage}><span>선택한 파일을 모두 제출했습니다.</span><Link to="/student/grades" className={styles.successLink}>성적 확인<IconChevronRight className={styles.successLinkIcon} aria-hidden="true" /></Link></div>
+          <div className={styles.successMessage}><span><span>선택한 파일을 모두 제출했습니다.</span> 확인 결과는 학습 현황에서 확인하세요.</span><Link to="/student/grades" className={styles.successLink}>학습 현황<IconChevronRight className={styles.successLinkIcon} aria-hidden="true" /></Link></div>
         )}
 
         <div data-guide="submit-target">
