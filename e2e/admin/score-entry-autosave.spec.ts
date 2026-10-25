@@ -250,6 +250,8 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             student_id: 9301 + index,
             student_name: options.studentNames?.[index] ?? `자동저장학생${index + 1}`,
             attendance_status: options.attendanceStatuses?.[index] ?? "PRESENT",
+            video_progress_rate: options.attendanceStatuses?.[index] === "ONLINE" ? 35 : null,
+            video_completed: options.attendanceStatuses?.[index] === "ONLINE" ? false : null,
             assessment_todo_eligible: options.assessmentTodoEligible?.[index] ?? true,
             lecture_title: "자동 저장 검증반",
             lecture_color: "#2563eb",
@@ -2254,6 +2256,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       });
       await expect(page.getByText("총 2명", { exact: true })).toBeVisible();
       const absentRow = page.locator("tbody tr").filter({ hasText: "자동저장학생1" });
+      await expect(page.getByText("영상 35%", { exact: true })).toBeVisible();
       await expect(absentRow.getByRole("checkbox", { name: "자동저장학생1 선택" })).toBeDisabled();
       await expect(page.getByRole("cell", { name: "자동저장학생1 · 주간 확인 결석 제외" })).toContainText("결석 제외");
       await expect(page.getByRole("cell", { name: "자동저장학생1 · 단원 복습 결석 제외" })).toContainText("결석 제외");
