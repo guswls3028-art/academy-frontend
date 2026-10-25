@@ -186,11 +186,13 @@ export default function LectureStudentsPage() {
     if (!search.trim()) return students;
     const k = search.trim().toLowerCase();
     const digits = search.trim().replace(/\D/g, "");
+    const phoneSearch = /^[\d\s()+-]+$/.test(k) && digits.length > 0;
     return students.filter(
       (s) =>
         (s.name || "").toLowerCase().includes(k) ||
-        (s.phone ?? "").replace(/\D/g, "").includes(digits) ||
-        (s.parent_phone ?? "").replace(/\D/g, "").includes(digits)
+        (s.displayName || "").toLowerCase().includes(k) ||
+        (phoneSearch && (s.phone ?? "").replace(/\D/g, "").includes(digits)) ||
+        (phoneSearch && (s.parent_phone ?? "").replace(/\D/g, "").includes(digits))
     );
   }, [students, search]);
 
@@ -491,11 +493,6 @@ export default function LectureStudentsPage() {
         lectureId={lectureIdNum}
         open={showLectureEnroll}
         onClose={() => setShowLectureEnroll(false)}
-        onSuccess={() => {
-          qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureIdNum) });
-          setShowLectureEnroll(false);
-        }}
-
         onChooseExcelUpload={() => setShowEnrollExcelModal(true)}
       />
 

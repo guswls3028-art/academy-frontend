@@ -165,6 +165,9 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
     await picker.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
   }
   await assertNoHorizontalOverflow(enrollmentPage);
+  await expect(picker.getByRole("textbox", { name: "학생 검색" })).toBeInViewport();
+  await expect(picker.getByRole("button", { name: "2명 강의에 추가", exact: true })).toBeInViewport();
+  expect(await picker.locator(".modal-body").evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
   await picker.screenshot({ path: testInfo.outputPath("lecture-enrollment-390.png") });
   const enrollmentResponse = enrollmentPage.waitForResponse((response) =>
     response.url().endsWith("/enrollments/bulk_create/") && response.request().method() === "POST",
@@ -221,6 +224,32 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
     status: "ABSENT",
   });
 
+  // The unmocked server must order the full Korean name, including its letter
+  // suffix, before pagination. Creation order is intentionally the reverse.
+  await gotoAndSettle(enrollmentPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/attendance`);
+  const alphabetical = enrollmentPage.getByRole("button", { name: "가나다순", exact: true });
+  const names = enrollmentPage.locator('tbody a[aria-label$=" 학생 상세 열기"]');
+  const expectedNames = ["김가온A 학생 상세 열기", "황가온 학생 상세 열기"];
+  const expectNameOrder = async () => {
+    await expect.poll(() => names.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label")))).toEqual(expectedNames);
+  };
+  await alphabetical.click();
+  await expectNameOrder();
+  await enrollmentPage.getByRole("columnheader", { name: /이름/ }).click();
+  await expect(names.first()).toHaveAttribute("aria-label", "황가온 학생 상세 열기");
+  await alphabetical.click();
+  await expectNameOrder();
+  await enrollmentPage.reload({ waitUntil: "domcontentloaded" });
+  await expect(alphabetical).toHaveAttribute("aria-pressed", "true");
+  await expectNameOrder();
+  for (const width of [1366, 390]) {
+    await enrollmentPage.setViewportSize({ width, height: 844 });
+    await expect(alphabetical).toBeInViewport();
+    await assertNoHorizontalOverflow(enrollmentPage);
+    await names.first().scrollIntoViewIfNeeded();
+    await enrollmentPage.screenshot({ path: testInfo.outputPath(`attendance-letter-suffix-realuse-${width}.png`), fullPage: true });
+  }
+
   const videoResponse = await expectApi<{ video: { id: number } }>(
     request,
     "POST",
@@ -275,6 +304,12 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     const admin = await loginAdmin(request);
     created.adminAccess = admin.access;
     created.family = await createQaFamily(request, admin.access, "learning", 2);
+    for (const [index, name] of ["황가온", "김가온A"].entries()) {
+      const student = created.family.students[index];
+      const renamed = await expectApi<{ name: string }>(request, "PATCH", `/students/${student.id}/`, admin.access, { name });
+      expect(renamed.name).toBe(name);
+      student.name = name;
+    }
     const [primary, sibling] = created.family.students;
     const enrollmentContext = await page.context().browser()!.newContext({ serviceWorkers: "block" });
     try {

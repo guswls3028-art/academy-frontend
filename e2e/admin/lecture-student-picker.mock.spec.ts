@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { waitForRenderSettled } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE = 9965;
@@ -19,12 +20,18 @@ type State = {
   failSave: boolean;
   failReadback: boolean;
   saveGate: Promise<void> | null;
+  searchGate: Promise<void> | null;
+  searchRequests: Array<{ search: string; page: number }>;
+  failSearch: boolean;
+  matrixGate: Promise<void> | null;
 };
 
-async function openPicker(page: Page) {
+async function openPicker(page: Page, names: Record<number, string> = {}) {
+  const roster = students.map((student) => ({ ...student, name: names[student.id] ?? student.name }));
   const state: State = {
     statuses: new Map([[1, "ACTIVE"], [2, "INACTIVE"], [3, "PENDING"]]),
     posts: [], unexpectedWrites: [], failRoster: false, failSave: false, failReadback: false, saveGate: null,
+    searchGate: null, searchRequests: [], failSearch: false, matrixGate: null,
   };
   await installTenantOneInitScript(page);
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -41,6 +48,7 @@ async function openPicker(page: Page) {
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
     if (path === "/core/program/") return json({ tenantCode: "hakwonplus", isPlatformAdmin: true, display_name: "학원플러스", feature_flags: {}, is_active: true });
     if (path === "/core/me/") return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    if (path === "/staffs/currently-working/") return json([]);
     if (path === `/lectures/lectures/${LECTURE}/`) return json({ id: LECTURE, title: "기말고사 새 강의", name: "기말고사 새 강의", is_active: true });
     if (path === "/enrollments/bulk_create/" && request.method() === "POST") {
       const body = request.postDataJSON() as { lecture: number; students: number[] };
@@ -48,7 +56,7 @@ async function openPicker(page: Page) {
       if (state.saveGate) await state.saveGate;
       if (state.failSave) return json({ detail: "일시적인 등록 실패" }, 400);
       body.students.forEach((id) => state.statuses.set(id, "ACTIVE"));
-      return json(body.students.map((id) => ({ id: 1000 + id, status: "ACTIVE", student: students[id - 1] })), 201);
+      return json(body.students.map((id) => ({ id: 1000 + id, status: "ACTIVE", student: roster[id - 1] })), 201);
     }
     if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
       if (/^\/(?:lectures|enrollments|students)\//.test(path)) state.unexpectedWrites.push(`${request.method()} ${path}`);
@@ -56,24 +64,28 @@ async function openPicker(page: Page) {
     }
     if (path === "/students/") {
       const search = url.searchParams.get("search") ?? "";
-      const found = students.filter((student) => student.name.includes(search) || student.parent_phone.includes(search));
       const pageNumber = Number(url.searchParams.get("page") || 1);
+      state.searchRequests.push({ search, page: pageNumber });
+      if (search && state.searchGate) await state.searchGate;
+      if (search && state.failSearch) return json({ detail: "검색 실패" }, 503);
+      const found = roster.filter((student) => student.name.includes(search) || student.parent_phone.includes(search));
       return json({ count: found.length, page_size: 50, results: found.slice((pageNumber - 1) * 50, pageNumber * 50) });
     }
     if (path === "/enrollments/") {
       if (state.failRoster || (state.failReadback && state.posts.length)) return json({ count: 1, results: [], next: null });
-      return json([...state.statuses].map(([id, status]) => ({ id: 1000 + id, status, student: students[id - 1] })));
+      return json([...state.statuses].map(([id, status]) => ({ id: 1000 + id, status, student: roster[id - 1] })));
     }
-    if (path === "/lectures/attendance/matrix/") return json({
-      lecture: { id: LECTURE, title: "기말고사 새 강의" }, sessions: [],
-      students: [], // The real matrix omits students without a session assignment.
-    });
+    if (path === "/lectures/attendance/matrix/") {
+      if (state.matrixGate) await state.matrixGate;
+      return json({ lecture: { id: LECTURE, title: "기말고사 새 강의" }, sessions: [], students: [] });
+    }
     return json({ count: 0, results: [], next: null });
   });
   await page.goto(`${BASE}/workspace/lectures/${LECTURE}`);
+  await waitForRenderSettled(page);
   await page.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
   const dialog = page.getByRole("dialog", { name: "수강생 등록", exact: true });
-  await expect(dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true })).toBeEnabled();
+  await expect(dialog.getByRole("checkbox", { name: `${roster[1].name} 선택`, exact: true }).first()).toBeEnabled();
   return { state, dialog };
 }
 
@@ -86,6 +98,10 @@ for (const width of [1366, 1100, 390]) {
     await dialog.getByRole("checkbox", { name: "기존학생003 선택", exact: true }).check();
     const searchBox = await dialog.getByRole("textbox", { name: "학생 검색" }).boundingBox();
     expect(searchBox!.height).toBeGreaterThanOrEqual(width === 390 ? 44 : 40);
+    const body = dialog.locator(".modal-body");
+    expect(await body.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+    await expect(dialog.getByRole("textbox", { name: "학생 검색" })).toBeInViewport();
+    await expect(dialog.getByRole("button", { name: "2명 강의에 추가", exact: true })).toBeInViewport();
     await dialog.screenshot({ path: info.outputPath(`lecture-picker-list-${width}.png`) });
     await dialog.getByRole("button", { name: "다음", exact: true }).click();
     await dialog.getByRole("checkbox", { name: "기존학생051 선택", exact: true }).check();
@@ -104,7 +120,11 @@ for (const width of [1366, 1100, 390]) {
     await expect(dialog).toHaveCount(0);
     expect(state.posts).toEqual([{ lecture: LECTURE, students: [2, 3, 51, 52] }]);
     expect(state.unexpectedWrites).toEqual([]);
+    // Let the roster refresh and shell reads finish before crossing documents.
+    // WebKit can report a canceled in-flight mock as an access-control error.
+    await waitForRenderSettled(page);
     await page.reload();
+    await waitForRenderSettled(page);
     for (const id of [2, 3, 51, 52]) await expect(page.getByText(students[id - 1].name, { exact: true }).first()).toBeVisible();
     await page.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
     await expect(dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true })).toBeDisabled();
@@ -112,7 +132,7 @@ for (const width of [1366, 1100, 390]) {
   });
 }
 
-test("저장 확인 실패 후 선택을 보존하고 중복 없이 재시도한다", async ({ page }) => {
+test("저장 확인 실패 후 선택을 보존하고 등록 요청 없이 결과만 재조회한다", async ({ page }) => {
   const { state, dialog } = await openPicker(page);
   await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
   state.failReadback = true;
@@ -120,15 +140,15 @@ test("저장 확인 실패 후 선택을 보존하고 중복 없이 재시도한
   await expect(dialog.getByRole("alert")).toContainText("저장된 명단을 확인하지 못했습니다");
   await expect(dialog.getByRole("status")).toHaveText("1명 선택");
   state.failReadback = false;
-  await dialog.getByRole("button", { name: "1명 강의에 추가", exact: true }).click();
+  await dialog.getByRole("button", { name: "등록 결과 다시 확인", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  expect(state.posts).toHaveLength(2);
+  expect(state.posts).toHaveLength(1);
   expect([...state.statuses].filter(([id, status]) => id === 2 && status === "ACTIVE")).toHaveLength(1);
 });
 
 test("검색 후 일괄 선택과 이탈 취소, 200명 한도를 지킨다", async ({ page }) => {
   const { dialog } = await openPicker(page);
-  await dialog.getByRole("button", { name: "현재 페이지 선택", exact: true }).click();
+  await dialog.getByRole("button", { name: "이 페이지 전체 선택", exact: true }).click();
   await expect(dialog.getByRole("status")).toHaveText("49명 선택");
   await dialog.getByRole("button", { name: "취소", exact: true }).click();
   const confirmation = page.getByRole("alertdialog");
@@ -138,7 +158,7 @@ test("검색 후 일괄 선택과 이탈 취소, 200명 한도를 지킨다", as
   for (const first of [51, 101, 151]) {
     await dialog.getByRole("button", { name: "다음", exact: true }).click();
     await expect(dialog.getByRole("checkbox", { name: `기존학생${String(first).padStart(3, "0")} 선택`, exact: true })).toBeEnabled();
-    await dialog.getByRole("button", { name: "현재 페이지 선택", exact: true }).click();
+    await dialog.getByRole("button", { name: "이 페이지 전체 선택", exact: true }).click();
   }
   await expect(dialog.getByRole("status")).toHaveText("199명 선택");
   await dialog.getByRole("button", { name: "다음", exact: true }).click();
@@ -164,7 +184,7 @@ test("명단 불완전 응답과 등록 실패를 표시하고 선택을 보존�
   state.failRoster = true;
   await page.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
   await expect(dialog.getByText("학생 명단을 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await expect(dialog.getByRole("button", { name: "0명 강의에 추가", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "학생을 선택하세요", exact: true })).toBeDisabled();
   state.failRoster = false;
   await dialog.getByRole("button", { name: "다시 불러오기", exact: true }).click();
   await expect(dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true })).toBeDisabled();
@@ -193,4 +213,128 @@ test("키보드 선택과 지연된 등록 중 중복 제출·닫기를 막는�
   }
   await expect(dialog).toHaveCount(0);
   expect(state.posts).toHaveLength(1);
+});
+
+test("검색 중 이전 명단을 잠그고 페이지 캐시·현재 페이지 해제로 빠르게 선택한다", async ({ page }) => {
+  const { state, dialog } = await openPicker(page);
+  const initialPageRequests = state.searchRequests.filter((request) => request.search === "" && request.page === 1).length;
+  await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
+  await dialog.getByRole("button", { name: "다음", exact: true }).click();
+  await dialog.getByRole("checkbox", { name: "기존학생051 선택", exact: true }).check();
+  await dialog.getByRole("button", { name: "이 페이지 전체 선택", exact: true }).click();
+  await expect(dialog.getByRole("status")).toHaveText("51명 선택");
+  await dialog.getByRole("button", { name: "이 페이지 선택 해제", exact: true }).click();
+  await expect(dialog.getByRole("status")).toHaveText("1명 선택");
+  await dialog.getByRole("button", { name: "이전", exact: true }).click();
+  await expect(dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true })).toBeChecked();
+  expect(state.searchRequests.filter((request) => request.search === "" && request.page === 1)).toHaveLength(initialPageRequests);
+  let finishSearch: () => void = () => {};
+  state.searchGate = new Promise<void>((resolve) => { finishSearch = resolve; });
+  try {
+    await dialog.getByRole("textbox", { name: "학생 검색" }).fill("기존학생052");
+    await expect(dialog.getByText("검색 중…", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("checkbox", { name: "기존학생003 선택", exact: true })).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: "이 페이지 전체 선택", exact: true })).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: "1명 강의에 추가", exact: true })).toBeEnabled();
+  } finally { finishSearch(); }
+  await dialog.getByRole("checkbox", { name: "기존학생052 선택", exact: true }).check();
+  await dialog.getByRole("button", { name: "검색어 지우기", exact: true }).click();
+  await expect(dialog.getByRole("textbox", { name: "학생 검색" })).toBeFocused();
+  await expect(dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true })).toBeChecked();
+  await expect(dialog.getByRole("status")).toHaveText("2명 선택");
+});
+
+test("한글 조합이 끝난 뒤 검색하고 늦은 이전 응답이 새 결과를 덮지 않는다", async ({ page }) => {
+  const { state, dialog } = await openPicker(page);
+  const input = dialog.getByRole("textbox", { name: "학생 검색" });
+  await page.clock.install();
+  await input.dispatchEvent("compositionstart");
+  await input.fill("기존학생052");
+  await page.clock.runFor(400);
+  expect(state.searchRequests.filter((request) => request.search !== "")).toHaveLength(0);
+  let finishSearch: () => void = () => {};
+  state.searchGate = new Promise<void>((resolve) => { finishSearch = resolve; });
+  try {
+    await input.dispatchEvent("compositionend");
+    await page.clock.runFor(300);
+    await expect.poll(() => state.searchRequests.some((request) => request.search === "기존학생052")).toBe(true);
+    state.searchGate = null;
+    await input.fill("기존학생053");
+    await page.clock.runFor(300);
+    await expect(dialog.getByRole("checkbox", { name: "기존학생053 선택", exact: true })).toBeEnabled();
+  } finally { finishSearch(); }
+  await expect(dialog.getByRole("checkbox", { name: "기존학생052 선택", exact: true })).toHaveCount(0);
+  await dialog.getByRole("checkbox", { name: "기존학생053 선택", exact: true }).check();
+  await expect(dialog.getByRole("status")).toHaveText("1명 선택");
+});
+
+test("학생 검색 실패와 느린 출결 갱신이 선택한 학생의 저장 완료를 막지 않는다", async ({ page }) => {
+  const { state, dialog } = await openPicker(page);
+  await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
+  state.failSearch = true;
+  await dialog.getByRole("textbox", { name: "학생 검색" }).fill("없는학생");
+  await expect(dialog.getByText("학생 명단을 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(dialog.getByRole("button", { name: "1명 강의에 추가", exact: true })).toBeEnabled();
+  let finishMatrix: () => void = () => {};
+  state.matrixGate = new Promise<void>((resolve) => { finishMatrix = resolve; });
+  try {
+    await dialog.getByRole("button", { name: "1명 강의에 추가", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByText("기존학생002", { exact: true }).first()).toBeVisible();
+  } finally { finishMatrix(); }
+  await page.reload();
+  await expect(page.getByText("기존학생002", { exact: true }).first()).toBeVisible();
+  expect(state.posts).toHaveLength(1);
+});
+
+test("저장 후 강의 명단의 한글·숫자 포함 이름과 전화번호 검색이 정확하다", async ({ page }) => {
+  const { dialog } = await openPicker(page);
+  await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
+  await dialog.getByRole("checkbox", { name: "기존학생003 선택", exact: true }).check();
+  await dialog.getByRole("button", { name: "2명 강의에 추가", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  const input = page.getByPlaceholder("이름 / 전화번호 검색", { exact: true });
+  await input.fill("없는학생");
+  await expect(page.getByText("검색 결과가 없습니다.", { exact: true })).toBeVisible();
+  await input.fill("기존학생002");
+  await expect(page.getByText("기존학생002", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("기존학생003", { exact: true })).toHaveCount(0);
+  await input.fill("010-8000-0003");
+  await expect(page.getByText("기존학생003", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("기존학생002", { exact: true })).toHaveCount(0);
+});
+
+test("낮은 모바일 화면·다크 테마에서도 선택과 저장 버튼에 접근한다", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => localStorage.setItem("hakwonplus:theme", "modern-dark"));
+  const { dialog } = await openPicker(page);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "modern-dark");
+  await expect(dialog.locator(".modal-body")).toHaveCSS("background-color", "rgb(17, 24, 39)");
+  await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
+  const save = dialog.getByRole("button", { name: "1명 강의에 추가", exact: true });
+  await expect(save).toBeInViewport();
+  await expect.poll(() => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await dialog.screenshot({ path: info.outputPath("lecture-picker-short-dark.png") });
+  await save.click();
+  await expect(dialog).toHaveCount(0);
+});
+
+test("동명이인은 연락처로 구분하고 검색해도 선택한 학생의 이름이 바뀌지 않는다", async ({ page }) => {
+  const { state, dialog } = await openPicker(page, { 2: "김학생", 3: "김학생" });
+  const second = dialog.locator(".lecture-enroll-picker__row").filter({ hasText: "010-8000-0002" });
+  await expect(second.getByRole("checkbox")).toHaveAccessibleDescription(/김학생.*학부모 010-8000-0002/);
+  await second.getByRole("checkbox").check();
+  await dialog.getByRole("textbox", { name: "학생 검색" }).fill("010-8000-0003");
+  const third = dialog.locator(".lecture-enroll-picker__row").filter({ hasText: "010-8000-0003" });
+  await third.getByRole("checkbox").check();
+  await expect(dialog.locator(".lecture-enroll-picker__identity strong")).toHaveText("김학생");
+  await expect(dialog.getByRole("button", { name: /김학생, .*010-8000-0002 선택 해제/ })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /김학생, .*010-8000-0003 선택 해제/ })).toBeVisible();
+  await dialog.getByRole("button", { name: "2명 강의에 추가", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(state.posts).toEqual([{ lecture: LECTURE, students: [2, 3] }]);
+  await page.getByPlaceholder("이름 / 전화번호 검색", { exact: true }).fill("김학생2");
+  await expect(page.getByText("김학생2", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("김학생1", { exact: true })).toHaveCount(0);
 });
