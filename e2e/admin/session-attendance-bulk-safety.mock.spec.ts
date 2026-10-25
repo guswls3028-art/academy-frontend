@@ -57,6 +57,7 @@ type MockState = {
 };
 
 type MockOptions = {
+  letterSuffixNames?: boolean;
   statusUpdateReady?: Promise<void>;
   omitTargetSessionFromList?: boolean;
   previousRosterWithInactive?: boolean;
@@ -153,11 +154,11 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
         });
       }
       const rows = [
-        { id: 501, status: state.attendanceStatuses[501] ?? "UNSET", name: "미입력학생", student_id: 1001, parent_phone: "01011112222", student_phone: "01033334444" },
-        { id: 502, status: state.attendanceStatuses[502] ?? "ABSENT", name: options.reregisterSessionStudent ? "김가람" : "결석학생", student_id: options.reregisterSessionStudent ? 2001 : 1002, enrollment_id: 3001, parent_phone: "01055556666", student_phone: "01077778888" },
+        { id: 501, status: state.attendanceStatuses[501] ?? "UNSET", name: options.letterSuffixNames ? "김가온A" : "미입력학생", student_id: 1001, parent_phone: "01011112222", student_phone: "01033334444" },
+        { id: 502, status: state.attendanceStatuses[502] ?? "ABSENT", name: options.letterSuffixNames ? "황가온" : options.reregisterSessionStudent ? "김가람" : "결석학생", student_id: options.reregisterSessionStudent ? 2001 : 1002, enrollment_id: 3001, parent_phone: "01055556666", student_phone: "01077778888" },
       ];
       if (options.includePresentStudent) {
-        rows.push({ id: 503, status: "PRESENT", name: "가나다학생", student_id: 1003, parent_phone: "01022223333", student_phone: "01044445555" });
+        rows.push({ id: 503, status: "PRESENT", name: options.letterSuffixNames ? "김가온B" : "가나다학생", student_id: 1003, parent_phone: "01022223333", student_phone: "01044445555" });
       }
       if (ordering === "not_arrived") {
         rows.sort((a, b) => {
@@ -165,8 +166,8 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
           const bGroup = b.status === "UNSET" || b.status === "ABSENT" ? 0 : 1;
           return aGroup - bGroup || a.name.localeCompare(b.name, "ko") || a.id - b.id;
         });
-      } else if (ordering === "name") {
-        rows.sort((a, b) => a.name.localeCompare(b.name, "ko") || a.id - b.id);
+      } else if (ordering === "name" || ordering === "-name") {
+        rows.sort((a, b) => (ordering === "-name" ? -1 : 1) * a.name.localeCompare(b.name, "ko") || a.id - b.id);
       }
       return json({
         count: rows.length,
@@ -440,6 +441,32 @@ test("이전 상태순 설정은 이름순으로 복구하고 출결 저장 뒤�
 });
 
 for (const width of [1366, 390]) {
+  test(`A·B 접미사 이름은 가나다순으로 복귀하고 새로고침 후 유지한다 (${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 844 });
+    const state = createState();
+    await openAttendance(page, state, { letterSuffixNames: true, includePresentStudent: true });
+    const names = page.locator('tbody a[aria-label$=" 학생 상세 열기"]');
+    const expected = ["김가온A 학생 상세 열기", "김가온B 학생 상세 열기", "황가온 학생 상세 열기"];
+    await expect.poll(() => names.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label")))).toEqual(expected);
+    await page.getByRole("columnheader", { name: /이름/ }).click();
+    await expect(names.first()).toHaveAttribute("aria-label", "황가온 학생 상세 열기");
+    const alphabetical = page.getByRole("button", { name: "가나다순", exact: true });
+    await alphabetical.focus();
+    await page.keyboard.press("Enter");
+    await expect(alphabetical).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => names.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label")))).toEqual(expected);
+    await page.reload();
+    await expect(alphabetical).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => names.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label")))).toEqual(expected);
+    await page.getByRole("button", { name: "미도착 우선", exact: true }).click();
+    await expect(names.nth(1)).toHaveAttribute("aria-label", "황가온 학생 상세 열기");
+    await alphabetical.click();
+    await expect.poll(() => names.evaluateAll((links) => links.map((link) => link.getAttribute("aria-label")))).toEqual(expected);
+    await expect(alphabetical).toBeInViewport();
+    expect(await page.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`attendance-letter-suffix-${width}.png`), fullPage: true });
+  });
+
   test(`출결 정렬 조회와 저장 후 재조회 실패를 같은 조건으로 복구한다 (${width}px)`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const state = createState();

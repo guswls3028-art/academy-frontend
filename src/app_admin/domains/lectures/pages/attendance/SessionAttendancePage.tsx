@@ -606,6 +606,20 @@ export default function SessionAttendancePage({
     <>
       <Button
         type="button"
+        intent={sort === "name" ? "primary" : "secondary"}
+        size="sm"
+        aria-pressed={sort === "name"}
+        title="이름 뒤 A·B도 포함해 가나다순으로 표시합니다."
+        onClick={() => {
+          setPage(1);
+          setSort(DEFAULT_ATTENDANCE_SORT);
+          if (sortStorageKey) setLocalItem(sortStorageKey, DEFAULT_ATTENDANCE_SORT);
+        }}
+      >
+        가나다순
+      </Button>
+      <Button
+        type="button"
         intent={sort === "not_arrived" ? "primary" : "secondary"}
         size="sm"
         aria-pressed={sort === "not_arrived"}

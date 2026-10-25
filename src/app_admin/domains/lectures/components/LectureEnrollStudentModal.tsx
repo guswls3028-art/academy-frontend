@@ -217,7 +217,7 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
                           aria-label={`${student.name} 선택`} onChange={() => toggle(student)} />
                         <span id={`lecture-student-identity-${student.id}`} className="lecture-enroll-picker__identity">
                           <strong>{student.name}</strong>
-                          <span>{[student.school, student.grade ? `${student.grade}학년` : null].filter(Boolean).join(" · ") || "학교 정보 없음"}</span>
+                          <span>{student.school || "학교 정보 없음"}{student.grade ? <> · <span className="lecture-enroll-picker__grade">{student.grade}학년</span></> : null}</span>
                         </span>
                         <span id={`lecture-student-contact-${student.id}`} className="lecture-enroll-picker__contact">
                           <span>학부모 {formatPhone(student.parentPhone) || "—"}</span>

@@ -16,6 +16,7 @@
 .lecture-enroll-picker__row input { width: 18px; height: 18px; accent-color: var(--color-primary); }
 .lecture-enroll-picker__identity, .lecture-enroll-picker__contact { display: flex; flex-direction: column; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
 .lecture-enroll-picker__identity strong { font-size: 14px; }
+.lecture-enroll-picker__grade { white-space: nowrap; }
 .lecture-enroll-picker__identity > span, .lecture-enroll-picker__contact { font-size: 12px; color: var(--color-text-secondary); }
 .lecture-enroll-picker__pagination { display: flex; justify-content: center; align-items: center; gap: 16px; font-size: 13px; }
 .lecture-enroll-picker__selection { padding: 10px 12px; border: 1px solid var(--color-border-divider); border-radius: 8px; }
