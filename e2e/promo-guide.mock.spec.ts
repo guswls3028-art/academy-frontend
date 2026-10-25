@@ -6,7 +6,7 @@ import { ADMIN_WORKFLOWS } from "../src/shared/ui/guide/content/adminWorkflows";
 import { TEACHER_WORKFLOWS } from "../src/shared/ui/guide/content/teacherWorkflows";
 import { STUDENT_WORKFLOWS } from "../src/shared/ui/guide/content/studentWorkflows";
 import type { GuideMediaSource } from "../src/shared/ui/guide/guideMediaData";
-import featureBooks from "../src/shared/ui/guide/content/feature-guide-books.json";
+const featureBooks = JSON.parse(readFileSync(new URL("../src/shared/ui/guide/content/feature-guide-books.json", import.meta.url), "utf8")) as typeof import("../src/shared/ui/guide/content/feature-guide-books.json").default;
 
 const mediaCatalog = JSON.parse(readFileSync(new URL("../src/shared/ui/guide/content/guide-media.json", import.meta.url), "utf8")) as Record<string, GuideMediaSource>;
 const findGuideMedia = (scope: string, topic: string) => mediaCatalog[`${scope}/${topic}`];
@@ -87,6 +87,8 @@ for (const width of [390, 1366]) {
     const requested: string[] = [];
     page.on("request", (request) => { if (request.url().includes("/feature-guides/")) requested.push(request.url()); });
     await page.goto(`${BASE}/promo/features`);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+    await info.attach(`feature-tour-entry-${width}`, { body: await page.screenshot(), contentType: "image/png" });
     await page.getByRole("link", { name: "기능 둘러보기 →", exact: true }).click();
     const reader = page.getByRole("region", { name: "기능 둘러보기", exact: true });
     await expect(reader.getByRole("img")).toHaveCount(1);
