@@ -131,7 +131,7 @@ test("feature reader recovers invalid image and preserves guide search parameter
     ? route.fulfill({ status: 200, contentType: "image/webp", body: "invalid image" }) : route.continue());
   await page.goto(`${BASE}/promo/guide?role=teacher&topic=attendance&q=출결&guideBook=detail&guidePage=bad`);
   const reader = page.getByRole("region", { name: "기능 둘러보기", exact: true });
-  await reader.getByRole("img").scrollIntoViewIfNeeded();
+  await reader.locator("figure").scrollIntoViewIfNeeded();
   await expect(reader.getByText(/설명서 이미지를 불러오지 못했습니다/)).toBeVisible();
   fail = false;
   await reader.getByRole("button", { name: "이미지 다시 불러오기" }).click();
