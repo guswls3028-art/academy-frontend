@@ -92,6 +92,7 @@ for (const width of [390, 1366]) {
     const requested: string[] = [];
     page.on("request", (request) => { if (request.url().includes("/feature-guides/")) requested.push(request.url()); });
     await page.goto(`${BASE}/promo/features`);
+    await expect(page.getByRole("link", { name: "기능 둘러보기 →", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
     await info.attach(`feature-tour-entry-${width}`, { body: await page.screenshot(), contentType: "image/png" });
     await page.getByRole("link", { name: "기능 둘러보기 →", exact: true }).click();
@@ -112,6 +113,7 @@ for (const width of [390, 1366]) {
     const dialog = page.getByRole("dialog", { name: "설명서 글씨 확대" });
     await expect(dialog).toBeVisible();
     await expect.poll(() => dialog.getByRole("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(2200);
+    await info.attach(`feature-reader-enlarged-${width}`, { body: await page.screenshot(), contentType: "image/png" });
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
     await expect(enlarge).toBeFocused();
