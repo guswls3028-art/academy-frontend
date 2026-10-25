@@ -76,6 +76,11 @@ test("feature books contain 5/43 complete hashed image pages and optional valid 
         expect(data.byteLength).toBeLessThan(400_000);
       }
       expect(page.bytes.small).toBeLessThan(100_000);
+      for (const src of [page.fallbackSrc, page.fallbackLargeSrc]) {
+        const data = readFileSync(new URL(`../public${src}`, import.meta.url));
+        expect(data.subarray(0, 2).toString("hex")).toBe("ffd8");
+        expect(data.byteLength).toBeLessThan(600_000);
+      }
     }
     expect(readFileSync(new URL(`../public${book.pdf}`, import.meta.url)).subarray(0, 5).toString()).toBe("%PDF-");
   }
@@ -97,6 +102,9 @@ for (const width of [390, 1366]) {
     expect(requested.length).toBeGreaterThan(0);
     expect(requested.every((url) => /summary-01-.*\.webp$/.test(url))).toBeTruthy();
     expect(requested.some((url) => url.endsWith(".pdf"))).toBeFalsy();
+    // An unsupported picture source must still render the JPEG fallback.
+    await reader.locator("picture source").evaluate((source: HTMLSourceElement) => { source.type = "image/unsupported"; });
+    await expect.poll(() => reader.getByRole("img").evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0 && img.currentSrc.endsWith(".jpg"))).toBeTruthy();
     await reader.getByRole("button", { name: "다음 쪽 →" }).click();
     await expect(reader.getByLabel("설명서 페이지")).toHaveValue("2");
     const enlarge = reader.getByRole("button", { name: "글씨 크게 보기 ↗" });
@@ -156,7 +164,7 @@ test("Cloudflare guide videos preserve byte ranges and missing media never retur
   expect(partial.status).toBe(206);
   expect(partial.headers.get("Content-Range")).toBe("bytes 0-3/100");
   expect(await partial.text()).toBe("ftyp");
-  for (const [file, mime] of [["walkthrough.mp4", "video/mp4"], ["captions.vtt", "text/vtt; charset=utf-8"], ["summary.pdf", "application/pdf"], ["page.webp", "image/webp"]]) {
+  for (const [file, mime] of [["walkthrough.mp4", "video/mp4"], ["captions.vtt", "text/vtt; charset=utf-8"], ["summary.pdf", "application/pdf"], ["page.webp", "image/webp"], ["page.jpg", "image/jpeg"]]) {
     const missing = await onRequestGet({
       request: new Request(`https://hakwonplus.com/guide-media/missing/${file}`),
       env: { ASSETS: { fetch: async () => new Response("<html>SPA fallback</html>", { headers: { "Content-Type": "text/html" } }) } },

@@ -85,6 +85,7 @@ function contentTypeForPath(pathname: string): string {
   if (/\.json(\?.*)?$/i.test(pathname)) return "application/json";
   if (/\.pdf(\?.*)?$/i.test(pathname)) return "application/pdf";
   if (/\.webp(\?.*)?$/i.test(pathname)) return "image/webp";
+  if (/\.jpe?g(\?.*)?$/i.test(pathname)) return "image/jpeg";
   if (/\.mp4(\?.*)?$/i.test(pathname)) return "video/mp4";
   if (/\.vtt(\?.*)?$/i.test(pathname)) return "text/vtt; charset=utf-8";
   return "application/octet-stream";

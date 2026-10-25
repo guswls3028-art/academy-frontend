@@ -17,11 +17,14 @@ function PageImage({ page, enlarged = false }: { page: GuidePage; enlarged?: boo
     </div>
   );
   const source = (url: string) => attempt ? `${url}?retry=${attempt}` : url;
-  return <img key={attempt} src={source(enlarged ? page.largeSrc : page.src)}
-    srcSet={enlarged ? undefined : `${source(page.src)} 1000w, ${source(page.largeSrc)} 2200w`}
-    sizes={enlarged ? undefined : "(max-width: 700px) calc(100vw - 48px), (max-width: 1240px) 90vw, 1180px"}
-    width={page.width} height={page.height} alt={page.title} decoding="async"
-    loading={enlarged ? "eager" : "lazy"} onError={() => setFailed(true)} />;
+  const sizes = enlarged ? undefined : "(max-width: 700px) calc(100vw - 48px), (max-width: 1240px) 90vw, 1180px";
+  return <picture key={attempt}>
+    <source type="image/webp" sizes={sizes} srcSet={enlarged ? source(page.largeSrc) : `${source(page.src)} 1000w, ${source(page.largeSrc)} 2200w`} />
+    <img src={source(enlarged ? page.fallbackLargeSrc : page.fallbackSrc)}
+      srcSet={enlarged ? undefined : `${source(page.fallbackSrc)} 1000w, ${source(page.fallbackLargeSrc)} 2200w`}
+      sizes={sizes} width={page.width} height={page.height} alt={page.title} decoding="async"
+      loading={enlarged ? "eager" : "lazy"} onError={() => setFailed(true)} />
+  </picture>;
 }
 
 /** Public, synthetic-only documentation; does not grant access to product actions. */
@@ -48,7 +51,7 @@ export default function FeatureGuideReader({ mode = "app" }: { mode?: "app" | "p
 
   function enlarge() {
     if (typeof dialog.current?.showModal !== "function") {
-      window.open(page.largeSrc, "_blank", "noopener,noreferrer");
+      window.open(page.fallbackLargeSrc, "_blank", "noopener,noreferrer");
       return;
     }
     setEnlarged(true);
@@ -120,7 +123,7 @@ export default function FeatureGuideReader({ mode = "app" }: { mode?: "app" | "p
         <div className={styles.lightboxHeader}><strong>{pageNumber}쪽 · {page.title}</strong><button type="button" onClick={() => dialog.current?.close()}>닫기 ✕</button></div>
         <p>화면 안에서 가로·세로로 움직여 큰 글씨를 읽으세요.</p>
         <div className={styles.zoomScroll}>{enlarged && <PageImage key={page.largeSrc} page={page} enlarged />}</div>
-        <a href={page.largeSrc} download={`학원플러스_${book.title}_${pageNumber}쪽.webp`}>이 쪽 이미지 내려받기</a>
+        <a href={page.fallbackLargeSrc} download={`학원플러스_${book.title}_${pageNumber}쪽.jpg`}>이 쪽 이미지 내려받기</a>
       </dialog>
     </section>
   );
