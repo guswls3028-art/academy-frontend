@@ -195,6 +195,8 @@ test("동적 모바일 경로는 현재 executable canonical route만 가리킨�
   const teacherRouter = fs.readFileSync("src/app_teacher/app/TeacherRouter.tsx", "utf8");
   const mappings: Array<[string, string]> = [
     ["/workspace/mobile/students/41", "/workspace/students/41"],
+    ...["enrollments", "exams", "homework", "clinic", "questions", "activity", "info"].map((tab): [string, string] =>
+      [`/workspace/mobile/students/41?tab=${tab}`, "/workspace/students/41"]),
     ["/workspace/mobile/classes/7", "/workspace/lectures/7"],
     ["/workspace/mobile/classes/7/sessions/11", "/workspace/lectures/7/sessions/11/attendance"],
     ["/workspace/mobile/attendance/11", "/workspace/sessions/11/attendance"],
@@ -218,6 +220,9 @@ test("동적 모바일 경로는 현재 executable canonical route만 가리킨�
     "/workspace/mobile/students/0",
     "/workspace/mobile/students/-1",
     "/workspace/mobile/students/1?next=/workspace/mobile/profile",
+    "/workspace/mobile/students/1?tab=unknown",
+    "/workspace/mobile/students/1?tab=info&tab=clinic",
+    "/workspace/mobile/students/1?tab=info&next=/workspace/mobile/profile",
     "/workspace/mobile/students/%2e%2e",
     "/workspace/mobile/profile#stale",
     "/workspace/mobile/exams/50?sessionId=0",
@@ -295,18 +300,20 @@ test("모바일 직원 근태도 과거 월 날짜를 추측하지 않고 현재
   await expect(page.locator('input[type="date"]').last()).toHaveValue("");
 });
 
-test("390px 선생님은 학생 상세를 PC canonical로 열고 같은 모바일 상세로 한 번만 돌아온다", async ({ page }) => {
+test("390px 선생님은 학생 상세를 PC canonical로 열고 선택한 모바일 정보 탭으로 한 번만 돌아온다", async ({ page }) => {
   const apiRequests = await installWorkspaceMocks(page, { role: "teacher", userId: 3 });
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/mobile/students/41`, { timeout: 20_000 });
 
   await expect(page.getByRole("heading", { name: "학생 상세" })).toBeVisible();
+  await page.getByRole("navigation", { name: "학생 기록" }).getByRole("button", { name: "정보", exact: true }).click();
   await openContextualPcVersion(page);
   await expect(page).toHaveURL(/\/workspace\/students\/41$/);
   await expectNoHorizontalOverflow(page);
 
   await returnToMobileVersion(page);
-  await expect(page).toHaveURL(/\/workspace\/mobile\/students\/41$/);
+  await expect(page).toHaveURL(/\/workspace\/mobile\/students\/41\?tab=info$/);
+  await expect(page.getByRole("navigation", { name: "학생 기록" }).getByRole("button", { name: "정보", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect.poll(() => page.evaluate(() => Object.keys(sessionStorage).filter((key) => key.startsWith("workspace:mobileReturn:")).length)).toBe(0);
   expect(apiRequests.filter(({ method }) => method !== "GET")).toEqual([]);
 });
