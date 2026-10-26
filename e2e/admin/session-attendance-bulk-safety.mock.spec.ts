@@ -1007,7 +1007,9 @@ for (const width of [1366, 390]) {
       await enrollmentDialog.getByRole("button", { name: "취소", exact: true }).click();
       await page.getByRole("tab", { name: "성적", exact: true }).click();
       const scoreRow = page.locator("tbody tr").filter({ hasText: "김가람" });
-      await expect(scoreRow.locator('[data-col-type="attendance"]')).toHaveText("영상");
+      const attendanceCell = scoreRow.locator('[data-col-type="attendance"]');
+      await expect(attendanceCell.getByText("영상", { exact: true })).toBeVisible();
+      await expect(attendanceCell.getByText("영상 기록 없음", { exact: true })).toBeVisible();
       await page.getByRole("tab", { name: "출결", exact: true }).click();
     }
     if (width === 390) {
