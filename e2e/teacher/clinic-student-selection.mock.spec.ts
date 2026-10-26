@@ -75,6 +75,18 @@ for (const width of [390, 1366]) {
     await expect(sheet).toHaveCount(0);
     expect(submissions).toBe(2);
     expect(savedIds.sort((a, b) => a - b)).toEqual([51, 77]);
+
+    await page.getByRole("button", { name: "학생 추가", exact: true }).click();
+    await sheet.locator('button[aria-pressed]').filter({ hasText: "검증학생052" }).click();
+    saveFailed = true;
+    await sheet.getByRole("button", { name: "1명 추가", exact: true }).click();
+    await expect(sheet.getByRole("alert")).toContainText("선택한 학생을 다시 확인해 주세요.");
+    await sheet.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(sheet).toHaveCount(0);
+    await page.getByRole("button", { name: "학생 추가", exact: true }).click();
+    await expect(sheet.getByRole("alert")).toHaveCount(0);
+    await expect(sheet.getByRole("region", { name: "선택한 학생" })).toHaveCount(0);
+    await sheet.getByRole("button", { name: "닫기", exact: true }).click();
     await page.reload();
     await page.getByRole("button", { name: /학생선택검증 클리닉/ }).click();
     await expect(page.getByText("검증학생051", { exact: true })).toBeVisible();

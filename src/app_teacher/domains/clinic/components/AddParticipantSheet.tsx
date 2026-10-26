@@ -172,6 +172,11 @@ export default function AddParticipantSheet({
     onSettled: () => { submitRef.current = false; },
   });
 
+  const resetMutation = mutation.reset;
+  useEffect(() => {
+    if (open) resetMutation();
+  }, [open, sessionId, resetMutation]);
+
   const toggle = (student: ClientStudent) => {
     setSelected((prev) => (prev.some((item) => item.id === student.id) ? prev.filter((item) => item.id !== student.id) : [...prev, student]));
   };
