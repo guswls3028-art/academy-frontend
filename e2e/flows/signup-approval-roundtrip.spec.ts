@@ -137,7 +137,7 @@ async function fillSignupForm(page: Page, studentPhone: string, parentPhone: str
 
   await dialog.getByLabel("이름 *").fill(STUDENT_NAME);
   await dialog.getByRole("button", { name: "남" }).click();
-  await dialog.getByLabel("아이디 (희망 로그인 ID) *").fill(STUDENT_USER);
+  await dialog.getByLabel("로그인 아이디 *").fill(STUDENT_USER);
   await dialog.getByLabel("비밀번호 *").fill(STUDENT_PASS);
   await dialog.getByLabel("휴대전화 앞 4자리").fill(student.mid);
   await dialog.getByLabel("휴대전화 뒤 4자리").fill(student.last);

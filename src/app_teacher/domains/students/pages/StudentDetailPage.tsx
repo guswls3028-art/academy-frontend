@@ -1,8 +1,8 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/students/pages/StudentDetailPage.tsx
-// 학생 상세 — 데스크톱 오버레이 1:1 매칭 (5탭) + 편집/태그/메모/상태 관리
+// 학생 상세 — 학습 기록 우선, 기본정보·계정·메모는 정보 탭에서 관리
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
@@ -10,7 +10,7 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentScoreTrendChart from "@/shared/ui/assessment/StudentScoreTrendChart";
 import { Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight, Lock, MessageSquare } from "@teacher/shared/ui/Icons";
-import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
+import { Card, BackButton, KpiCard } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
@@ -33,14 +33,22 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { MonitorSmartphone } from "lucide-react";
 import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
 import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
+import styles from "./StudentDetailPage.module.css";
 
-type Tab = "enrollments" | "exams" | "homework" | "clinic" | "questions" | "activity";
+const STUDENT_TABS = [
+  { key: "enrollments", label: "수강" }, { key: "exams", label: "시험" },
+  { key: "homework", label: "과제" }, { key: "clinic", label: "클리닉" },
+  { key: "questions", label: "질문" }, { key: "activity", label: "활동" },
+  { key: "info", label: "정보" },
+] as const;
 
 export default function StudentDetailPage() {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
   const sid = Number(studentId);
-  const [tab, setTab] = useState<Tab>("enrollments");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = STUDENT_TABS.find((item) => item.key === searchParams.get("tab"))?.key ?? "enrollments";
+  const validStudentId = Number.isSafeInteger(sid) && sid > 0;
 
   // Edit states
   const [editOpen, setEditOpen] = useState(false);
@@ -49,12 +57,16 @@ export default function StudentDetailPage() {
   const [pwResetOpen, setPwResetOpen] = useState(false);
   const [supportOpening, setSupportOpening] = useState(false);
 
-  const { data: student, isLoading } = useQuery({
+  const { data: student, isLoading, isError: studentError, error: studentLoadError, refetch: refetchStudent, isFetching: studentFetching } = useQuery({
     queryKey: teacherStudentsQueryKeys.student(sid),
     queryFn: () => fetchStudent(sid),
-    enabled: Number.isFinite(sid),
+    enabled: validStudentId,
+    retry: (failureCount, error) => {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      return failureCount < 2 && (status == null || status >= 500);
+    },
   });
-  const { data: customFieldDefinitions = [] } = useQuery({
+  const { data: customFieldDefinitions = [], isError: fieldsError, refetch: refetchFields } = useQuery({
     queryKey: teacherStudentsQueryKeys.customFields,
     queryFn: fetchStudentCustomFields,
   });
@@ -67,14 +79,14 @@ export default function StudentDetailPage() {
   } = useQuery({
     queryKey: teacherStudentsQueryKeys.studentExams(sid),
     queryFn: () => fetchStudentGrades(sid),
-    enabled: Number.isFinite(sid),
+    enabled: validStudentId,
     refetchOnMount: "always",
   });
 
-  const { data: accountNotifications } = useQuery({
+  const accountQuery = useQuery({
     queryKey: teacherStudentsQueryKeys.accountNotifications(sid),
     queryFn: () => fetchStudentAccountNotifications(sid),
-    enabled: Number.isFinite(sid),
+    enabled: validStudentId && Boolean(student) && tab === "info",
   });
 
   const clinic = useInfiniteQuery({
@@ -108,6 +120,17 @@ export default function StudentDetailPage() {
   ).values()];
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  const studentErrorStatus = (studentLoadError as { response?: { status?: number } })?.response?.status;
+  const accessUnavailable = studentErrorStatus === 401 || studentErrorStatus === 403 || studentErrorStatus === 404;
+  if ((studentError && (!student || accessUnavailable)) || !validStudentId) {
+    const unavailable = !validStudentId || studentErrorStatus === 404;
+    const denied = studentErrorStatus === 401 || studentErrorStatus === 403;
+    return <EmptyState scope="panel" tone="error"
+      title={unavailable ? "학생 정보를 찾을 수 없습니다" : denied ? "학생 정보에 접근할 수 없습니다" : "학생 정보를 불러오지 못했습니다"}
+      description={unavailable ? "학생 목록에서 다시 선택해 주세요." : denied ? "로그인 계정과 학생 조회 권한을 확인해 주세요." : "연결 상태를 확인하고 다시 시도해 주세요."}
+      actions={<><EmptyActionButton onClick={() => navigate("/workspace/mobile/students")}>학생 목록</EmptyActionButton>
+        {!unavailable && !denied && <EmptyActionButton disabled={studentFetching} onClick={() => void refetchStudent()}>다시 시도</EmptyActionButton>}</>} />;
+  }
   if (!student)
     return <EmptyState scope="panel" tone="error" title="학생 정보를 찾을 수 없습니다" />;
 
@@ -131,9 +154,14 @@ export default function StudentDetailPage() {
         <h1 className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>학생 상세</h1>
       </div>
 
+      {studentError && <div role="alert" className={styles.inlineError}>
+        최신 정보를 불러오지 못했습니다. 이전에 확인한 정보를 표시합니다.
+        <button type="button" disabled={studentFetching} onClick={() => void refetchStudent()}>다시 시도</button>
+      </div>}
+
       {/* Profile */}
       <Card>
-        <div className="flex items-center gap-3">
+        <div className={styles.profileHeader}>
           <div className="flex-1 min-w-0">
             <StudentNameWithLectureChip
               name={name}
@@ -147,13 +175,16 @@ export default function StudentDetailPage() {
                 chipLabel: e.lectureChipLabel,
               }))}
             />
+            {(student.school || student.grade != null) && <p className={styles.profileMeta}>
+              {[student.school, student.grade != null ? `${student.grade}학년` : null].filter(Boolean).join(" · ")}
+            </p>}
             {student.psNumber && (
               <div className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
-                ID: {student.psNumber}{student.omrCode ? ` · OMR: ${student.omrCode}` : ""}
+                학생 번호: {student.psNumber}{student.omrCode ? ` · OMR: ${student.omrCode}` : ""}
               </div>
             )}
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className={styles.profileActions}>
             <button
               type="button"
               disabled={supportOpening}
@@ -167,13 +198,13 @@ export default function StudentDetailPage() {
                   setSupportOpening(false);
                 }
               }}
-              className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+              className={`flex items-center gap-1 text-[11px] font-semibold cursor-pointer ${styles.action}`}
               style={{ padding: "5px 9px", borderRadius: "var(--tc-radius)", border: "1px solid color-mix(in srgb, var(--tc-primary) 24%, transparent)", background: "var(--tc-primary)", color: "white" }}
             >
               <MonitorSmartphone size={ICON.xs} /> {supportOpening ? "여는 중…" : "학생 화면"}
             </button>
             <button onClick={() => setEditOpen(true)}
-              className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+              className={`flex items-center gap-1 text-[11px] font-semibold cursor-pointer ${styles.action}`}
               style={{ padding: "5px 9px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
               <Pencil size={ICON.xs} /> 편집
             </button>
@@ -193,12 +224,38 @@ export default function StudentDetailPage() {
         </div>
 
         {/* Quick actions + status toggle */}
-        <div className="flex gap-2 mt-3">
+        <div className="flex flex-wrap gap-2 mt-3">
           {parentPhone && <ContactBtn href={`tel:${parentPhone}`} label={`부모 ${formatPhone(parentPhone)}`} />}
           {studentPhone && <ContactBtn href={`tel:${studentPhone}`} label={`학생 ${formatPhone(studentPhone)}`} />}
         </div>
       </Card>
 
+      {/* Summary KPI */}
+      <div className="grid grid-cols-3 gap-2">
+        <KpiCard label="현재 수강" value={enrollments.filter((e) => e.lectureActive && (e.status ?? "ACTIVE") === "ACTIVE").length} sub={`전체 ${enrollments.length}개`} />
+        <KpiCard
+          label="시험"
+          value={gradesLoading ? "…" : gradesError ? "-" : exams.length}
+          sub={gradesLoading ? "불러오는 중" : gradesError ? "불러오기 실패" : averageScore != null ? `평균 ${averageScore}%` : undefined}
+        />
+        <KpiCard
+          label="합격률"
+          value={gradesLoading || gradesError ? "-" : judgedExams.length ? `${Math.round((passCount / judgedExams.length) * 100)}%` : "-"}
+          sub={gradesLoading ? "불러오는 중" : gradesError ? "불러오기 실패" : undefined}
+          color={!gradesLoading && !gradesError && passCount > failCount ? "var(--tc-success)" : undefined}
+        />
+      </div>
+
+      <nav className={styles.tabs} aria-label="학생 기록">
+        {STUDENT_TABS.map((item) => (
+          <button type="button" key={item.key} aria-pressed={tab === item.key}
+            onClick={() => setSearchParams((previous) => { const next = new URLSearchParams(previous); next.set("tab", item.key); return next; }, { replace: true })}>
+            {item.label}
+          </button>
+        ))}
+      </nav>
+      {/* Tab content */}
+      <div className={styles.infoPanels} hidden={tab !== "info"}>
       {/* Info */}
       <Card>
         <h3 className="text-sm font-bold mb-2" style={{ color: "var(--tc-text)" }}>기본 정보</h3>
@@ -218,48 +275,26 @@ export default function StudentDetailPage() {
             ? null
             : <InfoRow key={definition.key} label={definition.label} value={String(value)} />;
         })}
+        {fieldsError && <div role="alert" className={styles.inlineError}>추가 정보를 불러오지 못했습니다.
+          <button type="button" onClick={() => void refetchFields()}>다시 시도</button>
+        </div>}
       </Card>
 
       <AccountNotificationCard
-        items={accountNotifications ?? []}
+        items={accountQuery.data ?? []}
+        loading={accountQuery.isLoading}
+        failed={accountQuery.isError}
+        retrying={accountQuery.isFetching}
+        onRetry={() => void accountQuery.refetch()}
         onGuide={() => setAccountGuideOpen(true)}
         onReset={() => setPwResetOpen(true)}
       />
 
       {/* Memo — editable */}
-      <MemoSection studentId={sid} initialMemo={student.memo ?? ""} />
+      <MemoSection key={sid} studentId={sid} initialMemo={student.memo ?? ""} />
 
-      {/* Summary KPI */}
-      <div className="grid grid-cols-3 gap-2">
-        <KpiCard label="수강" value={enrollments.filter((e) => e.status === "ACTIVE").length} sub={`/${enrollments.length}`} />
-        <KpiCard
-          label="시험"
-          value={gradesLoading ? "…" : gradesError ? "-" : exams.length}
-          sub={gradesLoading ? "불러오는 중" : gradesError ? "불러오기 실패" : averageScore != null ? `평균 ${averageScore}%` : undefined}
-        />
-        <KpiCard
-          label="합격률"
-          value={gradesLoading || gradesError ? "-" : judgedExams.length ? `${Math.round((passCount / judgedExams.length) * 100)}%` : "-"}
-          sub={gradesLoading ? "불러오는 중" : gradesError ? "불러오기 실패" : undefined}
-          color={!gradesLoading && !gradesError && passCount > failCount ? "var(--tc-success)" : undefined}
-        />
       </div>
 
-      {/* 5 Tabs */}
-      <TabBar
-        tabs={[
-          { key: "enrollments" as Tab, label: "수강" },
-          { key: "exams" as Tab, label: "시험" },
-          { key: "homework" as Tab, label: "과제" },
-          { key: "clinic" as Tab, label: "클리닉" },
-          { key: "questions" as Tab, label: "질문" },
-          { key: "activity" as Tab, label: "활동" },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
-
-      {/* Tab content */}
       {tab === "enrollments" && <EnrollmentList enrollments={enrollments} />}
       {tab === "exams" && (
         <ExamList
@@ -583,7 +618,7 @@ function QuestionList({ items }: { items: StudentQuestionRow[] }) {
 
 function ContactBtn({ href, label }: { href: string; label: string }) {
   return (
-    <a href={href} className="flex-1 text-center text-[12px] font-semibold py-2 rounded-lg no-underline" style={{ background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
+    <a href={href} className={`flex-1 text-center text-[12px] font-semibold py-2 rounded-lg no-underline ${styles.contact}`} style={{ background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
       {label}
     </a>
   );
@@ -591,12 +626,12 @@ function ContactBtn({ href, label }: { href: string; label: string }) {
 
 function InfoRow({ label, value, href }: { label: string; value: string; href?: string }) {
   return (
-    <div className="flex justify-between items-center py-1.5">
+    <div className="flex justify-between items-start gap-3 py-1.5">
       <span className="text-[13px] shrink-0" style={{ color: "var(--tc-text-muted)" }}>{label}</span>
       {href ? (
         <a href={href} className="text-sm no-underline text-right" style={{ color: "var(--tc-primary)" }}>{value}</a>
       ) : (
-        <span className="text-sm text-right truncate ml-3" style={{ color: "var(--tc-text)" }}>{value}</span>
+        <span className={`text-sm text-right ${styles.infoValue}`} style={{ color: "var(--tc-text)" }}>{value}</span>
       )}
     </div>
   );
@@ -620,10 +655,14 @@ function isAccountNotificationSent(item: StudentAccountNotificationLog): boolean
   return item.success === true || ["sent", "success", "delivered", "completed"].includes(status);
 }
 
-function AccountNotificationCard({ items, onGuide, onReset }: {
+function AccountNotificationCard({ items, onGuide, onReset, loading, failed, retrying, onRetry }: {
   items: StudentAccountNotificationLog[];
   onGuide: () => void;
   onReset: () => void;
+  loading: boolean;
+  failed: boolean;
+  retrying: boolean;
+  onRetry: () => void;
 }) {
   return (
     <Card>
@@ -653,7 +692,11 @@ function AccountNotificationCard({ items, onGuide, onReset }: {
       <p className="text-[11px] mt-0 mb-2" style={{ color: "var(--tc-text-muted)" }}>
         로그인 정보 안내는 현재 비밀번호와 로그인 상태를 변경하지 않습니다.
       </p>
-      {items.length === 0 ? (
+      {loading ? <p role="status">계정 안내 이력을 불러오는 중…</p> : failed ? (
+        <div role="alert" className={styles.inlineError}>계정 안내 이력을 불러오지 못했습니다.
+          <button type="button" disabled={retrying} onClick={onRetry}>다시 시도</button>
+        </div>
+      ) : items.length === 0 ? (
         <p className="text-sm m-0" style={{ color: "var(--tc-text-muted)" }}>
           최근 아이디/비밀번호 알림톡 이력이 없습니다.
         </p>
@@ -818,7 +861,7 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>메모</h3>
         {!editing ? (
-          <button onClick={() => { setEditing(true); setText(initialMemo); }}
+          <button aria-label="학생 메모 편집" onClick={() => { setEditing(true); setText(initialMemo); mutation.reset(); }}
             className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-primary)", padding: "2px 6px" }}>
             <Pencil size={ICON.xs} /> 편집
@@ -828,9 +871,9 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
             <button onClick={() => mutation.mutate()} disabled={mutation.isPending}
               className="flex items-center gap-0.5 text-[11px] font-bold cursor-pointer"
               style={{ background: "var(--tc-primary)", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "var(--tc-radius-sm)" }}>
-              <Save size={10} /> 저장
+              <Save size={ICON.xs} /> {mutation.isPending ? "저장 중…" : "저장"}
             </button>
-            <button onClick={() => setEditing(false)}
+            <button disabled={mutation.isPending} onClick={() => setEditing(false)}
               className="flex items-center text-[11px] cursor-pointer"
               style={{ background: "var(--tc-surface-soft)", color: "var(--tc-text-muted)", border: "none", padding: "4px 8px", borderRadius: "var(--tc-radius-sm)" }}>
               취소
@@ -839,7 +882,7 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
         )}
       </div>
       {editing ? (
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4}
+        <textarea aria-label="학생 메모" disabled={mutation.isPending} value={text} onChange={(e) => setText(e.target.value)} rows={4}
           className="w-full text-sm"
           style={{ padding: "8px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none", resize: "vertical" }} />
       ) : (
@@ -847,6 +890,7 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
           {initialMemo || "메모가 없습니다. 편집 버튼으로 추가하세요."}
         </p>
       )}
+      {editing && mutation.isError && <p role="alert" className={styles.inlineError}>{extractApiError(mutation.error, "메모를 저장하지 못했습니다. 입력한 내용을 확인하고 다시 저장해 주세요.")}</p>}
     </Card>
   );
 }

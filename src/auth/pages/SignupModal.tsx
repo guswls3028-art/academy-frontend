@@ -10,6 +10,8 @@ import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import type { SchoolType } from "@/shared/hooks/useSchoolLevelMode";
 import styles from "./LoginPage.module.css";
 import { useRegistrationPasswordConfirmation } from "@/shared/product/students/RegistrationPasswordConfirmation";
+import { useConfirm } from "@/shared/ui/confirm";
+import { useSignupDialogFocus } from "./useSignupDialogFocus";
 
 interface SignupModalProps {
   open: boolean;
@@ -41,6 +43,7 @@ const cx = (...classes: Array<string | false | null | undefined>) => classes.fil
 export default function SignupModal({ open, onClose }: SignupModalProps) {
   const slm = useSchoolLevelMode();
   const confirmPasswords = useRegistrationPasswordConfirmation();
+  const confirm = useConfirm();
   const [form, setForm] = useState<typeof INITIAL_FORM>({ ...INITIAL_FORM, schoolType: slm.defaultSchoolType });
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -52,6 +55,12 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [usernameCheckError, setUsernameCheckError] = useState(false);
+  const [phoneCheckError, setPhoneCheckError] = useState(false);
+  const usernameRequest = useRef(0);
+  const phoneRequest = useRef(0);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closingRef = useRef(false);
   const submissionRef = useRef(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const genderRef = useRef<HTMLDivElement>(null);
@@ -72,7 +81,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     window.requestAnimationFrame(() => {
       const target = targetRef.current;
       if (!target) return;
-      target.scrollIntoView({ block: "center", behavior: "smooth" });
+      target.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
       const focusTarget = target.matches("input, select, button, textarea")
         ? target
         : target.querySelector<HTMLElement>("input, select, button, textarea");
@@ -80,13 +89,23 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     });
   }
 
-  const handleClose = useCallback(() => {
-    if (!pending && !submissionRef.current) {
+  const handleClose = useCallback(async () => {
+    if (pending || submissionRef.current || closingRef.current) return;
+    closingRef.current = true;
+    try {
+      const hasInput = Object.entries(form).some(([key, value]) => key !== "schoolType" && value !== "");
+      if (!success && !duplicateInfo && hasInput && !await confirm({
+        title: "가입 작성을 그만둘까요?",
+        message: "닫으면 입력한 내용이 지워집니다.",
+        confirmText: "닫기", cancelText: "계속 작성",
+      })) return;
       onClose();
       setError("");
       setSuccess(null);
+    } finally {
+      closingRef.current = false;
     }
-  }, [onClose, pending]);
+  }, [onClose, pending, form, success, duplicateInfo, confirm]);
 
   // 모달 열릴 때 폼 초기화 (defaultSchoolType 반영)
   useEffect(() => {
@@ -99,49 +118,47 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
       setUsernameCheck(null);
       setPhoneCheck(null);
       setShowGuide(false);
+      usernameRequest.current += 1;
+      phoneRequest.current += 1;
+      setCheckingUsername(false);
+      setCheckingPhone(false);
+      setUsernameCheckError(false);
+      setPhoneCheckError(false);
       submissionRef.current = false;
     }
   }, [open, slm.defaultSchoolType]);
 
   async function handleCheckUsername() {
+    const request = ++usernameRequest.current;
     const val = form.username.trim();
     if (!val) { setUsernameCheck(null); return; }
     setCheckingUsername(true);
+    setUsernameCheckError(false);
     try {
       const res = await checkSignupDuplicate({ username: val });
-      setUsernameCheck(res.username ?? null);
-    } catch { setUsernameCheck(null); }
-    finally { setCheckingUsername(false); }
+      if (request === usernameRequest.current) setUsernameCheck(res.username ?? null);
+    } catch { if (request === usernameRequest.current) setUsernameCheckError(true); }
+    finally { if (request === usernameRequest.current) setCheckingUsername(false); }
   }
 
   async function handleCheckPhone() {
+    const request = ++phoneRequest.current;
     const val = form.phone.replace(/\D/g, "");
     if (val.length !== 11 || !val.startsWith("010")) { setPhoneCheck(null); return; }
     setCheckingPhone(true);
+    setPhoneCheckError(false);
     try {
       const res = await checkSignupDuplicate({ phone: val });
-      setPhoneCheck(res.phone ?? null);
-    } catch { setPhoneCheck(null); }
-    finally { setCheckingPhone(false); }
+      if (request === phoneRequest.current) setPhoneCheck(res.phone ?? null);
+    } catch { if (request === phoneRequest.current) setPhoneCheckError(true); }
+    finally { if (request === phoneRequest.current) setCheckingPhone(false); }
   }
 
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        handleClose();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleClose, open]);
-
-  function handleConfirmSuccess() {
-    onClose();
-    setSuccess(null);
-    setForm(INITIAL_FORM);
-  }
+  useSignupDialogFocus(open, dialogRef, nameRef, handleClose);
+  useEffect(() => () => {
+    usernameRequest.current += 1;
+    phoneRequest.current += 1;
+  }, [open]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -263,7 +280,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   if (!open) return null;
 
   return (
-    <div className={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="signup-modal-title">
+    <div ref={dialogRef} className={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="signup-modal-title">
       <div className={`${styles.overlayCard} ${styles.overlayCardWide}`} onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
@@ -371,13 +388,15 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                 : "신청이 완료되었습니다. 승인 후 로그인해 주세요."}
             </p>
             <div className={`${styles.signupActions} ${styles.signupSuccessActions}`}>
-              <button type="button" className={styles.signupBtnSubmit} onClick={handleConfirmSuccess}>
+              <button type="button" className={styles.signupBtnSubmit} onClick={handleClose}>
                 {success === "approved" ? "로그인하기" : "확인"}
               </button>
             </div>
           </>
         ) : (
           <form onSubmit={onSubmit}>
+            <div className={styles.signupFields}>
+            <div className={styles.signupColumn}>
             {/* 기본 정보 */}
             <section className={styles.signupSection} aria-labelledby="signup-basic">
               <h3 id="signup-basic" className={styles.signupSectionTitle}>기본 정보</h3>
@@ -418,7 +437,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
               </div>
               <div className={styles.signupInputRow}>
                 <label htmlFor="signup-username" className={styles.signupInputLabel}>
-                  아이디 (희망 로그인 ID) <span className={styles.signupRequired}>*</span>
+                  로그인 아이디 <span className={styles.signupRequired}>*</span>
                 </label>
                 <input
                   id="signup-username"
@@ -426,11 +445,12 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   className={styles.signupInput}
                   placeholder="영문·숫자 조합"
                   value={form.username}
-                  onChange={(e) => { setForm((f) => ({ ...f, username: e.target.value })); setUsernameCheck(null); }}
+                  onChange={(e) => { usernameRequest.current += 1; setCheckingUsername(false); setUsernameCheckError(false); setForm((f) => ({ ...f, username: e.target.value })); setUsernameCheck(null); }}
                   onBlur={handleCheckUsername}
                   autoComplete="username"
                 />
                 {checkingUsername && <span className={`${styles.signupValidationStatus} ${styles.signupValidationMuted}`}>확인 중...</span>}
+                {usernameCheckError && <span role="status" className={styles.signupValidationStatus}>중복 확인을 마치지 못했습니다. 가입 신청 시 다시 확인합니다.</span>}
                 {usernameCheck && !checkingUsername && (
                   <span className={`${styles.signupValidationStatus} ${usernameCheck.available ? styles.signupValidationAvailable : styles.signupValidationBlocked}`}>
                     {usernameCheck.available ? "사용 가능한 아이디입니다." : usernameCheck.reason}
@@ -500,12 +520,13 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                 <span className={styles.signupInputLabel}>휴대전화 <span className={styles.signupRequired}>*</span></span>
                 <PhoneInput010Blocks
                   value={form.phone}
-                  onChange={(v) => { setForm((f) => ({ ...f, phone: v })); setPhoneCheck(null); }}
+                  onChange={(v) => { phoneRequest.current += 1; setCheckingPhone(false); setPhoneCheckError(false); setForm((f) => ({ ...f, phone: v })); setPhoneCheck(null); }}
                   blockClassName={styles.signupPhoneBlock}
                   inputClassName={styles.signupPhoneBlockInput}
                   aria-label="휴대전화"
                 />
                 {checkingPhone && <span className={`${styles.signupValidationStatus} ${styles.signupValidationMuted}`}>확인 중...</span>}
+                {phoneCheckError && <span role="status" className={styles.signupValidationStatus}>중복 확인을 마치지 못했습니다. 가입 신청 시 다시 확인합니다.</span>}
                 {phoneCheck && !checkingPhone && (
                   <span className={`${styles.signupValidationStatus} ${phoneCheck.available ? styles.signupValidationAvailable : styles.signupValidationBlocked}`}>
                     {phoneCheck.available ? "사용 가능한 전화번호입니다." : phoneCheck.reason}
@@ -525,6 +546,8 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
               </div>
             </section>
 
+            </div>
+            <div className={styles.signupColumn}>
             {/* 학교 정보 */}
             <section className={styles.signupSection} aria-labelledby="signup-school">
               <h3 id="signup-school" className={styles.signupSectionTitle}>학교 정보</h3>
@@ -632,7 +655,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
 
             {/* 추가 정보 */}
             <section className={styles.signupSection} aria-labelledby="signup-extra">
-              <h3 id="signup-extra" className={styles.signupSectionTitle}>추가 정보</h3>
+              <h3 id="signup-extra" className={styles.signupSectionTitle}>주소·출신 학교</h3>
               {slm.showOriginMiddleSchool(form.schoolType) && (
                 <div className={styles.signupInputRow}>
                   <label htmlFor="signup-origin" className={styles.signupInputLabel}>출신중학교 <span className={styles.signupRequired}>*</span></label>
@@ -645,6 +668,8 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
               </div>
             </section>
 
+            </div>
+            </div>
             <div className={styles.signupSectionDivider} aria-hidden />
             <p className={styles.signupLegalNotice}>
               가입 시{" "}

@@ -47,7 +47,7 @@ type MockState = {
   changePayloads: Array<Record<string, unknown>>;
   sessions?: Array<Record<string, unknown>>;
   availability?: Record<number, Record<string, unknown>>;
-  availabilityDelayMs?: number;
+  availabilityReady?: Promise<void>;
   cancelNotificationFailed?: number;
   clinicPagination?: {
     requests: { sessions: number[]; participants: number[] };
@@ -312,9 +312,7 @@ async function installApi(
     const availabilityMatch = path.match(/^\/clinic\/sessions\/(\d+)\/availability\/$/);
     if (availabilityMatch && method === "GET") {
       const sessionId = Number(availabilityMatch[1]);
-      if (state.availabilityDelayMs) {
-        await new Promise((resolve) => setTimeout(resolve, state.availabilityDelayMs));
-      }
+      await state.availabilityReady;
       return json(state.availability?.[sessionId] ?? { detail: "not found" }, state.availability?.[sessionId] ? 200 : 404);
     }
     if (path === "/clinic/participants/bulk-create/" && method === "POST") {
@@ -755,6 +753,10 @@ test.describe("학생 클리닉 예약 UX", () => {
     await installApi(page, state);
     await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
 
+    await page.getByRole("tab", { name: "내 일정" }).click();
+    await page.getByRole("button", { name: "예약 가능한 일정 보기" }).click();
+    await expect(page.getByRole("tab", { name: "예약하기" })).toHaveAttribute("aria-selected", "true");
+
     const calendar = page.getByRole("grid", { name: "클리닉 월간 일정" });
     await expect(calendar).toBeVisible();
     await expect(calendar.getByRole("gridcell")).toHaveCount(42);
@@ -977,7 +979,8 @@ test.describe("학생 클리닉 예약 UX", () => {
         ],
       },
     };
-    state.availabilityDelayMs = 350;
+    let releaseAvailability!: () => void;
+    state.availabilityReady = new Promise<void>((resolve) => { releaseAvailability = resolve; });
 
     await seed(page);
     await installApi(page, state);
@@ -991,6 +994,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
     await expect(selection).toBeVisible();
     await expect(selection).toContainText("예약 가능한 시간을 확인하고 있어요.");
+    releaseAvailability();
     await expect(selection).toContainText("30분 간격 · 최대 90분");
     await expect(selection).toContainText("예약할 시작 시간을 골라 주세요");
     await expect(selection.getByRole("button", { name: "16:00 시작, 잔여 2자리" })).toBeVisible();
@@ -1381,6 +1385,10 @@ test.describe("학생 클리닉 예약 UX", () => {
     await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
     await page.getByRole("button", { name: "이 일정 예약하기" }).click();
     await expect(page.getByRole("status")).toContainText("예약 신청이 접수되었습니다.");
+    await expect(page.getByRole("region", { name: "클리닉 신청 결과" })).toContainText("선생님 승인 후 예약이 확정됩니다.");
+    await page.getByRole("button", { name: "신청한 일정 보기" }).click();
+    await expect(page.getByRole("tab", { name: /내 일정/ })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("heading", { name: /승인 대기/ })).toBeVisible();
 
     await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "대상자" })).toBeVisible();

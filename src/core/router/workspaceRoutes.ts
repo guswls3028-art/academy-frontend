@@ -7,6 +7,7 @@ export const WORKSPACE_PATHS = {
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 const COMMUNITY_TABS = ["notices", "qna", "counsel", "requests", "board", "materials"] as const;
+const STUDENT_RECORD_TABS = ["enrollments", "exams", "homework", "clinic", "questions", "activity", "info"] as const;
 type CommunityTab = (typeof COMMUNITY_TABS)[number];
 
 function positiveInteger(value: string | null): number | null {
@@ -63,7 +64,6 @@ export function parseMobileWorkspaceReturnPath(candidate: string): string | null
   const simplePatterns = [
     /^\/workspace\/mobile\/(assistant|guide|classes|students|message-log|message-templates|messaging-settings|notifications|exams|videos|clinic|counseling|results|submissions|profile|settings|staff|my-records|billing|desktop-only|fees|storage|tools)$/,
     /^\/workspace\/mobile\/(exams\/(templates|bundles)|clinic\/(reports|remote)|fees\/invoices|storage\/inventory|settings\/(organization|appearance)|tools\/(problem-solver|stopwatch)|developer\/(bug|feedback))$/,
-    /^\/workspace\/mobile\/students\/([1-9]\d*)$/,
     /^\/workspace\/mobile\/classes\/([1-9]\d*)$/,
     /^\/workspace\/mobile\/classes\/([1-9]\d*)\/sessions\/([1-9]\d*)$/,
     /^\/workspace\/mobile\/classes\/([1-9]\d*)\/attendance-matrix$/,
@@ -76,6 +76,15 @@ export function parseMobileWorkspaceReturnPath(candidate: string): string | null
   ];
   if (simplePatterns.some((pattern) => pattern.test(pathname))) {
     return searchParams.size === 0 ? pathname : null;
+  }
+
+  const studentMatch = pathname.match(/^\/workspace\/mobile\/students\/([1-9]\d*)$/);
+  if (studentMatch) {
+    const studentId = positiveInteger(studentMatch[1]);
+    const tab = searchParams.get("tab");
+    if (!studentId || !hasOnlySearchParams(searchParams, ["tab"])) return null;
+    if (tab != null && !STUDENT_RECORD_TABS.some((allowed) => allowed === tab)) return null;
+    return `${WORKSPACE_PATHS.mobile}/students/${studentId}${tab ? `?tab=${tab}` : ""}`;
   }
 
   const examMatch = pathname.match(/^\/workspace\/mobile\/exams\/([1-9]\d*)$/);

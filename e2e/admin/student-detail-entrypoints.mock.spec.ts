@@ -539,6 +539,7 @@ test("교사용 모바일 학생 상세는 로그인 정보 안내와 비밀번�
   });
 
   await expect(page.getByRole("heading", { name: "학생 상세" })).toBeVisible();
+  await page.getByRole("navigation", { name: "학생 기록" }).getByRole("button", { name: "정보", exact: true }).click();
   await expect(page.getByText("로그인 정보 안내는 현재 비밀번호와 로그인 상태를 변경하지 않습니다.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "로그인 정보 안내", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "비밀번호 초기화", exact: true })).toBeVisible();
