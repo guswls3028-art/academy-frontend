@@ -294,6 +294,38 @@
   gap: var(--stu-space-2);
 }
 
+.persistedActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  gap: 4px;
+  max-width: 150px;
+}
+
+.persistedActions button,
+.previewHeading button {
+  min-height: 44px;
+}
+
+.savedPreview {
+  padding: var(--stu-space-3);
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius);
+}
+
+.previewHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--stu-space-2);
+}
+
+.previewHeading strong { min-width: 0; overflow-wrap: anywhere; }
+.previewHeading button { flex-shrink: 0; }
+.savedPreview img,
+.savedPreview video { display: block; width: 100%; max-height: 60vh; object-fit: contain; margin-top: var(--stu-space-2); }
+
 .persistedFile {
   display: flex;
   min-width: 0;
