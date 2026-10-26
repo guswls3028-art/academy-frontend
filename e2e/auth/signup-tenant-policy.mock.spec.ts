@@ -102,6 +102,7 @@ for (const width of [390, 1366]) {
         return route.fulfill({ status: 500, json: { detail: "Unexpected mock API request" } });
       });
       let submissions = 0;
+      const chosenParentPassword = " synthetic initial 42 ";
       await page.route("**/api/v1/students/registration_requests/", async (route) => {
         submissions += 1;
         expect(route.request().method()).toBe("POST");
@@ -109,6 +110,10 @@ for (const width of [390, 1366]) {
         expect(route.request().headers()["authorization"]).toBeUndefined();
         const payload = route.request().postDataJSON();
         expect(payload.password_confirmation === payload.initial_password).toBe(true);
+        expect(payload.parent_initial_password_mode).toBe(outcome === "approved" ? "fixed" : "phone_last4");
+        if (outcome === "approved") {
+          expect(payload.parent_initial_password === chosenParentPassword, "exact parent password survives public signup").toBe(true);
+        }
         await route.fulfill({
           status: outcome === "approved" ? 200 : 201,
           json: outcome === "approved" ? { id: 913, name: "가입검증학생" } : { id: 914, status: "pending" },
@@ -119,7 +124,10 @@ for (const width of [390, 1366]) {
       await dialog.getByRole("button", { name: "가입 신청", exact: true }).click();
       const passwordChoice = page.getByRole("alertdialog", { name: "가입 신청 최종 확인" });
       await expect(passwordChoice.getByRole("radio", { checked: true })).toHaveCount(0);
-      await passwordChoice.getByRole("radio", { name: "전화번호 뒤 4자리", exact: true }).check();
+      await passwordChoice.getByRole("radio", { name: outcome === "approved" ? "직접 입력" : "전화번호 뒤 4자리", exact: true }).check();
+      if (outcome === "approved") {
+        await passwordChoice.getByLabel("학부모 직접 입력 비밀번호", { exact: true }).fill(chosenParentPassword);
+      }
       await passwordChoice.getByRole("button", { name: "가입 신청", exact: true }).click();
     })();
       const message = outcome === "approved"
