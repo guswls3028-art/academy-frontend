@@ -22,11 +22,14 @@ test.describe('completed first watch remains playing in review', () => {
       ended.push(route.request().postDataJSON().token);
       await route.fulfill({ json: { ok: true } });
     });
-    await page.route('**/api/v1/media/playback/v2/end/', async (route) => {
+    await page.route('**/api/v1/media/playback/v2/{events,end}/', async (route) => {
       const body = route.request().postDataJSON();
-      ended.push(body.token);
-      await route.fulfill({ json: { protocol_version: 2, session_status: 'ENDED', inserted_count: 0,
-        acknowledgements: body.batches.map((batch: { batch_id: string; events: unknown[] }) => ({
+      const final = new URL(route.request().url()).pathname.endsWith('/end/');
+      const batches: Array<{ batch_id: string; events: unknown[] }> = final ? body.batches : [body.batch];
+      if (final) ended.push(body.token);
+      await route.fulfill({ json: { protocol_version: 2, session_status: final ? 'ENDED' : 'ACTIVE',
+        inserted_count: batches.reduce((count, batch) => count + batch.events.length, 0),
+        acknowledgements: batches.map((batch) => ({
           batch_id: batch.batch_id, event_count: batch.events.length, duplicate: false,
         })) } });
     });
@@ -45,7 +48,8 @@ test.describe('completed first watch remains playing in review', () => {
         play_url: `https://www.youtube.com/embed/${YOUTUBE_QA_VIDEO_ID}`,
         playback_token: review ? 'signed-review-token' : 'signed-monitored-token',
         playback_session_id: review ? null : 'monitored-session',
-        playback_expires_at: Math.floor(Date.now() / 1000) + 3600, policy_version: 1, event_protocol_version: protocol,
+        // The server selects protocol 1 for sessionless review, even after a v2 first watch.
+        playback_expires_at: Math.floor(Date.now() / 1000) + 3600, policy_version: 1, event_protocol_version: review ? 1 : protocol,
         policy: { access_mode: review ? 'FREE_REVIEW' : 'PROCTORED_CLASS', monitoring_enabled: !review,
           allow_seek: true, seek: { mode: review ? 'free' : 'budgeted_forward', grace_seconds: 3 },
           playback_rate: { max: 1, ui_control: true },
