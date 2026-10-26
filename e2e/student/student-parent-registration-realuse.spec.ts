@@ -308,6 +308,15 @@ for (const autoApprove of [false, true]) {
       await confirmation.getByRole("button", { name: "가입 신청", exact: true }).click();
       const response = await submitted;
       expect(response.status()).toBe(autoApprove ? 200 : 201);
+      // Check the submitted values without exposing credentials in test diagnostics.
+      const payload = response.request().postDataJSON() as Record<string, unknown>;
+      expect(payload.username === row.username, "signup submitted student identity").toBe(true);
+      expect(payload.phone === row.phone, "signup submitted student phone").toBe(true);
+      expect(payload.parent_phone === row.parentPhone, "signup submitted parent identity").toBe(true);
+      expect(payload.initial_password === direct && payload.password_confirmation === direct,
+        "signup preserved the exact student password").toBe(true);
+      expect(payload.parent_initial_password_mode === "fixed" && payload.parent_initial_password === direct,
+        "signup preserved the explicit parent password choice").toBe(true);
       let student: QaStudent;
       let registrationId: number | undefined;
       if (autoApprove) {
@@ -331,6 +340,13 @@ for (const autoApprove of [false, true]) {
       }
       const family = { scenarioKey: row.key, parentPhone: row.parentPhone, parentPassword: direct, students: [{ ...student, password: direct }] };
       families.push(family);
+      expect(student.ps_number === row.username, "approved student identity matches the application").toBe(true);
+      expect(student.parent_phone === row.parentPhone, "approved parent identity matches the application").toBe(true);
+      // Prove the new parent credential before the student's first-login/profile journey,
+      // then prove it again in proveFamily after that journey and reload.
+      const parentTokens = await loginApi(request, row.parentPhone, direct);
+      const parentIdentity = await expectApi<{ tenantRole: string }>(request, "GET", "/core/me/", parentTokens.access);
+      expect(parentIdentity.tenantRole).toBe("parent");
       await page.reload({ waitUntil: "domcontentloaded" });
       await proveFamily(page, request, family);
       await probe(student.id, "verify", "fixed");
