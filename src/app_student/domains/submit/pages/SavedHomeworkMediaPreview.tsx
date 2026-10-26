@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchHomeworkMediaPreview, type HomeworkMediaFile } from "../api/homeworkMedia.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
+import HomeworkMediaImage from "@/shared/ui/media/HomeworkMediaImage";
 import styles from "./SubmitAssignmentPage.module.css";
 
 export default function SavedHomeworkMediaPreview({ homeworkId, enrollmentId, file, onClose }: {
@@ -33,7 +34,7 @@ export default function SavedHomeworkMediaPreview({ homeworkId, enrollmentId, fi
       ) : preview.data?.url ? file.media_kind === "video" ? (
         <video src={preview.data.url} controls playsInline preload="metadata" aria-label={file.original_filename} onError={() => setMediaFailed(true)} />
       ) : (
-        <img src={preview.data.url} alt={`${file.original_filename} 제출 파일`} onError={() => setMediaFailed(true)} />
+        <HomeworkMediaImage src={preview.data.url} filename={file.original_filename} mimeType={file.mime_type} alt={`${file.original_filename} 제출 파일`} onError={() => setMediaFailed(true)} />
       ) : null}
     </section>
   );

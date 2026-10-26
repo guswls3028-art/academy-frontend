@@ -1,6 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { homeworkHeicDataUrl } from "../helpers/homeworkHeicFixture";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const HOMEWORK_ID = 8803;
@@ -17,12 +18,13 @@ function fakeJwt(): string {
   })}.sig`;
 }
 
-async function installApi(page: Page, options: { reviewed?: boolean; scoreReviewed?: boolean; score?: number; previewFailures?: number; olderSubmission?: boolean; failSecondPage?: boolean } = {}) {
+async function installApi(page: Page, options: { reviewed?: boolean; scoreReviewed?: boolean; score?: number; previewFailures?: number; olderSubmission?: boolean; failSecondPage?: boolean; heic?: boolean } = {}) {
   let reviewed = options.reviewed ?? options.scoreReviewed ?? false;
   let reviewUpdatedAt: string | null = reviewed && !options.scoreReviewed ? "2026-08-23T03:30:00Z" : null;
   let correctionPayload: Record<string, unknown> | null = null;
   let previewFailures = options.previewFailures ?? 0;
   let saveFailures = 0;
+  let brokenMedia = false;
   let failSecondPage = options.failSecondPage ?? false;
   const requestedPages: number[] = [];
 
@@ -69,7 +71,7 @@ async function installApi(page: Page, options: { reviewed?: boolean; scoreReview
         files: [{
           id: "9911",
           position: 0,
-          original_filename: "풀이 앞면.jpg",
+          original_filename: options.heic ? "phone.HEIF" : "풀이 앞면.jpg",
           media_kind: "image",
           file_size: 1800,
           status: "uploaded",
@@ -108,7 +110,7 @@ async function installApi(page: Page, options: { reviewed?: boolean; scoreReview
         return json({ detail: "미리보기 실패" }, 503);
       }
       const svg = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#eef2ff"/><text x="400" y="300" text-anchor="middle" font-size="38">homework preview</text></svg>');
-      return json({ url: `data:image/svg+xml,${svg}`, media_kind: "image", mime_type: "image/jpeg", original_filename: "풀이 앞면.jpg", expires_in: 600 });
+      return json({ url: brokenMedia ? "data:image/heic;base64,broken" : options.heic ? homeworkHeicDataUrl : `data:image/svg+xml,${svg}`, media_kind: "image", mime_type: options.heic ? "image/heif" : "image/jpeg", original_filename: options.heic ? "phone.HEIF" : "풀이 앞면.jpg", expires_in: 600 });
     }
     if (path === `/results/admin/sessions/${SESSION_ID}/score-correction/` && request.method() === "PATCH") {
       correctionPayload = request.postDataJSON() as Record<string, unknown>;
@@ -127,9 +129,34 @@ async function installApi(page: Page, options: { reviewed?: boolean; scoreReview
     correctionPayload: () => correctionPayload,
     failNextSave: () => { saveFailures = 1; },
     allowPreview: () => { previewFailures = 0; },
+    setBrokenMedia: (value: boolean) => { brokenMedia = value; },
     allowSecondPage: () => { failSecondPage = false; },
     requestedPages: () => [...requestedPages],
   };
+}
+
+for (const width of [390, 1366]) {
+  test(`HEIC 검수는 디코딩 실패를 재시도하고 확인 완료를 저장한다 (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const api = await installApi(page, { heic: true });
+    api.setBrokenMedia(true);
+    await page.goto(`${BASE}/workspace/mobile/homeworks/${HOMEWORK_ID}`);
+    await page.getByRole("button", { name: "제출물 확인" }).click();
+    const sheet = page.getByRole("dialog").filter({ hasText: "김하늘 제출 확인" });
+    await expect(sheet.getByRole("alert")).toContainText("제출된 파일은 유지됩니다");
+    await expect(sheet.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
+    expect(api.correctionPayload()).toBeNull();
+    api.setBrokenMedia(false);
+    await sheet.getByRole("button", { name: /파일을 불러오지 못했습니다.*다시 시도/ }).click();
+    const image = sheet.getByRole("img", { name: /phone.HEIF 과제 제출 미리보기/ });
+    await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
+    await sheet.getByRole("button", { name: "직접 확인 완료" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "확인 완료", exact: true }).click();
+    await expect.poll(api.correctionPayload).toMatchObject({ completed: true, source_id: HOMEWORK_ID });
+    await page.reload();
+    await expect(page.getByText("확인 완료", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  });
 }
 
 for (const width of [390, 1280]) {

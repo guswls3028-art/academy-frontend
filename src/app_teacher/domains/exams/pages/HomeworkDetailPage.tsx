@@ -8,6 +8,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { fetchSessionScores, patchAssessmentCorrection } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
+import HomeworkMediaImage from "@/shared/ui/media/HomeworkMediaImage";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -252,6 +253,7 @@ function HomeworkReviewSheet({ homeworkId, submission, busy, canSave, scoreLocke
   const firstReadyFileId = readyFiles[0]?.id ?? null;
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [previewedFileIds, setPreviewedFileIds] = useState<string[]>([]);
+  const [failedMediaKey, setFailedMediaKey] = useState<string | null>(null);
 
   useEffect(() => {
     setSelectedFileId(firstReadyFileId);
@@ -266,6 +268,12 @@ function HomeworkReviewSheet({ homeworkId, submission, busy, canSave, scoreLocke
     retry: 1,
   });
   const allFilesPreviewed = readyFiles.length > 0 && readyFiles.every((file) => previewedFileIds.includes(file.id));
+  const mediaKey = `${submission?.id}:${selectedFile?.id}:${previewQ.data?.url}`;
+  const mediaFailed = failedMediaKey === mediaKey;
+  const retryPreview = async () => {
+    const result = await previewQ.refetch();
+    if (!result.isError) setFailedMediaKey(null);
+  };
   const markPreviewed = (fileId: string) => {
     setPreviewedFileIds((current) => current.includes(fileId) ? current : [...current, fileId]);
   };
@@ -300,15 +308,18 @@ function HomeworkReviewSheet({ homeworkId, submission, busy, canSave, scoreLocke
 
           <div className={styles.previewFrame}>
             {selectedFile == null && <span>미리 볼 수 있는 파일이 없습니다.</span>}
-            {selectedFile && previewQ.isLoading && <span>미리보기를 준비하는 중…</span>}
-            {selectedFile && previewQ.isError && (
-              <button type="button" className={styles.previewRetry} onClick={() => void previewQ.refetch()}>파일을 불러오지 못했습니다 · 다시 시도</button>
+            {selectedFile && previewQ.isLoading && <span role="status">미리보기를 준비하는 중…</span>}
+            {selectedFile && (previewQ.isError || mediaFailed) && (
+              <div role="alert">
+                <p>파일을 불러오지 못했습니다. 제출된 파일은 유지됩니다.</p>
+                <button type="button" className={styles.previewRetry} disabled={previewQ.isFetching} onClick={() => void retryPreview()}>{previewQ.isFetching ? "다시 불러오는 중…" : "파일을 불러오지 못했습니다 · 다시 시도"}</button>
+              </div>
             )}
-            {selectedFile && previewQ.data && selectedFile.media_kind === "image" && (
-              <img src={previewQ.data.url} alt={`${selectedFile.original_filename} 과제 제출 미리보기`} onLoad={() => markPreviewed(selectedFile.id)} />
+            {selectedFile && previewQ.data && !previewQ.isError && !mediaFailed && selectedFile.media_kind === "image" && (
+              <HomeworkMediaImage key={mediaKey} src={previewQ.data.url} filename={selectedFile.original_filename} mimeType={previewQ.data.mime_type} alt={`${selectedFile.original_filename} 과제 제출 미리보기`} onLoad={() => markPreviewed(selectedFile.id)} onError={() => setFailedMediaKey(mediaKey)} />
             )}
-            {selectedFile && previewQ.data && selectedFile.media_kind === "video" && (
-              <video src={previewQ.data.url} controls playsInline preload="metadata" onLoadedMetadata={() => markPreviewed(selectedFile.id)}>브라우저에서 이 동영상을 재생할 수 없습니다.</video>
+            {selectedFile && previewQ.data && !previewQ.isError && !mediaFailed && selectedFile.media_kind === "video" && (
+              <video key={mediaKey} src={previewQ.data.url} controls playsInline preload="metadata" onLoadedMetadata={() => markPreviewed(selectedFile.id)} onError={() => setFailedMediaKey(mediaKey)}>브라우저에서 이 동영상을 재생할 수 없습니다.</video>
             )}
           </div>
           {scoreStatusLoading && <p className={styles.reviewHint}>성적 상태를 확인하는 중…</p>}
