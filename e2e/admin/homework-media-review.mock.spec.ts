@@ -4,6 +4,7 @@ import { expect, test } from "../fixtures/strictTest";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { homeworkHeicDataUrl } from "../helpers/homeworkHeicFixture";
+import { waitForRenderSettled } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 8801;
@@ -540,6 +541,7 @@ for (const width of [1366, 390]) {
     await table.evaluate(node => { if (node.parentElement) node.parentElement.scrollLeft = 0; });
     await page.screenshot({ path: testInfo.outputPath(`completion-detail-${width}.png`), animations: "disabled" });
     await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForRenderSettled(page, { timeout: 20_000 });
     await page.getByRole("tab", { name: "결과", exact: true }).click();
     await expect(page.getByRole("table").getByRole("row").filter({ hasText: "결과학생2" }).locator("td").nth(2)).toHaveText("X");
   });

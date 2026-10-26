@@ -2,7 +2,7 @@ import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { guideRecording } from "../helpers/guideRecording";
-import { homeworkHeic, homeworkHeicDataUrl } from "../helpers/homeworkHeicFixture";
+import { homeworkHeic, installHomeworkHeicPreview } from "../helpers/homeworkHeicFixture";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const HOMEWORK_ID = 8501;
@@ -298,7 +298,8 @@ async function installApi(
 
 test("HEIC 사진은 선택·제출·새로고침 후 열리고 실패한 미리보기도 복구한다", async ({ page }) => {
   const state = await installApi(page, 0);
-  state.setPreviewUrl(homeworkHeicDataUrl);
+  const remote = await installHomeworkHeicPreview(page);
+  state.setPreviewUrl(remote.url);
   Object.assign(state.files[0], { original_filename: "camera-capture", mime_type: "image/heif" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/student/submit/assignment`);
@@ -327,6 +328,13 @@ test("HEIC 사진은 선택·제출·새로고침 후 열리고 실패한 미리
   await page.getByRole("button", { name: "미리보기 다시 시도" }).click();
   await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
   expect(state.getUploadAttempts()).toBe(1);
+  expect(remote.headers.length).toBeGreaterThan(0);
+  for (const headers of remote.headers) {
+    expect(headers.authorization).toBeUndefined();
+    expect(headers["x-tenant-code"]).toBeUndefined();
+    expect(headers["x-student-id"]).toBeUndefined();
+    expect(headers.cookie).toBeUndefined();
+  }
 });
 
 test("학부모가 선택 자녀의 과제를 제출하고 새로고침 뒤에도 같은 파일을 확인한다", async ({ page }) => {

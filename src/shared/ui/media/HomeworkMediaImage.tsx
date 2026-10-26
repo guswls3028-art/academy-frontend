@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { fetchPresignedMediaBlob } from "@/shared/api/axios";
 import styles from "./HomeworkMediaImage.module.css";
 
 type Props = {
@@ -25,9 +26,7 @@ function convertPreview(source: string | Blob, signal: AbortSignal): Promise<Blo
     assertActive(signal);
     let blob: Blob;
     if (typeof source === "string") {
-      const response = await fetch(source, { signal, credentials: "omit" });
-      if (!response.ok) throw new Error("Image preview download failed");
-      blob = await response.blob();
+      blob = await fetchPresignedMediaBlob(source, signal);
     } else {
       blob = source;
     }
