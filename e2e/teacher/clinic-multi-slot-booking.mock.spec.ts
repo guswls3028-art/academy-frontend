@@ -254,7 +254,7 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await expect(sheet.getByPlaceholder("학생 이름/전화 검색")).toBeFocused();
   await expect(sheet.getByText("학생 목록을 불러오는 중...")).toBeVisible();
   releaseStudents?.();
-  await expect(sheet.getByRole("button", { name: /김학생/ })).toBeVisible();
+  await expect(sheet.locator('button[aria-pressed]').filter({ hasText: "김학생" })).toBeVisible();
   expect(await sheet.evaluate((element) => ({
     animationName: getComputedStyle(element).animationName,
     transform: getComputedStyle(element).transform,
@@ -272,7 +272,7 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await expect(page.getByText("이어진 시간대만 함께 선택할 수 있습니다.")).toBeVisible();
   await sheet.getByRole("button", { name: /18:00–19:00/ }).click();
   await expect(sheet.getByRole("region", { name: "선택한 클리닉 시간" })).toContainText("17:00–19:00");
-  await sheet.getByRole("button", { name: /김학생/ }).click();
+  await sheet.locator('button[aria-pressed]').filter({ hasText: "김학생" }).click();
   await sheet.getByPlaceholder("학생 이름/전화 검색").fill("retry");
   await expect.poll(() => retrySearchRequests).toBe(3);
   await expect(sheet.getByText("학생 목록을 불러오지 못했습니다")).toBeVisible();
@@ -280,15 +280,15 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await expect(sheet.getByRole("button", { name: "1명을 2개 시간대에 추가" })).toBeVisible();
   await sheet.getByRole("button", { name: "다시 시도" }).click();
   await expect.poll(() => retrySearchRequests).toBe(4);
-  await expect(sheet.getByRole("button", { name: /김학생/ })).toBeVisible();
+  await expect(sheet.locator('button[aria-pressed]').filter({ hasText: "김학생" })).toBeVisible();
   await expect(sheet.getByRole("region", { name: "선택한 클리닉 시간" })).toContainText("17:00–19:00");
   await expect(sheet.getByRole("button", { name: "1명을 2개 시간대에 추가" })).toBeVisible();
-  await sheet.getByRole("button", { name: /김학생/ }).click();
+  await sheet.locator('button[aria-pressed]').filter({ hasText: "김학생" }).click();
   await sheet.getByPlaceholder("학생 이름/전화 검색").fill("missing");
   await expect(sheet.getByText("검색 결과 없음")).toBeVisible();
   await expect(sheet.getByText("학생 목록을 불러오지 못했습니다")).toHaveCount(0);
   await sheet.getByPlaceholder("학생 이름/전화 검색").fill("");
-  await expect(sheet.getByRole("button", { name: /김학생/ })).toBeVisible();
+  await expect(sheet.locator('button[aria-pressed]').filter({ hasText: "김학생" })).toBeVisible();
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.screenshot({ path: "test-results/teacher-clinic-multi-slot-390.png", fullPage: true });
 
@@ -332,8 +332,8 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   const reopenedSheet = page.getByRole("dialog", { name: "학생 추가" });
   await reopenedSheet.getByRole("button", { name: /18:00–19:00/ }).click();
 
-  await reopenedSheet.getByRole("button", { name: /김학생/ }).click();
-  await reopenedSheet.getByRole("button", { name: /이학생/ }).click();
+  await reopenedSheet.locator('button[aria-pressed]').filter({ hasText: "김학생" }).click();
+  await reopenedSheet.locator('button[aria-pressed]').filter({ hasText: "이학생" }).click();
   await reopenedSheet.getByRole("button", { name: "2명을 2개 시간대에 추가" }).click();
 
   await expect.poll(() => bulkPayloads).toEqual([{
@@ -361,8 +361,8 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await expect(rangeSheet.getByText("운영 시간", { exact: true }).first()).toBeVisible();
   await expect(rangeSheet.getByText("추가할 시간대", { exact: true })).toHaveCount(0);
   await expect(rangeSheet.getByText(/한 타임|개 시간대/)).toHaveCount(0);
-  await rangeSheet.getByRole("button", { name: /김학생/ }).click();
-  await rangeSheet.getByRole("button", { name: /이학생/ }).click();
+  await rangeSheet.locator('button[aria-pressed]').filter({ hasText: "김학생" }).click();
+  await rangeSheet.locator('button[aria-pressed]').filter({ hasText: "이학생" }).click();
   const rangeStartButton = rangeSheet.getByRole("button", { name: "10:00 시작, 잔여 2자리" });
   await rangeStartButton.focus();
   await page.keyboard.press("Shift+Tab");

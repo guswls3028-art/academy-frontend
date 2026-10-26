@@ -1,0 +1,8 @@
+.savedNotice { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px; border: 1px solid var(--stu-border); border-radius: var(--stu-radius-md, 12px); background: var(--stu-surface); color: var(--stu-text); animation: savedReveal 160ms ease-out; }
+.savedNotice strong { font-size: 15px; }
+.savedNotice p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; }
+.savedNotice button, .emptySchedule > button { min-height: 44px; padding: 10px 16px; border: 0; border-radius: 8px; font: inherit; font-size: 14px; font-weight: 600; background: var(--stu-primary); color: var(--stu-primary-contrast, #fff); cursor: pointer; }
+.savedNotice button:focus-visible, .emptySchedule > button:focus-visible { outline: 2px solid var(--stu-primary); outline-offset: 3px; }
+.emptySchedule { text-align: center; padding-bottom: 24px; }
+@keyframes savedReveal { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .savedNotice { animation: none; } }

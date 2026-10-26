@@ -315,7 +315,27 @@
 
 /* 회원가입 모달은 필드가 많아 데스크탑에서 더 넓게 */
 .overlayCardWide {
-  max-width: 560px;
+  max-width: 760px;
+  overscroll-behavior: contain;
+  scroll-padding-block: 24px 88px;
+}
+
+.signupFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 32px;
+}
+
+.signupColumn { min-width: 0; }
+
+.signupColumn + .signupColumn {
+  border-left: 1px solid #E5E7EB;
+  padding-left: 32px;
+}
+
+@media (max-width: 640px) {
+  .signupFields { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .signupColumn + .signupColumn { border-left: 0; border-top: 1px solid #E5E7EB; padding: 24px 0 0; }
 }
 
 /* Signup keeps a white card even when the surrounding login theme is dark. */

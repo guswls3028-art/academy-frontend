@@ -8,6 +8,7 @@ export const teacherClinicQueryKeys = {
   participants: (sessionId: number) => ["teacher-clinic-participants", sessionId] as const,
   availability: (sessionId: number) => ["teacher-clinic-availability", sessionId] as const,
   addStudents: (search: string) => ["clinic-add-students", search] as const,
+  addStudentPages: (search: string) => ["clinic-add-students", search, "pages"] as const,
   report: (year: number, month: number) => ["teacher-clinic-report", year, month] as const,
   settings: ["teacher-clinic-settings"] as const,
   sectionsRegular: ["teacher-clinic-sections-regular"] as const,

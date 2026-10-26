@@ -3,6 +3,20 @@
   transition: box-shadow 150ms ease;
 }
 
+.fields { margin: 0; padding: var(--tc-space-2) 0; border: 0; min-width: 0; }
+.selection { padding: 12px; border-radius: var(--tc-radius); background: var(--tc-primary-bg); }
+.selection p { margin: 0 0 8px; font-size: 12px; font-weight: 700; color: var(--tc-text); }
+.selection > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.selection button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; max-width: 100%; overflow-wrap: anywhere; padding: 6px 10px; border: 1px solid var(--tc-border); border-radius: var(--tc-radius-sm); background: var(--tc-surface); color: var(--tc-text); font: inherit; font-size: 12px; cursor: pointer; }
+.selection button:focus-visible, .moreButton:focus-visible { outline: 2px solid var(--tc-primary); outline-offset: 2px; }
+.moreButton { min-height: 44px; border: 1px solid var(--tc-border); border-radius: var(--tc-radius); color: var(--tc-text); background: var(--tc-surface); cursor: pointer; }
+.studentRow { min-height: 44px; overflow-wrap: anywhere; transition: background-color 140ms ease; }
+.studentRow > :last-child { flex-basis: 45%; text-align: right; }
+.studentRow[aria-pressed="true"] { box-shadow: inset 3px 0 var(--tc-primary); }
+.error { padding: 12px; border-radius: var(--tc-radius-sm); background: var(--tc-surface-soft); color: var(--tc-danger); font-size: 13px; overflow-wrap: anywhere; }
+.error button { display: block; min-height: 40px; margin-top: 8px; padding: 6px 12px; border: 1px solid var(--tc-border); border-radius: var(--tc-radius-sm); background: var(--tc-surface); color: var(--tc-text); cursor: pointer; }
+.hint { margin: 0; font-size: 12px; line-height: 1.6; color: var(--tc-text-muted); }
+
 .search:focus-within {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tc-primary) 24%, transparent);
 }
@@ -16,7 +30,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .search {
+  .search, .studentRow {
     transition: none;
   }
 }

@@ -101,7 +101,7 @@ async function openAndFillSignup(
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("이름 *").fill("가입테스트");
   await dialog.getByRole("button", { name: "남" }).click();
-  await dialog.getByLabel("아이디 (희망 로그인 ID) *").fill("signup-rootfix");
+  await dialog.getByLabel("로그인 아이디 *").fill("signup-rootfix");
   await dialog.getByLabel("비밀번호 *", { exact: true }).fill(password);
   await dialog.getByLabel("비밀번호 확인 *", { exact: true }).fill(confirmation);
   await dialog.getByLabel("휴대전화 앞 4자리").fill("1234");
@@ -413,7 +413,7 @@ test.describe("계정 복구 모달 UI 검증", () => {
 
     await dialog.getByLabel("이름 *").fill("황연재");
     await dialog.getByRole("button", { name: "남" }).click();
-    await dialog.getByLabel("아이디 (희망 로그인 ID) *").fill("hwangyj");
+    await dialog.getByLabel("로그인 아이디 *").fill("hwangyj");
     await dialog.getByLabel("비밀번호 *", { exact: true }).fill("test1234");
     await dialog.getByLabel("비밀번호 확인 *", { exact: true }).fill("test1234");
     await dialog.getByLabel("휴대전화 앞 4자리").fill("1234");

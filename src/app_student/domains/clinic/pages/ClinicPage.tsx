@@ -30,6 +30,7 @@ import ClinicBookingCalendar from "../components/ClinicBookingCalendar";
 import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
 import ClinicSelfCancelControl from "../components/ClinicSelfCancelControl";
 import ClinicTimePickerRevealButton from "../components/ClinicTimePickerRevealButton";
+import { ClinicEmptySchedule, ClinicSavedBookingNotice } from "../components/ClinicBookingFeedback";
 import { resolveClinicSessionSelection } from "../components/clinicSessionSelection";
 import {
   displayTargetText,
@@ -53,6 +54,7 @@ export default function ClinicPage() {
   const today = now.format("YYYY-MM-DD");
   const runTrackedTask = useTrackedTask();
   const [activeTab, setActiveTab] = useState<ClinicTab>("book");
+  const [savedBookingNotice, setSavedBookingNotice] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSessionIds, setSelectedSessionIds] = useState<number[]>([]);
   const [rangeStartSessionId, setRangeStartSessionId] = useState<number | null>(null);
@@ -234,6 +236,7 @@ export default function ClinicPage() {
       booking_end_time?: string;
     }) =>
       runTrackedTask("clinic.booking.create", () => createClinicBookingRequests(data)),
+    onMutate: () => { setSavedBookingNotice(null); },
     onSuccess: (data, variables) => {
       const session = variables.session_ids.length === 1
         ? sessions.find((item) => item.id === variables.session_ids[0])
@@ -253,6 +256,7 @@ export default function ClinicPage() {
       setRangeStartSessionId(null);
       setSelectionNotice(null);
       const allBooked = data.every((booking) => booking.status === "booked");
+      setSavedBookingNotice(allBooked ? "확정된 일정을 확인해 주세요." : "선생님 승인 후 예약이 확정됩니다.");
       const message = variables.session_ids.length > 1
         ? `${variables.session_ids.length}개 시간대 예약${allBooked ? "이 확정되었습니다." : " 신청이 접수되었습니다."}`
         : allBooked ? "예약이 확정되었습니다." : "예약 신청이 접수되었습니다.";
@@ -273,6 +277,7 @@ export default function ClinicPage() {
     mutationFn: (id: number) =>
       runTrackedTask("clinic.booking.cancel", () => cancelClinicBookingRequest(id)),
     onSuccess: (data, id) => {
+      setSavedBookingNotice(null);
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
@@ -312,6 +317,7 @@ export default function ClinicPage() {
           data.bookingEndTime,
         ),
       ),
+    onMutate: () => { setSavedBookingNotice(null); },
     onSuccess: (data, variables) => {
       const session = sessions.find((item) => item.id === variables.newSessionId);
       const bookedCount = session ? (session.booked_count ?? 0) + 1 : null;
@@ -329,6 +335,7 @@ export default function ClinicPage() {
       const message = data.status === "booked"
         ? "일정 변경이 확정되었습니다."
         : "일정 변경 신청이 접수되었습니다.";
+      setSavedBookingNotice(data.status === "booked" ? "변경된 일정을 확인해 주세요." : "일정 변경은 선생님 승인 후 확정됩니다.");
       studentToast.success(
         bookedCount == null ? message : `${message} (현재 예약인원 ${bookedCount}명)`,
       );
@@ -547,6 +554,10 @@ export default function ClinicPage() {
             )}
           </button>
         </div>
+
+        {activeTab === "book" && savedBookingNotice && (
+          <ClinicSavedBookingNotice message={savedBookingNotice} onView={() => setActiveTab("schedule")} />
+        )}
 
         {activeTab === "book" && (
           <>
@@ -878,10 +889,7 @@ export default function ClinicPage() {
         {activeTab === "schedule" && (
           <section className={styles.mySchedule} aria-labelledby="my-clinic-schedule-title">
             <header className={styles.myScheduleHeader}>
-              <div>
-                <p>예정된 예약</p>
-                <h2 id="my-clinic-schedule-title">내 일정</h2>
-              </div>
+              <h2 id="my-clinic-schedule-title">내 일정</h2>
               {activeBookingCount > 0 && <span>{activeBookingCount}건</span>}
             </header>
 
@@ -980,10 +988,7 @@ export default function ClinicPage() {
             )}
 
             {activeBookingCount === 0 && rejectedBookings.length === 0 && (
-              <EmptyState
-                title="예정된 클리닉이 없습니다"
-                description="예약하기에서 열린 일정과 날짜를 확인해 보세요."
-              />
+              <ClinicEmptySchedule onBook={() => setActiveTab("book")} />
             )}
           </section>
         )}

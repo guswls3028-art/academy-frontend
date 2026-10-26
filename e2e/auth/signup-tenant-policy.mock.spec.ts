@@ -4,6 +4,50 @@ import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
 
+for (const width of [390, 1366]) {
+  test(`가입 입력 보존과 중복 확인 응답 순서를 지킨다 (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await stubLoginBootstrap(page, "hakwonplus");
+    let releaseOld: (() => void) | undefined;
+    const oldResponse = new Promise<void>((resolve) => { releaseOld = resolve; });
+    await page.route("**/api/v1/students/registration_requests/check_duplicate/**", async (route) => {
+      if (route.request().postDataJSON()?.username === "old-id") {
+        await oldResponse;
+        return route.fulfill({ json: { username: { available: false, reason: "이전 아이디 중복" } } });
+      }
+      return route.fulfill({ json: { username: { available: true } } });
+    });
+    await gotoAndSettle(page, `${BASE}/login/hakwonplus`);
+    const trigger = page.getByRole("button", { name: "회원가입", exact: true });
+    await trigger.click();
+    const dialog = page.getByRole("dialog", { name: "학생 회원가입" });
+    await expect(dialog.locator("#signup-name")).toBeFocused();
+    await dialog.locator("#signup-name").fill("입력 보존 학생");
+    await dialog.locator("#signup-username").fill("old-id");
+    const oldRequest = page.waitForRequest((request) => request.url().includes("check_duplicate") && request.postDataJSON()?.username === "old-id");
+    await dialog.locator("#signup-pw").focus();
+    await oldRequest;
+    await dialog.locator("#signup-username").fill("new-id");
+    await dialog.locator("#signup-pw").focus();
+    await expect(dialog.getByText("사용 가능한 아이디입니다.")).toBeVisible();
+    const oldFinished = page.waitForResponse((response) => response.url().includes("check_duplicate") && response.request().postDataJSON()?.username === "old-id");
+    releaseOld?.();
+    await oldFinished;
+    await expect(dialog.getByText("이전 아이디 중복")).toHaveCount(0);
+    await expect(dialog.getByText("사용 가능한 아이디입니다.")).toBeVisible();
+    expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+    await page.screenshot({ path: test.info().outputPath(`signup-form-${width}.png`) });
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+    const discard = page.getByRole("alertdialog", { name: "가입 작성을 그만둘까요?" });
+    await discard.getByRole("button", { name: "계속 작성" }).click();
+    await expect(dialog.locator("#signup-name")).toHaveValue("입력 보존 학생");
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await discard.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
+}
+
 function textContrast(foreground: number[], background: number[]) {
   const luminance = (rgb: number[]) => rgb.slice(0, 3).reduce((sum, value, index) => {
     const channel = value / 255;
