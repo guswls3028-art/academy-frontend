@@ -6,6 +6,7 @@ export const productionReadOnlySpecs = [
 ];
 
 export const routeMockSpecs = [
+  "e2e/student/video-event-receipts.mock.spec.ts",
   "e2e/promo-guide.mock.spec.ts",
   "e2e/admin/problem-conversion.mock.spec.ts",
   "e2e/admin/submission-inbox-pages.mock.spec.ts",
@@ -132,6 +133,7 @@ export const routeMockSpecs = [
   "e2e/teacher/product-update-guide.mock.spec.ts",
   "e2e/teacher/messaging-settings-clear-timing.mock.spec.ts",
   "e2e/teacher/clinic-multi-slot-booking.mock.spec.ts",
+  "e2e/teacher/clinic-notification-outcome.mock.spec.ts",
   "e2e/teacher/ended-lecture-student-chip.mock.spec.ts",
   "e2e/teacher/video-thumbnail-render.mock.spec.ts",
   "e2e/teacher/video-preview-playback.mock.spec.ts",
@@ -164,6 +166,7 @@ export const e2eGateSpecs = [
 ];
 
 export const controlledWriteSpecs = [
+  "e2e/teacher/teacher-score-parent-realuse.spec.ts",
   "e2e/admin/public-video-realuse.spec.ts",
   "e2e/admin/public-resource-realuse.spec.ts",
   "e2e/admin/alimtalk-withdrawal-realuse.spec.ts",
@@ -190,6 +193,7 @@ export const controlledWriteSpecs = [
 // Relative to the development config's e2e testDir. This is the shared
 // inventory for collection, executed-result acceptance and safe progress.
 export const developmentRealUseCases = Object.freeze({
+  "teacher/teacher-score-parent-realuse.spec.ts": 1,
   "admin/problem-conversion-realuse.spec.ts": 1,
   "admin/public-video-realuse.spec.ts": 1,
   "admin/public-resource-realuse.spec.ts": 2,
@@ -201,7 +205,7 @@ export const developmentRealUseCases = Object.freeze({
   "flows/qna-roundtrip.spec.ts": 4,
   "flows/clinic-roundtrip.spec.ts": 4,
   "student/student-parent-account-realuse.spec.ts": 1,
-  "student/student-parent-registration-realuse.spec.ts": 7,
+  "student/student-parent-registration-realuse.spec.ts": 8,
   "student/student-parent-assessment-realuse.spec.ts": 1,
   "student/student-clinic-required-cancel-realuse.spec.ts": 1,
   "student/student-parent-clinic-realuse.spec.ts": 1,

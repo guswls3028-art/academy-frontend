@@ -36,6 +36,7 @@ import {
   getTenantUserLocalKey,
   setLocalItem,
 } from "@/shared/utils/safeLocalStorage";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm";
 import type { SecessionScope } from "@/shared/api/contracts/attendance";
@@ -54,6 +55,7 @@ import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
 import AttendanceStatusInlineRail from "./AttendanceStatusInlineRail";
 import AttendanceSortButtons from "./AttendanceSortButtons";
+import { useBulkPresentUndo } from "./useBulkPresentUndo";
 import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
 import { DEFAULT_ATTENDANCE_SORT, getStoredAttendanceSort, type AttendanceSort, type AttendanceSortColumn } from "./attendanceSort";
 import "./attendance-ui.css";
@@ -87,6 +89,8 @@ export default function SessionAttendancePage({
   const { confirmSecession, secessionDialog } = useSecessionConfirm();
   const isCompactAttendance = useIsMobile();
   const { user } = useAuth();
+  const tenantCode = getTenantCodeForApiRequest();
+  const [bulkPresentUndo, setBulkPresentUndo] = useBulkPresentUndo(tenantCode, user?.id, sessionId);
   const sortStorageKey = getTenantUserLocalKey("attendance:sort", user?.id);
   const previousSortStorageKey = user?.id ? `attendance:sort:u${user.id}` : null;
   const { openSendMessageModal } = useSendMessageModal();
@@ -94,11 +98,6 @@ export default function SessionAttendancePage({
   const [deleting, setDeleting] = useState(false);
   const [bulkPresentBusy, setBulkPresentBusy] = useState(false);
   const [pendingStatusIds, setPendingStatusIds] = useState<Set<number>>(() => new Set());
-  const [bulkPresentUndo, setBulkPresentUndo] = useState<{
-    token: string;
-    updated: number;
-    expiresIn: number;
-  } | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -140,10 +139,6 @@ export default function SessionAttendancePage({
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter]);
-
-  useEffect(() => {
-    setBulkPresentUndo(null);
-  }, [sessionId]);
 
   useEffect(() => {
     setPage(1);
@@ -346,18 +341,29 @@ export default function SessionAttendancePage({
       confirmText: "삭제",
     });
     if (!ok) return;
-    const count = selectedIds.length;
+    const targetIds = [...selectedIds];
+    const count = targetIds.length;
     setDeleting(true);
     try {
-      await Promise.all(selectedIds.map((attendanceId) => deleteAttendance(attendanceId)));
-      setSelectedIds([]);
-      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
-      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) });
-      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForPdf(sessionId) });
-      feedback.success(`${count}명이 이 차시에서 제외되었습니다.`);
-    } catch (e) {
-      feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
+      const results = await Promise.allSettled(
+        targetIds.map((attendanceId) => deleteAttendance(attendanceId)),
+      );
+      const failedIds = targetIds.filter((_id, index) => results[index].status === "rejected");
+      const succeededCount = count - failedIds.length;
+      setSelectedIds(failedIds);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) }),
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) }),
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) }),
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForPdf(sessionId) }),
+      ]);
+      if (failedIds.length === 0) {
+        feedback.success(`${count}명이 이 차시에서 제외되었습니다.`);
+      } else if (succeededCount > 0) {
+        feedback.error(`${succeededCount}명은 제외했고 ${failedIds.length}명은 실패했습니다. 현재 목록을 다시 확인해 주세요.`);
+      } else {
+        feedback.error("선택한 학생을 제외하지 못했습니다. 현재 목록을 다시 확인해 주세요.");
+      }
     } finally {
       setDeleting(false);
     }
@@ -543,11 +549,12 @@ export default function SessionAttendancePage({
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
       if (result.updated > 0 && result.undo_token) {
-        setBulkPresentUndo({
+        const undoRecord = {
           token: result.undo_token,
           updated: result.updated,
-          expiresIn: result.undo_expires_in ?? 600,
-        });
+          expiresAt: Date.now() + (result.undo_expires_in ?? 600) * 1000,
+        };
+        setBulkPresentUndo(undoRecord);
       }
       feedback.success(result.updated > 0 ? `${result.updated}명을 현장 출석으로 변경했습니다.` : "이미 전원 현장 출석입니다.");
     } catch (error) {
@@ -749,7 +756,7 @@ export default function SessionAttendancePage({
           <div className="attendance-safety-record__copy">
             <strong>전체 현장 출석 적용됨</strong>
             <span>
-              {bulkPresentUndo.updated}명의 기존 상태를 바꿨습니다. 현재 상태가 그대로라면 {Math.max(1, Math.ceil(bulkPresentUndo.expiresIn / 60))}분 안에 복구할 수 있습니다.
+              {bulkPresentUndo.updated}명의 기존 상태를 바꿨습니다. 현재 상태가 그대로라면 {Math.max(1, Math.ceil((bulkPresentUndo.expiresAt - Date.now()) / 60_000))}분 안에 복구할 수 있습니다.
             </span>
           </div>
           <div className="attendance-safety-record__actions">
@@ -767,7 +774,9 @@ export default function SessionAttendancePage({
               type="button"
               intent="ghost"
               size="sm"
-              onClick={() => setBulkPresentUndo(null)}
+              onClick={() => {
+                setBulkPresentUndo(null);
+              }}
               aria-label="최근 작업 기록 닫기"
               title="기록 닫기"
               className="attendance-safety-record__close"

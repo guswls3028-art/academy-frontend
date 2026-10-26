@@ -2223,7 +2223,7 @@ test.describe("문항별 직접 채점", () => {
           created_at: "2026-08-26T16:59:00+09:00",
           has_file: true,
           manual_review_required: false,
-          manual_review_reasons: [],
+          manual_review_reasons: ["IDENTIFIER_NO_ENROLLMENT_MATCH", "IDENTIFIER_INCOMPLETE"],
           identifier_status: "matched",
         },
         {
@@ -2242,7 +2242,7 @@ test.describe("문항별 직접 채점", () => {
           created_at: "2026-08-26T16:59:00+09:00",
           has_file: true,
           manual_review_required: true,
-          manual_review_reasons: ["ANSWER_SCORE_AMBIGUOUS"],
+          manual_review_reasons: ["IDENTIFIER_NO_ENROLLMENT_MATCH", "ANSWER_SCORE_AMBIGUOUS"],
           identifier_status: "missing",
         },
       ],
@@ -2295,6 +2295,18 @@ test.describe("문항별 직접 채점", () => {
     await expect(omrDialog).toBeVisible();
     await expect.poll(() => apiState.manualEditGetIds[0]).toBe(NOID_SUBMISSION_ID);
     await expect(omrDialog.locator(".orw-list-row--active")).toContainText("미식별 학생");
+    const completedRow = omrDialog.locator(".orw-list-row").filter({ hasText: "완료 학생" });
+    await expect(completedRow.locator(".orw-list-row__reasons")).toHaveCount(0);
+    await expect(omrDialog.getByText(/IDENTIFIER_|ANSWER_/)).toHaveCount(0);
+    const reviewCallout = omrDialog.getByRole("region", { name: "지금 확인할 내용" });
+    await expect(reviewCallout).toContainText("학생 연결이 필요합니다.");
+    await expect(reviewCallout).toContainText("답안 표시가 겹쳐 있어 확인이 필요합니다.");
+    await reviewCallout.getByRole("button", { name: "학생 연결하기", exact: true }).click();
+    const picker = page.getByRole("dialog", { name: "학생 선택", exact: true });
+    await expect(picker).toBeVisible();
+    await picker.getByRole("button", { name: "닫기", exact: true }).click();
+    await reviewCallout.getByRole("button", { name: "답안 수정하기", exact: true }).click();
+    await expect(omrDialog.locator(".orw-q-row--focused")).toHaveCount(1);
 
     const transformedStage = omrDialog.locator(".orw-scan-pane__img-wrap");
     await expect(transformedStage.getByAltText("OMR 스캔 원본")).toBeVisible();

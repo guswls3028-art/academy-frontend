@@ -47,6 +47,9 @@ type MockState = {
   attendanceStatuses: Record<number, string>;
   attendanceStatusUpdates: Array<{ id: number; status: string }>;
   secessionPayloads: Array<Record<string, unknown>>;
+  attendanceFetches: number;
+  attendanceDeleteCalls: number[];
+  deletedAttendanceIds: number[];
   bulkCreatePayloads: number[][];
   lectureEnrollmentPageSizes: string[];
   lectureEnrollmentPages: string[];
@@ -67,6 +70,7 @@ type MockOptions = {
   attendanceRosterSize?: number;
   paginatedStudents?: boolean;
   includePresentStudent?: boolean;
+  failAttendanceDeleteId?: number;
 };
 
 async function installApi(page: Page, state: MockState, options: MockOptions = {}) {
@@ -128,6 +132,7 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
       });
     }
     if (path === "/lectures/attendance/" && method === "GET") {
+      state.attendanceFetches += 1;
       const ordering = url.searchParams.get("ordering") || "name";
       state.attendanceOrderings.push(ordering);
       if (url.searchParams.get("page_size") === "50") {
@@ -169,13 +174,23 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
       } else if (ordering === "name" || ordering === "-name") {
         rows.sort((a, b) => (ordering === "-name" ? -1 : 1) * a.name.localeCompare(b.name, "ko") || a.id - b.id);
       }
+      const visibleRows = rows.filter((row) => !state.deletedAttendanceIds.includes(row.id));
       return json({
-        count: rows.length,
+        count: visibleRows.length,
         page_size: Number(url.searchParams.get("page_size")) || 50,
-        results: rows,
+        results: visibleRows,
       });
     }
     const attendanceDetailMatch = path.match(/^\/lectures\/attendance\/(\d+)\/$/);
+    if (attendanceDetailMatch && method === "DELETE") {
+      const id = Number(attendanceDetailMatch[1]);
+      state.attendanceDeleteCalls.push(id);
+      if (id === options.failAttendanceDeleteId) {
+        return json({ detail: "선택한 출결을 삭제하지 못했습니다." }, 500);
+      }
+      state.deletedAttendanceIds.push(id);
+      return route.fulfill({ status: 204 });
+    }
     if (attendanceDetailMatch && method === "PATCH") {
       await options.statusUpdateReady;
       if (state.failStatusUpdate) return json({ detail: "출결을 저장하지 못했습니다." }, 409);
@@ -355,6 +370,9 @@ function createState(overrides: Partial<MockState> = {}): MockState {
     attendanceStatuses: { 501: "UNSET", 502: "ABSENT" },
     attendanceStatusUpdates: [],
     secessionPayloads: [],
+    attendanceFetches: 0,
+    attendanceDeleteCalls: [],
+    deletedAttendanceIds: [],
     bulkCreatePayloads: [],
     lectureEnrollmentPageSizes: [],
     lectureEnrollmentPages: [],
@@ -849,6 +867,19 @@ test("전체 현장 출석은 최근 작업 기록에서 서명 토큰으로 되
   await page.getByRole("button", { name: "전체 현장 적용", exact: true }).click();
 
   await expect.poll(() => state.bulkSetCalls).toBe(1);
+  const undoStorage = await page.evaluate(() => ({
+    scoped: sessionStorage.getItem("attendance:bulk-present-undo:v1:hakwonplus:user:12:session:9902"),
+    wrongTenant: sessionStorage.getItem("attendance:bulk-present-undo:v1:other:user:12:session:9902"),
+    wrongUser: sessionStorage.getItem("attendance:bulk-present-undo:v1:hakwonplus:user:13:session:9902"),
+    wrongSession: sessionStorage.getItem("attendance:bulk-present-undo:v1:hakwonplus:user:12:session:9903"),
+    localToken: localStorage.getItem("attendance:bulk-present-undo:v1:hakwonplus:user:12:session:9902"),
+  }));
+  expect(undoStorage.scoped).toContain("signed-bulk-present-token");
+  expect(undoStorage.wrongTenant).toBeNull();
+  expect(undoStorage.wrongUser).toBeNull();
+  expect(undoStorage.wrongSession).toBeNull();
+  expect(undoStorage.localToken).toBeNull();
+  await page.reload({ waitUntil: "domcontentloaded" });
   const record = page.getByRole("region", { name: "최근 일괄 출결 작업" });
   await expect(record).toContainText("전체 현장 출석 적용됨");
   await expect(record).toContainText("2명의 기존 상태");
@@ -857,6 +888,38 @@ test("전체 현장 출석은 최근 작업 기록에서 서명 토큰으로 되
   await expect.poll(() => state.bulkUndoTokens).toEqual(["signed-bulk-present-token"]);
   await expect(record).toHaveCount(0);
 });
+
+for (const width of [1366, 390]) {
+test(`일괄 삭제 일부 실패 뒤 재조회·재시도·새로고침을 유지한다 (${width}px)`, async ({ page }, info) => {
+  await page.setViewportSize({ width, height: 900 });
+  const state = createState();
+  const options: MockOptions = { failAttendanceDeleteId: 502 };
+  await openAttendance(page, state, options);
+  const initialFetches = state.attendanceFetches;
+
+  await page.getByRole("checkbox", { name: "미입력학생 선택" }).check();
+  await page.getByRole("checkbox", { name: "결석학생 선택" }).check();
+  await page.getByRole("button", { name: "삭제", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "삭제", exact: true }).click();
+
+  await expect.poll(() => state.attendanceDeleteCalls).toEqual([501, 502]);
+  await expect.poll(() => state.attendanceFetches).toBeGreaterThan(initialFetches);
+  await expect(page.getByText("미입력학생", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "결석학생 학생 상세 열기", exact: true })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "결석학생 선택" })).toBeChecked();
+  await expect(page.getByText("1명은 제외했고 1명은 실패했습니다. 현재 목록을 다시 확인해 주세요.", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath(`attendance-partial-delete-${width}.png`) });
+  options.failAttendanceDeleteId = undefined;
+  await page.getByRole("button", { name: "삭제", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "삭제", exact: true }).click();
+  await expect.poll(() => state.attendanceDeleteCalls).toEqual([501, 502, 502]);
+  await expect(page.getByText("결석학생", { exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "수강생 등록" }).first()).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /(?:미입력학생|결석학생) 선택/ })).toHaveCount(0);
+});
+}
 
 test("일괄 출결 이후 충돌하면 기록을 유지하고 일부 복구처럼 보이지 않는다", async ({ page }) => {
   const state = createState({ failUndo: true });
@@ -944,7 +1007,9 @@ for (const width of [1366, 390]) {
       await enrollmentDialog.getByRole("button", { name: "취소", exact: true }).click();
       await page.getByRole("tab", { name: "성적", exact: true }).click();
       const scoreRow = page.locator("tbody tr").filter({ hasText: "김가람" });
-      await expect(scoreRow.locator('[data-col-type="attendance"]')).toHaveText("영상");
+      const attendanceCell = scoreRow.locator('[data-col-type="attendance"]');
+      await expect(attendanceCell.getByText("영상", { exact: true })).toBeVisible();
+      await expect(attendanceCell.getByText("영상 기록 없음", { exact: true })).toBeVisible();
       await page.getByRole("tab", { name: "출결", exact: true }).click();
     }
     if (width === 390) {

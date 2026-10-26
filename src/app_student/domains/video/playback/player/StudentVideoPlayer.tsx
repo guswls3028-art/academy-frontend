@@ -147,18 +147,30 @@ export default function StudentVideoPlayer({
     setSkipBudget(policySkipBudget);
   }, [policySkipBudget]);
 
-  const controllerIdentity = JSON.stringify({
+  const mediaIdentity = JSON.stringify({
     videoId: video.id,
     enrollmentId,
     source: isYoutube ? "youtube" : "hls",
     youtubeVideoId: video.youtube_video_id || bootstrap.youtube_video_id || policy.source?.youtube_video_id || null,
     policyVersion: bootstrap.policy_version,
   });
+  const controllerIdentityRef = useRef({ mediaIdentity, sessionId: bootstrap.session_id,
+    eventProtocolVersion: bootstrap.event_protocol_version ?? 1 });
+  // Finishing first watch removes the monitored session, not the playing media.
+  // A new monitored grant still replaces its transport and controller normally.
+  if (controllerIdentityRef.current.mediaIdentity !== mediaIdentity || monitoringEnabled) {
+    controllerIdentityRef.current = { mediaIdentity, sessionId: bootstrap.session_id,
+      eventProtocolVersion: bootstrap.event_protocol_version ?? 1 };
+  }
+  const controllerIdentity = JSON.stringify(controllerIdentityRef.current);
   const controllerConfigRef = useRef({
     videoId: video.id,
     playUrl: bootstrap.play_url || video.hls_url || "",
     policy: bootstrap.policy,
     token: bootstrap.token,
+    sessionId: bootstrap.session_id,
+    eventProtocolVersion: bootstrap.event_protocol_version ?? 1,
+    expiresAt: bootstrap.expires_at,
     enrollmentId,
     initialPosition,
     initialProgress: video.progress,
@@ -170,6 +182,9 @@ export default function StudentVideoPlayer({
     playUrl: bootstrap.play_url || video.hls_url || "",
     policy: bootstrap.policy,
     token: bootstrap.token,
+    sessionId: bootstrap.session_id,
+    eventProtocolVersion: bootstrap.event_protocol_version ?? 1,
+    expiresAt: bootstrap.expires_at,
     enrollmentId,
     initialPosition,
     initialProgress: video.progress,
@@ -187,6 +202,9 @@ export default function StudentVideoPlayer({
       playUrl: config.playUrl,
       policy: config.policy,
       token: config.token,
+      sessionId: config.sessionId,
+      eventProtocolVersion: config.eventProtocolVersion,
+      expiresAt: config.expiresAt,
       enrollmentId: config.enrollmentId,
       initialPosition: config.initialPosition,
       initialProgress: config.initialProgress,
@@ -220,11 +238,11 @@ export default function StudentVideoPlayer({
     const ctrl = controllerRef.current;
     if (!ctrl) return;
     ctrl.setPolicy(bootstrap.policy);
-    ctrl.setToken(bootstrap.token);
+    ctrl.setToken(bootstrap.token, bootstrap.expires_at);
     if (ctrl instanceof StudentHlsController) {
       ctrl.setSource(bootstrap.play_url || video.hls_url || "");
     }
-  }, [bootstrap.play_url, bootstrap.policy, bootstrap.token, video.hls_url]);
+  }, [bootstrap.play_url, bootstrap.policy, bootstrap.token, bootstrap.expires_at, video.hls_url]);
 
   useEffect(() => {
     const wrap = wrapElRef.current;

@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import axios from 'axios';
+import { webcrypto } from 'node:crypto';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 export const token = (seconds = 120) => `unit.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + seconds })).toString('base64url')}.signature`;
@@ -14,13 +15,21 @@ export function harness(options = {}) {
   let envelope = { access: token(options.expiresIn ?? 120), refresh: 'unit-refresh', generation: 'generation-a' };
   let support = options.support ?? false;
   let supportAccess = token(options.expiresIn ?? 120);
+  let tenant = options.tenant === undefined ? 'unit-tenant' : options.tenant;
+  let parentId = options.parentId ?? null;
+  let supportSessionId = 'unit-support-session';
+  let clockOffset = 0;
+  class TestDate extends Date {
+    constructor(...args) { super(...(args.length ? args : [Date.now() + clockOffset])); }
+    static now() { return Date.now() + clockOffset; }
+  }
   const window = new EventTarget();
   window.location = { pathname: '/student/video/play', hostname: 'unit.invalid', href: '' };
   const document = new EventTarget();
   document.hidden = false;
   const timers = new Map();
   let timerOrdinal = 0;
-  window.setTimeout = (callback) => { timers.set(++timerOrdinal, callback); return timerOrdinal; };
+  window.setTimeout = (callback, delay) => { timers.set(++timerOrdinal, { callback, delay }); return timerOrdinal; };
   window.clearTimeout = (id) => timers.delete(id);
   const counts = { refresh: 0, clear: 0, supportEnd: 0, apiError: 0 };
   const requests = [];
@@ -31,9 +40,9 @@ export function harness(options = {}) {
       counts.refresh++;
       return options.refresh ? options.refresh() : { data: { access: token(120), refresh: 'rotated-refresh' } };
     } } },
-    '@/shared/api/parentStudentSelection': { getParentStudentId: () => options.parentId ?? null },
+    '@/shared/api/parentStudentSelection': { getParentStudentId: () => parentId },
     '@/shared/ui/asyncStatus/asyncStatusStore': { asyncStatusStore: { trackRequest: () => 'unit-request', completeTask() {} } },
-    '@/shared/tenant': { getTenantCodeForApiRequest: () => options.tenant === undefined ? 'unit-tenant' : options.tenant },
+    '@/shared/tenant': { getTenantCodeForApiRequest: () => tenant },
     '@/shared/lib/sentryContext': { captureApiError: () => counts.apiError++ },
     '@/shared/utils/safeSessionStorage': { getSessionItem: () => null, removeSessionItem() {}, setSessionItem() {} },
     '@/shared/auth/tokenSession': {
@@ -48,6 +57,7 @@ export function harness(options = {}) {
     },
     '@/shared/auth/supportPreviewSession': {
       isStudentSupportWindow: () => support, getStudentSupportAccessToken: () => supportAccess,
+      getStudentSupportSessionInfo: () => support && supportAccess ? { sessionId: supportSessionId, studentId: parentId ?? 41 } : null,
       endStudentSupportSession: () => { counts.supportEnd++; supportAccess = null; },
     },
     '../design/utils': { clamp: (value, min, max) => Math.min(max, Math.max(min, value)), getEpochSec: () => Date.now() / 1000 },
@@ -74,7 +84,7 @@ export function harness(options = {}) {
         if (specifier.startsWith('.')) return load(path.relative(root, path.resolve(path.dirname(file), `${specifier}.ts`)));
         throw new Error(`Unmocked import: ${specifier}`);
       },
-      window, document, console, atob, URL, setInterval: () => 1, clearInterval() {},
+      window, document, console, atob, URL, TextEncoder, AbortController, Date: TestDate, crypto: webcrypto, setInterval: () => 1, clearInterval() {},
       fetch: (url, init) => {
         const request = new Request(url, init);
         const record = { path: new URL(request.url).pathname, headers: request.headers,
@@ -104,13 +114,20 @@ export function harness(options = {}) {
     api, studentApi, exports, load, window, document, counts, requests,
     envelope: () => envelope, replaceEnvelope: (value) => { envelope = value; },
     setSupport: (value) => { support = value; }, setSupportAccess: (value) => { supportAccess = value; },
-    fireTimers: () => { const callbacks = [...timers.values()]; timers.clear(); callbacks.forEach((callback) => callback()); },
+    setSupportSessionId: (value) => { supportSessionId = value; },
+    setParentId: (value) => { parentId = value; }, setTenant: (value) => { tenant = value; },
+    advance: (milliseconds) => { clockOffset += milliseconds; },
+    fireTimers: (maximumDelay = Infinity) => {
+      const callbacks = [...timers].filter(([, timer]) => timer.delay <= maximumDelay);
+      callbacks.forEach(([id]) => timers.delete(id));
+      callbacks.forEach(([, timer]) => timer.callback());
+    },
     pagehide: (persisted = false) => window.dispatchEvent(Object.assign(new Event('pagehide'), { persisted })),
-    controller(kind, playbackToken = 'signed-playback-a') {
+    controller(kind, playbackToken = 'signed-playback-a', controllerOptions = {}) {
       const name = kind === 'hls' ? 'StudentHlsController' : 'StudentYoutubeController';
       const Controller = load(`src/app_student/domains/video/playback/player/headless/${name}.ts`)[name];
       const controller = new Controller({ videoId: 1, enrollmentId: 2, playUrl: '', token: playbackToken,
-        policy: { access_mode: 'PROCTORED_CLASS', monitoring_enabled: true } });
+        policy: { access_mode: 'PROCTORED_CLASS', monitoring_enabled: true }, ...controllerOptions });
       controller.startDocListeners();
       return controller;
     },

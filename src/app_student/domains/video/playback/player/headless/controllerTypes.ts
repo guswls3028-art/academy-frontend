@@ -57,6 +57,9 @@ export interface ControllerState {
 }
 
 export interface ControllerOptions {
+  eventProtocolVersion?: 1 | 2;
+  sessionId?: string | null;
+  expiresAt?: number | null;
   videoId: number;
   playUrl: string;
   policy: Partial<Policy> | null | undefined;

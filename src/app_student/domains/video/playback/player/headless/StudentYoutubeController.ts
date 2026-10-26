@@ -2,6 +2,7 @@ import studentApi from "@student/shared/api/student.api";
 import { extractYouTubeVideoId } from "@/shared/media/video/youtube";
 import { clamp, getEpochSec } from "../design/utils";
 import { PlaybackSessionEnd } from "./playbackSessionEnd";
+import { acquirePlaybackEventBatches, type PlaybackEventBatches } from "./playbackEventBatches";
 import type {
   ControllerOptions,
   ControllerState,
@@ -167,6 +168,7 @@ export class StudentYoutubeController {
   private policy: Policy;
   private tokenRef: string;
   private playbackEnd: PlaybackSessionEnd;
+  private readonly eventBatches?: PlaybackEventBatches;
   private maxWatchedRef = 0;
   private lastSavedPosition = -1;
   private eventQueue: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }> = [];
@@ -192,7 +194,13 @@ export class StudentYoutubeController {
     this.opts = opts;
     this.policy = normalizePolicy(opts.policy);
     this.tokenRef = opts.token;
-    this.playbackEnd = new PlaybackSessionEnd(() => this.policy.monitoring_enabled ? this.tokenRef : null);
+    if (opts.eventProtocolVersion === 2 && this.policy.monitoring_enabled && opts.sessionId && opts.expiresAt) {
+      this.eventBatches = acquirePlaybackEventBatches(opts.token, opts.expiresAt, opts.sessionId, (terminal) => {
+        this.pause();
+        if (terminal) this.opts.onFatal?.("session_inactive");
+      });
+    }
+    this.playbackEnd = new PlaybackSessionEnd(() => this.policy.monitoring_enabled ? this.tokenRef : null, this.eventBatches);
   }
 
   private guard(cb: () => void) {
@@ -373,8 +381,9 @@ export class StudentYoutubeController {
     }
   }
 
-  setToken(token: string) {
+  setToken(token: string, expiresAt?: number | null) {
     this.tokenRef = token;
+    if (expiresAt && this.policy.monitoring_enabled) this.eventBatches?.setToken(token, expiresAt);
   }
 
   setPolicy(policy: Partial<Policy> | null | undefined) {
@@ -617,12 +626,17 @@ export class StudentYoutubeController {
     const violationEvents: EventType[] = ["SEEK_ATTEMPT", "SPEED_CHANGE_ATTEMPT"];
     const isViolation = violationEvents.includes(type);
     if (this.policy.access_mode === "FREE_REVIEW" && isViolation) return;
+    if (this.eventBatches) {
+      this.eventBatches.enqueue({ type, occurred_at: getEpochSec(), payload: payload || {} });
+      return;
+    }
     this.eventQueue.push({ type, occurred_at: getEpochSec(), payload: payload || {} });
     if (this.eventQueue.length > 300) this.eventQueue.splice(0, this.eventQueue.length - 300);
   }
 
   private flushEvents = async () => {
     if (this.disposed || this.playbackEnd.started) return;
+    if (this.eventBatches) { await this.eventBatches.flush(); return; }
     const token = this.tokenRef;
     if (!token) return;
     const batch = this.eventQueue.splice(0, this.eventQueue.length);

@@ -40,9 +40,9 @@
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
-   현재 21개 파일·39건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
+   현재 22개 파일·41건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
    첫 실패 후에는 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.
-   이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 39건 모두의
+   이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 41건 모두의
    통과와 cleanup0이 필요하다. 이미 실패한 실행이 장시간 영상 검증까지 계속되는 비용을 줄인다.
    동일 산출물 서버는 가이드 JPEG·MP4·VTT를 각각 `image/jpeg`, `video/mp4`,
    `text/vtt`로 제공한다. 일반 강사의 첫 접속 안내 확인 뒤 사진·영상·자막을
@@ -67,7 +67,7 @@
    사전 API 로그인과 UI 로그인이 공유하는 계정별 5분 10회 제한에서 실제 429와
    유효한 `Retry-After`(1–300초)를 받은 경우에만 전체 대기시간 후 UI 제출을 한 번
    재시도한다. 그 외 오류, 누락·잘못된 대기시간, 두 번째 429는 상태 코드만 기록하고
-   실패한다. 보안 제한·업무 쓰기 재시도 금지·39건 전체 통과 조건은 유지한다.
+   실패한다. 보안 제한·업무 쓰기 재시도 금지·41건 전체 통과 조건은 유지한다.
    가입 실사용 검사는 유효한 입력 후 `가입 신청 최종 확인`에서 학부모 초기
    비밀번호 방식을 명시적으로 선택하고 최종 신청을 누른 뒤 정확한 응답을 기다린다.
    첫 신청 버튼이 최종 POST를 보낸다고 가정하지 않으며 수동·자동 승인과 이후
@@ -711,7 +711,7 @@ process/listener 정리 0은 확인됐지만 운영 승격은 차단됐다. 이�
 기존 36건에 47.79분이 걸려 60분 한도로 마지막 영상을 완료하지 못했다. 마지막 영상의
 17분과 추가 사진 흐름 2건의 각 7분 한도를 더한 78.79분에 여유를 둬 전체 85분으로
 맞춘다. 같은 산출물의 새 전체 실행으로 검증한다. OMR 각 10분,
-영상 test 17분, 단일 worker·재시도 0·필수 39건·690초 재생 및 cleanup0 요구는 유지한다.
+영상 test 17분, 단일 worker·재시도 0·필수 41건·690초 재생 및 cleanup0 요구는 유지한다.
 `development-release-progress.json`은 테스트 시작/종료마다 허용 spec 파일명·행·상태·
 소요 시간만 저장해 child timeout 시 마지막 진행 지점을 보존한다. 제목·오류 원문·
 API 데이터·인증정보는 기록하지 않는다. 이 진단 파일이나 일부 통과 결과로 전체 JSON
@@ -760,7 +760,7 @@ import/database 등의 고정 코드로 구분한다. 목록 밖의 이름은 �
 [backend의 이력 보존 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/student-core.md)에 따라
 일반 DELETE로 지우지 않는다. 시나리오 종료 시 가입 설정을 복원하고 브라우저를
 닫으며, 합성 가입 이력은 실행 전체의 exact disposable-tenant Cleanup에서 제거한다.
-양쪽 QA tenant/user·R2·프로세스 잔여 0 확인과 39건 전체 통과 조건은 유지한다.
+양쪽 QA tenant/user·R2·프로세스 잔여 0 확인과 41건 전체 통과 조건은 유지한다.
 `release-context-observation/v1`은 worker 내부의 고유 `observationOrdinal`, 선택적인
 browser `contextOrdinal`, 증가하는 `snapshotSequence`로 한 관측의 교체 snapshot을
 식별한다. assertion 전 snapshot은 실패해도 먼저 남기고, native context 종료나

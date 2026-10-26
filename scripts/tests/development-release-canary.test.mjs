@@ -1568,10 +1568,11 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 39, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 41, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 4,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
-      "student-parent-registration-realuse.spec.ts": 7,
+      "student-parent-registration-realuse.spec.ts": 8,
+      "teacher-score-parent-realuse.spec.ts": 1,
       "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
       "student-clinic-required-cancel-realuse.spec.ts": 1,
       "student-parent-homework-realuse.spec.ts": 1,
@@ -2064,7 +2065,7 @@ test("development config discovers every required case without executing any API
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 39);
+  assert.equal(discovered, 41);
   assert.deepEqual(counts, Object.fromEntries(Object.entries(developmentRealUseCases)
     .map(([file, count]) => [file.split("/").at(-1), count])), "collection must match the same release inventory by file");
   // Playwright's --list reporter counts all unexecuted cases as skipped. These

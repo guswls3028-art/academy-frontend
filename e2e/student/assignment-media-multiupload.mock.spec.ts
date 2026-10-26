@@ -68,7 +68,7 @@ async function installApi(
   firstUploadDelayMs = 450,
   viewer: Viewer = "student",
   homeworkOverrides: Record<string, unknown> = {},
-  reviewLockOnFirstUpload = false,
+  reviewLockOnFirstUpload: boolean | number = false,
   backgroundMediaReadDelayMs = 0,
   positionRaceUploadAttempts: readonly number[] = [],
 ) {
@@ -108,6 +108,8 @@ async function installApi(
   let mediaReadCount = 0;
   let homeworkActivityRequests = 0;
   let currentHomeworkOverrides = homeworkOverrides;
+  let previewFailure: "api" | "media" | null = null;
+  const previewRequests: string[] = [];
 
   await page.addInitScript((jwt) => {
     localStorage.setItem("access", jwt);
@@ -169,6 +171,13 @@ async function installApi(
         lecture_options: [],
       });
     }
+    if (path.includes(`/submissions/submissions/homework/${HOMEWORK_ID}/media/`) && path.endsWith("/preview/")) {
+      studentScopedHeaders.push(request.headers()["x-student-id"]);
+      previewRequests.push(path);
+      if (previewFailure === "api") return json({ detail: "잠시 후 다시 시도해 주세요." }, 503);
+      return json({ url: previewFailure === "media" ? "data:image/png;base64,broken"
+        : "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNg+A8AAQIBAEK+vGgAAAAASUVORK5CYII=" });
+    }
     if (path.endsWith(`/submissions/submissions/homework/${HOMEWORK_ID}/media/`) && request.method() === "GET") {
       studentScopedHeaders.push(request.headers()["x-student-id"]);
       mediaReadCount += 1;
@@ -187,7 +196,10 @@ async function installApi(
     if (path.endsWith(`/submissions/submissions/homework/${HOMEWORK_ID}/media/`) && request.method() === "POST") {
       studentScopedHeaders.push(request.headers()["x-student-id"]);
       uploadAttempts += 1;
-      if (reviewLockOnFirstUpload && uploadAttempts === 1) {
+      const body = request.postData() ?? "";
+      const clientId = multipartValue(body, "client_file_id");
+      uploadClientIds.push(clientId);
+      if (reviewLockOnFirstUpload && uploadAttempts === (typeof reviewLockOnFirstUpload === "number" ? reviewLockOnFirstUpload : 1)) {
         currentHomeworkOverrides = {
           ...currentHomeworkOverrides,
           submission_media_locked: true,
@@ -197,13 +209,10 @@ async function installApi(
           detail: "완료 또는 통과한 과제 파일은 변경할 수 없습니다.",
         }, 409);
       }
-      const body = request.postData() ?? "";
-      const clientId = multipartValue(body, "client_file_id");
       const batchId = multipartValue(body, "upload_batch_id");
       const position = Number(multipartValue(body, "position"));
       const filename = multipartFilename(body);
       const isVideo = /\.mp4$/i.test(filename);
-      uploadClientIds.push(clientId);
       if (positionRaceUploadAttempts.includes(uploadAttempts)) {
         files.push({
           ...concurrentStudentUpload,
@@ -278,6 +287,9 @@ async function installApi(
     getStudentScopedHeaders: () => [...studentScopedHeaders],
     getHomeworkActivityRequests: () => homeworkActivityRequests,
     getActivityRequests: () => [...activityRequests],
+    reopenHomework: () => { currentHomeworkOverrides = { ...currentHomeworkOverrides, submission_media_locked: false }; },
+    setPreviewFailure: (failure: "api" | "media" | null) => { previewFailure = failure; },
+    getPreviewRequests: () => [...previewRequests],
   };
 }
 
@@ -457,25 +469,74 @@ test("1차 통과 뒤 최신 재응시가 불합격이면 현재 잠금 값에 �
   expect(state.getUploadAttempts()).toBe(0);
 });
 
-test("선택 뒤 교사 확인이 끝난 409는 재시도 파일로 남기지 않고 제출 대상을 갱신한다", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  const state = await installApi(page, 450, "student", {}, true);
+for (const width of [1366, 390]) {
+test(`${width}px 교사 완료 경합은 미제출 파일을 보관하고 재개 후 같은 ID로 저장한다`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 });
+  const state = await installApi(page, 0, "student", {}, 2);
   await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.locator('input[type="file"]').setInputFiles([{
+    name: "먼저-저장된-사진.png", mimeType: "image/png", buffer: Buffer.from("first-photo"),
+  }, {
     name: "확인-직전-사진.heic",
     mimeType: "image/heic",
     buffer: Buffer.from("mobile-photo"),
-  });
+  }]);
 
-  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await page.getByRole("button", { name: "파일 2개 제출하기", exact: true }).click();
 
-  await expect(page.getByRole("alert")).toContainText("선생님 확인이 완료되어 제출 목록을 갱신했습니다.");
+  await expect(page.getByRole("alert")).toContainText("아직 제출하지 못한 파일은 이 화면에 보관했습니다.");
   await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /다시 제출/ })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "이번에 제출할 파일" }).getByText("확인-직전-사진.heic")).toBeVisible();
+  await expect(page.getByRole("region", { name: "이미 제출한 파일" }).getByText("먼저-저장된-사진.png")).toBeVisible();
+  await expect(page.getByRole("button", { name: "선생님 확인으로 제출 잠김" })).toBeDisabled();
+  await page.getByRole("button", { name: "제출 가능 상태 다시 확인" }).click();
+  await expect(page.getByRole("alert")).toContainText("아직 선생님 확인 상태입니다.");
   await expect(page.getByRole("button", { name: /도형 풀이 인증/ })).toHaveCount(0);
-  expect(state.getUploadAttempts()).toBe(1);
+  expect(state.getUploadAttempts()).toBe(2);
+  state.reopenHomework();
+  await page.getByRole("button", { name: "제출 가능 상태 다시 확인" }).click();
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+  expect(state.getUploadAttempts()).toBe(3);
+  expect(state.getUploadClientIds()[2]).toBe(state.getUploadClientIds()[1]);
+  expect(state.files.filter((file) => file.original_filename === "먼저-저장된-사진.png")).toHaveLength(1);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("region", { name: "이미 제출한 파일" }).getByText("확인-직전-사진.heic")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+test(`${width}px 저장된 제출 파일은 미리보기 실패 후 재시도와 reload로 확인한다`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 });
+  const state = await installApi(page, 0, width === 390 ? "parent" : "student");
+  state.setPreviewFailure(width === 390 ? "media" : "api");
+  await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.getByRole("button", { name: "미리보기", exact: true }).click();
+  const preview = page.getByRole("region", { name: "제출 파일 미리보기" });
+  await expect(preview.getByRole("alert")).toContainText("제출된 파일은 유지됩니다.");
+  expect(state.files).toHaveLength(1);
+  // The shared API client bounds transient 503 retries before surfacing failure.
+  const failedAttempts = state.getPreviewRequests().length;
+  expect(failedAttempts).toBeGreaterThan(0);
+  state.setPreviewFailure(null);
+  await preview.getByRole("button", { name: "미리보기 다시 시도" }).click();
+  await expect(preview.getByRole("img", { name: "기존 제출.jpg 제출 파일" })).toBeVisible();
+  await expect.poll(() => preview.locator("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+  await preview.getByRole("button", { name: "미리보기 닫기" }).click();
+  await expect(preview).toHaveCount(0);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.getByRole("button", { name: "미리보기", exact: true }).click();
+  await expect(preview.getByRole("img", { name: "기존 제출.jpg 제출 파일" })).toBeVisible();
+  expect(state.getPreviewRequests()).toHaveLength(failedAttempts + 2);
+  expect(state.getPreviewRequests().every((path) => path.endsWith(`/homework/${HOMEWORK_ID}/media/801/preview/`))).toBe(true);
+  if (width === 390) expect(state.getStudentScopedHeaders().every((header) => header === "72")).toBe(true);
+  expect(state.getUploadAttempts()).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+}
 
 test("390px에서 사진·동영상을 다건 선택하고 부분 실패만 재시도한 뒤 새로고침해도 유지한다", async ({ page }, testInfo) => {
   test.setTimeout(90_000);

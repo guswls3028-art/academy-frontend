@@ -49,7 +49,7 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import { Badge, Button, type BadgeTone } from "@/shared/ui/ds";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
-import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import ScoreAttendanceCell from "./ScoreAttendanceCell";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
@@ -1621,18 +1621,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 </td>
 
                 <td className="text-center align-middle" data-col-type="attendance">
-                  {(() => {
-                    const status = attendanceMap[row.enrollment_id];
-                    if (!status) return <span className="text-[var(--color-text-muted)]">-</span>;
-                    // SSOT (2026-05-13 3차): 출석 표시는 AttendanceStatusBadge 단일 컴포넌트.
-                    // 직전 인라인 style 색·라벨 매핑은 ds-status-badge 토큰과 drift 우려 → 제거.
-                    return (
-                      <AttendanceStatusBadge
-                        status={status as Parameters<typeof AttendanceStatusBadge>[0]["status"]}
-                        variant="2ch"
-                      />
-                    );
-                  })()}
+                  <ScoreAttendanceCell row={row} status={row.attendance_status ?? attendanceMap[row.enrollment_id]} />
                 </td>
 
                 {/* 시험: 컬럼 정의에 따라 합산/객관식/주관식/문항별/합불 */}

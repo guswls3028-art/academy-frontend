@@ -7,7 +7,7 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
-import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "./release-playback-end-proxy.mjs";
+import { createPlaybackEndProxy, PLAYBACK_END_PROXY_PATH, PLAYBACK_V2_END_PROXY_PATH, SCORE_EXIT_PROXY_PATH } from "./release-playback-end-proxy.mjs";
 import { binarySafeSsmEnvironment } from "./binary-safe-ssm.mjs";
 import { createFixedQaRunner, writeQaCheckpoint } from "./development-qa-operations.mjs";
 import { accountProbeParameters, accountProbeResult, createAccountProbeHandler } from "./development-account-probe.mjs";
@@ -92,6 +92,8 @@ const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
   "/api/v1/core/tenant/by-host/",
   "/api/v1/media/playback/end/",
   "/api/v1/media/playback/events/",
+  "/api/v1/media/playback/v2/events/",
+  "/api/v1/media/playback/v2/end/",
   "/api/v1/media/playback/heartbeat/",
   "/api/v1/media/playback/refresh/",
   "/api/v1/media/playback/renew/",
@@ -988,7 +990,7 @@ function serveArtifact(directory, playbackBoundary, accountBoundary) {
       void accountProbe(request, response);
       return;
     }
-    if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH) || request.url?.startsWith(SCORE_EXIT_PROXY_PATH)) {
+    if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH) || request.url?.startsWith(PLAYBACK_V2_END_PROXY_PATH) || request.url?.startsWith(SCORE_EXIT_PROXY_PATH)) {
       playbackProxy.handle(request, response);
       return;
     }

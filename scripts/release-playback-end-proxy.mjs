@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 
 export const PLAYBACK_END_PROXY_PATH = "/__qa__/playback-end";
+export const PLAYBACK_V2_END_PROXY_PATH = "/__qa__/playback-v2-end";
 export const SCORE_EXIT_PROXY_PATH = "/__qa__/score-exit/";
 
 /** Same-origin terminal transport only; never a general API proxy. */
@@ -26,7 +27,8 @@ export function createPlaybackEndProxy({ apiOrigin, webOrigin, tenantCodes, onFa
     const deadline = setTimeout(() => request.destroy(), 10_000);
     try {
       const scoreMatch = /^\/__qa__\/score-exit\/([1-9][0-9]*)$/.exec(request.url ?? "");
-      assert.ok(!closing && request.method === "POST" && (request.url === PLAYBACK_END_PROXY_PATH || scoreMatch));
+      const receiptEnd = request.url === PLAYBACK_V2_END_PROXY_PATH;
+      assert.ok(!closing && request.method === "POST" && (request.url === PLAYBACK_END_PROXY_PATH || receiptEnd || scoreMatch));
       assert.equal(request.headers.origin, webOrigin);
       assert.equal(request.headers.host, web.host);
       assert.ok(tenants.has(request.headers["x-tenant-code"]));
@@ -55,7 +57,7 @@ export function createPlaybackEndProxy({ apiOrigin, webOrigin, tenantCodes, onFa
       let size = 0;
       for await (const chunk of request) {
         size += chunk.length;
-        assert.ok(size <= 8192);
+        assert.ok(size <= (receiptEnd ? 48 * 1024 : 8192));
         chunks.push(chunk);
       }
       const body = Buffer.concat(chunks);
@@ -63,12 +65,28 @@ export function createPlaybackEndProxy({ apiOrigin, webOrigin, tenantCodes, onFa
       if (scoreMatch) {
         assert.ok(data && Object.keys(data).sort().join(",") === "release_if_empty,release_lease"
           && data.release_if_empty === true && data.release_lease === true);
+      } else if (receiptEnd) {
+        assert.ok(data && Object.keys(data).sort().join(",") === "batches,token"
+          && typeof data.token === "string" && data.token.length > 0
+          && Array.isArray(data.batches) && data.batches.length <= 8);
+        const ids = new Set();
+        let eventCount = 0;
+        for (const batch of data.batches) {
+          assert.ok(batch && Object.keys(batch).sort().join(",") === "batch_id,events"
+            && typeof batch.batch_id === "string" && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(batch.batch_id)
+            && !ids.has(batch.batch_id) && Array.isArray(batch.events)
+            && batch.events.length >= 1 && batch.events.length <= 50
+            && Buffer.byteLength(JSON.stringify(batch), "utf8") <= 8192);
+          ids.add(batch.batch_id);
+          eventCount += batch.events.length;
+        }
+        assert.ok(eventCount <= 200);
       } else assert.ok(data && Object.keys(data).join(",") === "token" && typeof data.token === "string" && data.token.length > 0);
       stage = "upstream";
       await new Promise((resolve, rejectUpstream) => {
         const upstreamPath = scoreMatch
           ? `/api/v1/results/admin/sessions/${scoreMatch[1]}/score-draft/commit/`
-          : "/api/v1/media/playback/end/";
+          : receiptEnd ? "/api/v1/media/playback/v2/end/" : "/api/v1/media/playback/end/";
         const upstream = http.request(new URL(upstreamPath, api), {
           method: "POST", signal: AbortSignal.timeout(10_000), headers: {
             ...scopedHeaders,

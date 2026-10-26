@@ -50,6 +50,8 @@ import {
 import StudentPickerModal from "./StudentPickerModal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import BBoxOverlay from "./BBoxOverlay";
+import { OmrReviewReasons } from "./OmrReviewReasons";
+import { actionableReviewReasons, reasonLabel } from "./omrReviewReasonLabels";
 import type { CandidateRow } from "./omrReviewApi";
 import {
   categorizeOmrReviewRow,
@@ -451,6 +453,7 @@ export default function OmrReviewWorkspace({
                 const cat = categorizeOmrReviewRow(r);
                 const tone = toneForCategory(cat);
                 const label = labelForCategory(cat);
+                const reasons = actionableReviewReasons(r.manual_review_required, r.manual_review_reasons);
                 return (
                   <div
                     key={r.id}
@@ -469,9 +472,9 @@ export default function OmrReviewWorkspace({
                     <div className="orw-list-row__sub">
                       <Badge tone={tone}>{label}</Badge>
                       <span className="orw-list-row__time">{formatTime(r.created_at)}</span>
-                      {cat !== "archived" && r.manual_review_reasons && r.manual_review_reasons.length > 0 && (
+                      {cat !== "archived" && reasons.length > 0 && (
                         <span className="orw-list-row__reasons">
-                          {r.manual_review_reasons.slice(0, 2).map(reasonLabel).join(", ")}
+                          {reasons.slice(0, 2).map(reasonLabel).join(", ")}
                         </span>
                       )}
                     </div>
@@ -1221,7 +1224,9 @@ function EditPane({
     );
   }
 
-  const reasons = reviewReasons;
+  const reviewRequired = detail.meta?.manual_review?.required === true || canConfirmCurrentStudent;
+  const reasons = actionableReviewReasons(reviewRequired, reviewReasons);
+  const firstReviewAnswer = detail.answers.find(isFlagged) ?? detail.answers[0];
   const headerName = studentName || (identifierNeeded ? "미식별 학생" : "학생");
 
   return (
@@ -1232,15 +1237,13 @@ function EditPane({
           {detail.submission_status && (
             <span className="orw-edit-pane__status">상태 <b>{statusLabel(detail.submission_status)}</b></span>
           )}
-          {reasons.length > 0 && (
-            <span className="orw-edit-pane__warn">
-              {reasons.map(reasonLabel).join(", ")}
-            </span>
-          )}
         </div>
       </div>
 
       <div className="orw-edit-pane__body">
+        {reviewRequired && <OmrReviewReasons reasons={reasons}
+          onIdentify={identifierNeeded ? () => setPickerOpen(true) : undefined}
+          onEdit={firstReviewAnswer ? () => setFocusedQid(firstReviewAnswer.question_id) : undefined} />}
         {canConfirmCurrentStudent && (
           <div className="orw-match-confirm" role="status">
             <div className="orw-match-confirm__eyebrow">학생 확인 필요</div>
@@ -1451,22 +1454,6 @@ function statusLabel(s: string | undefined | null): string {
   if (v === "answers_ready") return "채점 대기";
   if (v === "failed") return "실패";
   return s || "—";
-}
-
-const REASON_LABEL: Record<string, string> = {
-  answer_blank_or_multi: "빈칸·중복마킹",
-  answer_low_confidence: "낮은 신뢰도",
-  answer_status_not_ok: "인식 불완전",
-  identifier_no_match: "학생 매칭 실패",
-  identifier_no_enrollment_match: "학생 매칭 실패",
-  identifier_missing: "식별자 미인식",
-  identifier_invalid: "식별자 형식 오류",
-  alignment_failed: "페이지 정렬 실패(재스캔 권장)",
-};
-
-function reasonLabel(r: string): string {
-  const k = String(r || "").toLowerCase();
-  return REASON_LABEL[k] || r;
 }
 
 function questionLabel(no: number | null | undefined): string {

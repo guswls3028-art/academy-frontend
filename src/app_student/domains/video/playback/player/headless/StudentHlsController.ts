@@ -11,6 +11,7 @@ import { resolveStudentVideoPlayUrl } from "../playbackUrl";
 import { PlaybackSessionEnd } from "./playbackSessionEnd";
 import type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
 export type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
+import { acquirePlaybackEventBatches, type PlaybackEventBatches } from "./playbackEventBatches";
 
 const ignoreBestEffortError = () => undefined;
 
@@ -107,6 +108,7 @@ export class StudentHlsController {
   private docCleanups: Array<() => void> = [];
   private tokenRef: string;
   private playbackEnd: PlaybackSessionEnd;
+  private readonly eventBatches?: PlaybackEventBatches;
   private initialPositionApplied = false;
   private pendingSourceResume: {
     position: number;
@@ -121,7 +123,13 @@ export class StudentHlsController {
     this.opts = opts;
     this.policy = normalizePolicy(opts.policy);
     this.tokenRef = opts.token;
-    this.playbackEnd = new PlaybackSessionEnd(() => this.policy.monitoring_enabled ? this.tokenRef : null);
+    if (opts.eventProtocolVersion === 2 && this.policy.monitoring_enabled && opts.sessionId && opts.expiresAt) {
+      this.eventBatches = acquirePlaybackEventBatches(opts.token, opts.expiresAt, opts.sessionId, (terminal) => {
+        this.pause();
+        if (terminal) this.opts.onFatal?.("session_inactive");
+      });
+    }
+    this.playbackEnd = new PlaybackSessionEnd(() => this.policy.monitoring_enabled ? this.tokenRef : null, this.eventBatches);
   }
 
   private guard(cb: () => void) {
@@ -277,8 +285,9 @@ export class StudentHlsController {
     }
   }
 
-  setToken(token: string) {
+  setToken(token: string, expiresAt?: number | null) {
     this.tokenRef = token;
+    if (expiresAt && this.policy.monitoring_enabled) this.eventBatches?.setToken(token, expiresAt);
   }
 
   setPolicy(policy: Partial<Policy> | null | undefined) {
@@ -446,12 +455,17 @@ export class StudentHlsController {
     const isViolation = violationEvents.includes(type);
     if (this.policy.access_mode === "FREE_REVIEW" && isViolation) return;
     const now = getEpochSec();
+    if (this.eventBatches) {
+      this.eventBatches.enqueue({ type, occurred_at: now, payload: payload || {} });
+      return;
+    }
     this.eventQueue.push({ type, occurred_at: now, payload: payload || {} });
     if (this.eventQueue.length > 300) this.eventQueue.splice(0, this.eventQueue.length - 300);
   }
 
   private flushEvents = async () => {
     if (this.disposed || this.playbackEnd.started) return;
+    if (this.eventBatches) { await this.eventBatches.flush(); return; }
     const token = this.tokenRef;
     if (!token) return;
     const batch = this.eventQueue.splice(0, this.eventQueue.length);

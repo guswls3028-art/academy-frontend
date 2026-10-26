@@ -2,7 +2,7 @@
  * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
  * 테넌트별 테마: STUDENT_THEME_BY_TENANT → data-student-theme → theme/tenants/{theme}.css
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { Outlet, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsersRound } from "lucide-react";
@@ -39,6 +39,37 @@ import {
 } from "@/shared/auth/supportPreviewSession";
 import { endCurrentStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 import { logout } from "@/auth/api/auth.api";
+import { Button } from "@/shared/ui/ds";
+import {
+  dismissPlaybackSave, finishPlaybackSaves, getPlaybackSaveSnapshot,
+  retryPlaybackSaves, subscribePlaybackSaves, syncPlaybackSaveScope,
+} from "@student/domains/video/playback/player/headless/playbackEventBatches";
+
+function PlaybackSaveNotice() {
+  const notices = useSyncExternalStore(subscribePlaybackSaves, getPlaybackSaveSnapshot);
+  if (!notices.length) return null;
+  const incomplete = notices.some((notice) => notice.state === "incomplete");
+  const expired = notices.some((notice) => notice.state === "expired");
+  const capacity = notices.some((notice) => notice.state === "capacity");
+  const retry = notices.some((notice) => notice.state === "retry");
+  const pending = notices.some((notice) => notice.count > 0);
+  const message = incomplete
+    ? "일부 시청 기록을 담지 못했어요. 남은 기록을 저장해도 누락된 기록은 복구되지 않아요."
+    : expired ? "시청 기록 저장을 확인하지 못했어요. 재생 권한을 다시 확인해 주세요."
+    : capacity ? "저장이 지연되어 영상을 잠시 멈췄어요. 저장한 뒤 다시 재생해 주세요."
+    : retry ? "시청 기록 저장을 확인하지 못했어요. 연결을 확인하고 다시 시도해 주세요."
+    : "시청 기록을 저장하고 있어요. 이 창을 잠시 유지해 주세요.";
+  return (
+    <div role="status" aria-live="polite" aria-label="시청 기록 저장"
+      className="flex flex-wrap items-center gap-3 border-t border-[var(--stu-border)] bg-[var(--stu-surface)] px-4 py-3 text-sm text-[var(--stu-text)]">
+      <p className="m-0 min-w-[min(100%,220px)] flex-1 leading-relaxed">{message}</p>
+      {(retry || capacity || (incomplete && pending)) && <Button size="sm" onClick={retryPlaybackSaves}>저장 다시 시도</Button>}
+      {notices.some((notice) => notice.terminal) && <Button size="sm" intent="ghost" onClick={() => {
+        notices.filter((notice) => notice.terminal).forEach((notice) => dismissPlaybackSave(notice.key));
+      }}>안내 닫기</Button>}
+    </div>
+  );
+}
 
 /**
  * 테넌트 코드 → 학생앱 테마(theme/tenants/{theme}.css). 9999·common 로컬 경로는 common 테마를 쓴다.
@@ -96,6 +127,10 @@ function StudentLayoutInner() {
 
   const [parentSelectionReady, setParentSelectionReady] = useState(false);
   const [selectedParentStudentId, setSelectedParentStudentId] = useState<number | null>(null);
+  useEffect(() => {
+    syncPlaybackSaveScope();
+  }, [user, selectedParentStudentId, tenantCode, location.pathname]);
+  useEffect(() => () => { finishPlaybackSaves(); syncPlaybackSaveScope(); }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -255,6 +290,7 @@ function StudentLayoutInner() {
             )}
           </>
         )}
+        {studentContextReady && <PlaybackSaveNotice />}
       </header>
 
       <main className="student-layout__main">
