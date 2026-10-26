@@ -422,7 +422,7 @@
 .students-requests__result { margin: 12px 20px; padding: 12px; border-left: 3px solid var(--color-brand-primary); background: var(--color-bg-surface-soft); color: var(--color-text-primary); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
 .students-requests__result[data-error="true"] { border-left-color: var(--color-error); }
 .students-requests__card { cursor: default; }
-.students-requests__detail-button { flex: 1; min-width: 0; display: grid; justify-items: start; gap: 6px; padding: 4px; background: none; border: none; text-align: left; color: inherit; cursor: pointer; border-radius: var(--radius-md); }
+.students-requests__detail-button { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; justify-items: start; gap: 6px; padding: 4px; background: none; border: none; text-align: left; color: inherit; cursor: pointer; border-radius: var(--radius-md); }
 .students-requests__detail-button > span { width: 100%; }
 .students-requests__detail-button:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 3px; }
 .students-requests__card-name-row { flex-wrap: wrap; }
