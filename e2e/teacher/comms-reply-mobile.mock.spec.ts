@@ -493,6 +493,8 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
     });
 
     await page.goto(`${BASE}/workspace/mobile/comms`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    // Both the toolbar and empty-state action remain available once the list settles.
+    await expect(page.getByRole("button", { name: "공지사항 작성", exact: true })).toHaveCount(2);
     await page.locator('button[aria-label="공지사항 작성"]').click();
     const sheet = page.getByRole("dialog", { name: "공지사항 작성" });
     await sheet.getByPlaceholder("공지사항 제목").fill(createdPost.title);

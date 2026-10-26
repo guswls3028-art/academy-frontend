@@ -61,7 +61,8 @@ test.describe("[real-use] board attachment persistence", () => {
       }
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto(`${QA_BASE}/workspace/mobile/comms`);
-      await page.getByRole("button", { name: "공지사항 작성", exact: true }).click();
+      // The empty list also offers a write action with the same accessible name.
+      await page.locator('button[aria-label="공지사항 작성"]').click();
       const sheet = page.getByRole("dialog", { name: "공지사항 작성" });
       await sheet.getByPlaceholder("공지사항 제목").fill(`qa-mobile-photo-${Date.now()}`);
       await sheet.locator(".ProseMirror").fill("모바일 편집기 사진 저장 확인");
