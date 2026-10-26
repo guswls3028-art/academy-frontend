@@ -57,6 +57,7 @@ export default function AddParticipantSheet({
 }: Props) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [settledSearch, setSettledSearch] = useState("");
   const [selected, setSelected] = useState<ClientStudent[]>([]);
   const [selectedSessionIds, setSelectedSessionIds] = useState<number[]>([sessionId]);
   const [bookingStart, setBookingStart] = useState("");
@@ -113,22 +114,30 @@ export default function AddParticipantSheet({
     setSelectedSessionIds([sessionId]);
     setSelected([]);
     setSearch("");
+    setSettledSearch("");
     setBookingStart("");
     setBookingEnd("");
   }, [open, sessionId]);
 
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => setSettledSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [open, search]);
+  const searchPending = search.trim() !== settledSearch;
+
   const studentsQ = useInfiniteQuery({
-    queryKey: teacherClinicQueryKeys.addStudentPages(search.trim()),
+    queryKey: teacherClinicQueryKeys.addStudentPages(settledSearch),
     initialPageParam: 1,
-    queryFn: async ({ pageParam }) => {
-      const result = await fetchStudents({ search: search.trim() || undefined, page: pageParam, page_size: 50 });
+    queryFn: async ({ pageParam, signal }) => {
+      const result = await fetchStudents({ search: settledSearch || undefined, page: pageParam, page_size: 50 }, signal);
       if (result.data.length < Math.min(50, Math.max(0, result.count - (pageParam - 1) * 50))) {
         throw new Error("학생 목록의 일부를 확인하지 못했습니다. 다시 조회해 주세요.");
       }
       return result;
     },
     getNextPageParam: (last, _pages, page) => page * 50 < last.count ? page + 1 : undefined,
-    enabled: open,
+    enabled: open && !searchPending,
     retry: 0,
   });
   const availabilityQ = useQuery({
@@ -138,9 +147,12 @@ export default function AddParticipantSheet({
     retry: 0,
   });
 
-  const students = [...new Map(studentsQ.data?.pages.flatMap((page) => page.data).map((student) => [student.id, student])).values()].filter(
-    (s) => !alreadyParticipantStudentIds.includes(s.id),
-  );
+  const students = useMemo(() => {
+    const registered = new Set(alreadyParticipantStudentIds);
+    const unique = new Map(studentsQ.data?.pages.flatMap((page) => page.data).map((student) => [student.id, student]));
+    return [...unique.values()].filter((student) => !registered.has(student.id));
+  }, [studentsQ.data, alreadyParticipantStudentIds]);
+  const selectedIds = useMemo(() => new Set(selected.map((student) => student.id)), [selected]);
 
   const mutation = useMutation({
     mutationFn: () => createClinicParticipantsBulk({
@@ -280,13 +292,13 @@ export default function AddParticipantSheet({
 
         {/* Student list */}
         <div style={{ maxHeight: 320, overflowY: "auto" }}>
-          {studentsQ.isLoading ? (
+          {searchPending || studentsQ.isLoading ? (
             <div
               role="status"
               className="text-sm text-center py-4"
               style={{ color: "var(--tc-text-muted)" }}
             >
-              학생 목록을 불러오는 중...
+              {searchPending ? "학생 검색 중…" : "학생 목록을 불러오는 중..."}
             </div>
           ) : studentsQ.isError && !studentsQ.data ? (
             <div
@@ -318,7 +330,7 @@ export default function AddParticipantSheet({
             </div>
           ) : (
             students.map((s) => {
-              const checked = selected.some((student) => student.id === s.id);
+              const checked = selectedIds.has(s.id);
               return (
                 <button key={s.id} type="button" aria-pressed={checked} onClick={() => toggle(s)}
                   className={`flex items-center gap-2 w-full text-left cursor-pointer ${styles.studentRow}`}
@@ -337,11 +349,11 @@ export default function AddParticipantSheet({
           )}
         </div>
 
-        {studentsQ.isError && studentsQ.data && <div role="alert" className={styles.error}>
+        {!searchPending && studentsQ.isError && studentsQ.data && <div role="alert" className={styles.error}>
           학생 목록을 더 불러오지 못했습니다. 선택한 학생은 유지됩니다.
           <button type="button" disabled={studentsQ.isFetching} onClick={() => void (studentsQ.isFetchNextPageError ? studentsQ.fetchNextPage() : studentsQ.refetch())}>다시 시도</button>
         </div>}
-        {studentsQ.hasNextPage && !studentsQ.isError && <button type="button" className={styles.moreButton} disabled={studentsQ.isFetching} onClick={() => void studentsQ.fetchNextPage()}>
+        {!searchPending && studentsQ.hasNextPage && !studentsQ.isError && <button type="button" className={styles.moreButton} disabled={studentsQ.isFetching} onClick={() => void studentsQ.fetchNextPage()}>
           {studentsQ.isFetchingNextPage ? "불러오는 중…" : "학생 더 보기"}
         </button>}
         {mutation.isError && <div role="alert" className={styles.error}>{extractApiError(mutation.error, "학생 추가에 실패했습니다. 선택을 확인하고 다시 추가해 주세요.")}</div>}

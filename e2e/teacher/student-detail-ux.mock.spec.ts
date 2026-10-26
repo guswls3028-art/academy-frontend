@@ -18,6 +18,7 @@ for (const width of [390, 1366]) {
     let failed = true;
     let memoFailed = true;
     let memo = "이전 상담 기록";
+    let accountRequests = 0;
     const address = "서울특별시 아주 긴 도로명과 건물 이름을 가진 합성 주소 100동 200호";
     await page.route("**/api/v1/**", async (route) => {
       const path = new URL(route.request().url()).pathname.replace(/^\/api\/v1/, "");
@@ -32,7 +33,10 @@ for (const width of [390, 1366]) {
         return route.fulfill({ json: { id: 71, name: "이름이아주긴검증학생", high_school: "긴이름검증고등학교", grade: 2, address, memo, enrollments: [], tags: [], custom_fields: {}, is_active: true } });
       }
       if (path.endsWith("/grades/")) return route.fulfill({ json: { exams: [], homeworks: [], exam_trend: [], exam_summary: { average_score_pct: null, total: 0 } } });
-      if (path.endsWith("/account-notifications/")) return route.fulfill({ status: 400, json: { detail: "계정 이력 조회 실패" } });
+      if (path.endsWith("/account-notifications/")) {
+        accountRequests += 1;
+        return route.fulfill({ status: 400, json: { detail: "계정 이력 조회 실패" } });
+      }
       return route.fulfill({ json: { count: 0, results: [] } });
     });
     await gotoAndSettle(page, `${BASE}/workspace/mobile/students/71`);
@@ -41,10 +45,12 @@ for (const width of [390, 1366]) {
     await page.getByRole("button", { name: "다시 시도", exact: true }).click();
     const navigation = page.getByRole("navigation", { name: "학생 기록" });
     await expect(navigation).toBeInViewport();
+    expect(accountRequests).toBe(0);
     await page.screenshot({ path: test.info().outputPath(`student-detail-${width}.png`) });
     await navigation.getByRole("button", { name: "정보", exact: true }).click();
     await expect(page.getByText(address, { exact: true })).toBeVisible();
     await expect(page.getByRole("alert").filter({ hasText: "계정 안내 이력을 불러오지 못했습니다." })).toBeVisible();
+    expect(accountRequests).toBeGreaterThan(0);
     await expect(page.getByText("최근 아이디/비밀번호 알림톡 이력이 없습니다.")).toHaveCount(0);
     await page.getByRole("button", { name: "학생 메모 편집", exact: true }).click();
     await page.getByRole("textbox", { name: "학생 메모" }).fill("다음 상담에서 확인할 내용");

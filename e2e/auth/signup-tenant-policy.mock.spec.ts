@@ -184,6 +184,10 @@ for (const width of [390, 1366]) {
         name: outcome === "approved" ? "로그인하기" : "확인", exact: true,
       });
       await expect(confirmation).toBeVisible();
+      // The submitted form and its focused control have been removed.
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+      await page.keyboard.press("Tab");
+      await expect(dialog.getByRole("button", { name: "닫기", exact: true })).toBeFocused();
       const colors = await dialog.evaluate((element) => {
         const card = getComputedStyle(element.firstElementChild!);
         return {

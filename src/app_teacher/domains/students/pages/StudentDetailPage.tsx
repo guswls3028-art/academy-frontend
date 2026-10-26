@@ -86,7 +86,7 @@ export default function StudentDetailPage() {
   const accountQuery = useQuery({
     queryKey: teacherStudentsQueryKeys.accountNotifications(sid),
     queryFn: () => fetchStudentAccountNotifications(sid),
-    enabled: validStudentId,
+    enabled: validStudentId && Boolean(student) && tab === "info",
   });
 
   const clinic = useInfiniteQuery({

@@ -60,7 +60,7 @@ export async function fetchStudents(params?: {
   gender?: string;
   status?: string;
   is_managed?: boolean;
-}): Promise<TeacherStudentsResponse> {
+}, signal?: AbortSignal): Promise<TeacherStudentsResponse> {
   const { status, ...rest } = params ?? {};
   const normalizedParams = {
     page_size: 50,
@@ -70,6 +70,7 @@ export async function fetchStudents(params?: {
   };
   const res = await api.get("/students/", {
     params: normalizedParams,
+    signal,
   });
   const raw = res.data;
   const items = listFromApiResponse(raw);

@@ -19,6 +19,7 @@ for (const width of [390, 1366]) {
     let saveFailed = true;
     let savedIds: number[] = [];
     let submissions = 0;
+    const searchRequests: string[] = [];
     await page.route("**/api/v1/**", async (route) => {
       const request = route.request();
       const url = new URL(request.url());
@@ -28,7 +29,10 @@ for (const width of [390, 1366]) {
       if (path === "/core/subscription/") return route.fulfill({ json: { plan: "all", subscription_status: "active", is_subscription_active: true, days_remaining: 30 } });
       if (path === "/clinic/sessions/") return route.fulfill({ json: [{ id: 701, title: "학생선택검증 클리닉", date, start_time: "17:00:00", end_time: "18:00:00", max_participants: 100, participant_count: existingIds.length + savedIds.length, allow_multi_slot_booking: false }] });
       if (path === "/students/") {
-        if (url.searchParams.get("search")) return route.fulfill({ json: { count: 1, results: [searched] } });
+        if (url.searchParams.get("search")) {
+          searchRequests.push(url.searchParams.get("search")!);
+          return route.fulfill({ json: { count: 1, results: [searched] } });
+        }
         const pageNumber = Number(url.searchParams.get("page") || 1);
         if (pageNumber === 2 && nextFailed) return route.fulfill({ status: 400, json: { detail: "추가 조회 실패" } });
         return route.fulfill({ json: { count: students.length, results: students.slice((pageNumber - 1) * 50, pageNumber * 50) } });
@@ -56,8 +60,19 @@ for (const width of [390, 1366]) {
     nextFailed = false;
     await sheet.getByRole("button", { name: "다시 시도" }).click();
     await sheet.locator('button[aria-pressed]').filter({ hasText: "검증학생051" }).click();
-    await sheet.getByRole("searchbox", { name: "학생 이름 또는 전화번호 검색" }).fill("다른");
+    const clockStart = new Date();
+    await page.clock.install({ time: clockStart });
+    await page.clock.pauseAt(clockStart.getTime() + 1_000);
+    const search = sheet.getByRole("searchbox", { name: "학생 이름 또는 전화번호 검색" });
+    await search.fill("다");
+    await search.fill("다른검색");
+    await search.fill("다른검색학생");
+    await expect(sheet.getByRole("status")).toHaveText("학생 검색 중…");
+    expect(searchRequests).toEqual([]);
+    await page.clock.runFor(300);
+    await page.clock.resume();
     await sheet.locator('button[aria-pressed]').filter({ hasText: "다른검색학생" }).click();
+    expect(searchRequests).toEqual(["다른검색학생"]);
     const selection = sheet.getByRole("region", { name: "선택한 학생" });
     await expect(selection).toContainText("검증학생051");
     await expect(selection).toContainText("다른검색학생");
