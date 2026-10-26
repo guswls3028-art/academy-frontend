@@ -307,7 +307,9 @@ export default function AddParticipantSheet({
             </div>
           ) : students.length === 0 ? (
             <div className="text-sm text-center py-4" style={{ color: "var(--tc-text-muted)" }}>
-              {search ? "검색 결과 없음" : "추가 가능한 학생이 없습니다"}
+              {studentsQ.hasNextPage
+                ? "현재 목록의 학생은 이미 등록되어 있습니다. 학생 더 보기로 계속 확인해 주세요."
+                : search ? "검색 결과 없음" : "추가 가능한 학생이 없습니다"}
             </div>
           ) : (
             students.map((s) => {
