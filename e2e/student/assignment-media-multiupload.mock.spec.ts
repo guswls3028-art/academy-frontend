@@ -517,6 +517,9 @@ test(`${width}px 저장된 제출 파일은 미리보기 실패 후 재시도와
   const preview = page.getByRole("region", { name: "제출 파일 미리보기" });
   await expect(preview.getByRole("alert")).toContainText("제출된 파일은 유지됩니다.");
   expect(state.files).toHaveLength(1);
+  // The shared API client bounds transient 503 retries before surfacing failure.
+  const failedAttempts = state.getPreviewRequests().length;
+  expect(failedAttempts).toBeGreaterThan(0);
   state.setPreviewFailure(null);
   await preview.getByRole("button", { name: "미리보기 다시 시도" }).click();
   await expect(preview.getByRole("img", { name: "기존 제출.jpg 제출 파일" })).toBeVisible();
@@ -527,7 +530,7 @@ test(`${width}px 저장된 제출 파일은 미리보기 실패 후 재시도와
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
   await page.getByRole("button", { name: "미리보기", exact: true }).click();
   await expect(preview.getByRole("img", { name: "기존 제출.jpg 제출 파일" })).toBeVisible();
-  expect(state.getPreviewRequests()).toHaveLength(3);
+  expect(state.getPreviewRequests()).toHaveLength(failedAttempts + 2);
   expect(state.getPreviewRequests().every((path) => path.endsWith(`/homework/${HOMEWORK_ID}/media/801/preview/`))).toBe(true);
   if (width === 390) expect(state.getStudentScopedHeaders().every((header) => header === "72")).toBe(true);
   expect(state.getUploadAttempts()).toBe(0);

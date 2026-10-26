@@ -287,7 +287,7 @@ export class StudentHlsController {
 
   setToken(token: string, expiresAt?: number | null) {
     this.tokenRef = token;
-    if (expiresAt) this.eventBatches?.setToken(token, expiresAt);
+    if (expiresAt && this.policy.monitoring_enabled) this.eventBatches?.setToken(token, expiresAt);
   }
 
   setPolicy(policy: Partial<Policy> | null | undefined) {

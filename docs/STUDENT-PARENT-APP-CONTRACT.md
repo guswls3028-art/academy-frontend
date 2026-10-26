@@ -361,13 +361,16 @@ academy-backend의 `docs/domain/inventory-storage.md`가 소유한다.
   재생하고, 확인된 정책·토큰을 같은 HLS/YouTube controller에 반영한다. seek/rate
   이벤트는 최초 수업 정책을 캡처하지 않고 현재 정책을 적용한다. 기존 감시 세션만
   그 세션의 토큰으로 마무리하며, 새 복습 재생·다른 탭을 종료하지 않는다.
+  복습 응답에서 감시 세션 ID가 사라져도 재생 controller를 재생성하지 않는다.
+  v2의 미확인 종료 배치는 복습 토큰으로 바꾸지 않고 기존 감시 토큰·UUID를 유지해
+  재시도한다. 새로운 감시 세션 또는 정책 버전으로 바뀌는 경우에는 controller를 교체한다.
   그 밖의 모드 변경·정책 버전 변경은 기존대로 먼저 unmount하여 재발급한다.
   서버 거절이나 재발급 불일치는 계속 실패로 표시한다. backend의 완료/토큰 경계는
   [학생 영상 계약](../../backend/docs/domain/student-core.md)이 소유한다.
   `e2e/student/video-review-transition.mock.spec.ts`는 390/1366px에서 복습 전환 중
-  SDK 유지·재생 지속·일반 진행 바 탐색·이전 세션만 종료를 검사한다.
+  v1/v2의 SDK 유지·재생 지속·일반 진행 바 탐색·이전 세션만 종료를 검사한다.
   `scripts/tests/playback-review-transition.test.mjs`는 두 controller의 세션 정리와
-  HLS 실제 seeking handler의 정책 갱신을 검사한다. 두 검사는 합성 회귀이며
+  HLS 실제 seeking handler의 정책 갱신, v2 종료 확인 실패 후 기존 토큰 재시도를 검사한다. 두 검사는 합성 회귀이며
   운영 배포·실제 API·물리 휴대폰 재생 성공을 대신하지 않는다.
 - 서버가 발급한 `playback_token`과 만료 시각이 있으면 개별 허용 영상뿐 아니라 기존
   수강 영상도 만료 3분 전에 `POST /media/playback/renew/`로 현재 권한을 갱신한다.

@@ -72,7 +72,7 @@ for (const width of [390, 1366]) for (const role of ["student", "parent"]) {
     const notice = page.getByRole("status", { name: "시청 기록 저장" });
     await expect(notice).toContainText("저장을 확인하지 못했어요");
     expect(finalized).toBe(false);
-    await page.getByRole("link", { name: "영상", exact: true }).click();
+    await page.getByRole("button", { name: "목록으로", exact: true }).click();
     await expect(page).not.toHaveURL(/\/video\/play/);
     await expect(notice).toContainText("저장을 확인하지 못했어요");
     await expect(notice.getByRole("button", { name: "저장 다시 시도" })).toBeVisible();

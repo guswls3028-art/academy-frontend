@@ -7,7 +7,7 @@ test.describe('completed first watch remains playing in review', () => {
   test.skip(!['localhost', '127.0.0.1'].includes(new URL(BASE).hostname), 'Closed local API/SDK fixture only');
   test.use({ serviceWorkers: 'block' });
 
-  for (const width of [390, 1366]) test(`review transition retains the playing SDK and seek controls at ${width}px`, async ({ page }, testInfo) => {
+  for (const protocol of [1, 2]) for (const width of [390, 1366]) test(`v${protocol} review transition retains the playing SDK and seek controls at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 844 });
     const unexpected = await guardUnmockedYouTubeRequests(page);
     const youtube = await installYouTubeSdkFixture(page);
@@ -21,6 +21,14 @@ test.describe('completed first watch remains playing in review', () => {
     await page.route('**/api/v1/media/playback/end/', async (route) => {
       ended.push(route.request().postDataJSON().token);
       await route.fulfill({ json: { ok: true } });
+    });
+    await page.route('**/api/v1/media/playback/v2/end/', async (route) => {
+      const body = route.request().postDataJSON();
+      ended.push(body.token);
+      await route.fulfill({ json: { protocol_version: 2, session_status: 'ENDED', inserted_count: 0,
+        acknowledgements: body.batches.map((batch: { batch_id: string; events: unknown[] }) => ({
+          batch_id: batch.batch_id, event_count: batch.events.length, duplicate: false,
+        })) } });
     });
     await page.route('**/api/v1/student/video/videos/562/playback/**', async (route) => {
       if (new URL(route.request().url()).searchParams.get('access_check') === '1') {
@@ -37,7 +45,7 @@ test.describe('completed first watch remains playing in review', () => {
         play_url: `https://www.youtube.com/embed/${YOUTUBE_QA_VIDEO_ID}`,
         playback_token: review ? 'signed-review-token' : 'signed-monitored-token',
         playback_session_id: review ? null : 'monitored-session',
-        playback_expires_at: Math.floor(Date.now() / 1000) + 3600, policy_version: 1,
+        playback_expires_at: Math.floor(Date.now() / 1000) + 3600, policy_version: 1, event_protocol_version: protocol,
         policy: { access_mode: review ? 'FREE_REVIEW' : 'PROCTORED_CLASS', monitoring_enabled: !review,
           allow_seek: true, seek: { mode: review ? 'free' : 'budgeted_forward', grace_seconds: 3 },
           playback_rate: { max: 1, ui_control: true },

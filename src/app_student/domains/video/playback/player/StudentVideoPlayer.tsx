@@ -147,15 +147,22 @@ export default function StudentVideoPlayer({
     setSkipBudget(policySkipBudget);
   }, [policySkipBudget]);
 
-  const controllerIdentity = JSON.stringify({
+  const mediaIdentity = JSON.stringify({
     videoId: video.id,
     enrollmentId,
-    sessionId: bootstrap.session_id,
-    eventProtocolVersion: bootstrap.event_protocol_version ?? 1,
     source: isYoutube ? "youtube" : "hls",
     youtubeVideoId: video.youtube_video_id || bootstrap.youtube_video_id || policy.source?.youtube_video_id || null,
     policyVersion: bootstrap.policy_version,
   });
+  const controllerIdentityRef = useRef({ mediaIdentity, sessionId: bootstrap.session_id,
+    eventProtocolVersion: bootstrap.event_protocol_version ?? 1 });
+  // Finishing first watch removes the monitored session, not the playing media.
+  // A new monitored grant still replaces its transport and controller normally.
+  if (controllerIdentityRef.current.mediaIdentity !== mediaIdentity || monitoringEnabled) {
+    controllerIdentityRef.current = { mediaIdentity, sessionId: bootstrap.session_id,
+      eventProtocolVersion: bootstrap.event_protocol_version ?? 1 };
+  }
+  const controllerIdentity = JSON.stringify(controllerIdentityRef.current);
   const controllerConfigRef = useRef({
     videoId: video.id,
     playUrl: bootstrap.play_url || video.hls_url || "",
