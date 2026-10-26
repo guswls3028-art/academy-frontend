@@ -29,7 +29,9 @@ let boundary: { assertClean: () => void };
 let guards: ReturnType<typeof attachStrictBrowserGuards>;
 
 function fixture(key: string, parentPhone?: string) {
-  const hash = createHash("sha256").update(`${QA_TENANT}:${key}`).digest("hex");
+  // Student cleanup preserves Parent accounts. The account suite also uses
+  // "signup-auto", so an unscoped seed would reuse its existing Parent password.
+  const hash = createHash("sha256").update(`${QA_TENANT}:registration-password:${key}`).digest("hex");
   const digits = (offset: number) => String(Number.parseInt(hash.slice(offset, offset + 8), 16) % 100_000_000).padStart(8, "0");
   // Keep the ownership prefix, distinct cases, and the real 50-character name limit.
   const nameSuffix = key.length <= 50 - prefix.length ? key : hash.slice(0, 50 - prefix.length);
