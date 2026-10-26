@@ -203,8 +203,13 @@ route-mock project는 실패 시 자동 screenshot과 첫 실패 trace를 보존
 read-only·WebKit·개발 실사용·수동 UI 검증의 기록 정책과 실행 순서는 유지한다.
 `retain-on-failure` 영상도 매번 녹화한 뒤 성공분을 삭제하므로 이 비용을 피한다.
 기록 옵션의 의미는 [Playwright 정본](https://playwright.dev/docs/test-use-options#recording-options)을 따른다.
-각 실행기는 기존 최대 3 worker를 유지하고, 한 shard가 실패해도 나머지 검사를
-취소하지 않는다. shard 3은 WebKit, production bundle smoke와 theme 검증도 수행한다.
+Chromium route-mock은 실행기당 최대 3 worker를 유지하고, 한 shard가 실패해도
+나머지 검사를 취소하지 않는다. shard 3의 필수 WebKit gate는 package script에서
+`--workers=1`로 직렬 실행한다. 3 worker 실행에서 서로 다른 spec의 network process
+충돌과 표시된 버튼의 action 대기 시간 초과가 발생했으므로, 브라우저 자원 경합을
+줄이는 [Playwright CI 권고](https://playwright.dev/docs/ci#workers)를 적용한다.
+WebKit의 필수 목록·action timeout·재시도 0·실패 기록은 유지하며, 재발하면 trace와
+server log로 원인을 확인한다. shard 3은 production bundle smoke와 theme 검증도 수행한다.
 모든 shard는 Chromium과 해당 native 의존성을 설치하고, WebKit과 그 native 의존성은
 실제로 iPhone 검증을 실행하는 shard 3에만 설치해 나머지 두 job의 불필요한 설치를 줄인다.
 필수 check 이름 `E2E closed-proxy route mocks`는 세 shard의 결과를 합치며,
