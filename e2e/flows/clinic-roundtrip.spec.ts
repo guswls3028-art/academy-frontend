@@ -253,46 +253,6 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
       targetTenantCode: CROSS_TENANT,
     })).toBe(401);
 
-    // The QA administrator exercises the compact staff UI. Role authorization
-    // remains covered separately; these writes must come from actual controls.
-    const openCompactParticipant = async () => {
-      await gotoAndSettle(adminPage, `${BASE}/workspace/mobile/clinic`);
-      const dates = adminPage.locator('input[type="date"]');
-      await dates.nth(1).fill(sessionDate);
-      await dates.nth(0).fill(sessionDate);
-      await adminPage.getByRole("button", { name: `[E2E]클리닉_${TS}`, exact: false }).click();
-      return adminPage.getByTestId(`teacher-clinic-participant-${participant.id}`);
-    };
-    await adminPage.setViewportSize({ width: 390, height: 844 });
-    let compactRow = await openCompactParticipant();
-    await compactRow.getByRole("button", { name: "등원", exact: true }).click();
-    await adminPage.getByRole("dialog", { name: "등원 처리", exact: true })
-      .getByRole("button", { name: "등원 확정", exact: true }).click();
-    const complete = compactRow.getByRole("button", { name: "자율학습 완료", exact: true });
-    await expect(complete).toBeEnabled();
-    expect((await complete.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
-    await complete.click();
-    await expect(compactRow.getByRole("button", { name: "완료 취소", exact: true })).toBeEnabled();
-    await adminPage.reload({ waitUntil: "domcontentloaded" });
-    compactRow = await openCompactParticipant();
-    await expect(compactRow.getByRole("button", { name: "완료 취소", exact: true })).toBeEnabled();
-    const completed = await expectApi<{ status: string; completed_at: string | null }>(
-      adminPage.request, "GET", `/clinic/participants/${participant.id}/`, adminAccess,
-    );
-    expect(completed.status).toBe("attended");
-    expect(completed.completed_at).toBeTruthy();
-    await adminPage.setViewportSize({ width: 1366, height: 900 });
-    await compactRow.getByRole("button", { name: "완료 취소", exact: true }).click();
-    await expect(compactRow.getByRole("button", { name: "자율학습 완료", exact: true })).toBeEnabled();
-    await adminPage.reload({ waitUntil: "domcontentloaded" });
-    compactRow = await openCompactParticipant();
-    await expect(compactRow.getByRole("button", { name: "자율학습 완료", exact: true })).toBeEnabled();
-    const undone = await expectApi<{ status: string; completed_at: string | null }>(
-      adminPage.request, "GET", `/clinic/participants/${participant.id}/`, adminAccess,
-    );
-    expect(undone).toMatchObject({ status: "attended", completed_at: null });
-    expect(await adminPage.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
-
     await adminPage.setViewportSize({ width: 390, height: 844 });
     const mobileAssignments = await openDateAggregateFromCalendar(adminPage, sessionDate);
     await expect(mobileAssignments).toContainText("1개 일정 · 배정 1명");
@@ -378,7 +338,7 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
     const manualResult = await manualResponse;
     const responseMs = Date.now() - actionAt;
     expect(manualResult.status()).toBe(201);
-    const manualBody = await manualResult.json() as { participants: Array<Record<string, unknown>> };
+    const manualBody = await manualResult.json() as { participants: ParticipantRow[] };
     expect(manualBody.participants).toContainEqual(expect.objectContaining({
       session: overnight.id, student: primaryStudent?.id, booking_start_date: actualDate, booking_end_date: actualDate,
     }));
@@ -393,6 +353,55 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
       expect(await adminPage.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
       await testInfo.attach(`overnight-manual-booked-${width}`, { body: await adminPage.screenshot({ fullPage: true }), contentType: "image/png" });
     }
+
+    // Keep the booking-cancellation scenario above in booked state. Study
+    // completion is a separate lifecycle: undoing completion retains attendance.
+    const completionParticipant = manualBody.participants.find((row) => (
+      row.session === overnight.id && row.student === primaryStudent?.id
+    ));
+    expect(completionParticipant, "the UI-created overnight booking is required").toBeDefined();
+    if (!completionParticipant) throw new Error("The overnight booking participant is missing");
+    expect(Number.isSafeInteger(completionParticipant.id)).toBe(true);
+    expect(completionParticipant.status).toBe("booked");
+    // The QA administrator exercises the compact staff UI. Role authorization
+    // remains covered separately; these writes must come from actual controls.
+    const openCompactParticipant = async () => {
+      await gotoAndSettle(adminPage, `${BASE}/workspace/mobile/clinic`);
+      const dates = adminPage.locator('input[type="date"]');
+      await dates.nth(1).fill(sessionDate);
+      await dates.nth(0).fill(sessionDate);
+      await adminPage.getByRole("button", { name: `[E2E]심야클리닉_${TS}`, exact: false }).click();
+      return adminPage.getByTestId(`teacher-clinic-participant-${completionParticipant.id}`);
+    };
+    await adminPage.setViewportSize({ width: 390, height: 844 });
+    let compactRow = await openCompactParticipant();
+    await compactRow.getByRole("button", { name: "등원", exact: true }).click();
+    await adminPage.getByRole("dialog", { name: "등원 처리", exact: true })
+      .getByRole("button", { name: "등원 확정", exact: true }).click();
+    const complete = compactRow.getByRole("button", { name: "자율학습 완료", exact: true });
+    await expect(complete).toBeEnabled();
+    expect((await complete.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    await complete.click();
+    await expect(compactRow.getByRole("button", { name: "완료 취소", exact: true })).toBeEnabled();
+    await adminPage.reload({ waitUntil: "domcontentloaded" });
+    compactRow = await openCompactParticipant();
+    await expect(compactRow.getByRole("button", { name: "완료 취소", exact: true })).toBeEnabled();
+    const completed = await expectApi<{ status: string; completed_at: string | null }>(
+      adminPage.request, "GET", `/clinic/participants/${completionParticipant.id}/`, adminAccess,
+    );
+    expect(completed.status).toBe("attended");
+    expect(completed.completed_at).toBeTruthy();
+    await adminPage.setViewportSize({ width: 1366, height: 900 });
+    await compactRow.getByRole("button", { name: "완료 취소", exact: true }).click();
+    await expect(compactRow.getByRole("button", { name: "자율학습 완료", exact: true })).toBeEnabled();
+    await adminPage.reload({ waitUntil: "domcontentloaded" });
+    compactRow = await openCompactParticipant();
+    await expect(compactRow.getByRole("button", { name: "자율학습 완료", exact: true })).toBeEnabled();
+    const undone = await expectApi<{ status: string; completed_at: string | null }>(
+      adminPage.request, "GET", `/clinic/participants/${completionParticipant.id}/`, adminAccess,
+    );
+    expect(undone).toMatchObject({ status: "attended", completed_at: null });
+    expect(await adminPage.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   });
 
   test.afterAll(async () => {
