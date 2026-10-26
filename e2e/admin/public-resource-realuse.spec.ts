@@ -22,7 +22,7 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
     assertQaStudentParentRuntime();
     const boundary = releaseBoundaryFromEnv(process.env)!;
     installReleaseRequestGuard(request, boundary);
-    const access = (await loginAdmin(request)).access;
+    let access = "";
     const document = await PDFDocument.create();
     const font = await document.embedFont(StandardFonts.Helvetica);
     for (let page = 1; page <= 3; page += 1) {
@@ -59,7 +59,17 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
         await page.getByRole("link", { name: "로그인", exact: true }).click();
         await page.getByTestId("login-username").fill(index ? "ymath-qa-resource-publisher" : QA_ADMIN_USER);
         await page.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
+        const tokenResponse = page.waitForResponse((response) => response.request().method() === "POST"
+          && new URL(response.url()).pathname === "/api/v1/token/", { timeout: 45_000 });
         await page.getByTestId("login-submit").click();
+        const loginResponse = await tokenResponse;
+        expect(loginResponse.status(), `POST /api/v1/token/ returned ${loginResponse.status()}: resource publisher login`).toBe(200);
+        if (index === 0) {
+          // Reuse the real UI login for cleanup instead of consuming another login quota slot.
+          const tokens = await loginResponse.json() as { access?: unknown };
+          expect(typeof tokens.access === "string" && tokens.access.length > 0, "Publisher login must return an access token").toBe(true);
+          access = tokens.access as string;
+        }
         await expect(page).toHaveURL(/\/landing\/resources$/, { timeout: 45_000 });
         await acknowledgeInitialAccountPromptsIfVisible(page);
         if (index) {
