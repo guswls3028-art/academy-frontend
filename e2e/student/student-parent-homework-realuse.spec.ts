@@ -30,6 +30,7 @@ import {
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
+import { homeworkHeic } from "../helpers/homeworkHeicFixture";
 
 test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -72,7 +73,7 @@ const lectureTitle = `QA 과제 projection ${runStamp}`;
 const sessionTitle = `QA 과제 1차시 ${runStamp}`;
 const homeworkTitle = `QA 과제 제출 채점 ${runStamp}`;
 const completionTitle = `QA 준비물 통과형 ${runStamp}`;
-const uploadName = `qa-homework-${runStamp}.png`;
+const uploadName = `qa-homework-${runStamp}.heic`;
 const parentUploadName = `qa-parent-homework-${runStamp}.png`;
 const parentHomeworkComment = "QA 과제 피드백: 풀이 과정을 꼼꼼히 기록했습니다.\n가정에서는 틀린 문제의 계산 순서를 소리 내어 설명하고, 스스로 채점한 뒤 다시 확인하는 연습을 도와주세요.";
 
@@ -651,13 +652,12 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await page.getByText(homeworkTitle, { exact: true }).click();
     await page.locator("input[type='file']").first().setInputFiles({
       name: uploadName,
-      mimeType: "image/png",
-      buffer: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
-        "base64",
-      ),
+      mimeType: "image/heic",
+      buffer: homeworkHeic,
     });
     await expect(page.getByText(uploadName, { exact: true })).toBeVisible();
+    await expect.poll(() => page.getByRole("img", { name: "선택한 과제 사진 미리보기" })
+      .evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBe(640);
     const staffUsername = `qa-homework-assistant-${runStamp}`;
     const staff = await expectApi<{ id: number }>(request, "POST", "/staffs/", admin.access, {
       name: `QA 숙제 조교 ${runStamp}`,
@@ -690,6 +690,13 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await expect(fileRow).toHaveCount(0);
       await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
       await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
+      await expect(page.getByText(homeworkTitle, { exact: true })).toBeVisible();
+      await assertNoHorizontalOverflow(page);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByText(homeworkTitle, { exact: true }).click();
+      await page.getByRole("region", { name: "이미 제출한 파일" }).getByRole("button", { name: "미리보기", exact: true }).click();
+      await expect.poll(() => page.getByRole("img", { name: `${uploadName} 제출 파일` })
+        .evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBe(640);
       await waitForHomeworkSummary(
         request,
         studentTokens.access,
@@ -709,6 +716,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await expect(image).toBeVisible();
       await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
       await expect(preview.getByRole("button", { name: "직접 확인 완료" })).toBeEnabled();
+      await testInfo.attach("heic-preview-and-confirm-ready-390", { body: await staffPage.screenshot(), contentType: "image/png" });
       const completed = staffPage.waitForResponse((response) => response.request().method() === "PATCH"
         && new URL(response.url()).pathname === `/api/v1/results/admin/sessions/${created.sessionId}/score-correction/`);
       await preview.getByRole("button", { name: "직접 확인 완료" }).click();

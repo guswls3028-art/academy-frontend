@@ -523,6 +523,35 @@
 }
 
 @media (max-width: 640px) {
+  .targetItem {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    column-gap: var(--stu-space-3);
+    row-gap: var(--stu-space-1);
+  }
+
+  .targetIcon {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+  }
+
+  .targetBadge,
+  .targetTitle,
+  .targetLecture {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .targetBadge {
+    justify-self: start;
+  }
+
+  .targetLecture {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .successMessage,
   .scopeNotice,
   .submitRow {

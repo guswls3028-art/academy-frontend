@@ -51,6 +51,7 @@ async function exercise(options = {}) {
       if (options.fetchError) throw new Error(`private ${url}`);
       return { status: () => options.status ?? 200,
         headers: () => ({ "content-type": options.contentType ?? "image/png", "set-cookie": "private",
+          ...(options.storageCors ? { "access-control-allow-origin": options.storageCors } : {}),
           location: "https://production.invalid/private" }), body: async () => options.body ?? png };
     }, fulfill: async (response) => fulfilled.push(response) });
   return { guard, fetched, fulfilled, aborted };
@@ -112,4 +113,25 @@ test("registered homework image rejects redirects and wrong upstream status/cont
     { contentType: "text/html" }, { body: Buffer.from("not png") }, { body: png.subarray(0, 4) }, { fetchError: true }]) {
     rejected(await exercise(options), 1);
   }
+});
+
+test("HEIC XHR stays bound to its authorized object, MIME, credentials and actual storage CORS", async () => {
+  const heic = readFileSync(new URL("../../e2e/fixtures/files/homework.heic", import.meta.url));
+  const heicUrl = url.replace(".png?", ".heic?");
+  const options = { registerUrl: heicUrl, payload: { mime_type: "image/heic" }, resourceType: "xhr",
+    contentType: "image/heic", body: heic, storageCors: boundary.webOrigin };
+  const result = await exercise(options);
+  result.guard.assertClean();
+  assert.deepEqual(result.fetched, [{ url: heicUrl, method: "GET", headers: { accept: "image/heic", origin: boundary.webOrigin }, maxRedirects: 0 }]);
+  assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/heic", "access-control-allow-origin": boundary.webOrigin }, body: heic }]);
+  for (const override of [
+    { register: false }, { registerUrl: heicUrl.replace("tenants/352", "tenants/353") },
+    { payload: { mime_type: "image/png" } }, { method: "POST" }, { resourceType: "document" },
+    { resourceType: "fetch" }, { headers: { authorization: "Bearer private" } },
+    { headers: { cookie: "private" } }, { headers: { "x-tenant-code": boundary.tenantCode } },
+  ]) rejected(await exercise({ ...options, ...override }));
+  for (const override of [
+    { storageCors: undefined }, { storageCors: "https://foreign.invalid" },
+    { body: png }, { contentType: "image/png" }, { status: 302 },
+  ]) rejected(await exercise({ ...options, ...override }), 1);
 });

@@ -192,13 +192,15 @@ function hasExactHostSignature(target: URL, maxExpires: number): boolean {
   return credential?.[2] === date.slice(0, 8) && /^[1-9][0-9]*$/.test(expires) && Number(expires) <= maxExpires;
 }
 
-function isExactDevelopmentHomeworkPng(boundary: ReleaseBoundary, rawUrl: string, mediaId: string): boolean {
+function isExactDevelopmentHomeworkImage(boundary: ReleaseBoundary, rawUrl: string, mediaId: string, contentType: string): boolean {
+  const extension = ({ "image/png": "png", "image/heic": "heic", "image/heif": "heif" } as Record<string, string>)[contentType];
+  if (!extension) return false;
   if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
     || Number(boundary.omrR2TenantId) < 1 || !Number.isSafeInteger(Number(mediaId))) return false;
   const target = new URL(rawUrl);
   if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
     || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
-  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/ai/submissions/([1-9][0-9]*)/media-${mediaId}-[0-9a-f]{32}\\.png$`).exec(target.pathname);
+  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/ai/submissions/([1-9][0-9]*)/media-${mediaId}-[0-9a-f]{32}\\.${extension}$`).exec(target.pathname);
   return Boolean(path && Number.isSafeInteger(Number(path[1])) && hasExactHostSignature(target, 600));
 }
 
@@ -993,7 +995,7 @@ export async function installReleaseContextGuard(
     closingAborts: 0,
   };
   const defects: string[] = [];
-  const homeworkPreviewUrls = new Set<string>();
+  const homeworkPreviewUrls = new Map<string, string>();
   const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
   const communityFileUrls = new Map<string, { contentType: string; sizeBytes: number; disposition: string }>();
   const resourceDownloadUrls = new Set<string>();
@@ -1271,10 +1273,11 @@ export async function installReleaseContextGuard(
           "content-disposition": communityFile.disposition }, body });
         return;
       }
-      const homeworkPng = request.method() === "GET" && homeworkPreviewUrls.has(upstream);
+      const homeworkImageType = request.method() === "GET" ? homeworkPreviewUrls.get(upstream) : undefined;
+      const homeworkHeic = homeworkImageType === "image/heic" || homeworkImageType === "image/heif";
       const communityImageType = request.method() === "GET" ? communityImageUrls.get(upstream) : undefined;
-      if ((homeworkPng || communityImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
-        && request.resourceType() === "image") {
+      if ((homeworkImageType || communityImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
+        && (request.resourceType() === "image" || (homeworkHeic && request.resourceType() === "xhr"))) {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
           .some((key) => headers[key])) {
@@ -1283,19 +1286,23 @@ export async function installReleaseContextGuard(
         }
         // Only this signed development object URL is forwarded. Never send app
         // credentials/referrer or follow redirects; never report the signed URL.
-        const contentType = communityImageType || (homeworkPng ? "image/png" : "image/jpeg");
-        const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: contentType }, maxRedirects: 0 });
+        const contentType = communityImageType || homeworkImageType || "image/jpeg";
+        const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: contentType,
+          ...(homeworkHeic ? { origin: boundary.webOrigin } : {}) }, maxRedirects: 0 });
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
         const body = await response.body();
-        const signature = contentType === "image/png" ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+        const signature = homeworkHeic ? [] : contentType === "image/png" ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
           : contentType === "image/webp" ? [0x52, 0x49, 0x46, 0x46] : [0xff, 0xd8, 0xff];
         if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== contentType
           || signature.some((byte, index) => body[index] !== byte)
+          || (homeworkHeic && (body.subarray(4, 8).toString("ascii") !== "ftyp"
+            || !["*", boundary.webOrigin].includes(response.headers()["access-control-allow-origin"] ?? "")))
           || (contentType === "image/webp" && body.subarray(8, 12).toString("ascii") !== "WEBP")) {
           await reject("transport");
           return;
         }
-        await route.fulfill({ status: 200, headers: { "content-type": contentType }, body });
+        await route.fulfill({ status: 200, headers: { "content-type": contentType,
+          ...(homeworkHeic ? { "access-control-allow-origin": response.headers()["access-control-allow-origin"] } : {}) }, body });
         return;
       }
       const kind = assertReleaseRequestSafe(boundary, upstream, request.method(), tenantCode, data);
@@ -1495,9 +1502,9 @@ export async function installReleaseContextGuard(
         if (boundary.mode === "development" && request.method() === "GET" && homeworkPreview
           && !new URL(upstream).search && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")) {
           const preview = await response.json();
-          if (preview?.media_kind === "image" && preview.mime_type === "image/png" && preview.expires_in === 600
-            && typeof preview.url === "string" && isExactDevelopmentHomeworkPng(boundary, preview.url, homeworkPreview[2])) {
-            homeworkPreviewUrls.add(preview.url);
+          if (preview?.media_kind === "image" && typeof preview.mime_type === "string" && preview.expires_in === 600
+            && typeof preview.url === "string" && isExactDevelopmentHomeworkImage(boundary, preview.url, homeworkPreview[2], preview.mime_type)) {
+            homeworkPreviewUrls.set(preview.url, preview.mime_type);
           }
         }
         if (boundary.mode === "development" && target.pathname.startsWith("/api/v1/landing-public/videos/")
