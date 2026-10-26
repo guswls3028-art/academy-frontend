@@ -92,6 +92,9 @@ async function installApi(
         first_login_guide_required: false,
       });
     }
+    if (path === "/lectures/lectures/") {
+      return json({ count: 1, results: [{ id: 9, title: "수학 A반", is_active: true }] });
+    }
     if (path === "/lectures/lectures/9/") {
       return json({ id: 9, title: "수학 A반", is_active: true });
     }
@@ -294,6 +297,25 @@ test("학원장은 결제 메뉴를 사용하고 카드 실패를 빈 목록과 
   const adminGroup = sidebar.getByRole("button", { name: /관리자 전용/ });
   if (await adminGroup.getAttribute("aria-expanded") !== "true") await adminGroup.click();
   await expect(sidebar.getByText("결제 / 구독", { exact: true })).toBeVisible();
+});
+
+test("홈 수업 카드와 같은 제목의 강의를 목록에서 열고 차시로 이동한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installAuth(page);
+  await installApi(page, { role: "admin" });
+  await gotoAndSettle(page, `${BASE}/workspace/mobile`);
+  await expect(page.getByRole("main").getByRole("button").filter({ hasText: "수학 A반" }).first()).toBeVisible();
+
+  await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "강의", exact: true }).click();
+  await expect(page).toHaveURL(`${BASE}/workspace/mobile/classes`);
+  await expect(page.getByRole("heading", { name: "강의 관리", exact: true })).toBeVisible();
+  const lecture = page.getByRole("main").getByRole("button").filter({ hasText: "수학 A반" });
+  await expect(lecture).toHaveCount(1);
+  await lecture.click();
+  await expect(page).toHaveURL(`${BASE}/workspace/mobile/classes/9`);
+  await expect(page.getByRole("heading", { name: "수학 A반", exact: true })).toBeVisible();
+  await page.getByRole("main").getByRole("button").filter({ hasText: "1차시" }).click();
+  await expect(page).toHaveURL(`${BASE}/workspace/mobile/classes/9/sessions/77`);
 });
 
 test("차시 상세은 UNSET 출결을 미입력으로 표시한다", async ({ page }) => {
