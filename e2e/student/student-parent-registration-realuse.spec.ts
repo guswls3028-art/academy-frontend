@@ -330,7 +330,7 @@ for (const autoApprove of [false, true]) {
         // A later academy policy cannot rewrite the pending applicant's explicit choice.
         await expectApi(request, "PATCH", policyPath, admin, { parent_mode: "random" });
         await gotoAndSettle(page, `${QA_BASE}/workspace/students/requests`);
-        await page.locator(".students-requests__card").filter({ hasText: row.name }).click();
+        await page.getByRole("button", { name: `${row.name} 신청 상세`, exact: true }).click();
         await page.getByRole("dialog").filter({ hasText: "가입 신청 상세" }).getByRole("button", { name: "승인", exact: true }).click();
         const approval = page.getByRole("alertdialog", { name: "가입 승인 최종 확인" });
         await expect(approval.locator('input[type="radio"]')).toHaveCount(0);

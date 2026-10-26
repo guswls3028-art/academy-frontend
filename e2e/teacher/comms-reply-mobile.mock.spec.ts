@@ -569,12 +569,13 @@ test.describe("선생님 가입 정책과 대기 업무 경계", () => {
 
     await page.goto(`${BASE}/workspace/students/requests`, { waitUntil: "load", timeout: 20_000 });
     await expect(page.getByText("과거 가입 요청", { exact: true })).toBeVisible();
-    await expect(page.getByText("자동 승인 설정 확인 중", { exact: true })).toBeVisible();
+    const policyPanel = page.getByRole("region", { name: "가입 자동 승인", exact: true });
+    await expect(policyPanel.getByRole("status")).toHaveText("설정 불러오는 중…");
     await expect(page.getByRole("switch")).toHaveCount(0);
     expect(policy.mutationRequests).toEqual([]);
 
     policy.releaseSettings();
-    await expect(page.getByText("자동 승인 설정을 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(policyPanel.getByRole("alert")).toContainText("승인 설정을 불러오지 못했습니다.");
     await expect(page.getByRole("switch")).toHaveCount(0);
     expect(policy.mutationRequests).toEqual([]);
 

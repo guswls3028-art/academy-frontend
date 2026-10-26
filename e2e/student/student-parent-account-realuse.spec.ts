@@ -268,7 +268,7 @@ async function verifySignupAndApproval(page: Page, request: APIRequestContext): 
 
     for (const autoApprove of [false, true]) {
       await gotoAndSettle(adminPage, `${QA_BASE}/workspace/students/requests`);
-      const toggle = adminPage.getByRole("switch", { name: "자동 승인" });
+      const toggle = adminPage.getByRole("switch", { name: "가입 자동 승인", exact: true });
       await expect(toggle).toBeEnabled();
       if ((await toggle.getAttribute("aria-checked") === "true") !== autoApprove) {
         const saved = adminPage.waitForResponse((response) => (
@@ -341,7 +341,7 @@ async function verifySignupAndApproval(page: Page, request: APIRequestContext): 
         const requestId = student.id;
         signupRequestIds.push(requestId);
         await adminPage.reload({ waitUntil: "domcontentloaded" });
-        await adminPage.locator(".students-requests__card").filter({ hasText: name }).click();
+        await adminPage.getByRole("button", { name: `${name} 신청 상세`, exact: true }).click();
         await adminPage.getByRole("dialog").filter({ hasText: "가입 신청 상세" }).getByRole("button", { name: "승인", exact: true }).click();
         const approvalDialog = adminPage.getByRole("alertdialog", { name: "가입 승인 최종 확인", exact: true });
         await expect(approvalDialog).toBeVisible();

@@ -3,14 +3,9 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Checkbox, Switch } from "antd";
-import {
-  FiUserCheck,
-  FiUserX,
-  FiChevronRight,
-} from "react-icons/fi";
-import { History, UserPlus } from "lucide-react";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Checkbox } from "antd";
+import { History } from "lucide-react";
 import {
   fetchRegistrationRequests,
   approveRegistrationRequest,
@@ -25,7 +20,7 @@ import {
   type ClientRegistrationRequest,
   type DeletedRegistrationCandidate,
 } from "../api/students.api";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -34,6 +29,8 @@ import AdminModal from "@/shared/ui/modal/AdminModal";
 import ModalHeader from "@/shared/ui/modal/ModalHeader";
 import ModalBody from "@/shared/ui/modal/ModalBody";
 import ModalFooter from "@/shared/ui/modal/ModalFooter";
+import ApprovalPolicyPanel from "@/shared/product/approvals/ApprovalPolicyPanel";
+import RegistrationRequestCards from "./RegistrationRequestCards";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import { adminStudentsQueryKeys } from "../queryKeys";
 import "@/styles/design-system/modal.css";
@@ -57,31 +54,10 @@ function formatDate(s: string | null) {
   }
 }
 
-function shortDateLabel(s: string | null) {
-  if (!s) return "";
-  try {
-    const d = new Date(s);
-    return d.toLocaleDateString("ko-KR", {
-      month: "2-digit",
-      day: "2-digit",
-    });
-  } catch {
-    return "";
-  }
-}
-
 function schoolLabel(r: ClientRegistrationRequest) {
   const school = r.highSchool || r.middleSchool || r.elementarySchool || "-";
   const grade = r.grade != null ? ` ${r.grade}학년` : "";
   return `${school}${grade}`.trim() || "-";
-}
-
-function parentPhone(r: ClientRegistrationRequest): string {
-  return r.parentPhone?.trim() || "-";
-}
-
-function studentPhone(r: ClientRegistrationRequest): string {
-  return r.phone?.trim() || "-";
 }
 
 /* ── 상세 모달 ── */
@@ -94,6 +70,7 @@ function RequestDetailModal({
   onReject,
   approving,
   rejecting,
+  actionError,
 }: {
   request: ClientRegistrationRequest | null;
   open: boolean;
@@ -102,6 +79,7 @@ function RequestDetailModal({
   onReject: () => void;
   approving: boolean;
   rejecting: boolean;
+  actionError: string | null;
 }) {
   const slm = useSchoolLevelMode();
 
@@ -128,6 +106,7 @@ function RequestDetailModal({
     <AdminModal
       open={open}
       onClose={onClose}
+      closeDisabled={approving || rejecting}
       type="action"
       width={480}
       onEnterConfirm={undefined}
@@ -138,6 +117,7 @@ function RequestDetailModal({
         description={`${request.name} · ${schoolLabel(request)}`}
       />
       <ModalBody>
+        {actionError && <p role="alert" className="students-requests__result" data-error="true">{actionError}</p>}
         <dl className="students-request-detail__list">
           {rows.map(({ label, value }) => (
             <div key={label} className="students-request-detail__row">
@@ -149,7 +129,7 @@ function RequestDetailModal({
       </ModalBody>
       <ModalFooter
         left={
-          <Button intent="secondary" size="md" onClick={onClose}>
+          <Button intent="secondary" size="md" onClick={onClose} disabled={approving || rejecting}>
             닫기
           </Button>
         }
@@ -261,12 +241,15 @@ export default function StudentsRequestsPage() {
   const [recoveryCandidates, setRecoveryCandidates] = useState<DeletedRegistrationCandidate[]>([]);
   const [selectedRecoveryId, setSelectedRecoveryId] = useState<number | null>(null);
   const recoverySubmissionRef = useRef(false);
+  const [actionResult, setActionResult] = useState<{ error: boolean; message: string } | null>(null);
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: adminStudentsQueryKeys.registrationRequests,
-    queryFn: () =>
-      fetchRegistrationRequests({ status: "pending", page: 1, page_size: 100 }),
+  const requestsQ = useInfiniteQuery({
+    queryKey: adminStudentsQueryKeys.registrationRequestPages,
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => fetchRegistrationRequests({ status: "pending", page: pageParam, page_size: 50 }),
+    getNextPageParam: (last, pages) => last.data.length > 0 && pages.reduce((count, page) => count + page.data.length, 0) < last.count ? pages.length + 1 : undefined,
   });
+  const { data, isLoading, isError, error, refetch } = requestsQ;
 
   const settingsQ = useQuery({
     queryKey: adminStudentsQueryKeys.registrationRequestSettings,
@@ -274,11 +257,17 @@ export default function StudentsRequestsPage() {
     enabled: !isLoading && !isError,
   });
 
-  const list = data?.data ?? [];
-  const pendingList = list.filter((r) => r.status === "pending");
+  const pendingList = useMemo(() => {
+    const unique = new Map<number, ClientRegistrationRequest>();
+    for (const page of data?.pages ?? []) for (const row of page.data) {
+      if (row.status === "pending") unique.set(row.id, row);
+    }
+    return [...unique.values()];
+  }, [data]);
+  const pendingCount = data?.pages[0]?.count ?? 0;
 
-  const finishApproval = (id: number, message: string) => {
-    qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
+  const finishApproval = async (id: number, message: string) => {
+    await qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
     qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
     qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.adminNotificationCounts });
     setDetailOpen(false);
@@ -291,15 +280,17 @@ export default function StudentsRequestsPage() {
       next.delete(id);
       return next;
     });
+    setActionResult({ error: false, message: "학생 계정을 등록했습니다. 학생 목록에서 확인하세요." });
     feedback.success(message);
   };
 
   /* ── mutations ── */
 
   const approveMutation = useMutation({
+    onMutate: () => setActionResult(null),
     mutationFn: ({ id, choice }: { id: number; choice: RegistrationPasswordChoice }) => approveRegistrationRequest(id, choice),
     onSuccess: (_data, { id }) => {
-      finishApproval(id, "승인되었습니다. 학생이 등록되었습니다.");
+      return finishApproval(id, "승인되었습니다. 학생이 등록되었습니다.");
     },
     onError: (e: unknown, { id }) => {
       const conflict = deletedRegistrationConflictFromError(e);
@@ -311,8 +302,7 @@ export default function StudentsRequestsPage() {
         setDetailOpen(false);
         return;
       }
-      const error = e as Error;
-      feedback.error(error.message || "승인 처리에 실패했습니다.");
+      setActionResult({ error: true, message: getApiErrorMessage(e, "승인 처리에 실패했습니다. 신청을 다시 확인한 뒤 재시도해 주세요.") });
     },
   });
 
@@ -320,7 +310,7 @@ export default function StudentsRequestsPage() {
     mutationFn: ({ requestId, studentId, choice }: { requestId: number; studentId: number; choice: RegistrationPasswordChoice }) =>
       resolveDeletedRegistrationRequest(requestId, studentId, choice),
     onSuccess: (_data, variables) => {
-      finishApproval(variables.requestId, "과거 계정과 수강 이력을 복구하고 가입을 승인했습니다.");
+      return finishApproval(variables.requestId, "과거 계정과 수강 이력을 복구하고 가입을 승인했습니다.");
     },
     onError: (e: unknown) => {
       feedback.error(getApiErrorMessage(
@@ -334,29 +324,30 @@ export default function StudentsRequestsPage() {
   });
 
   const bulkApproveMutation = useMutation({
+    onMutate: () => setActionResult(null),
     mutationFn: ({ ids, choice }: { ids: number[]; choice: RegistrationPasswordChoice }) => bulkApproveRegistrationRequests(ids, choice),
-    onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
+    onSuccess: async (res) => {
+      await qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
       qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
       qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.adminNotificationCounts });
-      setSelectedIds(new Set());
-      if (res.approved > 0)
-        feedback.success(`${res.approved}건 승인되었습니다.`);
-      if (res.failed.length > 0) {
-        feedback.error(
-          `${res.failed.length}건 실패: ${res.failed.map((f) => f.detail).join(", ")}`
-        );
-      }
+      setSelectedIds(new Set(res.failed.map((item) => item.id)));
+      setActionResult({
+        error: res.failed.length > 0,
+        message: res.failed.length > 0
+          ? `${res.approved}건 승인 · ${res.failed.length}건 처리하지 못했습니다. 실패한 신청은 선택을 유지했습니다. ${res.failed.map((item) => `${pendingList.find((request) => request.id === item.id)?.name ?? "신청"}: ${item.detail}`).join(" / ")}`
+          : `${res.approved}건 승인했습니다. 학생 목록에서 확인할 수 있습니다.`,
+      });
     },
     onError: (e: Error) => {
-      feedback.error(e.message || "일괄 승인에 실패했습니다.");
+      setActionResult({ error: true, message: getApiErrorMessage(e, "일괄 승인에 실패했습니다. 선택은 유지됩니다. 다시 시도해 주세요.") });
     },
   });
 
   const rejectMutation = useMutation({
+    onMutate: () => setActionResult(null),
     mutationFn: (id: number) => rejectRegistrationRequest(id),
-    onSuccess: (_data, id) => {
-      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
+    onSuccess: async (_data, id) => {
+      await qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
       qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.adminNotificationCounts });
       setDetailOpen(false);
       setDetailRequest(null);
@@ -365,24 +356,24 @@ export default function StudentsRequestsPage() {
         next.delete(id);
         return next;
       });
-      feedback.success("거절되었습니다.");
+      setActionResult({ error: false, message: "가입 신청을 거절했습니다." });
     },
     onError: (e: Error) => {
-      feedback.error(e.message || "거절 처리에 실패했습니다.");
+      setActionResult({ error: true, message: getApiErrorMessage(e, "거절 처리에 실패했습니다. 다시 시도해 주세요.") });
     },
   });
 
   const bulkRejectMutation = useMutation({
+    onMutate: () => setActionResult(null),
     mutationFn: (requestIds: number[]) => bulkRejectRegistrationRequests(requestIds),
-    onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
+    onSuccess: async (res) => {
+      await qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
       qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.adminNotificationCounts });
       setSelectedIds(new Set());
-      if (res.rejected > 0)
-        feedback.success(`${res.rejected}건 거절되었습니다.`);
+      setActionResult({ error: false, message: `${res.rejected}건 거절했습니다.` });
     },
     onError: (e: Error) => {
-      feedback.error(e.message || "일괄 거절에 실패했습니다.");
+      setActionResult({ error: true, message: getApiErrorMessage(e, "일괄 거절에 실패했습니다. 선택은 유지됩니다. 다시 시도해 주세요.") });
     },
   });
 
@@ -392,18 +383,7 @@ export default function StudentsRequestsPage() {
     onSuccess: (res) => {
       qc.setQueryData(adminStudentsQueryKeys.registrationRequestSettings, res);
     },
-    onError: (err: unknown) => {
-      const msg =
-        (
-          err as {
-            response?: { data?: { detail?: string } };
-            message?: string;
-          }
-        )?.response?.data?.detail ??
-        (err as Error)?.message ??
-        "자동 승인 설정 저장에 실패했습니다.";
-      feedback.error(String(msg));
-    },
+    onMutate: () => qc.cancelQueries({ queryKey: adminStudentsQueryKeys.registrationRequestSettings }),
   });
 
   const autoApproved = !!settingsQ.data?.auto_approve;
@@ -411,8 +391,16 @@ export default function StudentsRequestsPage() {
     () => pendingList.filter((r) => selectedIds.has(r.id)),
     [pendingList, selectedIds]
   );
-  const allSelected =
-    pendingList.length > 0 && selectedIds.size === pendingList.length;
+  const allSelected = pendingList.length > 0 && selectedList.length === pendingList.length;
+  const busy = approveMutation.isPending || rejectMutation.isPending || bulkApproveMutation.isPending || bulkRejectMutation.isPending || resolveDeletedMutation.isPending;
+  const handleReject = async (request: ClientRegistrationRequest) => {
+    if (approvalConfirmationRef.current || busy) return;
+    approvalConfirmationRef.current = true;
+    try {
+      const ok = await confirm({ title: "거절 확인", message: `${request.name} 학생의 가입을 거절하시겠습니까?`, danger: true, confirmText: "거절" });
+      if (ok) await rejectMutation.mutateAsync(request.id).catch(() => undefined);
+    } finally { approvalConfirmationRef.current = false; }
+  };
 
   const toggleOne = (id: number, checked: boolean) => {
     setSelectedIds((prev) => {
@@ -430,33 +418,36 @@ export default function StudentsRequestsPage() {
   };
 
   const openDetail = (r: ClientRegistrationRequest) => {
+    setActionResult(null);
     setDetailRequest(r);
     setDetailOpen(true);
   };
 
   const handleBulkApprove = async () => {
-    if (!selectedList.length || approvalConfirmationRef.current) return;
+    if (!selectedList.length || approvalConfirmationRef.current || busy) return;
     approvalConfirmationRef.current = true;
     try {
       const choice = await confirmPasswords({ title: "가입 승인 최종 확인", message: `선택한 ${selectedList.length}건을 승인합니다. 가입 신청에서 선택한 비밀번호는 유지하며, 선택이 없는 신청의 신규 학부모 비밀번호만 지정합니다.`, confirmText: "승인", studentAlreadySelected: true, parentAlreadySelected: selectedList.every((r) => r.parentPasswordSelected), parentPhoneAvailable: selectedList.every((r) => /^010\d{8}$/.test(r.parentPhone ?? "")) });
-      if (choice) bulkApproveMutation.mutate({ ids: selectedList.map((r) => r.id), choice });
+      if (choice) await bulkApproveMutation.mutateAsync({ ids: selectedList.map((r) => r.id), choice }).catch(() => undefined);
     } finally { approvalConfirmationRef.current = false; }
   };
 
   const handleApprove = async (request: ClientRegistrationRequest) => {
-    if (approvalConfirmationRef.current || approveMutation.isPending) return;
+    if (approvalConfirmationRef.current || busy) return;
     approvalConfirmationRef.current = true;
     try {
       const choice = await confirmPasswords({ title: "가입 승인 최종 확인", message: `${request.name} 학생의 가입을 승인합니다. 가입 신청의 비밀번호 선택을 유지하며, 선택이 없다면 신규 학부모 비밀번호를 지정합니다.`, confirmText: "승인", studentAlreadySelected: true, parentAlreadySelected: request.parentPasswordSelected, parentPhone: request.parentPhone });
-      if (choice) approveMutation.mutate({ id: request.id, choice });
+      if (choice) await approveMutation.mutateAsync({ id: request.id, choice }).catch(() => undefined);
     } finally { approvalConfirmationRef.current = false; }
   };
 
   const handleBulkReject = async () => {
-    if (selectedList.length === 0) return;
-    const ok = await confirm({ title: "거절 확인", message: `선택한 ${selectedList.length}건을 거절하시겠습니까?`, danger: true, confirmText: "거절" });
-    if (!ok) return;
-    bulkRejectMutation.mutate(selectedList.map((r) => r.id));
+    if (!selectedList.length || approvalConfirmationRef.current || busy) return;
+    approvalConfirmationRef.current = true;
+    try {
+      const ok = await confirm({ title: "거절 확인", message: `선택한 ${selectedList.length}건을 거절하시겠습니까?`, danger: true, confirmText: "거절" });
+      if (ok) await bulkRejectMutation.mutateAsync(selectedList.map((r) => r.id)).catch(() => undefined);
+    } finally { approvalConfirmationRef.current = false; }
   };
 
   /* ── 로딩 ── */
@@ -503,7 +494,7 @@ export default function StudentsRequestsPage() {
     );
   }
 
-  if (isError) {
+  if (isError && (!data || [401, 403].includes((error as { response?: { status?: number } })?.response?.status ?? 0))) {
     return (
       <div className={panelStyles.root}>
         <div className={panelStyles.header}>
@@ -517,7 +508,7 @@ export default function StudentsRequestsPage() {
             <EmptyState
               tone="error"
               title="가입 신청을 불러오지 못했습니다"
-              description="조회 실패를 신청 0건으로 표시하지 않습니다. 다시 시도해 주세요."
+              description="연결을 확인한 뒤 다시 시도해 주세요."
               actions={
                 <Button intent="secondary" size="sm" onClick={() => void refetch()}>
                   다시 시도
@@ -539,11 +530,7 @@ export default function StudentsRequestsPage() {
             <div>
               <div className="students-requests__title-row">
                 <h2 className={panelStyles.headerTitle}>가입 신청</h2>
-                {pendingList.length > 0 && (
-                  <span className="students-requests__count-badge">
-                    {pendingList.length}
-                  </span>
-                )}
+                <Badge tone="primary">대기 {pendingCount}건</Badge>
               </div>
               <p className={panelStyles.headerDesc}>
                 학생이 로그인 페이지에서 회원가입을 요청하면 여기에 표시됩니다.
@@ -551,64 +538,50 @@ export default function StudentsRequestsPage() {
                 계정 안내 알림톡은 승인 시점이 아니라 첫 수강 확정 후 발송됩니다.
               </p>
             </div>
-            <div className="students-requests__toggles">
-              {settingsQ.isLoading ? (
-                <span className="students-requests__auto-approve-label" role="status">
-                  자동 승인 설정 확인 중
-                </span>
-              ) : settingsQ.isError ? (
-                <div className="flex items-center gap-2" role="alert">
-                  <span className="students-requests__auto-approve-label">
-                    자동 승인 설정을 불러오지 못했습니다
-                  </span>
-                  <Button
-                    intent="secondary"
-                    size="sm"
-                    onClick={() => void settingsQ.refetch()}
-                  >
-                    설정 다시 시도
-                  </Button>
-                </div>
-              ) : (
-                <label className="students-requests__auto-approve">
-                  <span className="students-requests__auto-approve-label">
-                    자동 승인
-                  </span>
-                  <Switch
-                    checked={autoApproved}
-                    onChange={(checked) => updateAutoApproveM.mutate(checked)}
-                    disabled={updateAutoApproveM.isPending}
-                    size="small"
-                  />
-                </label>
-              )}
-            </div>
+
           </div>
         </div>
 
+        <div className="students-requests__policy">
+          <ApprovalPolicyPanel title="가입 자동 승인" enabled={autoApproved}
+            enabledDescription="학생이 가입 신청을 마치면 바로 계정이 등록됩니다."
+            disabledDescription="신청 내용을 확인하고 승인하면 학생 계정이 등록됩니다."
+            loading={settingsQ.isLoading} loadError={settingsQ.isError} saving={updateAutoApproveM.isPending}
+            saved={updateAutoApproveM.isSuccess} saveError={updateAutoApproveM.isError ? getApiErrorMessage(updateAutoApproveM.error, "설정을 저장하지 못했습니다.") : null}
+            onChange={(enabled) => updateAutoApproveM.mutate(enabled)} onReload={() => void settingsQ.refetch()}
+            onRetry={() => { if (updateAutoApproveM.variables !== undefined) updateAutoApproveM.mutate(updateAutoApproveM.variables); }} />
+        </div>
+        {actionResult && <div className="students-requests__result" role={actionResult.error ? "alert" : "status"} data-error={actionResult.error}>
+          {actionResult.message}
+        </div>}
+        {isError && !requestsQ.isFetchNextPageError && <div className="students-requests__result" role="alert">
+          목록을 갱신하지 못했습니다. <Button size="sm" onClick={() => void refetch()}>목록 다시 시도</Button>
+        </div>}
         {/* ── 선택 툴바 ── */}
         <div className="students-requests__toolbar">
           <div className="students-requests__toolbar-left">
             <Checkbox
+              aria-label="불러온 신청 전체 선택"
               checked={allSelected}
-              indeterminate={selectedIds.size > 0 && !allSelected}
+              indeterminate={selectedList.length > 0 && !allSelected}
               onChange={(e) => toggleAll(e.target.checked)}
-              disabled={pendingList.length === 0}
+              disabled={pendingList.length === 0 || busy || isError}
             />
             <span
-              className={`students-requests__toolbar-count ${selectedIds.size > 0 ? "students-requests__toolbar-count--active" : ""}`}
+              className={`students-requests__toolbar-count ${selectedList.length > 0 ? "students-requests__toolbar-count--active" : ""}`}
             >
-              {selectedIds.size > 0
-                ? `${selectedIds.size}건 선택됨`
-                : `전체 ${pendingList.length}건`}
+              {selectedList.length > 0
+                ? `${selectedList.length}건 선택됨`
+                : `대기 ${pendingCount}건 · 불러온 ${pendingList.length}건`}
             </span>
           </div>
           <div className="students-requests__toolbar-actions">
-            {selectedIds.size > 0 && (
+            {selectedList.length > 0 && (
               <Button
                 intent="secondary"
                 size="sm"
                 onClick={() => setSelectedIds(new Set())}
+                disabled={busy}
               >
                 선택 해제
               </Button>
@@ -617,7 +590,7 @@ export default function StudentsRequestsPage() {
               intent="primary"
               size="sm"
               disabled={
-                selectedIds.size === 0 || bulkApproveMutation.isPending
+                selectedList.length === 0 || busy || isError
               }
               onClick={handleBulkApprove}
             >
@@ -627,7 +600,7 @@ export default function StudentsRequestsPage() {
               intent="danger"
               size="sm"
               disabled={
-                selectedIds.size === 0 || bulkRejectMutation.isPending
+                selectedList.length === 0 || busy || isError
               }
               onClick={handleBulkReject}
             >
@@ -646,110 +619,22 @@ export default function StudentsRequestsPage() {
               />
             </div>
           ) : (
-            <div className={`${panelStyles.contentInner} students-requests__content-inner`}>
-              {pendingList.map((r) => {
-                const isSelected = selectedIds.has(r.id);
-                const isApproving =
-                  approveMutation.isPending &&
-                  approveMutation.variables?.id === r.id;
-                const isRejecting =
-                  rejectMutation.isPending &&
-                  rejectMutation.variables === r.id;
-
-                return (
-                  <div
-                    key={r.id}
-                    className={`students-requests__card ${isSelected ? "students-requests__card--selected" : ""}`}
-                    onClick={() => openDetail(r)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && openDetail(r)}
-                  >
-                    {/* 체크박스 */}
-                    <div
-                      className="students-requests__card-check"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        onChange={(e) => toggleOne(r.id, e.target.checked)}
-                      />
-                    </div>
-
-                    {/* 아이콘 */}
-                    <div className="students-requests__card-icon">
-                      <UserPlus size={16} aria-hidden />
-                    </div>
-
-                    {/* 정보 */}
-                    <div className="students-requests__card-info">
-                      <div className="students-requests__card-name-row">
-                        <span className="students-requests__card-name">
-                          {r.name}
-                        </span>
-                        <span className="students-requests__card-school">
-                          {schoolLabel(r)}
-                        </span>
-                      </div>
-                      <div className="students-requests__card-meta">
-                        <span>학부모 {parentPhone(r)}</span>
-                        <span className="students-requests__card-meta-sep">
-                          ·
-                        </span>
-                        <span>본인 {studentPhone(r)}</span>
-                        {r.createdAt && (
-                          <>
-                            <span className="students-requests__card-meta-sep">
-                              ·
-                            </span>
-                            <span>{shortDateLabel(r.createdAt)} 신청</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 액션 */}
-                    <div className="students-requests__card-actions">
-                      <button
-                        type="button"
-                        className="students-requests__icon-btn students-requests__icon-btn--approve"
-                        title="승인"
-                        aria-label="승인"
-                        disabled={isApproving || isRejecting}
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          await handleApprove(r);
-                        }}
-                      >
-                        <FiUserCheck size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        className="students-requests__icon-btn students-requests__icon-btn--reject"
-                        title="거절"
-                        aria-label="거절"
-                        disabled={isApproving || isRejecting}
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const ok = await confirm({ title: "거절 확인", message: `${r.name} 학생의 가입을 거절하시겠습니까?`, danger: true, confirmText: "거절" });
-                          if (ok) rejectMutation.mutate(r.id);
-                        }}
-                      >
-                        <FiUserX size={15} />
-                      </button>
-                      <span className="students-requests__card-chevron">
-                        <FiChevronRight size={16} />
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <RegistrationRequestCards requests={pendingList} selectedIds={selectedIds} busy={busy || isError && !requestsQ.isFetchNextPageError}
+              approvingId={approveMutation.isPending ? approveMutation.variables?.id : undefined}
+              rejectingId={rejectMutation.isPending ? rejectMutation.variables : undefined}
+              onSelect={toggleOne} onDetail={openDetail} onApprove={(request) => void handleApprove(request)} onReject={(request) => void handleReject(request)} />
           )}
+          {requestsQ.hasNextPage && <div className="students-requests__load-more">
+            {requestsQ.isFetchNextPageError && <p role="alert">다음 신청을 불러오지 못했습니다. 기존 선택은 유지됩니다.</p>}
+            <Button loading={requestsQ.isFetchingNextPage} disabled={busy} onClick={() => void requestsQ.fetchNextPage()}>
+              {requestsQ.isFetchNextPageError ? "다음 신청 다시 시도" : "신청 더 보기"}
+            </Button>
+          </div>}
         </div>
       </div>
 
       <RequestDetailModal
+        actionError={actionResult?.error ? actionResult.message : null}
         request={detailRequest}
         open={detailOpen}
         onClose={() => {
@@ -760,11 +645,7 @@ export default function StudentsRequestsPage() {
           if (!detailRequest) return;
           await handleApprove(detailRequest);
         }}
-        onReject={async () => {
-          if (!detailRequest) return;
-          const ok = await confirm({ title: "거절 확인", message: `${detailRequest.name} 학생의 가입을 거절하시겠습니까?`, danger: true, confirmText: "거절" });
-          if (ok) rejectMutation.mutate(detailRequest.id);
-        }}
+        onReject={() => { if (detailRequest) void handleReject(detailRequest); }}
         approving={
           approveMutation.isPending &&
           detailRequest != null &&

@@ -44,6 +44,7 @@ let sessionId: number | undefined;
 let participantId: number | undefined;
 let lectureId: number | undefined;
 let enrollmentId: number | undefined;
+let originalAutoApproval: boolean | undefined;
 
 const runStamp = Date.now();
 const clinicDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })
@@ -83,6 +84,13 @@ async function waitForParticipant(request: APIRequestContext, studentId: number)
 async function cleanup(request: APIRequestContext): Promise<void> {
   if (!adminAccess) return;
   const failures: string[] = [];
+  if (originalAutoApproval !== undefined) {
+    try {
+      await expectApi(request, "PATCH", "/clinic/settings/", adminAccess, { auto_approve_booking: originalAutoApproval });
+      const restored = await expectApi<{ auto_approve_booking: boolean }>(request, "GET", "/clinic/settings/", adminAccess);
+      expect(restored.auto_approve_booking).toBe(originalAutoApproval);
+    } catch { failures.push("clinic auto-approval setting restore failed"); }
+  }
   const remove = async (method: string, path: string) => {
     try {
       const result = await api(request, method, path, adminAccess);
@@ -130,6 +138,32 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
     adminAccess = admin.access;
+    originalAutoApproval = (await expectApi<{ auto_approve_booking: boolean }>(request, "GET", "/clinic/settings/", admin.access)).auto_approve_booking;
+    const policyContext = await page.context().browser()!.newContext({ serviceWorkers: "block" });
+    const policyPage = await policyContext.newPage();
+    const policyBoundary = await installQaStudentParentBoundary(policyPage, request);
+    const policyBrowser = attachStrictBrowserGuards(policyPage);
+    try {
+      await seedBrowserAuth(policyPage, admin);
+      for (const [width, enabled] of [[1366, false], [390, true]] as const) {
+        await policyPage.setViewportSize({ width, height: 900 });
+        await gotoAndSettle(policyPage, `${QA_BASE}/workspace/clinic/home`);
+        const toggle = policyPage.getByRole("switch", { name: "예약 자동 승인", exact: true });
+        await expect(toggle).toBeEnabled();
+        if ((await toggle.getAttribute("aria-checked") === "true") !== enabled) {
+          const saved = policyPage.waitForResponse((response) => response.request().method() === "PATCH" && response.url().endsWith("/clinic/settings/"));
+          await toggle.click();
+          expect((await saved).status()).toBe(200);
+        }
+        await policyPage.reload({ waitUntil: "domcontentloaded" });
+        await expect(toggle).toHaveAttribute("aria-checked", String(enabled));
+        expect((await expectApi<{ auto_approve_booking: boolean }>(request, "GET", "/clinic/settings/", admin.access)).auto_approve_booking).toBe(enabled);
+        await assertNoHorizontalOverflow(policyPage);
+        await testInfo.attach(`clinic-approval-policy-${width}`, { body: await policyPage.screenshot({ fullPage: true }), contentType: "image/png" });
+      }
+      policyBoundary.assertClean();
+      policyBrowser.assertZeroDefects();
+    } finally { await policyContext.close(); }
     family = await createQaFamily(request, admin.access, "clinic", 1, { withStudentPhones: true });
     const student = family.students[0];
     const clinicSession = await expectApi<{ id: number }>(request, "POST", "/clinic/sessions/", admin.access, {
@@ -196,6 +230,7 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     await expect(page.getByRole("status")).toContainText(/예약(?:이 확정| 신청이 접수)되었습니다/);
 
     const participant = await waitForParticipant(request, student.id);
+    expect(participant.status).toBe("booked");
     expect(participant.student_name).toBe(student.name);
     expect(participant).toMatchObject({ booking_start_date: bookingDate, booking_end_date: bookingDate });
     expect(participant.booking_start_time?.slice(0, 5)).toBe("00:30");
