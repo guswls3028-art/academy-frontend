@@ -417,6 +417,29 @@
   }
 }
 
+.students-requests__policy { padding: var(--space-4) var(--space-5); }
+.students-requests__request-list { display: grid; gap: 12px; }
+.students-requests__result { margin: 12px 20px; padding: 12px; border-left: 3px solid var(--color-brand-primary); background: var(--color-bg-surface-soft); color: var(--color-text-primary); font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.students-requests__result[data-error="true"] { border-left-color: var(--color-error); }
+.students-requests__card { cursor: default; }
+.students-requests__detail-button { flex: 1; min-width: 0; display: grid; justify-items: start; gap: 6px; padding: 4px; background: none; border: none; text-align: left; color: inherit; cursor: pointer; border-radius: var(--radius-md); }
+.students-requests__detail-button > span { width: 100%; }
+.students-requests__detail-button:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 3px; }
+.students-requests__card-name-row { flex-wrap: wrap; }
+.students-requests__card-name, .students-requests__card-school { white-space: normal; overflow-wrap: anywhere; }
+.students-requests__card-meta { display: block; overflow-wrap: anywhere; }
+.students-requests__card-actions > button { min-height: 40px; }
+.students-requests__load-more { display: grid; justify-items: center; gap: 8px; margin-top: 20px; font-size: 13px; color: var(--color-text-secondary); }
+@media (max-width: 640px) {
+  .students-requests__policy { padding: 12px; }
+  .students-requests__card { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; }
+  .students-requests__card-actions { grid-column: 2; justify-content: flex-end; }
+  .students-requests__card-actions > button { min-height: 44px; flex: 1; }
+  .students-requests__toolbar-actions { display: flex; flex-wrap: wrap; }
+  .students-requests__toolbar-actions > button { min-height: 44px; flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .students-requests__card, .students-requests__toolbar-count { transition: none; } }
+
 /* ── 접근성 ── */
 
 .sr-only {

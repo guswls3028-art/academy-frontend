@@ -25,6 +25,7 @@ export const adminStudentsQueryKeys = {
   tags: ["students", "tags"] as const,
   tagsForTenant: (tenantCode: string) => ["students", "tags", tenantCode] as const,
   registrationRequests: ["students", "registration_requests"] as const,
+  registrationRequestPages: ["students", "registration_requests", "pending-pages"] as const,
   registrationRequestSettings: ["students", "registration_requests_settings"] as const,
 
   adminNotificationCounts: ["admin", "notification-counts"] as const,

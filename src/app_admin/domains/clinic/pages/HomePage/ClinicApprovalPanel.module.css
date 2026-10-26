@@ -1,0 +1,13 @@
+.root { display: grid; gap: 12px; }
+.queue { border: 1px solid var(--color-border-divider); border-radius: var(--radius-lg); padding: 20px; background: var(--color-bg-surface); }
+.heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.heading h3 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 15px; font-weight: 700; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.queue p { color: var(--color-text-secondary); font-size: 13px; line-height: 1.65; margin: 12px 0 0; }
+.preview { list-style: none; padding: 0; margin: 16px 0 0; }
+.preview li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--color-border-divider); font-size: 13px; overflow-wrap: anywhere; }
+.preview span { color: var(--color-text-secondary); text-align: right; }
+.result { margin-top: 16px; padding: 12px; border-left: 3px solid var(--color-brand-primary); background: var(--color-bg-surface-soft); font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+.result[data-error="true"] { border-left-color: var(--color-error); }
+.result ul { padding-left: 20px; margin: 8px 0 0; }
+@media (max-width: 640px) { .queue { padding: 16px; } .heading { align-items: stretch; flex-direction: column; gap: 12px; } .actions > button { flex: 1; min-height: 44px; } .preview li { align-items: flex-start; flex-direction: column; gap: 4px; } .preview span { text-align: left; } }

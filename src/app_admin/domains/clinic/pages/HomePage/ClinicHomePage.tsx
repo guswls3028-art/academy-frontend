@@ -7,17 +7,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { CalendarPlus } from "lucide-react";
-import { feedback } from "@/shared/ui/feedback/feedback";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
-import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
-import { patchClinicParticipantStatus, ClinicParticipant } from "../../api/clinicParticipants.api";
+import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import { fetchClinicSessionTree } from "../../api/clinicSessions.api";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
+
+import ClinicApprovalPanel from "./ClinicApprovalPanel";
 
 dayjs.locale("ko");
 
@@ -34,15 +34,6 @@ function weekRangeISO(base: string) {
 
 function nowHHMM() {
   return dayjs().format("HH:mm");
-}
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (!error || typeof error !== "object") return fallback;
-  const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
-  const message = (error as { message?: unknown }).message;
-  if (typeof detail === "string") return detail;
-  if (typeof message === "string") return message;
-  return fallback;
 }
 
 function groupBySession(rows: ClinicParticipant[]) {
@@ -70,7 +61,6 @@ function groupBySession(rows: ClinicParticipant[]) {
 
 export default function ClinicHomePage() {
   const nav = useNavigate();
-  const qc = useQueryClient();
   const { sectionMode, clinicMode } = useSectionMode();
   const showSectionBadge = sectionMode && clinicMode === "regular";
   const today = todayISO();
@@ -110,12 +100,7 @@ export default function ClinicHomePage() {
     session_date_to: wk.to,
   });
   const targetsQ = useClinicTargets();
-  const pendingQ = useClinicParticipants({ status: "pending" });
-  const settingsQ = useQuery({
-    queryKey: clinicQueryKeys.settings,
-    queryFn: fetchClinicSettings,
-    staleTime: 60_000,
-  });
+
 
   const bookedEnrollmentIds = useMemo(() => {
     const set = new Set<number>();
@@ -139,8 +124,6 @@ export default function ClinicHomePage() {
     ).length;
   }, [targetsQ.data, bookedEnrollmentIds]);
 
-  const pendingList = pendingQ.listQ.data ?? [];
-  const autoApproved = !!settingsQ.data?.auto_approve_booking;
   const todayRows = useMemo(() => todayQ.listQ.data ?? [], [todayQ.listQ.data]);
   // 세션 트리 기반 목록 (참가자 0명인 세션도 포함) + 참가자 데이터 병합
   const sessions = useMemo(() => {
@@ -184,59 +167,13 @@ export default function ClinicHomePage() {
   }, [todayRows]);
 
   // Phase 7: 액션바 표시 조건 — 할 일이 있을 때만
-  const hasActionableItems = pendingList.length > 0 || noShowCount > 0;
+  const hasActionableItems = noShowCount > 0;
 
   // Phase 7: "다음" 세션 계산 — 아직 시작 안 된 가장 이른 세션
   const nextSessionId = useMemo(() => {
     const upcoming = sessions.filter((s) => s.time > currentTime);
     return upcoming.length > 0 ? upcoming[0].sessionId : null;
   }, [sessions, currentTime]);
-
-  // --- mutations ---
-  const updateAutoApprovedM = useMutation({
-    mutationFn: (on: boolean) =>
-      updateClinicSettings(undefined, undefined, on),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: clinicQueryKeys.settings });
-      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
-      qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
-    },
-    onError: (err: unknown) => {
-      feedback.error(
-        `자동 승인 설정을 저장할 수 없습니다. ${apiErrorMessage(err, "자동 승인 설정 저장에 실패했습니다.")}`,
-      );
-    },
-  });
-
-  const bulkApproveMutation = useMutation({
-    mutationFn: async (ids: number[]) => {
-      const results = await Promise.allSettled(
-        ids.map((participantId) => patchClinicParticipantStatus(participantId, { status: "booked" }))
-      );
-      const failed = results.filter((r) => r.status === "rejected");
-      if (failed.length > 0) {
-        throw new Error(`${ids.length - failed.length}건 승인, ${failed.length}건 실패`);
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
-      qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
-      feedback.success("일괄 승인되었습니다.");
-    },
-    onError: (err: Error) => {
-      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
-      qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
-      feedback.error(err.message || "일부 예약의 승인 처리에 실패했습니다.");
-    },
-  });
-
-  const approveAll = () => {
-    if (pendingQ.listQ.isError) {
-      feedback.error("승인 대기 목록을 다시 불러온 뒤 처리해 주세요.");
-      return;
-    }
-    bulkApproveMutation.mutate(pendingList.map((p) => p.id));
-  };
 
   const todayLabel = dayjs(today).format("M월 D일 dddd");
   const todayLoading = todayQ.listQ.isLoading || sessionTreeQ.isLoading;
@@ -271,29 +208,6 @@ export default function ClinicHomePage() {
       {hasActionableItems && (
         <div className="clinic-home__action-bar">
           <div className="clinic-home__action-bar-left">
-            {pendingList.length > 0 ? (
-              <div className="clinic-home__action-bar-group">
-                <span className="clinic-home__action-bar-badge clinic-home__action-bar-badge--pending">
-                  승인 대기 {pendingList.length}건
-                </span>
-                <button
-                  type="button"
-                  className="clinic-home__action-btn clinic-home__action-btn--approve"
-                  onClick={approveAll}
-                  disabled={bulkApproveMutation.isPending}
-                >
-                  {bulkApproveMutation.isPending ? "처리 중…" : "일괄 승인"}
-                </button>
-                <button
-                  type="button"
-                  className="clinic-home__action-bar-link"
-                  onClick={() => nav("/workspace/clinic/bookings?focus=pending")}
-                >
-                  개별 관리
-                </button>
-              </div>
-            ) : null}
-
             {noShowCount > 0 && (
               <span className="clinic-home__action-bar-badge clinic-home__action-bar-badge--alert">
                 불참 {noShowCount}명
@@ -303,12 +217,7 @@ export default function ClinicHomePage() {
 
         </div>
       )}
-      {pendingQ.listQ.isError && (
-        <div className="clinic-home__action-bar" role="alert">
-          <span>예약 승인 대기 목록을 불러오지 못했습니다.</span>
-          <button type="button" onClick={() => void pendingQ.listQ.refetch()}>다시 시도</button>
-        </div>
-      )}
+      <ClinicApprovalPanel />
 
       {/* ── 2) 오늘 일정 타임라인 ── */}
       <div className="clinic-home__section">
@@ -319,28 +228,7 @@ export default function ClinicHomePage() {
               {todayLabel} · 일정 {todayError ? "—" : `${sessions.length}개`}
             </p>
           </div>
-          {settingsQ.isError ? (
-            <div className="clinic-home__booking-policy" role="alert">
-              <span className="clinic-home__body-text clinic-home__body-text--error">자동 승인 설정 확인 실패</span>
-              <button type="button" onClick={() => void settingsQ.refetch()}>다시 시도</button>
-            </div>
-          ) : !settingsQ.isLoading && (
-            <div className="clinic-home__booking-policy">
-              <label className="clinic-home__auto-approve-compact">
-                <input
-                  type="checkbox"
-                  checked={autoApproved}
-                  onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
-                  disabled={updateAutoApprovedM.isPending}
-                  className="clinic-home__auto-approve-checkbox-sm"
-                />
-                <span className="clinic-home__booking-policy-copy">
-                  <strong>예약 자동 승인</strong>
-                  <small>학생 신청을 바로 확정</small>
-                </span>
-              </label>
-            </div>
-          )}
+
         </div>
 
         <div className="clinic-home__body">
