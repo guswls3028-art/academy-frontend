@@ -183,10 +183,15 @@ async function openTeacherSessionThroughUi(page: Page): Promise<void> {
   await gotoAndSettle(page, `${QA_BASE}/workspace/mobile`, { timeout: 30_000 });
   await expect(page.locator('[data-app="teacher"]')).toBeVisible();
   await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "강의", exact: true }).click();
+  // The home session card has the same lecture title but opens the session
+  // directly. Wait for the list to commit before selecting by that title.
+  await expect(page).toHaveURL(`${QA_BASE}/workspace/mobile/classes`);
+  await expect(page.getByRole("heading", { name: "강의 관리", exact: true })).toBeVisible();
   const lecture = page.getByRole("main").getByRole("button").filter({ hasText: LECTURE_TITLE });
   await expect(lecture).toHaveCount(1);
   await lecture.click();
   await expect(page).toHaveURL(`${QA_BASE}/workspace/mobile/classes/${owned.lectureId}`);
+  await expect(page.getByRole("heading", { name: LECTURE_TITLE, exact: true })).toBeVisible();
   await page.getByRole("main").getByRole("button").filter({ hasText: "1차시" }).click();
   await expect(page).toHaveURL(`${QA_BASE}/workspace/mobile/classes/${owned.lectureId}/sessions/${owned.sessionId}`);
   for (const student of owned.family!.students) {
