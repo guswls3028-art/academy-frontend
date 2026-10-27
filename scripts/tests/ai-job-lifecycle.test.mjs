@@ -79,7 +79,7 @@ test("PPT reports pending/running progress and returns the complete file once", 
   assert.deepEqual(h.counts(), { requests: 3, waits: 2 });
 });
 
-function matchupRuntime() {
+function matchupRuntime(documents = [{ id: 41, status: "processing", ai_job_id: "fixture-job", updated_at: new Date().toISOString() }]) {
   const requests = [];
   const invalidations = [];
   const timers = new Map();
@@ -103,7 +103,7 @@ function matchupRuntime() {
     "@/shared/auth/tokenSession": { readAuthTokenEnvelopeSafely: () => ({ generation }) },
     "@/shared/api/axios": {
       createAuthSessionBoundConfig: (authGeneration, signal, expectedTenant) => ({ authGeneration, signal, expectedTenant }),
-      default: { get: (url, config) => new Promise((resolve) => requests.push({ url, config, resolve })) },
+      default: { get: (url, config) => new Promise((resolve, reject) => requests.push({ url, config, resolve, reject })) },
     },
   }, {
     AbortController,
@@ -113,7 +113,7 @@ function matchupRuntime() {
     clearInterval: (id) => timers.delete(id),
   });
   const hook = load("src/app_admin/domains/storage/hooks/useMatchupPolling.ts");
-  hook.useMatchupPolling([{ id: 41, status: "processing", ai_job_id: "fixture-job", updated_at: new Date().toISOString() }]);
+  hook.useMatchupPolling(documents);
   return {
     requests, invalidations,
     state: () => state,
@@ -124,6 +124,8 @@ function matchupRuntime() {
       }
     },
     respond(index, data) { requests[index].resolve({ data }); },
+    reject(index, error) { requests[index].reject(error); },
+    refresh() { cleanup?.(); hook.useMatchupPolling(documents, 1); },
     dispose() { cleanup?.(); },
     switchTenant() { tenant = "other-tenant"; },
     switchAccount() { generation = "other-session"; },
@@ -175,6 +177,71 @@ for (const status of ["DONE", "FAILED", "REJECTED_BAD_INPUT", "FALLBACK_TO_GPU",
     h.dispose();
   });
 }
+
+for (const status of [403, 404, "UNKNOWN"]) {
+  test(`Matchup foreground stops unavailable ${status} and permits a deliberate status recheck`, async () => {
+    const h = matchupRuntime();
+    if (typeof status === "number") h.reject(0, { response: { status } });
+    else h.respond(0, { status });
+    await flush();
+    assert.equal(h.state()[41]?.unavailable, true);
+    assert.ok(h.invalidations.some((key) => key[0] === "matchup-documents"));
+    const invalidations = h.invalidations.length;
+    h.runTimers(); await flush(); h.runTimers();
+    assert.equal(h.requests.length, 1);
+    assert.equal(h.invalidations.length, invalidations);
+    h.refresh();
+    assert.equal(h.requests.length, 2);
+    assert.equal(Object.keys(h.state()).length, 0);
+    h.respond(1, { status: "DONE" });
+    await flush();
+    assert.equal(h.state()[41], undefined);
+    h.dispose();
+  });
+}
+
+for (const status of [429, 503, undefined]) {
+  test(`Matchup foreground retries transient ${status ?? "network"} failure`, async () => {
+    const h = matchupRuntime();
+    h.reject(0, status ? { response: { status } } : new Error("temporary network failure"));
+    await flush();
+    assert.equal(h.state()[41], undefined);
+    h.runTimers();
+    assert.equal(h.requests.length, 2);
+    h.respond(1, { status: "RUNNING", progress: { percent: 25 } });
+    await flush();
+    assert.equal(h.state()[41]?.percent, 25);
+    h.dispose();
+  });
+}
+
+for (const change of ["switchTenant", "switchAccount", "dispose"]) {
+  test(`Matchup foreground ignores unavailable responses after ${change}`, async () => {
+    const h = matchupRuntime();
+    h[change]();
+    h.reject(0, { response: { status: 403 } });
+    await flush(); h.runTimers();
+    assert.equal(Object.keys(h.state()).length, 0);
+    assert.deepEqual(h.invalidations, []);
+    assert.equal(h.requests.length, 1);
+    h.dispose();
+  });
+}
+
+test("Matchup foreground continues other jobs after one becomes unavailable", async () => {
+  const h = matchupRuntime([41, 42].map((id) => ({ id, status: "processing", ai_job_id: `fixture-${id}` })));
+  h.respond(0, { status: "UNKNOWN" });
+  h.respond(1, { status: "RUNNING", progress: { percent: 20 } });
+  await flush(); h.runTimers();
+  assert.equal(h.requests.length, 3);
+  assert.match(h.requests[2].url, /fixture-42/);
+  assert.equal(h.state()[41]?.unavailable, true);
+  h.respond(2, { status: "RUNNING", progress: { percent: 40 } });
+  await flush();
+  assert.equal(h.state()[42].percent, 40);
+  assert.equal(h.state()[41]?.unavailable, true);
+  h.dispose();
+});
 
 function workboxRuntime(jobType) {
   const requests = [];

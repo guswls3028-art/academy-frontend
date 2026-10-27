@@ -31,11 +31,12 @@ function updatedAtMs(doc: MatchupDocument): number | null {
 export type DocProgress = {
   percent: number;
   stepName: string;
+  unavailable?: boolean;
 };
 
 export type DocProgressMap = Record<number, DocProgress>;
 
-export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap {
+export function useMatchupPolling(documents: MatchupDocument[], refreshKey = 0): DocProgressMap {
   const qc = useQueryClient();
   const [progressMap, setProgressMap] = useState<DocProgressMap>({});
   const tenantScope = getTenantCodeForApiRequest();
@@ -55,14 +56,15 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
     .join(",");
 
   useEffect(() => {
+    setProgressMap({});
     if (processingDocs.length === 0 || !tenantScope || !generation) {
-      setProgressMap({});
       return;
     }
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
+    const unavailableJobs = new Set<string>();
     const requestConfig = createAuthSessionBoundConfig(generation, controller.signal, tenantScope);
     const isCurrent = () => !cancelled
       && getTenantCodeForApiRequest() === tenantScope
@@ -70,8 +72,10 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
 
     const poll = async () => {
       if (!isCurrent()) return;
+      const polledDocs = processingDocs.filter((doc) => !unavailableJobs.has(doc.ai_job_id));
+      if (polledDocs.length === 0) return;
       const results = await Promise.allSettled(
-        processingDocs.map((doc) =>
+        polledDocs.map((doc) =>
           fetchJobProgress(doc.ai_job_id, requestConfig).then((env) => ({ doc, env })),
         ),
       );
@@ -81,7 +85,17 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
       const next: DocProgressMap = {};
       const terminalDocIds = new Set<number>();
 
-      for (const r of results) {
+      for (const [index, r] of results.entries()) {
+        const rejectedStatus = r.status === "rejected"
+          ? (r.reason as { response?: { status?: number } } | null)?.response?.status : undefined;
+        if (rejectedStatus === 403 || rejectedStatus === 404
+          || (r.status === "fulfilled" && r.value.env?.status === "UNKNOWN")) {
+          const doc = polledDocs[index];
+          unavailableJobs.add(doc.ai_job_id);
+          next[doc.id] = { percent: 0, stepName: "상태 확인 불가", unavailable: true };
+          anyComplete = true;
+          continue;
+        }
         if (r.status !== "fulfilled") continue;
         const { doc, env } = r.value;
         if (!env) continue;
@@ -121,7 +135,9 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
         // (terminal 시점에만 invalidate하던 결함 — 신규 업로드 doc은 끝까지 빈 화면)
         qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblemsRoot });
       }
-      timer = setTimeout(() => { void poll(); }, 3000);
+      if (processingDocs.some((doc) => !unavailableJobs.has(doc.ai_job_id))) {
+        timer = setTimeout(() => { void poll(); }, 3000);
+      }
     };
 
     void poll();
@@ -131,7 +147,7 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
       if (timer !== undefined) clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [processingKey, tenantScope, generation, qc]);
+  }, [processingKey, tenantScope, generation, qc, refreshKey]);
 
   return progressMap;
 }

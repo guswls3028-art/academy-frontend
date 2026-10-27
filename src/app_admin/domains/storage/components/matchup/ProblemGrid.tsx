@@ -20,6 +20,8 @@ type Props = {
   fileSizeBytes?: number;
   progressPercent?: number;
   progressStepName?: string;
+  progressUnavailable?: boolean;
+  onRefreshProgress?: () => void;
   // 합치기 모드 — 카드 다중 선택 + 합치기 CTA
   mergeMode?: boolean;
   mergeSelectedIds?: number[];
@@ -76,7 +78,7 @@ function stageState(pct: number, threshold: number, index: number): "complete" |
 export default function ProblemGrid({
   problems, loading, selectedProblemId, onSelectProblem, documentStatus,
   paperType,
-  fileSizeBytes, progressPercent, progressStepName,
+  fileSizeBytes, progressPercent, progressStepName, progressUnavailable, onRefreshProgress,
   mergeMode = false, mergeSelectedIds = EMPTY_SELECTED_IDS,
   onToggleMergeMode, onToggleMergeSelect, onClearMergeSelection, onConfirmMerge,
   deleteMode = false, deleteSelectedIds = EMPTY_SELECTED_IDS,
@@ -105,7 +107,7 @@ export default function ProblemGrid({
   // mode entry CTA 바 — 합치기/일괄삭제 진입 가능. 두 모드 진입 핸들러 둘 다 없으면 hidden.
   const canEnterAnyMode = (!!onToggleMergeMode || !!onToggleDeleteMode) && problems.length >= 2;
   const showModeEntryBar = canEnterAnyMode && !mergeMode && !deleteMode;
-  const isProcessing = loading || documentStatus === "processing" || documentStatus === "pending";
+  const isProcessing = !progressUnavailable && (loading || documentStatus === "processing" || documentStatus === "pending");
   const hasProgress = typeof progressPercent === "number" && progressPercent > 0;
   const pct = hasProgress ? Math.min(100, Math.max(0, Math.round(progressPercent ?? 0))) : 0;
 
@@ -119,6 +121,18 @@ export default function ProblemGrid({
   const overThreshold = paperType === "side_notes" ? 30 : 60;
   const showReviewGuide = problems.length >= overThreshold || mergeSuspectCount > 0;
   const hasStickyActionBar = mergeMode || deleteMode;
+  const unavailableNotice = progressUnavailable ? (
+    <div className={styles.unavailableNotice} role="status" data-testid="matchup-progress-unavailable">
+      <AlertTriangle size={ICON.sm} className={styles.reviewGuideIcon} aria-hidden="true" />
+      <div className={styles.unavailableText}>
+        <strong>분석 상태를 확인할 수 없습니다</strong>
+        <p>작업을 찾을 수 없거나 조회 권한이 없습니다. 학원과 계정을 확인한 뒤 상태를 다시 확인해 주세요.</p>
+      </div>
+      {onRefreshProgress && <Button type="button" intent="secondary" size="sm" onClick={onRefreshProgress}>상태 다시 확인</Button>}
+    </div>
+  ) : null;
+
+  if (progressUnavailable && problems.length === 0) return unavailableNotice;
 
   if (isProcessing && !showPartialResults) {
     return (
@@ -202,6 +216,7 @@ export default function ProblemGrid({
   //   그 외 (시험지 등) = 60+ (정상 시험지 60문항 흔함)
   return (
     <div className={`${styles.root} ${hasStickyActionBar ? styles.rootWithActionBar : ""}`}>
+      {unavailableNotice}
       {/* Mode entry bar — 두 모드 모두 미진입일 때만. 합치기 + 일괄삭제 진입 CTA 동시 노출. */}
       {showModeEntryBar && (
         <div className={styles.modeEntryBar}>

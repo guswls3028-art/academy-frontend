@@ -354,13 +354,14 @@ export default function DocumentList({
           )}
 
           <div className={styles.docMetaRow}>
-            {STATUS_ICON[doc.status]}
+            {STATUS_ICON[progress?.unavailable ? "failed" : doc.status]}
             <span
               className={styles.statusText}
-              data-status={doc.status}
-              title={doc.status === "failed" ? doc.error_message || "처리 실패" : undefined}
+              data-status={progress?.unavailable ? "failed" : doc.status}
+              title={progress?.unavailable ? "문서를 선택해 분석 상태를 다시 확인해 주세요."
+                : doc.status === "failed" ? doc.error_message || "처리 실패" : undefined}
             >
-              {doc.status === "done"
+              {progress?.unavailable ? "상태 확인 불가" : doc.status === "done"
                 ? `${doc.problem_count}문제`
                 : doc.status === "processing" && progress && progress.percent > 0
                   ? `${progress.stepName} ${Math.round(progress.percent)}%`
@@ -387,7 +388,7 @@ export default function DocumentList({
             )}
           </div>
 
-          {doc.status === "processing" && progress && (
+          {doc.status === "processing" && progress && !progress.unavailable && (
             <progress
               className={styles.progressBar}
               data-testid="matchup-progress-bar"
