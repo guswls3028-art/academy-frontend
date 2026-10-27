@@ -87,8 +87,8 @@ export default function DemoPage() {
     return (
       <section className={styles.resultSection}>
         <div className={styles.resultCard}>
-          <span>데모 접수</span>
-          <h1 ref={resultRef} tabIndex={-1}>데모 요청이 접수되었습니다</h1>
+          <span>시연 접수</span>
+          <h1 ref={resultRef} tabIndex={-1}>시연 신청이 접수되었습니다</h1>
           <p>접수 내용을 확인한 뒤 연락드리겠습니다. 일정이 정해져 있으면 전화로 먼저 조율할 수 있습니다.</p>
           <div className={styles.resultActions}>
             <PhoneInquiryLink>전화 상담 {CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
@@ -104,8 +104,8 @@ export default function DemoPage() {
     <>
       <section className={styles.hero} aria-labelledby="demo-title">
         <div className={styles.heroInner}>
-          <span>데모 요청</span>
-          <h1 id="demo-title">선생님의 수업 방식에 맞춰 데모를 준비합니다</h1>
+
+          <h1 id="demo-title">프로그램 시연 신청</h1>
           <p>데모 요청이나 전화 상담 후 사용할 기능과 시작일을 확인하고 계정을 설정합니다.</p>
           <PhoneInquiryLink>전화 상담 {CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
           <p>{CONSULT_CALLBACK_NOTICE}</p>
@@ -115,8 +115,8 @@ export default function DemoPage() {
       <section className={styles.body}>
         <div className={styles.leadGrid}>
           <aside className={styles.sidePanel}>
-            <span>데모에서 볼 내용</span>
-            <h2>데모에서 확인할 내용</h2>
+
+            <h2>시연 안내</h2>
             <ol>
               <li>수업·시험·성적·메시지의 실제 화면</li>
               <li>월 요금, 별도 비용과 사용할 기능</li>
@@ -257,7 +257,7 @@ export default function DemoPage() {
             {error && <div className={styles.errorBox} role="alert" ref={errorRef} tabIndex={-1}>{error}</div>}
 
             <button type="submit" disabled={pending} className={styles.submitButton}>
-              {pending ? "전송 중..." : "데모 요청하기"}
+              {pending ? "전송 중..." : "시연 신청하기"}
             </button>
           </form>
         </div>

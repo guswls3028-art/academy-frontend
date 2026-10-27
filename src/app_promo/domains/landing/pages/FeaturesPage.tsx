@@ -348,7 +348,7 @@ function AlimtalkGuideSection() {
             <BellRing size={16} />
             알림톡 사용 범위
           </span>
-          <h2 id="alimtalk-guide-title">알림톡마다 발송 시점과 확인 범위가 정해져 있습니다</h2>
+          <h2 id="alimtalk-guide-title">알림톡 발송 방식</h2>
           <p>
             모든 안내를 자동으로 보내지 않습니다. 계정 안내, 설정된 자동 안내,
             선생님 확인이 필요한 수업 안내를 서로 다른 방식으로 처리합니다.
@@ -456,14 +456,14 @@ export default function FeaturesPage() {
       <section className={`${styles.hero} ${styles.heroFeatures}`} aria-labelledby="features-title">
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>학원 운영 기능 · 실제 화면 안내</span>
-            <h1 id="features-title">매일 쓰는 학원 관리와 주요 기능을 한곳에서 이용합니다</h1>
+
+            <h1 id="features-title">기능 소개</h1>
             <p>
               강의·수강생·출결·성적·보강 관리가 중심입니다. 학생앱 영상, 알림톡,
               칠판용 PPT·매치업과 학원 홈페이지까지 수업 전후에 필요한 기능을 제공합니다.
             </p>
             <div className={styles.heroActions}>
-              <Link to="/promo/features/tour" className={styles.primaryCta}>기능 둘러보기 →</Link>
+              <Link to="/promo/features/tour" className={styles.primaryCta}>기능 상세 가이드</Link>
               <a href="#feature-catalog-title" className={styles.secondaryCta}>
                 업무별 기능 보기
                 <LayoutDashboard size={18} />
@@ -473,7 +473,7 @@ export default function FeaturesPage() {
                 <Smartphone size={18} />
               </Link>
             </div>
-            <p>실제 화면 설명서 · 핵심 요약 5쪽 / 사용 순서 상세 43쪽<br />알림톡·영상·엑셀·정오표의 현재 기능과 도입 검수 범위를 확인하세요.</p>
+            <p>기능 상세 가이드는 5쪽 요약과 43쪽 설명서로 제공합니다.</p>
           </div>
 
           <aside className={styles.heroProofStack} aria-label="학원 운영 실제 화면 미리보기">
@@ -512,7 +512,7 @@ export default function FeaturesPage() {
               <Sparkles size={16} />
               실제 화면
             </span>
-            <h2 id="proof-title">주요 기능을 실제 화면으로 확인하세요</h2>
+            <h2 id="proof-title">기능별 화면</h2>
             <p>
               영상, 알림톡, 홈페이지와 칠판용 PPT·매치업을 각각 언제 쓰는지 실제 화면과 함께 보여드립니다.
             </p>
@@ -576,8 +576,8 @@ export default function FeaturesPage() {
         <div className={styles.sectionWrap}>
           <header className={styles.sectionHead}>
             <span>업무별 기능</span>
-            <h2 id="feature-catalog-title">수업 준비부터 학부모 안내까지</h2>
-            <p>수업 준비부터 학부모 안내까지 사용하는 순서대로 정리했습니다.</p>
+            <h2 id="feature-catalog-title">전체 기능 목록</h2>
+            <p>전체 기능 목록 사용하는 순서대로 정리했습니다.</p>
           </header>
 
           <div className={styles.catalogLayout}>

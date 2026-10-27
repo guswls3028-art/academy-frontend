@@ -2,6 +2,9 @@
 
 const CONSULT_PHONE_PARTS = ["010", "3121", "7466"] as const;
 
+export const INSTAGRAM_URL = "https://www.instagram.com/hakwon_p/";
+export const INSTAGRAM_HANDLE = "@hakwon_p";
+
 export const CONSULT_PHONE_LABEL = "전화 문의";
 export const CONSULT_PHONE_DISPLAY = CONSULT_PHONE_PARTS.join("-");
 export const CONSULT_CALLBACK_NOTICE =
@@ -89,7 +92,7 @@ export const PROMO_PLANS: PromoPlanDef[] = [
       "강사·스태프 권한 관리",
       "저장공간 200GB와 초기 설정 안내",
     ],
-    cta: "내 학원 화면 요청",
+    cta: "시연 신청",
     ctaLink: "/promo/demo",
   },
 ];

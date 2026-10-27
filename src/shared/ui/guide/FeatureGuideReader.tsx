@@ -69,8 +69,8 @@ export default function FeatureGuideReader({ mode = "app" }: { mode?: "app" | "p
       <header className={styles.header}>
         <p className={styles.eyebrow}>실제 프로그램 화면 · 2026.10.25 기준</p>
         <h2 id={headingId}>기능 둘러보기</h2>
-        <p>알림톡·영상·엑셀·정오표를 실제 사용 순서로 확인하세요. 현재 제공 기능과 도입 시 검수, 맞춤 개발 범위를 구분했습니다.</p>
-        <p className={styles.note}>개인정보 없는 예시 데이터입니다. 아래 이미지는 한 쪽씩 읽고, 큰 글씨로 확대할 수 있습니다.</p>
+        <p>{mode === "public" ? "5쪽 요약과 43쪽 상세 설명 중 선택해 읽을 수 있습니다." : "알림톡·영상·엑셀·정오표를 실제 사용 순서로 확인하세요. 현재 제공 기능과 도입 시 검수, 맞춤 개발 범위를 구분했습니다."}</p>
+        <p className={styles.note}>화면은 개인정보가 없는 예시 데이터입니다.</p>
       </header>
 
       <div className={styles.books} role="group" aria-label="설명서 선택">

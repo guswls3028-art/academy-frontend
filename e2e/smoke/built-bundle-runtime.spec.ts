@@ -31,7 +31,7 @@ test("production bundle boots the public promo route without runtime defects", a
 
   expect(response?.ok(), `Unexpected /promo status ${response?.status()}`).toBe(true);
   await expect(page.getByRole("heading", {
-    name: "출결·성적·복습·학부모 안내까지, 학원의 모든 흐름을 하나로.",
+    name: /수업 관리부터\s*학생의 복습까지/,
   })).toBeVisible();
   await expect(page.locator("#root")).not.toBeEmpty();
 });

@@ -205,7 +205,7 @@ export default function MatchupPptPage() {
             </div>
             <div className={styles.heroActions}>
               <Link to="/promo/demo?interest=matchup-ppt" className={styles.primaryButton}>
-                내 학원 화면 요청
+                시연 신청
                 <MousePointer2 size={18} />
               </Link>
               <PhoneInquiryLink className={styles.secondaryButton}>

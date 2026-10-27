@@ -3,16 +3,7 @@
   overflow: hidden;
   color: #f8fafc;
   background:
-    linear-gradient(135deg, rgba(8, 16, 24, 0.96), rgba(13, 47, 54, 0.9)),
-    url("/promo/admin-home.png") center / cover;
-}
-
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0;
-  height: 110px;
-  background: linear-gradient(180deg, transparent, #f4f8f8);
+    #283b45;
 }
 
 .heroInner {
@@ -20,7 +11,7 @@
   z-index: 1;
   width: min(920px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 128px 0 104px;
+  padding: 64px 0;
   text-align: center;
 }
 
@@ -30,7 +21,7 @@
   display: inline-flex;
   color: #7dd3fc;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 650;
   letter-spacing: 0;
 }
 
@@ -38,9 +29,9 @@
 .resultCard h1 {
   margin: 14px 0 0;
   color: #fff;
-  font-size: 56px;
-  font-weight: 930;
-  line-height: 1.08;
+  font-size: 48px;
+  font-weight: 650;
+  line-height: 1.3;
   letter-spacing: 0;
   word-break: keep-all;
   text-wrap: balance;
@@ -66,7 +57,7 @@
   padding: 0 22px;
   color: #081018;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 650;
   text-decoration: none;
   background: #fff;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
@@ -110,7 +101,7 @@
   margin: 12px 0 0;
   color: #101923;
   font-size: 28px;
-  font-weight: 930;
+  font-weight: 650;
   line-height: 1.18;
   word-break: keep-all;
 }
@@ -142,7 +133,7 @@
   left: 0;
   color: #0ea5a8;
   font-size: 12px;
-  font-weight: 930;
+  font-weight: 650;
 }
 
 .callBox {
@@ -156,7 +147,7 @@
 .callBox strong {
   display: block;
   font-size: 20px;
-  font-weight: 930;
+  font-weight: 650;
 }
 
 .callBoxButton {
@@ -168,7 +159,7 @@
   padding: 0 15px;
   color: #06131b;
   font-size: 14px;
-  font-weight: 930;
+  font-weight: 650;
   text-decoration: none;
   background: #7dd3fc;
 }
@@ -247,7 +238,7 @@
 .choiceGroup legend {
   color: #253342;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .formCard input,
@@ -302,7 +293,7 @@
   display: block;
   color: #172f38;
   font-size: 14px;
-  font-weight: 930;
+  font-weight: 650;
 }
 
 .privacySummary dl {
@@ -321,7 +312,7 @@
 
 .privacySummary dt {
   color: #0b7d83;
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .privacySummary dd {
@@ -338,7 +329,7 @@
 
 .privacySummary a {
   color: #086b76;
-  font-weight: 850;
+  font-weight: 650;
   text-underline-offset: 3px;
 }
 
@@ -369,7 +360,7 @@
 .formCard label.privacyCheck span {
   color: #253342;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 650;
   line-height: 1.5;
 }
 
@@ -401,7 +392,7 @@
   color: #435363;
   font: inherit;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 650;
   background: #fff;
   cursor: pointer;
   transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
@@ -436,7 +427,7 @@
   color: #06131b;
   font: inherit;
   font-size: 15px;
-  font-weight: 930;
+  font-weight: 650;
   background: #7dd3fc;
   cursor: pointer;
   transition: transform 160ms ease, background 160ms ease;
@@ -497,7 +488,7 @@
   padding: 0 16px;
   color: #101923;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 650;
   text-decoration: none;
   background: #eef3f7;
 }
@@ -524,7 +515,7 @@
   }
 
   .heroInner {
-    padding: 112px 0 74px;
+    padding: 64px 0;
     text-align: left;
   }
 

@@ -10,7 +10,7 @@
   border-radius: 20px; padding: 24px; margin: 16px auto 32px; max-width: 1240px; min-width: 0; box-sizing: border-box;
   overflow-wrap: anywhere; line-height: 1.7;
 }
-.reader[data-mode="public"] { --reader-bg: #fff; --reader-soft: #edf6f7; --reader-text: #172f40; --reader-muted: #526575; --reader-border: #d4e3e8; --reader-accent: #086875; --reader-on-accent: #fff; }
+.reader[data-mode="public"] { --reader-bg: #fff; --reader-soft: #f3f5f6; --reader-text: #26353e; --reader-muted: #65727b; --reader-border: #e1e6e9; --reader-accent: #365d6e; --reader-on-accent: #fff; border-radius: 8px; }
 .header h2 { font-size: clamp(25px, 3vw, 34px); margin: 6px 0 10px; letter-spacing: -.04em; }
 .header p { margin: 8px 0; }
 .eyebrow { color: var(--reader-accent); font-size: 12px; font-weight: 750; }

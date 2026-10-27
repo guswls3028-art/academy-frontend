@@ -93,10 +93,10 @@ for (const width of [390, 1366]) {
     const requested: string[] = [];
     page.on("request", (request) => { if (request.url().includes("/feature-guides/")) requested.push(request.url()); });
     await page.goto(`${BASE}/promo/features`);
-    await expect(page.getByRole("link", { name: "기능 둘러보기 →", exact: true })).toBeVisible();
+    await expect(page.getByRole("main").getByRole("link", { name: "기능 상세 가이드", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
     await info.attach(`feature-tour-entry-${width}`, { body: await page.screenshot(), contentType: "image/png" });
-    await page.getByRole("link", { name: "기능 둘러보기 →", exact: true }).click();
+    await page.getByRole("main").getByRole("link", { name: "기능 상세 가이드", exact: true }).click();
     const reader = page.getByRole("region", { name: "기능 둘러보기", exact: true });
     await expect(reader.getByRole("img")).toHaveCount(1);
     await reader.getByRole("img").scrollIntoViewIfNeeded();
@@ -461,12 +461,12 @@ test("demo retains the request after rejection and focuses the successful retry 
   await page.getByLabel("연락처 *", { exact: true }).fill("010-0000-0000");
   await page.locator("textarea").fill("데모 확인 QA");
   await page.getByRole("checkbox", { name: /개인정보 수집/ }).check();
-  await page.getByRole("button", { name: "데모 요청하기", exact: true }).click();
+  await page.getByRole("button", { name: "시연 신청하기", exact: true }).click();
   await expect(page.getByRole("alert")).toHaveText("연락처를 다시 확인해주세요.");
   await expect(page.getByRole("alert")).toBeFocused();
   await expect(page.locator("textarea")).toHaveValue("데모 확인 QA");
   await page.getByLabel("연락처 *", { exact: true }).fill("010-0000-0001");
-  await page.getByRole("button", { name: "데모 요청하기", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "데모 요청이 접수되었습니다", exact: true })).toBeFocused();
+  await page.getByRole("button", { name: "시연 신청하기", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "시연 신청이 접수되었습니다", exact: true })).toBeFocused();
   expect(attempts).toBe(2);
 });

@@ -45,14 +45,9 @@ export default function UpdatesPage() {
               <Radio size={ICON.xs} aria-hidden="true" />
               제품 업데이트
             </span>
-            <h1 id="updates-title">
-              실제 업무에서
-              <br />
-              달라진 점을 모았습니다
-            </h1>
+            <h1 id="updates-title">업데이트 소식</h1>
             <p>
-              내부 기술 용어보다 선생님과 학생이 화면에서 체감하는 변화,
-              사용할 수 있는 범위와 안전한 실패 동작을 먼저 설명합니다.
+              새로 추가된 기능과 변경된 사용 방법을 날짜별로 정리합니다.
             </p>
             <div className={styles.heroActions}>
               <a href="#latest-update">

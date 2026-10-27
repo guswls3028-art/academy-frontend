@@ -13,12 +13,12 @@ import {
   PhoneCall,
   Radio,
   ShieldCheck,
-  Sparkles,
   X,
 } from "lucide-react";
+import { SiInstagram } from "react-icons/si";
 import { ICON } from "@/shared/ui/ds";
 import PhoneInquiryLink from "../domains/landing/components/PhoneInquiryLink";
-import { CONSULT_PHONE_DISPLAY } from "../domains/landing/business";
+import { CONSULT_PHONE_DISPLAY, INSTAGRAM_HANDLE, INSTAGRAM_URL } from "../domains/landing/business";
 import { capturePromoAttribution } from "../domains/landing/promoAttribution";
 import { applyPromoMeta } from "../domains/landing/promoMeta";
 import styles from "./PromoLayout.module.css";
@@ -60,17 +60,9 @@ function decodeHashId(hash: string) {
 function Header() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10);
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -121,7 +113,7 @@ function Header() {
 
   return (
     <>
-      <header data-promo-header className={`${styles.header} ${scrolled ? styles.headerScrolled : ""}`}>
+      <header data-promo-header className={styles.header}>
         <div className={styles.headerInner}>
           <button
             type="button"
@@ -163,18 +155,17 @@ function Header() {
             </nav>
           </div>
 
+          <a className={styles.socialLink} href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" aria-label={`인스타그램 ${INSTAGRAM_HANDLE} (새 창)`}>
+            <SiInstagram size={ICON.md} aria-hidden="true" />
+          </a>
           <div className={styles.headerActions}>
-            <PhoneInquiryLink className={styles.phoneLink}>
-              <PhoneCall size={ICON.sm} />
-              {CONSULT_PHONE_DISPLAY}
-            </PhoneInquiryLink>
             <Link to="/login" className={styles.loginLink}>
               <LogIn size={ICON.sm} />
               로그인
             </Link>
             <Link to="/promo/demo" className={styles.demoLink}>
               <MousePointer2 size={ICON.sm} />
-              실제 화면 보기
+              시연 신청
             </Link>
           </div>
         </div>
@@ -247,12 +238,11 @@ function Header() {
 
           <div className={styles.sidebarCta}>
             <span>
-              <Sparkles size={ICON.sm} />
-              실제 화면으로 확인
+              프로그램 시연
             </span>
-            <p>현재 운영 방식을 기준으로 관리자 PC와 학생 모바일 화면을 맞춰 보여드립니다.</p>
+            <p>궁금한 기능을 실제 화면으로 안내해 드립니다.</p>
             <Link to="/promo/demo">
-              내 학원 화면 요청
+              시연 신청
               <PanelLeftOpen size={ICON.sm} />
             </Link>
             <PhoneInquiryLink>
@@ -336,7 +326,7 @@ function Footer() {
               <small>학원 운영 플랫폼</small>
             </span>
           </Link>
-          <p>출결부터 성적·복습·학부모 안내까지, 학원의 모든 흐름을 하나로 이어갑니다.</p>
+          <p>학생 관리, 수업 기록, 영상과 알림톡.</p>
           <PhoneInquiryLink className={styles.footerPhone}>
             전화 상담 {CONSULT_PHONE_DISPLAY}
           </PhoneInquiryLink>
@@ -345,6 +335,7 @@ function Footer() {
         <nav aria-label="주요 기능">
           <h2>주요 기능</h2>
           <Link to="/promo/features">기능 소개</Link>
+          <Link to="/promo/features/tour">기능 상세 가이드</Link>
           <Link to="/promo/video-platform">영상 학습</Link>
           <Link to="/promo/features#communication">알림톡 안내</Link>
           <Link to="/promo/landing-samples">학원 홈페이지</Link>
@@ -355,8 +346,10 @@ function Footer() {
         <nav aria-label="상담">
           <h2>상담</h2>
           <Link to="/promo/updates">업데이트 소식</Link>
+          <Link to="/promo/guide">사용 가이드</Link>
+          <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">인스타그램 {INSTAGRAM_HANDLE}<span className={styles.srOnly}> (새 창)</span></a>
           <Link to="/promo/pricing">요금제</Link>
-          <Link to="/promo/demo">데모 요청</Link>
+          <Link to="/promo/demo">시연 신청</Link>
           <Link to="/promo/contact">문의하기</Link>
         </nav>
 
