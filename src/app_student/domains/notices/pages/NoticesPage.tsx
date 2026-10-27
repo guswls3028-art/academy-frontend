@@ -1,7 +1,6 @@
 /**
  * 공지 목록 페이지 — 전체공지 / 강의공지 / 차시공지 탭
  */
-import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
@@ -32,19 +31,26 @@ function filterNotices(notices: PostEntity[], tab: NoticeTab, lectureId?: number
 }
 
 export default function NoticesPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const requestedLectureId = Number(searchParams.get("lecture"));
   const lectureId = Number.isInteger(requestedLectureId) && requestedLectureId > 0
     ? requestedLectureId
     : null;
   const requestedTab = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<NoticeTab>(() => (
+  const activeTab: NoticeTab = (
     lectureId != null || requestedTab === "lecture"
       ? "lecture"
       : requestedTab === "session"
         ? "session"
         : "all"
-  ));
+  );
+  const setActiveTab = (tab: NoticeTab) => {
+    const next = new URLSearchParams(searchParams);
+    if (tab === "all") next.delete("tab");
+    else next.set("tab", tab);
+    if (tab !== "lecture") next.delete("lecture");
+    setSearchParams(next);
+  };
 
   const { data: notices, isLoading, isError, refetch } = useQuery({
     queryKey: studentQueryKeys.notices,
@@ -95,7 +101,7 @@ export default function NoticesPage() {
   return (
     <StudentPageShell title="공지사항">
       {/* 탭 */}
-      <div className="student-notice-tabs">
+      <div className="student-notice-tabs" role="group" aria-label="공지 종류">
         {TAB_CONFIG.map(({ key, label }) => {
           const isActive = activeTab === key;
           const count = counts[key];
@@ -104,6 +110,7 @@ export default function NoticesPage() {
               key={key}
               type="button"
               onClick={() => setActiveTab(key)}
+              aria-pressed={isActive}
               className={`student-notice-tab${isActive ? " student-notice-tab--active" : ""}`}
             >
               <span>{label}</span>
@@ -154,7 +161,7 @@ export default function NoticesPage() {
             return (
               <Link
                 key={notice.id}
-                to={`/student/notices/${notice.id}`}
+                to={`/student/notices/${notice.id}${searchParams.size ? `?${searchParams}` : ""}`}
                 className={`student-notice-card stu-panel stu-panel--pressable${(notice.is_urgent || notice.is_pinned) ? " stu-panel--accent" : ""}`}
               >
                 <div className="student-notice-card__head">

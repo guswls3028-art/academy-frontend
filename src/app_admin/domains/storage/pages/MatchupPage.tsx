@@ -282,7 +282,8 @@ export default function MatchupPage() {
     gcTime: 5 * 60_000,
   });
 
-  const progressMap = useMatchupPolling(documents);
+  const [progressRefreshKey, setProgressRefreshKey] = useState(0);
+  const progressMap = useMatchupPolling(documents, progressRefreshKey);
 
   // 첫 진입 자동 선택 — URL ?docId, navigate state, user-swap 모두 처리 후 selectedDocId
   // 가 비어 있고 doc 이 1건 이상이면 첫 done doc 자동 선택. 학원장이 페이지 진입 시
@@ -2035,6 +2036,11 @@ export default function MatchupPage() {
                       fileSizeBytes={selectedDoc?.size_bytes}
                       progressPercent={selectedDoc ? progressMap[selectedDoc.id]?.percent : undefined}
                       progressStepName={selectedDoc ? progressMap[selectedDoc.id]?.stepName : undefined}
+                      progressUnavailable={selectedDoc ? progressMap[selectedDoc.id]?.unavailable : undefined}
+                      onRefreshProgress={() => {
+                        setProgressRefreshKey((key) => key + 1);
+                        void refetchDocuments();
+                      }}
                       mergeMode={mergeMode}
                       mergeSelectedIds={mergeSelectedIds}
                       onToggleMergeMode={handleToggleMergeMode}

@@ -259,6 +259,31 @@
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
 }
 
+.unavailableNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-status-warning) 30%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-status-warning) 8%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+}
+
+.unavailableText {
+  flex: 1 1 200px;
+  min-width: 0;
+  line-height: 1.5;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.unavailableText p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+}
+
 .reviewGuide {
   align-items: flex-start;
   background: color-mix(in srgb, var(--color-status-warning) 8%, var(--color-bg-surface));

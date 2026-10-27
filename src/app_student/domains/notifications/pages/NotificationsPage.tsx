@@ -32,7 +32,7 @@ function isRecent(timestamp: string | null | undefined, cutoffTime: number): boo
 
 export default function NotificationsPage() {
   const qc = useQueryClient();
-  const { data: counts, isLoading: countsLoading, isError: countsError } = useNotificationCounts();
+  const { isLoading: countsLoading, isError: countsError } = useNotificationCounts();
 
   const { data: clinicBookings, isLoading: clinicLoading, isError: clinicError } = useQuery({
     queryKey: studentQueryKeys.clinicBookings,
@@ -40,17 +40,19 @@ export default function NotificationsPage() {
     staleTime: 30000,
   });
 
-  const { data: profile } = useQuery({ queryKey: studentQueryKeys.me, queryFn: fetchMyProfile });
+  const { data: profile, isLoading: profileLoading, isError: profileError } = useQuery({
+    queryKey: studentQueryKeys.me, queryFn: fetchMyProfile, staleTime: 30_000,
+  });
 
   const { data: myQnaQuestions = [], isLoading: qnaLoading, isError: qnaError } = useQuery({
-    queryKey: studentQueryKeys.qnaQuestions,
+    queryKey: studentQueryKeys.notificationQuestions,
     queryFn: () => fetchMyQuestions(profile!.id, 50),
     enabled: profile?.id != null,
     staleTime: 30000,
   });
 
   const { data: myCounselRequests = [], isLoading: counselLoading, isError: counselError } = useQuery({
-    queryKey: studentQueryKeys.counselRequests,
+    queryKey: studentQueryKeys.notificationCounsel,
     queryFn: () => fetchMyCounselRequests(profile!.id, 50),
     enabled: profile?.id != null,
     staleTime: 30000,
@@ -62,8 +64,8 @@ export default function NotificationsPage() {
     staleTime: 30000,
   });
 
-  const isLoading = countsLoading || clinicLoading || qnaLoading || counselLoading || gradesLoading;
-  const isError = countsError || clinicError || qnaError || counselError || gradesError;
+  const isLoading = profileLoading || countsLoading || clinicLoading || qnaLoading || counselLoading || gradesLoading;
+  const isError = profileError || countsError || clinicError || qnaError || counselError || gradesError;
   const recentCutoffTime = useMemo(() => Date.now() - SEVEN_DAYS_MS, []);
 
   const approvedClinicBookings = useMemo(
@@ -99,7 +101,6 @@ export default function NotificationsPage() {
   );
 
   const hasNotifications =
-    (counts?.total || 0) > 0 ||
     approvedClinicBookings.length > 0 ||
     answeredQnaPosts.length > 0 ||
     answeredCounselPosts.length > 0 ||
@@ -116,14 +117,14 @@ export default function NotificationsPage() {
   const markSeen = useMarkNotificationsSeen(profile?.id ?? null);
   const markedRef = useRef<string>("");
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || isError || profile?.id == null) return;
     if (seenItems.length === 0) return;
     // 동일 항목 세트면 중복 호출 방지
-    const key = seenItems.map((item) => `${item.type}:${item.id}`).join(",");
+    const key = `${profile.id}:` + seenItems.map((item) => `${item.type}:${item.id}`).join(",");
     if (key === markedRef.current) return;
     markedRef.current = key;
     markSeen(seenItems);
-  }, [isLoading, seenItems, markSeen]);
+  }, [isLoading, isError, profile?.id, seenItems, markSeen]);
 
   if (isLoading) {
     return (
@@ -147,6 +148,7 @@ export default function NotificationsPage() {
           onRetry={() => {
             qc.invalidateQueries({ queryKey: studentQueryKeys.clinicBookings });
             qc.invalidateQueries({ queryKey: studentQueryKeys.qnaQuestions });
+            qc.invalidateQueries({ queryKey: studentQueryKeys.counselRequests });
             qc.invalidateQueries({ queryKey: studentQueryKeys.me });
             qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
             qc.invalidateQueries({ queryKey: studentQueryKeys.notificationCounts });
@@ -172,7 +174,7 @@ export default function NotificationsPage() {
               <span className={styles.summaryMeta}>예약, 답변, 성적 업데이트를 모았습니다.</span>
             </div>
             <span className={styles.summaryBadge}>
-              {Math.max(counts?.total ?? 0, seenItems.length)}
+              {seenItems.length}
             </span>
           </div>
 

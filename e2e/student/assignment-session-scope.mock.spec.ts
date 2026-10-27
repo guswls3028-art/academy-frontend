@@ -156,7 +156,7 @@ async function installApi(page: Page) {
     }
     if (/\/submissions\/submissions\/homework\/\d+\/media\/$/.test(path) && request.method() === "GET") {
       return fulfill({
-        files: mediaFiles,
+        files: path.endsWith("/homework/501/media/") ? mediaFiles : [],
         limits: {
           max_files: 20,
           max_file_size_bytes: 100 * 1024 * 1024,
@@ -168,14 +168,15 @@ async function installApi(page: Page) {
       submissionCount += 1;
       const body = request.postData() ?? "";
       expect(body).toContain("401");
+      const field = (name: string) => body.match(new RegExp(`name="${name}"\\r?\\n\\r?\\n([^\\r\\n]+)`))?.[1] ?? "";
       await new Promise((resolve) => setTimeout(resolve, 250));
       const uploaded = {
         id: String(900 + submissionCount),
         legacy: false,
-        client_file_id: `client-${submissionCount}`,
-        upload_batch_id: "batch-1",
-        position: submissionCount - 1,
-        original_filename: "최종풀이.png",
+        client_file_id: field("client_file_id"),
+        upload_batch_id: field("upload_batch_id"),
+        position: Number(field("position")),
+        original_filename: body.match(/filename="([^"]+)"/)?.[1] ?? "제출 파일",
         media_kind: "image",
         mime_type: "image/png",
         file_size: 11,
@@ -196,7 +197,7 @@ async function installApi(page: Page) {
   return { getSubmissionCount: () => submissionCount };
 }
 
-test("차시 제출 링크는 다른 차시를 숨기고 대상 전환·성공 시 파일을 초기화한다", async ({ page }) => {
+test("차시 제출 링크는 다른 차시를 숨기고 과제별 선택 복원·제출 후 재조회를 완료한다", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });
   const api = await installApi(page);
@@ -215,12 +216,14 @@ test("차시 제출 링크는 다른 차시를 숨기고 대상 전환·성공 �
 
   await page.getByText("현재 차시 필수 과제", { exact: true }).click();
   const fileInput = page.locator('input[type="file"]');
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
   await fileInput.setInputFiles({
     name: "풀이.jpg",
     mimeType: "image/jpeg",
     buffer: Buffer.from("safe-image"),
   });
   await expect(page.getByText(/풀이\.jpg/)).toBeVisible();
+  await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
 
   await page.getByText("현재 차시 추가 과제", { exact: true }).click();
   await expect(page.getByText(/풀이\.jpg/)).toHaveCount(0);
@@ -234,19 +237,31 @@ test("차시 제출 링크는 다른 차시를 숨기고 대상 전환·성공 �
   await expect(page.getByRole("alert")).toContainText("지원하지 않는 형식");
 
   await page.getByText("현재 차시 필수 과제", { exact: true }).click();
+  const pending = page.getByRole("region", { name: "이번에 제출할 파일" });
+  await expect(pending.getByText("풀이.jpg", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
   await fileInput.setInputFiles({
     name: "최종풀이.png",
     mimeType: "image/png",
     buffer: Buffer.from("final-image"),
   });
-  await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
+  await page.getByRole("button", { name: "파일 2개 제출하기" }).click();
   await expect(page.getByRole("button", { name: /현재 차시 추가 과제/ })).toBeDisabled();
   await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
-  await expect(page.getByText(/최종풀이\.png/)).toHaveCount(0);
-  await expect(page.getByText("제출 대상", { exact: true })).toHaveCount(0);
-  expect(api.getSubmissionCount()).toBe(1);
+  await expect(pending).toHaveCount(0);
+  const saved = page.getByRole("region", { name: "이미 제출한 파일" });
+  await expect(saved.getByText("최종풀이.png", { exact: true })).toBeVisible();
+  await expect(saved.getByText("풀이.jpg", { exact: true })).toBeVisible();
+  expect(api.getSubmissionCount()).toBe(2);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /현재 차시 필수 과제/ }).click();
+  await expect(saved.getByText("최종풀이.png", { exact: true })).toBeVisible();
+  await expect(saved.getByText("풀이.jpg", { exact: true })).toBeVisible();
+  await expect(pending).toHaveCount(0);
   await page.getByText("현재 차시 추가 과제", { exact: true }).click();
   await expect(page.locator('[class*="successMessage"]')).toHaveCount(0);
+  await expect(page.getByText("최종풀이.png", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("풀이.jpg", { exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 

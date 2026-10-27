@@ -177,6 +177,24 @@ function isExactDevelopmentOmrImage(boundary: ReleaseBoundary, rawUrl: string, m
   return hasExactHostSignature(target, 21600);
 }
 
+function isExactDevelopmentMatchupImage(boundary: ReleaseBoundary, rawUrl: string, method: string): boolean {
+  if (boundary.mode !== "development" || method !== "GET"
+    || !Number.isSafeInteger(boundary.omrR2TenantId) || Number(boundary.omrR2TenantId) < 1) return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== target.origin + target.pathname + target.search) return false;
+  const prefix = `/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/matchup/`;
+  if (!target.pathname.startsWith(prefix)) return false;
+  const suffix = target.pathname.slice(prefix.length);
+  const automatic = /^jobs\/[0-9a-f]{64}\/(?:pages\/[0-9]{3}|problems\/([0-9a-f-]{36})\/([1-9][0-9]*))\.png$/.exec(suffix);
+  const manual = /^manual-([1-9][0-9]*)\/(?:pages\/(?:manual-bounded-v1\/)?[0-9]{3}|problems\/([1-9][0-9]*))\.png$/.exec(suffix);
+  const validAutomatic = automatic && (!automatic[1] || UUID.test(automatic[1]))
+    && (!automatic[2] || Number.isSafeInteger(Number(automatic[2])));
+  const validManual = manual && Number.isSafeInteger(Number(manual[1]))
+    && (!manual[2] || Number.isSafeInteger(Number(manual[2])));
+  return Boolean(validAutomatic || validManual) && hasExactHostSignature(target, 3600);
+}
+
 function hasExactHostSignature(target: URL, maxExpires: number): boolean {
   const query = target.searchParams;
   const keys = ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Date", "X-Amz-Expires", "X-Amz-SignedHeaders", "X-Amz-Signature"];
@@ -201,6 +219,17 @@ function isExactDevelopmentHomeworkImage(boundary: ReleaseBoundary, rawUrl: stri
   if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
     || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
   const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/ai/submissions/([1-9][0-9]*)/media-${mediaId}-[0-9a-f]{32}\\.${extension}$`).exec(target.pathname);
+  return Boolean(path && Number.isSafeInteger(Number(path[1])) && hasExactHostSignature(target, 600));
+}
+
+function isExactDevelopmentHomeworkVideo(boundary: ReleaseBoundary, rawUrl: string, mediaId: string, compatible: boolean): boolean {
+  if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
+    || Number(boundary.omrR2TenantId) < 1 || !Number.isSafeInteger(Number(mediaId))) return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
+  const filename = compatible ? "preview-[0-9a-f]{32}-[0-9a-f]{32}" : `media-${mediaId}-[0-9a-f]{32}`;
+  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/ai/submissions/([1-9][0-9]*)/${filename}\\.mp4$`).exec(target.pathname);
   return Boolean(path && Number.isSafeInteger(Number(path[1])) && hasExactHostSignature(target, 600));
 }
 
@@ -1274,9 +1303,25 @@ export async function installReleaseContextGuard(
         return;
       }
       const homeworkImageType = request.method() === "GET" ? homeworkPreviewUrls.get(upstream) : undefined;
+      if (homeworkImageType === "video/mp4" && request.resourceType() === "media") {
+        const headers = await request.allHeaders();
+        if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"].some((key) => headers[key])
+          || (headers.range && !/^bytes=[0-9]+-[0-9]*$/.test(headers.range))) { await reject("credentials"); return; }
+        // Synthetic canary clips only: preserve the actual object bytes, strip
+        // credentials/Range/referrer, and return a complete 200 media response.
+        const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: "video/mp4" }, maxRedirects: 0 });
+        const body = await response.body();
+        if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== "video/mp4"
+          || body.length < 24 || body.length > 2 * 1024 * 1024 || body.subarray(4, 8).toString("ascii") !== "ftyp") {
+          await reject("transport"); return;
+        }
+        await route.fulfill({ status: 200, headers: { "content-type": "video/mp4", "content-length": String(body.length) }, body });
+        return;
+      }
       const homeworkHeic = homeworkImageType === "image/heic" || homeworkImageType === "image/heif";
       const communityImageType = request.method() === "GET" ? communityImageUrls.get(upstream) : undefined;
-      if ((homeworkImageType || communityImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
+      const matchupImageType = isExactDevelopmentMatchupImage(boundary, upstream, request.method()) ? "image/png" : undefined;
+      if (((homeworkImageType && homeworkImageType !== "video/mp4") || communityImageType || matchupImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
         && (request.resourceType() === "image" || (homeworkHeic && request.resourceType() === "xhr"))) {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
@@ -1286,7 +1331,7 @@ export async function installReleaseContextGuard(
         }
         // Only this signed development object URL is forwarded. Never send app
         // credentials/referrer or follow redirects; never report the signed URL.
-        const contentType = communityImageType || homeworkImageType || "image/jpeg";
+        const contentType = communityImageType || homeworkImageType || matchupImageType || "image/jpeg";
         const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: contentType,
           ...(homeworkHeic ? { origin: boundary.webOrigin } : {}) }, maxRedirects: 0 });
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
@@ -1498,13 +1543,18 @@ export async function installReleaseContextGuard(
             }
           }
         }
-        const homeworkPreview = /^\/api\/v1\/submissions\/submissions\/homework\/([1-9][0-9]*)\/media\/([1-9][0-9]*)\/preview\/$/.exec(new URL(upstream).pathname);
+        const homeworkPreview = /^\/api\/v1\/submissions\/submissions\/homework\/([1-9][0-9]*)\/media\/([1-9][0-9]*)\/preview\/(compatible\/)?$/.exec(new URL(upstream).pathname);
         if (boundary.mode === "development" && request.method() === "GET" && homeworkPreview
           && !new URL(upstream).search && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")) {
           const preview = await response.json();
-          if (preview?.media_kind === "image" && typeof preview.mime_type === "string" && preview.expires_in === 600
+          if (!homeworkPreview[3] && preview?.media_kind === "image" && typeof preview.mime_type === "string" && preview.expires_in === 600
             && typeof preview.url === "string" && isExactDevelopmentHomeworkImage(boundary, preview.url, homeworkPreview[2], preview.mime_type)) {
             homeworkPreviewUrls.set(preview.url, preview.mime_type);
+          }
+          if ((homeworkPreview[3] ? preview?.status === "ready" : preview?.media_kind === "video")
+            && preview.mime_type === "video/mp4" && preview.expires_in === 600 && typeof preview.url === "string"
+            && isExactDevelopmentHomeworkVideo(boundary, preview.url, homeworkPreview[2], Boolean(homeworkPreview[3]))) {
+            homeworkPreviewUrls.set(preview.url, "video/mp4");
           }
         }
         if (boundary.mode === "development" && target.pathname.startsWith("/api/v1/landing-public/videos/")

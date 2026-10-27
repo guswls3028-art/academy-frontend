@@ -86,6 +86,45 @@ test("OMR R2 tenant configuration is development-only and an exact positive inte
     E2E_API_URL: "https://api.hakwonplus.com", E2E_BASE_URL: "https://hakwonplus.com", E2E_TENANT_CODE: "hakwonplus" }), /scope/);
 });
 
+const matchupPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=", "base64");
+const matchupPrefix = `${origin}/academy-development-artifacts/tenants/352/matchup/`;
+const matchupQuery = new URLSearchParams(query);
+matchupQuery.set("X-Amz-Expires", "3600");
+const matchupImage = (suffix) => `${matchupPrefix}${suffix}?${matchupQuery}`;
+
+test("Matchup permits only signed development PNG page/crop paths in the Setup tenant", async () => {
+  for (const suffix of [
+    `jobs/${"a".repeat(64)}/pages/000.png`,
+    `jobs/${"b".repeat(64)}/problems/11111111-1111-4111-8111-111111111111/1.png`,
+    "manual-41/pages/000.png", "manual-41/pages/manual-bounded-v1/000.png", "manual-41/problems/99.png",
+  ]) {
+    const target = matchupImage(suffix);
+    const result = await exercise({ url: target, contentType: "image/png", body: matchupPng });
+    result.guard.assertClean();
+    assert.deepEqual(result.fetched, [{ url: target, method: "GET", headers: { accept: "image/png" }, maxRedirects: 0 }]);
+    assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/png" }, body: matchupPng }]);
+    assert.throws(() => assertReleaseRequestSafe(boundary, target, "GET"), /escaped/);
+  }
+});
+
+test("Matchup refuses foreign scopes, credentials, redirects and non-PNG responses", async () => {
+  const valid = matchupImage("manual-41/problems/99.png");
+  for (const options of [
+    { url: valid.replace("tenants/352", "tenants/353") },
+    { url: valid.replace("academy-development-artifacts", "academy-production-artifacts") },
+    { url: valid.replace("X-Amz-Expires=3600", "X-Amz-Expires=3601") },
+    { url: valid.replace("manual-41", "manual-0") },
+    { url: matchupImage(`jobs/${"a".repeat(63)}/pages/000.png`) },
+    { url: matchupImage("manual-41/original.pdf") },
+    { method: "POST" }, { resourceType: "xhr" },
+    { headers: { authorization: "Bearer synthetic-must-not-forward" } },
+    { boundary: { ...boundary, mode: "readonly" } },
+  ]) assertRejected(await exercise({ url: valid, contentType: "image/png", body: matchupPng, ...options }));
+  for (const options of [{ status: 302 }, { contentType: "image/jpeg" }, { body: jpeg }]) {
+    assertRejected(await exercise({ url: valid, contentType: "image/png", body: matchupPng, ...options }), 1);
+  }
+});
+
 test("OMR R2 image rejects foreign scope, non-image resources and mutations before transport", async () => {
   for (const options of [
     { boundary: { ...boundary, mode: "readonly" } }, { boundary: { ...boundary, omrR2TenantId: undefined } },

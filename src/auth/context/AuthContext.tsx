@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import api, { clearTokens, getAccessToken, isSessionEnding, saveReturnPath } from "@/shared/api/axios";
+import { clearHomeworkDraftGeneration } from "@/shared/storage/homeworkDraftStorage";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { resetParentStudentIdInMemory } from "@/shared/api/parentStudentSelection";
 import { setSentryUser, clearSentryUser } from "@/shared/lib/sentryContext";
@@ -216,7 +217,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (e.key === AUTH_ACTIVE_GENERATION_KEY) {
         const previousGeneration = authGenerationFromStorageValue(e.oldValue);
         const nextGeneration = authGenerationFromStorageValue(e.newValue);
-        if (previousGeneration !== nextGeneration) clearCrossTabSession();
+        if (previousGeneration !== nextGeneration) {
+          if (previousGeneration) void clearHomeworkDraftGeneration(previousGeneration).catch(() => undefined);
+          clearCrossTabSession();
+        }
         return;
       }
 
@@ -224,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!eventGeneration || eventGeneration !== readActiveAuthGenerationSafely()) return;
       const activeEnvelope = readAuthTokenEnvelopeSafely();
       if (activeEnvelope?.generation === eventGeneration) return;
+      void clearHomeworkDraftGeneration(eventGeneration).catch(() => undefined);
       clearCrossTabSession();
     };
     window.addEventListener("storage", onStorage);

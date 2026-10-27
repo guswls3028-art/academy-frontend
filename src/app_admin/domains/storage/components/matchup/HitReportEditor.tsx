@@ -22,6 +22,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 import ManualCropModal from "./ManualCropModal";
+import styles from "./HitReportEditor.module.css";
 import {
   fetchHitReportCandidateBatch,
   fetchHitReportQuickDraft,
@@ -652,16 +653,6 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [examProblems.length, closeWithDirtyGuard]);
 
-  const headerStyle: React.CSSProperties = {
-    padding: "12px 18px",
-    borderBottom: "1px solid var(--color-border-divider)",
-    background: "var(--color-bg-surface)",
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    flexShrink: 0,
-  };
-
   return (
     <>
     <div
@@ -681,6 +672,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       }}
     >
       <div
+        className={styles.panel}
         style={{
           width: "min(1500px, 97vw)",
           height: "min(95vh, 1040px)",
@@ -695,9 +687,9 @@ export default function HitReportEditor({ docId, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div style={headerStyle}>
+        <div className={styles.header}>
           <FileText size={ICON.md} color="var(--color-status-success)" />
-          <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
+          <div className={styles.identity}>
             <div style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
               {documentCategory || "미분류"}
               {data?.report.author_name && (
@@ -738,7 +730,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             />
           </div>
 
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+          <div className={styles.actions}>
             {!loading && candidateLoading && (
               <span
                 data-testid="matchup-hit-report-candidate-loading"
@@ -911,6 +903,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             <button
               onClick={() => void closeWithDirtyGuard()}
               aria-label="닫기"
+              className={styles.close}
               style={{
                 marginLeft: 4, padding: 6, border: "none", background: "transparent",
                 cursor: "pointer", color: "var(--color-text-secondary)",
@@ -961,14 +954,10 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             시험지에 등록된 문항이 없습니다.
           </div>
         ) : (
-          <div style={{ flex: 1, display: "grid", gridTemplateColumns: "180px 1fr 360px", overflow: "hidden", minHeight: 0 }}>
+          <div className={styles.body}>
             {/* 좌: 문항 사이드 — 번호+썸네일 리스트 */}
-            <div style={{
-              borderRight: "1px solid var(--color-border-divider)",
-              overflow: "auto",
-              background: "var(--color-bg-surface-soft)",
-            }}>
-              <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border-divider)" }}>
+            <div className={styles.questionRail}>
+              <div className={styles.questionSummary} style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border-divider)" }}>
                 <div style={{ fontSize: 11, color: "var(--color-text-muted)", fontWeight: 600 }}>
                   문항 ({examProblems.length})
                 </div>
@@ -1107,34 +1096,38 @@ export default function HitReportEditor({ docId, onClose }: Props) {
             </div>
 
             {/* 중: 2-pane 미리보기 (PDF 양식과 동일) + 코멘트 */}
-            <PreviewPane
-              active={active}
-              activeIndex={activeIndex}
-              examProblemsCount={examProblems.length}
-              documentTitle={documentTitle}
-              activeCandidateId={activeCandidateId}
-              selectedIds={selectedIdsStable}
-              candidateMap={candidateMap}
-              comment={activeEntry?.comment ?? ""}
-              onComment={setComment}
-              disabled={isSubmitted}
-              onPrev={goPrev}
-              onNext={goNext}
-            />
+            <div className={styles.preview}>
+              <PreviewPane
+                active={active}
+                activeIndex={activeIndex}
+                examProblemsCount={examProblems.length}
+                documentTitle={documentTitle}
+                activeCandidateId={activeCandidateId}
+                selectedIds={selectedIdsStable}
+                candidateMap={candidateMap}
+                comment={activeEntry?.comment ?? ""}
+                onComment={setComment}
+                disabled={isSubmitted}
+                onPrev={goPrev}
+                onNext={goNext}
+              />
+            </div>
 
             {/* 우: 강사 본인 수업자료 후보 리스트 — 행 클릭 = 미리보기 active / "+PDF에 추가" 버튼 = 선택 토글 */}
-            <SelectionPanel
-              active={active}
-              activeCandidateId={activeCandidateId}
-              selectedIds={selectedIdsStable}
-              candidateMap={candidateMap}
-              candidatesLoading={candidateLoading}
-              candidateError={candidateError}
-              onToggle={toggleSelect}
-              onSetActive={setActiveCandidateId}
-              onEditSource={handleEditSource}
-              disabled={isSubmitted}
-            />
+            <div className={styles.candidates}>
+              <SelectionPanel
+                active={active}
+                activeCandidateId={activeCandidateId}
+                selectedIds={selectedIdsStable}
+                candidateMap={candidateMap}
+                candidatesLoading={candidateLoading}
+                candidateError={candidateError}
+                onToggle={toggleSelect}
+                onSetActive={setActiveCandidateId}
+                onEditSource={handleEditSource}
+                disabled={isSubmitted}
+              />
+            </div>
           </div>
         )}
 

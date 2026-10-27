@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import "./playback-unload.test.mjs";
 import "./score-draft-unload.test.mjs";
 import "./playback-event-receipts.test.mjs";
+import "./ai-job-lifecycle.test.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
