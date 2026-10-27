@@ -106,7 +106,7 @@ export default function DemoPage() {
         <div className={styles.heroInner}>
 
           <h1 id="demo-title">프로그램 시연 신청</h1>
-          <p>데모 요청이나 전화 상담 후 사용할 기능과 시작일을 확인하고 계정을 설정합니다.</p>
+          <p>보고 싶은 기능과 궁금한 점을 남겨주세요. 실제 화면으로 사용 방법을 안내해 드립니다.</p>
           <PhoneInquiryLink>전화 상담 {CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
           <p>{CONSULT_CALLBACK_NOTICE}</p>
         </div>
@@ -123,7 +123,7 @@ export default function DemoPage() {
               <li>기존 자료 이전과 시작 일정</li>
             </ol>
             <div className={styles.callBox}>
-              <strong>데모·가입 전화 상담</strong>
+              <strong>전화 문의</strong>
               <PhoneInquiryLink className={styles.callBoxButton}>{CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
               <p>{START_GUIDANCE_NOTICE}</p>
             </div>
@@ -238,7 +238,7 @@ export default function DemoPage() {
                 disabled={pending}
                 value={form.message}
                 onChange={(e) => update("message", e.target.value)}
-                placeholder="데모에서 꼭 보고 싶은 화면이나 채점/피드백 고민을 적어주세요."
+                placeholder="보고 싶은 기능이나 궁금한 점을 적어주세요."
               />
             </label>
 

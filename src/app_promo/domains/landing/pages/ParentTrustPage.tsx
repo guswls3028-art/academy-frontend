@@ -112,7 +112,7 @@ export default function ParentTrustPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>학부모 상담 자료</span>
-            <h1 id="parent-trust-title">수업 기록을 확인하며 학부모 상담을 준비합니다</h1>
+            <h1 id="parent-trust-title">학부모 상담에 필요한 수업 기록</h1>
             <p>
               출결, 성적, 영상, 보강 기록을 화면에서 확인하고 상담에 필요한 내용만 골라 설명하세요.
               알림톡은 선생님이 내용과 대상을 확인한 뒤 보냅니다.

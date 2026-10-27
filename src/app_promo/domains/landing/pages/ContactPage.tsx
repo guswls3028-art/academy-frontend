@@ -105,7 +105,7 @@ export default function ContactPage() {
               <li>현재 수업 자료와 피드백을 관리하는 방식</li>
             </ol>
             <div className={styles.callBox}>
-              <strong>가입·사용 전화 상담</strong>
+              <strong>전화 문의</strong>
               <PhoneInquiryLink className={styles.callBoxButton}>{CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
               <p>{START_GUIDANCE_NOTICE}</p>
             </div>

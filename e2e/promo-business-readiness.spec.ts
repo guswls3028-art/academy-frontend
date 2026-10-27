@@ -109,7 +109,7 @@ test.describe("promo business readiness", () => {
     await page.getByRole("link", { name: "시연 신청" }).first().click();
     await expect(page).toHaveURL(/\/promo\/demo$/);
     await expect(page.getByRole("link", { name: "전화 문의하기" }).first()).toContainText("010-3121-7466");
-    await expect(page.getByText(/상담 후 사용할 기능과 시작일을 확인하고 계정을 설정/)).toBeVisible();
+    await expect(page.getByText(/실제 화면으로 사용 방법을 안내해 드립니다/)).toBeVisible();
 
     await page.getByLabel("이름 *").fill("홍길동");
     await page.getByLabel("소속/수업명 *").fill("대치 고2 수학");

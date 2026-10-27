@@ -84,7 +84,7 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
-  border-radius: 14px;
+  border-radius: 6px;
   padding: 0 20px;
   font-size: 15px;
   font-weight: 650;
@@ -93,9 +93,9 @@
 }
 
 .primaryButton {
-  border: 1px solid rgba(125, 211, 252, 0.6);
-  color: #06131b;
-  background: #13a8d8;
+  border: 1px solid #fff;
+  color: #26353e;
+  background: #fff;
   box-shadow: none;
 }
 
