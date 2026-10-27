@@ -7,7 +7,7 @@
   background: #fff;
   font-family: var(--app-font-sans, "Pretendard Variable", "Pretendard", "Noto Sans KR", sans-serif);
 }
-.hero, .features, .guide, .start { width: min(1160px, calc(100% - 64px)); margin: 0 auto; }
+.hero, .features, .guide, .start, .questions { width: min(1160px, calc(100% - 64px)); margin: 0 auto; }
 .hero { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); align-items: center; gap: 56px; padding: 100px 0 88px; }
 .heroCopy h1 { margin: 0; font-size: clamp(36px, 3.6vw, 52px); font-weight: 700; line-height: 1.3; letter-spacing: -.045em; word-break: keep-all; }
 .heroCopy > p { margin: 25px 0 0; color: var(--muted); font-size: 17px; line-height: 1.9; word-break: keep-all; }
@@ -46,7 +46,10 @@
 .roleGuide { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); font-size: 13px; text-underline-offset: 4px; }
 .start { display: grid; grid-template-columns: 1fr 2fr; gap: 32px; padding: 68px 0; }
 .start p { max-width: 680px; margin: 0 0 10px; color: var(--muted); font-size: 15px; line-height: 1.9; word-break: keep-all; }
-.start .plannedNote { margin: 16px 0 0; font-size: 12px; }
+.start .plannedNote { margin: 16px 0 0; font-size: 14px; }
+.start .priceSummary { color: var(--ink); font-size: 23px; font-weight: 650; }
+.priceSummary span { display: block; color: var(--muted); font-size: 14px; font-weight: 400; }
+.questions { padding-bottom: 56px; }
 .page a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 4px; }
 @media (max-width: 1000px) {
   .hero { gap: 32px; padding: 72px 0 56px; }
@@ -54,7 +57,7 @@
   .featureGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
-  .hero, .features, .guide, .start { width: calc(100% - 40px); }
+  .hero, .features, .guide, .start, .questions { width: calc(100% - 40px); }
   .hero { grid-template-columns: 1fr; gap: 34px; padding: 48px 0 42px; }
   .heroCopy h1 { font-size: 36px; }
   .heroCopy > p { margin-top: 19px; font-size: 16px; }
@@ -73,5 +76,7 @@
   .guide p { font-size: 14px; }
   .guideLinks { display: grid; gap: 0; }
   .start { grid-template-columns: 1fr; gap: 16px; padding: 40px 0; }
+  .questions .sectionHeading { align-items: flex-start; flex-direction: column; gap: 0; }
+  .questions { padding-bottom: 36px; }
 }
 @media (prefers-reduced-motion: reduce) { .page a, .feature .featureArrow { transition: none; } }

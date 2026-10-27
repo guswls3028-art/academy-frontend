@@ -118,4 +118,58 @@ test.describe("promo navigation", () => {
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     });
   }
+
+  for (const width of [390, 1366]) {
+    test("answers a question then opens the matching explanation at " + width + "px", async ({ page }, info) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(BASE + "/promo/faq#automatic-messages");
+      const question = page.locator("#automatic-messages");
+      await expect(question).toHaveAttribute("open", "");
+      await expect(question).toContainText("승인 양식과 학원 설정");
+      await question.getByRole("link", { name: "알림톡 발송 방식 보기" }).click();
+      await expect(page).toHaveURL(/features#alimtalk-guide$/);
+      const explanation = page.locator("#alimtalk-guide");
+      await expect(explanation).toHaveAttribute("open", "");
+      await expectHashAligned(page, "alimtalk-guide");
+      await expect(explanation).toContainText("내 번호로 테스트 받아보기");
+      await page.reload();
+      await expect(explanation).toHaveAttribute("open", "");
+      await explanation.locator("summary").focus();
+      await page.keyboard.press("Enter");
+      await expect(explanation).not.toHaveAttribute("open", "");
+      await page.keyboard.press("Enter");
+      await expect(explanation).toHaveAttribute("open", "");
+      await page.locator("#communication").getByRole("link", { name: "알림톡 발송 화면 보기" }).click();
+      const reader = page.getByRole("region", { name: "기능 둘러보기", exact: true });
+      await expect(reader.getByLabel("설명서 페이지")).toHaveValue("4");
+      await page.goBack();
+      await expect(explanation).toHaveAttribute("open", "");
+
+      const screen = page.locator("#communication details").filter({ hasText: "실제 화면 보기" });
+      await screen.locator("summary").click();
+      const screenImage = screen.locator("img").first();
+      await screenImage.scrollIntoViewIfNeeded();
+      await screenImage.evaluate(async image => { await (image as HTMLImageElement).decode(); });
+      await screenImage.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("dialog", { name: "실제 화면 크게 보기" })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await expect(screenImage).toBeFocused();
+
+      await page.goto(BASE + "/promo/guide");
+      const optionalScreens = page.locator("details").filter({ has: page.locator("summary", { hasText: "화면으로 기능 살펴보기" }) });
+      await expect(optionalScreens).not.toHaveAttribute("open", "");
+      await expect(page.getByPlaceholder("기능, 화면 이름, 막힌 상황 검색")).toBeInViewport();
+      await page.goto(BASE + "/promo/guide?role=admin&q=수납");
+      await expect(page.getByRole("navigation", { name: "주요 기능 이용 순서" }).getByRole("button").first()).toBeVisible();
+      await expect(page.getByText("일치하는 안내가 없습니다.", { exact: false })).toHaveCount(0);
+      await page.goto(BASE + "/promo/pricing#existing-contract");
+      await expect(page.locator("#existing-contract")).toHaveAttribute("open", "");
+      await page.reload();
+      await expect(page.locator("#existing-contract").getByText("15만 9천원", { exact: true })).toBeVisible();
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: info.outputPath("pricing-contract-" + width + ".png"), fullPage: true });
+    });
+  }
 });
