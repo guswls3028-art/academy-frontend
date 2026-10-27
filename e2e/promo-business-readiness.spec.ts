@@ -31,7 +31,7 @@ test.describe("promo business readiness", () => {
     await expect(showcase).toContainText("개인정보가 없는 예시 데이터");
     await expect(showcase.getByRole("button", { name: /합성 학생 출결 상태/ })).toBeVisible();
     await expect(showcase.getByRole("button", { name: /오늘 수업과 다음 일정/ })).toBeVisible();
-    await expect(page.locator('header nav[aria-label="프로모션 메뉴"] a')).toHaveText(["기능", "활용 사례", "요금", "가이드", "업데이트", "문의"]);
+    await expect(page.locator('header nav[aria-label="프로모션 메뉴"] a')).toHaveText(["기능", "요금", "자주 묻는 질문", "사용 가이드", "업데이트", "문의"]);
     await expect(page).toHaveTitle("학원플러스 | 학원 관리와 수업 기록");
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", BASE + "/promo");
     await page.getByRole("link", { name: "기능 살펴보기" }).click();
@@ -54,8 +54,8 @@ test.describe("promo business readiness", () => {
     await expect(
       page.getByRole("heading", { name: "기능 소개" }),
     ).toBeVisible();
-    await expect(page.getByText("학원 운영 대시보드", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "학원 홈페이지", exact: true })).toBeVisible();
+    await page.locator("#alimtalk-guide > summary").click();
     await expect(
       page.getByRole("heading", { name: "알림톡 발송 방식" }),
     ).toBeVisible();
@@ -63,8 +63,8 @@ test.describe("promo business readiness", () => {
     await expect(page.getByText("가입·비밀번호 안내", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("학생별 미리보기", { exact: true }).first()).toBeVisible();
 
-    const featureWorkflows = page.locator("ol").filter({ has: page.locator("small", { hasText: "직접 준비" }) });
-    await expect(featureWorkflows.first()).toBeVisible();
+    await page.locator("#class-management summary").click();
+    await expect(page.getByRole("list", { name: "수업·수강생 관리 사용 흐름" })).toBeVisible();
 
     const positions = await page.evaluate(() => {
       const findTop = (id: string) => document.getElementById(id)?.getBoundingClientRect().top ?? Number.MAX_SAFE_INTEGER;
@@ -189,13 +189,15 @@ test.describe("promo business readiness", () => {
 
     await page.goto(`${BASE}/promo/pricing`, { waitUntil: "load" });
     await expect(
-      page.getByRole("heading", { name: /월 18만원/ }),
+      page.getByText("월 19만 8천원", { exact: true }),
     ).toBeVisible();
     await expect(page.getByText("18만원", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("부가세 10%", { exact: true })).toBeVisible();
+    await expect(page.getByText("1만 8천원", { exact: true })).toBeVisible();
+    await page.locator("#existing-contract > summary").click();
     await expect(page.getByText(/8월 가입 요금은 서비스를 이용하는 동안 계속 적용/).first()).toBeVisible();
-    await expect(page.getByText("월 요금 · 부가세 10% 별도", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("부가세 1만 4천원 · 결제금액 15만 9천원", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("부가세 1만 8천원 · 결제금액 19만 8천원", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("1만 4천원", { exact: true })).toBeVisible();
+    await expect(page.getByText("15만 9천원", { exact: true })).toBeVisible();
     await expect(page.getByText(/선착순|마감 임박|지금 신청/)).toHaveCount(0);
   });
 
