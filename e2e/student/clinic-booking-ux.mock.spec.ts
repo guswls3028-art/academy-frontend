@@ -1230,6 +1230,10 @@ test.describe("학생 클리닉 예약 UX", () => {
     const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
     await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
 
+    // Selecting a day in the next month also moves the visible calendar.
+    // Use its navigation when this rolling fixture crosses a month boundary.
+    const crossesMonth = bookedDate.slice(0, 7) !== openDate.slice(0, 7);
+    if (crossesMonth) await page.getByRole("button", { name: "이전 달" }).click();
     await page.getByTestId(`clinic-calendar-day-${bookedDate}`).click();
     const bookedDateRegion = page.getByRole("region", { name: koreanDateLabel(bookedDate) });
     const singleSlotOnOtherDate = bookedDateRegion.getByRole("button", {
@@ -1238,6 +1242,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(singleSlotOnOtherDate).toBeEnabled();
     await singleSlotOnOtherDate.click();
     await expect(singleSlotOnOtherDate).toHaveAttribute("aria-pressed", "true");
+    if (crossesMonth) await page.getByRole("button", { name: "다음 달" }).click();
     await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
     await expect(page.getByRole("region", { name: koreanDateLabel(openDate) })
       .getByRole("button", { name: /토요일 5시 클리닉/ }))
