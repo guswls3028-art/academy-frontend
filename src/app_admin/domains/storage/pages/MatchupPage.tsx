@@ -1511,7 +1511,7 @@ export default function MatchupPage() {
                         data-testid="matchup-doc-category-save"
                         style={/* eslint-disable-line no-restricted-syntax */ {
                           fontSize: 11, padding: "2px 7px", borderRadius: 4,
-                          background: "var(--color-brand-primary)", color: "white",
+                          background: "var(--color-brand-primary)", color: "var(--color-brand-primary-contrast)",
                           border: "none", cursor: categorySaving ? "wait" : "pointer",
                           fontWeight: 700,
                         }}
@@ -1974,8 +1974,8 @@ export default function MatchupPage() {
                             marginLeft: "auto",
                             display: "inline-flex", alignItems: "center", gap: 4,
                             padding: "4px 10px", borderRadius: 4,
-                            background: isTest ? "var(--color-warning)" : "var(--color-bg-surface)",
-                            color: isTest ? "white" : "var(--color-brand-primary)",
+                            background: isTest ? "var(--color-warning-solid)" : "var(--color-bg-surface)",
+                            color: isTest ? "var(--color-semantic-contrast)" : "var(--color-brand-primary)",
                             border: isTest ? "none" : "1px solid var(--color-brand-primary)",
                             fontSize: 11, fontWeight: 700, cursor: "pointer",
                             whiteSpace: "nowrap", flexShrink: 0,

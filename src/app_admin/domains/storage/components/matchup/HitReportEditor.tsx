@@ -706,8 +706,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                   data-testid="matchup-hit-report-submitted-badge"
                   style={{
                     marginLeft: 8, padding: "3px 10px", borderRadius: 999,
-                    background: "var(--color-status-success)",
-                    color: "white", fontSize: 11, fontWeight: 700,
+                    background: "var(--color-success-solid)",
+                    color: "var(--color-semantic-contrast)", fontSize: 11, fontWeight: 700,
                     display: "inline-flex", alignItems: "center", gap: 4,
                   }}
                   title="보고서 작성 완료 상태. 다시 편집하려면 우측 '작성 다시 열기' 버튼을 누르세요."

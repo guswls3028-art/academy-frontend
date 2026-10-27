@@ -1,9 +1,30 @@
 import fs from "node:fs";
 import type { Locator, Page, Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
+import { contrast } from "../../src/shared/theme/accent";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
 const DOC_ID = 993_901;
+
+test.afterEach(async ({ page }, testInfo) => {
+  const theme = testInfo.project.metadata.appearanceTheme;
+  if (typeof theme === "string" && page.url() !== "about:blank") {
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+  }
+});
+
+async function expectReadableReportControl(control: Locator) {
+  const readColors = () => control.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const hex = (value: string) => "#" + (value.match(/[\d.]+/g) ?? []).slice(0, 3)
+      .map((channel) => Math.round(Number(channel) * (value.startsWith("color(srgb") ? 255 : 1)).toString(16).padStart(2, "0")).join("");
+    return { text: hex(style.color), background: hex(style.backgroundColor) };
+  });
+  await expect.poll(async () => {
+    const colors = await readColors();
+    return contrast(colors.text, colors.background);
+  }, "Report control text contrast").toBeGreaterThanOrEqual(4.5);
+}
 
 function isLocalBase(url: string): boolean {
   const hostname = new URL(url).hostname;
@@ -431,7 +452,10 @@ for (const width of [390, 1366]) {
     expect(isLocalBase(BASE)).toBe(true);
     await page.setViewportSize({ width, height: 844 });
     const { report: savedReport } = await installMocks(page, { report: true });
+    const theme = testInfo.project.metadata.appearanceTheme ?? "focus-dark";
+    await page.addInitScript((style) => localStorage.setItem("hakwonplus:appearance", JSON.stringify({ version: 1, theme: style, accent: "#ffedaa" })), theme);
     await page.goto(`${BASE}/workspace/storage/matchup?docId=${DOC_ID}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
     await expect(page.getByTestId("matchup-doc-hit-report-curate-btn")).toBeVisible({ timeout: 45_000 });
     await page.getByTestId("matchup-doc-hit-report-curate-btn").click();
     const report = page.getByRole("dialog", { name: "적중 보고서 작성" });
@@ -445,8 +469,12 @@ for (const width of [390, 1366]) {
     const add = report.getByRole("button", { name: "PDF에 포함", exact: true }).first();
     await add.scrollIntoViewIfNeeded();
     await expect(add).toBeInViewport({ ratio: 1 });
+    await expectReadableReportControl(add);
     await add.click();
     await expect(report.getByLabel("PDF에 포함됨")).toBeVisible();
+    await expectReadableReportControl(report.getByLabel("PDF에 포함됨"));
+    await expectReadableReportControl(report.getByText("1 선택", { exact: true }));
+    await expectReadableReportControl(report.getByRole("button", { name: "PDF에서 제외", exact: true }).filter({ hasText: "✕ PDF에서 제외" }));
     const summary = report.getByPlaceholder("예: 1학기 중간고사 대비 반영률 종합 분석");
     await summary.fill(`QA report ${width}`);
     await expect(report.getByTestId("matchup-hit-report-save-state")).toHaveText("저장됨 ✓");

@@ -6,6 +6,13 @@ import {
 } from "../helpers/localAuthApiStubs";
 
 const SLIDE_NAMES = ["a-slide.png", "b-slide.png", "c-slide.png"] as const;
+
+test.afterEach(async ({ page }, testInfo) => {
+  const theme = testInfo.project.metadata.appearanceTheme;
+  if (typeof theme === "string" && page.url() !== "about:blank") {
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+  }
+});
 const PNG_FIXTURE = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=",
   "base64",
