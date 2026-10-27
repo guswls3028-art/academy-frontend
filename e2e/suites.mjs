@@ -6,6 +6,7 @@ export const productionReadOnlySpecs = [
 ];
 
 export const routeMockSpecs = [
+  "e2e/student/design-system-isolation.mock.spec.ts",
   "e2e/student/video-event-receipts.mock.spec.ts",
   "e2e/promo-guide.mock.spec.ts",
   "e2e/promo-business-readiness.spec.ts",

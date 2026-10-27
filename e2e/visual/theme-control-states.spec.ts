@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "../fixtures/strictTest";
-import { THEMES } from "../../src/shared/theme/themes";
+import { THEMES, DEFAULT_ACCENT } from "../../src/shared/theme/themes";
+import { accentVariables } from "../../src/shared/theme/accent";
 
 const BASE = process.env.THEME_AUDIT_BASE_URL || "http://127.0.0.1:4173";
 
@@ -164,7 +165,7 @@ async function mountAuditSurface(page: Page) {
   });
 }
 
-test("12개 테마에서 공용 버튼과 탭의 상태가 명확히 구분된다", async ({ page }, testInfo) => {
+test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구분된다", async ({ page }, testInfo) => {
   await page.route("**/api/v1/core/program/**", async (route) => {
     await route.fulfill({
       status: 200,
@@ -193,9 +194,10 @@ test("12개 테마에서 공용 버튼과 탭의 상태가 명확히 구분된�
 
   for (const theme of THEMES) {
     await page.setViewportSize({ width: 1366, height: 900 });
-    await page.evaluate((themeKey) => {
+    await page.evaluate(({ themeKey, variables }) => {
       document.documentElement.setAttribute("data-theme", themeKey);
-    }, theme.key);
+      for (const [key, value] of Object.entries(variables)) document.documentElement.style.setProperty(key, value);
+    }, { themeKey: theme.key, variables: accentVariables(theme.key, DEFAULT_ACCENT) });
 
     const primary = page.getByTestId("primary");
     const secondary = page.getByTestId("secondary");

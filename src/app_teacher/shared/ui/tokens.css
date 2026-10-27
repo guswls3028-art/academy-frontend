@@ -8,48 +8,48 @@
 
 :root {
   /* ===== Surface ===== */
-  --tc-bg: var(--color-bg-surface, #f8fafc);
-  --tc-surface: var(--color-bg-canvas, #ffffff);
-  --tc-surface-soft: var(--color-bg-surface-hover, #f1f5f9);
-  --tc-surface-raised: var(--color-bg-canvas, #ffffff);
+  --tc-bg: var(--color-bg-canvas);
+  --tc-surface: var(--color-bg-surface);
+  --tc-surface-soft: var(--color-bg-surface-hover);
+  --tc-surface-raised: var(--color-bg-surface);
 
   /* ===== Border ===== */
-  --tc-border: var(--color-border-subtle, rgba(17, 17, 17, 0.08));
-  --tc-border-subtle: var(--color-border-divider, rgba(17, 17, 17, 0.05));
-  --tc-border-strong: var(--color-border-default, rgba(17, 17, 17, 0.14));
+  --tc-border: var(--color-border-subtle);
+  --tc-border-subtle: var(--color-border-divider);
+  --tc-border-strong: var(--color-border-default);
 
   /* ===== Text ===== */
-  --tc-text: var(--color-text-primary, rgba(17, 17, 17, 0.92));
-  --tc-text-secondary: var(--color-text-secondary, rgba(17, 17, 17, 0.62));
-  --tc-text-muted: var(--color-text-muted, rgba(17, 17, 17, 0.42));
+  --tc-text: var(--color-text-primary);
+  --tc-text-secondary: var(--color-text-secondary);
+  --tc-text-muted: var(--color-text-muted);
 
   /* ===== Primary ===== */
-  --tc-primary: var(--color-brand-primary, #3b82f6);
-  --tc-primary-hover: var(--color-brand-primary-hover, #2563eb);
-  --tc-primary-bg: var(--color-bg-accent-subtle, rgba(59, 130, 246, 0.08));
-  --tc-primary-contrast: var(--color-text-inverse, #ffffff);
+  --tc-primary: var(--color-brand-primary);
+  --tc-primary-hover: var(--color-brand-primary-hover);
+  --tc-primary-bg: var(--color-bg-accent-subtle);
+  --tc-primary-contrast: var(--color-brand-primary-contrast);
 
   /* ===== Semantic ===== */
-  --tc-success: var(--color-success, #22c55e);
-  --tc-success-bg: color-mix(in srgb, var(--color-success, #22c55e) 10%, transparent);
-  --tc-warn: var(--color-warning, #f59e0b);
-  --tc-warn-bg: color-mix(in srgb, var(--color-warning, #f59e0b) 10%, transparent);
-  --tc-danger: var(--color-error, #ef4444);
-  --tc-danger-bg: color-mix(in srgb, var(--color-error, #ef4444) 10%, transparent);
-  --tc-info: var(--color-info, #06b6d4);
-  --tc-info-bg: color-mix(in srgb, var(--color-info, #06b6d4) 10%, transparent);
+  --tc-success: var(--color-success);
+  --tc-success-bg: color-mix(in srgb, var(--color-success) 10%, transparent);
+  --tc-warn: var(--color-warning);
+  --tc-warn-bg: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  --tc-danger: var(--color-error);
+  --tc-danger-bg: color-mix(in srgb, var(--color-error) 10%, transparent);
+  --tc-info: var(--color-info);
+  --tc-info-bg: color-mix(in srgb, var(--color-info) 10%, transparent);
 
   /* ===== Attendance Status ===== */
-  --tc-att-present: var(--color-success, #22c55e);
-  --tc-att-present-bg: color-mix(in srgb, var(--color-success, #22c55e) 12%, transparent);
-  --tc-att-absent: var(--color-error, #ef4444);
-  --tc-att-absent-bg: color-mix(in srgb, var(--color-error, #ef4444) 12%, transparent);
-  --tc-att-late: var(--color-warning, #f59e0b);
-  --tc-att-late-bg: color-mix(in srgb, var(--color-warning, #f59e0b) 12%, transparent);
+  --tc-att-present: var(--color-success);
+  --tc-att-present-bg: color-mix(in srgb, var(--color-success) 12%, transparent);
+  --tc-att-absent: var(--color-error);
+  --tc-att-absent-bg: color-mix(in srgb, var(--color-error) 12%, transparent);
+  --tc-att-late: var(--color-warning);
+  --tc-att-late-bg: color-mix(in srgb, var(--color-warning) 12%, transparent);
 
   /* ===== Header / TabBar ===== */
-  --tc-header-bg: color-mix(in srgb, var(--color-bg-canvas, #ffffff) 88%, transparent);
-  --tc-tabbar-bg: color-mix(in srgb, var(--color-bg-canvas, #ffffff) 96%, transparent);
+  --tc-header-bg: color-mix(in srgb, var(--color-bg-canvas) 88%, transparent);
+  --tc-tabbar-bg: color-mix(in srgb, var(--color-bg-canvas) 96%, transparent);
 
   /* ===== Layout ===== */
   --tc-header-h: 52px;
@@ -60,21 +60,21 @@
   --tc-safe-bottom: env(safe-area-inset-bottom, 0px);
 
   /* ===== Spacing ===== */
-  --tc-space-1: 4px;
-  --tc-space-2: 8px;
-  --tc-space-3: 12px;
-  --tc-space-4: 16px;
-  --tc-space-5: 20px;
-  --tc-space-6: 24px;
-  --tc-space-8: 32px;
+  --tc-space-1: var(--ds-space-1);
+  --tc-space-2: var(--ds-space-2);
+  --tc-space-3: var(--ds-space-3);
+  --tc-space-4: var(--ds-space-4);
+  --tc-space-5: var(--ds-space-5);
+  --tc-space-6: var(--ds-space-6);
+  --tc-space-8: var(--ds-space-8);
 
   /* ===== Radius ===== */
-  --tc-radius-sm: 6px;
-  --tc-radius: 8px;
-  --tc-radius-md: 10px;
-  --tc-radius-lg: 14px;
-  --tc-radius-xl: 20px;
-  --tc-radius-full: 9999px;
+  --tc-radius-sm: var(--radius-sm);
+  --tc-radius: var(--radius-md);
+  --tc-radius-md: var(--radius-md);
+  --tc-radius-lg: var(--radius-lg);
+  --tc-radius-xl: var(--radius-xl);
+  --tc-radius-full: var(--radius-full);
 
   /* ===== Z-index ===== */
   --tc-z-header: 200;
@@ -84,14 +84,14 @@
   --tc-z-snackbar: 500;
 
   /* ===== Motion ===== */
-  --tc-motion-fast: 100ms cubic-bezier(0.4, 0, 0.2, 1);
-  --tc-motion-base: 160ms cubic-bezier(0.4, 0, 0.2, 1);
-  --tc-motion-slow: 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --tc-motion-fast: var(--ds-motion-fast);
+  --tc-motion-base: var(--ds-motion-base);
+  --tc-motion-slow: var(--ds-motion-slow);
 
   /* ===== Elevation ===== */
-  --tc-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
-  --tc-shadow-md: 0 2px 6px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.08);
-  --tc-shadow-lg: 0 6px 16px rgba(15, 23, 42, 0.08), 0 12px 32px rgba(15, 23, 42, 0.10);
+  --tc-shadow-sm: var(--theme-panel-shadow);
+  --tc-shadow-md: var(--elevation-2);
+  --tc-shadow-lg: var(--elevation-3);
 
   /* ===== Touch ===== */
   --tc-touch-min: 44px;
@@ -99,16 +99,9 @@
 
 @media (min-width: 1024px) {
   :root {
-    --tc-bg: color-mix(in srgb, var(--color-bg-surface, #f8fafc) 86%, #eef2f7);
     --tc-header-h: 60px;
     --tc-tabbar-h: 0px;
     --tc-page-max-w: 1320px;
-    --tc-space-3: 14px;
-    --tc-space-4: 18px;
-    --tc-space-5: 22px;
-    --tc-space-6: 28px;
-    --tc-radius-lg: 8px;
-    --tc-radius-xl: 8px;
     --tc-touch-min: 40px;
   }
 }

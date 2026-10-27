@@ -92,7 +92,7 @@
   border: 0;
   border-radius: var(--tc-radius);
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
   cursor: pointer;
   font-size: 14px;
   font-weight: 700;

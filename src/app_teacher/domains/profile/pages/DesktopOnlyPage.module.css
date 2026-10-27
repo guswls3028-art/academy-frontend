@@ -93,7 +93,7 @@
   place-items: center;
   border-radius: var(--tc-radius-lg);
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
 }
 
 .leadBody {
@@ -127,7 +127,7 @@
   border: 0;
   border-radius: var(--tc-radius);
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
   font: inherit;
   font-size: 14px;
   font-weight: 800;
@@ -209,7 +209,7 @@
 .categoryActive {
   border-color: var(--tc-primary);
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
 }
 
 .resultSummary {

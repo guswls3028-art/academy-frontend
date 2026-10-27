@@ -1,132 +1,71 @@
-@import "../theme/typography.css";
-@import "../theme/shadow.css";
+@import "./typography.css";
+@import "./shadow.css";
 @import "../css/base.css";
 
-/* PATH: src/student/shared/ui/theme/tokens.css
- * 단일 모바일 테마 — 프리미엄 대형학원 SaaS
- * (레가시 프리셋 제거, 단일 SSOT)
- */
-/* ========== 1. Color palette ========== */
-:root {
-  /* Light Mode (기본) - Premium SaaS Surface System */
-  --stu-bg: var(--color-bg-canvas, #f8fafc); /* surface-0: 페이지 배경 */
-  --stu-surface: var(--color-bg-surface, #ffffff); /* surface-1: 섹션 배경 */
-  --stu-surface-soft: var(--color-bg-surface-hover, #f1f5f9); /* surface-2: 패널/중첩 배경 */
-  
-  /* Surface 레이어 명시적 정의 */
+/* Student role adapter. Independent of the teacher appearance preference.
+   Document scope supplies body/portals; app scope supplies tenant overrides. */
+html[data-student-app="true"],
+[data-app="student"] {
+  color-scheme: light;
+  --stu-bg: var(--ds-neutral-50);
+  --stu-surface: var(--ds-neutral-0);
+  --stu-surface-soft: var(--ds-neutral-100);
   --stu-surface-0: var(--stu-bg);
   --stu-surface-1: var(--stu-surface);
   --stu-surface-2: var(--stu-surface-soft);
-  
-  --stu-border: var(--color-border-divider, rgba(17, 17, 17, 0.08));
-  --stu-border-subtle: var(--color-border-subtle, rgba(17, 17, 17, 0.06));
-  --stu-border-normal: var(--color-border-divider, rgba(17, 17, 17, 0.08));
-  --stu-border-strong: var(--color-border-strong, rgba(17, 17, 17, 0.12));
-
-  /* Light Mode 텍스트 색상 (어두운 색상) */
-  --stu-text: var(--color-text-primary, rgba(17, 17, 17, 0.95));
-  --stu-text-muted: var(--color-text-muted, rgba(17, 17, 17, 0.65));
-  --stu-text-subtle: var(--color-text-disabled, rgba(17, 17, 17, 0.45));
-
-  --stu-primary: var(--color-brand-primary, #3b82f6);
-  --stu-primary-hover: var(--color-brand-primary-hover, #2563eb);
-  --stu-primary-contrast: var(--color-text-inverse, #fff);
-  --stu-glow-primary: 0 0 20px rgba(59, 130, 246, 0.35);
-
-  --stu-success: var(--color-success, #22c55e);
-  --stu-success-bg: rgba(34, 197, 94, 0.15);
-  --stu-success-border: rgba(34, 197, 94, 0.4);
-  --stu-success-text: var(--color-success, #22c55e);
-
-  --stu-warn: var(--color-warning, #f59e0b);
-  --stu-warn-bg: rgba(245, 158, 11, 0.15);
-  --stu-warn-border: rgba(245, 158, 11, 0.4);
-  --stu-warn-text: var(--color-warning, #f59e0b);
-
-  --stu-danger: var(--color-danger, #ef4444);
-  --stu-danger-hover: var(--color-danger-hover, #dc2626);
-  --stu-danger-bg: rgba(239, 68, 68, 0.15);
-  --stu-danger-border: rgba(239, 68, 68, 0.4);
-  --stu-danger-text: var(--color-danger, #ef4444);
-
-  /* 헤더/탭바 (테넌트별 오버라이드용) */
-  /* 프리미엄: 진짜 Glass Header (blur가 보이도록 opacity 낮춤) */
-  --stu-header-bg: rgba(248, 250, 252, 0.78);
-  --stu-tabbar-bg: rgba(255, 255, 255, 0.98);
-
-  /* 테넌트별 오버라이드용 (그라데이션·포커스) — 기본은 단색 */
+  --stu-border: var(--ds-neutral-200);
+  --stu-border-subtle: var(--ds-neutral-100);
+  --stu-border-normal: var(--stu-border);
+  --stu-border-strong: var(--ds-neutral-300);
+  --stu-text: var(--ds-neutral-900);
+  --stu-text-muted: var(--ds-neutral-500);
+  --stu-text-subtle: var(--ds-neutral-500);
+  --stu-primary: #2563eb;
+  --stu-primary-hover: #1d4ed8;
+  --stu-primary-contrast: #fff;
+  --stu-glow-primary: none;
+  --stu-success: #16a34a;
+  --stu-success-bg: #edf8f0;
+  --stu-success-border: #badfc7;
+  --stu-success-text: #166534;
+  --stu-warn: #d97706;
+  --stu-warn-bg: #fff8e8;
+  --stu-warn-border: #ead4a2;
+  --stu-warn-text: #92400e;
+  --stu-danger: #dc2626;
+  --stu-danger-hover: #b91c1c;
+  --stu-danger-bg: #fef2f2;
+  --stu-danger-border: #efc4c4;
+  --stu-danger-text: #b91c1c;
+  --stu-header-bg: var(--stu-surface);
+  --stu-tabbar-bg: var(--stu-surface);
   --stu-gradient: var(--stu-primary);
-  /* --stu-gradient 위 글자색. 테넌트 브랜드 레이어는 흰 글자 대비가 보장된 그라데이션과 #fff를 쓴다. */
   --stu-on-gradient: var(--stu-primary-contrast);
-  --stu-focus: rgba(59, 130, 246, 0.15);
-  
-  /* Primary Tint (멀티테넌트 브랜딩용) */
-  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
-  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
-
-  /* Overlay / Backdrop */
-  --stu-backdrop: rgba(0, 0, 0, 0.35);
-  --stu-glass: rgba(255, 255, 255, 0.72);
-  --stu-glass-border: rgba(255, 255, 255, 0.55);
-}
-
-/* Dark Mode — data-student-dark="true" 속성으로 제어 (StudentThemeContext) */
-[data-student-dark="true"] {
-  --stu-bg: #0b0f19;
-  --stu-surface: #121827;
-  --stu-surface-soft: #1a2235;
-  --stu-surface-0: #0b0f19;
-  --stu-surface-1: #121827;
-  --stu-surface-2: #1a2235;
-
-  --stu-border: rgba(255, 255, 255, 0.1);
-  --stu-border-subtle: rgba(255, 255, 255, 0.08);
-  --stu-border-normal: rgba(255, 255, 255, 0.12);
-  --stu-border-strong: rgba(255, 255, 255, 0.16);
-
-  --stu-text: rgba(255, 255, 255, 0.95);
-  --stu-text-muted: rgba(255, 255, 255, 0.65);
-  --stu-text-subtle: rgba(255, 255, 255, 0.45);
-
-  --stu-header-bg: rgba(11, 15, 25, 0.85);
-  --stu-tabbar-bg: rgba(18, 24, 39, 0.92);
-
-  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1));
-  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1));
-
-  /* Overlay / Backdrop (dark) */
-  --stu-backdrop: rgba(0, 0, 0, 0.55);
-  --stu-glass: rgba(18, 24, 39, 0.72);
-  --stu-glass-border: rgba(255, 255, 255, 0.12);
-}
-
-/* ========== 2. Typography — SSOT: typography.css ========== */
-/* typography.css에서 정의됨. 여기서 재선언하지 않음. */
-
-/* ========== 3. Shadow — SSOT: shadow.css (상세 정의) ========== */
-/* shadow.css에서 정의됨. 여기서 재선언하지 않음. */
-
-/* ========== 4. Layout & spacing ========== */
-:root {
+  --stu-focus: color-mix(in srgb, var(--stu-primary) 15%, transparent);
+  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface));
+  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface));
+  --stu-backdrop: rgb(0 0 0 / 0.35);
+  --stu-glass: rgb(255 255 255 / 0.94);
+  --stu-glass-border: var(--stu-border);
   --stu-header-h: 52px;
   --stu-tabbar-h: 60px;
   --stu-page-max-w: 100%;
-  --stu-space-1: 2px;
-  --stu-space-2: 4px;
-  --stu-space-3: 6px;
-  --stu-space-4: 8px;
-  --stu-space-5: 10px;
-  --stu-space-6: 12px;
-  --stu-space-8: 16px;
-  --stu-space-10: 20px;
-  --stu-space-12: 24px;
-  --stu-space-16: 32px;
-  /* Premium SaaS: 작은 radius (6-8px) */
-  --stu-radius: 8px;
-  --stu-radius-sm: 6px;
-  --stu-radius-md: 8px;
-  --stu-radius-lg: 8px; /* 영상 플레이어 제외 일반 UI는 8px */
-  --stu-radius-xl: 12px; /* 특수 케이스용 */
+  /* Compatibility: student spacing historically used 2px steps. */
+  --stu-space-1: calc(var(--ds-space-1) / 2);
+  --stu-space-2: var(--ds-space-1);
+  --stu-space-3: calc(var(--ds-space-3) / 2);
+  --stu-space-4: var(--ds-space-2);
+  --stu-space-5: calc(var(--ds-space-5) / 2);
+  --stu-space-6: var(--ds-space-3);
+  --stu-space-8: var(--ds-space-4);
+  --stu-space-10: var(--ds-space-5);
+  --stu-space-12: var(--ds-space-6);
+  --stu-space-16: var(--ds-space-8);
+  --stu-radius: var(--ds-radius-md);
+  --stu-radius-sm: var(--ds-radius-sm);
+  --stu-radius-md: var(--ds-radius-md);
+  --stu-radius-lg: var(--ds-radius-lg);
+  --stu-radius-xl: var(--ds-radius-xl);
   --stu-z-header: 200;
   --stu-z-tabbar: 220;
   --stu-z-modal: 500;
@@ -134,9 +73,7 @@
   --stu-safe-bottom: env(safe-area-inset-bottom, 0px);
   --stu-safe-top: env(safe-area-inset-top, 0px);
   --stu-touch: 44px;
-  
-  /* 프리미엄: Motion Token (속도 계층화) */
-  --stu-motion-fast: 90ms cubic-bezier(0.4, 0, 0.2, 1);
-  --stu-motion-base: 140ms cubic-bezier(0.4, 0, 0.2, 1);
-  --stu-motion-slow: 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --stu-motion-fast: var(--ds-motion-fast);
+  --stu-motion-base: var(--ds-motion-base);
+  --stu-motion-slow: var(--ds-motion-slow);
 }

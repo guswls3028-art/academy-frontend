@@ -15,23 +15,13 @@
   background: var(--stu-surface-1);
   border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
   border-radius: var(--stu-radius-md);
-  padding: 14px;
+  padding: var(--ds-space-5);
   position: relative;
   overflow: hidden;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.62) inset,
-    0 8px 20px rgba(15, 23, 42, 0.045);
+  box-shadow: none;
 }
 
-.stu-panel::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
-  opacity: 0.55;
-  pointer-events: none;
-  z-index: 0;
-}
+
 
 .stu-panel > * {
   position: relative;
@@ -281,11 +271,7 @@ button.media-tile--course {
 .stu-status-surface {
   padding: var(--stu-space-5);
   border-radius: 8px;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.02),
-    transparent
-  );
+  background: var(--stu-surface-soft);
 }
 
 .stu-status-eyebrow {
@@ -318,28 +304,14 @@ button.media-tile--course {
   transition: transform var(--stu-motion-fast), box-shadow var(--stu-motion-fast), border-color var(--stu-motion-fast);
   text-decoration: none;
   color: inherit;
-  border: 2px solid var(--stu-border-subtle);
+  border: 1px solid var(--stu-border-subtle);
   position: relative;
   overflow: hidden;
   /* 프리미엄: 질감과 위계 */
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: none;
 }
 
-.stu-action-tile::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.03) 0%,
-    transparent 50%,
-    rgba(0, 0, 0, 0.02) 100%
-  );
-  pointer-events: none;
-  z-index: 0;
-}
+
 
 .stu-action-tile > * {
   position: relative;

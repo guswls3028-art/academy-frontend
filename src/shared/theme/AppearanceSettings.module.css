@@ -1,0 +1,42 @@
+.settings { display: grid; gap: var(--ds-space-8); max-width: 880px; padding-block: var(--ds-space-2); }
+.heading { margin: 0; color: var(--color-text-primary); font-size: var(--ds-text-lg); font-weight: 600; }
+.help { margin: var(--ds-space-2) 0 var(--ds-space-5); color: var(--color-text-secondary); font-size: var(--ds-text-sm); line-height: 1.65; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ds-space-4); }
+.card:global(.ds-button) { display: grid; min-width: 0; height: auto; padding: var(--ds-space-3); border: 1px solid var(--color-border-divider); border-radius: var(--ds-radius-lg); background: var(--color-bg-surface); text-align: left; white-space: normal; box-shadow: none; }
+.card:global(.ds-button) > :global(.ds-button__label) { display: grid; width: 100%; min-width: 0; gap: var(--ds-space-2); line-height: 1.5; white-space: normal; overflow: visible; }
+.card:global([aria-pressed="true"]) { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
+.cardTitle { display: flex; justify-content: space-between; gap: var(--ds-space-2); color: var(--color-text-primary); font-size: var(--ds-text-md); font-weight: 600; }
+.description { white-space: normal; word-break: keep-all; overflow-wrap: break-word; color: var(--color-text-secondary); font-size: var(--ds-text-xs); font-weight: 400; min-height: 3em; }
+.preview { display: flex; overflow: hidden; height: 124px; border: 1px solid var(--pv-border); border-radius: var(--radius-md); background: var(--pv-page); }
+.previewSidebar { display: flex; flex-direction: column; gap: 10px; width: 27%; padding: 14px 8px; background: var(--pv-sidebar-bg); border-right: 1px solid var(--pv-border); }
+.previewSidebar i { height: 4px; background: var(--sidebar-muted); opacity: 0.3; border-radius: 2px; }
+.previewSidebar i:nth-child(2) { height: 12px; background: var(--pv-primary); opacity: 1; }
+.previewMain { flex: 1; padding: 12px; min-width: 0; }
+.previewHeading { height: 6px; width: 50%; margin-bottom: 12px; background: var(--color-text-primary); border-radius: 2px; }
+.previewPanel { height: 20px; background: var(--pv-panel); border: 1px solid var(--pv-border); border-radius: var(--radius-sm); box-shadow: var(--theme-panel-shadow); }
+.previewRow { height: 10px; border-bottom: 1px solid var(--pv-border); }
+.previewAction { width: 28px; height: 10px; margin-top: 10px; margin-left: auto; background: var(--pv-primary); border-radius: var(--radius-sm); }
+.colorSection { padding-top: var(--ds-space-6); border-top: 1px solid var(--color-border-divider); }
+.colorControls { display: flex; align-items: end; flex-wrap: wrap; gap: var(--ds-space-3); }
+.colorPicker { width: 48px; height: 44px; padding: 4px; border: 1px solid var(--color-border-divider); border-radius: var(--ds-radius-sm); background: var(--color-bg-surface); cursor: pointer; }
+.hexField { display: grid; gap: var(--ds-space-1); }
+.hexField label { color: var(--color-text-secondary); font-size: var(--ds-text-xs); }
+.hexField input { width: 130px; min-height: 44px; border: 1px solid var(--color-border-divider); border-radius: var(--ds-radius-sm); padding: 8px 12px; background: var(--color-bg-surface); color: var(--color-text-primary); }
+.colorControls :global(.ds-button) { min-height: 44px; }
+.settings input:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 3px; }
+.error { color: var(--color-error); font-size: var(--ds-text-sm); }
+.footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-3); }
+.footer .help { flex: 1 1 260px; margin: 0; }
+@media (max-width: 540px) {
+  .grid { grid-template-columns: 1fr; gap: var(--ds-space-3); }
+  .card:global(.ds-button) > :global(.ds-button__label) { grid-template-columns: 112px 1fr; column-gap: var(--ds-space-4); }
+  .preview { grid-row: span 2; height: 84px; }
+  .cardTitle { align-self: end; }
+  .description { align-self: start; min-height: 0; }
+  .previewSidebar { padding: 12px 5px; gap: 8px; }
+  .previewMain { padding: 8px; }
+  .previewPanel { height: 16px; }
+  .previewHeading { margin-bottom: 8px; }
+  .previewRow { height: 6px; }
+  .previewAction { margin-top: 5px; height: 6px; }
+}

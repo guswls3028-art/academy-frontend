@@ -146,7 +146,7 @@
 .quickButtonPrimaryDone {
   border: 1px solid transparent;
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
 }
 
 @media (min-width: 1024px) {

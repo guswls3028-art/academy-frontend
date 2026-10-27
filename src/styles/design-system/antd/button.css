@@ -50,48 +50,25 @@
 }
 
 .ant-btn-primary:hover {
-  background: color-mix(in srgb, var(--color-brand-primary) 88%, #000);
-  border-color: color-mix(in srgb, var(--color-brand-primary) 88%, #000);
+  background: var(--color-brand-primary-hover);
+  border-color: var(--color-brand-primary-hover);
   color: var(--color-brand-primary-contrast, #fff);
 }
 
 .ant-btn-primary:active {
-  background: color-mix(in srgb, var(--color-brand-primary) 78%, #000);
-  border-color: color-mix(in srgb, var(--color-brand-primary) 78%, #000);
+  background: var(--color-brand-primary-active);
+  border-color: var(--color-brand-primary-active);
   color: var(--color-brand-primary-contrast, #fff);
 }
 
 /* Dark 테마: 어두운 페이지 위 Neutral100 은 페이지와 톤 차이가 작아 흐릿함 → 한 단계 더 밝은 Neutral200 사용.
  * primary/dangerous/ghost/text/link 는 별도 색이 있으므로 default 만 한정. */
-[data-theme="modern-dark"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous),
-[data-theme="dark-navy"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous),
-[data-theme="graphite-studio"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous),
-[data-theme="deep-ocean"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous) {
+[data-theme="focus-dark"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous) {
   background: var(--scale-Neutral200);
   border-color: var(--scale-Neutral400);
 }
 
-[data-theme="modern-dark"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous):hover,
-[data-theme="dark-navy"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous):hover,
-[data-theme="graphite-studio"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous):hover,
-[data-theme="deep-ocean"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous):hover {
-  background: var(--scale-Neutral300);
-  border-color: var(--scale-Neutral500);
-}
-
-/* ds-button 도 같은 사유로 다크에서 한 단계 더 밝게 */
-[data-theme="modern-dark"] .ds-button[data-intent="secondary"],
-[data-theme="dark-navy"] .ds-button[data-intent="secondary"],
-[data-theme="graphite-studio"] .ds-button[data-intent="secondary"],
-[data-theme="deep-ocean"] .ds-button[data-intent="secondary"] {
-  background: var(--scale-Neutral200);
-  border-color: var(--scale-Neutral400);
-}
-
-[data-theme="modern-dark"] .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]),
-[data-theme="dark-navy"] .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]),
-[data-theme="graphite-studio"] .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]),
-[data-theme="deep-ocean"] .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]) {
+[data-theme="focus-dark"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous):hover {
   background: var(--scale-Neutral300);
   border-color: var(--scale-Neutral500);
 }

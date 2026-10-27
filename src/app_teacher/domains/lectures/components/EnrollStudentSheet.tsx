@@ -89,7 +89,7 @@ export default function EnrollStudentSheet({ open, onClose, lectureId, enrolledS
         {/* Submit */}
         <button onClick={() => mutation.mutate()} disabled={selected.length === 0 || mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: selected.length > 0 ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: selected.length > 0 ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: selected.length > 0 ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: selected.length > 0 ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
           {mutation.isPending ? "등록 중..." : `${selected.length}명 등록`}
         </button>
       </div>

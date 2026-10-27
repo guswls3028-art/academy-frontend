@@ -186,7 +186,7 @@ export default function StudentListPage() {
             </button>
             <button onClick={() => setCreateOpen(true)}
               className="flex items-center gap-1 text-xs font-bold cursor-pointer"
-              style={{ padding: "8px 14px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+              style={{ padding: "8px 14px", minHeight: "var(--tc-touch-min)", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
               <Plus size={ICON.xs} /> 추가
             </button>
           </div>
@@ -312,7 +312,7 @@ export default function StudentListPage() {
                       width: 32, height: 32, borderRadius: 8,
                       border: `2px solid ${isSelected ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
                       background: isSelected ? "var(--tc-primary)" : "var(--tc-surface)",
-                      color: "#fff",
+                      color: "var(--tc-primary-contrast)",
                     }}>
                     {isSelected && <Check size={ICON.xs} />}
                   </div>
@@ -424,7 +424,7 @@ export default function StudentListPage() {
             <button onClick={() => setFilters({})} className="flex-1 text-sm font-semibold py-2.5 rounded-lg cursor-pointer" style={{ background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)", border: "1px solid var(--tc-border)" }}>
               초기화
             </button>
-            <button onClick={() => setShowFilter(false)} className="flex-1 text-sm font-semibold py-2.5 rounded-lg cursor-pointer" style={{ background: "var(--tc-primary)", color: "#fff", border: "none" }}>
+            <button onClick={() => setShowFilter(false)} className="flex-1 text-sm font-semibold py-2.5 rounded-lg cursor-pointer" style={{ background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", border: "none" }}>
               적용
             </button>
           </div>
@@ -609,7 +609,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
             borderRadius: "var(--tc-radius)",
             border: "none",
             background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)",
-            color: canSubmit ? "#fff" : "var(--tc-text-muted)",
+            color: canSubmit ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)",
           }}>
           {submitting ? "업로드 중..." : "업로드 시작"}
         </button>
@@ -833,7 +833,7 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
               sendRequestRef.current = true;
               sendMut.mutate(review.payload);
             }} disabled={sendMut.isPending || !!sendError}
-              className="flex-1 text-sm font-bold" style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+              className="flex-1 text-sm font-bold" style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
               {sendMut.isPending ? "접수 중…" : sendTiming === "scheduled"
                 ? `${recipientLabel} ${review.preflight.recipient.valid_phone}건 예약 확정`
                 : `${recipientLabel} ${review.preflight.recipient.valid_phone}건 발송하기`}
@@ -987,7 +987,7 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
         {checkError && <div role="alert" className="text-xs" style={{ color: "var(--tc-danger)" }}>{checkError}</div>}
         <button onClick={requestSend} disabled={!body.trim() || sendMut.isPending || checking || tooManyRecipients || !!scheduleError}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: body.trim() && !tooManyRecipients && !scheduleError ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: body.trim() && !tooManyRecipients && !scheduleError ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: body.trim() && !tooManyRecipients && !scheduleError ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: body.trim() && !tooManyRecipients && !scheduleError ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
           {checking ? "발송 문구 확인 중…" : "수신자별 발송 문구 확인"}
         </button>
       </div>
@@ -1048,7 +1048,7 @@ function BulkTagSheet({ open, onClose, students, onDone }: {
             style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
           <button onClick={() => createMut.mutate()} disabled={!newTagName.trim() || createMut.isPending}
             className="text-xs font-bold cursor-pointer shrink-0"
-            style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: !newTagName.trim() ? 0.5 : 1 }}>
+            style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: !newTagName.trim() ? 0.5 : 1 }}>
             생성 + 적용
           </button>
         </div>
@@ -1160,7 +1160,7 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
         </div>
         <button onClick={handleSubmit} disabled={submitting || tempPw.trim().length < 4}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: submitting || tempPw.trim().length < 4 ? 0.6 : 1 }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: submitting || tempPw.trim().length < 4 ? 0.6 : 1 }}>
           {submitting ? "변경 중…" : `${students.length}명 비밀번호 변경`}
         </button>
       </div>

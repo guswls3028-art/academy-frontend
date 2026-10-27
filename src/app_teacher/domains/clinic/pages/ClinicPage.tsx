@@ -114,7 +114,7 @@ export default function ClinicPage() {
         <h2 className="text-[17px] font-bold" style={{ color: "var(--tc-text)" }}>클리닉</h2>
         <button onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
-          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
           <Plus size={ICON.xs} /> 클리닉 만들기
         </button>
       </div>
@@ -874,7 +874,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
         </label>}
         <button onClick={() => mutation.mutate()} disabled={!canSubmit || mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
           {mutation.isPending ? "생성 중..." : "생성"}
         </button>
       </div>}

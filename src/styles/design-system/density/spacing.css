@@ -3,18 +3,18 @@
 
 :root {
   /* micro */
-  --space-1: 4px;
-  --space-2: 8px;
+  --space-1: var(--ds-space-1);
+  --space-2: var(--ds-space-2);
 
   /* base */
-  --space-3: 12px;
-  --space-4: 16px;
+  --space-3: var(--ds-space-3);
+  --space-4: var(--ds-space-4);
 
   /* panel */
-  --space-5: 20px;
-  --space-6: 24px;
+  --space-5: var(--ds-space-5);
+  --space-6: var(--ds-space-6);
 
   /* section */
-  --space-7: 32px;
-  --space-8: 40px;
+  --space-7: var(--ds-space-8);
+  --space-8: var(--ds-space-10);
 }

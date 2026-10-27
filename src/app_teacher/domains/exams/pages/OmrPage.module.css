@@ -23,7 +23,7 @@
   border: none;
   border-radius: var(--tc-radius);
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
 }
 
 .resultRow {

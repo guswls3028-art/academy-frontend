@@ -154,7 +154,7 @@ export default function RescheduleParticipantSheet({
             <button
               type="button"
               className="text-sm font-bold cursor-pointer disabled:cursor-not-allowed"
-              style={{ padding: "10px", border: "none", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-primary)", color: "#fff", opacity: !replacementSessionId || replacementTimeIncomplete || changeBookingMut.isPending ? 0.5 : 1 }}
+              style={{ padding: "10px", border: "none", borderRadius: "var(--tc-radius-sm)", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: !replacementSessionId || replacementTimeIncomplete || changeBookingMut.isPending ? 0.5 : 1 }}
               disabled={!replacementSessionId || replacementTimeIncomplete || changeBookingMut.isPending}
               onClick={() => changeBookingMut.mutate()}
             >

@@ -95,7 +95,7 @@
 .submitAction {
   border: none;
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
 }
 
 .primaryAction {

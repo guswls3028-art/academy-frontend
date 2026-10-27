@@ -170,7 +170,7 @@ export default function LectureDetailPage() {
             style={{
               border: "none",
               background: tab === t.key ? "var(--tc-primary)" : "transparent",
-              color: tab === t.key ? "#fff" : "var(--tc-text-secondary)",
+              color: tab === t.key ? "var(--tc-primary-contrast)" : "var(--tc-text-secondary)",
               transition: "all var(--tc-motion-fast)",
             }}
           >
@@ -184,7 +184,7 @@ export default function LectureDetailPage() {
         <>
         <button onClick={() => { setEditSession(null); setSessionFormOpen(true); }}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer self-end"
-          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
           <Plus size={ICON.xs} /> 차시 추가
         </button>
         {sessLoading ? (
@@ -268,7 +268,7 @@ export default function LectureDetailPage() {
         <button onClick={() => setEnrollOpen(true)}
           disabled={enrollmentsError || !enrollments}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer self-end disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
           <Plus size={ICON.xs} /> 수강생 등록
         </button>
         {enrollmentsError ? (

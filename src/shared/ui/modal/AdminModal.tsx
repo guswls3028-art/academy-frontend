@@ -3,7 +3,7 @@ import { Modal, type ModalProps } from "antd";
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { BRAND_AND_LIGHT_THEMES, MODAL_DEFAULT_WIDTH } from "./constants";
+import { MODAL_DEFAULT_WIDTH } from "./constants";
 import { useModalKeyboard } from "./useModalKeyboard";
 import { useDraggableModal } from "./useDraggableModal";
 import { useModalWindow } from "./ModalWindowContext";
@@ -12,8 +12,7 @@ import ModalHeader, { type ModalHeaderProps } from "./ModalHeader";
 export type AdminModalType = "action" | "confirm" | "inspect";
 
 function getModalBackground(): string {
-  const theme = document.documentElement.getAttribute("data-theme") || "";
-  return BRAND_AND_LIGHT_THEMES.has(theme) ? "#ffffff" : "var(--color-modal-bg)";
+  return "var(--color-modal-bg)";
 }
 
 type AdminModalProps = {

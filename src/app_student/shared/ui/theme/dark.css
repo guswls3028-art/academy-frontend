@@ -5,9 +5,14 @@
 
 /* =========================
    테넌트 오버라이드 후 다크모드 강제 적용
-   (tokens.css의 [data-student-dark] 보다 높은 specificity)
+   학생의 다크 표면은 이 파일 한 곳에서 정의한다.
    ========================= */
+html[data-student-app="true"][data-student-dark="true"],
 [data-app="student"][data-student-dark="true"] {
+  color-scheme: dark;
+  --stu-primary: #91baff;
+  --stu-primary-hover: #b4d0ff;
+  --stu-primary-contrast: #111820;
   --stu-bg: #0b0f19;
   --stu-surface: #121827;
   --stu-surface-soft: #1a2235;
@@ -36,9 +41,9 @@
   --stu-danger-text: #f87171;
 
   /* 다크모드 그림자 조정 */
-  --stu-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.5);
-  --stu-shadow-2: 0 6px 20px rgba(0, 0, 0, 0.6);
-  --stu-shadow-3: 0 10px 32px rgba(0, 0, 0, 0.7);
+  --stu-shadow-1: none;
+  --stu-shadow-2: 0 4px 16px rgb(0 0 0 / 0.24);
+  --stu-shadow-3: 0 16px 48px rgb(0 0 0 / 0.4);
 
   /* 다크모드 오버레이 */
   --stu-backdrop: rgba(0, 0, 0, 0.55);

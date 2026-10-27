@@ -140,7 +140,7 @@ export default function LectureFormSheet({ open, onClose, editData }: Props) {
 
         <button onClick={() => mutation.mutate()} disabled={!canSubmit}
           className="w-full text-sm font-bold cursor-pointer mt-2"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
           {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "생성"}
         </button>
 

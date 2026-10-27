@@ -814,7 +814,7 @@ function ScoresTab({
               className="text-[13px] font-semibold py-2.5 rounded-xl cursor-pointer"
               style={{
                 background: "var(--tc-primary)",
-                color: "#fff",
+                color: "var(--tc-primary-contrast)",
                 border: "none",
               }}
             >
