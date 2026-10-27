@@ -101,7 +101,7 @@ export default function SubmitAssignmentPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const runTrackedTask = useTrackedTask();
   const [selected, setSelected] = useState<SelectedTarget | null>(null);
-  const { files: pendingFiles, setFiles: setPendingFiles, draftStatus } = useHomeworkDraft(selected, user?.id);
+  const { files: pendingFiles, setFiles: setPendingFiles, awaitRestoredFiles, draftStatus } = useHomeworkDraft(selected, user?.id);
   const uploadController = useRef<AbortController | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
   const [isPreparingFiles, setIsPreparingFiles] = useState(false);
@@ -331,67 +331,74 @@ export default function SubmitAssignmentPage() {
     uploadMut.reset();
     if (incoming.length === 0) return;
     setIsPreparingFiles(true);
-    const refreshed = await mediaQ.refetch().catch(() => null);
-    setIsPreparingFiles(false);
-    if (!refreshed?.data || refreshed.isError) {
-      setError("현재 제출 파일을 다시 확인하지 못했습니다. 연결을 확인한 뒤 다시 선택해 주세요.");
-      return;
-    }
-    const existing = refreshed.data.files;
-    const currentLimits = refreshed.data.limits ?? DEFAULT_LIMITS;
-    const unmatchedServerFiles = existing.filter(
-      (file) => !file.client_file_id || !pendingClientIds.has(file.client_file_id),
-    );
-    const occupiedPositions = new Set([
-      ...unmatchedServerFiles.map((file) => file.position),
-      ...pendingFiles.map((file) => file.position),
-    ]);
-    const localSignatures = new Set(pendingFiles.map(({ file }) => `${file.name}:${file.size}:${file.lastModified}`));
-    let activeCount = unmatchedServerFiles.length + pendingFiles.length;
-    let totalSize = unmatchedServerFiles.reduce((sum, file) => sum + file.file_size, 0)
-      + pendingFiles.reduce((sum, item) => sum + item.file.size, 0);
-    const batchId = uuid();
-    const accepted: PendingMedia[] = [];
-    const rejected: string[] = [];
-    for (const file of incoming) {
-      const signature = `${file.name}:${file.size}:${file.lastModified}`;
-      if (localSignatures.has(signature)) { rejected.push(`${file.name}: 이미 선택됨`); continue; }
-      if (!isSupportedSubmissionFile(file)) { rejected.push(`${file.name}: 지원하지 않는 형식`); continue; }
-      if (file.size <= 0) { rejected.push(`${file.name}: 빈 파일`); continue; }
-      if (file.size > currentLimits.max_file_size_bytes) { rejected.push(`${file.name}: 파일당 ${formatCompactFileSize(currentLimits.max_file_size_bytes)} 초과`); continue; }
-      const persistedRetry = existing.find((serverFile) => (
-        serverFile.status === "failed"
-        && serverFile.client_file_id != null
-        && serverFile.original_filename === file.name
-        && serverFile.file_size === file.size
-        && !pendingClientIds.has(serverFile.client_file_id)
-      ));
-      if (persistedRetry?.client_file_id) {
-        localSignatures.add(signature);
-        accepted.push({
-          clientFileId: persistedRetry.client_file_id,
-          uploadBatchId: batchId,
-          file,
-          position: persistedRetry.position,
-          status: "failed",
-          progress: 0,
-          error: "다시 제출할 파일을 선택했습니다.",
-        });
-        continue;
+    try {
+      if (await awaitRestoredFiles() === null) return;
+      const refreshed = await mediaQ.refetch().catch(() => null);
+      const currentFiles = await awaitRestoredFiles();
+      if (currentFiles === null) return;
+      if (!refreshed?.data || refreshed.isError) {
+        setError("현재 제출 파일을 다시 확인하지 못했습니다. 연결을 확인한 뒤 다시 선택해 주세요.");
+        return;
       }
-      if (activeCount >= currentLimits.max_files) { rejected.push(`${file.name}: 최대 ${currentLimits.max_files}개 초과`); continue; }
-      if (totalSize + file.size > currentLimits.max_total_size_bytes) { rejected.push(`${file.name}: 전체 ${formatCompactFileSize(currentLimits.max_total_size_bytes)} 초과`); continue; }
-      let position = 0;
-      while (occupiedPositions.has(position)) position += 1;
-      if (position >= currentLimits.max_files) { rejected.push(`${file.name}: 넣을 수 있는 순서가 없음`); continue; }
-      occupiedPositions.add(position);
-      localSignatures.add(signature);
-      activeCount += 1;
-      totalSize += file.size;
-      accepted.push({ clientFileId: uuid(), uploadBatchId: batchId, file, position, status: "queued", progress: 0, error: null });
+      const existing = refreshed.data.files;
+      const currentLimits = refreshed.data.limits ?? DEFAULT_LIMITS;
+      const currentClientIds = new Set(currentFiles.map((file) => file.clientFileId));
+      const unmatchedServerFiles = existing.filter(
+        (file) => !file.client_file_id || !currentClientIds.has(file.client_file_id),
+      );
+      const occupiedPositions = new Set([
+        ...unmatchedServerFiles.map((file) => file.position),
+        ...currentFiles.map((file) => file.position),
+      ]);
+      const localSignatures = new Set(currentFiles.map(({ file }) => `${file.name}:${file.size}:${file.lastModified}`));
+      let activeCount = unmatchedServerFiles.length + currentFiles.length;
+      let totalSize = unmatchedServerFiles.reduce((sum, file) => sum + file.file_size, 0)
+        + currentFiles.reduce((sum, item) => sum + item.file.size, 0);
+      const batchId = uuid();
+      const accepted: PendingMedia[] = [];
+      const rejected: string[] = [];
+      for (const file of incoming) {
+        const signature = `${file.name}:${file.size}:${file.lastModified}`;
+        if (localSignatures.has(signature)) { rejected.push(`${file.name}: 이미 선택됨`); continue; }
+        if (!isSupportedSubmissionFile(file)) { rejected.push(`${file.name}: 지원하지 않는 형식`); continue; }
+        if (file.size <= 0) { rejected.push(`${file.name}: 빈 파일`); continue; }
+        if (file.size > currentLimits.max_file_size_bytes) { rejected.push(`${file.name}: 파일당 ${formatCompactFileSize(currentLimits.max_file_size_bytes)} 초과`); continue; }
+        const persistedRetry = existing.find((serverFile) => (
+          serverFile.status === "failed"
+          && serverFile.client_file_id != null
+          && serverFile.original_filename === file.name
+          && serverFile.file_size === file.size
+          && !currentClientIds.has(serverFile.client_file_id)
+        ));
+        if (persistedRetry?.client_file_id) {
+          localSignatures.add(signature);
+          accepted.push({
+            clientFileId: persistedRetry.client_file_id,
+            uploadBatchId: batchId,
+            file,
+            position: persistedRetry.position,
+            status: "failed",
+            progress: 0,
+            error: "다시 제출할 파일을 선택했습니다.",
+          });
+          continue;
+        }
+        if (activeCount >= currentLimits.max_files) { rejected.push(`${file.name}: 최대 ${currentLimits.max_files}개 초과`); continue; }
+        if (totalSize + file.size > currentLimits.max_total_size_bytes) { rejected.push(`${file.name}: 전체 ${formatCompactFileSize(currentLimits.max_total_size_bytes)} 초과`); continue; }
+        let position = 0;
+        while (occupiedPositions.has(position)) position += 1;
+        if (position >= currentLimits.max_files) { rejected.push(`${file.name}: 넣을 수 있는 순서가 없음`); continue; }
+        occupiedPositions.add(position);
+        localSignatures.add(signature);
+        activeCount += 1;
+        totalSize += file.size;
+        accepted.push({ clientFileId: uuid(), uploadBatchId: batchId, file, position, status: "queued", progress: 0, error: null });
+      }
+      setPendingFiles((current) => [...current, ...accepted]);
+      if (rejected.length > 0) setError(`${rejected.slice(0, 3).join(" · ")}${rejected.length > 3 ? ` 외 ${rejected.length - 3}개` : ""}`);
+    } finally {
+      setIsPreparingFiles(false);
     }
-    setPendingFiles((current) => [...current, ...accepted]);
-    if (rejected.length > 0) setError(`${rejected.slice(0, 3).join(" · ")}${rejected.length > 3 ? ` 외 ${rejected.length - 3}개` : ""}`);
   };
 
   const removePending = (clientFileId: string) => {
@@ -502,7 +509,7 @@ export default function SubmitAssignmentPage() {
               <div><div className={styles.stepLabel}>2. 사진·동영상 준비</div><p>한 번에 최대 {limits.max_files}개 · 파일당 {formatCompactFileSize(limits.max_file_size_bytes)} · 전체 {formatCompactFileSize(limits.max_total_size_bytes)}</p></div>
               <span className={styles.fileCount}>{visibleServerFiles.length + pendingFiles.length}/{limits.max_files}</span>
             </div>
-            <input ref={fileInputRef} type="file" accept={ACCEPT} multiple onChange={onFileChange} className={styles.hiddenInput} />
+            <input ref={fileInputRef} type="file" accept={ACCEPT} multiple onChange={onFileChange} className={styles.hiddenInput} disabled={draftStatus === "loading" || reviewLocked || uploadMut.isPending || isPreparingFiles || mediaQ.isFetching || mediaQ.isError} />
             <button type="button" className={`stu-btn stu-btn--secondary ${styles.fileButton}`} onClick={() => fileInputRef.current?.click()} disabled={draftStatus === "loading" || reviewLocked || uploadMut.isPending || isPreparingFiles || mediaQ.isFetching || mediaQ.isError}>사진·동영상 여러 개 선택</button>
             {draftStatus === "loading" && <div className={styles.mediaLoading} role="status">이전에 선택한 파일을 확인하는 중…</div>}
             {!online && <div className={styles.draftNotice} role="status">인터넷 연결을 기다리고 있습니다. 선택한 파일은 유지됩니다.</div>}

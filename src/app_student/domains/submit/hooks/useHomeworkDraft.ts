@@ -9,6 +9,7 @@ export type PendingMedia = HomeworkDraftFile & {
   error: string | null;
 };
 type DraftStatus = "loading" | "saving" | "saved" | "unavailable";
+type DraftState = { key: string | null; files: PendingMedia[]; status: DraftStatus };
 const EMPTY: PendingMedia[] = [];
 
 export function useHomeworkDraft(target: { id: number; enrollmentId: number } | null, userId: number | undefined) {
@@ -16,24 +17,51 @@ export function useHomeworkDraft(target: { id: number; enrollmentId: number } | 
   const tenant = getTenantCodeForApiRequest();
   const key = target && generation && tenant && userId
     ? JSON.stringify([generation, tenant, userId, target.id, target.enrollmentId]) : null;
-  const [state, setState] = useState<{ key: string | null; files: PendingMedia[]; status: DraftStatus }>({ key: null, files: EMPTY, status: "loading" });
+  const [state, setState] = useState<DraftState>({ key: null, files: EMPTY, status: "loading" });
   const current = useRef(state);
   current.current = state;
+  const activeKey = useRef(key);
+  activeKey.current = key;
+  const restoration = useRef<{ key: string | null; active: boolean; ready: Promise<boolean> } | null>(null);
   const revision = useRef(0);
 
   useEffect(() => {
-    let active = true;
+    let finish!: (ready: boolean) => void;
+    const scope = { key, active: true, ready: new Promise<boolean>((resolve) => { finish = resolve; }) };
+    restoration.current = scope;
     revision.current += 1;
-    if (!key || !generation) { setState({ key, files: EMPTY, status: "unavailable" }); return; }
-    setState({ key, files: EMPTY, status: "loading" });
-    void loadHomeworkDraft(key, generation, () => readAuthTokenEnvelopeSafely()?.generation === generation).then(({ files, persisted }) => {
-      if (active && readAuthTokenEnvelopeSafely()?.generation === generation) setState({ key, files: files.map((item) => ({ ...item, status: "queued", progress: 0, error: null })), status: persisted ? "saved" : "unavailable" });
-    }, () => { if (active) setState({ key, files: EMPTY, status: "unavailable" }); });
-    return () => { active = false; };
+    const publish = (next: DraftState) => {
+      current.current = next;
+      setState(next);
+      if (next.status !== "loading") finish(true);
+    };
+    if (!key || !generation) publish({ key, files: EMPTY, status: "unavailable" });
+    else {
+      publish({ key, files: EMPTY, status: "loading" });
+      void loadHomeworkDraft(key, generation, () => readAuthTokenEnvelopeSafely()?.generation === generation).then(({ files, persisted }) => {
+        if (scope.active && activeKey.current === key && readAuthTokenEnvelopeSafely()?.generation === generation) publish({ key, files: files.map((item) => ({ ...item, status: "queued", progress: 0, error: null })), status: persisted ? "saved" : "unavailable" });
+        else finish(false);
+      }, () => {
+        if (scope.active && activeKey.current === key && readAuthTokenEnvelopeSafely()?.generation === generation) publish({ key, files: EMPTY, status: "unavailable" });
+        else finish(false);
+      });
+    }
+    return () => { scope.active = false; finish(false); };
+  }, [key, generation]);
+
+  // A file picker can return while restore is pending. Keep the incoming Files
+  // in the caller until the original draft is available, then allocate positions
+  // against both sets. Scope changes release waiters without transferring files.
+  const awaitRestoredFiles = useCallback(async () => {
+    const scope = restoration.current;
+    if (!scope || scope.key !== key || !(await scope.ready)) return null;
+    if (!scope.active || restoration.current !== scope || activeKey.current !== key
+      || (readAuthTokenEnvelopeSafely()?.generation ?? null) !== generation || current.current.key !== key) return null;
+    return current.current.files;
   }, [key, generation]);
 
   const setFiles = useCallback((update: PendingMedia[] | ((files: PendingMedia[]) => PendingMedia[])) => {
-    if (generation && readAuthTokenEnvelopeSafely()?.generation !== generation) return;
+    if (!restoration.current?.active || activeKey.current !== key || (generation && readAuthTokenEnvelopeSafely()?.generation !== generation)) return;
     const previous = current.current.key === key ? current.current : { key, files: EMPTY, status: "unavailable" as const };
     const files = typeof update === "function" ? update(previous.files) : update;
     const changed = files.length !== previous.files.length || files.some((item, index) => (
@@ -56,5 +84,5 @@ export function useHomeworkDraft(target: { id: number; enrollmentId: number } | 
     }
   }, [key, generation]);
 
-  return { files: state.key === key ? state.files : EMPTY, setFiles, draftStatus: state.key === key ? state.status : "loading" as const };
+  return { files: state.key === key ? state.files : EMPTY, setFiles, awaitRestoredFiles, draftStatus: state.key === key ? state.status : "loading" as const };
 }

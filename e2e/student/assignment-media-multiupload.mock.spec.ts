@@ -391,6 +391,168 @@ test("HEIC 변환 시간 초과 뒤 재시도하면 다음 작업이 정상 완�
   expect(workerRequests).toBe(2);
 });
 
+type RestoreGateWindow = Window & {
+  __qaHomeworkRestoreGate: { held: boolean; release: () => void };
+};
+
+async function holdNextHomeworkRestore(page: Page) {
+  await page.evaluate(() => {
+    const originalOpen = indexedDB.open.bind(indexedDB);
+    let intercepted = false;
+    let resume: (() => void) | null = null;
+    const gate = {
+      held: false,
+      release: () => {
+        if (!resume) throw new Error("The homework restore has not reached its barrier");
+        indexedDB.open = originalOpen;
+        const deliver = resume;
+        resume = null;
+        deliver();
+      },
+    };
+    (window as RestoreGateWindow).__qaHomeworkRestoreGate = gate;
+    indexedDB.open = (name, version) => {
+      const request = version === undefined ? originalOpen(name) : originalOpen(name, version);
+      if (name !== "academy-homework-drafts-v1" || intercepted) return request;
+      intercepted = true;
+      // Hold only the open success delivery, before the application creates any
+      // transaction. Delaying a transaction callback would make IDB auto-commit.
+      request.addEventListener("success", (event) => {
+        event.stopImmediatePropagation();
+        gate.held = true;
+        resume = () => request.dispatchEvent(new Event("success"));
+      }, { once: true });
+      return request;
+    };
+  });
+  return {
+    wait: () => expect.poll(() => page.evaluate(() => (window as RestoreGateWindow).__qaHomeworkRestoreGate.held)).toBe(true),
+    release: () => page.evaluate(() => (window as RestoreGateWindow).__qaHomeworkRestoreGate.release()),
+  };
+}
+
+const RESTORE_RACE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNg+A8AAQIBAEK+vGgAAAAASUVORK5CYII=", "base64");
+
+async function returnNativeFileSelection(page: Page, name: string) {
+  // A native chooser can return after the visible picker has become disabled.
+  // Dispatch that already-chosen File explicitly; ordinary tests use the ready
+  // visible picker boundary instead of bypassing its disabled state.
+  await page.locator('input[type="file"]').evaluate((input, payload) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([Uint8Array.from(payload.bytes)], payload.name, { type: "image/png" }));
+    (input as HTMLInputElement).files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, { name, bytes: [...RESTORE_RACE_PNG] });
+}
+
+async function readOwnedHomeworkDraft(page: Page) {
+  return page.evaluate(async () => {
+    const url = "/src/shared/storage/homeworkDraftStorage.ts";
+    const storage = await import(/* @vite-ignore */ url);
+    const generation = localStorage.getItem("academy:auth-active-generation:v1")!;
+    const key = JSON.stringify([generation, "hakwonplus", 72, 8501, 8601]);
+    const { files } = await storage.loadHomeworkDraft(key, generation);
+    return files.map((item: { file: File; clientFileId: string; position: number }) => ({
+      name: item.file.name, clientFileId: item.clientFileId, position: item.position,
+    }));
+  });
+}
+
+for (const width of [1366, 390]) {
+  test(`${width}px HEIC 임시 복원과 새 파일 선택이 겹쳐도 두 파일을 중복 없이 제출한다`, async ({ page }) => {
+    test.setTimeout(90_000);
+    const state = await installApi(page, 0);
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/student/submit/assignment`);
+    const target = page.getByRole("button", { name: /도형 풀이 인증/ });
+    const picker = page.getByRole("button", { name: "사진·동영상 여러 개 선택" });
+    const pending = page.getByRole("region", { name: "이번에 제출할 파일" });
+    await expect(target).toBeVisible();
+    await target.click();
+    await expect(picker).toBeEnabled();
+    await page.locator('input[type="file"]').setInputFiles({ name: "복원할-풀이.heic", mimeType: "image/heic", buffer: homeworkHeic });
+    await expect(pending).toContainText("복원할-풀이.heic");
+    await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(target).toBeVisible();
+    const gate = await holdNextHomeworkRestore(page);
+    await target.click();
+    await gate.wait();
+    await expect(page.getByText("이전에 선택한 파일을 확인하는 중…", { exact: true })).toBeVisible();
+    await expect(picker).toBeDisabled();
+    await expect(page.locator('input[type="file"]')).toBeDisabled();
+    await returnNativeFileSelection(page, "새로-선택한-풀이.png");
+    // The actual IDB restore remains held while the change event is delivered.
+    await expect(page.getByText("이전에 선택한 파일을 확인하는 중…", { exact: true })).toBeVisible();
+    expect(state.getUploadAttempts()).toBe(0);
+    await gate.release();
+
+    await expect(pending.locator("article")).toHaveCount(2);
+    await expect(pending).toContainText("복원할-풀이.heic");
+    await expect(pending).toContainText("새로-선택한-풀이.png");
+    await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+    const draft = await readOwnedHomeworkDraft(page);
+    expect(draft.map((file: { name: string }) => file.name).sort()).toEqual(["복원할-풀이.heic", "새로-선택한-풀이.png"].sort());
+    expect(draft.map((file: { position: number }) => file.position).sort()).toEqual([1, 2]);
+    expect(new Set(draft.map((file: { clientFileId: string }) => file.clientFileId)).size).toBe(2);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await target.click();
+    await expect(pending.locator("article")).toHaveCount(2);
+    await expect(pending).toContainText("복원할-풀이.heic");
+    await expect(pending).toContainText("새로-선택한-풀이.png");
+    await page.getByRole("button", { name: "파일 2개 제출하기", exact: true }).click();
+    await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+    expect(state.getUploadAttempts()).toBe(2);
+    expect(state.files.map((file) => file.position).sort()).toEqual([0, 1, 2]);
+    expect(new Set(state.getUploadClientIds()).size).toBe(2);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await target.click();
+    await expect(picker).toBeEnabled();
+    const saved = page.getByRole("region", { name: "이미 제출한 파일" });
+    await expect(saved.locator('[data-status="uploaded"]')).toHaveCount(3);
+    await expect(saved).toContainText("복원할-풀이.heic");
+    await expect(saved).toContainText("새로-선택한-풀이.png");
+    await expect(pending).toHaveCount(0);
+  });
+}
+
+test("HEIC 임시 복원 중 제출 화면을 떠나면 늦게 반환된 선택을 이전 과제에 추가하지 않는다", async ({ page }) => {
+  const state = await installApi(page, 0);
+  await page.goto(`${BASE}/student/submit/assignment`);
+  const target = page.getByRole("button", { name: /도형 풀이 인증/ });
+  const picker = page.getByRole("button", { name: "사진·동영상 여러 개 선택" });
+  await expect(target).toBeVisible();
+  await target.click();
+  await expect(picker).toBeEnabled();
+  await page.locator('input[type="file"]').setInputFiles({ name: "보존할-풀이.heic", mimeType: "image/heic", buffer: homeworkHeic });
+  await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(target).toBeVisible();
+  const gate = await holdNextHomeworkRestore(page);
+  await target.click();
+  await gate.wait();
+  await returnNativeFileSelection(page, "취소할-풀이.png");
+  // SPA navigation unmounts the owning scope without destroying the held
+  // browser promise. Releasing it now must not transfer the incoming File.
+  await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+  await expect(page).toHaveURL(/\/student\/dashboard(?:\?|$)/);
+  await expect(page.getByRole("heading", { name: "과제 제출", exact: true })).toHaveCount(0);
+  await gate.release();
+  const draft = await readOwnedHomeworkDraft(page);
+  expect(draft.map((file: { name: string }) => file.name)).toEqual(["보존할-풀이.heic"]);
+  expect(state.getUploadAttempts()).toBe(0);
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await target.click();
+  await expect(picker).toBeEnabled();
+  const pending = page.getByRole("region", { name: "이번에 제출할 파일" });
+  await expect(pending.locator("article")).toHaveCount(1);
+  await expect(pending).toContainText("보존할-풀이.heic");
+  await expect(pending.getByText("취소할-풀이.png", { exact: true })).toHaveCount(0);
+});
+
+
 test("HEIC 임시 파일은 새로고침 후 복원되고 제출 뒤 기기 보관에서 지워진다", async ({ page }) => {
   const state = await installApi(page, 0);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -560,6 +722,7 @@ test("저장 중으로 남은 파일도 제한된 재조회 뒤 같은 식별자
   const state = await installApi(page, 0);
   await page.goto(`${BASE}/student/submit/assignment`);
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
   await page.locator('input[type="file"]').setInputFiles({ name: "interrupted.mp4", mimeType: "video/mp4", buffer: Buffer.from("synthetic-video") });
   await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
   await expect.poll(state.getUploadAttempts).toBe(1);
@@ -906,6 +1069,7 @@ test("desktop에서 정상 파일은 유지하고 빈 파일·비지원 형식�
   const state = await installApi(page);
   await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
   await page.locator('input[type="file"]').setInputFiles([
     { name: "정상-풀이.png", mimeType: "image/png", buffer: Buffer.from("valid-photo") },
     { name: "빈-사진.png", mimeType: "image/png", buffer: Buffer.alloc(0) },
