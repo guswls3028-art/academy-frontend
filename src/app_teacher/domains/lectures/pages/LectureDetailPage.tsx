@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/lectures/pages/LectureDetailPage.tsx
 // 강의 상세 — 탭 구조: 차시 목록 + 수강생 목록 + CRUD
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
@@ -29,7 +29,16 @@ export default function LectureDetailPage() {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const lid = Number(lectureId);
-  const [tab, setTab] = useState<Tab>("sessions");
+  const validLecture = Number.isInteger(lid) && lid > 0;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: Tab = searchParams.get("tab") === "students" ? "students" : "sessions";
+  const setTab = (nextTab: Tab) => {
+    if (nextTab === tab) return;
+    const next = new URLSearchParams(searchParams);
+    if (nextTab === "students") next.set("tab", nextTab);
+    else next.delete("tab");
+    setSearchParams(next, { replace: true });
+  };
   const [editOpen, setEditOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sessionFormOpen, setSessionFormOpen] = useState(false);
@@ -49,26 +58,38 @@ export default function LectureDetailPage() {
     onError: (e) => teacherToast.error(extractApiError(e, "출석 엑셀을 내려받지 못했습니다.")),
   });
 
-  const { data: lecture, isLoading } = useQuery({
+  const { data: lecture, isLoading, isError: lectureError, isFetching: lectureFetching, refetch: refetchLecture } = useQuery({
     queryKey: teacherLectureQueryKeys.lecture(lid),
     queryFn: () => fetchLecture(lid),
-    enabled: Number.isFinite(lid),
+    enabled: validLecture,
   });
 
-  const { data: sessions, isLoading: sessLoading } = useQuery({
+  const { data: sessions, isLoading: sessLoading, isError: sessionsError, isFetching: sessionsFetching, refetch: refetchSessions } = useQuery({
     queryKey: teacherLectureQueryKeys.lectureSessionsFor(lid),
     queryFn: () => fetchLectureSessions(lid),
-    enabled: Number.isFinite(lid),
+    enabled: validLecture,
   });
 
   // 수강생 카운트가 탭 헤더에 표시되므로 탭 전환 전에도 fetch
   const { data: enrollments, isError: enrollmentsError, isFetching: enrollmentsFetching, refetch: refetchEnrollments } = useQuery({
     queryKey: teacherLectureQueryKeys.lectureEnrollmentsFor(lid),
     queryFn: () => fetchLectureEnrollments(lid),
-    enabled: Number.isFinite(lid),
+    enabled: validLecture,
   });
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (!validLecture || lectureError || !lecture) return (
+    <EmptyState
+      scope="panel" tone="error" title="강의를 불러오지 못했습니다"
+      description="강의 정보와 접근 권한을 확인한 뒤 다시 시도해 주세요."
+      actions={<>
+        {validLecture && <EmptyActionButton disabled={lectureFetching} onClick={() => void refetchLecture()}>
+          {lectureFetching ? "불러오는 중…" : "다시 시도"}
+        </EmptyActionButton>}
+        <EmptyActionButton variant="secondary" onClick={() => navigate("/workspace/mobile/classes")}>강의 목록</EmptyActionButton>
+      </>}
+    />
+  );
 
   const chipLabel = lecture?.chip_label ?? lecture?.chipLabel;
 
@@ -160,13 +181,15 @@ export default function LectureDetailPage() {
         style={{ border: "1px solid var(--tc-border)", background: "var(--tc-surface-soft)" }}
       >
         {([
-          { key: "sessions" as Tab, label: `차시 (${sessions?.length ?? 0})` },
+          { key: "sessions" as Tab, label: `차시 (${sessionsError ? "확인 필요" : sessions?.length ?? "…"})` },
           { key: "students" as Tab, label: `수강생 (${enrollmentsError ? "확인 필요" : enrollments?.length ?? "…"})` },
         ]).map((t) => (
           <button
             key={t.key}
+            type="button"
+            aria-pressed={tab === t.key}
             onClick={() => setTab(t.key)}
-            className="flex-1 text-[13px] font-semibold py-2.5 cursor-pointer"
+            className="flex-1 min-h-11 text-[13px] font-semibold py-2.5 cursor-pointer"
             style={{
               border: "none",
               background: tab === t.key ? "var(--tc-primary)" : "transparent",
@@ -183,12 +206,19 @@ export default function LectureDetailPage() {
       {tab === "sessions" && (
         <>
         <button onClick={() => { setEditSession(null); setSessionFormOpen(true); }}
-          className="flex items-center gap-1 text-xs font-bold cursor-pointer self-end"
+          className="flex min-h-11 items-center gap-1 text-xs font-bold cursor-pointer self-end"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
           <Plus size={ICON.xs} /> 차시 추가
         </button>
         {sessLoading ? (
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : sessionsError ? (
+          <EmptyState scope="panel" tone="error" title="차시를 불러오지 못했습니다"
+            description="등록된 차시를 확인하지 못했습니다. 다시 불러와 주세요."
+            actions={<EmptyActionButton disabled={sessionsFetching} onClick={() => void refetchSessions()}>
+              {sessionsFetching ? "불러오는 중…" : "다시 시도"}
+            </EmptyActionButton>}
+          />
         ) : sessions && sessions.length > 0 ? (
           <div className="flex flex-col gap-1.5">
             {sessions.map((s: any) => {
@@ -267,7 +297,7 @@ export default function LectureDetailPage() {
         <>
         <button onClick={() => setEnrollOpen(true)}
           disabled={enrollmentsError || !enrollments}
-          className="flex items-center gap-1 text-xs font-bold cursor-pointer self-end disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex min-h-11 items-center gap-1 text-xs font-bold cursor-pointer self-end disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
           <Plus size={ICON.xs} /> 수강생 등록
         </button>
@@ -366,7 +396,7 @@ export default function LectureDetailPage() {
 
 function BackBtn({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
+    <button type="button" aria-label="뒤로 가기" onClick={onClick} className="flex min-h-11 min-w-11 items-center justify-center p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
       <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <polyline points="15 18 9 12 15 6" />
       </svg>

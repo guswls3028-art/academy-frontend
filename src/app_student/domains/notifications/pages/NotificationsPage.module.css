@@ -126,7 +126,13 @@
   gap: var(--stu-space-3);
   color: inherit;
   text-decoration: none;
+  min-height: 64px;
+  transition: background 140ms ease, transform 140ms ease;
 }
+
+.card:focus-visible { outline: 2px solid var(--stu-primary); outline-offset: 3px; }
+.card:active { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) { .card { transition: none; } .card:active { transform: none; } }
 
 .cardText {
   min-width: 0;
@@ -138,7 +144,10 @@
   font-weight: 760;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
 }
 
 .itemMeta {

@@ -2,7 +2,7 @@
  * 공지 상세 페이지
  */
 import { useState, useEffect, useMemo } from "react";
-import { useParams, Link, useNavigate } from "react-router";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
@@ -26,6 +26,16 @@ type ImagePreviewState =
 export default function NoticeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const listParams = new URLSearchParams();
+  const tab = searchParams.get("tab");
+  if (tab === "lecture" || tab === "session") listParams.set("tab", tab);
+  const lecture = Number(searchParams.get("lecture"));
+  if ((tab === "lecture" || tab == null) && Number.isInteger(lecture) && lecture > 0) {
+    listParams.set("tab", "lecture");
+    listParams.set("lecture", String(lecture));
+  }
+  const listPath = `/student/notices${listParams.size ? `?${listParams}` : ""}`;
   const noticeId = id ? Number(id) : null;
 
   const { data: notice, isLoading, isError, refetch } = useQuery({
@@ -36,7 +46,7 @@ export default function NoticeDetailPage() {
 
   if (isLoading) {
     return (
-      <StudentPageShell title="공지사항">
+      <StudentPageShell title="공지사항" onBack={() => navigate(listPath)}>
         <div className={styles.loadingStack}>
           <div className={`stu-skel ${styles.skelTitle}`} />
           <div className={`stu-skel ${styles.skelMeta}`} />
@@ -49,7 +59,7 @@ export default function NoticeDetailPage() {
 
   if (isError || !notice || noticeId == null) {
     return (
-      <StudentPageShell title="공지사항">
+      <StudentPageShell title="공지사항" onBack={() => navigate(listPath)}>
         <EmptyState
           title="공지를 불러오지 못했습니다."
           description="잠시 후 다시 시도해주세요."
@@ -63,7 +73,7 @@ export default function NoticeDetailPage() {
   const lectureTitle = firstNode?.lecture_title;
 
   return (
-    <StudentPageShell title="공지사항" onBack={() => navigate("/student/notices")}>
+    <StudentPageShell title="공지사항" onBack={() => navigate(listPath)}>
       <div>
         <div className={styles.stack}>
           {/* 제목 */}
@@ -99,7 +109,7 @@ export default function NoticeDetailPage() {
           {/* 목록으로 돌아가기 */}
           <div className={styles.footer}>
             <Link
-              to="/student/notices"
+              to={listPath}
               className={`stu-btn stu-btn--secondary stu-btn--sm ${styles.backLink}`}
             >
               목록으로 돌아가기
