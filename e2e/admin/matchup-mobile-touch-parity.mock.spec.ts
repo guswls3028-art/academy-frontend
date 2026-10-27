@@ -456,6 +456,7 @@ for (const width of [390, 1366]) {
     const { report: savedReport } = await installMocks(page, { report: true });
     const theme = testInfo.project.metadata.appearanceTheme ?? "focus-dark";
     await page.addInitScript((style) => localStorage.setItem("hakwonplus:appearance", JSON.stringify({ version: 1, theme: style, accent: "#ffedaa" })), theme);
+    await page.clock.install();
     await page.goto(`${BASE}/workspace/storage/matchup?docId=${DOC_ID}`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
     await expect(page.getByTestId("matchup-doc-hit-report-curate-btn")).toBeVisible({ timeout: 45_000 });
@@ -466,12 +467,15 @@ for (const width of [390, 1366]) {
     const comment = report.getByPlaceholder("이 문항을 어떻게 다뤘는지, 학생이 알아둘 점은 무엇인지 작성하세요");
     await expect(comment).toBeVisible();
     await expect.poll(async () => (await comment.boundingBox())?.width || 0).toBeGreaterThanOrEqual(280);
+    // Hold the real autosave debounce while observing its transient dirty state.
+    await page.clock.pauseAt(new Date(Date.now() + 1_000));
     await comment.fill(`QA comment ${width}`);
     await expectReadableReportControl(report.getByTestId("matchup-hit-report-save-state"), "변경됨");
     for (const label of ["실제 시험 크게 보기 버튼", "내 수업 자료 크게 보기 버튼"]) {
       await expectReadableReportControl(report.getByRole("button", { name: label, exact: true }));
     }
     await page.screenshot({ path: testInfo.outputPath(`report-preview-${width}.png`) });
+    await page.clock.resume();
     const add = report.getByRole("button", { name: "PDF에 포함", exact: true }).first();
     await add.scrollIntoViewIfNeeded();
     await expect(add).toBeInViewport({ ratio: 1 });
