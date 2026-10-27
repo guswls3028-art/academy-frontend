@@ -31,11 +31,10 @@ function convertPreview(source: string | Blob, signal: AbortSignal): Promise<Blo
       blob = source;
     }
     assertActive(signal);
-    const { default: heic2any } = await import("heic2any");
+    const { heicTo } = await import("heic-to/csp");
     assertActive(signal);
-    const converted = await heic2any({ blob, toType: "image/jpeg", quality: 0.9 });
+    const image = await heicTo({ blob, type: "image/jpeg", quality: 0.9 });
     assertActive(signal);
-    const image = Array.isArray(converted) ? converted[0] : converted;
     if (!image?.size) throw new Error("Image preview conversion failed");
     return image;
   });

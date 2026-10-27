@@ -1,0 +1,10 @@
+HEIC homework previews use the unmodified CSP distribution of heic-to 1.6.6.
+The decoder is delivered as a separate, lazily loaded vendor-heic-csp JavaScript module.
+
+Project and source: https://github.com/hoppergee/heic-to
+Exact package (includes source and build script): https://registry.npmjs.org/heic-to/-/heic-to-1.6.6.tgz
+Package license: GNU Lesser General Public License, version 3 or later.
+License copy: heic-to-1.6.6-LICENSE.txt
+
+heic-to includes libheif 1.23.6.
+libheif source and license information: https://github.com/strukturag/libheif/tree/v1.23.6

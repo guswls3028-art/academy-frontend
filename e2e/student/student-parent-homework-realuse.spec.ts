@@ -30,7 +30,7 @@ import {
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
-import { homeworkHeic } from "../helpers/homeworkHeicFixture";
+import { applyHomeworkPreviewCsp, homeworkHeic } from "../helpers/homeworkHeicFixture";
 
 test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -650,6 +650,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await gotoAndSettle(page, `${QA_BASE}/student/submit/assignment`, { timeout: 30_000 });
     await expect(page.getByRole("heading", { name: "과제 제출" })).toBeVisible();
     await page.getByText(homeworkTitle, { exact: true }).click();
+    await applyHomeworkPreviewCsp(page);
     await page.locator("input[type='file']").first().setInputFiles({
       name: uploadName,
       mimeType: "image/heic",
@@ -694,6 +695,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await assertNoHorizontalOverflow(page);
       await page.reload({ waitUntil: "domcontentloaded" });
       await page.getByText(homeworkTitle, { exact: true }).click();
+      await applyHomeworkPreviewCsp(page);
       await page.getByRole("region", { name: "이미 제출한 파일" }).getByRole("button", { name: "미리보기", exact: true }).click();
       await expect.poll(() => page.getByRole("img", { name: `${uploadName} 제출 파일` })
         .evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBe(640);
@@ -710,13 +712,16 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       // Keep the assistant detail open: discovery must not depend on navigation
       // or manual reload after the student's successful submission.
       await expect(fileRow).toBeVisible({ timeout: 30_000 });
+      await applyHomeworkPreviewCsp(staffPage);
       await staffPage.getByRole("button", { name: "제출물 확인" }).click();
       const preview = staffPage.getByRole("dialog", { name: `${student.name} 제출 확인` });
       const image = preview.getByRole("img", { name: /과제 제출 미리보기/ });
       await expect(image).toBeVisible();
       await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
       await expect(preview.getByRole("button", { name: "직접 확인 완료" })).toBeEnabled();
-      await testInfo.attach("heic-preview-and-confirm-ready-390", { body: await staffPage.screenshot(), contentType: "image/png" });
+      const previewEvidence = testInfo.outputPath("heic-preview-and-confirm-ready-390.png");
+      await staffPage.screenshot({ path: previewEvidence });
+      await testInfo.attach("heic-preview-and-confirm-ready-390", { path: previewEvidence, contentType: "image/png" });
       const completed = staffPage.waitForResponse((response) => response.request().method() === "PATCH"
         && new URL(response.url()).pathname === `/api/v1/results/admin/sessions/${created.sessionId}/score-correction/`);
       await preview.getByRole("button", { name: "직접 확인 완료" }).click();
@@ -767,6 +772,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/assignments?assessment=homework%3A${created.homeworkId}`, { timeout: 30_000 });
       await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
       await expect(staffPage.getByRole("heading", { name: "과제 제출 검수" })).toBeVisible();
+      await applyHomeworkPreviewCsp(staffPage);
       const pcComplete = staffPage.getByRole("button", { name: "직접 확인 완료" });
       await expect(pcComplete).toBeDisabled();
       await staffPage.locator('[class*="fileRow"]').filter({ hasText: uploadName }).getByRole("button", { name: "미리보기" }).click();

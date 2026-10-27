@@ -6,6 +6,8 @@ const ASSETS_DIR = path.resolve("dist", "assets");
 const KIB = 1024;
 
 const limitsFor = (name) => {
+  // CSP-safe libheif is loaded only when a homework HEIC preview is requested.
+  if (name.startsWith("vendor-heic-csp-")) return { raw: 3_200 * KIB, gzip: 800 * KIB };
   if (name.startsWith("vendor-heic-")) return { raw: 1_400 * KIB, gzip: 360 * KIB };
   if (name.startsWith("vendor-excel-")) return { raw: 1_000 * KIB, gzip: 290 * KIB };
   if (name.startsWith("vendor-")) return { raw: 600 * KIB, gzip: 200 * KIB };

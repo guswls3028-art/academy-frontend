@@ -3,7 +3,7 @@ import type { Page, Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
-import { homeworkHeicDataUrl } from "../helpers/homeworkHeicFixture";
+import { applyHomeworkPreviewCsp, installHomeworkHeicPreview } from "../helpers/homeworkHeicFixture";
 import { waitForRenderSettled } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
@@ -35,6 +35,7 @@ type ReviewMockOptions = {
 };
 
 async function installApi(page: Page, submissionStatus = "submitted", newAssistant = false, options: ReviewMockOptions = {}) {
+  const heicPreview = options.heic ? await installHomeworkHeicPreview(page) : null;
   const olderSubmission = options.olderSubmission ?? false;
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
@@ -229,7 +230,7 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
       imagePreviews += 1;
       const svg = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#eef2ff"/><text x="400" y="300" text-anchor="middle" font-size="38">homework preview</text></svg>');
       return json({
-        url: options.failFirstImage && imagePreviews === 1 ? "data:image/png;base64,invalid" : options.heic ? homeworkHeicDataUrl : `data:image/svg+xml,${svg}`,
+        url: options.failFirstImage && imagePreviews === 1 ? "data:image/png;base64,invalid" : heicPreview?.url ?? `data:image/svg+xml,${svg}`,
         media_kind: "image",
         mime_type: "image/jpeg",
         original_filename: "풀이 앞면.jpg",
@@ -270,6 +271,7 @@ test("HEIC가 섞인 기존 제출도 PC에서 모든 파일을 열고 검수를
   const api = await installApi(page, "submitted", false, { heic: true, reviewImagesOnly: true });
   await page.setViewportSize({ width: 1366, height: 900 });
   await openSubmissionReview(page);
+  await applyHomeworkPreviewCsp(page);
   for (const filename of ["phone.heic", "풀이 뒷면.jpg"]) {
     await page.locator('[class*="fileRow"]').filter({ hasText: filename }).getByRole("button", { name: "미리보기" }).click();
     const image = page.getByRole("dialog").getByRole("img", { name: /과제 제출 미리보기/ });

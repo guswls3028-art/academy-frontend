@@ -2,7 +2,7 @@ import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { guideRecording } from "../helpers/guideRecording";
-import { homeworkHeic, installHomeworkHeicPreview } from "../helpers/homeworkHeicFixture";
+import { applyHomeworkPreviewCsp, homeworkHeic, installHomeworkHeicPreview } from "../helpers/homeworkHeicFixture";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const HOMEWORK_ID = 8501;
@@ -304,6 +304,7 @@ test("HEIC 사진은 선택·제출·새로고침 후 열리고 실패한 미리
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/student/submit/assignment`);
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await applyHomeworkPreviewCsp(page);
   await page.getByRole("region", { name: "이미 제출한 파일" }).getByRole("button", { name: "미리보기", exact: true }).click();
   const existing = page.getByRole("img", { name: "camera-capture 제출 파일" });
   await expect.poll(() => existing.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
@@ -316,15 +317,16 @@ test("HEIC 사진은 선택·제출·새로고침 후 열리고 실패한 미리
   expect(state.getUploadAttempts()).toBe(1);
   await page.reload();
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await applyHomeworkPreviewCsp(page);
   const saved = page.getByRole("region", { name: "이미 제출한 파일" });
   await saved.locator('[class*="persistedFile"]').filter({ hasText: "phone.heic" }).getByRole("button", { name: "미리보기", exact: true }).click();
   const image = page.getByRole("img", { name: "phone.heic 제출 파일" });
   await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
   await page.getByRole("button", { name: "미리보기 닫기" }).click();
-  state.setPreviewFailure("media");
+  remote.setBroken(true);
   await saved.locator('[class*="persistedFile"]').filter({ hasText: "phone.heic" }).getByRole("button", { name: "미리보기", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("제출된 파일은 유지됩니다");
-  state.setPreviewFailure(null);
+  remote.setBroken(false);
   await page.getByRole("button", { name: "미리보기 다시 시도" }).click();
   await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
   expect(state.getUploadAttempts()).toBe(1);
