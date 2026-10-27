@@ -6,17 +6,36 @@ import { GUIDES, GUIDE_ROLES as ROLES, type GuideRole } from "../promoGuides";
 import CtaSection from "../components/CtaSection";
 import styles from "./GuidePage.module.css";
 
+function guideRole(params: URLSearchParams): GuideRole {
+  return ROLES.find((item) => item === params.get("role")) ?? "admin";
+}
+
+function readingLocation(params: URLSearchParams) {
+  return JSON.stringify([guideRole(params), params.get("guideBook"), params.get("guidePage")]);
+}
+
 export default function GuidePage() {
   const [params, setParams] = useSearchParams();
-  const requestedRole = params.get("role");
-  const role: GuideRole = ROLES.find((item) => item === requestedRole) ?? "admin";
+  const role = guideRole(params);
   const guide = GUIDES[role];
   const screenGuide = useRef<HTMLDetailsElement>(null);
+  const explicitlyClosedLocation = useRef<string | null>(null);
   const screenBook = params.get("guideBook");
   const screenPage = params.get("guidePage");
+  const currentReadingLocation = readingLocation(params);
   useEffect(() => {
+    if (explicitlyClosedLocation.current === currentReadingLocation) return;
+    explicitlyClosedLocation.current = null;
     if ((screenBook !== null || screenPage !== null) && screenGuide.current) screenGuide.current.open = true;
-  }, [screenBook, screenPage, role]);
+  }, [screenBook, screenPage, currentReadingLocation]);
+
+  function rememberExplicitClose() {
+    // The URL may already have changed while its React render is still pending.
+    // Preserve the native close against that location's delayed opening effect.
+    explicitlyClosedLocation.current = screenGuide.current?.open
+      ? readingLocation(new URLSearchParams(window.location.search))
+      : null;
+  }
 
   function selectRole(nextRole: GuideRole) {
     if (nextRole === role) return;
@@ -43,7 +62,7 @@ export default function GuidePage() {
           ))}
         </div>
         {role !== "student" && <details ref={screenGuide} className={styles.screenGuide}>
-          <summary>화면으로 기능 살펴보기 <span>5쪽 요약 · 43쪽 상세 설명</span></summary>
+          <summary onClick={rememberExplicitClose}>화면으로 기능 살펴보기 <span>5쪽 요약 · 43쪽 상세 설명</span></summary>
           <FeatureGuideReader mode="public" />
         </details>}
         <GuideCatalog key={role} articles={guide.articles} scope={role} mode="public"
