@@ -30,7 +30,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .admin-modal--inspect {
+  .admin-modal {
     /* Preserve animation-end cleanup without a visible appearance transition. */
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
