@@ -61,19 +61,19 @@ function PreviewPaneInner({
   const singleActiveCand = activeCandidateId != null ? candidateMap.get(activeCandidateId) : null;
   const groupBestCand = selectedCandidates.reduce<CandidateMeta | null>((best, cand) => {
     if (!best) return cand;
-    const bestSim = "similarity" in best ? best.similarity : 0;
-    const candSim = "similarity" in cand ? cand.similarity : 0;
+    const bestSim = "similarity" in best ? best.similarity : -1;
+    const candSim = "similarity" in cand ? cand.similarity : -1;
     return candSim > bestSim ? cand : best;
   }, null);
   const activeCand = showSelectedGroup ? groupBestCand : singleActiveCand;
-  const sim: number = activeCand && "similarity" in activeCand
+  const sim: number | null = activeCand && "similarity" in activeCand
     ? (activeCand as HitReportCandidate).similarity
-    : 0;
-  const tier: Tier = activeCand ? classifyMatch(sim) : "miss";
+    : null;
+  const tier: Tier = sim != null ? classifyMatch(sim) : "miss";
   const labelText = showSelectedGroup
-    ? `선택 자료 ${selectedCandidates.length}건${activeCand && "similarity" in activeCand ? `  ·  최고 ${(sim * 100).toFixed(1)}%` : ""}`
+    ? `선택 자료 ${selectedCandidates.length}건${sim != null ? `  ·  최고 ${(sim * 100).toFixed(1)}%` : ""}`
     : activeCand
-    ? (tier === "miss"
+    ? (sim == null ? "유사도 정보 없음" : tier === "miss"
         ? `유사도 ${(sim * 100).toFixed(1)}%`
         : `${TIER_LABEL[tier]}  ·  ${(sim * 100).toFixed(1)}%`)
     : "후보 없음";

@@ -9,6 +9,8 @@ import { reserveQaDispatch } from "../../scripts/development-qa-operations.mjs";
 
 type Document = { id: number; title: string; status: string; problem_count: number;
   ai_job_id: string; inventory_file_id: number };
+type DocumentJob = Pick<Document, "title" | "status" | "problem_count" | "ai_job_id"> & { document_id: number };
+
 type Report = { report: { id: number; summary: string }; entries: Array<{
   selected_problem_ids: number[];
 }> };
@@ -65,7 +67,10 @@ test("격리 매치업 업로드·분석·수동 자르기·보고서 저장·�
     await loginViaUI(page, "admin", { landingPath: "/workspace/storage/matchup" });
     for (const file of files) {
       const title = `${binding.tenant}-${file.kind}`;
-      await page.getByTestId(file.kind === "reference" ? "matchup-reference-upload-button" : "matchup-upload-button").click();
+      const uploadButton = page.getByTestId(file.kind === "reference" ? "matchup-reference-upload-button" : "matchup-upload-button")
+        .or(page.getByRole("button", { name: file.kind === "reference" ? /^참고 자료 업로드/ : /^학생 시험지 업로드/ }));
+      await expect(uploadButton).toHaveCount(1);
+      await uploadButton.click();
       const modal = page.getByTestId("matchup-upload-modal");
       await expect(modal).toBeVisible();
       await modal.getByTestId("matchup-file-input").setInputFiles({
@@ -85,8 +90,9 @@ test("격리 매치업 업로드·분석·수동 자르기·보고서 저장·�
       await persist();
       await expect(modal).toBeHidden();
       await expect.poll(async () => {
-        const current = await apiCall<Document>(page, "GET", `/matchup/documents/${doc.id}/`);
+        const current = await apiCall<DocumentJob>(page, "GET", `/matchup/documents/${doc.id}/job/`);
         expect(current.status).toBe(200);
+        expect(current.body.document_id).toBe(doc.id);
         expect(current.body.status, "worker must finish successfully, not silently fail").not.toBe("failed");
         Object.assign(doc, current.body);
         return current.body.status;
@@ -123,6 +129,8 @@ test("격리 매치업 업로드·분석·수동 자르기·보고서 저장·�
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByTestId("matchup-doc-manual-crop-btn").click();
     await expect(manualRow).toContainText("직접 자른 영역");
+    await expect(canvas).toBeVisible();
+    await expect.poll(() => canvas.locator("img").evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
     await noHorizontalOverflow(page);
     await page.screenshot({ path: testInfo.outputPath("matchup-manual-390.png") });
     await crop.getByRole("button", { name: "직접 자르기 닫기", exact: true }).click();
@@ -135,8 +143,12 @@ test("격리 매치업 업로드·분석·수동 자르기·보고서 저장·�
     const referenceRow = report.getByRole("button").filter({ has: page.getByRole("button", { name: "PDF에 포함", exact: true }) })
       .filter({ hasText: documents[0].title }).first();
     await expect(referenceRow).toBeVisible({ timeout: 120_000 });
+    const referenceSimilarity = (await referenceRow.getByText(/^유사도 /).innerText()).match(/([\d.]+)%/);
+    expect(referenceSimilarity).not.toBeNull();
+    const previewHeader = report.getByRole("button", { name: "다음 문항", exact: true }).locator("..");
     timings.candidatesMs = Date.now() - reportStarted;
     await referenceRow.getByRole("button", { name: "PDF에 포함", exact: true }).click();
+    await expect(previewHeader).toContainText(`${referenceSimilarity![1]}%`);
     const summary = `${binding.tenant}: synthetic manual selection survives reload`;
     await report.getByPlaceholder("예: 1학기 중간고사 대비 반영률 종합 분석").fill(summary);
     await expect(report.getByTestId("matchup-hit-report-save-state")).toHaveText("저장됨 ✓", { timeout: 65_000 });
@@ -151,6 +163,7 @@ test("격리 매치업 업로드·분석·수동 자르기·보고서 저장·�
     await page.getByTestId("matchup-doc-hit-report-curate-btn").click();
     await expect(report.getByPlaceholder("예: 1학기 중간고사 대비 반영률 종합 분석")).toHaveValue(summary);
     await expect(report.getByLabel("PDF에 포함됨").first()).toBeVisible({ timeout: 120_000 });
+    await expect(previewHeader).toContainText(`${referenceSimilarity![1]}%`);
     await page.screenshot({ path: testInfo.outputPath("matchup-report-1366.png") });
     const download = page.waitForEvent("download", { timeout: 120_000 });
     const pdfStarted = Date.now();
@@ -160,6 +173,7 @@ test("격리 매치업 업로드·분석·수동 자르기·보고서 저장·�
     const pdf = await readFile(pdfPath!);
     expect(pdf.subarray(0, 5).toString("ascii")).toBe("%PDF-");
     expect(pdf.length).toBeGreaterThan(1000);
+    await testInfo.attach("matchup-generated-report", { path: pdfPath!, contentType: "application/pdf" });
     timings.reportPdfMs = Date.now() - pdfStarted;
     await page.setViewportSize({ width: 390, height: 844 });
     await noHorizontalOverflow(page);
