@@ -290,7 +290,7 @@ for (const width of [1366, 390]) {
     await page.getByRole("button", { name: "닫기", exact: true }).click();
     await page.locator('[class*="fileRow"]').filter({ hasText: "풀이 설명.mp4" }).getByRole("button", { name: "미리보기" }).click();
     await expect(page.getByRole("dialog").getByRole("status")).toContainText("이 기기에서 재생할 영상을 준비");
-    expect(preparePosts).toBe(1);
+    await expect.poll(() => preparePosts).toBe(1);
     await page.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(page.getByText("제출 파일 1/2개를 열었습니다.")).toBeVisible();
     await expect(page.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
