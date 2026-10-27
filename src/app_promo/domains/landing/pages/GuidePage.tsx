@@ -12,10 +12,11 @@ export default function GuidePage() {
   const role: GuideRole = ROLES.find((item) => item === requestedRole) ?? "admin";
   const guide = GUIDES[role];
   const screenGuide = useRef<HTMLDetailsElement>(null);
-  const hasScreenLocation = params.has("guideBook") || params.has("guidePage");
+  const screenBook = params.get("guideBook");
+  const screenPage = params.get("guidePage");
   useEffect(() => {
-    if (hasScreenLocation && screenGuide.current) screenGuide.current.open = true;
-  }, [hasScreenLocation, role]);
+    if ((screenBook !== null || screenPage !== null) && screenGuide.current) screenGuide.current.open = true;
+  }, [screenBook, screenPage, role]);
 
   function selectRole(nextRole: GuideRole) {
     if (nextRole === role) return;

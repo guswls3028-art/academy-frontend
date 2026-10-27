@@ -18,6 +18,12 @@ const REFERENCES: Record<string, { page?: number; path?: string; label: string; 
   "parent-report": { path: "/promo/parent-trust", label: "학부모 상담 활용 보기" },
 };
 
+function isCurrentFeature(id: string, hash: string) {
+  const alias = REFERENCES[id]?.alias;
+  return hash === `#${id}` || Boolean(alias && hash === `#${alias}`)
+    || (id === "communication" && hash === "#alimtalk-guide");
+}
+
 function AlimtalkDetails() {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const { hash } = useLocation();
@@ -56,8 +62,8 @@ export default function FeaturesPage() {
       <div className={styles.layout}>
         <nav className={styles.navigation} aria-label="기능 바로가기">
           <span>어떤 업무가 궁금하신가요?</span>
-          {ORDERED_FEATURE_GROUPS.map(group => <a key={group.id} href={`#${group.id}`} aria-current={hash === `#${group.id}` || (group.id === "communication" && hash === "#alimtalk-guide") ? "location" : undefined}>{group.title}</a>)}
-          <a href="#more-operations">그 밖의 운영 기능</a>
+          {ORDERED_FEATURE_GROUPS.map(group => <a key={group.id} href={`#${group.id}`} aria-current={isCurrentFeature(group.id, hash) ? "location" : undefined}>{group.title}</a>)}
+          <a href="#more-operations" aria-current={isCurrentFeature("more-operations", hash) ? "location" : undefined}>그 밖의 운영 기능</a>
         </nav>
         <div id="feature-catalog-title" className={styles.catalog}>
           <h2 className={styles.catalogTitle}>전체 기능 목록</h2>

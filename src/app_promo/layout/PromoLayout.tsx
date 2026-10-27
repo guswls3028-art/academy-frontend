@@ -279,6 +279,12 @@ function PromoScrollManager() {
     let attempts = 0;
     const correctionTimers: number[] = [];
     const id = decodeHashId(location.hash);
+    const inputEvents = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+    const stopAlignment = () => {
+      cancelled = true;
+      correctionTimers.forEach((timer) => window.clearTimeout(timer));
+    };
+    inputEvents.forEach((event) => window.addEventListener(event, stopAlignment, { passive: true }));
 
     const scrollToHashTarget = () => {
       if (cancelled) return;
@@ -301,8 +307,8 @@ function PromoScrollManager() {
     });
 
     return () => {
-      cancelled = true;
-      correctionTimers.forEach((timer) => window.clearTimeout(timer));
+      stopAlignment();
+      inputEvents.forEach((event) => window.removeEventListener(event, stopAlignment));
     };
   }, [location.pathname, location.hash]);
 

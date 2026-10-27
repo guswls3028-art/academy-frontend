@@ -35,6 +35,73 @@ test.describe("promo navigation", () => {
     await stubPromoBootstrap(page);
   });
 
+  test("review: feature aliases and the final topic show the selected location", async ({ page }) => {
+    const navigation = page.getByRole("navigation", { name: "기능 바로가기" });
+    for (const [alias, target] of [["student-video", "student-video-flow"], ["alimtalk", "communication"], ["academy-homepage", "academy-homepage-flow"], ["matchup-ppt", "matchup-ppt-flow"]]) {
+      await page.goto(`${BASE}/promo/features#${alias}`);
+      await expect(navigation.locator(`a[href="#${target}"]`)).toHaveAttribute("aria-current", "location");
+      await expectHashAligned(page, alias);
+    }
+    await navigation.getByRole("link", { name: "그 밖의 운영 기능" }).click();
+    await expect(page).toHaveURL(/#more-operations$/);
+    await expect(navigation.locator('[aria-current="location"]')).toHaveCount(1);
+    await expect(navigation.getByRole("link", { name: "그 밖의 운영 기능" })).toHaveAttribute("aria-current", "location");
+  });
+
+  test("review: short desktop keeps every feature topic reachable by keyboard", async ({ page }, info) => {
+    await page.setViewportSize({ width: 1366, height: 400 });
+    await page.goto(`${BASE}/promo/features#class-management`);
+    const navigation = page.getByRole("navigation", { name: "기능 바로가기" });
+    await expect.poll(() => navigation.evaluate(element => element.getBoundingClientRect().bottom <= innerHeight - 8)).toBe(true);
+    const links = navigation.getByRole("link");
+    await links.first().focus();
+    for (let index = 1; index < await links.count(); index++) await page.keyboard.press("Tab");
+    await expect(links.last()).toBeFocused();
+    await expect(links.last()).toBeInViewport({ ratio: 0.99 });
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/#more-operations$/);
+    await expectHashAligned(page, "more-operations");
+    await page.screenshot({ path: info.outputPath("feature-topics-short-desktop.png") });
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/promo/features#class-management`);
+    await expectHashAligned(page, "class-management");
+    await navigation.hover();
+    const previousScroll = await page.evaluate(() => window.scrollY);
+    await page.mouse.wheel(0, 350);
+    // Late anchor alignment must not undo an intentional scroll.
+    // eslint-disable-next-line no-restricted-syntax -- Immediate polling passes before the delayed snap-back regression occurs.
+    await page.waitForTimeout(1200);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(previousScroll + 100);
+  });
+
+  for (const width of [390, 1366]) {
+    test(`review: guide history reopens the exact reading page at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${BASE}/promo/guide?role=admin&q=수납&guideBook=detail&guidePage=16`);
+      const disclosure = page.locator("details").filter({ has: page.locator("summary", { hasText: "화면으로 기능 살펴보기" }) });
+      const reader = page.getByRole("region", { name: "기능 둘러보기", exact: true });
+      await reader.getByLabel("설명서 페이지").selectOption("17");
+      await expect(page).toHaveURL(/guidePage=17/);
+      await disclosure.locator(":scope > summary").click();
+      await expect(disclosure).not.toHaveAttribute("open", "");
+      await page.goBack();
+      await expect(disclosure).toHaveAttribute("open", "");
+      await expect(reader.getByLabel("설명서 페이지")).toHaveValue("16");
+      await expect(page.getByPlaceholder("기능, 화면 이름, 막힌 상황 검색")).toHaveValue("수납");
+      await disclosure.locator(":scope > summary").click();
+      await page.goForward();
+      await expect(disclosure).toHaveAttribute("open", "");
+      await expect(reader.getByLabel("설명서 페이지")).toHaveValue("17");
+      await page.reload();
+      await expect(disclosure).toHaveAttribute("open", "");
+      await expect(reader.getByLabel("설명서 페이지")).toHaveValue("17");
+      await disclosure.locator(":scope > summary").click();
+      await page.getByPlaceholder("기능, 화면 이름, 막힌 상황 검색").fill("출결");
+      await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("출결");
+      await expect(disclosure).not.toHaveAttribute("open", "");
+    });
+  }
+
   test("aligns cross-page hash links below the fixed promo header", async ({ page }) => {
     await page.goto(`${BASE}/promo`, { waitUntil: "load" });
     await page.locator('a[data-workflow-card="students"]').click();
