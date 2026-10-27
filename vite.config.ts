@@ -123,6 +123,11 @@ export default defineConfig(({ mode }) => {
               priority: 45,
             },
             {
+              name: "vendor-heic-csp",
+              test: (id) => id.replace(/\\/g, "/").includes("/heic-to/"),
+              priority: 40,
+            },
+            {
               name: "vendor-heic",
               test: (id) => id.replace(/\\/g, "/").includes("heic2any"),
               priority: 40,

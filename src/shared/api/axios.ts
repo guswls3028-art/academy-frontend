@@ -439,6 +439,19 @@ const api: AxiosInstance = axios.create({
   withCredentials: false,
 });
 
+// Signed storage URLs authorize themselves. Never use the business API's
+// JWT/tenant interceptors or cookie/XSRF credentials for these requests.
+const mediaPreviewTransport = axios.create({
+  timeout: 60_000,
+  withCredentials: false,
+  withXSRFToken: false,
+});
+
+export async function fetchPresignedMediaBlob(url: string, signal: AbortSignal): Promise<Blob> {
+  const response = await mediaPreviewTransport.get<Blob>(url, { responseType: "blob", signal });
+  return response.data;
+}
+
 /**
  * 테넌트 코드: shared/tenant SSOT 사용 (hostname → config → X-Tenant-Code)
  * 중앙 API(api.hakwonplus.com)로 요청 시 필수.

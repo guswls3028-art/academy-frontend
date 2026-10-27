@@ -3,6 +3,8 @@ import type { Page, Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { applyHomeworkPreviewCsp, installHomeworkHeicPreview } from "../helpers/homeworkHeicFixture";
+import { waitForRenderSettled } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 8801;
@@ -29,9 +31,11 @@ type ReviewMockOptions = {
   scoreLocked?: boolean;
   failFirstReview?: boolean;
   failFirstImage?: boolean;
+  heic?: boolean;
 };
 
 async function installApi(page: Page, submissionStatus = "submitted", newAssistant = false, options: ReviewMockOptions = {}) {
+  const heicPreview = options.heic ? await installHomeworkHeicPreview(page) : null;
   const olderSubmission = options.olderSubmission ?? false;
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
@@ -163,9 +167,9 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
             id: "9911",
             legacy: false,
             position: 0,
-            original_filename: "풀이 앞면.jpg",
+            original_filename: options.heic ? "phone.heic" : "풀이 앞면.jpg",
             media_kind: "image",
-            mime_type: "image/jpeg",
+            mime_type: options.heic ? "image/heic" : "image/jpeg",
             file_size: 1800,
             status: "uploaded",
             error_message: "",
@@ -226,7 +230,7 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
       imagePreviews += 1;
       const svg = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#eef2ff"/><text x="400" y="300" text-anchor="middle" font-size="38">homework preview</text></svg>');
       return json({
-        url: options.failFirstImage && imagePreviews === 1 ? "data:image/png;base64,invalid" : `data:image/svg+xml,${svg}`,
+        url: options.failFirstImage && imagePreviews === 1 ? "data:image/png;base64,invalid" : heicPreview?.url ?? `data:image/svg+xml,${svg}`,
         media_kind: "image",
         mime_type: "image/jpeg",
         original_filename: "풀이 앞면.jpg",
@@ -262,6 +266,27 @@ async function openSubmissionReview(page: Page) {
   await page.getByRole("tab", { name: "제출관리", exact: true }).click();
   await expect(page.getByRole("heading", { name: "과제 제출 검수" })).toBeVisible({ timeout: 30_000 });
 }
+
+test("HEIC가 섞인 기존 제출도 PC에서 모든 파일을 열고 검수를 완료한다", async ({ page }) => {
+  const api = await installApi(page, "submitted", false, { heic: true, reviewImagesOnly: true });
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await openSubmissionReview(page);
+  await applyHomeworkPreviewCsp(page);
+  for (const filename of ["phone.heic", "풀이 뒷면.jpg"]) {
+    await page.locator('[class*="fileRow"]').filter({ hasText: filename }).getByRole("button", { name: "미리보기" }).click();
+    const image = page.getByRole("dialog").getByRole("img", { name: /과제 제출 미리보기/ });
+    await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(filename === "phone.heic" ? 640 : 800);
+    await page.getByRole("button", { name: "닫기", exact: true }).click();
+  }
+  await expect(page.getByText("제출 파일 2/2개를 열었습니다.")).toBeVisible();
+  await page.getByRole("button", { name: "직접 확인 완료" }).click();
+  await page.getByRole("button", { name: "확인 완료", exact: true }).click();
+  await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+  expect(api.reviewPosts()).toBe(1);
+  await page.reload();
+  await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+  await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+});
 
 test("관리자가 200건 뒤의 과제 파일을 PC와 모바일에서 열고 새로고침한다", async ({ page }) => {
   test.setTimeout(120_000);
@@ -518,6 +543,7 @@ for (const width of [1366, 390]) {
     await table.evaluate(node => { if (node.parentElement) node.parentElement.scrollLeft = 0; });
     await page.screenshot({ path: testInfo.outputPath(`completion-detail-${width}.png`), animations: "disabled" });
     await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForRenderSettled(page, { timeout: 20_000 });
     await page.getByRole("tab", { name: "결과", exact: true }).click();
     await expect(page.getByRole("table").getByRole("row").filter({ hasText: "결과학생2" }).locator("td").nth(2)).toHaveText("X");
   });

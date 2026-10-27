@@ -2,6 +2,7 @@ import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { guideRecording } from "../helpers/guideRecording";
+import { applyHomeworkPreviewCsp, homeworkHeic, installHomeworkHeicPreview } from "../helpers/homeworkHeicFixture";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const HOMEWORK_ID = 8501;
@@ -109,6 +110,7 @@ async function installApi(
   let homeworkActivityRequests = 0;
   let currentHomeworkOverrides = homeworkOverrides;
   let previewFailure: "api" | "media" | null = null;
+  let previewUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNg+A8AAQIBAEK+vGgAAAAASUVORK5CYII=";
   const previewRequests: string[] = [];
 
   await page.addInitScript((jwt) => {
@@ -176,7 +178,7 @@ async function installApi(
       previewRequests.push(path);
       if (previewFailure === "api") return json({ detail: "잠시 후 다시 시도해 주세요." }, 503);
       return json({ url: previewFailure === "media" ? "data:image/png;base64,broken"
-        : "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNg+A8AAQIBAEK+vGgAAAAASUVORK5CYII=" });
+        : previewUrl });
     }
     if (path.endsWith(`/submissions/submissions/homework/${HOMEWORK_ID}/media/`) && request.method() === "GET") {
       studentScopedHeaders.push(request.headers()["x-student-id"]);
@@ -289,9 +291,53 @@ async function installApi(
     getActivityRequests: () => [...activityRequests],
     reopenHomework: () => { currentHomeworkOverrides = { ...currentHomeworkOverrides, submission_media_locked: false }; },
     setPreviewFailure: (failure: "api" | "media" | null) => { previewFailure = failure; },
+    setPreviewUrl: (url: string) => { previewUrl = url; },
     getPreviewRequests: () => [...previewRequests],
   };
 }
+
+test("HEIC 사진은 선택·제출·새로고침 후 열리고 실패한 미리보기도 복구한다", async ({ page }) => {
+  const state = await installApi(page, 0);
+  const remote = await installHomeworkHeicPreview(page);
+  state.setPreviewUrl(remote.url);
+  Object.assign(state.files[0], { original_filename: "camera-capture", mime_type: "image/heif" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await applyHomeworkPreviewCsp(page);
+  await page.getByRole("region", { name: "이미 제출한 파일" }).getByRole("button", { name: "미리보기", exact: true }).click();
+  const existing = page.getByRole("img", { name: "camera-capture 제출 파일" });
+  await expect.poll(() => existing.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
+  await page.getByRole("button", { name: "미리보기 닫기" }).click();
+  await page.locator('input[type="file"]').setInputFiles({ name: "phone.heic", mimeType: "image/heic", buffer: homeworkHeic });
+  const localImage = page.getByRole("img", { name: "선택한 과제 사진 미리보기" });
+  await expect.poll(() => localImage.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+  expect(state.getUploadAttempts()).toBe(1);
+  await page.reload();
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await applyHomeworkPreviewCsp(page);
+  const saved = page.getByRole("region", { name: "이미 제출한 파일" });
+  await saved.locator('[class*="persistedFile"]').filter({ hasText: "phone.heic" }).getByRole("button", { name: "미리보기", exact: true }).click();
+  const image = page.getByRole("img", { name: "phone.heic 제출 파일" });
+  await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
+  await page.getByRole("button", { name: "미리보기 닫기" }).click();
+  remote.setBroken(true);
+  await saved.locator('[class*="persistedFile"]').filter({ hasText: "phone.heic" }).getByRole("button", { name: "미리보기", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("제출된 파일은 유지됩니다");
+  remote.setBroken(false);
+  await page.getByRole("button", { name: "미리보기 다시 시도" }).click();
+  await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
+  expect(state.getUploadAttempts()).toBe(1);
+  expect(remote.headers.length).toBeGreaterThan(0);
+  for (const headers of remote.headers) {
+    expect(headers.authorization).toBeUndefined();
+    expect(headers["x-tenant-code"]).toBeUndefined();
+    expect(headers["x-student-id"]).toBeUndefined();
+    expect(headers.cookie).toBeUndefined();
+  }
+});
 
 test("학부모가 선택 자녀의 과제를 제출하고 새로고침 뒤에도 같은 파일을 확인한다", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
