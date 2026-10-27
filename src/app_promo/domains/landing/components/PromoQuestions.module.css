@@ -1,0 +1,13 @@
+.questions details { border-top: 1px solid #e1e6e9; scroll-margin-top: 104px; }
+.questions details:last-child { border-bottom: 1px solid #e1e6e9; }
+.questions summary { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px 0; min-height: 52px; color: #26353e; font-size: 16px; font-weight: 600; line-height: 1.65; cursor: pointer; list-style: none; word-break: keep-all; }
+.questions summary::-webkit-details-marker { display: none; }
+.questions summary svg { flex-shrink: 0; transition: transform 160ms ease; }
+.questions details[open] summary svg { transform: rotate(180deg); }
+.answer { max-width: 740px; padding: 0 0 20px; animation: reveal 160ms ease-out; }
+.answer p { margin: 0 0 12px; color: #52636d; font-size: 15px; line-height: 1.9; word-break: keep-all; }
+.answer a { display: inline-flex; align-items: center; min-height: 44px; color: #365d6e; font-size: 15px; text-underline-offset: 5px; }
+.questions :is(summary, a):focus-visible { outline: 2px solid #365d6e; outline-offset: 4px; }
+@keyframes reveal { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 700px) { .questions summary { padding: 17px 0; } }
+@media (prefers-reduced-motion: reduce) { .questions summary svg { transition: none; } .answer { animation: none; } }

@@ -12,7 +12,6 @@ import {
   PanelLeftOpen,
   PhoneCall,
   Radio,
-  ShieldCheck,
   X,
 } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
@@ -25,17 +24,15 @@ import styles from "./PromoLayout.module.css";
 
 const NAV_ITEMS = [
   { label: "기능", path: "/promo/features", icon: ClipboardList, note: "운영·영상·알림톡·홈페이지" },
-  { label: "활용 사례", path: "/promo/parent-trust", icon: ShieldCheck, note: "기록으로 설명하는 학부모 상담" },
   { label: "요금", path: "/promo/pricing", icon: CreditCard, note: "월 요금과 별도 비용" },
-  { label: "가이드", path: "/promo/guide", icon: BookOpenCheck, note: "역할별 전체 사용 가이드" },
+  { label: "자주 묻는 질문", path: "/promo/faq", icon: MessageCircle, note: "이용 준비와 기능의 지원 범위" },
+  { label: "사용 가이드", path: "/promo/guide", icon: BookOpenCheck, note: "업무별 사용 순서와 문제 해결" },
   { label: "업데이트", path: "/promo/updates", icon: Radio, note: "새 기능과 운영 개선" },
   { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "사용 상담" },
 ];
 
 const ACTIVE_ALIASES: Record<string, string[]> = {
-  "/promo/guide": ["/promo/faq"],
-  "/promo/features": ["/promo/ai-grading", "/promo/matchup-ppt", "/promo/video-platform"],
-  "/promo/parent-trust": ["/promo/landing-samples"],
+  "/promo/features": ["/promo/ai-grading", "/promo/matchup-ppt", "/promo/video-platform", "/promo/parent-trust", "/promo/landing-samples"],
   "/promo/contact": ["/promo/demo"],
 };
 
@@ -282,6 +279,12 @@ function PromoScrollManager() {
     let attempts = 0;
     const correctionTimers: number[] = [];
     const id = decodeHashId(location.hash);
+    const inputEvents = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+    const stopAlignment = () => {
+      cancelled = true;
+      correctionTimers.forEach((timer) => window.clearTimeout(timer));
+    };
+    inputEvents.forEach((event) => window.addEventListener(event, stopAlignment, { passive: true }));
 
     const scrollToHashTarget = () => {
       if (cancelled) return;
@@ -304,8 +307,8 @@ function PromoScrollManager() {
     });
 
     return () => {
-      cancelled = true;
-      correctionTimers.forEach((timer) => window.clearTimeout(timer));
+      stopAlignment();
+      inputEvents.forEach((event) => window.removeEventListener(event, stopAlignment));
     };
   }, [location.pathname, location.hash]);
 
@@ -341,6 +344,7 @@ function Footer() {
           <Link to="/promo/landing-samples">학원 홈페이지</Link>
           <Link to="/promo/matchup-ppt">매치업·칠판용 PPT</Link>
           <Link to="/promo/ai-grading">채점 보조</Link>
+          <Link to="/promo/parent-trust">학부모 상담 활용</Link>
         </nav>
 
         <nav aria-label="상담">
@@ -349,6 +353,7 @@ function Footer() {
           <Link to="/promo/guide">사용 가이드</Link>
           <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">인스타그램 {INSTAGRAM_HANDLE}<span className={styles.srOnly}> (새 창)</span></a>
           <Link to="/promo/pricing">요금제</Link>
+          <Link to="/promo/faq">자주 묻는 질문</Link>
           <Link to="/promo/demo">시연 신청</Link>
           <Link to="/promo/contact">문의하기</Link>
         </nav>
@@ -357,7 +362,6 @@ function Footer() {
           <h2>법적 고지</h2>
           <Link to="/privacy">개인정보처리방침</Link>
           <Link to="/terms">이용약관</Link>
-          <Link to="/promo/faq">FAQ</Link>
         </nav>
       </div>
       <div className={styles.footerBottom}>
