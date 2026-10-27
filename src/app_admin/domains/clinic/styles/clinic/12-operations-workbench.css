@@ -388,15 +388,15 @@
 .clinic-ops__student-row .clinic-ops__att-btn--attend,
 .clinic-ops__student-row .clinic-ops__att-btn--approve {
   border-color: var(--color-success);
-  background: var(--color-success);
-  color: #fff;
+  background: var(--color-success-solid);
+  color: var(--color-semantic-contrast);
   box-shadow: 0 5px 12px color-mix(in srgb, var(--color-success) 18%, transparent);
 }
 
 .clinic-ops__student-row .clinic-ops__att-btn--checkout:not(:disabled) {
   border-color: var(--color-brand-primary);
   background: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   box-shadow: 0 5px 12px color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
 }
 
@@ -712,7 +712,7 @@
   border: 0;
   border-radius: 9px;
   background: var(--color-brand-primary);
-  color: white;
+  color: var(--color-brand-primary-contrast);
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
@@ -823,7 +823,7 @@
 
 .clinic-workbench__item-tab--active > span {
   background: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .clinic-workbench__active-panel {
@@ -945,7 +945,7 @@
   border: 0;
   border-radius: 9px;
   background: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   font: inherit;
   font-size: 12px;
   font-weight: 800;

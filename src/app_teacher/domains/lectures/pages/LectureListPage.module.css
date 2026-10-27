@@ -17,7 +17,7 @@
   align-items: center;
   gap: var(--tc-space-1);
   padding: 6px 12px;
-  color: #fff;
+  color: var(--tc-primary-contrast);
   font-size: 12px;
   font-weight: 700;
   background: var(--tc-primary);

@@ -32,8 +32,8 @@
   top: var(--tc-header-h);
   width: var(--tc-sidebar-w);
   padding-top: 0;
-  border-right: 1px solid var(--tc-border-strong);
-  background: color-mix(in srgb, var(--tc-surface) 96%, var(--tc-bg));
+  border-right: 1px solid var(--tc-border);
+  background: var(--tc-surface);
   box-shadow: none;
   transform: translateX(0);
 }
@@ -184,8 +184,8 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: var(--tc-danger);
-  color: #fff;
+  background: var(--tc-danger-solid);
+  color: var(--tc-semantic-contrast);
   font-size: 10px;
   font-weight: 700;
   line-height: 18px;

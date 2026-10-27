@@ -554,21 +554,7 @@ export default function DashboardPage() {
               <div className={styles.heroDoneText}>조회가 끝난 뒤 오늘 할 일을 정확히 보여 드립니다.</div>
             </div>
           </div>
-        ) : (
-          <div className={styles.heroDone}>
-            <div className={styles.heroDoneIcon}>
-              <IconCheck />
-            </div>
-            <div>
-              <div className={styles.heroDoneTitle}>
-                오늘은 급한 할 일이 없어요
-              </div>
-              <div className={styles.heroDoneText}>
-                오늘 수업과 영상 학습으로 차근차근 진행해 보세요
-              </div>
-            </div>
-          </div>
-        )}
+        ) : null}
       </section>
 
       <section className={`${styles.quickSection} ${styles.contentShortcuts}`} aria-label="게시판과 자료실">

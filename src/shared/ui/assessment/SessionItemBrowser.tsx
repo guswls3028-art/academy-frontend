@@ -391,7 +391,7 @@ export default function SessionItemBrowser({
               <button
                 type="button"
                 onClick={handleConfirm}
-                className="px-4 py-1.5 rounded-lg text-sm font-semibold text-white bg-[var(--color-brand-primary)] hover:opacity-90 transition-opacity"
+                className="px-4 py-1.5 rounded-lg text-sm font-semibold text-[color:var(--color-brand-primary-contrast)] bg-[var(--color-brand-primary)] hover:bg-[var(--color-brand-primary-hover)] transition-colors"
               >
                 불러오기
               </button>

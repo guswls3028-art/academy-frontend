@@ -1,20 +1,6 @@
-/* PATH: src/styles/design-system/antd/modal.css
-   AntD Modal — admin 모달 제외 (admin은 @/shared/ui/modal SSOT만 사용) */
-
-/* Admin 모달(.admin-modal)은 styles/design-system/modal.css에서 전담 */
+/* Modal surfaces follow the same role token as the application and preview. */
 .ant-modal:not(.admin-modal) .ant-modal-content {
   border-radius: var(--radius-xl);
-}
-
-/* 브랜드/라이트 테마: Admin 제외한 AntD 모달만 흰색 (admin은 SSOT에서 처리) */
-html[data-theme="modern-white"] .ant-modal:not(.admin-modal) .ant-modal-content,
-html[data-theme="navy-pro"] .ant-modal:not(.admin-modal) .ant-modal-content,
-html[data-theme="mocha-office"] .ant-modal:not(.admin-modal) .ant-modal-content,
-html[data-theme="minimal-mono"] .ant-modal:not(.admin-modal) .ant-modal-content,
-html[data-theme="kakao-business"] .ant-modal:not(.admin-modal) .ant-modal-content,
-html[data-theme="naver-works"] .ant-modal:not(.admin-modal) .ant-modal-content,
-html[data-theme="samsung-admin"] .ant-modal:not(.admin-modal) .ant-modal-content,
-html[data-theme="purple-insight"] .ant-modal:not(.admin-modal) .ant-modal-content {
-  --color-modal-bg: #ffffff;
-  background: #ffffff !important;
+  background: var(--color-modal-bg);
+  color: var(--color-text-primary);
 }

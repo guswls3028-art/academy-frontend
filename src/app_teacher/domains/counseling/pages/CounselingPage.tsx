@@ -83,7 +83,7 @@ export default function CounselingPage() {
         <button
           onClick={() => setShowCreate(true)}
           className="text-sm font-semibold px-3 py-1.5 rounded-lg cursor-pointer"
-          style={{ background: "var(--tc-primary)", color: "#fff", border: "none" }}
+          style={{ background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", border: "none" }}
         >
           + 새 메모
         </button>
@@ -231,7 +231,7 @@ function CreateSheet({
             style={{
               border: "none",
               background: title.trim() ? "var(--tc-primary)" : "var(--tc-border)",
-              color: title.trim() ? "#fff" : "var(--tc-text-muted)",
+              color: title.trim() ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)",
             }}
           >
             {isPending ? "저장 중…" : "저장"}
@@ -329,7 +329,7 @@ function DetailSheet({
             style={{
               border: "none",
               background: replyText.trim() && !replyMut.isPending ? "var(--tc-primary)" : "var(--tc-border)",
-              color: replyText.trim() && !replyMut.isPending ? "#fff" : "var(--tc-text-muted)",
+              color: replyText.trim() && !replyMut.isPending ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)",
               minHeight: 40,
             }}
           >

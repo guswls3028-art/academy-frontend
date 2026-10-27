@@ -304,12 +304,12 @@
 
 .staff-area .staff-calendar__cell.staff-calendar__cell--selected {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .staff-area .staff-calendar__cell.staff-calendar__cell--selected:hover {
-  background: color-mix(in srgb, var(--color-primary) 90%, #000);
-  color: #fff;
+  background: var(--color-brand-primary-hover);
+  color: var(--color-brand-primary-contrast);
 }
 
 .staff-area .staff-calendar__cell.staff-calendar__cell--empty {

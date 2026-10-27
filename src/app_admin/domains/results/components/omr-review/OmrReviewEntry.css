@@ -92,7 +92,7 @@
   border-radius: 8px;
   border: none;
   background: var(--color-brand-primary, #6366f1);
-  color: #ffffff;
+  color: var(--color-brand-primary-contrast);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;

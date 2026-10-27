@@ -126,7 +126,7 @@ export default function MyRecordsPage() {
             type="button"
             onClick={() => openExpenseForm()}
             className="flex items-center gap-1 text-xs font-bold cursor-pointer"
-            style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}
+            style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}
           >
             <Plus size={ICON.xs} /> 등록
           </button>
@@ -441,7 +441,7 @@ function ExpenseFormSheet({
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending || !canSubmit}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}
         >
           {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "등록"}
         </button>

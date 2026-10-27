@@ -59,7 +59,7 @@
 
 .segmentButtonActive {
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
 }
 
 .mutedText {
@@ -78,7 +78,7 @@
   border: 0;
   border-radius: var(--tc-radius);
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
 }
 
 .secondaryButton {
@@ -337,7 +337,7 @@
   border: 0;
   border-radius: var(--tc-radius);
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
 }
 
 .previewLabel {

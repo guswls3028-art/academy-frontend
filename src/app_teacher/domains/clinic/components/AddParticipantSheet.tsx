@@ -234,7 +234,7 @@ export default function AddParticipantSheet({
                     border: checked ? "1px solid var(--tc-primary)" : "1px solid var(--tc-border)",
                     borderRadius: "999px",
                     background: checked ? "var(--tc-primary)" : "var(--tc-surface)",
-                    color: checked ? "#fff" : "var(--tc-text-muted)",
+                    color: checked ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)",
                     opacity: full && !checked ? 0.45 : 1,
                   }}
                 >
@@ -362,7 +362,7 @@ export default function AddParticipantSheet({
         {/* Submit */}
         <button type="button" onClick={() => { if (submitRef.current) return; submitRef.current = true; mutation.mutate(); }} disabled={selected.length === 0 || selectedSessionIds.length === 0 || mutation.isPending || (isTimeRange && (!bookingStart || !bookingEnd || availabilityQ.isLoading || availabilityQ.isError))}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: selected.length > 0 ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: selected.length > 0 ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: selected.length > 0 ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: selected.length > 0 ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
           {mutation.isPending
             ? "추가 중..."
             : selectedSessionIds.length > 1

@@ -61,7 +61,7 @@ export default function ExamBundlesPage() {
         </InlineHelp>
         <button onClick={() => { setEditTarget(null); setFormOpen(true); }}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
-          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
           <Plus size={ICON.xs} /> 새 묶음
         </button>
       </div>
@@ -203,7 +203,7 @@ function BundleFormSheet({ open, onClose, editData }: {
 
         <button onClick={() => mutation.mutate()} disabled={!name.trim() || mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: name.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: name.trim() ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: name.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: name.trim() ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
           {mutation.isPending ? "저장 중…" : isEdit ? "수정" : "생성"}
         </button>
       </div>

@@ -145,11 +145,11 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 .clinic-ops__trigger-toggle-btn--on {
-  background: var(--color-success);
-  color: #fff;
+  background: var(--color-success-solid);
+  color: var(--color-semantic-contrast);
 }
 .clinic-ops__trigger-toggle-btn--on:hover {
-  background: var(--scale-Success700);
+  background: var(--color-success-solid-hover);
 }
 .clinic-ops__trigger-toggle-btn--off {
   background: #e5e7eb;
@@ -290,7 +290,7 @@
   font-family: inherit;
   border: none;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   cursor: pointer;
   transition: background 0.12s, transform 0.1s;
 }
@@ -367,18 +367,18 @@
   transition: background 0.12s;
 }
 .clinic-ops__drawer-status-btn--send-attend {
-  background: var(--color-success);
-  color: #fff;
+  background: var(--color-success-solid);
+  color: var(--color-semantic-contrast);
 }
 .clinic-ops__drawer-status-btn--send-attend:hover:not(:disabled) {
-  background: var(--scale-Success700);
+  background: var(--color-success-solid-hover);
 }
 .clinic-ops__drawer-status-btn--send-noshow {
-  background: var(--color-error);
-  color: #fff;
+  background: var(--color-danger-solid);
+  color: var(--color-semantic-contrast);
 }
 .clinic-ops__drawer-status-btn--send-noshow:hover:not(:disabled) {
-  background: var(--scale-Error700);
+  background: var(--color-danger-solid-hover);
 }
 .clinic-ops__drawer-status-btn--send:disabled {
   opacity: 0.6;
@@ -819,7 +819,7 @@
 }
 .clinic-ops__inline-btn--complete:hover:not(:disabled) {
   background: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .clinic-ops__inline-btn--completed {
@@ -891,7 +891,7 @@
   font-weight: 600;
   border: 1.5px solid var(--color-brand-primary);
   background: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   cursor: pointer;
   white-space: nowrap;
   transition: opacity 0.15s;

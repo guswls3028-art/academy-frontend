@@ -97,7 +97,7 @@
 .footer > div { display: flex; gap: 8px; }
 .cancel, .confirm { min-height: 42px; padding: 0 17px; border-radius: 12px; font-weight: 800; cursor: pointer; }
 .cancel { border: 1px solid var(--color-border-default); background: var(--color-bg-surface); color: var(--color-text-secondary); }
-.confirm { border: 1px solid var(--color-brand-primary); background: var(--color-brand-primary); color: white; box-shadow: 0 8px 22px color-mix(in srgb, var(--color-brand-primary) 28%, transparent); }
+.confirm { border: 1px solid var(--color-brand-primary); background: var(--color-brand-primary); color: var(--color-brand-primary-contrast); box-shadow: 0 8px 22px color-mix(in srgb, var(--color-brand-primary) 28%, transparent); }
 .danger .confirm { border-color: #b42318; background: #b42318; box-shadow: 0 8px 22px rgb(180 35 24 / 24%); }
 .confirm:disabled { cursor: wait; opacity: .55; box-shadow: none; }
 

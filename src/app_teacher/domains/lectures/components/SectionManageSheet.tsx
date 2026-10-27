@@ -54,7 +54,7 @@ export default function SectionManageSheet({ open, onClose, lectureId }: Props) 
             style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
           <button onClick={() => createSectionMut.mutate()} disabled={!newLabel.trim()}
             className="flex items-center gap-1 text-xs font-bold cursor-pointer shrink-0"
-            style={{ padding: "8px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: !newLabel.trim() ? 0.5 : 1 }}>
+            style={{ padding: "8px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: !newLabel.trim() ? 0.5 : 1 }}>
             <Plus size={ICON.xs} /> 추가
           </button>
         </div>

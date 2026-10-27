@@ -212,7 +212,7 @@ export default function VideoListPage() {
           </button>
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="flex items-center gap-1 text-xs font-bold cursor-pointer whitespace-nowrap"
-            style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: uploading ? 0.5 : 1, minHeight: 36 }}>
+            style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: uploading ? 0.5 : 1, minHeight: 36 }}>
             <Upload size={ICON.xs} /> {uploading ? "업로드 중…" : "영상 업로드"}
           </button>
         </div>
@@ -274,7 +274,7 @@ export default function VideoListPage() {
                     borderRadius: 999,
                     border: active ? "1px solid var(--tc-primary)" : "1px solid var(--tc-border)",
                     background: active ? "var(--tc-primary)" : "var(--tc-surface)",
-                    color: active ? "#fff" : "var(--tc-text-muted)",
+                    color: active ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)",
                     minHeight: 30,
                   }}
                   aria-pressed={active}
@@ -543,7 +543,7 @@ function YoutubeLinkSheet({
             type="submit"
             disabled={!canSubmit}
             className="text-sm font-bold cursor-pointer"
-            style={{ padding: "9px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: canSubmit ? 1 : 0.5, minHeight: 38 }}
+            style={{ padding: "9px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: canSubmit ? 1 : 0.5, minHeight: 38 }}
           >
             {submitting ? "추가 중…" : "링크 추가"}
           </button>

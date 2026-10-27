@@ -590,7 +590,7 @@ export default function CreateHomeworkModal({
                     aria-pressed={cutlineMode === "PERCENT"}
                     className={`px-3 py-1 text-xs font-semibold ${
                       cutlineMode === "PERCENT"
-                        ? "bg-[var(--color-brand-primary)] text-white"
+                        ? "bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)]"
                         : "bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
                     }`}
                   >
@@ -602,7 +602,7 @@ export default function CreateHomeworkModal({
                     aria-pressed={cutlineMode === "COUNT"}
                     className={`px-3 py-1 text-xs font-semibold border-l border-[var(--color-border-divider)] ${
                       cutlineMode === "COUNT"
-                        ? "bg-[var(--color-brand-primary)] text-white"
+                        ? "bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)]"
                         : "bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
                     }`}
                   >
@@ -676,7 +676,7 @@ export default function CreateHomeworkModal({
                           type="button"
                           className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
                             row.gradingMode === "SCORE"
-                              ? "bg-[var(--color-brand-primary)] text-white"
+                              ? "bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)]"
                               : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
                           }`}
                           aria-pressed={row.gradingMode === "SCORE"}
@@ -688,7 +688,7 @@ export default function CreateHomeworkModal({
                           type="button"
                           className={`border-l border-[var(--color-border-divider)] px-3 py-1.5 text-xs font-semibold transition-colors ${
                             row.gradingMode === "COMPLETION"
-                              ? "bg-[var(--color-brand-primary)] text-white"
+                              ? "bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)]"
                               : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
                           }`}
                           aria-pressed={row.gradingMode === "COMPLETION"}

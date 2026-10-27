@@ -134,7 +134,7 @@
 .clinic-import__checkbox--checked {
   background: var(--color-brand-primary);
   border-color: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .clinic-import__list {
@@ -754,7 +754,7 @@
 
 .clinic-sidebar__section-action-btn--primary:hover {
   background: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .clinic-sidebar__section-filter {

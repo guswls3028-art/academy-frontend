@@ -764,13 +764,13 @@
 }
 
 .clinic-home__action-btn--approve {
-  background: var(--color-success);
-  color: white;
+  background: var(--color-success-solid);
+  color: var(--color-semantic-contrast);
 }
 
 .clinic-home__action-btn--reject {
-  background: var(--color-error);
-  color: white;
+  background: var(--color-danger-solid);
+  color: var(--color-semantic-contrast);
 }
 
 /* 자동 승인 — 가시성 강화 */

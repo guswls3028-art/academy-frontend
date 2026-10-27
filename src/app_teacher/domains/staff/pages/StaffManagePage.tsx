@@ -76,7 +76,7 @@ export default function StaffManagePage() {
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>직원 관리</h1>
         <button onClick={() => setCreateOpen(true)}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
-          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
           <Plus size={ICON.xs} /> 직원 추가
         </button>
       </div>
@@ -312,7 +312,7 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
 
         <button onClick={() => createMut.mutate()} disabled={!canSubmit || createMut.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
           {createMut.isPending ? "저장 중..." : isEdit ? "수정" : "등록"}
         </button>
 

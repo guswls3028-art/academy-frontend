@@ -317,7 +317,7 @@ button.startRow:focus-visible {
   align-items: center;
   border: 0;
   background: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   font-weight: 600;
   cursor: pointer;
   transition: opacity 150ms ease;

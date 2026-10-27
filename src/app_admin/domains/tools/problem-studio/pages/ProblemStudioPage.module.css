@@ -110,7 +110,7 @@
   height: 20px;
   border-radius: 999px;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   font-size: 12px;
 }
 
@@ -713,7 +713,7 @@
   height: 28px;
   border-radius: 999px;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   font-size: 13px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;

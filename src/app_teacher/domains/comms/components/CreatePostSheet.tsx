@@ -290,7 +290,7 @@ export default function CreatePostSheet({ open, onClose, postType, postTypeLabel
             borderRadius: "var(--tc-radius)",
             border: "none",
             background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)",
-            color: canSubmit ? "#fff" : "var(--tc-text-muted)",
+            color: canSubmit ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)",
             marginTop: 4,
           }}
         >

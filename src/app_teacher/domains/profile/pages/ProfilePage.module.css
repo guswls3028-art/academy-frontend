@@ -118,7 +118,7 @@
   justify-content: center;
   border-radius: var(--tc-radius);
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
 }
 
 .installBody {
@@ -195,7 +195,7 @@
 
 .pushButtonPrimary {
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
   cursor: pointer;
 }
 

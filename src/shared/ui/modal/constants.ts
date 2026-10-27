@@ -18,15 +18,3 @@ export const MODAL_WIDTH = {
   board: 980,
   full: 1000,
 } as const;
-
-/** 라이트/브랜드 테마에서 모달 배경 흰색 처리 (AdminModal 내부용) */
-export const BRAND_AND_LIGHT_THEMES = new Set([
-  "modern-white",
-  "navy-pro",
-  "mocha-office",
-  "minimal-mono",
-  "kakao-business",
-  "naver-works",
-  "samsung-admin",
-  "purple-insight",
-]);

@@ -1,10 +1,37 @@
-import type { Page, Route } from "@playwright/test";
+import type { Locator, Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
+import { contrast } from "../../src/shared/theme/accent";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+
+async function expectReadableControl(control: Locator) {
+  const colors = await control.evaluate((element) => {
+    const toHex = (value: string) => {
+      const numbers = (value.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+      return "#" + numbers.map((channel) => Math.round(value.startsWith("color(srgb") ? channel * 255 : channel)
+        .toString(16).padStart(2, "0")).join("");
+    };
+    let parent: Element | null = element;
+    while (parent && getComputedStyle(parent).backgroundColor === "rgba(0, 0, 0, 0)") parent = parent.parentElement;
+    return { text: toHex(getComputedStyle(element).color), background: toHex(getComputedStyle(parent ?? element).backgroundColor) };
+  });
+  expect.soft(contrast(colors.text, colors.background), JSON.stringify(colors)).toBeGreaterThanOrEqual(4.5);
+}
+
+async function expectPortalSurface(page: Page, portal: Locator) {
+  const surface = await page.evaluate(() => {
+    const probe = document.createElement("span");
+    probe.style.backgroundColor = "var(--color-bg-surface)";
+    document.body.append(probe);
+    const color = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return color;
+  });
+  expect.soft(await portal.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(surface);
+}
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -105,39 +132,58 @@ test.describe("강의 생성 반응형 회귀", () => {
     await expect(page.getByRole("button", { name: "등록", exact: true })).toBeVisible();
   });
 
-  test("390px 강의 생성은 일정 검토와 취소를 거친 뒤에만 저장한다", async ({ page }) => {
-    const createdLectures = await seedLocalAdmin(page);
-    await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "강의 추가", exact: true }).click();
+  for (const theme of ["modern-white", "paper", "focus-dark"] as const) {
+    for (const width of [390, 1366]) {
+      test(`${width}px ${theme} 강의 생성은 읽을 수 있는 팝업과 일정 검토·취소를 거친 뒤 저장한다`, async ({ page }, info) => {
+        await page.setViewportSize({ width, height: 900 });
+        const createdLectures = await seedLocalAdmin(page);
+        await page.addInitScript((style) => {
+          localStorage.setItem("hakwonplus:appearance", JSON.stringify({ version: 1, theme: style, accent: "#ffedaa" }));
+        }, theme);
+        await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
+        await page.getByRole("button", { name: "강의 추가", exact: true }).click();
 
-    const modal = page.getByRole("dialog", { name: "강의 추가" });
-    await modal.getByLabel("강의 이름 (필수)").fill("고2 물리 안전확인반");
-    await modal.getByLabel("과목 (필수)").fill("물리");
-    await modal.locator("button.shared-date-picker-trigger").first().click();
-    await page.locator(".shared-date-picker-dropdown--portaled .shared-date-picker-cell-today").click();
+        const modal = page.getByRole("dialog", { name: "강의 추가" });
+        await modal.getByLabel("강의 이름 (필수)").fill("고2 물리 안전확인반");
+        await modal.getByLabel("과목 (필수)").fill("물리");
+        await modal.locator("button.shared-date-picker-trigger").first().click();
+        const datePopover = page.getByRole("dialog", { name: "날짜 선택" });
+        await expectPortalSurface(page, datePopover);
+        await expectReadableControl(datePopover.locator(".shared-date-picker-title"));
+        await datePopover.locator(".shared-date-picker-cell-today").click();
+        await modal.locator("button.shared-date-picker-trigger").first().click();
+        await expectReadableControl(datePopover.locator(".shared-date-picker-cell-selected"));
+        if (theme === "focus-dark" && width === 390) await page.screenshot({ path: info.outputPath("dark-date-popup-390.png") });
+        await datePopover.locator(".shared-date-picker-cell-selected").click();
 
-    const timePopover = page.getByRole("dialog", { name: "시간 선택" });
-    await modal.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
-    await timePopover.getByLabel("분 단위 직접 입력").fill("16:30");
-    await timePopover.getByRole("button", { name: "적용", exact: true }).click();
-    await modal.getByRole("button", { name: "종료 시간 선택", exact: true }).click();
-    await timePopover.getByLabel("분 단위 직접 입력").fill("17:00");
-    await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+        const timePopover = page.getByRole("dialog", { name: "시간 선택" });
+        await modal.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
+        await expectPortalSurface(page, timePopover);
+        await expectReadableControl(timePopover.getByRole("button", { name: "적용", exact: true }));
+        if (theme === "focus-dark" && width === 390) await page.screenshot({ path: info.outputPath("dark-time-popup-390.png") });
+        await timePopover.getByLabel("분 단위 직접 입력").fill("16:30");
+        await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+        await modal.getByRole("button", { name: "종료 시간 선택", exact: true }).click();
+        await timePopover.getByLabel("분 단위 직접 입력").fill("17:00");
+        await timePopover.getByRole("button", { name: "적용", exact: true }).click();
 
-    await modal.getByRole("button", { name: "등록", exact: true }).click();
-    const confirmation = page.getByRole("alertdialog", { name: "강의 생성 최종 확인" });
-    await expect(confirmation.getByText("고2 물리 안전확인반", { exact: true })).toBeVisible();
-    await expect(confirmation.getByText("16:30~17:00", { exact: true })).toBeVisible();
-    await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
-    expect(await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
-    expect(createdLectures).toHaveLength(0);
-    await confirmation.getByRole("button", { name: "다시 확인" }).click();
-    expect(createdLectures).toHaveLength(0);
+        await modal.getByRole("button", { name: "등록", exact: true }).click();
+        const confirmation = page.getByRole("alertdialog", { name: "강의 생성 최종 확인" });
+        await expectReadableControl(confirmation.getByRole("button", { name: "확인하고 만들기" }));
+        await expect(confirmation.getByText("고2 물리 안전확인반", { exact: true })).toBeVisible();
+        await expect(confirmation.getByText("16:30~17:00", { exact: true })).toBeVisible();
+        await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
+        expect(await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+        expect(createdLectures).toHaveLength(0);
+        await confirmation.getByRole("button", { name: "다시 확인" }).click();
+        expect(createdLectures).toHaveLength(0);
 
-    await modal.getByRole("button", { name: "등록", exact: true }).click();
-    await page.getByRole("alertdialog", { name: "강의 생성 최종 확인" })
-      .getByRole("button", { name: "확인하고 만들기" })
-      .click();
-    await expect.poll(() => createdLectures.length).toBe(1);
-  });
+        await modal.getByRole("button", { name: "등록", exact: true }).click();
+        await page.getByRole("alertdialog", { name: "강의 생성 최종 확인" })
+          .getByRole("button", { name: "확인하고 만들기" })
+          .click();
+        await expect.poll(() => createdLectures.length).toBe(1);
+      });
+    }
+  }
 });

@@ -133,8 +133,8 @@
 
 .quickButtonSuccessDone {
   border: 1px solid transparent;
-  background: var(--tc-success);
-  color: #fff;
+  background: var(--tc-success-solid);
+  color: var(--tc-semantic-contrast);
 }
 
 .quickButtonPrimary {
@@ -146,7 +146,7 @@
 .quickButtonPrimaryDone {
   border: 1px solid transparent;
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
 }
 
 @media (min-width: 1024px) {

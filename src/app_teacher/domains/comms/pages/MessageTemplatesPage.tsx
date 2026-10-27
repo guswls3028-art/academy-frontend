@@ -100,7 +100,7 @@ export default function MessageTemplatesPage() {
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>알림톡 문구</h1>
         <button onClick={() => setEditSheet({ open: true })}
           className="flex items-center gap-1 text-xs font-bold cursor-pointer"
-          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
           <Plus size={ICON.xs} /> 새 문구
         </button>
       </div>

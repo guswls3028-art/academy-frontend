@@ -114,7 +114,7 @@
   border: none;
   border-radius: 6px;
   background: var(--color-brand-primary, #6366f1);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -453,7 +453,7 @@
   border: none;
   border-radius: 8px;
   background: var(--color-brand-primary, #6366f1);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -1394,7 +1394,7 @@
   border: none;
   border-radius: 8px;
   background: var(--color-brand-primary, #6366f1);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;

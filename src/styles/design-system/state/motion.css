@@ -3,9 +3,9 @@
 
 :root {
   /* duration */
-  --motion-fast: 80ms;
-  --motion-base: 140ms;
-  --motion-slow: 220ms;
+  --motion-fast: var(--ds-duration-fast);
+  --motion-base: var(--ds-duration-base);
+  --motion-slow: var(--ds-duration-slow);
 
   /* easing */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);

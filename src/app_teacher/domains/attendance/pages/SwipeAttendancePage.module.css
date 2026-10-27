@@ -23,8 +23,8 @@
   padding: 6px 14px;
   border: 0;
   border-radius: 999px;
-  background: var(--tc-success);
-  color: #fff;
+  background: var(--tc-success-solid);
+  color: var(--tc-semantic-contrast);
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;

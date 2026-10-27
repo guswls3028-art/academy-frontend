@@ -177,7 +177,7 @@
 .paymentGuide li[data-state="current"] .guideNumber {
   background: var(--color-primary, #4f46e5);
   border-color: var(--color-primary, #4f46e5);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .paymentGuide li[data-state="done"] .guideNumber {
@@ -232,7 +232,7 @@
   background: var(--color-primary, #4f46e5);
   border: 0;
   border-radius: 9px;
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   cursor: pointer;
   font-size: 13px;
   font-weight: 750;

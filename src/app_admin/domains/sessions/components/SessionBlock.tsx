@@ -255,7 +255,7 @@ function SessionGearMenu({
             <input type="date" className="ds-input text-sm" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
             <div className="flex justify-end gap-1 mt-1">
               <button type="button" className="px-2.5 py-1 text-xs rounded bg-[var(--color-bg-surface-hover)] text-[var(--color-text-secondary)]" onClick={() => { setEditing(false); setOpen(false); }}>취소</button>
-              <button type="button" className="px-2.5 py-1 text-xs rounded bg-[var(--color-brand-primary)] text-white font-medium" onClick={handleSaveEdit} disabled={busy}>저장</button>
+              <button type="button" className="px-2.5 py-1 text-xs rounded bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] font-medium" onClick={handleSaveEdit} disabled={busy}>저장</button>
             </div>
           </div>
         </div>,

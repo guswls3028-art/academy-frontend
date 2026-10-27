@@ -240,7 +240,7 @@
 
 .providerButton[data-active="true"] {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .inlineLink {

@@ -675,7 +675,7 @@ function AccountNotificationCard({ items, onGuide, onReset, loading, failed, ret
             type="button"
             onClick={onGuide}
             className="text-[11px] font-bold"
-            style={{ minHeight: 30, padding: "5px 9px", borderRadius: "var(--tc-radius-sm)", border: 0, background: "var(--tc-primary)", color: "#fff", cursor: "pointer" }}
+            style={{ minHeight: 30, padding: "5px 9px", borderRadius: "var(--tc-radius-sm)", border: 0, background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", cursor: "pointer" }}
           >
             로그인 정보 안내
           </button>
@@ -831,7 +831,7 @@ function AccountGuidanceSheet({ open, onClose, student }: {
           onClick={handleSubmit}
           disabled={submitting || (target === "student" ? !hasStudentRecipient : target === "parent" ? !hasParentRecipient : !hasStudentRecipient || !hasParentRecipient)}
           className="w-full text-sm font-bold"
-          style={{ minHeight: 46, borderRadius: "var(--tc-radius)", border: 0, background: "var(--tc-primary)", color: "#fff", opacity: submitting ? 0.6 : 1, cursor: submitting ? "wait" : "pointer" }}
+          style={{ minHeight: 46, borderRadius: "var(--tc-radius)", border: 0, background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: submitting ? 0.6 : 1, cursor: submitting ? "wait" : "pointer" }}
         >
           {submitting ? "발송 중…" : `${target === "student" ? "학생" : target === "parent" ? "학부모" : "학생·학부모"} 로그인 정보 안내 보내기`}
         </button>
@@ -870,7 +870,7 @@ function MemoSection({ studentId, initialMemo }: { studentId: number; initialMem
           <div className="flex gap-1">
             <button onClick={() => mutation.mutate()} disabled={mutation.isPending}
               className="flex items-center gap-0.5 text-[11px] font-bold cursor-pointer"
-              style={{ background: "var(--tc-primary)", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "var(--tc-radius-sm)" }}>
+              style={{ background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", border: "none", padding: "4px 8px", borderRadius: "var(--tc-radius-sm)" }}>
               <Save size={ICON.xs} /> {mutation.isPending ? "저장 중…" : "저장"}
             </button>
             <button disabled={mutation.isPending} onClick={() => setEditing(false)}
@@ -1051,7 +1051,7 @@ function EditStudentSheet({
 
         <button onClick={() => mutation.mutate()} disabled={mutation.isPending || !name.trim()}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: mutation.isPending ? 0.6 : 1 }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: mutation.isPending ? 0.6 : 1 }}>
           {mutation.isPending ? "저장 중…" : "저장"}
         </button>
 
@@ -1171,7 +1171,7 @@ function TagManagementSheet({ open, onClose, studentId, currentTags }: {
             style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
           <button onClick={() => createMut.mutate()} disabled={!newTagName.trim() || createMut.isPending}
             className="text-xs font-bold cursor-pointer shrink-0"
-            style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: !newTagName.trim() ? 0.5 : 1 }}>
+            style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: !newTagName.trim() ? 0.5 : 1 }}>
             생성
           </button>
         </div>
@@ -1326,7 +1326,7 @@ function PasswordResetSheet({ open, onClose, student }: {
         {/* Submit */}
         <button onClick={handleSubmit} disabled={submitting || tempPassword.trim().length < 4}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: submitting || tempPassword.trim().length < 4 ? 0.6 : 1 }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: submitting || tempPassword.trim().length < 4 ? 0.6 : 1 }}>
           {submitting ? "변경 중…" : "비밀번호 변경"}
         </button>
       </div>

@@ -138,6 +138,13 @@ function StudentLayoutInner() {
     return () => root.removeAttribute("data-student-app");
   }, []);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) root.setAttribute("data-student-dark", "true");
+    else root.removeAttribute("data-student-dark");
+    return () => root.removeAttribute("data-student-dark");
+  }, [isDark]);
+
   const clearStudentScopedQueries = useCallback(() => {
     const studentScopePredicate = (query: { queryKey: readonly unknown[] }) =>
       isStudentScopedQueryKey(query.queryKey);

@@ -126,7 +126,7 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
 
         <button onClick={() => editMut.mutate()} disabled={!title.trim() || editMut.isPending}
           className="w-full text-sm font-bold cursor-pointer"
-          style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
           {editMut.isPending ? "저장 중..." : "저장"}
         </button>
 
@@ -144,7 +144,7 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
               style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
             <button onClick={() => answerKeyMut.mutate()} disabled={!answerKey.trim()}
               className="text-xs font-bold cursor-pointer shrink-0"
-              style={{ padding: "8px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: !answerKey.trim() ? 0.5 : 1 }}>
+              style={{ padding: "8px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: !answerKey.trim() ? 0.5 : 1 }}>
               등록
             </button>
           </div>

@@ -213,7 +213,7 @@ export default function TeacherSettingsPage() {
               style={{
                 padding: "6px 14px", borderRadius: "var(--tc-radius)", border: "none",
                 background: push.subscribed ? "var(--tc-surface-soft)" : "var(--tc-primary)",
-                color: push.subscribed ? "var(--tc-text-secondary)" : "#fff",
+                color: push.subscribed ? "var(--tc-text-secondary)" : "var(--tc-primary-contrast)",
                 opacity: push.loading ? 0.6 : 1,
               }}>
               {push.loading ? "..." : push.subscribed ? "끄기" : "켜기"}
@@ -234,7 +234,7 @@ export default function TeacherSettingsPage() {
             className="flex items-center gap-3 w-full text-left cursor-pointer rounded-lg"
             style={{ padding: "10px 12px", background: "var(--tc-primary-bg)", border: "1px solid var(--tc-primary)", borderRadius: "var(--tc-radius)" }}>
             <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
-              style={{ background: "var(--tc-primary)", color: "#fff" }}>
+              style={{ background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
               <Smartphone size={ICON.sm} />
             </div>
             <div className="flex-1">
@@ -343,7 +343,7 @@ function SmBtn({ label, primary, disabled, loading, onClick, icon }: {
       style={{
         padding: "7px 14px", borderRadius: "var(--tc-radius)", border: "none",
         background: primary ? "var(--tc-primary)" : "var(--tc-surface-soft)",
-        color: primary ? "#fff" : "var(--tc-text-secondary)",
+        color: primary ? "var(--tc-primary-contrast)" : "var(--tc-text-secondary)",
         opacity: disabled || loading ? 0.5 : 1,
       }}>
       {icon}{loading ? "..." : label}

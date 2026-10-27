@@ -123,7 +123,7 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
                   borderRadius: "var(--tc-radius-sm)",
                   border: "1px solid var(--tc-border-strong)",
                   background: sessionType === kind ? "var(--tc-primary)" : "var(--tc-surface-soft)",
-                  color: sessionType === kind ? "#fff" : "var(--tc-text)",
+                  color: sessionType === kind ? "var(--tc-primary-contrast)" : "var(--tc-text)",
                 }}
               >
                 {kind === "REGULAR" ? "정규 차시" : "보강"}
@@ -160,7 +160,7 @@ export default function SessionFormSheet({ open, onClose, lectureId, editData }:
 
         <button onClick={handleSave} disabled={(sessionType === "SUPPLEMENT" && !title.trim()) || mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-2"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: sessionType === "REGULAR" || title.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: sessionType === "REGULAR" || title.trim() ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: sessionType === "REGULAR" || title.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: sessionType === "REGULAR" || title.trim() ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
           {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "추가"}
         </button>
 

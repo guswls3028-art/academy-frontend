@@ -14,27 +14,12 @@
 [data-student-theme] {
   --stu-on-gradient: #fff;
   --stu-focus-ring: var(--stu-primary);
-  --stu-icon-paint: url(#stu-icon-gradient);
+  --stu-icon-paint: var(--stu-primary);
   --stu-tab-indicator: var(--stu-gradient);
 
-  --stu-wash-app: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--stu-brand-1) 4%, transparent) 0%,
-    color-mix(in srgb, var(--stu-brand-2) 3%, transparent) 50%,
-    color-mix(in srgb, var(--stu-brand-3) 2%, transparent) 100%
-  );
-  --stu-wash-chrome: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--stu-brand-1) 7%, transparent) 0%,
-    color-mix(in srgb, var(--stu-brand-2) 5%, transparent) 50%,
-    color-mix(in srgb, var(--stu-brand-3) 3%, transparent) 100%
-  );
-  --stu-wash-surface: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--stu-brand-1) 4%, transparent) 0%,
-    color-mix(in srgb, var(--stu-brand-2) 3%, transparent) 50%,
-    color-mix(in srgb, var(--stu-brand-3) 1.5%, transparent) 100%
-  );
+  --stu-wash-app: none;
+  --stu-wash-chrome: none;
+  --stu-wash-surface: none;
 }
 
 /* 다크모드 primary는 밝은 톤이므로 primary 면 위 글자는 짙은 잉크를 쓴다 (테넌트가 재정의 가능) */
@@ -51,7 +36,7 @@
 /* 앱 배경 */
 [data-app="student"][data-student-theme] {
   background-color: var(--stu-bg) !important;
-  background-image: var(--stu-wash-app), var(--stu-bg-pattern, none) !important;
+  background-image: none !important;
   background-size: 100% 100%, var(--stu-bg-pattern-size, auto) !important;
   background-repeat: no-repeat !important;
   background-attachment: fixed !important;
@@ -74,7 +59,7 @@
 /* 하단 탭 활성 상태 — 아이콘·라벨이 함께 primary로 바뀌고 브랜드 인디케이터를 표시 */
 [data-student-theme] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
   color: var(--stu-primary);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 [data-student-theme] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
@@ -92,16 +77,16 @@
 /* primary 버튼 — 텍스트 대비가 보장된 브랜드 그라데이션 */
 [data-student-theme] .stu-btn--primary {
   border-color: transparent;
-  background: var(--stu-gradient);
-  color: var(--stu-on-gradient);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--stu-brand-1) 18%, transparent);
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+  box-shadow: none;
 }
 
 [data-student-theme] .stu-btn--primary:hover:not(:disabled) {
   border-color: transparent;
   background: var(--stu-gradient);
   filter: brightness(1.06);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--stu-brand-1) 24%, transparent);
+  box-shadow: none;
 }
 
 /* 콘텐츠 아이콘 브랜드 그라데이션 (#stu-icon-gradient 정지점은 --stu-icon-1/2) */

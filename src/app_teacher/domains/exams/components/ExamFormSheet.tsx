@@ -64,7 +64,7 @@ export default function ExamFormSheet({ open, onClose, mode }: Props) {
         </div>
         <button onClick={() => mutation.mutate()} disabled={!title.trim() || mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: title.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: title.trim() ? "#fff" : "var(--tc-text-muted)" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: title.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: title.trim() ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
           {mutation.isPending ? "생성 중..." : `${label} 생성`}
         </button>
       </div>

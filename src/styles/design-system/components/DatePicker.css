@@ -88,15 +88,14 @@
   width: max-content;
 }
 
-/* 포털 시(body에 렌더): 변수 상속 없어도 차시 생성 모달과 동일한 불투명 배경·테두리·그림자 강제.
-   라이트 = 모달과 동일 흰색, 다크 = 테마 surface(scale-Neutral50) — 둘 다 불투명. */
+/* Body portals inherit the same opaque surface tokens as shared dialogs. */
 .shared-date-picker-dropdown--portaled {
   position: fixed;
   z-index: 1200;
   min-width: 336px;
   width: max-content;
   font-family: var(--font-sans) !important;
-  background-color: #ffffff !important;
+  background-color: var(--color-bg-surface) !important;
   background-image: none !important;
   border: 1px solid var(--ui-control-border, var(--color-border-divider)) !important;
   border-radius: var(--radius-lg);
@@ -111,35 +110,9 @@
   padding-top: 0 !important;
 }
 
-/* 다크 테마: 모달 배경과 동일한 surface 사용 (불투명) */
-[data-theme="modern-dark"] .shared-date-picker-dropdown--portaled,
-[data-theme="dark-navy"] .shared-date-picker-dropdown--portaled,
-[data-theme="graphite-studio"] .shared-date-picker-dropdown--portaled,
-[data-theme="deep-ocean"] .shared-date-picker-dropdown--portaled {
-  background-color: var(--scale-Neutral50) !important;
-}
-[data-theme="modern-dark"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds,
-[data-theme="dark-navy"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds,
-[data-theme="graphite-studio"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds,
-[data-theme="deep-ocean"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds {
-  background: var(--scale-Neutral50);
-}
-
-/* 달력 본체 전역 디자인 격리: body 포털 시에도 차시 모달·클리닉 동일한 토큰 사용 (페이지/래퍼 상속 차단) */
+/* Shared role tokens remain authoritative inside the calendar as well. */
 .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds {
-  background: #ffffff;
-  --color-text-primary: var(--scale-Neutral900);
-  --color-text-secondary: var(--scale-Neutral700);
-  --color-text-muted: var(--scale-Neutral500);
-  --color-brand-primary: var(--scale-Primary500);
-  --color-primary: var(--scale-Primary500);
-  --color-bg-surface: var(--scale-Neutral50);
-  --color-bg-surface-hover: var(--scale-Neutral100);
-  --color-border-divider: var(--scale-Neutral200);
-  --ui-control-text: var(--scale-Neutral900);
-  --ui-control-border: var(--scale-Neutral200);
-  --state-hover-bg: var(--scale-Neutral100);
-  --state-focus-ring: 0 0 0 2px var(--scale-Primary500);
+  background: var(--color-bg-surface);
   font-family: var(--app-font-sans, var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif));
 }
 
@@ -222,12 +195,12 @@
 
 .shared-date-picker-cell-selected {
   background: var(--color-brand-primary, var(--color-primary));
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .shared-date-picker-cell-selected:hover {
-  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 88%, black);
-  color: #fff;
+  background: var(--color-brand-primary-hover);
+  color: var(--color-brand-primary-contrast);
 }
 
 .shared-date-picker-cell-disabled {

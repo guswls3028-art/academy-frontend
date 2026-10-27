@@ -175,7 +175,7 @@ export default function MyStoragePage() {
             borderRadius: "var(--tc-radius)",
             border: "none",
             background: "var(--tc-primary)",
-            color: "#fff",
+            color: "var(--tc-primary-contrast)",
           }}
         >
           <Upload size={ICON.md} /> 업로드
@@ -446,7 +446,7 @@ export default function MyStoragePage() {
                 borderRadius: "var(--tc-radius)",
                 border: "none",
                 background: "var(--tc-primary)",
-                color: "#fff",
+                color: "var(--tc-primary-contrast)",
               }}
             >
               {uploadMut.isPending ? "업로드 중…" : "업로드"}
@@ -478,7 +478,7 @@ export default function MyStoragePage() {
               borderRadius: "var(--tc-radius)",
               border: "none",
               background: "var(--tc-primary)",
-              color: "#fff",
+              color: "var(--tc-primary-contrast)",
             }}
           >
             생성

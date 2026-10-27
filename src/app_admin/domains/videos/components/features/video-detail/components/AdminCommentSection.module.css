@@ -94,7 +94,7 @@
   border: none;
   border-radius: 10px;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
@@ -209,7 +209,7 @@
 
 .roleTeacher {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .roleStudent {
@@ -255,7 +255,7 @@
   padding: 6px 14px;
   border: none;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .primaryButton:disabled {

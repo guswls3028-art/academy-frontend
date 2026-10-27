@@ -113,7 +113,7 @@
   justify-content: center;
   flex: 0 0 auto;
   background: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   box-shadow: 0 5px 14px color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
 }
 
@@ -391,7 +391,7 @@
 .video-upload-modal__policy-state[data-on="true"] {
   background: var(--color-brand-primary);
   border-color: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 /* 재생 정책 — 데스크톱에서는 워터마크 · 건너뛰기 · 배속을 한 줄로 유지 */

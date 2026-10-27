@@ -146,3 +146,13 @@ pnpm exec playwright test e2e/admin/assessment-operations-workspace.mock.spec.ts
 기존 전역 키, 다른 tenant 키, 다른 user 키를 읽거나 변경하지 않는지 검증한다.
 평가·성적·학생 시험 PR gate는 저장/재조회, 유효한 0, 필드 오류 입력 보존,
 stale 충돌, 동일 계정 초안 복구와 숫자 정규화를 유지한다.
+
+## 화면 스타일과 강조색
+
+관리자·교사의 개인 표시 취향은 `hakwonplus:appearance`의 version 1 객체가
+정본이다. `theme`와 사용자 원본 `accent`를 함께 저장하고 저장 직후 읽기로
+성공을 확인한다. 기존 12개 테마와 과거 별칭은 [디자인 시스템](DESIGN-SYSTEM.md)의
+이관을 따른다. 이전 배포용 `hakwonplus:theme`에는 호환되는 구 키를 남긴다.
+손상된 값은 기본 표시로 진입하고, 쓰기 실패는 현재 화면 적용과 저장 실패를
+구분해 알리며 재시도를 제공한다. 서버·테넌트·사용자 데이터에는 쓰지 않는다.
+학생의 `hakwonplus:student-theme-mode`와 테넌트 브랜드는 독립적으로 유지한다.
