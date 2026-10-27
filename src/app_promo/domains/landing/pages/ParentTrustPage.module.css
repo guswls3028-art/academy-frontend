@@ -8,17 +8,7 @@
   overflow: hidden;
   color: #f8fafc;
   background:
-    linear-gradient(135deg, rgba(6, 16, 24, 0.97), rgba(14, 42, 44, 0.92)),
-    url("/promo/admin-scores-authority-20260726.png") left top / cover;
-}
-
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0;
-  height: 150px;
-  background: linear-gradient(180deg, transparent, #f4f8f8);
-  pointer-events: none;
+    #283b45;
 }
 
 .heroInner,
@@ -49,7 +39,7 @@
   gap: 8px;
   color: #7dd3fc;
   font-size: 12px;
-  font-weight: 930;
+  font-weight: 650;
   letter-spacing: 0;
 }
 
@@ -58,9 +48,9 @@
 .packageCopy h2 {
   margin: 14px 0 0;
   color: #fff;
-  font-size: 64px;
-  font-weight: 940;
-  line-height: 1.02;
+  font-size: 48px;
+  font-weight: 650;
+  line-height: 1.3;
   letter-spacing: 0;
   word-break: keep-all;
   text-wrap: balance;
@@ -91,7 +81,7 @@
 
 .heroPhone a {
   color: #9ee8df;
-  font-weight: 900;
+  font-weight: 650;
   text-underline-offset: 3px;
 }
 
@@ -106,7 +96,7 @@
   border-radius: 8px;
   padding: 0 18px;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 650;
   text-decoration: none;
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
@@ -152,7 +142,7 @@
   display: block;
   color: #7dd3fc;
   font-size: 11px;
-  font-weight: 930;
+  font-weight: 650;
   letter-spacing: 0;
 }
 
@@ -161,7 +151,7 @@
   margin-top: 8px;
   color: #fff;
   font-size: 24px;
-  font-weight: 940;
+  font-weight: 650;
 }
 
 .reportTop small {
@@ -171,7 +161,7 @@
   padding: 7px 10px;
   color: #fbbf24;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 650;
   background: rgba(251, 191, 36, 0.1);
 }
 
@@ -209,7 +199,7 @@
   margin-top: 6px;
   color: #fff;
   font-size: 14px;
-  font-weight: 930;
+  font-weight: 650;
 }
 
 .flowSection,
@@ -276,7 +266,7 @@
   display: block;
   color: #94a3b8;
   font-size: 12px;
-  font-weight: 930;
+  font-weight: 650;
 }
 
 .flowGrid svg {
@@ -289,7 +279,7 @@
   margin-top: 14px;
   color: #101923;
   font-size: 17px;
-  font-weight: 930;
+  font-weight: 650;
 }
 
 .flowGrid p {
@@ -358,7 +348,7 @@
   margin: 20px 0 0;
   color: #101923;
   font-size: 30px;
-  font-weight: 940;
+  font-weight: 650;
   line-height: 1.12;
   word-break: keep-all;
 }
@@ -428,7 +418,7 @@
   margin-top: 9px;
   color: #101923;
   font-size: 24px;
-  font-weight: 940;
+  font-weight: 650;
 }
 
 .packageStack p {
@@ -446,7 +436,7 @@
   }
 
   .heroCopy h1 {
-    font-size: 52px;
+    font-size: 48px;
   }
 
   .sectionHead h2,
@@ -485,7 +475,7 @@
 
   .heroCopy h1 {
     font-size: 38px;
-    line-height: 1.08;
+    line-height: 1.3;
   }
 
   .heroCopy p,

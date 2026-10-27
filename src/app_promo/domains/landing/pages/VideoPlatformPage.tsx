@@ -40,14 +40,14 @@ export default function VideoPlatformPage() {
         <div className={styles.heroInner}>
           <div className={styles.heroCopy}>
             <span>학생앱 영상</span>
-            <h1 id="video-platform-title">학생앱에서 복습 영상을 이어 봅니다</h1>
+            <h1 id="video-platform-title">학생용 영상 학습</h1>
             <p>
               학생은 강의별 영상 목록, 이어보기와 댓글을 앱에서 이용합니다.
               선생님은 수강생별 시청 상태와 마지막 재생 위치를 확인할 수 있습니다.
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/demo" className={styles.primaryButton}>
-                데모 요청
+                시연 신청
                 <ArrowRight size={18} />
               </Link>
               <Link to="/promo/features" className={styles.secondaryButton}>

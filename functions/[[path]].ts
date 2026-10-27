@@ -112,15 +112,15 @@ const DEV_CONSOLE_ORIGIN = `https://${DEV_CONSOLE_HOST}`;
 
 const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
   "/promo": {
-    title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",
-    description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.",
+    title: "학원플러스 | 학원 관리와 수업 기록",
+    description: "학생 관리, 출결, 성적, 수업 영상과 알림톡. 학원플러스의 기능과 실제 사용 화면을 확인할 수 있습니다.",
   },
   "/promo/features": {
     title: "기능과 실제 화면 | 학원플러스",
     description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 목적별로 확인하세요.",
   },
   "/promo/features/tour": {
-    title: "기능 둘러보기 · 실제 화면 설명서 | 학원플러스",
+    title: "기능 상세 가이드 | 학원플러스",
     description: "알림톡·영상·엑셀 업로드·정오표의 실제 화면을 5쪽 요약과 43쪽 상세 이미지로 확인하세요. 현재 제공 기능, 도입 검수와 맞춤 개발 범위를 구분합니다.",
   },
   "/promo/matchup-ppt": {
@@ -160,7 +160,7 @@ const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
     description: "현재 수업 방식과 필요한 기능을 알려주시면 사용할 내용과 시작 일정을 함께 정리해드립니다.",
   },
   "/promo/demo": {
-    title: "내 자료로 데모 요청 | 학원플러스",
+    title: "프로그램 시연 신청 | 학원플러스",
     description: "현재 수업과 관리 방식을 기준으로 영상, 알림톡, 학생 관리, 칠판용 PPT·매치업과 학원 홈페이지 화면을 확인해보세요.",
   },
 };

@@ -11,8 +11,8 @@ export default function GettingStartedSection() {
         <article className={styles.card}>
           <BookOpenCheck size={ICON.lg} aria-hidden="true" />
           <span className={styles.label}>사용 가이드</span>
-          <h2>실제 프로그램의 가이드를 미리 읽어보세요</h2>
-          <p>관리자·선생님, 직원·강사, 학생이 사용하는 가이드를 동일한 내용으로 제공합니다. 준비사항부터 사용 순서, 완료 확인과 문제 해결까지 살펴보세요.</p>
+          <h2>역할별 사용 가이드</h2>
+          <p>관리자, 직원·강사, 학생의 기능별 사용 방법과 문제 해결 안내입니다.</p>
           <Link to="/promo/guide">
             전체 사용 가이드 보기 <ArrowRight size={ICON.md} aria-hidden="true" />
           </Link>

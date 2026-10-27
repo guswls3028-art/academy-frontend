@@ -1234,6 +1234,7 @@ for (const width of [390, 1366]) {
       await page.getByRole("button", { name: "수동 통과 취소", exact: true }).click();
       const dialog = page.getByRole("dialog", { name: "수동 통과 취소", exact: true });
       const confirm = dialog.getByRole("button", { name: "통과 취소하기", exact: true });
+      await expect(dialog).not.toHaveClass(/ant-zoom-(?:appear|enter)/);
       await confirm.click();
       await expect(dialog.getByRole("alert")).toContainText("통과 취소에 실패했습니다");
       await expect(dialog).toContainText("기체 법칙 단원평가");
@@ -1243,7 +1244,10 @@ for (const width of [390, 1366]) {
       await expect(dialog.getByRole("alert")).toContainText("다른 작업으로 처리 상태가 바뀌었습니다");
       await expect(confirm).toBeDisabled();
       await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(dialog).toBeHidden();
       await page.getByRole("button", { name: "수동 통과 취소", exact: true }).click();
+      // CI can report a stable box before the enter animation starts moving it.
+      await expect(dialog).not.toHaveClass(/ant-zoom-(?:appear|enter)/);
       mode = "pending";
       await confirm.click();
       await expect(confirm).toBeDisabled();

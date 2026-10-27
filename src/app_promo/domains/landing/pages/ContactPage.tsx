@@ -86,8 +86,8 @@ export default function ContactPage() {
     <>
       <section className={styles.hero} aria-labelledby="contact-title">
         <div className={styles.heroInner}>
-          <span>사용 상담</span>
-          <h1 id="contact-title">선생님의 수업에 맞는 가격과 범위를 확인하세요</h1>
+
+          <h1 id="contact-title">이용 문의</h1>
           <p>문의 내용을 남기거나 전화로 상담할 수 있습니다. 기능과 시작일을 확인한 뒤 학원 계정을 설정합니다.</p>
           <PhoneInquiryLink>전화 상담 {CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
           <p>{CONSULT_CALLBACK_NOTICE}</p>
@@ -97,15 +97,15 @@ export default function ContactPage() {
       <section className={styles.body}>
         <div className={styles.leadGrid}>
           <aside className={styles.sidePanel}>
-            <span>상담 전에 확인할 것</span>
-            <h2>상담 전에 이 세 가지만 알려주세요</h2>
+
+            <h2>함께 알려주시면 좋은 내용</h2>
             <ol>
               <li>담당 수강생 수와 함께 쓰는 계정 수</li>
               <li>시험·과제·학생앱 영상·알림톡 발송 중 필요한 범위</li>
               <li>현재 수업 자료와 피드백을 관리하는 방식</li>
             </ol>
             <div className={styles.callBox}>
-              <strong>가입·사용 전화 상담</strong>
+              <strong>전화 문의</strong>
               <PhoneInquiryLink className={styles.callBoxButton}>{CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
               <p>{START_GUIDANCE_NOTICE}</p>
             </div>

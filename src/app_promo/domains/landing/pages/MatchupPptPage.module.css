@@ -1,6 +1,6 @@
 .page {
   --ink: #10233f;
-  --blue: #246bfd;
+  --blue: #365d6e;
   --amber: #ffb454;
   --mint: #b8f5d5;
   overflow: hidden;
@@ -15,46 +15,21 @@
 
 .hero {
   position: relative;
-  min-height: 760px;
   overflow: hidden;
-  padding: 132px 0 78px;
+  padding: 64px 0;
   color: #fff;
   background:
-    linear-gradient(rgba(103, 152, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(103, 152, 255, 0.08) 1px, transparent 1px),
-    #08162a;
+    #283b45;
   background-size: 52px 52px;
-}
-
-.hero::before {
-  content: "";
-  position: absolute;
-  top: -190px;
-  right: -120px;
-  width: 720px;
-  height: 720px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(36, 107, 253, 0.34), transparent 68%);
-}
-
-.hero::after {
-  content: "HAKWONPLUS / CLASS MATERIAL LAB";
-  position: absolute;
-  right: 28px;
-  bottom: 18px;
-  color: rgba(255, 255, 255, 0.16);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.18em;
 }
 
 .heroGrid {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 0.72fr) minmax(540px, 1fr);
+  grid-template-columns: minmax(0, .9fr) minmax(480px, 1fr);
   align-items: center;
-  gap: 58px;
+  gap: 40px;
   width: min(1220px, calc(100% - 40px));
   margin: 0 auto;
 }
@@ -69,22 +44,17 @@
   color: #ccecff;
   background: rgba(36, 107, 253, 0.13);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .heroCopy h1 {
   margin: 20px 0 0;
   color: #fff;
-  font-size: clamp(52px, 5.5vw, 78px);
-  font-weight: 950;
-  line-height: 0.98;
+  font-size: clamp(34px, 3.5vw, 48px);
+  font-weight: 650;
+  line-height: 1.3;
   letter-spacing: -0.045em;
   word-break: keep-all;
-}
-
-.heroCopy h1 em {
-  color: #93bdff;
-  font-style: normal;
 }
 
 .heroCopy > p {
@@ -110,10 +80,10 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 0 19px;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 650;
   text-decoration: none;
   transition: transform 160ms ease, background 160ms ease;
 }
@@ -121,8 +91,10 @@
 .primaryButton {
   color: #fff;
   background: var(--blue);
-  box-shadow: 0 18px 48px rgba(36, 107, 253, 0.32);
+  box-shadow: none;
 }
+
+.hero .primaryButton { color: #26353e; background: #fff; }
 
 .secondaryButton {
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -156,7 +128,7 @@
 .heroToolGrid span {
   color: #9fb7d6;
   font-size: 9px;
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .heroToolGrid > div[data-tool="ppt"] span {
@@ -168,7 +140,7 @@
   margin-top: 6px;
   color: #fff;
   font-size: 16px;
-  font-weight: 930;
+  font-weight: 650;
 }
 
 .heroToolGrid p {
@@ -236,7 +208,7 @@
 
 .productBar strong {
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .productBar em {
@@ -265,7 +237,7 @@
 .finalCtaInner > span {
   color: var(--blue);
   font-size: 9px;
-  font-weight: 950;
+  font-weight: 650;
   letter-spacing: 0.13em;
 }
 
@@ -304,7 +276,7 @@
 
 .heroPptCard span {
   font-size: 9px;
-  font-weight: 850;
+  font-weight: 650;
 }
 
 .heroPptCard strong {
@@ -326,7 +298,7 @@
   gap: 8px;
   color: rgba(255, 255, 255, 0.56);
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 650;
   letter-spacing: 0.06em;
   text-decoration: none;
   transform: translateX(-50%);
@@ -374,7 +346,7 @@
   padding: 5px 8px;
   color: currentColor;
   font-size: 9px;
-  font-weight: 900;
+  font-weight: 650;
   background: #eef4ff;
 }
 
@@ -386,7 +358,7 @@
   margin: 0;
   color: var(--ink);
   font-size: 24px;
-  font-weight: 940;
+  font-weight: 650;
 }
 
 .routeTools p {
@@ -412,7 +384,7 @@
   gap: 8px;
   color: #40536b;
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 650;
   counter-increment: route-step;
 }
 
@@ -454,7 +426,7 @@
   margin: 13px 0 0;
   color: var(--ink);
   font-size: 50px;
-  font-weight: 950;
+  font-weight: 650;
   line-height: 1.04;
   letter-spacing: -0.035em;
   word-break: keep-all;
@@ -494,7 +466,7 @@
   padding: 6px 9px;
   color: var(--blue);
   font-size: 9px;
-  font-weight: 900;
+  font-weight: 650;
   background: #eaf1ff;
 }
 
@@ -507,7 +479,7 @@
   margin: 0;
   color: var(--ink);
   font-size: 32px;
-  font-weight: 950;
+  font-weight: 650;
 }
 
 .toolGuideGroup > header p {
@@ -550,13 +522,13 @@
 
 .guideIndex span {
   font-size: 14px;
-  font-weight: 950;
+  font-weight: 650;
 }
 
 .guideIndex em {
   font-size: 9px;
   font-style: normal;
-  font-weight: 950;
+  font-weight: 650;
   letter-spacing: 0.12em;
 }
 
@@ -568,7 +540,7 @@
   margin: 26px 0 0;
   color: var(--ink);
   font-size: 34px;
-  font-weight: 940;
+  font-weight: 650;
   line-height: 1.08;
   word-break: keep-all;
 }
@@ -640,7 +612,7 @@
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 8px 24px rgba(16, 35, 63, 0.12);
   font-size: 9px;
-  font-weight: 880;
+  font-weight: 650;
 }
 
 .guardrailSection {
@@ -671,7 +643,7 @@
 .guardrailCard h2 {
   margin: 8px 0 0;
   font-size: 25px;
-  font-weight: 930;
+  font-weight: 650;
   line-height: 1.13;
   word-break: keep-all;
 }
@@ -711,7 +683,7 @@
 .exampleGrid article > span {
   color: var(--blue);
   font-size: 12px;
-  font-weight: 950;
+  font-weight: 650;
 }
 
 .exampleGrid article > em {
@@ -723,14 +695,14 @@
   background: #fff0d5;
   font-size: 10px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 650;
 }
 
 .exampleGrid h3 {
   margin: 13px 0 0;
   color: var(--ink);
   font-size: 22px;
-  font-weight: 930;
+  font-weight: 650;
 }
 
 .exampleGrid p {
@@ -816,7 +788,7 @@
 
   .hero {
     min-height: auto;
-    padding: 112px 0 72px;
+    padding: 64px 0;
   }
 
   .heroGrid {

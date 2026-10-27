@@ -8,8 +8,8 @@ export default function FeatureTourPage() {
     <div className={styles.page}>
       <header className={styles.intro}>
         <Link to="/promo/features">← 전체 기능 소개</Link>
-        <h1>실제 화면으로 확인하는 핵심 기능</h1>
-        <p>먼저 5쪽 요약으로 제공 범위를 확인하고, 43쪽 상세 설명에서 실제 사용 순서를 따라가세요.</p>
+        <h1>기능 상세 가이드</h1>
+        <p>알림톡, 수업 영상, 엑셀 업로드, 문항별 채점의 화면과 사용 방법입니다.</p>
       </header>
       <FeatureGuideReader mode="public" />
       <p className={styles.more}><Link to="/promo/guide">역할별 전체 사용 가이드 보기 →</Link></p>

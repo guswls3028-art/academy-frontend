@@ -149,7 +149,7 @@ test.describe("Production canary", () => {
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`${BASE}/promo/features`, { waitUntil: "domcontentloaded" });
-      await page.getByRole("link", { name: "기능 둘러보기 →", exact: true }).click();
+      await page.getByRole("main").getByRole("link", { name: "기능 상세 가이드", exact: true }).click();
       await expect(page).toHaveURL(`${BASE}/promo/features/tour`);
       await verifyFeatureGuideImages(page, testInfo, `live-guide-public-${width}-feature-reader`);
     }

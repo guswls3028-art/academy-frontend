@@ -183,9 +183,9 @@ export default function MatchupPptPage() {
               적중 근거 · 칠판용 PPT
             </span>
             <h1 id="matchup-ppt-page-title">
-              실제 시험과 사전 자료를 비교하고,
+              시험지 비교와
               <br />
-              <em>수업자료는 칠판용 PPT로 준비합니다</em>
+              칠판용 PPT 제작
             </h1>
             <p>
               매치업은 학교 시험지와 우리 학원 사전 자료를 문항별로 비교해 유사 출제 근거를 정리합니다.
@@ -205,7 +205,7 @@ export default function MatchupPptPage() {
             </div>
             <div className={styles.heroActions}>
               <Link to="/promo/demo?interest=matchup-ppt" className={styles.primaryButton}>
-                내 학원 화면 요청
+                시연 신청
                 <MousePointer2 size={18} />
               </Link>
               <PhoneInquiryLink className={styles.secondaryButton}>
@@ -374,12 +374,12 @@ export default function MatchupPptPage() {
       <section className={styles.finalCta} aria-labelledby="matchup-final-title">
         <div className={styles.sectionWrap}>
           <div className={styles.finalCtaInner}>
-            <span>자료 기반 데모</span>
+            <span>프로그램 시연</span>
             <h2 id="matchup-final-title">선생님의 시험지와 수업자료로 확인할 수 있습니다</h2>
             <p>실제 시험과 사전 자료로 적중 근거를 확인하고, 수업자료로 칠판용 PPT를 만들어 보여드립니다.</p>
             <div>
               <Link to="/promo/demo?interest=matchup-ppt" className={styles.primaryButton}>
-                데모 요청
+                시연 신청
                 <ArrowRight size={18} />
               </Link>
               <Link to="/promo/features" className={styles.secondaryButton}>
