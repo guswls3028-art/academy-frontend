@@ -56,6 +56,17 @@ export default defineConfig({
       },
     },
     {
+      name: "pr-homework-webkit",
+      testMatch: [
+        matchSpec("e2e/student/assignment-media-multiupload.mock.spec.ts"),
+        matchSpec("e2e/teacher/homework-manual-review.mock.spec.ts"),
+        matchSpec("e2e/admin/homework-media-review.mock.spec.ts"),
+      ],
+      grep: /HEIC/,
+      dependencies: [],
+      use: { ...webkit, serviceWorkers: "block" },
+    },
+    {
       name: "pr-iphone-webkit",
       testMatch: [
         matchSpec("e2e/godmin-resources.mock.spec.ts"),
