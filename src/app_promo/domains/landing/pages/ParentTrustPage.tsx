@@ -31,7 +31,7 @@ const REPORT_FLOW = [
   },
   {
     icon: BellRing,
-    title: "선생님 메모 작성·검수",
+    title: "메모 작성과 발송 전 확인",
     body: "승인된 알림톡 양식 안에 선생님 메모를 적고, 대상과 내용을 발송 전에 확인합니다.",
   },
   {
@@ -62,7 +62,7 @@ const USE_CASES = [
   },
   {
     icon: MessageSquareText,
-    title: "보강 상담 회수",
+    title: "보강이 필요한 학생 안내",
     body: "시험 결과와 영상 이력을 보고 보강이 필요한 학생을 찾고, 내용을 확인한 뒤 알림톡으로 안내합니다.",
     image: "/promo/admin-alimtalk-auto-send.png",
     alt: "관리자 알림톡 운영 화면",
