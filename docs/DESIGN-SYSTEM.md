@@ -91,7 +91,10 @@ AntD reset과 전역 native control 초기화는 Tailwind의 `base` 계층과 �
 `--color-semantic-contrast`와 함께 소비하며 교사의 `--tc-*-solid`도 같은 정본에 연결한다.
 교사 상태 글자와 출결 상태는 `--color-*-text`를 연결해 밝은 표면에서도 읽을 수 있게 한다.
 매치업 보고서의 포함·제외 버튼과 선택·완료 배지도 같은 역할 토큰을 사용한다.
-`matchup-mobile-touch-parity.mock.spec.ts`에서 밝은 강조색의 버튼·선택 상태 대비와
+자동저장·후보 검색·재시도 안내는 상태별 `--color-*-text`와 `--color-*-bg`를 짝지어 쓴다.
+자동저장 상태는 재시도 불가 상태에서도 읽을 수 있는 불투명도로 표시한다.
+보고서 이미지 확대 버튼과 묶음 안내의 표면·글자도 테마 토큰을 사용하며 문서 이미지 자체는 유지한다.
+`matchup-mobile-touch-parity.mock.spec.ts`에서 밝은 강조색의 버튼·선택·변경됨 상태 대비와
 PC/390px 선택·저장·재열기·다운로드를 함께 검증한다.
 
 주요 작업은 `Button`, 상태 선택은 `SelectionButton`, 읽기 전용 상태는 `Badge`가

@@ -235,7 +235,7 @@ function PreviewMatchRail({
       display: "flex",
       flexDirection: "column",
       minHeight: 0,
-      background: "white",
+      background: "var(--color-bg-surface)",
       border: "1px solid var(--color-border-divider)",
       borderRadius: 4,
       overflow: "hidden",
@@ -243,7 +243,7 @@ function PreviewMatchRail({
       <div style={{
         flexShrink: 0,
         padding: "7px 10px",
-        background: "color-mix(in srgb, var(--color-brand-primary) 9%, white)",
+        background: "var(--color-bg-surface-soft)",
         borderBottom: "1px solid color-mix(in srgb, var(--color-brand-primary) 20%, transparent)",
         display: "flex",
         alignItems: "center",
@@ -251,7 +251,7 @@ function PreviewMatchRail({
         gap: 8,
       }}>
         <span style={{
-          color: "var(--color-brand-primary)",
+          color: "var(--color-text-primary)",
           fontSize: 11,
           fontWeight: 800,
           letterSpacing: 0,
@@ -272,7 +272,7 @@ function PreviewMatchRail({
         minHeight: 0,
         overflowY: "auto",
         padding: 8,
-        background: "#f8fafc",
+        background: "var(--color-bg-canvas)",
         display: "grid",
         gridTemplateRows: shouldFitRows
           ? `repeat(${candidates.length}, minmax(0, 1fr))`
@@ -395,7 +395,7 @@ function PreviewSubPane({
                 padding: "5px 8px",
                 border: "1px solid color-mix(in srgb, var(--color-border-divider) 80%, transparent)",
                 borderRadius: 4,
-                background: "rgba(255,255,255,0.92)",
+                background: "var(--color-bg-surface)",
                 color: "var(--color-text-primary)",
                 fontSize: 11,
                 fontWeight: 800,

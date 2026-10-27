@@ -13,15 +13,17 @@ test.afterEach(async ({ page }, testInfo) => {
   }
 });
 
-async function expectReadableReportControl(control: Locator) {
+async function expectReadableReportControl(control: Locator, expectedLabel?: string) {
   const readColors = () => control.evaluate((element) => {
     const style = getComputedStyle(element);
     const hex = (value: string) => "#" + (value.match(/[\d.]+/g) ?? []).slice(0, 3)
       .map((channel) => Math.round(Number(channel) * (value.startsWith("color(srgb") ? 255 : 1)).toString(16).padStart(2, "0")).join("");
-    return { text: hex(style.color), background: hex(style.backgroundColor) };
+    return { text: hex(style.color), background: hex(style.backgroundColor), label: element.textContent, opacity: Number(style.opacity) };
   });
   await expect.poll(async () => {
     const colors = await readColors();
+    expect(colors.opacity).toBe(1);
+    if (expectedLabel) expect(colors.label).toContain(expectedLabel);
     return contrast(colors.text, colors.background);
   }, "Report control text contrast").toBeGreaterThanOrEqual(4.5);
 }
@@ -473,6 +475,10 @@ for (const width of [390, 1366]) {
     await expect(comment).toBeVisible();
     await expect.poll(async () => (await comment.boundingBox())?.width || 0).toBeGreaterThanOrEqual(280);
     await comment.fill(`QA comment ${width}`);
+    await expectReadableReportControl(report.getByTestId("matchup-hit-report-save-state"), "변경됨");
+    for (const label of ["실제 시험 크게 보기 버튼", "내 수업 자료 크게 보기 버튼"]) {
+      await expectReadableReportControl(report.getByRole("button", { name: label, exact: true }));
+    }
     await page.screenshot({ path: testInfo.outputPath(`report-preview-${width}.png`) });
     const add = report.getByRole("button", { name: "PDF에 포함", exact: true }).first();
     await add.scrollIntoViewIfNeeded();
