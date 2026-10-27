@@ -33,6 +33,7 @@ export default function LectureDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: Tab = searchParams.get("tab") === "students" ? "students" : "sessions";
   const setTab = (nextTab: Tab) => {
+    if (nextTab === tab) return;
     const next = new URLSearchParams(searchParams);
     if (nextTab === "students") next.set("tab", nextTab);
     else next.delete("tab");

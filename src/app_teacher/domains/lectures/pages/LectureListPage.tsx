@@ -23,6 +23,7 @@ export default function LectureListPage() {
   const tab: Tab = searchParams.get("tab") === "past" ? "past" : "active";
   const search = searchParams.get("q") ?? "";
   const setTab = (nextTab: Tab) => {
+    if (nextTab === tab) return;
     const next = new URLSearchParams(searchParams);
     if (nextTab === "past") next.set("tab", nextTab);
     else next.delete("tab");
