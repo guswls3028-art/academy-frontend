@@ -191,7 +191,7 @@ export default function MergeProblemsModal({ docId, problems, onClose, onSuccess
                 <div style={/* eslint-disable-line no-restricted-syntax */ {
                   position: "absolute", top: 6, left: 6,
                   background: "var(--color-brand-primary)",
-                  color: "white",
+                  color: "var(--color-brand-primary-contrast)",
                   fontSize: 10, fontWeight: 700,
                   padding: "1px 6px", borderRadius: 999,
                   zIndex: 1,

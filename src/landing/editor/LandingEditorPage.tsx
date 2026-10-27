@@ -212,7 +212,7 @@ export default function LandingEditorPage() {
                 style={{
                   padding: "6px 14px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 500,
                   background: viewMode === m ? "var(--color-primary, #2563EB)" : "transparent",
-                  color: viewMode === m ? "#fff" : "var(--color-text-secondary, #64748b)",
+                  color: viewMode === m ? "var(--color-brand-primary-contrast)" : "var(--color-text-secondary, #64748b)",
                 }}
               >
                 {m === "edit" ? "편집" : "미리보기"}
@@ -227,7 +227,7 @@ export default function LandingEditorPage() {
               게시 중단
             </button>
           ) : (
-            <button onClick={handlePublish} disabled={publishing || saving} style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "var(--color-primary, #2563EB)", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#fff", opacity: (publishing || saving) ? 0.6 : 1 }}>
+            <button onClick={handlePublish} disabled={publishing || saving} style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "var(--color-primary, #2563EB)", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--color-brand-primary-contrast)", opacity: (publishing || saving) ? 0.6 : 1 }}>
               {publishing ? "게시 중…" : saving ? "저장 중…" : "게시하기"}
             </button>
           )}
@@ -283,7 +283,7 @@ export default function LandingEditorPage() {
                     padding: "5px 12px", borderRadius: 6, fontSize: 12, fontWeight: 500, whiteSpace: "nowrap",
                     border: activeSection === tab.id ? "1px solid var(--color-primary, #2563EB)" : "1px solid var(--color-border-divider, #e2e8f0)",
                     background: activeSection === tab.id ? "var(--color-primary, #2563EB)" : "transparent",
-                    color: activeSection === tab.id ? "#fff" : "var(--color-text-secondary, #64748b)",
+                    color: activeSection === tab.id ? "var(--color-brand-primary-contrast)" : "var(--color-text-secondary, #64748b)",
                     cursor: "pointer",
                   }}
                 >{tab.label}</button>
@@ -316,7 +316,7 @@ export default function LandingEditorPage() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", overflow: "auto", padding: "16px 0", background: "#f1f5f9" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
             {(["desktop", "tablet", "mobile"] as PreviewDevice[]).map((d) => (
-              <button key={d} onClick={() => setPreviewDevice(d)} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid", borderColor: previewDevice === d ? "var(--color-primary, #2563EB)" : "#e2e8f0", background: previewDevice === d ? "var(--color-primary, #2563EB)" : "#fff", color: previewDevice === d ? "#fff" : "#64748b", cursor: "pointer", fontSize: 12, fontWeight: 500 }}>
+              <button key={d} onClick={() => setPreviewDevice(d)} style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid", borderColor: previewDevice === d ? "var(--color-primary, #2563EB)" : "#e2e8f0", background: previewDevice === d ? "var(--color-primary, #2563EB)" : "#fff", color: previewDevice === d ? "var(--color-brand-primary-contrast)" : "#64748b", cursor: "pointer", fontSize: 12, fontWeight: 500 }}>
                 {d === "desktop" ? "데스크탑" : d === "tablet" ? "태블릿" : "모바일"}
               </button>
             ))}

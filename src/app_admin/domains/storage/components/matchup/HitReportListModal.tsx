@@ -256,7 +256,7 @@ function TabBtn({
         padding: "5px 12px", fontSize: 12, fontWeight: 700,
         border: "none",
         background: active ? "var(--color-brand-primary)" : "transparent",
-        color: active ? "white" : "var(--color-text-secondary)",
+        color: active ? "var(--color-brand-primary-contrast)" : "var(--color-text-secondary)",
         cursor: "pointer",
       }}
     >

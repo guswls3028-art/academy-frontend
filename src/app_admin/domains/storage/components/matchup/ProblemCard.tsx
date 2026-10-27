@@ -175,7 +175,7 @@ export default function ProblemCard({
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 11, fontWeight: 800,
             background: isMergeSelected ? "var(--color-brand-primary)" : "var(--color-bg-surface)",
-            color: isMergeSelected ? "white" : "var(--color-text-muted)",
+            color: isMergeSelected ? "var(--color-brand-primary-contrast)" : "var(--color-text-muted)",
             border: isMergeSelected
               ? "2px solid var(--color-brand-primary)"
               : "2px dashed var(--color-border-divider)",

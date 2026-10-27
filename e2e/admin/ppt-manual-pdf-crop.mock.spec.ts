@@ -4,6 +4,13 @@ import { getBaseUrl } from "../helpers/auth";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 const pdf = path.resolve("e2e/fixtures/test-invert-3p.pdf");
+
+test.afterEach(async ({ page }, testInfo) => {
+  const theme = testInfo.project.metadata.appearanceTheme;
+  if (typeof theme === "string" && page.url() !== "about:blank") {
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+  }
+});
 const adminReadFixtures: Record<string, unknown> = {
   "/api/v1/staffs/me/": { is_authenticated: true, is_staff: true, is_superuser: true, is_payroll_manager: false },
   "/api/v1/staffs/currently-working/": [],

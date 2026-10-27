@@ -199,7 +199,7 @@ export default function StudentDetailPage() {
                 }
               }}
               className={`flex items-center gap-1 text-[11px] font-semibold cursor-pointer ${styles.action}`}
-              style={{ padding: "5px 9px", borderRadius: "var(--tc-radius)", border: "1px solid color-mix(in srgb, var(--tc-primary) 24%, transparent)", background: "var(--tc-primary)", color: "white" }}
+              style={{ padding: "5px 9px", borderRadius: "var(--tc-radius)", border: "1px solid color-mix(in srgb, var(--tc-primary) 24%, transparent)", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}
             >
               <MonitorSmartphone size={ICON.xs} /> {supportOpening ? "여는 중…" : "학생 화면"}
             </button>
