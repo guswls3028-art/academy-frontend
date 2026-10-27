@@ -48,7 +48,7 @@ async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: "application/json", json: body });
 }
 
-async function installPptRoutes(page: Page): Promise<PptHarness> {
+async function installPptRoutes(page: Page, incompleteFirstResult = false): Promise<PptHarness> {
   const captured: CapturedGenerateRequest[] = [];
   const unexpectedMutations: string[] = [];
   let releasePendingGenerate: (() => void) | undefined;
@@ -75,16 +75,17 @@ async function installPptRoutes(page: Page): Promise<PptHarness> {
         perSlide: settings.per_slide ?? [],
       });
       await pendingGenerate;
-      await json(route, { job_id: "ppt-mobile-ordering-job", status: "PENDING" });
+      await json(route, { job_id: `ppt-mobile-ordering-job-${captured.length}`, status: "PENDING" });
       return;
     }
 
-    if (path === "/jobs/ppt-mobile-ordering-job/progress/" && method === "GET") {
+    const jobMatch = path.match(/^\/jobs\/(ppt-mobile-ordering-job-\d+)\/(?:progress\/)?$/);
+    if (jobMatch && method === "GET") {
       await json(route, {
-        job_id: "ppt-mobile-ordering-job",
+        job_id: jobMatch[1],
         job_type: "ppt_generation",
         status: "DONE",
-        result: {
+        result: incompleteFirstResult && jobMatch[1].endsWith("-1") ? null : {
           download_url: "data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,UEs=",
           filename: "mobile-ordering.pptx",
           slide_count: 3,
@@ -109,7 +110,7 @@ async function installPptRoutes(page: Page): Promise<PptHarness> {
   };
 }
 
-async function openPptGenerator(page: Page): Promise<PptHarness> {
+async function openPptGenerator(page: Page, incompleteFirstResult = false): Promise<PptHarness> {
   const baseUrl = getBaseUrl("admin");
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl),
@@ -121,12 +122,13 @@ async function openPptGenerator(page: Page): Promise<PptHarness> {
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
   }, createLocalJwt());
-  const harness = await installPptRoutes(page);
+  const harness = await installPptRoutes(page, incompleteFirstResult);
   await page.goto(`${baseUrl}/workspace/tools/ppt`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
   await expect(page).toHaveURL(/\/workspace\/tools\/ppt$/);
+  await expect(page.getByRole("button", { name: "PPT 생성 및 다운로드" })).toBeVisible({ timeout: 45_000 });
   return harness;
 }
 
@@ -170,6 +172,61 @@ test.describe("PPT 모바일 슬라이드 직접 정렬", () => {
     hasTouch: true,
     isMobile: true,
     serviceWorkers: "block",
+  });
+
+  test("완료 응답에 파일이 없으면 바로 실패를 알리고 원본으로 다시 생성한다", async ({ page }) => {
+    const harness = await openPptGenerator(page, true);
+    const downloads: string[] = [];
+    page.on("download", (download) => downloads.push(download.suggestedFilename()));
+    await uploadSlides(page);
+    const generate = page.getByRole("button", { name: "PPT 생성 및 다운로드" });
+    await generate.click();
+    await expect.poll(() => harness.captured.length).toBe(1);
+    harness.releaseGenerate();
+    await expect(page.getByText("완료된 PPT 파일을 확인할 수 없습니다. 원본 파일로 다시 시도해 주세요.").first()).toBeVisible();
+    await expect(generate).toBeEnabled();
+    await expect(page.getByTestId("ppt-slide-item")).toHaveCount(3);
+    expect(downloads).toEqual([]);
+    await generate.click();
+    await expect.poll(() => harness.captured.length).toBe(2);
+    await expect.poll(() => downloads.length).toBe(1);
+    await expect(generate).toBeEnabled();
+    expect(harness.captured[1]).toEqual(harness.captured[0]);
+    expect(harness.unexpectedMutations).toEqual([]);
+  });
+
+  test("전체 반전 상태에서도 개별 슬라이드 반전을 해제하고 같은 설정을 전송한다", async ({ page }) => {
+    const harness = await openPptGenerator(page);
+    await uploadSlides(page);
+    const slides = page.getByTestId("ppt-slide-item");
+    await expect(slides.first().getByTitle("반전 해제")).toBeVisible();
+    await expect(slides.first().locator("img")).toHaveCSS("filter", "invert(1)");
+    await slides.first().getByTitle("반전 해제").click();
+    await expect(slides.first().getByTitle("흑백 반전")).toBeVisible();
+    await expect(slides.first().locator("img")).toHaveCSS("filter", "none");
+    await expect(page.getByAltText("슬라이드 1 미리보기")).toHaveCSS("filter", "grayscale(1)");
+    await page.getByRole("button", { name: "PPT 생성 및 다운로드" }).click();
+    await expectCapturedPayload(harness, [...SLIDE_NAMES], [false, true, true]);
+    for (const slide of await slides.all()) {
+      await expect(slide.locator("button[data-invert]")).toBeDisabled();
+      await expect(slide.getByRole("button", { name: /삭제$/ })).toBeDisabled();
+    }
+    harness.releaseGenerate();
+    await expect(page.getByRole("button", { name: "PPT 생성 및 다운로드" })).toBeEnabled();
+    await expect(slides.first().getByRole("button", { name: /삭제$/ })).toBeEnabled();
+    // Changing the default must preserve an explicit individual choice.
+    const globalInvert = page.getByRole("button", { name: /흑백 반전.*흰 배경/ });
+    await globalInvert.click();
+    await globalInvert.click();
+    await page.getByLabel("정렬").selectOption("nameDesc");
+    await expect(slides.last()).toHaveAttribute("data-filename", "a-slide.png");
+    await expect(slides.last().getByTitle("흑백 반전")).toBeVisible();
+    for (const slide of (await slides.all()).slice(0, 2)) {
+      await expect(slide.getByTitle("반전 해제")).toBeVisible();
+      await expect(slide.locator("img")).toHaveCSS("filter", "invert(1)");
+    }
+    expect(harness.unexpectedMutations).toEqual([]);
+    await expectDocumentOverflowZero(page);
   });
 
   test("390px에서 키보드·터치 정렬과 multipart 순서를 같은 상태로 보낸다", async ({ page }) => {

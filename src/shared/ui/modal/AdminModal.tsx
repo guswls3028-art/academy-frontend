@@ -194,6 +194,8 @@ export default function AdminModal({
         width={width}
         centered
         destroyOnHidden
+        // Keep all controls under the pointer even when appearance starts late.
+        transitionName="ant-fade"
         zIndex={zIndex}
         mask={{ closable: !isConfirm && !closeDisabled }}
         closable={

@@ -62,10 +62,11 @@ function normalizeCollection(value: unknown): HomeworkMediaCollection {
 export async function fetchHomeworkMedia(
   homeworkId: number,
   enrollmentId: number,
+  signal?: AbortSignal,
 ): Promise<HomeworkMediaCollection> {
   const response = await studentApi.get<HomeworkMediaCollection>(
     `/submissions/submissions/homework/${homeworkId}/media/`,
-    { params: { enrollment_id: enrollmentId } },
+    { params: { enrollment_id: enrollmentId }, signal },
   );
   return normalizeCollection(response.data);
 }

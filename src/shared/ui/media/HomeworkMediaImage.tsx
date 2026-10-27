@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchPresignedMediaBlob } from "@/shared/api/axios";
+import { prepareHomeworkHeicPreview } from "./homeworkHeicPreview";
 import styles from "./HomeworkMediaImage.module.css";
 
 type Props = {
@@ -9,40 +9,12 @@ type Props = {
   blob?: Blob;
   alt: string;
   className?: string;
+  thumbnail?: boolean;
   onLoad?: () => void;
   onError: () => void;
 };
 
-// Several selected phone photos can mount together. Decode one at a time so
-// full-resolution pixel buffers do not multiply on mobile devices.
-let conversionQueue: Promise<unknown> = Promise.resolve();
-
-function assertActive(signal: AbortSignal) {
-  if (signal.aborted) throw new Error("Image preview cancelled");
-}
-
-function convertPreview(source: string | Blob, signal: AbortSignal): Promise<Blob> {
-  const result = conversionQueue.catch(() => undefined).then(async () => {
-    assertActive(signal);
-    let blob: Blob;
-    if (typeof source === "string") {
-      blob = await fetchPresignedMediaBlob(source, signal);
-    } else {
-      blob = source;
-    }
-    assertActive(signal);
-    const { heicTo } = await import("heic-to/csp");
-    assertActive(signal);
-    const image = await heicTo({ blob, type: "image/jpeg", quality: 0.9 });
-    assertActive(signal);
-    if (!image?.size) throw new Error("Image preview conversion failed");
-    return image;
-  });
-  conversionQueue = result.catch(() => undefined);
-  return result;
-}
-
-function HeicPreview({ src, blob, alt, className, onLoad, onError }: Props) {
+function HeicPreview({ src, blob, alt, className, thumbnail, onLoad, onError }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const errorHandler = useRef(onError);
   useEffect(() => { errorHandler.current = onError; }, [onError]);
@@ -50,7 +22,7 @@ function HeicPreview({ src, blob, alt, className, onLoad, onError }: Props) {
   useEffect(() => {
     const controller = new AbortController();
     let objectUrl: string | undefined;
-    void convertPreview(blob ?? src, controller.signal).then((converted) => {
+    void prepareHomeworkHeicPreview(blob ?? src, controller.signal, thumbnail ? 384 : 2560).then((converted) => {
       if (controller.signal.aborted) return;
       objectUrl = URL.createObjectURL(converted);
       setPreviewUrl(objectUrl);
@@ -61,10 +33,10 @@ function HeicPreview({ src, blob, alt, className, onLoad, onError }: Props) {
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [src, blob]);
+  }, [src, blob, thumbnail]);
 
   if (!previewUrl) return <span className={styles.loading} role="status">사진 미리보기를 준비하는 중…</span>;
-  return <img src={previewUrl} alt={alt} className={`${styles.image} ${className ?? ""}`} onLoad={onLoad} onError={onError} />;
+  return <img src={previewUrl} alt={alt} decoding="async" className={`${styles.image} ${className ?? ""}`} onLoad={onLoad} onError={onError} />;
 }
 
 /** Display the original authorized file without replacing the stored submission. */
@@ -73,5 +45,5 @@ export default function HomeworkMediaImage(props: Props) {
   const isHeic = /^image\/hei[cf](?:-sequence)?(?:;|$)/i.test(mimeType ?? "") || /\.hei[cf]$/i.test(filename);
   return isHeic
     ? <HeicPreview key={src} {...props} />
-    : <img src={src} alt={alt} className={className} onLoad={onLoad} onError={onError} />;
+    : <img src={src} alt={alt} decoding="async" className={className} onLoad={onLoad} onError={onError} />;
 }

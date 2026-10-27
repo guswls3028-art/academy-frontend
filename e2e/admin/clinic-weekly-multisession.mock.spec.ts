@@ -1386,28 +1386,32 @@ test("지난 일정 불러오기 대상 주 조회 실패는 생성하지 않고
   expect(state.createPayloads).toHaveLength(1);
 });
 
-test("지난 일정 불러오기는 저장 응답 유실을 재조회해 중복 없이 완료한다", async ({ page }) => {
-  const state: ScheduleState = {
-    createPayloads: [], updatePayloads: [], filterSessionRowsByQuery: true,
-    sessions: [{ ...sessions[0], id: 861, date: "2026-09-02", title: "응답 유실 수업" }],
-    createResponseLostByTitle: { "응답 유실 수업": 1 },
-  };
-  await seed(page);
-  await installApi(page, undefined, undefined, state);
-  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule?date=2026-09-07`, { timeout: 45_000 });
-  await page.getByRole("button", { name: "지난 일정 불러오기", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "지난 일정 불러오기" });
-  await dialog.getByRole("button", { name: "전체 선택 (1건)", exact: true }).click();
-  await dialog.getByRole("button", { name: "1건 불러오기", exact: true }).click();
-  await expect(dialog).toHaveCount(0);
-  expect(state.createPayloads).toHaveLength(1);
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("article").filter({ hasText: "응답 유실 수업" })).toHaveCount(1);
-  await page.getByRole("button", { name: "지난 일정 불러오기", exact: true }).click();
-  await expect(dialog.locator(".clinic-import__session-item")).toBeDisabled();
-  await expect(dialog).toContainText("모든 일정이 적용할 주에 이미 있습니다.");
-  await expect(dialog.getByRole("button", { name: "선택하세요", exact: true })).toBeDisabled();
-});
+for (const width of [1366, 390]) {
+  test(`${width}px 지난 일정 불러오기는 한 번 선택하고 저장 응답 유실을 재조회해 중복 없이 완료한다`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state: ScheduleState = {
+      createPayloads: [], updatePayloads: [], filterSessionRowsByQuery: true,
+      sessions: [{ ...sessions[0], id: 861, date: "2026-09-02", title: "응답 유실 수업" }],
+      createResponseLostByTitle: { "응답 유실 수업": 1 },
+    };
+    await seed(page);
+    await installApi(page, undefined, undefined, state);
+    await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule?date=2026-09-07`, { timeout: 45_000 });
+    await page.getByRole("button", { name: "지난 일정 불러오기", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "지난 일정 불러오기" });
+    await dialog.getByRole("button", { name: "전체 선택 (1건)", exact: true }).click();
+    await expect(dialog.getByRole("button", { name: "전체 선택 (1건)", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await dialog.getByRole("button", { name: "1건 불러오기", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(state.createPayloads).toHaveLength(1);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("article").filter({ hasText: "응답 유실 수업" })).toHaveCount(1);
+    await page.getByRole("button", { name: "지난 일정 불러오기", exact: true }).click();
+    await expect(dialog.locator(".clinic-import__session-item")).toBeDisabled();
+    await expect(dialog).toContainText("모든 일정이 적용할 주에 이미 있습니다.");
+    await expect(dialog.getByRole("button", { name: "선택하세요", exact: true })).toBeDisabled();
+  });
+}
 
 test("월간 달력은 42일 경계를 유지하고 방향키와 Space로 날짜를 선택한다", async ({ page }) => {
   await seed(page);

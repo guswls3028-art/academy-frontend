@@ -1,4 +1,5 @@
 import type { Page, Route } from "@playwright/test";
+import { createHash } from "node:crypto";
 
 import { expect, test } from "../fixtures/strictTest";
 import { guideRecording } from "../helpers/guideRecording";
@@ -110,6 +111,7 @@ async function installApi(
   let homeworkActivityRequests = 0;
   let currentHomeworkOverrides = homeworkOverrides;
   let previewFailure: "api" | "media" | null = null;
+  let loseNextUploadResponse = false;
   let previewUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNg+A8AAQIBAEK+vGgAAAAASUVORK5CYII=";
   const previewRequests: string[] = [];
 
@@ -263,6 +265,10 @@ async function installApi(
       const existingIndex = files.findIndex((file) => file.client_file_id === clientId);
       if (existingIndex >= 0) files[existingIndex] = payload;
       else files.push(payload);
+      if (loseNextUploadResponse) {
+        loseNextUploadResponse = false;
+        return json({ detail: "저장은 끝났지만 중간 연결의 응답 제한 시간을 초과했습니다." }, 504);
+      }
       return json(payload, 201);
     }
     if (path.endsWith("/students/me/activity/homework-open/")) {
@@ -285,6 +291,7 @@ async function installApi(
   return {
     files,
     getUploadAttempts: () => uploadAttempts,
+    loseNextUploadResponse: () => { loseNextUploadResponse = true; },
     getUploadClientIds: () => [...uploadClientIds],
     getStudentScopedHeaders: () => [...studentScopedHeaders],
     getHomeworkActivityRequests: () => homeworkActivityRequests,
@@ -311,7 +318,7 @@ test("HEIC 사진은 선택·제출·새로고침 후 열리고 실패한 미리
   await page.getByRole("button", { name: "미리보기 닫기" }).click();
   await page.locator('input[type="file"]').setInputFiles({ name: "phone.heic", mimeType: "image/heic", buffer: homeworkHeic });
   const localImage = page.getByRole("img", { name: "선택한 과제 사진 미리보기" });
-  await expect.poll(() => localImage.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
+  await expect.poll(() => localImage.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(384);
   await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
   await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
   expect(state.getUploadAttempts()).toBe(1);
@@ -337,6 +344,450 @@ test("HEIC 사진은 선택·제출·새로고침 후 열리고 실패한 미리
     expect(headers["x-student-id"]).toBeUndefined();
     expect(headers.cookie).toBeUndefined();
   }
+});
+
+test("HEIC 변환을 닫으면 작업이 취소되고 다음 사진을 바로 열 수 있다", async ({ page }) => {
+  const state = await installApi(page, 0);
+  const remote = await installHomeworkHeicPreview(page);
+  state.setPreviewUrl(remote.url);
+  Object.assign(state.files[0], { original_filename: "phone.heic", mime_type: "image/heic" });
+  let workerRequests = 0;
+  await page.route("**/vendor-heic-csp-worker.ts?worker_file**", (route) => {
+    workerRequests += 1;
+    return workerRequests === 1 ? route.fulfill({ contentType: "application/javascript", body: "self.onmessage = () => {};" }) : route.continue();
+  });
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await applyHomeworkPreviewCsp(page);
+  await page.getByRole("button", { name: "미리보기", exact: true }).click();
+  await expect.poll(() => workerRequests).toBe(1);
+  await page.getByRole("button", { name: "미리보기 닫기" }).click();
+  await page.getByRole("button", { name: "미리보기", exact: true }).click();
+  const image = page.getByRole("img", { name: "phone.heic 제출 파일" });
+  await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
+  expect(workerRequests).toBe(2);
+  expect(state.getUploadAttempts()).toBe(0);
+});
+
+test("HEIC 변환 시간 초과 뒤 재시도하면 다음 작업이 정상 완료된다", async ({ page }) => {
+  const state = await installApi(page, 0);
+  const remote = await installHomeworkHeicPreview(page);
+  state.setPreviewUrl(remote.url);
+  Object.assign(state.files[0], { original_filename: "phone.heic", mime_type: "image/heic" });
+  let workerRequests = 0;
+  await page.route("**/vendor-heic-csp-worker.ts?worker_file**", (route) => {
+    workerRequests += 1;
+    return workerRequests === 1 ? route.fulfill({ contentType: "application/javascript", body: "self.onmessage = () => {};" }) : route.continue();
+  });
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.clock.install();
+  await page.getByRole("button", { name: "미리보기", exact: true }).click();
+  await expect.poll(() => workerRequests).toBe(1);
+  await page.clock.fastForward(31_000);
+  await expect(page.getByRole("alert")).toContainText("제출된 파일은 유지됩니다");
+  await page.getByRole("button", { name: "미리보기 다시 시도" }).click();
+  await expect.poll(() => page.getByRole("img", { name: "phone.heic 제출 파일" }).evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(640);
+  expect(workerRequests).toBe(2);
+});
+
+type RestoreGateWindow = Window & {
+  __qaHomeworkRestoreGate: { held: boolean; release: () => void };
+};
+
+async function holdNextHomeworkRestore(page: Page) {
+  await page.evaluate(() => {
+    const originalOpen = indexedDB.open.bind(indexedDB);
+    let intercepted = false;
+    let resume: (() => void) | null = null;
+    const gate = {
+      held: false,
+      release: () => {
+        if (!resume) throw new Error("The homework restore has not reached its barrier");
+        indexedDB.open = originalOpen;
+        const deliver = resume;
+        resume = null;
+        deliver();
+      },
+    };
+    (window as RestoreGateWindow).__qaHomeworkRestoreGate = gate;
+    indexedDB.open = (name, version) => {
+      const request = version === undefined ? originalOpen(name) : originalOpen(name, version);
+      if (name !== "academy-homework-drafts-v1" || intercepted) return request;
+      intercepted = true;
+      // Hold only the open success delivery, before the application creates any
+      // transaction. Delaying a transaction callback would make IDB auto-commit.
+      request.addEventListener("success", (event) => {
+        event.stopImmediatePropagation();
+        gate.held = true;
+        resume = () => request.dispatchEvent(new Event("success"));
+      }, { once: true });
+      return request;
+    };
+  });
+  return {
+    wait: () => expect.poll(() => page.evaluate(() => (window as RestoreGateWindow).__qaHomeworkRestoreGate.held)).toBe(true),
+    release: () => page.evaluate(() => (window as RestoreGateWindow).__qaHomeworkRestoreGate.release()),
+  };
+}
+
+const RESTORE_RACE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNg+A8AAQIBAEK+vGgAAAAASUVORK5CYII=", "base64");
+
+async function returnNativeFileSelection(page: Page, name: string) {
+  // A native chooser can return after the visible picker has become disabled.
+  // Dispatch that already-chosen File explicitly; ordinary tests use the ready
+  // visible picker boundary instead of bypassing its disabled state.
+  await page.locator('input[type="file"]').evaluate((input, payload) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([Uint8Array.from(payload.bytes)], payload.name, { type: "image/png" }));
+    (input as HTMLInputElement).files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, { name, bytes: [...RESTORE_RACE_PNG] });
+}
+
+async function readOwnedHomeworkDraft(page: Page) {
+  return page.evaluate(async () => {
+    const url = "/src/shared/storage/homeworkDraftStorage.ts";
+    const storage = await import(/* @vite-ignore */ url);
+    const generation = localStorage.getItem("academy:auth-active-generation:v1")!;
+    const key = JSON.stringify([generation, "hakwonplus", 72, 8501, 8601]);
+    const { files } = await storage.loadHomeworkDraft(key, generation);
+    return files.map((item: { file: File; clientFileId: string; position: number }) => ({
+      name: item.file.name, clientFileId: item.clientFileId, position: item.position,
+    }));
+  });
+}
+
+async function expectPendingHomeworkHeicReady(page: Page, filename: string) {
+  const image = page.getByRole("region", { name: "이번에 제출할 파일" })
+    .locator("article").filter({ hasText: filename })
+    .getByRole("img", { name: "선택한 과제 사진 미리보기" });
+  await expect(image).toHaveJSProperty("naturalWidth", 384);
+}
+
+async function expectSavedHomeworkHeicReady(page: Page, filename: string) {
+  await page.getByRole("region", { name: "이미 제출한 파일" })
+    .locator('[class*="persistedFile"]').filter({ hasText: filename })
+    .getByRole("button", { name: "미리보기", exact: true }).click();
+  const image = page.getByRole("img", { name: `${filename} 제출 파일` });
+  await expect(image).toHaveJSProperty("naturalWidth", 640);
+  await page.getByRole("button", { name: "미리보기 닫기" }).click();
+  await expect(image).toHaveCount(0);
+}
+
+for (const width of [1366, 390]) {
+  test(`${width}px HEIC 임시 복원과 새 파일 선택이 겹쳐도 두 파일을 중복 없이 제출한다`, async ({ page }) => {
+    test.setTimeout(90_000);
+    const state = await installApi(page, 0);
+    const remote = await installHomeworkHeicPreview(page);
+    state.setPreviewUrl(remote.url);
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/student/submit/assignment`);
+    const target = page.getByRole("button", { name: /도형 풀이 인증/ });
+    const picker = page.getByRole("button", { name: "사진·동영상 여러 개 선택" });
+    const pending = page.getByRole("region", { name: "이번에 제출할 파일" });
+    await expect(target).toBeVisible();
+    await target.click();
+    await expect(picker).toBeEnabled();
+    await page.locator('input[type="file"]').setInputFiles({ name: "복원할-풀이.heic", mimeType: "image/heic", buffer: homeworkHeic });
+    await expect(pending).toContainText("복원할-풀이.heic");
+    await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+
+    // Finish the visible preview before leaving this document; the held IDB
+    // restore below remains the intentional race under test.
+    await expectPendingHomeworkHeicReady(page, "복원할-풀이.heic");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(target).toBeVisible();
+    const gate = await holdNextHomeworkRestore(page);
+    await target.click();
+    await gate.wait();
+    await expect(page.getByText("이전에 선택한 파일을 확인하는 중…", { exact: true })).toBeVisible();
+    await expect(picker).toBeDisabled();
+    await expect(page.locator('input[type="file"]')).toBeDisabled();
+    await returnNativeFileSelection(page, "새로-선택한-풀이.png");
+    // The actual IDB restore remains held while the change event is delivered.
+    await expect(page.getByText("이전에 선택한 파일을 확인하는 중…", { exact: true })).toBeVisible();
+    expect(state.getUploadAttempts()).toBe(0);
+    await gate.release();
+
+    await expect(pending.locator("article")).toHaveCount(2);
+    await expect(pending).toContainText("복원할-풀이.heic");
+    await expect(pending).toContainText("새로-선택한-풀이.png");
+    await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+    const draft = await readOwnedHomeworkDraft(page);
+    expect(draft.map((file: { name: string }) => file.name).sort()).toEqual(["복원할-풀이.heic", "새로-선택한-풀이.png"].sort());
+    expect(draft.map((file: { position: number }) => file.position).sort()).toEqual([1, 2]);
+    expect(new Set(draft.map((file: { clientFileId: string }) => file.clientFileId)).size).toBe(2);
+    await expectPendingHomeworkHeicReady(page, "복원할-풀이.heic");
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await target.click();
+    await expect(pending.locator("article")).toHaveCount(2);
+    await expect(pending).toContainText("복원할-풀이.heic");
+    await expect(pending).toContainText("새로-선택한-풀이.png");
+    await expectPendingHomeworkHeicReady(page, "복원할-풀이.heic");
+    await page.getByRole("button", { name: "파일 2개 제출하기", exact: true }).click();
+    await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+    expect(state.getUploadAttempts()).toBe(2);
+    expect(state.files.map((file) => file.position).sort()).toEqual([0, 1, 2]);
+    expect(new Set(state.getUploadClientIds()).size).toBe(2);
+    await expectSavedHomeworkHeicReady(page, "복원할-풀이.heic");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await target.click();
+    await expect(picker).toBeEnabled();
+    const saved = page.getByRole("region", { name: "이미 제출한 파일" });
+    await expect(saved.locator('[data-status="uploaded"]')).toHaveCount(3);
+    await expect(saved).toContainText("복원할-풀이.heic");
+    await expect(saved).toContainText("새로-선택한-풀이.png");
+    await expect(pending).toHaveCount(0);
+    await expectSavedHomeworkHeicReady(page, "복원할-풀이.heic");
+  });
+}
+
+test("HEIC 임시 복원 중 제출 화면을 떠나면 늦게 반환된 선택을 이전 과제에 추가하지 않는다", async ({ page }) => {
+  const state = await installApi(page, 0);
+  await page.goto(`${BASE}/student/submit/assignment`);
+  const target = page.getByRole("button", { name: /도형 풀이 인증/ });
+  const picker = page.getByRole("button", { name: "사진·동영상 여러 개 선택" });
+  await expect(target).toBeVisible();
+  await target.click();
+  await expect(picker).toBeEnabled();
+  await page.locator('input[type="file"]').setInputFiles({ name: "보존할-풀이.heic", mimeType: "image/heic", buffer: homeworkHeic });
+  await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+  await expectPendingHomeworkHeicReady(page, "보존할-풀이.heic");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(target).toBeVisible();
+  const gate = await holdNextHomeworkRestore(page);
+  await target.click();
+  await gate.wait();
+  await returnNativeFileSelection(page, "취소할-풀이.png");
+  // SPA navigation unmounts the owning scope without destroying the held
+  // browser promise. Releasing it now must not transfer the incoming File.
+  await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+  await expect(page).toHaveURL(/\/student\/dashboard(?:\?|$)/);
+  await expect(page.getByRole("heading", { name: "과제 제출", exact: true })).toHaveCount(0);
+  await gate.release();
+  const draft = await readOwnedHomeworkDraft(page);
+  expect(draft.map((file: { name: string }) => file.name)).toEqual(["보존할-풀이.heic"]);
+  expect(state.getUploadAttempts()).toBe(0);
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await target.click();
+  await expect(picker).toBeEnabled();
+  const pending = page.getByRole("region", { name: "이번에 제출할 파일" });
+  await expect(pending.locator("article")).toHaveCount(1);
+  await expect(pending).toContainText("보존할-풀이.heic");
+  await expect(pending.getByText("취소할-풀이.png", { exact: true })).toHaveCount(0);
+});
+
+
+test("HEIC 임시 파일은 새로고침 후 복원되고 제출 뒤 기기 보관에서 지워진다", async ({ page }) => {
+  const state = await installApi(page, 0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.getByRole("button", { name: "사진·동영상 여러 개 선택" }).waitFor();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
+  await page.locator('input[type="file"]').setInputFiles({ name: "restore.heic", mimeType: "image/heic", buffer: homeworkHeic });
+  await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toContainText("restore.heic");
+  await expect.poll(() => page.getByRole("img", { name: "선택한 과제 사진 미리보기" }).evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(384);
+  await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 390);
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("region", { name: "이미 제출한 파일" })).toContainText("restore.heic");
+  await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toHaveCount(0);
+  expect(state.getUploadAttempts()).toBe(1);
+});
+
+test("HEIC 임시 보관은 다른 로그인에 노출되지 않고 이전 파일 조각도 정리된다", async ({ page }) => {
+  await installApi(page, 0);
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
+  await page.locator('input[type="file"]').setInputFiles({ name: "private-draft.heic", mimeType: "image/heic", buffer: homeworkHeic });
+  await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+  await page.evaluate(() => {
+    const activeKey = "academy:auth-active-generation:v1";
+    const oldGeneration = localStorage.getItem(activeKey)!;
+    const envelope = JSON.parse(localStorage.getItem("academy:auth-tokens:v1:" + oldGeneration)!);
+    envelope.generation = "qa-new-login";
+    localStorage.setItem("academy:auth-tokens:v1:qa-new-login", JSON.stringify(envelope));
+    localStorage.setItem(activeKey, "qa-new-login");
+    localStorage.removeItem("academy:auth-tokens:v1:" + oldGeneration);
+  });
+  await page.reload();
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
+  await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toHaveCount(0);
+  expect(await page.evaluate(() => new Promise<number>((resolve, reject) => {
+    const open = indexedDB.open("academy-homework-drafts-v1");
+    open.onsuccess = () => {
+      const db = open.result;
+      const request = db.transaction("chunks").objectStore("chunks").count();
+      request.onsuccess = () => { db.close(); resolve(request.result); };
+      request.onerror = () => reject(request.error);
+    };
+  }))).toBe(0);
+});
+
+test("HEIC·영상 임시 저장의 여러 조각이 새로고침 뒤 바이트 손실 없이 복원된다", async ({ page }) => {
+  await installApi(page, 0);
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
+  const data = Buffer.alloc(9 * 1024 * 1024 + 13, 91);
+  Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNg+A8AAQIBAEK+vGgAAAAASUVORK5CYII=", "base64").copy(data);
+  await page.locator('input[type="file"]').setInputFiles({ name: "large-original.png", mimeType: "image/png", buffer: data });
+  await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toContainText("large-original.png");
+  const restored = await page.evaluate(async () => {
+    const url = "/src/shared/storage/homeworkDraftStorage.ts";
+    const storage = await import(/* @vite-ignore */ url);
+    const generation = localStorage.getItem("academy:auth-active-generation:v1")!;
+    const key = JSON.stringify([generation, "hakwonplus", 72, 8501, 8601]);
+    const { files } = await storage.loadHomeworkDraft(key, generation);
+    const bytes = new Uint8Array(await files[0].file.arrayBuffer());
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))).map((value) => value.toString(16).padStart(2, "0")).join("");
+    return { size: bytes.length, digest };
+  });
+  expect(restored).toEqual({ size: data.length, digest: createHash("sha256").update(data).digest("hex") });
+});
+
+test("HEIC 임시 저장은 다른 탭의 추가 파일을 보존하고 삭제·만료 파일은 되살리지 않는다", async ({ page, context }) => {
+  await installApi(page, 0);
+  await page.goto(`${BASE}/student/submit/assignment`);
+  const second = await context.newPage();
+  await installApi(second, 0);
+  await second.goto(`${BASE}/student/submit/assignment`);
+  const save = async (target: Page, ids: string[], added: string[], removed: string[] = []) => target.evaluate(async ({ ids, added, removed }) => {
+    const url = "/src/shared/storage/homeworkDraftStorage.ts";
+    const storage = await import(/* @vite-ignore */ url);
+    const generation = localStorage.getItem("academy:auth-active-generation:v1")!;
+    const key = JSON.stringify([generation, "hakwonplus", 72, 8501, 8601]);
+    await storage.saveHomeworkDraft(key, generation, ids.map((id, position) => ({ clientFileId: id, uploadBatchId: "batch", position,
+      file: new File([id], id + ".png", { type: "image/png" }) })), removed, () => true, added);
+  }, { ids, added, removed });
+  const names = () => page.evaluate(async () => {
+    const url = "/src/shared/storage/homeworkDraftStorage.ts";
+    const storage = await import(/* @vite-ignore */ url);
+    const generation = localStorage.getItem("academy:auth-active-generation:v1")!;
+    const key = JSON.stringify([generation, "hakwonplus", 72, 8501, 8601]);
+    return (await storage.loadHomeworkDraft(key, generation)).files.map((file: { clientFileId: string }) => file.clientFileId).sort();
+  });
+  await Promise.all([save(page, ["a"], ["a"]), save(second, ["b"], ["b"])]);
+  expect(await names()).toEqual(["a", "b"]);
+  await save(page, ["b"], [], ["a"]);
+  await save(second, ["a", "b", "c"], ["c"]);
+  expect(await names()).toEqual(["b", "c"]);
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open("academy-homework-drafts-v1");
+    request.onsuccess = () => {
+      const db = request.result;
+      const tx = db.transaction("drafts", "readwrite");
+      const cursor = tx.objectStore("drafts").openCursor();
+      cursor.onsuccess = () => { const row = cursor.result; if (row) { row.update({ ...row.value, expires: Date.now() - 1 }); row.continue(); } };
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onabort = () => reject(tx.error);
+    };
+  }));
+  await save(second, ["b", "c", "d"], ["d"]);
+  expect(await names()).toEqual(["d"]);
+  await second.close();
+});
+
+test("HEIC 기기 저장이 막혀도 원본 선택을 유지하고 정상 제출한다", async ({ page }) => {
+  await page.addInitScript(() => { Object.defineProperty(window, "indexedDB", { get: () => { throw new DOMException("Storage disabled", "SecurityError"); } }); });
+  const state = await installApi(page, 0);
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
+  await page.locator('input[type="file"]').setInputFiles({ name: "no-storage.heic", mimeType: "image/heic", buffer: homeworkHeic });
+  await expect(page.getByText(/이 기기에 임시 보관하지 못했습니다/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toContainText("no-storage.heic");
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+  expect(state.getUploadAttempts()).toBe(1);
+});
+
+test("HEIC 구형 Safari의 파일 읽기·canvas 대체 경로에서도 미리보기를 연다", async ({ page }) => {
+  const state = await installApi(page, 0);
+  const remote = await installHomeworkHeicPreview(page);
+  state.setPreviewUrl(remote.url);
+  Object.assign(state.files[0], { original_filename: "legacy.heic", mime_type: "image/heic" });
+  await page.route("**/vendor-heic-csp-worker.ts?worker_file**", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: "self.OffscreenCanvas = undefined; self.Blob.prototype.arrayBuffer = undefined;\n" + await response.text() });
+  });
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await applyHomeworkPreviewCsp(page);
+  await page.getByRole("button", { name: "미리보기", exact: true }).click();
+  await expect.poll(() => page.getByRole("img", { name: "legacy.heic 제출 파일" }).evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBe(640);
+});
+
+test("서버 저장 뒤 응답이 끊겨도 재전송 없이 성공을 확인한다", async ({ page }) => {
+  const state = await installApi(page, 0);
+  state.loseNextUploadResponse();
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
+  await page.locator('input[type="file"]').setInputFiles({ name: "response-lost.heic", mimeType: "image/heic", buffer: homeworkHeic });
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "이미 제출한 파일" })).toContainText("response-lost.heic");
+  expect(state.getUploadAttempts()).toBe(1);
+});
+
+test("저장 중으로 남은 파일도 제한된 재조회 뒤 같은 식별자로 복구한다", async ({ page }) => {
+  test.setTimeout(90_000);
+  const state = await installApi(page, 0);
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
+  await page.locator('input[type="file"]').setInputFiles({ name: "interrupted.mp4", mimeType: "video/mp4", buffer: Buffer.from("synthetic-video") });
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect.poll(state.getUploadAttempts).toBe(1);
+  await expect(page.getByRole("alert")).toContainText("1개 파일을 올리지 못했습니다");
+  const saved = state.files.find((file) => file.original_filename === "interrupted.mp4")!;
+  const originalClientId = saved.client_file_id;
+  saved.status = "uploading";
+  saved.error_message = "";
+  await page.reload();
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toContainText("interrupted.mp4");
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect(page.getByText("전송 완료 · 서버에 저장 확인 중…", { exact: true })).toBeVisible();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible({ timeout: 45_000 });
+  expect(state.getUploadAttempts()).toBe(2);
+  expect(state.getUploadClientIds()).toEqual([originalClientId, originalClientId]);
+  expect(state.files.filter((file) => file.original_filename === "interrupted.mp4")).toHaveLength(1);
+  expect(state.files.find((file) => file.client_file_id === originalClientId)?.status).toBe("uploaded");
+});
+
+test("저장 확인 중 잠시 멈춘 뒤 reload하면 이미 저장된 파일은 다시 보내지 않는다", async ({ page }) => {
+  const state = await installApi(page, 1800);
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
+  await page.locator('input[type="file"]').setInputFiles({ name: "paused.heic", mimeType: "image/heic", buffer: homeworkHeic });
+  await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect.poll(state.getUploadAttempts).toBe(1);
+  await page.getByRole("button", { name: "잠시 멈추기", exact: true }).click();
+  await expect(page.getByRole("button", { name: "남은 파일 1개 이어서 제출" })).toBeEnabled();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toHaveCount(0);
+  await expect.poll(() => state.files.filter((file) => file.original_filename === "paused.heic").length).toBe(1);
+  await page.reload();
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("region", { name: "이미 제출한 파일" })).toContainText("paused.heic");
+  await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toHaveCount(0);
+  expect(state.getUploadAttempts()).toBe(1);
 });
 
 test("학부모가 선택 자녀의 과제를 제출하고 새로고침 뒤에도 같은 파일을 확인한다", async ({ page }) => {
@@ -531,7 +982,7 @@ test(`${width}px 교사 완료 경합은 미제출 파일을 보관하고 재개
 
   await page.getByRole("button", { name: "파일 2개 제출하기", exact: true }).click();
 
-  await expect(page.getByRole("alert")).toContainText("아직 제출하지 못한 파일은 이 화면에 보관했습니다.");
+  await expect(page.getByRole("alert")).toContainText("아직 제출하지 못한 파일은 보관했습니다.");
   await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "이번에 제출할 파일" }).getByText("확인-직전-사진.heic")).toBeVisible();
   await expect(page.getByRole("region", { name: "이미 제출한 파일" }).getByText("먼저-저장된-사진.png")).toBeVisible();
@@ -645,6 +1096,7 @@ test("desktop에서 정상 파일은 유지하고 빈 파일·비지원 형식�
   const state = await installApi(page);
   await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
   await page.locator('input[type="file"]').setInputFiles([
     { name: "정상-풀이.png", mimeType: "image/png", buffer: Buffer.from("valid-photo") },
     { name: "빈-사진.png", mimeType: "image/png", buffer: Buffer.alloc(0) },

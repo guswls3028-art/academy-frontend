@@ -11,6 +11,8 @@
 }
 
 .createButton {
+  min-height: 44px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--tc-space-1);
@@ -40,7 +42,26 @@
   border: 1px solid var(--tc-border);
   border-radius: 12px;
   cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
 }
+
+.searchBar { display: flex; flex-direction: column; gap: 6px; }
+.searchLabel { color: var(--tc-text-secondary); font-size: 12px; font-weight: 600; }
+.searchControls { display: flex; align-items: center; gap: 8px; }
+.searchInput {
+  flex: 1; min-width: 0; min-height: 44px; padding: 10px 12px;
+  border: 1px solid var(--tc-border); border-radius: var(--tc-radius);
+  background: var(--tc-surface); color: var(--tc-text); font: inherit;
+}
+.clearSearch {
+  min-height: 44px; flex-shrink: 0; padding: 8px; border: 0; border-radius: var(--tc-radius);
+  background: transparent; color: var(--tc-text-secondary); font: inherit; font-size: 12px; cursor: pointer;
+}
+.searchResult { color: var(--tc-text-muted); font-size: 12px; }
+.searchInput:focus-visible, .clearSearch:focus-visible, .lectureButton:focus-visible, .createButton:focus-visible {
+  outline: 2px solid var(--tc-primary); outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) { .lectureButton { transition: none; } }
 
 .content {
   flex: 1;

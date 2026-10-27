@@ -50,7 +50,7 @@ const pageImage = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1120"><rect width="800" height="1120" fill="white"/><text x="60" y="120" font-size="42">1. mobile crop fixture</text><rect x="55" y="160" width="690" height="260" fill="none" stroke="black" stroke-width="3"/></svg>',
 )}`;
 
-async function installMocks(page: Page, options: { failFirstPages?: boolean; failPageReads?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean } = {}) {
+async function installMocks(page: Page, options: { failFirstPages?: boolean; failPageReads?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean; report?: boolean } = {}) {
   const apiRequests: Array<{ method: string; path: string }> = [];
   let pageReads = 0;
   let pagePreparations = 0;
@@ -61,6 +61,15 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
   const prepared = new Set<number>();
   const requestedPages: number[] = [];
   const savedProblems: Record<string, unknown>[] = [];
+  const report = { id: 501, document_id: DOC_ID, document_title: documentPayload.title,
+    document_category: "수학", author_id: 41, author_name: "QA 강사", title: "합성 적중 보고서",
+    summary: "", status: "draft", entries: [] as Array<Record<string, unknown>> };
+  const candidate = { id: 801, document_id: 401, document_title: "QA 참고자료", document_category: "수학",
+    source_type: "academy_workbook", number: 1, text_preview: "Synthetic reference question",
+    similarity: 0.95, image_key: "qa/reference.png", image_url: pageImage, page_index: 0 };
+  const reportProblems = [1, 2].map((number) => ({ id: 700 + number, document_id: DOC_ID, number,
+    text: `Synthetic question ${number}`, text_preview: `Synthetic question ${number}`,
+    image_key: `qa/exam-${number}.png`, image_url: pageImage, candidates: [candidate] }));
 
   await page.addInitScript(({ access, refresh }) => {
     localStorage.setItem("access", access);
@@ -114,10 +123,10 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
       });
     }
     if (path === "/matchup/documents/" && request.method() === "GET") {
-      return json(route, [{ ...documentPayload, status: options.failedAnalysis ? "failed" : "done", problem_count: savedProblems.length }]);
+      return json(route, [{ ...documentPayload, status: options.failedAnalysis ? "failed" : "done", problem_count: options.report ? 2 : savedProblems.length }]);
     }
     if (path === "/matchup/problems/" && request.method() === "GET") {
-      return json(route, savedProblems);
+      return json(route, options.report ? reportProblems : savedProblems);
     }
     if (path === `/matchup/documents/${DOC_ID}/pages/` && request.method() === "POST") {
       pagePreparations += 1;
@@ -165,12 +174,30 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
     }
     if (path === "/results/admin/clinic-targets/") return json(route, []);
     if (path === `/matchup/documents/${DOC_ID}/hit-report-draft/`) {
+      if (options.report) return json(route, {
+        report, entries: report.entries,
+        exam_problems: reportProblems.map((problem) => ({ ...problem,
+          entry: report.entries.find((entry) => entry.exam_problem_id === problem.id) || null })),
+        selected_problem_meta: [candidate],
+      });
       return json(route, { report: null, entries: [] });
+    }
+    if (options.report && path === "/matchup/hit-reports/501/" && request.method() === "PATCH") {
+      Object.assign(report, request.postDataJSON());
+      return json(route, report);
+    }
+    if (options.report && path === "/matchup/hit-reports/501/entries/" && request.method() === "POST") {
+      report.entries = request.postDataJSON().entries;
+      return json(route, { upserted: report.entries.length, deleted: 0 });
+    }
+    if (options.report && path === "/matchup/hit-reports/501/curated.pdf") {
+      return route.fulfill({ status: 200, contentType: "application/pdf", body: "%PDF-1.4\nmock report\n%%EOF" });
     }
     return json(route, { count: 0, results: [] });
   });
 
   return {
+    report,
     apiRequests,
     getPageReads: () => pageReads,
     getPagePreparations: () => pagePreparations,
@@ -398,6 +425,47 @@ test("1366px: existing three-column crop contract remains intact", async ({ page
   expect(widths.inspector).toBe(280);
   await expectNoDocumentOverflow(page);
 });
+
+for (const width of [390, 1366]) {
+  test(`${width}px: report candidate selection, save, reload and download remain reachable`, async ({ page }, testInfo) => {
+    expect(isLocalBase(BASE)).toBe(true);
+    await page.setViewportSize({ width, height: 844 });
+    const { report: savedReport } = await installMocks(page, { report: true });
+    await page.goto(`${BASE}/workspace/storage/matchup?docId=${DOC_ID}`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("matchup-doc-hit-report-curate-btn")).toBeVisible({ timeout: 45_000 });
+    await page.getByTestId("matchup-doc-hit-report-curate-btn").click();
+    const report = page.getByRole("dialog", { name: "적중 보고서 작성" });
+    const downloadButton = report.getByRole("button", { name: "PDF 다운로드", exact: true });
+    await expect(downloadButton).toBeInViewport({ ratio: 1 });
+    const comment = report.getByPlaceholder("이 문항을 어떻게 다뤘는지, 학생이 알아둘 점은 무엇인지 작성하세요");
+    await expect(comment).toBeVisible();
+    await expect.poll(async () => (await comment.boundingBox())?.width || 0).toBeGreaterThanOrEqual(280);
+    await comment.fill(`QA comment ${width}`);
+    await page.screenshot({ path: testInfo.outputPath(`report-preview-${width}.png`) });
+    const add = report.getByRole("button", { name: "PDF에 포함", exact: true }).first();
+    await add.scrollIntoViewIfNeeded();
+    await expect(add).toBeInViewport({ ratio: 1 });
+    await add.click();
+    await expect(report.getByLabel("PDF에 포함됨")).toBeVisible();
+    const summary = report.getByPlaceholder("예: 1학기 중간고사 대비 반영률 종합 분석");
+    await summary.fill(`QA report ${width}`);
+    await expect(report.getByTestId("matchup-hit-report-save-state")).toHaveText("저장됨 ✓");
+    expect(savedReport.summary).toBe(`QA report ${width}`);
+    expect(savedReport.entries.some((entry) => (entry.selected_problem_ids as number[]).includes(801))).toBe(true);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId("matchup-doc-hit-report-curate-btn").click();
+    await expect(summary).toHaveValue(`QA report ${width}`);
+    await expect(comment).toHaveValue(`QA comment ${width}`);
+    await expect(report.getByLabel("PDF에 포함됨")).toBeVisible();
+    const download = page.waitForEvent("download");
+    await downloadButton.click();
+    expect(await (await download).failure()).toBeNull();
+    await expectNoDocumentOverflow(page);
+    await page.screenshot({ path: testInfo.outputPath(`report-${width}.png`) });
+    await report.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(report).toBeHidden();
+  });
+}
 
 test("mobile storage copy no longer presents matchup as PC-only", () => {
   const source = fs.readFileSync(

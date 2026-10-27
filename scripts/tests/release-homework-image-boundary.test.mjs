@@ -135,3 +135,27 @@ test("HEIC XHR stays bound to its authorized object, MIME, credentials and actua
     { body: png }, { contentType: "image/png" }, { status: 302 },
   ]) rejected(await exercise({ ...options, ...override }), 1);
 });
+
+test("homework source and compatible MP4 require exact authorized response and retain real bounded bytes", async () => {
+  const body = readFileSync(new URL("../../e2e/fixtures/files/homework-video.mp4", import.meta.url));
+  const sourceUrl = url.replace(".png?", ".mp4?");
+  const derivativeUrl = sourceUrl.replace(/media-456-[0-9a-f]{32}/, `preview-${"c".repeat(32)}-${"d".repeat(32)}`);
+  for (const compatible of [false, true]) {
+    const options = { registerUrl: compatible ? derivativeUrl : sourceUrl, payload: { media_kind: "video", mime_type: "video/mp4", status: "ready" },
+      apiPath: `/api/v1/submissions/submissions/homework/789/media/456/preview/${compatible ? "compatible/" : ""}`,
+      resourceType: "media", contentType: "video/mp4", body, headers: { range: "bytes=0-" } };
+    const result = await exercise(options);
+    result.guard.assertClean();
+    assert.deepEqual(result.fetched, [{ url: options.registerUrl, method: "GET", headers: { accept: "video/mp4" }, maxRedirects: 0 }]);
+    assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "video/mp4", "content-length": String(body.length) }, body }]);
+    for (const override of [{ register: false }, { resourceType: "xhr" }, { resourceType: "document" }, { method: "POST" },
+      { headers: { authorization: "Bearer private" } }, { headers: { cookie: "private" } },
+      { registerUrl: options.registerUrl.replace("tenants/352", "tenants/353") }, { apiHeaders: { authorization: "" } },
+      ...(compatible ? [{ payload: { status: "queued" } }, { registerUrl: sourceUrl }] : [{ registerUrl: derivativeUrl }])]) {
+      rejected(await exercise({ ...options, ...override }));
+    }
+    for (const override of [{ status: 302 }, { contentType: "text/html" }, { body: png }, { body: Buffer.alloc(2 * 1024 * 1024 + 1) }]) {
+      rejected(await exercise({ ...options, ...override }), 1);
+    }
+  }
+});

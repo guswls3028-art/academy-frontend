@@ -124,6 +124,16 @@
   font-size: 12px;
 }
 
+.iconButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .invertButton[data-invert="true"] {
   background: var(--color-primary);
 }
@@ -153,6 +163,12 @@
 
 .previewImage[data-invert="true"] {
   filter: invert(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .previewImage {
+    transition: none;
+  }
 }
 
 .filename {

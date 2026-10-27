@@ -171,8 +171,17 @@ export default defineConfig(({ mode }) => {
     chunkSizeWarningLimit: 1400,
   },
 
+  worker: {
+    // Worker bundles bypass the main page's legacy plugin. Set the bundler target
+    // so its final minifier cannot reintroduce optional chaining either.
+    rolldownOptions: { transform: { target: "safari10.1" } },
+  },
+
   resolve: {
     alias: {
+      // The pinned CSP decoder lets our own worker be terminated on cancellation.
+      // heic-to's public converter hides a shared worker and cannot cancel it.
+      "@homework-heic-decoder": path.resolve(process.cwd(), "node_modules/heic-to/src/lib/libheif-without-unsafe-eval.js"),
       "@": path.resolve(process.cwd(), "src"),
       "@admin": path.resolve(process.cwd(), "src/app_admin"),
       "@student": path.resolve(process.cwd(), "src/app_student"),

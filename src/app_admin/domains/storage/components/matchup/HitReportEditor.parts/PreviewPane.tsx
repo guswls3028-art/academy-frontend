@@ -161,7 +161,7 @@ function PreviewPaneInner({
             captionLabel="내 수업 자료"
             captionSub={activeCand
               ? `${candDocTitle}  ·  Q${activeCand.number}`
-              : "우측 후보 목록에서 선택하세요"}
+              : "후보 목록에서 선택하세요"}
             captionColor={activeCand ? tierColor : "#94A3B8"}
             captionBg={activeCand ? tierBg : "#F1F5F9"}
             imageUrl={activeCand?.image_url || null}

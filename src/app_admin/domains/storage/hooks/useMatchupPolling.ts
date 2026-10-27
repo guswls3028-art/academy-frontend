@@ -3,15 +3,19 @@
 //
 // 역할:
 //  - status === "processing" 문서들의 AI job 진행률을 3초 간격 폴링
-//  - N개 문서를 Promise.allSettled로 병렬 fetch (3초 주기 보장)
+//  - 최대 8개 문서를 병렬 조회하고 응답 종료 3초 뒤 다음 조회 (중첩 방지)
 //  - 완료(status=DONE)/실패(FAILED) 감지 시 문서 목록 invalidate
 //  - 각 doc_id별 진행률(percent, step_name_display)을 반환 → UI에서 표시
 //
 // 응답 구조: { status, progress: {percent, step_name_display, ...}|null }
 // 작업이 너무 빨리 끝나면 progress=null + status=DONE 으로 돌아와서 percent 증가 없이 바로 완료됨.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { createAuthSessionBoundConfig } from "@/shared/api/axios";
+import { isTerminalAIJobStatus } from "@/shared/api/contracts/aiJob";
+import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { fetchJobProgress } from "../api/matchup.api";
 import type { MatchupDocument } from "../api/matchup.api";
 import { storageQueryKeys } from "../queryKeys";
@@ -27,14 +31,16 @@ function updatedAtMs(doc: MatchupDocument): number | null {
 export type DocProgress = {
   percent: number;
   stepName: string;
+  unavailable?: boolean;
 };
 
 export type DocProgressMap = Record<number, DocProgress>;
 
-export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap {
+export function useMatchupPolling(documents: MatchupDocument[], refreshKey = 0): DocProgressMap {
   const qc = useQueryClient();
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [progressMap, setProgressMap] = useState<DocProgressMap>({});
+  const tenantScope = getTenantCodeForApiRequest();
+  const generation = readAuthTokenEnvelopeSafely()?.generation;
 
   const now = Date.now();
   const processingDocs = documents
@@ -50,32 +56,51 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
     .join(",");
 
   useEffect(() => {
-    if (processingDocs.length === 0) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      setProgressMap({});
+    setProgressMap({});
+    if (processingDocs.length === 0 || !tenantScope || !generation) {
       return;
     }
 
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
+    const unavailableJobs = new Set<string>();
+    const requestConfig = createAuthSessionBoundConfig(generation, controller.signal, tenantScope);
+    const isCurrent = () => !cancelled
+      && getTenantCodeForApiRequest() === tenantScope
+      && readAuthTokenEnvelopeSafely()?.generation === generation;
 
     const poll = async () => {
-      // 병렬 fetch — 순차 await 루프를 제거해 3초 주기 보장
+      if (!isCurrent()) return;
+      const polledDocs = processingDocs.filter((doc) => !unavailableJobs.has(doc.ai_job_id));
+      if (polledDocs.length === 0) return;
       const results = await Promise.allSettled(
-        processingDocs.map((doc) =>
-          fetchJobProgress(doc.ai_job_id).then((env) => ({ doc, env })),
+        polledDocs.map((doc) =>
+          fetchJobProgress(doc.ai_job_id, requestConfig).then((env) => ({ doc, env })),
         ),
       );
+      if (!isCurrent()) return;
 
       let anyComplete = false;
       const next: DocProgressMap = {};
       const terminalDocIds = new Set<number>();
 
-      for (const r of results) {
+      for (const [index, r] of results.entries()) {
+        const rejectedStatus = r.status === "rejected"
+          ? (r.reason as { response?: { status?: number } } | null)?.response?.status : undefined;
+        if (rejectedStatus === 403 || rejectedStatus === 404
+          || (r.status === "fulfilled" && r.value.env?.status === "UNKNOWN")) {
+          const doc = polledDocs[index];
+          unavailableJobs.add(doc.ai_job_id);
+          next[doc.id] = { percent: 0, stepName: "상태 확인 불가", unavailable: true };
+          anyComplete = true;
+          continue;
+        }
         if (r.status !== "fulfilled") continue;
         const { doc, env } = r.value;
         if (!env) continue;
 
-        if (env.status === "DONE" || env.status === "FAILED" || env.status === "CANCELLED") {
+        if (isTerminalAIJobStatus(env.status) || env.status === "CANCELLED") {
           anyComplete = true;
           terminalDocIds.add(doc.id);
           continue;
@@ -92,10 +117,11 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
         }
       }
 
-      if (cancelled) return;
       // terminal 상태 doc은 progress 맵에서 제거 (이전 진행률 잔여 방지)
       setProgressMap((prev) => {
-        const merged = { ...prev, ...next };
+        const activeIds = new Set(processingDocs.map((doc) => doc.id));
+        const retained = Object.fromEntries(Object.entries(prev).filter(([id]) => activeIds.has(Number(id))));
+        const merged: DocProgressMap = { ...retained, ...next };
         for (const id of terminalDocIds) delete merged[id];
         return merged;
       });
@@ -109,16 +135,19 @@ export function useMatchupPolling(documents: MatchupDocument[]): DocProgressMap 
         // (terminal 시점에만 invalidate하던 결함 — 신규 업로드 doc은 끝까지 빈 화면)
         qc.invalidateQueries({ queryKey: storageQueryKeys.matchupProblemsRoot });
       }
+      if (processingDocs.some((doc) => !unavailableJobs.has(doc.ai_job_id))) {
+        timer = setTimeout(() => { void poll(); }, 3000);
+      }
     };
 
     void poll();
-    intervalRef.current = setInterval(poll, 3000);
     return () => {
       cancelled = true;
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      controller.abort();
+      if (timer !== undefined) clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [processingKey]);
+  }, [processingKey, tenantScope, generation, qc, refreshKey]);
 
   return progressMap;
 }

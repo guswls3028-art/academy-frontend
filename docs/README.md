@@ -43,6 +43,7 @@
 | [STUDENT-LECTURE-MEMOS.md](STUDENT-LECTURE-MEMOS.md) | 학생 공통 메모와 학생별 강의 메모의 차시 공유·편집·동시 수정·직원 화면 계약 |
 | [ADMIN-STUDENT-DETAIL.md](ADMIN-STUDENT-DETAIL.md) | 학생 상세 정보·기록 탭·계정 작업, 메모 저장/복구와 학생별 질문 조회 계약 |
 | [REAL-USE-REVIEW-MANUAL.md](REAL-USE-REVIEW-MANUAL.md) | 실제 운영 흐름과 UI/UX 상품성을 함께 점검하는 반복 검수 매뉴얼 |
+| [STUDENT-NOTICE-NOTIFICATIONS.md](STUDENT-NOTICE-NOTIFICATIONS.md) | 학생·학부모 공지 범위 복원, 알림 공유 조회·읽음·실패 복구 계약 |
 | [REAL-USE-E2E-INVENTORY.md](REAL-USE-E2E-INVENTORY.md) | 기존 E2E 자산을 실사용 운영 리뷰 관점으로 분류한 인벤토리 |
 | [DEPLOYMENT-OPERATIONS.md](DEPLOYMENT-OPERATIONS.md) | Cloudflare preview/production/rollback, scoped token, PR 무쓰기 E2E, Actions 공급망, backend/frontend release-bundle readback 계약 |
 | [DEV-INBOX-GUIDE.md](DEV-INBOX-GUIDE.md) | 학원 직원 문의 제출·답변 확인과 플랫폼 문의 처리 가이드 |

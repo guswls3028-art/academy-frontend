@@ -63,7 +63,7 @@ for (const width of [390, 1366]) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await page.screenshot({ path: test.info().outputPath(`lecture-roster-${width}.png`), fullPage: false, animations: "disabled" });
       await page.reload();
-      await page.getByRole("button", { name: "수강생 (501)", exact: true }).click();
+      await expect(page.getByRole("button", { name: "수강생 (501)", exact: true })).toHaveAttribute("aria-pressed", "true");
       await expect(page.getByText("수강 검증 501", { exact: true })).toBeVisible();
     });
   }
