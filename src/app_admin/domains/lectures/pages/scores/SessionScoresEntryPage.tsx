@@ -1623,7 +1623,7 @@ export default function SessionScoresEntryPage({
                   }
                   setIsEditMode(true);
                 }}
-                className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-white hover:opacity-90"
+                className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] hover:bg-[var(--color-brand-primary-hover)]"
               >
                 {draft.isStartingEdit
                   ? "복원 준비 중…"
@@ -1794,7 +1794,7 @@ export default function SessionScoresEntryPage({
                   type="button"
                   className={`h-9 px-4 rounded text-sm font-medium border ${
                     bulkScoreTarget === "exam"
-                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)]"
+                      ? "bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] border-[var(--color-brand-primary)]"
                       : "bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border-divider)]"
                   }`}
                   onClick={() => setBulkScoreTarget("exam")}
@@ -1805,7 +1805,7 @@ export default function SessionScoresEntryPage({
                   type="button"
                   className={`h-9 px-4 rounded text-sm font-medium border ${
                     bulkScoreTarget === "homework"
-                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)]"
+                      ? "bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] border-[var(--color-brand-primary)]"
                       : "bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border-divider)]"
                   }`}
                   onClick={() => setBulkScoreTarget("homework")}

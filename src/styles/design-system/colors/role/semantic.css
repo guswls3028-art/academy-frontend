@@ -62,6 +62,7 @@
 
   /* Filled status controls keep readable text independently of theme text colors. */
   --color-success-solid: #15803d;
+  --color-success-solid-hover: #166534;
   --color-warning-solid: #a16207;
   --color-danger-solid: #b91c1c;
   --color-danger-solid-hover: #991b1b;

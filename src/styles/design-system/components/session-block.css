@@ -373,7 +373,7 @@
   height: 22px;
   border-radius: 50%;
   background: var(--color-brand-primary);
-  color: white;
+  color: var(--color-brand-primary-contrast);
   display: flex;
   align-items: center;
   justify-content: center;

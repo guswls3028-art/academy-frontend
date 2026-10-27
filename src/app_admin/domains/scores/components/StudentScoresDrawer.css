@@ -507,8 +507,8 @@ a.student-scores-drawer__student-link:focus-visible {
 
 .ssd-correction-quick-toggle[data-status="completed"] {
   border-color: color-mix(in srgb, var(--color-success) 58%, var(--color-border-divider));
-  background: var(--color-success);
-  color: #fff;
+  background: var(--color-success-solid);
+  color: var(--color-semantic-contrast);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--color-success) 22%, transparent);
 }
 
@@ -833,14 +833,14 @@ a.student-scores-drawer__student-link:focus-visible {
 }
 
 .student-scores-drawer__pass-badge[data-tone="success"] {
-  background: var(--color-success);
-  color: #fff;
+  background: var(--color-success-solid);
+  color: var(--color-semantic-contrast);
   border: none;
 }
 
 .student-scores-drawer__pass-badge[data-tone="danger"] {
-  background: var(--color-error);
-  color: #fff;
+  background: var(--color-danger-solid);
+  color: var(--color-semantic-contrast);
   border: none;
 }
 
@@ -1076,13 +1076,13 @@ a.student-scores-drawer__student-link:focus-visible {
 }
 
 .ssd-attempt-card__badge--pass {
-  background: var(--color-success, #10b981);
-  color: #fff;
+  background: var(--color-success-solid);
+  color: var(--color-semantic-contrast);
 }
 
 .ssd-attempt-card__badge--fail {
-  background: var(--color-error, #ef4444);
-  color: #fff;
+  background: var(--color-danger-solid);
+  color: var(--color-semantic-contrast);
 }
 
 .ssd-attempt-card__badge--new {
@@ -1220,7 +1220,7 @@ a.student-scores-drawer__student-link:focus-visible {
   border: none;
   border-radius: 6px;
   background: var(--color-brand-primary, #6366f1);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;

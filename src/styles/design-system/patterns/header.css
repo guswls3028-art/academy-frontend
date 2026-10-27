@@ -482,9 +482,9 @@
 }
 [data-app="admin"] .app-header__clockBtn--start,
 [data-app="admin"] .app-header__clockBtn--resume {
-  background: linear-gradient(180deg, #34d058 0%, var(--color-success, #22c55e) 100%) !important;
+  background: var(--color-success-solid) !important;
   border-color: color-mix(in srgb, var(--color-success, #22c55e) 80%, #000) !important;
-  color: #fff !important;
+  color: var(--color-semantic-contrast) !important;
   box-shadow:
     0 1px 3px rgba(34, 197, 94, 0.3),
     0 0 0 1px rgba(34, 197, 94, 0.1);

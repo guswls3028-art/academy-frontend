@@ -347,7 +347,7 @@
 
 .permission-apply-btn[data-tone="primary"] {
   background: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 .permission-apply-btn[data-tone="primary"]:hover:not(:disabled) {
   background: var(--color-brand-primary-hover);
@@ -364,11 +364,11 @@
 }
 
 .permission-apply-btn[data-tone="danger"] {
-  background: var(--color-danger, var(--color-error));
-  color: #fff;
+  background: var(--color-danger-solid);
+  color: var(--color-semantic-contrast);
 }
 .permission-apply-btn[data-tone="danger"]:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-danger, var(--color-error)) 85%, black);
+  background: var(--color-danger-solid-hover);
   box-shadow: var(--elevation-1);
 }
 

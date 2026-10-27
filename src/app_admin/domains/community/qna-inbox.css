@@ -523,8 +523,8 @@
 
 /* Teacher: primary-color identity */
 .qna-inbox__avatar--teacher {
-  background: color-mix(in srgb, var(--color-primary) 88%, transparent);
-  color: #fff;
+  background: var(--color-brand-primary);
+  color: var(--color-brand-primary-contrast);
 }
 
 /* Student color palette — 5 hue slots using color-mix for theme safety */

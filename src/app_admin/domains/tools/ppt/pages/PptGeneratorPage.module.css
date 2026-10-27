@@ -425,7 +425,7 @@
 
 .modeTab[data-active="true"] {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .modeTab:disabled {

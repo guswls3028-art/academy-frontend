@@ -100,7 +100,7 @@
 .clinic-reschedule__select select { min-height: 46px; border: 1px solid var(--color-border-default); border-radius: 12px; padding: 0 12px; background: var(--color-bg-surface); color: var(--color-text-primary); }
 .clinic-reschedule__choices { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; }
 .clinic-reschedule__choices a { color: var(--color-brand-primary); font-size: 13px; font-weight: 800; text-decoration: none; }
-.clinic-reschedule__choices button { min-height: 42px; padding: 0 18px; border: 0; border-radius: 12px; background: var(--color-brand-primary); color: white; font-weight: 800; cursor: pointer; }
+.clinic-reschedule__choices button { min-height: 42px; padding: 0 18px; border: 0; border-radius: 12px; background: var(--color-brand-primary); color: var(--color-brand-primary-contrast); font-weight: 800; cursor: pointer; }
 .clinic-reschedule__choices button:disabled { opacity: .5; cursor: not-allowed; }
 
 @media (max-width: 640px) {

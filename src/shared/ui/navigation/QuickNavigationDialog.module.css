@@ -191,7 +191,7 @@
 
 .item[aria-current="page"] .icon {
   background: var(--color-primary, var(--tc-primary, #2563eb));
-  color: white;
+  color: var(--color-brand-primary-contrast);
 }
 
 .icon {

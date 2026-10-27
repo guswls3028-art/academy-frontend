@@ -137,7 +137,7 @@
 .orw-filter-chip--active {
   background: var(--color-brand-primary, #6366f1);
   border-color: var(--color-brand-primary, #6366f1);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 .orw-filter-chip--zero {
   opacity: 0.45;
@@ -421,7 +421,7 @@
 .orw-scan-pane__zoom-btn--active {
   background: var(--color-brand-primary, #6366f1);
   border-color: var(--color-brand-primary, #6366f1);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 /* === 우측: 답안 편집 === */
@@ -764,7 +764,7 @@
 .orw-bubble--selected {
   background: var(--color-brand-primary, #6366f1);
   border-color: var(--color-brand-primary, #6366f1);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 .orw-bubble-empty-hint {
   font-size: 11px;
@@ -796,7 +796,7 @@
   border-radius: 8px;
   border: none;
   background: var(--color-brand-primary, #6366f1);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   font-size: 14px; font-weight: 700;
   cursor: pointer;
   transition: filter 0.1s, opacity 0.1s, background 0.1s;

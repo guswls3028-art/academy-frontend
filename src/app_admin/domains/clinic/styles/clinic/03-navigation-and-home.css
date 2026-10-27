@@ -685,8 +685,8 @@ details[open] > .clinic-tree__summary {
   margin-left: var(--space-2);
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
-  background: var(--color-error);
+  color: var(--color-semantic-contrast);
+  background: var(--color-danger-solid);
   padding: 1px 8px;
   border-radius: 999px;
   line-height: 1.6;

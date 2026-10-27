@@ -132,6 +132,12 @@ async function mountAuditSurface(page: Page) {
         <button class="ds-button" data-size="md" data-intent="ghost" data-testid="ghost">낮은 강조</button>
         <button class="ds-button" data-size="md" data-intent="danger" data-testid="danger">삭제</button>
         <button class="ant-btn ant-btn-dangerous ant-btn-primary" data-testid="antd-danger">삭제 확인</button>
+        <button class="confirm-dialog__button confirm-dialog__button--confirm" data-testid="confirm-primary">최종 확인</button>
+        <button class="confirm-dialog__button confirm-dialog__button--danger" data-testid="confirm-danger">삭제 확인</button>
+        <button class="bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] hover:bg-[var(--color-brand-primary-hover)]" data-testid="utility-primary">색상 선택</button>
+        ${["primary", "success", "danger"].map((tone) => `
+          <span class="ds-status-badge" data-tone="${tone}" data-testid="badge-${tone}">상태</span>
+        `).join("")}
         ${["success", "warning", "danger", "info"].map((tone) => `
           <span data-testid="solid-${tone}" style="padding: 8px; background: var(--color-${tone}-solid); color: var(--color-semantic-contrast)">${tone}</span>
         `).join("")}
@@ -214,6 +220,21 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
 
     await page.mouse.move(1, 1);
     const primaryDefault = await readState(primary);
+    const utilityDefault = await readState(page.getByTestId("utility-primary"));
+    if (utilityDefault.color !== primaryDefault.color) {
+      const rules = await page.getByTestId("utility-primary").evaluate((element) => {
+        const matched: string[] = [];
+        function walk(rules: CSSRuleList, layer = "unlayered") {
+          for (const rule of rules) {
+            if (rule instanceof CSSStyleRule && rule.style.color && element.matches(rule.selectorText)) matched.push(`${layer}: ${rule.selectorText} { color: ${rule.style.color} }`);
+            if ("cssRules" in rule) walk((rule as CSSGroupingRule).cssRules, rule.constructor.name === "CSSLayerBlockRule" ? rule.cssText.slice(0, rule.cssText.indexOf("{")) : layer);
+          }
+        }
+        for (const sheet of document.styleSheets) walk(sheet.cssRules);
+        return matched;
+      });
+      await testInfo.attach(`utility-cascade-${theme.key}.json`, { body: JSON.stringify(rules), contentType: "application/json" });
+    }
     const secondaryDefault = await readState(secondary);
     const dangerDefault = await readState(danger);
     const antdDangerDefault = await readState(antdDanger);
@@ -238,6 +259,8 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
     const tabFocus = await readState(tabDefault);
 
     expect.soft(primaryDefault.contrast, `${theme.key}: primary contrast`).toBeGreaterThanOrEqual(4.5);
+    expect.soft(utilityDefault.background, `${theme.key}: utility primary background`).toBe(primaryDefault.background);
+    expect.soft(utilityDefault.color, `${theme.key}: utility primary foreground`).toBe(primaryDefault.color);
     expect.soft(secondaryDefault.contrast, `${theme.key}: secondary contrast`).toBeGreaterThanOrEqual(4.5);
     for (const [state, value] of Object.entries({ dangerDefault, dangerHover, antdDangerDefault, antdDangerHover })) {
       expect.soft(value.contrast, `${theme.key}: ${state} contrast`).toBeGreaterThanOrEqual(4.5);
@@ -245,6 +268,10 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
     for (const tone of ["success", "warning", "danger", "info"]) {
       const state = await readState(page.getByTestId(`solid-${tone}`));
       expect.soft(state.contrast, `${theme.key}: filled ${tone} contrast`).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const id of ["confirm-primary", "confirm-danger", "utility-primary", "badge-primary", "badge-success", "badge-danger"]) {
+      const state = await readState(page.getByTestId(id));
+      expect.soft(state.contrast, `${theme.key}: ${id} contrast ${JSON.stringify(state)}`).toBeGreaterThanOrEqual(4.5);
     }
     expect.soft(pressedDefault.contrast, `${theme.key}: pressed contrast`).toBeGreaterThanOrEqual(4.5);
     expect.soft(tabActiveState.contrast, `${theme.key}: active tab contrast`).toBeGreaterThanOrEqual(4.5);

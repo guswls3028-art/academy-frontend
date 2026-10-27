@@ -491,7 +491,7 @@
 .categoryActionPrimary {
   border-color: var(--color-brand-primary);
   background: var(--color-brand-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .categoryMenuShell {

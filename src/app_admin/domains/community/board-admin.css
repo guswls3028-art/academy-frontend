@@ -692,7 +692,7 @@
 }
 .cms-attach__download-btn:hover {
   background: var(--color-primary, #3b82f6);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 /* ═══════════════════════════════════════════════════════

@@ -58,7 +58,7 @@
 .clinic-home__timeline-card-next-badge {
   font-size: 11px;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   background: var(--color-brand-primary);
   padding: 1px 8px;
   border-radius: 999px;

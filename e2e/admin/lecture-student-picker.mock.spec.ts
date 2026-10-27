@@ -309,8 +309,8 @@ test("낮은 모바일 화면·다크 테마에서도 선택과 저장 버튼에
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => localStorage.setItem("hakwonplus:theme", "modern-dark"));
   const { dialog } = await openPicker(page);
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "modern-dark");
-  await expect(dialog.locator(".modal-body")).toHaveCSS("background-color", "rgb(17, 24, 39)");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "focus-dark");
+  await expect(dialog.locator(".modal-body")).toHaveCSS("background-color", "rgb(25, 33, 41)");
   await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
   const save = dialog.getByRole("button", { name: "1명 강의에 추가", exact: true });
   await expect(save).toBeInViewport();
