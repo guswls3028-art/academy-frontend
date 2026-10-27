@@ -654,6 +654,7 @@ test("HEIC 임시 파일은 새로고침 후 복원되고 제출 뒤 기기 보�
   await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
   await page.locator('input[type="file"]').setInputFiles({ name: "restore.heic", mimeType: "image/heic", buffer: homeworkHeic });
   await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+  await expectPendingHomeworkHeicReady(page, "restore.heic");
   await page.reload();
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
   await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toContainText("restore.heic");
@@ -675,6 +676,7 @@ test("HEIC 임시 보관은 다른 로그인에 노출되지 않고 이전 파�
   await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
   await page.locator('input[type="file"]').setInputFiles({ name: "private-draft.heic", mimeType: "image/heic", buffer: homeworkHeic });
   await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+  await expectPendingHomeworkHeicReady(page, "private-draft.heic");
   await page.evaluate(() => {
     const activeKey = "academy:auth-active-generation:v1";
     const oldGeneration = localStorage.getItem(activeKey)!;
