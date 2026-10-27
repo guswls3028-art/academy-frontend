@@ -555,6 +555,31 @@ test("서버 저장 뒤 응답이 끊겨도 재전송 없이 성공을 확인한
   expect(state.getUploadAttempts()).toBe(1);
 });
 
+test("저장 중으로 남은 파일도 제한된 재조회 뒤 같은 식별자로 복구한다", async ({ page }) => {
+  test.setTimeout(90_000);
+  const state = await installApi(page, 0);
+  await page.goto(`${BASE}/student/submit/assignment`);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.locator('input[type="file"]').setInputFiles({ name: "interrupted.mp4", mimeType: "video/mp4", buffer: Buffer.from("synthetic-video") });
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect.poll(state.getUploadAttempts).toBe(1);
+  await expect(page.getByRole("alert")).toContainText("1개 파일을 올리지 못했습니다");
+  const saved = state.files.find((file) => file.original_filename === "interrupted.mp4")!;
+  const originalClientId = saved.client_file_id;
+  saved.status = "uploading";
+  saved.error_message = "";
+  await page.reload();
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toContainText("interrupted.mp4");
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect(page.getByText("전송 완료 · 서버에 저장 확인 중…", { exact: true })).toBeVisible();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible({ timeout: 45_000 });
+  expect(state.getUploadAttempts()).toBe(2);
+  expect(state.getUploadClientIds()).toEqual([originalClientId, originalClientId]);
+  expect(state.files.filter((file) => file.original_filename === "interrupted.mp4")).toHaveLength(1);
+  expect(state.files.find((file) => file.client_file_id === originalClientId)?.status).toBe("uploaded");
+});
+
 test("저장 확인 중 잠시 멈춘 뒤 reload하면 이미 저장된 파일은 다시 보내지 않는다", async ({ page }) => {
   const state = await installApi(page, 1800);
   await page.goto(`${BASE}/student/submit/assignment`);

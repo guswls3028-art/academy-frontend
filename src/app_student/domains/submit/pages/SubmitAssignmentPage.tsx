@@ -233,11 +233,9 @@ export default function SubmitAssignmentPage() {
               succeeded.push(item.clientFileId);
               continue;
             }
-            if (persisted?.status === "uploading") {
-              failed.push(item.clientFileId);
-              updatePending(item.clientFileId, { status: "failed", error: "서버에서 저장 결과를 확인하고 있습니다. 잠시 후 이어서 제출해 주세요." });
-              continue;
-            }
+            // A legacy/crashed upload can remain "uploading" indefinitely.
+            // Reuse its client ID after this bounded read: the API serializes
+            // assignment writes and deduplicates an already committed file.
           }
           let position = persisted?.position ?? item.position;
           try {
