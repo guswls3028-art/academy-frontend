@@ -739,8 +739,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                   display: "inline-flex", alignItems: "center", gap: 6,
                   fontSize: 11, fontWeight: 700,
                   padding: "3px 9px", borderRadius: 999,
-                  background: "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)",
-                  color: "var(--color-brand-primary)",
+                  background: "var(--color-info-bg)",
+                  color: "var(--color-info-text)",
                   border: "1px solid color-mix(in srgb, var(--color-brand-primary) 28%, transparent)",
                 }}
               >
@@ -757,8 +757,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                   display: "inline-flex", alignItems: "center", gap: 5,
                   fontSize: 11, fontWeight: 700,
                   padding: "3px 9px", borderRadius: 999,
-                  background: "color-mix(in srgb, var(--color-status-warning) 12%, transparent)",
-                  color: "var(--color-status-warning)",
+                  background: "var(--color-warning-bg)",
+                  color: "var(--color-warning-text)",
                   border: "1px solid color-mix(in srgb, var(--color-status-warning) 35%, transparent)",
                   cursor: "pointer",
                 }}
@@ -780,19 +780,20 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                 fontSize: 11, fontWeight: 600,
                 padding: "3px 9px", borderRadius: 999,
                 cursor: autosaveError ? "pointer" : "default",
+                opacity: 1,
                 background: saving
-                  ? "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)"
+                  ? "var(--color-info-bg)"
                   : autosaveError
-                    ? "color-mix(in srgb, var(--color-status-error, #dc2626) 14%, transparent)"
+                    ? "var(--color-error-bg)"
                     : dirtyCount > 0
-                      ? "color-mix(in srgb, var(--color-status-warning) 12%, transparent)"
+                      ? "var(--color-warning-bg)"
                       : "var(--color-bg-surface-soft)",
                 color: saving
-                  ? "var(--color-brand-primary)"
+                  ? "var(--color-info-text)"
                   : autosaveError
-                    ? "var(--color-status-error, #dc2626)"
+                    ? "var(--color-error-text)"
                     : dirtyCount > 0
-                      ? "var(--color-status-warning)"
+                      ? "var(--color-warning-text)"
                       : "var(--color-text-muted)",
                 border: "1px solid",
                 borderColor: saving
