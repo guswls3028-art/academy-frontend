@@ -12,8 +12,9 @@ async function installScenario(page: Page) {
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
   }, `e30.${payload}.signature`);
-  const state = { lectureFailure: false, sessionFailure: false, listRequests: 0 };
+  const state = { lectureFailure: false, sessionFailure: false, createFailure: false, listRequests: 0, creates: 0 };
   const lecture = { id: 71, title: "고등 수학 심화 문제풀이와 개념 복습", name: "김선생", subject: "수학", is_active: true };
+  const lectures = [lecture, { ...lecture, id: 72, title: "영어 독해", subject: "영어", name: "이선생" }];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -23,8 +24,15 @@ async function installScenario(page: Page) {
     if (path === "/core/me/") return route.fulfill({ json: { id: 12, name: "김선생", username: "qa-teacher", is_staff: true, tenantRole: "teacher", must_change_password: false, first_login_guide_required: false } });
     if (path === "/core/subscription/") return route.fulfill({ json: { plan: "all", subscription_status: "active", is_subscription_active: true, days_remaining: 30 } });
     if (path === "/lectures/lectures/") {
+      if (request.method() === "POST") {
+        state.creates += 1;
+        if (state.createFailure) return route.fulfill({ status: 400, json: { detail: "강의를 생성하지 못했습니다." } });
+        const created = { ...request.postDataJSON(), id: 73 };
+        lectures.push(created);
+        return route.fulfill({ status: 201, json: created });
+      }
       state.listRequests += 1;
-      return route.fulfill({ json: { count: 2, next: null, results: [lecture, { ...lecture, id: 72, title: "영어 독해", subject: "영어", name: "이선생" }] } });
+      return route.fulfill({ json: { count: lectures.length, next: null, results: lectures } });
     }
     if (path === "/lectures/lectures/71/") return route.fulfill(state.lectureFailure
       ? { status: 400, json: { detail: "강의 조회 실패" } } : { json: lecture });
@@ -38,6 +46,31 @@ async function installScenario(page: Page) {
 }
 
 for (const width of [390, 1366]) {
+  test(`새 강의 생성 실패는 필터·입력을 유지하고 성공하면 생성한 강의를 보여준다 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await installScenario(page);
+    state.createFailure = true;
+    await page.goto(`${BASE}/workspace/mobile/classes?tab=past&q=김선생`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await page.getByRole("button", { name: "강의 추가", exact: true }).click();
+    await page.getByLabel("강의명 *", { exact: true }).fill("새 과학 실험반");
+    await page.getByLabel("강사 *", { exact: true }).fill("박선생");
+    await page.getByLabel("과목 *", { exact: true }).fill("과학");
+    await page.getByLabel("수업 시간 *", { exact: true }).fill("토 10:00");
+    await page.getByLabel("강의 딱지 2글자", { exact: true }).fill("과학");
+    await page.getByRole("button", { name: "생성", exact: true }).click();
+    await expect(page.getByText("강의를 생성하지 못했습니다.", { exact: true })).toBeVisible();
+    await expect(page.getByPlaceholder("예: 수학 심화반", { exact: true })).toHaveValue("새 과학 실험반");
+    await expect(page).toHaveURL(/tab=past/);
+    state.createFailure = false;
+    await page.getByRole("button", { name: "생성", exact: true }).click();
+    await expect(page).toHaveURL(/\/classes$/);
+    await expect(page.getByRole("searchbox", { name: "강의 찾기" })).toHaveValue("");
+    await expect(page.getByRole("button", { name: /새 과학 실험반/ })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("button", { name: /새 과학 실험반/ })).toBeVisible();
+    expect(state.creates).toBe(2);
+  });
+
   test(`강의 검색과 지난 강의 선택은 상세 복귀·새로고침에도 유지된다 ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const state = await installScenario(page);

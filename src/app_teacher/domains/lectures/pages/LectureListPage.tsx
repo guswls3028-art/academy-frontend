@@ -160,7 +160,12 @@ export default function LectureListPage() {
         />
       )}
 
-      <LectureFormSheet open={createOpen} onClose={() => setCreateOpen(false)} />
+      <LectureFormSheet open={createOpen} onClose={() => setCreateOpen(false)} onCreated={() => {
+        const next = new URLSearchParams(searchParams);
+        next.delete("tab");
+        next.delete("q");
+        setSearchParams(next, { replace: true });
+      }} />
     </div>
   );
 }
