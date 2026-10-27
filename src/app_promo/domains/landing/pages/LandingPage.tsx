@@ -1,7 +1,9 @@
 import { Link } from "react-router";
 import { ArrowRight, BellRing, BookOpenCheck, ClipboardCheck, Globe2, PlayCircle, Presentation, UsersRound } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
-import { PLANNED_PAYMENT_NOTICE, START_GUIDANCE_NOTICE } from "../business";
+import { PLANNED_PAYMENT_NOTICE, POST_AUGUST_MONTHLY_TOTAL_AMOUNT, START_GUIDANCE_NOTICE, formatKoreanPrice } from "../business";
+import { PROMO_QUESTIONS } from "../promoQuestions";
+import PromoQuestions from "../components/PromoQuestions";
 import PromoEvidenceImage from "../components/PromoEvidenceImage";
 import CtaSection from "../components/CtaSection";
 import styles from "./LandingPage.module.css";
@@ -84,10 +86,19 @@ export default function LandingPage() {
       <section className={styles.start} aria-labelledby="start-title">
         <h2 id="start-title">이용 안내</h2>
         <div>
+          <p className={styles.priceSummary}>월 {formatKoreanPrice(POST_AUGUST_MONTHLY_TOTAL_AMOUNT)} <span>부가세 포함 · 기본 저장공간 200GB</span></p>
+          <p>학생·계정 수에 따른 추가 요금은 없습니다. 알림톡 발송비, 추가 저장공간, 대량 자료 이전과 맞춤 개발은 별도 협의합니다.</p>
           <p>{START_GUIDANCE_NOTICE}</p>
           <Link to="/promo/pricing">요금과 이용 조건 보기 <ArrowRight size={ICON.sm} aria-hidden="true" /></Link>
           <p className={styles.plannedNote}>{PLANNED_PAYMENT_NOTICE}</p>
         </div>
+      </section>
+      <section className={styles.questions} aria-labelledby="home-questions-title">
+        <div className={styles.sectionHeading}>
+          <h2 id="home-questions-title">이용 전에 많이 묻는 질문</h2>
+          <Link to="/promo/faq">질문 전체 보기</Link>
+        </div>
+        <PromoQuestions questions={PROMO_QUESTIONS.filter(item => ["import-data", "automatic-messages", "auto-grading"].includes(item.id))} />
       </section>
       <CtaSection />
     </div>

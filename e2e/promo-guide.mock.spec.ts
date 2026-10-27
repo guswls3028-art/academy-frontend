@@ -420,6 +420,7 @@ for (const width of [1366, 390]) {
     await guideLink.click();
     await expect(page.getByRole("heading", { name: "관리자·선생님 사용 가이드" })).toBeVisible();
     await page.getByRole("link", { name: "도입 전 자주 묻는 질문 →" }).click();
+    await page.getByText("원비나 교재비를 온라인으로 결제할 수 있나요?", { exact: true }).click();
     await expect(page.getByText(/원비·교재비 온라인 결제 기능은 도입 예정입니다/)).toBeVisible();
     await page.goto(`${BASE}/promo/contact`);
     await expect(page.getByText("통화 연결이 어려울 경우 문자를 남겨주시면 확인 후 연락드리겠습니다.")).toBeVisible();

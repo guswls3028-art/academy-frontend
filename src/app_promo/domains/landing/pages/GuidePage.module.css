@@ -17,6 +17,11 @@
 
 .intro p { margin: 0; }
 .intro a { flex-shrink: 0; color: #086875; font-weight: 700; }
+.screenGuide { margin-bottom: 24px; border: 1px solid #e1e6e9; border-radius: 6px; }
+.screenGuide > summary { padding: 16px 18px; min-height: 48px; color: #26353e; font-size: 15px; font-weight: 600; line-height: 1.7; cursor: pointer; }
+.screenGuide > summary span { display: inline-block; margin-left: 12px; color: #65727b; font-size: 14px; font-weight: 400; word-break: keep-all; }
+.screenGuide > summary:focus-visible { outline: 2px solid #365d6e; outline-offset: 3px; }
+.screenGuide[open] > summary { border-bottom: 1px solid #e1e6e9; }
 
 .roles {
   display: flex;
@@ -39,8 +44,8 @@
 }
 
 .roles button[aria-pressed="true"] {
-  border-color: #086875;
-  background: #086875;
+  border-color: #365d6e;
+  background: #365d6e;
   color: #fff;
 }
 
