@@ -95,7 +95,7 @@ function sortImageItems(items: ImageItem[], mode: SortMode): ImageItem[] {
 function buildPreviewFilter(item: ImageItem | undefined, settings: PptSettings): string {
   if (!item) return "";
   return [
-    item.invert || settings.invert ? "invert(1)" : "",
+    (item.invert ?? settings.invert) ? "invert(1)" : "",
     settings.grayscale ? "grayscale(1)" : "",
     settings.brightness !== 1.0 ? `brightness(${settings.brightness})` : "",
     settings.contrast !== 1.0 ? `contrast(${settings.contrast})` : "",
@@ -133,6 +133,9 @@ export default function PptGeneratorPage() {
       recoveryIdentityRef.current = "";
       return;
     }
+    // The submission loop already observes this job. Recover persisted jobs
+    // after it settles or on reload instead of starting a second page poller.
+    if (isGenerating) return;
     const identity = `${tenantScope}:${userId}`;
     if (recoveryIdentityRef.current !== identity) {
       recoveryIdentityRef.current = identity;
@@ -191,7 +194,7 @@ export default function PptGeneratorPage() {
       controller.abort();
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [authLoading, tenantScope, userId, recoveryNonce, session]);
+  }, [authLoading, tenantScope, userId, recoveryNonce, session, isGenerating]);
 
   function rememberAcceptedJob(jobId: string, label: string) {
     if (!userId || !tenantScope) {
@@ -246,7 +249,6 @@ export default function PptGeneratorPage() {
         addedSeq: identity.addedSeq,
         file: f,
         previewUrl: URL.createObjectURL(f),
-        invert: false,
       };
     });
     setImages((prev) => {
@@ -315,9 +317,9 @@ export default function PptGeneratorPage() {
   // 개별 반전 토글
   const handleToggleInvert = useCallback((id: string) => {
     setImages((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, invert: !item.invert } : item)),
+      prev.map((item) => (item.id === id ? { ...item, invert: !(item.invert ?? settings.invert) } : item)),
     );
-  }, [setImages]);
+  }, [setImages, settings.invert]);
 
   // 전체 삭제
   const handleClearAll = useCallback(() => {
@@ -381,7 +383,7 @@ export default function PptGeneratorPage() {
     mutationFn: async () => runImageJob(
       images.map((item) => item.file),
       images.map((item) => ({
-        invert: item.invert || settings.invert,
+        invert: item.invert ?? settings.invert,
         grayscale: settings.grayscale,
         auto_enhance: settings.auto_enhance,
         brightness: settings.brightness,
@@ -561,6 +563,7 @@ export default function PptGeneratorPage() {
               onReorder={handleReorder}
               onRemove={handleRemove}
               onToggleInvert={handleToggleInvert}
+              defaultInvert={settings.invert}
               sortMode={sortMode}
               onSortModeChange={handleSortModeChange}
               disabled={isGenerating}

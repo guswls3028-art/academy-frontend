@@ -2,7 +2,8 @@
 // PPT 생성 API — async worker pattern (job dispatch + polling)
 
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
-import { isFailedAIJobStatus } from "@/shared/api/contracts/aiJob";
+import { completedPptResult, type PptGenerateResponse } from "@/shared/api/contracts/pptJob";
+export type { PptGenerateResponse } from "@/shared/api/contracts/pptJob";
 
 export interface PptSettings {
   aspect_ratio: "16:9" | "4:3";
@@ -26,19 +27,6 @@ export interface PptJobResponse {
   job_id: string;
   status: string;
   slide_count?: number;
-}
-
-export interface PptGenerateResponse {
-  download_url: string;
-  filename: string;
-  slide_count: number;
-  size_bytes: number;
-  // PDF 모드 결과 분기. "question" = 문항 단위, "page" = 페이지 단위 fallback. 이미지 모드는 undefined.
-  mode?: "question" | "page";
-  readability_warning?: {
-    narrow_slide_count: number;
-    slide_numbers: number[];
-  };
 }
 
 export interface JobProgressResponse {
@@ -149,17 +137,8 @@ export async function pollPptJob(
     );
     const data = res.data;
 
-    if (data.status === "DONE" && data.result) {
-      return data.result;
-    }
-    // Lite/Basic 정책상 워커 실패가 DONE으로 마킹되더라도 error_message 가 있으면 즉시 실패 처리.
-    // (이전에는 result 없고 error_message 있는 DONE 응답을 무시하고 6분 무한 폴링)
-    if (data.status === "DONE" && !data.result && data.error_message) {
-      throw new Error(data.error_message);
-    }
-    if (isFailedAIJobStatus(data.status)) {
-      throw new Error(data.error_message || "PPT 생성에 실패했습니다.");
-    }
+    const result = completedPptResult(data);
+    if (result) return result;
     if (onStatus) onStatus(data.status);
     if (data.status === "RUNNING" && data.progress && onProgress) {
       onProgress(data.progress);

@@ -145,6 +145,8 @@ for (const { workflow, width, expectedMode } of [
     expect(Object.keys(stored[0]).sort()).toEqual(["createdAt", "jobId", "label", "tenantScope", "userId"]);
     expect(stored[0]).toMatchObject({ jobId, tenantScope: "hakwonplus", userId: "12" });
     expect(JSON.stringify(stored)).not.toContain("download_url");
+    // Active generation already has a progress observer; recovery starts on reload.
+    expect(state.statusGetCount).toBe(0);
 
     state.markReloaded();
     await page.reload({ waitUntil: "domcontentloaded" });

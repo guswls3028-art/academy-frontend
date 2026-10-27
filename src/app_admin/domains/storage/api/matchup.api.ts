@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/storage/api/matchup.api.ts
 // 매치업 API — 문서 업로드, 문제 조회, 유사 검색
 
-import api from "@/shared/api/axios";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import type { MatchupExamCycle } from "@/shared/constants/matchupExamCycle";
 
 // ── Types ──
@@ -809,9 +809,10 @@ export type JobProgressEnvelope = {
 
 export async function fetchJobProgress(
   jobId: string,
+  requestConfig?: ApiRequestConfig,
 ): Promise<JobProgressEnvelope | null> {
   try {
-    const { data } = await api.get<JobProgressEnvelope>(`/jobs/${jobId}/progress/`);
+    const { data } = await api.get<JobProgressEnvelope>(`/jobs/${encodeURIComponent(jobId)}/progress/`, requestConfig);
     return data;
   } catch {
     return null;

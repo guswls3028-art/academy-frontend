@@ -3,14 +3,17 @@
 
 import { useEffect, useRef } from "react";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
-import { asyncStatusStore, MAX_STORED_RESULT_ROWS } from "./asyncStatusStore";
+import { asyncStatusStore, MAX_STORED_RESULT_ROWS, type AsyncTask } from "./asyncStatusStore";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import api from "@/shared/api/axios";
+import api, { createAuthSessionBoundConfig, type ApiRequestConfig } from "@/shared/api/axios";
+import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
 import {
   claimOmrUploadBatchCompletionApi,
   fetchOmrUploadBatchApi,
 } from "@/shared/api/contracts/submissions";
 import { fetchVideoDetail, type VideoStatus } from "@/shared/api/contracts/videos";
+import { completedPptResult } from "@/shared/api/contracts/pptJob";
+import { isFailedAIJobStatus } from "@/shared/api/contracts/aiJob";
 
 const POLL_INTERVAL_INITIAL_MS = 5000;   // 5s for first 1 min
 const POLL_INTERVAL_MID_MS = 15000;      // 15s up to 10 min
@@ -20,6 +23,7 @@ const BACKOFF_MID_AFTER_MS = 10 * 60 * 1000; // 10 min
 const VIDEO_DETAIL_FALLBACK_AFTER_FAILURES = 3;
 const VIDEO_DETAIL_FALLBACK_COOLDOWN_MS = 30 * 1000;
 const omrPollsInFlight = new Map<string, Promise<void>>();
+const aiPollsInFlight = new Set<string>();
 
 type VideoRecoveryState = {
   cohortGeneration: number;
@@ -35,6 +39,37 @@ type VideoPollCohort = {
   signal: AbortSignal;
   isCurrent: () => boolean;
 };
+
+type AiPollContext = {
+  requestConfig: ApiRequestConfig;
+  isCurrent: () => boolean;
+};
+
+/** Share the workbox request boundary across PPT, Matchup and its pending-document watcher. */
+function pollAiWorkerTask(
+  task: AsyncTask,
+  tenantScope: string,
+  cohort: VideoPollCohort,
+  poll: (context: AiPollContext) => Promise<void>,
+) {
+  const generation = readAuthTokenEnvelopeSafely()?.generation;
+  const sessionGeneration = asyncStatusStore.getSessionGeneration();
+  if (!tenantScope || !generation) return;
+  const key = `${tenantScope}:${generation}:${task.id}`;
+  const isCurrent = () => cohort.isCurrent()
+    && getTenantCodeForApiRequest() === tenantScope
+    && readAuthTokenEnvelopeSafely()?.generation === generation
+    && asyncStatusStore.getSessionGeneration() === sessionGeneration
+    && asyncStatusStore.getState().some((current) => current.id === task.id
+      && current.status === "pending" && current.tenantScope === tenantScope
+      && current.meta?.jobType === task.meta?.jobType);
+  if (aiPollsInFlight.has(key) || !isCurrent()) return;
+  aiPollsInFlight.add(key);
+  void poll({
+    requestConfig: createAuthSessionBoundConfig(generation, cohort.signal, tenantScope),
+    isCurrent,
+  }).finally(() => { aiPollsInFlight.delete(key); });
+}
 
 function isCurrentTenantOmrTask(
   taskId: string,
@@ -471,9 +506,10 @@ function pollExcelJob(
 
 function pollPptJob(
   taskId: string,
+  context: AiPollContext,
   onSuccess?: (taskId: string, downloadUrl: string, filename: string) => void,
 ) {
-  api
+  return api
     .get<{
       job_id: string;
       job_type: string;
@@ -494,11 +530,10 @@ function pollPptJob(
         size_bytes?: number;
       };
       error_message?: string | null;
-    }>(`/jobs/${encodeURIComponent(taskId)}/progress/`)
+    }>(`/jobs/${encodeURIComponent(taskId)}/progress/`, context.requestConfig)
     .then((res) => {
+      if (!context.isCurrent()) return;
       const status = res.data?.status;
-
-      if (status === "UNKNOWN") return;
 
       const progress = res.data?.progress;
       const percent = progress?.percent;
@@ -528,13 +563,14 @@ function pollPptJob(
         }
       }
 
-      const errMsg = res.data?.error_message?.trim();
-      const isFailed = status === "FAILED" || (status === "DONE" && errMsg);
-
-      if (isFailed) {
-        asyncStatusStore.completeTask(taskId, "error", errMsg || "PPT 생성 실패");
-      } else if (status === "DONE") {
-        const result = res.data?.result;
+      let result;
+      try {
+        result = completedPptResult(res.data);
+      } catch (error) {
+        asyncStatusStore.completeTask(taskId, "error", error instanceof Error ? error.message : "PPT 생성 실패");
+        return;
+      }
+      if (result) {
         if (result?.slide_count) {
           const sizeLabel = result.size_bytes
             ? result.size_bytes < 1024 * 1024
@@ -556,8 +592,8 @@ function pollPptJob(
 }
 
 /** 매치업 분석 작업 폴링 — /jobs/<id>/progress/ 일반 엔드포인트 + 성공 시 문제 개수 라벨링 */
-function pollMatchupJob(taskId: string, onSuccess?: () => void) {
-  api
+function pollMatchupJob(taskId: string, context: AiPollContext, onSuccess?: () => void) {
+  return api
     .get<{
       job_id: string;
       job_type: string;
@@ -576,8 +612,9 @@ function pollMatchupJob(taskId: string, onSuccess?: () => void) {
         failed?: Array<unknown>;
       };
       error_message?: string | null;
-    }>(`/jobs/${encodeURIComponent(taskId)}/progress/`)
+    }>(`/jobs/${encodeURIComponent(taskId)}/progress/`, context.requestConfig)
     .then((res) => {
+      if (!context.isCurrent()) return;
       const status = res.data?.status;
       if (status === "UNKNOWN") return;
 
@@ -590,7 +627,7 @@ function pollMatchupJob(taskId: string, onSuccess?: () => void) {
       }
 
       const errMsg = res.data?.error_message?.trim();
-      const isFailed = status === "FAILED" || (status === "DONE" && errMsg);
+      const isFailed = isFailedAIJobStatus(status) || status === "CANCELLED" || (status === "DONE" && errMsg);
 
       if (isFailed) {
         asyncStatusStore.completeTask(taskId, "error", errMsg || "매치업 분석 실패");
@@ -621,17 +658,18 @@ function pollMatchupJob(taskId: string, onSuccess?: () => void) {
 }
 
 /** 매치업 문서 watch 폴링 — ai_job_id 생성 지연 시 Workbox fallback */
-function pollMatchupDocumentWatch(taskId: string, documentId: string, onSuccess?: () => void) {
+function pollMatchupDocumentWatch(taskId: string, documentId: string, context: AiPollContext, onSuccess?: () => void) {
   const normalizedDocumentId = documentId.replace(/^matchup-doc-/, "");
-  api
+  return api
     .get<{
       document_id: number;
       status: "pending" | "processing" | "done" | "failed";
       ai_job_id: string;
       problem_count: number;
       title: string;
-    }>(`/matchup/documents/${encodeURIComponent(normalizedDocumentId)}/job/`)
+    }>(`/matchup/documents/${encodeURIComponent(normalizedDocumentId)}/job/`, context.requestConfig)
     .then((res) => {
+      if (!context.isCurrent()) return;
       const status = res.data?.status;
       const aiJobId = (res.data?.ai_job_id || "").trim();
       const title = res.data?.title || `문서 ${normalizedDocumentId}`;
@@ -887,13 +925,13 @@ export function useWorkerJobPoller(
             videoCb,
           );
         } else if (t.meta!.jobType === "ppt_generation") {
-          pollPptJob(t.id, pptCb);
+          pollAiWorkerTask(t, currentTenant, cohort, (context) => pollPptJob(t.id, context, pptCb));
         } else if (t.meta!.jobType === "matchup_analysis") {
-          pollMatchupJob(t.id, matchupCb);
+          pollAiWorkerTask(t, currentTenant, cohort, (context) => pollMatchupJob(t.id, context, matchupCb));
         } else if (t.meta!.jobType === "matchup_public_cleanup") {
-          pollMatchupJob(t.id, matchupCb);
+          pollAiWorkerTask(t, currentTenant, cohort, (context) => pollMatchupJob(t.id, context, matchupCb));
         } else if (t.meta!.jobType === "matchup_document_watch") {
-          pollMatchupDocumentWatch(t.id, t.meta!.jobId, matchupCb);
+          pollAiWorkerTask(t, currentTenant, cohort, (context) => pollMatchupDocumentWatch(t.id, t.meta!.jobId, context, matchupCb));
         } else if (t.meta!.jobType === "messaging") {
           // 메시지 발송은 동기 API 완료로만 완료 처리, 폴링 없음
         } else if (t.meta!.jobType === "omr_batch") {

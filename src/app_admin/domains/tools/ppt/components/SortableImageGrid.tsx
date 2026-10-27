@@ -13,7 +13,7 @@ export interface ImageItem {
   addedSeq?: number;
   file: File;
   previewUrl: string;
-  /** 슬라이드별 반전 설정 */
+  /** undefined는 전체 설정을 따르고, boolean은 개별 선택을 유지한다. */
   invert?: boolean;
 }
 
@@ -22,6 +22,7 @@ interface SortableImageGridProps {
   onReorder: (items: ImageItem[]) => void;
   onRemove: (id: string) => void;
   onToggleInvert: (id: string) => void;
+  defaultInvert: boolean;
   sortMode: SortMode;
   onSortModeChange: (mode: SortMode) => void;
   disabled?: boolean;
@@ -32,6 +33,7 @@ export default function SortableImageGrid({
   onReorder,
   onRemove,
   onToggleInvert,
+  defaultInvert,
   sortMode,
   onSortModeChange,
   disabled,
@@ -143,9 +145,12 @@ export default function SortableImageGrid({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleInvert(item.id); }}
-              title={item.invert ? "반전 해제" : "흑백 반전"}
+              title={disabled ? "PPT 생성 중에는 반전을 변경할 수 없습니다." : (item.invert ?? defaultInvert) ? "반전 해제" : "흑백 반전"}
+              aria-label={(item.invert ?? defaultInvert) ? "반전 해제" : "흑백 반전"}
+              aria-pressed={item.invert ?? defaultInvert}
+              disabled={disabled}
               className={`${styles.iconButton} ${styles.invertButton}`}
-              data-invert={item.invert ? "true" : "false"}
+              data-invert={(item.invert ?? defaultInvert) ? "true" : "false"}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
@@ -158,7 +163,9 @@ export default function SortableImageGrid({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onRemove(item.id); }}
-              title="삭제"
+              title={disabled ? "PPT 생성 중에는 슬라이드를 삭제할 수 없습니다." : "삭제"}
+              aria-label={`${item.file.name} 삭제`}
+              disabled={disabled}
               className={`${styles.iconButton} ${styles.removeButton}`}
             >
               &times;
@@ -172,7 +179,7 @@ export default function SortableImageGrid({
                 loading="lazy"
                 decoding="async"
                 className={styles.previewImage}
-                data-invert={item.invert ? "true" : "false"}
+                data-invert={(item.invert ?? defaultInvert) ? "true" : "false"}
               />
             </div>
 
