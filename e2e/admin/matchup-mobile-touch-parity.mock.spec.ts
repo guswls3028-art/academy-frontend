@@ -50,7 +50,7 @@ const pageImage = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1120"><rect width="800" height="1120" fill="white"/><text x="60" y="120" font-size="42">1. mobile crop fixture</text><rect x="55" y="160" width="690" height="260" fill="none" stroke="black" stroke-width="3"/></svg>',
 )}`;
 
-async function installMocks(page: Page, options: { failFirstPages?: boolean; failPageReads?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean; report?: boolean } = {}) {
+async function installMocks(page: Page, options: { failFirstPages?: boolean; failPageReads?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean; report?: boolean; firstSimilarity?: number; missingActiveCandidate?: boolean } = {}) {
   const apiRequests: Array<{ method: string; path: string }> = [];
   let pageReads = 0;
   let pagePreparations = 0;
@@ -69,7 +69,12 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
     similarity: 0.95, image_key: "qa/reference.png", image_url: pageImage, page_index: 0 };
   const reportProblems = [1, 2].map((number) => ({ id: 700 + number, document_id: DOC_ID, number,
     text: `Synthetic question ${number}`, text_preview: `Synthetic question ${number}`,
-    image_key: `qa/exam-${number}.png`, image_url: pageImage, candidates: [candidate] }));
+    image_key: `qa/exam-${number}.png`, image_url: pageImage,
+    candidates: number === 1 && options.missingActiveCandidate ? []
+      : [{ ...candidate, similarity: number === 1 ? options.firstSimilarity ?? 0.95 : 0.35 }] }));
+  if (options.missingActiveCandidate) {
+    report.entries = [{ exam_problem_id: 701, selected_problem_ids: [801], comment: "", order: 0, excluded: false }];
+  }
 
   await page.addInitScript(({ access, refresh }) => {
     localStorage.setItem("access", access);
@@ -178,7 +183,8 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
         report, entries: report.entries,
         exam_problems: reportProblems.map((problem) => ({ ...problem,
           entry: report.entries.find((entry) => entry.exam_problem_id === problem.id) || null })),
-        selected_problem_meta: [candidate],
+        // Persisted metadata has no question-specific similarity in the real API.
+        selected_problem_meta: [{ ...candidate, similarity: undefined }],
       });
       return json(route, { report: null, entries: [] });
     }
@@ -435,6 +441,8 @@ for (const width of [390, 1366]) {
     await expect(page.getByTestId("matchup-doc-hit-report-curate-btn")).toBeVisible({ timeout: 45_000 });
     await page.getByTestId("matchup-doc-hit-report-curate-btn").click();
     const report = page.getByRole("dialog", { name: "적중 보고서 작성" });
+    const previewHeader = report.getByRole("button", { name: "다음 문항", exact: true }).locator("..");
+    await expect(previewHeader).toContainText(/직접 적중\s+·\s+95\.0%/);
     const downloadButton = report.getByRole("button", { name: "PDF 다운로드", exact: true });
     await expect(downloadButton).toBeInViewport({ ratio: 1 });
     const comment = report.getByPlaceholder("이 문항을 어떻게 다뤘는지, 학생이 알아둘 점은 무엇인지 작성하세요");
@@ -447,6 +455,7 @@ for (const width of [390, 1366]) {
     await expect(add).toBeInViewport({ ratio: 1 });
     await add.click();
     await expect(report.getByLabel("PDF에 포함됨")).toBeVisible();
+    await expect(previewHeader).toContainText(/직접 적중\s+·\s+95\.0%/);
     const summary = report.getByPlaceholder("예: 1학기 중간고사 대비 반영률 종합 분석");
     await summary.fill(`QA report ${width}`);
     await expect(report.getByTestId("matchup-hit-report-save-state")).toHaveText("저장됨 ✓");
@@ -457,6 +466,11 @@ for (const width of [390, 1366]) {
     await expect(summary).toHaveValue(`QA report ${width}`);
     await expect(comment).toHaveValue(`QA comment ${width}`);
     await expect(report.getByLabel("PDF에 포함됨")).toBeVisible();
+    await expect(previewHeader).toContainText(/직접 적중\s+·\s+95\.0%/);
+    await report.getByRole("button", { name: "다음 문항", exact: true }).click();
+    await expect(previewHeader).toContainText("유사도 35.0%");
+    await report.getByRole("button", { name: "이전 문항", exact: true }).click();
+    await expect(previewHeader).toContainText(/직접 적중\s+·\s+95\.0%/);
     const download = page.waitForEvent("download");
     await downloadButton.click();
     expect(await (await download).failure()).toBeNull();
@@ -464,6 +478,29 @@ for (const width of [390, 1366]) {
     await page.screenshot({ path: testInfo.outputPath(`report-${width}.png`) });
     await report.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(report).toBeHidden();
+  });
+}
+
+for (const scenario of [
+  { name: "real zero", firstSimilarity: 0, missingActiveCandidate: false, label: "유사도 0.0%" },
+  { name: "missing score", firstSimilarity: undefined, missingActiveCandidate: true, label: "유사도 정보 없음" },
+]) {
+  test(`report preview distinguishes ${scenario.name} from another question's score`, async ({ page }) => {
+    expect(isLocalBase(BASE)).toBe(true);
+    await installMocks(page, { report: true, ...scenario });
+    await page.goto(`${BASE}/workspace/storage/matchup?docId=${DOC_ID}`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("matchup-doc-hit-report-curate-btn").click();
+    const report = page.getByRole("dialog", { name: "적중 보고서 작성" });
+    const header = report.getByRole("button", { name: "다음 문항", exact: true }).locator("..");
+    await expect(header).toContainText(scenario.label);
+    await expect(header.locator("..")).toContainText("QA 참고자료");
+    const referenceImage = report.getByRole("img", { name: "내 수업 자료", exact: true });
+    await expect(referenceImage).toBeVisible();
+    await expect.poll(() => referenceImage.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+    await report.getByRole("button", { name: "다음 문항", exact: true }).click();
+    await expect(header).toContainText("유사도 35.0%");
+    await report.getByRole("button", { name: "이전 문항", exact: true }).click();
+    await expect(header).toContainText(scenario.label);
   });
 }
 

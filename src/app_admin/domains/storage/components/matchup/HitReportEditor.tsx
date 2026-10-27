@@ -261,6 +261,15 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     return m;
   }, [examProblems, extraMeta]);
 
+  // Similarity belongs to an exam/reference pair. Persisted selected metadata
+  // and candidates for other exam questions must not replace the active score.
+  const previewCandidateMap = useMemo(() => {
+    const m = new Map<number, CandidateMeta>();
+    for (const v of Object.values(extraMeta)) m.set(v.id, v);
+    for (const c of active?.candidates ?? []) m.set(c.id, c);
+    return m;
+  }, [active, extraMeta]);
+
   const documentTitle = data?.report.document_title || "";
   const documentCategory = data?.report.document_category || "";
 
@@ -1104,7 +1113,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                 documentTitle={documentTitle}
                 activeCandidateId={activeCandidateId}
                 selectedIds={selectedIdsStable}
-                candidateMap={candidateMap}
+                candidateMap={previewCandidateMap}
                 comment={activeEntry?.comment ?? ""}
                 onComment={setComment}
                 disabled={isSubmitted}
