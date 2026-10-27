@@ -74,6 +74,7 @@ export const routeMockSpecs = [
   "e2e/admin/matchup-role-boundaries.mock.spec.ts",
   "e2e/admin/matchup-mobile-touch-parity.mock.spec.ts",
   "e2e/admin/matchup-upload-retention.mock.spec.ts",
+  "e2e/admin/matchup-progress-recovery.mock.spec.ts",
   "e2e/admin/storage-mobile-inventory-move.mock.spec.ts",
   "e2e/landing-problem-analysis.mock.spec.ts",
   "e2e/admin/session-attendance-bulk-safety.mock.spec.ts",
