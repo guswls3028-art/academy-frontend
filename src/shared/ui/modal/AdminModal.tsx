@@ -195,6 +195,8 @@ export default function AdminModal({
         width={width}
         centered
         destroyOnHidden
+        // Preview controls stay under the pointer even when appearance starts late.
+        transitionName={type === "inspect" ? "ant-fade" : undefined}
         zIndex={zIndex}
         mask={{ closable: !isConfirm && !closeDisabled }}
         closable={
