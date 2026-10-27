@@ -42,6 +42,9 @@
 
 - `--stu-primary`: 링크·활성 탭·강조 면. 밝은 표면과 어두운 표면에서 각각
   읽히는 대비를 유지한다. 면 위 글자는 `--stu-primary-contrast`를 쓴다.
+- Primary hover도 `--stu-primary-hover` 단색과 같은 대비 글자를 사용한다.
+  브랜드 그라데이션이나 밝기 필터로 돌아가지 않으며, 비활성 버튼은 hover에 반응하지 않는다.
+  common·tchul의 다크 hover는 짙은 글자와 4.5:1 이상 대비를 유지한다.
 - `--stu-gradient` 위 글자는 `--stu-on-gradient`를 쓴다. 기존 그라데이션 면은
   흰 글자 대비를 유지한다.
 - 상태 글자는 `--stu-success-text/warn-text/danger-text`를 쓴다. 채움 색과
@@ -63,4 +66,7 @@
 `e2e/student/design-system-isolation.mock.spec.ts`는 교사 테마와의 독립성,
 기존 메뉴, 이동·reload와 좁은 화면을 격리 mock으로 검증한다. 업무 저장·소비자
 화면과 오류·재시도는 해당 도메인의 기존 회귀 gate를 유지한다.
+`assignment-media-multiupload.mock.spec.ts`는 실제 숙제 제출 버튼에 등록된 9개 브랜드
+토큰을 적용해 390/1366px·라이트/다크의 기본·hover 대비, 비활성 제출 차단과
+정상 제출·reload 보존을 검증한다. 표시 토큰 검사 중 API 테넌트는 바꾸지 않는다.
 `video.css`의 영상 홈·코스·차시·플레이어 범위와 실제 재생 검증도 유지한다.
