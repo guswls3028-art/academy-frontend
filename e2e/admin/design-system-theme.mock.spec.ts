@@ -224,6 +224,27 @@ for (const width of [390, 1366]) {
     } }));
     await page.goto(BASE + "/workspace/mobile/settings/appearance");
     await expect(page.locator(".theme-card")).toHaveCount(3);
+    for (const style of THEMES) {
+      await themeCard(page, style.key).click();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", style.key);
+      const statuses = await page.evaluate(() => {
+        const probe = document.createElement("span");
+        probe.style.backgroundColor = "var(--tc-surface)";
+        document.body.append(probe);
+        const hex = (color: string) => "#" + (color.match(/\d+/g) ?? []).slice(0, 3)
+          .map((value) => Number(value).toString(16).padStart(2, "0")).join("");
+        const values = ["success", "warn", "danger", "info", "att-present", "att-absent", "att-late"].map((tone) => {
+          probe.style.color = `var(--tc-${tone})`;
+          const computed = getComputedStyle(probe);
+          return { tone, foreground: hex(computed.color), background: hex(computed.backgroundColor) };
+        });
+        probe.remove();
+        return values;
+      });
+      for (const status of statuses) {
+        expect.soft(contrast(status.foreground, status.background), `${style.key}: ${status.tone} text`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
     await themeCard(page, "focus-dark").click();
     await page.getByLabel("색상 코드", { exact: true }).fill("#ffedaa");
     await page.getByRole("button", { name: "색상 적용", exact: true }).click();

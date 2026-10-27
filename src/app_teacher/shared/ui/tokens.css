@@ -35,21 +35,21 @@
   --tc-danger-solid: var(--color-danger-solid);
   --tc-info-solid: var(--color-info-solid);
   --tc-semantic-contrast: var(--color-semantic-contrast);
-  --tc-success: var(--color-success);
+  --tc-success: var(--color-success-text);
   --tc-success-bg: color-mix(in srgb, var(--color-success) 10%, transparent);
-  --tc-warn: var(--color-warning);
+  --tc-warn: var(--color-warning-text);
   --tc-warn-bg: color-mix(in srgb, var(--color-warning) 10%, transparent);
-  --tc-danger: var(--color-error);
+  --tc-danger: var(--color-error-text);
   --tc-danger-bg: color-mix(in srgb, var(--color-error) 10%, transparent);
-  --tc-info: var(--color-info);
+  --tc-info: var(--color-info-text);
   --tc-info-bg: color-mix(in srgb, var(--color-info) 10%, transparent);
 
   /* ===== Attendance Status ===== */
-  --tc-att-present: var(--color-success);
+  --tc-att-present: var(--tc-success);
   --tc-att-present-bg: color-mix(in srgb, var(--color-success) 12%, transparent);
-  --tc-att-absent: var(--color-error);
+  --tc-att-absent: var(--tc-danger);
   --tc-att-absent-bg: color-mix(in srgb, var(--color-error) 12%, transparent);
-  --tc-att-late: var(--color-warning);
+  --tc-att-late: var(--tc-warn);
   --tc-att-late-bg: color-mix(in srgb, var(--color-warning) 12%, transparent);
 
   /* ===== Header / TabBar ===== */
