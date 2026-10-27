@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
+import { installWorkspaceReadApiStubs } from "../helpers/workspaceReadApiStubs";
 import {
   installLocalAuthApiStubs,
   installTenantOneInitScript,
@@ -124,6 +125,7 @@ async function openPptGenerator(page: Page, incompleteFirstResult = false): Prom
     "PPT 모바일 순서 route-mock은 로컬 dev 서버 전용",
   );
   await installLocalAuthApiStubs(page);
+  await installWorkspaceReadApiStubs(page);
   await installTenantOneInitScript(page);
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
