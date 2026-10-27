@@ -104,7 +104,9 @@ test.describe("promo navigation", () => {
       await expect(popup).toHaveURL("https://www.instagram.com/hakwon_p/");
       await popup.close();
       await expect(page.getByRole("heading", { name: /수업 관리부터\s*학생의 복습까지/ })).toBeVisible();
-      await info.attach("promo-home-" + width, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
+      const screenshotPath = info.outputPath("promo-home-" + width + ".png");
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      await info.attach("promo-home-" + width, { path: screenshotPath, contentType: "image/png" });
       await page.getByRole("link", { name: "43쪽 상세 가이드 보기" }).click();
       await expect(page.getByRole("heading", { name: "기능 상세 가이드", exact: true })).toBeVisible();
       const reader = page.getByRole("region", { name: "기능 둘러보기", exact: true });
