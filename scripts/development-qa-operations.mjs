@@ -135,9 +135,11 @@ const FIXED_ERROR_TYPES = new Set([
 const FIXED_FAILURE_STAGES = new Set([
   "bootstrap", "identity", "inspect_database", "inspect_residue", "setup_database", "setup_readback",
   "cleanup_identity", "cleanup_absent_readback", "cleanup_r2", "cleanup_database", "cleanup_readback", "unknown",
+  "cleanup_ai", "inspect_ai",
 ]);
 const FIXED_RESIDUE_FIELDS = [
   "activity_audits", "outstanding_tokens", "listeners", "processes", "r2_objects",
+  "ai_jobs", "ai_results", "ai_redis_keys",
 ];
 
 export function observeFixedOperationResult(action, result) {
