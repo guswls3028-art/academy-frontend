@@ -43,6 +43,10 @@ async function setup(page: Page, jobId: string, missingAfterReload = false, narr
     }
     if (pathname === `/api/v1/jobs/${jobId}/`) {
       statusGetCount += 1;
+      if (progressDenial) {
+        await route.fulfill({ status: progressDenial, json: { detail: "fixture access denial" } });
+        return;
+      }
       if (reloaded && missingAfterReload) {
         await route.fulfill({ json: { status: "UNKNOWN" } });
         return;
@@ -77,12 +81,16 @@ for (const { width, status } of [{ width: 1366, status: 403 }, { width: 390, sta
     const state = await setup(page, `ppt-workbox-denied-${status}`, false, false, status);
     await page.clock.install();
     await page.getByRole("button", { name: "PPT 생성 및 다운로드" }).click();
-    await expect.poll(() => state.progressGetCount).toBe(1);
+    await expect.poll(() => state.postCount).toBe(1);
     await page.getByRole("button", { name: /^작업박스/ }).click();
     const panel = page.locator(".alarm-panel--workbox-style");
     await expect(panel.getByText("작업을 찾을 수 없거나 조회 권한이 없습니다. 원본 화면에서 상태를 확인해 주세요.")).toBeVisible();
+    // The foreground page and background workbox can each observe the denial once.
+    const readsAfterError = state.progressGetCount;
+    expect(readsAfterError).toBeGreaterThan(0);
+    expect(readsAfterError).toBeLessThanOrEqual(2);
     await page.clock.runFor(6_000);
-    expect(state.progressGetCount).toBe(1);
+    expect(state.progressGetCount).toBe(readsAfterError);
     expect(state.postCount).toBe(1);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth
       - document.documentElement.clientWidth)).toBe(0);
