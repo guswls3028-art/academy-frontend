@@ -1,4 +1,6 @@
 import { expect, test, type Page, type Route } from "../fixtures/strictTest";
+import type { TestInfo } from "@playwright/test";
+import fs from "node:fs";
 import { getBaseUrl } from "../helpers/auth";
 import { installWorkspaceReadApiStubs } from "../helpers/workspaceReadApiStubs";
 import {
@@ -161,6 +163,47 @@ async function expectDocumentOverflowZero(page: Page) {
   }))).toEqual({ body: 0, document: 0 });
 }
 
+async function expectSettingsLabelsStacked(page: Page, testInfo: TestInfo) {
+  const geometry = [];
+  for (const [label, description, stacked] of [
+    ["16:9", "와이드", true], ["4:3", "표준", true], ["맞춤", "여백 포함", true],
+    ["채움", "일부 잘림", true], ["늘림", "꽉 채움", true],
+    ["검정", "검정", false], ["진회", "진회", false], ["흰색", "흰색", false],
+  ] as const) {
+    const option = page.getByText(label, { exact: true }).locator("..");
+    geometry.push({ label, descriptionText: description, stacked, ...await option.evaluate((element) => {
+      const rect = (node: Element) => {
+        const box = node.getBoundingClientRect();
+        return { x: box.x, y: box.y, width: box.width, height: box.height };
+      };
+      return { display: getComputedStyle(element).display, direction: getComputedStyle(element).flexDirection,
+        button: rect(element), title: rect(element.children[0]), description: rect(element.children[1]),
+        scrollWidth: element.scrollWidth, clientWidth: element.clientWidth };
+    }) });
+    await expect(option.getByText(description, { exact: true })).toBeVisible();
+  }
+  const geometryPath = testInfo.outputPath("ppt-setting-label-geometry.json");
+  fs.writeFileSync(geometryPath, JSON.stringify(geometry, null, 2));
+  await testInfo.attach("ppt-setting-label-geometry", { path: geometryPath, contentType: "application/json" });
+  for (const item of geometry) {
+    if (item.stacked) {
+      expect(item.description.y, "Setting description must be below its title").toBeGreaterThanOrEqual(item.title.y + item.title.height);
+    } else {
+      expect(item.description.x).toBeGreaterThanOrEqual(item.title.x + item.title.width);
+      expect(Math.abs(item.description.y + item.description.height / 2 - item.title.y - item.title.height / 2)).toBeLessThanOrEqual(1);
+    }
+    expect(item.scrollWidth).toBeLessThanOrEqual(item.clientWidth + 1);
+    for (const child of [item.title, item.description]) {
+      expect(child.x).toBeGreaterThanOrEqual(item.button.x);
+      expect(child.x + child.width).toBeLessThanOrEqual(item.button.x + item.button.width);
+      expect(child.y).toBeGreaterThanOrEqual(item.button.y);
+      expect(child.y + child.height).toBeLessThanOrEqual(item.button.y + item.button.height);
+    }
+  }
+  await page.getByText("슬라이드 비율", { exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("ppt-settings-labels.png") });
+}
+
 async function expectCapturedPayload(
   harness: PptHarness,
   expectedFilenames: string[],
@@ -238,8 +281,9 @@ test.describe("PPT 모바일 슬라이드 직접 정렬", () => {
     await expectDocumentOverflowZero(page);
   });
 
-  test("390px에서 키보드·터치 정렬과 multipart 순서를 같은 상태로 보낸다", async ({ page }) => {
+  test("390px에서 키보드·터치 정렬과 multipart 순서를 같은 상태로 보낸다", async ({ page }, testInfo) => {
     const harness = await openPptGenerator(page);
+    await expectSettingsLabelsStacked(page, testInfo);
     await uploadSlides(page);
 
     const sortSelect = page.getByLabel("정렬");
@@ -319,9 +363,10 @@ test.describe("PPT 모바일 슬라이드 직접 정렬", () => {
     await expectDocumentOverflowZero(page);
   });
 
-  test("1366px에서는 compact 제어를 숨기고 기존 drag와 payload를 보존한다", async ({ page }) => {
+  test("1366px에서는 compact 제어를 숨기고 기존 drag와 payload를 보존한다", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     const harness = await openPptGenerator(page);
+    await expectSettingsLabelsStacked(page, testInfo);
     await uploadSlides(page);
 
     const items = page.getByTestId("ppt-slide-item");
