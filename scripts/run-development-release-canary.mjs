@@ -898,6 +898,17 @@ export function assertManifest(manifest) {
   assert.match(manifest.images?.["academy-api"]?.digest, /^sha256:[a-f0-9]{64}$/);
 }
 
+export function assertDevelopmentHostIam({ policyNames, attachedPolicyArns, runtimePolicy,
+  expectedBoundary, homeworkPolicy, expectedHomeworkPolicy }) {
+  assert.deepEqual([...policyNames].sort(), ["academy-api-development-runtime", "academy-homework-preview-development"]);
+  assert.deepEqual(attachedPolicyArns, ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]);
+  for (const statement of expectedBoundary.Statement) {
+    assert.equal(canonical(runtimePolicy.Statement.find((item) => item.Sid === statement.Sid)), canonical(statement),
+      "Development parameter deny is not applied");
+  }
+  assert.equal(canonical(homeworkPolicy), canonical(expectedHomeworkPolicy), "Development homework SubmitJob policy drift");
+}
+
 export function assertDevelopmentInstanceIdentity(instance) {
   const tags = Object.fromEntries((instance.Tags || []).map(({ Key, Value }) => [Key, Value]));
   for (const [key, value] of Object.entries({ Name: "academy-v1-api-development", ManagedBy: "academy-api-development",
@@ -1170,12 +1181,15 @@ export async function run() {
     ["iam", async () => {
       const expectedBoundary = await publicJson(`${raw}scripts/v1/templates/iam/policy_api_development_parameter_boundary.json`);
       const expanded = JSON.parse(JSON.stringify(expectedBoundary).replaceAll("__REGION__", REGION).replaceAll("__ACCOUNT_ID__", ACCOUNT));
+      const expectedHomework = await publicJson(`${raw}scripts/v1/templates/iam/policy_homework_preview_development_submit.json`);
+      const expandedHomework = JSON.parse(JSON.stringify(expectedHomework).replaceAll("__REGION__", REGION).replaceAll("__ACCOUNT_ID__", ACCOUNT));
       const hostRole = "academy-api-development-role";
-      assert.deepEqual(aws(["iam", "list-role-policies", "--role-name", hostRole]).PolicyNames, ["academy-api-development-runtime"]);
+      const policyNames = aws(["iam", "list-role-policies", "--role-name", hostRole]).PolicyNames;
       const attachments = aws(["iam", "list-attached-role-policies", "--role-name", hostRole]).AttachedPolicies;
-      assert.deepEqual(attachments.map((item) => item.PolicyArn), ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]);
       const hostPolicy = aws(["iam", "get-role-policy", "--role-name", hostRole, "--policy-name", "academy-api-development-runtime"]).PolicyDocument;
-      for (const statement of expanded.Statement) assert.equal(canonical(hostPolicy.Statement.find((item) => item.Sid === statement.Sid)), canonical(statement), "Development parameter deny is not applied");
+      const homeworkPolicy = aws(["iam", "get-role-policy", "--role-name", hostRole, "--policy-name", "academy-homework-preview-development"]).PolicyDocument;
+      assertDevelopmentHostIam({ policyNames, attachedPolicyArns: attachments.map((item) => item.PolicyArn),
+        runtimePolicy: hostPolicy, expectedBoundary: expanded, homeworkPolicy, expectedHomeworkPolicy: expandedHomework });
     }],
     ["document", async () => {
       const documents = [[QA_DOCUMENT, "frontend_development_qa.json"], [PORT_DOCUMENT, "frontend_development_api_port.json"]];

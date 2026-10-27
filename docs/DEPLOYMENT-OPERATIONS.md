@@ -142,6 +142,14 @@ SDK 갱신은 동일한 Windows build·COM 계약 통과를 확인한 뒤 버전
 
 ## 2. 권한과 secret
 
+숙제 호환 영상의 개발 실사용 검증은 개발 API 역할의 inline policy를
+`academy-api-development-runtime`과 `academy-homework-preview-development` 두 개로
+고정한다. 기존 운영 parameter 접근 거부와 SSM managed policy를 그대로 검증하고,
+숙제 policy 전체는 같은 backend revision의
+`scripts/v1/templates/iam/policy_homework_preview_development_submit.json`과 비교한다.
+전용 개발 queue/definition의 SubmitJob 외 권한·운영 resource·추가 policy는 거부한다.
+새 숙제 backend의 공식 배포와 해당 grant 수렴이 완료돼야 이 사전 검사를 통과한다.
+
 전역 Cloudflare API key와 `CLOUDFLARE_EMAIL`은 사용하지 않는다.
 
 | Environment | secret | 최소 범위 |

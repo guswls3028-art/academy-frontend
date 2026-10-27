@@ -22,6 +22,7 @@ import "./development-qa-operations.test.mjs";
 import "./development-account-probe.test.mjs";
 import "./release-canary-progress.test.mjs";
 import "./development-backend-readiness.test.mjs";
+import "./development-host-iam.test.mjs";
 import "./release-governance-metadata.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
