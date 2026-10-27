@@ -5,6 +5,25 @@ import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers
 
 const pdf = path.resolve("e2e/fixtures/test-invert-3p.pdf");
 const storageKey = "hakwonplus:ppt-job-recovery:v1";
+const adminReadFixtures: Record<string, unknown> = {
+  "/api/v1/staffs/me/": { is_authenticated: true, is_staff: true, is_superuser: true, is_payroll_manager: false },
+  "/api/v1/staffs/currently-working/": [],
+  "/api/v1/clinic/participants/": { count: 0, next: null, previous: null, results: [] },
+  "/api/v1/community/admin/posts/": { count: 0, next: null, previous: null, results: [] },
+  "/api/v1/students/registration_requests/": { count: 0, next: null, previous: null, results: [] },
+  "/api/v1/submissions/submissions/pending/": [],
+  "/api/v1/results/admin/teacher-dashboard-counts/": { video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 },
+  "/api/v1/community/admin/reports/pending-count/": { count: 0 },
+  "/api/v1/community/notifications/unread-count/": { count: 0 },
+  "/api/v1/core/landing/admin/consult/": { items: [], summary: { total: 0, unread: 0 } },
+  "/api/v1/media/videos/": { count: 0, next: null, previous: null, results: [] },
+  "/api/v1/submissions/submissions/omr/batches/": [],
+  "/api/v1/lectures/attendance/arrival-overview/": {
+    generated_at: "2026-10-03T00:00:00Z", today: "2026-10-03", tomorrow: "2026-10-04",
+    range_end: "2026-10-10", range_days: 7, soon_window_minutes: 60,
+    summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 }, items: [],
+  },
+};
 
 function jwt() {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -26,6 +45,10 @@ async function setup(page: Page, jobId: string, missingAfterReload = false, narr
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
+    if (request.method() === "GET" && adminReadFixtures[pathname] !== undefined) {
+      await route.fulfill({ json: adminReadFixtures[pathname] });
+      return;
+    }
     if (pathname === "/api/v1/tools/ppt/generate/" && request.method() === "POST") {
       postCount += 1;
       submittedMode = request.postDataBuffer()?.toString("latin1").includes('name="pdf"') ? "pdf" : "images";
@@ -82,9 +105,12 @@ for (const { width, status } of [{ width: 1366, status: 403 }, { width: 390, sta
     await page.clock.install();
     await page.getByRole("button", { name: "PPT 생성 및 다운로드" }).click();
     await expect.poll(() => state.postCount).toBe(1);
-    await page.getByRole("button", { name: /^작업박스/ }).click();
     const panel = page.locator(".alarm-panel--workbox-style");
     await expect(panel.getByText("작업을 찾을 수 없거나 조회 권한이 없습니다. 원본 화면에서 상태를 확인해 주세요.")).toBeVisible();
+    await page.getByRole("button", { name: "작업박스 닫기", exact: true }).click();
+    await expect(panel).toHaveCount(0);
+    await page.getByRole("button", { name: "작업박스 (실패 1건)", exact: true }).click();
+    await expect(panel).toBeVisible();
     // The foreground page and background workbox can each observe the denial once.
     const readsAfterError = state.progressGetCount;
     expect(readsAfterError).toBeGreaterThan(0);
