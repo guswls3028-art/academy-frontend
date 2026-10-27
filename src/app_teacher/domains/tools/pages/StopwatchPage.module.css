@@ -81,8 +81,8 @@
 
 .stopButton {
   border: 0;
-  background: var(--tc-danger);
-  color: #fff;
+  background: var(--tc-danger-solid);
+  color: var(--tc-semantic-contrast);
 }
 
 .secondaryButton {

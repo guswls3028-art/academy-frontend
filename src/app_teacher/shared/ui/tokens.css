@@ -30,6 +30,11 @@
   --tc-primary-contrast: var(--color-brand-primary-contrast);
 
   /* ===== Semantic ===== */
+  --tc-success-solid: var(--color-success-solid);
+  --tc-warn-solid: var(--color-warning-solid);
+  --tc-danger-solid: var(--color-danger-solid);
+  --tc-info-solid: var(--color-info-solid);
+  --tc-semantic-contrast: var(--color-semantic-contrast);
   --tc-success: var(--color-success);
   --tc-success-bg: color-mix(in srgb, var(--color-success) 10%, transparent);
   --tc-warn: var(--color-warning);

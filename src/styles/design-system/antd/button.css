@@ -82,9 +82,16 @@
 }
 
 .ant-btn-dangerous.ant-btn-primary {
-  background: var(--color-error);
-  border-color: var(--color-error);
-  color: #fff;
+  background: var(--color-danger-solid);
+  border-color: var(--color-danger-solid);
+  color: var(--color-semantic-contrast);
+}
+
+.ant-btn-dangerous.ant-btn-primary:hover,
+.ant-btn-dangerous.ant-btn-primary:active {
+  background: var(--color-danger-solid-hover);
+  border-color: var(--color-danger-solid-hover);
+  color: var(--color-semantic-contrast);
 }
 
 /* Focus ring (slot) */

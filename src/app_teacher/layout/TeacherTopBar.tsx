@@ -245,8 +245,8 @@ export default function TeacherTopBar({
                 textAlign: "center",
                 borderRadius: 8,
                 padding: "0 4px",
-                background: "var(--tc-danger)",
-                color: "#fff",
+                background: "var(--tc-danger-solid)",
+                color: "var(--tc-semantic-contrast)",
               }}
             >
               {badgeLabel}

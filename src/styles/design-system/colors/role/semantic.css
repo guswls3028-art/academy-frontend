@@ -60,6 +60,14 @@
   --color-danger:       var(--color-error);
   --color-danger-hover: var(--scale-Error700);
 
+  /* Filled status controls keep readable text independently of theme text colors. */
+  --color-success-solid: #15803d;
+  --color-warning-solid: #a16207;
+  --color-danger-solid: #b91c1c;
+  --color-danger-solid-hover: #991b1b;
+  --color-info-solid: #0e7490;
+  --color-semantic-contrast: #fff;
+
   /* 성별 — 파랑/분홍 (학생 등록 등에서 사용) */
   --color-gender-male:        var(--scale-Primary500, #2563eb);
   --color-gender-male-dark:   var(--scale-Primary700, #1e40af);

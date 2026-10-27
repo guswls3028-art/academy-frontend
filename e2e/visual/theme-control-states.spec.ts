@@ -131,6 +131,10 @@ async function mountAuditSurface(page: Page) {
         <button class="ds-button" data-size="md" data-intent="secondary" data-testid="pressed" aria-pressed="true">선택됨</button>
         <button class="ds-button" data-size="md" data-intent="ghost" data-testid="ghost">낮은 강조</button>
         <button class="ds-button" data-size="md" data-intent="danger" data-testid="danger">삭제</button>
+        <button class="ant-btn ant-btn-dangerous ant-btn-primary" data-testid="antd-danger">삭제 확인</button>
+        ${["success", "warning", "danger", "info"].map((tone) => `
+          <span data-testid="solid-${tone}" style="padding: 8px; background: var(--color-${tone}-solid); color: var(--color-semantic-contrast)">${tone}</span>
+        `).join("")}
         <button class="ds-button" data-size="md" data-intent="secondary" data-testid="disabled" disabled>사용 불가</button>
         <div class="ds-segment selection-group" role="group" aria-label="출결 선택 상태" data-testid="selection-group">
           ${["primary", "success", "warning", "danger", "complement", "teal", "neutral"].map((tone) => `
@@ -201,6 +205,8 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
 
     const primary = page.getByTestId("primary");
     const secondary = page.getByTestId("secondary");
+    const danger = page.getByTestId("danger");
+    const antdDanger = page.getByTestId("antd-danger");
     const pressed = page.getByTestId("pressed");
     const disabled = page.getByTestId("disabled");
     const tabDefault = page.getByTestId("tab-default");
@@ -209,6 +215,8 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
     await page.mouse.move(1, 1);
     const primaryDefault = await readState(primary);
     const secondaryDefault = await readState(secondary);
+    const dangerDefault = await readState(danger);
+    const antdDangerDefault = await readState(antdDanger);
     const pressedDefault = await readState(pressed);
     const disabledDefault = await readState(disabled);
     const tabDefaultState = await readState(tabDefault);
@@ -218,6 +226,10 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
     const primaryHover = await readState(primary);
     await secondary.hover();
     const secondaryHover = await readState(secondary);
+    await danger.hover();
+    const dangerHover = await readState(danger);
+    await antdDanger.hover();
+    const antdDangerHover = await readState(antdDanger);
     await page.mouse.move(1, 1);
 
     await primary.focus();
@@ -227,6 +239,13 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
 
     expect.soft(primaryDefault.contrast, `${theme.key}: primary contrast`).toBeGreaterThanOrEqual(4.5);
     expect.soft(secondaryDefault.contrast, `${theme.key}: secondary contrast`).toBeGreaterThanOrEqual(4.5);
+    for (const [state, value] of Object.entries({ dangerDefault, dangerHover, antdDangerDefault, antdDangerHover })) {
+      expect.soft(value.contrast, `${theme.key}: ${state} contrast`).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const tone of ["success", "warning", "danger", "info"]) {
+      const state = await readState(page.getByTestId(`solid-${tone}`));
+      expect.soft(state.contrast, `${theme.key}: filled ${tone} contrast`).toBeGreaterThanOrEqual(4.5);
+    }
     expect.soft(pressedDefault.contrast, `${theme.key}: pressed contrast`).toBeGreaterThanOrEqual(4.5);
     expect.soft(tabActiveState.contrast, `${theme.key}: active tab contrast`).toBeGreaterThanOrEqual(4.5);
     expect.soft(visualSignature(primaryHover), `${theme.key}: primary hover`).not.toBe(visualSignature(primaryDefault));
