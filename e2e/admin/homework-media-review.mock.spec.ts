@@ -290,7 +290,7 @@ for (const width of [1366, 390]) {
     await page.getByRole("button", { name: "닫기", exact: true }).click();
     await page.locator('[class*="fileRow"]').filter({ hasText: "풀이 설명.mp4" }).getByRole("button", { name: "미리보기" }).click();
     await expect(page.getByRole("dialog").getByRole("status")).toContainText("이 기기에서 재생할 영상을 준비");
-    expect(preparePosts).toBe(1);
+    await expect.poll(() => preparePosts).toBe(1);
     await page.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(page.getByText("제출 파일 1/2개를 열었습니다.")).toBeVisible();
     await expect(page.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
@@ -314,26 +314,33 @@ for (const width of [1366, 390]) {
   });
 }
 
-test("HEIC가 섞인 기존 제출도 PC에서 모든 파일을 열고 검수를 완료한다", async ({ page }) => {
-  const api = await installApi(page, "submitted", false, { heic: true, reviewImagesOnly: true });
-  await page.setViewportSize({ width: 1366, height: 900 });
-  await openSubmissionReview(page);
-  await applyHomeworkPreviewCsp(page);
-  for (const filename of ["phone.heic", "풀이 뒷면.jpg"]) {
-    await page.locator('[class*="fileRow"]').filter({ hasText: filename }).getByRole("button", { name: "미리보기" }).click();
-    const image = page.getByRole("dialog").getByRole("img", { name: /과제 제출 미리보기/ });
-    await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(filename === "phone.heic" ? 640 : 800);
-    await page.getByRole("button", { name: "닫기", exact: true }).click();
-  }
-  await expect(page.getByText("제출 파일 2/2개를 열었습니다.")).toBeVisible();
-  await page.getByRole("button", { name: "직접 확인 완료" }).click();
-  await page.getByRole("button", { name: "확인 완료", exact: true }).click();
-  await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
-  expect(api.reviewPosts()).toBe(1);
-  await page.reload();
-  await page.getByRole("tab", { name: "제출관리", exact: true }).click();
-  await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
-});
+for (const width of [1366, 390]) {
+  test(`${width}px HEIC가 섞인 기존 제출도 모든 파일을 열고 검수를 완료한다`, async ({ page }) => {
+    const api = await installApi(page, "submitted", false, { heic: true, reviewImagesOnly: true });
+    await page.setViewportSize({ width, height: 900 });
+    if (width === 390) await page.emulateMedia({ reducedMotion: "reduce" });
+    await openSubmissionReview(page);
+    await applyHomeworkPreviewCsp(page);
+    for (const filename of ["phone.heic", "풀이 뒷면.jpg"]) {
+      const preview = page.locator('[class*="fileRow"]').filter({ hasText: filename }).getByRole("button", { name: "미리보기" });
+      await preview.click();
+      const dialog = page.getByRole("dialog").filter({ hasText: filename });
+      const image = dialog.getByRole("img", { name: /과제 제출 미리보기/ });
+      await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(filename === "phone.heic" ? 640 : 800);
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(dialog).toBeHidden();
+      await expect(preview).toBeFocused();
+    }
+    await expect(page.getByText("제출 파일 2/2개를 열었습니다.")).toBeVisible();
+    await page.getByRole("button", { name: "직접 확인 완료" }).click();
+    await page.getByRole("button", { name: "확인 완료", exact: true }).click();
+    await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+    expect(api.reviewPosts()).toBe(1);
+    await page.reload();
+    await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+    await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+  });
+}
 
 test("관리자가 200건 뒤의 과제 파일을 PC와 모바일에서 열고 새로고침한다", async ({ page }) => {
   test.setTimeout(120_000);
