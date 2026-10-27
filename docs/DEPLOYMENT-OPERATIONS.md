@@ -609,14 +609,22 @@ capability로 cleanup/readback을 시도한다. 실패 schema에는 tenant code�
 응답 유실로 exact ID를 얻지 못하면 다른 ID를 추측하지 않고 cleanup 미증명으로 실패한다.
 서버는 생성 transaction에 기록한 tenant ID/code와 capability digest를 cleanup 요청과
 결합한다. 이름 정규식이나 runner run 문자열만으로 destroy 권한을 주지 않는다.
-missing/duplicate/foreign owner는 destroy 전 거부하며, 이미 부재하면 0 readback만 한다.
+missing/duplicate/foreign owner는 destroy 전 거부한다. 이미 부재한 AI 정리 범위는
+원래 capability와 backend가 보존한 setup seal/정확 job ID cleanup receipt로만 증명한다.
 초기 Inspect와 Setup에는 `TenantId`를 보내지 않는다. Setup이 반환한 exact positive integer
 `tenant_id`만 메모리와 비밀값 없는 checkpoint에 보존해 post-playback Inspect, Cleanup과 그 직후 고정 Inspect에
 `TenantId`로 전달하고, 각 응답의 `tenant_id` echo가 같아야 한다. Cleanup 성공 여부와 무관하게 post-cleanup
-Inspect를 별도로 실행하며, exact tenant/users/R2 object/QA process/listener가 모두 숫자 0인
-데 더해 backend가 exact TenantId로 R2 범위를 증명한 `r2_scope_proven=true`인 경우에만
+Inspect를 별도로 실행하며, exact tenant/users/token/activity/R2 object/QA process/listener와
+`ai_jobs/ai_results/ai_redis_keys`가 모두 숫자 0인 데 더해 backend가 exact TenantId로
+범위를 증명한 `r2_scope_proven=true`, `ai_scope_proven=true`인 경우에만
 `postCleanupInspectObservation`을 통과시킨다. 이 readback이 없거나 하나라도
 남아 있으면 promotion은 실패한다.
+Cleanup 응답 자체도 AI scope와 세 건수 0을 요구한다. AI field 누락·문자열 0·미증명은
+실패이며 `cleanup_ai/inspect_ai` 실패 단계와 숫자 건수만 안전한 진단에 보존한다.
+실행 중/foreign/출처 불명 AI 작업은 backend에서 삭제하지 않으며, 과거 receipt나 원래
+capability를 잃은 QA는 일반 정리로 채택하지 않는다. 새 backend helper/API image와
+고정 SSM 문서 수렴 후 이 frontend gate를 사용한다. 정리 범위·receipt/복구 계약은
+backend `docs/operations/persistent-development-runtime.md`를 따른다.
 상세 감사 행 보존과 capability 신뢰 경계는 backend 상시 개발 런타임 문서가 소유한다.
 `scripts/development-qa-operations.mjs`는 주/교차 테넌트와 수동 사진 QA에서 같은
 고정 문서 실행·응답 판정·부분 Setup ID 수집을 사용하도록 소유한다. 전송 전에
