@@ -7,6 +7,8 @@ import { fetchMyClinicBookingRequests } from "@student/domains/clinic/api/clinic
 import { fetchMyQuestions, fetchMyCounselRequests } from "@student/domains/community/api/community.api";
 import { fetchMyGradesSummary } from "@student/domains/grades/api/grades.api";
 import { isNotificationSeen } from "../hooks/useSeenNotifications";
+import type { QueryClient } from "@tanstack/react-query";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 
 export type NotificationCounts = {
   clinic: number;
@@ -19,24 +21,26 @@ export type NotificationCounts = {
 
 export type FetchNotificationCountsOptions = {
   /** 프로필 id. 전달 시 QnA·상담 질문 조회 가능 */
-  profileId?: number | null;
+  profileId: number;
+  queryClient: QueryClient;
 };
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function fetchNotificationCounts(
-  options?: FetchNotificationCountsOptions
+  options: FetchNotificationCountsOptions
 ): Promise<NotificationCounts> {
   const sevenDaysAgo = Date.now() - SEVEN_DAYS_MS;
-  const hasProfile = options?.profileId != null;
-  const qnaPromise = hasProfile ? fetchMyQuestions(options!.profileId!, 50) : Promise.resolve([]);
-  const counselPromise = hasProfile ? fetchMyCounselRequests(options!.profileId!, 50) : Promise.resolve([]);
+  // Badge and list share in-flight requests and fresh data. The 50-item notification
+  // slices have their own keys so they cannot replace the full community lists.
+  const cached = <T,>(queryKey: readonly string[], queryFn: () => Promise<T>) =>
+    options.queryClient.fetchQuery({ queryKey, queryFn, staleTime: 30_000, retry: false });
 
   const [clinicBookings, questions, counselRequests, gradesSummary] = await Promise.all([
-    fetchMyClinicBookingRequests(),
-    qnaPromise,
-    counselPromise,
-    fetchMyGradesSummary(),
+    cached(studentQueryKeys.clinicBookings, fetchMyClinicBookingRequests),
+    cached(studentQueryKeys.notificationQuestions, () => fetchMyQuestions(options.profileId, 50)),
+    cached(studentQueryKeys.notificationCounsel, () => fetchMyCounselRequests(options.profileId, 50)),
+    cached(studentQueryKeys.gradesSummary, fetchMyGradesSummary),
   ]);
 
   const clinic = clinicBookings.filter((b) => {

@@ -396,6 +396,19 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
       await seedBrowserAuth(teacherPage, admin);
       for (const width of [390, 1366]) {
         await teacherPage.setViewportSize({ width, height: 900 });
+        await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/classes`, { timeout: 30_000 });
+        await teacherPage.getByRole("searchbox", { name: "강의 찾기" }).fill(lectureTitle);
+        const lectureEntry = teacherPage.getByRole("button").filter({ has: teacherPage.getByText(lectureTitle, { exact: true }) });
+        await expect(lectureEntry).toBeVisible();
+        await lectureEntry.click();
+        await expect(teacherPage.getByRole("button", { name: "수강생 (2)", exact: true })).toBeVisible();
+        await teacherPage.getByRole("button", { name: "수강생 (2)", exact: true }).click();
+        await teacherPage.reload({ waitUntil: "domcontentloaded" });
+        await expect(teacherPage.getByRole("button", { name: "수강생 (2)", exact: true })).toHaveAttribute("aria-pressed", "true");
+        await expect(teacherPage.getByText(primary.name, { exact: true })).toBeVisible();
+        await teacherPage.getByRole("button", { name: "뒤로 가기", exact: true }).click();
+        await expect(teacherPage.getByRole("searchbox", { name: "강의 찾기" })).toHaveValue(lectureTitle);
+        await assertNoHorizontalOverflow(teacherPage);
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/attendance/${created.sessionId}`, { timeout: 30_000 });
         await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
         for (const [label, status, absentCount] of [["결석", "ABSENT", 2], ["출석", "PRESENT", 1]] as const) {

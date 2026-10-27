@@ -605,6 +605,74 @@ function imageNotice() {
   };
 }
 
+test.describe("알림·공지 이어보기", () => {
+  test.skip(!IS_LOCAL_BASE, "Local route-mock contract spec.");
+  test.use({ serviceWorkers: "block" });
+  for (const width of [390, 1366]) {
+    test(`공지 탭과 강의 범위를 상세·새로고침·목록 복귀까지 유지한다 ${width}px`, async ({ page }, testInfo) => {
+      await installStudentApi(page, { lectureNotices: true });
+      await page.setViewportSize({ width, height: 900 });
+      await page.route("**/api/v1/community/posts/91/", (route) => route.fulfill({ json: {
+        id: 91, title: "수학 I 개강 안내", content: "<p>교재와 필기도구를 준비해 주세요.</p>",
+        post_type: "notice", created_at: new Date().toISOString(), mappings: [], attachments: [],
+      } }));
+      await page.goto(`${BASE}/student/notices?tab=lecture&lecture=71`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      await expect(page.getByRole("link", { name: /수학 I 개강 안내/ })).toBeVisible({ timeout: 30_000 });
+      await page.getByRole("link", { name: /수학 I 개강 안내/ }).click();
+      await expect(page).toHaveURL(/\/notices\/91\?tab=lecture&lecture=71$/);
+      await page.reload();
+      await page.getByRole("link", { name: "목록으로 돌아가기" }).click();
+      await expect(page).toHaveURL(/\/notices\?tab=lecture&lecture=71$/);
+      await expect(page.getByText("고등 수학 공지만 보고 있어요", { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: /차시공지/ }).click();
+      await expect(page).toHaveURL(/\/notices\?tab=session$/);
+      await page.reload();
+      await expect(page.getByRole("button", { name: /차시공지/ })).toHaveAttribute("aria-pressed", "true");
+      await expect(page.getByText("1차시 준비물 안내", { exact: true })).toBeVisible();
+      await page.goBack();
+      await expect(page.getByRole("button", { name: /강의공지/ })).toHaveAttribute("aria-pressed", "true");
+      await assertNoRenderedHtmlLeak(page);
+      await page.screenshot({ path: testInfo.outputPath(`notice-return-${width}.png`), animations: "disabled" });
+    });
+
+    test(`알림 상담 실패를 재시도하고 표시된 항목만 읽음 처리한다 ${width}px`, async ({ page }, testInfo) => {
+      await installStudentApi(page);
+      await page.setViewportSize({ width, height: 900 });
+      let failCounsel = true;
+      const attempts = { qna: 0, counsel: 0 };
+      await page.route("**/api/v1/community/posts/?**", (route) => {
+        const type = new URL(route.request().url()).searchParams.get("post_type");
+        if (type !== "qna" && type !== "counsel") return route.fallback();
+        attempts[type] += 1;
+        if (type === "counsel" && failCounsel) return route.fulfill({ status: 400, json: { detail: "상담 조회 실패" } });
+        return route.fulfill({ json: { count: 1, results: [{
+          id: type === "qna" ? 981 : 982, title: type === "qna" ? "수학 학습 질문" : "다음 학기 학습 계획에 대한 상담 답변을 확인해 주세요",
+          post_type: type, content: "<p>확인 부탁드립니다.</p>", created_by: 11,
+          created_at: new Date().toISOString(), updated_at: new Date().toISOString(), replies_count: 1,
+          mappings: [], attachments: [],
+        }] } });
+      });
+      await page.goto(`${BASE}/student/notifications`);
+      await expect(page.getByText("알림을 불러오지 못했습니다", { exact: true })).toBeVisible();
+      expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("stu:seen-notifications:")))).toEqual([]);
+      const before = attempts.counsel;
+      failCounsel = false;
+      await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+      await expect(page.getByRole("link", { name: /다음 학기 학습 계획/ })).toBeVisible();
+      await expect(page.getByText("2개 알림", { exact: true })).toBeVisible();
+      expect(attempts.counsel).toBeGreaterThan(before);
+      // One initial query plus the explicit recovery refresh, shared by list and badge.
+      expect(attempts.qna).toBe(2);
+      await expect.poll(() => page.evaluate(() => localStorage.getItem("stu:seen-notifications:hakwonplus:11"))).toContain("counsel:982");
+      await assertNoRenderedHtmlLeak(page);
+      await page.screenshot({ path: testInfo.outputPath(`notifications-${width}.png`), animations: "disabled" });
+      await page.reload();
+      await expect(page.getByText("2개 알림", { exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "알림", exact: true }).first()).toBeVisible();
+    });
+  }
+});
+
 test.describe("학생·학부모 콘텐츠 안정성", () => {
   test.skip(!IS_LOCAL_BASE, "Local route-mock contract spec.");
 
@@ -953,17 +1021,23 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     test(`학부모 성적 조회 실패는 안정 상태로 표시하지 않고 복구한다 ${width}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await installStudentApi(page, { parentDashboard: true });
-      let failed = true;
-      await page.route("**/api/v1/student/grades/", (route) => route.fulfill(failed
-        ? { status: 503, json: { detail: "temporary grade failure" } }
-        : { json: emptyGrades() }));
+      await page.route("**/api/v1/student/grades/", async (route) => {
+        const retryClicked = await page.evaluate(() => document.documentElement.dataset.qaGradeRetry === "true");
+        return route.fulfill(retryClicked ? { json: emptyGrades() }
+          : { status: 503, json: { detail: "temporary grade failure" } });
+      });
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
       const summary = page.getByRole("region", { name: "우리 아이 요약" });
       await expect(summary.getByText("확인 필요", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
       await expect(summary.getByText("정리됨", { exact: true })).toHaveCount(0);
       await expect(summary.getByText("안정", { exact: true })).toHaveCount(0);
-      failed = false;
-      await page.getByRole("alert").filter({ hasText: "일부 정보를 확인하지 못했어요" }).getByRole("button", { name: "다시 시도", exact: true }).click();
+      const retry = page.getByRole("alert").filter({ hasText: "일부 정보를 확인하지 못했어요" }).getByRole("button", { name: "다시 시도", exact: true });
+      // Shared notification polling may also retry grades. Keep the synthetic
+      // failure until the user's retry click, rather than racing that polling.
+      await retry.evaluate((button) => button.addEventListener("click", () => {
+        document.documentElement.dataset.qaGradeRetry = "true";
+      }, { once: true }));
+      await retry.click();
       await expect(summary.getByText("정리됨", { exact: true })).toBeVisible();
       await assertNoRenderedHtmlLeak(page);
     });
