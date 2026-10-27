@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchHomeworkMediaPreview, type HomeworkMediaFile } from "../api/homeworkMedia.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import HomeworkMediaImage from "@/shared/ui/media/HomeworkMediaImage";
+import HomeworkMediaVideo from "@/shared/ui/media/HomeworkMediaVideo";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import styles from "./SubmitAssignmentPage.module.css";
 
 export default function SavedHomeworkMediaPreview({ homeworkId, enrollmentId, file, onClose }: {
@@ -32,7 +34,7 @@ export default function SavedHomeworkMediaPreview({ homeworkId, enrollmentId, fi
           <button type="button" className="stu-btn stu-btn--secondary" onClick={() => { setMediaFailed(false); void preview.refetch(); }}>미리보기 다시 시도</button>
         </div>
       ) : preview.data?.url ? file.media_kind === "video" ? (
-        <video src={preview.data.url} controls playsInline preload="metadata" aria-label={file.original_filename} onError={() => setMediaFailed(true)} />
+        <HomeworkMediaVideo key={preview.data.url} src={preview.data.url} homeworkId={homeworkId} fileId={file.id} filename={file.original_filename} studentId={getParentStudentId()} onError={() => setMediaFailed(true)} />
       ) : (
         <HomeworkMediaImage src={preview.data.url} filename={file.original_filename} mimeType={file.mime_type} alt={`${file.original_filename} 제출 파일`} onError={() => setMediaFailed(true)} />
       ) : null}

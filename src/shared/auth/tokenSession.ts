@@ -1,3 +1,4 @@
+import { clearHomeworkDraftGeneration } from "@/shared/storage/homeworkDraftStorage";
 import {
   AUTH_TOKEN_STORAGE_ERROR_MESSAGE,
   AuthTokenStorageError,
@@ -97,6 +98,7 @@ function activateEnvelope(envelope: AuthTokenEnvelope): AuthTokenEnvelope {
   }
   if (previousGeneration && previousGeneration !== envelope.generation) {
     try { requireRemoveLocalItem(generationKey(previousGeneration)); } catch { /* inactive cleanup is best effort */ }
+    void clearHomeworkDraftGeneration(previousGeneration).catch(() => undefined);
   }
   return envelope;
 }
@@ -186,7 +188,10 @@ export function publishRefreshedTokenEnvelope(
 export function clearAuthTokenEnvelope(expectedGeneration?: string | null): void {
   const generation = expectedGeneration
     ?? String(requireLocalItem(AUTH_ACTIVE_GENERATION_KEY) || "").trim();
-  if (generation) requireRemoveLocalItem(generationKey(generation));
+  if (generation) {
+    requireRemoveLocalItem(generationKey(generation));
+    void clearHomeworkDraftGeneration(generation).catch(() => undefined);
+  }
   try { requireRemoveLocalItem(LEGACY_ACCESS_KEY); } catch { /* legacy cleanup */ }
   try { requireRemoveLocalItem(LEGACY_REFRESH_KEY); } catch { /* legacy cleanup */ }
 }

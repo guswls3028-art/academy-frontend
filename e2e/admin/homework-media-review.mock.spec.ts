@@ -1,4 +1,5 @@
 import type { Page, Route } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 import { expect, test } from "../fixtures/strictTest";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
@@ -265,6 +266,52 @@ async function openSubmissionReview(page: Page) {
   await expect(page.getByText("도형 풀이 인증", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
   await page.getByRole("tab", { name: "제출관리", exact: true }).click();
   await expect(page.getByRole("heading", { name: "과제 제출 검수" })).toBeVisible({ timeout: 30_000 });
+}
+
+for (const width of [1366, 390]) {
+  test(`${width}px 영상 메타데이터만으로 확인 처리하지 않고 호환 영상의 실제 프레임 뒤 검수한다`, async ({ page }) => {
+    const api = await installApi(page);
+    await page.setViewportSize({ width, height: 900 });
+    const original = readFileSync(new URL("../fixtures/files/homework-audio-only.mp4", import.meta.url));
+    const compatible = readFileSync(new URL("../fixtures/files/homework-video.mp4", import.meta.url));
+    let prepared = false;
+    let ready = false;
+    let preparePosts = 0;
+    await page.route("**/media/9912/preview/", (route) => route.fulfill({ json: { url: `${BASE}/__homework_audio.mp4`, media_kind: "video", mime_type: "video/mp4" } }));
+    await page.route(`${BASE}/__homework_audio.mp4`, (route) => route.fulfill({ body: original, contentType: "video/mp4" }));
+    await page.route(`${BASE}/__homework_compatible.mp4`, (route) => route.fulfill({ body: compatible, contentType: "video/mp4" }));
+    await page.route("**/media/9912/preview/compatible/", (route) => {
+      if (route.request().method() === "POST") { prepared = true; preparePosts += 1; }
+      return route.fulfill({ json: { status: ready ? "ready" : prepared ? "queued" : "not_requested", ...(ready ? { url: `${BASE}/__homework_compatible.mp4` } : {}) } });
+    });
+    await openSubmissionReview(page);
+    await page.locator('[class*="fileRow"]').filter({ hasText: "풀이 앞면.jpg" }).getByRole("button", { name: "미리보기" }).click();
+    await expect(page.getByRole("dialog").getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
+    await page.getByRole("button", { name: "닫기", exact: true }).click();
+    await page.locator('[class*="fileRow"]').filter({ hasText: "풀이 설명.mp4" }).getByRole("button", { name: "미리보기" }).click();
+    await expect(page.getByRole("dialog").getByRole("status")).toContainText("이 기기에서 재생할 영상을 준비");
+    expect(preparePosts).toBe(1);
+    await page.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(page.getByText("제출 파일 1/2개를 열었습니다.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
+    ready = true;
+    await page.locator('[class*="fileRow"]').filter({ hasText: "풀이 설명.mp4" }).getByRole("button", { name: "미리보기" }).click();
+    const video = page.getByRole("dialog").locator("video");
+    await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).videoWidth)).toBe(256);
+    await video.evaluate(async (element) => { const player = element as HTMLVideoElement; player.muted = true; await player.play(); });
+    await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(0);
+    await page.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(page.getByText("제출 파일 2/2개를 열었습니다.")).toBeVisible();
+    await page.getByRole("button", { name: "직접 확인 완료" }).click();
+    await page.getByRole("button", { name: "확인 완료", exact: true }).click();
+    await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+    expect(api.reviewPosts()).toBe(1);
+    expect(preparePosts).toBe(1);
+    await page.reload();
+    await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+    await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
 }
 
 test("HEIC가 섞인 기존 제출도 PC에서 모든 파일을 열고 검수를 완료한다", async ({ page }) => {
