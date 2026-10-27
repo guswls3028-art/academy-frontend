@@ -1021,22 +1021,18 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     test(`학부모 성적 조회 실패는 안정 상태로 표시하지 않고 복구한다 ${width}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await installStudentApi(page, { parentDashboard: true });
-      await page.route("**/api/v1/student/grades/", async (route) => {
-        const retryClicked = await page.evaluate(() => document.documentElement.dataset.qaGradeRetry === "true");
-        return route.fulfill(retryClicked ? { json: emptyGrades() }
-          : { status: 503, json: { detail: "temporary grade failure" } });
-      });
+      let failed = true;
+      await page.route("**/api/v1/student/grades/", (route) => route.fulfill(failed
+        ? { status: 503, json: { detail: "temporary grade failure" } }
+        : { json: emptyGrades() }));
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
       const summary = page.getByRole("region", { name: "우리 아이 요약" });
       await expect(summary.getByText("확인 필요", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
       await expect(summary.getByText("정리됨", { exact: true })).toHaveCount(0);
       await expect(summary.getByText("안정", { exact: true })).toHaveCount(0);
       const retry = page.getByRole("alert").filter({ hasText: "일부 정보를 확인하지 못했어요" }).getByRole("button", { name: "다시 시도", exact: true });
-      // Shared notification polling may also retry grades. Keep the synthetic
-      // failure until the user's retry click, rather than racing that polling.
-      await retry.evaluate((button) => button.addEventListener("click", () => {
-        document.documentElement.dataset.qaGradeRetry = "true";
-      }, { once: true }));
+      // Keep failing through background retries; this banner retries by reloading.
+      page.once("framenavigated", () => { failed = false; });
       await retry.click();
       await expect(summary.getByText("정리됨", { exact: true })).toBeVisible();
       await assertNoRenderedHtmlLeak(page);
