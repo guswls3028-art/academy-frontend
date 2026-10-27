@@ -9,6 +9,8 @@ import { reserveQaDispatch } from "../../scripts/development-qa-operations.mjs";
 
 type Document = { id: number; title: string; status: string; problem_count: number;
   ai_job_id: string; inventory_file_id: number };
+type DocumentJob = Pick<Document, "title" | "status" | "problem_count" | "ai_job_id"> & { document_id: number };
+
 type Report = { report: { id: number; summary: string }; entries: Array<{
   selected_problem_ids: number[];
 }> };
@@ -65,7 +67,10 @@ test("격리 매치업 업로드·분석·수동 자르기·보고서 저장·�
     await loginViaUI(page, "admin", { landingPath: "/workspace/storage/matchup" });
     for (const file of files) {
       const title = `${binding.tenant}-${file.kind}`;
-      await page.getByTestId(file.kind === "reference" ? "matchup-reference-upload-button" : "matchup-upload-button").click();
+      const uploadButton = page.getByTestId(file.kind === "reference" ? "matchup-reference-upload-button" : "matchup-upload-button")
+        .or(page.getByRole("button", { name: file.kind === "reference" ? /^참고 자료 업로드/ : /^학생 시험지 업로드/ }));
+      await expect(uploadButton).toHaveCount(1);
+      await uploadButton.click();
       const modal = page.getByTestId("matchup-upload-modal");
       await expect(modal).toBeVisible();
       await modal.getByTestId("matchup-file-input").setInputFiles({
@@ -85,8 +90,9 @@ test("격리 매치업 업로드·분석·수동 자르기·보고서 저장·�
       await persist();
       await expect(modal).toBeHidden();
       await expect.poll(async () => {
-        const current = await apiCall<Document>(page, "GET", `/matchup/documents/${doc.id}/`);
+        const current = await apiCall<DocumentJob>(page, "GET", `/matchup/documents/${doc.id}/job/`);
         expect(current.status).toBe(200);
+        expect(current.body.document_id).toBe(doc.id);
         expect(current.body.status, "worker must finish successfully, not silently fail").not.toBe("failed");
         Object.assign(doc, current.body);
         return current.body.status;
@@ -160,6 +166,7 @@ test("격리 매치업 업로드·분석·수동 자르기·보고서 저장·�
     const pdf = await readFile(pdfPath!);
     expect(pdf.subarray(0, 5).toString("ascii")).toBe("%PDF-");
     expect(pdf.length).toBeGreaterThan(1000);
+    await testInfo.attach("matchup-generated-report", { path: pdfPath!, contentType: "application/pdf" });
     timings.reportPdfMs = Date.now() - pdfStarted;
     await page.setViewportSize({ width: 390, height: 844 });
     await noHorizontalOverflow(page);
