@@ -45,6 +45,17 @@ type AiPollContext = {
   isCurrent: () => boolean;
 };
 
+const UNAVAILABLE_AI_TASK_MESSAGE = "작업을 찾을 수 없거나 조회 권한이 없습니다. 원본 화면에서 상태를 확인해 주세요.";
+
+function handleAiPollFailure(taskId: string, context: AiPollContext, error: unknown) {
+  if (!context.isCurrent()) return;
+  const status = (error as { response?: { status?: number } } | null)?.response?.status;
+  if (status === 403 || status === 404) {
+    asyncStatusStore.completeTask(taskId, "error", UNAVAILABLE_AI_TASK_MESSAGE);
+  }
+  // Temporary network/server failures retain the task for the next poll.
+}
+
 /** Share the workbox request boundary across PPT, Matchup and its pending-document watcher. */
 function pollAiWorkerTask(
   task: AsyncTask,
@@ -586,9 +597,7 @@ function pollPptJob(
         }
       }
     })
-    .catch(() => {
-      // Network error — retry on next poll
-    });
+    .catch((error: unknown) => handleAiPollFailure(taskId, context, error));
 }
 
 /** 매치업 분석 작업 폴링 — /jobs/<id>/progress/ 일반 엔드포인트 + 성공 시 문제 개수 라벨링 */
@@ -616,7 +625,11 @@ function pollMatchupJob(taskId: string, context: AiPollContext, onSuccess?: () =
     .then((res) => {
       if (!context.isCurrent()) return;
       const status = res.data?.status;
-      if (status === "UNKNOWN") return;
+      if (status === "UNKNOWN") {
+        // The API falls back to durable DB state before returning UNKNOWN.
+        asyncStatusStore.completeTask(taskId, "error", UNAVAILABLE_AI_TASK_MESSAGE);
+        return;
+      }
 
       const progress = res.data?.progress;
       const percent = progress?.percent;
@@ -652,9 +665,7 @@ function pollMatchupJob(taskId: string, context: AiPollContext, onSuccess?: () =
         onSuccess?.();
       }
     })
-    .catch(() => {
-      // network — retry on next poll
-    });
+    .catch((error: unknown) => handleAiPollFailure(taskId, context, error));
 }
 
 /** 매치업 문서 watch 폴링 — ai_job_id 생성 지연 시 Workbox fallback */
@@ -692,9 +703,7 @@ function pollMatchupDocumentWatch(taskId: string, documentId: string, context: A
         asyncStatusStore.updateProgress(taskId, status === "processing" ? 10 : 5);
       }
     })
-    .catch(() => {
-      // network error: next polling cycle retry
-    });
+    .catch((error: unknown) => handleAiPollFailure(taskId, context, error));
 }
 
 function pollVideoJob(

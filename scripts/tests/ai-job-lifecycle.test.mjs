@@ -206,7 +206,7 @@ function workboxRuntime(jobType) {
     "@/shared/api/contracts/videos": {},
     "@/shared/api/axios": {
       createAuthSessionBoundConfig: (authGeneration, signal, expectedTenant) => ({ authGeneration, signal, expectedTenant }),
-      default: { get: (url, config) => new Promise((resolve) => requests.push({ url, config, resolve })) },
+      default: { get: (url, config) => new Promise((resolve, reject) => requests.push({ url, config, resolve, reject })) },
     },
   }, {
     AbortController, document, clearTimeout,
@@ -219,6 +219,7 @@ function workboxRuntime(jobType) {
     requests, completions, successes: () => successes,
     runTimers() { for (const [id, callback] of [...timers]) { timers.delete(id); callback(); } },
     respond(data) { requests[0].resolve({ data: { job_id: task.id, job_type: jobType, ...data } }); },
+    reject(error) { requests[0].reject(error); },
     switchTenant() { tenant = "other-tenant"; },
     switchAccount() { generation = "other-generation"; sessionGeneration++; },
     dispose() { cleanup?.(); },
@@ -260,3 +261,56 @@ test("Workbox PPT rejects an empty DONE and completes a real result once", async
   assert.equal(valid.successes(), 1);
   valid.dispose();
 });
+
+for (const jobType of ["ppt_generation", "matchup_analysis", "matchup_public_cleanup", "matchup_document_watch"]) {
+  for (const status of [403, 404]) {
+    test(`Workbox ${jobType} ends an unavailable ${status} without polling or reporting success`, async () => {
+      const h = workboxRuntime(jobType);
+      h.reject({ response: { status, data: { detail: "untrusted server detail" } } });
+      await flush();
+      assert.equal(h.completions.length, 1);
+      assert.equal(h.completions[0].status, "error");
+      assert.match(h.completions[0].error, /작업.*권한/);
+      assert.doesNotMatch(h.completions[0].error, /untrusted/);
+      h.runTimers(); h.runTimers();
+      assert.equal(h.requests.length, 1);
+      assert.equal(h.successes(), 0);
+      h.dispose();
+    });
+  }
+  for (const change of ["switchTenant", "switchAccount", "dispose"]) {
+    test(`Workbox ${jobType} ignores late access denial after ${change}`, async () => {
+      const h = workboxRuntime(jobType);
+      h[change]();
+      h.reject({ response: { status: 404 } });
+      await flush();
+      assert.deepEqual(h.completions, []);
+      h.dispose();
+    });
+  }
+  test(`Workbox ${jobType} retries temporary HTTP and transport failures`, async () => {
+    for (const error of [{ response: { status: 429 } }, { response: { status: 503 } }, new Error("network")]) {
+      const h = workboxRuntime(jobType);
+      h.reject(error);
+      await flush();
+      assert.deepEqual(h.completions, []);
+      h.runTimers();
+      assert.equal(h.requests.length, 2);
+      h.dispose();
+    }
+  });
+}
+
+for (const jobType of ["matchup_analysis", "matchup_public_cleanup"]) {
+  test(`Workbox ${jobType} stops when both durable and cache state are missing`, async () => {
+    const h = workboxRuntime(jobType);
+    h.respond({ status: "UNKNOWN" });
+    await flush();
+    assert.equal(h.completions[0]?.status, "error");
+    assert.match(h.completions[0].error, /작업.*권한/);
+    h.runTimers(); h.runTimers();
+    assert.equal(h.requests.length, 1);
+    assert.equal(h.successes(), 0);
+    h.dispose();
+  });
+}

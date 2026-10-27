@@ -11,9 +11,10 @@ function jwt() {
   return `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "hakwonplus", user_id: 12 })}.sig`;
 }
 
-async function setup(page: Page, jobId: string, missingAfterReload = false, narrow = false) {
+async function setup(page: Page, jobId: string, missingAfterReload = false, narrow = false, progressDenial?: number) {
   let postCount = 0;
   let statusGetCount = 0;
+  let progressGetCount = 0;
   let submittedMode = "";
   let reloaded = false;
   await installLocalAuthApiStubs(page);
@@ -32,6 +33,11 @@ async function setup(page: Page, jobId: string, missingAfterReload = false, narr
       return;
     }
     if (pathname === `/api/v1/jobs/${jobId}/progress/`) {
+      progressGetCount += 1;
+      if (progressDenial) {
+        await route.fulfill({ status: progressDenial, json: { detail: "fixture access denial" } });
+        return;
+      }
       await route.fulfill({ json: { job_id: jobId, job_type: "ppt_generation", status: "PENDING" } });
       return;
     }
@@ -59,9 +65,31 @@ async function setup(page: Page, jobId: string, missingAfterReload = false, narr
   return {
     get postCount() { return postCount; },
     get statusGetCount() { return statusGetCount; },
+    get progressGetCount() { return progressGetCount; },
     get submittedMode() { return submittedMode; },
     markReloaded() { reloaded = true; },
   };
+}
+
+for (const { width, status } of [{ width: 1366, status: 403 }, { width: 390, status: 404 }]) {
+  test(`작업박스는 접근 불가를 알리고 반복 조회를 멈춘다 (${width}px, ${status})`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 850 });
+    const state = await setup(page, `ppt-workbox-denied-${status}`, false, false, status);
+    await page.clock.install();
+    await page.getByRole("button", { name: "PPT 생성 및 다운로드" }).click();
+    await expect.poll(() => state.progressGetCount).toBe(1);
+    await page.getByRole("button", { name: /^작업박스/ }).click();
+    const panel = page.locator(".alarm-panel--workbox-style");
+    await expect(panel.getByText("작업을 찾을 수 없거나 조회 권한이 없습니다. 원본 화면에서 상태를 확인해 주세요.")).toBeVisible();
+    await page.clock.runFor(6_000);
+    expect(state.progressGetCount).toBe(1);
+    expect(state.postCount).toBe(1);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth
+      - document.documentElement.clientWidth)).toBe(0);
+    await expect(panel.getByRole("button", { name: "목록에서 제거", exact: true })).toBeVisible();
+    await panel.getByRole("button", { name: "목록에서 제거", exact: true }).click();
+    await expect(panel.getByText("작업을 찾을 수 없거나 조회 권한이 없습니다. 원본 화면에서 상태를 확인해 주세요.")).toHaveCount(0);
+  });
 }
 
 test("없는 PPT 작업은 새로고침 후 결과를 숨긴다", async ({ page }) => {
