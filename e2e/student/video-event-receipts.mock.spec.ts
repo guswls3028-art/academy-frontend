@@ -40,7 +40,7 @@ for (const width of [390, 1366]) for (const role of ["student", "parent"]) {
           playback_rate: { max: 1, ui_control: true }, source: { type: "youtube", youtube_video_id: YOUTUBE_QA_VIDEO_ID } },
       } });
     });
-    await page.route("**/api/v1/media/playback/v2/**", (route) => {
+    await page.route("**/api/v1/media/playback/v2/**", async (route) => {
       const body = route.request().postDataJSON() as typeof bodies[number];
       bodies.push(body);
       headers.push(route.request().headers()["x-student-id"]);
@@ -53,7 +53,10 @@ for (const width of [390, 1366]) for (const role of ["student", "parent"]) {
         return { batch_id: batch.batch_id, event_count: batch.events.length, duplicate: !!previous };
       });
       // Model a committed batch whose acknowledgement was lost at transport.
-      // No successful response is fabricated until the visible retry is enabled.
+      // No successful response is fabricated until the visible retry is clicked.
+      // A scheduled SPA flush can arrive before Playwright clicks the retry.
+      // Keep losing ACKs until a genuine button click has happened in the page.
+      accepting ||= await page.evaluate(() => document.documentElement.hasAttribute("data-qa-playback-retry-clicked"));
       if (!accepting) return route.fulfill({ status: 503, json: { detail: "synthetic_ack_unavailable" } });
       finalized ||= Array.isArray(body.batches);
       return route.fulfill({ status: body.batches ? 200 : 201, json: {
@@ -79,8 +82,13 @@ for (const width of [390, 1366]) for (const role of ["student", "parent"]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`receipt-${role}-${width}-pending.png`), fullPage: true });
     const beforeRetry = bodies.length;
-    accepting = true;
-    await notice.getByRole("button", { name: "저장 다시 시도" }).click();
+    const retryButton = notice.getByRole("button", { name: "저장 다시 시도" });
+    await retryButton.evaluate((button) => {
+      button.addEventListener("click", (event) => {
+        if (event.isTrusted) document.documentElement.setAttribute("data-qa-playback-retry-clicked", "");
+      }, { capture: true, once: true });
+    });
+    await retryButton.click();
     await expect.poll(() => finalized).toBe(true);
     await expect(notice).toHaveCount(0);
     expect(bodies.length).toBeGreaterThan(beforeRetry);
