@@ -4,7 +4,8 @@
  * The browser writes only to the guarded loopback development API.
  */
 import { expect, test } from "../fixtures/strictTest";
-import type { APIRequestContext, Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import type { APIRequestContext, Locator, Page } from "@playwright/test";
 import type { StudentGradeReportLayout } from "@/shared/api/contracts/studentGradeReportLayout";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import {
@@ -32,7 +33,7 @@ import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 import { applyHomeworkPreviewCsp, homeworkHeic } from "../helpers/homeworkHeicFixture";
 
-test.setTimeout(360_000);
+test.setTimeout(600_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
 type HomeworkSummary = {
@@ -75,7 +76,22 @@ const homeworkTitle = `QA 과제 제출 채점 ${runStamp}`;
 const completionTitle = `QA 준비물 통과형 ${runStamp}`;
 const uploadName = `qa-homework-${runStamp}.heic`;
 const parentUploadName = `qa-parent-homework-${runStamp}.png`;
+const videoUploadName = `qa-homework-video-${runStamp}.mp4`;
 const parentHomeworkComment = "QA 과제 피드백: 풀이 과정을 꼼꼼히 기록했습니다.\n가정에서는 틀린 문제의 계산 순서를 소리 내어 설명하고, 스스로 채점한 뒤 다시 확인하는 연습을 도와주세요.";
+
+async function expectRealHomeworkVideo(container: Locator): Promise<void> {
+  const video = container.locator("video");
+  await expect.poll(() => video.evaluateAll((elements) => elements.some((element) => {
+    const media = element as HTMLVideoElement;
+    return media.videoWidth > 0 && media.videoHeight > 0 && media.readyState >= 2;
+  })), { timeout: 180_000, intervals: [500, 1_000, 3_000] }).toBe(true);
+  await video.evaluate(async (element) => {
+    const media = element as HTMLVideoElement;
+    media.muted = true;
+    await media.play();
+  });
+  await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(0.2);
+}
 
 async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestContext, admin: QaTokens, studentName: string): Promise<void> {
   const context = await parentPage.context().browser()!.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
@@ -658,7 +674,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     });
     await expect(page.getByText(uploadName, { exact: true })).toBeVisible();
     await expect.poll(() => page.getByRole("img", { name: "선택한 과제 사진 미리보기" })
-      .evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBe(640);
+      .evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBe(384);
     const staffUsername = `qa-homework-assistant-${runStamp}`;
     const staff = await expectApi<{ id: number }>(request, "POST", "/staffs/", admin.access, {
       name: `QA 숙제 조교 ${runStamp}`,
@@ -691,7 +707,9 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await expect(fileRow).toHaveCount(0);
       await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
       await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
-      await expect(page.getByText(homeworkTitle, { exact: true })).toBeVisible();
+      await expect(page.locator("[data-guide='submit-target'] button").filter({
+        has: page.getByText(homeworkTitle, { exact: true }),
+      })).toBeVisible();
       await assertNoHorizontalOverflow(page);
       await page.reload({ waitUntil: "domcontentloaded" });
       await page.getByText(homeworkTitle, { exact: true }).click();
@@ -820,6 +838,40 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
       await expect(staffPage.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
+
+      // A real HEVC object must survive submission/reload and display actual
+      // moving frames for the student, assistant and selected-child parent.
+      await gotoAndSettle(page, `${QA_BASE}/student/submit/assignment`, { timeout: 30_000 });
+      await page.locator("[data-guide='submit-target'] button").filter({
+        has: page.getByText(homeworkTitle, { exact: true }),
+      }).click();
+      await page.locator("input[type='file']").first().setInputFiles({
+        name: videoUploadName,
+        mimeType: "video/mp4",
+        buffer: readFileSync(new URL("../fixtures/files/homework-hevc.mp4", import.meta.url)),
+      });
+      await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
+      await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.locator("[data-guide='submit-target'] button").filter({
+        has: page.getByText(homeworkTitle, { exact: true }),
+      }).click();
+      await page.getByRole("region", { name: "이미 제출한 파일" }).locator("[data-status]")
+        .filter({ hasText: videoUploadName }).getByRole("button", { name: "미리보기", exact: true }).click();
+      await expectRealHomeworkVideo(page.getByRole("region", { name: "제출 파일 미리보기" }));
+      await assertNoHorizontalOverflow(page);
+      await page.getByRole("button", { name: "미리보기 닫기", exact: true }).click();
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
+      await staffPage.locator('[class*="fileRow"]').filter({ hasText: videoUploadName })
+        .getByRole("button", { name: "미리보기", exact: true }).click();
+      const staffVideo = staffPage.getByRole("dialog").filter({ hasText: videoUploadName });
+      await expectRealHomeworkVideo(staffVideo);
+      await assertNoHorizontalOverflow(staffPage);
+      await testInfo.attach("assistant-homework-real-video-390", {
+        body: await staffPage.screenshot({ fullPage: true }), contentType: "image/png",
+      });
+      await staffVideo.getByRole("button", { name: "닫기", exact: true }).click();
       staffBoundary.assertClean();
       staffBrowser.assertZeroDefects();
     } finally {
@@ -899,7 +951,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     expect(parentMediaResponse.status()).toBe(200);
     const parentMedia = await parentMediaResponse.json() as { files: Array<{ original_filename: string }> };
     expect(parentMedia.files.map((file) => file.original_filename)).toEqual(
-      expect.arrayContaining([uploadName, parentUploadName]),
+      expect.arrayContaining([uploadName, videoUploadName, parentUploadName]),
     );
 
     await waitForHomeworkSummary(
@@ -915,6 +967,10 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await parentHomeworkTarget.click();
     await expect(page.getByText(uploadName, { exact: true })).toBeVisible();
     await expect(page.getByText(parentUploadName, { exact: true })).toBeVisible();
+    await page.getByRole("region", { name: "이미 제출한 파일" }).locator("[data-status]")
+      .filter({ hasText: videoUploadName }).getByRole("button", { name: "미리보기", exact: true }).click();
+    await expectRealHomeworkVideo(page.getByRole("region", { name: "제출 파일 미리보기" }));
+    await page.getByRole("button", { name: "미리보기 닫기", exact: true }).click();
     await assertNoHorizontalOverflow(page);
 
     await gradeHomework(page, request, staffUsername, student.password, staffTokens.access);

@@ -22,6 +22,7 @@ import "./development-qa-operations.test.mjs";
 import "./development-account-probe.test.mjs";
 import "./release-canary-progress.test.mjs";
 import "./development-backend-readiness.test.mjs";
+import "./development-host-iam.test.mjs";
 import "./release-governance-metadata.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
@@ -1223,7 +1224,7 @@ test("fixed-document operation failures expose only allowlisted PII-free observa
         error_type: "AssertionError",
         failure_stage: "inspect_residue",
         tenant_id: 72,
-        residue: { activity_audits: 1, outstanding_tokens: 2, listeners: 3, processes: 4, r2_objects: 5 },
+        residue: { activity_audits: 1, outstanding_tokens: 2, listeners: 3, processes: 4, r2_objects: 5, ai_jobs: 6, ai_results: 6, ai_redis_keys: 24 },
       }),
       "raw-output-secret student-name token-secret capability-secret password-secret",
     ].join("\n"),
@@ -1238,7 +1239,7 @@ test("fixed-document operation failures expose only allowlisted PII-free observa
     errorType: "AssertionError",
     failureStage: "inspect_residue",
     tenantId: 72,
-    residue: { activity_audits: 1, outstanding_tokens: 2, listeners: 3, processes: 4, r2_objects: 5 },
+    residue: { activity_audits: 1, outstanding_tokens: 2, listeners: 3, processes: 4, r2_objects: 5, ai_jobs: 6, ai_results: 6, ai_redis_keys: 24 },
   });
   const published = JSON.stringify(result.observation);
   for (const forbidden of [sessionId, "student-name", "token-secret", "capability-secret", "password-secret", "raw-output-secret"]) {
@@ -1291,7 +1292,7 @@ test("fixed-document operation observation rejects unreviewed values", () => {
 });
 
 test("Cleanup and post-cleanup Inspect failures retain only exact safe stage, tenant id, and numeric residue", () => {
-  const residue = { activity_audits: 0, outstanding_tokens: 1, listeners: 0, processes: 0, r2_objects: 2 };
+  const residue = { activity_audits: 0, outstanding_tokens: 1, listeners: 0, processes: 0, r2_objects: 2, ai_jobs: 1, ai_results: 1, ai_redis_keys: 4 };
   const payload = {
     status: "DEVELOPMENT_QA_FAILED", error_type: "AssertionError",
     failure_stage: "cleanup_r2", tenant_id: 72, residue,
@@ -1340,7 +1341,8 @@ test("Cleanup and post-cleanup Inspect failures retain only exact safe stage, te
 });
 
 test("failed Setup captures only an exact positive safe-schema tenant id for final cleanup", () => {
-  const residue = { activity_audits: 0, outstanding_tokens: 0, listeners: 0, processes: 0, r2_objects: 0 };
+  const residue = { activity_audits: 0, outstanding_tokens: 0, listeners: 0, processes: 0, r2_objects: 0,
+    ai_jobs: 0, ai_results: 0, ai_redis_keys: 0 };
   const validFailure = runner.observeFixedOperationResult("Setup", { code: 1, stdout: JSON.stringify({
     status: "DEVELOPMENT_QA_FAILED", error_type: "AssertionError",
     failure_stage: "setup_readback", tenant_id: 73, residue,
@@ -1904,7 +1906,8 @@ test("clinic calendar student management is a mandatory real backend and cleanup
 test("cleanup requires the exact owned tenant and numeric zero tenant/user residue", () => {
   const tenant = "qa-ymath-realuse-fe-123-1-abcdef123456";
   const tenantId = 91;
-  const valid = { tenant_code: tenant, tenant_id: tenantId, status: "YMATH_REALUSE_SCENARIO_DESTROYED", remaining: { tenants: 0, users: 0 } };
+  const valid = { tenant_code: tenant, tenant_id: tenantId, status: "YMATH_REALUSE_SCENARIO_DESTROYED", remaining: { tenants: 0, users: 0 },
+    ai_scope_proven: true, residue: { ai_jobs: 0, ai_results: 0, ai_redis_keys: 0 } };
   assert.doesNotThrow(() => assertCleanup(valid, tenant, tenantId));
   for (const invalid of [{ ...valid, tenant_code: `${tenant}-foreign` }, { ...valid, remaining: { tenants: 0, users: 1 } },
     { ...valid, tenant_id: tenantId + 1 }, { ...valid, remaining: { tenants: "0", users: 0 } },
@@ -1940,13 +1943,15 @@ test("cleanup and post-cleanup Inspect bind the exact Setup tenant id and requir
   const valid = {
     status: "DEVELOPMENT_QA_IDENTITY_PASS", tenant_code: tenant, tenant_id: tenantId,
     release_id: manifest.releaseImageTag, digest: manifest.images["academy-api"].digest,
-    r2_scope_proven: true,
+    r2_scope_proven: true, ai_scope_proven: true,
     remaining: { tenants: 0, users: 0 },
-    residue: { activity_audits: 0, outstanding_tokens: 0, r2_objects: 0, processes: 0, listeners: 0 },
+    residue: { activity_audits: 0, outstanding_tokens: 0, r2_objects: 0, processes: 0, listeners: 0, ai_jobs: 0, ai_results: 0, ai_redis_keys: 0 },
   };
   assert.deepEqual(runner.assertPostCleanupInspect(valid, tenant, tenantId, manifest), {
     statusMatches: true, tenantIdMatches: true, tenantRemainingZero: true, userRemainingZero: true,
     r2ScopeProven: true, r2ObjectsZero: true, processesZero: true, listenersZero: true,
+    aiScopeProven: true, aiJobsZero: true, aiResultsZero: true, aiRedisKeysZero: true,
+    activityAuditsZero: true, outstandingTokensZero: true,
     releaseMatches: true, digestMatches: true,
   });
   for (const invalid of [
@@ -1960,6 +1965,25 @@ test("cleanup and post-cleanup Inspect bind the exact Setup tenant id and requir
     { ...valid, residue: { ...valid.residue, listeners: 1 } },
   ]) assert.throws(() => runner.assertPostCleanupInspect(invalid, tenant, tenantId, manifest));
 
+  for (const field of ["ai_jobs", "ai_results", "ai_redis_keys"]) {
+    for (const value of [undefined, null, "0", -1, 1]) {
+      const invalid = { ...valid, residue: { ...valid.residue, [field]: value } };
+      assert.throws(() => runner.assertPostCleanupInspect(invalid, tenant, tenantId, manifest));
+      assert.throws(() => assertCleanup({ ...invalid, status: "YMATH_REALUSE_SCENARIO_DESTROYED" }, tenant, tenantId));
+    }
+  }
+  for (const ai_scope_proven of [undefined, false, "true"]) {
+    assert.throws(() => runner.assertPostCleanupInspect({ ...valid, ai_scope_proven }, tenant, tenantId, manifest));
+    assert.throws(() => assertCleanup({ ...valid, ai_scope_proven, status: "YMATH_REALUSE_SCENARIO_ABSENT" }, tenant, tenantId));
+  }
+  for (const failure_stage of ["cleanup_ai", "inspect_ai"]) {
+    const failure = runner.observeFixedOperationResult("Cleanup", { code: 1, stdout: JSON.stringify({
+      status: "DEVELOPMENT_QA_FAILED", error_type: "PermissionError", failure_stage,
+      tenant_id: tenantId, residue: { ...valid.residue, ai_jobs: 1 },
+    }) });
+    assert.equal(failure.observation.failureStage, failure_stage);
+    assert.equal(failure.observation.residue.ai_jobs, 1);
+  }
   const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
   assert.match(runnerSource, /postCleanupInspectObservation/);
   assert.match(runnerSource, /operation\("Cleanup",\s*scenarioTenantId\)/);

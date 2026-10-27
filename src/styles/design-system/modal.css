@@ -29,6 +29,14 @@
   border-color: color-mix(in srgb, var(--color-error) 28%, var(--color-border-divider));
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .admin-modal--inspect {
+    /* Preserve animation-end cleanup without a visible appearance transition. */
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* 모달 닫기 버튼 — 전역 X SSOT (오버레이 .ds-close-btn과 동일 톤) */
 .admin-modal .ant-modal-close {
   inset-inline-end: var(--space-4);

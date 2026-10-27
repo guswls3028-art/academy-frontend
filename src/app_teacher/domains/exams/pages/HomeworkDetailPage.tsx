@@ -9,6 +9,7 @@ import { fetchSessionScores, patchAssessmentCorrection } from "@/shared/api/cont
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
 import HomeworkMediaImage from "@/shared/ui/media/HomeworkMediaImage";
+import HomeworkMediaVideo from "@/shared/ui/media/HomeworkMediaVideo";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -319,7 +320,7 @@ function HomeworkReviewSheet({ homeworkId, submission, busy, canSave, scoreLocke
               <HomeworkMediaImage key={mediaKey} src={previewQ.data.url} filename={selectedFile.original_filename} mimeType={previewQ.data.mime_type} alt={`${selectedFile.original_filename} 과제 제출 미리보기`} onLoad={() => markPreviewed(selectedFile.id)} onError={() => setFailedMediaKey(mediaKey)} />
             )}
             {selectedFile && previewQ.data && !previewQ.isError && !mediaFailed && selectedFile.media_kind === "video" && (
-              <video key={mediaKey} src={previewQ.data.url} controls playsInline preload="metadata" onLoadedMetadata={() => markPreviewed(selectedFile.id)} onError={() => setFailedMediaKey(mediaKey)}>브라우저에서 이 동영상을 재생할 수 없습니다.</video>
+              <HomeworkMediaVideo key={mediaKey} src={previewQ.data.url} homeworkId={homeworkId} fileId={selectedFile.id} filename={selectedFile.original_filename} onViewed={() => markPreviewed(selectedFile.id)} onError={() => setFailedMediaKey(mediaKey)} />
             )}
           </div>
           {scoreStatusLoading && <p className={styles.reviewHint}>성적 상태를 확인하는 중…</p>}

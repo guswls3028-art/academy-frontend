@@ -399,12 +399,40 @@
 .pendingCard {
   display: grid;
   min-width: 0;
+  animation: homework-file-enter 160ms ease-out;
   gap: var(--stu-space-2);
   padding: var(--stu-space-2);
   border: 1px solid var(--stu-border);
   border-radius: var(--stu-radius-md);
   background: var(--stu-surface-1);
   box-shadow: 0 8px 22px color-mix(in srgb, var(--stu-text) 7%, transparent);
+}
+
+@keyframes homework-file-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pendingCard { animation: none; }
+}
+
+.draftNotice {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  color: var(--stu-text-muted);
+}
+
+.previewRecovery {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  font-size: 0.75rem;
+  text-align: center;
 }
 
 .pendingCard[data-status="failed"] {

@@ -222,6 +222,17 @@ function isExactDevelopmentHomeworkImage(boundary: ReleaseBoundary, rawUrl: stri
   return Boolean(path && Number.isSafeInteger(Number(path[1])) && hasExactHostSignature(target, 600));
 }
 
+function isExactDevelopmentHomeworkVideo(boundary: ReleaseBoundary, rawUrl: string, mediaId: string, compatible: boolean): boolean {
+  if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
+    || Number(boundary.omrR2TenantId) < 1 || !Number.isSafeInteger(Number(mediaId))) return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
+  const filename = compatible ? "preview-[0-9a-f]{32}-[0-9a-f]{32}" : `media-${mediaId}-[0-9a-f]{32}`;
+  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/ai/submissions/([1-9][0-9]*)/${filename}\\.mp4$`).exec(target.pathname);
+  return Boolean(path && Number.isSafeInteger(Number(path[1])) && hasExactHostSignature(target, 600));
+}
+
 function isExactDevelopmentCommunityAttachment(
   boundary: ReleaseBoundary, rawUrl: string, postId: number, contentType: string, downloadName?: string,
 ): boolean {
@@ -1292,10 +1303,25 @@ export async function installReleaseContextGuard(
         return;
       }
       const homeworkImageType = request.method() === "GET" ? homeworkPreviewUrls.get(upstream) : undefined;
+      if (homeworkImageType === "video/mp4" && request.resourceType() === "media") {
+        const headers = await request.allHeaders();
+        if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"].some((key) => headers[key])
+          || (headers.range && !/^bytes=[0-9]+-[0-9]*$/.test(headers.range))) { await reject("credentials"); return; }
+        // Synthetic canary clips only: preserve the actual object bytes, strip
+        // credentials/Range/referrer, and return a complete 200 media response.
+        const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: "video/mp4" }, maxRedirects: 0 });
+        const body = await response.body();
+        if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== "video/mp4"
+          || body.length < 24 || body.length > 2 * 1024 * 1024 || body.subarray(4, 8).toString("ascii") !== "ftyp") {
+          await reject("transport"); return;
+        }
+        await route.fulfill({ status: 200, headers: { "content-type": "video/mp4", "content-length": String(body.length) }, body });
+        return;
+      }
       const homeworkHeic = homeworkImageType === "image/heic" || homeworkImageType === "image/heif";
       const communityImageType = request.method() === "GET" ? communityImageUrls.get(upstream) : undefined;
       const matchupImageType = isExactDevelopmentMatchupImage(boundary, upstream, request.method()) ? "image/png" : undefined;
-      if ((homeworkImageType || communityImageType || matchupImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
+      if (((homeworkImageType && homeworkImageType !== "video/mp4") || communityImageType || matchupImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
         && (request.resourceType() === "image" || (homeworkHeic && request.resourceType() === "xhr"))) {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
@@ -1517,13 +1543,18 @@ export async function installReleaseContextGuard(
             }
           }
         }
-        const homeworkPreview = /^\/api\/v1\/submissions\/submissions\/homework\/([1-9][0-9]*)\/media\/([1-9][0-9]*)\/preview\/$/.exec(new URL(upstream).pathname);
+        const homeworkPreview = /^\/api\/v1\/submissions\/submissions\/homework\/([1-9][0-9]*)\/media\/([1-9][0-9]*)\/preview\/(compatible\/)?$/.exec(new URL(upstream).pathname);
         if (boundary.mode === "development" && request.method() === "GET" && homeworkPreview
           && !new URL(upstream).search && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")) {
           const preview = await response.json();
-          if (preview?.media_kind === "image" && typeof preview.mime_type === "string" && preview.expires_in === 600
+          if (!homeworkPreview[3] && preview?.media_kind === "image" && typeof preview.mime_type === "string" && preview.expires_in === 600
             && typeof preview.url === "string" && isExactDevelopmentHomeworkImage(boundary, preview.url, homeworkPreview[2], preview.mime_type)) {
             homeworkPreviewUrls.set(preview.url, preview.mime_type);
+          }
+          if ((homeworkPreview[3] ? preview?.status === "ready" : preview?.media_kind === "video")
+            && preview.mime_type === "video/mp4" && preview.expires_in === 600 && typeof preview.url === "string"
+            && isExactDevelopmentHomeworkVideo(boundary, preview.url, homeworkPreview[2], Boolean(homeworkPreview[3]))) {
+            homeworkPreviewUrls.set(preview.url, "video/mp4");
           }
         }
         if (boundary.mode === "development" && target.pathname.startsWith("/api/v1/landing-public/videos/")

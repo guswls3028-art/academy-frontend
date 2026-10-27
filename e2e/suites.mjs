@@ -105,6 +105,7 @@ export const routeMockSpecs = [
   "e2e/admin/wrong-note-generation-contract.mock.spec.ts",
   "e2e/shared/product-analytics-contract.mock.spec.ts",
   "e2e/teacher/lecture-roster-pages.mock.spec.ts",
+  "e2e/teacher/lecture-navigation-recovery.mock.spec.ts",
   "e2e/teacher/attendance-save-undo.mock.spec.ts",
   "e2e/teacher/student-question-history.mock.spec.ts",
   "e2e/teacher/student-clinic-history.mock.spec.ts",

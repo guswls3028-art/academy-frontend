@@ -1,216 +1,76 @@
-// PATH: src/app_promo/domains/landing/pages/PricingPage.tsx
-import { Link } from "react-router";
+import { useEffect, useRef } from "react";
+import { Link, useLocation } from "react-router";
 import CtaSection from "../components/CtaSection";
-import GettingStartedSection from "../components/GettingStartedSection";
-import PhoneInquiryLink from "../components/PhoneInquiryLink";
-import {
-  AUGUST_PRICE_GUARANTEE,
-  AUGUST_PROMOTION_LABEL,
-  CONSULT_PHONE_DISPLAY,
-  START_GUIDANCE_NOTICE,
-  AUGUST_MONTHLY_SUPPLY_AMOUNT,
-  AUGUST_MONTHLY_TAX_AMOUNT,
-  AUGUST_MONTHLY_TOTAL_AMOUNT,
-  POST_AUGUST_MONTHLY_SUPPLY_AMOUNT,
-  POST_AUGUST_MONTHLY_TAX_AMOUNT,
-  POST_AUGUST_MONTHLY_TOTAL_AMOUNT,
-  MONTHLY_VAT_RATE_PERCENT,
-  PRICE_POLICY_NOTES,
-  PROMO_PLANS,
-  formatKoreanPrice,
-} from "../business";
-import styles from "./PricingPage.module.css";
-
-function PlanAction({ href, label, popular, phone }: { href: string; label: string; popular?: boolean; phone?: boolean }) {
-  const className = `${styles.planAction} ${popular ? styles.planActionFeatured : ""}`;
-
-  if (phone) {
-    return <PhoneInquiryLink className={className}>{label}</PhoneInquiryLink>;
-  }
-  return <Link to={href} className={className}>{label}</Link>;
-}
-
-function PriceOption({
-  label,
-  supplyAmount,
-  taxAmount,
-  totalAmount,
-  vatRatePercent,
-  highlighted,
-}: {
-  label: string;
-  supplyAmount: number;
-  taxAmount: number;
-  totalAmount: number;
-  vatRatePercent: number | null;
-  highlighted?: boolean;
-}) {
-  return (
-    <div data-highlight={highlighted ? "true" : undefined}>
-      <span>{label}</span>
-      <strong>{formatKoreanPrice(supplyAmount)}</strong>
-      <small>월 요금 · {vatRatePercent == null ? "고정 부가세 별도" : `부가세 ${vatRatePercent}% 별도`}</small>
-      <em className={styles.priceBreakdown}>
-        부가세 {formatKoreanPrice(taxAmount)} · 결제금액 {formatKoreanPrice(totalAmount)}
-      </em>
-    </div>
-  );
-}
+import { AUGUST_MONTHLY_SUPPLY_AMOUNT, AUGUST_MONTHLY_TAX_AMOUNT, AUGUST_MONTHLY_TOTAL_AMOUNT, AUGUST_PRICE_GUARANTEE, AUGUST_PROMOTION_LABEL, MONTHLY_VAT_RATE_PERCENT, PLANNED_PAYMENT_NOTICE, POST_AUGUST_MONTHLY_SUPPLY_AMOUNT, POST_AUGUST_MONTHLY_TAX_AMOUNT, POST_AUGUST_MONTHLY_TOTAL_AMOUNT, PROMO_PLANS, START_GUIDANCE_NOTICE, formatKoreanPrice } from "../business";
+import styles from "./PromoReading.module.css";
 
 export default function PricingPage() {
-  return (
-    <>
-      <section className={styles.hero} aria-labelledby="pricing-title">
-        <div className={styles.heroInner}>
-          <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>2026년 9월 이후 신규 가입 요금</span>
-            <h1 id="pricing-title">
-              월 {formatKoreanPrice(POST_AUGUST_MONTHLY_SUPPLY_AMOUNT)}
-              <small>월 요금 · 부가세 {MONTHLY_VAT_RATE_PERCENT}% 별도</small>
-            </h1>
-            <p>
-              2026년 9월 이후 가입 공급가는 월 18만원입니다.
-              8월 가입 혜택의 신규 적용은 종료되었으며, 기존 가입 학원의 요금은 유지됩니다.
-            </p>
-            <div className={styles.heroActions}>
-              <PhoneInquiryLink className={styles.primaryCta}>
-                전화 상담 {CONSULT_PHONE_DISPLAY}
-              </PhoneInquiryLink>
-              <Link to="/promo/demo" className={styles.secondaryCta}>
-                사용할 기능 확인
-              </Link>
-            </div>
-          </div>
-
-          <aside className={styles.priceBrief} aria-label="요금 기준 요약">
-            <div className={styles.priceBriefOption}>
-              <PriceOption
-                label="2026년 9월 이후 가입"
-                supplyAmount={POST_AUGUST_MONTHLY_SUPPLY_AMOUNT}
-                taxAmount={POST_AUGUST_MONTHLY_TAX_AMOUNT}
-                totalAmount={POST_AUGUST_MONTHLY_TOTAL_AMOUNT}
-                vatRatePercent={MONTHLY_VAT_RATE_PERCENT}
-                highlighted
-              />
-            </div>
-            <div className={styles.priceBriefOption}>
-              <PriceOption
-                label="2026년 8월 기존 가입"
-                supplyAmount={AUGUST_MONTHLY_SUPPLY_AMOUNT}
-                taxAmount={AUGUST_MONTHLY_TAX_AMOUNT}
-                totalAmount={AUGUST_MONTHLY_TOTAL_AMOUNT}
-                vatRatePercent={null}
-              />
-            </div>
-            <p>8월 가입 요금은 서비스를 이용하는 동안 계속 적용됩니다.</p>
-          </aside>
-        </div>
+  const legacyRef = useRef<HTMLDetailsElement>(null);
+  const { hash } = useLocation();
+  useEffect(() => { if (hash === "#existing-contract" && legacyRef.current) legacyRef.current.open = true; }, [hash]);
+  const plan = PROMO_PLANS[0];
+  return <>
+    <div className={styles.page}>
+      <header className={styles.intro}>
+        <h1>요금 안내</h1>
+        <p>현재 신규 가입 요금과 별도 비용입니다.<br />필요한 기능과 자료 이전 범위를 확인한 뒤 이용을 시작할 수 있습니다.</p>
+      </header>
+      <div className={styles.pricingGrid}>
+        <article className={styles.plan} data-plan={plan.key} aria-labelledby="plan-title">
+          <span className={styles.label}>2026년 9월 이후 신규 가입</span>
+          <h2 id="plan-title">학원플러스 기본 요금</h2>
+          <p className={styles.price}>월 {formatKoreanPrice(POST_AUGUST_MONTHLY_TOTAL_AMOUNT)}</p>
+          <p className={styles.priceNote}>부가세 포함 결제금액</p>
+          <dl className={styles.breakdown}>
+            <div><dt>월 이용료</dt><dd>{formatKoreanPrice(POST_AUGUST_MONTHLY_SUPPLY_AMOUNT)}</dd></div>
+            <div><dt>부가세 {MONTHLY_VAT_RATE_PERCENT}%</dt><dd>{formatKoreanPrice(POST_AUGUST_MONTHLY_TAX_AMOUNT)}</dd></div>
+          </dl>
+          <dl className={styles.included}>
+            <div><dt>수강생·계정</dt><dd>인원에 따른 추가 요금 없음</dd></div>
+            <div><dt>저장공간</dt><dd>200GB 포함</dd></div>
+            <div><dt>기능</dt><dd>현재 제공 중인 기능 모두 포함</dd></div>
+          </dl>
+          <details className={styles.disclosure}><summary>포함된 기능 보기</summary><ul>{plan.features.map(feature => <li key={feature}>{feature}</li>)}</ul><Link to="/promo/features">전체 기능 설명 보기</Link></details>
+          <Link className={styles.primaryLink} to="/promo/demo">시연 신청</Link>
+        </article>
+        <aside className={styles.additional} id="additional-cost" aria-labelledby="additional-cost-title">
+          <h2 id="additional-cost-title">별도로 협의하는 항목</h2>
+          <p>아래 항목은 월 이용료와 별도로 범위와 비용을 확인합니다.</p>
+          <dl className={styles.costItems}>
+            <div><dt>알림톡 발송비</dt><dd>필요한 발송량을 확인합니다.</dd></div>
+            <div><dt>추가 저장공간</dt><dd>기본 200GB를 넘는 용량은 별도 협의합니다.</dd></div>
+            <div><dt>대량 데이터 이전</dt><dd>자료의 분량·형식과 이전 일정을 확인합니다.</dd></div>
+            <div><dt>맞춤 개발</dt><dd>추가로 필요한 기능과 작업 범위를 협의합니다.</dd></div>
+          </dl>
+          <Link to="/promo/contact">필요한 범위 문의하기</Link>
+        </aside>
+      </div>
+      <section className={styles.section} aria-labelledby="pricing-start-title">
+        <h2 id="pricing-start-title">이용을 시작할 때</h2>
+        <p>{START_GUIDANCE_NOTICE}</p>
+        <p>기존 명부나 영상이 있다면 자료 형식과 이전 분량을 함께 알려주세요.</p>
+        <Link to="/promo/guide">전체 사용 가이드 보기</Link>
       </section>
-
-      <section className={styles.planSection} aria-labelledby="plan-title">
-        <div className={styles.sectionWrap}>
-          <div className={styles.sectionHead}>
-            <span>한 가지 요금</span>
-            <h2 id="plan-title">현재 제공 중인 기능을 모두 이용할 수 있습니다</h2>
-            <p>수강생 수나 계정 수에 따른 추가 요금은 없습니다.</p>
-            <p>{START_GUIDANCE_NOTICE}</p>
-          </div>
-
-          <div className={styles.planGrid}>
-            {PROMO_PLANS.map((plan) => (
-              <article
-                key={plan.key}
-                className={styles.planCard}
-                data-plan={plan.key}
-                data-popular={plan.popular ? "true" : undefined}
-              >
-                {plan.popular && <span className={styles.popularBadge}>한 가지 요금</span>}
-
-                <div className={styles.planTop}>
-                  <span>{plan.positioning}</span>
-                  <h3>{plan.name}</h3>
-                  <p>{plan.target}</p>
-                </div>
-
-                <div className={styles.priceLine}>
-                  <div className={styles.priceComparison}>
-                    <PriceOption
-                      label="9월 이후 가입"
-                      supplyAmount={plan.postAugustMonthlySupplyAmount}
-                      taxAmount={plan.postAugustMonthlyTaxAmount}
-                      totalAmount={plan.postAugustMonthlyTotalAmount}
-                      vatRatePercent={MONTHLY_VAT_RATE_PERCENT}
-                      highlighted
-                    />
-                    <PriceOption
-                      label="8월 기존 가입"
-                      supplyAmount={plan.monthlySupplyAmount}
-                      taxAmount={plan.monthlyTaxAmount}
-                      totalAmount={plan.monthlyTotalAmount}
-                      vatRatePercent={null}
-                    />
-                  </div>
-                  <div className={styles.savingsLine}>
-                    8월 기존 가입 학원의 월 공급가 차이 {formatKoreanPrice(plan.monthlySavings)}
-                  </div>
-                </div>
-
-                <div className={styles.guaranteeBox}>
-                  <strong>{AUGUST_PROMOTION_LABEL}</strong>
-                  <span>{AUGUST_PRICE_GUARANTEE}</span>
-                </div>
-
-                <p className={styles.verdict}>{plan.verdict}</p>
-
-                <dl className={styles.planSpecs}>
-                  <div>
-                    <dt>수강생</dt>
-                    <dd>{plan.studentLimit}</dd>
-                  </div>
-                  <div>
-                    <dt>계정</dt>
-                    <dd>{plan.adminLimit}</dd>
-                  </div>
-                  <div>
-                    <dt>저장</dt>
-                    <dd>{plan.storage}</dd>
-                  </div>
-                  <div>
-                    <dt>기능</dt>
-                    <dd>모두 포함</dd>
-                  </div>
-                </dl>
-
-                <ul className={styles.featureList}>
-                  {plan.features.map((feature) => (
-                    <li key={feature}>{feature}</li>
-                  ))}
-                </ul>
-
-                <PlanAction href={plan.ctaLink} label={plan.cta} popular={plan.popular} phone={plan.ctaKind === "phone"} />
-              </article>
-            ))}
-          </div>
-
-          <div className={styles.policyBox}>
-            <div>
-              <span>비용 기준</span>
-              <h2>비용이 달라지는 기준</h2>
-            </div>
-            <ul>
-              {PRICE_POLICY_NOTES.map((note) => (
-                <li key={note}>{note}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
+      <section className={styles.section} aria-labelledby="payment-scope-title">
+        <h2 id="payment-scope-title">원비·교재비 온라인 결제는 도입 예정입니다</h2>
+        <p>{PLANNED_PAYMENT_NOTICE}</p>
+        <p>학원플러스 이용료 결제 및 현재 제공하는 수납 기록 관리와 별개입니다.</p>
       </section>
-
-      <GettingStartedSection />
-      <CtaSection
-        title="월 요금과 사용할 기능을 확인해 보세요"
-        subtitle="기본 기능, 별도 비용과 시작 일정을 함께 안내합니다."
-      />
-    </>
-  );
+      <details ref={legacyRef} id="existing-contract" className={styles.disclosure}>
+        <summary>2026년 8월 기존 가입 조건</summary>
+        <div className={styles.legacy}>
+          <h2>{AUGUST_PROMOTION_LABEL}</h2>
+          <p>8월 가입 요금은 서비스를 이용하는 동안 계속 적용됩니다.</p>
+          <dl className={styles.breakdown}>
+            <div><dt>월 이용료</dt><dd>{formatKoreanPrice(AUGUST_MONTHLY_SUPPLY_AMOUNT)}</dd></div>
+            <div><dt>고정 부가세</dt><dd>{formatKoreanPrice(AUGUST_MONTHLY_TAX_AMOUNT)}</dd></div>
+            <div><dt>결제금액</dt><dd>{formatKoreanPrice(AUGUST_MONTHLY_TOTAL_AMOUNT)}</dd></div>
+          </dl>
+          <p>{AUGUST_PRICE_GUARANTEE}</p>
+        </div>
+      </details>
+      <p className={styles.more}><Link to="/promo/faq#monthly-price">요금과 이용에 관한 자주 묻는 질문</Link></p>
+    </div>
+    <CtaSection title="이용 문의" subtitle="필요한 기능, 자료 이전 범위와 시작 일정을 안내합니다." />
+  </>;
 }

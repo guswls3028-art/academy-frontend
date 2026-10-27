@@ -858,6 +858,10 @@ export function assertCleanup(payload, tenantCode, tenantId) {
   assert.ok(Number.isSafeInteger(tenantId) && tenantId > 0, "Cleanup tenant id must be a positive integer");
   assert.ok(["YMATH_REALUSE_SCENARIO_DESTROYED", "YMATH_REALUSE_SCENARIO_ABSENT"].includes(payload.status));
   assert.deepEqual(payload.remaining, { tenants: 0, users: 0 }, "Cleanup residue must be numeric zero");
+  assert.equal(payload.ai_scope_proven, true, "Cleanup must prove owned AI scope");
+  for (const field of ["ai_jobs", "ai_results", "ai_redis_keys"]) {
+    assert.equal(payload.residue?.[field], 0, `Cleanup ${field} must be numeric zero`);
+  }
 }
 
 export function assertPostCleanupInspect(payload, tenantCode, tenantId, manifest) {
@@ -867,6 +871,12 @@ export function assertPostCleanupInspect(payload, tenantCode, tenantId, manifest
     tenantRemainingZero: payload?.remaining?.tenants === 0,
     userRemainingZero: payload?.remaining?.users === 0,
     r2ScopeProven: payload?.r2_scope_proven === true,
+    aiScopeProven: payload?.ai_scope_proven === true,
+    aiJobsZero: payload?.residue?.ai_jobs === 0,
+    aiResultsZero: payload?.residue?.ai_results === 0,
+    aiRedisKeysZero: payload?.residue?.ai_redis_keys === 0,
+    activityAuditsZero: payload?.residue?.activity_audits === 0,
+    outstandingTokensZero: payload?.residue?.outstanding_tokens === 0,
     r2ObjectsZero: payload?.residue?.r2_objects === 0,
     processesZero: payload?.residue?.processes === 0,
     listenersZero: payload?.residue?.listeners === 0,
@@ -896,6 +906,17 @@ export function assertManifest(manifest) {
   assert.match(manifest.gitSha, /^[a-f0-9]{40}$/);
   assert.match(manifest.releaseImageTag, new RegExp(`^sha-${manifest.gitSha}-run-[0-9]+-[0-9]+$`));
   assert.match(manifest.images?.["academy-api"]?.digest, /^sha256:[a-f0-9]{64}$/);
+}
+
+export function assertDevelopmentHostIam({ policyNames, attachedPolicyArns, runtimePolicy,
+  expectedBoundary, homeworkPolicy, expectedHomeworkPolicy }) {
+  assert.deepEqual([...policyNames].sort(), ["academy-api-development-runtime", "academy-homework-preview-development"]);
+  assert.deepEqual(attachedPolicyArns, ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]);
+  for (const statement of expectedBoundary.Statement) {
+    assert.equal(canonical(runtimePolicy.Statement.find((item) => item.Sid === statement.Sid)), canonical(statement),
+      "Development parameter deny is not applied");
+  }
+  assert.equal(canonical(homeworkPolicy), canonical(expectedHomeworkPolicy), "Development homework SubmitJob policy drift");
 }
 
 export function assertDevelopmentInstanceIdentity(instance) {
@@ -1170,12 +1191,15 @@ export async function run() {
     ["iam", async () => {
       const expectedBoundary = await publicJson(`${raw}scripts/v1/templates/iam/policy_api_development_parameter_boundary.json`);
       const expanded = JSON.parse(JSON.stringify(expectedBoundary).replaceAll("__REGION__", REGION).replaceAll("__ACCOUNT_ID__", ACCOUNT));
+      const expectedHomework = await publicJson(`${raw}scripts/v1/templates/iam/policy_homework_preview_development_submit.json`);
+      const expandedHomework = JSON.parse(JSON.stringify(expectedHomework).replaceAll("__REGION__", REGION).replaceAll("__ACCOUNT_ID__", ACCOUNT));
       const hostRole = "academy-api-development-role";
-      assert.deepEqual(aws(["iam", "list-role-policies", "--role-name", hostRole]).PolicyNames, ["academy-api-development-runtime"]);
+      const policyNames = aws(["iam", "list-role-policies", "--role-name", hostRole]).PolicyNames;
       const attachments = aws(["iam", "list-attached-role-policies", "--role-name", hostRole]).AttachedPolicies;
-      assert.deepEqual(attachments.map((item) => item.PolicyArn), ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]);
       const hostPolicy = aws(["iam", "get-role-policy", "--role-name", hostRole, "--policy-name", "academy-api-development-runtime"]).PolicyDocument;
-      for (const statement of expanded.Statement) assert.equal(canonical(hostPolicy.Statement.find((item) => item.Sid === statement.Sid)), canonical(statement), "Development parameter deny is not applied");
+      const homeworkPolicy = aws(["iam", "get-role-policy", "--role-name", hostRole, "--policy-name", "academy-homework-preview-development"]).PolicyDocument;
+      assertDevelopmentHostIam({ policyNames, attachedPolicyArns: attachments.map((item) => item.PolicyArn),
+        runtimePolicy: hostPolicy, expectedBoundary: expanded, homeworkPolicy, expectedHomeworkPolicy: expandedHomework });
     }],
     ["document", async () => {
       const documents = [[QA_DOCUMENT, "frontend_development_qa.json"], [PORT_DOCUMENT, "frontend_development_api_port.json"]];

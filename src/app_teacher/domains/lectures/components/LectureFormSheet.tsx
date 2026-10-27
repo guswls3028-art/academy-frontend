@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/lectures/components/LectureFormSheet.tsx
 // 강의 생성/편집 바텀시트
 // R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createLecture, updateLecture } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -17,10 +17,11 @@ const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899"
 interface Props {
   open: boolean;
   onClose: () => void;
+  onCreated?: () => void;
   editData?: any; // null = create mode
 }
 
-export default function LectureFormSheet({ open, onClose, editData }: Props) {
+export default function LectureFormSheet({ open, onClose, onCreated, editData }: Props) {
   const qc = useQueryClient();
   const isEdit = !!editData;
 
@@ -138,7 +139,9 @@ export default function LectureFormSheet({ open, onClose, editData }: Props) {
           </div>
         </div>
 
-        <button onClick={() => mutation.mutate()} disabled={!canSubmit}
+        <button onClick={() => mutation.mutate(undefined, {
+          onSuccess: () => { if (!isEdit) onCreated?.(); },
+        })} disabled={!canSubmit}
           className="w-full text-sm font-bold cursor-pointer mt-2"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "#fff" : "var(--tc-text-muted)" }}>
           {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "생성"}
@@ -152,10 +155,11 @@ export default function LectureFormSheet({ open, onClose, editData }: Props) {
 function Field({ label, value, onChange, placeholder, type = "text" }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
 }) {
+  const inputId = useId();
   return (
     <div className="flex-1">
-      <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      <label htmlFor={inputId} className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
+      <input id={inputId} type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         className="w-full text-sm"
         style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
     </div>

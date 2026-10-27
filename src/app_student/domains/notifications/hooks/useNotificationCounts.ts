@@ -21,7 +21,7 @@ export function useNotificationCounts() {
       if (profile?.id == null) {
         throw new Error("Student profile id is required for notification counts.");
       }
-      return fetchNotificationCounts({ profileId: profile.id });
+      return fetchNotificationCounts({ profileId: profile.id, queryClient });
     },
     refetchInterval: 60000, // 60초마다 갱신 (기존 30초에서 완화)
     refetchOnWindowFocus: false,

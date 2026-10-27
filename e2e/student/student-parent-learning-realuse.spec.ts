@@ -141,19 +141,35 @@ async function cleanup(request: APIRequestContext): Promise<void> {
 }
 
 async function seedLearningGraph(request: APIRequestContext, adminAccess: string, family: QaFamily, enrollmentPage: Page, testInfo: TestInfo): Promise<void> {
-  const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", adminAccess, {
-    title: `${lectureTitle} 수정 전`,
-    name: "QA학습",
-    subject: "수학",
+  // Create through the teacher UI while an unrelated past-lecture search is active.
+  // The saved lecture must become visible without asking the teacher to clear it.
+  await enrollmentPage.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(enrollmentPage, `${QA_BASE}/workspace/mobile/classes?tab=past&q=qa-no-match-${runStamp}`, { timeout: 30_000 });
+  await enrollmentPage.getByRole("button", { name: "강의 추가", exact: true }).click();
+  await enrollmentPage.getByLabel("강의명 *", { exact: true }).fill(`${lectureTitle} 수정 전`);
+  await enrollmentPage.getByLabel("강사 *", { exact: true }).fill("QA학습");
+  await enrollmentPage.getByLabel("과목 *", { exact: true }).fill("수학");
+  await enrollmentPage.getByLabel("수업 시간 *", { exact: true }).fill("19:00~21:00");
+  await enrollmentPage.getByLabel("강의 딱지 2글자", { exact: true }).fill("학습");
+  await enrollmentPage.getByLabel("시작일", { exact: true }).fill(todayKst);
+  await enrollmentPage.getByLabel("종료일", { exact: true }).fill(todayKst);
+  const createResponse = enrollmentPage.waitForResponse((response) =>
+    response.url().endsWith("/lectures/lectures/") && response.request().method() === "POST",
+  );
+  await enrollmentPage.getByRole("button", { name: "생성", exact: true }).click();
+  const response = await createResponse;
+  expect(response.status()).toBe(201);
+  created.lectureId = Number((await response.json()).id);
+  expect(created.lectureId).toBeGreaterThan(0);
+  await expect(enrollmentPage).toHaveURL(/\/workspace\/mobile\/classes$/);
+  await expect(enrollmentPage.getByRole("searchbox", { name: "강의 찾기" })).toHaveValue("");
+  await enrollmentPage.reload({ waitUntil: "domcontentloaded" });
+  await expect(enrollmentPage.getByRole("button").filter({ has: enrollmentPage.getByText(`${lectureTitle} 수정 전`, { exact: true }) })).toBeVisible();
+  // Seed only the admin-editor fixture fields not offered by the teacher form.
+  await expectApi(request, "PATCH", `/lectures/lectures/${created.lectureId}/`, adminAccess, {
     description: "qa-* student/parent learning projection",
-    start_date: todayKst,
-    end_date: todayKst,
-    lecture_time: "19:00~21:00",
     color: "#0f766e",
-    chip_label: "학습",
-    is_active: true,
   });
-  created.lectureId = Number(lecture.id);
 
   // Edit through the same-artifact staff UI; all later student/parent checks
   // consume this saved title and the existing tenant-local learning graph.
@@ -396,6 +412,19 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
       await seedBrowserAuth(teacherPage, admin);
       for (const width of [390, 1366]) {
         await teacherPage.setViewportSize({ width, height: 900 });
+        await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/classes`, { timeout: 30_000 });
+        await teacherPage.getByRole("searchbox", { name: "강의 찾기" }).fill(lectureTitle);
+        const lectureEntry = teacherPage.getByRole("button").filter({ has: teacherPage.getByText(lectureTitle, { exact: true }) });
+        await expect(lectureEntry).toBeVisible();
+        await lectureEntry.click();
+        await expect(teacherPage.getByRole("button", { name: "수강생 (2)", exact: true })).toBeVisible();
+        await teacherPage.getByRole("button", { name: "수강생 (2)", exact: true }).click();
+        await teacherPage.reload({ waitUntil: "domcontentloaded" });
+        await expect(teacherPage.getByRole("button", { name: "수강생 (2)", exact: true })).toHaveAttribute("aria-pressed", "true");
+        await expect(teacherPage.getByText(primary.name, { exact: true })).toBeVisible();
+        await teacherPage.getByRole("button", { name: "뒤로 가기", exact: true }).click();
+        await expect(teacherPage.getByRole("searchbox", { name: "강의 찾기" })).toHaveValue(lectureTitle);
+        await assertNoHorizontalOverflow(teacherPage);
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/attendance/${created.sessionId}`, { timeout: 30_000 });
         await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
         for (const [label, status, absentCount] of [["결석", "ABSENT", 2], ["출석", "PRESENT", 1]] as const) {

@@ -61,7 +61,7 @@ test("representative task funnels wrap the existing API promise boundary", () =>
     },
     {
       path: "src/app_student/domains/submit/pages/SubmitAssignmentPage.tsx",
-      pattern: /runTrackedTask\(\s*"assignments\.student\.submit",\s*\(\) => studentApi\.post/,
+      pattern: /runTrackedTask\(\s*"assignments\.student\.submit",\s*\(\) => uploadHomeworkFile/,
     },
     {
       path: "src/app_admin/domains/messages/components/SendMessageModal.tsx",
