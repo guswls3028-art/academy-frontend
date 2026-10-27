@@ -31,6 +31,13 @@
 조회 실패는 자동으로 원본을 다시 제출하거나 수동·승인 문항을 변경하지 않는다.
 지연·취소·계정 전환·종료 상태 회귀는 `scripts/tests/ai-job-lifecycle.test.mjs`가 검증한다.
 
+격리 개발 실사용에서는 Setup이 확인한 일회용 QA tenant의 PNG 페이지·문항 크롭만
+짧은 서명 URL로 읽는다. 개발 bucket·정해진 경로·최대 1시간 서명·이미지 GET을
+검증하며 인증 헤더·쿠키·redirect·다른 tenant·운영 bucket은 허용하지 않는다.
+실제 PNG 응답을 검증해 그대로 전달하고 원본 PDF나 다른 외부 요청을 허용하지 않는다.
+이 검증 전송 경계는 `e2e/helpers/releaseApiBoundary.ts`와
+`scripts/tests/release-omr-image-boundary.test.mjs`가 소유하며 제품의 접근 권한은 바꾸지 않는다.
+
 API·자료 저장·접근 권한과 tenant 경계는
 [백엔드 매치업 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/matchup.md)을 따른다.
 새 저장 방식이나 권한 변경은 없다. 창의 너비·스크롤과 기존 상호작용을 유지한다.
@@ -66,3 +73,21 @@ reload, 관리자 검수 진입/닫기와 강사 본인 보고서 접근을 검�
 첫 파일 등록, 반복 갱신, 조회 실패 중 입력·파일·진행 상태 보존, 전체 완료 후 닫힘,
 재조회 시 저장 자료 표시를 검증한다. 이 회귀 검증은 로컬 API mock이며 실제 저장소
 연결 검증과 운영 배포 게이트는 [배포 계약](DEPLOYMENT-OPERATIONS.md)을 따른다.
+
+추가 격리 실사용 스펙 `e2e/admin/matchup-isolated-realuse.spec.ts`는 합성 2문항
+참고자료·시험지를 UI에서 등록하고 실제 분석, 수동 자르기, 보고서 후보 선택·자동저장,
+새로고침 복구와 PDF 다운로드를 확인한다. 1366/390px 화면과 각 단계의 처리시간도
+기록한다. 운영 조회·mock suite에는 포함하지 않으며, 고정 QA Setup에서 받은 정확한
+tenant와 API release/digest, 프론트 후보 SHA, 합성 PDF hash에 묶인 일회용 dispatch plan이
+있어야 실행된다. 분석 등록 2회와 수동 자르기 1회를 전송 전에 각각 예약하므로 응답을
+잃은 작업을 같은 계획으로 재전송하지 않는다. 생성 문서·AI job·보고서 ID는 테스트
+artifact에 남기고, 실행 소유자가 고정 Cleanup→독립 Inspect의 잔여 0을 확인한다.
+이 스펙의 준비·발견 성공은 실제 개발환경 통과 증거를 대신하지 않는다.
+
+적중 보고서 편집기는 900px 이하에서 문항 목록→시험·자료 비교와 코멘트→후보 선택을
+세로로 배치한다. 제목과 저장·다운로드·게시·닫기 동작은 줄바꿈하여 유지하고, 보고서
+요약은 하단에 유지한다. 넓은 화면은 기존 3열 비교를 사용한다. 모바일에서도 코멘트와
+선택 자료를 저장하고 새로고침 후 복구하며 PDF를 다운로드할 수 있어야 한다.
+`matchup-mobile-touch-parity.mock.spec.ts`가 390/1366px의 실제 코멘트 입력 폭,
+후보 선택, 자동저장, 재열기, 다운로드와 닫기를 검증한다. 진입 모션은 reduced-motion
+설정을 존중한다. 반응형 배치는 보고서 권한·게시 정책·저장 데이터 형식을 바꾸지 않는다.

@@ -177,6 +177,24 @@ function isExactDevelopmentOmrImage(boundary: ReleaseBoundary, rawUrl: string, m
   return hasExactHostSignature(target, 21600);
 }
 
+function isExactDevelopmentMatchupImage(boundary: ReleaseBoundary, rawUrl: string, method: string): boolean {
+  if (boundary.mode !== "development" || method !== "GET"
+    || !Number.isSafeInteger(boundary.omrR2TenantId) || Number(boundary.omrR2TenantId) < 1) return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== target.origin + target.pathname + target.search) return false;
+  const prefix = `/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/matchup/`;
+  if (!target.pathname.startsWith(prefix)) return false;
+  const suffix = target.pathname.slice(prefix.length);
+  const automatic = /^jobs\/[0-9a-f]{64}\/(?:pages\/[0-9]{3}|problems\/([0-9a-f-]{36})\/([1-9][0-9]*))\.png$/.exec(suffix);
+  const manual = /^manual-([1-9][0-9]*)\/(?:pages\/(?:manual-bounded-v1\/)?[0-9]{3}|problems\/([1-9][0-9]*))\.png$/.exec(suffix);
+  const validAutomatic = automatic && (!automatic[1] || UUID.test(automatic[1]))
+    && (!automatic[2] || Number.isSafeInteger(Number(automatic[2])));
+  const validManual = manual && Number.isSafeInteger(Number(manual[1]))
+    && (!manual[2] || Number.isSafeInteger(Number(manual[2])));
+  return Boolean(validAutomatic || validManual) && hasExactHostSignature(target, 3600);
+}
+
 function hasExactHostSignature(target: URL, maxExpires: number): boolean {
   const query = target.searchParams;
   const keys = ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Date", "X-Amz-Expires", "X-Amz-SignedHeaders", "X-Amz-Signature"];
@@ -1276,7 +1294,8 @@ export async function installReleaseContextGuard(
       const homeworkImageType = request.method() === "GET" ? homeworkPreviewUrls.get(upstream) : undefined;
       const homeworkHeic = homeworkImageType === "image/heic" || homeworkImageType === "image/heif";
       const communityImageType = request.method() === "GET" ? communityImageUrls.get(upstream) : undefined;
-      if ((homeworkImageType || communityImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
+      const matchupImageType = isExactDevelopmentMatchupImage(boundary, upstream, request.method()) ? "image/png" : undefined;
+      if ((homeworkImageType || communityImageType || matchupImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
         && (request.resourceType() === "image" || (homeworkHeic && request.resourceType() === "xhr"))) {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
@@ -1286,7 +1305,7 @@ export async function installReleaseContextGuard(
         }
         // Only this signed development object URL is forwarded. Never send app
         // credentials/referrer or follow redirects; never report the signed URL.
-        const contentType = communityImageType || homeworkImageType || "image/jpeg";
+        const contentType = communityImageType || homeworkImageType || matchupImageType || "image/jpeg";
         const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: contentType,
           ...(homeworkHeic ? { origin: boundary.webOrigin } : {}) }, maxRedirects: 0 });
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
