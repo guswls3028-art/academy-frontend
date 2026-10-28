@@ -556,10 +556,16 @@ test.describe("학생 클리닉 예약 UX", () => {
       await logout.click();
       await confirmation.getByRole("button", { name: "로그아웃", exact: true }).click();
       await expect(page).toHaveURL(/\/promo$/);
+      // The router updates the URL before its lazy public screen has loaded.
+      // Wait for the actual logout destination before starting another document
+      // navigation, which would otherwise abort its imports in WebKit.
+      await expect(page.getByRole("heading", { name: /수업 관리부터\s*학생의 복습까지/ })).toBeVisible();
       await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(/\/login(?:\?|$)/);
+      await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
       await page.reload();
       await expect(page).toHaveURL(/\/login(?:\?|$)/);
+      await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
     });
   }
 
