@@ -1,6 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { confirmStudentLogout } from "../helpers/studentLogout";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const fixtureNow = new Date();
@@ -554,7 +555,7 @@ test.describe("학생 클리닉 예약 UX", () => {
       await expect(page).toHaveURL(/\/student\/clinic$/);
       await trigger.click();
       await logout.click();
-      await confirmation.getByRole("button", { name: "로그아웃", exact: true }).click();
+      await confirmStudentLogout(page);
       await expect(page).toHaveURL(/\/promo$/);
       // The router updates the URL before its lazy public screen has loaded.
       // Wait for the actual logout destination before starting another document

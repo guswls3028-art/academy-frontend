@@ -1,6 +1,7 @@
 import fs from "node:fs";
 
 import { expect, test, type Page } from "../fixtures/strictTest";
+import { confirmStudentLogout } from "../helpers/studentLogout";
 import { gotoAndSettle } from "../helpers/wait";
 
 type LoginRole = "student" | "parent" | "staff";
@@ -85,7 +86,7 @@ async function logoutAndVerify(page: Page, role: LoginRole): Promise<void> {
     await page.getByRole("button", { name: "메뉴 열기" }).click();
     const drawer = page.getByRole("dialog", { name: "메뉴" });
     await drawer.getByRole("button", { name: "로그아웃" }).click();
-    await page.locator(".stu-logout-dialog__confirm").click();
+    await confirmStudentLogout(page);
   }
 
   const logoutUrl = role === "staff" ? `${BASE}/login` : `${BASE}/`;
