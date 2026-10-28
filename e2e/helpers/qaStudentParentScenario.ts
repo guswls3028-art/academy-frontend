@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { acknowledgeInitialAccountPromptsIfVisible } from "./firstLoginGuide";
+import { confirmStudentLogout } from "./studentLogout";
 import {
   installReleaseContextGuard,
   installReleaseRequestGuard,
@@ -204,7 +205,7 @@ export async function logoutStudentApp(page: Page): Promise<void> {
   await page.getByRole("button", { name: "메뉴 열기" }).click();
   const drawer = page.getByRole("dialog", { name: "메뉴" });
   await drawer.getByRole("button", { name: "로그아웃" }).click();
-  await page.locator(".stu-logout-dialog__confirm").click();
+  await confirmStudentLogout(page);
   await expect(page).toHaveURL(`${QA_BASE}/`, { timeout: 45_000 });
 }
 

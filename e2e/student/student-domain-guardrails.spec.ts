@@ -5,6 +5,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import { getBaseUrl, loginTokenViaRequest, loginViaUI } from "../helpers/auth";
+import { confirmStudentLogout } from "../helpers/studentLogout";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
@@ -89,9 +90,7 @@ test.describe("[E2E] 학생 도메인 guardrail", () => {
     const drawer = page.getByRole("dialog", { name: "메뉴" });
     await expect(drawer).toBeVisible({ timeout: 10_000 });
     await drawer.getByRole("button", { name: "로그아웃" }).click();
-    const confirm = page.locator(".stu-logout-dialog__box");
-    await expect(confirm).toBeVisible({ timeout: 10_000 });
-    await page.locator(".stu-logout-dialog__confirm").click();
+    await confirmStudentLogout(page);
 
     await waitForCondition(
       async () => {
