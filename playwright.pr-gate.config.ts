@@ -73,6 +73,8 @@ export default defineConfig({
         matchSpec("e2e/student/clinic-booking-ux.mock.spec.ts"),
         matchSpec("e2e/student/community-draft-autosave.mock.spec.ts"),
         matchSpec("e2e/teacher/lecture-navigation-recovery.mock.spec.ts"),
+        matchSpec("e2e/teacher/attendance-save-undo.mock.spec.ts"),
+        matchSpec("e2e/teacher/alimtalk-compose-preview.mock.spec.ts"),
         matchSpec("e2e/teacher/student-create-readback.mock.spec.ts"),
       ],
       grep: /@dialog-journey/,

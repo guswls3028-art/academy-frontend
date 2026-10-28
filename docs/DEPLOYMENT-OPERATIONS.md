@@ -16,7 +16,7 @@
 
 ## 1. 배포 순서
 
-필수 WebKit 게이트에는 `pr-modal-webkit`의 `@dialog-journey` 14건도 포함한다.
+필수 WebKit 게이트에는 `pr-modal-webkit`의 `@dialog-journey` 20건도 포함한다.
 학생 취소·이미지 확대, 교사 등록·편집, 관리자 달력의 키보드·포커스·짧은 화면
 회귀를 검사한다. 기존 iPhone·숙제 WebKit 프로젝트와 동일한 폐쇄 proxy 및
 service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 요구한다.

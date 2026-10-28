@@ -16,6 +16,7 @@ import { TextStyle } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
 import Placeholder from "@tiptap/extension-placeholder";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { delegateEditorEscape } from "@/shared/ui/overlays/dialogKeyboard";
 import "./rich-editor.css";
 
 // ---------------------------------------------------------------------------
@@ -197,6 +198,7 @@ export default function RichTextEditor({
       onChange(e.getHTML());
     },
     editorProps: {
+      handleDOMEvents: { keydown: (view, event) => delegateEditorEscape(view.dom, event) },
       handlePaste: (_view, event) => {
         if (readOnly) return false;
         const items = event.clipboardData?.items;

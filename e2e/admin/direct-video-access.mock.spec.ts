@@ -237,9 +237,10 @@ test("검토 확인창은 취소에 시작하고 Escape와 취소 후 진입 버
     await expect(trigger).toBeFocused();
     expect(evidence.grantBodies).toEqual([]);
   }
+  const removedTrigger = await trigger.elementHandle();
   await trigger.click();
   await expect(cancel).toBeFocused();
-  await trigger.evaluate((button) => button.remove());
+  await removedTrigger!.evaluate((button) => button.remove());
   await cancel.click();
   await expect(dialog).not.toBeVisible();
   await expect(trigger).toHaveCount(0);

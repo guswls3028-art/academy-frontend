@@ -98,7 +98,8 @@ export default function ConfirmDialog({
     const visibleParentModalContents = Array.from(
       document.querySelectorAll<HTMLElement>(".admin-modal-wrap .admin-modal__inner"),
     ).filter((element) => element.getClientRects().length > 0);
-    const parentModalContent = previouslyFocused?.closest<HTMLElement>('[role="dialog"]')
+    const parentModalContent = previouslyFocused?.closest<HTMLElement>(".admin-modal__inner")
+      ?? previouslyFocused?.closest<HTMLElement>('[role="dialog"]')
       ?? visibleParentModalContents[visibleParentModalContents.length - 1] ?? null;
     const parentModalHost = parentModalContent?.closest<HTMLElement>(".ant-modal") ?? null;
     const previousParentInert = parentModalContent?.inert ?? false;

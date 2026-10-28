@@ -83,6 +83,17 @@ export default function AttendanceCard({
       {/* Card */}
       <div
         {...handlers}
+        role="button"
+        tabIndex={0}
+        aria-label={`${studentName} 출석 상태 변경`}
+        aria-haspopup="dialog"
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget || event.nativeEvent.isComposing) return;
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onTap(record);
+          }
+        }}
         onClick={() => onTap(record)}
         className={styles.card}
       >
