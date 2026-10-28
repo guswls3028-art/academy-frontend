@@ -32,8 +32,8 @@
 
 .kpiBox[data-accent="true"] {
   border: 0;
-  background: linear-gradient(135deg, var(--color-primary), color-mix(in srgb, var(--color-primary) 80%, #000));
-  color: #fff;
+  background: var(--color-brand-primary);
+  color: var(--color-brand-primary-contrast);
 }
 
 .kpiLabel {
@@ -46,7 +46,7 @@
 }
 
 .kpiBox[data-accent="true"] .kpiLabel {
-  opacity: 0.85;
+  opacity: 1;
 }
 
 .kpiValue {
@@ -64,7 +64,7 @@
 }
 
 .kpiBox[data-accent="true"] .kpiSub {
-  opacity: 0.75;
+  opacity: 1;
 }
 
 .details {

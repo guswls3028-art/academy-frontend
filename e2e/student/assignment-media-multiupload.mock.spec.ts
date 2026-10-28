@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { expect, test } from "../fixtures/strictTest";
 import { guideRecording } from "../helpers/guideRecording";
 import { applyHomeworkPreviewCsp, homeworkHeic, installHomeworkHeicPreview } from "../helpers/homeworkHeicFixture";
+import { contrast } from "../../src/shared/theme/accent";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const HOMEWORK_ID = 8501;
@@ -303,6 +304,70 @@ async function installApi(
   };
 }
 
+for (const width of [390, 1366]) {
+  for (const dark of [false, true]) {
+    test(`학생 제출 버튼은 모든 브랜드에서 읽히고 비활성을 유지한다 (${width}px ${dark ? "dark" : "light"})`, async ({ page }, info) => {
+      const state = await installApi(page, 0);
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript((value) => localStorage.setItem("hakwonplus:student-theme-mode", value), dark ? "dark" : "light");
+      await page.goto(`${BASE}/student/submit/assignment`);
+      await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+      const app = page.locator('[data-app="student"]');
+      const originalTheme = await app.getAttribute("data-student-theme");
+      if (dark) await expect(app).toHaveAttribute("data-student-dark", "true");
+      else await expect(app).not.toHaveAttribute("data-student-dark", "true");
+      const submit = page.locator('[data-guide="submit-btn"]');
+      const read = () => submit.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { background: style.backgroundColor, image: style.backgroundImage, color: style.color, filter: style.filter };
+      });
+      const themes = ["common", "tchul", "hakwonplus", "limglish", "ymath", "sswe", "dnb", "movementhui", "godmin"];
+      // Exercise presentation tokens on the real form; the authenticated API tenant stays unchanged.
+      for (const theme of themes) {
+        await app.evaluate((element, value) => element.setAttribute("data-student-theme", value), theme);
+        await submit.scrollIntoViewIfNeeded();
+        await page.mouse.move(0, 0);
+        await expect(submit).toBeDisabled();
+        await submit.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
+        const disabled = await read();
+        const bounds = await submit.boundingBox();
+        if (!bounds) throw new Error("Submission control is not rendered");
+        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+        await expect.poll(read, `${theme}: disabled hover`).toEqual(disabled);
+        await submit.evaluate((element) => (element as HTMLButtonElement).click());
+        expect(state.getUploadAttempts()).toBe(0);
+      }
+      await page.locator('input[type="file"]').setInputFiles({
+        name: "contrast.png", mimeType: "image/png",
+        buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNg+A8AAQIBAEK+vGgAAAAASUVORK5CYII=", "base64"),
+      });
+      await expect(submit).toBeEnabled();
+      const toHex = (color: string) => "#" + (color.match(/[\d.]+/g) ?? []).slice(0, 3)
+        .map((value) => Math.round(Number(value) * (color.startsWith("color(srgb") ? 255 : 1)).toString(16).padStart(2, "0")).join("");
+      for (const theme of themes) {
+        await app.evaluate((element, value) => element.setAttribute("data-student-theme", value), theme);
+        for (const hovered of [false, true]) {
+          if (hovered) await submit.hover();
+          else await page.mouse.move(0, 0);
+          await expect.poll(async () => {
+            const colors = await read();
+            return colors.image === "none" && colors.filter === "none"
+              ? contrast(toHex(colors.color), toHex(colors.background)) : 0;
+          }, `${theme} ${hovered ? "hover" : "default"} contrast`).toBeGreaterThanOrEqual(4.5);
+        }
+        if (theme === "hakwonplus") await submit.screenshot({ path: info.outputPath(`submit-hover-${width}-${dark}.png`) });
+      }
+      await app.evaluate((element, value) => value == null ? element.removeAttribute("data-student-theme") : element.setAttribute("data-student-theme", value), originalTheme);
+      await submit.click();
+      await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+      expect(state.getUploadAttempts()).toBe(1);
+      await page.reload();
+      await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+      await expect(page.getByRole("region", { name: "이미 제출한 파일" }).getByText("contrast.png", { exact: true })).toBeVisible();
+    });
+  }
+}
+
 test("HEIC 사진은 선택·제출·새로고침 후 열리고 실패한 미리보기도 복구한다", async ({ page }) => {
   const state = await installApi(page, 0);
   const remote = await installHomeworkHeicPreview(page);
@@ -589,6 +654,7 @@ test("HEIC 임시 파일은 새로고침 후 복원되고 제출 뒤 기기 보�
   await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
   await page.locator('input[type="file"]').setInputFiles({ name: "restore.heic", mimeType: "image/heic", buffer: homeworkHeic });
   await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+  await expectPendingHomeworkHeicReady(page, "restore.heic");
   await page.reload();
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
   await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toContainText("restore.heic");
@@ -610,6 +676,7 @@ test("HEIC 임시 보관은 다른 로그인에 노출되지 않고 이전 파�
   await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
   await page.locator('input[type="file"]').setInputFiles({ name: "private-draft.heic", mimeType: "image/heic", buffer: homeworkHeic });
   await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+  await expectPendingHomeworkHeicReady(page, "private-draft.heic");
   await page.evaluate(() => {
     const activeKey = "academy:auth-active-generation:v1";
     const oldGeneration = localStorage.getItem(activeKey)!;

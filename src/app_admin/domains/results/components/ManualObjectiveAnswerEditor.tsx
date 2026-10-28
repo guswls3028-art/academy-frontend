@@ -143,7 +143,7 @@ export default function ManualObjectiveAnswerEditor({ examId, row, questions, on
                         aria-pressed={requiredChoiceTokens(answer).includes(choice)}
                         onClick={() => toggleChoice(question.question_id, choice)}
                         disabled={busy || !loaded}
-                        className="h-11 w-11 rounded-full border border-[var(--color-border-divider)] text-sm font-semibold transition-transform hover:-translate-y-0.5 aria-pressed:border-[var(--color-primary)] aria-pressed:bg-[var(--color-primary)] aria-pressed:text-white motion-reduce:transition-none"
+                        className="h-11 w-11 rounded-full border border-[var(--color-border-divider)] text-sm font-semibold transition-transform hover:-translate-y-0.5 aria-pressed:border-[var(--color-primary)] aria-pressed:bg-[var(--color-primary)] aria-pressed:text-[color:var(--color-brand-primary-contrast)] motion-reduce:transition-none"
                       >{choice}</button>
                     ))}
                   </div>

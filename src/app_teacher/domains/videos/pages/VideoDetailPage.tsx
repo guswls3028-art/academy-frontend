@@ -236,7 +236,7 @@ function CommentSection({ videoId, comments }: { videoId: number; comments: any[
           onClick={() => text.trim() && createMut.mutate(text.trim())}
           disabled={!text.trim() || createMut.isPending}
           className="flex items-center justify-center shrink-0 cursor-pointer rounded-lg"
-          style={{ width: 36, height: 36, background: "var(--tc-primary)", color: "#fff", border: "none" }}
+          style={{ width: 36, height: 36, background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", border: "none" }}
         >
           <Send size={ICON.sm} />
         </button>

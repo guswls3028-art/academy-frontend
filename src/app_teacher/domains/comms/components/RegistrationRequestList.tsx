@@ -184,7 +184,7 @@ function RequestDetail({
             borderRadius: "var(--tc-radius)",
             border: "none",
             background: "var(--tc-primary)",
-            color: "#fff",
+            color: "var(--tc-primary-contrast)",
             opacity: pending ? 0.6 : 1,
           }}
         >

@@ -5,8 +5,8 @@
 
 :root,
 .theme-preview {
-  --color-bg-canvas:        var(--scale-Neutral0);
-  --color-bg-surface:       var(--scale-Neutral50);
+  --color-bg-canvas:        var(--scale-Neutral50);
+  --color-bg-surface:       var(--scale-Neutral0);
   --color-bg-surface-hover: var(--scale-Neutral100);
 
   /* ✅ active surface (used by native element lock / patterns) */

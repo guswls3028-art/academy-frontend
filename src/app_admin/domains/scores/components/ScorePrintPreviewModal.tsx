@@ -160,7 +160,7 @@ export default function ScorePrintPreviewModal({
               type="button"
               onClick={handleDownload}
               disabled={downloading}
-              className="h-9 px-3 whitespace-nowrap rounded text-sm font-semibold bg-[var(--color-brand-primary)] text-white hover:opacity-90 disabled:opacity-60 flex items-center gap-2"
+              className="h-9 px-3 whitespace-nowrap rounded text-sm font-semibold bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] hover:bg-[var(--color-brand-primary-hover)] disabled:opacity-60 flex items-center gap-2"
             >
               <Download size={16} strokeWidth={2} aria-hidden />
               {downloading ? "PDF 생성 중…" : "PDF 다운로드"}

@@ -33,7 +33,7 @@
   background: var(--color-primary, #6366f1);
   font-size: 13px;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   letter-spacing: 0.02em;
 }
 

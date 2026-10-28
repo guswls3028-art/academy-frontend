@@ -8,9 +8,9 @@
   --scale-Primary200: #bfdbfe;
   --scale-Primary300: #93c5fd;
   --scale-Primary400: #60a5fa;
-  --scale-Primary500: #3b82f6;
-  --scale-Primary600: #2563eb;
-  --scale-Primary700: #1d4ed8;
+  --scale-Primary500: #2563eb;
+  --scale-Primary600: #1d4ed8;
+  --scale-Primary700: #1e40af;
 
   /* Complement (보색) — 보강 블록 등 보조 강조, 테마별 Primary 보색 */
   --scale-Complement500: #0d9488;

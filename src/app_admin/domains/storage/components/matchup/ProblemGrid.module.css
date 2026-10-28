@@ -221,7 +221,7 @@
 
 .primarySmallButton {
   padding: 4px 12px;
-  color: white;
+  color: var(--color-brand-primary-contrast);
   background: var(--color-brand-primary);
   border: 0;
 }
@@ -380,8 +380,8 @@
 
 .dangerActionButton {
   padding: 5px 14px;
-  color: white;
-  background: var(--color-danger);
+  color: var(--color-semantic-contrast);
+  background: var(--color-danger-solid);
   border: 0;
 }
 
@@ -393,7 +393,7 @@
 
 .mergeConfirmButton {
   padding: 5px 14px;
-  color: white;
+  color: var(--color-brand-primary-contrast);
   background: var(--color-brand-primary);
   border: 0;
 }

@@ -2,24 +2,16 @@ import path from "node:path";
 import { expect, test, type Page, type Route } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { installWorkspaceReadApiStubs } from "../helpers/workspaceReadApiStubs";
 
 const pdf = path.resolve("e2e/fixtures/test-invert-3p.pdf");
-const adminReadFixtures: Record<string, unknown> = {
-  "/api/v1/staffs/me/": { is_authenticated: true, is_staff: true, is_superuser: true, is_payroll_manager: false },
-  "/api/v1/staffs/currently-working/": [],
-  "/api/v1/clinic/participants/": { count: 0, next: null, previous: null, results: [] },
-  "/api/v1/community/admin/posts/": { count: 0, next: null, previous: null, results: [] },
-  "/api/v1/students/registration_requests/": { count: 0, next: null, previous: null, results: [] },
-  "/api/v1/submissions/submissions/pending/": [],
-  "/api/v1/results/admin/teacher-dashboard-counts/": { video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 },
-  "/api/v1/community/admin/reports/pending-count/": { count: 0 },
-  "/api/v1/community/notifications/unread-count/": { count: 0 },
-  "/api/v1/lectures/attendance/arrival-overview/": {
-    generated_at: "2026-10-03T00:00:00Z", today: "2026-10-03", tomorrow: "2026-10-04",
-    range_end: "2026-10-10", range_days: 7, soon_window_minutes: 60,
-    summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 }, items: [],
-  },
-};
+
+test.afterEach(async ({ page }, testInfo) => {
+  const theme = testInfo.project.metadata.appearanceTheme;
+  if (typeof theme === "string" && page.url() !== "about:blank") {
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+  }
+});
 
 function jwt(lifetimeSeconds = 3600) {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -31,6 +23,7 @@ async function setup(page: Page, holdSubmission = false, narrow = false) {
   let releaseSubmission: () => void = () => undefined;
   const submissionGate = holdSubmission ? new Promise<void>((resolve) => { releaseSubmission = resolve; }) : Promise.resolve();
   await installLocalAuthApiStubs(page);
+  await installWorkspaceReadApiStubs(page);
   await installTenantOneInitScript(page);
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
@@ -39,10 +32,6 @@ async function setup(page: Page, holdSubmission = false, narrow = false) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
-    if (request.method() === "GET" && adminReadFixtures[url.pathname] !== undefined) {
-      await route.fulfill({ json: adminReadFixtures[url.pathname] });
-      return;
-    }
     if (url.pathname === "/api/v1/tools/omr/preview/" && request.method() === "POST") {
       await route.fulfill({ contentType: "text/html", body: "<!doctype html><html><body>OMR preview</body></html>" });
       return;

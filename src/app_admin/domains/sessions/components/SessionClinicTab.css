@@ -119,7 +119,7 @@
   height: 28px;
   border-radius: var(--radius-md, 10px);
   background: var(--color-brand-primary, #3b82f6);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   font-size: var(--text-sm, 12px);
   font-weight: 700;
 }

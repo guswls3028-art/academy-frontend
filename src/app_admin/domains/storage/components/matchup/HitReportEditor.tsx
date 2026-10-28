@@ -261,6 +261,15 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     return m;
   }, [examProblems, extraMeta]);
 
+  // Similarity belongs to an exam/reference pair. Persisted selected metadata
+  // and candidates for other exam questions must not replace the active score.
+  const previewCandidateMap = useMemo(() => {
+    const m = new Map<number, CandidateMeta>();
+    for (const v of Object.values(extraMeta)) m.set(v.id, v);
+    for (const c of active?.candidates ?? []) m.set(c.id, c);
+    return m;
+  }, [active, extraMeta]);
+
   const documentTitle = data?.report.document_title || "";
   const documentCategory = data?.report.document_category || "";
 
@@ -706,8 +715,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                   data-testid="matchup-hit-report-submitted-badge"
                   style={{
                     marginLeft: 8, padding: "3px 10px", borderRadius: 999,
-                    background: "var(--color-status-success)",
-                    color: "white", fontSize: 11, fontWeight: 700,
+                    background: "var(--color-success-solid)",
+                    color: "var(--color-semantic-contrast)", fontSize: 11, fontWeight: 700,
                     display: "inline-flex", alignItems: "center", gap: 4,
                   }}
                   title="보고서 작성 완료 상태. 다시 편집하려면 우측 '작성 다시 열기' 버튼을 누르세요."
@@ -739,8 +748,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                   display: "inline-flex", alignItems: "center", gap: 6,
                   fontSize: 11, fontWeight: 700,
                   padding: "3px 9px", borderRadius: 999,
-                  background: "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)",
-                  color: "var(--color-brand-primary)",
+                  background: "var(--color-info-bg)",
+                  color: "var(--color-info-text)",
                   border: "1px solid color-mix(in srgb, var(--color-brand-primary) 28%, transparent)",
                 }}
               >
@@ -757,8 +766,8 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                   display: "inline-flex", alignItems: "center", gap: 5,
                   fontSize: 11, fontWeight: 700,
                   padding: "3px 9px", borderRadius: 999,
-                  background: "color-mix(in srgb, var(--color-status-warning) 12%, transparent)",
-                  color: "var(--color-status-warning)",
+                  background: "var(--color-warning-bg)",
+                  color: "var(--color-warning-text)",
                   border: "1px solid color-mix(in srgb, var(--color-status-warning) 35%, transparent)",
                   cursor: "pointer",
                 }}
@@ -780,19 +789,20 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                 fontSize: 11, fontWeight: 600,
                 padding: "3px 9px", borderRadius: 999,
                 cursor: autosaveError ? "pointer" : "default",
+                opacity: 1,
                 background: saving
-                  ? "color-mix(in srgb, var(--color-brand-primary) 10%, transparent)"
+                  ? "var(--color-info-bg)"
                   : autosaveError
-                    ? "color-mix(in srgb, var(--color-status-error, #dc2626) 14%, transparent)"
+                    ? "var(--color-error-bg)"
                     : dirtyCount > 0
-                      ? "color-mix(in srgb, var(--color-status-warning) 12%, transparent)"
+                      ? "var(--color-warning-bg)"
                       : "var(--color-bg-surface-soft)",
                 color: saving
-                  ? "var(--color-brand-primary)"
+                  ? "var(--color-info-text)"
                   : autosaveError
-                    ? "var(--color-status-error, #dc2626)"
+                    ? "var(--color-error-text)"
                     : dirtyCount > 0
-                      ? "var(--color-status-warning)"
+                      ? "var(--color-warning-text)"
                       : "var(--color-text-muted)",
                 border: "1px solid",
                 borderColor: saving
@@ -1104,7 +1114,7 @@ export default function HitReportEditor({ docId, onClose }: Props) {
                 documentTitle={documentTitle}
                 activeCandidateId={activeCandidateId}
                 selectedIds={selectedIdsStable}
-                candidateMap={candidateMap}
+                candidateMap={previewCandidateMap}
                 comment={activeEntry?.comment ?? ""}
                 onComment={setComment}
                 disabled={isSubmitted}

@@ -717,8 +717,8 @@
 }
 
 .clinic-hub__action-btn--resolve:hover:not(:disabled) {
-  background: var(--color-success);
-  color: #fff;
+  background: var(--color-success-solid);
+  color: var(--color-semantic-contrast);
 }
 
 .clinic-hub__action-btn--waive {
@@ -989,8 +989,8 @@
 }
 
 .clinic-hub__action-sm--resolve:hover:not(:disabled) {
-  background: var(--color-success);
-  color: #fff;
+  background: var(--color-success-solid);
+  color: var(--color-semantic-contrast);
 }
 
 .clinic-hub__action-sm:disabled { opacity: 0.5; cursor: not-allowed; }

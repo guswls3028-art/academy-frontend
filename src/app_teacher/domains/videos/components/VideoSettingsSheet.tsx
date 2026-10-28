@@ -75,7 +75,7 @@ export default function VideoSettingsSheet({ open, onClose, video }: Props) {
 
         <button onClick={() => mutation.mutate()} disabled={mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
           {mutation.isPending ? "저장 중..." : "저장"}
         </button>
       </div>

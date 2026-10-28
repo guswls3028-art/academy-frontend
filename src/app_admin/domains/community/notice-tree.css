@@ -172,12 +172,12 @@
 }
 
 .notice-tree__tab--active .notice-tree__count {
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   background: var(--color-primary);
 }
 
 .notice-tree__sub-item--active .notice-tree__count {
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   background: var(--color-primary);
 }
 

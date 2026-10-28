@@ -538,7 +538,7 @@
    9) Mobile tuning
    ========================= */
 @media (max-width: 640px) {
-  body {
+  html[data-student-app="true"] body {
     font-size: var(--stu-font-size-14);
   }
 

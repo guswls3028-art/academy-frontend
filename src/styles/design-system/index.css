@@ -1,4 +1,5 @@
-@import "./base/element-lock.css";
+@import "./foundation.css";
+@import "./base/element-lock.css" layer(base);
 @import "./colors/index.css";
 @import "./density/index.css";
 @import "./typography/index.css";

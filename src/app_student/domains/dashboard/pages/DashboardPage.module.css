@@ -1,8 +1,8 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 2px 0 6px;
+  gap: var(--ds-space-6);
+  padding: var(--ds-space-1) 0 var(--ds-space-3);
 }
 
 .hero {
@@ -11,13 +11,11 @@
   flex-direction: column;
   gap: 12px;
   overflow: hidden;
-  padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--stu-border) 86%, transparent);
+  padding: var(--ds-space-3) 0 var(--ds-space-4);
+  border: 0;
   border-radius: var(--stu-radius-md);
-  background: var(--stu-surface-1);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.66) inset,
-    0 8px 22px rgba(15, 23, 42, 0.045);
+  background: transparent;
+  box-shadow: none;
 }
 
 .parentHero {
@@ -26,35 +24,16 @@
   flex-direction: column;
   gap: 14px;
   overflow: hidden;
-  padding: 14px;
+  padding: var(--ds-space-6) var(--ds-space-5);
   border: 1px solid color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
   border-radius: var(--stu-radius-md);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1)) 0%, var(--stu-surface-1) 68%);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 10px 26px rgba(15, 23, 42, 0.055);
+  background: var(--stu-surface-1);
+  box-shadow: none;
 }
 
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: auto 16px 0;
-  height: 2px;
-  border-radius: 999px 999px 0 0;
-  background: var(--stu-gradient, var(--stu-primary));
-  opacity: 0.72;
-}
 
-.parentHero::after {
-  content: "";
-  position: absolute;
-  inset: auto 14px 0;
-  height: 2px;
-  border-radius: 999px 999px 0 0;
-  background: var(--stu-gradient, var(--stu-primary));
-  opacity: 0.64;
-}
+
+
 
 .heroTop {
   position: relative;
@@ -79,7 +58,7 @@
 .surfaceEyebrow {
   color: var(--stu-text-muted);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -91,8 +70,8 @@
 .heroTitle {
   margin: 4px 0 0;
   color: var(--stu-text);
-  font-size: 20px;
-  font-weight: 900;
+  font-size: var(--ds-text-2xl);
+  font-weight: 700;
   line-height: 1.22;
   word-break: keep-all;
 }
@@ -100,8 +79,8 @@
 .parentHeroTitle {
   margin: 4px 0 0;
   color: var(--stu-text);
-  font-size: 20px;
-  font-weight: 900;
+  font-size: var(--ds-text-2xl);
+  font-weight: 700;
   line-height: 1.22;
   word-break: keep-all;
 }
@@ -110,7 +89,7 @@
   margin: 6px 0 0;
   color: var(--stu-text-muted);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 400;
   line-height: 1.45;
   word-break: keep-all;
 }
@@ -124,7 +103,7 @@
   background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
   color: var(--stu-primary);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1;
   text-align: center;
 }
@@ -159,7 +138,7 @@
 .parentMetricValue {
   color: var(--stu-text);
   font-size: 20px;
-  font-weight: 950;
+  font-weight: 600;
   line-height: 1.05;
 }
 
@@ -175,7 +154,7 @@
   margin-left: 1px;
   color: var(--stu-text-muted);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .parentMetricLabel {
@@ -183,7 +162,7 @@
   margin-top: 5px;
   color: var(--stu-text-muted);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -222,7 +201,7 @@
 .heroDoneTitle {
   color: var(--stu-text);
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 600;
   line-height: 1.3;
 }
 
@@ -291,7 +270,7 @@
   margin-bottom: 2px;
   color: var(--stu-text-muted);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -299,7 +278,7 @@
   overflow: hidden;
   color: var(--stu-text);
   font-size: 15px;
-  font-weight: 850;
+  font-weight: 600;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -316,7 +295,7 @@
   flex-shrink: 0;
   color: var(--stu-primary);
   font-size: 17px;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.1;
   text-align: right;
 }
@@ -378,7 +357,7 @@
 
 .rowTitle {
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 600;
   line-height: 1.3;
 }
 
@@ -435,9 +414,7 @@
   background: var(--stu-surface);
   color: inherit;
   text-decoration: none;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.66) inset,
-    0 8px 22px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -490,7 +467,7 @@
   min-width: 0;
   color: var(--stu-text);
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.25;
 }
 
@@ -521,7 +498,7 @@
   background: var(--stu-primary);
   color: var(--stu-primary-contrast);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.5;
   text-align: center;
 }
@@ -578,7 +555,7 @@
 .sessionTitle {
   overflow: hidden;
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 600;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -719,7 +696,7 @@
 .statValue {
   color: var(--stat-tone, var(--stu-text));
   font-size: 22px;
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.05;
 }
 
@@ -764,7 +741,7 @@
   margin-bottom: 2px;
   color: var(--stu-text);
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .learningEmptyText {
@@ -784,7 +761,7 @@
   border-radius: var(--stu-radius-md);
   background: var(--stu-surface);
   text-decoration: none;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
 }
 
 .noticeIcon,
@@ -821,7 +798,7 @@
   background: var(--stu-primary);
   color: var(--stu-primary-contrast);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.4;
 }
 
@@ -832,7 +809,7 @@
   background: var(--stu-primary);
   color: var(--stu-primary-contrast);
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .noticeChevron {
@@ -873,9 +850,7 @@
   border-radius: var(--stu-radius-md);
   background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
   color: var(--stu-primary);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.68) inset,
-    0 5px 14px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
 }
 
 .shortcutIcon svg {
@@ -886,7 +861,7 @@
 .shortcutLabel {
   color: var(--stu-text);
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 600;
   line-height: 1.25;
   text-align: center;
 }
@@ -910,7 +885,7 @@
   background: var(--stu-danger);
   color: #fff;
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 600;
   line-height: 1.4;
 }
 
@@ -923,7 +898,7 @@
   overflow: hidden;
   color: var(--stu-danger-text);
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 600;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -967,6 +942,6 @@
   flex-shrink: 0;
   color: var(--stu-primary);
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 600;
   text-decoration: none;
 }

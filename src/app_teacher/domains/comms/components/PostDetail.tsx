@@ -241,7 +241,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
             <div className="flex gap-2">
               <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending || !editTitle.trim()}
                 className="flex items-center gap-1 text-xs font-bold cursor-pointer"
-                style={{ padding: "7px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+                style={{ padding: "7px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
                 <Save size={ICON.sm} /> {updateMutation.isPending ? "저장 중…" : batch.locked ? "첨부 다시 시도" : "저장"}
               </button>
               <button onClick={() => void cancelEdit()} disabled={updateMutation.isPending}
@@ -326,7 +326,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
           </span>
           {canReply && (
             <button onClick={() => setReplyOpen(true)} className="text-xs font-bold cursor-pointer"
-              style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", background: "var(--tc-primary)", color: "#fff", border: "none" }}>
+              style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", border: "none" }}>
               {isAnswerPost ? "답변 작성" : "댓글 작성"}
             </button>
           )}
@@ -367,7 +367,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
               style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>취소</button>
             <button type="button" onClick={() => replyMutation.mutate()} disabled={!canSubmitReply}
               className="flex-1 text-sm font-bold cursor-pointer"
-              style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmitReply ? "var(--tc-primary)" : "var(--tc-border)", color: "#fff", opacity: replyMutation.isPending ? 0.6 : 1 }}>
+              style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmitReply ? "var(--tc-primary)" : "var(--tc-border)", color: "var(--tc-primary-contrast)", opacity: replyMutation.isPending ? 0.6 : 1 }}>
               {replyMutation.isPending ? "등록 중…" : "등록"}
             </button>
           </div>

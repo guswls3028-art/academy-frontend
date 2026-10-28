@@ -54,7 +54,7 @@ function SelectionPanelInner({
           {selectedIds.length > 0 && (
             <span style={{
               padding: "1px 7px", borderRadius: 999,
-              background: "var(--color-brand-primary)", color: "white",
+              background: "var(--color-brand-primary)", color: "var(--color-brand-primary-contrast)",
               fontSize: 10, fontWeight: 700,
             }}>
               {selectedIds.length} 선택
@@ -289,8 +289,8 @@ function SelectRow({
           {isSelected && (
             <span aria-label="PDF에 포함됨" style={{
               fontSize: 10, fontWeight: 700, padding: "1px 6px",
-              borderRadius: 3, background: "var(--color-status-success)",
-              color: "white", flexShrink: 0,
+              borderRadius: 3, background: "var(--color-success-solid)",
+              color: "var(--color-semantic-contrast)", flexShrink: 0,
             }}>
               ✓ PDF
             </span>
@@ -327,9 +327,9 @@ function SelectRow({
               border: `1px solid ${isSelected ? "var(--color-status-success)" : "var(--color-brand-primary)"}`,
               borderRadius: 4,
               background: isSelected
-                ? "color-mix(in srgb, var(--color-status-success) 12%, white)"
+                ? "var(--color-success-bg)"
                 : "var(--color-brand-primary)",
-              color: isSelected ? "var(--color-status-success)" : "white",
+              color: isSelected ? "var(--color-success-text)" : "var(--color-brand-primary-contrast)",
               cursor: disabled ? "not-allowed" : "pointer",
               opacity: disabled ? 0.5 : 1,
             }}

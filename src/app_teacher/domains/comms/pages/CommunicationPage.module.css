@@ -88,11 +88,11 @@
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
-  color: #fff;
+  color: var(--tc-semantic-contrast);
   font-size: 9px;
   font-weight: 700;
   line-height: 14px;
-  background: var(--tc-danger);
+  background: var(--tc-danger-solid);
   border-radius: 999px;
 }
 

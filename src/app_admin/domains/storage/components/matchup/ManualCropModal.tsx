@@ -874,7 +874,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                       >
                         <span style={{
                           position: "absolute", top: -2, left: -2,
-                          background: "var(--color-success)", color: "white",
+                          background: "var(--color-success-solid)", color: "var(--color-semantic-contrast)",
                           fontSize: 10, fontWeight: 800, padding: "1px 5px",
                           borderRadius: 3,
                         }}>

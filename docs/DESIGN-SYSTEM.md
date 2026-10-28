@@ -1,129 +1,119 @@
-# 관리자·교사 디자인 시스템
+# 공통 디자인 시스템
 
 ## 범위와 정본
 
-관리자·교사가 같은 동작과 상태 표현을 사용하는 디자인 시스템이다. 실행 진입점은
-`src/index.css` → `src/styles/design-system/index.css`, 공용 React 진입점은
-`src/shared/ui/ds/index.ts`다. 도메인 화면은 의미에 맞는 공용 컴포넌트와 토큰을
-소비하고, 목록 폭·그리드·반응형 배치는 해당 모듈 CSS가 소유한다.
-학생·학부모 테넌트 테마는 [별도 소유 문서](../src/app_student/shared/ui/theme/README.md)를
-따른다. 로그인 브랜드는 `src/auth/themes/`와 [테넌트 브랜딩](TENANT-BRANDING.md)이
-소유하며 관리자 테마로 대체하지 않는다.
+학생·학부모·교사·관리자는 공통 기초 값을 사용한다. 메뉴 이름·위치·URL, 역할별
+업무 순서, API·권한·테넌트 경계는 유지한다. 여백·글자 위계·표면·조작 피드백을
+정리하며 화면별 업무 배치는 해당 CSS 모듈이 소유한다.
 
-| 계층 | 소유 구현 | 책임 |
+| 계층 | 정본 | 책임 |
 |---|---|---|
-| 색상 재료·역할 | `colors/scale/`, `colors/role/`, `colors/index.css` | 원색, 의미별 배경·글자·테두리·브랜드, 기존 이름 호환 |
-| 치수·글꼴 | `density/`, `typography/` | 간격·크기·반경·글꼴 크기 |
-| 표면 | `surface/slots.css` | page/work/primary/meta/KPI/control 표면 역할 |
-| 테마 | `colors/themes/index.css` | 12개 테마별 실제 팔레트·레이아웃·그림자·공용 상태 보정 |
-| 컴포넌트·상태 | `patterns/`, `ds/`, `components/`, `antd/`, `state/` | 역할 토큰을 사용하는 실제 컨트롤 |
+| 기초 값 | `src/styles/design-system/foundation.css` | 간격·반경·글자 크기·중립색·모션·그림자 |
+| 공통 의미 | `colors/scale/`, `colors/role/`, `density/`, `typography/`, `surface/` | 기초 값의 역할 연결과 기존 토큰 호환 |
+| 관리자·교사 스타일 | `colors/themes/index.css` | 클린·노트·포커스의 표면, 모서리, 대비, 사이드바 |
+| 강조색 | `src/shared/theme/accent.ts` | 사용자 색의 검증과 읽을 수 있는 상태별 색 파생 |
+| 표시 취향 | `src/shared/theme/themes.ts`, `themeRuntime.ts`, `src/shared/contexts/ThemeContext.tsx` | 목록, 이관, DOM 적용, 저장·실패 상태 |
+| 설정 화면 | `src/shared/theme/AppearanceSettings.tsx`, `ThemeGrid.tsx` | 관리자·교사 공통 선택, 실제 토큰 미리보기, 색상 입력·복구 |
+| 교사 연결 | `src/app_teacher/shared/ui/tokens.css` | 기존 `--tc-*`를 공통 의미·기초 값에 연결 |
+| 학생 연결 | [학생 테마 정본](../src/app_student/shared/ui/theme/README.md) | `--stu-*`, 테넌트 브랜드, 라이트·다크·영상 경계 |
 
-위 경로는 별도 표기가 없으면 `src/styles/design-system/` 기준이다.
-기본 색상·치수·글꼴·표면을 먼저 로드하고 **테마를 그 뒤** 로드한다.
-동일한 specificity의 `:root` 기본값이 테마의 RGB·모달·다크 그림자를 덮지 않도록
-이 순서를 유지한다. 컴포넌트는 테마 뒤에서 역할 토큰을 참조한다.
-새 역할은 해당 소유 파일에 추가하고 화면별 복제 토큰이나 무근거 fallback으로 숨기지 않는다.
+표의 축약 CSS 경로는 `src/styles/design-system/` 기준이다.
+진입점은 `src/index.css` → `design-system/index.css`다. 기초 값 → 의미 연결 →
+스타일 → 컨트롤 순서로 로드한다. 학생의 테넌트 색·다크 모드는 별도 역할 연결이며
+교사의 개인 테마를 상속하지 않는다. 로그인 브랜드는 [테넌트 브랜딩](TENANT-BRANDING.md)을
+따른다. 공용 React 컨트롤은 `src/shared/ui/ds/index.ts`를 사용한다.
 
-## 테마 선택과 미리보기
+기존 `--space-*`, `--tc-*`, `--stu-*` 이름은 호환 연결이다. 학생 간격은 역사적으로
+2px 단위, 교사는 4px 단위였으므로 같은 숫자를 같은 값으로 치환하지 않는다.
+사용 중인 간격 의미를 유지하면서 기초 값에 연결한다. 새 독립 팔레트·복제 토큰을
+화면에 추가하지 않는다. 학생의 미사용 `palette.css`, 중복 다크·시스템 그림자 정의,
+관리자 전용 테마 카드·미리보기 복제는 이 통합으로 제거했다.
 
-`src/shared/theme/themes.ts`가 키·이름·그룹, `themeRuntime.ts`가 DOM 적용과
-브라우저 저장을 소유한다. `/workspace/settings/appearance`와 설정의 테마 영역은
-같은 `ThemeGrid` → `ThemeCard`를 사용한다. `ThemeCard`는 공용 `Button`의
-hover/focus/pressed/disabled 상태를 재사용하고 `aria-pressed`로 선택을 알린다.
-네이티브 Enter/Space로 적용하며 각 테마의 전체 이름을 표시한다.
-그리드는 가용 폭에 맞춰 줄바꿈하고 390px에서는 두 열로 배치한다.
+## 화면 스타일과 강조색
 
-미리보기의 `data-theme`는 실제 테마 CSS를 사용한다. 상위 테마에서 이미 계산된
-역할 값이 상속되지 않도록 배경·글자·테두리·브랜드의 **기존 역할 선언**을
-`:root, .theme-preview`에 함께 적용한다. `colors/preview-theme.css`는
-미니어처가 쓰는 이름을 실제 역할 토큰에 연결할 뿐 색상값을 별도로 보관하지 않는다.
-미리보기는 장식용이므로 접근성 트리에서 제외하며 선택은 바깥 버튼이 맡는다.
+`/workspace/settings/appearance`, 시스템 설정, 교사의
+`/workspace/mobile/settings/appearance`는 같은 설정을 소비한다. 기존 ‘테마’ 메뉴와
+뒤로가기·선택·키보드 조작은 유지한다.
 
-선택 즉시 문서 루트가 바뀌며 `hakwonplus:theme`를 같은 브라우저에서 복원한다.
-기존 12개 키와 `ivory-office`/`youtube-studio`/`terminal-neon`의 이관을 유지한다.
-저장소가 차단되어도 현재 화면의 적용은 가능하지만 재방문 복원은 보장되지 않는다.
-서버 저장·테넌트 설정 변경·API 쓰기는 없으며 계정·권한·학생 데이터 경계도 바꾸지 않는다.
-저장 범위와 실패 안전의 상위 계약은 [브라우저 저장](BROWSER-PERSISTENCE.md)이 소유한다.
+- **클린**: 중립 바탕과 흰 표면, 가벼운 테두리, 절제된 둥근 모서리.
+- **노트**: 종이 바탕, 작은 모서리, 선과 얕은 겹침으로 구획을 구분.
+- **포커스**: 어두운 바탕과 밝기가 다른 표면, 저눈부심 글자·상태색.
 
-## 표면과 상태
+색만 다른 12개 프리셋은 세 스타일과 별도 강조색으로 대체한다. 스타일마다 화면
+구조를 바꾸지 않으며, 강조색 변경은 버튼·선택·링크에만 반영한다. 학원 로고,
+테넌트 브랜드, 성공·주의·오류의 의미색은 개인 강조색으로 대체하지 않는다.
+색상 선택기는 즉시 적용하고, 여섯 자리 HEX 입력은 Enter/‘색상 적용’으로 확정한다.
+잘못된 값은 입력을 보존하고 오류를 표시하며 적용된 색은 유지한다.
 
-`Panel`의 `primary` 표면은 `--ui-hero-bg/border`를 통해 강조 표면과 선택 테두리에
-연결된다. `PageHeader`의 hero 변형과 DOM/CSS 계약은 서로 다르므로 클래스 이름만
-보고 합치지 않는다. 게시판 카드는 `--color-bg-surface`, 작은 글꼴은 `--text-xs`를
-참조한다. `EmptyState`는 tone에 따라 로딩·오류·빈 결과의 기본 제목을 구분하고,
-명시한 제목과 설명·복구 action은 호출자가 소유한다.
+`accent.ts`는 선택한 원본 색을 보존하면서 실제 표면·바탕 위 강조 글자 및 강조 면의
+글자 대비를 확보하도록 표시 밝기를 조정한다. 공용·교직원 컨트롤의 흰 글자 고정값은
+`--color-brand-primary-contrast`와 역할별 연결을 소비한다. 미리보기 역시 같은 함수를 사용하고
+`.theme-preview`에서 실제 의미 토큰을 다시 계산하므로 상위 테마에 영향받지 않는다.
+`colors/preview-theme.css`는 미리보기 별칭만 소유한다. 초기 부팅용
+`colors/scale/brand.css` 이후의 활성 강조색은 런타임 파생 값이 정본이다.
 
-기존의 미사용 `previewThemeVars.ts`, `.theme-scope` 매핑과 로드되지 않던
-`surface/{canvas,card,panel,overlay}.css`는 팔레트·표면의 중복 정본이 되므로 제거했다.
-실제 소비자는 위 역할/표면 소유자로 연결한다. 저장된 테마 선택과 사용자 데이터의
-삭제·변환은 없고 기존 공개 컴포넌트 변형은 유지한다.
+선택은 `aria-pressed`로 전달하고 Enter/Space로 적용한다. 모바일에서는 설명이
+잘리지 않도록 세로 목록으로 배치한다. 현재 적용과 키보드 포커스는 구분한다.
+색상 입력·선택은 44px 조작 영역을 유지하며 reduced-motion을 존중한다.
 
-## 공용 컨트롤 계약
+## 저장·이관·실패 복구
 
-관리자·교사 앱의 12개 테마는 색상만 바꾸며 버튼·탭·선택 컨트롤의 의미와 상태,
-조작 방식은 동일하게 유지한다. 테마 선택 진입점은
-`/workspace/settings/appearance`이고 선택값은 브라우저에 저장되어 재방문
-시 복원된다.
+`hakwonplus:appearance`의 `{ version: 1, theme, accent }`가 브라우저 표시 취향의
+정본이다. 유효한 새 객체가 있으면 우선하고, 없거나 손상됐으면 기존
+`hakwonplus:theme`을 이관한다. 밝은 프리셋은 클린, 모카·모노는 노트, 어두운
+프리셋은 포커스로 옮기며 기존 강조색을 보존한다.
+`ivory-office`, `youtube-studio`, `terminal-neon`도 지원한다.
+알 수 없는 키·손상된 JSON은 기본 클린으로 안전하게 진입한다.
 
-이 절은 **지켜야 할 의도**를 적는다. 정확한 임계값과 통과 조건은
-`e2e/visual/theme-control-states.spec.ts`가 소유하며, 문서와 spec이 어긋나면
-spec이 기준이다. 개별 결함을 발견하면 금지 문장을 여기에 덧붙이기보다 spec의
-단언으로 옮겨 회귀를 막는다. 아래 원칙으로 설명되지 않는 새 제약만 문서에
-추가한다.
+이전 배포로 돌아가도 읽을 수 있도록 기존 키에는 클린=`modern-white`,
+노트=`minimal-mono`, 포커스=`modern-dark`를 기록한다. 구버전은 사용자 지정 색을
+지원하지 않지만 새 객체는 보존되어 새 버전에서 복원된다. 사용자 데이터나
+테넌트 설정의 삭제·서버 쓰기는 없다. 상위 계약은 [브라우저 저장](BROWSER-PERSISTENCE.md)이다.
 
-**역할과 표면** — 주요 작업은 공용 `Button`, 상태·필터 선택은
-`SelectionButton`, 읽기 전용 표시는 `Badge`가 맡는다. 한 컨트롤은 하나의
-표면만 가진다. 라벨을 다시 배지나 색상 면으로 감싸거나 컨트롤 안에 또 다른
-컨트롤 표면을 넣지 않는다.
+저장 후 읽기 확인에 실패하면 현재 화면에는 적용하되 저장 실패를 명확히 알리고
+‘저장 다시 시도’를 제공한다. 기본값 복구도 같은 저장 경로를 사용한다. 저장소가
+차단된 상태에서 재방문 복원을 성공으로 안내하지 않는다.
 
-**상태 구분** — 기본·호버·선택·포커스·비활성이 서로 구별되어야 한다. 선택은
-바깥 윤곽과 강조색으로, 호버는 배경·테두리 변화로 드러낸다. 키보드 포커스는
-선택 윤곽과 구분되는 외곽 링으로 표시한다. 불투명도 감소와 비활성 커서는
-실제 비활성 상태에만 쓴다.
+## 공용 표면과 컨트롤
 
-**대비** — 선택 여부와 무관하게 활성 라벨은 읽히는 대비를 유지한다. 공용
-컴포넌트는 밝은 배경을 전제로 한 색을 가질 수 있으므로, 어두운 테마는 그
-표면의 글자·배경·테두리를 테마에서 다시 정의할 책임을 진다.
+바탕은 `--color-bg-canvas`, 읽는 면은 `--color-bg-surface`, 눌림·호버는 별도
+상태 토큰을 쓴다. 일반 패널은 테두리와 여백으로 구분하며 겹친 광택·그림자를
+제거한다. 모달 배경은 테마 이름 목록을 JS/CSS에서 각각 판단하지 않고
+`--color-modal-bg` 하나를 소비한다.
+날짜·시간 선택기의 body 포털도 `--color-bg-surface`를 사용하며 테마 이름 목록이나
+별도 팔레트를 갖지 않는다. 선택한 날짜와 시간 적용 버튼은 같은 강조색 대비를 따른다.
+AntD reset과 전역 native control 초기화는 Tailwind의 `base` 계층과 낮은 선택자 우선순위를 사용한다.
+역할 컨테이너의 상속 규칙이나 계층 밖 초기화로 컴포넌트·유틸리티가 지정한
+글자색·글꼴·강조 배경을 덮지 않는다.
+PPT 비율·배치 선택지는 이름과 설명을 세로로 분리하며, 배경색 견본과 이름은 가로 정렬을 유지한다.
 
-**한국어 라벨과 폭** — 작업·선택 라벨은 한 줄로 유지한다. 공간이 부족하면
-그룹을 줄바꿈하거나 명시적인 가로 스크롤로 풀고 글자를 쪼개지 않는다. 폭
-배치는 소유 모듈의 CSS에서 해결하며 전역 반응형 CSS로 덮어쓰지 않는다.
+상태 글자·아이콘의 의미색과 채워진 버튼·배지의 `--color-*-solid`는 분리한다.
+특히 다크 스타일의 밝은 오류·성공색 위에 흰 글자를 직접 얹지 않는다. 채워진 면은
+`--color-semantic-contrast`와 함께 소비하며 교사의 `--tc-*-solid`도 같은 정본에 연결한다.
+교사 상태 글자와 출결 상태는 `--color-*-text`를 연결해 밝은 표면에서도 읽을 수 있게 한다.
+매치업 보고서의 포함·제외 버튼과 선택·완료 배지도 같은 역할 토큰을 사용한다.
+자동저장·후보 검색·재시도 안내는 상태별 `--color-*-text`와 `--color-*-bg`를 짝지어 쓴다.
+자동저장 상태는 재시도 불가 상태에서도 읽을 수 있는 불투명도로 표시한다.
+보고서 이미지 확대 버튼과 묶음 안내의 표면·글자도 테마 토큰을 사용하며 문서 이미지 자체는 유지한다.
+`matchup-mobile-touch-parity.mock.spec.ts`에서 밝은 강조색의 버튼·선택·변경됨 상태 대비와
+PC/390px 선택·저장·재열기·다운로드를 함께 검증한다.
 
-**장식** — 장식은 구조를 이루는 요소까지만 둔다. 내용이 없으면 껍데기를 그리지
-않고, 맥락 없이 떠 있는 요소는 배경에 남기지 않는다. 짧은 상태 전환 모션은
-조작을 돕는 선에서만 쓰고 reduced-motion 설정을 존중한다.
-
-소유 구현은 `src/styles/design-system/colors/themes/index.css`,
-`src/shared/ui/ds/Button.tsx`, `src/shared/ui/ds/SelectionButton.tsx`,
-`src/styles/design-system/patterns/button.css`,
-`src/styles/design-system/patterns/segment-control.css`,
-`src/styles/design-system/ds/tabs.css`, `src/auth/themes/`에 있다. 공용 목록
-툴바의 모바일 액션 배치는 `DomainListToolbar.module.css`가 소유한다. 새 테마도
-기존 테마와 같은 상태·대비 검증을 통과해야 한다.
-
-검증은 `e2e/visual/theme-control-states.spec.ts`의 12개 테마 상태 검사와
-실제 적용 화면의 1100px·1366px·390px 조작 검사를 함께 수행한다. 선택 전후
-라벨 대비, 단일 표면과 바깥 윤곽, 호버·포커스·비활성 구분, 한 줄 라벨과 그룹
-배치를 확인한다. CSS 검사만으로 저장 성공을 판정하지 않으며, 적용 화면에서
-클릭 → 결과 → 새로고침 후 유지 및 실패 안내·재시도를 확인한다. 출결 적용
-범위와 회귀 항목은 [출결 원장 안전 계약](ATTENDANCE-ROSTER-SAFETY.md)이
-소유한다. 아래 명령과 검수 항목은 검증 절차이며 통과 기록을 뜻하지 않는다.
-`.github/workflows/e2e.yml`의 PR gate도 이미 빌드한 preview에서 같은 12개 테마
-검사를 실행하며, 실패하면 병합 검증을 통과하지 못한다.
-
-```powershell
-pnpm build
-pnpm exec playwright test --config playwright.theme.config.ts --project=chromium --reporter=list
-```
+주요 작업은 `Button`, 상태 선택은 `SelectionButton`, 읽기 전용 상태는 `Badge`가
+맡는다. 로딩·빈 결과·오류·재시도·저장 중·선택·비활성은 서로 구별하며, 색만으로
+의미를 전달하지 않는다. 긴 한국어 라벨은 읽을 수 있도록 그룹을 줄바꿈하거나
+소유 화면의 스크롤로 해결한다. 스타일 정리는 기능 숨김·권한 변경·입력 소실로
+해결하지 않는다. 영상·성적 그리드·모달의 도메인 전용 배치는 각각의 정본을 유지한다.
+학생 화면은 360px 이하에서 바깥 좌우 여백을 12px로 줄여 달력의 7열과 터치 영역을
+보존한다. `clinic-booking-ux.mock.spec.ts`에서 390px·PC와 125% 확대에 해당하는
+312px 너비의 날짜 선택, 키보드 이동, 가로 넘침을 검증한다.
 
 ## 모달 최소화와 복원
 
 관리자 공용 `AdminModal`의 최소화는 입력 상태를 유지한 채 하단 작업 표시줄에
-창을 남긴다. 표시줄에서 누르면 같은 창과 입력을 복원하고, 실제 닫기 또는
-화면 이탈로 창이 해제될 때만 해당 표시줄 항목을 정리한다. 다른 창이 최소화되어
-표시줄 목록이 바뀌거나 부모 화면이 다시 렌더링되는 것은 닫기가 아니다.
-복원은 저장 요청을 보내지 않으며, 저장 중 이탈 제한과 미저장 확인은 각 화면의
-계약을 유지한다. 합산 설정의 검색·복원·저장 및 PC/390px 회귀는
+창을 남긴다. 표시줄에서 같은 창과 입력을 복원하고, 실제 닫기 또는 화면 이탈로
+창이 해제될 때만 표시줄 항목을 정리한다. 다른 창의 최소화나 부모 재렌더는
+닫기가 아니다. 복원은 저장 요청을 보내지 않으며, 저장 중 이탈 제한과 미저장
+확인은 각 화면의 계약을 유지한다. 합산 설정의 PC/390px 회귀는
 `assessment-feedback.mock.spec.ts`와 [합산 구성](ASSESSMENT-TOTALS.md)이 소유한다.
 
 공용 모달은 열람·입력·확인 모두 확대 대신 짧은 페이드로 나타나고 사라진다.
@@ -137,19 +127,16 @@ pnpm exec playwright test --config playwright.theme.config.ts --project=chromium
 
 ## 회귀 검증
 
-`e2e/admin/design-system-theme.mock.spec.ts`는 실제 설정 화면에서 12개 미리보기와
-적용 팔레트를 비교하고, 상위 밝은/어두운 테마에 따라 미리보기 색상이 변하지 않는지,
-선택 → 저장 → 새로고침 복원, 기존 키 이관, 1100/1366/390px 라벨·넘침·키보드와
-reduced-motion을 확인한다. API는 격리된 route mock이며 운영 쓰기가 없다.
-`e2e/suites.mjs`의 PR route-mock 목록에서 항상 실행한다.
+- `e2e/admin/design-system-theme.mock.spec.ts`: 세 미리보기와 실제 팔레트,
+  전체 기존 키 이관, 강조색 오류·저장·reload·기본값, 저장 차단·재시도,
+  관리자 1100/1366/390px와 교사 1366/390px, 키보드와 reduced-motion.
+- `e2e/student/design-system-isolation.mock.spec.ts`: 교사 다크·사용자 색을 적용한
+  상태에서도 학생 라이트/다크의 독립성, 기존 5개 메뉴, 화면 이동·reload, 390/1366px.
+- `e2e/visual/theme-control-states.spec.ts`: 세 스타일의 버튼·탭·선택 컨트롤
+  대비, hover/선택/포커스/비활성, 한 줄 한국어·좁은 화면 배치.
+- 기능 회귀는 기존 PR route-mock 전체 gate와 영향 도메인의 성공·실패 복구 검사를
+  유지한다. 실제 렌더를 직접 검토하며, screenshot만으로 업무 저장 성공을 판정하지 않는다.
 
-```sh
-# API proxy가 닫힌 로컬 Vite 서버를 실행한 뒤
-E2E_BASE_URL=http://127.0.0.1:5174 pnpm exec playwright test \
-  --config=playwright.pr-gate.config.ts --project=pr-route-mocks --no-deps \
-  e2e/admin/design-system-theme.mock.spec.ts
-```
-
-12개 테마의 공용 컨트롤 대비·상태 검사는 위 theme gate가 소유한다.
-공식 배포는 [배포 운영 계약](DEPLOYMENT-OPERATIONS.md)의 동일 artifact 개발 검증과
-cleanup0, 운영 승인·버전·자산·영향 화면 확인을 그대로 따른다.
+공식 배포는 [배포 운영 계약](DEPLOYMENT-OPERATIONS.md)의 동일 artifact 격리 개발
+검증·cleanup0·운영 승인·버전·자산 확인을 따른다. 위 내용은 검증 계약이며
+실행 통과 기록을 뜻하지 않는다.

@@ -28,7 +28,6 @@ import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
 import { reportClientException } from "@/shared/lib/userIncidentReporter";
 import { bootstrapStudentSupportSession } from "@/shared/auth/supportPreviewSession";
 
-import "antd/dist/reset.css";
 import "./index.css";
 
 (window as Window & { __HPLUS_APP_BOOTSTRAPPED__?: boolean }).__HPLUS_APP_BOOTSTRAPPED__ = true;

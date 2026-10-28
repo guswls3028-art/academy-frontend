@@ -43,28 +43,33 @@ async function stubConcurrentRefresh(
   let refreshCount = 0;
   let meCount = 0;
 
-  await context.addInitScript(({ token, disableLocks, pointerKey, generationPrefix }) => {
+  // Seed the shared session once before either tab starts. Per-document
+  // check-then-set seeding can overwrite a rotation completed by the other tab.
+  const generation = "same-account-generation";
+  await context.setStorageState({
+    cookies: [],
+    origins: [{
+      origin: new URL(BASE).origin,
+      localStorage: [
+        { name: `${AUTH_GENERATION_PREFIX}${generation}`, value: JSON.stringify({
+          access: expiredAccess,
+          refresh: "shared-stale-refresh",
+          generation,
+        }) },
+        { name: AUTH_ACTIVE_GENERATION_KEY, value: generation },
+        { name: "tenant_code", value: "hakwonplus" },
+      ],
+    }],
+  });
+
+  await context.addInitScript(({ disableLocks }) => {
     if (location.protocol !== "http:" && location.protocol !== "https:") return;
     if (disableLocks) {
       Object.defineProperty(navigator, "locks", { configurable: true, value: undefined });
     }
-    const storage = window["localStorage"];
-    if (!storage.getItem(pointerKey)) {
-      const generation = "same-account-generation";
-      storage.setItem(`${generationPrefix}${generation}`, JSON.stringify({
-        access: token,
-        refresh: "shared-stale-refresh",
-        generation,
-      }));
-      storage.setItem(pointerKey, generation);
-      storage.setItem("tenant_code", "hakwonplus");
-    }
     sessionStorage.setItem("tenantCode", "hakwonplus");
   }, {
-    token: expiredAccess,
     disableLocks: disableWebLocks,
-    pointerKey: AUTH_ACTIVE_GENERATION_KEY,
-    generationPrefix: AUTH_GENERATION_PREFIX,
   });
 
   await context.route("**/api/v1/**", async (route) => {

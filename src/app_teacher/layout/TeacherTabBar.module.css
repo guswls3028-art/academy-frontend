@@ -53,8 +53,8 @@
   height: 14px;
   padding: 0 3px;
   border-radius: 7px;
-  background: var(--tc-danger);
-  color: #fff;
+  background: var(--tc-danger-solid);
+  color: var(--tc-semantic-contrast);
   font-size: 9px;
   font-weight: 700;
   line-height: 14px;

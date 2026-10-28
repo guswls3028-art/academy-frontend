@@ -249,7 +249,7 @@
   border: none;
   border-radius: var(--radius-md);
   background: var(--color-brand-primary, var(--color-primary));
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
   cursor: pointer;
   transition: background 0.12s ease, opacity 0.12s ease;
 }
@@ -538,8 +538,8 @@
   padding: 8px 14px;
   border: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 52%, transparent);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-warning, #d97706) 82%, #111827);
-  color: #fff;
+  background: var(--color-warning-solid);
+  color: var(--color-semantic-contrast);
   font-family: inherit;
   font-size: 13px;
   font-weight: 800;

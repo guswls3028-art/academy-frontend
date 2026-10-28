@@ -304,8 +304,8 @@
   border-radius: var(--radius-full, 999px);
   font-size: var(--text-xs, 11px);
   font-weight: 700;
-  background: var(--color-error, var(--color-danger));
-  color: #fff;
+  background: var(--color-danger-solid);
+  color: var(--color-semantic-contrast);
 }
 
 /* ── Inline scope chip — 헤더 제목 옆에 자연스럽게 붙는 뱃지 ── */

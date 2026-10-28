@@ -74,11 +74,11 @@
 }
 
 .kpiSub {
-  font-size: 10px;
+  font-size: var(--ds-text-xs);
 }
 
 .kpiLabel {
-  font-size: 11px;
+  font-size: var(--ds-text-xs);
 }
 
 .tabBar {
@@ -105,7 +105,7 @@
 
 .tabButtonActive {
   background: var(--tc-primary);
-  color: #fff;
+  color: var(--tc-primary-contrast);
 }
 
 .listItem {

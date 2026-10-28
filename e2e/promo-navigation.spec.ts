@@ -100,6 +100,38 @@ test.describe("promo navigation", () => {
       await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("출결");
       await expect(disclosure).not.toHaveAttribute("open", "");
     });
+
+    test(`review: an explicit close survives a pending reading-page update at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${BASE}/promo/guide?role=admin&guideBook=detail&guidePage=16`);
+      const disclosure = page.locator("details").filter({ has: page.locator("summary", { hasText: "화면으로 기능 살펴보기" }) });
+      // The selected page remains in the DOM while the native details is closed.
+      const pageSelect = disclosure.getByLabel("설명서 페이지");
+      await expect(disclosure).toHaveAttribute("open", "");
+      await expect(pageSelect).toHaveValue("16");
+      // Keep both native actions in one task so React has not committed the new reading page before the close.
+      await pageSelect.evaluate((element) => {
+        const select = element as HTMLSelectElement;
+        select.value = "17";
+        select.dispatchEvent(new Event("input", { bubbles: true }));
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        select.closest("details")!.querySelector<HTMLElement>(":scope > summary")!.click();
+      });
+      await expect(page).toHaveURL(/guidePage=17/);
+      await expect(pageSelect).toHaveValue("17");
+      await expect(disclosure).not.toHaveAttribute("open", "");
+      await disclosure.locator(":scope > summary").focus();
+      await page.keyboard.press("Enter");
+      await expect(disclosure).toHaveAttribute("open", "");
+      await page.keyboard.press("Space");
+      await expect(disclosure).not.toHaveAttribute("open", "");
+      await page.goBack();
+      await expect(disclosure).toHaveAttribute("open", "");
+      await expect(pageSelect).toHaveValue("16");
+      await page.goForward();
+      await expect(disclosure).toHaveAttribute("open", "");
+      await expect(pageSelect).toHaveValue("17");
+    });
   }
 
   test("aligns cross-page hash links below the fixed promo header", async ({ page }) => {

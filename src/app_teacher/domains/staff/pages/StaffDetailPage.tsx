@@ -240,7 +240,7 @@ function WorkTab({ staffId, month, isLocked, onAdd, onEdit }: {
           {!isLocked && (
             <button onClick={onAdd}
               className="flex items-center gap-1 text-xs font-bold cursor-pointer shrink-0 ml-3"
-              style={{ padding: "6px 10px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+              style={{ padding: "6px 10px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
               <Plus size={ICON.sm} /> 추가
             </button>
           )}
@@ -650,7 +650,7 @@ function WorkFormSheet({ open, onClose, staffId, month, editData }: {
           style={{
             padding: "12px", borderRadius: "var(--tc-radius)", border: "none",
             background: workTypeId == null ? "var(--tc-surface-soft)" : "var(--tc-primary)",
-            color: workTypeId == null ? "var(--tc-text-muted)" : "#fff",
+            color: workTypeId == null ? "var(--tc-text-muted)" : "var(--tc-primary-contrast)",
           }}>
           {mutation.isPending ? "저장 중…" : isEdit ? "수정" : "등록"}
         </button>

@@ -218,7 +218,7 @@ export default function StudentWatchPanel({
               className={[
                 "inline-flex items-center justify-center w-7 h-7 rounded-md text-xs font-medium transition",
                 i === safePage
-                  ? "bg-[var(--color-brand-primary)] text-white"
+                  ? "bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)]"
                   : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]",
               ].join(" ")}
             >

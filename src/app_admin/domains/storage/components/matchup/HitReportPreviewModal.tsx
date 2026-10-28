@@ -147,7 +147,7 @@ export default function HitReportPreviewModal({ report, open, onClose, onEdit }:
               style={{
                 padding: "8px 16px", borderRadius: 8, border: "none",
                 background: "var(--color-brand-primary, #2563EB)",
-                color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                color: "var(--color-brand-primary-contrast)", fontSize: 13, fontWeight: 700, cursor: "pointer",
                 letterSpacing: "-0.01em",
               }}
             >수정 →</button>

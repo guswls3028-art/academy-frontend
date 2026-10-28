@@ -25,6 +25,7 @@
 }
 
 .optionButton {
+  display: block;
   min-width: 0;
   overflow: hidden;
   padding: 8px 10px;
@@ -154,7 +155,7 @@
 
 .toggleIconActive {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-brand-primary-contrast);
 }
 
 .toggleCopy {

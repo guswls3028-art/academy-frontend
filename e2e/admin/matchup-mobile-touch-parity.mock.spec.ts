@@ -1,9 +1,32 @@
 import fs from "node:fs";
 import type { Locator, Page, Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
+import { contrast } from "../../src/shared/theme/accent";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
 const DOC_ID = 993_901;
+
+test.afterEach(async ({ page }, testInfo) => {
+  const theme = testInfo.project.metadata.appearanceTheme;
+  if (typeof theme === "string" && page.url() !== "about:blank") {
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+  }
+});
+
+async function expectReadableReportControl(control: Locator, expectedLabel?: string) {
+  const readColors = () => control.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const hex = (value: string) => "#" + (value.match(/[\d.]+/g) ?? []).slice(0, 3)
+      .map((channel) => Math.round(Number(channel) * (value.startsWith("color(srgb") ? 255 : 1)).toString(16).padStart(2, "0")).join("");
+    return { text: hex(style.color), background: hex(style.backgroundColor), label: element.textContent, opacity: Number(style.opacity) };
+  });
+  await expect.poll(async () => {
+    const colors = await readColors();
+    expect(colors.opacity).toBe(1);
+    if (expectedLabel) expect(colors.label).toContain(expectedLabel);
+    return contrast(colors.text, colors.background);
+  }, "Report control text contrast").toBeGreaterThanOrEqual(4.5);
+}
 
 function isLocalBase(url: string): boolean {
   const hostname = new URL(url).hostname;
@@ -50,7 +73,7 @@ const pageImage = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1120"><rect width="800" height="1120" fill="white"/><text x="60" y="120" font-size="42">1. mobile crop fixture</text><rect x="55" y="160" width="690" height="260" fill="none" stroke="black" stroke-width="3"/></svg>',
 )}`;
 
-async function installMocks(page: Page, options: { failFirstPages?: boolean; failPageReads?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean; report?: boolean } = {}) {
+async function installMocks(page: Page, options: { failFirstPages?: boolean; failPageReads?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean; report?: boolean; firstSimilarity?: number; missingActiveCandidate?: boolean } = {}) {
   const apiRequests: Array<{ method: string; path: string }> = [];
   let pageReads = 0;
   let pagePreparations = 0;
@@ -69,7 +92,12 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
     similarity: 0.95, image_key: "qa/reference.png", image_url: pageImage, page_index: 0 };
   const reportProblems = [1, 2].map((number) => ({ id: 700 + number, document_id: DOC_ID, number,
     text: `Synthetic question ${number}`, text_preview: `Synthetic question ${number}`,
-    image_key: `qa/exam-${number}.png`, image_url: pageImage, candidates: [candidate] }));
+    image_key: `qa/exam-${number}.png`, image_url: pageImage,
+    candidates: number === 1 && options.missingActiveCandidate ? []
+      : [{ ...candidate, similarity: number === 1 ? options.firstSimilarity ?? 0.95 : 0.35 }] }));
+  if (options.missingActiveCandidate) {
+    report.entries = [{ exam_problem_id: 701, selected_problem_ids: [801], comment: "", order: 0, excluded: false }];
+  }
 
   await page.addInitScript(({ access, refresh }) => {
     localStorage.setItem("access", access);
@@ -178,7 +206,8 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
         report, entries: report.entries,
         exam_problems: reportProblems.map((problem) => ({ ...problem,
           entry: report.entries.find((entry) => entry.exam_problem_id === problem.id) || null })),
-        selected_problem_meta: [candidate],
+        // Persisted metadata has no question-specific similarity in the real API.
+        selected_problem_meta: [{ ...candidate, similarity: undefined }],
       });
       return json(route, { report: null, entries: [] });
     }
@@ -431,22 +460,40 @@ for (const width of [390, 1366]) {
     expect(isLocalBase(BASE)).toBe(true);
     await page.setViewportSize({ width, height: 844 });
     const { report: savedReport } = await installMocks(page, { report: true });
+    const theme = testInfo.project.metadata.appearanceTheme ?? "focus-dark";
+    await page.addInitScript((style) => localStorage.setItem("hakwonplus:appearance", JSON.stringify({ version: 1, theme: style, accent: "#ffedaa" })), theme);
+    await page.clock.install();
     await page.goto(`${BASE}/workspace/storage/matchup?docId=${DOC_ID}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
     await expect(page.getByTestId("matchup-doc-hit-report-curate-btn")).toBeVisible({ timeout: 45_000 });
     await page.getByTestId("matchup-doc-hit-report-curate-btn").click();
     const report = page.getByRole("dialog", { name: "적중 보고서 작성" });
+    const previewHeader = report.getByRole("button", { name: "다음 문항", exact: true }).locator("..");
+    await expect(previewHeader).toContainText(/직접 적중\s+·\s+95\.0%/);
     const downloadButton = report.getByRole("button", { name: "PDF 다운로드", exact: true });
     await expect(downloadButton).toBeInViewport({ ratio: 1 });
     const comment = report.getByPlaceholder("이 문항을 어떻게 다뤘는지, 학생이 알아둘 점은 무엇인지 작성하세요");
     await expect(comment).toBeVisible();
     await expect.poll(async () => (await comment.boundingBox())?.width || 0).toBeGreaterThanOrEqual(280);
+    // Hold the real autosave debounce while observing its transient dirty state.
+    await page.clock.pauseAt(new Date(Date.now() + 1_000));
     await comment.fill(`QA comment ${width}`);
+    await expectReadableReportControl(report.getByTestId("matchup-hit-report-save-state"), "변경됨");
+    for (const label of ["실제 시험 크게 보기 버튼", "내 수업 자료 크게 보기 버튼"]) {
+      await expectReadableReportControl(report.getByRole("button", { name: label, exact: true }));
+    }
     await page.screenshot({ path: testInfo.outputPath(`report-preview-${width}.png`) });
+    await page.clock.resume();
     const add = report.getByRole("button", { name: "PDF에 포함", exact: true }).first();
     await add.scrollIntoViewIfNeeded();
     await expect(add).toBeInViewport({ ratio: 1 });
+    await expectReadableReportControl(add);
     await add.click();
     await expect(report.getByLabel("PDF에 포함됨")).toBeVisible();
+    await expect(previewHeader).toContainText(/직접 적중\s+·\s+95\.0%/);
+    await expectReadableReportControl(report.getByLabel("PDF에 포함됨"));
+    await expectReadableReportControl(report.getByText("1 선택", { exact: true }));
+    await expectReadableReportControl(report.getByRole("button", { name: "PDF에서 제외", exact: true }).filter({ hasText: "✕ PDF에서 제외" }));
     const summary = report.getByPlaceholder("예: 1학기 중간고사 대비 반영률 종합 분석");
     await summary.fill(`QA report ${width}`);
     await expect(report.getByTestId("matchup-hit-report-save-state")).toHaveText("저장됨 ✓");
@@ -457,6 +504,11 @@ for (const width of [390, 1366]) {
     await expect(summary).toHaveValue(`QA report ${width}`);
     await expect(comment).toHaveValue(`QA comment ${width}`);
     await expect(report.getByLabel("PDF에 포함됨")).toBeVisible();
+    await expect(previewHeader).toContainText(/직접 적중\s+·\s+95\.0%/);
+    await report.getByRole("button", { name: "다음 문항", exact: true }).click();
+    await expect(previewHeader).toContainText("유사도 35.0%");
+    await report.getByRole("button", { name: "이전 문항", exact: true }).click();
+    await expect(previewHeader).toContainText(/직접 적중\s+·\s+95\.0%/);
     const download = page.waitForEvent("download");
     await downloadButton.click();
     expect(await (await download).failure()).toBeNull();
@@ -464,6 +516,29 @@ for (const width of [390, 1366]) {
     await page.screenshot({ path: testInfo.outputPath(`report-${width}.png`) });
     await report.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(report).toBeHidden();
+  });
+}
+
+for (const scenario of [
+  { name: "real zero", firstSimilarity: 0, missingActiveCandidate: false, label: "유사도 0.0%" },
+  { name: "missing score", firstSimilarity: undefined, missingActiveCandidate: true, label: "유사도 정보 없음" },
+]) {
+  test(`report preview distinguishes ${scenario.name} from another question's score`, async ({ page }) => {
+    expect(isLocalBase(BASE)).toBe(true);
+    await installMocks(page, { report: true, ...scenario });
+    await page.goto(`${BASE}/workspace/storage/matchup?docId=${DOC_ID}`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("matchup-doc-hit-report-curate-btn").click();
+    const report = page.getByRole("dialog", { name: "적중 보고서 작성" });
+    const header = report.getByRole("button", { name: "다음 문항", exact: true }).locator("..");
+    await expect(header).toContainText(scenario.label);
+    await expect(header.locator("..")).toContainText("QA 참고자료");
+    const referenceImage = report.getByRole("img", { name: "내 수업 자료", exact: true });
+    await expect(referenceImage).toBeVisible();
+    await expect.poll(() => referenceImage.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+    await report.getByRole("button", { name: "다음 문항", exact: true }).click();
+    await expect(header).toContainText("유사도 35.0%");
+    await report.getByRole("button", { name: "이전 문항", exact: true }).click();
+    await expect(header).toContainText(scenario.label);
   });
 }
 

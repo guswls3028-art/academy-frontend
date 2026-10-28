@@ -32,7 +32,7 @@ const SIZE: Record<Size, string> = {
  */
 const VARIANT: Record<Variant, string> = {
   primary:
-    "border-[var(--color-primary)] bg-[var(--color-primary)] text-white hover:opacity-90",
+    "border-[var(--color-primary)] bg-[var(--color-primary)] text-[color:var(--color-brand-primary-contrast)] hover:bg-[var(--color-brand-primary-hover)]",
   secondary:
     "border-[var(--border-divider)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-soft)]",
   outline:

@@ -412,7 +412,7 @@ export default function SubmissionsInboxPage() {
                     type="button"
                     onClick={() => handleNavigate(r)}
                     className="shrink-0 px-2 py-1 rounded text-[12px]"
-                    style={{ background: "var(--tc-primary)", color: "#fff", border: "none" }}
+                    style={{ background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", border: "none" }}
                   >
                     결과
                   </button>
@@ -422,7 +422,7 @@ export default function SubmissionsInboxPage() {
                     onClick={() => retryMut.mutate(r.id)}
                     disabled={retryMut.isPending}
                     className="shrink-0 px-2 py-1 rounded text-[12px]"
-                    style={{ background: "var(--tc-primary)", color: "#fff", border: "none" }}
+                    style={{ background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", border: "none" }}
                   >
                     재처리
                   </button>

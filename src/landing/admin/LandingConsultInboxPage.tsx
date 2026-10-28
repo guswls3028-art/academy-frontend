@@ -263,7 +263,7 @@ function LandingConsultInboxContent() {
                   )}
                   <textarea rows={3} maxLength={2000} value={editing.memo} onChange={(e) => setEditing({ ...editing, memo: e.target.value })} placeholder="처리 메모" aria-label="처리 메모" disabled={pendingId != null}
                     style={{ flex: "1 1 100%", width: "100%", minWidth: 0, minHeight: 80, resize: "vertical", padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", fontSize: 13, fontFamily: "inherit" }} />
-                  <button disabled={pendingId != null} onClick={() => void saveMemo(it.id, editing.memo)} style={{ minHeight: 44, padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--color-brand-primary, #2563EB)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: pendingId != null ? "wait" : "pointer" }}>저장</button>
+                  <button disabled={pendingId != null} onClick={() => void saveMemo(it.id, editing.memo)} style={{ minHeight: 44, padding: "8px 16px", borderRadius: 8, border: "none", background: "var(--color-brand-primary, #2563EB)", color: "var(--color-brand-primary-contrast)", fontSize: 13, fontWeight: 600, cursor: pendingId != null ? "wait" : "pointer" }}>저장</button>
                   <button disabled={pendingId != null} onClick={() => { setEditing(null); setConflictingMemo(null); setMutationError(null); void load(); }} style={{ minHeight: 44, padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", background: "#fff", color: "#64748b", fontSize: 13, cursor: "pointer" }}>취소</button>
                 </div>
               ) : it.admin_memo ? (

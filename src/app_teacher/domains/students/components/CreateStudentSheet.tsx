@@ -147,7 +147,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
           <button
             type="button"
             className="w-full text-sm font-bold cursor-pointer"
-            style={{ padding: 12, borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}
+            style={{ padding: 12, borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}
             onClick={() => {
               void openStudentSupportPreview(createdStudent.id).catch((error) => {
                 const message = error instanceof Error ? error.message : "학생 화면을 열지 못했습니다.";
@@ -235,7 +235,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
           style={{ padding: "8px 0 4px", background: "var(--tc-surface)" }}>
           <button onClick={() => { void submit(); }} disabled={!formReady || mutation.isPending || confirming}
             className="w-full text-sm font-bold cursor-pointer"
-            style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: formReady ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: formReady ? "#fff" : "var(--tc-text-muted)" }}>
+            style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: formReady ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: formReady ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
             {mutation.isPending ? "등록 중..." : "등록"}
           </button>
         </div>

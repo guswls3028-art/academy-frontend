@@ -4,38 +4,19 @@
  * - 모바일/프로덕션 기준 폰트 스택 + 스케일
  */
 
-:root {
+html[data-student-app="true"],
+[data-app="student"] {
   /* Font stack */
-  --stu-font-sans: var(
-    --app-font-sans,
-    var(
-      --font-sans,
-      "Pretendard Variable",
-      "Pretendard",
-      ui-sans-serif,
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      Roboto,
-      Helvetica,
-      Arial,
-      "Apple SD Gothic Neo",
-      "Noto Sans KR",
-      "Malgun Gothic",
-      "맑은 고딕",
-      sans-serif
-    )
-  );
+  --stu-font-sans: var(--ds-font-sans);
 
   /* Font sizes */
-  --stu-font-size-12: 12px;
-  --stu-font-size-13: 13px;
-  --stu-font-size-14: 14px;
+  --stu-font-size-12: var(--ds-text-xs);
+  --stu-font-size-13: var(--ds-text-sm);
+  --stu-font-size-14: var(--ds-text-md);
   --stu-font-size-15: 15px;
-  --stu-font-size-16: 16px;
+  --stu-font-size-16: var(--ds-text-lg);
   --stu-font-size-18: 18px;
-  --stu-font-size-20: 20px;
+  --stu-font-size-20: var(--ds-text-xl);
   --stu-font-size-22: 22px;
 
   /* Line heights */
@@ -47,10 +28,10 @@
   --stu-line-28: 28px;
 
   /* Weights (semantic) */
-  --stu-w-regular: 500;
-  --stu-w-medium: 600;
-  --stu-w-bold: 800;
-  --stu-w-black: 900;
+  --stu-w-regular: 400;
+  --stu-w-medium: 500;
+  --stu-w-bold: 600;
+  --stu-w-black: 700;
 }
 
 /* Type utility classes (optional) */

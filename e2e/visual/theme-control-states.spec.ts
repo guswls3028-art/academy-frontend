@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "../fixtures/strictTest";
-import { THEMES } from "../../src/shared/theme/themes";
+import { THEMES, DEFAULT_ACCENT } from "../../src/shared/theme/themes";
+import { accentVariables } from "../../src/shared/theme/accent";
 
 const BASE = process.env.THEME_AUDIT_BASE_URL || "http://127.0.0.1:4173";
 
@@ -130,6 +131,16 @@ async function mountAuditSurface(page: Page) {
         <button class="ds-button" data-size="md" data-intent="secondary" data-testid="pressed" aria-pressed="true">선택됨</button>
         <button class="ds-button" data-size="md" data-intent="ghost" data-testid="ghost">낮은 강조</button>
         <button class="ds-button" data-size="md" data-intent="danger" data-testid="danger">삭제</button>
+        <button class="ant-btn ant-btn-dangerous ant-btn-primary" data-testid="antd-danger">삭제 확인</button>
+        <button class="confirm-dialog__button confirm-dialog__button--confirm" data-testid="confirm-primary">최종 확인</button>
+        <button class="confirm-dialog__button confirm-dialog__button--danger" data-testid="confirm-danger">삭제 확인</button>
+        <button class="bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] hover:bg-[var(--color-brand-primary-hover)]" data-testid="utility-primary">색상 선택</button>
+        ${["primary", "success", "danger"].map((tone) => `
+          <span class="ds-status-badge" data-tone="${tone}" data-testid="badge-${tone}">상태</span>
+        `).join("")}
+        ${["success", "warning", "danger", "info"].map((tone) => `
+          <span data-testid="solid-${tone}" style="padding: 8px; background: var(--color-${tone}-solid); color: var(--color-semantic-contrast)">${tone}</span>
+        `).join("")}
         <button class="ds-button" data-size="md" data-intent="secondary" data-testid="disabled" disabled>사용 불가</button>
         <div class="ds-segment selection-group" role="group" aria-label="출결 선택 상태" data-testid="selection-group">
           ${["primary", "success", "warning", "danger", "complement", "teal", "neutral"].map((tone) => `
@@ -164,7 +175,7 @@ async function mountAuditSurface(page: Page) {
   });
 }
 
-test("12개 테마에서 공용 버튼과 탭의 상태가 명확히 구분된다", async ({ page }, testInfo) => {
+test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구분된다", async ({ page }, testInfo) => {
   await page.route("**/api/v1/core/program/**", async (route) => {
     await route.fulfill({
       status: 200,
@@ -193,12 +204,15 @@ test("12개 테마에서 공용 버튼과 탭의 상태가 명확히 구분된�
 
   for (const theme of THEMES) {
     await page.setViewportSize({ width: 1366, height: 900 });
-    await page.evaluate((themeKey) => {
+    await page.evaluate(({ themeKey, variables }) => {
       document.documentElement.setAttribute("data-theme", themeKey);
-    }, theme.key);
+      for (const [key, value] of Object.entries(variables)) document.documentElement.style.setProperty(key, value);
+    }, { themeKey: theme.key, variables: accentVariables(theme.key, DEFAULT_ACCENT) });
 
     const primary = page.getByTestId("primary");
     const secondary = page.getByTestId("secondary");
+    const danger = page.getByTestId("danger");
+    const antdDanger = page.getByTestId("antd-danger");
     const pressed = page.getByTestId("pressed");
     const disabled = page.getByTestId("disabled");
     const tabDefault = page.getByTestId("tab-default");
@@ -206,7 +220,24 @@ test("12개 테마에서 공용 버튼과 탭의 상태가 명확히 구분된�
 
     await page.mouse.move(1, 1);
     const primaryDefault = await readState(primary);
+    const utilityDefault = await readState(page.getByTestId("utility-primary"));
+    if (utilityDefault.color !== primaryDefault.color) {
+      const rules = await page.getByTestId("utility-primary").evaluate((element) => {
+        const matched: string[] = [];
+        function walk(rules: CSSRuleList, layer = "unlayered") {
+          for (const rule of rules) {
+            if (rule instanceof CSSStyleRule && rule.style.color && element.matches(rule.selectorText)) matched.push(`${layer}: ${rule.selectorText} { color: ${rule.style.color} }`);
+            if ("cssRules" in rule) walk((rule as CSSGroupingRule).cssRules, rule.constructor.name === "CSSLayerBlockRule" ? rule.cssText.slice(0, rule.cssText.indexOf("{")) : layer);
+          }
+        }
+        for (const sheet of document.styleSheets) walk(sheet.cssRules);
+        return matched;
+      });
+      await testInfo.attach(`utility-cascade-${theme.key}.json`, { body: JSON.stringify(rules), contentType: "application/json" });
+    }
     const secondaryDefault = await readState(secondary);
+    const dangerDefault = await readState(danger);
+    const antdDangerDefault = await readState(antdDanger);
     const pressedDefault = await readState(pressed);
     const disabledDefault = await readState(disabled);
     const tabDefaultState = await readState(tabDefault);
@@ -216,6 +247,10 @@ test("12개 테마에서 공용 버튼과 탭의 상태가 명확히 구분된�
     const primaryHover = await readState(primary);
     await secondary.hover();
     const secondaryHover = await readState(secondary);
+    await danger.hover();
+    const dangerHover = await readState(danger);
+    await antdDanger.hover();
+    const antdDangerHover = await readState(antdDanger);
     await page.mouse.move(1, 1);
 
     await primary.focus();
@@ -224,7 +259,20 @@ test("12개 테마에서 공용 버튼과 탭의 상태가 명확히 구분된�
     const tabFocus = await readState(tabDefault);
 
     expect.soft(primaryDefault.contrast, `${theme.key}: primary contrast`).toBeGreaterThanOrEqual(4.5);
+    expect.soft(utilityDefault.background, `${theme.key}: utility primary background`).toBe(primaryDefault.background);
+    expect.soft(utilityDefault.color, `${theme.key}: utility primary foreground`).toBe(primaryDefault.color);
     expect.soft(secondaryDefault.contrast, `${theme.key}: secondary contrast`).toBeGreaterThanOrEqual(4.5);
+    for (const [state, value] of Object.entries({ dangerDefault, dangerHover, antdDangerDefault, antdDangerHover })) {
+      expect.soft(value.contrast, `${theme.key}: ${state} contrast`).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const tone of ["success", "warning", "danger", "info"]) {
+      const state = await readState(page.getByTestId(`solid-${tone}`));
+      expect.soft(state.contrast, `${theme.key}: filled ${tone} contrast`).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const id of ["confirm-primary", "confirm-danger", "utility-primary", "badge-primary", "badge-success", "badge-danger"]) {
+      const state = await readState(page.getByTestId(id));
+      expect.soft(state.contrast, `${theme.key}: ${id} contrast ${JSON.stringify(state)}`).toBeGreaterThanOrEqual(4.5);
+    }
     expect.soft(pressedDefault.contrast, `${theme.key}: pressed contrast`).toBeGreaterThanOrEqual(4.5);
     expect.soft(tabActiveState.contrast, `${theme.key}: active tab contrast`).toBeGreaterThanOrEqual(4.5);
     expect.soft(visualSignature(primaryHover), `${theme.key}: primary hover`).not.toBe(visualSignature(primaryDefault));
