@@ -5,6 +5,7 @@ import {
   type ClientAccountNotificationLog,
 } from "@/shared/api/contracts/students";
 import { Badge, Button } from "@/shared/ui/ds";
+import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import styles from "./AccountNotificationHistory.module.css";
 
@@ -18,7 +19,7 @@ const labels: Record<string, string> = {
 
 function DeliveryRow({ studentId, log }: { studentId: number; log: ClientAccountNotificationLog }) {
   const verification = useQuery({
-    queryKey: ["account-notification-delivery", studentId, log.id],
+    queryKey: notificationQueryKeys.accountDelivery(studentId, log.id),
     queryFn: () => verifyAccountNotificationDelivery(log.id),
     enabled: false,
     retry: false,
