@@ -6,6 +6,7 @@ import { useDraggableModal } from "@/shared/ui/modal/useDraggableModal";
 import { ICON } from "@/shared/ui/ds";
 import { setLocalItem } from "@/shared/utils/safeLocalStorage";
 import "./confirm-dialog.css";
+import { lockBodyScroll } from "@/shared/ui/overlays/bodyScrollLock";
 
 export type ConfirmReviewItem = {
   label: string;
@@ -93,17 +94,17 @@ export default function ConfirmDialog({
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
+    const unlockBodyScroll = lockBodyScroll();
     const visibleParentModalContents = Array.from(
       document.querySelectorAll<HTMLElement>(".admin-modal-wrap .admin-modal__inner"),
     ).filter((element) => element.getClientRects().length > 0);
-    const parentModalContent = visibleParentModalContents[visibleParentModalContents.length - 1] ?? null;
+    const parentModalContent = previouslyFocused?.closest<HTMLElement>('[role="dialog"]')
+      ?? visibleParentModalContents[visibleParentModalContents.length - 1] ?? null;
     const parentModalHost = parentModalContent?.closest<HTMLElement>(".ant-modal") ?? null;
     const previousParentInert = parentModalContent?.inert ?? false;
     const previousParentAriaHidden = parentModalContent?.getAttribute("aria-hidden") ?? null;
     const previousHostInert = parentModalHost?.inert ?? false;
     const previousHostAriaHidden = parentModalHost?.getAttribute("aria-hidden") ?? null;
-    document.body.style.overflow = "hidden";
     if (parentModalHost) {
       parentModalHost.inert = true;
       parentModalHost.setAttribute("aria-hidden", "true");
@@ -114,11 +115,15 @@ export default function ConfirmDialog({
     }
 
     const handler = (e: KeyboardEvent) => {
+      if (e.isComposing || e.defaultPrevented) return;
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopImmediatePropagation();
         safeCancel();
       } else if (e.key === "Enter") {
+        // Native buttons activate the focused action. Enter on Cancel must
+        // never be redirected to the destructive confirmation action.
+        if ((e.target as HTMLElement)?.closest("button, a[href], [role='button']")) return;
         // 검토표가 있는 안전 확인은 기본 포커스(취소)를 그대로 활성화한다.
         // 연속 Enter 입력이 곧바로 생성 요청까지 통과하지 않게 한다.
         if (requiresReview) return;
@@ -157,7 +162,7 @@ export default function ConfirmDialog({
       }
     };
     const focusInitialAction = () => {
-      const target = requiresReview ? cancelBtnRef.current : confirmBtnRef.current;
+      const target = requiresReview || danger ? cancelBtnRef.current : confirmBtnRef.current;
       target?.focus({ preventScroll: true });
     };
     document.addEventListener("keydown", handler, true);
@@ -174,7 +179,7 @@ export default function ConfirmDialog({
       window.cancelAnimationFrame(focusFrame);
       focusTimers.forEach((timer) => window.clearTimeout(timer));
       document.removeEventListener("keydown", handler, true);
-      document.body.style.overflow = previousOverflow;
+      unlockBodyScroll();
       if (parentModalContent) {
         parentModalContent.inert = previousParentInert;
         if (previousParentAriaHidden === null) parentModalContent.removeAttribute("aria-hidden");
@@ -187,7 +192,7 @@ export default function ConfirmDialog({
       }
       previouslyFocused?.focus();
     };
-  }, [requiresReview, safeCancel, safeConfirm]);
+  }, [danger, requiresReview, safeCancel, safeConfirm]);
 
   const hasOffset = offset.x !== 0 || offset.y !== 0;
   return createPortal(

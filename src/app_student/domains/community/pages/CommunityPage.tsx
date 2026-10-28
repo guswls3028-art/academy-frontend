@@ -4,6 +4,8 @@
  */
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { useDialogSurface } from "@/shared/ui/overlays/useDialogSurface";
 import { useLocation, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
@@ -1576,20 +1578,8 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
   ), [imageStates]);
   // lightbox: 전체화면 이미지 뷰어
   const [lightboxId, setLightboxId] = useState<number | null>(null);
-  useEffect(() => {
-    if (lightboxId == null) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightboxId(null);
-    };
-    window.addEventListener("keydown", onKey);
-    // body scroll lock
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [lightboxId]);
+  const lightboxRef = useRef<HTMLDivElement>(null);
+  useDialogSurface(lightboxId != null && Boolean(imgUrls[lightboxId]), lightboxRef, () => setLightboxId(null));
   useEffect(() => {
     if (!attachments || attachments.length === 0) return;
     const images = attachments.filter((a) => isImage(a.content_type));
@@ -1679,8 +1669,10 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
       })}
 
       {/* Lightbox 모달 */}
-      {lightboxId != null && imgUrls[lightboxId] && (
+      {lightboxId != null && imgUrls[lightboxId] && createPortal(
         <div
+          ref={lightboxRef}
+          tabIndex={-1}
           onClick={() => setLightboxId(null)}
           role="dialog"
           aria-modal="true"
@@ -1701,7 +1693,7 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
           >
             ✕
           </button>
-        </div>
+        </div>, document.body,
       )}
 
       {/* 파일 목록 */}

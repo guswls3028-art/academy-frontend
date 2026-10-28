@@ -1,167 +1,130 @@
-/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
-// PATH: src/app_teacher/domains/lectures/components/LectureFormSheet.tsx
-// 강의 생성/편집 바텀시트
-// R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect, useId, useRef, type InputHTMLAttributes } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createLecture, updateLecture } from "../api";
+import { createLecture, updateLecture, type TeacherLecture } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirmBeforeClose } from "@/shared/ui/overlays/useConfirmBeforeClose";
+import { Button } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { normalizeLectureChipText } from "@/shared/ui/chips/lectureChipText";
 import { teacherLectureQueryKeys } from "../queryKeys";
+import styles from "./LectureFormSheet.module.css";
 
-const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"];
-
-interface Props {
-  open: boolean;
-  onClose: () => void;
-  onCreated?: () => void;
-  editData?: any; // null = create mode
+const COLORS = [
+  ["#3b82f6", "파랑"], ["#ef4444", "빨강"], ["#22c55e", "초록"], ["#f59e0b", "노랑"],
+  ["#8b5cf6", "보라"], ["#ec4899", "분홍"], ["#06b6d4", "하늘"], ["#f97316", "주황"],
+] as const;
+type EditableLecture = TeacherLecture & { instructor?: string };
+function formFrom(lecture?: EditableLecture | null) {
+  return {
+    title: lecture?.title ?? "", name: lecture?.name ?? lecture?.instructor ?? "",
+    subject: lecture?.subject ?? "", color: lecture?.color || COLORS[0][0],
+    chipLabel: lecture?.chip_label ?? lecture?.chipLabel ?? "",
+    startDate: lecture?.start_date ?? "", endDate: lecture?.end_date ?? "",
+    lectureTime: lecture?.lecture_time ?? lecture?.lectureTime ?? "",
+  };
 }
+type Props = { open: boolean; onClose: () => void; onCreated?: () => void; editData?: EditableLecture | null };
 
 export default function LectureFormSheet({ open, onClose, onCreated, editData }: Props) {
   const qc = useQueryClient();
-  const isEdit = !!editData;
-
-  const [title, setTitle] = useState("");
-  const [name, setName] = useState("");
-  const [subject, setSubject] = useState("");
-  const [color, setColor] = useState(COLORS[0]);
-  const [chipLabel, setChipLabel] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [lectureTime, setLectureTime] = useState("");
-
+  const formId = useId();
+  const [form, setForm] = useState(() => formFrom(editData));
+  const initial = useRef(form);
+  const openedRecord = useRef<number | "create" | null>(null);
+  const submitting = useRef(false);
+  const [error, setError] = useState("");
+  const isEdit = Boolean(editData);
   useEffect(() => {
-    if (editData) {
-      setTitle(editData.title || "");
-      setName(editData.name || editData.instructor || "");
-      setSubject(editData.subject || "");
-      setColor(editData.color || COLORS[0]);
-      setChipLabel(editData.chip_label ?? editData.chipLabel ?? "");
-      setStartDate(editData.start_date || "");
-      setEndDate(editData.end_date || "");
-      setLectureTime(editData.lecture_time || editData.lectureTime || "");
-    } else {
-      setTitle(""); setName(""); setSubject(""); setColor(COLORS[0]);
-      setChipLabel("");
-      setStartDate(""); setEndDate(""); setLectureTime("");
-    }
+    if (!open) { openedRecord.current = null; return; }
+    const record = editData?.id ?? "create";
+    if (openedRecord.current === record) return;
+    openedRecord.current = record;
+    initial.current = formFrom(editData);
+    setForm(initial.current);
+    setError("");
   }, [editData, open]);
-
-  const effectiveChipLabel = normalizeLectureChipText(chipLabel) || normalizeLectureChipText(title);
-  const previewChipLabel = effectiveChipLabel || "강의";
-
+  const update = (key: keyof typeof form, value: string) => setForm(current => ({ ...current, [key]: value }));
+  const chipLabel = normalizeLectureChipText(form.chipLabel) || normalizeLectureChipText(form.title);
+  const invalidDates = Boolean(form.startDate && form.endDate && form.endDate < form.startDate);
+  const ready = [form.title, form.name, form.subject, form.lectureTime].every(value => value.trim()) && !invalidDates;
   const mutation = useMutation({
     mutationFn: () => {
       const payload = {
-        title, name, subject, color,
-        chip_label: effectiveChipLabel || null,
-        start_date: startDate || null,
-        end_date: endDate || null,
-        lecture_time: lectureTime || null,
-        is_active: true,
+        title: form.title.trim(), name: form.name.trim(), subject: form.subject.trim(), color: form.color,
+        chip_label: chipLabel || null, start_date: form.startDate || null, end_date: form.endDate || null,
+        lecture_time: form.lectureTime.trim() || null, is_active: editData?.is_active ?? editData?.isActive ?? true,
       };
-      return isEdit ? updateLecture(editData.id, payload) : createLecture(payload);
+      return editData ? updateLecture(editData.id, payload) : createLecture(payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectures });
-      teacherToast.success(isEdit ? `${title} 강의가 수정되었습니다.` : `${title} 강의가 생성되었습니다.`);
+      void qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectures });
+      teacherToast.success(isEdit ? `${form.title} 강의가 수정되었습니다.` : `${form.title} 강의가 생성되었습니다.`);
       onClose();
+      if (!isEdit) onCreated?.();
     },
-    onError: (e) => teacherToast.error(extractApiError(e, isEdit ? "강의를 수정하지 못했습니다." : "강의를 생성하지 못했습니다.")),
+    onError: cause => setError(extractApiError(cause, isEdit ? "강의를 수정하지 못했습니다." : "강의를 생성하지 못했습니다.")),
+    onSettled: () => { submitting.current = false; },
   });
-
-  const canSubmit =
-    title.trim().length > 0 &&
-    name.trim().length > 0 &&
-    subject.trim().length > 0 &&
-    lectureTime.trim().length > 0 &&
-    !mutation.isPending;
+  const dirty = (Object.keys(form) as Array<keyof typeof form>).some(key => form[key] !== initial.current[key]);
+  const requestClose = useConfirmBeforeClose(dirty, mutation.isPending, onClose);
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={isEdit ? "강의 편집" : "강의 생성"}>
-      <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
-        <Field label="강의명 *" value={title} onChange={setTitle} placeholder="예: 수학 심화반" />
-        <Field label="강사 *" value={name} onChange={setName} placeholder="담당 강사명" />
-        <Field label="과목 *" value={subject} onChange={setSubject} placeholder="예: 수학, 영어" />
-        <Field label="수업 시간 *" value={lectureTime} onChange={setLectureTime} placeholder="예: 월수금 18:00~20:00" />
-
-        <div>
-          <label className="text-[11px] font-semibold block mb-1.5" style={{ color: "var(--tc-text-muted)" }}>강의 딱지</label>
-          <div className="flex items-center gap-2">
-            <LectureChip
-              lectureName={title}
-              color={color}
-              chipLabel={previewChipLabel}
-              size={32}
-            />
-            <input
-              type="text"
-              value={chipLabel}
-              onChange={(e) => setChipLabel(normalizeLectureChipText(e.target.value))}
-              maxLength={2}
-              placeholder={normalizeLectureChipText(title) || "딱지"}
-              aria-label="강의 딱지 2글자"
-              className="text-sm outline-none"
-              style={{
-                width: 72,
-                padding: "8px 10px",
-                borderRadius: "var(--tc-radius-sm)",
-                border: "1px solid var(--tc-border-strong)",
-                background: "var(--tc-surface-soft)",
-                color: "var(--tc-text)",
-                textAlign: "center",
-                fontWeight: 700,
-              }}
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <Field label="시작일" value={startDate} onChange={setStartDate} type="date" />
-          <Field label="종료일" value={endDate} onChange={setEndDate} type="date" />
-        </div>
-
-        {/* Color picker */}
-        <div>
-          <label className="text-[11px] font-semibold block mb-1.5" style={{ color: "var(--tc-text-muted)" }}>색상</label>
-          <div className="flex gap-2">
-            {COLORS.map((c) => (
-              <button key={c} type="button" onClick={() => setColor(c)}
-                style={{
-                  width: 28, height: 28, borderRadius: "50%", background: c, border: color === c ? "3px solid var(--tc-text)" : "2px solid transparent",
-                  cursor: "pointer",
-                }} />
-            ))}
-          </div>
-        </div>
-
-        <button onClick={() => mutation.mutate(undefined, {
-          onSuccess: () => { if (!isEdit) onCreated?.(); },
-        })} disabled={!canSubmit}
-          className="w-full text-sm font-bold cursor-pointer mt-2"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
+    <BottomSheet open={open} onClose={() => void requestClose()} closeDisabled={mutation.isPending}
+      title={isEdit ? "강의 편집" : "강의 생성"}
+      footer={<div className={styles.actions}>
+        <Button onClick={() => void requestClose()} disabled={mutation.isPending}>취소</Button>
+        <Button type="submit" form={formId} intent="primary" loading={mutation.isPending} disabled={!ready}>
           {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "생성"}
-        </button>
-
-      </div>
+        </Button>
+      </div>}>
+      <form id={formId} onSubmit={event => {
+        event.preventDefault();
+        if (!ready || submitting.current) return;
+        submitting.current = true; setError(""); mutation.mutate();
+      }}>
+        <fieldset className={styles.fields} disabled={mutation.isPending}>
+          <p className={styles.help}>강의명, 강사, 과목, 수업 시간은 필수입니다.</p>
+          <Field label="강의명 *" required value={form.title} onChange={value => update("title", value)} placeholder="예: 수학 심화반" />
+          <div className={styles.row}>
+            <Field label="강사 *" required value={form.name} onChange={value => update("name", value)} placeholder="담당 강사명" />
+            <Field label="과목 *" required value={form.subject} onChange={value => update("subject", value)} placeholder="예: 수학, 영어" />
+          </div>
+          <Field label="수업 시간 *" required value={form.lectureTime} onChange={value => update("lectureTime", value)} placeholder="예: 월수금 18:00~20:00" />
+          <div className={styles.row}>
+            <Field label="시작일" type="date" value={form.startDate} onChange={value => update("startDate", value)} />
+            <Field label="종료일" type="date" min={form.startDate || undefined} value={form.endDate} onChange={value => update("endDate", value)} />
+          </div>
+          {invalidDates && <p className={styles.error} role="alert">종료일은 시작일과 같거나 이후여야 합니다.</p>}
+          <div className={styles.identity}>
+            <LectureChip lectureName={form.title} color={form.color} chipLabel={chipLabel || "강의"} size={40} />
+            <Field label="강의 딱지 2글자" value={form.chipLabel} maxLength={2}
+              placeholder={normalizeLectureChipText(form.title) || "딱지"}
+              onChange={value => update("chipLabel", normalizeLectureChipText(value))} />
+          </div>
+          <fieldset className={styles.palette}>
+            <legend>색상</legend>
+            <div className={styles.colors}>
+              {COLORS.map(([color, label]) => <button key={color} type="button" aria-label={label} aria-pressed={form.color === color}
+                className={styles.color} onClick={() => update("color", color)}>
+                {/* Palette values are the persisted lecture colors. */}
+                {/* eslint-disable-next-line no-restricted-syntax -- Persisted lecture colors determine each swatch. */}
+                <span style={{ backgroundColor: color }} aria-hidden="true">{form.color === color ? "✓" : ""}</span>
+              </button>)}
+            </div>
+          </fieldset>
+        </fieldset>
+        {error && <p role="alert" className={styles.error}><span>{error}</span><br />입력한 내용은 유지됩니다. 확인 후 다시 저장해 주세요.</p>}
+      </form>
     </BottomSheet>
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = "text" }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+function Field({ label, onChange, ...props }: Omit<InputHTMLAttributes<HTMLInputElement>, "onChange"> & {
+  label: string; onChange: (value: string) => void;
 }) {
-  const inputId = useId();
-  return (
-    <div className="flex-1">
-      <label htmlFor={inputId} className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
-      <input id={inputId} type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full text-sm"
-        style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
-    </div>
-  );
+  const id = useId();
+  return <div className={styles.field}><label htmlFor={id}>{label}</label>
+    <input {...props} id={id} onChange={event => onChange(event.target.value)} /></div>;
 }

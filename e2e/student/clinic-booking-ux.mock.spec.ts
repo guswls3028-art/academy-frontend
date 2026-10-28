@@ -188,6 +188,25 @@ function createState(): MockState {
   };
 }
 
+test("예약 취소 확인창의 취소 버튼은 Enter로도 예약을 유지한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = createState();
+  state.bookings[0] = { ...state.bookings[0], can_self_cancel: true, self_cancel_reason: "직접 취소할 수 있습니다." };
+  await seed(page);
+  await installApi(page, state);
+  await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("tab", { name: "내 일정 1" }).click();
+  await page.getByRole("button", { name: "예약 취소", exact: true }).click();
+  const dialog = page.getByRole("alertdialog", { name: "예약 취소" });
+  await dialog.getByRole("button", { name: "취소", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(dialog).toHaveCount(0);
+  expect(state.cancelledIds).toEqual([]);
+  await page.reload();
+  await page.getByRole("tab", { name: "내 일정 1" }).click();
+  await expect(page.getByRole("button", { name: "예약 취소", exact: true })).toBeVisible();
+});
+
 function createPaginatedState(): MockState {
   const state = createState();
   state.sessions = [

@@ -88,6 +88,53 @@ async function seedLocalAdmin(page: Page): Promise<Array<Record<string, unknown>
 test.describe("강의 생성 반응형 회귀", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
+  test("강사 목록을 불러오는 동안 Enter를 눌러도 취소하지 않는다", async ({ page }) => {
+    const created = await seedLocalAdmin(page);
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    await page.route("**/lectures/lectures/instructor-options/", async route => {
+      await pending;
+      await route.fulfill({ json: [{ name: "관리자", type: "owner" }] });
+    });
+    await page.goto(`${BASE}/workspace/lectures`);
+    await page.getByRole("button", { name: "강의 추가", exact: true }).click();
+    const modal = page.getByRole("dialog", { name: "강의 추가" });
+    try {
+      await expect(modal.getByRole("button", { name: "등록", exact: true })).toBeDisabled();
+      await modal.press("Enter");
+      await expect(modal).toBeVisible();
+      expect(created).toEqual([]);
+    } finally { release(); }
+    await expect(modal).toBeVisible();
+    await expect(modal.getByLabel("강의 이름 (필수)")).toBeVisible();
+  });
+
+  test("달력에서 Escape는 날짜 선택만 닫고 작성 중인 강의를 보존한다", async ({ page }) => {
+    await seedLocalAdmin(page);
+    await page.goto(`${BASE}/workspace/lectures`);
+    await page.getByRole("button", { name: "강의 추가", exact: true }).click();
+    const modal = page.getByRole("dialog", { name: "강의 추가" });
+    await modal.getByLabel("강의 이름 (필수)").fill("날짜 선택 중인 강의");
+    await modal.locator("button.shared-date-picker-trigger").first().click();
+    const calendar = page.getByRole("dialog", { name: "날짜 선택" });
+    await expect(calendar).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(calendar).toHaveCount(0);
+    await expect(modal).toBeVisible();
+    await expect(modal.getByLabel("강의 이름 (필수)")).toHaveValue("날짜 선택 중인 강의");
+    await expect(modal.locator("button.shared-date-picker-trigger").first()).toBeFocused();
+    await modal.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
+    const timePicker = page.getByRole("dialog", { name: "시간 선택" });
+    await expect(timePicker).toBeVisible();
+    await timePicker.getByRole("button", { name: "적용", exact: true }).focus();
+    await page.keyboard.press("Tab");
+    await expect(timePicker.getByRole("button", { name: "오전", exact: true })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(timePicker).toHaveCount(0);
+    await expect(modal.getByRole("button", { name: "시작 시간 선택", exact: true })).toBeFocused();
+    await expect(modal.getByLabel("강의 이름 (필수)")).toHaveValue("날짜 선택 중인 강의");
+  });
+
   test("390px에서 색상·과목·시간 컨트롤이 잘리지 않는다", async ({ page }) => {
     await seedLocalAdmin(page);
     await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });

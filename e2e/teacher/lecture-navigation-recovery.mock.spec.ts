@@ -5,15 +5,16 @@ const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5196";
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "Local synthetic API only");
 test.use({ serviceWorkers: "block" });
 
-async function installScenario(page: Page) {
+async function installScenario(page: Page, { active = true } = {}) {
   await installTenantOneInitScript(page);
   const payload = Buffer.from(JSON.stringify({ exp: 2_000_000_000, user_id: 12, tenant_code: "hakwonplus" })).toString("base64url");
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
   }, `e30.${payload}.signature`);
-  const state = { lectureFailure: false, sessionFailure: false, createFailure: false, listRequests: 0, creates: 0 };
-  const lecture = { id: 71, title: "고등 수학 심화 문제풀이와 개념 복습", name: "김선생", subject: "수학", is_active: true };
+  const state = { lectureFailure: false, sessionFailure: false, createFailure: false, listRequests: 0, creates: 0,
+    createWait: undefined as undefined | (() => Promise<void>), updates: [] as Record<string, unknown>[] };
+  const lecture = { id: 71, title: "고등 수학 심화 문제풀이와 개념 복습", name: "김선생", subject: "수학", lecture_time: "토 10:00", is_active: active };
   const lectures = [lecture, { ...lecture, id: 72, title: "영어 독해", subject: "영어", name: "이선생" }];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -26,6 +27,7 @@ async function installScenario(page: Page) {
     if (path === "/lectures/lectures/") {
       if (request.method() === "POST") {
         state.creates += 1;
+        await state.createWait?.();
         if (state.createFailure) return route.fulfill({ status: 400, json: { detail: "강의를 생성하지 못했습니다." } });
         const created = { ...request.postDataJSON(), id: 73 };
         lectures.push(created);
@@ -34,8 +36,15 @@ async function installScenario(page: Page) {
       state.listRequests += 1;
       return route.fulfill({ json: { count: lectures.length, next: null, results: lectures } });
     }
-    if (path === "/lectures/lectures/71/") return route.fulfill(state.lectureFailure
-      ? { status: 400, json: { detail: "강의 조회 실패" } } : { json: lecture });
+    if (path === "/lectures/lectures/71/") {
+      if (request.method() === "PATCH") {
+        const updated = request.postDataJSON();
+        state.updates.push(updated);
+        Object.assign(lecture, updated);
+      }
+      return route.fulfill(state.lectureFailure
+        ? { status: 400, json: { detail: "강의 조회 실패" } } : { json: lecture });
+    }
     if (path === "/lectures/sessions/") return route.fulfill(state.sessionFailure
       ? { status: 400, json: { detail: "차시 조회 실패" } }
       : { json: { count: 1, results: [{ id: 81, lecture: 71, order: 1, regular_order: 1, title: "1차시", session_type: "REGULAR", date: "2026-10-27" }] } });
@@ -46,6 +55,110 @@ async function installScenario(page: Page) {
 }
 
 for (const width of [390, 1366]) {
+
+  test(`종료 강의를 수정해도 다시 활성화하지 않고 날짜 오류를 안내한다 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const state = await installScenario(page, { active: false });
+    await page.goto(`${BASE}/workspace/mobile/classes/71`);
+    await page.getByRole("button", { name: "강의 메뉴", exact: true }).click();
+    await page.getByRole("button", { name: "편집", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "강의 편집" });
+    await dialog.getByLabel("강의명 *", { exact: true }).fill("종료 이력 보존 강의");
+    await dialog.getByLabel("시작일", { exact: true }).fill("2026-10-28");
+    await dialog.getByLabel("종료일", { exact: true }).fill("2026-10-27");
+    await expect(dialog.getByRole("alert")).toContainText("종료일은 시작일");
+    await expect(dialog.getByRole("button", { name: "수정", exact: true })).toBeDisabled();
+    expect(state.updates).toEqual([]);
+    await dialog.getByLabel("종료일", { exact: true }).fill("2026-10-29");
+    await dialog.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(state.updates).toEqual([expect.objectContaining({ title: "종료 이력 보존 강의", is_active: false, end_date: "2026-10-29" })]);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "종료 이력 보존 강의" })).toBeVisible();
+  });
+
+  test(`강의 입력 중 닫기를 취소하면 내용과 포커스를 유지한다 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 560 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await installScenario(page);
+    await page.goto(`${BASE}/workspace/mobile/classes`);
+    const trigger = page.getByRole("button", { name: "강의 추가", exact: true });
+    await trigger.click();
+    const form = page.getByRole("dialog", { name: "강의 생성" });
+    await form.getByLabel("강의명 *", { exact: true }).fill("작성 중인 수학반");
+    await page.keyboard.press("Escape");
+    const warning = page.getByRole("alertdialog", { name: "작성 중인 내용이 있습니다" });
+    await expect(warning).toBeVisible();
+    await expect(warning.getByRole("button", { name: "계속 작성" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(warning).toHaveCount(0);
+    await expect(form.getByLabel("강의명 *", { exact: true })).toHaveValue("작성 중인 수학반");
+    expect(await page.locator("body").evaluate(body => body.style.overflow)).toBe("hidden");
+    await page.keyboard.press("Escape");
+    await warning.getByRole("button", { name: "내용 버리고 닫기" }).click();
+    await expect(form).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+    expect(await page.locator("body").evaluate(body => body.style.overflow)).not.toBe("hidden");
+  });
+
+  test(`강의 저장 중 닫기와 중복 제출을 막고 완료한 강의를 다시 조회한다 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 560 });
+    const state = await installScenario(page);
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    state.createWait = () => gate;
+    await page.goto(`${BASE}/workspace/mobile/classes`);
+    await page.getByRole("button", { name: "강의 추가", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "강의 생성" });
+    await dialog.getByLabel("강의명 *", { exact: true }).fill("저장 완료 수학반");
+    await dialog.getByLabel("강사 *", { exact: true }).fill("김선생");
+    await dialog.getByLabel("과목 *", { exact: true }).fill("수학");
+    await dialog.getByLabel("수업 시간 *", { exact: true }).fill("토 10:00");
+    await dialog.getByRole("button", { name: "생성", exact: true }).click();
+    try {
+      await expect.poll(() => state.creates).toBe(1);
+      await expect(dialog.getByRole("button", { name: "닫기", exact: true })).toBeDisabled();
+      await page.keyboard.press("Escape");
+      await page.mouse.click(4, 4);
+      await page.keyboard.press("Enter");
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByLabel("강의명 *", { exact: true })).toBeDisabled();
+      expect(state.creates).toBe(1);
+    } finally { release(); }
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /저장 완료 수학반/ })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("button", { name: /저장 완료 수학반/ })).toBeVisible();
+  });
+
+  test(`강의 입력창은 화면에 맞는 폭과 고정 저장 동작을 제공한다 ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 560 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await installScenario(page);
+    await page.goto(`${BASE}/workspace/mobile/classes`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "강의 추가", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "강의 생성" });
+    await expect(dialog).toBeVisible();
+    await page.screenshot({ path: info.outputPath(`lecture-sheet-${width}.png`) });
+    const bounds = await dialog.boundingBox();
+    expect(bounds!.width).toBeLessThanOrEqual(width === 390 ? 390 : 720);
+    const save = dialog.getByRole("button", { name: "생성", exact: true });
+    const saveBounds = await save.boundingBox();
+    expect(saveBounds!.height).toBeGreaterThanOrEqual(44);
+    expect(saveBounds!.y).toBeGreaterThanOrEqual(bounds!.y);
+    expect(saveBounds!.y + saveBounds!.height).toBeLessThanOrEqual(560);
+    if (width > 1000) {
+      // The persistent navigation must sit behind the modal backdrop.
+      const backgroundLink = page.getByRole("button", { name: "학생", exact: true });
+      const covered = await backgroundLink.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        return !element.contains(hit);
+      });
+      expect(covered).toBe(true);
+    }
+  });
+
   test(`새 강의 생성 실패는 필터·입력을 유지하고 성공하면 생성한 강의를 보여준다 ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const state = await installScenario(page);

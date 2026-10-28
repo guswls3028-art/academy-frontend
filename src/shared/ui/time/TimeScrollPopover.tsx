@@ -6,6 +6,7 @@ import ReactDOM from "react-dom";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import { minutesToHHmm } from "./timeFormat";
 import "@/styles/design-system/components/TimeScrollPopover.css";
+import { useDialogSurface } from "@/shared/ui/overlays/useDialogSurface";
 
 const ROW_HEIGHT = 48;
 const VISIBLE_ROWS = 5;
@@ -76,6 +77,7 @@ export function TimeScrollPopover({
   onClose,
 }: TimeScrollPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
+  useDialogSurface(true, popoverRef, onClose);
   const listRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
   const isJumpingRef = useRef(false);
@@ -282,6 +284,8 @@ export function TimeScrollPopover({
   const popoverContent = (
     <div
       ref={popoverRef}
+      tabIndex={-1}
+      data-dialog-popover
       className="time-picker time-picker--portaled time-picker--floating"
       role="dialog"
       aria-label="시간 선택"

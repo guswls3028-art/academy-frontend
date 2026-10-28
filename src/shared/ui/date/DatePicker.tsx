@@ -6,6 +6,7 @@ import ReactDOM from "react-dom";
 import dayjs, { type Dayjs } from "dayjs";
 import { Calendar } from "lucide-react";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
+import { useDialogSurface } from "@/shared/ui/overlays/useDialogSurface";
 import "@/styles/design-system/components/DatePicker.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -54,6 +55,7 @@ export default function DatePicker({
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  useDialogSurface(open, dropdownRef, () => setOpen(false));
 
   const selected = toDayjs(value);
   const today = dayjs();
@@ -86,7 +88,7 @@ export default function DatePicker({
         if (containerRef.current && !containerRef.current.contains(target)) setOpen(false);
       } else {
         if (containerRef.current && !containerRef.current.contains(target)) {
-          const popup = document.querySelector(".shared-date-picker-dropdown--portaled");
+          const popup = dropdownRef.current;
           if (!popup?.contains(target)) setOpen(false);
         }
       }
@@ -190,6 +192,9 @@ export default function DatePicker({
       {/* openBelow: 포털 안 씀 — 트리거 바로 아래 인라인으로 열어서 "섹션 추가" 느낌 제거 */}
       {open && openBelow && (
         <div
+          ref={dropdownRef}
+          tabIndex={-1}
+          data-dialog-popover
           className="shared-date-picker-dropdown shared-date-picker-dropdown--inline-below"
           role="dialog"
           aria-label="날짜 선택"
@@ -201,6 +206,8 @@ export default function DatePicker({
       {open && !openBelow && ReactDOM.createPortal(
         <div
           ref={dropdownRef}
+          tabIndex={-1}
+          data-dialog-popover
           className="shared-date-picker-dropdown shared-date-picker-dropdown--portaled"
           role="dialog"
           aria-label="날짜 선택"

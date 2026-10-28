@@ -167,6 +167,32 @@ test.describe("학생 커뮤니티 durable draft", () => {
   test.skip(!IS_LOCAL_BASE, "학생 커뮤니티 초안 route-mock 검증은 로컬 dev 서버 전용");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
+  test("첨부 이미지 확대는 키보드 포커스를 가두고 닫으면 원래 이미지로 돌려준다", async ({ page }) => {
+    const { posts } = await installStudentApi(page);
+    posts.push({ id: 901, post_type: "qna", title: "이미지 질문", content: "<p>풀이를 확인해 주세요.</p>",
+      created_by: 12, author_role: "student", created_at: "2026-10-28T00:00:00Z", mappings: [],
+      attachments: [{ id: 501, original_name: "풀이.png", content_type: "image/png", size_bytes: 68 }] });
+    await page.route("**/community/posts/901/attachments/501/download/", route => route.fulfill({ json: {
+      url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jz1cAAAAASUVORK5CYII=", original_name: "풀이.png",
+    } }));
+    await page.goto(`${BASE}/student/community`);
+    await page.getByRole("button", { name: "내 질문과 답변", exact: true }).click();
+    await page.getByRole("button", { name: /이미지 질문/ }).click();
+    const preview = page.getByRole("button", { name: "풀이.png 크게 보기", exact: true });
+    await preview.click();
+    const viewer = page.getByRole("dialog", { name: "이미지 크게 보기" });
+    const close = viewer.getByRole("button", { name: "닫기", exact: true });
+    await expect(close).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(close).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(close).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(viewer).toHaveCount(0);
+    await expect(preview).toBeFocused();
+    expect(await page.locator("body").evaluate(body => body.style.overflow)).not.toBe("hidden");
+  });
+
   test("QnA와 상담을 tenant/user/form별로 저장하고 첨부 재선택까지 복구한다", async ({ page }) => {
     await installStudentApi(page);
     await page.addInitScript(({ legacyKey, otherTenantKey, otherUserKey }) => {

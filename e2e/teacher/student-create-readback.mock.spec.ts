@@ -165,7 +165,8 @@ for (const width of [390, 1366]) {
 
 for (const width of [390, 1366]) {
 test(`${width}px 선생님 등록은 학생·학부모 비밀번호와 로그인 ID를 유지한다`, async ({ page }, testInfo) => {
-  await page.setViewportSize({ width, height: 844 });
+  await page.setViewportSize({ width, height: 560 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   let createPayload: Record<string, unknown> | null = null;
   await installTeacherStudentPage(page, (payload) => {
     createPayload = payload;
@@ -176,7 +177,17 @@ test(`${width}px 선생님 등록은 학생·학부모 비밀번호와 로그인
   await page.getByRole("button", { name: "추가", exact: true }).click();
 
   const sheet = page.getByRole("dialog", { name: "학생 추가" });
+  await expect(sheet).toBeVisible();
+  const submitBox = await sheet.getByRole("button", { name: "등록", exact: true }).boundingBox();
+  expect(submitBox).not.toBeNull();
+  expect(submitBox!.y + submitBox!.height).toBeLessThanOrEqual(560);
   await sheet.getByPlaceholder("학생 이름").fill("즉시검수 학생");
+  await page.keyboard.press("Escape");
+  const discard = page.getByRole("alertdialog", { name: "작성 중인 내용이 있습니다" });
+  await expect(discard.getByRole("button", { name: "계속 작성", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(discard).toHaveCount(0);
+  await expect(sheet.getByPlaceholder("학생 이름")).toHaveValue("즉시검수 학생");
   await sheet.getByPlaceholder("010-").nth(0).fill("01080001111");
   await sheet.getByPlaceholder("010-").nth(1).fill("01070001111");
   await sheet.getByRole("button", { name: "등록", exact: true }).click();
