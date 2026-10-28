@@ -56,7 +56,7 @@ async function installScenario(page: Page, { active = true } = {}) {
 
 for (const width of [390, 1366]) {
 
-  test(`종료 강의를 수정해도 다시 활성화하지 않고 날짜 오류를 안내한다 ${width}px`, async ({ page }) => {
+  test(`종료 강의를 수정해도 다시 활성화하지 않고 날짜 오류를 안내한다 ${width}px`, { tag: "@dialog-journey" }, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     const state = await installScenario(page, { active: false });
     await page.goto(`${BASE}/workspace/mobile/classes/71`);
@@ -77,7 +77,7 @@ for (const width of [390, 1366]) {
     await expect(page.getByRole("heading", { name: "종료 이력 보존 강의" })).toBeVisible();
   });
 
-  test(`강의 입력 중 닫기를 취소하면 내용과 포커스를 유지한다 ${width}px`, async ({ page }) => {
+  test(`강의 입력 중 닫기를 취소하면 내용과 포커스를 유지한다 ${width}px`, { tag: "@dialog-journey" }, async ({ page }) => {
     await page.setViewportSize({ width, height: 560 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await installScenario(page);
@@ -101,7 +101,7 @@ for (const width of [390, 1366]) {
     expect(await page.locator("body").evaluate(body => body.style.overflow)).not.toBe("hidden");
   });
 
-  test(`강의 저장 중 닫기와 중복 제출을 막고 완료한 강의를 다시 조회한다 ${width}px`, async ({ page }) => {
+  test(`강의 저장 중 닫기와 중복 제출을 막고 완료한 강의를 다시 조회한다 ${width}px`, { tag: "@dialog-journey" }, async ({ page }) => {
     await page.setViewportSize({ width, height: 560 });
     const state = await installScenario(page);
     let release!: () => void;
@@ -131,7 +131,7 @@ for (const width of [390, 1366]) {
     await expect(page.getByRole("button", { name: /저장 완료 수학반/ })).toBeVisible();
   });
 
-  test(`강의 입력창은 화면에 맞는 폭과 고정 저장 동작을 제공한다 ${width}px`, async ({ page }, info) => {
+  test(`강의 입력창은 화면에 맞는 폭과 고정 저장 동작을 제공한다 ${width}px`, { tag: "@dialog-journey" }, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 560 });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await installScenario(page);

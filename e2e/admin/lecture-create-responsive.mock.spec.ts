@@ -88,7 +88,7 @@ async function seedLocalAdmin(page: Page): Promise<Array<Record<string, unknown>
 test.describe("강의 생성 반응형 회귀", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("강사 목록을 불러오는 동안 Enter를 눌러도 취소하지 않는다", async ({ page }) => {
+  test("강사 목록을 불러오는 동안 Enter를 눌러도 취소하지 않는다", { tag: "@dialog-journey" }, async ({ page }) => {
     const created = await seedLocalAdmin(page);
     let release!: () => void;
     const pending = new Promise<void>(resolve => { release = resolve; });
@@ -109,7 +109,7 @@ test.describe("강의 생성 반응형 회귀", () => {
     await expect(modal.getByLabel("강의 이름 (필수)")).toBeVisible();
   });
 
-  test("달력에서 Escape는 날짜 선택만 닫고 작성 중인 강의를 보존한다", async ({ page }) => {
+  test("달력에서 Escape는 날짜 선택만 닫고 작성 중인 강의를 보존한다", { tag: "@dialog-journey" }, async ({ page }) => {
     await seedLocalAdmin(page);
     await page.goto(`${BASE}/workspace/lectures`);
     await page.getByRole("button", { name: "강의 추가", exact: true }).click();

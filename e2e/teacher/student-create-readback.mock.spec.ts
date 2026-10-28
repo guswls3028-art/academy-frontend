@@ -164,7 +164,7 @@ for (const width of [390, 1366]) {
 }
 
 for (const width of [390, 1366]) {
-test(`${width}px 선생님 등록은 학생·학부모 비밀번호와 로그인 ID를 유지한다`, async ({ page }, testInfo) => {
+test(`${width}px 선생님 등록은 학생·학부모 비밀번호와 로그인 ID를 유지한다`, { tag: "@dialog-journey" }, async ({ page }, testInfo) => {
   await page.setViewportSize({ width, height: 560 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   let createPayload: Record<string, unknown> | null = null;

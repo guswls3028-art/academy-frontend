@@ -188,7 +188,7 @@ function createState(): MockState {
   };
 }
 
-test("예약 취소 확인창의 취소 버튼은 Enter로도 예약을 유지한다", async ({ page }) => {
+test("예약 취소 확인창의 취소 버튼은 Enter로도 예약을 유지한다", { tag: "@dialog-journey" }, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const state = createState();
   state.bookings[0] = { ...state.bookings[0], can_self_cancel: true, self_cancel_reason: "직접 취소할 수 있습니다." };

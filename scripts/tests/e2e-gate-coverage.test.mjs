@@ -182,7 +182,7 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   assert.doesNotMatch(prGateConfig, /fullyParallel:\s*true/);
   assert.match(prGateConfig, /name: "pr-route-mocks",[\s\S]*?screenshot: "only-on-failure",[\s\S]*?trace: "retain-on-failure",[\s\S]*?video: "off"/);
   assert.equal((prGateConfig.match(/video: "off"/g) || []).length, 1);
-  for (const project of ["pr-route-mocks", "pr-iphone-webkit", "pr-homework-webkit"]) {
+  for (const project of ["pr-route-mocks", "pr-iphone-webkit", "pr-homework-webkit", "pr-modal-webkit"]) {
     const use = prGateConfig.match(new RegExp(`name: "${project}",[\\s\\S]*?use: \\{([^}]+)\\}`))?.[1];
     assert.ok(use, `${project} must declare its own browser options`);
     assert.match(use, /serviceWorkers: "block"/, `${project} must keep route interception authoritative`);

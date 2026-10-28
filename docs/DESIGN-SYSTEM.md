@@ -134,6 +134,8 @@ PC/390px 선택·저장·재열기·다운로드를 함께 검증한다.
 
 `shared/ui/overlays/useDialogSurface`는 교사 시트, 학생 커뮤니티 이미지 확대,
 공용 날짜·시간 선택창의 초기 포커스·Tab 순환·Escape·호출 위치 복원을 소유한다.
+마우스로 누른 버튼에 자동 포커스를 주지 않는 Safari에서도 최근 호출 버튼을
+보존해 같은 위치로 복원하며, 키보드 호출은 기존 활성 요소를 기준으로 한다.
 열린 창 스택의 최상단만 키보드에 반응한다. 날짜·시간 팝업이 열린 동안
 `AdminModal`은 단축키를 넘겨서 팝업만 닫히고 부모 폼의 입력은 유지되게 한다.
 `bodyScrollLock`은 이 창들과 `ConfirmDialog`의 스크롤 잠금을 소유자별로 관리한다.
@@ -151,6 +153,10 @@ Enter 자동 실행은 해당 모달 footer의 명시적 primary 버튼만 대�
 메뉴, 권한, 저장 API와 데이터에는 마이그레이션이 없다.
 
 ## 회귀 검증
+
+`@dialog-journey` 14건은 Chromium route-mock gate와 필수 `pr-modal-webkit`
+프로젝트에서 함께 실행한다. Safari의 마우스 호출·닫기 후 포커스 복원을 포함하며,
+합성 API 검사는 동일 산출물의 격리 개발 실사용·cleanup zero를 대체하지 않는다.
 
 - `lecture-navigation-recovery.mock.spec.ts`, `student-create-readback.mock.spec.ts`:
   390/1366px와 짧은 화면의 고정 저장 영역, 작성 유지, 처리 중 이탈·중복 방지,

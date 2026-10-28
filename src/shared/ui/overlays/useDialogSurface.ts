@@ -3,6 +3,30 @@ import { lockBodyScroll } from "./bodyScrollLock";
 
 const FOCUSABLE = "button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
 const openDialogStack: HTMLElement[] = [];
+let triggerObservers = 0;
+let pointerTrigger: { element: HTMLElement; time: number } | null = null;
+
+function recordPointerTrigger(event: PointerEvent) {
+  const element = event.target instanceof Element
+    ? event.target.closest<HTMLElement>('button, a[href], [role="button"], [aria-haspopup]')
+    : null;
+  pointerTrigger = element ? { element, time: performance.now() } : null;
+}
+
+function clearPointerTrigger() { pointerTrigger = null; }
+
+function observeDialogTriggers() {
+  if (triggerObservers++ === 0) {
+    document.addEventListener("pointerdown", recordPointerTrigger, true);
+    document.addEventListener("keydown", clearPointerTrigger, true);
+  }
+  return () => {
+    if (--triggerObservers !== 0) return;
+    document.removeEventListener("pointerdown", recordPointerTrigger, true);
+    document.removeEventListener("keydown", clearPointerTrigger, true);
+    clearPointerTrigger();
+  };
+}
 
 function isVisibleFocusable(element: HTMLElement) {
   if (element.closest('[hidden], [aria-hidden="true"], [inert]')) return false;
@@ -20,13 +44,18 @@ export function useDialogSurface(open: boolean, dialogRef: RefObject<HTMLElement
   const triggerRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  useEffect(observeDialogTriggers, []);
 
   useEffect(() => {
     if (!open) return;
     const sheet = dialogRef.current;
     if (!sheet) return;
     openDialogStack.push(sheet);
-    triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // Safari does not focus pointer-activated buttons. Preserve that trigger
+    // without changing the browser's normal pointer/focus behavior elsewhere.
+    triggerRef.current = pointerTrigger?.element.isConnected && performance.now() - pointerTrigger.time < 1000
+      ? pointerTrigger.element
+      : document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const unlockBodyScroll = lockBodyScroll();
     const focusFrame = requestAnimationFrame(() => {
       // A keyboard user may have focused a control before this frame runs.

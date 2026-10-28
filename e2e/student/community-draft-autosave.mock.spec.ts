@@ -167,7 +167,7 @@ test.describe("학생 커뮤니티 durable draft", () => {
   test.skip(!IS_LOCAL_BASE, "학생 커뮤니티 초안 route-mock 검증은 로컬 dev 서버 전용");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
-  test("첨부 이미지 확대는 키보드 포커스를 가두고 닫으면 원래 이미지로 돌려준다", async ({ page }) => {
+  test("첨부 이미지 확대는 키보드 포커스를 가두고 닫으면 원래 이미지로 돌려준다", { tag: "@dialog-journey" }, async ({ page }) => {
     const { posts } = await installStudentApi(page);
     posts.push({ id: 901, post_type: "qna", title: "이미지 질문", content: "<p>풀이를 확인해 주세요.</p>",
       created_by: 12, author_role: "student", created_at: "2026-10-28T00:00:00Z", mappings: [],
