@@ -4292,9 +4292,9 @@ export interface paths {
             cookie?: never;
         };
         get: operations["homework_policies_retrieve"];
-        put: operations["homework_policies_update"];
+        put?: never;
         post?: never;
-        delete: operations["homework_policies_destroy"];
+        delete?: never;
         options?: never;
         head?: never;
         patch: operations["homework_policies_partial_update"];
@@ -4310,8 +4310,7 @@ export interface paths {
         /** @description HomeworkScore 관리 ViewSet */
         get: operations["homework_scores_list"];
         put?: never;
-        /** @description HomeworkScore 관리 ViewSet */
-        post: operations["homework_scores_create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4327,11 +4326,9 @@ export interface paths {
         };
         /** @description HomeworkScore 관리 ViewSet */
         get: operations["homework_scores_retrieve"];
-        /** @description HomeworkScore 관리 ViewSet */
-        put: operations["homework_scores_update"];
+        put?: never;
         post?: never;
-        /** @description HomeworkScore 관리 ViewSet */
-        delete: operations["homework_scores_destroy"];
+        delete?: never;
         options?: never;
         head?: never;
         /** @description HomeworkScore 관리 ViewSet */
@@ -4396,7 +4393,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["homeworks_retrieve"];
-        put: operations["homeworks_update"];
+        put?: never;
         post?: never;
         /** @description Remove a homework from the live session without deleting score/submission history. */
         delete: operations["homeworks_destroy"];
@@ -7655,7 +7652,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description POST: tenant+category당 사용자 기본 문구 하나를 토글한다. */
+        /** @description POST: tenant+category 기본을 명시 지정한다. 상태 누락 시 기존 토글을 유지한다. */
         post: operations["messaging_templates_set_default_create"];
         delete?: never;
         options?: never;
@@ -14370,14 +14367,6 @@ export interface components {
             readonly updated_at: string;
             readonly updated_by_user_id: number;
         };
-        HomeworkScoreRequest: {
-            /** Format: double */
-            max_score?: number | null;
-            /** Format: double */
-            score?: number | null;
-            status?: string | null;
-            teacher_approved?: boolean;
-        };
         /**
          * @description * `template` - 템플릿
          *     * `regular` - 일반
@@ -14442,6 +14431,17 @@ export interface components {
          * @enum {string}
          */
         InactiveVideoEntitlementSource: "STAFF_AUTHORIZATION";
+        InitialAccountNoticeStateSchema: {
+            message: string;
+            status: components["schemas"]["InitialAccountNoticeStateSchemaStatusEnum"];
+        };
+        /**
+         * @description * `not_pending` - not_pending
+         *     * `awaiting_enrollment` - awaiting_enrollment
+         *     * `action_required` - action_required
+         * @enum {string}
+         */
+        InitialAccountNoticeStateSchemaStatusEnum: "not_pending" | "awaiting_enrollment" | "action_required";
         /**
          * @description * `30` - 30
          *     * `60` - 60
@@ -15013,6 +15013,74 @@ export interface components {
          * @enum {string}
          */
         MessageModeEnum: "alimtalk";
+        MessageTemplate: {
+            readonly alimtalk_envelope_type: string;
+            readonly alimtalk_readiness: string;
+            body: string;
+            readonly can_delete: boolean;
+            category?: components["schemas"]["MessageTemplateCategoryEnum"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly delete_block_reason: string;
+            /** @description 본문에 #{공지내용} 또는 #{내용} 변수가 있는지 — 자유양식 발송 가능 여부 */
+            readonly has_content_var: boolean;
+            readonly id: number;
+            /** @description 시스템 기본 양식 여부. True이면 사용자 수정/삭제 불가. */
+            readonly is_system: boolean;
+            /** @description 사용자가 해당 카테고리에서 기본 양식으로 지정한 템플릿. tenant+category당 1개만. */
+            is_user_default?: boolean;
+            /** @description 템플릿 이름 */
+            name: string;
+            readonly solapi_status: components["schemas"]["SolapiStatusEnum"] | components["schemas"]["BlankEnum"];
+            readonly solapi_template_id: string;
+            /** @description 제목(선택) */
+            subject?: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        /**
+         * @description * `default` - 기본
+         *     * `signup` - 가입/등록
+         *     * `attendance` - 출결
+         *     * `lecture` - 강의
+         *     * `exam` - 시험
+         *     * `assignment` - 과제
+         *     * `grades` - 성적
+         *     * `clinic` - 클리닉
+         *     * `payment` - 결제
+         *     * `notice` - 운영공지
+         *     * `community` - 커뮤니티
+         *     * `staff` - 직원
+         *     * `student` - 학생
+         * @enum {string}
+         */
+        MessageTemplateCategoryEnum: "default" | "signup" | "attendance" | "lecture" | "exam" | "assignment" | "grades" | "clinic" | "payment" | "notice" | "community" | "staff" | "student";
+        MessageTemplateConflictResponse: {
+            code: string;
+            current_template: components["schemas"]["MessageTemplate"];
+            detail: string;
+        };
+        MessageTemplateCreateConflictResponse: {
+            code: string;
+            detail: string;
+        };
+        MessageTemplateDefaultRequestRequest: {
+            is_user_default?: boolean;
+        };
+        MessageTemplateRequest: {
+            body: string;
+            category?: components["schemas"]["MessageTemplateCategoryEnum"];
+            /** Format: uuid */
+            client_request_id?: string;
+            /** Format: date-time */
+            expected_updated_at?: string;
+            /** @description 사용자가 해당 카테고리에서 기본 양식으로 지정한 템플릿. tenant+category당 1개만. */
+            is_user_default?: boolean;
+            /** @description 템플릿 이름 */
+            name: string;
+            /** @description 제목(선택) */
+            subject?: string;
+        };
         /** @description GET/PATCH 응답: 테넌트 메시징 정보 */
         MessagingInfo: {
             readonly alimtalk_available: boolean;
@@ -16487,6 +16555,20 @@ export interface components {
             session_type: components["schemas"]["SessionTypeEnum"];
             title?: string;
         };
+        PatchedMessageTemplateRequest: {
+            body?: string;
+            category?: components["schemas"]["MessageTemplateCategoryEnum"];
+            /** Format: uuid */
+            client_request_id?: string;
+            /** Format: date-time */
+            expected_updated_at?: string;
+            /** @description 사용자가 해당 카테고리에서 기본 양식으로 지정한 템플릿. tenant+category당 1개만. */
+            is_user_default?: boolean;
+            /** @description 템플릿 이름 */
+            name?: string;
+            /** @description 제목(선택) */
+            subject?: string;
+        };
         /** @description 학원 대표/관리자가 직접 제어하는 알림톡 전체 사용 설정. */
         PatchedMessagingActivationRequest: {
             tenant_messaging_enabled?: boolean;
@@ -17550,7 +17632,12 @@ export interface components {
             /** Format: uri */
             thumbnail_url: string;
             title: string;
+            /** Format: date-time */
+            youtube_published_at: string | null;
+            /** Format: date-time */
+            youtube_statistics_checked_at: string | null;
             youtube_video_id: string;
+            youtube_view_count: number | null;
         };
         /**
          * @description * `interview` - interview
@@ -18455,6 +18542,14 @@ export interface components {
             total_questions?: number;
         };
         /**
+         * @description * `` - 미신청
+         *     * `PENDING` - 검수 대기
+         *     * `APPROVED` - 승인
+         *     * `REJECTED` - 반려
+         * @enum {string}
+         */
+        SolapiStatusEnum: "PENDING" | "APPROVED" | "REJECTED";
+        /**
          * @description * `omr_scan` - OMR Scan
          *     * `omr_manual` - OMR Manual Input
          *     * `online` - Online
@@ -18908,7 +19003,14 @@ export interface components {
             failure_reason: string;
             id: number;
             notification_type: string;
+            /** Format: date-time */
+            provider_delivery_checked_at: string | null;
+            provider_delivery_failure_reason: string;
+            provider_delivery_status: string;
+            /** Format: date-time */
+            provider_delivery_updated_at: string | null;
             provider_message_id: string;
+            provider_status_code: string;
             recipient_summary: string;
             /** Format: date-time */
             sent_at: string | null;
@@ -18918,6 +19020,7 @@ export interface components {
             target_name: string;
         };
         StudentAccountNotificationListSchema: {
+            initial_notice: components["schemas"]["InitialAccountNoticeStateSchema"];
             results: components["schemas"]["StudentAccountNotificationItemSchema"][];
         };
         StudentActivityAcceptedSchema: {
@@ -19715,9 +19818,10 @@ export interface components {
         /**
          * @description * `student` - student
          *     * `parent` - parent
+         *     * `initial` - initial
          * @enum {string}
          */
-        TargetEnum: "student" | "parent";
+        TargetEnum: "student" | "parent" | "initial";
         /**
          * @description * `1` - 1학년
          *     * `2` - 2학년
@@ -26921,55 +27025,6 @@ export interface operations {
             };
         };
     };
-    homework_policies_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description homework policy을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["HomeworkPolicyRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["HomeworkPolicyRequest"];
-                "multipart/form-data": components["schemas"]["HomeworkPolicyRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HomeworkPolicy"];
-                };
-            };
-        };
-    };
-    homework_policies_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description homework policy을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     homework_policies_partial_update: {
         parameters: {
             query?: never;
@@ -27026,31 +27081,6 @@ export interface operations {
             };
         };
     };
-    homework_scores_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["HomeworkScoreRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["HomeworkScoreRequest"];
-                "multipart/form-data": components["schemas"]["HomeworkScoreRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HomeworkScore"];
-                };
-            };
-        };
-    };
     homework_scores_retrieve: {
         parameters: {
             query?: never;
@@ -27069,53 +27099,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HomeworkScore"];
                 };
-            };
-        };
-    };
-    homework_scores_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["HomeworkScoreRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["HomeworkScoreRequest"];
-                "multipart/form-data": components["schemas"]["HomeworkScoreRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HomeworkScore"];
-                };
-            };
-        };
-    };
-    homework_scores_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -27253,34 +27236,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Homework"];
-                };
-            };
-        };
-    };
-    homeworks_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description homework을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HomeworkRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["HomeworkRequest"];
-                "multipart/form-data": components["schemas"]["HomeworkRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {
@@ -28988,7 +28943,19 @@ export interface operations {
     public_videos_list: {
         parameters: {
             query?: {
+                /**
+                 * @description * `landscape` - landscape
+                 *     * `vertical` - vertical
+                 */
+                kind?: "landscape" | "vertical";
                 page?: number;
+                q?: string;
+                /**
+                 * @description * `latest` - latest
+                 *     * `popular` - popular
+                 *     * `oldest` - oldest
+                 */
+                sort?: "latest" | "popular" | "oldest";
             };
             header?: never;
             path?: never;
@@ -32492,14 +32459,48 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageTemplateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["MessageTemplateRequest"];
+                "multipart/form-data": components["schemas"]["MessageTemplateRequest"];
+            };
+        };
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": components["schemas"]["MessageTemplate"] & {
+                        readonly creation_content_changed: boolean;
+                    };
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageTemplate"] & {
+                        readonly creation_content_changed: boolean;
+                    };
+                };
+            };
+            /** @description No response body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageTemplateCreateConflictResponse"];
+                };
             };
         };
     };
@@ -32552,14 +32553,50 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedMessageTemplateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedMessageTemplateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedMessageTemplateRequest"];
+            };
+        };
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": components["schemas"]["MessageTemplate"];
+                };
+            };
+            /** @description No response body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
+            };
+            /** @description No response body */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No response body */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageTemplateConflictResponse"];
+                };
             };
         };
     };
@@ -32592,10 +32629,31 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MessageTemplateDefaultRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["MessageTemplateDefaultRequestRequest"];
+                "multipart/form-data": components["schemas"]["MessageTemplateDefaultRequestRequest"];
+            };
+        };
         responses: {
-            /** @description No response body */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageTemplate"];
+                };
+            };
+            /** @description No response body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No response body */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

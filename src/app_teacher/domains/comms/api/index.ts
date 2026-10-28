@@ -246,6 +246,7 @@ export interface MessageLogItem {
   provider_evidence?: boolean;
   provider_message_reference?: string;
   provider_delivery_status?: "unavailable" | "provider_accepted" | "delivered" | "failed";
+  provider_status_code?: string;
   provider_delivery_checked_at?: string | null;
   provider_delivery_failure_reason?: string;
   amount_deducted: string;

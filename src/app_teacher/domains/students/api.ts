@@ -28,18 +28,6 @@ export type TeacherStudentsResponse = {
 
 export type TeacherStudentExamResult = StudentExamGrade;
 
-export type StudentAccountNotificationLog = {
-  id: number;
-  sent_at: string | null;
-  success?: boolean;
-  status: string;
-  notification_type: string;
-  recipient_summary: string;
-  failure_reason: string;
-  target_id: string;
-  target_name: string;
-};
-
 export type SendPasswordResetParams = {
   target: "student" | "parent";
   student_name: string;
@@ -91,14 +79,6 @@ export async function fetchStudentCustomFields() {
 /** 학생 시험·과제 성적과 전체 기간 회차별 추이 */
 export async function fetchStudentGrades(studentId: number): Promise<StudentGradesResponse> {
   return fetchAdminStudentGrades(studentId);
-}
-
-/** 학생 계정 알림톡 최근 이력 */
-export async function fetchStudentAccountNotifications(studentId: number): Promise<StudentAccountNotificationLog[]> {
-  const res = await api.get(`/students/${studentId}/account-notifications/`, {
-    params: { limit: 5 },
-  });
-  return Array.isArray(res.data?.results) ? res.data.results : [];
 }
 
 export type StudentQuestionRow = {

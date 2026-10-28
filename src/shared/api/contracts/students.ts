@@ -125,6 +125,23 @@ export interface ClientAccountNotificationLog {
 type AccountGuidanceRequest = components["schemas"]["StudentAccountGuidanceRequestSchemaRequest"];
 export type AccountGuidanceTarget = AccountGuidanceRequest["target"];
 
+export interface InitialAccountNotice {
+  status: "awaiting_enrollment" | "action_required" | "not_pending";
+  message: string;
+}
+
+export interface AccountNotificationDelivery {
+  provider_delivery_status: "unavailable" | "provider_accepted" | "delivered" | "failed";
+  provider_status_code: string;
+  provider_delivery_failure_reason: string;
+  provider_delivery_checked_at: string | null;
+}
+
+export async function verifyAccountNotificationDelivery(logId: number): Promise<AccountNotificationDelivery> {
+  const res = await api.get(`/messaging/log/${logId}/`, { params: { verify_provider: true } });
+  return res.data;
+}
+
 export interface StudentTag {
   id: number;
   name: string;
@@ -469,11 +486,12 @@ function mapAccountNotificationLog(raw: unknown): ClientAccountNotificationLog {
 export async function fetchStudentAccountNotifications(
   studentId: number,
   limit = 5,
-): Promise<ClientAccountNotificationLog[]> {
+): Promise<{ results: ClientAccountNotificationLog[]; initialNotice: InitialAccountNotice | null }> {
   const res = await api.get(`/students/${studentId}/account-notifications/`, {
     params: { limit },
   });
-  return asList(res.data).map(mapAccountNotificationLog);
+  if (!Array.isArray(res.data?.results)) throw new Error("계정 안내 이력 응답을 확인하지 못했습니다.");
+  return { results: res.data.results.map(mapAccountNotificationLog), initialNotice: res.data.initial_notice ?? null };
 }
 
 /** 비밀번호를 변경하지 않고 학생/학부모 아이디 안내 알림톡 발송 */

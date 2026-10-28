@@ -54,7 +54,7 @@ export default function AccountGuidanceModal({
           failures.push(`${current === "student" ? "학생" : "학부모"}: ${extractApiError(error, "발송 실패")}`);
         }
       }
-      if (sent > 0) feedback.success(`로그인 정보 안내 알림톡 ${sent}건을 발송했습니다.`);
+      if (sent > 0) feedback.success(`로그인 정보 안내 알림톡 ${sent}건의 발송을 요청했습니다. 최종 전달 결과는 계정 알림톡 이력에서 확인해 주세요.`);
       if (failures.length) feedback.error(failures.join(" · "));
       if (sent > 0) onSuccess();
       if (sent > 0 && failures.length === 0) onClose();

@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState , ICON } from "@/shared/ui/ds";
+import { EmptyState, ICON, Button } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -15,8 +15,8 @@ import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/B
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { fetchStudentQuestionPage, fetchStudentClinicPage, type StudentQuestionRow, type StudentClinicRow } from "../api";
-import { fetchStudent, fetchStudentAccountNotifications, fetchStudentCustomFields, fetchStudentGrades, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset, sendStudentAccountGuidance } from "../api";
-import type { StudentAccountNotificationLog, TeacherStudentExamResult } from "../api";
+import { fetchStudent, fetchStudentCustomFields, fetchStudentGrades, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset, sendStudentAccountGuidance } from "../api";
+import type { TeacherStudentExamResult } from "../api";
 import type { StudentExamTrendPoint, StudentHomeworkGrade } from "@/shared/api/contracts/studentGrades";
 import { teacherStudentsQueryKeys } from "../queryKeys";
 import {
@@ -34,6 +34,7 @@ import { MonitorSmartphone } from "lucide-react";
 import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
 import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 import styles from "./StudentDetailPage.module.css";
+import AccountNotificationHistory from "@/shared/product/students/AccountNotificationHistory";
 
 const STUDENT_TABS = [
   { key: "enrollments", label: "수강" }, { key: "exams", label: "시험" },
@@ -81,12 +82,6 @@ export default function StudentDetailPage() {
     queryFn: () => fetchStudentGrades(sid),
     enabled: validStudentId,
     refetchOnMount: "always",
-  });
-
-  const accountQuery = useQuery({
-    queryKey: teacherStudentsQueryKeys.accountNotifications(sid),
-    queryFn: () => fetchStudentAccountNotifications(sid),
-    enabled: validStudentId && Boolean(student) && tab === "info",
   });
 
   const clinic = useInfiniteQuery({
@@ -280,15 +275,17 @@ export default function StudentDetailPage() {
         </div>}
       </Card>
 
-      <AccountNotificationCard
-        items={accountQuery.data ?? []}
-        loading={accountQuery.isLoading}
-        failed={accountQuery.isError}
-        retrying={accountQuery.isFetching}
-        onRetry={() => void accountQuery.refetch()}
-        onGuide={() => setAccountGuideOpen(true)}
-        onReset={() => setPwResetOpen(true)}
-      />
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <h3 className="text-sm font-bold">계정 알림톡</h3>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setAccountGuideOpen(true)}>로그인 정보 안내</Button>
+            <Button intent="secondary" size="sm" onClick={() => setPwResetOpen(true)}>비밀번호 초기화</Button>
+          </div>
+        </div>
+        <p className="text-xs">로그인 정보 안내는 현재 비밀번호와 로그인 상태를 변경하지 않습니다.</p>
+        {tab === "info" && <AccountNotificationHistory key={sid} studentId={sid} queryKey={teacherStudentsQueryKeys.accountNotifications(sid)} />}
+      </Card>
 
       {/* Memo — editable */}
       <MemoSection key={sid} studentId={sid} initialMemo={student.memo ?? ""} />
@@ -637,102 +634,6 @@ function InfoRow({ label, value, href }: { label: string; value: string; href?: 
   );
 }
 
-function accountNotificationLabel(type: string): string {
-  const labels: Record<string, string> = {
-    registration_approved_student: "학생 로그인 정보 안내",
-    registration_approved_parent: "학부모 로그인 정보 안내",
-    password_reset_student: "학생 임시 비밀번호",
-    password_reset_parent: "학부모 임시 비밀번호",
-    "account.username_recovery": "로그인 정보 안내",
-    "account.password_recovery": "임시 비밀번호",
-    "account.password_reset": "임시 비밀번호",
-  };
-  return labels[type] ?? (type || "계정 알림");
-}
-
-function isAccountNotificationSent(item: StudentAccountNotificationLog): boolean {
-  const status = String(item.status || "").toLowerCase();
-  return item.success === true || ["sent", "success", "delivered", "completed"].includes(status);
-}
-
-function AccountNotificationCard({ items, onGuide, onReset, loading, failed, retrying, onRetry }: {
-  items: StudentAccountNotificationLog[];
-  onGuide: () => void;
-  onReset: () => void;
-  loading: boolean;
-  failed: boolean;
-  retrying: boolean;
-  onRetry: () => void;
-}) {
-  return (
-    <Card>
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: "var(--tc-text)" }}>
-          <MessageSquare size={ICON.sm} /> 계정 알림톡
-        </h3>
-        <div className="flex flex-wrap justify-end gap-1.5">
-          <button
-            type="button"
-            onClick={onGuide}
-            className="text-[11px] font-bold"
-            style={{ minHeight: 30, padding: "5px 9px", borderRadius: "var(--tc-radius-sm)", border: 0, background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", cursor: "pointer" }}
-          >
-            로그인 정보 안내
-          </button>
-          <button
-            type="button"
-            onClick={onReset}
-            className="text-[11px] font-semibold"
-            style={{ minHeight: 30, padding: "5px 9px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)", cursor: "pointer" }}
-          >
-            비밀번호 초기화
-          </button>
-        </div>
-      </div>
-      <p className="text-[11px] mt-0 mb-2" style={{ color: "var(--tc-text-muted)" }}>
-        로그인 정보 안내는 현재 비밀번호와 로그인 상태를 변경하지 않습니다.
-      </p>
-      {loading ? <p role="status">계정 안내 이력을 불러오는 중…</p> : failed ? (
-        <div role="alert" className={styles.inlineError}>계정 안내 이력을 불러오지 못했습니다.
-          <button type="button" disabled={retrying} onClick={onRetry}>다시 시도</button>
-        </div>
-      ) : items.length === 0 ? (
-        <p className="text-sm m-0" style={{ color: "var(--tc-text-muted)" }}>
-          최근 아이디/비밀번호 알림톡 이력이 없습니다.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {items.map((item) => {
-            const sentAt = item.sent_at ? new Date(item.sent_at).toLocaleString("ko-KR", {
-              month: "2-digit",
-              day: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-            }) : "";
-            const ok = isAccountNotificationSent(item);
-            return (
-              <div key={item.id} className="flex items-start justify-between gap-2" style={{ borderTop: "1px solid var(--tc-border-subtle)", paddingTop: 8 }}>
-                <div className="min-w-0">
-                  <div className="text-[13px] font-semibold truncate" style={{ color: "var(--tc-text)" }}>
-                    {accountNotificationLabel(item.notification_type)}
-                  </div>
-                  <div className="text-[11px] truncate" style={{ color: "var(--tc-text-muted)" }}>
-                    {sentAt}{item.recipient_summary ? ` · ${item.recipient_summary}` : ""}
-                  </div>
-                  {!ok && item.failure_reason && (
-                    <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-danger)" }}>{item.failure_reason}</div>
-                  )}
-                </div>
-                <Badge tone={ok ? "success" : "danger"}>{ok ? "발송완료" : "실패"}</Badge>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </Card>
-  );
-}
-
 type AccountGuideTarget = "student" | "parent" | "both";
 
 function AccountGuidanceSheet({ open, onClose, student }: {
@@ -769,7 +670,7 @@ function AccountGuidanceSheet({ open, onClose, student }: {
         }
       }
       if (sent > 0) {
-        teacherToast.success(`로그인 정보 안내 알림톡 ${sent}건을 발송했습니다.${failures.length ? ` 실패 ${failures.length}건` : ""}`);
+        teacherToast.success(`로그인 정보 안내 알림톡 ${sent}건의 발송을 요청했습니다. 최종 전달 결과는 내역에서 확인해 주세요.${failures.length ? ` 실패 ${failures.length}건` : ""}`);
         qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.accountNotifications(student.id) });
       }
       if (failures.length) teacherToast.error(failures.join(" · "));
