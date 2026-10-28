@@ -6,7 +6,7 @@
 //   role=teacher/staff 는 수신자 이름·메시지 본문을 마스킹.
 //   role=owner/admin 만 풀 정보 노출. 학원장 발신 메시지 본문에 학생 로그인
 //   정보(아이디/비밀번호)가 포함될 수 있으므로 staff 권한자에게는 가림.
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, EmptyState, ICON, type BadgeTone } from "@/shared/ui/ds";
 import { ChevronLeft } from "@teacher/shared/ui/Icons";
@@ -49,18 +49,28 @@ const UNKNOWN_STATE = { label: "상태 확인 필요", tone: "warning" as const,
 
 export default function MessageLogPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedPage = Number(searchParams.get("page"));
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const { user } = useAuth();
   const role = (user?.tenantRole ?? "").toLowerCase();
   const isPrivileged = role === "owner" || role === "admin";
 
   const logQ = useQuery({
-    queryKey: teacherCommsQueryKeys.messageLog,
-    queryFn: () => fetchMessageLog(1, 50),
+    queryKey: teacherCommsQueryKeys.messageLogPage(page),
+    queryFn: () => fetchMessageLog(page, 50),
   });
   const data = logQ.data;
   const isLoading = logQ.isLoading;
 
   const items = data?.results ?? [];
+  const totalPages = Math.max(1, Math.ceil((data?.count ?? 0) / 50));
+  const goToPage = (nextPage: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextPage === 1) next.delete("page");
+    else next.set("page", String(nextPage));
+    setSearchParams(next);
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -79,6 +89,15 @@ export default function MessageLogPage() {
         </Button>
       </div>
 
+      {(page > 1 || totalPages > 1) && (
+        <nav aria-label="발송 내역 페이지" className="flex flex-wrap items-center gap-2">
+          <Button size="sm" intent="ghost" disabled={page === 1 || logQ.isFetching} onClick={() => goToPage(1)}>최신 내역</Button>
+          <Button size="sm" intent="secondary" disabled={page === 1 || logQ.isFetching} onClick={() => goToPage(page - 1)}>이전 페이지</Button>
+          <span className="text-xs" aria-live="polite">{page}페이지{data ? ` / ${totalPages}페이지` : ""}</span>
+          <Button size="sm" intent="secondary" disabled={logQ.isFetching || logQ.isError || page >= totalPages} onClick={() => goToPage(page + 1)}>다음 페이지</Button>
+        </nav>
+      )}
+
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       ) : logQ.isError ? (
@@ -87,10 +106,10 @@ export default function MessageLogPage() {
         <EmptyState
           scope="panel"
           tone="empty"
-          title="발송 내역이 없습니다"
-          description="학생을 선택해 알림톡을 보내면 접수와 처리 상태가 이곳에 기록됩니다."
+          title={page > 1 ? "이 페이지에 발송 내역이 없습니다" : "발송 내역이 없습니다"}
+          description={page > 1 ? "최신 내역으로 돌아가 다시 확인해 주세요." : "학생을 선택해 알림톡을 보내면 접수와 처리 상태가 이곳에 기록됩니다."}
           actions={
-            <EmptyActionButton onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}>
+            page > 1 ? <EmptyActionButton onClick={() => goToPage(1)}>최신 내역 보기</EmptyActionButton> : <EmptyActionButton onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}>
               학생 선택 발송
             </EmptyActionButton>
           }
@@ -173,6 +192,8 @@ function LogCard({ item, isPrivileged }: { item: MessageLogItem; isPrivileged: b
                 <>
                   <Badge tone={providerState.tone} size="sm">{providerState.label}</Badge>
                   <p className="text-[12px] m-0" style={{ color: "var(--tc-text-secondary)", overflowWrap: "anywhere" }}>{providerState.detail}</p>
+                  {providerQ.data?.provider_status_code && <p className="text-[11px] m-0">결과 코드 {providerQ.data.provider_status_code}</p>}
+                  {providerQ.data?.provider_delivery_checked_at && <p className="text-[11px] m-0">확인 시각 {new Date(providerQ.data.provider_delivery_checked_at).toLocaleString("ko-KR")}</p>}
                 </>
               )}
               {providerQ.isError && <p role="alert" className="text-[12px] m-0" style={{ color: "var(--tc-danger)" }}>최종 상태를 확인하지 못했습니다. 기존 접수 기록은 유지됩니다. 다시 확인해 주세요.</p>}
