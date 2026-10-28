@@ -2,12 +2,13 @@
 // PATH: src/app_teacher/domains/students/components/CreateStudentSheet.tsx
 // 학생 생성 바텀시트
 // R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRegistrationPasswordConfirmation, type RegistrationPasswordChoice } from "@/shared/product/students/RegistrationPasswordConfirmation";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { MessageSquare } from "@teacher/shared/ui/Icons";
-import { ICON } from "@/shared/ui/ds";
+import { Button, ICON } from "@/shared/ui/ds";
+import { useConfirmBeforeClose } from "@/shared/ui/overlays/useConfirmBeforeClose";
 import { createStudent } from "@/shared/api/contracts/students";
 import type { ClientStudent } from "@/shared/api/contracts/students";
 import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
@@ -25,6 +26,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
   const [name, setName] = useState("");
   const confirmPasswords = useRegistrationPasswordConfirmation();
   const [confirming, setConfirming] = useState(false);
+  const submitRef = useRef(false);
   const [phone, setPhone] = useState("");
   const [parentPhone, setParentPhone] = useState("");
   const [school, setSchool] = useState("");
@@ -96,6 +98,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
       setSubmitError(message);
       teacherToast.error(message);
     },
+    onSettled: () => { submitRef.current = false; },
   });
 
   const resetAndClose = () => {
@@ -105,10 +108,16 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
     onClose();
   };
   const formReady = validate() === null;
+  const requestClose = useConfirmBeforeClose(
+    !createdStudent && Boolean(name || phone || parentPhone || school || grade || gender),
+    mutation.isPending || confirming, resetAndClose,
+  );
 
   const submit = async () => {
-    if (!formReady || confirming || mutation.isPending) return;
+    if (!formReady || submitRef.current || mutation.isPending) return;
+    submitRef.current = true;
     setConfirming(true);
+    let requested = false;
     try {
       const choice = await confirmPasswords({
         title: "학생 등록 최종 확인",
@@ -117,12 +126,20 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
         studentPhone: normalizePhone(phone),
         parentPhone: normalizePhone(parentPhone),
       });
-      if (choice) mutation.mutate(choice);
-    } finally { setConfirming(false); }
+      if (choice) { requested = true; mutation.mutate(choice); }
+    } finally {
+      if (!requested) submitRef.current = false;
+      setConfirming(false);
+    }
   };
 
   return (
-    <BottomSheet open={open} onClose={resetAndClose} title="학생 추가">
+    <BottomSheet open={open} onClose={() => void requestClose()} title="학생 추가"
+      closeDisabled={mutation.isPending || confirming}
+      footer={!createdStudent && <Button intent="primary" className="w-full" size="lg"
+        onClick={() => void submit()} disabled={!formReady || confirming} loading={mutation.isPending}>
+        {mutation.isPending ? "등록 중..." : "등록"}
+      </Button>}>
       {createdStudent ? (
         <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-4) 0" }}>
           <div
@@ -168,7 +185,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
           </button>
         </div>
       ) : (
-      <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
+      <fieldset disabled={mutation.isPending} className="flex min-w-0 flex-col gap-2.5 border-0 m-0" style={{ padding: "var(--tc-space-3) 0" }}>
         <Field label="이름 *" value={name} onChange={setName} placeholder="학생 이름" />
         <p className="text-[11px]">초기 비밀번호는 등록 마지막 확인창에서 학생·학부모 각각 선택합니다.</p>
         <div className="flex gap-2">
@@ -230,17 +247,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
           </div>
         </div>
 
-        <div
-          className="sticky bottom-0"
-          style={{ padding: "8px 0 4px", background: "var(--tc-surface)" }}>
-          <button onClick={() => { void submit(); }} disabled={!formReady || mutation.isPending || confirming}
-            className="w-full text-sm font-bold cursor-pointer"
-            style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: formReady ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: formReady ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
-            {mutation.isPending ? "등록 중..." : "등록"}
-          </button>
-        </div>
-
-      </div>
+      </fieldset>
       )}
     </BottomSheet>
   );
@@ -252,12 +259,12 @@ function Field({ label, value, onChange, placeholder, type = "text" }: {
   const inputId = useId();
 
   return (
-    <div className="flex-1">
+    <div className="flex-1 min-w-0">
       <label htmlFor={inputId} className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
       <input id={inputId} type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         autoComplete={type === "password" ? "new-password" : undefined}
         className="w-full text-sm"
-        style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
+        style={{ minHeight: 44, fontSize: 16, padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)" }} />
     </div>
   );
 }

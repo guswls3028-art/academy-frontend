@@ -29,6 +29,7 @@
 }
 
 .panelPersistent {
+  z-index: var(--tc-z-header);
   top: var(--tc-header-h);
   width: var(--tc-sidebar-w);
   padding-top: 0;

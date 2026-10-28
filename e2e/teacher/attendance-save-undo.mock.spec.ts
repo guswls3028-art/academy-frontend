@@ -11,7 +11,7 @@ for (const { width, scenario } of [
   { width: 390, scenario: "save-error" }, { width: 390, scenario: "undo-error" },
   { width: 390, scenario: "bulk-after-save" },
 ]) {
-  test(`출결 저장 확인과 되돌리기 복구 ${width}px ${scenario}`, async ({ page }) => {
+  test(`출결 저장 확인과 되돌리기 복구 ${width}px ${scenario}`, { tag: scenario === "slow-save" ? ["@dialog-journey"] : [] }, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await installTenantOneInitScript(page);
     const payload = Buffer.from(JSON.stringify({ exp: 2_000_000_000, user_id: 12, tenant_code: "hakwonplus" })).toString("base64url");
@@ -57,6 +57,30 @@ for (const { width, scenario } of [
     await gotoAndSettle(page, `${BASE}/workspace/mobile/attendance/99`);
     const student = page.getByText("되돌리기 검증학생", { exact: true });
     await expect(student).toBeVisible();
+    if (scenario === "slow-save") {
+      if (width === 390) {
+        const menuTrigger = page.getByRole("button", { name: "메뉴", exact: true });
+        await menuTrigger.click();
+        const menu = page.getByRole("navigation", { name: "선생님 메뉴" });
+        await expect(menu.getByRole("button", { name: "닫기", exact: true })).toBeFocused();
+        await page.keyboard.press("Escape");
+        await expect(menu).toBeHidden();
+        await expect(menuTrigger).toBeFocused();
+      }
+      const card = page.getByRole("button", { name: "되돌리기 검증학생 출석 상태 변경", exact: true });
+      await card.focus();
+      await card.press("Enter");
+      const sheet = page.getByRole("dialog", { name: "출석 상태", exact: true });
+      await expect(sheet).toBeVisible();
+      await expect(sheet.getByRole("button", { name: "닫기", exact: true })).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      await expect(sheet.getByRole("button").last()).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(sheet).toBeHidden();
+      await expect(card).toBeFocused();
+      expect(changes).toHaveLength(0);
+      expect(await page.locator("body").evaluate((body) => body.style.overflow)).not.toBe("hidden");
+    }
     await student.click();
     await page.getByRole("button", { name: "결석", exact: true }).click();
     await expect.poll(() => changes.length).toBe(1);

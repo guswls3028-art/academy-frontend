@@ -151,7 +151,7 @@ export default function AdminModal({
   }, [removeMinimizedModal, modalId, restoreTriggerFocus]);
 
   const actuallyOpen = open && !minimized;
-  useModalKeyboard(actuallyOpen, requestClose, onEnterConfirm);
+  useModalKeyboard(actuallyOpen, requestClose, onEnterConfirm, wrapperRef);
 
   const hasOffset = offset.x !== 0 || offset.y !== 0;
   const baseClass = className

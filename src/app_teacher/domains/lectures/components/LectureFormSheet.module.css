@@ -1,0 +1,19 @@
+.fields { display: flex; flex-direction: column; gap: 16px; min-width: 0; margin: 0; padding: 8px 0 20px; border: 0; }
+.help { margin: 0; font-size: 12px; color: var(--tc-text-secondary); }
+.field { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6px; }
+.field label, .palette legend { font-size: 13px; font-weight: 600; color: var(--tc-text); }
+.field input { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--tc-border-strong); border-radius: var(--tc-radius-sm); background: var(--tc-surface); color: var(--tc-text); font-size: 16px; }
+.field input:focus-visible { outline: 2px solid var(--tc-primary); outline-offset: 2px; }
+.row { display: flex; gap: 12px; min-width: 0; }
+.identity { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
+.palette { border: 0; padding: 0; margin: 0; min-width: 0; }
+.palette legend { margin-bottom: 8px; }
+.colors { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.color { display: grid; place-items: center; min-height: 44px; border: 1px solid var(--tc-border); border-radius: var(--tc-radius-sm); background: var(--tc-surface); }
+.color[aria-pressed="true"] { outline: 2px solid var(--tc-primary); outline-offset: 1px; }
+.color span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #fff; font-weight: 700; text-shadow: 0 1px 2px #000; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; }
+.actions button[data-size] { min-height: 44px; }
+.actions button:last-child { min-width: 120px; }
+.error { color: var(--tc-danger); font-size: 13px; margin: 0 0 16px; overflow-wrap: anywhere; }
+@media (min-width: 480px) { .colors { grid-template-columns: repeat(8, minmax(0, 1fr)); } }

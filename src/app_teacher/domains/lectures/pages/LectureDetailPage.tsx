@@ -111,7 +111,8 @@ export default function LectureDetailPage() {
         </h1>
         {/* Actions menu */}
         <div className="relative">
-          <button onClick={() => setMenuOpen(!menuOpen)} className="flex p-1 cursor-pointer"
+          <button onClick={() => setMenuOpen(!menuOpen)} aria-label="강의 메뉴" aria-expanded={menuOpen}
+            className="flex min-h-11 min-w-11 items-center justify-center cursor-pointer"
             style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
             <MoreVertical size={ICON.md} />
           </button>

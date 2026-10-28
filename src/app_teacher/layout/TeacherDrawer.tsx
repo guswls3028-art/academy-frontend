@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useNavigate, useLocation } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
+import { useDialogSurface } from "@/shared/ui/overlays/useDialogSurface";
 import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { resolveFullWorkspaceDestination } from "@/core/router/workspaceRoutes";
 import {
@@ -44,14 +45,6 @@ export default function TeacherDrawer({
     if (activeGroupTitle) setExpandedGroup(activeGroupTitle);
   }, [location.pathname, activeGroupTitle]);
 
-  // Body scroll lock
-  useEffect(() => {
-    if (open && !persistent) {
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
-    }
-  }, [open, persistent]);
-
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;
@@ -67,6 +60,8 @@ export default function TeacherDrawer({
       panel.setAttribute("inert", "");
     }
   }, [open, persistent]);
+
+  useDialogSurface(open && !persistent, panelRef, onClose);
 
   const mobileReturnPath = `${location.pathname}${location.search}`;
   const contextualDesktopPath = resolveFullWorkspaceDestination(mobileReturnPath);

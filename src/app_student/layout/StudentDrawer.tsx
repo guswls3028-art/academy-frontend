@@ -1,12 +1,14 @@
 /**
  * 좌측 사이드 드로어 - 더보기 메뉴 (모바일 슬라이드)
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { ComponentType, SVGProps } from "react";
 import { Link } from "react-router";
 
 import { logout } from "@/auth/api/auth.api";
 import { cx } from "@/shared/utils/cx";
+import { useConfirm } from "@/shared/ui/confirm";
+import { useDialogSurface } from "@/shared/ui/overlays/useDialogSurface";
 import {
   IconBell,
   IconBoard,
@@ -84,30 +86,8 @@ const NAV: NavGroup[] = [
 ];
 
 export default function StudentDrawer({ open, onClose }: DrawerProps) {
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const confirm = useConfirm();
   const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
 
   useEffect(() => {
     const panel = panelRef.current;
@@ -125,8 +105,15 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
     }
   }, [open]);
 
-  const handleLogout = () => {
-    setShowLogoutConfirm(false);
+  useDialogSurface(open, panelRef, onClose);
+
+  const handleLogout = async () => {
+    if (!await confirm({
+      title: "로그아웃",
+      message: "정말 로그아웃 하시겠어요?",
+      confirmText: "로그아웃",
+      danger: true,
+    })) return;
     onClose();
     logout();
   };
@@ -187,7 +174,7 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
           <button
             type="button"
             className={styles.logoutButton}
-            onClick={() => setShowLogoutConfirm(true)}
+            onClick={() => void handleLogout()}
           >
             <IconLogout className={styles.logoutIcon} aria-hidden="true" />
             <span>로그아웃</span>
@@ -195,22 +182,6 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
         </div>
       </div>
 
-      {showLogoutConfirm && (
-        <div className="stu-logout-dialog__overlay" onClick={() => setShowLogoutConfirm(false)}>
-          <div className="stu-logout-dialog__box" onClick={(e) => e.stopPropagation()}>
-            <div className="stu-logout-dialog__title">로그아웃</div>
-            <div className="stu-logout-dialog__desc">정말 로그아웃 하시겠어요?</div>
-            <div className="stu-logout-dialog__actions">
-              <button type="button" className="stu-logout-dialog__cancel" onClick={() => setShowLogoutConfirm(false)}>
-                취소
-              </button>
-              <button type="button" className="stu-logout-dialog__confirm" onClick={handleLogout}>
-                로그아웃
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

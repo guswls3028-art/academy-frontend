@@ -226,7 +226,7 @@ for (const width of [390, 1366]) {
     await expect(page.getByLabel("본문 변경 횟수")).toHaveText(changes!);
   });
 
-  test(`선생님 문구 편집은 변수·실행 취소·복제·미저장 복구를 지원한다 ${width}px`, async ({ page }, testInfo) => {
+  test(`선생님 문구 편집은 변수·실행 취소·복제·미저장 복구를 지원한다 ${width}px`, { tag: "@dialog-journey" }, async ({ page }, testInfo) => {
     test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
     let sends = 0;
     await installMessagingMocks(page, () => false, () => { sends += 1; });

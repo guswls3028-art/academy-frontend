@@ -67,6 +67,21 @@ export default defineConfig({
       use: { ...webkit, serviceWorkers: "block" },
     },
     {
+      name: "pr-modal-webkit",
+      testMatch: [
+        matchSpec("e2e/admin/lecture-create-responsive.mock.spec.ts"),
+        matchSpec("e2e/student/clinic-booking-ux.mock.spec.ts"),
+        matchSpec("e2e/student/community-draft-autosave.mock.spec.ts"),
+        matchSpec("e2e/teacher/lecture-navigation-recovery.mock.spec.ts"),
+        matchSpec("e2e/teacher/attendance-save-undo.mock.spec.ts"),
+        matchSpec("e2e/teacher/alimtalk-compose-preview.mock.spec.ts"),
+        matchSpec("e2e/teacher/student-create-readback.mock.spec.ts"),
+      ],
+      grep: /@dialog-journey/,
+      dependencies: [],
+      use: { ...webkit, serviceWorkers: "block" },
+    },
+    {
       name: "pr-iphone-webkit",
       testMatch: [
         matchSpec("e2e/godmin-resources.mock.spec.ts"),

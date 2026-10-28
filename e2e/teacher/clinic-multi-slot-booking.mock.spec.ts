@@ -301,10 +301,10 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   const desktopBackdropBox = await backdrop.boundingBox();
   const titleBox = await sheet.getByText("학생 추가", { exact: true }).boundingBox();
   const timeRailBox = await sheet.getByRole("region", { name: "선택한 클리닉 시간" }).boundingBox();
-  expect(desktopSheetBox?.x).toBe(sidebarWidth);
-  expect(desktopBackdropBox?.x).toBe(sidebarWidth);
-  expect(desktopSheetBox?.width).toBe(1100 - sidebarWidth);
-  expect(desktopBackdropBox?.width).toBe(1100 - sidebarWidth);
+  expect(desktopSheetBox?.width).toBe(640);
+  expect(desktopSheetBox?.x).toBe((1100 + sidebarWidth - 640) / 2);
+  expect(desktopBackdropBox?.x).toBe(0);
+  expect(desktopBackdropBox?.width).toBe(1100);
   expect(titleBox?.x).toBeGreaterThanOrEqual(sidebarWidth);
   expect(timeRailBox?.x).toBeGreaterThanOrEqual(sidebarWidth);
   expect((timeRailBox?.x ?? 0) + (timeRailBox?.width ?? 0)).toBeLessThanOrEqual(1100);

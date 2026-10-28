@@ -3,15 +3,16 @@
 //   Esc:   닫기/취소 (부정)
 //   Enter: 등록/저장/확인 (긍정) — textarea·contenteditable·antd 드롭다운에서는 무시
 //
-// onConfirm 미전달 시: ModalFooter 우측의 마지막 활성 버튼을 자동 클릭 (auto-detect)
+// onConfirm 미전달 시: 해당 모달의 명시적 primary 버튼만 실행한다.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 // ── 글로벌 스택: 최상위 모달만 키보드 이벤트를 처리 ──
 
 type ModalEntry = {
   onClose: () => void;
   onConfirm: (() => void) | undefined;
+  root?: RefObject<HTMLElement | null>;
 };
 
 const stack: ModalEntry[] = [];
@@ -26,7 +27,7 @@ function shouldSkipEnter(): boolean {
   if (el.getAttribute?.("contenteditable") === "true") return true;
 
   // 버튼은 브라우저 기본 클릭에 맡기고, 선택형 컨트롤은 값 확정에 Enter를 사용한다.
-  if (el.tagName === "BUTTON" || el.tagName === "SELECT" || el.getAttribute("role") === "button") return true;
+  if (el.closest('button, a[href], select, [role="button"]')) return true;
   if (el.tagName === "INPUT") {
     const type = (el as HTMLInputElement).type;
     if (["checkbox", "radio", "file", "color", "range", "date", "time", "month", "week"].includes(type)) {
@@ -50,29 +51,20 @@ function shouldSkipEnter(): boolean {
   return false;
 }
 
-/** ModalFooter 우측의 마지막 활성 버튼 자동 클릭 */
-function autoClickPrimary(): boolean {
-  // 최상위 모달의 footer — DOM 상 마지막 .modal-footer
-  const footers = document.querySelectorAll(".admin-modal__inner .modal-footer");
-  if (footers.length === 0) return false;
-
-  const footer = footers[footers.length - 1];
-  const rightDiv = footer.lastElementChild;
-  if (!rightDiv) return false;
-
-  const buttons = rightDiv.querySelectorAll("button:not([disabled])");
-  if (buttons.length === 0) return false;
-
-  (buttons[buttons.length - 1] as HTMLButtonElement).click();
+/** Disabled submit must never fall back to Cancel or a destructive action. */
+function autoClickPrimary(root: HTMLElement | null): boolean {
+  const button = root?.querySelector<HTMLButtonElement>('.modal-footer__actions button[data-intent="primary"]');
+  if (!button || button.disabled || button.getClientRects().length === 0) return false;
+  button.click();
   return true;
 }
 
 function globalKeyHandler(e: KeyboardEvent) {
   if (stack.length === 0) return;
-  if (e.isComposing) return;
+  if (e.isComposing || e.defaultPrevented) return;
 
   // ConfirmDialog가 열려 있으면 ConfirmDialog 자체 핸들러에 위임
-  if (document.querySelector("[data-confirm-dialog]")) return;
+  if (document.querySelector("[data-confirm-dialog], [data-dialog-popover]")) return;
 
   const top = stack[stack.length - 1];
 
@@ -93,8 +85,7 @@ function globalKeyHandler(e: KeyboardEvent) {
       return;
     }
 
-    // auto-detect: ModalFooter 우측 마지막 버튼 클릭
-    if (autoClickPrimary()) {
+    if (autoClickPrimary(top.root?.current ?? null)) {
       e.preventDefault();
       e.stopImmediatePropagation();
     }
@@ -107,10 +98,11 @@ export function useModalKeyboard(
   open: boolean,
   onClose: () => void,
   onConfirm?: () => void,
+  root?: RefObject<HTMLElement | null>,
 ) {
   // 최신 콜백을 ref 로 유지 → useEffect deps 에 콜백 넣지 않아 불필요 재등록 방지
-  const ref = useRef<ModalEntry>({ onClose, onConfirm });
-  ref.current = { onClose, onConfirm };
+  const ref = useRef<ModalEntry>({ onClose, onConfirm, root });
+  ref.current = { onClose, onConfirm, root };
 
   useEffect(() => {
     if (!open) return;
@@ -119,6 +111,7 @@ export function useModalKeyboard(
     const entry: ModalEntry = {
       get onClose() { return ref.current.onClose; },
       get onConfirm() { return ref.current.onConfirm; },
+      get root() { return ref.current.root; },
     };
 
     stack.push(entry);

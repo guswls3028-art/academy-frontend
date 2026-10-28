@@ -8,6 +8,7 @@ import { TextSelection } from "@tiptap/pm/state";
 import { Redo2, Undo2 } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
 import { getTemplateBlock } from "./templateBlocks";
+import { delegateEditorEscape } from "@/shared/ui/overlays/dialogKeyboard";
 import type { MessageBodyEditorHandle, MessageBodyEditorProps } from "./MessageBodyEditor";
 
 function inlineContent(text: string): JSONContent[] {
@@ -90,6 +91,7 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
     editable: !disabled,
     onUpdate: ({ editor: current }) => onChange(messageText(current.getJSON())),
     editorProps: {
+      handleDOMEvents: { keydown: (view, event) => delegateEditorEscape(view.dom, event) },
       attributes: { role: "textbox", "aria-label": ariaLabel, "aria-multiline": "true", spellcheck: "false", ...(id ? { id } : {}) },
       handlePaste: (view, event) => {
         const text = event.clipboardData?.getData("text/plain");

@@ -690,7 +690,8 @@ test.describe("저장소 모바일 파일·폴더 이동", () => {
     await expect(confirmDialog).toBeVisible();
 
     const readsBeforeRefresh = harness.inventoryReads.length;
-    await page.getByRole("dialog", { name: "업로드 정보" }).getByRole("button", { name: "업로드", exact: true }).dispatchEvent("click");
+    // Simulate a late completion behind the inert parent; ordinary pointer input is blocked.
+    await page.getByRole("dialog", { name: "업로드 정보", includeHidden: true }).getByRole("button", { name: "업로드", exact: true, includeHidden: true }).dispatchEvent("click");
     await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBeforeRefresh);
     await expect(page.getByText("새로고침 파일.pdf", { exact: true })).toBeAttached();
     await page.clock.runFor(100);
@@ -733,7 +734,8 @@ test.describe("저장소 모바일 파일·폴더 이동", () => {
     await expect(confirmDialog).toBeVisible();
 
     const readsBeforeRefresh = harness.inventoryReads.length;
-    await page.getByRole("dialog", { name: "업로드 정보" }).getByRole("button", { name: "업로드", exact: true }).dispatchEvent("click");
+    // Simulate a late completion behind the inert parent; ordinary pointer input is blocked.
+    await page.getByRole("dialog", { name: "업로드 정보", includeHidden: true }).getByRole("button", { name: "업로드", exact: true, includeHidden: true }).dispatchEvent("click");
     await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBeforeRefresh);
     await expect(page.getByText("새로고침 파일.pdf", { exact: true })).toBeAttached();
     await page.clock.runFor(100);

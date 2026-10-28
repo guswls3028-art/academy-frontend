@@ -125,7 +125,54 @@ PC/390px 선택·저장·재열기·다운로드를 함께 검증한다.
 `clinic-weekly-multisession.mock.spec.ts`는 PC/390px에서 일정 선택을 한 번 누른 뒤
 선택 상태 → 불러오기 → 저장 응답 유실 복구 → 새로고침 시 중복 없는 결과를 검증한다.
 
+## 대화상자의 배치와 키보드
+
+교사 `BottomSheet`는 모바일에서 기존 하단 시트를 유지하고, 768px 이상에서는
+최대 640px의 대화상자로 표시한다. 본문만 스크롤하고 강의·학생 등록의 저장 영역은
+하단에 고정한다. 390px 및 높이 560px에서도 저장·취소를 찾을 수 있어야 한다.
+배경은 전체 화면을 가리고 닫기 버튼은 44px 터치 영역을 제공한다.
+
+`shared/ui/overlays/useDialogSurface`는 교사 시트, 학생 커뮤니티 이미지 확대,
+공용 날짜·시간 선택창, 학생·교사의 모바일 메뉴의 초기 포커스·Tab 순환·Escape·호출 위치 복원을 소유한다.
+마우스로 누른 버튼에 자동 포커스를 주지 않는 Safari에서도 최근 호출 버튼을
+보존해 같은 위치로 복원하며, 키보드 호출은 기존 활성 요소를 기준으로 한다.
+열린 창 스택의 최상단만 키보드에 반응한다. 날짜·시간 팝업이 열린 동안
+`AdminModal`은 단축키를 넘겨서 팝업만 닫히고 부모 폼의 입력은 유지되게 한다.
+공용 문구·서식 편집기는 `delegateEditorEscape`로 대화상자 안의 Escape만 부모에게
+넘긴다. ProseMirror 기본 처리에 막혀 미저장 닫기 확인이 사라지지 않으며,
+줄바꿈·실행 취소와 한글 조합은 편집기가 계속 소유한다.
+`bodyScrollLock`은 이 창들과 `ConfirmDialog`의 스크롤 잠금을 소유자별로 관리한다.
+겹친 창 하나를 닫아도 나머지 창의 잠금을 해제하지 않는다. Ant Design 모달의
+자체 수명주기와 최소화 계약은 유지한다.
+
+교사 출결 상태 선택도 공용 `BottomSheet`를 사용한다. 개별 배경·스크롤 잠금·
+애니메이션 구현을 제거하며 출석 카드는 Enter·Space로 열 수 있다. 학생 메뉴의
+로그아웃 확인은 `ConfirmDialog`로 통일해 취소 시 메뉴와 로그인 상태를 보존하고,
+확인 시에만 기존 로그아웃을 실행한다. 교사 데스크톱의 고정 메뉴는 모달로 취급하지 않는다.
+
+`ConfirmDialog`의 위험 동작은 취소에 초기 포커스를 둔다. 버튼·링크의 Enter는
+그 컨트롤의 기본 동작에 맡기므로 취소를 확인으로 바꾸지 않는다. 관리자 모달의
+Enter 자동 실행은 해당 모달 footer의 명시적 primary 버튼만 대상으로 하고,
+비활성 등록 대신 취소·삭제를 실행하지 않는다. 한글 조합 중 Enter는 가로채지 않는다.
+
+`useConfirmBeforeClose`는 수정한 강의·학생 등록 폼의 닫기 경로를 통일한다.
+닫기 버튼·배경·Escape 모두 작성 유지 또는 명시적 폐기를 선택하며 처리 중에는
+닫기와 중복 제출을 막는다. 닫기 확인은 서버 쓰기를 실행하지 않는다. 기존 URL,
+메뉴, 권한, 저장 API와 데이터에는 마이그레이션이 없다.
+
 ## 회귀 검증
+
+`@dialog-journey` 20건은 Chromium route-mock gate와 필수 `pr-modal-webkit`
+프로젝트에서 함께 실행한다. Safari의 마우스 호출·닫기 후 포커스 복원을 포함하며,
+합성 API 검사는 동일 산출물의 격리 개발 실사용·cleanup zero를 대체하지 않는다.
+
+- `lecture-navigation-recovery.mock.spec.ts`, `student-create-readback.mock.spec.ts`:
+  390/1366px와 짧은 화면의 고정 저장 영역, 작성 유지, 처리 중 이탈·중복 방지,
+  저장 실패 복구 및 기존 비밀번호 선택·등록 결과.
+- `lecture-create-responsive.mock.spec.ts`: 느린 초기 조회 중 Enter, 날짜·시간 팝업
+  Escape·포커스 복원과 세 테마의 실제 등록 확인 흐름.
+- `clinic-booking-ux.mock.spec.ts`, `community-draft-autosave.mock.spec.ts`:
+  학생 예약 취소 버튼의 Enter와 이미지 확대의 Tab·Escape·포커스 복원.
 
 - `e2e/admin/design-system-theme.mock.spec.ts`: 세 미리보기와 실제 팔레트,
   전체 기존 키 이관, 강조색 오류·저장·reload·기본값, 저장 차단·재시도,

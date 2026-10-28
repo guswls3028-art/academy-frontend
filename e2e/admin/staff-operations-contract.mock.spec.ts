@@ -2578,11 +2578,11 @@ test.describe("직원 운영 계약", () => {
     await pendingRow.getByRole("button", { name: "삭제" }).click();
     const confirmDialog = page.getByRole("alertdialog", { name: "선결제 환급 삭제" });
     await expect(confirmDialog).toBeVisible();
-    await expect(confirmDialog.getByRole("button", { name: "삭제" })).toBeFocused();
-    await page.keyboard.press("Tab");
     await expect(confirmDialog.getByRole("button", { name: "취소" })).toBeFocused();
-    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab");
     await expect(confirmDialog.getByRole("button", { name: "삭제" })).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(confirmDialog.getByRole("button", { name: "취소" })).toBeFocused();
     await confirmDialog.getByRole("button", { name: "삭제" }).click();
     await expect.poll(() => deletedId).toBe(31);
     expect(nativeDialogCount).toBe(0);
@@ -2598,7 +2598,7 @@ test.describe("직원 운영 계약", () => {
     });
   });
 
-  test("확인창의 지연 초기 포커스는 사용자가 Tab으로 선택한 취소를 빼앗지 않는다", async ({ page }) => {
+  test("확인창의 지연 초기 포커스는 사용자가 Tab으로 선택한 동작을 빼앗지 않는다", async ({ page }) => {
     await page.addInitScript(() => {
       const requestFrame = window.requestAnimationFrame.bind(window);
       const cancelFrame = window.cancelAnimationFrame.bind(window);
@@ -2644,18 +2644,18 @@ test.describe("직원 운영 계약", () => {
     const dialog = page.getByRole("alertdialog", { name: "선결제 환급 삭제" });
     const confirm = dialog.getByRole("button", { name: "삭제" });
     const cancel = dialog.getByRole("button", { name: "취소" });
-    await expect(confirm).toBeFocused();
+    await expect(cancel).toBeFocused();
     await expect.poll(() => page.evaluate(() => (
       window as unknown as { confirmFocusFrames: () => number }
     ).confirmFocusFrames())).toBe(1);
     await page.keyboard.press("Tab");
-    await expect(cancel).toBeFocused();
+    await expect(confirm).toBeFocused();
     expect(await page.evaluate(() => (
       window as unknown as { releaseConfirmFocusFrames: () => number }
     ).releaseConfirmFocusFrames())).toBe(1);
-    await expect(cancel).toBeFocused();
-    await page.keyboard.press("Shift+Tab");
     await expect(confirm).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(cancel).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
     await expect(trigger).toBeFocused();
@@ -2663,12 +2663,12 @@ test.describe("직원 운영 계약", () => {
 
     // The deferred correction must still recover focus that escaped the card.
     await trigger.click();
-    await expect(confirm).toBeFocused();
-    await confirm.evaluate((button) => button.blur());
+    await expect(cancel).toBeFocused();
+    await cancel.evaluate((button) => button.blur());
     expect(await page.evaluate(() => (
       window as unknown as { releaseConfirmFocusFrames: () => number }
     ).releaseConfirmFocusFrames())).toBe(1);
-    await expect(confirm).toBeFocused();
+    await expect(cancel).toBeFocused();
     await cancel.click();
     await expect(dialog).not.toBeVisible();
     await expect(trigger).toBeFocused();
@@ -2693,11 +2693,11 @@ test.describe("직원 운영 계약", () => {
     const dialog = page.getByRole("alertdialog", { name: "선결제 환급 삭제" });
     for (const closeWithEscape of [true, false]) {
       await trigger.click();
-      await expect(dialog.getByRole("button", { name: "삭제" })).toBeFocused();
-      await page.keyboard.press("Tab");
       await expect(dialog.getByRole("button", { name: "취소" })).toBeFocused();
-      await page.keyboard.press("Shift+Tab");
+      await page.keyboard.press("Tab");
       await expect(dialog.getByRole("button", { name: "삭제" })).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      await expect(dialog.getByRole("button", { name: "취소" })).toBeFocused();
       if (closeWithEscape) await page.keyboard.press("Escape");
       else await dialog.getByRole("button", { name: "취소" }).click();
       await expect(dialog).not.toBeVisible();

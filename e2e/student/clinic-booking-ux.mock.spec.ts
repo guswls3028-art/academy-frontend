@@ -188,6 +188,25 @@ function createState(): MockState {
   };
 }
 
+test("예약 취소 확인창의 취소 버튼은 Enter로도 예약을 유지한다", { tag: "@dialog-journey" }, async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = createState();
+  state.bookings[0] = { ...state.bookings[0], can_self_cancel: true, self_cancel_reason: "직접 취소할 수 있습니다." };
+  await seed(page);
+  await installApi(page, state);
+  await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("tab", { name: "내 일정 1" }).click();
+  await page.getByRole("button", { name: "예약 취소", exact: true }).click();
+  const dialog = page.getByRole("alertdialog", { name: "예약 취소" });
+  await dialog.getByRole("button", { name: "취소", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(dialog).toHaveCount(0);
+  expect(state.cancelledIds).toEqual([]);
+  await page.reload();
+  await page.getByRole("tab", { name: "내 일정 1" }).click();
+  await expect(page.getByRole("button", { name: "예약 취소", exact: true })).toBeVisible();
+});
+
 function createPaginatedState(): MockState {
   const state = createState();
   state.sessions = [
@@ -234,15 +253,17 @@ function validIdcardBookings(state: MockState) {
   });
 }
 
-async function seed(page: Page, programOptions: ProgramMockOptions = {}) {
+async function seed(page: Page, programOptions: ProgramMockOptions = {}, once = false) {
   test.skip(!isLocalBase(BASE), "학생 클리닉 route-mock 검증은 로컬 dev 서버 전용");
   const tenantCode = programOptions.tenantCode ?? "hakwonplus";
-  await page.addInitScript(({ token, tenant }) => {
+  await page.addInitScript(({ token, tenant, seedOnce }) => {
+    if (seedOnce && sessionStorage.getItem("clinic-qa-auth-seeded")) return;
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", token);
     localStorage.setItem("tenant_code", tenant);
     sessionStorage.setItem("tenantCode", tenant);
-  }, { token: fakeJwt(tenantCode), tenant: tenantCode });
+    if (seedOnce) sessionStorage.setItem("clinic-qa-auth-seeded", "1");
+  }, { token: fakeJwt(tenantCode), tenant: tenantCode, seedOnce: once });
 }
 
 async function installApi(
@@ -499,6 +520,54 @@ test.describe("학생 클리닉 예약 UX", () => {
     viewport: { width: 390, height: 844 },
     serviceWorkers: "block",
   });
+
+  for (const width of [390, 1366]) {
+    test(`학생 메뉴와 로그아웃 확인창의 키보드 복귀 ${width}px`, { tag: "@dialog-journey" }, async ({ page }) => {
+      const state = createState();
+      await page.setViewportSize({ width, height: 844 });
+      await seed(page, {}, true);
+      await installApi(page, state);
+      await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+      const trigger = page.getByRole("button", { name: "메뉴 열기", exact: true });
+      await trigger.click();
+      const drawer = page.getByRole("dialog", { name: "메뉴", exact: true });
+      const close = drawer.getByRole("button", { name: "닫기", exact: true });
+      const logout = drawer.getByRole("button", { name: "로그아웃", exact: true });
+      await expect(close).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      await expect(logout).toBeFocused();
+      await logout.press("Enter");
+      const confirmation = page.locator("[data-confirm-dialog]");
+      await expect(confirmation).toBeVisible();
+      await expect(confirmation.getByRole("button", { name: "취소", exact: true })).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(confirmation).toBeHidden();
+      await expect(drawer).toBeVisible();
+      await expect(logout).toBeFocused();
+      expect(await page.locator("body").evaluate((body) => body.style.overflow)).toBe("hidden");
+      await page.keyboard.press("Escape");
+      await expect(drawer).toBeHidden();
+      await expect(trigger).toBeFocused();
+      expect(await page.locator("body").evaluate((body) => body.style.overflow)).not.toBe("hidden");
+      await page.reload();
+      await expect(trigger).toBeVisible();
+      await expect(page).toHaveURL(/\/student\/clinic$/);
+      await trigger.click();
+      await logout.click();
+      await confirmation.getByRole("button", { name: "로그아웃", exact: true }).click();
+      await expect(page).toHaveURL(/\/promo$/);
+      // The router updates the URL before its lazy public screen has loaded.
+      // Wait for the actual logout destination before starting another document
+      // navigation, which would otherwise abort its imports in WebKit.
+      await expect(page.getByRole("heading", { name: /수업 관리부터\s*학생의 복습까지/ })).toBeVisible();
+      await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL(/\/login(?:\?|$)/);
+      await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
+      await page.reload();
+      await expect(page).toHaveURL(/\/login(?:\?|$)/);
+      await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
+    });
+  }
 
   test("모바일 홈에서 클리닉 패스카드로 바로 진입한다", async ({ page }) => {
     const state = createState();
