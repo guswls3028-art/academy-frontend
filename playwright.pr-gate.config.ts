@@ -69,6 +69,7 @@ export default defineConfig({
     {
       name: "pr-modal-webkit",
       testMatch: [
+        matchSpec("e2e/clinic/clinic-booking-modes-visual.mock.spec.ts"),
         matchSpec("e2e/admin/lecture-create-responsive.mock.spec.ts"),
         matchSpec("e2e/student/clinic-booking-ux.mock.spec.ts"),
         matchSpec("e2e/student/community-draft-autosave.mock.spec.ts"),

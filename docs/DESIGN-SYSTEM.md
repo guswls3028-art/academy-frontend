@@ -138,6 +138,14 @@ PC/390px 선택·저장·재열기·다운로드를 함께 검증한다.
 보존해 같은 위치로 복원하며, 키보드 호출은 기존 활성 요소를 기준으로 한다.
 열린 창 스택의 최상단만 키보드에 반응한다. 날짜·시간 팝업이 열린 동안
 `AdminModal`은 단축키를 넘겨서 팝업만 닫히고 부모 폼의 입력은 유지되게 한다.
+Ant Design 선택·날짜·메뉴 팝업에도 같은 우선순위를 적용한다. 팝업이 열려 있는
+동안 Enter는 항목 선택, Escape는 팝업 닫기를 처리하며 부모 폼을 제출하거나
+닫지 않는다. 팝업을 닫은 뒤에는 기존 모달 단축키로 돌아온다. 클리닉 생성에서
+예약 간격 선택을 취소해도 제목·장소·시간 입력은 남고 다시 선택해 생성할 수 있다.
+표시·닫힘 애니메이션, 권한과 저장 API는 유지하며 기존 데이터 이관은 없다.
+클리닉 폼의 시간 조절 버튼은 시간 입력 아래에 배치해 좁은 창에서도 전체 시간과
+익일 표시를 읽을 수 있게 한다. 390px에서 세로로 쌓이는 정원·체류 시간 필드는
+가로 배치용 고정 너비를 높이로 적용하지 않아 불필요한 빈 공간을 만들지 않는다.
 공용 문구·서식 편집기는 `delegateEditorEscape`로 대화상자 안의 Escape만 부모에게
 넘긴다. ProseMirror 기본 처리에 막혀 미저장 닫기 확인이 사라지지 않으며,
 줄바꿈·실행 취소와 한글 조합은 편집기가 계속 소유한다.
@@ -162,7 +170,7 @@ Enter 자동 실행은 해당 모달 footer의 명시적 primary 버튼만 대�
 
 ## 회귀 검증
 
-`@dialog-journey` 20건은 Chromium route-mock gate와 필수 `pr-modal-webkit`
+`@dialog-journey` 시나리오는 Chromium route-mock gate와 필수 `pr-modal-webkit`
 프로젝트에서 함께 실행한다. Safari의 마우스 호출·닫기 후 포커스 복원을 포함하며,
 합성 API 검사는 동일 산출물의 격리 개발 실사용·cleanup zero를 대체하지 않는다.
 
@@ -171,6 +179,8 @@ Enter 자동 실행은 해당 모달 footer의 명시적 primary 버튼만 대�
   저장 실패 복구 및 기존 비밀번호 선택·등록 결과.
 - `lecture-create-responsive.mock.spec.ts`: 느린 초기 조회 중 Enter, 날짜·시간 팝업
   Escape·포커스 복원과 세 테마의 실제 등록 확인 흐름.
+- `clinic-booking-modes-visual.mock.spec.ts`: 1366/390px에서 예약 간격 팝업의
+  Escape·포커스 유지, 제목·장소 보존, 다시 선택해 생성·reload 표시와 중복 요청 없음.
 - `clinic-booking-ux.mock.spec.ts`, `community-draft-autosave.mock.spec.ts`:
   학생 예약 취소 버튼의 Enter와 이미지 확대의 Tab·Escape·포커스 복원.
 
