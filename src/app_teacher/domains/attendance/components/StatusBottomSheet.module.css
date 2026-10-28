@@ -34,7 +34,7 @@
 }
 
 .optionLabel {
-  color: var(--attendance-option-color);
+  color: var(--tc-text);
   font-size: 14px;
   font-weight: 700;
 }
