@@ -747,6 +747,31 @@ async function prepareDetail(page: Page) {
   await installApi(page);
 }
 
+test("학생 상세 계정 이력에서 접수와 최종 전달 실패를 구분한다", async ({ page }) => {
+  await prepareDetail(page);
+  await page.route("**/api/v1/students/1001/account-notifications/**", route => route.fulfill({ json: {
+    initial_notice: { status: "not_pending", message: "기존 학생의 추가 수강에는 자동으로 다시 보내지 않습니다." },
+    results: [{ id: 77, status: "sent", success: true, notification_type: "registration_approved_student", sent_at: "2026-10-28T12:29:00Z", recipient_summary: "010-****-1234" }],
+  } }));
+  await page.route("**/api/v1/messaging/log/77/**", route => route.fulfill({ json: {
+    provider_delivery_status: "failed", provider_status_code: "3058", provider_delivery_failure_reason: "전송경로 없음(3058): 등록된 번호를 확인해 주세요.", provider_delivery_checked_at: "2026-10-28T14:00:00Z",
+  } }));
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, BASE + "/workspace/students/1001");
+    const overlay = page.getByTestId("student-detail-overlay");
+    if (width === 390) await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
+    await overlay.locator("summary").filter({ hasText: "계정 알림톡 이력" }).click();
+    const history = overlay.getByRole("region", { name: "계정 안내 발송 내역" });
+    await expect(history.getByText("발송 접수", { exact: true })).toBeVisible();
+    await history.getByRole("button", { name: "최종 전달 확인" }).click();
+    await expect(history.getByText("최종 전달 실패", { exact: true })).toBeVisible();
+    await expect(history.getByText(/전송경로 없음/)).toBeVisible();
+    expect(await overlay.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+    await history.screenshot({ path: test.info().outputPath(`admin-account-notices-${width}.png`) });
+  }
+});
+
 test("학생 상세는 1366·1100·390px에서 주요 작업과 전체 탭에 접근할 수 있다", async ({ page }, testInfo) => {
   await prepareDetail(page);
   await page.route("**/api/v1/students/1001/", (route) => route.fulfill({ json: {

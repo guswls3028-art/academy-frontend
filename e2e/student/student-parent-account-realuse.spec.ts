@@ -84,6 +84,34 @@ async function verifyTeacherStudentList(page: Page, request: APIRequestContext, 
   }
 }
 
+async function verifyTeacherAccountHistory(page: Page, request: APIRequestContext, student: QaStudent, admin: QaTokens): Promise<void> {
+  const context = await page.context().browser()!.newContext();
+  try {
+    const staffPage = await context.newPage();
+    const boundary = await installQaStudentParentBoundary(staffPage, request);
+    const guards = attachStrictBrowserGuards(staffPage);
+    await seedBrowserAuth(staffPage, admin);
+    for (const width of [390, 1366]) {
+      await staffPage.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/students/${student.id}?tab=info`);
+      const history = staffPage.getByRole("region", { name: "계정 안내 발송 내역" });
+      await expect(history.getByText("발송 접수", { exact: true }).first()).toBeVisible();
+      await history.getByRole("button", { name: "최종 전달 확인" }).first().click();
+      // The development provider persists a mock receipt but does not expose a
+      // real carrier report. It must not be presented as recipient delivery.
+      await expect(history.getByText("최종 전달 확인 불가", { exact: true })).toBeVisible();
+      await expect(history.getByText("최종 전달 성공", { exact: true })).toHaveCount(0);
+      await staffPage.reload();
+      await expect(history.getByText("발송 접수", { exact: true }).first()).toBeVisible();
+      await assertNoHorizontalOverflow(staffPage);
+    }
+    boundary.assertClean();
+    guards.assertZeroDefects();
+  } finally {
+    await context.close();
+  }
+}
+
 async function verifyExcelSiblingImport(page: Page, request: APIRequestContext, target: QaFamily): Promise<void> {
   assertQaStudentParentRuntime();
   const context = await page.context().browser()!.newContext({ viewport: { width: 390, height: 900 } });
@@ -462,6 +490,8 @@ test.describe.serial("[real-use] 학생/학부모 계정과 복구", () => {
     });
     expect(receipt.recipient_summary).toContain(`${family.parentPhone.slice(0, 4)}****`);
     expect(receipt.recipient_summary).not.toContain(family.parentPhone);
+
+    await verifyTeacherAccountHistory(page, request, student, admin);
 
     await loginApi(request, student.ps_number, student.password);
     await loginApi(request, family.parentPhone, family.parentPassword);
