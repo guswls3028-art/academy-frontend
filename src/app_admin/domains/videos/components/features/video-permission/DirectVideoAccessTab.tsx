@@ -63,7 +63,7 @@ export default function DirectVideoAccessTab({ videoId }: { videoId: number }) {
 
   const studentQuery = useQuery({
     queryKey: adminVideoQueryKeys.directStudentSearch(debouncedSearch),
-    queryFn: () => fetchStudents(debouncedSearch, {}, "name", 1, false),
+    queryFn: ({ signal }) => fetchStudents(debouncedSearch, {}, "name", 1, false, signal),
     enabled: debouncedSearch.length >= 2,
     staleTime: 30_000,
     retry: 1,
