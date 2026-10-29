@@ -41,6 +41,7 @@ export default function ClinicBookingCalendar({
   });
   const [focusedDate, setFocusedDate] = useState<string | null>(selectedDate);
   const dayButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const pendingDayFocus = useRef<string | null>(null);
   const today = toYmdLocal(new Date());
 
   useEffect(() => {
@@ -94,15 +95,31 @@ export default function ClinicBookingCalendar({
     ));
   }, [days, visibleMonth]);
 
+  useEffect(() => {
+    const index = days.findIndex((day) => day.date === pendingDayFocus.current);
+    if (index < 0) return;
+    pendingDayFocus.current = null;
+    dayButtonRefs.current[index]?.focus();
+  }, [days]);
+
   const moveMonth = (offset: number) => {
     setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
   };
 
   const moveDayFocus = (index: number, offset: number) => {
     const nextIndex = index + offset;
-    if (nextIndex < 0 || nextIndex >= days.length) return;
-    setFocusedDate(days[nextIndex].date);
-    dayButtonRefs.current[nextIndex]?.focus();
+    if (nextIndex >= 0 && nextIndex < days.length) {
+      setFocusedDate(days[nextIndex].date);
+      dayButtonRefs.current[nextIndex]?.focus();
+      return;
+    }
+    const nextDate = parseYmd(days[index].date);
+    nextDate.setDate(nextDate.getDate() + offset);
+    const target = toYmdLocal(nextDate);
+    // Render the adjacent month before focusing its newly mounted day button.
+    pendingDayFocus.current = target;
+    setFocusedDate(target);
+    setVisibleMonth(new Date(nextDate.getFullYear(), nextDate.getMonth(), 1));
   };
 
   return (

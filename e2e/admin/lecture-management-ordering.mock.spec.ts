@@ -142,6 +142,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
       await previousFocus.dispose();
       await settings.click();
       await expect(menu).toBeVisible();
+      await expect(page.locator(".lecture-actions-dropdown:visible")).toHaveCSS("opacity", "1");
       await page.screenshot({ path: testInfo.outputPath(`lecture-menu-${width}.png`), animations: "disabled" });
       await page.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
       await expect(menu).toBeHidden();
