@@ -438,7 +438,7 @@ export default function SessionEnrollModal({
     refetch: refetchStudents,
   } = useQuery({
     queryKey: adminLectureQueryKeys.sessionEnrollModalStudentsList(search, apiFilters, sort, page),
-    queryFn: () => fetchStudents(search, apiFilters, sort, page),
+    queryFn: ({ signal }) => fetchStudents(search, apiFilters, sort, page, false, signal),
     enabled: isOpen,
     refetchOnMount: "always",
     staleTime: 0,

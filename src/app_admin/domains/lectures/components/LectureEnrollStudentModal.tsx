@@ -42,20 +42,21 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
   const savingRef = useRef(false);
   const [saveError, setSaveError] = useState("");
   const [selectionMessage, setSelectionMessage] = useState("");
-  const [composing, setComposing] = useState(false);
   const [confirmationIds, setConfirmationIds] = useState<number[] | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const normalizedSearch = normalizeSearch(searchInput);
 
   useEffect(() => {
-    if (composing || normalizedSearch === search) return;
+    // Korean IMEs can keep the final syllable composing until blur/another click.
+    // Search the visible value after idle time instead of waiting for compositionend.
+    if (normalizedSearch === search) return;
     const timer = setTimeout(() => {
       setSearch(normalizedSearch);
       setPage(1);
     }, 250);
     return () => clearTimeout(timer);
-  }, [normalizedSearch, search, composing]);
+  }, [normalizedSearch, search]);
 
   useEffect(() => { listRef.current?.scrollTo({ top: 0 }); }, [search, page]);
 
@@ -76,7 +77,7 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
   ), [enrollmentsQ.data]);
   const loading = studentsQ.isPending || enrollmentsQ.isPending;
   const loadError = studentsQ.isError || enrollmentsQ.isError;
-  const searching = composing || normalizedSearch !== search || studentsQ.isPlaceholderData;
+  const searching = normalizedSearch !== search || studentsQ.isPlaceholderData;
   const selectionLocked = saving || confirmationIds !== null;
   const busy = selectionLocked || loading || loadError || searching || enrollmentsQ.isFetching;
   // A failed or slow student search must not strand an already selected roster.
@@ -187,7 +188,6 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
             <input ref={searchRef} id="lecture-enroll-search" className="ds-input" autoFocus value={searchInput}
               placeholder="이름, 학교, 전화번호 검색" disabled={selectionLocked}
               autoComplete="off" enterKeyHint="search"
-              onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}
               onChange={(event) => setSearchInput(event.target.value)} />
             {searchInput && <Button intent="ghost" disabled={selectionLocked} aria-label="검색어 지우기"
               onClick={() => { setSearchInput(""); searchRef.current?.focus(); }}>지우기</Button>}
