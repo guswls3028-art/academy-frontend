@@ -4,6 +4,7 @@
 
 import { useState, useCallback } from "react";
 import { SCORE_TEMPLATE_SLOT_LIMIT } from "@/shared/scoring/scoreTemplateSlots";
+import { scoreMessageItems } from "@/shared/messaging/scoreMessageEditor";
 import { type TemplateBlock } from "../constants/templateBlocks";
 
 // ── 동적 삽입 헬퍼 ──
@@ -41,13 +42,16 @@ export default function GradesBlockPanel({
   onInsert,
   disabled,
   currentBody,
+  values,
 }: {
   blocks: TemplateBlock[];
   onInsert: (text: string) => void;
   disabled?: boolean;
   /** 현재 본문 — 동적 번호 계산에 사용 */
   currentBody?: string;
+  values?: Record<string, string>;
 }) {
+  const items = scoreMessageItems(values);
   const [showIndividual, setShowIndividual] = useState(false);
   const [futureOffset, setFutureOffset] = useState(2);
 
@@ -58,7 +62,7 @@ export default function GradesBlockPanel({
   );
   const listBlocks = blocks.filter((b) => ["exam_list", "exam_history", "hw_list", "full_summary"].includes(b.id));
   const summaryBlocks = blocks.filter((b) => ["exam_total", "exam_total_max", "hw_total", "hw_total_max", "hw_completion"].includes(b.id));
-  const etcBlocks = blocks.filter((b) => ["exam_score", "assignment_score", "clinic_result"].includes(b.id));
+  const etcBlocks = blocks.filter((b) => ["assignment_score", "clinic_result"].includes(b.id));
   const bodyForSlots = currentBody ?? "";
   const examMaxNumber = findMaxUsedNumber(bodyForSlots, "시험");
   const homeworkMaxNumber = findMaxUsedNumber(bodyForSlots, "과제");
@@ -96,6 +100,17 @@ export default function GradesBlockPanel({
 
   return (
     <div className="grades-block-panel">
+      {items.length > 0 && <>
+        <div className="grades-block-panel__group-label">이번 수업 결과 · 본문에 넣을 항목 선택</div>
+        <button type="button" className="grades-block-panel__add-btn" disabled={disabled}
+          onMouseDown={event => event.preventDefault()}
+          onClick={() => onInsert(items.map(item => item.text).join("\n"))}>시험·과제 결과 넣기</button>
+        <div className="grades-block-panel__tag-row">{items.map(item => (
+          <button type="button" key={`${item.kind}${item.number}`} disabled={disabled}
+            className="grades-block-panel__add-btn" onMouseDown={event => event.preventDefault()}
+            onClick={() => onInsert(item.text)}>{item.name} 넣기</button>
+        ))}</div>
+      </>}
       {/* 공통 */}
       <div className="grades-block-panel__tag-row">{commonBlocks.map(renderTag)}</div>
 
@@ -111,6 +126,7 @@ export default function GradesBlockPanel({
       <div className="grades-block-panel__group-label">자동 목록 — 시험/과제 개수에 맞게 자동 생성됩니다</div>
       <div className="grades-block-panel__tag-row">{listBlocks.map(renderTag)}</div>
 
+      {!values && <>
       {/* 시험/과제 동적 추가 */}
       <div className="grades-block-panel__group-label">개별 추가</div>
       <div className="grades-block-panel__add-row">
@@ -137,6 +153,7 @@ export default function GradesBlockPanel({
         시험·과제 정보를 필요한 만큼 본문에 넣을 수 있습니다.
       </div>
 
+      </>}
       {/* 요약 */}
       <div className="grades-block-panel__group-label">요약</div>
       <div className="grades-block-panel__tag-row">

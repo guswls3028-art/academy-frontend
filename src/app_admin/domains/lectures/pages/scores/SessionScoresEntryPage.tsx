@@ -33,8 +33,7 @@ import { DomainListToolbar, getStoredTableOption, setStoredTableOption } from "@
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildScoreVars, buildScoreDetail, buildGenericScoreTemplate, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
-import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
+import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
@@ -966,7 +965,6 @@ export default function SessionScoresEntryPage({
               let initialBody: string | undefined;
               let initialTemplateId: number | null = null;
               let initialTemplateUpdatedAt: string | undefined;
-              let initialLetterPresetId: string | null = null;
               let scoreDetail = "";
 
               try {
@@ -978,10 +976,9 @@ export default function SessionScoresEntryPage({
                 // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
                 initialBody = chosenTpl
                   ? chosenTpl.body
-                  : buildGenericScoreTemplate(reportOptions);
+                  : "";
                 initialTemplateId = chosenTpl?.id ?? null;
                 initialTemplateUpdatedAt = chosenTpl?.updated_at;
-                initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
                 scoreDetail = buildScoreDetail(selectedRows[0], meta);
               } catch {
                 feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
@@ -1016,7 +1013,6 @@ export default function SessionScoresEntryPage({
                 initialBody,
                 initialTemplateId,
                 initialTemplateUpdatedAt,
-                initialLetterPresetId,
                 alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
                 recomputePerStudentVars,
               });

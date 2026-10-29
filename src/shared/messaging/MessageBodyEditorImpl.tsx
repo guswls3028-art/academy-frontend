@@ -53,7 +53,7 @@ const MessageVariable = Node.create({
   inline: true,
   atom: true,
   selectable: true,
-  addAttributes: () => ({ name: { default: "" } }),
+  addAttributes: () => ({ name: { default: "" }, preview: { default: null, rendered: false } }),
   parseHTML: () => [{
     tag: "span[data-message-variable]",
     getAttrs: (element) => ({ name: element.getAttribute("data-message-variable") }),
@@ -65,14 +65,14 @@ const MessageVariable = Node.create({
       "data-message-variable": name,
       contenteditable: "false",
       class: "message-body-editor__variable",
-      title: block?.description ?? "학생별 정보가 자동으로 들어갑니다",
-    }, block?.label ?? name];
+      title: `${block?.label ?? name} · 학생별 정보가 자동으로 들어갑니다`,
+    }, node.attrs.preview || block?.label || name];
   },
   renderText: ({ node }) => `#{${node.attrs.name}}`,
 });
 
 const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEditorProps>(({
-  value, onChange, disabled = false, placeholder = "안내문을 작성하고 필요한 정보를 블록으로 넣으세요.", id, ariaLabel = "안내문",
+  value, onChange, disabled = false, placeholder = "안내문을 작성하고 필요한 정보를 블록으로 넣으세요.", id, ariaLabel = "안내문", previewValues,
 }, ref) => {
   const currentEditor = useRef<Editor | null>(null);
   const editor = useEditor({
@@ -135,6 +135,16 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
       editor.commands.setContent(messageDocument(value), { emitUpdate: false });
     }
   }, [editor, value]);
+  useEffect(() => {
+    if (!editor) return;
+    const tr = editor.state.tr;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name !== "messageVariable") return;
+      const preview = previewValues?.[String(node.attrs.name)] || null;
+      if (node.attrs.preview !== preview) tr.setNodeMarkup(pos, undefined, { ...node.attrs, preview });
+    });
+    if (tr.docChanged) editor.view.dispatch(tr.setMeta("addToHistory", false));
+  }, [editor, value, previewValues]);
   useImperativeHandle(ref, () => ({
     insert(text) {
       if (!editor || disabled) return;
@@ -154,7 +164,7 @@ const MessageBodyEditorImpl = forwardRef<MessageBodyEditorHandle, MessageBodyEdi
           leftIcon={<Redo2 size={ICON.sm} />}
           disabled={disabled || !editor?.can().redo()} onMouseDown={(event) => event.preventDefault()}
           onClick={() => editor?.chain().focus().redo().run()}>다시 실행</Button>
-        <span className="message-body-editor__hint">블록은 학생별 정보로 바뀝니다</span>
+        <span className="message-body-editor__hint">{previewValues ? "표시된 값은 미리보기 학생 기준이며, 학생별로 바뀝니다" : "블록은 학생별 정보로 바뀝니다"}</span>
       </div>
       <EditorContent editor={editor} className="message-body-editor__content" />
     </div>

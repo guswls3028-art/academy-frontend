@@ -92,7 +92,7 @@ function extractVars(text: string): string[] {
 function isSupportedVar(name: string, extraVars?: Record<string, string>): boolean {
   if (SUPPORTED_FIXED_VARS.has(name) || /^[1-9]\d?차시후(명|날짜)$/.test(name)) return true;
   if (extraVars && Object.prototype.hasOwnProperty.call(extraVars, name)) return true;
-  if (/^(시험|과제)\d+(명|만점)?$/.test(name)) return true;
+  if (/^(시험|과제)\d+(명|만점|결과)?$/.test(name)) return true;
   return false;
 }
 

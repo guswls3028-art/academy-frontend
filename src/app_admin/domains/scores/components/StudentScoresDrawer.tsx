@@ -37,7 +37,7 @@ import {
   patchHomeworkQuick,
   type HomeworkScoreCellValue,
 } from "../api/patchHomeworkQuick";
-import { buildGenericScoreTemplate, buildScoreVars, buildScoreDetail, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
+import { buildScoreVars, buildScoreDetail, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import {
   getSessionRowAttentionCountLabel,
   getSessionRowAttentionSummary,
@@ -48,7 +48,6 @@ import {
 } from "../utils/sessionScoreRowVerdict";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { scoresQueryKeys } from "../api/queryKeys";
@@ -264,16 +263,14 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     let body: string;
     let initialTemplateId: number | null = null;
     let initialTemplateUpdatedAt: string | undefined;
-    let initialLetterPresetId: string | null = null;
     try {
       const templates = await fetchMessageTemplates("grades");
       const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
       body = chosenTpl
         ? chosenTpl.body
-        : buildGenericScoreTemplate(reportOptions);
+        : "";
       initialTemplateId = chosenTpl?.id ?? null;
       initialTemplateUpdatedAt = chosenTpl?.updated_at;
-      initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
     } catch {
       feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
       return;
@@ -300,7 +297,6 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       initialBody: body,
       initialTemplateId,
       initialTemplateUpdatedAt,
-      initialLetterPresetId,
       alimtalkExtraVars: {
         강의명: lectureName,
         차시명: sessionTitle,

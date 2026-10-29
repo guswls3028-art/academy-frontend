@@ -9,6 +9,7 @@ export type MessageBodyEditorProps = {
   placeholder?: string;
   id?: string;
   ariaLabel?: string;
+  previewValues?: Record<string, string>;
 };
 
 const Editor = lazy(() => import("./MessageBodyEditorImpl"));
