@@ -704,6 +704,9 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       const acknowledgedIdentity = await expectApi<{ first_login_guide_required: boolean }>(request, "GET", "/core/me/", staffTokens.access);
       expect(acknowledgedIdentity.first_login_guide_required).toBe(false);
       const fileRow = staffPage.locator('[class*="fileRow"]').filter({ hasText: uploadName });
+      const submissionRow = staffPage.locator('[class*="row"]').filter({
+        has: staffPage.getByText(student.name, { exact: true }),
+      });
       await expect(fileRow).toHaveCount(0);
       await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
       await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
@@ -745,7 +748,11 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await preview.getByRole("button", { name: "직접 확인 완료" }).click();
       await staffPage.getByRole("alertdialog").getByRole("button", { name: "확인 완료", exact: true }).click();
       expect((await completed).status()).toBe(200);
-      await expect(staffPage.getByText("확인 완료", { exact: true })).toBeVisible();
+      // The refreshed status can appear in both the list and the still-open
+      // preview before the mutation finishes closing it.
+      await expect(preview).toBeHidden();
+      await expect(submissionRow).toHaveCount(1);
+      await expect(submissionRow.getByText("확인 완료", { exact: true })).toBeVisible();
       const completedRows = await expectApi<Array<{ enrollment_id: number; teacher_reviewed: boolean; teacher_review_source: string | null }>>(
         request, "GET", `/submissions/submissions/homework/${created.homeworkId}/`, staffTokens.access,
       );
@@ -755,7 +762,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === true);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(fileRow).toBeVisible();
-      await expect(staffPage.getByText("확인 완료", { exact: true })).toBeVisible();
+      await expect(submissionRow.getByText("확인 완료", { exact: true })).toBeVisible();
       await staffPage.getByRole("button", { name: "제출물 확인" }).click();
       const reviewedSheet = staffPage.getByRole("dialog", { name: `${student.name} 제출 확인` });
       const cancelled = staffPage.waitForResponse((response) => response.request().method() === "PATCH"
@@ -763,9 +770,10 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await reviewedSheet.getByRole("button", { name: "확인 완료 취소" }).click();
       await staffPage.getByRole("alertdialog").getByRole("button", { name: "확인 취소" }).click();
       expect((await cancelled).status()).toBe(200);
-      await expect(staffPage.getByText("확인 대기", { exact: true })).toBeVisible();
+      await expect(reviewedSheet).toBeHidden();
+      await expect(submissionRow.getByText("확인 대기", { exact: true })).toBeVisible();
       await staffPage.reload({ waitUntil: "domcontentloaded" });
-      await expect(staffPage.getByText("확인 대기", { exact: true })).toBeVisible();
+      await expect(submissionRow.getByText("확인 대기", { exact: true })).toBeVisible();
       const cancelledRows = await expectApi<Array<{ enrollment_id: number; teacher_reviewed: boolean; teacher_review_source: string | null }>>(
         request, "GET", `/submissions/submissions/homework/${created.homeworkId}/`, staffTokens.access,
       );
