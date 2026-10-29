@@ -12,6 +12,7 @@ import { Search, Check, Plus } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { teacherLectureQueryKeys } from "../queryKeys";
+import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -22,11 +23,12 @@ interface Props {
 export default function EnrollStudentSheet({ open, onClose, lectureId, enrolledStudentIds }: Props) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const settledSearch = useDebouncedValue(search.trim());
   const [selected, setSelected] = useState<number[]>([]);
 
-  const { data } = useQuery({
-    queryKey: teacherLectureQueryKeys.allStudentsForEnroll(search),
-    queryFn: () => fetchStudents({ search: search || undefined, page_size: 100 }),
+  const { data, isPending, isError, refetch } = useQuery({
+    queryKey: teacherLectureQueryKeys.allStudentsForEnroll(settledSearch),
+    queryFn: ({ signal }) => fetchStudents({ search: settledSearch || undefined, page_size: 100 }, signal),
     enabled: open,
   });
 
@@ -61,7 +63,14 @@ export default function EnrollStudentSheet({ open, onClose, lectureId, enrolledS
 
         {/* Student list */}
         <div style={{ maxHeight: 300, overflowY: "auto" }}>
-          {students.length === 0 ? (
+          {isPending || search.trim() !== settledSearch ? (
+            <div role="status" className="text-sm text-center py-4">학생 검색 중…</div>
+          ) : isError ? (
+            <div role="alert" className="text-sm text-center py-4">
+              학생 명단을 불러오지 못했습니다.
+              <button type="button" className="ml-2 underline" onClick={() => void refetch()}>다시 시도</button>
+            </div>
+          ) : students.length === 0 ? (
             <div className="text-sm text-center py-4" style={{ color: "var(--tc-text-muted)" }}>
               {search ? "검색 결과 없음" : "등록 가능한 학생 없음"}
             </div>

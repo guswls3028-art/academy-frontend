@@ -108,10 +108,22 @@ for (const { width, scenario } of [
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.screenshot({ path: testInfo.outputPath(`student-selection-${width}.png`), animations: "disabled" });
     await main.getByRole("button", { name: "선택 취소", exact: true }).click();
-    await main.getByPlaceholder("이름, 아이디, 전화번호, 학교").fill("끝학생");
+    const searchInput = main.getByPlaceholder("이름, 아이디, 전화번호, 학교");
+    await page.clock.install();
+    const requestCount = requests.length;
+    await searchInput.dispatchEvent("compositionstart");
+    for (const value of ["끝", "끝학", "끝학생"]) {
+      await searchInput.fill(value);
+      await page.clock.runFor(100);
+    }
+    expect(requests).toHaveLength(requestCount);
+    await page.clock.runFor(300);
     await expect(main.getByText("검증 학생 01", { exact: true })).toHaveCount(0);
     await expect(main.getByText("끝학생", { exact: true })).toBeVisible();
     expect(requests.at(-1)).toEqual({ search: "끝학생", page: 1 });
+    expect(requests).toHaveLength(requestCount + 1);
+    await expect(searchInput).toBeFocused();
+    await searchInput.dispatchEvent("compositionend");
     await main.getByRole("button", { name: "선택", exact: true }).click();
     await expect(main.getByText("0명 선택됨", { exact: true })).toBeVisible();
   });

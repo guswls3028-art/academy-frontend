@@ -36,7 +36,7 @@ export default function StudentInventoryManage({
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: storageQueryKeys.storageStudentSearch(debouncedSearch),
-    queryFn: () => fetchStudents(debouncedSearch, {}, "", 1, false),
+    queryFn: ({ signal }) => fetchStudents(debouncedSearch, {}, "", 1, false, signal),
   });
 
   const students = data?.data ?? [];
