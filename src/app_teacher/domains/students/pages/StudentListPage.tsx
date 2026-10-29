@@ -1,7 +1,8 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/students/pages/StudentListPage.tsx
 // 학생 목록 — 강의딱지 + 전화번호 + 검색 + 필터 + 대량 선택 모드
-import { useEffect, useState, useDeferredValue, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useLocation, useNavigate } from "react-router";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -79,7 +80,7 @@ export default function StudentListPage() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [excelImportFile, setExcelImportFile] = useState<File | null>(null);
   const [filters, setFilters] = useState<FilterState>({});
-  const deferredSearch = useDeferredValue(search);
+  const deferredSearch = useDebouncedValue(search);
 
   // Selection mode
   const [selectMode, setSelectMode] = useState(false);
@@ -103,7 +104,7 @@ export default function StudentListPage() {
   const studentPages = useInfiniteQuery({
     queryKey: teacherStudentsQueryKeys.studentPages(deferredSearch, filters),
     initialPageParam: 1,
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam, signal }) => {
       const result = await fetchStudents({
         search: deferredSearch.trim() || undefined,
         page: pageParam,
@@ -111,7 +112,7 @@ export default function StudentListPage() {
         ...(filters.grade ? { grade: Number(filters.grade) } : {}),
         ...(filters.gender ? { gender: filters.gender } : {}),
         ...(filters.status ? { status: filters.status } : {}),
-      });
+      }, signal);
       if (result.data.length < Math.min(50, Math.max(0, result.count - (pageParam - 1) * 50))) {
         throw new Error("학생 목록의 일부를 확인하지 못했습니다. 다시 조회해 주세요.");
       }
