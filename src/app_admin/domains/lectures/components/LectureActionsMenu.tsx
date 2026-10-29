@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dropdown, type MenuProps } from "antd";
 import { Archive, Loader2, Pencil, RotateCcw, Settings, Trash2 } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
@@ -21,6 +21,19 @@ export default function LectureActionsMenu({ lecture, isPast, onEdit, onChanged 
   const [busy, setBusy] = useState(false);
   const inFlight = useRef(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    // Cancel pending focus when dismissed before the next frame. Dropdown's
+    // deferred autoFocus can otherwise steal focus back after Escape or Edit.
+    const frame = requestAnimationFrame(() => {
+      if (!popup.current?.contains(document.activeElement)) {
+        popup.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
 
   async function act(action: "edit" | "end" | "restore" | "delete") {
     if (inFlight.current) return;
@@ -73,7 +86,7 @@ export default function LectureActionsMenu({ lecture, isPast, onEdit, onChanged 
       onOpenChange={(next) => { if (!inFlight.current) setOpen(next); }}
       trigger={["click"]}
       placement="bottomRight"
-      autoFocus
+      popupRender={(menu) => <div ref={popup}>{menu}</div>}
       classNames={{ root: "lecture-actions-dropdown" }}
       menu={{
         items,
@@ -82,7 +95,11 @@ export default function LectureActionsMenu({ lecture, isPast, onEdit, onChanged 
           if (key === "edit" || key === "end" || key === "restore" || key === "delete") void act(key);
         },
         onKeyDown: (event) => {
-          if (event.key === "Escape") {
+          if (event.key === "Escape" || event.key === "Tab") {
+            // Own dismissal before the library's window handler can refocus
+            // its overlay; Tab retains the browser's normal next/previous step.
+            event.stopPropagation();
+            if (event.key === "Escape") event.preventDefault();
             setOpen(false);
             trigger.current?.focus();
           }
