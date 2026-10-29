@@ -109,6 +109,12 @@ export async function verifyHomeworkCriteria(
       await expect(preview).toBeInViewport();
     }
     await assertNoHorizontalOverflow(page);
+    await test.info().attach(`homework-criteria-evidence-${width}-${threshold}`, {
+      body: JSON.stringify({ mode, threshold, score: 92, maxScore: 100, passed,
+        numericBlock: row.homeworks.find(item => item.homework_id === homeworkId)!.block,
+        completionBlock: row.homeworks.find(item => item.homework_id === completionHomeworkId)!.block,
+        preview: await preview.innerText() }), contentType: "application/json",
+    });
     await test.info().attach(`homework-message-criteria-${width}-${threshold}`, {
       body: await page.screenshot({ animations: "disabled" }), contentType: "image/png",
     });
@@ -120,4 +126,3 @@ export async function verifyHomeworkCriteria(
   // Leave the existing fixture's score and passing state intact for report/comment checks.
   await gotoAndSettle(page, scoresUrl);
 }
-
