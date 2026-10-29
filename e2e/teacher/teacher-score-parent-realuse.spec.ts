@@ -393,6 +393,7 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
       await expect(preview).toBeInViewport();
       await modal.getByRole("button", { name: "본문 편집으로 이동", exact: true }).click();
       await expect(modal.getByRole("region", { name: "안내문 편집 영역", exact: true })).toBeFocused();
+      await expect(modal.getByRole("button", { name: "성적 안내문 저장", exact: true })).toBeInViewport();
       await expect(editor).toContainText(note);
     }
     await assertNoHorizontalOverflow(page);

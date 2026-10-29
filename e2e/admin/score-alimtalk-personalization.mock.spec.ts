@@ -411,11 +411,15 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       await expect(preview).toContainText("단원 복습: 통과");
       await expect(preview).not.toContainText("주간 확인");
       if (width === 390) {
-        await modal.getByRole("button", { name: "미리보기로 이동", exact: true }).click();
+        const moveToPreview = modal.getByRole("button", { name: "미리보기로 이동", exact: true });
+        expect(await moveToPreview.evaluate(node => node.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+        await moveToPreview.click();
         await expect(modal.getByRole("region", { name: "받는 사람에게 보일 내용", exact: true })).toBeFocused();
         await expect(preview).toBeInViewport({ ratio: 1 });
+        await page.screenshot({ path: testInfo.outputPath("mobile-preview-navigation.png") });
         await modal.getByRole("button", { name: "본문 편집으로 이동", exact: true }).click();
         await expect(modal.getByRole("region", { name: "안내문 편집 영역", exact: true })).toBeFocused();
+        await expect(modal.getByRole("button", { name: "성적 안내문 저장", exact: true })).toBeInViewport({ ratio: 1 });
         await expect(editor).toContainText("직접 작성한 과제 안내");
         await expect(editor).toContainText("단원 복습");
       }

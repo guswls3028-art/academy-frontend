@@ -437,7 +437,7 @@
 @media (max-width: 1023px) {
   .send-modal__section-nav {
     position: sticky;
-    top: 0;
+    top: calc(-1 * var(--space-3));
     z-index: 2;
     display: flex;
     gap: var(--space-2);
@@ -447,9 +447,9 @@
     border-bottom: 1px solid var(--color-border-divider);
   }
 
-  .send-modal__section-nav > button {
+  .send-modal__section-nav .ds-button[data-size] {
     flex: 1;
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .send-modal__right,
@@ -530,13 +530,18 @@
     flex-basis: calc(100% - 34px);
   }
 
+  .send-modal__tpl-bar-actions {
+    padding-top: var(--space-2);
+    border-top: 1px dashed var(--color-border-divider);
+  }
+
   .send-modal__tpl-bar-save {
     flex-wrap: wrap;
     border-right: 0;
-    border-top: 1px dashed var(--color-border-divider);
+    border-top: 0;
     margin-right: 0;
-    padding: var(--space-2) 0 0;
-    width: 100%;
+    padding: 0;
+    width: auto;
   }
 
   .send-modal__tpl-bar > .ds-button {

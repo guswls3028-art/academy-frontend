@@ -1260,7 +1260,7 @@ export default function SendMessageModal({
                 )}
               </div>
               <p className="send-modal__preview-help">
-                서버가 만든 실제 문구입니다. 다른 학생의 내용은 마지막 확인에서 선택해 보세요.
+                실제로 발송될 내용입니다. 다른 학생의 내용은 마지막 확인에서 선택해 보세요.
               </p>
               {inlinePreviewRecipient ? (
                 <div className="send-modal__actual-message" aria-label="현재 학생의 실제 발송 문구">
@@ -1579,7 +1579,7 @@ export default function SendMessageModal({
               <span className="send-modal__editor-label-title">{effectiveBlockCategory === "grades" ? "성적 안내문" : "안내문"}</span>
               {hasRecipients && recipientCount > 1 ? (
                 <span className="send-modal__editor-label-hint">
-                  학생 {recipientCount}명에게 같은 안내문을 보냅니다. 여기서 자유롭게 고치고, 이름·성적은 학생별로 맞춰 넣습니다.
+                  학생 {recipientCount}명의 공통 안내문입니다. 이름과 성적은 학생별로 바뀝니다.
                 </span>
               ) : (
                 <span className="send-modal__editor-label-hint">
@@ -1588,7 +1588,7 @@ export default function SendMessageModal({
               )}
               {effectiveBlockCategory === "grades" && (
                 <span className="send-modal__editor-label-hint">
-                  본문의 문장·줄바꿈·시험·과제 항목을 직접 편집하세요. 학원·학생 정보와 링크가 포함된 카카오 고정 안내는 미리보기에서 함께 확인합니다.
+                  문장과 시험·과제 항목을 직접 편집하세요. 고정 안내와 링크는 미리보기에서 확인합니다.
                 </span>
               )}
             </div>
