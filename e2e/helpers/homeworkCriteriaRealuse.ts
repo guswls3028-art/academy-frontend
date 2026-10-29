@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
 import type { SessionScoresResponse } from "@/shared/api/contracts/sessionScores";
@@ -76,9 +77,9 @@ export async function verifyHomeworkCriteria(
       score: completionScore, passed: completionPassed, clinic_required: !completionPassed,
     });
     await assertNoHorizontalOverflow(page);
-    await test.info().attach(`homework-criteria-${width}-${threshold}`, {
-      body: await page.screenshot({ animations: "disabled" }), contentType: "image/png",
-    });
+    const criteriaImage = test.info().outputPath(`homework-criteria-${width}-${threshold}.png`);
+    await page.screenshot({ path: criteriaImage, animations: "disabled" });
+    await test.info().attach(`homework-criteria-${width}-${threshold}`, { path: criteriaImage, contentType: "image/png" });
 
     await parentPage.setViewportSize({ width, height: 900 });
     await reloadStudentApp(parentPage);
@@ -109,15 +110,15 @@ export async function verifyHomeworkCriteria(
       await expect(preview).toBeInViewport();
     }
     await assertNoHorizontalOverflow(page);
-    await test.info().attach(`homework-criteria-evidence-${width}-${threshold}`, {
-      body: JSON.stringify({ mode, threshold, score: 92, maxScore: 100, passed,
-        numericBlock: row.homeworks.find(item => item.homework_id === homeworkId)!.block,
-        completionBlock: row.homeworks.find(item => item.homework_id === completionHomeworkId)!.block,
-        preview: await preview.innerText() }), contentType: "application/json",
-    });
-    await test.info().attach(`homework-message-criteria-${width}-${threshold}`, {
-      body: await page.screenshot({ animations: "disabled" }), contentType: "image/png",
-    });
+    const evidencePath = test.info().outputPath(`homework-criteria-evidence-${width}-${threshold}.json`);
+    await writeFile(evidencePath, JSON.stringify({ mode, threshold, score: 92, maxScore: 100, passed,
+      numericBlock: row.homeworks.find(item => item.homework_id === homeworkId)!.block,
+      completionBlock: row.homeworks.find(item => item.homework_id === completionHomeworkId)!.block,
+      preview: await preview.innerText() }));
+    await test.info().attach(`homework-criteria-evidence-${width}-${threshold}`, { path: evidencePath, contentType: "application/json" });
+    const messageImage = test.info().outputPath(`homework-message-criteria-${width}-${threshold}.png`);
+    await page.screenshot({ path: messageImage, animations: "disabled" });
+    await test.info().attach(`homework-message-criteria-${width}-${threshold}`, { path: messageImage, contentType: "image/png" });
     await modal.getByRole("button", { name: "취소", exact: true }).click();
     await page.getByRole("alertdialog", { name: "작성한 문구를 닫을까요?", exact: true })
       .getByRole("button", { name: "수정 내용 버리고 닫기", exact: true }).click();

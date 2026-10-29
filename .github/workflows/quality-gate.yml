@@ -437,6 +437,9 @@ jobs:
             test-results/**/lecture-enrollment-desktop.png
             test-results/**/attendance-letter-suffix-realuse-1366.png
             test-results/**/attendance-letter-suffix-realuse-390.png
+            test-results/**/homework-criteria-*.png
+            test-results/**/homework-message-criteria-*.png
+            test-results/**/homework-criteria-evidence-*.json
             test-results/development-release-progress.json
           retention-days: 14
           if-no-files-found: error

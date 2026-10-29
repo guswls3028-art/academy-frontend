@@ -294,7 +294,9 @@
   92점 과제의 기준 95→90 저장·reload 후 미통과→통과/클리닉 재계산,
   별도 O/X 과제의 설정·점수 보존, 학부모 표시와 과제별 안내문 미리보기를 확인한다.
   안내문은 저장·발송하지 않고 폐기하며, 기존 합성 가족의 teardown을 그대로 사용한다.
-  화면 캡처는 테스트 첨부로 남기며, 실사용 통과 주장은 해당 release 결과로 판단한다.
+  기준·메시지 화면 PNG와 mode/threshold/서버 판정/실제 미리보기 JSON은 고정 파일명으로
+  저장해 development-release-evidence에 포함한다. 합성 가족만 담으며, 실사용 통과
+  주장은 해당 release 결과로 판단한다.
 
 ```powershell
 pnpm typecheck
