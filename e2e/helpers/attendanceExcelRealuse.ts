@@ -18,6 +18,7 @@ export async function verifyAttendanceExcel(
   const session = await expectApi<ExportSession>(request, "GET", sessionPath, access);
   const labels = ["=1+1", "#N/A"];
   const jobs = new Set<string>();
+  const failures: unknown[] = [];
   try {
     for (const [index, student] of students.entries()) {
       const saved = await expectApi<ExportStudent>(request, "PATCH", `/students/${student.id}/`, access, { name: labels[index] });
@@ -75,6 +76,8 @@ export async function verifyAttendanceExcel(
       });
     }
     expect(jobs.size).toBe(2);
+  } catch (error) {
+    failures.push(error);
   } finally {
     const restored = await Promise.allSettled([
       ...students.map(async student => {
@@ -88,7 +91,10 @@ export async function verifyAttendanceExcel(
           .toMatchObject({ title: session.title, date: session.date });
       })(),
     ]);
-    const failures = restored.filter((result): result is PromiseRejectedResult => result.status === "rejected");
-    if (failures.length) throw new AggregateError(failures.map(result => result.reason), "Attendance export fixture restoration failed");
+    failures.push(...restored.filter((result): result is PromiseRejectedResult => result.status === "rejected")
+      .map(result => result.reason));
+
   }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1) throw new AggregateError(failures, "Attendance export verification and restoration failed");
 }

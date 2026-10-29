@@ -1492,7 +1492,8 @@ export async function installReleaseContextGuard(
             && payload?.job_id === pptStatus[1] && payload?.job_type === "attendance_excel_export"
             && payload?.status === "DONE" && typeof payload?.result?.download_url === "string"
             && typeof payload.result.filename === "string" && payload.result.filename.length <= 240
-            && /^출결_[^/\\\u0000-\u001f\u007f"]+_[0-9]+\.xlsx$/.test(payload.result.filename)
+            && /^출결_[^/\\"]+_[0-9]+\.xlsx$/.test(payload.result.filename)
+            && [...payload.result.filename].every(char => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127)
             && payload.result.filename.endsWith(`_${acceptedAttendanceJobs.get(pptStatus[1])}.xlsx`)
             && isExactDevelopmentExcelDownload(boundary, payload.result.download_url, pptStatus[1], payload.result.filename)) {
             documentDownloadUrls.set(pptStatus[1], {
