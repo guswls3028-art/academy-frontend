@@ -206,8 +206,15 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   await enrollmentPage.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
   const picker = enrollmentPage.getByRole("dialog", { name: "수강생 등록", exact: true });
   for (const student of family.students) {
-    await picker.getByRole("textbox", { name: "학생 검색" }).fill(student.name);
-    await picker.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
+    const search = picker.getByRole("textbox", { name: "학생 검색" });
+    await search.dispatchEvent("compositionstart");
+    await search.fill(student.name);
+    await expect(picker.getByText("검색 결과 1명", { exact: true })).toBeVisible();
+    const choice = picker.getByRole("checkbox", { name: `${student.name} 선택`, exact: true });
+    await expect(choice).toBeEnabled();
+    await expect(search).toBeFocused();
+    await search.dispatchEvent("compositionend");
+    await choice.check();
   }
   await assertNoHorizontalOverflow(enrollmentPage);
   await expect(picker.getByRole("textbox", { name: "학생 검색" })).toBeInViewport();
@@ -230,8 +237,13 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   for (const student of family.students) await expect(enrollmentPage.getByText(student.name, { exact: true }).first()).toBeVisible();
   await enrollmentPage.setViewportSize({ width: 1366, height: 900 });
   await enrollmentPage.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
-  await picker.getByRole("textbox", { name: "학생 검색" }).fill(family.students[0].name);
+  const desktopSearch = picker.getByRole("textbox", { name: "학생 검색" });
+  await desktopSearch.dispatchEvent("compositionstart");
+  await desktopSearch.fill(family.students[0].name);
+  await expect(picker.getByText("검색 결과 1명", { exact: true })).toBeVisible();
   await expect(picker.getByRole("checkbox", { name: `${family.students[0].name} 선택`, exact: true })).toBeDisabled();
+  await expect(desktopSearch).toBeFocused();
+  await desktopSearch.dispatchEvent("compositionend");
   await assertNoHorizontalOverflow(enrollmentPage);
   await picker.screenshot({ path: testInfo.outputPath("lecture-enrollment-desktop.png") });
   await picker.getByRole("button", { name: "취소", exact: true }).click();
