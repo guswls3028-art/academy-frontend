@@ -48,7 +48,9 @@ for (const surface of ["enrollment", "inventory"] as const) {
       const panel = surface === "enrollment" ? page.getByRole("dialog", { name: "수강생 등록" }) : page.getByRole("main");
       const input = panel.getByPlaceholder(surface === "enrollment" ? "학생 이름/전화 검색" : "학생 이름, 전화번호", { exact: true });
       await expect(panel.getByText("김학생", { exact: true })).toBeVisible();
-      await page.clock.install();
+      const clockStart = Date.now();
+      await page.clock.install({ time: clockStart });
+      await page.clock.pauseAt(clockStart + 1_000);
       await input.dispatchEvent("compositionstart");
       for (const value of ["김", "김학", "김학생"]) {
         await input.fill(value);

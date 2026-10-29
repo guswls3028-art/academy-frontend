@@ -249,7 +249,10 @@ for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     const { state, dialog } = await openPicker(page, { 52: "김가학생" });
     const input = dialog.getByRole("textbox", { name: "학생 검색" });
-    await page.clock.install();
+    const clockStart = Date.now();
+    await page.clock.install({ time: clockStart });
+    // Locator latency must not advance the simulated typing intervals.
+    await page.clock.pauseAt(clockStart + 1_000);
     await input.dispatchEvent("compositionstart");
     for (const value of ["김", "김가", "김가학", "김가학생"]) {
       await input.fill(value);

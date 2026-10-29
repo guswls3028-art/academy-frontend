@@ -109,7 +109,9 @@ for (const { width, scenario } of [
     await page.screenshot({ path: testInfo.outputPath(`student-selection-${width}.png`), animations: "disabled" });
     await main.getByRole("button", { name: "선택 취소", exact: true }).click();
     const searchInput = main.getByPlaceholder("이름, 아이디, 전화번호, 학교");
-    await page.clock.install();
+    const clockStart = Date.now();
+    await page.clock.install({ time: clockStart });
+    await page.clock.pauseAt(clockStart + 1_000);
     const requestCount = requests.length;
     await searchInput.dispatchEvent("compositionstart");
     for (const value of ["끝", "끝학", "끝학생"]) {
