@@ -815,6 +815,47 @@ test.describe("학생 클리닉 예약 UX", () => {
     )).toBe(true);
   });
 
+  test("달력의 양쪽 경계를 방향키로 넘겨도 날짜 포커스와 예약 선택을 보존한다 @dialog-journey", async ({ page }) => {
+    const state = createState();
+    await seed(page);
+    await installApi(page, state);
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+      const calendar = page.getByRole("grid", { name: "클리닉 월간 일정" });
+      const bookedDay = page.getByTestId(`clinic-calendar-day-${bookedDate}`);
+      await bookedDay.click();
+      const selectedSchedule = page.getByRole("region", { name: koreanDateLabel(bookedDate) });
+      await expect(selectedSchedule).toBeVisible();
+      for (const { edge, key, reverse, offset } of [
+        { edge: "first", key: "ArrowLeft", reverse: "ArrowRight", offset: -1 },
+        { edge: "last", key: "ArrowDown", reverse: "ArrowUp", offset: 7 },
+      ]) {
+        const buttons = calendar.getByRole("button");
+        const boundary = edge === "first" ? buttons.first() : buttons.last();
+        const boundaryId = await boundary.getAttribute("data-testid");
+        const date = new Date(`${boundaryId!.replace("clinic-calendar-day-", "")}T12:00:00`);
+        date.setDate(date.getDate() + offset);
+        const targetDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        await boundary.focus();
+        await page.keyboard.press(key);
+        const target = page.getByTestId(`clinic-calendar-day-${targetDate}`);
+        await expect(target).toBeFocused();
+        await expect(target).toHaveAttribute("tabindex", "0");
+        await expect(page.getByRole("region", { name: "클리닉 날짜 선택" }).locator("header strong"))
+          .toHaveText(`${date.getFullYear()}년 ${date.getMonth() + 1}월`);
+        await expect(selectedSchedule).toBeVisible();
+        await page.keyboard.press(reverse);
+        await expect(page.getByTestId(boundaryId!)).toBeFocused();
+      }
+      const nextMonth = page.getByRole("button", { name: "다음 달" });
+      await nextMonth.focus();
+      await nextMonth.press("Enter");
+      await expect(nextMonth).toBeFocused();
+      expect(state.bookingPayloads).toHaveLength(0);
+    }
+  });
+
   test("열린 클리닉이 없어도 달력과 월 이동을 보여주고 새로고침 후에도 유지한다", async ({ page }) => {
     const state = createState();
     state.sessions = [];

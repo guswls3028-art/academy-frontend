@@ -71,6 +71,7 @@ export default defineConfig({
       testMatch: [
         matchSpec("e2e/clinic/clinic-booking-modes-visual.mock.spec.ts"),
         matchSpec("e2e/admin/lecture-create-responsive.mock.spec.ts"),
+        matchSpec("e2e/admin/lecture-management-ordering.mock.spec.ts"),
         matchSpec("e2e/student/clinic-booking-ux.mock.spec.ts"),
         matchSpec("e2e/student/community-draft-autosave.mock.spec.ts"),
         matchSpec("e2e/teacher/lecture-navigation-recovery.mock.spec.ts"),

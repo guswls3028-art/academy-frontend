@@ -114,7 +114,7 @@ async function normalizedRowTitles(page: Page) {
 }
 
 test.describe("강의 관리 영구 순서와 레이아웃", () => {
-  test("기존 강의를 다시 열어도 입력값을 유지하며 저장 실패 복구·종료일 해제를 저장한다", async ({ page }, testInfo) => {
+  test("기존 강의를 다시 열어도 입력값을 유지하며 저장 실패 복구·종료일 해제를 저장한다 @dialog-journey", async ({ page }, testInfo) => {
     const { edits, updateSubject } = await seedLectureAdmin(page, { failFirstEdit: true });
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
@@ -123,10 +123,26 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await settings.scrollIntoViewIfNeeded();
+      // Preserve the browser's own tab order (WebKit may skip links).
+      await settings.focus();
+      await page.keyboard.press("Shift+Tab");
+      const previousFocus = await page.evaluateHandle(() => document.activeElement);
       await settings.click();
       await expect(page.getByRole("dialog", { name: "강의 설정", exact: true })).toHaveCount(0);
       const menu = page.getByRole("menu");
       await expect(menu).toBeVisible();
+      await menu.getByRole("menuitem", { name: "강의 수정", exact: true }).press("Escape");
+      await expect(menu).toBeHidden();
+      await expect(settings).toBeFocused();
+      await settings.press("ArrowDown");
+      await expect(menu.getByRole("menuitem", { name: "강의 수정", exact: true })).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      await expect(menu).toBeHidden();
+      await expect.poll(() => previousFocus.evaluate((element) => element === document.activeElement)).toBe(true);
+      await previousFocus.dispose();
+      await settings.click();
+      await expect(menu).toBeVisible();
+      await expect(page.locator(".lecture-actions-dropdown:visible")).toHaveCSS("opacity", "1");
       await page.screenshot({ path: testInfo.outputPath(`lecture-menu-${width}.png`), animations: "disabled" });
       await page.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
       await expect(menu).toBeHidden();
@@ -175,6 +191,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await settings.focus();
     await settings.press("ArrowDown");
     await expect(page.getByRole("menu")).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "강의 수정", exact: true })).toBeFocused();
     await page.getByRole("menuitem", { name: "강의 수정", exact: true }).press("Escape");
     await expect(settings).toBeFocused();
     await settings.click();
