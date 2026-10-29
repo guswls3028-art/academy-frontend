@@ -7,6 +7,8 @@ test.use({ serviceWorkers: "block" });
 for (const surface of ["enrollment", "inventory"] as const) {
   for (const width of [1366, 390]) {
     test(`${surface} ${width}px 학생 검색은 입력을 모으고 오류 복구 후 작업을 이어간다`, async ({ page }, info) => {
+      // Install before application timers exist; keep them running until typing starts.
+      await page.clock.install();
       await page.setViewportSize({ width, height: 900 });
       await installTenantOneInitScript(page);
       const payload = Buffer.from(JSON.stringify({ exp: 2_000_000_000, user_id: 12, tenant_code: "hakwonplus" })).toString("base64url");
@@ -48,9 +50,7 @@ for (const surface of ["enrollment", "inventory"] as const) {
       const panel = surface === "enrollment" ? page.getByRole("dialog", { name: "수강생 등록" }) : page.getByRole("main");
       const input = panel.getByPlaceholder(surface === "enrollment" ? "학생 이름/전화 검색" : "학생 이름, 전화번호", { exact: true });
       await expect(panel.getByText("김학생", { exact: true })).toBeVisible();
-      const clockStart = Date.now();
-      await page.clock.install({ time: clockStart });
-      await page.clock.pauseAt(clockStart + 1_000);
+      await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
       await input.dispatchEvent("compositionstart");
       for (const value of ["김", "김학", "김학생"]) {
         await input.fill(value);
