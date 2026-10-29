@@ -361,7 +361,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
     created.adminAccess = admin.access;
-    created.family = await createQaFamily(request, admin.access, "learning", 2);
+    created.family = await createQaFamily(request, admin.access, "learning", 2, { withStudentPhones: true });
     for (const [index, name] of ["황가온", "김가온A"].entries()) {
       const student = created.family.students[index];
       const renamed = await expectApi<{ name: string }>(request, "PATCH", `/students/${student.id}/`, admin.access, { name });
