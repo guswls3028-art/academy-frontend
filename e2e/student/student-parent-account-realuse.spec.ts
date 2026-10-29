@@ -135,10 +135,12 @@ async function verifyExcelSiblingImport(page: Page, request: APIRequestContext, 
       const workbook = new ExcelJS.Workbook();
       workbook.addWorksheet("안내").addRow(["학생 명단은 다음 시트에 있습니다."]);
       const sheet = workbook.addWorksheet("학생목록");
+      const annotatedParent = target.parentPhone.replace(/[0-9]/g,
+        (digit) => String.fromCharCode(digit.charCodeAt(0) + 0xfee0)) + "（부）";
       sheet.addRows([
         [],
         ["Guardian Name", "Student Name", "Guardian Phone", "Student Mobile", "School Type", "Grade", "성별"],
-        ["QA 보호자", "QA 엑셀 첫째", Number(target.parentPhone), Number(phone), "MIDDLE", "2학년", "남자"],
+        ["QA 보호자", "QA 엑셀 첫째", annotatedParent, Number(phone), "MIDDLE", "2학년", "남자"],
         ["QA 보호자", "QA 엑셀 둘째", Number(target.parentPhone), corrected ? "" : "0101234567", "MIDDLE", "１ 학년", "여자"],
       ]);
       await dialog.locator('input[type="file"]').setInputFiles({ name: "qa-student-import.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(await workbook.xlsx.writeBuffer()) });
@@ -168,6 +170,7 @@ async function verifyExcelSiblingImport(page: Page, request: APIRequestContext, 
         expect(student.grade).toBe(corrected ? 1 : 2);
         expect(student.gender).toBe(corrected ? "F" : "M");
         expect(student.name).toBe(corrected ? "QA 엑셀 둘째" : "QA 엑셀 첫째");
+        expect(student.parent_phone).toBe(target.parentPhone);
         const importedLogin = await loginApi(request, student.ps_number, QA_STUDENT_PASSWORD);
         const ownProfile = await expectApi<{ name: string; grade: number; gender: string }>(
           request, "GET", "/student/me/", importedLogin.access,
