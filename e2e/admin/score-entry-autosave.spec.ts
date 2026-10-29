@@ -94,6 +94,7 @@ async function openScores(
     timeout: navigationTimeoutMs,
   });
   await expect(page).toHaveURL(/\/workspace\/lectures\/9001\/sessions\/9002\/scores/);
+  await expect(page.locator(".scores-entry-page")).toBeVisible({ timeout: navigationTimeoutMs });
 }
 
 async function ensureScoreEditing(page: Page, loadingTimeoutMs = 30_000): Promise<void> {
@@ -3219,6 +3220,11 @@ for (const width of [1366, 1100, 390]) {
     const tools = page.getByRole("menu", { name: "성적 도구", exact: true });
     await expect(tools.getByRole("menuitem", { name: /과제 추가|시험 추가/ })).toHaveCount(0);
     await expect(tools.getByRole("menuitem", { name: /성적표 출력/ })).toBeVisible();
+    const menuBounds = await tools.boundingBox();
+    expect(menuBounds).not.toBeNull();
+    expect(menuBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(menuBounds!.x + menuBounds!.width).toBeLessThanOrEqual(width);
+    if (width === 390) await page.screenshot({ path: testInfo.outputPath("score-tools-390.png"), fullPage: true, animations: "disabled" });
     await page.keyboard.press("Escape");
     await ensureScoreEditing(page);
     const control = page.getByRole("group", { name: "자동저장학생1 · 단원 복습 완료 상태", exact: true });
@@ -3237,6 +3243,7 @@ for (const width of [1366, 1100, 390]) {
     await page.keyboard.press("Shift+Enter");
     await expect(control.getByRole("button", { name: "통과", exact: true })).toBeFocused();
     await page.keyboard.press("0");
+    await expect(control.getByRole("button", { name: "미통과", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect.poll(() => currentHomeworkScores[0]).toBe(0);
     await page.keyboard.press("Delete");
     await expect.poll(() => currentHomeworkScores[0]).toBeNull();
@@ -3246,10 +3253,18 @@ for (const width of [1366, 1100, 390]) {
     await expect.poll(() => currentHomeworkScores[0]).toBeNull();
     await page.keyboard.press("x");
     await expect.poll(() => currentHomeworkScores[0]).toBe(0);
+    await page.keyboard.press("Tab");
+    const nextExam = page.getByRole("textbox", { name: "자동저장학생2 · 주간 확인 점수 입력" });
+    await expect(nextExam).toBeFocused();
+    await nextExam.press("Shift+Tab");
+    await expect(control.getByRole("button", { name: "미통과", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Tab");
+    await expect.poll(() => page.evaluate(() => document.activeElement?.closest(".ds-scores-table") == null)).toBe(true);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`score-controls-${width}.png`), fullPage: true, animations: "disabled" });
     await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator('[data-score-cell="homework:9201:9151"]')).toContainText("미통과");
+    await expect(page.locator('[data-score-cell="homework:9201:9151"]')).toContainText("미통과", { timeout: 45_000 });
   });
 }

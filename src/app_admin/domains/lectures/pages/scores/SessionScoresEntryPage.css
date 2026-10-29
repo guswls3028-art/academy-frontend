@@ -928,7 +928,10 @@
 }
 
 @media (max-width: 1023px) {
-  .scores-output-actions { margin-left: 0; width: 100%; }
+  .scores-output-actions { position: relative; margin-left: 0; width: 100%; }
+  .scores-output-actions > .relative { position: static; }
+  .scores-output-actions .scores-tools-menu { width: min(430px, 100%); }
+  .scores-entry-page .domain-list-toolbar > div:last-child { overflow: visible; }
   .scores-entry-page .scores-draft-status { border-top: 0; padding-top: 0; }
 }
 @media (max-width: 520px) {

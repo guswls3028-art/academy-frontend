@@ -403,14 +403,18 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
   const onRequestMoveNext = useCallback(() => {
     const cur = ensureSelection();
-    if (!cur.ok) return;
-    if (!focusLinear(cur.r, cur.c, 1)) tableRef.current?.commitActiveCell();
+    if (!cur.ok) return false;
+    const moved = focusLinear(cur.r, cur.c, 1);
+    if (!moved) tableRef.current?.commitActiveCell();
+    return moved;
   }, [ensureSelection, focusLinear]);
 
   const onRequestMovePrev = useCallback(() => {
     const cur = ensureSelection();
-    if (!cur.ok) return;
-    if (!focusLinear(cur.r, cur.c, -1)) tableRef.current?.commitActiveCell();
+    if (!cur.ok) return false;
+    const moved = focusLinear(cur.r, cur.c, -1);
+    if (!moved) tableRef.current?.commitActiveCell();
+    return moved;
   }, [ensureSelection, focusLinear]);
 
   const onRequestMoveDown = useCallback(() => {

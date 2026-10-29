@@ -441,8 +441,8 @@ type Props = {
   onSelectRow: (row: SessionScoreRow) => void;
 
   /** 키보드 셀 이동 — Tab/Enter/Arrow 시 패널에서 다음 셀로 이동 */
-  onRequestMoveNext?: () => void;
-  onRequestMovePrev?: () => void;
+  onRequestMoveNext?: () => boolean;
+  onRequestMovePrev?: () => boolean;
   onRequestMoveDown?: () => void;
   onRequestMoveUp?: () => void;
   /** 셀 변경이 pending에 등록되는 즉시 자동 저장 시작 */
@@ -2263,13 +2263,19 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     if (!canEditScore || block?.is_locked) return;
                     freezeObservedHomeworkVersion(scoreCellKey);
                     if (!isSelected) onSelectCell(row, "homework", hw.homework_id);
+                    // The accepted save can precede the refreshed React row. Compare
+                    // against the visible value so a rapid reversal is never dropped.
+                    const visibleState = homeworkInputRefs.current[`${row.enrollment_id}-${hw.homework_id}`]?.dataset.completionState;
+                    const previousScore = visibleState === "complete" ? 1
+                      : visibleState === "incomplete" ? 0
+                      : visibleState === "empty" ? null : block?.score ?? null;
                     const next: PendingChange = {
                       type: "homework", enrollmentId: row.enrollment_id,
                       homeworkId: hw.homework_id, score,
                     };
                     stagePendingChange(scoreCellKey, next, {
                       type: "homework", enrollmentId: row.enrollment_id,
-                      homeworkId: hw.homework_id, score: block?.score ?? null,
+                      homeworkId: hw.homework_id, score: previousScore,
                     });
                     applyChangeToDom(next);
                   };
@@ -2350,15 +2356,19 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     return;
                                   }
                                   if (!["Tab", "Enter", "ArrowDown", "ArrowUp"].includes(event.key)) return;
-                                  event.preventDefault();
                                   event.stopPropagation();
+                                  if (event.key === "Tab") {
+                                    const moved = event.shiftKey ? onRequestMovePrev?.() : onRequestMoveNext?.();
+                                    // At either boundary, native Tab leaves the grid.
+                                    if (moved) event.preventDefault();
+                                    return;
+                                  }
+                                  event.preventDefault();
                                   if (event.key === "Enter") {
                                     if (event.shiftKey) { onRequestMoveUp?.(); return; }
                                     onRequestMoveDown?.();
                                   } else if (event.key === "ArrowDown") onRequestMoveDown?.();
                                   else if (event.key === "ArrowUp") onRequestMoveUp?.();
-                                  else if (event.shiftKey) onRequestMovePrev?.();
-                                  else onRequestMoveNext?.();
                                 }}
                               >
                                 {([
@@ -2379,7 +2389,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       event.stopPropagation();
                                       const buttons = Array.from(event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>("button"));
                                       const index = buttons.indexOf(event.currentTarget);
-                                      buttons[(index + (event.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length].focus();
+                                      const next = buttons[(index + (event.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length];
+                                      buttons.forEach(button => { button.tabIndex = button === next ? 0 : -1; });
+                                      next.focus();
                                     }}
                                     onClick={() => setCompletionScore(option.score)}
                                   >{option.score == null ? <><span className="completion-reset-label">초기화</span><span className="completion-empty-label">미입력</span></> : option.label}</button>
@@ -2786,6 +2798,7 @@ function syncCompletionControl(el: HTMLElement | null | undefined, score: number
   el.dataset.completionState = state;
   el.querySelectorAll<HTMLButtonElement>("button[data-completion-value]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.completionValue === state));
+    button.tabIndex = button.dataset.completionValue === state ? 0 : -1;
   });
 }
 
