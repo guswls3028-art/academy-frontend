@@ -31,6 +31,9 @@ export async function verifyHomeworkCriteria(
   const modeLabel = mode === "PERCENT" ? "퍼센트 기준" : "점수 기준";
   const inputLabel = `합격 기준 (${mode === "PERCENT" ? "%" : "점"})`;
   const completionPassed = completionScore > 0;
+  const tenant = await expectApi<{ pass_label?: string; fail_label?: string }>(request, "GET", "/core/tenant-info/", access);
+  const passLabel = tenant.pass_label?.trim() || "합격";
+  const failLabel = tenant.fail_label?.trim() || "불합격";
 
   for (const threshold of [95, 90]) {
     const passed = threshold <= 92;
@@ -99,7 +102,7 @@ export async function verifyHomeworkCriteria(
     await numericResult.click();
     await modal.getByRole("button", { name: `${completionTitle} 넣기`, exact: true }).click();
     const preview = modal.getByLabel("현재 학생의 실제 발송 문구");
-    await expect(preview).toContainText(`${homeworkTitle}: ${passed ? "통과" : "미통과"}`);
+    await expect(preview).toContainText(`${homeworkTitle}: 92/100 (92%) · ${passed ? passLabel : failLabel}`);
     await expect(preview).toContainText(`${completionTitle}: ${completionPassed ? "통과" : "미통과"}`);
     if (width === 390) {
       await modal.getByRole("button", { name: "미리보기로 이동", exact: true }).click();
@@ -117,3 +120,4 @@ export async function verifyHomeworkCriteria(
   // Leave the existing fixture's score and passing state intact for report/comment checks.
   await gotoAndSettle(page, scoresUrl);
 }
+
