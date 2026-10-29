@@ -40,6 +40,8 @@ const owned = {
   exams: [] as Exam[],
   enrollments: [] as Enrollment[],
   sessionEnrollmentIds: [] as number[],
+  messageTemplateIds: [] as number[],
+  previousGradeDefaultId: null as number | null,
 };
 
 function mainButton(page: Page, name: string) {
@@ -118,6 +120,17 @@ async function seedFixture(request: APIRequestContext): Promise<void> {
 async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): Promise<void> {
   if (!owned.adminAccess) return;
   const failures: string[] = [];
+  if (owned.previousGradeDefaultId != null) {
+    await expectApi(request, "POST", `/messaging/templates/${owned.previousGradeDefaultId}/set-default/`,
+      owned.adminAccess, { is_user_default: true });
+  }
+  for (const id of owned.messageTemplateIds) {
+    const removed = await api(request, "DELETE", `/messaging/templates/${id}/`, owned.adminAccess);
+    if (![204, 404].includes(removed.status)) failures.push(`DELETE message template ${id}: ${removed.status}`);
+    if ((await api(request, "GET", `/messaging/templates/${id}/`, owned.adminAccess)).status !== 404) {
+      failures.push(`message template ${id}: absence not verified`);
+    }
+  }
   const archivedExamIds: number[] = [];
   for (const exam of owned.exams.slice().reverse()) {
     try {
@@ -317,6 +330,67 @@ async function verifyConsumer(page: Page, testInfo: TestInfo, student: QaStudent
   await captureSurface(page, testInfo, `${role}-${width}-${expectedScore}-result-reloaded`);
 }
 
+async function verifyEditableScoreMessage(page: Page, request: APIRequestContext, testInfo: TestInfo, student: QaStudent, exam: Exam) {
+  const templates = await expectApi<Array<{ id: number; is_user_default: boolean }>>(
+    request, "GET", "/messaging/templates/?category=grades", owned.adminAccess);
+  owned.previousGradeDefaultId = templates.find(template => template.is_user_default)?.id ?? null;
+  const openComposer = async () => {
+    await page.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toBeVisible();
+  };
+  for (const width of [1366, 390]) {
+    const template = await expectApi<{ id: number }>(request, "POST", "/messaging/templates/", owned.adminAccess, {
+      name: `QA 삭제할 성적 안내 ${STAMP}-${width}`, category: "grades", body: "폐기할 성적 안내\n#{시험성적}",
+    });
+    owned.messageTemplateIds.push(template.id);
+    await expectApi(request, "POST", `/messaging/templates/${template.id}/set-default/`, owned.adminAccess, { is_user_default: true });
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${owned.lectureId}/sessions/${owned.sessionId}/scores`);
+    await openComposer();
+    const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+    const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+    await expect(editor).toContainText("폐기할 성적 안내");
+    await expect(editor.locator('[data-message-variable="시험성적"]')).toHaveCount(0);
+    await expect(editor).toContainText(exam.title);
+    await modal.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+    const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
+    await picker.getByPlaceholder("문구 이름·본문 검색…").fill(`QA 삭제할 성적 안내 ${STAMP}-${width}`);
+    await picker.getByRole("button", { name: "더보기", exact: true }).click();
+    await picker.getByRole("button", { name: "삭제", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "문구 삭제", exact: true }).getByRole("button", { name: "삭제", exact: true }).click();
+    await expect(picker.getByText(`QA 삭제할 성적 안내 ${STAMP}-${width}`, { exact: true })).toHaveCount(0);
+    expect((await api(request, "GET", `/messaging/templates/${template.id}/`, owned.adminAccess)).status).toBe(404);
+    await picker.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(editor).toHaveText("");
+    await modal.getByRole("button", { name: "취소", exact: true }).click();
+    await openComposer();
+    await expect(editor).toHaveText("");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await openComposer();
+    await expect(editor).toHaveText("");
+    await editor.click();
+    await expect(editor).toBeFocused();
+    const note = `${width}px 직접 작성한 성적 안내`;
+    await editor.fill(note);
+    await editor.press("Enter");
+    await modal.getByRole("button", { name: `${exam.title} 넣기`, exact: true }).click();
+    await expect(editor).toContainText("91/100");
+    const preview = modal.getByLabel("현재 학생의 실제 발송 문구");
+    await expect(preview).toContainText(note);
+    await expect(preview).toContainText(exam.title);
+    await expect(preview).toContainText("91/100");
+    await expect(preview).not.toContainText("폐기할 성적 안내");
+    await expect(preview).not.toContainText(owned.exams[0].title);
+    await assertNoHorizontalOverflow(page);
+    await page.screenshot({ path: testInfo.outputPath(`score-composer-deleted-and-edited-${width}.png`) });
+    await modal.getByRole("button", { name: "취소", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "작성한 문구를 닫을까요?", exact: true })
+      .getByRole("button", { name: "수정 내용 버리고 닫기", exact: true }).click();
+    await expect(modal).toBeHidden();
+  }
+}
+
 test.describe.serial("[real-use] teacher-app UI score save and student/parent projection", () => {
   test.describe.configure({ retries: 0 });
   test.skip(!STUDENT_PARENT_REALUSE_ENABLED, "Requires the isolated qa-* development runner.");
@@ -391,6 +465,7 @@ test.describe.serial("[real-use] teacher-app UI score save and student/parent pr
       }
       parentBoundary.assertClean(); parentGuards.assertZeroDefects();
     } finally { await parentContext.close(); }
+    await verifyEditableScoreMessage(page, request, testInfo, primary, examB);
     expect(writes).toEqual([
       { examId: examA.id, enrollmentId: enrollmentFor(primary), score: 0, max_score: 100 },
       { examId: examB.id, enrollmentId: enrollmentFor(primary), score: 91, max_score: 100 },

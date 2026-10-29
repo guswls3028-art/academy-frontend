@@ -1,5 +1,8 @@
 .scores-table-layout { min-width: 0; max-width: 100%; }
-.scores-table-layout-controls { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 8px; }
+.scores-table-layout-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-bottom: 8px; }
+@media (max-width: 520px) {
+  .scores-table-layout-controls .ds-button { min-height: 44px !important; }
+}
 .scores-table-layout .ds-scores-table thead .ds-resizable-th > span:first-child {
   display: flex;
   min-width: 0;

@@ -42,8 +42,7 @@ import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm"
 import type { SecessionScope } from "@/shared/api/contracts/attendance";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildScoreVars, buildGenericScoreTemplate, buildScoreDetail } from "@/shared/scoring/scoreReport";
-import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
+import { substituteScoreVars, buildScoreVars, buildScoreDetail } from "@/shared/scoring/scoreReport";
 import { fetchSessionScores } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import useAuth from "@/auth/hooks/useAuth";
@@ -399,7 +398,6 @@ export default function SessionAttendancePage({
         let initialBody: string | undefined;
         let initialTemplateId: number | null = null;
         let initialTemplateUpdatedAt: string | undefined;
-        let initialLetterPresetId: string | null = null;
         let scoreDetail = "";
         let firstScoreVars: Record<string, string> = {};
         let recomputePerStudentVars: ((currentBody: string) => Record<number, Record<string, string>>) | undefined;
@@ -426,10 +424,9 @@ export default function SessionAttendancePage({
             firstScoreVars = buildScoreVars(firstRow, scoresData.meta, { lectureName, sessionTitle });
           }
 
-          initialBody = chosenTpl?.body ?? buildGenericScoreTemplate({ lectureName, sessionTitle });
+          initialBody = chosenTpl?.body ?? "";
           initialTemplateId = chosenTpl?.id ?? null;
           initialTemplateUpdatedAt = chosenTpl?.updated_at;
-          initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
           // SSOT (2026-05-14): modal이 currentBody (학원장 수정본) 기반으로 학생별 재계산.
           // 직전 결함: 사전 계산된 _body_subst 만 보내면 학원장 textarea 수정이 silent discard.
           recomputePerStudentVars = (currentBody: string) => {
@@ -458,7 +455,6 @@ export default function SessionAttendancePage({
           initialBody,
           initialTemplateId,
           initialTemplateUpdatedAt,
-          initialLetterPresetId,
           alimtalkExtraVars: {
             강의명: lectureName,
             차시명: sessionTitle,

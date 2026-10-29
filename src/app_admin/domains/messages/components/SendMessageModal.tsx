@@ -19,7 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { Input } from "antd";
 import { isAxiosError } from "axios";
-import { Check, AlertCircle, AlertTriangle, Edit3, Tag, Shield, CalendarClock } from "lucide-react";
+import { Check, AlertCircle, AlertTriangle, Tag, Shield, CalendarClock } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Badge, Button, ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -57,12 +57,12 @@ import {
 } from "../constants/templateBlocks";
 import type { TemplateCategory } from "../constants/templateBlocks";
 import {
-  getDefaultTemplatePreset,
   getTemplatePresetsForCategory,
   toPersistedTemplateCategory,
   type ProvidedTemplatePreset,
 } from "../constants/templatePresets";
 import GradesBlockPanel from "./GradesBlockPanel";
+import { expandScoreMessageBlocks } from "@/shared/messaging/scoreMessageEditor";
 import TemplatePickerModal from "./TemplatePickerModal";
 import MessageBodyEditor, { type MessageBodyEditorHandle } from "./MessageBodyEditor";
 import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
@@ -90,7 +90,6 @@ export type SendMessageModalProps = {
   initialBody?: string;
   initialTemplateId?: number | null;
   initialTemplateUpdatedAt?: string;
-  initialLetterPresetId?: string | null;
   alimtalkExtraVars?: Record<string, string>;
   /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */
   alimtalkExtraVarsPerStudent?: Record<number, Record<string, string>>;
@@ -259,42 +258,6 @@ function trapDialogFocus(
   }
 }
 
-/**
- * 자동 선택 우선순위:
- *   1. 본 테넌트 양식: 카테고리 일치 + 기본 지정
- *   2. 본 테넌트 양식: 카테고리 일치 (가장 최근)
- *   3. 시스템 양식: 카테고리 일치
- * 카테고리가 맞지 않으면 기본 제공 편지지로 남긴다.
- */
-function pickAutoSelectTemplate(
-  list: MessageTemplateItem[],
-  blockCategory: TemplateCategory,
-  systemOnly = false,
-): MessageTemplateItem | undefined {
-  const systemCategoryMap: Record<string, string> = {
-    clinic: "clinic", attendance: "attendance", exam: "exam",
-    grades: "grades", assignment: "assignment", payment: "payment",
-    lecture: "attendance", // 강의 발송도 출석 시스템 양식 fallback
-    student: "default", default: "default",
-    notice: "default", community: "default", staff: "default",
-  };
-  const systemCat = systemCategoryMap[blockCategory] || "default";
-  const userCat = blockCategory === "student" ? "default" : blockCategory;
-
-  if (!systemOnly) {
-    const myMatchDefault = list.find((t) => !isSystemTpl(t) && t.category === userCat && t.is_user_default && (isApprovedTpl(t) || blockCategory === "grades"));
-    if (myMatchDefault) return myMatchDefault;
-
-    const myMatch = list.find((t) => !isSystemTpl(t) && t.category === userCat && isApprovedTpl(t));
-    if (myMatch) return myMatch;
-  }
-
-  const sysMatch = list.find((t) => isSystemTpl(t) && t.category === systemCat && isApprovedTpl(t));
-  if (sysMatch) return sysMatch;
-
-  return undefined;
-}
-
 // ═══════════════════════════════════════════════════════════════
 // ─── Main Component ───
 // ═══════════════════════════════════════════════════════════════
@@ -309,7 +272,6 @@ export default function SendMessageModal({
   initialBody,
   initialTemplateId,
   initialTemplateUpdatedAt,
-  initialLetterPresetId,
   alimtalkExtraVars,
   alimtalkExtraVarsPerStudent,
   recomputePerStudentVarsRef,
@@ -408,21 +370,25 @@ export default function SendMessageModal({
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
   const needsEnvelopeChoice = !categoryHasSolapiEnvelope(blockCategory);
   const effectiveBlockCategory = needsEnvelopeChoice ? manualEnvelopeCategory : blockCategory;
+  const prepareEditorBody = useCallback((value: string) => {
+    const clean = stripInternalAlimtalkMemoToken(value);
+    return effectiveBlockCategory === "grades" ? expandScoreMessageBlocks(clean, alimtalkExtraVars) : clean;
+  }, [effectiveBlockCategory, alimtalkExtraVars]);
   const providedPresets = useMemo(() => getTemplatePresetsForCategory(effectiveBlockCategory), [effectiveBlockCategory]);
   const selectedPreset = providedPresets.find((p) => p.id === selectedPresetId) ?? null;
   const selectedTemplateConflict = templateConflict?.id === selectedTemplateId ? templateConflict : null;
   const bodyModified = selectedTemplate != null && templateBodySnapshot != null
-    && body !== (selectedTemplateConflict ? stripInternalAlimtalkMemoToken(selectedTemplateConflict.body) : templateBodySnapshot);
+    && body !== (selectedTemplateConflict ? prepareEditorBody(selectedTemplateConflict.body) : templateBodySnapshot);
   const presetBodyModified = selectedPreset != null && templateBodySnapshot != null && body !== templateBodySnapshot;
   const hasSelectedBodySource = !!selectedTemplate || !!selectedPreset || alimtalkFreeForm;
 
   // Validate the draft actually sent. Registered student/score variables remain
   // automatic; the server preflight checks their recipient-specific values.
   const varStatuses = useMemo(() => {
-    const sourceBody = stripInternalAlimtalkMemoToken(body);
+    const sourceBody = prepareEditorBody(body);
     if (!sourceBody) return [];
     return getVarStatuses(sourceBody, alimtalkExtraVars, freeContent);
-  }, [body, alimtalkExtraVars, freeContent]);
+  }, [body, alimtalkExtraVars, freeContent, prepareEditorBody]);
 
   // ─── Can Send ───
   // missing 변수 — #{내용}/#{공지내용}/#{선생님메모} 등 학원장 편집 영역(편지)이 비어있거나
@@ -686,12 +652,12 @@ export default function SendMessageModal({
     const justOpened = open && !prevOpenRef.current;
     prevOpenRef.current = open;
     if (!justOpened) return;
-    const initialDisplayBody = stripInternalAlimtalkMemoToken(initialBody ?? "");
+    const initialDisplayBody = prepareEditorBody(initialBody ?? "");
     currentDraftRef.current = {
       body: initialDisplayBody,
       selectedTemplateId: initialTemplateId ?? null,
-      selectedPresetId: initialLetterPresetId ?? null,
-      alimtalkFreeForm: Boolean(initialBody && !initialTemplateId && !initialLetterPresetId),
+      selectedPresetId: null,
+      alimtalkFreeForm: Boolean(initialBody && !initialTemplateId),
     };
     setTemplatesError(null);
     setTemplateCreateAttempt(null);
@@ -701,7 +667,7 @@ export default function SendMessageModal({
     setSubjectSnapshot("");
     setBody(initialDisplayBody);
     setSelectedTemplateId(initialTemplateId ?? null);
-    setSelectedPresetId(initialLetterPresetId ?? null);
+    setSelectedPresetId(null);
     setSendToParent(true);
     setSendToStudent(true);
     setShowSaveForm(false);
@@ -709,7 +675,7 @@ export default function SendMessageModal({
     setSaveTemplateName("");
     setShowPickerModal(false);
     setManualEnvelopeCategory(categoryHasSolapiEnvelope(blockCategory) ? blockCategory : "attendance");
-    setAlimtalkFreeForm(Boolean(initialBody && !initialTemplateId && !initialLetterPresetId));
+    setAlimtalkFreeForm(Boolean(initialBody && !initialTemplateId));
     setTemplateBodySnapshot(initialBody ? initialDisplayBody : null);
     setShowConfirm(false);
     setSendTiming("now");
@@ -724,12 +690,9 @@ export default function SendMessageModal({
     sendingRef.current = false;
     setSendAttempt(null);
     setSendAttemptError(null);
-  }, [open, blockCategory, initialBody, initialTemplateId, initialTemplateUpdatedAt, initialLetterPresetId]);
+  }, [open, blockCategory, initialBody, initialTemplateId, initialTemplateUpdatedAt, prepareEditorBody]);
 
-  // 자동 선택: 본 테넌트 양식 (카테고리 일치) > 시스템 기본.
-  // initialBody가 있어도 봉투(카카오 검수 통과 승인 양식)는 카테고리에 맞춰 자동 선택해야 함.
-  // 학원장 mental model: 봉투는 시스템이 매칭, #{선생님메모}만 학원장 자유 작성.
-  // initialBody는 양식 body 대신 #{선생님메모} 자리에 들어가도록 body로 유지.
+  // Fetch saved content independently from the approved delivery envelope.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -743,50 +706,29 @@ export default function SendMessageModal({
         const initialTemplate = list.find(template => template.id === draft.selectedTemplateId);
         setTemplateVersion(current => current ?? initialTemplate?.updated_at);
       }
+      // Only an explicitly designated user default may initialize a blank draft.
+      // Missing/deleted content stays empty; approved envelopes are never editor content.
       if (!draft.selectedTemplateId && !draft.selectedPresetId && !draft.body && !draft.alimtalkFreeForm) {
-        const match = pickAutoSelectTemplate(list, effectiveBlockCategory);
+        const match = list.find(t => !isSystemTpl(t) && t.is_user_default && t.category === toPersistedTemplateCategory(effectiveBlockCategory));
         if (match) {
-          const nextBody = stripInternalAlimtalkMemoToken(match.body);
+          const nextBody = prepareEditorBody(match.body);
           setSelectedTemplateId(match.id);
-          setSelectedPresetId(null);
           setBody(nextBody);
-          // initialBody가 있으면 학원장 작성 본문이 곧 발송 본문 → snapshot 동기화로 "수정됨" 오인 방지
           setTemplateBodySnapshot(nextBody);
           setTemplateVersion(match.updated_at);
           setSubject(match.subject ?? "");
           setSubjectSnapshot(match.subject ?? "");
           setAlimtalkFreeForm(false);
-        } else {
-          const preset = getDefaultTemplatePreset(effectiveBlockCategory);
-          if (preset) {
-            setSelectedPresetId(preset.id);
-            setBody(preset.body);
-            setTemplateBodySnapshot(preset.body);
-            setAlimtalkFreeForm(false);
-          } else {
-            const systemMatch = pickAutoSelectTemplate(list, effectiveBlockCategory, true);
-            if (systemMatch) {
-              const nextBody = stripInternalAlimtalkMemoToken(systemMatch.body);
-              setSelectedTemplateId(systemMatch.id);
-              setSelectedPresetId(null);
-              setBody(nextBody);
-              setTemplateBodySnapshot(nextBody);
-              setTemplateVersion(systemMatch.updated_at);
-              setSubject(systemMatch.subject ?? "");
-              setSubjectSnapshot(systemMatch.subject ?? "");
-              setAlimtalkFreeForm(false);
-            }
-          }
         }
       }
     }).catch((error: unknown) => {
       if (!cancelled) setTemplatesError(extractApiError(error, "저장 문구를 불러오지 못했습니다."));
     });
     return () => { cancelled = true; };
-  }, [open, effectiveBlockCategory, templatesRetry]);
+  }, [open, effectiveBlockCategory, templatesRetry, prepareEditorBody]);
 
   const hasDraftChanges = body !== (selectedTemplateConflict
-    ? stripInternalAlimtalkMemoToken(selectedTemplateConflict.body) : templateBodySnapshot ?? "")
+    ? prepareEditorBody(selectedTemplateConflict.body) : templateBodySnapshot ?? "")
     || subject !== (selectedTemplateConflict?.subject ?? subjectSnapshot);
   const confirmDiscardDraft = useCallback(async (replacing = false, viewingResult = false) => {
     if (sendingRef.current || templateMutationRef.current || discardConfirmPendingRef.current) return false;
@@ -826,12 +768,13 @@ export default function SendMessageModal({
     setSavingTemplate(false);
   };
   const insertBlock = useCallback((insertText: string) => {
-    bodyEditorRef.current?.insert(insertText);
-  }, []);
+    setAlimtalkFreeForm(true);
+    bodyEditorRef.current?.insert(prepareEditorBody(insertText));
+  }, [prepareEditorBody]);
 
   const selectTemplate = useCallback(async (t: MessageTemplateItem) => {
     if (!await confirmDiscardDraft(true)) return;
-    const nextBody = stripInternalAlimtalkMemoToken(t.body ?? "");
+    const nextBody = prepareEditorBody(t.body ?? "");
     setSelectedTemplateId(t.id);
     setSelectedPresetId(null);
     setSubject(t.subject ?? "");
@@ -842,7 +785,7 @@ export default function SendMessageModal({
     setTemplateConflict(null);
     setTemplates(previous => previous.map(template => template.id === t.id ? t : template));
     setAlimtalkFreeForm(false);
-  }, [confirmDiscardDraft]);
+  }, [confirmDiscardDraft, prepareEditorBody]);
 
   const selectPreset = useCallback(async (preset: ProvidedTemplatePreset) => {
     if (!await confirmDiscardDraft(true)) return;
@@ -878,19 +821,10 @@ export default function SendMessageModal({
     setTemplateConflict(null);
     setSubject("");
     setSubjectSnapshot("");
-    const preset = getDefaultTemplatePreset(category);
-    if (preset) {
-      setSelectedPresetId(preset.id);
-      setBody(preset.body);
-      setTemplateBodySnapshot(preset.body);
-      setAlimtalkFreeForm(false);
-    } else {
-      setSelectedPresetId(null);
-      setBody("");
-      setTemplateBodySnapshot(null);
-      setAlimtalkFreeForm(true);
-    }
-    setShowSaveForm(false);
+    setSelectedPresetId(null);
+    setBody("");
+    setTemplateBodySnapshot(null);
+    setAlimtalkFreeForm(true);
   }, [confirmDiscardDraft]);
 
   const handleSaveTemplate = async () => {
@@ -927,8 +861,8 @@ export default function SendMessageModal({
       void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
       setSelectedTemplateId(saved.id);
       setSelectedPresetId(null);
-      setTemplateBodySnapshot(stripInternalAlimtalkMemoToken(saved.body));
-      if (!changedSinceCreate) setBody(stripInternalAlimtalkMemoToken(saved.body));
+      setTemplateBodySnapshot(prepareEditorBody(saved.body));
+      if (!changedSinceCreate) setBody(prepareEditorBody(saved.body));
       setTemplateVersion(saved.updated_at);
       setTemplateConflict(changedSinceCreate ? saved : null);
       setSubject(saved.subject ?? "");
@@ -973,7 +907,7 @@ export default function SendMessageModal({
       body, expected_updated_at: selectedTemplateConflict?.updated_at ?? templateVersion,
     });
     setTemplates(previous => previous.map(template => template.id === updated.id ? updated : template));
-    setTemplateBodySnapshot(stripInternalAlimtalkMemoToken(updated.body));
+    setTemplateBodySnapshot(prepareEditorBody(updated.body));
     setSubject(updated.subject ?? "");
     setSubjectSnapshot(updated.subject ?? "");
     setTemplateVersion(updated.updated_at);
@@ -1066,7 +1000,14 @@ export default function SendMessageModal({
       void queryClient.invalidateQueries({ queryKey: messageQueryKeys.suppressedDefaults });
       if (selectedTemplateId === id) {
         setSelectedTemplateId(null);
+        setSelectedPresetId(null);
+        setBody("");
+        setSubject("");
+        setSubjectSnapshot("");
         setTemplateBodySnapshot(null);
+        setTemplateVersion(undefined);
+        setTemplateConflict(null);
+        setAlimtalkFreeForm(true);
       }
       feedback.success("문구가 삭제되었습니다.");
     } catch {
@@ -1230,9 +1171,7 @@ export default function SendMessageModal({
         }
         description={
           hasRecipients
-            ? (recipientCount > 1
-                ? "문구가 자동 적용됐습니다. 본문을 확인·수정한 뒤 발송하세요. 학생별 점수는 자동으로 들어갑니다."
-                : "문구가 자동 적용됐습니다. 본문을 확인·수정한 뒤 발송하세요.")
+            ? "안내문을 작성하고, 받는 사람에게 보일 내용을 확인한 뒤 발송하세요. 학생별 정보는 받는 사람에 맞게 바뀝니다."
             : "왼쪽에서 수신자를 먼저 선택해 주세요."
         }
       />
@@ -1589,7 +1528,7 @@ export default function SendMessageModal({
               <section className="send-modal__template-conflict" aria-label="문구 수정 충돌">
                 <p role="alert">다른 직원이 문구를 수정했습니다. 내 초안은 아래 편집창에 유지됩니다.</p>
                 <strong>다른 직원이 저장한 최신 문구</strong>
-                <div className="send-modal__template-conflict-body">{stripInternalAlimtalkMemoToken(selectedTemplateConflict.body)}</div>
+                <div className="send-modal__template-conflict-body">{prepareEditorBody(selectedTemplateConflict.body)}</div>
                 <p>필요한 내용을 초안에 반영한 뒤 변경 내용을 저장하거나 최신 문구로 바꿔 주세요.</p>
                 <Button size="sm" intent="secondary" onClick={() => void selectTemplate(selectedTemplateConflict)} disabled={sending || templateEditingLocked}>최신 문구로 바꾸기</Button>
               </section>
@@ -1637,7 +1576,7 @@ export default function SendMessageModal({
               )}
               {effectiveBlockCategory === "grades" && (
                 <span className="send-modal__editor-label-hint">
-                  카카오 승인 형식과 자동 성적 정보는 위 실제 발송 문구에 함께 표시됩니다. 이 입력창과 저장 버튼은 안내문만 변경합니다.
+                  본문의 문장·줄바꿈·시험·과제 항목을 직접 편집하세요. 학원·학생 정보와 링크가 포함된 카카오 고정 안내는 미리보기에서 함께 확인합니다.
                 </span>
               )}
             </div>
@@ -1645,33 +1584,14 @@ export default function SendMessageModal({
             {/* ── 본문 + 변수 팔레트 ── */}
             <div className="send-modal__editor">
               <div className="send-modal__editor-body">
-                {/* 빈 상태 오버레이 */}
-                {!body && !hasSelectedBodySource && (
-                  <div className="send-modal__editor-empty">
-                    <Edit3 size={ICON.xl} className="send-modal__icon-muted-faded" />
-                    <div className="send-modal__editor-empty-text">
-                      <div>문구를 선택하거나</div>
-                      <div>안내문을 직접 작성하세요</div>
-                    </div>
-                    <Button size="sm" intent="primary" onClick={() => setShowPickerModal(true)}>
-                      문구 선택하기
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={() => setAlimtalkFreeForm(true)}
-                      className="send-modal__editor-empty-link"
-                    >
-                      직접 작성
-                    </button>
-                  </div>
-                )}
                 <MessageBodyEditor
                   key={`${open}:${selectedTemplateId ?? selectedPresetId ?? "free"}`}
                   ref={bodyEditorRef}
                   value={body}
+                  previewValues={alimtalkExtraVars}
                   onChange={(value) => { setBody(value); if (!alimtalkFreeForm && !selectedTemplate && !selectedPreset) setAlimtalkFreeForm(true); }}
                   disabled={sending || templateEditingLocked}
-                  placeholder="학원장님이 학생/학부모에게 전할 안내 메시지를 자유롭게 입력하세요."
+                  placeholder={effectiveBlockCategory === "grades" ? "본문을 작성하거나 이번 수업의 시험·과제 결과를 넣으세요." : "학생/학부모에게 전할 안내 메시지를 입력하세요."}
                 />
               </div>
 
@@ -1687,7 +1607,7 @@ export default function SendMessageModal({
                   <div className="send-modal__var-palette-title">정보 넣기</div>
                   <div className="send-modal__var-palette-desc">클릭하면 커서 위치에 추가됩니다</div>
                   {effectiveBlockCategory === "grades" ? (
-                    <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending || templateEditingLocked} currentBody={body} />
+                    <GradesBlockPanel blocks={blocks} onInsert={insertBlock} disabled={sending || templateEditingLocked} currentBody={body} values={alimtalkExtraVars} />
                   ) : (
                     <div className="send-modal__var-palette-list">
                       {blocks.map((block) => {

@@ -37,7 +37,7 @@ import {
   patchHomeworkQuick,
   type HomeworkScoreCellValue,
 } from "../api/patchHomeworkQuick";
-import { buildGenericScoreTemplate, buildScoreVars, buildScoreDetail, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
+import { buildScoreVars, buildScoreDetail, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import {
   getSessionRowAttentionCountLabel,
   getSessionRowAttentionSummary,
@@ -48,7 +48,6 @@ import {
 } from "../utils/sessionScoreRowVerdict";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { scoresQueryKeys } from "../api/queryKeys";
@@ -259,21 +258,18 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     // Phase #5 (2026-05-12) — 학원장 커스텀 합/불 라벨 메시지 본문에 반영.
     const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail };
 
-    // 성적 양식 우선순위:
-    // 사용자 기본(is_user_default) → 기본 제공 편지지 프리셋
+    // 명시적으로 기본 지정한 사용자 문구가 없으면 빈 본문에서 작성한다.
     let body: string;
     let initialTemplateId: number | null = null;
     let initialTemplateUpdatedAt: string | undefined;
-    let initialLetterPresetId: string | null = null;
     try {
       const templates = await fetchMessageTemplates("grades");
       const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
       body = chosenTpl
         ? chosenTpl.body
-        : buildGenericScoreTemplate(reportOptions);
+        : "";
       initialTemplateId = chosenTpl?.id ?? null;
       initialTemplateUpdatedAt = chosenTpl?.updated_at;
-      initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
     } catch {
       feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
       return;
@@ -300,7 +296,6 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       initialBody: body,
       initialTemplateId,
       initialTemplateUpdatedAt,
-      initialLetterPresetId,
       alimtalkExtraVars: {
         강의명: lectureName,
         차시명: sessionTitle,

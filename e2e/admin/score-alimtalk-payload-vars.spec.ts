@@ -13,6 +13,7 @@ import {
 import { buildAnonymousBillboardDocument } from "../../src/app_admin/domains/scores/utils/anonymousBillboardPdfGenerator";
 import { getClinicStats } from "../../src/app_admin/domains/scores/utils/clinicPdfGenerator";
 import { buildScorePdfHtml } from "../../src/app_admin/domains/scores/utils/scorePdfGenerator";
+import { expandScoreMessageBlocks } from "../../src/shared/messaging/scoreMessageEditor";
 import type {
   SessionScoreMeta,
   SessionScoreRow,
@@ -54,6 +55,21 @@ function scoreRow(status: string | null): SessionScoreRow {
     }],
   };
 }
+
+test("편집 가능한 개별 과제 행은 학생별 통과/미통과와 미입력을 구분하고 삭제한 행을 보내지 않는다", () => {
+  const meta = { ...scoreMeta, homeworks: [{ ...scoreMeta.homeworks![0], grading_mode: "COMPLETION" as const, max_score: 1 }] };
+  const first = scoreRow(null);
+  first.homeworks[0].block.score = 1;
+  const second = scoreRow(null);
+  second.homeworks[0].block.score = 0;
+  const body = expandScoreMessageBlocks("과제 안내\n#{과제목록}", buildScoreVars(first, meta));
+  expect(body).toBe("과제 안내\n#{과제1명}: #{과제1결과}");
+  expect(substituteScoreVars(body, first, meta)).toBe("과제 안내\n연습과제: 통과");
+  expect(substituteScoreVars(body, second, meta)).toBe("과제 안내\n연습과제: 미통과");
+  expect(substituteScoreVars(body, scoreRow(null), meta)).toContain("미입력");
+  expect(substituteScoreVars("직접 고친 문장", first, meta)).toBe("직접 고친 문장");
+  expect(substituteScoreVars("", first, meta)).toBe("");
+});
 
 test("성적 알림톡은 본문에 필요한 변수만 보내 서버의 50개 제한을 넘지 않는다", () => {
   const body = "#{학생명} 학생의 #{시험1_이름} 점수는 #{시험1_점수}점입니다.";

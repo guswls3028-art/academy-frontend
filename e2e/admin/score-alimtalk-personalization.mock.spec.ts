@@ -35,6 +35,7 @@ async function installScoreAlimtalkRoutes(
   preflightPayloads: SendPayload[],
   sendPayloads: SendPayload[],
   templates: Record<string, unknown>[] = [],
+  completionHomework = false,
 ) {
   const tenantName = "실제 발송학원";
   await page.route("**/api/v1/**", async (route) => {
@@ -68,14 +69,14 @@ async function installScoreAlimtalkRoutes(
               homework_id: 9151,
               title: "단원 복습",
               unit: "점",
-              grading_mode: "SCORE",
-              max_score: 100,
+              grading_mode: completionHomework ? "COMPLETION" : "SCORE",
+              max_score: completionHomework ? 1 : 100,
               display_order: 2,
             }],
           },
           rows: [
-            { examScore: 70, homeworkScore: 100 },
-            { examScore: 80, homeworkScore: 20 },
+            { examScore: 70, homeworkScore: completionHomework ? 1 : 100 },
+            { examScore: 80, homeworkScore: completionHomework ? 0 : 20 },
           ].map(({ examScore, homeworkScore }, index) => ({
             enrollment_id: 9201 + index,
             student_id: 9301 + index,
@@ -107,9 +108,9 @@ async function installScoreAlimtalkRoutes(
               title: "단원 복습",
               block: {
                 score: homeworkScore,
-                max_score: 100,
-                passed: homeworkScore >= 60,
-                clinic_required: homeworkScore < 60,
+                max_score: completionHomework ? 1 : 100,
+                passed: homeworkScore >= (completionHomework ? 1 : 60),
+                clinic_required: homeworkScore < (completionHomework ? 1 : 60),
                 is_locked: false,
                 meta: {},
               },
@@ -219,6 +220,13 @@ async function installScoreAlimtalkRoutes(
       await route.fulfill({ json: templates });
       return;
     }
+    if (/\/messaging\/templates\/\d+\/$/.test(path) && method === "DELETE") {
+      const id = Number(path.split("/").at(-2));
+      const index = templates.findIndex(template => template.id === id);
+      if (index >= 0) templates.splice(index, 1);
+      await route.fulfill({ status: 204 });
+      return;
+    }
     if (path.endsWith("/api/v1/messaging/templates/") && method === "POST") {
       const created = {
         id: 992, is_system: false, is_user_default: false,
@@ -309,6 +317,7 @@ async function openPersonalizedScores(
   sendPayloads: SendPayload[],
   templates: Record<string, unknown>[] = [],
   academyName?: string,
+  completionHomework = false,
 ) {
   const baseUrl = getBaseUrl("admin");
   const mockOnlyReason = realMessagingSkipReason(baseUrl, "", "0");
@@ -322,7 +331,7 @@ async function openPersonalizedScores(
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
   }, createLocalJwt());
-  await installScoreAlimtalkRoutes(page, mode, preflightPayloads, sendPayloads, templates);
+  await installScoreAlimtalkRoutes(page, mode, preflightPayloads, sendPayloads, templates, completionHomework);
   if (academyName) {
     await page.route("**/api/v1/core/program/", (route) => route.fulfill({ json: {
       tenantCode: "hakwonplus",
@@ -340,16 +349,83 @@ async function openPersonalizedScores(
   await expect(page).toHaveURL(/\/workspace\/lectures\/9001\/sessions\/9002\/scores/);
 }
 
-async function selectBothStudentsAndOpen(page: Page) {
+async function selectBothStudentsAndOpen(page: Page, insertResults = false) {
   await page.getByRole("checkbox", { name: "개인화학생1 선택" }).check();
   await page.getByRole("checkbox", { name: "개인화학생2 선택" }).check();
   await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
   await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toBeVisible();
+  if (insertResults) {
+    const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+    await modal.getByRole("textbox", { name: "안내문" }).fill("#{학생이름}\n");
+    await modal.getByRole("button", { name: "시험·과제 결과 넣기", exact: true }).click();
+  }
 }
 
 test.describe("성적 알림톡 학생별 개인화", () => {
   test.setTimeout(120_000);
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
+
+  for (const width of [1366, 390]) {
+    test(`${width}px 삭제한 기본 문구는 재진입·새로고침에도 돌아오지 않고 과제별 편집을 발송까지 반영한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const templates: Record<string, unknown>[] = [
+        { id: 991, name: "삭제할 기본 문구", category: "grades", body: "폐기할 문장\n#{시험성적}", is_system: false, is_user_default: true },
+        { id: 990, name: "시스템 승인 양식", category: "grades", body: "자동으로 넣으면 안 되는 시스템 문구", is_system: true, solapi_status: "APPROVED", solapi_template_id: "MOCK_APPROVED" },
+      ];
+      const preflights: SendPayload[] = [];
+      const sends: SendPayload[] = [];
+      await openPersonalizedScores(page, "success", preflights, sends, templates, undefined, true);
+      await selectBothStudentsAndOpen(page);
+      let modal = page.getByRole("dialog", { name: "알림톡 발송" });
+      let editor = modal.getByRole("textbox", { name: "안내문" });
+      await expect(editor.locator('[data-message-variable="과제1명"]')).toHaveText("단원 복습");
+      await expect(editor.locator('[data-message-variable="과제1결과"]')).toHaveText("통과");
+      await expect(editor.locator('[data-message-variable="시험성적"]')).toHaveCount(0);
+      await modal.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+      const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
+      await picker.getByRole("button", { name: "더보기", exact: true }).first().click();
+      await picker.getByRole("button", { name: "삭제", exact: true }).first().click();
+      await page.getByRole("alertdialog", { name: "문구 삭제", exact: true }).getByRole("button", { name: "삭제", exact: true }).click();
+      await expect.poll(() => templates.some(template => template.id === 991)).toBe(false);
+      await picker.getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(editor).toHaveText("");
+      await modal.getByRole("button", { name: "취소", exact: true }).click();
+      await selectBothStudentsAndOpen(page);
+      await expect(page.getByRole("textbox", { name: "안내문" })).toHaveText("");
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await selectBothStudentsAndOpen(page);
+      modal = page.getByRole("dialog", { name: "알림톡 발송" });
+      editor = modal.getByRole("textbox", { name: "안내문" });
+      await expect(editor).toHaveText("");
+      await expect(modal).not.toContainText("수업 결과 기본형");
+      await expect(modal).not.toContainText("자동으로 넣으면 안 되는 시스템 문구");
+      await editor.click();
+      await expect(editor).toBeFocused();
+      await editor.fill("직접 작성한 과제 안내");
+      await editor.press("Enter");
+      await modal.getByRole("button", { name: "단원 복습 넣기", exact: true }).click();
+      await expect(editor).toContainText("단원 복습");
+      await expect(editor).toContainText("통과");
+      const preview = modal.getByLabel("현재 학생의 실제 발송 문구");
+      await expect(preview).toContainText("직접 작성한 과제 안내");
+      await expect(preview).toContainText("단원 복습: 통과");
+      await expect(preview).not.toContainText("주간 확인");
+      await expect.poll(() => modal.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`editable-assignment-${width}.png`) });
+      await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+      await modal.locator(".send-modal__send-btn").click();
+      const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+      await confirm.getByRole("button", { name: "전체 학생 열기" }).click();
+      await confirm.getByRole("radio", { name: /개인화학생2/ }).click();
+      await expect(confirm.getByLabel("카카오톡 실제 발송 미리보기")).toContainText("단원 복습: 미통과");
+      await confirm.getByRole("button", { name: "발송하기", exact: true }).click();
+      await expect.poll(() => sends.length).toBe(1);
+      expect(sends[0].raw_body).toContain("#{과제1명}: #{과제1결과}");
+      expect(sends[0].alimtalk_extra_vars_per_student?.[9301]?._body_subst).toContain("단원 복습: 통과");
+      expect(sends[0].alimtalk_extra_vars_per_student?.[9302]?._body_subst).toContain("단원 복습: 미통과");
+      expect(sends[0].raw_body).not.toContain("폐기할 문장");
+    });
+  }
 
   test("성적 안내문 선택은 초안만 보여주고 적용 후 서버 문구를 확인한다", async ({ page }, testInfo) => {
     await openPersonalizedScores(page, "success", [], [], [{
@@ -453,7 +529,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await openPersonalizedScores(page, "success", preflightPayloads, sendPayloads);
     await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
     await expect(page.getByRole("checkbox", { name: "개인화학생1 선택" })).toBeVisible();
-    await selectBothStudentsAndOpen(page);
+    await selectBothStudentsAndOpen(page, true);
 
     const modal = page.getByRole("dialog", { name: "알림톡 발송" });
     const editor = modal.getByRole("textbox", { name: "안내문" });
@@ -551,7 +627,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
   test("성적이 바뀐 미리보기는 이유를 표시하고 발송을 열지 않는다", async ({ page }, testInfo) => {
     const preflightPayloads: SendPayload[] = [];
     await openPersonalizedScores(page, "stale", preflightPayloads, []);
-    await selectBothStudentsAndOpen(page);
+    await selectBothStudentsAndOpen(page, true);
 
     const modal = page.getByRole("dialog", { name: "알림톡 발송" });
     const staleMessage = modal

@@ -14,7 +14,6 @@ import type {
 import { isSubjectivePendingScoreBlock } from "@/shared/scoring/subjectivePending";
 import { SCORE_TEMPLATE_SLOT_LIMIT } from "@/shared/scoring/scoreTemplateSlots";
 import { deriveFinalPass } from "@/shared/scoring/achievement";
-import { DEFAULT_GRADES_PRESET_BODY } from "@/shared/messaging/gradeTemplatePreset";
 
 export type ScoreReportOptions = {
   lectureName?: string;
@@ -556,6 +555,7 @@ export function buildScoreVars(
   for (let n = 1; n <= SCORE_TEMPLATE_SLOT_LIMIT; n++) {
     vars[`시험${n}`] = "-"; vars[`시험${n}만점`] = "-"; vars[`시험${n}명`] = "";
     vars[`과제${n}`] = "-"; vars[`과제${n}만점`] = "-"; vars[`과제${n}명`] = "";
+    vars[`시험${n}결과`] = ""; vars[`과제${n}결과`] = "";
   }
 
   // 시험 변수 (번호 기반, 실제 데이터로 덮어쓰기)
@@ -575,6 +575,8 @@ export function buildScoreVars(
       : missingScoreLabel("exam", exam.block.meta?.status);
     vars[`시험${n}만점`] = String(max);
     vars[`시험${n}명`] = exam.title || "";
+    vars[`시험${n}결과`] = buildExamDisplayLines(exam, meta, passLabel, failLabel)
+      .map(line => line.slice(`- ${exam.title}`.length).replace(/^: /, "").trimStart()).join("\n");
   }
   const totalText = (total: SessionScoreRow["exam_total"]) => !total
     ? "집계 정보 없음" : !total.selected_count ? "합산 대상 없음"
@@ -600,6 +602,11 @@ export function buildScoreVars(
       : missingScoreLabel("homework", hw.block.meta?.status);
     vars[`과제${n}만점`] = metaHw?.grading_mode === "COMPLETION" ? "" : String(max);
     vars[`과제${n}명`] = hw.title || "";
+    vars[`과제${n}결과`] = hw.block.score == null
+      ? missingScoreLabel("homework", hw.block.meta?.status)
+      : metaHw?.grading_mode === "COMPLETION"
+        ? (hw.block.score >= 1 ? "통과" : "미통과")
+        : `${formatCompactScore(hw.block.score, max, "미입력")}${compactPassSuffix(hw.block.passed, passLabel, failLabel)}`;
   }
 
   // 숙제완성도 (전체 과제 요약)
@@ -697,7 +704,8 @@ export function substituteScoreVars(
   // 미사용 시험/과제 행 제거 — 치환 후 빈 슬롯("- : -/-", ": -/-", ": /") 줄 정리.
   // 과거 양식에 지원 범위를 넘는 시험/과제 번호 변수가 남아도 알림톡 편지지에 그대로 노출되지 않게 제거한다.
   result = result
-    .replace(/#\{(?:시험|과제)\d+(?:명|만점)?\}/g, "")
+    .replace(/#\{(?:시험|과제)\d+(?:명|만점|결과)?\}/g, "")
+    .replace(/^[ \t]*:[ \t]*$/gm, "")
     .replace(/^[^\n]*:\s*-?\s*\/\s*-?\s*$/gm, "")  // "시험명: -/-", "시험명: /" 패턴 줄 삭제
     .replace(/^- *: *-\s*$/gm, "")         // "- : -" 패턴 줄 삭제
     .replace(/^\s*$/gm, "")                // 빈 줄 제거
@@ -705,18 +713,6 @@ export function substituteScoreVars(
     .trim();
 
   return result;
-}
-
-/**
- * 일괄 발송 fallback 범용 양식 본문 (변수 그대로).
- * 학원장이 grades 카테고리에 user_default 양식을 미지정한 경우 send modal initialBody.
- * 학원장 임근혁 보고(2026-05-13): 첫 학생 데이터로 치환된 텍스트가 textarea에 박히면
- * "수정 즉시 다수 학생 반영" 의도가 깨지고 학원장이 양식 수정 부담 호소.
- * → fallback도 변수 형태(범용 양식)로 통일. backend가 학생별 #{학생이름}/#{시험성적} 치환.
- */
-export function buildGenericScoreTemplate(options: ScoreReportOptions = {}): string {
-  void options;
-  return DEFAULT_GRADES_PRESET_BODY;
 }
 
 export function buildScoreDetail(

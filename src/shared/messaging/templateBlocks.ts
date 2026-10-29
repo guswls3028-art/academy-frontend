@@ -341,7 +341,7 @@ export function renderPreviewBadges(text: string): React.ReactNode[] {
 // 잘못 표시되던 결함 fix.
 const SCORE_SUB_VARS: string[] = [];
 for (let n = 1; n <= SCORE_TEMPLATE_SLOT_LIMIT; n++) {
-  SCORE_SUB_VARS.push(`시험${n}`, `시험${n}명`, `시험${n}만점`, `과제${n}`, `과제${n}명`, `과제${n}만점`);
+  SCORE_SUB_VARS.push(`시험${n}`, `시험${n}명`, `시험${n}만점`, `시험${n}결과`, `과제${n}`, `과제${n}명`, `과제${n}만점`, `과제${n}결과`);
 }
 
 export const ALWAYS_AVAILABLE_VARS = new Set<string>([

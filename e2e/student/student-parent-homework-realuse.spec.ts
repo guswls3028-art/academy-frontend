@@ -193,11 +193,16 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await expect(numeric).toHaveText("92.5");
       await numeric.click();
       await numeric.fill("92");
-      const state = cell.getByRole("combobox", { name: `${studentName} · ${completionTitle} 완료 상태`, exact: true });
-      await state.selectOption(width === 1366 ? "통과" : "미통과");
+      const state = cell.getByRole("group", { name: `${studentName} · ${completionTitle} 완료 상태`, exact: true });
       const scored = staffPage.waitForResponse(response => response.request().method() === "PATCH"
         && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
         && response.request().postDataJSON()?.homework_id === completion.id);
+      if (width === 1366) {
+        await state.locator('button[aria-pressed="true"]').focus();
+        await staffPage.keyboard.press("1");
+      } else await state.getByRole("button", { name: "미통과", exact: true }).click();
+      await expect(state.getByRole("button", { name: width === 1366 ? "통과" : "미통과", exact: true }))
+        .toHaveAttribute("aria-pressed", "true");
       await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
       const scoreResponse = await scored;
       expect(scoreResponse.status()).toBe(200);

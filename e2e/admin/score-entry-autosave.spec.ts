@@ -94,6 +94,7 @@ async function openScores(
     timeout: navigationTimeoutMs,
   });
   await expect(page).toHaveURL(/\/workspace\/lectures\/9001\/sessions\/9002\/scores/);
+  await expect(page.locator(".scores-entry-page")).toBeVisible({ timeout: navigationTimeoutMs });
 }
 
 async function ensureScoreEditing(page: Page, loadingTimeoutMs = 30_000): Promise<void> {
@@ -1528,8 +1529,8 @@ test("완료형 과제 셀은 focus 시 version을 고정해 원격 저장 뒤 s
     await openScores(pageB, routeOptions, 90_000);
     await ensureScoreEditing(pageB, 90_000);
 
-    const pageASelect = pageA.getByRole("combobox", { name: "자동저장학생1 · 단원 복습 완료 상태" });
-    const pageBSelect = pageB.getByRole("combobox", { name: "자동저장학생1 · 단원 복습 완료 상태" });
+    const pageASelect = pageA.getByRole("group", { name: "자동저장학생1 · 단원 복습 완료 상태" });
+    const pageBSelect = pageB.getByRole("group", { name: "자동저장학생1 · 단원 복습 완료 상태" });
     let pageBObservedHomeworkScore: number | null | undefined;
     pageB.on("response", async (response) => {
       if (/\/results\/admin\/sessions\/9002\/scores\/$/.test(new URL(response.url()).pathname)) {
@@ -1541,20 +1542,20 @@ test("완료형 과제 셀은 focus 시 version을 고정해 원격 저장 뒤 s
       }
     });
 
-    await pageBSelect.focus();
-    await expect(pageBSelect).toHaveValue("미통과");
+    await pageBSelect.getByRole("button", { name: "미통과", exact: true }).focus();
+    await expect(pageBSelect.getByRole("button", { name: "미통과", exact: true })).toHaveAttribute("aria-pressed", "true");
 
-    await pageASelect.selectOption("통과");
+    await pageASelect.getByRole("button", { name: "통과", exact: true }).click();
     await pageA.keyboard.press("Control+s");
     await expect.poll(() => currentHomeworkScores[0]).toBe(1);
     await expect.poll(() => pageBObservedHomeworkScore, { timeout: 10_000 }).toBe(1);
-    await expect(pageBSelect).toHaveValue("미통과");
+    await expect(pageBSelect.getByRole("button", { name: "미통과", exact: true })).toHaveAttribute("aria-pressed", "true");
 
-    await pageBSelect.selectOption("미입력");
+    await pageBSelect.getByRole("button", { name: "미입력으로 초기화", exact: true }).click();
     await pageB.keyboard.press("Control+s");
     const conflict = pageB.getByRole("alert").filter({ hasText: "최신 서버값 1" });
     await expect(conflict).toContainText("내 입력 미입력");
-    await expect(pageBSelect).toHaveValue("미입력");
+    await expect(pageBSelect.getByRole("button", { name: "미입력으로 초기화", exact: true })).toHaveAttribute("aria-pressed", "true");
     expect(currentHomeworkScores[0]).toBe(1);
 
     await conflict.getByRole("button", { name: "내 점수 다시 적용" }).click();
@@ -1917,7 +1918,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
           template: {
             ok: true,
             source: "unified",
-            name: "수업 결과 기본형",
+            name: "성적 안내",
             solapi_template_id: "KA01TP_TEST_SCORE",
             solapi_status: "APPROVED",
             detail: "발송 가능",
@@ -1960,6 +1961,9 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(dialog.getByRole("checkbox", { name: "학부모" })).toBeChecked();
     await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeChecked();
     await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeEnabled();
+    const editor = dialog.getByRole("textbox", { name: "안내문", exact: true });
+    await expect(editor).toHaveText("");
+    await editor.fill("학생별 성적을 안내드립니다.");
     await expect.poll(() => [...new Set(preflightTargets)].sort()).toEqual(["parent", "student"]);
     await dialog.getByRole("button", { name: "보낼 내용 확인" }).click();
     const combinedConfirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
@@ -2050,6 +2054,9 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("columnheader", { name: /^테스트 오답/ })).toBeVisible();
+    const reloadedViewOptions = page.getByRole("button", { name: /표시 옵션/ });
+    await expect(reloadedViewOptions).toHaveAttribute("aria-expanded", "false");
+    await reloadedViewOptions.click();
     await expect(page.getByRole("group", { name: "마지막 열 표시" }).getByRole("button", { name: "테스트 오답", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("group", { name: "테스트 오답 확인 학생 필터" }).getByRole("button", { name: "전체 4명" })).toHaveAttribute("aria-pressed", "true");
 
@@ -2312,6 +2319,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await expect(page.getByRole("cell", { name: "81/100", exact: true })).toBeVisible();
       await expect(page.getByRole("cell", { name: "70/100", exact: true })).toBeVisible();
 
+      await page.getByRole("button", { name: /표시 옵션/ }).click();
       const reviewFilter = page.getByRole("group", { name: "테스트 오답 확인 학생 필터" });
       await expect(reviewFilter.getByRole("button", { name: "전체 2명" })).toHaveAttribute("aria-pressed", "true");
       await expect(page.locator('td[data-col-type="exam-review"]')).toHaveCount(2);
@@ -2329,6 +2337,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await page.getByRole("searchbox", { name: "학생 이름 검색" }).fill("");
 
       await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: /표시 옵션/ }).click();
       await expect(page.getByRole("group", { name: "테스트 오답 확인 학생 필터" }).getByRole("button", { name: "전체 2명" })).toHaveAttribute("aria-pressed", "true");
       await expect(page.locator('td[data-col-type="exam-review"]')).toHaveCount(2);
       await expect(absentRow.getByRole("cell", { name: "81/100", exact: true })).toBeVisible();
@@ -2509,7 +2518,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     });
   });
 
-  test("완료형 과제는 숫자 칸 대신 완료 상태 선택기로 저장한다", async ({ page }) => {
+  test("@score-controls 완료형 과제는 한 번 눌러 저장하고 실행 취소·초기화·reload를 지원한다", async ({ page }) => {
     await openScores(page, {
       includeHomework: true,
       homeworkMaxScore: 1,
@@ -2518,11 +2527,11 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     });
     await ensureScoreEditing(page);
 
-    const completionSelect = page.getByRole("combobox", {
+    const completionSelect = page.getByRole("group", {
       name: "자동저장학생2 · 단원 복습 완료 상태",
     });
-    await expect(completionSelect).toHaveValue("미통과");
-    await completionSelect.selectOption("통과");
+    await expect(completionSelect.getByRole("button", { name: "미통과", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await completionSelect.getByRole("button", { name: "통과", exact: true }).click();
 
     await expect.poll(() => homeworkPatches.at(-1)?.score, { timeout: 10_000 }).toBe(1);
     expect(homeworkPatches.at(-1)).toMatchObject({
@@ -2530,8 +2539,17 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       homework_id: 9151,
       max_score: 1,
     });
-    await expect(completionSelect).toHaveValue("통과");
-    await page.screenshot({ path: "test-results/homework-completion/scores-completion-select.png", fullPage: true });
+    await expect(completionSelect.getByRole("button", { name: "통과", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "성적 변경 실행 취소", exact: true }).click();
+    await expect.poll(() => currentHomeworkScores[1]).toBe(0);
+    await expect(completionSelect.getByRole("button", { name: "미통과", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "성적 변경 다시 실행", exact: true }).click();
+    await expect.poll(() => currentHomeworkScores[1]).toBe(1);
+    await completionSelect.getByRole("button", { name: "미입력으로 초기화" }).click();
+    await expect.poll(() => currentHomeworkScores[1]).toBeNull();
+    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-score-cell="homework:9202:9151"]')).toContainText("미입력");
   });
 
   test("점수 저장 성공과 남은 서술형 최종 반영을 구분하고 reload에도 값을 유지한다", async ({ page }) => {
@@ -3190,3 +3208,99 @@ test("@billboard-fraction 여러 쪽 순위표의 마지막 순위까지 화면 
   await modal.getByRole("button", { name: "닫기", exact: true }).click();
   await expect(modal).toBeHidden();
 });
+
+for (const width of [1366, 1100, 390]) {
+  test(`@score-controls ${width}px 추가 버튼과 통과형 직접 입력을 화면 안에서 조작한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await openScores(page, { includeHomework: true, homeworkMaxScore: 1,
+      homeworkGradingMode: "COMPLETION", homeworkAssignedRows: [true, true], initialHomeworkScores: [null, 0] });
+    const additions = page.getByRole("group", { name: "시험·과제 추가와 답안 등록", exact: true });
+    await expect(additions).toBeVisible({ timeout: 45_000 });
+    await expect(additions.getByRole("button", { name: "시험 추가", exact: true })).toBeVisible();
+    await expect(additions.getByRole("button", { name: "과제 추가", exact: true })).toBeVisible();
+    if (width === 390) {
+      expect((await additions.getByRole("button", { name: "과제 추가", exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    await additions.getByRole("button", { name: "과제 추가", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("과제");
+    await dialog.getByRole("button", { name: "취소", exact: true }).click();
+    await expect(page.getByRole("group", { name: "선택 학생 작업", exact: true })).toHaveCount(0);
+    if (width === 390) await page.setViewportSize({ width, height: 568 });
+    await page.getByRole("button", { name: "성적 도구", exact: true }).click();
+    const tools = page.getByRole("menu", { name: "성적 도구", exact: true });
+    await expect(tools.getByRole("menuitem", { name: /과제 추가|시험 추가/ })).toHaveCount(0);
+    await expect(tools.getByRole("menuitem", { name: /성적표 출력/ })).toBeVisible();
+    const menuBounds = await tools.boundingBox();
+    expect(menuBounds).not.toBeNull();
+    expect(menuBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(menuBounds!.x + menuBounds!.width).toBeLessThanOrEqual(width);
+    if (width === 390) {
+      const bottomNav = await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox();
+      expect(menuBounds!.y).toBeGreaterThanOrEqual(64);
+      expect(menuBounds!.y + menuBounds!.height).toBeLessThanOrEqual(bottomNav!.y - 8);
+      const lastTool = tools.getByRole("menuitem").last();
+      await lastTool.scrollIntoViewIfNeeded();
+      expect(await lastTool.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+      })).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath("score-tools-390.png"), animations: "disabled" });
+    }
+    await page.keyboard.press("Escape");
+    await expect(tools).toBeHidden();
+    await expect(page.getByRole("button", { name: "성적 도구", exact: true })).toBeFocused();
+    if (width === 390) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.getByRole("button", { name: "성적 도구", exact: true }).click();
+      await tools.getByRole("button", { name: "성적 도구 닫기", exact: true }).click();
+      await expect(tools).toBeHidden();
+    }
+    await ensureScoreEditing(page);
+    const control = page.getByRole("group", { name: "자동저장학생1 · 단원 복습 완료 상태", exact: true });
+    await control.scrollIntoViewIfNeeded();
+    if (width === 390) {
+      for (const button of await control.getByRole("button").all()) {
+        expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+    }
+    await control.getByRole("button", { name: "통과", exact: true }).click();
+    await expect.poll(() => currentHomeworkScores[0]).toBe(1);
+    await expect(control.getByRole("button", { name: "통과", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await control.getByRole("button", { name: "통과", exact: true }).press("ArrowRight");
+    await expect(control.getByRole("button", { name: "미통과", exact: true })).toBeFocused();
+    await page.keyboard.press("Space");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(0);
+    await page.keyboard.press("o");
+    await expect(control.getByRole("button", { name: "통과", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("group", { name: "자동저장학생2 · 단원 복습 완료 상태" }).getByRole("button", { name: "미통과", exact: true })).toBeFocused();
+    await page.keyboard.press("Shift+Enter");
+    await expect(control.getByRole("button", { name: "통과", exact: true })).toBeFocused();
+    await page.keyboard.press("0");
+    await expect(control.getByRole("button", { name: "미통과", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(0);
+    await page.keyboard.press("Delete");
+    await expect.poll(() => currentHomeworkScores[0]).toBeNull();
+    await page.keyboard.press("1");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(1);
+    await page.keyboard.press("Backspace");
+    await expect.poll(() => currentHomeworkScores[0]).toBeNull();
+    await page.keyboard.press("x");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(0);
+    await page.keyboard.press("Tab");
+    const nextExam = page.getByRole("textbox", { name: "자동저장학생2 · 주간 확인 점수 입력" });
+    await expect(nextExam).toBeFocused();
+    await nextExam.press("Shift+Tab");
+    await expect(control.getByRole("button", { name: "미통과", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Tab");
+    await expect.poll(() => page.evaluate(() => document.activeElement?.closest(".ds-scores-table") == null)).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`score-controls-${width}.png`), fullPage: true, animations: "disabled" });
+    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-score-cell="homework:9201:9151"]')).toContainText("미통과", { timeout: 45_000 });
+  });
+}

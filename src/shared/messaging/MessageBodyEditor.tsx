@@ -9,13 +9,14 @@ export type MessageBodyEditorProps = {
   placeholder?: string;
   id?: string;
   ariaLabel?: string;
+  previewValues?: Record<string, string>;
 };
 
 const Editor = lazy(() => import("./MessageBodyEditorImpl"));
 
 /** Plain message storage, with atomic variable chips and native editor history. */
 const MessageBodyEditor = forwardRef<MessageBodyEditorHandle, MessageBodyEditorProps>((props, ref) => (
-  <Suspense fallback={<div className="message-body-editor__loading" role="status">편집기를 여는 중…</div>}>
+  <Suspense fallback={<div className="message-body-editor message-body-editor__loading" role="status">편집기를 여는 중…</div>}>
     <Editor {...props} ref={ref} />
   </Suspense>
 ));
