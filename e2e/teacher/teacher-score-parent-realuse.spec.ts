@@ -384,6 +384,9 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
     await assertNoHorizontalOverflow(page);
     await page.screenshot({ path: testInfo.outputPath(`score-composer-deleted-and-edited-${width}.png`) });
     await modal.getByRole("button", { name: "취소", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "작성한 문구를 닫을까요?", exact: true })
+      .getByRole("button", { name: "수정 내용 버리고 닫기", exact: true }).click();
+    await expect(modal).toBeHidden();
   }
 }
 
