@@ -41,6 +41,7 @@ const owned = {
   enrollments: [] as Enrollment[],
   sessionEnrollmentIds: [] as number[],
   messageTemplateIds: [] as number[],
+  scheduledMessageIds: [] as number[],
   previousGradeDefaultId: null as number | null,
 };
 
@@ -120,6 +121,10 @@ async function seedFixture(request: APIRequestContext): Promise<void> {
 async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): Promise<void> {
   if (!owned.adminAccess) return;
   const failures: string[] = [];
+  for (const id of owned.scheduledMessageIds) {
+    const result = await api<{ status: string }>(request, "POST", `/messaging/scheduled/${id}/cancel/`, owned.adminAccess);
+    if (result.status !== 200 || result.body.status !== "cancelled") failures.push(`cancel scheduled message ${id}: ${result.status}`);
+  }
   if (owned.previousGradeDefaultId != null) {
     await expectApi(request, "POST", `/messaging/templates/${owned.previousGradeDefaultId}/set-default/`,
       owned.adminAccess, { is_user_default: true });
@@ -382,11 +387,65 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
     await expect(preview).toContainText("91/100");
     await expect(preview).not.toContainText("폐기할 성적 안내");
     await expect(preview).not.toContainText(owned.exams[0].title);
+    if (width === 390) {
+      await modal.getByRole("button", { name: "미리보기로 이동", exact: true }).click();
+      await expect(modal.getByRole("region", { name: "받는 사람에게 보일 내용", exact: true })).toBeFocused();
+      await expect(preview).toBeInViewport();
+      await modal.getByRole("button", { name: "본문 편집으로 이동", exact: true }).click();
+      await expect(modal.getByRole("region", { name: "안내문 편집 영역", exact: true })).toBeFocused();
+      await expect(editor).toContainText(note);
+    }
     await assertNoHorizontalOverflow(page);
     await page.screenshot({ path: testInfo.outputPath(`score-composer-deleted-and-edited-${width}.png`) });
-    await modal.getByRole("button", { name: "취소", exact: true }).click();
-    await page.getByRole("alertdialog", { name: "작성한 문구를 닫을까요?", exact: true })
-      .getByRole("button", { name: "수정 내용 버리고 닫기", exact: true }).click();
+    if (width === 390) {
+      // Future scheduling stays in the isolated API; cancel through UI before any worker can send.
+      await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+      await modal.getByRole("button", { name: "예약", exact: true }).click();
+      await modal.getByLabel("예약 발송 시각", { exact: true }).fill(new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16));
+      await modal.getByRole("button", { name: "예약할 내용 확인", exact: true }).click();
+      const confirmation = page.getByRole("dialog", { name: "보내기 전 마지막 확인", exact: true });
+      const scheduledResponse = apiResponse(page, "/messaging/send/", "POST");
+      await confirmation.getByRole("button", { name: "예약하기", exact: true }).click();
+      const scheduled = await scheduledResponse;
+      await checkResponseScope(scheduled, 200);
+      expect(await scheduled.json()).toMatchObject({ scheduled: 1, enqueued: 0 });
+      const pending = await expectApi<{ count: number; results: Array<{ id: number; target_id: string; trigger: string }> }>(
+        request, "GET", "/messaging/scheduled/?status=pending&page_size=100", owned.adminAccess);
+      const mine = pending.results.filter(item => String(item.target_id) === String(student.id) && item.trigger === "manual_send");
+      owned.scheduledMessageIds.push(...mine.map(item => item.id));
+      expect(mine).toHaveLength(1);
+      await gotoAndSettle(page, `${QA_BASE}/workspace/message/log`);
+      const scheduledPanel = page.getByRole("region", { name: "예약 발송", exact: true });
+      await expect(scheduledPanel.getByRole("button", { name: "예약 새로고침", exact: true })).toBeEnabled();
+      const row = scheduledPanel.getByTestId(`scheduled-notification-${mine[0].id}`);
+      for (let index = 1; index < Math.ceil(pending.count / 10) && await row.count() === 0; index++) {
+        const nextPage = apiResponse(page, "/messaging/scheduled/");
+        await scheduledPanel.getByRole("navigation", { name: "예약 발송 페이지" }).getByRole("button", { name: "다음 페이지", exact: true }).click();
+        await checkResponseScope(await nextPage, 200);
+      }
+      await expect(row).toContainText(student.name);
+      await row.getByRole("button", { name: "예약 취소", exact: true }).click();
+      const cancelDialog = page.getByRole("alertdialog", { name: "예약 발송 취소", exact: true });
+      await expect(cancelDialog).toContainText(student.name);
+      const cancelledResponse = apiResponse(page, `/messaging/scheduled/${mine[0].id}/cancel/`, "POST");
+      await cancelDialog.getByRole("button", { name: "예약 취소", exact: true }).click();
+      const cancelled = await cancelledResponse;
+      await checkResponseScope(cancelled, 200);
+      expect(await cancelled.json()).toMatchObject({ id: mine[0].id, status: "cancelled" });
+      const cancellationReadback = await expectApi<{ results: Array<{ id: number }> }>(
+        request, "GET", "/messaging/scheduled/?status=cancelled&page_size=100", owned.adminAccess);
+      expect(cancellationReadback.results.map(item => item.id)).toContain(mine[0].id);
+      owned.scheduledMessageIds = owned.scheduledMessageIds.filter(id => id !== mine[0].id);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(scheduledPanel.getByRole("button", { name: "예약 새로고침", exact: true })).toBeEnabled();
+      await expect(scheduledPanel).not.toContainText(student.name);
+      await assertNoHorizontalOverflow(page);
+      await page.screenshot({ path: testInfo.outputPath("score-message-scheduled-cancelled-390.png") });
+    } else {
+      await modal.getByRole("button", { name: "취소", exact: true }).click();
+      await page.getByRole("alertdialog", { name: "작성한 문구를 닫을까요?", exact: true })
+        .getByRole("button", { name: "수정 내용 버리고 닫기", exact: true }).click();
+    }
     await expect(modal).toBeHidden();
   }
 }

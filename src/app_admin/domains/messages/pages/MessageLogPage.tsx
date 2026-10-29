@@ -211,7 +211,7 @@ function ScheduledRow({
   cancelling: boolean;
 }) {
   return (
-    <div className={styles.scheduledRow}>
+    <div className={styles.scheduledRow} data-testid={`scheduled-notification-${item.id}`}>
       <span className={styles.scheduledTime}>{koreanDateTimeText(item.send_at)}</span>
       <span className={styles.scheduledRecipient}>{item.recipient_summary || "수신자 정보 없음"}</span>
       <span className={styles.scheduledPreview}>{item.message_preview || "내용 미리보기 없음"}</span>
