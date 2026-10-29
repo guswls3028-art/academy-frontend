@@ -61,6 +61,7 @@ async function installApi(
   const date = overnight ? "2026-08-31" : dateAfter(4);
   const endDate = overnight ? "2026-09-01" : dateAfter(5);
   let booking: Record<string, unknown> | null = null;
+  const createdSessions: Array<Record<string, unknown>> = [];
   const timeRangeSession = {
     id: 910,
     title: "림글리쉬 야간 자율 클리닉",
@@ -134,13 +135,16 @@ async function installApi(
       },
     });
     if (path === "/clinic/sessions/" && request.method() === "GET") {
+      if (role === "admin" && createdSessions.length > 0) return json(createdSessions);
       return json((role === "student" || overnight) && (url.searchParams.get("date_from") ?? "") <= date ? [timeRangeSession, ...(overnight ? [{ ...timeRangeSession, id: 912, title: "이미 끝난 전날 클리닉", start_time: "20:00:00", end_time: "22:00:00", end_date: date, duration_minutes: 120 }] : [])] : []);
     }
     if (path === "/clinic/sessions/tree/" && request.method() === "GET") return json([]);
     if (path === "/clinic/sessions/" && request.method() === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       createPayloads.push(payload);
-      return json({ id: 911, ...payload }, 201);
+      const session = { id: 911, participant_count: 0, booked_count: 0, ...payload };
+      createdSessions.push(session);
+      return json(session, 201);
     }
     if (path === "/clinic/sessions/910/availability/" && request.method() === "GET") return json({
       booking_mode: "time_range",
@@ -257,7 +261,7 @@ test("관리자 생성 모달의 두 방식은 데스크톱과 모바일에서 �
 });
 
 for (const width of [1366, 390]) {
-  test(`관리자는 자정 이후 종료 시간을 확인하고 클리닉을 생성한다 (${width}px)`, async ({ page }) => {
+  test(`관리자는 선택 메뉴를 Escape로 닫아도 입력을 유지하고 클리닉을 생성한다 (${width}px)`, { tag: "@dialog-journey" }, async ({ page }, testInfo) => {
     const payloads: Array<Record<string, unknown>> = [];
     await installApi(page, "admin", payloads);
     await page.setViewportSize({ width, height: 900 });
@@ -274,8 +278,24 @@ for (const width of [1366, 390]) {
       await timePicker.getByRole("button", { name: "적용", exact: true }).click();
     }
     await dialog.getByRole("combobox", { name: "예약 간격" }).click();
+    await expect(page.locator(".ant-select-dropdown:visible")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByPlaceholder("예: 수학 보충")).toHaveValue("심야 자율 학습");
+    await expect(dialog.getByPlaceholder("장소 / 룸")).toHaveValue("자율 학습실");
+    await expect(dialog.getByRole("combobox", { name: "예약 간격" })).toBeFocused();
+    expect(payloads).toEqual([]);
+    await dialog.getByRole("combobox", { name: "예약 간격" }).click();
     await page.locator(".ant-select-dropdown:visible").getByText("30분", { exact: true }).click();
+    await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
     await dialog.getByRole("spinbutton", { name: "최대 체류 시간" }).fill("120");
+    await dialog.getByRole("group", { name: "시간 선택", exact: true }).scrollIntoViewIfNeeded();
+    expect(await dialog.locator(".shared-time-range-trigger-text").evaluateAll(
+      (elements) => elements.every((element) => element.scrollWidth <= element.clientWidth),
+    )).toBe(true);
+    await expect(dialog.locator(".shared-time-range-next-day")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`clinic-dropdown-recovery-${width}.png`) });
     await dialog.getByRole("button", { name: /^클리닉 만들기 \(정원 \d+명\)$/ }).click();
     const confirmation = page.getByRole("alertdialog", { name: "클리닉 일정 최종 확인" });
     await expect(confirmation).toContainText("23:00–익일 01:00");
@@ -284,8 +304,12 @@ for (const width of [1366, 390]) {
     await expect.poll(() => payloads).toEqual([expect.objectContaining({
       date, start_time: "23:00:00", duration_minutes: 120, booking_mode: "time_range",
       booking_interval_minutes: 30, booking_max_stay_minutes: 120,
+      title: "심야 자율 학습", location: "자율 학습실",
     })]);
     await expect(dialog).toBeHidden();
+    await page.reload();
+    await expect(page.getByText("심야 자율 학습", { exact: true }).first()).toBeVisible();
+    expect(payloads).toHaveLength(1);
   });
 }
 

@@ -139,6 +139,13 @@
   flex: 0 0 120px;
   min-width: 120px;
 }
+/* Keep the full time and next-day badge readable inside narrow clinic forms. */
+.clinic-create .shared-time-range-grid {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.clinic-create .shared-time-range-quick {
+  grid-column: 2;
+}
 .clinic-create__label {
   font-size: 13px;
   font-weight: 600;

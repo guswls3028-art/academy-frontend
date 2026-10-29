@@ -17,6 +17,16 @@ type ModalEntry = {
 
 const stack: ModalEntry[] = [];
 
+/** Portaled controls own Enter/Escape until their popup has closed. */
+function hasOpenDropdown(): boolean {
+  return !!document.querySelector(
+    ".ant-select-dropdown:not(.ant-select-dropdown-hidden)," +
+    ".ant-picker-dropdown:not(.ant-picker-dropdown-hidden)," +
+    ".ant-dropdown:not(.ant-dropdown-hidden)," +
+    ".ant-cascader-dropdown:not(.ant-cascader-dropdown-hidden)"
+  );
+}
+
 /** Enter 무시해야 하는 포커스 상태인지 판별 */
 function shouldSkipEnter(): boolean {
   const el = document.activeElement as HTMLElement | null;
@@ -36,18 +46,6 @@ function shouldSkipEnter(): boolean {
     if (el.getAttribute("aria-expanded") === "true") return true;
   }
 
-  // antd Select/Picker/Dropdown 열린 상태 → Enter = 항목 선택
-  if (
-    document.querySelector(
-      ".ant-select-dropdown:not(.ant-select-dropdown-hidden)," +
-      ".ant-picker-dropdown:not(.ant-picker-dropdown-hidden)," +
-      ".ant-dropdown:not(.ant-dropdown-hidden)," +
-      ".ant-cascader-dropdown:not(.ant-cascader-dropdown-hidden)"
-    )
-  ) {
-    return true;
-  }
-
   return false;
 }
 
@@ -65,6 +63,9 @@ function globalKeyHandler(e: KeyboardEvent) {
 
   // ConfirmDialog가 열려 있으면 ConfirmDialog 자체 핸들러에 위임
   if (document.querySelector("[data-confirm-dialog], [data-dialog-popover]")) return;
+
+  // Do not close the parent form before Select/Picker/Dropdown can dismiss itself.
+  if (hasOpenDropdown()) return;
 
   const top = stack[stack.length - 1];
 
