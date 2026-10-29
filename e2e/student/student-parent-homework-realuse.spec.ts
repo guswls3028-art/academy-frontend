@@ -32,6 +32,7 @@ import {
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 import { applyHomeworkPreviewCsp, homeworkHeic } from "../helpers/homeworkHeicFixture";
+import { verifyHomeworkCriteria } from "../helpers/homeworkCriteriaRealuse";
 
 test.setTimeout(600_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -292,6 +293,12 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
       await expect(totals).toBeHidden();
       await verifyMixed(originalOrder, [created.homeworkId!], width === 1366 ? 1 : 0);
+
+      await verifyHomeworkCriteria(staffPage, parentPage, request, admin.access, {
+        lectureId: created.lectureId!, sessionId: created.sessionId!, enrollmentId: created.enrollmentId!,
+        homeworkId: created.homeworkId!, homeworkTitle, completionHomeworkId: completion.id,
+        completionTitle, completionScore: width === 1366 ? 1 : 0, studentName,
+      }, width);
 
       await staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }).click();
       await staffPage.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
