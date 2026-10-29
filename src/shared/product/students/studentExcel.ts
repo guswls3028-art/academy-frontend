@@ -150,7 +150,7 @@ async function readStudentWorksheetRows(file: File): Promise<unknown[][]> {
     sheet,
     name: sheet.name,
     active: index === activeTab,
-    rows: readWorksheetRows(sheet, { preserveEmptyRows: true, sampleRows: 200 }),
+    rows: readWorksheetRows(sheet, { preserveEmptyRows: true, sampleRows: 150 }),
   }));
   const candidates = sheets.flatMap((sheet) => {
     const header = findStudentHeader(sheet.rows);
@@ -161,7 +161,7 @@ async function readStudentWorksheetRows(file: File): Promise<unknown[][]> {
       && headerRow.some((cell) => headerMatches(cell, "parentPhone") || headerMatches(cell, "studentPhone"));
     const phoneColumns = new Set<number>();
     let meaningfulRows = 0;
-    for (const row of sheet.rows.slice(header + 1, header + 101)) {
+    for (const row of sheet.rows.slice(header + 1, header + 51)) {
       let hasPhone = false;
       row.forEach((cell, index) => {
         if (/^010[0-9]{8}$/.test(toRawPhone(cell))) {

@@ -246,6 +246,8 @@ test("Matchup foreground continues other jobs after one becomes unavailable", as
 function workboxRuntime(jobType) {
   const requests = [];
   const completions = [];
+  const statusMessages = [];
+  const importResults = [];
   const timers = new Map();
   let timerId = 0;
   let cleanup;
@@ -258,6 +260,8 @@ function workboxRuntime(jobType) {
     getState: () => [task],
     getSessionGeneration: () => sessionGeneration,
     updateProgress() {}, setTaskLabel() {}, attachWorkerMeta() {},
+    setTaskStatusMessage(id, message) { statusMessages.push({ id, message }); },
+    setStudentImportResult(id, value) { importResults.push({ id, value }); },
     completeTask(id, status, error) { completions.push({ id, status, error }); task.status = status; },
   };
   const document = new EventTarget();
@@ -267,8 +271,8 @@ function workboxRuntime(jobType) {
     react: { useEffect(callback) { cleanup = callback(); }, useRef: (current) => ({ current }) },
     "@/shared/tenant": { getTenantCodeForApiRequest: () => tenant },
     "@/shared/auth/tokenSession": { readAuthTokenEnvelopeSafely: () => ({ generation }) },
-    "./asyncStatusStore": { asyncStatusStore: store },
-    "@/shared/ui/feedback/feedback": { feedback: {} },
+    "./asyncStatusStore": { asyncStatusStore: store, MAX_STORED_RESULT_ROWS: 500 },
+    "@/shared/ui/feedback/feedback": { feedback: { warning() {}, success() {} } },
     "@/shared/api/contracts/submissions": {},
     "@/shared/api/contracts/videos": {},
     "@/shared/api/axios": {
@@ -281,23 +285,26 @@ function workboxRuntime(jobType) {
   });
   load("src/shared/ui/asyncStatus/useWorkerJobPoller.ts").useWorkerJobPoller([task], {
     onPptSuccess: () => { successes++; }, onMatchupSuccess: () => { successes++; },
+    onExcelSuccess: () => { successes++; },
   });
   return {
-    requests, completions, successes: () => successes,
+    requests, completions, statusMessages, importResults, successes: () => successes,
     runTimers() { for (const [id, callback] of [...timers]) { timers.delete(id); callback(); } },
-    respond(data) { requests[0].resolve({ data: { job_id: task.id, job_type: jobType, ...data } }); },
-    reject(error) { requests[0].reject(error); },
+    respond(data, index = 0) { requests[index].resolve({ data: { job_id: task.id, job_type: jobType, ...data } }); },
+    reject(error, index = 0) { requests[index].reject(error); },
     switchTenant() { tenant = "other-tenant"; },
     switchAccount() { generation = "other-generation"; sessionGeneration++; },
     dispose() { cleanup?.(); },
   };
 }
 
-for (const jobType of ["ppt_generation", "matchup_analysis", "matchup_document_watch"]) {
+for (const jobType of ["ppt_generation", "matchup_analysis", "matchup_document_watch", "excel_parsing"]) {
   test(`Workbox ${jobType} keeps one request in flight`, async () => {
     const h = workboxRuntime(jobType);
     h.runTimers(); h.runTimers();
     assert.equal(h.requests.length, 1);
+    assert.equal(h.requests[0].config.expectedTenant, "fixture-tenant");
+    assert.equal(h.requests[0].config.authGeneration, "fixture-generation");
     h.dispose();
     assert.equal(h.requests[0].config.signal.aborted, true);
   });
@@ -308,6 +315,8 @@ for (const jobType of ["ppt_generation", "matchup_analysis", "matchup_document_w
       h.respond({ status: jobType === "matchup_document_watch" ? "done" : "DONE", result });
       await flush();
       assert.deepEqual(h.completions, []);
+      assert.deepEqual(h.importResults, []);
+      assert.deepEqual(h.statusMessages, []);
       assert.equal(h.successes(), 0);
       h.dispose();
     });
@@ -329,7 +338,7 @@ test("Workbox PPT rejects an empty DONE and completes a real result once", async
   valid.dispose();
 });
 
-for (const jobType of ["ppt_generation", "matchup_analysis", "matchup_public_cleanup", "matchup_document_watch"]) {
+for (const jobType of ["ppt_generation", "matchup_analysis", "matchup_public_cleanup", "matchup_document_watch", "excel_parsing"]) {
   for (const status of [403, 404]) {
     test(`Workbox ${jobType} ends an unavailable ${status} without polling or reporting success`, async () => {
       const h = workboxRuntime(jobType);
@@ -339,6 +348,7 @@ for (const jobType of ["ppt_generation", "matchup_analysis", "matchup_public_cle
       assert.equal(h.completions[0].status, "error");
       assert.match(h.completions[0].error, /작업.*권한/);
       assert.doesNotMatch(h.completions[0].error, /untrusted/);
+      assert.deepEqual(h.statusMessages, [], "a terminal denial must not become a retry message");
       h.runTimers(); h.runTimers();
       assert.equal(h.requests.length, 1);
       assert.equal(h.successes(), 0);
@@ -352,6 +362,7 @@ for (const jobType of ["ppt_generation", "matchup_analysis", "matchup_public_cle
       h.reject({ response: { status: 404 } });
       await flush();
       assert.deepEqual(h.completions, []);
+      assert.deepEqual(h.statusMessages, []);
       h.dispose();
     });
   }
@@ -367,6 +378,76 @@ for (const jobType of ["ppt_generation", "matchup_analysis", "matchup_public_cle
     }
   });
 }
+
+const mixedEnrollmentResult = {
+  enrolled_count: 1, created_students_count: 0, not_found_students_count: 0,
+  ambiguous_students_count: 1, session_id: 42, total: 3, excluded_count: 2,
+  enrolled_rows: [{ row: 2, name: "등록완료학생", student_id: 1 }],
+  excluded_rows: [
+    { row: 3, name: "전화오류학생", reason_code: "invalid_row", error: "전화번호를 확인해 주세요." },
+    { row: 4, name: "동명이인학생", reason_code: "ambiguous", error: "학생 명부를 확인해 주세요." },
+  ],
+};
+
+for (const initial of [{ status: "UNKNOWN" }, { status: "DONE" }, { status: "HTTP503" }]) {
+  test(`Excel recovers ${initial.status} into one mixed-row ledger without resubmission`, async () => {
+    const h = workboxRuntime("excel_parsing");
+    if (initial.status === "HTTP503") h.reject({ response: { status: 503 } });
+    else h.respond(initial);
+    await flush();
+    assert.deepEqual(h.completions, []);
+    assert.deepEqual(h.importResults, []);
+    assert.match(h.statusMessages.at(-1).message, /다시/);
+    h.runTimers();
+    assert.equal(h.requests.length, 2);
+    assert.ok(h.requests.every(({ url }) => url === "/jobs/fixture-job/progress/"));
+    h.respond({ status: "DONE", result: mixedEnrollmentResult }, 1);
+    await flush();
+    assert.equal(h.completions.length, 1);
+    assert.equal(h.completions[0].status, "success");
+    assert.equal(h.successes(), 1);
+    assert.equal(h.importResults.length, 1);
+    const ledger = h.importResults[0].value;
+    assert.equal(ledger.kind, "enrollment");
+    assert.equal(ledger.total, 3);
+    assert.equal(ledger.createdCount, 1);
+    assert.equal(ledger.failedCount, 2);
+    assert.equal(ledger.createdRows[0].name, "등록완료학생");
+    assert.deepEqual(Array.from(ledger.failedRows, ({ row }) => row), [3, 4]);
+    assert.equal(ledger.failedRows[0].reason, "전화번호를 확인해 주세요.");
+    h.runTimers();
+    assert.equal(h.requests.length, 2);
+    h.dispose();
+  });
+}
+
+test("Excel keeps counts from the legacy enrollment payload without inventing rows", async () => {
+  const h = workboxRuntime("excel_parsing");
+  h.respond({ status: "DONE", result: {
+    enrolled_count: 2, created_students_count: 0, not_found_students_count: 1,
+    ambiguous_students_count: 1, session_id: 42,
+  } });
+  await flush();
+  const ledger = h.importResults[0].value;
+  assert.equal(ledger.total, 4);
+  assert.equal(ledger.createdCount, 2);
+  assert.equal(ledger.failedCount, 2);
+  assert.equal(ledger.createdRows.length, 0);
+  assert.equal(ledger.failedRows.length, 0);
+  h.dispose();
+});
+
+test("Excel worker failure refreshes committed rows while retaining an error outcome", async () => {
+  const h = workboxRuntime("excel_parsing");
+  h.respond({ status: "FAILED", error_message: "처리 결과를 확인해 주세요." });
+  await flush();
+  assert.equal(h.completions.length, 1);
+  assert.equal(h.completions[0].status, "error");
+  assert.equal(h.completions[0].error, "처리 결과를 확인해 주세요.");
+  assert.equal(h.successes(), 1, "consumer invalidation still runs after partial persistence");
+  assert.equal(h.importResults.length, 0);
+  h.dispose();
+});
 
 for (const jobType of ["matchup_analysis", "matchup_public_cleanup"]) {
   test(`Workbox ${jobType} stops when both durable and cache state are missing`, async () => {

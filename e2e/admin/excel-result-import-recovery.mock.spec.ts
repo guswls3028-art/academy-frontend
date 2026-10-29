@@ -3,7 +3,7 @@ import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 for (const width of [390, 1366]) {
-  test(`시험 변경 뒤 늦은 미리보기를 버리고 새 시험 결과를 한 번만 반영한다 ${width}`, async ({ page }) => {
+  test(`시험 변경 뒤 늦은 미리보기를 버리고 새 시험 결과를 한 번만 반영한다 ${width}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await installLocalAuthApiStubs(page);
     await installTenantOneInitScript(page);
@@ -31,10 +31,13 @@ for (const width of [390, 1366]) {
     await expect(page.getByText("현재 시험 78", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "1명 결과 반영" })).toHaveCount(0);
     await page.locator('input[type="file"]').setInputFiles(file);
+    await expect(page.getByRole("button", { name: "1명 결과 반영" })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`synthetic-exam-preview-${width}px.png`), fullPage: true });
     await page.getByRole("button", { name: "1명 결과 반영" }).dblclick();
     await expect(page.getByText("채점 결과를 반영했습니다", { exact: true })).toBeVisible();
     expect(applies).toHaveLength(1);
     expect(applies[0]).toContain("/78/");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`synthetic-exam-applied-${width}px.png`), fullPage: true });
   });
 }

@@ -1,9 +1,9 @@
 // Shared roster preview/JSON import grammar. Keep aligned with the backend parser.
 const RELATION = "아버지|어머니|학부모|보호자|아빠|엄마|부친|모친|부모|학생|본인|부|모|father|mother|parent|guardian";
-const LABEL = `(?:\\((?:${RELATION})\\)|\\[(?:${RELATION})\\]|(?:${RELATION}))`;
+const LABEL = `(?:\\(\\s*(?:${RELATION})\\s*\\)|\\[\\s*(?:${RELATION})\\s*\\]|(?:${RELATION}))`;
 const PREFIX = new RegExp(`^${LABEL}\\s*:?\\s*`, "i");
 const SUFFIX = new RegExp(`\\s*${LABEL}$`, "i");
-const PHONE = /^(?:0?10[0-9]{8}|0?10(?:\s*[-.]\s*|\s+)[0-9]{4}(?:\s*[-.]\s*|\s+)[0-9]{4}|\(010\)\s*[0-9]{4}(?:\s*[-.]\s*|\s+)?[0-9]{4}|[0-9]{8})$/;
+const PHONE = /^(?:(?:0?10|\(010\))(?:\s*[-.]?\s*)[0-9]{4}(?:\s*[-.]?\s*)[0-9]{4}|[0-9]{8})$/;
 
 /** Invalid input stays nonempty so callers cannot mistake it for an omitted phone. */
 export function normalizeExcelPhone(input: unknown): string {
