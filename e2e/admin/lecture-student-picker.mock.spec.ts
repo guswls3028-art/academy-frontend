@@ -265,7 +265,9 @@ for (const width of [1366, 390]) {
     await expect(input).toBeFocused();
     await expect(dialog.getByText("검색 결과 1명", { exact: true })).toBeVisible();
     expect(state.searchRequests.filter((request) => request.search !== "")).toEqual([{ search: "김가학생", page: 1 }]);
-    await dialog.screenshot({ path: info.outputPath(`lecture-picker-ime-${width}.png`) });
+    await info.attach(`lecture-picker-ime-${width}.png`, {
+      body: await dialog.screenshot(), contentType: "image/png",
+    });
     // Committing the unchanged syllable must not duplicate the query or lock results.
     await input.dispatchEvent("compositionend");
     await page.clock.runFor(300);

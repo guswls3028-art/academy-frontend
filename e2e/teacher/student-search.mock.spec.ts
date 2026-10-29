@@ -69,7 +69,9 @@ for (const surface of ["enrollment", "inventory"] as const) {
       failing = false;
       await panel.getByRole("button", { name: "다시 시도", exact: true }).click();
       await expect(panel.getByText("김학생", { exact: true })).toBeVisible();
-      await panel.screenshot({ path: info.outputPath(`student-search-${surface}-${width}.png`) });
+      await info.attach(`student-search-${surface}-${width}.png`, {
+        body: await panel.screenshot(), contentType: "image/png",
+      });
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await panel.getByText("김학생", { exact: true }).click();
       if (surface === "enrollment") {

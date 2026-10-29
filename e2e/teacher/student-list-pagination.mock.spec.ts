@@ -106,7 +106,9 @@ for (const { width, scenario } of [
     await main.getByRole("button", { name: "불러온 51명 전체 선택", exact: true }).click();
     await expect(main.getByText("51명 선택됨", { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await page.screenshot({ path: testInfo.outputPath(`student-selection-${width}.png`), animations: "disabled" });
+    await testInfo.attach(`student-selection-${width}.png`, {
+      body: await page.screenshot({ animations: "disabled" }), contentType: "image/png",
+    });
     await main.getByRole("button", { name: "선택 취소", exact: true }).click();
     const searchInput = main.getByPlaceholder("이름, 아이디, 전화번호, 학교");
     const clockStart = Date.now();
