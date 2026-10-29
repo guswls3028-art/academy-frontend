@@ -1,42 +1,63 @@
-/* 완료형 과제의 성적 입력 상태 선택기 */
-.ds-scores-table .ds-scores-completion-select {
+/* 통과형 과제: 한 번 눌러 판정하고 명시적으로 미입력으로 되돌린다. */
+.ds-scores-completion-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
   width: 100%;
-  min-width: 88px;
+  min-width: 108px;
+}
+.ds-scores-completion-control button {
+  min-height: 34px;
+  padding: 4px;
   border: 1px solid var(--color-border-divider-strong);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--color-bg-surface);
-  color: var(--color-text-primary);
-  padding: 0.35rem 1.65rem 0.35rem 0.55rem;
+  color: var(--color-text-secondary);
   font-size: var(--text-xs);
   font-weight: 700;
+  white-space: nowrap;
   cursor: pointer;
-  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
-
-.ds-scores-table .ds-scores-completion-select[data-completion-state="complete"] {
+.ds-scores-completion-control button:hover:not(:disabled) {
+  border-color: var(--color-brand-primary);
+  background: var(--color-bg-surface-hover);
+}
+.ds-scores-completion-control button:active:not(:disabled) { transform: scale(0.96); }
+.ds-scores-completion-control button:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 1px; }
+.ds-scores-completion-control button:disabled { cursor: not-allowed; opacity: 0.6; }
+.ds-scores-completion-control [data-completion-value="complete"][aria-pressed="true"] {
   border-color: var(--color-success);
-  background: color-mix(in srgb, var(--color-success) 10%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-bg-surface));
   color: var(--color-success-strong, var(--color-success));
+  box-shadow: inset 0 -2px var(--color-success);
 }
-
-.ds-scores-table .ds-scores-completion-select[data-completion-state="incomplete"] {
+.ds-scores-completion-control [data-completion-value="incomplete"][aria-pressed="true"] {
   border-color: var(--color-danger);
-  background: color-mix(in srgb, var(--color-danger) 9%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-bg-surface));
   color: var(--color-danger);
+  box-shadow: inset 0 -2px var(--color-danger);
 }
-
-.ds-scores-table .ds-scores-completion-select:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+.ds-scores-completion-control [data-completion-value="empty"] {
+  grid-column: 1 / -1;
+  min-height: 26px;
+  padding: 2px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-size: 11px;
 }
-
-.ds-scores-table .ds-scores-completion-select:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+.ds-scores-completion-control [data-completion-value="empty"][aria-pressed="true"] {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface-hover);
 }
-
+.ds-scores-completion-control .completion-empty-label { display: none; }
+.ds-scores-completion-control [aria-pressed="true"] .completion-empty-label { display: inline; }
+.ds-scores-completion-control [aria-pressed="true"] .completion-reset-label { display: none; }
+@media (pointer: coarse), (max-width: 520px) {
+  .ds-scores-completion-control button[data-completion-value] { min-height: 44px; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .ds-scores-table .ds-scores-completion-select {
-    transition: none;
-  }
+  .ds-scores-completion-control button { transition: none; }
 }
