@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -30,9 +30,20 @@ type Props = {
 };
 
 export default function ExamResultExcelImport({ examId, examTitle }: Props) {
+  return <ExamResultExcelImportContent key={examId} examId={examId} examTitle={examTitle} />;
+}
+
+function ExamResultExcelImportContent({ examId, examTitle }: Props) {
   const queryClient = useQueryClient();
+  const requestLock = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ExamResultImportPreview | null>(null);
+  const [errorPage, setErrorPage] = useState(0);
 
   const downloadMutation = useMutation({
     mutationFn: () => downloadExamResultTemplate(examId, examTitle),
@@ -42,11 +53,13 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
 
   const previewMutation = useMutation({
     mutationFn: (file: File) => previewExamResultImport(examId, file),
-    onSuccess: (result) => setPreview(result),
+    onSuccess: (result) => { if (mounted.current) setPreview(result); },
     onError: (error) => {
+      if (!mounted.current) return;
       setPreview(null);
       feedback.error(extractApiError(error, "엑셀 내용을 확인하지 못했습니다."));
     },
+    onSettled: () => { requestLock.current = false; },
   });
 
   const applyMutation = useMutation({
@@ -55,8 +68,10 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
       return applyExamResultImport(examId, selectedFile);
     },
     onSuccess: async (result) => {
-      setPreview(result);
-      feedback.success(`${result.matched_count}명의 문항별 채점 결과를 반영했습니다.`);
+      if (mounted.current) {
+        setPreview(result);
+        feedback.success(`${result.matched_count}명의 문항별 채점 결과를 반영했습니다.`);
+      }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResults(examId) }),
         queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamSummary(examId) }),
@@ -64,19 +79,27 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
         queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResults(examId) }),
       ]);
     },
-    onError: (error) => feedback.error(extractApiError(error, "채점 결과를 반영하지 못했습니다.")),
+    onError: (error) => {
+      if (mounted.current) feedback.error(extractApiError(error, "채점 결과를 반영하지 못했습니다."));
+    },
+    onSettled: () => { requestLock.current = false; },
   });
 
   const clear = () => {
+    if (requestLock.current) return;
     setSelectedFile(null);
     setPreview(null);
+    setErrorPage(0);
     previewMutation.reset();
     applyMutation.reset();
   };
 
   const handleFile = (file: File) => {
+    if (requestLock.current) return;
+    requestLock.current = true;
     setSelectedFile(file);
     setPreview(null);
+    setErrorPage(0);
     applyMutation.reset();
     previewMutation.mutate(file);
   };
@@ -134,6 +157,14 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
           학생과 문항을 맞춰보는 중…
         </div>
       )}
+      {(previewMutation.isError || applyMutation.isError) && (
+        <div className={styles.stateLine} role="alert">
+          <span>{extractApiError(previewMutation.error ?? applyMutation.error, "파일을 유지했습니다. 다시 시도해 주세요.")}</span>
+          {previewMutation.isError && selectedFile && (
+            <Button intent="secondary" size="sm" onClick={() => handleFile(selectedFile)}>파일 확인 재시도</Button>
+          )}
+        </div>
+      )}
 
       {preview && (
         <div className={styles.preview}>
@@ -167,7 +198,12 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
                 size="sm"
                 leftIcon={<Upload size={ICON_FOR_BUTTON.sm} />}
                 loading={applyMutation.isPending}
-                onClick={() => applyMutation.mutate()}
+                disabled={preview.matched_count === 0}
+                onClick={() => {
+                  if (requestLock.current) return;
+                  requestLock.current = true;
+                  applyMutation.mutate();
+                }}
               >
                 {preview.matched_count}명 결과 반영
               </Button>
@@ -187,14 +223,18 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
 
           {preview.errors.length > 0 && (
             <ul className={styles.errorList}>
-              {preview.errors.slice(0, 8).map((issue, index) => (
+              {preview.errors.slice(errorPage * 50, (errorPage + 1) * 50).map((issue, index) => (
                 <li key={`${issue.sheet ?? "file"}-${issue.row ?? "file"}-${issue.field}-${index}`}>
                   {issue.sheet ? `${issue.sheet} · ` : ""}
                   {issue.row ? `${issue.row}행 · ` : ""}{issue.message}
                 </li>
               ))}
-              {preview.errors.length > 8 && (
-                <li>그 밖에 {preview.errors.length - 8}개 항목이 더 있습니다.</li>
+              {preview.errors.length > 50 && (
+                <li className="flex flex-wrap items-center gap-2">
+                  <Button intent="ghost" size="sm" disabled={errorPage === 0} onClick={() => setErrorPage(errorPage - 1)}>이전 오류</Button>
+                  <span>{errorPage + 1} / {Math.ceil(preview.errors.length / 50)}쪽 · 전체 {preview.errors.length}개</span>
+                  <Button intent="ghost" size="sm" disabled={(errorPage + 1) * 50 >= preview.errors.length} onClick={() => setErrorPage(errorPage + 1)}>다음 오류</Button>
+                </li>
               )}
             </ul>
           )}

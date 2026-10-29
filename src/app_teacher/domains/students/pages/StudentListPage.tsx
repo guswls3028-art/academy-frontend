@@ -32,6 +32,7 @@ import {
   parseStudentExcel,
   type ParseStudentExcelResult,
 } from "@/shared/product/students/studentExcel";
+import ExcelRowIssues from "@/shared/ui/excel/ExcelRowIssues";
 
 type FilterState = {
   grade?: string;
@@ -472,8 +473,11 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
   const [parseError, setParseError] = useState("");
   const [parsing, setParsing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const submitLock = useRef(false);
+  const fileVersion = useRef(0);
 
   useEffect(() => {
+    fileVersion.current += 1;
     if (!open || !file) return;
     let cancelled = false;
     setParsed(null);
@@ -482,7 +486,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
     void parseStudentExcel(file)
       .then((result) => {
         if (cancelled) return;
-        if (!result.rows.length) {
+        if (!result.rows.length && !result.issues?.length) {
           setParseError("등록할 학생 데이터가 없습니다.");
           return;
         }
@@ -498,21 +502,25 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
       });
     return () => {
       cancelled = true;
+      fileVersion.current += 1;
     };
   }, [file, open]);
 
   if (!file) return null;
 
   const handleClose = () => {
-    if (submitting) return;
+    if (submitLock.current) return;
     onClose();
   };
 
   const handleSubmit = async () => {
-    if (!parsed) {
+    if (submitLock.current) return;
+    if (!parsed?.rows.length) {
       teacherToast.error(parseError || "엑셀 파일을 확인하고 있습니다.");
       return;
     }
+    submitLock.current = true;
+    const version = fileVersion.current;
     setSubmitting(true);
     try {
       const choice = await confirmPasswords({
@@ -522,7 +530,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
         studentPhoneAvailable: parsed.rows.every((row) => !row.usesIdentifier && /^010\d{8}$/.test(row.studentPhone)),
         parentPhoneAvailable: parsed.rows.every((row) => /^010\d{8}$/.test(row.parentPhone)),
       });
-      if (!choice) return;
+      if (!choice || version !== fileVersion.current) return;
       const { job_id } = await uploadStudentBulkExcel(file, choice);
       if (!job_id) {
         teacherToast.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
@@ -534,12 +542,13 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
     } catch (err) {
       teacherToast.error(extractApiError(err, "학생 일괄 업로드에 실패했습니다."));
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   };
 
   const canSubmit =
-    parsed != null
+    parsed != null && parsed.rows.length > 0
     && !parsing
     && !submitting;
 
@@ -577,6 +586,13 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
             {parseError}
           </div>
         ) : null}
+        {parsed && (
+          <div className="min-w-0 space-y-2" role="status">
+            <strong>정상 {parsed.rows.length}명 · 입력 확인 {parsed.issues?.length ?? 0}명</strong>
+            <ExcelRowIssues issues={parsed.issues ?? []} />
+            {Boolean(parsed.issues?.length) && <p className="text-xs">확인이 필요한 행은 파일을 수정한 뒤 다시 선택해 주세요.</p>}
+          </div>
+        )}
 
         <div className="text-[11px] leading-5" style={{ color: "var(--tc-text-muted)" }}>
           오류가 있는 행은 제외하고 정상 행만 등록합니다. 작업박스에서 실패 행과 사유를 확인할 수 있습니다.

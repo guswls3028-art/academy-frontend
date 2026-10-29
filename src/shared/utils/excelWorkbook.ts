@@ -8,7 +8,7 @@ export type ExcelRow = ExcelCell[];
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const MAX_IMPORT_ROWS = 10_000;
-const MAX_IMPORT_COLUMNS = 120;
+const MAX_IMPORT_COLUMNS = 256;
 
 export function createWorkbook(): ExcelJS.Workbook {
   return new ExcelJS.Workbook();
@@ -70,24 +70,29 @@ export async function readExcelWorkbook(file: File): Promise<ExcelJS.Workbook> {
   }
 
   const source = await file.arrayBuffer();
-  return loadImportWorkbook(source);
+  const workbook = await loadImportWorkbook(source);
+  if (workbook.worksheets.length > 50) throw new Error("엑셀은 최대 50개 시트까지 업로드할 수 있습니다.");
+  return workbook;
 }
 
 export function readWorksheetRows(
   worksheet: ExcelJS.Worksheet,
-  { preserveEmptyRows = false }: { preserveEmptyRows?: boolean } = {},
+  { preserveEmptyRows = false, sampleRows }: { preserveEmptyRows?: boolean; sampleRows?: number } = {},
 ): unknown[][] {
-  if (worksheet.rowCount > MAX_IMPORT_ROWS || worksheet.columnCount > MAX_IMPORT_COLUMNS) {
+  if ((sampleRows == null && worksheet.rowCount > MAX_IMPORT_ROWS) || worksheet.columnCount > MAX_IMPORT_COLUMNS) {
     throw new Error(`엑셀은 최대 ${MAX_IMPORT_ROWS.toLocaleString()}행, ${MAX_IMPORT_COLUMNS}열까지 업로드할 수 있습니다.`);
   }
 
   const rows: unknown[][] = [];
-  for (let rowIndex = 1; rowIndex <= worksheet.rowCount; rowIndex += 1) {
-    const row = worksheet.getRow(rowIndex);
+  for (let rowIndex = 1; rowIndex <= Math.min(worksheet.rowCount, sampleRows ?? MAX_IMPORT_ROWS); rowIndex += 1) {
+    const row = worksheet.findRow(rowIndex);
     const values: unknown[] = [];
-    for (let columnIndex = 1; columnIndex <= worksheet.columnCount; columnIndex += 1) {
-      values.push(cellValueToPlainValue(row.getCell(columnIndex).value));
-    }
+    // Do not materialize empty cells across the sheet's full rectangular extent.
+    // Preserve physical row/column positions for diagnostics and header matching.
+    row?.eachCell((cell, columnIndex) => {
+      while (values.length < columnIndex - 1) values.push("");
+      values.push(cellValueToPlainValue(cell.value));
+    });
     trimTrailingEmptyCells(values);
     if (preserveEmptyRows || values.some((value) => String(value ?? "").trim())) {
       rows.push(values);

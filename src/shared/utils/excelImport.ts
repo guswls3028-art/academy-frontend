@@ -41,8 +41,30 @@ async function readStructuralXml(
   entry: JSZip.JSZipObject,
   maxChars = MAX_STRUCTURAL_XML_CHARS,
 ): Promise<string> {
-  const xml = await entry.async("string");
-  if (xml.length > maxChars || UNSAFE_XML_DECLARATION.test(xml)) {
+  // Stop inflation at the limit, before an oversized member becomes one string.
+  const xml = await new Promise<string>((resolve, reject) => {
+    const chunks: string[] = [];
+    let length = 0;
+    // JSZip 3.x implements this method (also used by async()), but omits it
+    // from JSZipObject's declaration. Keep the narrow adapter in this reader.
+    const streamingEntry = entry as JSZip.JSZipObject & {
+      internalStream(type: "string"): JSZip.JSZipStreamHelper<string>;
+    };
+    const stream = streamingEntry.internalStream("string");
+    stream.on("data", (chunk) => {
+      length += chunk.length;
+      if (length > maxChars) {
+        stream.pause();
+        reject(new Error("workbook XML exceeds member limit"));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    stream.on("error", reject);
+    stream.on("end", () => resolve(chunks.join("")));
+    stream.resume();
+  });
+  if (UNSAFE_XML_DECLARATION.test(xml)) {
     throw new Error("unsafe workbook XML");
   }
   return xml;
@@ -68,7 +90,7 @@ async function scanWorkbookXmlMembers(archive: JSZip): Promise<void> {
   let totalXmlChars = 0;
   for (const [entryName, entry] of Object.entries(archive.files)) {
     if (entry.dir || !isXmlBearingMember(entryName)) continue;
-    const xml = await readStructuralXml(entry, xmlMemberLimit(entryName));
+    const xml = await readStructuralXml(entry, Math.min(xmlMemberLimit(entryName), MAX_OOXML_XML_TOTAL_CHARS - totalXmlChars));
     totalXmlChars += xml.length;
     if (totalXmlChars > MAX_OOXML_XML_TOTAL_CHARS) {
       throw new Error("workbook XML exceeds total limit");

@@ -58,6 +58,7 @@ export const routeMockSpecs = [
   "e2e/admin/lecture-create-responsive.mock.spec.ts",
   "e2e/admin/lecture-management-ordering.mock.spec.ts",
   "e2e/admin/enrollment-excel-existing-only.mock.spec.ts",
+  "e2e/admin/excel-result-import-recovery.mock.spec.ts",
   "e2e/admin/lecture-student-picker.mock.spec.ts",
   "e2e/admin/landing-editor-sections.mock.spec.ts",
   "e2e/admin/manual-exam-grading.mock.spec.ts",

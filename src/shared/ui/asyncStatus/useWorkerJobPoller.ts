@@ -273,6 +273,9 @@ async function recoverVideoStatusFromDetail(
 }
 const SAFE_STUDENT_IMPORT_REASON_CODES = new Set([
   "invalid_row",
+  "not_found",
+  "ambiguous",
+  "duplicate_in_file",
   "password_policy",
   "phone_in_use",
   "ps_number_in_use",
@@ -306,11 +309,11 @@ function safeImportFailureReason(record: Record<string, unknown>): string {
 
 function pollExcelJob(
   taskId: string,
+  context: AiPollContext,
   onSuccess?: () => void,
   onProgress?: () => void
 ) {
-  // ✅ Redis-only 엔드포인트 사용 (DB 부하 0)
-  api
+  return api
     .get<{
       job_id: string;
       job_type: string;
@@ -326,15 +329,17 @@ function pollExcelJob(
       } | null;
       result?: Record<string, unknown>;
       error_message?: string | null;
-    }>(`/jobs/${encodeURIComponent(taskId)}/progress/`)
+    }>(`/jobs/${encodeURIComponent(taskId)}/progress/`, context.requestConfig)
     .then((res) => {
+      if (!context.isCurrent()) return;
       const status = res.data?.status;
       
       // ✅ UNKNOWN 상태 처리 (Redis TTL 만료 등)
       if (status === "UNKNOWN") {
-        // 다음 폴링에서 재시도 (폴링 계속 진행)
+        asyncStatusStore.setTaskStatusMessage(taskId, "진행 상태를 다시 확인하고 있습니다. 같은 파일을 다시 등록하지 않아도 됩니다.");
         return;
       }
+      asyncStatusStore.setTaskStatusMessage(taskId, undefined);
       
       const progress = res.data?.progress;
       const percent = progress?.percent;
@@ -374,12 +379,19 @@ function pollExcelJob(
                        (status === "DONE" && errMsg);
       
       if (isFailed) {
+        // A worker can fail after committing earlier rows. Refresh consumers
+        // without implying that the full file succeeded or submitting it again.
+        onSuccess?.();
         asyncStatusStore.completeTask(
           taskId,
           "error",
           errMsg || "처리 실패"
         );
       } else if (status === "DONE") {
+        if (!res.data.result) {
+          asyncStatusStore.setTaskStatusMessage(taskId, "처리 결과를 다시 불러오고 있습니다. 같은 파일을 다시 등록하지 않아도 됩니다.");
+          return;
+        }
         onSuccess?.();
         // 엑셀 등록 결과 상세 표시
         const result = res.data?.result as Record<string, unknown> | undefined;
@@ -406,7 +418,34 @@ function pollExcelJob(
           if (excludedDetail) {
             feedback.warning(`수강등록 결과: ${excludedDetail}`);
           }
-          asyncStatusStore.completeTask(taskId, "success", excludedDetail);
+          const excludedRows = Array.isArray(result.excluded_rows) ? result.excluded_rows : [];
+          const excludedCount = Number(result.excluded_count ?? (notFoundCount + ambiguousCount));
+          const priorAcknowledged = asyncStatusStore.getState().find((task) => task.id === taskId)
+            ?.studentImportResult?.acknowledged === true;
+          asyncStatusStore.setStudentImportResult(taskId, {
+            kind: "enrollment",
+            total: Number(result.total ?? (enrolledCount + excludedCount)),
+            createdCount: enrolledCount,
+            duplicateCount: 0,
+            restoredCount: 0,
+            failedCount: excludedCount,
+            createdRows: importResultRows(result.enrolled_rows),
+            duplicateRows: [],
+            restoredRows: [],
+            failedRows: excludedRows.slice(0, MAX_STORED_RESULT_ROWS).flatMap((item) => {
+              if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
+              const row = item as Record<string, unknown>;
+              return [{
+                row: typeof row.row === "number" ? row.row : null,
+                name: typeof row.name === "string" ? row.name : "(이름 없음)",
+                reason: safeImportFailureReason(row),
+              }];
+            }),
+            acknowledged: priorAcknowledged,
+          });
+          const allExcluded = excludedCount > 0 && enrolledCount === 0;
+          asyncStatusStore.completeTask(taskId, allExcluded ? "error" : "success",
+            allExcluded ? "수강 등록된 학생이 없습니다. 결과에서 제외 사유를 확인해 주세요." : excludedDetail);
           return;
         }
         const created = Number(result?.created ?? 0);
@@ -510,8 +549,11 @@ function pollExcelJob(
         );
       }
     })
-    .catch(() => {
-      // 네트워크 오류 시 재시도는 다음 폴링에서
+    .catch((error: unknown) => {
+      if (!context.isCurrent()) return;
+      handleAiPollFailure(taskId, context, error);
+      if (!context.isCurrent()) return;
+      asyncStatusStore.setTaskStatusMessage(taskId, "진행 상태 연결이 지연되어 다시 확인하고 있습니다. 등록된 행은 유지됩니다.");
     });
 }
 
@@ -923,7 +965,7 @@ export function useWorkerJobPoller(
       const pptCb = onPptSuccessRef.current;
       forCurrentTenant.forEach((t) => {
         if (t.meta!.jobType === "excel_parsing") {
-          pollExcelJob(t.id, excelCb, excelProgressCb);
+          pollAiWorkerTask(t, currentTenant, cohort, (context) => pollExcelJob(t.id, context, excelCb, excelProgressCb));
         } else if (t.meta!.jobType === "video_processing") {
           pollVideoJob(
             t.id,
@@ -946,7 +988,7 @@ export function useWorkerJobPoller(
         } else if (t.meta!.jobType === "omr_batch") {
           pollOmrBatch(t.id, t.meta!.jobId, currentTenant);
         } else {
-          pollExcelJob(t.id, excelCb, excelProgressCb);
+          pollAiWorkerTask(t, currentTenant, cohort, (context) => pollExcelJob(t.id, context, excelCb, excelProgressCb));
         }
       });
     };

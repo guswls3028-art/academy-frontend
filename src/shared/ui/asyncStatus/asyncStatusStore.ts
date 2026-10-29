@@ -42,6 +42,7 @@ export interface StudentImportFailedRow extends StudentImportResultRow {
 }
 
 export interface StudentImportResult {
+  kind?: "student" | "enrollment";
   total: number;
   createdCount: number;
   duplicateCount: number;
@@ -128,6 +129,7 @@ function parseStoredStudentImportResult(value: unknown): StudentImportResult | u
   const restoredRows = parseStoredRows(record.restoredRows);
   const failedRows = parseStoredFailedRows(record.failedRows);
   return {
+    kind: record.kind === "enrollment" ? "enrollment" : "student",
     total: boundedInteger(record.total),
     createdCount: boundedInteger(record.createdCount),
     duplicateCount: Object.prototype.hasOwnProperty.call(record, "duplicateCount")

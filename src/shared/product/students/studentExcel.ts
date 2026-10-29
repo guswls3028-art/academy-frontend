@@ -1,5 +1,5 @@
 // PATH: src/shared/product/students/studentExcel.ts
-// 엑셀 파싱·양식 단일진실 (SSOT) — 학생 일괄 등록 + 강의 수강생 엑셀 업로드. @see docs/DESIGN_SSOT.md §8
+// 학생 일괄 등록 + 강의 수강생 엑셀 업로드. @see docs/EXCEL-WORKFLOWS.md
 
 import {
   addArrayWorksheet,
@@ -13,6 +13,7 @@ import type {
   ClientStudentCustomFieldDefinition,
   StudentCustomFieldValues,
 } from "@/shared/api/contracts/students";
+import { normalizeExcelPhone as toRawPhone } from "@/shared/utils/excelPhone";
 
 /** 엑셀 양식 컬럼 — 구분(예시여부), 필수 우선, 선택옵션 뒤로 */
 export const EXCEL_HEADERS = [
@@ -44,16 +45,6 @@ export interface ParsedStudentRow {
   schoolClass: string;
   major: string;
   memo: string;
-}
-
-/** 전화번호에서 숫자만 추출 (01012345678). 엑셀 숫자 셀은 앞 0이 빠져 10자리로 올 수 있음. */
-function toRawPhone(v: unknown): string {
-  const value = String(v ?? "").trim();
-  if (value && !/^[0-9\s.()-]+$/.test(value)) return value;
-  let s = value.replace(/\D/g, "");
-  // 엑셀에서 01012345678 이 숫자로 저장되면 1012345678(10자리)로 읽힘 → 0 붙여서 11자리로
-  if (s.length === 10 && s.startsWith("10")) s = "0" + s;
-  return s;
 }
 
 /**
@@ -140,7 +131,7 @@ function buildHeaderMap(headers: string[]): Record<string, number> {
 }
 
 function findStudentHeader(rows: unknown[][]): number {
-  const strict = rows.findIndex((row) =>
+  const strict = rows.slice(0, 100).findIndex((row) =>
     row.some((cell) => headerMatches(String(cell ?? ""), "name"))
     && row.some((cell) => headerMatches(String(cell ?? ""), "parentPhone") || headerMatches(String(cell ?? ""), "studentPhone"))
   );
@@ -156,9 +147,10 @@ async function readStudentWorksheetRows(file: File): Promise<unknown[][]> {
   const workbook = await readExcelWorkbook(file);
   const activeTab = workbook.views?.[0]?.activeTab ?? 0;
   const sheets = workbook.worksheets.map((sheet, index) => ({
+    sheet,
     name: sheet.name,
     active: index === activeTab,
-    rows: readWorksheetRows(sheet, { preserveEmptyRows: true }),
+    rows: readWorksheetRows(sheet, { preserveEmptyRows: true, sampleRows: 200 }),
   }));
   const candidates = sheets.flatMap((sheet) => {
     const header = findStudentHeader(sheet.rows);
@@ -169,7 +161,7 @@ async function readStudentWorksheetRows(file: File): Promise<unknown[][]> {
       && headerRow.some((cell) => headerMatches(cell, "parentPhone") || headerMatches(cell, "studentPhone"));
     const phoneColumns = new Set<number>();
     let meaningfulRows = 0;
-    for (const row of sheet.rows.slice(header + 1, header + 51)) {
+    for (const row of sheet.rows.slice(header + 1, header + 101)) {
       let hasPhone = false;
       row.forEach((cell, index) => {
         if (/^010[0-9]{8}$/.test(toRawPhone(cell))) {
@@ -188,12 +180,12 @@ async function readStudentWorksheetRows(file: File): Promise<unknown[][]> {
     return Number(right.active) - Number(left.active);
   });
   const best = candidates[0];
-  if (!best) return sheets.find((sheet) => sheet.active)?.rows ?? [];
+  if (!best) throw new Error("양식이 맞지 않습니다. 첫 100행 안에 이름·전화번호 컬럼을 넣어 주세요.");
   const tied = candidates.filter((candidate) => candidate.score.every((value, index) => value === best.score[index]));
   if (tied.length > 1 && !best.active) {
     throw new Error(`명단으로 보이는 시트가 여러 개입니다. 등록할 시트를 Excel에서 활성화한 뒤 다시 업로드해 주세요: ${tied.map((sheet) => sheet.name).join(", ")}`);
   }
-  return best.rows;
+  return readWorksheetRows(best.sheet, { preserveEmptyRows: true });
 }
 
 /** 셀 값 → 문자열 */

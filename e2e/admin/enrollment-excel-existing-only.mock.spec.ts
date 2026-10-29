@@ -10,6 +10,8 @@ const SESSION_ID = 9962;
 
 type ApiOptions = {
   firstJobFailed?: boolean;
+  progressUnavailableOnce?: boolean;
+  detailedResult?: boolean;
 };
 
 function localJwt(): string {
@@ -32,6 +34,7 @@ async function existingStudentWorkbook(): Promise<Buffer> {
 }
 
 async function installApi(page: Page, submittedBodies: string[], options: ApiOptions = {}) {
+  let progressPolls = 0;
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -121,6 +124,10 @@ async function installApi(page: Page, submittedBodies: string[], options: ApiOpt
     }
     const progressMatch = path.match(/^\/jobs\/existing-enroll-(\d+)\/progress\/$/);
     if (progressMatch) {
+      progressPolls += 1;
+      if (options.progressUnavailableOnce && progressPolls === 1) {
+        return json({ job_id: `existing-enroll-${progressMatch[1]}`, status: "UNKNOWN" });
+      }
       const attempt = Number(progressMatch[1]);
       if (options.firstJobFailed && attempt === 1) {
         return json({
@@ -140,10 +147,58 @@ async function installApi(page: Page, submittedBodies: string[], options: ApiOpt
           not_found_students_count: attempt === 1 ? 1 : 0,
           ambiguous_students_count: attempt === 1 ? 1 : 0,
           session_id: SESSION_ID,
+          ...(options.detailedResult ? {
+            total: 3,
+            excluded_count: 2,
+            enrolled_rows: [{ row: 2, name: "등록완료학생", student_id: 1 }],
+            excluded_rows: [
+              { row: 3, name: "명부없는학생", error: "학생 명부에 없습니다.", reason_code: "not_found" },
+              { row: 4, name: "중복명부학생", error: "동일 정보 학생이 여러 명입니다.", reason_code: "ambiguous" },
+            ],
+          } : {}),
         },
       });
     }
     return json({ count: 0, results: [] });
+  });
+}
+
+for (const width of [390, 1366]) {
+  test(`입력 오류 행을 수정하고 진행 조회 중단 뒤 결과를 복구한다 ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const submitted: string[] = [];
+    const dialog = await openEnrollmentExcel(page, submitted, { progressUnavailableOnce: true, detailedResult: true });
+    await dialog.getByRole("button", { name: "엑셀 다시 선택" }).click();
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("학생목록");
+    sheet.addRows([["이름", "학부모전화번호"], ["번호확인학생", "0101234567.8"]]);
+    const upload = async () => dialog.locator('input[type="file"]').setInputFiles({
+      name: "수정명단.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: Buffer.from(await workbook.xlsx.writeBuffer()),
+    });
+    await upload();
+    await expect(dialog.getByText("입력 확인 필요 1명", { exact: true })).toBeVisible();
+    await expect(dialog.getByText(/2행 · 번호확인학생/)).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "맞아요, 등록하기" })).toBeDisabled();
+    expect(submitted).toHaveLength(0);
+    await dialog.getByRole("button", { name: "엑셀 다시 선택" }).click();
+    sheet.getCell("B2").value = "０１０－１２３４－５６７８（부）";
+    await upload();
+    await expect(dialog.getByText("1명 매칭 요청 예정", { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "맞아요, 등록하기" }).dblclick();
+    await expect.poll(() => submitted.length).toBe(1);
+    await expect(page.getByText(/진행 상태를 다시 확인하고 있습니다/)).toBeVisible();
+    let result = page.getByRole("dialog", { name: "수강 등록 결과" });
+    await expect(result).toBeVisible({ timeout: 20_000 });
+    await expect(result.getByText("등록완료학생", { exact: true })).toBeVisible();
+    await expect(result.getByText("학생 명부에 없습니다.", { exact: true })).toBeVisible();
+    expect(await result.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await page.reload();
+    result = page.getByRole("dialog", { name: "수강 등록 결과" });
+    await expect(result).toBeVisible();
+    await expect(result.getByText("중복명부학생", { exact: true })).toBeVisible();
+    await expect(result.getByLabel("등록 결과 요약")).toContainText("2명");
+    expect(submitted).toHaveLength(1);
   });
 }
 
