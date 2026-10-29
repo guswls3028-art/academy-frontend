@@ -141,22 +141,18 @@ export function pollExcelJob(
           const enrolledCount = Number(result?.enrolled_count ?? 0);
           const notFoundCount = Number(result?.not_found_students_count ?? 0);
           const ambiguousCount = Number(result?.ambiguous_students_count ?? 0);
+          const excludedCount = Number(result.excluded_count ?? (notFoundCount + ambiguousCount));
           const parts = [`등록 ${enrolledCount}명`];
-          if (notFoundCount > 0) parts.push(`명부 없음 ${notFoundCount}명`);
-          if (ambiguousCount > 0) parts.push(`명부 중복 ${ambiguousCount}명`);
+          if (excludedCount > 0) parts.push(`제외 ${excludedCount}명`);
           asyncStatusStore.setTaskLabel(taskId, `엑셀 수강등록 — ${parts.join(", ")}`);
 
-          const excludedParts: string[] = [];
-          if (notFoundCount > 0) excludedParts.push(`학생 명부 없음 ${notFoundCount}명`);
-          if (ambiguousCount > 0) excludedParts.push(`동일 정보 중복 ${ambiguousCount}명`);
-          const excludedDetail = excludedParts.length > 0
-            ? `등록 제외: ${excludedParts.join(", ")}. 학생 등록 또는 명부 정리 후 다시 시도해 주세요.`
+          const excludedDetail = excludedCount > 0
+            ? `등록 ${enrolledCount}명, 제외 ${excludedCount}명. 결과에서 제외 사유를 확인해 주세요.`
             : undefined;
           if (excludedDetail) {
             feedback.warning(`수강등록 결과: ${excludedDetail}`);
           }
           const excludedRows = Array.isArray(result.excluded_rows) ? result.excluded_rows : [];
-          const excludedCount = Number(result.excluded_count ?? (notFoundCount + ambiguousCount));
           const priorAcknowledged = asyncStatusStore.getState().find((task) => task.id === taskId)
             ?.studentImportResult?.acknowledged === true;
           asyncStatusStore.setStudentImportResult(taskId, {
@@ -181,8 +177,7 @@ export function pollExcelJob(
             acknowledged: priorAcknowledged,
           });
           const allExcluded = excludedCount > 0 && enrolledCount === 0;
-          asyncStatusStore.completeTask(taskId, allExcluded ? "error" : "success",
-            allExcluded ? "수강 등록된 학생이 없습니다. 결과에서 제외 사유를 확인해 주세요." : excludedDetail);
+          asyncStatusStore.completeTask(taskId, allExcluded ? "error" : "success", excludedDetail);
           return;
         }
         const created = Number(result?.created ?? 0);

@@ -33,7 +33,7 @@ for (const width of [390, 1366]) {
     await page.locator('input[type="file"]').setInputFiles(file);
     await expect(page.getByRole("button", { name: "1명 결과 반영" })).toBeVisible();
     await testInfo.attach(`synthetic-exam-preview-${width}px`, {
-      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-exam-preview-${width}px.png`), fullPage: true }),
+      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-exam-preview-${width}px.png`), fullPage: true, animations: "disabled" }),
       contentType: "image/png",
     });
     await page.getByRole("button", { name: "1명 결과 반영" }).dblclick();
@@ -42,7 +42,7 @@ for (const width of [390, 1366]) {
     expect(applies[0]).toContain("/78/");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await testInfo.attach(`synthetic-exam-applied-${width}px`, {
-      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-exam-applied-${width}px.png`), fullPage: true }),
+      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-exam-applied-${width}px.png`), fullPage: true, animations: "disabled" }),
       contentType: "image/png",
     });
   });

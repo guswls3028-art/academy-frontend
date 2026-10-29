@@ -180,7 +180,9 @@ export default function LectureEnrollExcelModal({
               {Boolean(parsed.issues?.length) && (
                 <div className="space-y-2 break-words" role="alert">
                   <strong>입력 확인 필요 {parsed.issues!.length}명</strong>
-                  <p>아래 행은 등록되지 않습니다. 파일을 수정해 다시 선택하거나 정상 {parsed.rows.length}명만 먼저 요청할 수 있습니다.</p>
+                  <p>{parsed.rows.length > 0
+                    ? `아래 행은 등록되지 않습니다. 파일을 수정해 다시 선택하거나 정상 ${parsed.rows.length}명만 먼저 요청할 수 있습니다.`
+                    : "등록 가능한 행이 없습니다. 아래 오류를 수정한 뒤 파일을 다시 선택해 주세요."}</p>
                   <ExcelRowIssues issues={parsed.issues!} />
                 </div>
               )}

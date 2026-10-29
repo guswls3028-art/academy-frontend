@@ -898,7 +898,9 @@ export default function StudentCreateModal({
                 {excelIssues.length > 0 ? (
                   <div className={styles.phoneCoverageNotice} data-tone="warning" role="alert">
                     <strong>입력 확인 필요 {excelIssues.length}명</strong>
-                    <p>아래 행은 등록되지 않습니다. 파일을 수정해 다시 선택하거나 정상 {excelRowCount}명만 먼저 등록할 수 있습니다.</p>
+                    <p>{excelRowCount > 0
+                      ? `아래 행은 등록되지 않습니다. 파일을 수정해 다시 선택하거나 정상 ${excelRowCount}명만 먼저 등록할 수 있습니다.`
+                      : "등록 가능한 행이 없습니다. 아래 오류를 수정한 뒤 파일을 다시 선택해 주세요."}</p>
                     <ExcelRowIssues issues={excelIssues} />
                   </div>
                 ) : null}

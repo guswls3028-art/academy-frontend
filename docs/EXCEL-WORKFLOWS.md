@@ -8,7 +8,9 @@
 
 - 관리자 학생 등록, 교사 학생 목록의 가져오기는 `studentExcel.ts`로 미리보기 후 원본 파일을 업로드한다.
   이름·전화 입력 오류의 실제 Excel 행 번호와 정상/확인 필요 인원을 표시한다. 모든 행이 잘못된 경우에도
-  상세 사유와 파일 재선택 경로를 유지한다. 학생 계정·비밀번호 선택과 권한은 기존 API 계약을 따른다.
+  상세 사유와 파일 재선택 경로를 유지한다. 학생/강의 수강 미리보기에서 정상 행이 0개이면 오류 수정과
+  파일 재선택만 안내하며 등록 버튼은 비활성 상태를 유지한다. 정상 행이 있을 때만 먼저 등록하는 선택을 안내한다.
+  학생 계정·비밀번호 선택과 권한은 기존 API 계약을 따른다.
 - 강의 및 차시의 Excel 수강 등록은 기존 활성 학생을 이름·학부모 번호로 매칭한다. 학생을 새로 만들지 않는다.
   미리보기의 정상 인원은 매칭 요청 인원이며, 명부 없음·중복 등 최종 제외 여부는 서버에서 결정한다.
   차시 요청은 `session_id`를 유지하고 강의만 선택한 요청은 기존 첫 차시 처리 계약을 따른다.
@@ -35,6 +37,9 @@ Excel 조회는 동일 작업의 요청 중첩을 막고 현재 tenant, 인증 �
 `enrolled_count`(기존 수강 포함), `excluded_count`, `total`, `enrolled_rows`, `excluded_rows`를 표시한다.
 구버전 count-only 수강 응답도 처리하며, 건수가 있지만 상세 목록이 없는 경우 “없음”으로 표시하지 않는다.
 수강 제외 사유 코드는 invalid_row/not_found/ambiguous/duplicate_in_file을 지원한다.
+작업 라벨·경고·완료 상세는 등록/제외 전체 건수를 요약하고 사유별 판단은 행별 결과에서 확인한다.
+제외 건수는 `excluded_count`를 우선 사용하므로 입력 오류·파일 중복도 누락하지 않는다. 해당 필드가 없는
+구형 응답만 `not_found_students_count + ambiguous_students_count`로 계산한다.
 실패한 행을 수정해 재요청하는 동안 완료된 학생/수강 데이터는 유지되며, 수강 진입 작업은 원래 강의로 연결한다.
 
 기존 tenant별 작업 저장은 생성 후 1시간 범위에서 새로고침 복구를 지원한다. 결과 확인/다시 열기를
@@ -88,15 +93,17 @@ Excel 조회는 동일 작업의 요청 중첩을 막고 현재 tenant, 인증 �
   유효/오류 혼합 명단의 단일 POST, 수강 결과와 새로고침 보존 회귀 추가.
 - `excel-result-import-recovery.mock.spec.ts`: 390/1366px 시험 전환 중 늦은 미리보기와 단일 반영 회귀 추가.
 - 두 mock suite는 성공한 DOM 검증 뒤 `testInfo.outputPath`의 `synthetic-*.png`에 오류/미리보기/
-  결과/새로고침 화면을 저장한다. PR test-results 산출물에서 실제 390/1366px 시각 검토를 해야 하며,
-  로컬에서는 브라우저를 실행하지 않았으므로 아직 생성/검토 완료 증거가 아니다.
+  결과/새로고침 화면을 저장하고 PNG 버퍼를 HTML 보고서에 첨부한다. 이후 Playwright 실행이 test-results를
+  비워도 HTML 보고서의 이미지 복사본은 유지된다. 캡처는 `animations: "disabled"`로 CSS 전환을 마무리하며
+  임의 대기 시간을 추가하지 않는다. 7c67c4a6e의 실제 CI 산출물 12개는 복구·검토되었으며, 후속 문구 수정은
+  새 CI 이미지로 재확인해야 한다. mock 결과 화면은 실제 서버 저장 검증을 대신하지 않는다.
 - `scripts/tests/ai-job-lifecycle.test.mjs`: 공용 폴링 경계를 직접 실행해 Excel의 단일 진행 조회,
   테넌트/계정 전환·종료 뒤 늦은 응답 무시, 403/404 종료 뒤 재시도 문구 방지, UNKNOWN/결과 미도착/
-  503 복구, 혼합 행 결과·구형 건수 응답, 부분 저장 후 실패 시 목록 갱신을 검증한다. 기존 AI 회귀 포함 85개 통과.
+  503 복구, 혼합 행 결과·구형 건수 응답, 입력 오류/파일 중복의 전체 제외 요약, 부분 저장 후 실패 시 목록 갱신을 검증한다.
   Excel 결과 해석은 `excelJobPolling.ts`, 인증/테넌트/진행 조회 중복 방지는 `useWorkerJobPoller.ts`가 담당한다.
   이 모듈 분리 뒤 기존 refactor budget은 large_frontend_file 41로 통과하며 기준값을 올리지 않았다.
-- 기존 `student-import-review.mock.spec.ts`는 결과 건수/500행 표본/새로고침·모바일 계약을 검증한다.
-- phone/archive 유틸 targeted TypeScript 통과. 전체 typecheck는 불완전한 로컬 의존성 트리의
-  광범위한 진단으로 통과하지 않았으며 CI에서 재확인해야 한다. 브라우저/전체 lint/build,
-  isolated development의 실저장 → reload → 다른 역할 화면, 390px 실제 렌더/모션과 cleanup-zero는
+- 기존 `student-import-review.mock.spec.ts`는 모든 행 오류→일부 수정 안내, 결과 건수/500행 표본/새로고침·모바일 계약을 검증한다.
+- phone/archive 유틸 targeted TypeScript 통과. 7c67c4a6e의 Frontend Quality 40953929984에서 전체 typecheck/
+  strict lint/build/preview가 통과했다. 후속 수정의 CI와 isolated development의 실저장 → reload → 다른 역할 화면,
+  390px 실제 렌더/모션과 cleanup-zero는
   부모 통합·배포 작업의 필수 후속 검증이다. 운영 데이터를 이용한 UI 검증은 하지 않았다.

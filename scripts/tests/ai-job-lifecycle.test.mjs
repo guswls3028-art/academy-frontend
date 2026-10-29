@@ -248,6 +248,8 @@ function workboxRuntime(jobType) {
   const completions = [];
   const statusMessages = [];
   const importResults = [];
+  const labels = [];
+  const warnings = [];
   const timers = new Map();
   let timerId = 0;
   let cleanup;
@@ -259,7 +261,8 @@ function workboxRuntime(jobType) {
   const store = {
     getState: () => [task],
     getSessionGeneration: () => sessionGeneration,
-    updateProgress() {}, setTaskLabel() {}, attachWorkerMeta() {},
+    updateProgress() {}, attachWorkerMeta() {},
+    setTaskLabel(id, label) { labels.push({ id, label }); },
     setTaskStatusMessage(id, message) { statusMessages.push({ id, message }); },
     setStudentImportResult(id, value) { importResults.push({ id, value }); },
     completeTask(id, status, error) { completions.push({ id, status, error }); task.status = status; },
@@ -272,7 +275,7 @@ function workboxRuntime(jobType) {
     "@/shared/tenant": { getTenantCodeForApiRequest: () => tenant },
     "@/shared/auth/tokenSession": { readAuthTokenEnvelopeSafely: () => ({ generation }) },
     "./asyncStatusStore": { asyncStatusStore: store, MAX_STORED_RESULT_ROWS: 500 },
-    "@/shared/ui/feedback/feedback": { feedback: { warning() {}, success() {} } },
+    "@/shared/ui/feedback/feedback": { feedback: { warning(message) { warnings.push(message); }, success() {} } },
     "@/shared/api/contracts/submissions": {},
     "@/shared/api/contracts/videos": {},
     "@/shared/api/axios": {
@@ -288,7 +291,7 @@ function workboxRuntime(jobType) {
     onExcelSuccess: () => { successes++; },
   });
   return {
-    requests, completions, statusMessages, importResults, successes: () => successes,
+    requests, completions, statusMessages, importResults, labels, warnings, successes: () => successes,
     runTimers() { for (const [id, callback] of [...timers]) { timers.delete(id); callback(); } },
     respond(data, index = 0) { requests[index].resolve({ data: { job_id: task.id, job_type: jobType, ...data } }); },
     reject(error, index = 0) { requests[index].reject(error); },
@@ -405,6 +408,9 @@ for (const initial of [{ status: "UNKNOWN" }, { status: "DONE" }, { status: "HTT
     await flush();
     assert.equal(h.completions.length, 1);
     assert.equal(h.completions[0].status, "success");
+    assert.equal(h.completions[0].error, "등록 1명, 제외 2명. 결과에서 제외 사유를 확인해 주세요.");
+    assert.deepEqual(h.warnings, ["수강등록 결과: 등록 1명, 제외 2명. 결과에서 제외 사유를 확인해 주세요."]);
+    assert.equal(h.labels.at(-1).label, "엑셀 수강등록 — 등록 1명, 제외 2명");
     assert.equal(h.successes(), 1);
     assert.equal(h.importResults.length, 1);
     const ledger = h.importResults[0].value;
@@ -434,8 +440,33 @@ test("Excel keeps counts from the legacy enrollment payload without inventing ro
   assert.equal(ledger.failedCount, 2);
   assert.equal(ledger.createdRows.length, 0);
   assert.equal(ledger.failedRows.length, 0);
+  assert.equal(h.completions[0].error, "등록 2명, 제외 2명. 결과에서 제외 사유를 확인해 주세요.");
+  assert.deepEqual(h.warnings, ["수강등록 결과: 등록 2명, 제외 2명. 결과에서 제외 사유를 확인해 주세요."]);
+  assert.equal(h.labels.at(-1).label, "엑셀 수강등록 — 등록 2명, 제외 2명");
   h.dispose();
 });
+
+for (const enrolledCount of [0, 1]) {
+  test(`Excel counts invalid and duplicate exclusions even without legacy matching errors (${enrolledCount} enrolled)`, async () => {
+    const h = workboxRuntime("excel_parsing");
+    h.respond({ status: "DONE", result: {
+      enrolled_count: enrolledCount, total: enrolledCount + 2, excluded_count: 2,
+      not_found_students_count: 0, ambiguous_students_count: 0, session_id: 42,
+      excluded_rows: [
+        { row: 2, name: "전화오류학생", reason_code: "invalid_row", error: "전화번호를 확인해 주세요." },
+        { row: 3, name: "중복행학생", reason_code: "duplicate_in_file", error: "파일 안에 중복된 학생입니다." },
+      ],
+    } });
+    await flush();
+    const detail = `등록 ${enrolledCount}명, 제외 2명. 결과에서 제외 사유를 확인해 주세요.`;
+    assert.equal(h.completions[0].status, enrolledCount === 0 ? "error" : "success");
+    assert.equal(h.completions[0].error, detail);
+    assert.deepEqual(h.warnings, [`수강등록 결과: ${detail}`]);
+    assert.equal(h.importResults[0].value.failedCount, 2);
+    assert.equal(h.importResults[0].value.failedRows[1].reason, "파일 안에 중복된 학생입니다.");
+    h.dispose();
+  });
+}
 
 test("Excel worker failure refreshes committed rows while retaining an error outcome", async () => {
   const h = workboxRuntime("excel_parsing");
