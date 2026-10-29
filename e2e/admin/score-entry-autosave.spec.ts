@@ -2051,6 +2051,9 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("columnheader", { name: /^테스트 오답/ })).toBeVisible();
+    const reloadedViewOptions = page.getByRole("button", { name: /표시 옵션/ });
+    await expect(reloadedViewOptions).toHaveAttribute("aria-expanded", "false");
+    await reloadedViewOptions.click();
     await expect(page.getByRole("group", { name: "마지막 열 표시" }).getByRole("button", { name: "테스트 오답", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("group", { name: "테스트 오답 확인 학생 필터" }).getByRole("button", { name: "전체 4명" })).toHaveAttribute("aria-pressed", "true");
 
@@ -2313,6 +2316,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await expect(page.getByRole("cell", { name: "81/100", exact: true })).toBeVisible();
       await expect(page.getByRole("cell", { name: "70/100", exact: true })).toBeVisible();
 
+      await page.getByRole("button", { name: /표시 옵션/ }).click();
       const reviewFilter = page.getByRole("group", { name: "테스트 오답 확인 학생 필터" });
       await expect(reviewFilter.getByRole("button", { name: "전체 2명" })).toHaveAttribute("aria-pressed", "true");
       await expect(page.locator('td[data-col-type="exam-review"]')).toHaveCount(2);
@@ -2330,6 +2334,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await page.getByRole("searchbox", { name: "학생 이름 검색" }).fill("");
 
       await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: /표시 옵션/ }).click();
       await expect(page.getByRole("group", { name: "테스트 오답 확인 학생 필터" }).getByRole("button", { name: "전체 2명" })).toHaveAttribute("aria-pressed", "true");
       await expect(page.locator('td[data-col-type="exam-review"]')).toHaveCount(2);
       await expect(absentRow.getByRole("cell", { name: "81/100", exact: true })).toBeVisible();
