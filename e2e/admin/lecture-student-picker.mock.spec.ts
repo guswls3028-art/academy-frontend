@@ -260,6 +260,9 @@ for (const width of [1366, 390]) {
     }
     expect(state.searchRequests.filter((request) => request.search !== "")).toHaveLength(0);
     await page.clock.runFor(300);
+    await expect.poll(() => state.searchRequests.filter((request) => request.search !== "").length).toBe(1);
+    // Keep only typing intervals frozen; query notifications need live timers.
+    await page.clock.resume();
     const result = dialog.getByRole("checkbox", { name: "김가학생 선택", exact: true });
     await expect(result).toBeEnabled();
     await expect(input).toBeFocused();

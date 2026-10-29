@@ -58,11 +58,13 @@ for (const surface of ["enrollment", "inventory"] as const) {
       }
       expect(searches.filter(Boolean)).toEqual([]);
       await page.clock.runFor(300);
+      await expect.poll(() => searches.filter(Boolean)).toEqual(["김학생"]);
+      // Resume query notification/render timers after the measured typing window.
+      await page.clock.resume();
       await expect(panel.getByText("김학생", { exact: true })).toBeVisible();
       expect(searches.filter(Boolean)).toEqual(["김학생"]);
       await expect(input).toBeFocused();
       await input.dispatchEvent("compositionend");
-      await page.clock.resume();
       await input.fill("실패");
       await expect(panel.getByText(/학생 명단을 불러오지 못했습니다/)).toBeVisible();
       await expect(panel.getByText(/^(검색 결과 없음|검색된 학생이 없습니다)$/)).toHaveCount(0);

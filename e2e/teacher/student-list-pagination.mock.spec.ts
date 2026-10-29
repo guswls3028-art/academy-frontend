@@ -122,6 +122,9 @@ for (const { width, scenario } of [
     }
     expect(requests).toHaveLength(requestCount);
     await page.clock.runFor(300);
+    await expect.poll(() => requests.length).toBe(requestCount + 1);
+    // The debounce is measured; let the asynchronous query result render now.
+    await page.clock.resume();
     await expect(main.getByText("검증 학생 01", { exact: true })).toHaveCount(0);
     await expect(main.getByText("끝학생", { exact: true })).toBeVisible();
     expect(requests.at(-1)).toEqual({ search: "끝학생", page: 1 });
