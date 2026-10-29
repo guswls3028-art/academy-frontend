@@ -27,6 +27,7 @@ import {
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
+import { verifyAttendanceExcel } from "../helpers/attendanceExcelRealuse";
 import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
 import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
 
@@ -486,6 +487,8 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
           contentType: "image/png",
         });
       }
+      await verifyAttendanceExcel(teacherPage, request, admin.access, testInfo,
+        created.lectureId!, lectureTitle, created.sessionId!, [primary.id, sibling.id]);
       teacherBoundary.assertClean();
       teacherBrowser.assertZeroDefects();
     } finally {
