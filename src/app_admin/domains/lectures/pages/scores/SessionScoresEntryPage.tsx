@@ -283,6 +283,11 @@ export default function SessionScoresEntryPage({
     return () => document.removeEventListener("mousedown", handler);
   }, [showMoreMenu]);
 
+  const closeMoreMenu = () => {
+    setShowMoreMenu(false);
+    moreMenuRef.current?.querySelector<HTMLButtonElement>(".scores-tools-trigger")?.focus();
+  };
+
   const invalidateScores = () => {
     void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(numericSessionId) });
     void qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(numericSessionId) });
@@ -1359,7 +1364,12 @@ export default function SessionScoresEntryPage({
       )}
 
       {/* 구성·출력·클리닉을 한곳에 모아 상단의 선택 부담을 줄인다. */}
-      <div ref={moreMenuRef} className="relative">
+      <div ref={moreMenuRef} className="relative" onKeyDown={(event) => {
+        if (event.key !== "Escape" || !showMoreMenu) return;
+        event.preventDefault();
+        event.stopPropagation();
+        closeMoreMenu();
+      }}>
         <Button
           type="button"
           intent="secondary"
@@ -1385,6 +1395,7 @@ export default function SessionScoresEntryPage({
             <div className="scores-tools-menu__header">
               <strong>성적 도구</strong>
               <span>성적표 출력과 후속 관리</span>
+              <Button type="button" intent="ghost" size="sm" className="scores-tools-menu__close" aria-label="성적 도구 닫기" onClick={closeMoreMenu}>닫기</Button>
             </div>
             <div className="scores-tools-menu__section">
               <span className="scores-tools-menu__label">평가 구성</span>

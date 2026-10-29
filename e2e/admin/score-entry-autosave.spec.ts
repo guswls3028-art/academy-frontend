@@ -3224,6 +3224,7 @@ for (const width of [1366, 1100, 390]) {
     await expect(dialog).toContainText("과제");
     await dialog.getByRole("button", { name: "취소", exact: true }).click();
     await expect(page.getByRole("group", { name: "선택 학생 작업", exact: true })).toHaveCount(0);
+    if (width === 390) await page.setViewportSize({ width, height: 568 });
     await page.getByRole("button", { name: "성적 도구", exact: true }).click();
     const tools = page.getByRole("menu", { name: "성적 도구", exact: true });
     await expect(tools.getByRole("menuitem", { name: /과제 추가|시험 추가/ })).toHaveCount(0);
@@ -3232,8 +3233,27 @@ for (const width of [1366, 1100, 390]) {
     expect(menuBounds).not.toBeNull();
     expect(menuBounds!.x).toBeGreaterThanOrEqual(0);
     expect(menuBounds!.x + menuBounds!.width).toBeLessThanOrEqual(width);
-    if (width === 390) await page.screenshot({ path: testInfo.outputPath("score-tools-390.png"), fullPage: true, animations: "disabled" });
+    if (width === 390) {
+      const bottomNav = await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox();
+      expect(menuBounds!.y).toBeGreaterThanOrEqual(64);
+      expect(menuBounds!.y + menuBounds!.height).toBeLessThanOrEqual(bottomNav!.y - 8);
+      const lastTool = tools.getByRole("menuitem").last();
+      await lastTool.scrollIntoViewIfNeeded();
+      expect(await lastTool.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return element.contains(document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2));
+      })).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath("score-tools-390.png"), animations: "disabled" });
+    }
     await page.keyboard.press("Escape");
+    await expect(tools).toBeHidden();
+    await expect(page.getByRole("button", { name: "성적 도구", exact: true })).toBeFocused();
+    if (width === 390) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.getByRole("button", { name: "성적 도구", exact: true }).click();
+      await tools.getByRole("button", { name: "성적 도구 닫기", exact: true }).click();
+      await expect(tools).toBeHidden();
+    }
     await ensureScoreEditing(page);
     const control = page.getByRole("group", { name: "자동저장학생1 · 단원 복습 완료 상태", exact: true });
     await control.scrollIntoViewIfNeeded();
