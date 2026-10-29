@@ -6,17 +6,9 @@
 }
 .scores-entry-page .domain-list-toolbar {
   padding: var(--space-3) var(--space-4);
-  border: 1px solid color-mix(in srgb, var(--color-border-default) 82%, var(--color-brand-primary));
+  border: 1px solid var(--color-border-default);
   border-radius: var(--radius-lg);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-bg-surface) 94%, var(--color-brand-primary)) 0%,
-      var(--color-bg-surface) 58%
-    );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.78),
-    0 3px 10px rgba(15, 23, 42, 0.06);
+  background: var(--color-bg-surface);
 }
 
 .scores-entry-page .domain-list-toolbar > div:first-child {
@@ -38,35 +30,17 @@
 }
 
 .scores-entry-page .domain-list-toolbar .ds-button[data-intent="secondary"] {
-  border: 1px solid var(--scale-Neutral400);
-  background:
-    linear-gradient(
-      180deg,
-      var(--color-bg-surface) 0%,
-      var(--scale-Neutral100) 100%
-    );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.86),
-    0 2px 5px rgba(15, 23, 42, 0.08);
-}
-
-.scores-entry-page .domain-list-toolbar .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]) {
-  border-color: var(--scale-Neutral500);
-  background:
-    linear-gradient(
-      180deg,
-      var(--color-bg-surface) 0%,
-      var(--scale-Neutral200) 100%
-    );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 4px 9px rgba(15, 23, 42, 0.11);
-}
-
-.scores-entry-page .domain-list-toolbar .ds-button[data-intent="ghost"] {
   border: 1px solid var(--color-border-default);
-  background: color-mix(in srgb, var(--color-bg-surface) 96%, var(--scale-Neutral200));
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.045);
+  background: var(--color-bg-surface);
+  box-shadow: none;
+}
+.scores-entry-page .domain-list-toolbar .ds-button[data-intent="secondary"]:hover:not(:disabled) {
+  border-color: var(--color-brand-primary);
+  background: var(--color-bg-surface-hover);
+}
+.scores-entry-page .domain-list-toolbar .ds-button[data-intent="ghost"] {
+  background: transparent;
+  box-shadow: none;
 }
 
 .scores-entry-page .domain-list-toolbar .ds-button:disabled,
@@ -288,13 +262,37 @@
 }
 
 .scores-primary-actions {
-  padding: 3px;
-  border: 1px solid color-mix(in srgb, var(--color-border-default) 76%, var(--color-brand-primary));
-  border-radius: calc(var(--radius-lg) + 1px);
-  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.82),
-    0 1px 3px rgba(15, 23, 42, 0.045);
+  gap: var(--space-2);
+}
+
+.scores-toolbar-actions {
+  width: 100%;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--scores-ui-border);
+}
+
+.scores-toolbar-body {
+  width: 100%;
+  min-width: 0;
+}
+
+.scores-output-actions,
+.scores-view-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.scores-output-actions { margin-left: auto; }
+.scores-view-controls { padding-block: var(--space-1); }
+.scores-completion-shortcuts { font-size: 11px; color: var(--color-text-muted); overflow-wrap: anywhere; }
+.scores-selection-bar__row { animation: scores-selection-enter 140ms ease-out; }
+
+@keyframes scores-selection-enter {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .scores-omr-action {
@@ -784,7 +782,7 @@
   font-weight: 700;
 }
 
-@media (min-width: 1024px) and (max-width: 1600px) {
+@media (min-width: 1024px) and (max-width: 1180px) {
   .scores-entry-page .domain-list-toolbar > div:first-child {
     flex-wrap: wrap;
   }
@@ -927,4 +925,17 @@
     width: 100%;
     margin-left: 0;
   }
+}
+
+@media (max-width: 1023px) {
+  .scores-output-actions { margin-left: 0; width: 100%; }
+  .scores-entry-page .scores-draft-status { border-top: 0; padding-top: 0; }
+}
+@media (max-width: 520px) {
+  .scores-entry-page .domain-list-toolbar .ds-button { min-height: 44px; }
+  .scores-primary-actions > .ds-button { flex: 1; justify-content: center; }
+  .scores-selection-bar__row > .ds-button { flex: 1 1 auto; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scores-selection-bar__row { animation: none; }
 }

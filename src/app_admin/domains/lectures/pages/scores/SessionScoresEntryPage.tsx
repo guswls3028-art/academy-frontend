@@ -12,7 +12,7 @@
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
+import { AlertCircle, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
@@ -675,7 +675,7 @@ export default function SessionScoresEntryPage({
   };
 
   const hasSelection = selectedEnrollmentIds.length > 0;
-  const showSelectionActions = hasSelection || !isMobile;
+  const showSelectionActions = hasSelection;
   const recoveryBlocked =
     draft.isRecoveryCheckPending ||
     draft.recoveryCheckFailed ||
@@ -844,11 +844,10 @@ export default function SessionScoresEntryPage({
     sessionIdForDraft,
   ]);
 
-  // 2026-05-13 학원장 호소: "1명 선택됨이 평소에도 0명 선택됨으로 있었으면", "선택 해제 동떨어짐".
-  // selectionBar 를 항상 노출(평상시 0명 + 액션 disabled). "선택 해제"는 액션 그룹 직후 자연 위치.
+  // 학생 선택 작업과 표 표시·입력 설정을 분리한다.
   const selectionBar = (
     <div className="scores-selection-bar">
-      <div className="scores-selection-bar__row">
+      {showSelectionActions && <div className="scores-selection-bar__row" role="group" aria-label="선택 학생 작업">
         {showSelectionActions && (
           <span
             className="text-[13px] font-semibold whitespace-nowrap"
@@ -1073,8 +1072,7 @@ export default function SessionScoresEntryPage({
           </>
         )}
 
-        {/* 2026-05-13: 선택 해제는 액션 그룹 바로 옆에. 우측 끝 flex spacer 폐기.
-            평상시 0명일 때도 노출되며 disabled. */}
+        {/* 선택 해제는 선택 학생 작업 바로 옆에 둔다. */}
         {showSelectionActions && (
           <Button
             intent="ghost"
@@ -1086,19 +1084,20 @@ export default function SessionScoresEntryPage({
           </Button>
         )}
 
-        {/* 우측 컨텍스트 옵션 — 표시 방식과 입력 대상을 한 줄에서 조정 */}
+      </div>}
+      <div className="scores-view-controls" role="group" aria-label="표 보기와 입력 설정">
         {hasExamsOrHomeworks && (
           <>
-            {showSelectionActions && <span className="h-5 w-px bg-[var(--color-border-divider)] scores-action-divider" aria-hidden="true" />}
             <button
               type="button"
               onClick={() => setViewOptionsExpanded((v) => !v)}
               className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] px-2 py-1 rounded hover:bg-[var(--color-bg-surface-hover)]"
-              aria-expanded={viewOptionsExpanded || hasNonDefaultViewOptions}
+              aria-expanded={viewOptionsExpanded}
+              aria-controls="scores-view-options"
             >
               <ChevronDown
                 size={ICON_FOR_BUTTON.sm}
-                style={{ transform: (viewOptionsExpanded || hasNonDefaultViewOptions) ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+                style={{ transform: viewOptionsExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
               />
               표시 옵션
               {hasNonDefaultViewOptions && (
@@ -1109,7 +1108,6 @@ export default function SessionScoresEntryPage({
         )}
         {isEditMode && (
           <>
-            {showSelectionActions && <span className="h-5 w-px bg-[var(--color-border-divider)] scores-action-divider" aria-hidden="true" />}
             <div className="scores-view-filter-section">
               <span className="scores-view-filter-label">시험</span>
               <div className="scores-display-segment" role="group" aria-label="시험 점수 입력 방식">
@@ -1133,6 +1131,9 @@ export default function SessionScoresEntryPage({
                 <button type="button" onClick={() => { if (homeworkEdit) handleSelectHomework(); }} className="scores-display-segment__btn" aria-pressed={!homeworkEdit} title="과제 점수 입력 차단 상태">꺼짐</button>
               </div>
             </div>
+            {data?.meta.homeworks.some(homework => homework.grading_mode === "COMPLETION") && (
+              <span className="scores-completion-shortcuts">과제: O 통과 · X 미통과 · Enter 다음 학생</span>
+            )}
           </>
         )}
         <div className="scores-selection-bar__help">
@@ -1147,7 +1148,9 @@ export default function SessionScoresEntryPage({
                 <li><strong>Enter</strong>: 입력 확정 후 아래 학생으로 이동</li>
                 <li><strong>Tab / Shift+Tab</strong>: 입력 확정 후 오른쪽 / 왼쪽 칸으로 이동</li>
                 <li><strong>/ + Enter 또는 Tab</strong>: 미응시·미제출 처리 후 계속 이동</li>
-                <li><strong>Esc</strong>: 입력 취소</li>
+                <li>통과형 과제: <strong>O / 1</strong> 통과, <strong>X / 0</strong> 미통과, <strong>Delete / Backspace</strong> 초기화</li>
+                <li>통과형 과제는 <strong>Enter / Shift+Enter</strong>로 다음 / 이전 학생, 좌우 화살표와 Space로 버튼 선택도 가능합니다.</li>
+                <li><strong>Esc</strong>: 숫자 입력 취소</li>
                 <li>입력은 자동 저장되며 <strong>Ctrl+S / Ctrl+Z</strong>도 사용할 수 있습니다.</li>
               </ul>
             ) : (
@@ -1163,8 +1166,8 @@ export default function SessionScoresEntryPage({
       </div>
 
       {/* 표시 옵션 펼침 — selectionBar 다음 줄로 inline expand. */}
-      {hasExamsOrHomeworks && (viewOptionsExpanded || hasNonDefaultViewOptions) && (
-        <div className="scores-selection-bar__options">
+      {hasExamsOrHomeworks && viewOptionsExpanded && (
+        <div id="scores-view-options" className="scores-selection-bar__options">
           <div className="scores-view-filter-section">
             <span className="scores-view-filter-label">보기</span>
             <div className="scores-display-segment" role="group" aria-label="컬럼 필터">
@@ -1268,15 +1271,14 @@ export default function SessionScoresEntryPage({
   };
 
   const primaryAction = (
-    <div className="scores-primary-actions">
+    <div className="scores-primary-actions" role="group" aria-label="시험·과제 추가와 답안 등록">
       {hasExamsOrHomeworks && (
-        <Button type="button" intent="primary" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={openCreateExam}>
-          시험 추가
-        </Button>
+        <>
+          <Button type="button" intent="secondary" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={openCreateExam}>시험 추가</Button>
+          <Button type="button" intent="secondary" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={openCreateHomework}>과제 추가</Button>
+        </>
       )}
-      {/* ── 그룹 1: OMR 주 동선 ──
-          SSOT: 차시 성적 화면에서 OMR 스캔 등록을 가장 먼저 보여준다.
-          시험 상세/제출관리는 등록이 아니라 조회/재처리 보조 동선으로 둔다. */}
+      {/* 평가 추가 다음에 답안 등록을 배치한다. */}
       <Suspense fallback={omrExamOptions.length > 0 ? (
         <Button intent="primary" size="md" className="scores-omr-primary" disabled aria-busy="true" leftIcon={<Upload size={ICON_FOR_BUTTON.md} />}>
           OMR 등록 준비 중…
@@ -1309,7 +1311,10 @@ export default function SessionScoresEntryPage({
       />
       </Suspense>
 
-      {/* ── 그룹 2: 안전한 수정 시작 / 저장 완료 ── */}
+    </div>
+  );
+
+  const editAction = (
       <Button
         type="button"
         intent={isEditMode ? "primary" : "secondary"}
@@ -1343,6 +1348,10 @@ export default function SessionScoresEntryPage({
         {isSaving || draft.isStartingEdit ? "저장 중…" : isEditMode ? "저장하고 잠금" : "수정"}
       </Button>
 
+  );
+
+  const outputActions = (
+    <div className="scores-output-actions" role="group" aria-label="성적표 출력과 관리">
       {hasExamsOrHomeworks && (
         <Button type="button" intent="secondary" size="sm" disabled={recoveryBlocked || isLoading || isError || displayCount === 0} leftIcon={<UserRound size={ICON_FOR_BUTTON.sm} />} onClick={() => void openStudentScoreReport()} title={displayCount === 0 ? "수강생이 등록되면 개인 성적표를 출력할 수 있습니다" : undefined}>
           개인 성적표
@@ -1367,7 +1376,7 @@ export default function SessionScoresEntryPage({
           onClick={() => setShowMoreMenu((v) => !v)}
           aria-label="성적 도구"
           aria-expanded={showMoreMenu}
-          title="시험·과제 추가, 성적표 출력, 클리닉 관리"
+          title="성적표 출력, 클리닉 관리, 수강생 배정"
         >
           성적 도구
         </Button>
@@ -1375,35 +1384,11 @@ export default function SessionScoresEntryPage({
           <div className="scores-more-menu scores-tools-menu" role="menu" aria-label="성적 도구">
             <div className="scores-tools-menu__header">
               <strong>성적 도구</strong>
-              <span>평가 준비부터 출력·클리닉까지</span>
+              <span>성적표 출력과 후속 관리</span>
             </div>
             <div className="scores-tools-menu__section">
               <span className="scores-tools-menu__label">평가 구성</span>
               <div className="scores-tools-menu__grid">
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="scores-tool-card"
-                  onClick={() => {
-                    openCreateExam();
-                    setShowMoreMenu(false);
-                  }}
-                >
-                  <span className="scores-tool-card__icon"><Plus size={ICON_FOR_BUTTON.sm} /></span>
-                  <span><strong>시험 추가</strong><small>새 시험 만들기</small></span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="scores-tool-card"
-                  onClick={() => {
-                    openCreateHomework();
-                    setShowMoreMenu(false);
-                  }}
-                >
-                  <span className="scores-tool-card__icon"><ClipboardList size={ICON_FOR_BUTTON.sm} /></span>
-                  <span><strong>과제 추가</strong><small>새 과제 만들기</small></span>
-                </button>
                 <button
                   type="button"
                   role="menuitem"
@@ -1492,9 +1477,10 @@ export default function SessionScoresEntryPage({
           />
         }
         filterSlot={null}
-        primaryAction={
-          <div className="scores-toolbar-actions">
-            {primaryAction}
+        primaryAction={primaryAction}
+        belowSlot={<div className="scores-toolbar-body">
+          <div className="scores-toolbar-actions" role="group" aria-label="성적 편집과 출력">
+            {editAction}
             {isEditMode && <>
               <Button type="button" intent="secondary" size="sm" disabled={isSaving || recoveryBlocked}
                 aria-label="성적 변경 실행 취소" onClick={() => changeScoreHistory(false, true)}>실행 취소</Button>
@@ -1567,9 +1553,10 @@ export default function SessionScoresEntryPage({
                 </>
               )}
             </span>
+            {outputActions}
           </div>
-        }
-        belowSlot={selectionBar}
+          {selectionBar}
+        </div>}
       />
 
       {draft.hasDraftToRestore && (
@@ -1636,7 +1623,7 @@ export default function SessionScoresEntryPage({
         </div>
       )}
 
-      {/* 입력 옵션 토글은 selectionBar 우측에 통합됨. */}
+      {/* 표 보기와 입력 옵션은 선택 작업과 구분한다. */}
 
       {isLoading && (
         <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />

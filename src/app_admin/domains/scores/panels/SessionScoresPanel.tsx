@@ -21,7 +21,7 @@ import ScoresTable, {
   type ScoresTableHandle,
 } from "../components/ScoresTable";
 import StudentResultDrawer from "@admin/domains/results/components/StudentResultDrawer";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm";
 import type { ExamHeaderAction } from "../components/ExamHeaderActionMenu";
@@ -517,7 +517,6 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
         </Suspense>
       )}
       {emptyState ?? <>
-      <div className="flex justify-end"><Button intent="secondary" size="sm" onClick={openTotals}>합산 설정</Button></div>
       <div
         tabIndex={0}
         className="min-w-0 overflow-x-auto outline-none"

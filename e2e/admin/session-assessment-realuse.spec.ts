@@ -205,8 +205,8 @@ async function exerciseScoresMoreMenu(page: Page): Promise<void> {
 
   const menu = page.locator(".scores-more-menu").first();
   await expect(menu).toBeVisible({ timeout: 5_000 });
-  await expect(menu.getByRole("menuitem", { name: /시험 추가/ })).toBeVisible();
-  await expect(menu.getByRole("menuitem", { name: /과제 추가/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "시험 추가", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "과제 추가", exact: true }).first()).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: /성적표 출력/ })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: /클리닉 대상/ })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: /수강생 일괄배정/ })).toBeVisible();
@@ -216,12 +216,7 @@ async function exerciseScoresMoreMenu(page: Page): Promise<void> {
 }
 
 async function openScoresToolAssessmentModal(page: Page, kind: "시험" | "과제"): Promise<void> {
-  const moreButton = page.getByRole("button", { name: "성적 도구" }).first();
-  await moreButton.click();
-
-  const menu = page.locator(".scores-more-menu").first();
-  await expect(menu).toBeVisible({ timeout: 5_000 });
-  await openCreateAssessmentModal(page, menu.getByRole("menuitem", { name: new RegExp(`${kind} 추가`) }), kind);
+  await openCreateAssessmentModal(page, page.getByRole("button", { name: `${kind} 추가`, exact: true }).first(), kind);
 }
 
 async function exerciseOmrIfAvailable(page: Page): Promise<"opened" | "not-rendered"> {

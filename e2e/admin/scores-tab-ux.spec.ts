@@ -253,8 +253,8 @@ test.describe("성적 탭 UX 개선 검증", () => {
 
     await page.getByRole("button", { name: "성적 도구" }).click();
     const toolsMenu = page.getByRole("menu", { name: "성적 도구" });
-    await expect(toolsMenu.getByRole("menuitem", { name: /시험 추가/ })).toBeVisible();
-    await expect(toolsMenu.getByRole("menuitem", { name: /과제 추가/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "시험 추가", exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "과제 추가", exact: true }).first()).toBeVisible();
     await expect(toolsMenu.getByRole("menuitem", { name: /개인 성적표/ })).toContainText("여러 학생 PDF");
 
     // 구 용어 부재 확인

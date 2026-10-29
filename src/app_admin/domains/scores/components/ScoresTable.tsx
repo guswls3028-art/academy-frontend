@@ -644,14 +644,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     const el = homeworkInputRefs.current[`${change.enrollmentId}-${change.homeworkId}`];
     if (homeworkGradingModeById.get(change.homeworkId) === "COMPLETION") {
-      const label = change.score == null ? "미입력" : change.score >= 1 ? "통과" : "미통과";
-      if (el instanceof HTMLSelectElement) el.value = label;
-      else setCellText(el, label);
-      el?.setAttribute(
-        "data-completion-state",
-        change.score == null ? "empty" : change.score >= 1 ? "complete" : "incomplete",
-      );
-      el?.setAttribute("aria-pressed", change.score != null && change.score >= 1 ? "true" : "false");
+      syncCompletionControl(el, change.score);
       return;
     }
     setCellText(el, change.metaStatus === "NOT_SUBMITTED" ? "미제출" : (change.score != null ? String(change.score) : ""));
@@ -972,11 +965,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         const metaStatus = block?.meta?.status;
         const score = block?.score;
         if (hw.grading_mode === "COMPLETION") {
-          const label = score == null ? "미입력" : score >= 1 ? "통과" : "미통과";
-          if (el instanceof HTMLSelectElement) el.value = label;
-          else el.innerText = label;
-          el.dataset.completionState = score == null ? "empty" : score >= 1 ? "complete" : "incomplete";
-          el.setAttribute("aria-pressed", score != null && score >= 1 ? "true" : "false");
+          syncCompletionControl(el, score);
           return;
         }
         if (metaStatus === "NOT_SUBMITTED") {
@@ -1055,8 +1044,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       if (cell.type === "homework") {
         const el = homeworkInputRefs.current[`${cell.enrollmentId}-${cell.homeworkId}`];
         if (!el) return false;
-        el.focus();
-        selectAllScoreCell(el);
+        if (el.dataset.completionState) {
+          el.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus();
+        } else {
+          el.focus();
+          selectAllScoreCell(el);
+        }
         return true;
       }
       if (cell.type === "exam") {
@@ -1142,7 +1135,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     homeworkOptions.forEach((h) => {
       list.push(
-        { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "score", key: `hw_${h.homework_id}_score`, width: COL_SCORE, editable: isEditMode && homeworkEdit },
+        { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "score", key: `hw_${h.homework_id}_score`, width: h.grading_mode === "COMPLETION" ? 144 : COL_SCORE, editable: isEditMode && homeworkEdit },
       );
     });
     if (homeworkOptions.some((item) => item.grading_mode !== "COMPLETION")) {
@@ -1175,11 +1168,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         label: c.key,
         defaultWidth: c.width,
         minWidth: c.key === "name" ? 136 : c.key === "attendance" ? 72
+          : c.type === "homework" && homeworkGradingModeById.get(c.homeworkId) === "COMPLETION" ? 132
           : c.type === "exam_summary" || c.type === "homework_summary" || c.key === "clinic_target" ? 88 : 64,
         maxWidth: 500,
       })),
     ];
-  }, [columns]);
+  }, [columns, homeworkGradingModeById]);
 
   /* 2026-05-18 Product Polish:
      v6 bump → 출석 기본 폭 + 상태 색상 density 조정 default 반영. */
@@ -1219,6 +1213,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   return (
     <div ref={containerRef} className="scores-table-layout">
       <div className="scores-table-layout-controls" role="group" aria-label="성적표 열 너비">
+        {onOpenTotals && <Button size="sm" intent="secondary" onClick={onOpenTotals}>합산 설정</Button>}
         <Button size="sm" intent={autoFit ? "primary" : "secondary"} aria-pressed={autoFit} onClick={() => changeAutoFit(true)}>
           화면에 맞춤
         </Button>
@@ -1425,7 +1420,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               key={`head-hw-${hw.homework_id}`}
               columnKey={`hw_${hw.homework_id}_score`}
               width={columnWidths[`hw_${hw.homework_id}_score`] ?? COL_SCORE}
-              minWidth={64}
+              minWidth={hw.grading_mode === "COMPLETION" ? 132 : 64}
               maxWidth={240}
               onWidthChange={setColumnWidth}
               rowSpan={2}
@@ -2262,6 +2257,20 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   const progressStyle = canEditScore || hw.grading_mode === "COMPLETION"
                     ? undefined
                     : scoreProgressStyle(block?.score, hw.max_score);
+                  const setCompletionScore = (score: number | null) => {
+                    if (!canEditScore || block?.is_locked) return;
+                    freezeObservedHomeworkVersion(scoreCellKey);
+                    if (!isSelected) onSelectCell(row, "homework", hw.homework_id);
+                    const next: PendingChange = {
+                      type: "homework", enrollmentId: row.enrollment_id,
+                      homeworkId: hw.homework_id, score,
+                    };
+                    stagePendingChange(scoreCellKey, next, {
+                      type: "homework", enrollmentId: row.enrollment_id,
+                      homeworkId: hw.homework_id, score: block?.score ?? null,
+                    });
+                    applyChangeToDom(next);
+                  };
 
                   // border는 CSS data-section-start로 처리
                   return (
@@ -2310,58 +2319,70 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           )}
                           {hw.grading_mode === "COMPLETION" ? (
                             canEditScore ? (
-                              <select
+                              <div
                                 ref={(el) => {
-                                  const key = `${row.enrollment_id}-${hw.homework_id}`;
-                                  homeworkInputRefs.current[key] = el;
-                                  if (el) {
-                                    const pendingKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    if (!applyPendingChangeToMountedCell(pendingKey) && !isSelected) {
-                                      const label = block?.score == null
-                                        ? "미입력"
-                                        : block.score >= 1 ? "통과" : "미통과";
-                                      el.value = label;
-                                      el.dataset.completionState = block?.score == null
-                                        ? "empty"
-                                        : block.score >= 1 ? "complete" : "incomplete";
-                                    }
+                                  homeworkInputRefs.current[`${row.enrollment_id}-${hw.homework_id}`] = el;
+                                  if (el && !applyPendingChangeToMountedCell(scoreCellKey) && (!isSelected || !el.dataset.completionState)) {
+                                    syncCompletionControl(el, block?.score);
                                   }
                                 }}
-                                className="ds-scores-completion-select"
+                                className="ds-scores-completion-control"
+                                role="group"
                                 aria-label={`${row.student_name} · ${hw.title} 완료 상태`}
-                                disabled={Boolean(block?.is_locked)}
-                                defaultValue={block?.score == null ? "미입력" : block.score >= 1 ? "통과" : "미통과"}
+                                title="O·1 통과 / X·0 미통과 / Delete 초기화 / Enter 다음 학생 / Tab 다음 칸"
                                 onClick={(event) => event.stopPropagation()}
                                 onFocus={() => {
-                                  const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                  freezeObservedHomeworkVersion(cellKey);
+                                  freezeObservedHomeworkVersion(scoreCellKey);
                                   if (!isSelected) onSelectCell(row, "homework", hw.homework_id);
                                 }}
-                                onChange={(event) => {
-                                  const score = event.target.value === "통과"
-                                    ? 1
-                                    : event.target.value === "미통과" ? 0 : null;
-                                  const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                  const next: PendingChange = {
-                                    type: "homework",
-                                    enrollmentId: row.enrollment_id,
-                                    homeworkId: hw.homework_id,
-                                    score,
-                                  };
-                                  const serverValue: PendingChange = {
-                                    type: "homework",
-                                    enrollmentId: row.enrollment_id,
-                                    homeworkId: hw.homework_id,
-                                    score: block?.score ?? null,
-                                  };
-                                  stagePendingChange(cellKey, next, serverValue);
-                                  applyChangeToDom(next);
+                                onKeyDown={(event) => {
+                                  if (event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing) return;
+                                  const key = event.key.toLowerCase();
+                                  const directScore = key === "o" || key === "1" ? 1
+                                    : key === "x" || key === "0" ? 0
+                                    : key === "delete" || key === "backspace" ? null : undefined;
+                                  if (directScore !== undefined) {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    setCompletionScore(directScore);
+                                    return;
+                                  }
+                                  if (!["Tab", "Enter", "ArrowDown", "ArrowUp"].includes(event.key)) return;
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  if (event.key === "Enter") {
+                                    if (event.shiftKey) { onRequestMoveUp?.(); return; }
+                                    onRequestMoveDown?.();
+                                  } else if (event.key === "ArrowDown") onRequestMoveDown?.();
+                                  else if (event.key === "ArrowUp") onRequestMoveUp?.();
+                                  else if (event.shiftKey) onRequestMovePrev?.();
+                                  else onRequestMoveNext?.();
                                 }}
                               >
-                                <option value="미입력">미입력</option>
-                                <option value="미통과">미통과 (X)</option>
-                                <option value="통과">통과 (O)</option>
-                              </select>
+                                {([
+                                  { state: "complete", score: 1, label: "통과" },
+                                  { state: "incomplete", score: 0, label: "미통과" },
+                                  { state: "empty", score: null, label: "초기화" },
+                                ] as const).map((option) => (
+                                  <button
+                                    key={option.state}
+                                    type="button"
+                                    data-completion-value={option.state}
+                                    disabled={Boolean(block?.is_locked)}
+                                    aria-label={option.score == null ? "미입력으로 초기화" : option.label}
+                                    title={option.score == null ? "미입력으로 되돌리기" : option.label}
+                                    onKeyDown={(event) => {
+                                      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      const buttons = Array.from(event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>("button"));
+                                      const index = buttons.indexOf(event.currentTarget);
+                                      buttons[(index + (event.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length].focus();
+                                    }}
+                                    onClick={() => setCompletionScore(option.score)}
+                                  >{option.score == null ? <><span className="completion-reset-label">초기화</span><span className="completion-empty-label">미입력</span></> : option.label}</button>
+                                ))}
+                              </div>
                             ) : block?.score != null ? (
                               <Badge
                                 variant="soft"
@@ -2755,5 +2776,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     </div>
   );
 });
+
+// Keep optimistic values, history and server refreshes on the same control.
+function syncCompletionControl(el: HTMLElement | null | undefined, score: number | null | undefined) {
+  if (!el) return;
+  const state = score == null ? "empty" : score >= 1 ? "complete" : "incomplete";
+  el.dataset.completionState = state;
+  el.querySelectorAll<HTMLButtonElement>("button[data-completion-value]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.completionValue === state));
+  });
+}
 
 export default ScoresTable;
