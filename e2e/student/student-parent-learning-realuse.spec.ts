@@ -209,6 +209,7 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
     const search = picker.getByRole("textbox", { name: "학생 검색" });
     await search.dispatchEvent("compositionstart");
     await search.fill(student.name);
+    await expect(picker.getByText("검색 결과 1명", { exact: true })).toBeVisible();
     const choice = picker.getByRole("checkbox", { name: `${student.name} 선택`, exact: true });
     await expect(choice).toBeEnabled();
     await expect(search).toBeFocused();
@@ -239,6 +240,7 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   const desktopSearch = picker.getByRole("textbox", { name: "학생 검색" });
   await desktopSearch.dispatchEvent("compositionstart");
   await desktopSearch.fill(family.students[0].name);
+  await expect(picker.getByText("검색 결과 1명", { exact: true })).toBeVisible();
   await expect(picker.getByRole("checkbox", { name: `${family.students[0].name} 선택`, exact: true })).toBeDisabled();
   await expect(desktopSearch).toBeFocused();
   await desktopSearch.dispatchEvent("compositionend");
