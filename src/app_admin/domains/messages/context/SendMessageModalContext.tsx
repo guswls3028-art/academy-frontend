@@ -29,7 +29,6 @@ export type OpenSendMessageOptions = {
   initialTemplateId?: number | null;
   /** 사전 입력 본문과 동일 조회에서 읽은 저장 양식 수정 시각 */
   initialTemplateUpdatedAt?: string;
-  /** 사전 적용된 기본 제공 편지지 프리셋 ID */
   /** 알림톡 추가 치환 변수 (성적 발송 시 시험명/강의명/시험성적 등) */
   alimtalkExtraVars?: Record<string, string>;
   /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */

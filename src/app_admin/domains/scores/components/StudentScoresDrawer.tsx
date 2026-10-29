@@ -258,8 +258,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     // Phase #5 (2026-05-12) — 학원장 커스텀 합/불 라벨 메시지 본문에 반영.
     const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail };
 
-    // 성적 양식 우선순위:
-    // 사용자 기본(is_user_default) → 기본 제공 편지지 프리셋
+    // 명시적으로 기본 지정한 사용자 문구가 없으면 빈 본문에서 작성한다.
     let body: string;
     let initialTemplateId: number | null = null;
     let initialTemplateUpdatedAt: string | undefined;
