@@ -935,7 +935,8 @@
   .scores-entry-page .scores-draft-status { border-top: 0; padding-top: 0; }
 }
 @media (max-width: 520px) {
-  .scores-entry-page .domain-list-toolbar .ds-button { min-height: 44px; }
+  .scores-entry-page .domain-list-toolbar .ds-button { min-height: 44px !important; }
+  .scores-view-controls button { min-height: 44px; }
   .scores-primary-actions > .ds-button { flex: 1; justify-content: center; }
   .scores-selection-bar__row > .ds-button { flex: 1 1 auto; justify-content: center; }
 }

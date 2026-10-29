@@ -3210,6 +3210,9 @@ for (const width of [1366, 1100, 390]) {
     await expect(additions).toBeVisible({ timeout: 45_000 });
     await expect(additions.getByRole("button", { name: "시험 추가", exact: true })).toBeVisible();
     await expect(additions.getByRole("button", { name: "과제 추가", exact: true })).toBeVisible();
+    if (width === 390) {
+      expect((await additions.getByRole("button", { name: "과제 추가", exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
     await additions.getByRole("button", { name: "과제 추가", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
@@ -3229,6 +3232,11 @@ for (const width of [1366, 1100, 390]) {
     await ensureScoreEditing(page);
     const control = page.getByRole("group", { name: "자동저장학생1 · 단원 복습 완료 상태", exact: true });
     await control.scrollIntoViewIfNeeded();
+    if (width === 390) {
+      for (const button of await control.getByRole("button").all()) {
+        expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      }
+    }
     await control.getByRole("button", { name: "통과", exact: true }).click();
     await expect.poll(() => currentHomeworkScores[0]).toBe(1);
     await expect(control.getByRole("button", { name: "통과", exact: true })).toHaveAttribute("aria-pressed", "true");

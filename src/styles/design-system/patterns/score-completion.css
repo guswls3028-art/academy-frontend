@@ -56,7 +56,7 @@
 .ds-scores-completion-control [aria-pressed="true"] .completion-empty-label { display: inline; }
 .ds-scores-completion-control [aria-pressed="true"] .completion-reset-label { display: none; }
 @media (pointer: coarse), (max-width: 520px) {
-  .ds-scores-completion-control button { min-height: 44px; }
+  .ds-scores-completion-control button[data-completion-value] { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ds-scores-completion-control button { transition: none; }
