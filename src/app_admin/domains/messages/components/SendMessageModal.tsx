@@ -19,7 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { Input } from "antd";
 import { isAxiosError } from "axios";
-import { Check, AlertCircle, AlertTriangle, Edit3, Tag, Shield, CalendarClock } from "lucide-react";
+import { Check, AlertCircle, AlertTriangle, Tag, Shield, CalendarClock } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Badge, Button, ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -1586,26 +1586,6 @@ export default function SendMessageModal({
             {/* ── 본문 + 변수 팔레트 ── */}
             <div className="send-modal__editor">
               <div className="send-modal__editor-body">
-                {/* 빈 상태 오버레이 */}
-                {!body && !hasSelectedBodySource && (
-                  <div className="send-modal__editor-empty">
-                    <Edit3 size={ICON.xl} className="send-modal__icon-muted-faded" />
-                    <div className="send-modal__editor-empty-text">
-                      <div>문구를 선택하거나</div>
-                      <div>안내문을 직접 작성하세요</div>
-                    </div>
-                    <Button size="sm" intent="primary" onClick={() => setShowPickerModal(true)}>
-                      문구 선택하기
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={() => setAlimtalkFreeForm(true)}
-                      className="send-modal__editor-empty-link"
-                    >
-                      직접 작성
-                    </button>
-                  </div>
-                )}
                 <MessageBodyEditor
                   key={`${open}:${selectedTemplateId ?? selectedPresetId ?? "free"}`}
                   ref={bodyEditorRef}
@@ -1613,7 +1593,7 @@ export default function SendMessageModal({
                   previewValues={alimtalkExtraVars}
                   onChange={(value) => { setBody(value); if (!alimtalkFreeForm && !selectedTemplate && !selectedPreset) setAlimtalkFreeForm(true); }}
                   disabled={sending || templateEditingLocked}
-                  placeholder="학원장님이 학생/학부모에게 전할 안내 메시지를 자유롭게 입력하세요."
+                  placeholder={effectiveBlockCategory === "grades" ? "본문을 작성하거나 이번 수업의 시험·과제 결과를 넣으세요." : "학생/학부모에게 전할 안내 메시지를 입력하세요."}
                 />
               </div>
 
