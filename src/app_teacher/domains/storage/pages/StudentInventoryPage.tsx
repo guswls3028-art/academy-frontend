@@ -19,6 +19,7 @@ import {
 import { fetchStudents } from "@teacher/domains/students/api";
 import type { ClientStudent } from "@/shared/api/contracts/students";
 import { useConfirm } from "@/shared/ui/confirm";
+import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { readTeacherInventoryQueryGuard, teacherStorageQueryKeys } from "../queryKeys";
 import { formatStorageBytes as formatBytes } from "../storageFormat";
 import styles from "./StudentInventoryPage.module.css";
@@ -29,12 +30,14 @@ export default function StudentInventoryPage() {
   const confirm = useConfirm();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
+  const settledSearch = useDebouncedValue(search.trim());
   const [selected, setSelected] = useState<{ id: number; ps: string; name: string } | null>(null);
   const [uploadMeta, setUploadMeta] = useState<{ file: File; displayName: string } | null>(null);
 
-  const { data: studentsData, isLoading: studentsLoading } = useQuery({
-    queryKey: teacherStorageQueryKeys.studentsForInventory(search),
-    queryFn: () => fetchStudents({ search: search.trim() || undefined, page_size: 50 }),
+  const { data: studentsData, isLoading: studentsLoading, isError: studentsError, refetch: retryStudents } = useQuery({
+    queryKey: teacherStorageQueryKeys.studentsForInventory(settledSearch),
+    queryFn: ({ signal }) => fetchStudents({ search: settledSearch || undefined, page_size: 50 }, signal),
+    enabled: !selected,
   });
 
   const students = studentsData?.data ?? [];
@@ -139,8 +142,11 @@ export default function StudentInventoryPage() {
             />
           </div>
 
-          {studentsLoading ? (
+          {studentsLoading || search.trim() !== settledSearch ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+          ) : studentsError ? (
+            <EmptyState scope="panel" tone="error" title="학생 명단을 불러오지 못했습니다"
+              actions={<EmptyActionButton variant="secondary" onClick={() => void retryStudents()}>다시 시도</EmptyActionButton>} />
           ) : students.length === 0 ? (
             <EmptyState
               scope="panel"
