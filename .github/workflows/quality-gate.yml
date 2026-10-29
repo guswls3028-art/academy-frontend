@@ -440,6 +440,10 @@ jobs:
             test-results/**/homework-criteria-*.png
             test-results/**/homework-message-criteria-*.png
             test-results/**/homework-criteria-evidence-*.json
+            test-results/**/attendance-export-1366.png
+            test-results/**/attendance-export-390.png
+            test-results/**/attendance-1366.xlsx
+            test-results/**/attendance-390.xlsx
             test-results/development-release-progress.json
           retention-days: 14
           if-no-files-found: error
