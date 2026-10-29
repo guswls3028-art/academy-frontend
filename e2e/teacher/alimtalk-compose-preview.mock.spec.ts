@@ -230,6 +230,14 @@ for (const width of [390, 1366]) {
     test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
     let sends = 0;
     await installMessagingMocks(page, () => false, () => { sends += 1; });
+    let releaseEditor!: () => void;
+    const editorLoading = new Promise<void>((resolve) => { releaseEditor = resolve; });
+    const editorModule = "**/src/shared/messaging/MessageBodyEditorImpl.tsx*";
+    const holdEditor = async (route: Route) => {
+      await editorLoading;
+      await route.continue();
+    };
+    await page.route(editorModule, holdEditor);
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${BASE}/workspace/mobile/message-templates`, { waitUntil: "commit" });
     await page.getByRole("button", { name: "결제 고정 문구 보기", exact: true }).click();
@@ -240,7 +248,23 @@ for (const width of [390, 1366]) {
     await expect(fixed.getByRole("button", { name: "수정", exact: true })).toHaveCount(0);
     await fixed.getByRole("button", { name: "닫기", exact: true }).click();
     await page.getByRole("button", { name: "제공 출결 문구 보기" }).click();
-    await page.getByRole("button", { name: "이 문구를 복제해서 수정" }).click();
+    const source = page.getByRole("dialog", { name: "안내 내용 보기", exact: true });
+    const copyButton = source.getByRole("button", { name: "이 문구를 복제해서 수정" });
+    let loadingButtonY: number;
+    try {
+      const loading = source.getByRole("status");
+      await expect(loading).toHaveText("편집기를 여는 중…");
+      // Layout coordinates ignore the sheet's entrance animation.
+      loadingButtonY = await copyButton.evaluate((button) => (button as HTMLElement).offsetTop);
+    } finally {
+      releaseEditor();
+    }
+    await expect(source.getByRole("textbox", { name: "안내 문구", exact: true }))
+      .toHaveAttribute("contenteditable", "false");
+    const loadedButtonY = await copyButton.evaluate((button) => (button as HTMLElement).offsetTop);
+    expect(Math.abs(loadedButtonY - loadingButtonY)).toBeLessThanOrEqual(1);
+    await page.unroute(editorModule, holdEditor);
+    await copyButton.click();
     const sheet = page.getByRole("dialog", { name: "새 문구", exact: true });
     const editor = sheet.getByRole("textbox", { name: "안내 문구", exact: true });
     await expect(editor).toHaveAttribute("contenteditable", "true");

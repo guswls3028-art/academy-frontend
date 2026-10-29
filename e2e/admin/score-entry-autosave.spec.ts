@@ -1917,7 +1917,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
           template: {
             ok: true,
             source: "unified",
-            name: "수업 결과 기본형",
+            name: "성적 안내",
             solapi_template_id: "KA01TP_TEST_SCORE",
             solapi_status: "APPROVED",
             detail: "발송 가능",
@@ -1960,6 +1960,9 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(dialog.getByRole("checkbox", { name: "학부모" })).toBeChecked();
     await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeChecked();
     await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeEnabled();
+    const editor = dialog.getByRole("textbox", { name: "안내문", exact: true });
+    await expect(editor).toHaveText("");
+    await editor.fill("학생별 성적을 안내드립니다.");
     await expect.poll(() => [...new Set(preflightTargets)].sort()).toEqual(["parent", "student"]);
     await dialog.getByRole("button", { name: "보낼 내용 확인" }).click();
     const combinedConfirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });

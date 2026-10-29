@@ -401,7 +401,8 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       await expect(modal).not.toContainText("자동으로 넣으면 안 되는 시스템 문구");
       await editor.click();
       await expect(editor).toBeFocused();
-      await editor.fill("직접 작성한 과제 안내\n");
+      await editor.fill("직접 작성한 과제 안내");
+      await editor.press("Enter");
       await modal.getByRole("button", { name: "단원 복습 넣기", exact: true }).click();
       await expect(editor).toContainText("단원 복습");
       await expect(editor).toContainText("통과");

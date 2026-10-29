@@ -18,6 +18,7 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     await recipient.check();
     await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
     const message = page.getByRole("textbox", { name: "안내문", exact: true });
+    await writeDirectDraft(page);
     await recording.screen("승인 양식과 내용 확인", "승인된 양식과 대상·수신자를 확인합니다. 안내문에는 실제로 전달할 내용만 입력합니다.", message);
     await page.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
     const confirmation = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
@@ -405,6 +406,7 @@ test("메시지 화면에서 학생 선택과 알림톡 발송창까지 정확�
   await page.getByRole("checkbox", { name: "김알림 선택" }).check();
   await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
   await expect(page.getByRole("dialog").filter({ hasText: "알림톡 발송" })).toBeVisible();
+  await writeDirectDraft(page);
   await expect.poll(() => state.requests.filter(
     ({ method, path }) => method === "POST" && path === "/messaging/send/preflight/",
   ).length).toBeGreaterThan(0);
@@ -478,11 +480,19 @@ test("알림톡 상태 조회 오류는 fail-closed로 막고 명시적 재확�
   expect(state.requests.filter(({ method }) => method !== "GET")).toEqual([]);
 });
 
+async function writeDirectDraft(page: Page): Promise<void> {
+  const editor = page.getByRole("textbox", { name: "안내문", exact: true });
+  await expect(editor).toHaveText("");
+  await expect(page.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeDisabled();
+  await editor.fill("#{학생이름} 학생의 안내 사항입니다.");
+}
+
 async function openSendDraft(page: Page): Promise<void> {
   await gotoAndSettle(page, `${BASE}/workspace/students/home?compose=alimtalk`, { timeout: 30_000 });
   await page.getByRole("checkbox", { name: "김알림 선택" }).check();
   await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "안내문", exact: true })).toBeVisible();
+  await writeDirectDraft(page);
   await expect(page.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeEnabled();
 }
 

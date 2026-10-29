@@ -372,7 +372,8 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
     await editor.click();
     await expect(editor).toBeFocused();
     const note = `${width}px 직접 작성한 성적 안내`;
-    await editor.fill(`${note}\n`);
+    await editor.fill(note);
+    await editor.press("Enter");
     await modal.getByRole("button", { name: `${exam.title} 넣기`, exact: true }).click();
     await expect(editor).toContainText("91/100");
     const preview = modal.getByLabel("현재 학생의 실제 발송 문구");
