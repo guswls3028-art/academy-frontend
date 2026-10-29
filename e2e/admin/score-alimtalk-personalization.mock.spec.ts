@@ -382,10 +382,10 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       await expect(editor.locator('[data-message-variable="과제1결과"]')).toHaveText("통과");
       await expect(editor.locator('[data-message-variable="시험성적"]')).toHaveCount(0);
       await modal.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
-      const picker = page.getByRole("dialog", { name: "성적 안내문 선택", exact: true });
+      const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
       await picker.getByRole("button", { name: "더보기", exact: true }).first().click();
       await picker.getByRole("button", { name: "삭제", exact: true }).first().click();
-      await page.getByRole("dialog", { name: "문구 삭제", exact: true }).getByRole("button", { name: "삭제", exact: true }).click();
+      await page.getByRole("alertdialog", { name: "문구 삭제", exact: true }).getByRole("button", { name: "삭제", exact: true }).click();
       await expect.poll(() => templates.some(template => template.id === 991)).toBe(false);
       await picker.getByRole("button", { name: "닫기", exact: true }).click();
       await expect(editor).toHaveText("");

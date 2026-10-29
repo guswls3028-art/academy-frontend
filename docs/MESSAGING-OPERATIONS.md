@@ -340,6 +340,10 @@ Ctrl/⌘+Z, Ctrl/⌘+Shift+Z, Ctrl+Y와 실행 취소·다시 실행 버튼을 �
 삭제·재진입·reload·과제별 편집·다른 학생 결과·최종 요청의 데스크톱/390px 회귀는
 `score-alimtalk-personalization.mock.spec.ts`, 실제 값 표시와 변수 보존은 공통 편집기
 회귀, 원문 없는 상태와 개별 행 확장은 `message-session-blocks.test.mjs`가 검증한다.
+동일 산출물의 격리 개발 검증 `teacher-score-parent-realuse.spec.ts`도 합성 기본
+문구를 UI에서 삭제한 뒤 DB 부재, 재진입·새로고침, 1366/390px 직접 입력과 개별
+시험 결과의 실제 서버 미리보기를 확인한다. 이 과정은 메시지를 접수하지 않으며
+만든 문구의 부재를 재조회하고 기존 기본 지정을 복구한다.
 학원명은 사이트 브랜드명이 아니라 `/core/subscription/`의 `tenant_name`을 사용해
 실제 발송의 `Tenant.name`과 맞춘다. 테넌트 코드별 캐시를 사용하고 조회 실패 시
 다시 확인할 수 있으며, 다른 학원이나 브랜드명으로 대체하지 않는다.
