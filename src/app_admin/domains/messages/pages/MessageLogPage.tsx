@@ -28,6 +28,7 @@ import {
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { koreanDateTimeText, koreanFullDateTimeText } from "@/shared/utils/displayText";
 import { useNotificationLog } from "../hooks/useNotificationLog";
 import {
@@ -55,6 +56,7 @@ type DeliveryState = {
 };
 
 const PAGE_SIZE = 30;
+const SCHEDULED_PAGE_SIZE = 10;
 
 function useLogViewerScope() {
   const { user } = useAuth();
@@ -209,7 +211,7 @@ function ScheduledRow({
   cancelling: boolean;
 }) {
   return (
-    <div className={styles.scheduledRow}>
+    <div className={styles.scheduledRow} data-testid={`scheduled-notification-${item.id}`}>
       <span className={styles.scheduledTime}>{koreanDateTimeText(item.send_at)}</span>
       <span className={styles.scheduledRecipient}>{item.recipient_summary || "수신자 정보 없음"}</span>
       <span className={styles.scheduledPreview}>{item.message_preview || "내용 미리보기 없음"}</span>
@@ -451,10 +453,14 @@ function PaginationBar({
   currentPage,
   totalPages,
   onPageChange,
+  label = "발송 기록 페이지",
+  disabled = false,
 }: {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  label?: string;
+  disabled?: boolean;
 }) {
   if (totalPages <= 1) return null;
   const pages: (number | "...")[] = [];
@@ -463,14 +469,14 @@ function PaginationBar({
     else if (pages[pages.length - 1] !== "...") pages.push("...");
   }
   return (
-    <nav className={styles.pagination} aria-label="발송 기록 페이지">
-      <button type="button" disabled={currentPage === 1} onClick={() => onPageChange(currentPage - 1)} className={styles.paginationButton} aria-label="이전 페이지">‹</button>
+    <nav className={styles.pagination} aria-label={label}>
+      <button type="button" disabled={disabled || currentPage === 1} onClick={() => onPageChange(currentPage - 1)} className={styles.paginationButton} aria-label="이전 페이지">‹</button>
       {pages.map((page, index) => page === "..." ? (
         <span key={`dots-${index}`} className={styles.paginationDots}>…</span>
       ) : (
-        <button key={page} type="button" onClick={() => onPageChange(page)} className={styles.paginationButton} data-active={page === currentPage} aria-current={page === currentPage ? "page" : undefined}>{page}</button>
+        <button key={page} type="button" disabled={disabled} onClick={() => onPageChange(page)} className={styles.paginationButton} data-active={page === currentPage} aria-current={page === currentPage ? "page" : undefined}>{page}</button>
       ))}
-      <button type="button" disabled={currentPage === totalPages} onClick={() => onPageChange(currentPage + 1)} className={styles.paginationButton} aria-label="다음 페이지">›</button>
+      <button type="button" disabled={disabled || currentPage === totalPages} onClick={() => onPageChange(currentPage + 1)} className={styles.paginationButton} aria-label="다음 페이지">›</button>
     </nav>
   );
 }
@@ -485,25 +491,35 @@ export default function MessageLogPage() {
   const viewerKey = JSON.stringify(viewerScope);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [scheduledPage, setScheduledPage] = useState(1);
   const [selectedRecord, setSelectedRecord] = useState<{ item: NotificationLogItem; viewerKey: string } | null>(null);
   const selectedItem = selectedRecord?.viewerKey === viewerKey ? selectedRecord.item : null;
   useEffect(() => {
     setCurrentPage(1);
+    setScheduledPage(1);
     setSelectedRecord(null);
     setStatusFilter("all");
-  }, [requestId]);
+  }, [requestId, viewerKey]);
   const { data, isLoading, isError, isFetching, refetch } = useNotificationLog({
     request_id: requestId,
     page: currentPage,
     page_size: PAGE_SIZE,
     status: statusFilter === "all" ? undefined : statusFilter,
   });
-  const { data: scheduledData } = useQuery({
-    queryKey: messageQueryKeys.withViewerScope(messageQueryKeys.scheduledPending, viewerScope),
-    queryFn: () => fetchScheduledNotifications({ status: "pending", page_size: 50 }),
+  const scheduledQuery = useQuery({
+    queryKey: messageQueryKeys.withViewerScope([...messageQueryKeys.scheduledPending, scheduledPage], viewerScope),
+    queryFn: () => fetchScheduledNotifications({ status: "pending", page: scheduledPage, page_size: SCHEDULED_PAGE_SIZE }),
     enabled: !requestMode,
     staleTime: 10 * 1000,
+    retry: false,
   });
+  const scheduledData = scheduledQuery.data;
+  const scheduledTotalPages = Math.max(1, Math.ceil((scheduledData?.count ?? 0) / SCHEDULED_PAGE_SIZE));
+  useEffect(() => {
+    if (scheduledData && !scheduledQuery.isError && scheduledPage > scheduledTotalPages) {
+      setScheduledPage(scheduledTotalPages);
+    }
+  }, [scheduledData, scheduledPage, scheduledTotalPages, scheduledQuery.isError]);
   const { data: operationsStatus, isLoading: operationsLoading } = useQuery({
     queryKey: messageQueryKeys.withViewerScope(messageQueryKeys.operationsStatus, viewerScope),
     queryFn: fetchMessagingOperationsStatus,
@@ -514,11 +530,14 @@ export default function MessageLogPage() {
   const cancelMut = useMutation({
     mutationFn: cancelScheduledNotification,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: messageQueryKeys.scheduledPending });
-      qc.invalidateQueries({ queryKey: messageQueryKeys.operationsStatus });
       feedback.success("예약 발송이 취소되었습니다.");
     },
-    onError: () => feedback.error("예약 발송 취소에 실패했습니다."),
+    onError: (error) => feedback.error(extractApiError(error, "예약 발송 취소에 실패했습니다. 현재 상태를 다시 확인해 주세요.")),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: messageQueryKeys.scheduledPending });
+      void qc.invalidateQueries({ queryKey: messageQueryKeys.operationsStatus });
+      void qc.invalidateQueries({ queryKey: messageQueryKeys.log });
+    },
   });
 
   const requestTrace = data?.request_trace;
@@ -604,17 +623,30 @@ export default function MessageLogPage() {
       )}
       {!requestMode && <OperationsStrip status={operationsStatus} loading={operationsLoading} />}
 
-      {!requestMode && pendingScheduled.length > 0 && (
+      {!requestMode && (
         <section className={styles.scheduledPanel} aria-label="예약 발송">
           <div className={styles.scheduledHeader}>
             <div><strong>예약 발송</strong><span>발송 전 예약만 표시합니다.</span></div>
-            <Badge tone="info" size="sm">{pendingScheduled.length.toLocaleString()}건 대기</Badge>
+            <div className={styles.scheduledActions}>
+              {scheduledData && <Badge tone="info" size="sm">{scheduledData.count.toLocaleString()}건 대기{scheduledQuery.isError ? " · 마지막 확인" : ""}</Badge>}
+              <Button intent="ghost" size="sm" disabled={scheduledQuery.isFetching} onClick={() => void scheduledQuery.refetch()} aria-label="예약 새로고침">
+                {scheduledQuery.isFetching ? "확인 중…" : "새로고침"}
+              </Button>
+            </div>
           </div>
+          {scheduledQuery.isLoading && <p className={styles.scheduledFeedback} role="status">예약 발송을 불러오고 있습니다…</p>}
+          {scheduledQuery.isError && <div className={styles.scheduledFeedback} role="alert">
+            <p>예약 발송을 불러오지 못했습니다.</p>
+            <p>{extractApiError(scheduledQuery.error, "예약이 없는 상태가 아닙니다. 잠시 후 다시 확인해 주세요.")}</p>
+            <Button intent="secondary" size="sm" disabled={scheduledQuery.isFetching} onClick={() => void scheduledQuery.refetch()}>예약 다시 확인</Button>
+          </div>}
+          {!scheduledQuery.isLoading && !scheduledQuery.isError && scheduledData?.count === 0 && <p className={styles.scheduledFeedback}>발송을 기다리는 예약이 없습니다.</p>}
           <div className={styles.scheduledList}>
             {pendingScheduled.map((item) => (
               <ScheduledRow key={item.id} item={item} cancelling={cancelMut.isPending} onCancel={() => handleCancelScheduled(item)} />
             ))}
           </div>
+          <PaginationBar currentPage={scheduledPage} totalPages={scheduledTotalPages} onPageChange={setScheduledPage} label="예약 발송 페이지" disabled={scheduledQuery.isFetching || cancelMut.isPending} />
         </section>
       )}
 

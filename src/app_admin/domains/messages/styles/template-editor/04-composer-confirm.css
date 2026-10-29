@@ -435,6 +435,28 @@
 }
 
 @media (max-width: 1023px) {
+  .send-modal__section-nav {
+    position: sticky;
+    top: calc(-1 * var(--space-3));
+    z-index: 2;
+    display: flex;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    margin-bottom: var(--space-2);
+    background: var(--color-bg-surface);
+    border-bottom: 1px solid var(--color-border-divider);
+  }
+
+  .send-modal__section-nav .ds-button[data-size] {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .send-modal__right,
+  .send-modal__card--preview {
+    scroll-margin-top: 64px;
+  }
+
   .send-message-modal.ant-modal {
     top: 0 !important;
     margin: 0 auto !important;
@@ -508,13 +530,18 @@
     flex-basis: calc(100% - 34px);
   }
 
+  .send-modal__tpl-bar-actions {
+    padding-top: var(--space-2);
+    border-top: 1px dashed var(--color-border-divider);
+  }
+
   .send-modal__tpl-bar-save {
     flex-wrap: wrap;
     border-right: 0;
-    border-top: 1px dashed var(--color-border-divider);
+    border-top: 0;
     margin-right: 0;
-    padding: var(--space-2) 0 0;
-    width: 100%;
+    padding: 0;
+    width: auto;
   }
 
   .send-modal__tpl-bar > .ds-button {

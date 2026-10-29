@@ -37,6 +37,10 @@
 }
 
 /* ── 레이아웃 ── */
+.send-modal__section-nav {
+  display: none;
+}
+
 .send-modal__layout {
   display: flex;
   gap: 20px;

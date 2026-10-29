@@ -225,6 +225,36 @@
   flex-direction: column;
 }
 
+.scheduledHeader > .scheduledActions {
+  flex-flow: row wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+
+.scheduledFeedback {
+  margin: 0;
+  padding: 14px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.scheduledFeedback p {
+  margin: 0 0 8px;
+}
+
+.scheduledFeedback[role="alert"] {
+  color: var(--color-status-danger, #b91c1c);
+}
+
+.scheduledPanel > .pagination {
+  margin: 0;
+  padding: 10px;
+  border-top: 1px solid var(--color-border-divider);
+  flex-wrap: wrap;
+}
+
 .scheduledRow {
   display: grid;
   grid-template-columns: 140px 130px minmax(0, 1fr) auto;
