@@ -155,6 +155,7 @@ for (const width of [390, 1366]) {
     await sheet.getByRole("button", { name: "직접 확인 완료" }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: "확인 완료", exact: true }).click();
     await expect.poll(api.correctionPayload).toMatchObject({ completed: true, source_id: HOMEWORK_ID });
+    await expect(sheet).toBeHidden();
     await page.reload();
     await expect(page.getByText("확인 완료", { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
@@ -209,6 +210,10 @@ test("선생님이 모바일 과제 상세에서 제출 파일을 보고 직접 
   await expect(page.getByRole("heading", { name: "도형 풀이 인증" })).toBeVisible({ timeout: 45_000 });
   await expect(page.getByText("선생님 확인", { exact: true }).locator("..")).toContainText("0 / 1");
   await expect(page.getByText("확인 대기", { exact: true })).toBeVisible();
+  const submissionRow = page.locator('[class*="row"]').filter({
+    has: page.getByText("김하늘", { exact: true }),
+  });
+  await expect(submissionRow).toHaveCount(1);
 
   await page.getByRole("button", { name: "제출물 확인" }).click({ timeout: 20_000 });
   const reviewSheet = page.getByRole("dialog").filter({ hasText: "김하늘 제출 확인" });
@@ -229,18 +234,20 @@ test("선생님이 모바일 과제 상세에서 제출 파일을 보고 직접 
     note: "제출 파일 직접 확인",
     expected_updated_at: null,
   });
-  await expect(page.getByText("확인 완료", { exact: true })).toBeVisible();
+  await expect(reviewSheet).toBeHidden();
+  await expect(submissionRow.getByText("확인 완료", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.getByText("확인 완료", { exact: true })).toBeVisible();
+  await expect(submissionRow.getByText("확인 완료", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "제출물 확인" }).click();
   await reviewSheet.getByRole("button", { name: "확인 완료 취소" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "확인 취소" }).click();
   await expect.poll(api.correctionPayload).toMatchObject({ completed: false, expected_updated_at: "2026-08-23T03:31:00Z" });
-  await expect(page.getByText("확인 대기", { exact: true })).toBeVisible();
+  await expect(reviewSheet).toBeHidden();
+  await expect(submissionRow.getByText("확인 대기", { exact: true })).toBeVisible();
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.getByText("확인 대기", { exact: true })).toBeVisible();
+  await expect(submissionRow.getByText("확인 대기", { exact: true })).toBeVisible();
   const screenshot = testInfo.outputPath("teacher-homework-manual-review-390.png");
   await page.screenshot({ path: screenshot, fullPage: true });
   await testInfo.attach("teacher-homework-manual-review-390", { path: screenshot, contentType: "image/png" });
@@ -276,6 +283,7 @@ test("미리보기와 저장 실패는 완료를 막고 재시도할 수 있다"
   await reviewSheet.getByRole("button", { name: "직접 확인 완료" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "확인 완료", exact: true }).click();
   await expect.poll(api.correctionPayload).toMatchObject({ completed: true });
+  await expect(reviewSheet).toBeHidden();
   await expect(page.getByText("확인 완료", { exact: true })).toBeVisible();
 });
 
