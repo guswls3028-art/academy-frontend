@@ -1045,7 +1045,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         const el = homeworkInputRefs.current[`${cell.enrollmentId}-${cell.homeworkId}`];
         if (!el) return false;
         if (el.dataset.completionState) {
-          el.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus();
+          const button = el.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
+          if (!button || button.disabled) return false;
+          button.focus();
         } else {
           el.focus();
           selectAllScoreCell(el);
