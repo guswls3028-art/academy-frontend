@@ -181,7 +181,10 @@ for (const width of [390, 1366]) {
     await expect(dialog.getByText(/2행 · 번호확인학생/)).toBeVisible();
     await expect(dialog.getByRole("button", { name: "맞아요, 등록하기" })).toBeDisabled();
     expect(submitted).toHaveLength(0);
-    await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-invalid-${width}px.png`), fullPage: true });
+    await testInfo.attach(`synthetic-enrollment-invalid-${width}px`, {
+      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-invalid-${width}px.png`), fullPage: true }),
+      contentType: "image/png",
+    });
     await dialog.getByRole("button", { name: "엑셀 다시 선택" }).click();
     sheet.getCell("A2").value = "등록완료학생";
     sheet.getCell("B2").value = "０１０－１２３４－５６７８（부）";
@@ -190,7 +193,10 @@ for (const width of [390, 1366]) {
     await upload();
     await expect(dialog.getByText("2명 매칭 요청 예정", { exact: true })).toBeVisible();
     await expect(dialog.getByText("입력 확인 필요 1명", { exact: true })).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-mixed-preview-${width}px.png`), fullPage: true });
+    await testInfo.attach(`synthetic-enrollment-mixed-preview-${width}px`, {
+      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-mixed-preview-${width}px.png`), fullPage: true }),
+      contentType: "image/png",
+    });
     await dialog.getByRole("button", { name: "맞아요, 등록하기" }).dblclick();
     await expect.poll(() => submitted.length).toBe(1);
     await expect(page.getByText(/진행 상태를 다시 확인하고 있습니다/)).toBeVisible();
@@ -199,14 +205,20 @@ for (const width of [390, 1366]) {
     await expect(result.getByText("등록완료학생", { exact: true })).toBeVisible();
     await expect(result.getByText("학부모 전화번호 형식을 확인해 주세요.", { exact: true })).toBeVisible();
     expect(await result.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
-    await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-partial-result-${width}px.png`), fullPage: true });
+    await testInfo.attach(`synthetic-enrollment-partial-result-${width}px`, {
+      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-partial-result-${width}px.png`), fullPage: true }),
+      contentType: "image/png",
+    });
     await page.reload();
     result = page.getByRole("dialog", { name: "수강 등록 결과" });
     await expect(result).toBeVisible();
     await expect(result.getByText("중복명부학생", { exact: true })).toBeVisible();
     await expect(result.getByLabel("등록 결과 요약")).toContainText("2명");
     expect(submitted).toHaveLength(1);
-    await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-restored-result-${width}px.png`), fullPage: true });
+    await testInfo.attach(`synthetic-enrollment-restored-result-${width}px`, {
+      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-restored-result-${width}px.png`), fullPage: true }),
+      contentType: "image/png",
+    });
   });
 }
 
