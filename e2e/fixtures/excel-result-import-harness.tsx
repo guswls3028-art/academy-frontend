@@ -5,7 +5,7 @@ import ExamResultExcelImport from "@/app_admin/domains/results/components/ExamRe
 import "@/index.css";
 
 const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-function Harness() {
+export function Harness() {
   const [examId, setExamId] = useState(77);
   return <QueryClientProvider client={client}>
     <button onClick={() => setExamId(78)}>다음 시험</button>
