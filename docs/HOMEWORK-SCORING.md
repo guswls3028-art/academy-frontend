@@ -289,6 +289,12 @@
   reload와 학생·학부모 성적 반영을 확인한다. 이 추가 경로는 공식 격리 실행과 cleanup0을
   통과한 release에서만 실사용 완료 증거가 된다. 소스 추가만으로 운영 검증을 대체하지 않는다.
   직원 삭제 뒤 남는 합성 User/token/audit는 exact `qa-*` tenant teardown의 cleanup0이 소유한다.
+- 같은 격리 시나리오의 `e2e/helpers/homeworkCriteriaRealuse.ts`는 PC 퍼센트 기준과
+  390px 점수 기준을 운영 화면에서 변경한다. 범위 초과 입력의 저장 차단·복구,
+  92점 과제의 기준 95→90 저장·reload 후 미통과→통과/클리닉 재계산,
+  별도 O/X 과제의 설정·점수 보존, 학부모 표시와 과제별 안내문 미리보기를 확인한다.
+  안내문은 저장·발송하지 않고 폐기하며, 기존 합성 가족의 teardown을 그대로 사용한다.
+  화면 캡처는 테스트 첨부로 남기며, 실사용 통과 주장은 해당 release 결과로 판단한다.
 
 ```powershell
 pnpm typecheck
