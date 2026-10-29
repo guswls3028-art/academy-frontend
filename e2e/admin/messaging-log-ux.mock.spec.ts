@@ -192,6 +192,73 @@ async function openLog(page: Page) {
 
 test.use({ serviceWorkers: "block" });
 
+for (const width of [1366, 390]) {
+  test(`${width}px 예약 조회 실패를 복구하고 50건 이후 예약을 취소·새로고침한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await installMessagingLogApp(page);
+    let failScheduled = true;
+    let pending = Array.from({ length: 51 }, (_, index) => ({
+      id: index + 1, trigger: "manual", status: "pending", send_at: "2027-01-01T10:00:00+09:00",
+      recipient_summary: `예약학생 ${index + 1}`, message_preview: `예약한 안내 ${index + 1}`,
+      target_type: "student", target_id: String(index + 1), target_name: `예약학생 ${index + 1}`,
+      message_mode: "alimtalk", created_at: "2026-10-29T10:00:00+09:00", sent_at: null, error_message: "",
+    }));
+    const cancellations: number[] = [];
+    await page.route("**/api/v1/messaging/scheduled/**", async route => {
+      const url = new URL(route.request().url());
+      const cancel = url.pathname.match(/\/scheduled\/(\d+)\/cancel\/$/);
+      if (cancel) {
+        expect(route.request().method()).toBe("POST");
+        const id = Number(cancel[1]);
+        const item = pending.find(entry => entry.id === id);
+        cancellations.push(id);
+        pending = pending.filter(entry => entry.id !== id);
+        return route.fulfill({ json: { ...item, status: "cancelled" } });
+      }
+      expect(route.request().method()).toBe("GET");
+      if (failScheduled) return route.fulfill({ status: 503, json: { detail: "예약 조회를 잠시 사용할 수 없습니다." } });
+      const pageSize = Number(url.searchParams.get("page_size") || 30);
+      const offset = (Number(url.searchParams.get("page") || 1) - 1) * pageSize;
+      return route.fulfill({ json: { count: pending.length, results: pending.slice(offset, offset + pageSize) } });
+    });
+    await openLog(page);
+    const scheduled = page.getByRole("region", { name: "예약 발송", exact: true });
+    await expect(scheduled.getByRole("alert")).toContainText("예약 발송을 불러오지 못했습니다");
+    await expect(scheduled).not.toContainText("발송을 기다리는 예약이 없습니다");
+    await page.screenshot({ path: testInfo.outputPath(`scheduled-error-${width}.png`) });
+    failScheduled = false;
+    await scheduled.getByRole("button", { name: "예약 다시 확인", exact: true }).click();
+    await expect(scheduled).toContainText("51건 대기");
+    const pagination = scheduled.getByRole("navigation", { name: "예약 발송 페이지" });
+    await pagination.getByRole("button", { name: "6", exact: true }).click();
+    await expect(scheduled.getByText("예약학생 51", { exact: true })).toBeVisible();
+    await scheduled.getByRole("button", { name: "예약 취소", exact: true }).click();
+    const confirmation = page.getByRole("alertdialog", { name: "예약 발송 취소", exact: true });
+    await expect(confirmation).toContainText("예약학생 51");
+    await confirmation.getByRole("button", { name: "예약 취소", exact: true }).click();
+    await expect(scheduled).toContainText("50건 대기");
+    await expect(pagination.getByRole("button", { name: "5", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(scheduled.getByText("예약학생 50", { exact: true })).toBeVisible();
+    expect(cancellations).toEqual([51]);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`scheduled-page-cancel-${width}.png`) });
+    await page.reload();
+    await expect(scheduled).toContainText("50건 대기");
+    await expect(scheduled.getByText("예약학생 1", { exact: true })).toBeVisible();
+    expect(cancellations).toEqual([51]);
+    failScheduled = true;
+    await scheduled.getByRole("button", { name: "예약 새로고침", exact: true }).click();
+    await expect(scheduled.getByRole("alert")).toContainText("예약 조회를 잠시 사용할 수 없습니다");
+    await expect(scheduled).toContainText("50건 대기 · 마지막 확인");
+    await expect(scheduled.getByText("예약학생 1", { exact: true })).toBeVisible();
+    failScheduled = false;
+    pending = [];
+    await scheduled.getByRole("button", { name: "예약 다시 확인", exact: true }).click();
+    await expect(scheduled).toContainText("발송을 기다리는 예약이 없습니다");
+    await expect(scheduled.getByRole("alert")).toHaveCount(0);
+  });
+}
+
 test.describe("알림톡 발송 기록 UX", () => {
   test("provider lifecycle를 실패로 뭉개지 않고 보안 본문을 설명한다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });

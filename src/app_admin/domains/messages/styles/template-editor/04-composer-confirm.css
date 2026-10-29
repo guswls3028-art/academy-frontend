@@ -435,6 +435,28 @@
 }
 
 @media (max-width: 1023px) {
+  .send-modal__section-nav {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    gap: var(--space-2);
+    padding: var(--space-2) 0;
+    margin-bottom: var(--space-2);
+    background: var(--color-bg-surface);
+    border-bottom: 1px solid var(--color-border-divider);
+  }
+
+  .send-modal__section-nav > button {
+    flex: 1;
+    min-height: 40px;
+  }
+
+  .send-modal__right,
+  .send-modal__card--preview {
+    scroll-margin-top: 64px;
+  }
+
   .send-message-modal.ant-modal {
     top: 0 !important;
     margin: 0 auto !important;

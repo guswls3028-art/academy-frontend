@@ -12,7 +12,7 @@
 //   - 인라인 양식 패널/검색/카드리스트 제거 — `TemplatePickerModal`로 분리 (별도 1040px 팝업)
 //   - 학원장 임근혁 보고: "양식 지정·선택 영역이 좁고 불편" → 별도 큰 모달로 격리
 //   - 카테고리 필터 + "전체 보기" 토글로 다른 카테고리 양식 섞임 방지
-//   - 자동 선택 우선순위: 본 테넌트 양식 (카테고리 일치 + 기본 지정) > 시스템 기본
+//   - 명시적으로 저장한 같은 카테고리의 사용자 기본 문구만 초기화에 사용한다.
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -338,6 +338,8 @@ export default function SendMessageModal({
   const [confirmPreviewStudentId, setConfirmPreviewStudentId] = useState<number | null>(null);
   const [confirmRecipientsExpanded, setConfirmRecipientsExpanded] = useState(false);
   const bodyEditorRef = useRef<MessageBodyEditorHandle>(null);
+  const composerSectionRef = useRef<HTMLDivElement>(null);
+  const previewSectionRef = useRef<HTMLElement>(null);
   const prevOpenRef = useRef(false);
   const currentDraftRef = useRef({ body, selectedTemplateId, selectedPresetId, alimtalkFreeForm });
   currentDraftRef.current = { body, selectedTemplateId, selectedPresetId, alimtalkFreeForm };
@@ -1158,6 +1160,12 @@ export default function SendMessageModal({
   })();
 
   // ─── Render ───
+  const moveToSection = (section: HTMLElement | null) => {
+    if (!section) return;
+    section.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    section.focus({ preventScroll: true });
+  };
+
   return (
     <>
     <AdminModal open={open} onClose={() => void requestClose()} closeDisabled={sending || savingTemplate} width={1080} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
@@ -1177,6 +1185,10 @@ export default function SendMessageModal({
       />
 
       <ModalBody>
+        <nav className="send-modal__section-nav" aria-label="알림톡 작성 영역 이동">
+          <Button intent="secondary" size="sm" onClick={() => moveToSection(composerSectionRef.current)} aria-label="본문 편집으로 이동">본문 편집</Button>
+          <Button intent="secondary" size="sm" onClick={() => moveToSection(previewSectionRef.current)} aria-label="미리보기로 이동">미리보기</Button>
+        </nav>
         <div className="send-modal__layout">
 
           {/* ═══ 좌측: 수신자 + 미리보기 (2 카드 통합) ═══ */}
@@ -1238,7 +1250,7 @@ export default function SendMessageModal({
             </section>
 
             {/* 카드 2 — 서버가 수신자별로 조립한 문구만 발송 미리보기로 표시한다. */}
-            <section className="send-modal__card send-modal__card--preview">
+            <section ref={previewSectionRef} tabIndex={-1} aria-label="받는 사람에게 보일 내용" className="send-modal__card send-modal__card--preview">
               <div className="send-modal__card-label">
                 받는 사람에게 보일 내용
                 {inlinePreviewRecipient && (
@@ -1410,7 +1422,7 @@ export default function SendMessageModal({
           </div>
 
           {/* ═══ 우측: 양식 선택 + 본문 편집 ═══ */}
-          <div className="send-modal__right">
+          <div ref={composerSectionRef} tabIndex={-1} role="region" aria-label="안내문 편집 영역" className="send-modal__right">
             {needsEnvelopeChoice && (
               <div className="send-modal__envelope-selector">
                 <div className="send-modal__envelope-head">
