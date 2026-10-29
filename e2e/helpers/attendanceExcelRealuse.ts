@@ -68,9 +68,9 @@ export async function verifyAttendanceExcel(
         }
       }
       await assertNoHorizontalOverflow(page);
-      await testInfo.attach(`attendance-export-${width}`, {
-        body: await page.screenshot({ animations: "disabled" }), contentType: "image/png",
-      });
+      const screenshotPath = testInfo.outputPath(`attendance-export-${width}.png`);
+      await page.screenshot({ path: screenshotPath, animations: "disabled" });
+      await testInfo.attach(`attendance-export-${width}`, { path: screenshotPath, contentType: "image/png" });
       await testInfo.attach(`attendance-workbook-${width}`, {
         path: outputPath, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });

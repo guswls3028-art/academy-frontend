@@ -1041,6 +1041,8 @@ frontend 운영 `version.json`을 함께 검증한다. 검증 결과를 별도 m
 차시명 `=1+1`, 전화번호 앞자리 0, 출결 상태가 수식/오류가 아닌 문자열로
 보존되는지 읽는다. 임시 이름은 finally에서 복원하고 API로 재조회한 후
 기존 학생·부모 화면 검증을 계속한다. 기존 41건 및 최종 cleanup 0을 유지한다.
+합성 데이터만 담은 attendance-export-1366/390.png와 attendance-1366/390.xlsx는
+development-release-evidence에 명시적으로 업로드해 화면과 실제 파일을 재검토한다.
 
 브라우저 다운로드 허용은 성공한 출결 POST로 받은 최대 두 작업과 해당
 강의 ID/개발 테넌트/정확한 XLSX 파일명에 묶는다. 서명 R2 GET의 MIME,
