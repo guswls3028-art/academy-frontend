@@ -125,6 +125,93 @@ async function createStandardWorkbook(): Promise<ArrayBuffer> {
   return workbook.xlsx.writeBuffer();
 }
 
+// Fully synthetic OOXML: default-namespace drawings are valid but ExcelJS 4.x
+// expects an xdr-prefixed drawing model, even when only worksheet cells are read.
+async function withSyntheticChart(source: ArrayBuffer, sheetName: string): Promise<ArrayBuffer> {
+  const archive = await JSZip.loadAsync(source);
+  const relationships = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+  const packageRelationships = "http://schemas.openxmlformats.org/package/2006/relationships";
+  const drawingNamespace = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing";
+  const chartNamespace = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+  const sheet = archive.file("xl/worksheets/sheet1.xml")!;
+  archive.file(sheet.name, (await sheet.async("string")).replace(/<\/(?:x:)?worksheet>/,
+    closing => `<drawing xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${relationships}" r:id="chartDrawing"/>${closing}`));
+  const sheetRels = "xl/worksheets/_rels/sheet1.xml.rels";
+  const existingRels = await archive.file(sheetRels)?.async("string")
+    ?? `<Relationships xmlns="${packageRelationships}"></Relationships>`;
+  archive.file(sheetRels, existingRels.replace("</Relationships>",
+    `<Relationship Id="chartDrawing" Type="${relationships}/drawing" Target="../drawings/drawing1.xml"/></Relationships>`));
+  archive.file("xl/drawings/drawing1.xml", `<wsDr xmlns="${drawingNamespace}">
+    <oneCellAnchor><from><col>8</col><colOff>0</colOff><row>0</row><rowOff>0</rowOff></from>
+    <ext cx="3600000" cy="2400000"/><graphicFrame macro=""><nvGraphicFramePr>
+    <cNvPr id="1" name="Synthetic chart"/><cNvGraphicFramePr/></nvGraphicFramePr>
+    <xfrm><off x="0" y="0"/><ext cx="0" cy="0"/></xfrm>
+    <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="${chartNamespace}">
+    <c:chart xmlns:c="${chartNamespace}" xmlns:r="${relationships}" r:id="chart1"/>
+    </a:graphicData></a:graphic></graphicFrame><clientData/></oneCellAnchor></wsDr>`);
+  archive.file("xl/drawings/_rels/drawing1.xml.rels", `<Relationships xmlns="${packageRelationships}">
+    <Relationship Id="chart1" Type="${relationships}/chart" Target="../charts/chart1.xml"/></Relationships>`);
+  archive.file("xl/charts/chart1.xml", `<chartSpace xmlns="${chartNamespace}"><chart><plotArea><layout/>
+    <pieChart><varyColors val="0"/><ser><idx val="0"/><order val="0"/>
+    <val><numRef><f>'${sheetName}'!$B$1</f></numRef></val></ser></pieChart>
+    </plotArea><plotVisOnly val="1"/></chart></chartSpace>`);
+  const types = archive.file("[Content_Types].xml")!;
+  archive.file(types.name, (await types.async("string")).replace("</Types>",
+    '<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>' +
+    '<Override PartName="/xl/charts/chart1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/></Types>'));
+  return archive.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
+}
+
+test("차트가 있어도 원본을 바꾸지 않고 셀 타입·수식·병합·하이퍼링크를 읽는다", async () => {
+  const original = new ExcelJS.Workbook();
+  const sheet = original.addWorksheet("Cells");
+  sheet.getCell("A1").value = "합성 셀";
+  sheet.getCell("B1").value = 12.25;
+  sheet.getCell("C1").value = true;
+  sheet.getCell("D1").value = new Date("2026-01-02T00:00:00Z");
+  sheet.getCell("D1").numFmt = "yyyy-mm-dd";
+  sheet.getCell("E1").value = { formula: "B1*2", result: 24.5 };
+  sheet.getCell("F1").value = { text: "합성 링크", hyperlink: "https://example.invalid/synthetic" };
+  sheet.mergeCells("G1:H1");
+  sheet.getCell("G1").value = "병합";
+  const plain = await original.xlsx.writeBuffer();
+  const chart = await withSyntheticChart(plain, "Cells");
+  await expect(new ExcelJS.Workbook().xlsx.load(chart)).rejects.toThrow(/anchors/);
+  for (const source of [plain, chart]) {
+    const before = Buffer.from(source).toString("base64");
+    const loaded = await loadImportWorkbook(source);
+    for (const column of ["A", "B", "C", "D", "E", "F", "G", "H"]) {
+      expect(loaded.worksheets[0].getCell(`${column}1`).value).toEqual(sheet.getCell(`${column}1`).value);
+    }
+    expect(loaded.worksheets[0].model.merges).toEqual(["G1:H1"]);
+    const rows = await readFirstWorksheetRows(new NodeFile([source], "synthetic-chart.xlsx") as unknown as File);
+    expect(rows[0]).toEqual(["합성 셀", 12.25, true, sheet.getCell("D1").value, 24.5, "합성 링크", "병합", "병합"]);
+    expect(Buffer.from(source).toString("base64")).toBe(before);
+  }
+});
+
+test("차트 셀 읽기는 기존 비표준 OOXML 복구 경로에도 적용한다", async () => {
+  const source = await withSyntheticChart(await createNonstandardWorkbook(), "학생목록");
+  const loaded = await loadImportWorkbook(source);
+  expect(loaded.worksheets[0].getCell("A2").value).toBe("합성학생");
+  expect(loaded.worksheets[0].getCell("B2").value).toBe("01012345678");
+});
+
+test("차트 투영 전에 제거 대상 drawing XML·관계의 위험 선언과 크기도 검사한다", async () => {
+  const source = await withSyntheticChart(await createStandardWorkbook(), "학생목록");
+  for (const name of ["xl/drawings/drawing1.xml", "xl/drawings/_rels/drawing1.xml.rels"]) {
+    const archive = await JSZip.loadAsync(source);
+    const xml = await archive.file(name)!.async("string");
+    archive.file(name, '<!DOCTYPE wsDr [<!ENTITY probe SYSTEM "file:///synthetic-secret">]>' + xml);
+    await expect(loadImportWorkbook(await archive.generateAsync({ type: "arraybuffer", compression: "DEFLATE" })))
+      .rejects.toThrow("엑셀 파일의 내부 구조를 읽을 수 없습니다");
+  }
+  const oversized = await JSZip.loadAsync(source);
+  oversized.file("xl/drawings/drawing1.xml", "x".repeat(MAX_OOXML_XML_MEMBER_CHARS + 1));
+  await expect(loadImportWorkbook(await oversized.generateAsync({ type: "arraybuffer", compression: "DEFLATE" })))
+    .rejects.toThrow("엑셀 파일의 내부 구조를 읽을 수 없습니다");
+});
+
 async function mutateStandardWorkbookXml(
   entryName: string,
   mutate: (xml: string) => string,

@@ -1,9 +1,12 @@
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
+import { File as NodeFile } from "node:buffer";
+import { readFile } from "node:fs/promises";
 import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { assertNoHorizontalOverflow, expectApi, installQaStudentParentBoundary, QA_BASE, seedBrowserAuth, type QaTokens } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
+import { readExcelWorkbook } from "../../src/shared/utils/excelWorkbook";
 
 type Preview = {
   ok: boolean; applied: boolean; exam_id: number; matched_count: number; errors: unknown[];
@@ -19,8 +22,9 @@ async function downloadWorkbook(page: Page, label: string, testInfo: TestInfo, n
   expect(download.suggestedFilename()).toMatch(/\.xlsx$/);
   const path = testInfo.outputPath(`${name}.xlsx`);
   await download.saveAs(path);
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(path);
+  const workbook = await readExcelWorkbook(new NodeFile(
+    [await readFile(path)], download.suggestedFilename(),
+  ) as unknown as File);
   await testInfo.attach(name, { path, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   return workbook;
 }
@@ -107,6 +111,8 @@ export async function verifyExcelAssessment(
       const resultRow = page.getByRole(width === 390 ? "button" : "row")
         .filter({ has: page.getByText(scope.studentName, { exact: true }) });
       await expect(resultRow).toContainText("80");
+      await resultRow.scrollIntoViewIfNeeded();
+      await expect(resultRow).toBeInViewport();
       await assertNoHorizontalOverflow(page);
       await testInfo.attach(`real-exam-excel-persisted-${width}`, {
         body: await page.screenshot({ path: testInfo.outputPath(`real-exam-excel-persisted-${width}.png`), fullPage: true, animations: "disabled" }), contentType: "image/png",
@@ -126,6 +132,12 @@ export async function verifyExcelAssessment(
     ranked.eachRow(row => { if (row.getCell(3).value === scope.studentName) rankedRows.push(row); });
     expect(rankedRows).toHaveLength(1);
     expect([5, 6, 11, 12].map(column => rankedRows[0].getCell(column).value)).toEqual([80, 100, "완료", "5"]);
+    const priorities = analysis.getWorksheet("문항 우선순위")!;
+    expect(priorities).toBeDefined();
+    const questionFiveRows: ExcelJS.Row[] = [];
+    priorities.eachRow(row => { if (row.getCell(2).value === 5) questionFiveRows.push(row); });
+    expect(questionFiveRows).toHaveLength(1);
+    expect(questionFiveRows[0].getCell(7).value).toBe(20);
     boundary.assertClean();
     guards.assertZeroDefects();
   } finally { await context.close(); }
