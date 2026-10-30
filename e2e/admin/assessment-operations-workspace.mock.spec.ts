@@ -540,9 +540,9 @@ test("@essay-answer 수학 단답은 한 줄 숫자 입력과 저장을 유지�
   expect(await answer.evaluate((element) => element.tagName)).toBe("INPUT");
   await answer.fill("999");
   await answer.press("Enter");
-  expect(state.answerWrites ?? 0).toBe(0);
+  // The shared modal handles numeric-input Enter in document capture phase.
+  await expect.poll(() => state.answerWrites).toBe(1);
   const save = page.getByRole("button", { name: "저장 (총 100점)", exact: true });
-  await save.click();
   await expect.poll(() => state.savedAnswers?.["2"]).toBe("999");
   await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
   await expect(save).toBeEnabled();
@@ -550,6 +550,16 @@ test("@essay-answer 수학 단답은 한 줄 숫자 입력과 저장을 유지�
   await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
   await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
   await expect(answer).toHaveValue("999");
+  await answer.fill("0");
+  await save.click();
+  await expect.poll(() => state.answerWrites).toBe(2);
+  await expect.poll(() => state.savedAnswers?.["2"]).toBe("0");
+  await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+  await expect(save).toBeEnabled();
+  await page.reload();
+  await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
+  await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+  await expect(answer).toHaveValue("0");
 });
 
 for (const width of [1366, 390]) {
