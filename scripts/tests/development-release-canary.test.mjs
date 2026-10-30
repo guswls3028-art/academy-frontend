@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import test from "node:test";
-import { stripTypeScriptTypes } from "node:module";
+import { createRequire, stripTypeScriptTypes } from "node:module";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import http from "node:http";
 import { chromium } from "@playwright/test";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -1396,6 +1398,115 @@ test("Inspect match evidence records booleans without publishing compared values
     assert.equal(observation[expectedFalse], false);
     assert.equal(Object.values(observation).filter((value) => value === false).length, 1);
     assert.doesNotMatch(JSON.stringify(observation), /release-secret|digest-secret|other-release|other-digest/);
+  }
+});
+
+test("development Playwright arguments bound only the owned child and preserve all CLI inputs", () => {
+  const input = ["fixture-cli.js", "test", "--config=fixture.config.cjs", "--project=api-only"];
+  assert.deepEqual(runner.developmentPlaywrightNodeArgs(input), ["--max-http-header-size=65536", ...input]);
+  assert.deepEqual(input, ["fixture-cli.js", "test", "--config=fixture.config.cjs", "--project=api-only"]);
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.match(source, /tests = ownedProcess\(process\.execPath, developmentPlaywrightNodeArgs\(\[path\.join\(ROOT, "node_modules\/@playwright\/test\/cli\.js"\), "test", "--config=playwright\.development-release\.config\.ts"\]\),/);
+  assert.doesNotMatch(source, /NODE_OPTIONS|insecureHTTPParser|insecure-http-parser/);
+});
+
+test("actual Playwright API-only worker inherits the bounded header cap: loopback 32KiB fails default, passes 64KiB, and 80KiB fails", { timeout: 45_000 }, async () => {
+  const temporaryRoot = realpathSync(tmpdir());
+  const directory = mkdtempSync(join(temporaryRoot, "academy-header-cap-"));
+  const config = join(directory, "playwright.config.cjs");
+  const playwright = createRequire(import.meta.url).resolve("@playwright/test");
+  const guardPath = fileURLToPath(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url));
+  const cli = fileURLToPath(new URL("../../node_modules/@playwright/test/cli.js", import.meta.url));
+  let requests = 0, active;
+  const server = http.createServer((request, response) => {
+    requests++;
+    const size = request.url === "/bytes/32768" ? 32768 : request.url === "/bytes/81920" ? 81920 : 0;
+    if (!size) { response.writeHead(400); response.end(); return; }
+    response.writeHead(200, { "x-synthetic-padding": "x".repeat(size), "content-type": "text/plain", connection: "close" });
+    response.end("ok");
+  });
+  try {
+    await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
+    writeFileSync(join(directory, "header-cap.spec.cjs"), `
+const { test, expect } = require(${JSON.stringify(playwright)});
+const http = require('node:http');
+const { readFileSync } = require('node:fs');
+const { stripTypeScriptTypes } = require('node:module');
+test('bounded real API transport in the Playwright worker', async ({ request }, testInfo) => {
+  const source = stripTypeScriptTypes(readFileSync(${JSON.stringify(guardPath)}, 'utf8'));
+  const policy = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+  const metadata = testInfo.config.metadata;
+  let status = null, bodyBytes = null, nativeKind = null;
+  try {
+    const response = await request.get(metadata.url, { maxRedirects: 0, maxRetries: 0, timeout: 5000 });
+    status = response.status(); bodyBytes = (await response.body()).length;
+  } catch (error) { nativeKind = policy.safeNativeTransportKind(error); }
+  const probe = { maxHeaderBytes: http.maxHeaderSize, status, bodyBytes, nativeKind };
+  console.log(JSON.stringify({ headerCapProbe: probe }));
+  expect(probe).toEqual(metadata.expected);
+});
+`);
+    for (const [headerBytes, raised, expected] of [
+      [32768, false, { maxHeaderBytes: 16384, status: null, bodyBytes: null, nativeKind: "http-header-overflow" }],
+      [32768, true, { maxHeaderBytes: 65536, status: 200, bodyBytes: 2, nativeKind: null }],
+      [81920, true, { maxHeaderBytes: 65536, status: null, bodyBytes: null, nativeKind: "http-header-overflow" }],
+    ]) {
+      writeFileSync(config, "module.exports = " + JSON.stringify({ testDir: directory, testMatch: "header-cap.spec.cjs",
+        outputDir: join(directory, "results"), retries: 0, workers: 1, timeout: 10_000, reporter: [["json"]],
+        use: { trace: "off", screenshot: "off", video: "off" },
+        metadata: { url: `http://127.0.0.1:${server.address().port}/bytes/${headerBytes}`, expected } }) + ";\n");
+      const args = [cli, "test", `--config=${config}`];
+      active = runner.ownedProcess(process.execPath, raised ? runner.developmentPlaywrightNodeArgs(args) : args, {}, 10_000, 1000);
+      const result = await active.done;
+      const report = JSON.parse(result.stdout);
+      const output = report.suites[0].specs[0].tests[0].results[0].stdout;
+      const probe = output.map(entry => JSON.parse(entry.text)).find(value => value.headerCapProbe)?.headerCapProbe;
+      assert.deepEqual(probe, expected);
+      assert.equal(result.code, 0);
+      assert.equal(report.stats.expected, 1);
+      assert.equal(report.stats.unexpected, 0);
+      console.log(JSON.stringify({ loopbackHeaderCap: { syntheticHeaderBytes: headerBytes, ...probe } }));
+    }
+    assert.equal(requests, 3, "no redirect, retry or mutation replay");
+  } finally {
+    if (active) { active.stop(); await active.done; }
+    server.closeAllConnections();
+    if (server.listening) await new Promise(resolve => server.close(resolve));
+    assert.equal(dirname(realpathSync(directory)), temporaryRoot, "remove only the owned temporary fixture directory");
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("header-overflow classification and official evidence preserve only the closed kind", () => {
+  const observer = policyModule.createReleaseContextObservation(1);
+  for (const error of [new Error("Parse Error: Header overflow"),
+    new Error("route.fetch: Parse Error: Header overflow\nCall log:\nhttps://private.invalid/?token=private-secret"),
+    new Error("apiRequestContext.get: Parse Error: Header overflow\nAuthorization: private-secret"),
+    Object.assign(new Error("private-secret"), { code: "HPE_HEADER_OVERFLOW" })]) {
+    const nativeKind = policyModule.safeNativeTransportKind(error);
+    assert.equal(nativeKind, "http-header-overflow");
+    observer.record({ phase: "route-handler", stage: "terminal", method: "GET", pathTemplate: null, nativeKind,
+      nativeCode: policyModule.safeNativeTransportCode(error),
+      publicProvider: { providerClass: "youtube.com", resourceKind: "embed", operation: "fetch", httpStatus: null } });
+  }
+  const observe = payload => observeReleaseTestResult(JSON.stringify(contextReport([{ releaseContextObservation: payload }], "public-video-realuse.spec.ts")));
+  const snapshot = observer.snapshot();
+  const observed = observe(snapshot);
+  assert.equal(observed.rejectedContextObservationCount, 0);
+  assert.equal(observed.contextObservations[0].events.length, 4);
+  assert.ok(observed.contextObservations[0].events.every(event => event.nativeKind === "http-header-overflow" && event.nativeCode === "other"));
+  assert.doesNotMatch(JSON.stringify(observed), /private-secret|private\.invalid|Authorization|HPE_HEADER_OVERFLOW/);
+  for (const error of [new Error("private-secret Header overflow"), new Error("Parse Error: Header overflow private-secret"),
+    new Error("unknown error\nCall log: Parse Error: Header overflow"), { code: "HPE_HEADER_OVERFLOW private-secret" }]) {
+    assert.equal(policyModule.safeNativeTransportKind(error), "other");
+  }
+  for (const patch of [{ nativeKind: "HPE_HEADER_OVERFLOW private-secret" }, { rawPacket: "private-secret" }, { reason: "private-secret" }]) {
+    const payload = structuredClone(snapshot);
+    Object.assign(payload.events[0], patch);
+    const rejected = observe(payload);
+    assert.equal(rejected.rejectedContextObservationCount, 1);
+    assert.deepEqual(rejected.contextObservations, []);
+    assert.doesNotMatch(JSON.stringify(rejected), /private-secret/);
   }
 });
 
@@ -3766,7 +3877,7 @@ test("official evidence admits only closed public-provider failure operations an
 test("actual public-video primary markers retain closed journey stages only for the exact public-video spec", () => {
   const outputs = [];
   for (const stage of ["publisher-login", "showcase-edit", "video-register", "video-publish", "public-catalog", "public-detail",
-    "player-ready", "video-edit", "video-hide", "video-delete", "video-reregister"]) {
+    "player-ready", "player-playing", "player-paused", "video-edit", "video-hide", "video-delete", "video-reregister"]) {
     policyModule.emitReleaseTestFailure(new Error("locator.waitFor: Timeout private-secret https://private.invalid/?token=secret"),
       "public-video-primary", value => outputs.push(value), stage);
   }

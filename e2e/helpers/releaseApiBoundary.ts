@@ -471,7 +471,7 @@ export type RequestTransportDiagnostic = {
 };
 
 type NativeTransportCode = "ECONNRESET" | "ECONNREFUSED" | "EPIPE" | "ETIMEDOUT" | "timeout" | "context-disposed" | "other";
-type NativeTransportKind = "socket-hang-up" | "response-aborted" | "decompression" | NativeTransportCode;
+type NativeTransportKind = "http-header-overflow" | "socket-hang-up" | "response-aborted" | "decompression" | NativeTransportCode;
 export type ReleaseObservationEvent = {
   phase: "route-fetch" | "route-fulfill" | "route-handler" | "api-request" | "browser-console" | "browser-pageerror"
     | "page-close" | "page-crash" | "context-close" | "browser-disconnected";
@@ -520,6 +520,8 @@ export function safeNativeTransportKind(error: unknown): NativeTransportKind {
   // Playwright's wire Error preserves message/name, not Node's code/cause.
   // Classify the first line only: its call log may contain URLs and credentials.
   const firstLine = error instanceof Error ? error.message.split(/\r?\n/, 1)[0].trim() : "";
+  if ((isRecord(error) && error.code === "HPE_HEADER_OVERFLOW")
+    || /^(?:[A-Za-z.]+:\s*)?Parse Error: Header overflow$/i.test(firstLine)) return "http-header-overflow";
   if (/^(?:[A-Za-z.]+:\s*)?socket hang up$/i.test(firstLine)) return "socket-hang-up";
   if (/^(?:[A-Za-z.]+:\s*)?aborted$/i.test(firstLine)) return "response-aborted";
   if (/^(?:[A-Za-z.]+:\s*)?failed to decompress '(?:gzip|x-gzip|br|deflate)' encoding:/i.test(firstLine)) return "decompression";
@@ -527,7 +529,7 @@ export function safeNativeTransportKind(error: unknown): NativeTransportKind {
 }
 
 const PUBLIC_VIDEO_JOURNEY_STAGES = ["publisher-login", "showcase-edit", "video-register", "video-publish",
-  "public-catalog", "public-detail", "player-ready", "video-edit", "video-hide", "video-delete", "video-reregister"] as const;
+  "public-catalog", "public-detail", "player-ready", "player-playing", "player-paused", "video-edit", "video-hide", "video-delete", "video-reregister"] as const;
 export type PublicVideoJourneyStage = typeof PUBLIC_VIDEO_JOURNEY_STAGES[number];
 
 export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "public-video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup",

@@ -303,3 +303,18 @@ test("actual public-video spec records its primary stage before strict close and
     assert.equal(observed.testFailureObservations[0].journeyStage, "publisher-login");
   }
 });
+
+test("provider header overflow remains terminal with closed official diagnostics and no retry", async () => {
+  const fixture = await setup();
+  assert.deepEqual(await fixture.request(video.thumbnail_url, {
+    fetchError: new Error("route.fetch: Parse Error: Header overflow\nCall log:\nhttps://private.invalid/?token=private-secret"),
+  }), { relayed: 0, aborted: 1 });
+  assert.throws(() => fixture.guard.assertClean());
+  const observed = observePublicEvidence([{ releaseContextObservation: fixture.guard.observation.snapshot() }]);
+  assert.equal(observed.rejectedContextObservationCount, 0);
+  assert.equal(observed.contextObservations[0].events.find(event => event.publicProvider).nativeKind, "http-header-overflow");
+  assert.doesNotMatch(JSON.stringify(observed), /private-secret|private\.invalid|Call log/);
+  assert.equal(fixture.fetches.length, 1);
+  assert.equal(fixture.guard.transport.readFetchRetries, 0);
+  assert.equal(fixture.guard.transport.mutationReplays, 0);
+});
