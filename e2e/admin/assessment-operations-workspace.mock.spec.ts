@@ -67,6 +67,9 @@ async function installApi(page: Page, state: MockState) {
       state.exam = { ...state.exam, template_exam_id: 9990 };
       return json(state.exam);
     }
+    if (path === `/exams/${EXAM_ID}/structure/ensure/` && method === "POST") {
+      return json(state.exam);
+    }
     if (path === "/exams/pdf-extract/" && method === "POST") {
       state.pdfUploads = (state.pdfUploads ?? 0) + 1;
       return json({ status: "source_saved", message: "원본 저장 완료" });
@@ -515,6 +518,7 @@ for (const width of [1366, 1100, 390]) {
     await save.click();
     await expect.poll(() => state.answerWrites).toBe(2);
     await expect.poll(() => state.savedAnswers?.["2"]).toBe(edited);
+    await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
     await expect(save).toBeEnabled();
     await page.reload();
     await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
@@ -540,6 +544,7 @@ test("@essay-answer 수학 단답은 한 줄 숫자 입력과 저장을 유지�
   const save = page.getByRole("button", { name: "저장 (총 100점)", exact: true });
   await save.click();
   await expect.poll(() => state.savedAnswers?.["2"]).toBe("999");
+  await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
   await expect(save).toBeEnabled();
   await page.reload();
   await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
