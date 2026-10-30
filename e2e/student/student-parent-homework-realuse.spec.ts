@@ -50,6 +50,8 @@ type HomeworkSummary = {
 
 type CreatedState = {
   family: QaFamily | null;
+  previewFamily?: QaFamily;
+  previewEnrollmentId?: number;
   adminAccess: string;
   lectureId?: number;
   sessionId?: number;
@@ -130,8 +132,21 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
     }, [201]);
     created.completionHomeworkId = completion.id;
     expect(completion.grading_mode).toBe("COMPLETION");
-    await expectApi(request, "PUT", `/homework/assignments/?homework_id=${completion.id}`, admin.access,
-      { enrollment_ids: [created.enrollmentId] }, [200]);
+    // A separate disposable parent avoids phone deduplication hiding a student's preview.
+    created.previewFamily = await createQaFamily(request, admin.access, "homework-preview", 1);
+    const previewStudent = created.previewFamily.students[0];
+    const previewEnrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/bulk_create/", admin.access, {
+      lecture: created.lectureId, students: [previewStudent.id],
+    });
+    created.previewEnrollmentId = previewEnrollments[0].id;
+    const previewSessionEnrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/session-enrollments/bulk_create/", admin.access, {
+      session: created.sessionId, enrollments: [created.previewEnrollmentId],
+    });
+    created.sessionEnrollmentIds.push(...previewSessionEnrollments.map(row => row.id));
+    for (const homeworkId of [created.homeworkId, completion.id]) {
+      await expectApi(request, "PUT", `/homework/assignments/?homework_id=${homeworkId}`, admin.access,
+        { enrollment_ids: [created.enrollmentId, created.previewEnrollmentId] }, [200]);
+    }
     const originalOrder = [created.homeworkId!, completion.id];
     const scoresPath = `/results/admin/sessions/${created.sessionId}/scores/`;
     const verifyMixed = async (order: number[], selected: number[], completionScore: number) => {
@@ -194,10 +209,16 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await expect(numeric).toHaveText("92.5");
       await numeric.click();
       await numeric.fill("92");
+      const previewNumeric = staffPage.getByRole("textbox", { name: `${previewStudent.name} · ${homeworkTitle} 점수 입력`, exact: true });
+      await previewNumeric.click();
+      await previewNumeric.fill("60");
+      await staffPage.getByRole("group", { name: `${previewStudent.name} · ${completionTitle} 완료 상태`, exact: true })
+        .getByRole("button", { name: width === 1366 ? "미통과" : "통과", exact: true }).click();
       const state = cell.getByRole("group", { name: `${studentName} · ${completionTitle} 완료 상태`, exact: true });
       const scored = staffPage.waitForResponse(response => response.request().method() === "PATCH"
         && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
-        && response.request().postDataJSON()?.homework_id === completion.id);
+        && response.request().postDataJSON()?.homework_id === completion.id
+        && response.request().postDataJSON()?.enrollment_id === created.enrollmentId);
       if (width === 1366) {
         await state.locator('button[aria-pressed="true"]').focus();
         await staffPage.keyboard.press("1");
@@ -298,6 +319,9 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
         lectureId: created.lectureId!, sessionId: created.sessionId!, enrollmentId: created.enrollmentId!,
         homeworkId: created.homeworkId!, homeworkTitle, completionHomeworkId: completion.id,
         completionTitle, completionScore: width === 1366 ? 1 : 0, studentName,
+        studentId: created.family!.students[0].id,
+        comparisonStudent: { id: previewStudent.id, name: previewStudent.name,
+          enrollmentId: created.previewEnrollmentId, score: 60, completionScore: width === 1366 ? 0 : 1 },
       }, width);
 
       await staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }).click();
@@ -402,6 +426,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     await remove("DELETE", `/enrollments/session-enrollments/${id}/`);
   }
   if (created.enrollmentId) await remove("DELETE", `/enrollments/${created.enrollmentId}/`);
+  if (created.previewEnrollmentId) await remove("DELETE", `/enrollments/${created.previewEnrollmentId}/`);
   if (created.duplicateEnrollmentId) await remove("DELETE", `/enrollments/${created.duplicateEnrollmentId}/`);
   if (created.sessionId) await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
   if (created.duplicateSessionId) await remove("DELETE", `/lectures/sessions/${created.duplicateSessionId}/`);
@@ -410,7 +435,10 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.staffId) await remove("DELETE", `/staffs/${created.staffId}/`);
   // Staff deletion deactivates membership; the exact qa-* tenant teardown owns
   // the remaining synthetic User/token/audit cleanup and its zero-residue proof.
-  await cleanupQaFamily(request, created.adminAccess, created.family);
+  for (const family of [created.family, created.previewFamily]) {
+    try { await cleanupQaFamily(request, created.adminAccess, family ?? null); }
+    catch (error) { failures.push(`family cleanup: ${String(error)}`); }
+  }
   for (const [label, path] of [
     ...(created.completionHomeworkId ? [["completion homework", `/homeworks/${created.completionHomeworkId}/`] as const] : []),
     ...(created.homeworkId ? [[`homework ${created.homeworkId}`, `/homeworks/${created.homeworkId}/`] as const] : []),

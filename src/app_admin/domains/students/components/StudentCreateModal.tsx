@@ -2,6 +2,7 @@
 // 학생 등록 모달 — 초기 선택(1명만 등록 / 엑셀 업로드) 후 해당 폼 표시
 
 import { useEffect, useRef, useState } from "react";
+import ExcelRowIssues from "@/shared/ui/excel/ExcelRowIssues";
 import { FiCheckCircle, FiInfo, FiMessageSquare, FiSmartphone, FiUsers } from "react-icons/fi";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
@@ -151,6 +152,7 @@ export default function StudentCreateModal({
   const confirmPasswords = useRegistrationPasswordConfirmation();
   const confirmationInFlightRef = useRef(false);
   const excelReadVersionRef = useRef(0);
+  const excelSubmissionRef = useRef(false);
   const [mode, setMode] = useState<RegisterMode>("choice");
   const [busy, setBusy] = useState(false);
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
@@ -166,7 +168,7 @@ export default function StudentCreateModal({
     excelReadVersionRef.current += 1;
     if (!open) return;
     setMode("choice");
-    setBusy(false);
+    setBusy(excelSubmissionRef.current);
     confirmationInFlightRef.current = false;
     onBulkProgress?.(null);
     setSelectedExcelFile(null);
@@ -449,7 +451,8 @@ export default function StudentCreateModal({
   }
 
   async function handleExcelRegister() {
-    if (busy || confirmationInFlightRef.current || !selectedExcelFile || !parsedExcel?.rows.length) return;
+    if (busy || excelSubmissionRef.current || confirmationInFlightRef.current || !selectedExcelFile || !parsedExcel?.rows.length) return;
+    const readVersion = excelReadVersionRef.current;
     const eligibleCount = parsedExcel.rows.length;
     confirmationInFlightRef.current = true;
     const passwordChoice = await confirmPasswords({
@@ -470,9 +473,12 @@ export default function StudentCreateModal({
       confirmText: `${eligibleCount}명 등록 요청`,
       cancelText: "다시 확인",
     });
-    confirmationInFlightRef.current = false;
-    if (!passwordChoice || busy) return;
+    if (!passwordChoice || busy || excelSubmissionRef.current || readVersion !== excelReadVersionRef.current) {
+      confirmationInFlightRef.current = false;
+      return;
+    }
 
+    excelSubmissionRef.current = true;
     setBusy(true);
     try {
       const { job_id } = await uploadStudentBulkFromExcel(
@@ -507,11 +513,14 @@ export default function StudentCreateModal({
               : "등록 요청 중 오류가 발생했습니다.";
       feedback.error(msg);
     } finally {
+      confirmationInFlightRef.current = false;
+      excelSubmissionRef.current = false;
       setBusy(false);
     }
   }
 
   const handleClose = () => {
+    if (excelSubmissionRef.current) return;
     excelReadVersionRef.current += 1;
     setDeletedStudentConflict(null);
     onClose();
@@ -889,12 +898,10 @@ export default function StudentCreateModal({
                 {excelIssues.length > 0 ? (
                   <div className={styles.phoneCoverageNotice} data-tone="warning" role="alert">
                     <strong>입력 확인 필요 {excelIssues.length}명</strong>
-                    <p>아래 행은 등록되지 않습니다. 파일을 수정해 다시 선택하거나 정상 {excelRowCount}명만 먼저 등록할 수 있습니다.</p>
-                    <ul className={styles.importIssueList}>
-                      {excelIssues.map((issue) => (
-                        <li key={issue.row}>{issue.row}행 · {issue.name}: {issue.reason}</li>
-                      ))}
-                    </ul>
+                    <p>{excelRowCount > 0
+                      ? `아래 행은 등록되지 않습니다. 파일을 수정해 다시 선택하거나 정상 ${excelRowCount}명만 먼저 등록할 수 있습니다.`
+                      : "등록 가능한 행이 없습니다. 아래 오류를 수정한 뒤 파일을 다시 선택해 주세요."}</p>
+                    <ExcelRowIssues issues={excelIssues} />
                   </div>
                 ) : null}
                 {invalidExcelStudentPhoneNames.length > 0 ? (

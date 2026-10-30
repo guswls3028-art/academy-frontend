@@ -7,6 +7,7 @@ const asyncStatusQueryKeys = {
   videoStats: ["video-stats"] as const,
   videoStatsFor: (videoId: number) => ["video-stats", videoId] as const,
   lectureEnrollments: ["lecture-enrollments"] as const,
+  sessionEnrollments: ["session-enrollments"] as const,
   attendanceMatrix: ["attendance-matrix"] as const,
   sessions: ["sessions"] as const,
   lecture: ["lecture"] as const,
@@ -45,6 +46,7 @@ export function invalidateVideoRetry(queryClient: QueryClient, videoId: number) 
 
 export function invalidateExcelSuccessCaches(queryClient: QueryClient) {
   invalidateMany(queryClient, [
+    asyncStatusQueryKeys.sessionEnrollments,
     asyncStatusQueryKeys.lectureEnrollments,
     asyncStatusQueryKeys.attendanceMatrix,
     asyncStatusQueryKeys.sessions,

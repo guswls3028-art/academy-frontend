@@ -64,6 +64,7 @@ function FailedRow({ item }: { item: StudentImportFailedRow }) {
 }
 
 export default function StudentImportResultDialog({ result, onClose }: Props) {
+  const isEnrollment = result.kind === "enrollment";
   const successfulCount = result.createdCount + result.restoredCount;
   const hasCreatedCountWithoutRows = result.createdCount > result.createdRows.length;
 
@@ -81,7 +82,7 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
         title={(
           <span className={styles.title}>
             <FileCheck2 aria-hidden size={24} />
-            학생 등록 결과
+            {isEnrollment ? "수강 등록 결과" : "학생 등록 결과"}
           </span>
         )}
         description="엑셀의 각 행이 어떻게 처리됐는지 한눈에 확인할 수 있습니다."
@@ -94,9 +95,9 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
           </div>
 
           <div className={styles.summary} aria-label="등록 결과 요약">
-            <SummaryCard label="신규 등록" value={result.createdCount} tone="created" />
-            <SummaryCard label="복원" value={result.restoredCount} tone="neutral" />
-            <SummaryCard label="이미 등록" value={result.duplicateCount} tone="existing" />
+            <SummaryCard label={isEnrollment ? "수강 등록" : "신규 등록"} value={result.createdCount} tone="created" />
+            {!isEnrollment && <SummaryCard label="복원" value={result.restoredCount} tone="neutral" />}
+            {!isEnrollment && <SummaryCard label="이미 등록" value={result.duplicateCount} tone="existing" />}
             <SummaryCard label="확인 필요" value={result.failedCount} tone="failed" />
           </div>
 
@@ -112,17 +113,17 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
                 </span>
                 <span>
                   <strong id="student-import-success-title">등록 완료</strong>
-                  <small>새 계정과 복원된 계정</small>
+                  <small>{isEnrollment ? "기존 수강을 포함한 학생 수" : "새 계정과 복원된 계정"}</small>
                 </span>
                 <b>{successfulCount.toLocaleString()}명</b>
               </header>
               <div className={styles.listViewport}>
                 {result.createdRows.length === 0 && result.restoredRows.length === 0 ? (
-                  <EmptyRows>새로 등록되거나 복원된 학생이 없습니다.</EmptyRows>
+                  <EmptyRows>{successfulCount > 0 ? "처리 건수는 확인되었으나 행별 상세 목록이 제공되지 않았습니다." : "등록되거나 복원된 학생이 없습니다."}</EmptyRows>
                 ) : (
                   <ul className={styles.rows}>
                     {result.createdRows.map((item, index) => (
-                      <ResultRow key={`created-${item.row}-${index}`} item={item} badge="신규" tone="created" />
+                      <ResultRow key={`created-${item.row}-${index}`} item={item} badge={isEnrollment ? "수강" : "신규"} tone="created" />
                     ))}
                     {result.restoredRows.map((item, index) => (
                       <ResultRow key={`restored-${item.row}-${index}`} item={item} badge="복원" tone="restored" />
@@ -131,7 +132,7 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
                 )}
                 {hasCreatedCountWithoutRows && (
                   <p className={styles.legacyNote}>
-                    신규 전체 {result.createdCount.toLocaleString()}명 중 {result.createdRows.length.toLocaleString()}명 표본을 표시합니다.
+                    {isEnrollment ? "수강 등록" : "신규"} 전체 {result.createdCount.toLocaleString()}명 중 {result.createdRows.length.toLocaleString()}명 표본을 표시합니다.
                   </p>
                 )}
                 {result.restoredCount > result.restoredRows.length && (
@@ -142,7 +143,7 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
               </div>
             </section>
 
-            <section className={styles.panel} aria-labelledby="student-import-existing-title">
+            {!isEnrollment && <section className={styles.panel} aria-labelledby="student-import-existing-title">
               <header className={styles.panelHeader}>
                 <span className={`${styles.panelIcon} ${styles.panelIcon_existing}`}>
                   <UsersRound aria-hidden size={18} />
@@ -155,7 +156,7 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
               </header>
               <div className={styles.listViewport}>
                 {result.duplicateRows.length === 0 ? (
-                  <EmptyRows>중복으로 확인된 학생이 없습니다.</EmptyRows>
+                  <EmptyRows>{result.duplicateCount > 0 ? "중복 건수는 확인되었으나 행별 상세 목록이 제공되지 않았습니다." : "중복으로 확인된 학생이 없습니다."}</EmptyRows>
                 ) : (
                   <ul className={styles.rows}>
                     {result.duplicateRows.map((item, index) => (
@@ -169,7 +170,7 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
                   </p>
                 )}
               </div>
-            </section>
+            </section>}
 
             <section className={`${styles.panel} ${styles.failedPanel}`} aria-labelledby="student-import-failed-title">
               <header className={styles.panelHeader}>
@@ -184,7 +185,7 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
               </header>
               <div className={styles.listViewport}>
                 {result.failedRows.length === 0 ? (
-                  <EmptyRows>실패한 학생이 없습니다.</EmptyRows>
+                  <EmptyRows>{result.failedCount > 0 ? "확인이 필요한 행이 있으나 상세 목록이 제공되지 않았습니다. 원본 명단과 등록 결과를 비교해 주세요." : "실패한 학생이 없습니다."}</EmptyRows>
                 ) : (
                   <ul className={styles.rows}>
                     {result.failedRows.map((item, index) => (
@@ -204,7 +205,9 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
           {result.failedCount > 0 && (
             <div className={styles.retryHint}>
               <RotateCcw aria-hidden size={16} />
-              실패한 행만 수정해 다시 업로드해도 이미 등록된 학생 정보는 덮어쓰지 않습니다.
+              {isEnrollment
+                ? "제외된 행의 입력과 학생 명부를 확인한 뒤 해당 행만 다시 업로드해 주세요. 완료된 수강 등록은 유지됩니다."
+                : "실패한 행만 수정해 다시 업로드해도 이미 등록된 학생 정보는 덮어쓰지 않습니다."}
             </div>
           )}
         </div>

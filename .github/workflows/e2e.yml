@@ -167,7 +167,9 @@ jobs:
     name: E2E route mocks (shard ${{ matrix.shard }}/3)
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Shard 3 also runs WebKit, a production build, runtime smoke and theme checks.
+    # Their combined duration exceeded 60 minutes after the browser tests passed.
+    timeout-minutes: ${{ matrix.shard == 3 && 90 || 60 }}
     strategy:
       fail-fast: false
       matrix:

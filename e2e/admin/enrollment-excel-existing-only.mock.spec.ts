@@ -10,6 +10,8 @@ const SESSION_ID = 9962;
 
 type ApiOptions = {
   firstJobFailed?: boolean;
+  progressUnavailableOnce?: boolean;
+  detailedResult?: boolean;
 };
 
 function localJwt(): string {
@@ -32,6 +34,7 @@ async function existingStudentWorkbook(): Promise<Buffer> {
 }
 
 async function installApi(page: Page, submittedBodies: string[], options: ApiOptions = {}) {
+  let progressPolls = 0;
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -121,6 +124,10 @@ async function installApi(page: Page, submittedBodies: string[], options: ApiOpt
     }
     const progressMatch = path.match(/^\/jobs\/existing-enroll-(\d+)\/progress\/$/);
     if (progressMatch) {
+      progressPolls += 1;
+      if (options.progressUnavailableOnce && progressPolls === 1) {
+        return json({ job_id: `existing-enroll-${progressMatch[1]}`, status: "UNKNOWN" });
+      }
       const attempt = Number(progressMatch[1]);
       if (options.firstJobFailed && attempt === 1) {
         return json({
@@ -137,13 +144,87 @@ async function installApi(page: Page, submittedBodies: string[], options: ApiOpt
         result: {
           enrolled_count: 1,
           created_students_count: 0,
-          not_found_students_count: attempt === 1 ? 1 : 0,
+          not_found_students_count: attempt === 1 && !options.detailedResult ? 1 : 0,
           ambiguous_students_count: attempt === 1 ? 1 : 0,
           session_id: SESSION_ID,
+          ...(options.detailedResult ? {
+            total: 3,
+            excluded_count: 2,
+            enrolled_rows: [{ row: 2, name: "등록완료학생", student_id: 1 }],
+            excluded_rows: [
+              { row: 3, name: "전화오류학생", error: "학부모 전화번호 형식을 확인해 주세요.", reason_code: "invalid_row" },
+              { row: 4, name: "중복명부학생", error: "동일 정보 학생이 여러 명입니다.", reason_code: "ambiguous" },
+            ],
+          } : {}),
         },
       });
     }
     return json({ count: 0, results: [] });
+  });
+}
+
+for (const width of [390, 1366]) {
+  test(`입력 오류 행을 수정하고 진행 조회 중단 뒤 결과를 복구한다 ${width}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const submitted: string[] = [];
+    const dialog = await openEnrollmentExcel(page, submitted, { progressUnavailableOnce: true, detailedResult: true });
+    await dialog.getByRole("button", { name: "엑셀 다시 선택" }).click();
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("학생목록");
+    sheet.addRows([["이름", "학부모전화번호"], ["번호확인학생", "0101234567.8"]]);
+    const upload = async () => dialog.locator('input[type="file"]').setInputFiles({
+      name: "수정명단.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: Buffer.from(await workbook.xlsx.writeBuffer()),
+    });
+    await upload();
+    await expect(dialog.getByText("입력 확인 필요 1명", { exact: true })).toBeVisible();
+    await expect(dialog.getByText(/2행 · 번호확인학생/)).toBeVisible();
+    await expect(dialog.getByText("등록 가능한 행이 없습니다. 아래 오류를 수정한 뒤 파일을 다시 선택해 주세요.", { exact: true })).toBeVisible();
+    await expect(dialog.getByText(/정상 0명만 먼저 요청/)).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: "맞아요, 등록하기" })).toBeDisabled();
+    expect(submitted).toHaveLength(0);
+    await testInfo.attach(`synthetic-enrollment-invalid-${width}px`, {
+      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-invalid-${width}px.png`), fullPage: true, animations: "disabled" }),
+      contentType: "image/png",
+    });
+    await dialog.getByRole("button", { name: "엑셀 다시 선택" }).click();
+    sheet.getCell("A2").value = "등록완료학생";
+    sheet.getCell("B2").value = "０１０－１２３４－５６７８（부）";
+    sheet.addRow(["전화오류학생", "0101234567.8"]);
+    sheet.addRow(["중복명부학생", "01087654321"]);
+    await upload();
+    await expect(dialog.getByText("2명 매칭 요청 예정", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("입력 확인 필요 1명", { exact: true })).toBeVisible();
+    await expect(dialog.getByText(/정상 2명만 먼저 요청할 수 있습니다/)).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "맞아요, 등록하기" })).toBeEnabled();
+    await testInfo.attach(`synthetic-enrollment-mixed-preview-${width}px`, {
+      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-mixed-preview-${width}px.png`), fullPage: true, animations: "disabled" }),
+      contentType: "image/png",
+    });
+    await dialog.getByRole("button", { name: "맞아요, 등록하기" }).dblclick();
+    await expect.poll(() => submitted.length).toBe(1);
+    await expect(page.getByText(/진행 상태를 다시 확인하고 있습니다/)).toBeVisible();
+    let result = page.getByRole("dialog", { name: "수강 등록 결과" });
+    await expect(result).toBeVisible({ timeout: 20_000 });
+    await expect(result.getByText("등록완료학생", { exact: true })).toBeVisible();
+    await expect(result.getByText("학부모 전화번호 형식을 확인해 주세요.", { exact: true })).toBeVisible();
+    await expect(result.getByText("전체 3명", { exact: true })).toBeVisible();
+    await expect(result.getByLabel("등록 결과 요약")).toContainText("2명");
+    expect(await result.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await testInfo.attach(`synthetic-enrollment-partial-result-${width}px`, {
+      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-partial-result-${width}px.png`), fullPage: true, animations: "disabled" }),
+      contentType: "image/png",
+    });
+    await page.reload();
+    result = page.getByRole("dialog", { name: "수강 등록 결과" });
+    await expect(result).toBeVisible();
+    await expect(result.getByText("중복명부학생", { exact: true })).toBeVisible();
+    await expect(result.getByLabel("등록 결과 요약")).toContainText("2명");
+    expect(submitted).toHaveLength(1);
+    await testInfo.attach(`synthetic-enrollment-restored-result-${width}px`, {
+      body: await page.screenshot({ path: testInfo.outputPath(`synthetic-enrollment-restored-result-${width}px.png`), fullPage: true, animations: "disabled" }),
+      contentType: "image/png",
+    });
   });
 }
 
@@ -208,10 +289,10 @@ for (const viewport of [
     expect(submittedBodies[0]).not.toContain("password_mode");
     expect(submittedBodies[0]).not.toContain("initial_password");
     await expect(page.getByText(
-      "엑셀 수강등록 — 등록 1명, 명부 없음 1명, 명부 중복 1명",
+      "엑셀 수강등록 — 등록 1명, 제외 2명",
       { exact: true },
     )).toBeVisible();
-    await expect(page.getByText(/학생 등록 또는 명부 정리 후 다시 시도해 주세요/).first()).toBeVisible();
+    await expect(page.getByText(/등록 1명, 제외 2명\. 결과에서 제외 사유를 확인해 주세요/).first()).toBeVisible();
   });
 }
 

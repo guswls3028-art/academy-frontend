@@ -223,6 +223,10 @@ Chromium route-mock은 실행기당 최대 3 worker를 유지하고, 한 shard�
 줄이는 [Playwright CI 권고](https://playwright.dev/docs/ci#workers)를 적용한다.
 WebKit의 필수 목록·action timeout·재시도 0·실패 기록은 유지하며, 재발하면 trace와
 server log로 원인을 확인한다. shard 3은 production bundle smoke와 theme 검증도 수행한다.
+shard 1·2의 job 한도는 60분, Chromium·WebKit·build·bundle smoke·theme 검증을
+연속 수행하는 shard 3의 job 한도는 90분이다. 성공한 브라우저 검사 뒤 남은 필수
+검증이 합산 실행 시간 때문에 취소되는 것을 방지한다. 개별 test·action·navigation
+제한 시간, 재시도 0, strict 오류 및 모든 단계 성공을 요구하는 집계 조건은 유지한다.
 모든 shard는 Chromium과 해당 native 의존성을 설치하고, WebKit과 그 native 의존성은
 실제로 iPhone 검증을 실행하는 shard 3에만 설치해 나머지 두 job의 불필요한 설치를 줄인다.
 필수 check 이름 `E2E closed-proxy route mocks`는 세 shard의 결과를 합치며,

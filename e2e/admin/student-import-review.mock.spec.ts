@@ -150,13 +150,22 @@ for (const width of [1366, 390]) {
       ["다른보호자", "오류학생", "0101234567", "01033334444", "MIDDLE", 2],
     ]);
     const dialog = page.getByRole("dialog");
-    await dialog.locator('input[type="file"]').setInputFiles({
+    const uploadWorkbook = async () => dialog.locator('input[type="file"]').setInputFiles({
       name: "표지와-영문명단.xlsx",
       mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       buffer: Buffer.from(await workbook.xlsx.writeBuffer()),
     });
+    roster.getCell("C3").value = "0101234567.8";
+    await uploadWorkbook();
+    await expect(dialog.getByText("입력 확인 필요 2명", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("등록 가능한 행이 없습니다. 아래 오류를 수정한 뒤 파일을 다시 선택해 주세요.", { exact: true })).toBeVisible();
+    await expect(dialog.getByText(/정상 0명만 먼저 등록/)).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: "0명 등록 요청", exact: true })).toBeDisabled();
+    roster.getCell("C3").value = "";
+    await uploadWorkbook();
     await expect(dialog.getByText("입력 확인 필요 1명", { exact: true })).toBeVisible();
     await expect(dialog.getByText(/4행 · 오류학생/)).toBeVisible();
+    await expect(dialog.getByText(/정상 1명만 먼저 등록할 수 있습니다/)).toBeVisible();
     await expect(dialog.getByRole("button", { name: "1명 등록 요청", exact: true })).toBeEnabled();
     await expect(dialog.getByText("없음·식별번호 사용").locator("..")).toContainText("1명");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

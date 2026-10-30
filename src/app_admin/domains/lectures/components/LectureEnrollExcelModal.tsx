@@ -1,11 +1,12 @@
 // PATH: src/app_admin/domains/lectures/components/LectureEnrollExcelModal.tsx
-// 엑셀 업로드 SSOT: docs/DESIGN_SSOT.md §8 — studentExcel + ExcelUploadZone
+// 엑셀 업로드: docs/EXCEL-WORKFLOWS.md — studentExcel + ExcelUploadZone
 // 기존 활성 학생만 매칭해 수강등록 + 1차시 생성 + 차시 등록·출결. 강의명 확인 후 진행.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
+import ExcelRowIssues from "@/shared/ui/excel/ExcelRowIssues";
 import {
   parseStudentExcel,
   downloadStudentExcelTemplate,
@@ -37,34 +38,51 @@ export default function LectureEnrollExcelModal({
   const [busy, setBusy] = useState(false);
   const [parsed, setParsed] = useState<ParseStudentExcelResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const readVersionRef = useRef(0);
+  const submitLockRef = useRef(false);
   useEffect(() => {
+    readVersionRef.current += 1;
     if (open) {
+      setBusy(submitLockRef.current);
       setParsed(null);
       setSelectedFile(null);
     }
-  }, [open]);
+    return () => { readVersionRef.current += 1; };
+  }, [open, lectureId]);
+
+  const handleClose = () => {
+    if (submitLockRef.current) return;
+    readVersionRef.current += 1;
+    onClose();
+  };
 
   const handleExcelFileSelect = async (file: File) => {
-    if (busy) return;
+    if (busy || submitLockRef.current) return;
+    const readVersion = ++readVersionRef.current;
     setBusy(true);
+    setParsed(null);
+    setSelectedFile(null);
     try {
       const result = await parseStudentExcel(file, false); // Existing-student matching does not write profile fields.
-      if (!result.rows.length) {
+      if (readVersion !== readVersionRef.current) return;
+      if (!result.rows.length && !result.issues?.length) {
         feedback.error("등록할 학생 데이터가 없습니다.");
         return;
       }
       setSelectedFile(file);
       setParsed(result);
     } catch (e: unknown) {
+      if (readVersion !== readVersionRef.current) return;
       const msg = e instanceof Error ? e.message : "엑셀 파일을 읽는 중 오류가 발생했습니다.";
       feedback.error(msg);
     } finally {
-      setBusy(false);
+      if (readVersion === readVersionRef.current) setBusy(false);
     }
   };
 
   const handleConfirmAndRegister = async () => {
-    if (busy || !selectedFile || !parsed?.rows.length) return;
+    if (busy || submitLockRef.current || !selectedFile || !parsed?.rows.length) return;
+    submitLockRef.current = true;
     setBusy(true);
     try {
       const { job_id } = await lectureEnrollFromExcelUpload(lectureId, selectedFile);
@@ -72,7 +90,7 @@ export default function LectureEnrollExcelModal({
         feedback.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
         return;
       }
-      asyncStatusStore.addWorkerJob("엑셀 수강등록", job_id, "excel_parsing");
+      asyncStatusStore.addWorkerJob("엑셀 수강등록", job_id, "excel_parsing", lectureId);
       feedback.success("작업이 백그라운드에서 진행됩니다. 우상단 작업박스에서 확인할 수 있습니다.");
       onSuccess?.();
       onClose();
@@ -81,16 +99,17 @@ export default function LectureEnrollExcelModal({
     } catch (e: unknown) {
       feedback.error(e instanceof Error ? e.message : "등록 요청 중 오류가 발생했습니다.");
     } finally {
+      submitLockRef.current = false;
       setBusy(false);
     }
   };
 
   if (!open) return null;
 
-  const isConfirmStep = parsed != null && parsed.rows.length > 0;
+  const isConfirmStep = parsed != null;
 
   return (
-    <AdminModal open onClose={onClose} type="action" width={520} onEnterConfirm={isConfirmStep && !busy ? handleConfirmAndRegister : undefined}>
+    <AdminModal open onClose={handleClose} type="action" width={520} onEnterConfirm={isConfirmStep && !busy && parsed.rows.length > 0 ? handleConfirmAndRegister : undefined}>
       <ModalHeader
         type="action"
         title="수강생 엑셀 업로드"
@@ -120,6 +139,7 @@ export default function LectureEnrollExcelModal({
                 </Button>
               </div>
               <ExcelUploadZone onFileSelect={handleExcelFileSelect} disabled={busy} />
+              {busy && <p role="status">엑셀 파일을 읽고 있습니다…</p>}
             </>
           ) : (
             <>
@@ -144,19 +164,28 @@ export default function LectureEnrollExcelModal({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className={`modal-section-label ${styles.plannedCount}`}>
                   {parsed.rows.length}명 매칭 요청 예정
                 </span>
                 <Button
                   intent="ghost"
                   size="sm"
-                  onClick={() => setParsed(null)}
+                  onClick={() => { setParsed(null); setSelectedFile(null); }}
                   disabled={busy}
                 >
                   엑셀 다시 선택
                 </Button>
               </div>
+              {Boolean(parsed.issues?.length) && (
+                <div className="space-y-2 break-words" role="alert">
+                  <strong>입력 확인 필요 {parsed.issues!.length}명</strong>
+                  <p>{parsed.rows.length > 0
+                    ? `아래 행은 등록되지 않습니다. 파일을 수정해 다시 선택하거나 정상 ${parsed.rows.length}명만 먼저 요청할 수 있습니다.`
+                    : "등록 가능한 행이 없습니다. 아래 오류를 수정한 뒤 파일을 다시 선택해 주세요."}</p>
+                  <ExcelRowIssues issues={parsed.issues!} />
+                </div>
+              )}
             </>
           )}
         </div>
@@ -166,20 +195,20 @@ export default function LectureEnrollExcelModal({
         left={
           <span className={`modal-hint ${styles.footerHint}`}>
             {isConfirmStep
-              ? "맞으면 등록하기를 누르세요. 업로드 후 창을 닫아도 백그라운드에서 작업이 진행됩니다. 우하단에서 진행률을 확인할 수 있습니다."
+              ? "입력을 확인한 뒤 등록해 주세요. 접수 후에는 작업박스에서 진행 상태와 결과를 확인할 수 있습니다."
               : "엑셀 파일 선택 후 강의명 확인 단계로 이동합니다."}
           </span>
         }
         right={
           <>
-            <Button intent="secondary" onClick={onClose} disabled={busy}>
+            <Button intent="secondary" onClick={handleClose} disabled={busy}>
               취소
             </Button>
             {isConfirmStep ? (
               <Button
                 intent="primary"
                 onClick={handleConfirmAndRegister}
-                disabled={busy}
+                disabled={busy || parsed.rows.length === 0}
               >
                 {busy ? "업로드 중…" : "맞아요, 등록하기"}
               </Button>

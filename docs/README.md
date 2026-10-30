@@ -4,6 +4,7 @@
 
 | 문서 | 내용 |
 |------|------|
+| [EXCEL-WORKFLOWS.md](EXCEL-WORKFLOWS.md) | 학생·수강·시험 Excel 입력/결과/재시도, 성능 경계와 전체 파일 경로 인벤토리 |
 | [APPROVAL-WORKFLOWS.md](APPROVAL-WORKFLOWS.md) | 가입·클리닉 자동승인 설정, 대기 신청 확인·부분 실패 재시도와 반응형 계약 |
 | [ASSESSMENT-TOTALS.md](ASSESSMENT-TOTALS.md) | 시험·점수형 과제 선택 합산, 순서 이동, 미입력·충돌 복구와 역할별 후속 표시 |
 | [PROBLEM-CONVERSION.md](PROBLEM-CONVERSION.md) | 시험지 변환·문항 검수·AI 수정 제안·한글 3종 출력과 기존 도구 호환 |

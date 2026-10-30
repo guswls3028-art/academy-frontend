@@ -6,6 +6,83 @@ import { expect, test } from "../fixtures/strictTest";
 import { loadImportWorkbook, MAX_IMPORT_BYTES } from "../../src/shared/utils/excelImport";
 import { readFirstWorksheetRows } from "../../src/shared/utils/excelWorkbook";
 import { parseStudentExcel } from "../../src/shared/product/students/studentExcel";
+import { normalizeExcelPhone } from "../../src/shared/utils/excelPhone";
+import { readWorksheetRows } from "../../src/shared/utils/excelWorkbook";
+
+test("전화 관계표시는 허용된 한쪽 라벨과 단일 번호만 정규화한다", () => {
+  const labels = ["부", "모", "아버지", "어머니", "아빠", "엄마", "부친", "모친", "부모", "학부모", "보호자", "학생", "본인", "father", "MOTHER", "parent", "guardian"];
+  for (const label of labels) {
+    for (const wrapped of [label, `(${label})`, `[${label}]`, `( ${label} )`, `[ ${label} ]`]) {
+      for (const input of [`${wrapped}: 010-1234-5678`, `010-1234-5678 ${wrapped}`]) {
+        expect(normalizeExcelPhone(input), input).toBe("01012345678");
+      }
+    }
+  }
+  for (const input of ["０１０－１２３４－５６７８（부）", "010–1234−5678", "010.1234.5678", "10 1234 5678", "(010)1234-5678", "0101234-5678", "010-12345678", "(010)-12345678", 1012345678]) {
+    expect(normalizeExcelPhone(input), String(input)).toBe("01012345678");
+  }
+  expect(normalizeExcelPhone("12345678")).toBe("12345678");
+  expect(normalizeExcelPhone("")).toBe("");
+  for (const input of ["abc01012345678", "01012345678abc", "부 01012345678 모", "01012345678/01087654321", "01012345678 01087654321", "0101234567.8", "1012345678.0", "1.012345678e9", 1012345678.5, "010-12-345678", "010--1234-5678", "010..1234.5678", "010(1234)5678", "01012345678(미확인)", "01012345678(부)(모)"]) {
+    expect(normalizeExcelPhone(input), String(input)).not.toMatch(/^(?:010[0-9]{8}|[0-9]{8})$/);
+    expect(normalizeExcelPhone(input)).not.toBe("");
+  }
+});
+
+test("시트 점수는 헤더 뒤 50행만 비교해 워커와 동일한 활성 명단을 고른다", async () => {
+  const workbook = new ExcelJS.Workbook();
+  for (const count of [50, 60]) {
+    const sheet = workbook.addWorksheet(`명단${count}`);
+    sheet.addRow(["이름", "학부모전화번호"]);
+    for (let i = 0; i < count; i += 1) sheet.addRow([`학생${count}-${i}`, "01012345678"]);
+  }
+  const parsed = await parseStudentExcel(new NodeFile([await workbook.xlsx.writeBuffer()], "명단선택.xlsx") as unknown as File);
+  expect(parsed.rows).toHaveLength(50);
+  expect(parsed.rows[0].name).toBe("학생50-0");
+});
+
+test("100번째 행의 헤더도 다음 50행을 표본으로 비교한다", async () => {
+  const workbook = new ExcelJS.Workbook();
+  workbook.addWorksheet("적은명단").addRows([["이름", "학부모전화번호"], ["적은학생", "01012345678"]]);
+  const sheet = workbook.addWorksheet("뒤쪽헤더");
+  sheet.getRow(100).values = ["이름", "학부모전화번호"];
+  for (let i = 0; i < 5; i += 1) sheet.addRow([`선택학생${i}`, "01012345678"]);
+  const parsed = await parseStudentExcel(new NodeFile([await workbook.xlsx.writeBuffer()], "뒤쪽헤더.xlsx") as unknown as File);
+  expect(parsed.rows).toHaveLength(5);
+  expect(parsed.rows[0].name).toBe("선택학생0");
+});
+
+test("관계표시 전화는 등록하고 소수·복수 번호 행은 위치를 보존해 수정한다", async () => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("학생목록");
+  sheet.addRows([
+    ["이름", "학부모전화번호", "학생전화번호"],
+    ["보호자표시", "010-0000-0000(부)", ""],
+    ["전각표시", "（어머니）：０１０－１２３４－５６７８", "８７６５４３２１"],
+    ["소수오류", "0101234567.8", ""],
+    ["복수오류", "01012345678 / 01087654321", ""],
+  ]);
+  const parsed = await parseStudentExcel(new NodeFile([await workbook.xlsx.writeBuffer()], "관계표시.xlsx") as unknown as File);
+  expect(parsed.rows.map((row) => row.parentPhone)).toEqual(["01000000000", "01012345678"]);
+  expect(parsed.rows[1]).toMatchObject({ studentPhone: "01087654321", usesIdentifier: true });
+  expect(parsed.issues?.map((issue) => issue.row)).toEqual([4, 5]);
+});
+
+test("희소 시트는 빈 셀을 생성하지 않고 실제 행 번호와 256열 경계를 유지한다", () => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("희소");
+  sheet.getCell("A1").value = "이름";
+  sheet.getCell(100, 256).value = "마지막";
+  const before = sheet.getRow(1).cellCount;
+  const rows = readWorksheetRows(sheet, { preserveEmptyRows: true });
+  expect(rows).toHaveLength(100);
+  expect(rows[1]).toEqual([]);
+  expect(rows[99][255]).toBe("마지막");
+  expect(sheet.getRow(1).cellCount).toBe(before);
+  expect(sheet.findRow(2)).toBeUndefined();
+  sheet.getCell(101, 257).value = "초과";
+  expect(() => readWorksheetRows(sheet)).toThrow(/256열/);
+});
 
 const WORKBOOK_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
 const HANCOM_XLSX_MIME = "application/haansoftxlsx";

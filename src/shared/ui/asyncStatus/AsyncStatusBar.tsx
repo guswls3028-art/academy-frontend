@@ -276,7 +276,10 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     }
     workbox?.setWorkboxOpen(false);
     if (jobType === "excel_parsing") {
-      navigate("/workspace/students/home");
+      const lectureId = Number(task.meta.sourceId);
+      navigate(Number.isSafeInteger(lectureId) && lectureId > 0
+        ? `/workspace/lectures/${lectureId}`
+        : "/workspace/students/home");
       return;
     }
     if (jobType === "messaging") {

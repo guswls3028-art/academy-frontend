@@ -202,6 +202,13 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
   변경한다. 후속 실패와 `AuthContext.clearAuth()`는 이미 저장한 만료 표시와
   복귀 경로를 지우지 않는다.
 - 선제 갱신과 401 후행 갱신은 한 탭에서 같은 single-flight promise를 사용한다.
+  이미 회전이 끝난 뒤 이전 access로 보낸 요청의 401이 늦게 도착하면, 제출 당시와
+  현재 generation·tenant가 정확히 같고 현재 access가 유효할 때만 그 토큰으로 한 번
+  재요청한다. 새 refresh를 다시 회전하지 않는다. generation이 기록되지 않은 요청은
+  이 재사용 경로에 들어가지 않으며, tenant가 바뀌었으면 refresh·재요청 없이 취소한다.
+  재요청에도 원래 tenant 경계를 고정한다. 현재 토큰 자체가 거절됐거나 만료/잘못된
+  토큰이면 기존 refresh 경로를 유지하고, `_retry` 요청의 401은 기존 단일 세션 종료로
+  처리한다. 계정 전환·로그아웃·저장 실패 경계와 다른 탭의 토큰 회전 잠금은 유지한다.
   같은 origin의 여러 탭은 Web Lock으로 refresh token 회전을 직렬화하고, 먼저
   회전한 탭의 새 access/refresh를 재사용한다. 오래된 refresh의 중복 제출 실패가
   다른 탭의 정상 회전 토큰을 지우면 안 된다. Web Lock 미지원 브라우저에서도
@@ -233,6 +240,13 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 
 화면의 버튼 존재만 확인하지 않고 실제 method·path·body, 성공 후 토큰 제거,
 refresh 후 재요청 401의 단일 세션 종료와 복귀 경로 보존을 검증한다.
+`scripts/tests/api-auth-refresh.test.mjs`는 기존 실제 Axios 소스 harness에서 두 원 요청,
+첫 refresh 완료, 늦은 이전-token 401, 재요청 응답 순서를 barrier로 제어한다. 재요청
+성공/401, 계정·tenant 전환, 로그아웃, untracked 요청, 만료/잘못된 현재 토큰과 선제
+refresh를 확인한다. 기존 `guard:test-coverage`가 이 회귀를 실행한다. 브라우저의 같은
+계정 두 page 케이스도 응답 barrier로 늦은 401을 강제하며 refresh 정확히 1회, 두 화면의
+로그인 이동, envelope 제거·만료 안내·복귀 경로 assertion을 유지한다. 임의 sleep이나
+실패 재시도로 순서를 맞추지 않는다.
 
 ```powershell
 pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/auth/signup-tenant-policy.mock.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts --project=chromium --reporter=list

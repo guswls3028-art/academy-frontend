@@ -778,7 +778,30 @@ api.interceptors.response.use(
 
       let refreshed: AuthAccessResult | null;
       try {
-        refreshed = await refreshAccessToken();
+        const current = readAuthTokenEnvelope();
+        const headers = AxiosHeaders.from(original.headers as HeaderSeed);
+        const authorization = headers.get("Authorization");
+        const rejectedAccess = typeof authorization === "string"
+          ? /^Bearer\s+(\S+)$/i.exec(authorization)?.[1]
+          : undefined;
+        const submittedTenant = headers.get("X-Tenant-Code");
+        const requestTenant = original._expectedTenant
+          ?? (typeof submittedTenant === "string" ? submittedTenant : undefined);
+        const currentTenant = getTenantCodeForApiRequest();
+        if (requestTenant !== undefined && requestTenant !== currentTenant) {
+          completeAsyncError();
+          throw new axios.CanceledError("Authentication tenant changed.");
+        }
+        // A second old-token 401 can arrive after the refresh promise settled.
+        // Reuse that rotation only inside the request's captured account/tenant.
+        if (current && original._authGeneration && current.generation === original._authGeneration
+          && requestTenant && requestTenant === currentTenant && rejectedAccess
+          && rejectedAccess !== current.access && !isTokenExpiredOrSoon(current.access)) {
+          original._expectedTenant = requestTenant;
+          refreshed = { ...current, sessionChanged: false, reusedRotation: true };
+        } else {
+          refreshed = await refreshAccessToken();
+        }
       } catch (error) {
         if (error instanceof AuthTokenStorageError) {
           notifyAuthTokenStorageError(error);

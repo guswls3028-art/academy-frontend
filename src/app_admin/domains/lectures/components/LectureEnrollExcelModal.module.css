@@ -17,6 +17,7 @@
 }
 
 .confirmPanel {
+  overflow-wrap: anywhere;
   border: 1px solid var(--color-border-divider);
   background: var(--color-surface-subtle);
 }

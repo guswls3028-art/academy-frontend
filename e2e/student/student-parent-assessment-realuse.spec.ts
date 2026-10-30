@@ -37,6 +37,7 @@ import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helper
 import { verifyAssessmentCopy } from "../helpers/verifyAssessmentCopy";
 import { verifySubmissionInbox } from "../helpers/verifySubmissionInbox";
 import { verifyOnlineWrittenSubmission } from "../helpers/verifyOnlineWrittenSubmission";
+import { verifyExcelAssessment } from "./excelAssessmentRealuse";
 
 // This scenario now spans submission, feedback, templates, grading, copy and
 // attendance and online written-answer journeys. Budget the combined flow without relaxing any individual
@@ -53,6 +54,7 @@ type CreatedState = {
   examId?: number;
   manualExamId?: number;
   onlineWrittenExamId?: number;
+  excelExamId?: number;
   manualStaffId?: number;
   primaryEnrollmentId?: number;
   enrollmentIds: number[];
@@ -147,6 +149,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.onlineWrittenExamId && created.sessionId) {
     await remove("DELETE", `/exams/${created.onlineWrittenExamId}/?session_id=${created.sessionId}`);
   }
+  if (created.excelExamId && created.sessionId) {
+    await remove("DELETE", `/exams/${created.excelExamId}/?session_id=${created.sessionId}`);
+  }
   // Staff deletion deactivates tenant access; the outer owned-tenant cleanup proves User zero.
   if (created.manualStaffId) await remove("DELETE", `/staffs/${created.manualStaffId}/`);
   for (const id of created.attendanceIds) await remove("DELETE", `/lectures/attendance/${id}/`);
@@ -182,6 +187,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       : []),
     ...(created.onlineWrittenExamId && created.sessionId
       ? [[`online written exam ${created.onlineWrittenExamId}`, `/exams/${created.onlineWrittenExamId}/?session_id=${created.sessionId}`] as const]
+      : []),
+    ...(created.excelExamId && created.sessionId
+      ? [[`Excel exam ${created.excelExamId}`, `/exams/${created.excelExamId}/?session_id=${created.sessionId}`] as const]
       : []),
     ...(created.manualStaffId ? [[`manual staff ${created.manualStaffId}`, `/staffs/${created.manualStaffId}/`] as const] : []),
     ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
@@ -459,6 +467,10 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
       lectureId: created.lectureId!, sessionId: created.sessionId!,
       enrollmentId: created.primaryEnrollmentId!, studentName: primary.name,
     }, (id) => { created.onlineWrittenExamId = id; }, (id) => { created.submissionIds.push(id); }, testInfo));
+    await test.step("Excel result template, preview, apply and persisted student result", () => verifyExcelAssessment(page, request, admin, primaryTokens, {
+      lectureId: created.lectureId!, sessionId: created.sessionId!,
+      enrollmentId: created.primaryEnrollmentId!, studentName: primary.name,
+    }, (id) => { created.excelExamId = id; }, testInfo));
     boundary.assertClean();
     browser.assertZeroDefects();
   });
