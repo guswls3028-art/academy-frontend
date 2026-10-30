@@ -44,11 +44,19 @@ async function assertBoardLayout(page: Page, surface: BoardSurface) {
   await writeFile(test.info().outputPath(`${name}.json`), JSON.stringify({
     schema: "board-layout-diagnostic/v1", diagnosticOnly: true, surface, ...layout,
   }, null, 2));
+  let layoutFailure: unknown;
   try {
     expect(layout.scrollWidth <= layout.clientWidth + 1, `${surface}: ${layout.scrollWidth}/${layout.clientWidth}`).toBe(true);
-  } finally {
-    await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
+  } catch (error) {
+    layoutFailure = error;
   }
+  try {
+    await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
+  } catch (error) {
+    if (!layoutFailure) throw error;
+    console.warn(`[board-layout] ${surface}: screenshot failed after overflow; geometry JSON retained`);
+  }
+  if (layoutFailure) throw layoutFailure;
 }
 
 async function verifyImages(page: Page, count: number, selector: string, surface: BoardSurface) {
