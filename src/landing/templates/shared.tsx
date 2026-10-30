@@ -313,7 +313,7 @@ export function LandingNavBar({ config, sections, tokens, brandMark, topNavVaria
     <>
       <nav style={{ position: "sticky", top: 0, zIndex: 50, background: tokens.bg, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: `1px solid ${tokens.border}`, padding: "0 20px" }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", height: resolvedTopNavVariant === "slab" ? 64 : 60, gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, maxWidth: 320, flexShrink: 1 }}>
             <button
               type="button"
               onClick={() => setOpen(true)}
@@ -321,7 +321,7 @@ export function LandingNavBar({ config, sections, tokens, brandMark, topNavVaria
               data-testid="landing-nav-burger"
               className="landing-nav-burger"
               style={{
-                width: 38, height: 38, borderRadius: 10,
+                width: 38, height: 38, borderRadius: 10, flexShrink: 0,
                 background: "transparent",
                 border: `1px solid ${tokens.border}`,
                 color: tokens.textPrimary, cursor: "pointer",
@@ -333,11 +333,11 @@ export function LandingNavBar({ config, sections, tokens, brandMark, topNavVaria
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3.5" y1="7" x2="20.5" y2="7" /><line x1="3.5" y1="12" x2="20.5" y2="12" /><line x1="3.5" y1="17" x2="20.5" y2="17" /></svg>
             </button>
-            <Link to="/landing" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: tokens.textPrimary }}>
+            <Link to="/landing" data-testid="landing-nav-brand" title={config.brand_name} style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, textDecoration: "none", color: tokens.textPrimary }}>
               {logoUrl ? (
-                <img src={logoUrl} alt={config.brand_name} style={{ height: 30, width: "auto", objectFit: "contain" }} />
-              ) : brandMark}
-              <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.022em", whiteSpace: "nowrap" }}>{config.brand_name}</span>
+                <img src={logoUrl} alt={config.brand_name} style={{ height: 30, width: "auto", maxWidth: 48, objectFit: "contain", flexShrink: 0 }} />
+              ) : <span style={{ display: "flex", flexShrink: 0 }}>{brandMark}</span>}
+              <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.022em", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{config.brand_name}</span>
             </Link>
           </div>
           {/* 가로 메뉴 — 데스크탑/태블릿에서만 노출(애플식 minimal top nav).
@@ -508,18 +508,18 @@ function NavSidePanel({ open, onClose, categories, tokens, config, cta, ctaLink,
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "18px 20px 16px", borderBottom: `1px solid ${dividerColor}`, flexShrink: 0,
         }}>
-          <Link to="/landing" onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: tokens.textPrimary }}>
+          <Link to="/landing" onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, textDecoration: "none", color: tokens.textPrimary }}>
             {logoUrl
-              ? <img src={logoUrl} alt={config.brand_name} style={{ height: 30, width: "auto", objectFit: "contain" }} />
-              : brandMark}
-            <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>{config.brand_name}</span>
+              ? <img src={logoUrl} alt={config.brand_name} style={{ height: 30, width: "auto", maxWidth: 48, objectFit: "contain", flexShrink: 0 }} />
+              : <span style={{ display: "flex", flexShrink: 0 }}>{brandMark}</span>}
+            <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em", minWidth: 0, overflowWrap: "anywhere" }}>{config.brand_name}</span>
           </Link>
           <button
             type="button"
             onClick={onClose}
             aria-label="메뉴 닫기"
             style={{
-              width: 36, height: 36, borderRadius: 8,
+              width: 36, height: 36, borderRadius: 8, flexShrink: 0,
               background: "transparent", border: `1px solid ${tokens.border}`,
               color: tokens.textPrimary, cursor: "pointer",
               display: "inline-flex", alignItems: "center", justifyContent: "center",

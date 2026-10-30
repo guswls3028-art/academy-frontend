@@ -246,13 +246,12 @@ test("검색 중 이전 명단을 잠그고 페이지 캐시·현재 페이지 �
 
 for (const width of [1366, 390]) {
   test(`${width}px 한글 마지막 글자가 조합 중이어도 추가 클릭 없이 검색·선택한다`, async ({ page }, info) => {
+    await page.clock.install();
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     const { state, dialog } = await openPicker(page, { 52: "김가학생" });
     const input = dialog.getByRole("textbox", { name: "학생 검색" });
-    const clockStart = Date.now();
-    await page.clock.install({ time: clockStart });
     // Locator latency must not advance the simulated typing intervals.
-    await page.clock.pauseAt(clockStart + 1_000);
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
     await input.dispatchEvent("compositionstart");
     for (const value of ["김", "김가", "김가학", "김가학생"]) {
       await input.fill(value);
@@ -281,9 +280,9 @@ for (const width of [1366, 390]) {
 }
 
 test("조합 중 검색을 바꿔도 늦은 이전 응답이 새 결과를 덮지 않는다", async ({ page }) => {
+  await page.clock.install();
   const { state, dialog } = await openPicker(page);
   const input = dialog.getByRole("textbox", { name: "학생 검색" });
-  await page.clock.install();
   await input.dispatchEvent("compositionstart");
   let finishSearch: () => void = () => {};
   state.searchGate = new Promise<void>((resolve) => { finishSearch = resolve; });

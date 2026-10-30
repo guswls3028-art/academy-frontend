@@ -163,3 +163,18 @@ focused 검증은 `e2e/pwa-branding-contract.spec.ts`에서 hostname→code, 교
 manifest, theme/background 색, 정적 에셋 존재를 함께 확인한다. 로그인은 1366px와
 390×844에서 DOM·가로 overflow·폼/푸터 겹침을 확인하고, 내부 헤더는 관리자·선생·
 학생·학부모의 라이트·다크 조합을 따른다.
+
+## 공통 공개 랜딩 상단의 긴 학원명
+
+`src/landing/templates/shared.tsx`의 `LandingNavBar`를 사용하는 공개 페이지와
+학원 커뮤니티 상세는 1366px·390px에서 긴 학원명과 역할별 이동 버튼을 함께 표시한다.
+브랜드 그룹은 최대 320px 안에서 줄어들며 이름만 말줄임한다. 메뉴 버튼과 로고는
+축소하지 않고 로고는 높이 30px·최대 너비 48px 안에서 비율을 유지한다. 전체 이름은
+브랜드 링크의 접근 가능한 이름·title과 전체 메뉴의 줄바꿈 제목으로 확인한다.
+전체 메뉴의 닫기 버튼과 관리자·학생·학부모 이동 버튼은 화면 안에서 조작할 수 있어야 한다.
+
+이 변경은 서버 이름·로고 설정, 인증·테넌트 판정, 역할별 목적지와 저장 데이터를
+수정하지 않는다. 기존 메뉴 열림/닫힘·hover·키보드 동작과 복구 경로를 유지한다.
+`e2e/landing-header-width.mock.spec.ts`가 세 역할의 desktop/390px 상세 진입→reload→
+전체 메뉴→공개 게시판 이동, 버튼 경계와 전체 이름 접근을 검증한다. 실제 격리 검증은
+`e2e/admin/board-attachments-realuse.spec.ts`의 화면별 JSON/PNG를 함께 확인한다.

@@ -80,6 +80,7 @@ export const routeMockSpecs = [
   "e2e/admin/matchup-progress-recovery.mock.spec.ts",
   "e2e/admin/storage-mobile-inventory-move.mock.spec.ts",
   "e2e/landing-problem-analysis.mock.spec.ts",
+  "e2e/landing-header-width.mock.spec.ts",
   "e2e/admin/session-attendance-bulk-safety.mock.spec.ts",
   "e2e/admin/score-entry-autosave.spec.ts",
   "e2e/admin/score-alimtalk-personalization.mock.spec.ts",

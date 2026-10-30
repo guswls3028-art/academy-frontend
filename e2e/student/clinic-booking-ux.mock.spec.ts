@@ -755,10 +755,15 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(bookedDay).toHaveAccessibleName(/예약 있음, 마감/);
     const openDay = page.getByTestId(`clinic-calendar-day-${openDate}`);
     await expect(openDay).toHaveAttribute("data-open", "true");
+    // The initial calendar follows the first booking, which can be next month.
+    // Check today in its own month, then restore the booking month for selection.
+    const bookingIsNextMonth = bookedDate.slice(0, 7) !== dateAfter(0).slice(0, 7);
+    if (bookingIsNextMonth) await page.getByRole("button", { name: "이전 달" }).click();
     const today = page.getByTestId(`clinic-calendar-day-${dateAfter(0)}`);
     await expect(today).toHaveAttribute("aria-current", "date");
     await expect(today).toHaveAttribute("data-today", "true");
     await expect(today).toHaveClass(/today/);
+    if (bookingIsNextMonth) await page.getByRole("button", { name: "다음 달" }).click();
     await bookedDay.click();
     await expect(bookedDay).toHaveAttribute("aria-pressed", "true");
 

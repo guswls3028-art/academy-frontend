@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { installWorkspaceReadApiStubs } from "../helpers/workspaceReadApiStubs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5196";
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "Local synthetic API only");
@@ -51,6 +52,9 @@ async function installScenario(page: Page, { active = true } = {}) {
     if (path === "/enrollments/") return route.fulfill({ json: { count: 1, next: null, results: [{ id: 31, lecture: 71, status: "ACTIVE", student: { id: 41, name: "검증 학생" } }] } });
     return route.fulfill({ json: { count: 0, next: null, results: [] } });
   });
+  // Shell reads need their real response shapes; the generic list fallback would
+  // reject arrival overview data and retry across the persistence reload below.
+  await installWorkspaceReadApiStubs(page);
   return state;
 }
 

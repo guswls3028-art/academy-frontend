@@ -402,6 +402,11 @@ jobs:
           cache: pnpm
       - name: Install locked test dependencies
         run: pnpm install --frozen-lockfile --shamefully-hoist
+      - name: Install Korean fonts for visual evidence
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          test -n "$(fc-list :lang=ko family)"
       - name: Check bundled AWS tools and install Chromium
         run: |
           aws --version
@@ -437,6 +442,15 @@ jobs:
             test-results/**/lecture-enrollment-desktop.png
             test-results/**/attendance-letter-suffix-realuse-1366.png
             test-results/**/attendance-letter-suffix-realuse-390.png
+            test-results/**/homework-criteria-*.png
+            test-results/**/homework-message-criteria-*.png
+            test-results/**/homework-criteria-evidence-*.json
+            test-results/**/attendance-export-1366.png
+            test-results/**/attendance-export-390.png
+            test-results/**/attendance-1366.xlsx
+            test-results/**/attendance-390.xlsx
+            test-results/**/board-layout-*.json
+            test-results/**/board-layout-*.png
             test-results/development-release-progress.json
           retention-days: 14
           if-no-files-found: error

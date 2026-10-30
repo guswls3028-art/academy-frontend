@@ -12,15 +12,20 @@ const boundary = releaseBoundaryFromEnv({ E2E_RELEASE_API_MODE: "development", E
   E2E_TENANT_CODE: "qa-ymath-realuse-payroll", E2E_OMR_R2_TENANT_ID: "352" });
 const origin = "https://af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.com";
 const jobId = "11111111-1111-4111-8111-111111111111";
-const filename = "payroll_2026_8.xlsx";
+for (const kind of ["payroll", "attendance"]) {
+const filename = kind === "payroll" ? "payroll_2026_8.xlsx" : "출결_QA 학습_123.xlsx";
+const endpoint = kind === "payroll" ? "/api/v1/staffs/payroll-snapshots/export-excel/" : "/api/v1/lectures/attendance/excel/";
+const jobType = kind === "payroll" ? "staff_excel_export" : "attendance_excel_export";
+const scope = kind === "payroll" ? { year: 2026, month: 8, force_rerun: true } : { lecture_id: 123 };
 const mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const disposition = 'attachment; filename="' + filename + '"; filename*=UTF-8\'\'' + filename;
+const disposition = 'attachment; filename="' + (kind === "payroll" ? filename : "download.xlsx")
+  + '"; filename*=UTF-8\'\'' + encodeURIComponent(filename);
 const query = new URLSearchParams({ "response-content-type": mime, "response-content-disposition": disposition,
   "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
   "X-Amz-Credential": "UNITKEYUNITKEY123456/20260919/auto/s3/aws4_request",
   "X-Amz-Date": "20260919T010000Z", "X-Amz-Expires": "3600",
   "X-Amz-SignedHeaders": "host", "X-Amz-Signature": "a".repeat(64) });
-const signedUrl = origin + "/academy-development-artifacts/exports/352/" + jobId + "_" + filename + "?" + query;
+const signedUrl = origin + "/academy-development-artifacts/exports/352/" + jobId + "_" + encodeURIComponent(filename) + "?" + query;
 const xlsxBytes = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x50, 0x50, 0x54, 0x58]);
 
 async function exercise(options = {}) {
@@ -35,7 +40,7 @@ async function exercise(options = {}) {
     await handler({ request: () => ({
       url: () => boundary.apiOrigin + path, method: () => method, resourceType: () => "fetch",
       allHeaders: async () => apiHeaders, headerValue: async (name) => apiHeaders[name] ?? null,
-      postDataJSON: () => method === "POST" ? (options.period ?? { year: 2026, month: 8, force_rerun: true }) : null, postDataBuffer: () => null,
+      postDataJSON: () => method === "POST" ? (options.scope ?? scope) : null, postDataBuffer: () => null,
     }), abort: async () => {}, continue: async () => assert.fail("unguarded API"),
     fetch: async () => ({ status: () => status,
       headers: () => ({ "content-type": "application/json", "access-control-allow-origin": boundary.webOrigin,
@@ -43,12 +48,12 @@ async function exercise(options = {}) {
     fulfill: async () => {} });
   };
   if (options.submit !== false) {
-    await api("/api/v1/staffs/payroll-snapshots/export-excel/", "POST", { job_id: options.submittedJobId ?? jobId },
+    await api(endpoint, "POST", { job_id: options.submittedJobId ?? jobId },
       options.submitStatus ?? 201);
   }
   if (options.statusRead !== false) {
     await api("/api/v1/jobs/" + (options.statusJobId ?? jobId) + (options.detail ? "/" : "/progress/"),
-      "GET", { job_id: options.payloadJobId ?? jobId, job_type: options.jobType ?? "staff_excel_export",
+      "GET", { job_id: options.payloadJobId ?? jobId, job_type: options.jobType ?? jobType,
         status: options.jobStatus ?? "DONE", result: { download_url: options.registerUrl ?? signedUrl,
           filename: options.filename ?? filename } }, options.apiStatus ?? 200);
   }
@@ -83,7 +88,7 @@ function rejected(result, fetches = 0) {
   });
 }
 
-test("exact accepted payroll XLSX job response permits a real binary download with stripped headers", async () => {
+test(`exact accepted ${kind} XLSX job response permits a real binary download with stripped headers`, async () => {
   const result = await exercise();
   result.guard.assertClean();
   assert.equal(result.aborted, 0);
@@ -98,13 +103,18 @@ test("exact accepted payroll XLSX job response permits a real binary download wi
   assert.throws(() => assertReleaseRequestSafe(boundary, signedUrl, "GET"), /escaped/);
 });
 
-test("payroll XLSX URL registration remains bound to accepted job, development tenant and exact signed object", async () => {
+test(`${kind} XLSX URL registration remains bound to accepted job, development tenant and exact signed object`, async () => {
   for (const options of [
     { submitStatus: 400 }, { submittedJobId: "22222222-2222-4222-8222-222222222222" },
     { apiStatus: 403 }, { statusJobId: "22222222-2222-4222-8222-222222222222" },
     { payloadJobId: "22222222-2222-4222-8222-222222222222" }, { jobType: "matchup_analysis" },
-    { jobStatus: "RUNNING" }, { period: { year: 2026, month: 7 } },
-    { period: { year: 2026, month: 13 } }, { period: { year: 2019, month: 8 } }, { apiHeaders: { authorization: "" } },
+    { jobStatus: "RUNNING" }, { apiHeaders: { authorization: "" } },
+    ...(kind === "payroll" ? [
+      { scope: { year: 2026, month: 7 } }, { scope: { year: 2026, month: 13 } }, { scope: { year: 2019, month: 8 } },
+    ] : [
+      { scope: { lecture_id: 124 } }, { scope: { lecture_id: 0 } }, { scope: { lecture_id: "123" } },
+      { scope: { lecture_id: 1.5 } }, { filename: "출결_QA 학습_124.xlsx" }, { jobType: "staff_excel_export" },
+    ]),
     { apiHeaders: { "x-tenant-code": "qa-ymath-realuse-foreign" } },
     { boundary: { ...boundary, mode: "readonly" } },
     { boundary: { ...boundary, omrR2TenantId: undefined } },
@@ -117,14 +127,14 @@ test("payroll XLSX URL registration remains bound to accepted job, development t
       signedUrl.replace("Expires=3600", "Expires=3601"),
       signedUrl.replace("response-content-type=", "other="),
       signedUrl.replace("response-content-disposition=", "other="),
-      signedUrl.replace("payroll_", "other_"),
+      signedUrl.replace(encodeURIComponent(filename), "other.xlsx"),
       signedUrl + "&extra=1", signedUrl + "#fragment",
       signedUrl.replace("/exports/352/", "/exports/353/../352/"),
     ].map((registerUrl) => ({ registerUrl })),
   ]) rejected(await exercise(options));
 });
 
-test("registered payroll XLSX download rejects changed URL, app credentials, mutation and invalid R2 bytes", async () => {
+test(`registered ${kind} XLSX download rejects changed URL, app credentials, mutation and invalid R2 bytes`, async () => {
   for (const options of [
     { url: signedUrl.replace("a".repeat(64), "b".repeat(64)) },
     { method: "POST" }, { method: "HEAD" }, { resourceType: "fetch" }, { resourceType: "image" },
@@ -138,3 +148,4 @@ test("registered payroll XLSX download rejects changed URL, app credentials, mut
     { body: xlsxBytes.subarray(0, 2) }, { fetchError: true },
   ]) rejected(await exercise(options), 1);
 });
+}

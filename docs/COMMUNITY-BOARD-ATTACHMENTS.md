@@ -208,3 +208,11 @@ $env:E2E_BASE_URL='http://127.0.0.1:<owned-port>'
 pnpm exec playwright test e2e/admin/board-photo-persistence.mock.spec.ts --project=chromium
 pnpm exec playwright test e2e/admin/community-workspace-polish.mock.spec.ts --grep "공지 이미지를" --project=chromium
 ```
+
+게시판 사진 실사용 검증은 각 관리자/모바일/학원 커뮤니티/공개 게시글·후기 상세의
+1366px·390px reload 시점에 `board-layout-<화면>-<너비>.json/png`를 남긴다.
+JSON은 화면의 고정 식별자, viewport·문서 너비, 최대 24개 넘침 요소의 태그/순번
+선택자·치수·레이아웃 속성만 담으며 DOM 텍스트, 속성, URL, 인증 정보는 제외한다.
+PNG는 격리 개발 QA가 생성한 글만 담는다. 진단은 스크린샷 대기 전에 측정하며
+기존 `scrollWidth <= clientWidth + 1` 조건을 그대로 적용한다. 이 자료는 실패 위치를
+좁히는 보조 증거이며 전체 실사용 통과와 정확한 정리 0건을 대신하지 않는다.

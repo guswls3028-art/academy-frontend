@@ -1,9 +1,10 @@
 /** Photo actions use the exact release bundle and disposable development tenants. */
 import { expect, test } from "../fixtures/strictTest";
-import { api, assertNoHorizontalOverflow, assertQaStudentParentRuntime, expectApi, installQaStudentParentBoundary,
+import { api, assertQaStudentParentRuntime, expectApi, installQaStudentParentBoundary,
   loginAdmin, loginApi, QA_BASE, QA_STUDENT_PASSWORD, seedBrowserAuth, STUDENT_PARENT_REALUSE_ENABLED } from "../helpers/qaStudentParentScenario";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import type { Page } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 
 test.setTimeout(420_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -11,7 +12,54 @@ const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR
 const photo = (name: string) => ({ name, mimeType: "image/png", buffer: png });
 const isCreate = (path: string) => (response: { url(): string; request(): { method(): string } }) => response.request().method() === "POST" && new URL(response.url()).pathname === `/api/v1${path}`;
 
-async function verifyImages(page: Page, count: number, selector: string) {
+type BoardSurface = "admin-board" | "admin-materials" | "mobile-notice" | "admin-notice" | "landing-community" | "public-board-created" | "public-board-edited" | "public-review";
+
+async function assertBoardLayout(page: Page, surface: BoardSurface) {
+  // Record the same instantaneous width assertion before any screenshot waits.
+  // DOM text, attributes, request URLs, tokens and CSS background URLs are excluded.
+  const layout = await page.evaluate(() => {
+    const root = document.documentElement;
+    const selector = (element: Element): string => {
+      const segments: string[] = [];
+      for (let node: Element | null = element; node && node !== document.body; node = node.parentElement) {
+        const tag: string = node.tagName.toLowerCase();
+        const siblings = Array.from(node.parentElement?.children ?? []).filter((sibling) => sibling.tagName.toLowerCase() === tag);
+        segments.unshift(`${tag}:nth-of-type(${siblings.indexOf(node) + 1})`);
+      }
+      return `body > ${segments.join(" > ")}`;
+    };
+    const overflowing = Array.from(document.body.querySelectorAll("*")).flatMap((element) => {
+      const rect = element.getBoundingClientRect();
+      if (!rect.width || rect.right <= root.clientWidth + 1 || rect.left >= root.scrollWidth) return [];
+      const style = getComputedStyle(element);
+      return [{ selector: selector(element), left: rect.left, right: rect.right, width: rect.width,
+        clientWidth: element.clientWidth, scrollWidth: element.scrollWidth,
+        display: style.display, minWidth: style.minWidth, whiteSpace: style.whiteSpace,
+        overflowX: style.overflowX, position: style.position, fontFamily: style.fontFamily }];
+    }).slice(0, 24);
+    return { viewportWidth: innerWidth, viewportHeight: innerHeight, clientWidth: root.clientWidth,
+      scrollWidth: root.scrollWidth, bodyScrollWidth: document.body.scrollWidth, overflowing };
+  });
+  const name = `board-layout-${surface}-${layout.viewportWidth}`;
+  await writeFile(test.info().outputPath(`${name}.json`), JSON.stringify({
+    schema: "board-layout-diagnostic/v1", diagnosticOnly: true, surface, ...layout,
+  }, null, 2));
+  let layoutFailure: unknown;
+  try {
+    expect(layout.scrollWidth <= layout.clientWidth + 1, `${surface}: ${layout.scrollWidth}/${layout.clientWidth}`).toBe(true);
+  } catch (error) {
+    layoutFailure = error;
+  }
+  try {
+    await page.screenshot({ path: test.info().outputPath(`${name}.png`), fullPage: true });
+  } catch (error) {
+    if (!layoutFailure) throw error;
+    console.warn(`[board-layout] ${surface}: screenshot failed after overflow; geometry JSON retained`);
+  }
+  if (layoutFailure) throw layoutFailure;
+}
+
+async function verifyImages(page: Page, count: number, selector: string, surface: BoardSurface) {
   for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -21,7 +69,7 @@ async function verifyImages(page: Page, count: number, selector: string) {
       await expect(images.nth(i)).toBeVisible();
       await expect.poll(() => images.nth(i).evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
     }
-    await assertNoHorizontalOverflow(page);
+    await assertBoardLayout(page, surface);
   }
 }
 
@@ -55,7 +103,7 @@ test.describe("[real-use] board attachment persistence", () => {
         await page.locator('.rich-editor input[accept="image/*"]').setInputFiles(photo(`qa-${kind}-second.png`));
         await page.getByRole("button", { name: kind === "board" ? "내용 저장" : "저장", exact: true }).click();
         await expect(page.getByText("내용이 저장되었습니다.", { exact: true })).toBeVisible();
-        await verifyImages(page, 2, ".notice-attach__image");
+        await verifyImages(page, 2, ".notice-attach__image", `admin-${kind}`);
         const read = await expectApi<{ attachments: unknown[] }>(request, "GET", `/community/posts/${id}/`, student.access);
         expect(read.attachments).toHaveLength(2);
       }
@@ -79,11 +127,11 @@ test.describe("[real-use] board attachment persistence", () => {
       await expect(page.getByText("첨부파일 2개", { exact: true })).toBeVisible();
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(page.getByText("첨부파일 2개", { exact: true })).toBeVisible();
-      await assertNoHorizontalOverflow(page);
+      await assertBoardLayout(page, "mobile-notice");
       const read = await expectApi<{ attachments: unknown[] }>(request, "GET", `/community/posts/${id}/`, student.access);
       expect(read.attachments).toHaveLength(2);
       await page.goto(`${QA_BASE}/workspace/community/notice?id=${id}`);
-      await verifyImages(page, 2, ".notice-attach__image");
+      await verifyImages(page, 2, ".notice-attach__image", "admin-notice");
 
       await expectApi(request, "PUT", "/core/landing/admin/", admin.access, {});
       await expectApi(request, "POST", "/core/landing/publish/", admin.access, {});
@@ -96,7 +144,7 @@ test.describe("[real-use] board attachment persistence", () => {
       const landingResult = await landingCreated; expect(landingResult.status()).toBe(201);
       const landingId = Number((await landingResult.json()).id); owned.push(landingId);
       await expect(page).toHaveURL(`${QA_BASE}/landing/community/board/posts/${landingId}`);
-      await verifyImages(page, 1, ".public-photos__gallery img");
+      await verifyImages(page, 1, ".public-photos__gallery img", "landing-community");
       const landingRead = await expectApi<{ attachments: unknown[] }>(request, "GET", `/community/posts/${landingId}/`, student.access);
       expect(landingRead.attachments).toHaveLength(1);
     } finally {
@@ -125,12 +173,12 @@ test.describe("[real-use] board attachment persistence", () => {
       const result = await created; expect(result.status()).toBe(201);
       const id = Number((await result.json()).id); owned.push({ kind: "board", id });
       await expect(page).toHaveURL(`${QA_BASE}/landing/board/${id}`);
-      await verifyImages(page, 1, ".public-photos__gallery img");
+      await verifyImages(page, 1, ".public-photos__gallery img", "public-board-created");
       await page.goto(`${QA_BASE}/landing/board/${id}/edit`);
       await page.getByTestId("board-edit-title").fill("qa-public-photo 수정 확인");
       await page.getByTestId("board-edit-submit").click();
       await expect(page).toHaveURL(`${QA_BASE}/landing/board/${id}`);
-      await verifyImages(page, 1, ".public-photos__gallery img");
+      await verifyImages(page, 1, ".public-photos__gallery img", "public-board-edited");
       expect((await api(request, "GET", `/landing-public/board/${id}/`, "")).status).toBe(200);
 
       await page.goto(`${QA_BASE}/landing/reviews/write`);
@@ -141,7 +189,7 @@ test.describe("[real-use] board attachment persistence", () => {
       const reviewResult = await reviewCreated; expect(reviewResult.status()).toBe(201);
       const reviewId = Number((await reviewResult.json()).id); owned.push({ kind: "reviews", id: reviewId });
       await expect(page).toHaveURL(`${QA_BASE}/landing/reviews/${reviewId}`);
-      await verifyImages(page, 1, ".public-photos__gallery img");
+      await verifyImages(page, 1, ".public-photos__gallery img", "public-review");
       expect((await api(request, "GET", `/landing-public/reviews/${reviewId}/`, "")).status).toBe(404);
       await expectApi(request, "POST", `/landing-public/reviews/${reviewId}/moderate/`, admin.access, { status: "approved" });
       const approved = await expectApi<{ photos: string[] }>(request, "GET", `/landing-public/reviews/${reviewId}/`, "");
