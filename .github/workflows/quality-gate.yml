@@ -449,6 +449,8 @@ jobs:
             test-results/**/attendance-export-390.png
             test-results/**/attendance-1366.xlsx
             test-results/**/attendance-390.xlsx
+            test-results/**/board-layout-*.json
+            test-results/**/board-layout-*.png
             test-results/development-release-progress.json
           retention-days: 14
           if-no-files-found: error
