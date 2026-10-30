@@ -94,6 +94,21 @@ const SAFE_FAILURE_SOURCE_FILES = new Set([
   "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
   "verifyAssessmentCopy.ts",
   "verifyOnlineWrittenSubmission.ts",
+  "excelEnrollmentRealuse.ts", "excelAssessmentRealuse.ts", "excelImport.ts",
+  "attendanceExcelRealuse.ts", "homeworkCriteriaRealuse.ts",
+]);
+const FLOW_FAILURE_KINDS = new Set(["boundary", "assertion", "locator-timeout", "transport", "other"]);
+const LEARNING_FAILURE_PHASES = new Set([
+  "teacher-thumbnail", "teacher-classes-open", "teacher-classes-persisted",
+  "teacher-attendance-save", "teacher-attendance-undo", "teacher-session-summary",
+  "teacher-video-list", "teacher-video-reload", "teacher-attendance-export",
+  "attendance-prepare", "attendance-submit", "attendance-download", "attendance-workbook", "attendance-restore",
+]);
+const HOMEWORK_FAILURE_PHASES = new Set([
+  "feedback-setup", "feedback-score-edit", "feedback-order", "feedback-report", "feedback-results",
+  "feedback-restore-order", "feedback-criteria", "feedback-post-criteria", "criteria-setup", "criteria-open", "criteria-invalid-input",
+  "criteria-save", "criteria-reload", "criteria-api", "criteria-parent", "criteria-preview",
+  "preview-compose", "preview-preflight", "preview-personalization", "preview-final",
 ]);
 const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
   "/api/v1/clinic/idcard/",
@@ -454,6 +469,7 @@ export function observeReleaseTestResult(stdout) {
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
     reportedTestErrors: [], testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
+    learningFlowFailures: [], homeworkFlowFailures: [],
     strictBrowserDefects: [], strictBrowserSuppressions: [], clinicInteractionTimings: [],
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null, longVideoFailure: null, longVideoErrorCodes: [], longVideoResult: null,
@@ -576,18 +592,39 @@ export function observeReleaseTestResult(stdout) {
               if (typeof error?.message === "string") longVideoMessages.push(error.message);
             }
           }
+          const flowFailureCounts = { learningFlowFailures: 0, homeworkFlowFailures: 0 };
           for (const output of Array.isArray(result?.stdout) ? result.stdout : []) {
             const text = typeof output === "string" ? output : output?.text;
             for (const line of typeof text === "string" ? text.split(/\r?\n/) : []) {
               let payload;
               try { payload = JSON.parse(line); } catch { continue; }
               for (const name of ["releaseTestFailure", "omrCleanupStatus", "crossTenantDenialProbe",
-                "releaseStrictBrowserDefect", "releaseStrictBrowserSuppression", "clinicInteractionTiming"]) {
+                "releaseStrictBrowserDefect", "releaseStrictBrowserSuppression", "clinicInteractionTiming",
+                "releaseLearningFlowFailure", "releaseHomeworkFlowFailure"]) {
                 if (!Object.hasOwn(payload ?? {}, name)) continue;
                 const value = payload[name];
                 let valid = Object.hasOwn(FLOW_COUNTS, file);
                 let destination;
-                if (name === "clinicInteractionTiming") {
+                if (name === "releaseLearningFlowFailure") {
+                  destination = "learningFlowFailures";
+                  valid &&= file === "student-parent-learning-realuse.spec.ts"
+                    && exactKeys(value, ["schema", "phase", "viewport", "kind"])
+                    && value.schema === "learning-flow-failure/v1"
+                    && LEARNING_FAILURE_PHASES.has(value.phase)
+                    && [null, 390, 1366].includes(value.viewport) && FLOW_FAILURE_KINDS.has(value.kind);
+                } else if (name === "releaseHomeworkFlowFailure") {
+                  destination = "homeworkFlowFailures";
+                  const setup = value?.phase === "feedback-setup";
+                  const noThreshold = typeof value?.phase === "string"
+                    && (value.phase.startsWith("feedback-") || value.phase === "criteria-setup");
+                  valid &&= file === "student-parent-homework-realuse.spec.ts"
+                    && exactKeys(value, ["schema", "phase", "viewport", "threshold", "kind"])
+                    && value.schema === "homework-flow-failure/v1"
+                    && HOMEWORK_FAILURE_PHASES.has(value.phase) && FLOW_FAILURE_KINDS.has(value.kind)
+                    && (setup ? value.viewport === null : [390, 1366].includes(value.viewport))
+                    && (noThreshold ? value.threshold === null : [95, 90].includes(value.threshold))
+                    && (value.phase !== "criteria-invalid-input" || value.threshold === 95);
+                } else if (name === "clinicInteractionTiming") {
                   destination = "clinicInteractionTimings";
                   const elapsed = (ms) => Number.isInteger(ms) && ms >= 0 && ms <= 2 * 60 * 60_000;
                   valid &&= exactKeys(value, ["schema", "action", "viewport", "responseMs", "listVisibleMs"])
@@ -647,8 +684,11 @@ export function observeReleaseTestResult(stdout) {
                   valid &&= file === "clinic-roundtrip.spec.ts" && exactKeys(value, ["schema", "status", "errorCode"])
                     && value.schema === "release-cross-tenant-denial/v1" && httpStatus(value.status) && value.errorCode === null;
                 }
-                if (valid) addFailureObservation(destination, { specFile: file, resultOrdinal, ...value });
-                else observation.rejectedFailureObservationCount++;
+                if (valid) {
+                  if (Object.hasOwn(flowFailureCounts, destination) && flowFailureCounts[destination]++ >= 3) {
+                    observation.droppedFailureObservationCount++;
+                  } else addFailureObservation(destination, { specFile: file, resultOrdinal, ...value });
+                } else observation.rejectedFailureObservationCount++;
               }
               if (Object.hasOwn(payload ?? {}, "releaseContextObservation")) {
                 const snapshot = observeReleaseContextSnapshot(payload.releaseContextObservation);

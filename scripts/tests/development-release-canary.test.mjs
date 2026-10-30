@@ -26,6 +26,7 @@ import "./release-canary-progress.test.mjs";
 import "./development-backend-readiness.test.mjs";
 import "./development-host-iam.test.mjs";
 import "./release-governance-metadata.test.mjs";
+import "./release-flow-failure.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
@@ -1967,6 +1968,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
       expectedStatus: null, receivedStatus: index === 1 ? 409 : null,
     })),
     testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
+    learningFlowFailures: [], homeworkFlowFailures: [],
     strictBrowserDefects: [], strictBrowserSuppressions: [],
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null,
@@ -1994,6 +1996,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
     reportedTestErrors: [], testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
+    learningFlowFailures: [], homeworkFlowFailures: [],
     strictBrowserDefects: [], strictBrowserSuppressions: [],
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null,
