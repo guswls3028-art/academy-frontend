@@ -431,11 +431,12 @@ function observeReleaseContextSnapshot(payload) {
   const required = ["phase", "stage", "elapsedMs", "closing", "activeRouteCount"];
   const timingKeys = ["requestOrdinal", "requestStartedElapsedMs", "attemptDurationMs"];
   const pageKeys = ["pageOrdinal", "startDocumentLoadOrdinal", "endDocumentLoadOrdinal", "startNavigationOrdinal", "endNavigationOrdinal"];
-  const optional = ["method", "pathTemplate", "nativeCode", "nativeKind", "category", "sourceKind", "externalOrigin", "publicProvider", ...timingKeys, ...pageKeys];
+  const optional = ["method", "pathTemplate", "nativeCode", "nativeKind", "category", "sourceKind", "externalOrigin", "publicProvider", "publicEmbedRequestIdentity", ...timingKeys, ...pageKeys];
+  const embedIdentityOrdinals = new Set();
   for (const event of payload.events) {
     if (!record(event) || required.some((key) => !Object.hasOwn(event, key))
       || Object.keys(event).some((key) => !required.includes(key) && !optional.includes(key))
-      || ![...phases, "route-handler", "browser-console", "browser-pageerror", "page-close", "page-crash", "context-close", "browser-disconnected"].includes(event.phase)
+      || ![...phases, "route-handler", "browser-console", "browser-pageerror", "page-close", "page-crash", "context-close", "browser-disconnected", "public-embed-request-identity"].includes(event.phase)
       || !["initial", "retry", "recovered", "terminal"].includes(event.stage)
       || !count(event.elapsedMs, 2 * 60 * 60_000) || !count(event.activeRouteCount) || typeof event.closing !== "boolean"
       || (Object.hasOwn(event, "method") && !["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE", "other"].includes(event.method))
@@ -446,6 +447,20 @@ function observeReleaseContextSnapshot(payload) {
       || pageKeys.some((key) => Object.hasOwn(event, key) && event[key] !== null && !count(event[key]))
       || (Object.hasOwn(event, "category") && !["cors", "chunk", "network", "resource", "runtime", "other"].includes(event.category))
       || (Object.hasOwn(event, "sourceKind") && !["local", "api", "vendor", "unknown"].includes(event.sourceKind))) return null;
+    if (event.phase === "public-embed-request-identity") {
+      const identity = event.publicEmbedRequestIdentity;
+      const identityKeys = ["refererPresent", "refererMatchesEmbeddingOrigin", "originParamMatches"];
+      if (payload.contextOrdinal === null || event.stage !== "initial"
+        || Object.keys(event).sort().join(",") !== [...required, "requestOrdinal", "publicEmbedRequestIdentity"].sort().join(",")
+        || !count(event.requestOrdinal) || event.requestOrdinal < 1
+        || !record(identity) || Object.keys(identity).sort().join(",") !== [...identityKeys].sort().join(",")
+        || identityKeys.some(key => typeof identity[key] !== "boolean") || !identity.originParamMatches
+        || (identity.refererMatchesEmbeddingOrigin && !identity.refererPresent)
+        || embedIdentityOrdinals.size >= 2 || embedIdentityOrdinals.has(event.requestOrdinal)) return null;
+      embedIdentityOrdinals.add(event.requestOrdinal);
+      continue;
+    }
+    if (Object.hasOwn(event, "publicEmbedRequestIdentity")) return null;
     if (Object.hasOwn(event, "publicProvider")) {
       const provider = event.publicProvider;
       const responseObservation = event.phase === "route-fetch";
@@ -717,6 +732,7 @@ export function observeReleaseTestResult(stdout) {
                 const snapshot = observeReleaseContextSnapshot(payload.releaseContextObservation);
                 const workerIndex = result.workerIndex;
                 if (!snapshot || !Object.hasOwn(FLOW_COUNTS, file)
+                  || (snapshot.events.some(event => event.phase === "public-embed-request-identity") && file !== "public-video-realuse.spec.ts")
                   || !Number.isInteger(workerIndex) || workerIndex < 0 || workerIndex > 1000) {
                   observation.rejectedContextObservationCount += 1;
                 } else {

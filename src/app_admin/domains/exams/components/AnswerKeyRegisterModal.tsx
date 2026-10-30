@@ -3,7 +3,7 @@
  * 디자인 시스템: ds-tabs, ds-button, ds-input, modal-tabs-area, modal-footer.
  */
 
-import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
@@ -461,7 +461,7 @@ export default function AnswerKeyRegisterModal({
   const explanationsFromApi = explanationsData ?? EMPTY_EXPLANATIONS;
 
   const choiceBubbleRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const essayInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const essayInputRefs = useRef<(HTMLInputElement | HTMLTextAreaElement | null)[]>([]);
 
   const resetLocalDraftState = useCallback(() => {
     setActiveTab(initialTab);
@@ -2012,13 +2012,38 @@ function EssayRow({
   editable: boolean;
   numericOnly?: boolean;
   showDividerAfter?: boolean;
-  inputRef?: (el: HTMLInputElement | null) => void;
+  inputRef?: (el: HTMLInputElement | HTMLTextAreaElement | null) => void;
   onMoveToNextRow?: () => void;
   onMoveToPreviousRow?: () => void;
 }) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const fitAnswer = () => {
+      textarea.style.height = "auto";
+      const borderHeight = textarea.offsetHeight - textarea.clientHeight;
+      textarea.style.height = `${textarea.scrollHeight + borderHeight}px`;
+    };
+    fitAnswer();
+    let width = textarea.clientWidth;
+    const fitWidth = () => {
+      if (textarea.clientWidth === width) return;
+      width = textarea.clientWidth;
+      fitAnswer();
+    };
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", fitWidth);
+      return () => window.removeEventListener("resize", fitWidth);
+    }
+    const observer = new ResizeObserver(fitWidth);
+    observer.observe(textarea);
+    return () => observer.disconnect();
+  }, [draft, numericOnly]);
+
   const scoreTone = Math.min(10, Math.max(0, Math.floor(score)));
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!editable) return;
+    if (!editable || e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.key === "Enter") {
       e.preventDefault();
       e.stopPropagation();
@@ -2032,25 +2057,39 @@ function EssayRow({
   };
 
   return (
-    <li className={`answer-key-row answer-key-row--essay ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
+    <li className={`answer-key-row answer-key-row--essay ${numericOnly ? "" : "answer-key-row--written"} ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
       <div className="answer-key-row__num">{displayLabel}</div>
       <div className="answer-key-row__input-wrap">
-        <input
-          ref={inputRef}
-          type="text"
-          inputMode={numericOnly ? "numeric" : "text"}
-          pattern={numericOnly ? "[0-9]*" : undefined}
-          value={draft}
-          onChange={(e) => onChange(
-            numericOnly ? e.target.value.replace(/\D/g, "").slice(0, 3) : e.target.value
-          )}
-          onKeyDown={handleKeyDown}
-          placeholder={numericOnly ? "0~999" : "해설참조"}
-          maxLength={numericOnly ? 3 : undefined}
-          aria-label={`${displayLabel} ${numericOnly ? "숫자 " : ""}정답`}
-          className="ds-input answer-key-row__input"
-          disabled={!editable}
-        />
+        {numericOnly ? (
+          <input
+            ref={inputRef}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={draft}
+            onChange={(event) => onChange(event.target.value.replace(/\D/g, "").slice(0, 3))}
+            onKeyDown={handleKeyDown}
+            placeholder="0~999"
+            maxLength={3}
+            aria-label={`${displayLabel} 숫자 정답`}
+            className="ds-input answer-key-row__input"
+            disabled={!editable}
+          />
+        ) : (
+          <textarea
+            ref={(element) => {
+              textareaRef.current = element;
+              inputRef?.(element);
+            }}
+            value={draft}
+            onChange={(event) => onChange(event.target.value)}
+            rows={2}
+            placeholder="해설참조"
+            aria-label={`${displayLabel} 정답`}
+            className="ds-input ds-textarea answer-key-row__input answer-key-row__textarea"
+            disabled={!editable}
+          />
+        )}
       </div>
       <div className="answer-key-row__score-ctrl">
         <span className={`answer-key-row__score-val answer-key-row__score-val--${scoreTone}`}>{formatScore(score)}점</span>

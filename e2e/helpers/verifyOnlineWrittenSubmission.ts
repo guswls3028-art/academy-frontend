@@ -6,6 +6,7 @@ import {
   QA_BASE, seedBrowserAuth, type QaTokens,
 } from "./qaStudentParentScenario";
 import { gotoAndSettle } from "./wait";
+import { verifyWrittenAnswerKeyEditor } from "./verifyWrittenAnswerKeyEditor";
 
 /** Part of the mandatory same-artifact assessment case; outer cleanup owns each id. */
 export async function verifyOnlineWrittenSubmission(
@@ -58,6 +59,7 @@ export async function verifyOnlineWrittenSubmission(
     const teacherBoundary = await installQaStudentParentBoundary(teacherPage, request);
     await seedBrowserAuth(studentPage, student);
     await seedBrowserAuth(teacherPage, admin);
+    await verifyWrittenAnswerKeyEditor(teacherPage, request, admin, scope, testInfo);
     await gotoAndSettle(studentPage, `${QA_BASE}/student/exams/${exam.id}/submit`);
     await acknowledgeInitialAccountPromptsIfVisible(studentPage);
     await studentPage.getByLabel("1번 답", { exact: true }).fill("2");
