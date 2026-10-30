@@ -27,6 +27,7 @@ import "./development-backend-readiness.test.mjs";
 import "./development-host-iam.test.mjs";
 import "./release-governance-metadata.test.mjs";
 import "./release-flow-failure.test.mjs";
+import "./homework-criteria-row-projection.test.mjs";
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
