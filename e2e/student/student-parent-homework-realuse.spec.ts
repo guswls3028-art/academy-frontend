@@ -32,7 +32,7 @@ import {
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 import { applyHomeworkPreviewCsp, homeworkHeic } from "../helpers/homeworkHeicFixture";
-import { verifyHomeworkCriteria } from "../helpers/homeworkCriteriaRealuse";
+import { emitHomeworkFlowFailure, verifyHomeworkCriteria, type HomeworkFlowCheckpoint } from "../helpers/homeworkCriteriaRealuse";
 
 test.setTimeout(600_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -101,6 +101,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
   const editors = new Set<string>();
   const layoutPath = "/core/student-grade-report-layout/";
   let reportLayoutToRestore: StudentGradeReportLayout | null = null;
+  const checkpoint: HomeworkFlowCheckpoint = { phase: "feedback-setup", viewport: null, threshold: null };
   try {
     const staffPage = await context.newPage();
     staffPage.on("request", outgoing => {
@@ -175,6 +176,8 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       expect(await expectApi<StudentGradeReportLayout>(request, "GET", layoutPath, admin.access)).toEqual(visibleLayout);
     }
     for (const width of [1366, 390]) {
+      checkpoint.phase = "feedback-score-edit";
+      checkpoint.viewport = width as 1366 | 390;
       await staffPage.setViewportSize({ width, height: 900 });
       await staffPage.reload();
       const cell = staffPage.locator(`[data-score-cell="homework:${created.enrollmentId}:${completion.id}"]`);
@@ -232,6 +235,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await expect(edit).toBeVisible();
       await staffPage.reload();
       await verifyMixed(originalOrder, [created.homeworkId!], width === 1366 ? 1 : 0);
+      checkpoint.phase = "feedback-order";
       // Put both items after the total, reorder there, and prove completion never enters the sum.
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
       await totals.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
@@ -254,6 +258,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await verifyMixed([completion.id, created.homeworkId!], [created.homeworkId!], width === 1366 ? 1 : 0);
       await staffPage.locator(`[data-score-cell="homework:${created.enrollmentId}:${completion.id}"]`).scrollIntoViewIfNeeded();
       await staffPage.screenshot({ path: test.info().outputPath(`real-mixed-homework-${width}.png`), animations: "disabled" });
+      checkpoint.phase = "feedback-report";
       await staffPage.getByRole("button", { name: "개인 성적표", exact: true }).click();
       const report = staffPage.getByRole("dialog");
       await report.getByRole("combobox", { name: "성적표 학생 선택" }).selectOption(String(created.enrollmentId));
@@ -278,6 +283,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await staffPage.screenshot({ path: test.info().outputPath(`real-teacher-homework-report-${width}.png`), animations: "disabled" });
       await teacherReport.getByRole("button", { name: "닫기", exact: true }).click();
       await expect(teacherReport).toBeHidden();
+      checkpoint.phase = "feedback-results";
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/assignments?homeworkId=${completion.id}`);
       await expect(staffPage.getByRole("heading", { name: completionTitle, exact: true })).toBeVisible();
       await staffPage.getByRole("tab", { name: "결과", exact: true }).click();
@@ -296,6 +302,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await staffPage.reload();
       await staffPage.getByRole("tab", { name: "결과", exact: true }).click();
       await expect(resultRow.locator("td").nth(2)).toHaveText(completionMark);
+      checkpoint.phase = "feedback-restore-order";
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
       // Restore exact order via the same excluded-area UI before existing comment checks.
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
@@ -315,6 +322,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await expect(totals).toBeHidden();
       await verifyMixed(originalOrder, [created.homeworkId!], width === 1366 ? 1 : 0);
 
+      checkpoint.phase = "feedback-criteria";
       await verifyHomeworkCriteria(staffPage, parentPage, request, admin.access, {
         lectureId: created.lectureId!, sessionId: created.sessionId!, enrollmentId: created.enrollmentId!,
         homeworkId: created.homeworkId!, homeworkTitle, completionHomeworkId: completion.id,
@@ -324,6 +332,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
           enrollmentId: created.previewEnrollmentId, score: 60, completionScore: width === 1366 ? 0 : 1 },
       }, width);
 
+      checkpoint.phase = "feedback-post-criteria";
       await staffPage.getByRole("button", { name: `${homeworkTitle} 작업 선택`, exact: true }).click();
       await staffPage.getByRole("menuitem", { name: /학부모 코멘트/ }).click();
       const comment = staffPage.getByRole("dialog", { name: "학부모 코멘트", exact: true });
@@ -360,6 +369,9 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
     await expectApi(request, "DELETE", `/homeworks/${completion.id}/`, admin.access, undefined, [204]);
     expect((await api(request, "GET", `/homeworks/${completion.id}/`, admin.access)).status).toBe(404);
     boundary.assertClean(); guards.assertZeroDefects();
+  } catch (error) {
+    emitHomeworkFlowFailure(error, checkpoint);
+    throw error;
   } finally {
     try {
       for (const editor of editors) {
