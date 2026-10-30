@@ -66,7 +66,8 @@ async function verifyFinalHomeworkPreview(
     const response = await checked;
     preflight = await response.json() as SendPreflightResponse;
     expect(response.status()).toBe(200);
-    expect(response.request().postDataJSON().student_ids.slice().sort((a: number, b: number) => a - b)).toEqual(selected);
+    const recipientIds: number[] = response.request().postDataJSON().student_ids;
+    expect(recipientIds.slice().sort((a, b) => a - b)).toEqual(selected);
     expect(preflight.blockers, "Actual server preflight must be sendable; preserve blocker evidence on failure").toEqual([]);
     expect(preflight).toMatchObject({ ok: true, can_send: true, send_to: "parent",
       recipient: { selected: 2, resolved: 2, valid_phone: 2, skipped_no_phone: 0, duplicate_phone: 0, unique_phone: 2, invalid_or_deleted: 0 },
@@ -88,8 +89,9 @@ async function verifyFinalHomeworkPreview(
       }
     }
     const preview = modal.getByLabel("현재 학생의 실제 발송 문구");
-    await expect(preview).toContainText(`${homeworkTitle}: 92/100 (92%) · ${evidence.passed ? passLabel : failLabel}`);
-    await expect(preview).toContainText(`${completionTitle}: ${completionScore ? "통과" : "미통과"}`);
+    // The composer previews the first selected row in server order, not selection-click order.
+    const inlineRecipient = preflight.preview_recipients.find(item => item.student_id === recipientIds[0])!;
+    await expect(preview).toContainText(inlineRecipient.full_message_body);
     if (width === 390) {
       await modal.getByRole("button", { name: "미리보기로 이동", exact: true }).click();
       await expect(preview).toBeInViewport();
