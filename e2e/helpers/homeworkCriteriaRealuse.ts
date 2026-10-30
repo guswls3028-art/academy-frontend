@@ -273,11 +273,11 @@ export async function verifyHomeworkCriteria(
       await parentPage.getByRole("button", { name: "과제 현황" }).click();
       const card = parentPage.locator('.stu-panel[data-session-type]')
         .filter({ has: parentPage.getByText(homeworkTitle, { exact: true }) });
-      await expect(card.locator("strong")).toHaveText("92/100");
+      await expect(card.locator('strong[class*="homeworkScore"]')).toHaveText("92/100");
       await expect(card.getByText(passed ? "완료" : "미완료", { exact: true })).toBeVisible();
       const completionCard = parentPage.locator('.stu-panel[data-session-type]')
         .filter({ has: parentPage.getByText(completionTitle, { exact: true }) });
-      await expect(completionCard.locator("strong")).toHaveText(completionPassed ? "통과" : "미통과");
+      await expect(completionCard.locator('strong[class*="homeworkScore"]')).toHaveText(completionPassed ? "통과" : "미통과");
 
       checkpoint.phase = "criteria-preview";
       await gotoAndSettle(page, scoresUrl);
