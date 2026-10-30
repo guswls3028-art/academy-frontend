@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Locator, Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
@@ -34,6 +34,7 @@ type MockState = {
   pdfUploads?: number;
   savedAnswers?: Record<string, string>;
   answerWrites?: number;
+  failAnswerWrite?: boolean;
 };
 
 const session = {
@@ -64,6 +65,9 @@ async function installApi(page: Page, state: MockState) {
       state.templateSaves ??= [];
       state.templateSaves.push(request.postDataJSON());
       state.exam = { ...state.exam, template_exam_id: 9990 };
+      return json(state.exam);
+    }
+    if (path === `/exams/${EXAM_ID}/structure/ensure/` && method === "POST") {
       return json(state.exam);
     }
     if (path === "/exams/pdf-extract/" && method === "POST") {
@@ -167,6 +171,7 @@ async function installApi(page: Page, state: MockState) {
     if (path === `/exams/${EXAM_ID}/explanations/`) return json([]);
     if (path === "/exams/answer-keys/9980/" && method === "PUT") {
       state.answerWrites = (state.answerWrites ?? 0) + 1;
+      if (state.failAnswerWrite) return json({ detail: "정답 저장에 실패했습니다. 다시 시도해 주세요." }, 400);
       state.savedAnswers = (request.postDataJSON() as { answers: Record<string, string> }).answers;
       return json({ id: 9980, exam: EXAM_ID, answers: state.savedAnswers });
     }
@@ -451,6 +456,101 @@ function recoveryExamState(): MockState {
     selectedEnrollmentIds: [601, 602],
   };
 }
+
+async function expectWrittenAnswerFits(answer: Locator) {
+  await expect.poll(() => answer.evaluate((element) => ({
+    vertical: element.scrollHeight <= element.clientHeight + 1,
+    horizontal: element.scrollWidth <= element.clientWidth + 1,
+  }))).toEqual({ vertical: true, horizontal: true });
+  const row = answer.locator("xpath=ancestor::li");
+  const answerBox = await answer.boundingBox();
+  const rowBox = await row.boundingBox();
+  expect(answerBox).not.toBeNull();
+  expect(rowBox).not.toBeNull();
+  expect(answerBox!.width).toBeGreaterThan(rowBox!.width - 20);
+}
+
+for (const width of [1366, 1100, 390]) {
+  test(`@essay-answer ${width}px 긴 서술형 정답을 읽고 줄바꿈 편집·저장 실패 복구·재조회를 한다`, async ({ page }, testInfo) => {
+    const state = recoveryExamState();
+    state.exam.subject = "국어";
+    const original = "낮은 곳은 D이다. 물은 높은 곳에서 낮은 곳으로 이동하므로 그림의 높이와 이동 방향을 함께 비교해야 한다. ".repeat(3).trim()
+      + "\n그림에 표시된 근거를 문장으로 설명한다.";
+    state.savedAnswers = { "1": "1", "2": original };
+    await page.setViewportSize({ width, height: 900 });
+    await openExam(page, state);
+    await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+    const modal = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "저장 (총 100점)", exact: true }) });
+    const answer = modal.getByRole("textbox", { name: "2번 정답", exact: true });
+    await expect(answer).toHaveValue(original);
+    await expectWrittenAnswerFits(answer);
+    await answer.fill("짧은 답");
+    const shortHeight = (await answer.boundingBox())!.height;
+    await answer.fill(original);
+    await expectWrittenAnswerFits(answer);
+    expect((await answer.boundingBox())!.height).toBeGreaterThan(shortHeight);
+    await answer.press("ControlOrMeta+End");
+    await answer.press("Enter");
+    await answer.pressSequentially("추가 근거");
+    const edited = `${original}\n추가 근거`;
+    await expect(answer).toHaveValue(edited);
+    await answer.press("ArrowUp");
+    await expect(answer).toBeFocused();
+    expect(state.answerWrites ?? 0).toBe(0);
+    await expectWrittenAnswerFits(answer);
+    await answer.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`essay-answer-${width}.png`), animations: "disabled" });
+
+    if (width === 1366) {
+      await page.setViewportSize({ width: 390, height: 900 });
+      await expectWrittenAnswerFits(answer);
+      await page.setViewportSize({ width, height: 900 });
+      await expectWrittenAnswerFits(answer);
+    }
+
+    const save = modal.getByRole("button", { name: "저장 (총 100점)", exact: true });
+    state.failAnswerWrite = true;
+    await save.click();
+    await expect(page.getByText("정답 저장에 실패했습니다. 다시 시도해 주세요.", { exact: true })).toBeVisible();
+    await expect(answer).toHaveValue(edited);
+    expect(state.savedAnswers["2"]).toBe(original);
+    state.failAnswerWrite = false;
+    await save.click();
+    await expect.poll(() => state.answerWrites).toBe(2);
+    await expect.poll(() => state.savedAnswers?.["2"]).toBe(edited);
+    await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+    await expect(save).toBeEnabled();
+    await page.reload();
+    await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
+    await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+    await expect(answer).toHaveValue(edited);
+    await expectWrittenAnswerFits(answer);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
+  });
+}
+
+test("@essay-answer 수학 단답은 한 줄 숫자 입력과 저장을 유지한다", async ({ page }) => {
+  const state = recoveryExamState();
+  state.exam.subject = "수학";
+  state.savedAnswers = { "1": "1", "2": "0" };
+  await openExam(page, state);
+  await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+  const answer = page.getByRole("textbox", { name: "2번 숫자 정답", exact: true });
+  await expect(answer).toHaveValue("0");
+  expect(await answer.evaluate((element) => element.tagName)).toBe("INPUT");
+  await answer.fill("999");
+  await answer.press("Enter");
+  expect(state.answerWrites ?? 0).toBe(0);
+  const save = page.getByRole("button", { name: "저장 (총 100점)", exact: true });
+  await save.click();
+  await expect.poll(() => state.savedAnswers?.["2"]).toBe("999");
+  await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
+  await expect(save).toBeEnabled();
+  await page.reload();
+  await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
+  await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+  await expect(answer).toHaveValue("999");
+});
 
 for (const width of [1366, 390]) {
 test(`@policy-recovery ${width}px 최신 시험 설정 조회 실패는 작성 중인 값을 유지하고 복구 후 다시 저장한다`, async ({ page }, testInfo) => {
