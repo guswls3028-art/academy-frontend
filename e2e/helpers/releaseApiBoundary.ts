@@ -474,7 +474,7 @@ type NativeTransportCode = "ECONNRESET" | "ECONNREFUSED" | "EPIPE" | "ETIMEDOUT"
 type NativeTransportKind = "http-header-overflow" | "socket-hang-up" | "response-aborted" | "decompression" | NativeTransportCode;
 export type ReleaseObservationEvent = {
   phase: "route-fetch" | "route-fulfill" | "route-handler" | "api-request" | "browser-console" | "browser-pageerror"
-    | "page-close" | "page-crash" | "context-close" | "browser-disconnected";
+    | "page-close" | "page-crash" | "context-close" | "browser-disconnected" | "public-embed-request-identity";
   stage: "initial" | "retry" | "recovered" | "terminal";
   method?: RequestTransportDiagnostic["method"] | "other";
   pathTemplate?: string | null;
@@ -490,6 +490,11 @@ export type ReleaseObservationEvent = {
   endNavigationOrdinal?: number | null;
   category?: "cors" | "chunk" | "network" | "resource" | "runtime" | "other";
   sourceKind?: "local" | "api" | "vendor" | "unknown";
+  publicEmbedRequestIdentity?: {
+    refererPresent: boolean;
+    refererMatchesEmbeddingOrigin: boolean;
+    originParamMatches: boolean;
+  };
   publicProvider?: {
     providerClass: typeof PUBLIC_VIDEO_PROVIDERS[number];
     resourceKind: "thumbnail" | "embed" | "player";
@@ -1108,6 +1113,7 @@ export async function installReleaseContextGuard(
   const activeRoutes = new Set<Promise<void>>();
   const publicVideoIds = new Set<string>();
   const publicVideoFrames = new WeakSet<Frame>();
+  let publicEmbedIdentityCount = 0;
   let closing = false;
   let nextRequestOrdinal = 0;
   const observation = createReleaseContextObservation(++nextContextOrdinal,
@@ -1197,6 +1203,21 @@ export async function installReleaseContextGuard(
           if (headers.authorization || headers["x-tenant-code"] || headers["x-csrftoken"]
             || (publicVideoKind === "embed" && (!playerFrame || !parent || new URL(parent.url()).origin !== boundary.webOrigin))) {
             await reject("credentials"); return;
+          }
+          if (publicVideoKind === "embed" && publicEmbedIdentityCount < 2) {
+            const referer = headers.referer?.trim() ?? "";
+            let refererMatchesEmbeddingOrigin = false;
+            try {
+              const value = new URL(referer);
+              refererMatchesEmbeddingOrigin = ["http:", "https:"].includes(value.protocol)
+                && !value.username && !value.password && value.origin === boundary.webOrigin;
+            } catch { /* Missing or malformed intercepted headers remain a false observation. */ }
+            publicEmbedIdentityCount += 1;
+            // This is the intercepted browser request before the unchanged relay,
+            // not proof of wire headers or of the provider receiving them.
+            observation.record({ phase: "public-embed-request-identity", stage: "initial", requestOrdinal: timing.requestOrdinal,
+              publicEmbedRequestIdentity: { refererPresent: referer.length > 0, refererMatchesEmbeddingOrigin,
+                originParamMatches: target.searchParams.get("origin") === boundary.webOrigin } });
           }
           // Relay actual provider responses and validate any permitted read hop. Native
           // route.continue() can follow a redirect without re-entering this guard.

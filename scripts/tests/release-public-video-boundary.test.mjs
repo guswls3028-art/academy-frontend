@@ -62,7 +62,7 @@ async function setup(options = {}) {
       abort: async () => assert.fail("Valid QA API source was rejected"), continue: async () => assert.fail("API must use verified transport"),
       fetch: async () => ({ status: () => options.status ?? 200, headers: () => ({ "content-type": "application/json", "access-control-allow-origin": boundary.webOrigin, "access-control-allow-credentials": "true" }), json: async () => video }), fulfill: async () => {} });
   }
-  async function request(url, { method = "GET", type = "image", frame, headers = {}, status = 200, sequence, headersError, fetchError, fulfillError } = {}) {
+  async function request(url, { method = "GET", type = "image", frame, headers = {}, status = 200, sequence, headersError, fetchError, fulfillError, onFetch } = {}) {
     let relayed = 0, aborted = 0;
     let providerResponse; let index = 0;
     await handler({ request: () => ({ url: () => url, method: () => method, resourceType: () => type, frame: () => frame, allHeaders: async () => { if (headersError) throw headersError; return headers; }, headerValue: async (name) => headers[name] ?? null, postDataJSON: () => null, postDataBuffer: () => null }),
@@ -70,6 +70,7 @@ async function setup(options = {}) {
       fetch: async (settings) => {
         assert.equal(settings.maxRedirects, 0); assert.ok(settings.timeout > 0 && settings.timeout <= 30_000);
         fetches.push(settings.url ?? url);
+        onFetch?.(settings);
         if (fetchError) throw fetchError;
         const item = sequence?.[Math.min(index++, sequence.length - 1)] ?? { status };
         if (item.error) throw item.error;
@@ -81,6 +82,98 @@ async function setup(options = {}) {
   }
   return { guard, request, initializers, fetches };
 }
+
+test("public embed identity observes intercepted headers before an unchanged HTTP 200 relay", async () => {
+  for (const [referer, present, matches] of [
+    [undefined, false, false], ["", false, false], ["  ", false, false],
+    [`${boundary.webOrigin}/private-path?token=identity-secret`, true, true],
+    ["https://foreign.invalid/identity-secret", true, false], ["identity-secret", true, false],
+    ["http://identity-secret@localhost:4173/", true, false],
+    ["https://localhost:4173/", true, false], ["http://localhost:4174/", true, false],
+  ]) {
+    const fixture = await setup();
+    const frame = { url: () => embed, parentFrame: () => ({ url: () => boundary.webOrigin, parentFrame: () => null }) };
+    const expected = { refererPresent: present, refererMatchesEmbeddingOrigin: matches, originParamMatches: true };
+    assert.deepEqual(await fixture.request(embed, { type: "document", frame,
+      headers: { ...(referer === undefined ? {} : { referer }), "x-private": "identity-secret" },
+      onFetch(settings) {
+        assert.deepEqual(settings, { maxRedirects: 0, timeout: 30_000 });
+        assert.deepEqual(fixture.guard.observation.snapshot().events[0].publicEmbedRequestIdentity, expected);
+      },
+    }), { relayed: 1, aborted: 0 });
+    fixture.guard.assertClean();
+    const snapshot = fixture.guard.observation.snapshot();
+    assert.equal(snapshot.events.length, 1);
+    const event = snapshot.events[0];
+    assert.equal(event.phase, "public-embed-request-identity"); assert.equal(event.stage, "initial");
+    assert.equal(event.requestOrdinal, 2);
+    assert.deepEqual(event.publicEmbedRequestIdentity, expected);
+    assert.equal(fixture.fetches.length, 1);
+    assert.equal(fixture.guard.transport.readFetchRetries, 0); assert.equal(fixture.guard.transport.mutationReplays, 0);
+    const observed = observePublicEvidence([{ releaseContextObservation: snapshot }]);
+    assert.equal(observed.rejectedContextObservationCount, 0);
+    assert.deepEqual(observed.contextObservations[0].events, snapshot.events);
+    assert.doesNotMatch(JSON.stringify(observed), /identity-secret|private-path|foreign\.invalid|localhost|youtube\.com/);
+  }
+});
+
+test("public embed identity caps only observations, preserving later relay and repeated snapshots", async () => {
+  const fixture = await setup();
+  const frame = { url: () => embed, parentFrame: () => ({ url: () => boundary.webOrigin, parentFrame: () => null }) };
+  const snapshots = [];
+  for (let index = 0; index < 4; index++) {
+    assert.deepEqual(await fixture.request(embed, { type: "document", frame }), { relayed: 1, aborted: 0 });
+    snapshots.push({ releaseContextObservation: fixture.guard.observation.snapshot() });
+  }
+  fixture.guard.observation.record({ phase: "context-close", stage: "terminal" });
+  snapshots.push({ releaseContextObservation: fixture.guard.observation.snapshot() });
+  fixture.guard.assertClean(); assert.equal(fixture.fetches.length, 4);
+  const observed = observePublicEvidence(snapshots);
+  assert.equal(observed.rejectedContextObservationCount, 0); assert.equal(observed.contextObservations.length, 1);
+  const events = observed.contextObservations[0].events;
+  assert.deepEqual(events.filter(event => event.publicEmbedRequestIdentity).map(event => event.requestOrdinal), [2, 3]);
+  assert.equal(events.at(-1).phase, "context-close");
+});
+
+test("public embed identity excludes non-admitted requests and unreadable headers", async () => {
+  const frame = { url: () => embed, parentFrame: () => ({ url: () => boundary.webOrigin, parentFrame: () => null }) };
+  for (const [setupOptions, options, url] of [
+    [{ register: false }, {}, embed], [{}, { headers: { authorization: "identity-secret" } }, embed],
+    [{}, { headers: { "x-tenant-code": "identity-secret" } }, embed],
+    [{}, { headers: { "x-csrftoken": "identity-secret" } }, embed],
+    [{}, { frame: undefined }, embed],
+    [{}, { frame: { url: () => embed, parentFrame: () => ({ url: () => "https://foreign.invalid", parentFrame: () => null }) } }, embed],
+    [{}, {}, embed.replace(encodeURIComponent(boundary.webOrigin), encodeURIComponent("https://foreign.invalid"))],
+    [{}, { headersError: new Error("identity-secret") }, embed],
+  ]) {
+    const fixture = await setup(setupOptions);
+    assert.deepEqual(await fixture.request(url, { type: "document", frame, ...options }), { relayed: 0, aborted: 1 });
+    assert.throws(() => fixture.guard.assertClean()); assert.equal(fixture.fetches.length, 0);
+    assert.equal(fixture.guard.observation.snapshot().events.some(event => event.publicEmbedRequestIdentity), false);
+  }
+  const thumbnail = await setup(); await thumbnail.request(video.thumbnail_url);
+  assert.equal(thumbnail.guard.observation.snapshot().events.length, 0);
+});
+
+test("public embed identity survives actual HTTP errors and fetch or fulfill failures without changing rejection", async () => {
+  for (const operation of ["response", "fetch", "fulfill"]) {
+    const fixture = await setup();
+    const frame = { url: () => embed, parentFrame: () => ({ url: () => boundary.webOrigin, parentFrame: () => null }) };
+    const error = new Error("identity-secret");
+    assert.deepEqual(await fixture.request(embed, { type: "document", frame, status: 403,
+      ...(operation === "fetch" ? { fetchError: error } : operation === "fulfill" ? { fulfillError: error } : {}),
+    }), operation === "response" ? { relayed: 1, aborted: 0 } : { relayed: 0, aborted: 1 });
+    if (operation === "response") fixture.guard.assertClean(); else assert.throws(() => fixture.guard.assertClean());
+    const snapshot = fixture.guard.observation.snapshot();
+    assert.equal(snapshot.events.filter(event => event.publicEmbedRequestIdentity).length, 1);
+    assert.ok(snapshot.events.some(event => event.publicProvider?.operation === (operation === "response" ? "fetch" : operation)));
+    assert.equal(fixture.fetches.length, 1);
+    const observed = observePublicEvidence([{ releaseContextObservation: snapshot }]);
+    assert.equal(observed.rejectedContextObservationCount, 0);
+    assert.deepEqual(observed.contextObservations[0].events, snapshot.events);
+    assert.doesNotMatch(JSON.stringify(observed), /identity-secret/);
+  }
+});
 
 test("real provider responses are relayed without mocked bytes; credentials and unregistered resources are rejected", async () => {
   const allowed = await setup(); assert.deepEqual(await allowed.request(video.thumbnail_url), { relayed: 1, aborted: 0 }); allowed.guard.assertClean();
@@ -329,7 +422,9 @@ test("admitted provider HTTP errors are observed but still fulfilled once withou
     assert.equal(fixture.fetches.length, 1);
     assert.equal(fixture.guard.transport.readFetchRetries, 0);
     assert.equal(fixture.guard.transport.mutationReplays, 0);
-    const events = fixture.guard.observation.snapshot().events;
+    const snapshotEvents = fixture.guard.observation.snapshot().events;
+    assert.equal(snapshotEvents.filter(event => event.publicEmbedRequestIdentity).length, 1);
+    const events = snapshotEvents.filter(event => event.publicProvider);
     assert.equal(events.length, 1);
     const { fetchDurationMs, ...provider } = events[0].publicProvider;
     assert.deepEqual(provider, { providerClass: "googlevideo.com", resourceKind: "player", operation: "fetch", httpStatus: status });
@@ -339,7 +434,7 @@ test("admitted provider HTTP errors are observed but still fulfilled once withou
     assert.equal(Object.hasOwn(events[0], "nativeCode"), false);
     const observed = observePublicEvidence([{ releaseContextObservation: fixture.guard.observation.snapshot() }]);
     assert.equal(observed.rejectedContextObservationCount, 0);
-    assert.equal(observed.contextObservations[0].events[0].publicProvider.httpStatus, status);
+    assert.equal(observed.contextObservations[0].events.find(event => event.publicProvider).publicProvider.httpStatus, status);
     assert.doesNotMatch(JSON.stringify(observed), /private-secret|videoplayback|rr1\./);
   }
   for (const status of [200, 206]) {
@@ -347,7 +442,9 @@ test("admitted provider HTTP errors are observed but still fulfilled once withou
     assert.deepEqual(await fixture.request("https://rr1.googlevideo.com/videoplayback", { frame: fixture.frame, type: "media", status }),
       { relayed: 1, aborted: 0 });
     fixture.guard.assertClean();
-    assert.equal(fixture.guard.observation.snapshot().events.length, 0);
+    const events = fixture.guard.observation.snapshot().events;
+    assert.equal(events.length, 1);
+    assert.equal(events[0].phase, "public-embed-request-identity");
   }
 });
 

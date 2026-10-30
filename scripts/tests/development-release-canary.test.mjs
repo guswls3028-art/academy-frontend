@@ -4116,6 +4116,87 @@ test("official evidence admits only closed public-provider failure operations an
   }
 });
 
+function publicEmbedIdentitySnapshot() {
+  return { schema: "release-context-observation/v1", observationOrdinal: 1, contextOrdinal: 1, snapshotSequence: 1,
+    events: [{ phase: "public-embed-request-identity", stage: "initial", elapsedMs: 1, closing: false, activeRouteCount: 1,
+      requestOrdinal: 2, publicEmbedRequestIdentity: { refererPresent: true, refererMatchesEmbeddingOrigin: true, originParamMatches: true } }],
+    droppedEventCount: 0, droppedRequestTransportDiagnosticCount: 0,
+    unknownPathEventCounts: { "route-fetch": 0, "route-fulfill": 0, "api-request": 0 } };
+}
+
+test("public embed identity decoder retains repeated snapshots in an otherwise passing full report", () => {
+  const report = completeFlowReport();
+  const result = report.suites.find(suite => suite.file === "public-video-realuse.spec.ts").specs[0].tests[0].results[0];
+  result.workerIndex = 0;
+  const first = publicEmbedIdentitySnapshot();
+  const second = structuredClone(first); second.snapshotSequence = 2;
+  second.events.push({ ...structuredClone(second.events[0]), requestOrdinal: 3,
+    publicEmbedRequestIdentity: { refererPresent: false, refererMatchesEmbeddingOrigin: false, originParamMatches: true } });
+  const closed = structuredClone(second); closed.snapshotSequence = 3;
+  closed.events.push({ phase: "context-close", stage: "terminal", elapsedMs: 2, closing: true, activeRouteCount: 0 });
+  result.stdout = [first, second, closed, first, closed].map(value => ({ text: JSON.stringify({ releaseContextObservation: value }) }));
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.equal(observed.rejectedContextObservationCount, 0); assert.equal(observed.contextObservations.length, 1);
+  assert.deepEqual(observed.contextObservations[0].events, closed.events);
+  assert.deepEqual(observed.failedFiles, []); assert.deepEqual(observed.boundaryCodes, []);
+  assert.deepEqual(observed.failureDiagnostics, []); assert.deepEqual(observed.testFailureObservations, []);
+  assert.deepEqual(observed.stats, report.stats); assert.doesNotThrow(() => assertReleaseSummary(report));
+});
+
+test("public embed identity decoder independently rejects extra data, invalid booleans, phases and spec bindings", () => {
+  const observe = (snapshot, file = "public-video-realuse.spec.ts") => observeReleaseTestResult(JSON.stringify(
+    contextReport([{ releaseContextObservation: snapshot }], file)));
+  for (const mutate of [
+    value => { value.events[0].publicEmbedRequestIdentity = null; },
+    value => { value.events[0].publicEmbedRequestIdentity = []; },
+    ...["refererPresent", "refererMatchesEmbeddingOrigin", "originParamMatches"].flatMap(key => [
+      value => { value.events[0].publicEmbedRequestIdentity[key] = "identity-secret"; },
+      value => { delete value.events[0].publicEmbedRequestIdentity[key]; },
+    ]),
+    value => { value.events[0].publicEmbedRequestIdentity.refererPresent = false; },
+    value => { value.events[0].publicEmbedRequestIdentity.originParamMatches = false; },
+    ...["referer", "origin", "url", "headers", "body", "frameURL"].flatMap(key => [
+      value => { value.events[0].publicEmbedRequestIdentity[key] = "identity-secret"; },
+      value => { value.events[0][key] = "identity-secret"; },
+    ]),
+    value => { delete value.events[0].publicEmbedRequestIdentity; },
+    value => { value.events[0].phase = "route-handler"; },
+    value => { value.events[0].stage = "terminal"; },
+    value => { value.events[0].method = "GET"; },
+    value => { value.events[0].publicProvider = { providerClass: "youtube.com", resourceKind: "embed", operation: "fetch", httpStatus: 200 }; },
+    value => { value.events[0].requestOrdinal = 0; },
+    value => { value.events[0].requestOrdinal = 0.5; },
+    value => { delete value.events[0].requestOrdinal; },
+    value => { value.contextOrdinal = null; },
+    value => { value.events.push(structuredClone(value.events[0])); },
+    value => { value.events.push(...[3, 4].map(requestOrdinal => ({ ...structuredClone(value.events[0]), requestOrdinal }))); },
+  ]) {
+    const snapshot = publicEmbedIdentitySnapshot(); mutate(snapshot);
+    const rejected = observe(snapshot);
+    assert.equal(rejected.rejectedContextObservationCount, 1); assert.deepEqual(rejected.contextObservations, []);
+    assert.doesNotMatch(JSON.stringify(rejected), /identity-secret/);
+  }
+  for (const file of ["student-parent-learning-realuse.spec.ts", "video-playback-renewal.realuse.spec.ts", "identity-secret.spec.ts"]) {
+    const rejected = observe(publicEmbedIdentitySnapshot(), file);
+    assert.equal(rejected.rejectedContextObservationCount, 1); assert.deepEqual(rejected.contextObservations, []);
+    assert.doesNotMatch(JSON.stringify(rejected), /identity-secret/);
+  }
+});
+
+test("public embed identity decoder preserves old snapshots and counts each context independently", () => {
+  const first = publicEmbedIdentitySnapshot();
+  first.events.push({ ...structuredClone(first.events[0]), requestOrdinal: 3 });
+  const second = structuredClone(first); second.observationOrdinal = 2; second.contextOrdinal = 2;
+  const old = structuredClone(first); old.observationOrdinal = 3; old.contextOrdinal = 3;
+  old.events = [{ phase: "context-close", stage: "terminal", elapsedMs: 0, closing: true, activeRouteCount: 0 }];
+  const outputs = [first, second, old].map(releaseContextObservation => ({ releaseContextObservation }));
+  const observed = observeReleaseTestResult(JSON.stringify(contextReport(outputs, "public-video-realuse.spec.ts")));
+  assert.equal(observed.rejectedContextObservationCount, 0); assert.equal(observed.contextObservations.length, 3);
+  assert.deepEqual(observed.contextObservations.map(value => value.events), [first.events, second.events, old.events]);
+  const legacy = observeReleaseTestResult(JSON.stringify(contextReport([outputs[2]], "student-parent-learning-realuse.spec.ts")));
+  assert.equal(legacy.rejectedContextObservationCount, 0); assert.deepEqual(legacy.contextObservations[0].events, old.events);
+});
+
 test("public-provider response observations accept only actual HTTP errors and bounded response durations", () => {
   const observer = policyModule.createReleaseContextObservation(1);
   observer.record({ phase: "route-fetch", stage: "terminal", method: "GET", pathTemplate: null,

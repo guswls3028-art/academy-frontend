@@ -889,6 +889,19 @@ thumbnail/embed/player 구분, headers/fetch/redirect/fulfill 작업과 실제 H
 거부한다. 공급자 허용 범위, redirect 제한, 재시도/재전송과 실패·cleanup 판정은 바뀌지
 않으며, 이 진단 추가 자체는 공급자 실패의 원인 규명이나 해결을 의미하지 않는다.
 
+허용된 YouTube embed는 기존 header·credential·부모 origin 검사 뒤, 변경 없는 fetch 직전에
+`releaseContextObservation/v1`의 `public-embed-request-identity` (`initial`) 이벤트를 남긴다.
+`publicEmbedRequestIdentity`에는 `refererPresent`, `refererMatchesEmbeddingOrigin`,
+`originParamMatches` 세 boolean만 담는다. 기준은 검증된 `boundary.webOrigin`이며 Referer에서
+기준 origin을 만들지 않는다. 누락·빈 Referer는 present/match가 false, 잘못된 URL·다른 origin·
+URL 자격정보는 match가 false다. origin parameter 일치는 기존 embed 허용 조건상 true다.
+이는 가로챈 브라우저 요청의 관측이며 실제 wire header나 YouTube 수신을 증명하지 않는다.
+HTTP 200인 bot 화면에도 정상 check/close snapshot으로 남고 새 실패 조건을 만들지 않는다.
+context별 첫 두 요청만 기록하며 기존 이벤트 128개 상한·drop 계수는 유지한다. 공식 decoder는
+해당 공개 영상 spec과 정확한 key/boolean/단계·요청 ordinal을 독립 검증한다. 두 요청 제한은
+각 snapshot 안에 적용하므로 동일 이벤트가 정상/close snapshot에 반복되어도 거부하지 않는다.
+원문 header·URL·query는 보존하지 않고 fetch/fulfill/redirect·재시도·실사용·cleanup 판정도 유지한다.
+
 격리 development Playwright 자식에만 Node CLI `--max-http-header-size=65536`을 적용한다.
 실제 worker가 이 64 KiB 한도를 상속하며, API-only loopback 회귀는 합성 32 KiB 헤더가
 기본 16 KiB에서 거절되고 64 KiB에서 전달되며, 64 KiB를 넘으면 계속 거절됨을 확인한다.
