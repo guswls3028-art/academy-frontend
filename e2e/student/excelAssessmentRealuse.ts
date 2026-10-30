@@ -3,7 +3,8 @@ import { File as NodeFile } from "node:buffer";
 import { readFile } from "node:fs/promises";
 import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
-import { assertNoHorizontalOverflow, expectApi, installQaStudentParentBoundary, QA_BASE, seedBrowserAuth, type QaTokens } from "../helpers/qaStudentParentScenario";
+import { assertNoHorizontalOverflow, expectApi, installQaStudentParentBoundary, QA_BASE, reloadStudentApp, seedBrowserAuth, type QaTokens } from "../helpers/qaStudentParentScenario";
+import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
 import { readExcelWorkbook } from "../../src/shared/utils/excelWorkbook";
@@ -149,12 +150,20 @@ export async function verifyExcelAssessment(
     const guards = attachStrictBrowserGuards(page);
     await seedBrowserAuth(page, student);
     await gotoAndSettle(page, `${QA_BASE}/student/exams/${exam.id}/result`);
+    await acknowledgeInitialAccountPromptsIfVisible(page);
     await expect(page.getByTestId("wrong-number-chip")).toHaveText(["5번"]);
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await reloadStudentApp(page);
     await expect(page.getByTestId("wrong-number-chip")).toHaveText(["5번"]);
     expect(await expectApi(request, "GET", `/student/results/me/exams/${exam.id}/`, student.access)).toMatchObject({
       total_score: 80, analysis: { wrong_count: 1, wrong_question_numbers: [5] },
     });
+    await expect(page.getByRole("dialog", { name: "비밀번호 변경 권장", exact: true })).toBeHidden();
+    await expect(page.getByRole("dialog", { name: "계정 안내", exact: true })).toBeHidden();
+    await expect(page.getByText("80 / 100점", { exact: true })).toBeVisible();
+    const wrongNumber = page.getByTestId("wrong-number-chip");
+    await expect(wrongNumber).toBeVisible();
+    await wrongNumber.scrollIntoViewIfNeeded();
+    await expect(wrongNumber).toBeInViewport();
     await assertNoHorizontalOverflow(page);
     await testInfo.attach("real-exam-excel-student-reloaded-390", {
       body: await page.screenshot({ path: testInfo.outputPath("real-exam-excel-student-reloaded-390.png"), animations: "disabled", fullPage: true }), contentType: "image/png",
