@@ -244,18 +244,22 @@ export async function verifyHomeworkCriteria(
       expect(await expectApi(request, "GET", completionPath, access)).toEqual(completionPolicy);
       const scores = await expectApi<SessionScoresResponse>(request, "GET", `/results/admin/sessions/${sessionId}/scores/`, access);
       const row = scores.rows.find(item => item.enrollment_id === enrollmentId)!;
+      // SessionScores repeats the student's aggregate clinic state in every block.
+      const primaryRowClinicRequired = !passed || !completionPassed;
+      expect(row.clinic_required).toBe(primaryRowClinicRequired);
       expect(row.homeworks.find(item => item.homework_id === homeworkId)!.block).toMatchObject({
-        score: 92, passed, clinic_required: !passed,
+        score: 92, passed, clinic_required: primaryRowClinicRequired,
       });
       expect(row.homeworks.find(item => item.homework_id === completionHomeworkId)!.block).toMatchObject({
-        score: completionScore, passed: completionPassed, clinic_required: !completionPassed,
+        score: completionScore, passed: completionPassed, clinic_required: primaryRowClinicRequired,
       });
       const comparison = scores.rows.find(item => item.enrollment_id === scenario.comparisonStudent.enrollmentId)!;
+      expect(comparison.clinic_required).toBe(true);
       expect(comparison.homeworks.find(item => item.homework_id === homeworkId)!.block).toMatchObject({
         score: 60, passed: false, clinic_required: true,
       });
       expect(comparison.homeworks.find(item => item.homework_id === completionHomeworkId)!.block).toMatchObject({
-        score: scenario.comparisonStudent.completionScore, passed: !completionPassed, clinic_required: completionPassed,
+        score: scenario.comparisonStudent.completionScore, passed: !completionPassed, clinic_required: true,
       });
       await assertNoHorizontalOverflow(page);
       const criteriaImage = test.info().outputPath(`homework-criteria-${width}-${threshold}.png`);

@@ -63,7 +63,9 @@ export async function verifyAttendanceExcel(
       viewport = width;
       phase = "attendance-submit";
       await page.setViewportSize({ width, height: 900 });
-      await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${lectureId}/students`);
+      const studentsUrl = `${QA_BASE}/workspace/lectures/${lectureId}`;
+      await gotoAndSettle(page, studentsUrl);
+      await expect(page).toHaveURL(studentsUrl);
       const exportButton = page.getByRole("button", { name: "출결 엑셀 다운로드", exact: true });
       await expect(exportButton).toBeVisible();
       const submitted = page.waitForResponse(response => response.request().method() === "POST"
