@@ -448,8 +448,17 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
 
   test("refresh 성공 뒤 재요청도 401이면 두 page가 active envelope 제거를 반영한다", async ({ page, context }) => {
     const access = createE2eJwt();
+    const rotatedAccess = createE2eJwt(172800);
     let refreshCount = 0;
     let meCount = 0;
+    let originalRequests = 0;
+    let replayRequests = 0;
+    let releaseOriginals!: () => void;
+    const bothOriginals = new Promise<void>(resolve => { releaseOriginals = resolve; });
+    let releaseFirstReplay!: () => void;
+    const firstReplay = new Promise<void>(resolve => { releaseFirstReplay = resolve; });
+    let releaseReplayResponses!: () => void;
+    const replayResponses = new Promise<void>(resolve => { releaseReplayResponses = resolve; });
     await page.addInitScript(({ token, pointerKey, generationPrefix }) => {
       if (sessionStorage.getItem("stale_refresh_seeded") === "1") return;
       const storage = window["localStorage"];
@@ -490,11 +499,27 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ access: createE2eJwt(), refresh: "rotated-but-stale" }),
+        body: JSON.stringify({ access: rotatedAccess, refresh: "rotated-but-stale" }),
       });
     });
     await page.route("**/api/v1/core/me/", async (route) => {
       meCount += 1;
+      if (route.request().headers().authorization === `Bearer ${access}`) {
+        originalRequests += 1;
+        if (originalRequests === 1) await bothOriginals;
+        else {
+          releaseOriginals();
+          // Deliver the late old-token 401 only after the first rotation was published.
+          await firstReplay;
+        }
+      } else {
+        expect(route.request().headers().authorization === `Bearer ${rotatedAccess}`).toBe(true);
+        replayRequests += 1;
+        releaseFirstReplay();
+        // Keep the session alive until the late request has chosen refresh vs reuse.
+        if (replayRequests >= 2) releaseReplayResponses();
+        await replayResponses;
+      }
       await route.fulfill({
         status: 401,
         contentType: "application/json",
@@ -514,6 +539,8 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     await expect(sibling).toHaveURL(/\/login(?:\/|$)/);
 
     expect(refreshCount).toBe(1);
+    expect(originalRequests).toBeGreaterThanOrEqual(2);
+    expect(replayRequests).toBeGreaterThanOrEqual(2);
     expect(meCount).toBeGreaterThanOrEqual(2);
     expect(await page.evaluate(({ pointerKey, generationPrefix }) => {
       const storage = window["localStorage"];
