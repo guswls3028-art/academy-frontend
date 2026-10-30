@@ -361,7 +361,7 @@ function observeReleaseContextSnapshot(payload) {
   const required = ["phase", "stage", "elapsedMs", "closing", "activeRouteCount"];
   const timingKeys = ["requestOrdinal", "requestStartedElapsedMs", "attemptDurationMs"];
   const pageKeys = ["pageOrdinal", "startDocumentLoadOrdinal", "endDocumentLoadOrdinal", "startNavigationOrdinal", "endNavigationOrdinal"];
-  const optional = ["method", "pathTemplate", "nativeCode", "nativeKind", "category", "sourceKind", "externalOrigin", ...timingKeys, ...pageKeys];
+  const optional = ["method", "pathTemplate", "nativeCode", "nativeKind", "category", "sourceKind", "externalOrigin", "publicProvider", ...timingKeys, ...pageKeys];
   for (const event of payload.events) {
     if (!record(event) || required.some((key) => !Object.hasOwn(event, key))
       || Object.keys(event).some((key) => !required.includes(key) && !optional.includes(key))
@@ -376,6 +376,17 @@ function observeReleaseContextSnapshot(payload) {
       || pageKeys.some((key) => Object.hasOwn(event, key) && event[key] !== null && !count(event[key]))
       || (Object.hasOwn(event, "category") && !["cors", "chunk", "network", "resource", "runtime", "other"].includes(event.category))
       || (Object.hasOwn(event, "sourceKind") && !["local", "api", "vendor", "unknown"].includes(event.sourceKind))) return null;
+    if (Object.hasOwn(event, "publicProvider")) {
+      const provider = event.publicProvider;
+      if (event.phase !== "route-handler" || event.stage !== "terminal" || Object.hasOwn(event, "externalOrigin")
+        || !record(provider) || Object.keys(provider).sort().join(",") !== "httpStatus,operation,providerClass,resourceKind"
+        || !["youtube.com", "youtube-nocookie.com", "ytimg.com", "googlevideo.com", "gstatic.com", "google.com", "googleapis.com", "googleusercontent.com", "ggpht.com", "doubleclick.net", "googlesyndication.com", "googleadservices.com"].includes(provider.providerClass)
+        || !["thumbnail", "embed", "player"].includes(provider.resourceKind)
+        || !["headers", "fetch", "redirect", "fulfill"].includes(provider.operation)
+        || (["headers", "fetch"].includes(provider.operation) ? provider.httpStatus !== null
+          : !Number.isSafeInteger(provider.httpStatus) || provider.httpStatus < 100 || provider.httpStatus > 599)
+        || (provider.operation === "redirect" && (provider.httpStatus < 300 || provider.httpStatus >= 400))) return null;
+    }
     if (Object.hasOwn(event, "externalOrigin")) {
       const external = event.externalOrigin;
       const booleans = ["frameExists", "frameAdmitted", "frameExactEmbed", "trustedAncestor", "hasPort", "hasHash", "hasCredentials"];
@@ -574,10 +585,13 @@ export function observeReleaseTestResult(stdout) {
                     && value.suppressedNetErrDefects <= value.recoveredTransportCount + value.closingAbortCount;
                 } else if (name === "releaseTestFailure") {
                   destination = "testFailureObservations";
-                  valid &&= exactKeys(value, ["schema", "phase", "kind", "expectedStatus", "receivedStatus"])
+                  const publicVideoPrimary = value.phase === "public-video-primary";
+                  valid &&= exactKeys(value, ["schema", "phase", "kind", "expectedStatus", "receivedStatus", ...(publicVideoPrimary ? ["journeyStage"] : [])])
                     && value.schema === "release-test-failure/v1"
-                    && ["video-primary", "context-check", "assessment-copy", "assessment-copy-cleanup"].includes(value.phase)
+                    && ["video-primary", "public-video-primary", "context-check", "assessment-copy", "assessment-copy-cleanup"].includes(value.phase)
                     && (value.phase !== "video-primary" || file === "video-playback-renewal.realuse.spec.ts")
+                    && (!publicVideoPrimary || (file === "public-video-realuse.spec.ts"
+                      && ["publisher-login", "showcase-edit", "video-register", "video-publish", "public-catalog", "public-detail", "player-ready", "video-edit", "video-hide", "video-delete", "video-reregister"].includes(value.journeyStage)))
                     && (!value.phase.startsWith("assessment-copy") || file === "student-parent-assessment-realuse.spec.ts")
                     && ["boundary", "assertion", "locator-timeout", "transport", "other"].includes(value.kind)
                     && value.expectedStatus === null && value.receivedStatus === null;

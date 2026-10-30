@@ -3,7 +3,7 @@ import { expect, test } from "../fixtures/strictTest";
 import { api, assertNoHorizontalOverflow, assertQaStudentParentRuntime,
   QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_BASE, QA_TENANT, STUDENT_PARENT_REALUSE_ENABLED } from "../helpers/qaStudentParentScenario";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
-import { installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv } from "../helpers/releaseApiBoundary";
+import { emitReleaseTestFailure, installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv, type PublicVideoJourneyStage } from "../helpers/releaseApiBoundary";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import type { ManagedVideo, VideoShowcase } from "../../src/landing/api/publicVideos";
 
@@ -19,6 +19,7 @@ test.describe("[real-use] public video publishing", () => {
     const owned: string[] = [];
     const publishers: Array<Awaited<ReturnType<typeof open>>> = [];
     const contexts: Array<{ context: Awaited<ReturnType<typeof browser.newContext>>; guard: Awaited<ReturnType<typeof installReleaseContextGuard>>; strict: ReturnType<typeof attachStrictBrowserGuards> }> = [];
+    let journeyStage: PublicVideoJourneyStage = "publisher-login";
     async function open(width: number) {
       const context = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block" });
       const guard = await installReleaseContextGuard(context, boundary);
@@ -28,6 +29,7 @@ test.describe("[real-use] public video publishing", () => {
     }
     try {
       for (const [index, width] of [1366, 390].entries()) {
+        journeyStage = "publisher-login";
         const page = await open(width); await page.goto(`${QA_BASE}/landing/videos`);
         await page.getByRole("link", { name: "로그인", exact: true }).click();
         await page.getByTestId("login-username").fill(index ? "ymath-qa-resource-publisher" : QA_ADMIN_USER);
@@ -46,6 +48,7 @@ test.describe("[real-use] public video publishing", () => {
         await expect(page).toHaveURL(/\/landing\/videos$/, { timeout: 45_000 }); await acknowledgeInitialAccountPromptsIfVisible(page);
         await page.goto(`${QA_BASE}/landing/videos`); await page.getByRole("link", { name: "영상 관리", exact: true }).click();
         publishers.push(page);
+        journeyStage = "showcase-edit";
         await page.getByText("영상 영역 설정", { exact: true }).click();
         if (index) await expect(page.getByLabel("영역 제목", { exact: true })).toHaveValue("QA 영상 자료 1366");
         await page.getByLabel("영역 제목", { exact: true }).fill(`QA 영상 자료 ${width}`);
@@ -55,6 +58,7 @@ test.describe("[real-use] public video publishing", () => {
         await page.reload(); await page.getByText("영상 영역 설정", { exact: true }).click();
         await expect(page.getByLabel("영역 제목", { exact: true })).toHaveValue(`QA 영상 자료 ${width}`);
         await assertNoHorizontalOverflow(page); await page.screenshot({ path: testInfo.outputPath(`video-settings-${width}.png`), fullPage: true });
+        journeyStage = "video-register";
         await page.getByRole("link", { name: "새 영상 등록", exact: true }).click();
         await page.getByLabel("01 · YouTube 링크", { exact: true }).fill(index ? "https://youtube.com/shorts/Q70aZV1TH1Y" : "https://youtu.be/xgjL2HyrdFM");
         await page.getByRole("button", { name: "영상 확인", exact: true }).click();
@@ -72,9 +76,11 @@ test.describe("[real-use] public video publishing", () => {
         await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue(title);
         await expect(page.getByLabel("분류 · 선택", { exact: true })).toHaveValue(`직접 정한 분류 ${width}`);
         expect((await api(request, "GET", `/landing-public/videos/${row.id}/`, "")).status).toBe(404);
+        journeyStage = "video-publish";
         await page.getByLabel("홈페이지 대표 영상으로 표시", { exact: false }).check();
         await page.getByRole("button", { name: "공개하기", exact: true }).click(); await expect(page.getByRole("status")).toContainText("공개했습니다", { timeout: 30_000 });
         const hero = await api<{ hero: { id: string } }>(request, "GET", "/landing-public/videos/showcase/", ""); expect(hero.body.hero.id).toBe(row.id);
+        journeyStage = "public-catalog";
         const visitor = await open(width); await visitor.goto(`${QA_BASE}/landing/videos`);
         await expect(visitor.getByRole("heading", { name: `QA 영상 자료 ${width}`, exact: true })).toBeVisible();
         await expect(visitor.getByText("게시자가 직접 정한 영상 소개입니다.", { exact: true })).toBeVisible();
@@ -87,18 +93,22 @@ test.describe("[real-use] public video publishing", () => {
         await visitor.getByRole("textbox", { name: "영상 검색", exact: true }).fill(title);
         await visitor.getByRole("button", { name: "검색", exact: true }).click();
         await expect(visitor.getByRole("heading", { level: 3 })).toHaveCount(1);
+        journeyStage = "public-detail";
         await visitor.getByRole("link").filter({ has: visitor.getByRole("heading", { name: title, level: 3, exact: true }) }).click();
         await expect(visitor.getByRole("heading", { name: title, exact: true })).toBeVisible(); await visitor.reload(); await expect(visitor.locator("iframe")).toHaveCount(1);
         await expect(visitor.getByText(`직접 정한 분류 ${width}`, { exact: true })).toBeVisible();
         await expect(visitor.locator("iframe")).toHaveAttribute("src", /autoplay=0/); await expect(visitor.getByRole("link", { name: "YouTube에서 보기 · 좋아요" })).toBeVisible();
+        journeyStage = "player-ready";
         const player = visitor.frameLocator("iframe");
         await expect(player.getByRole("button", { name: /^(?:Play(?: video)?|동영상 재생|재생)(?: \(k\))?$/i }).filter({ visible: true }).first()).toBeVisible({ timeout: 30_000 });
         await expect(player.locator(".ytp-error")).toBeHidden();
         await assertNoHorizontalOverflow(visitor); await visitor.screenshot({ path: testInfo.outputPath(`public-video-${width}.png`), fullPage: true });
+        journeyStage = "public-catalog";
         await visitor.getByRole("link", { name: "← 영상 목록", exact: true }).click(); await expect(visitor.locator("iframe")).toHaveCount(0);
         await expect(visitor.getByRole("textbox", { name: "영상 검색", exact: true })).toHaveValue(title);
         await expect(visitor.getByRole("button", { name: "오래된순", exact: true })).toHaveAttribute("aria-pressed", "true");
         await visitor.getByRole("button", { name: "검색 지우기", exact: true }).click();
+        journeyStage = "video-edit";
         await page.goto(`${QA_BASE}/landing/videos/${row.id}`);
         await expect(page.getByRole("link", { name: "로그인", exact: true })).toHaveCount(0);
         await expect(page.getByRole("link", { name: "영상 관리", exact: true })).toBeVisible();
@@ -114,6 +124,7 @@ test.describe("[real-use] public video publishing", () => {
           await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue("다른 게시자가 편집한 영상");
           await page.getByRole("button", { name: "수정 내용 공개", exact: true }).click(); await expect(page.getByRole("status")).toContainText("공개했습니다", { timeout: 30_000 });
           expect((await api<{ title: string }>(request, "GET", `/landing-public/videos/${owned[0]}/`, "")).body.title).toBe("다른 게시자가 편집한 영상");
+          journeyStage = "video-hide";
           await page.getByRole("button", { name: "비공개로 전환", exact: true }).click(); await expect(page.getByRole("status")).toContainText("비공개로 전환했습니다");
           expect((await api(request, "GET", `/landing-public/videos/${owned[0]}/`, "")).status).toBe(404);
           expect((await api<{ hero: { id: string } }>(request, "GET", "/landing-public/videos/showcase/", "")).body.hero.id).toBe(row.id);
@@ -121,6 +132,7 @@ test.describe("[real-use] public video publishing", () => {
         await assertNoHorizontalOverflow(page); await page.screenshot({ path: testInfo.outputPath(`video-studio-${width}.png`), fullPage: true });
       }
       for (const [index, page] of publishers.entries()) {
+        journeyStage = "video-delete";
         const deletedId = owned[index];
         await page.goto(`${QA_BASE}/landing/admin/videos/${deletedId}`);
         await page.getByRole("button", { name: "영상 삭제", exact: true }).click();
@@ -130,6 +142,7 @@ test.describe("[real-use] public video publishing", () => {
         expect((await api(request, "GET", `/landing-public/videos/${deletedId}/`, "")).status).toBe(404);
         expect((await api(request, "GET", `/landing-public/videos/manage/${deletedId}/`, access)).status).toBe(404);
         if (index) expect((await api<{ hero: null }>(request, "GET", "/landing-public/videos/showcase/", "")).body.hero).toBeNull();
+        journeyStage = "video-reregister";
         await page.getByRole("link", { name: "새 영상 등록", exact: true }).click();
         await page.getByLabel("01 · YouTube 링크", { exact: true }).fill(index ? "https://youtube.com/shorts/Q70aZV1TH1Y" : "https://youtu.be/xgjL2HyrdFM");
         await page.getByLabel(/^제목/).fill(`다시 등록한 영상 ${index}`);
@@ -142,6 +155,9 @@ test.describe("[real-use] public video publishing", () => {
         await page.reload(); await expect(page.getByLabel(/^제목/)).toHaveValue(`다시 등록한 영상 ${index}`);
         await assertNoHorizontalOverflow(page);
       }
+    } catch (error) {
+      emitReleaseTestFailure(error, "public-video-primary", undefined, journeyStage);
+      throw error;
     } finally {
       // Only IDs created in this disposable QA tenant are removed. Its tenant
       // cascade then removes deletion tombstones/events and proves tenant/user zero.

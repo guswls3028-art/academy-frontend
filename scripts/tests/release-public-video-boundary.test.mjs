@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
+import { observeReleaseTestResult } from "../run-development-release-canary.mjs";
 const source = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policy = await import("data:text/javascript;base64," + Buffer.from(stripTypeScriptTypes(source
   + "\nexport { registerPublicVideoSources, publicVideoRequestKind };\n")).toString("base64"));
@@ -12,6 +13,13 @@ const id = "xgjL2HyrdFM";
 const video = { youtube_video_id: id, canonical_url: `https://www.youtube.com/watch?v=${id}`, thumbnail_url: `https://i.ytimg.com/vi/${id}/hqdefault.jpg` };
 const embed = `https://www.youtube.com/embed/${id}?autoplay=0&playsinline=1&origin=${encodeURIComponent(boundary.webOrigin)}`;
 const ids = new Set([id]);
+
+function observePublicEvidence(outputs) {
+  return observeReleaseTestResult(JSON.stringify({ stats: { expected: 0, unexpected: 1, skipped: 0, flaky: 0 },
+    suites: [{ specs: [{ file: "public-video-realuse.spec.ts", tests: [{ status: "unexpected", results: [{
+      status: "failed", workerIndex: 0, stdout: outputs.map(value => ({ text: JSON.stringify(value) })),
+    }] }] }] }] }));
+}
 
 test("only API-shaped sources with fixed canonical and thumbnail addresses are registered", () => {
   const known = new Set(); register({ results: [video] }, known); assert.deepEqual([...known], [id]);
@@ -54,19 +62,21 @@ async function setup(options = {}) {
       abort: async () => assert.fail("Valid QA API source was rejected"), continue: async () => assert.fail("API must use verified transport"),
       fetch: async () => ({ status: () => options.status ?? 200, headers: () => ({ "content-type": "application/json", "access-control-allow-origin": boundary.webOrigin, "access-control-allow-credentials": "true" }), json: async () => video }), fulfill: async () => {} });
   }
-  async function request(url, { method = "GET", type = "image", frame, headers = {}, status = 200, sequence } = {}) {
+  async function request(url, { method = "GET", type = "image", frame, headers = {}, status = 200, sequence, headersError, fetchError, fulfillError } = {}) {
     let relayed = 0, aborted = 0;
     let providerResponse; let index = 0;
-    await handler({ request: () => ({ url: () => url, method: () => method, resourceType: () => type, frame: () => frame, allHeaders: async () => headers, headerValue: async (name) => headers[name] ?? null, postDataJSON: () => null, postDataBuffer: () => null }),
+    await handler({ request: () => ({ url: () => url, method: () => method, resourceType: () => type, frame: () => frame, allHeaders: async () => { if (headersError) throw headersError; return headers; }, headerValue: async (name) => headers[name] ?? null, postDataJSON: () => null, postDataBuffer: () => null }),
       continue: async () => assert.fail("Native continuation can escape via redirects"), abort: async () => { aborted++; },
       fetch: async (settings) => {
         assert.equal(settings.maxRedirects, 0); assert.ok(settings.timeout > 0 && settings.timeout <= 30_000);
         fetches.push(settings.url ?? url);
+        if (fetchError) throw fetchError;
         const item = sequence?.[Math.min(index++, sequence.length - 1)] ?? { status };
+        if (item.error) throw item.error;
         providerResponse = { status: () => item.status, headers: () => item.location ? { location: item.location } : {} };
         return providerResponse;
       },
-      fulfill: async (value) => { assert.deepEqual(Object.keys(value), ["response"]); assert.equal(value.response, providerResponse); relayed++; } });
+      fulfill: async (value) => { assert.deepEqual(Object.keys(value), ["response"]); assert.equal(value.response, providerResponse); if (fulfillError) throw fulfillError; relayed++; } });
     return { relayed, aborted };
   }
   return { guard, request, initializers, fetches };
@@ -188,4 +198,108 @@ test("unknown provider without a frame stays denied without exposing its host", 
     frameDetached: null, protocol: "https", hasPort: false, hasHash: false, hasCredentials: false });
   assert.doesNotMatch(JSON.stringify(event), /private-origin|private-token|collect|token/);
   assert.equal(fixture.fetches.length, 0);
+});
+
+test("actual admitted-provider guard distinguishes headers, fetch and fulfill failures without leaking or retrying", async () => {
+  for (const resourceKind of ["thumbnail", "embed", "player"]) {
+    for (const operation of ["headers", "fetch", "fulfill"]) {
+      const fixture = resourceKind === "player" ? await playerSetup() : await setup();
+      const parent = { url: () => boundary.webOrigin, parentFrame: () => null };
+      const frame = fixture.frame ?? { url: () => embed, parentFrame: () => parent };
+      const url = resourceKind === "thumbnail" ? video.thumbnail_url : resourceKind === "embed" ? embed
+        : "https://www.youtube.com/youtubei/v1/log_event?token=provider-secret";
+      const error = new Error(`route.${operation}: provider-secret https://private.invalid/?token=body-secret Authorization: header-secret`);
+      const status = resourceKind === "thumbnail" ? 503 : 200;
+      assert.deepEqual(await fixture.request(url, {
+        frame, type: resourceKind === "embed" ? "document" : resourceKind === "player" ? "fetch" : "image",
+        method: resourceKind === "player" ? "POST" : "GET", status,
+        headers: { "x-fixture-sensitive": "header-secret" },
+        ...({ headers: { headersError: error }, fetch: { fetchError: error }, fulfill: { fulfillError: error } }[operation]),
+      }), { relayed: 0, aborted: 1 });
+      assert.throws(() => fixture.guard.assertClean());
+      const snapshot = fixture.guard.observation.snapshot();
+      const events = snapshot.events.filter(event => event.publicProvider);
+      assert.equal(events.length, 1);
+      assert.equal(events[0].phase, "route-handler");
+      assert.equal(events[0].stage, "terminal");
+      assert.equal(events[0].nativeKind, "other");
+      assert.deepEqual(events[0].publicProvider, {
+        providerClass: resourceKind === "thumbnail" ? "ytimg.com" : "youtube.com",
+        resourceKind, operation, httpStatus: operation === "fulfill" ? status : null,
+      });
+      assert.doesNotMatch(JSON.stringify(snapshot), /provider-secret|body-secret|header-secret|private\.invalid|Authorization|youtubei/);
+      const observed = observePublicEvidence([{ releaseContextObservation: snapshot }]);
+      assert.equal(observed.rejectedContextObservationCount, 0);
+      assert.deepEqual(observed.contextObservations[0].events, snapshot.events);
+      assert.equal(fixture.fetches.length, operation === "headers" ? 0 : 1);
+      assert.equal(fixture.guard.transport.readFetchRetries, 0);
+      assert.equal(fixture.guard.transport.mutationReplays, 0);
+    }
+  }
+});
+
+test("provider redirect rejection and failure on an admitted hop retain only the operation's actual status", async () => {
+  for (const status of [302, 304]) {
+    const fixture = await setup();
+    assert.deepEqual(await fixture.request(video.thumbnail_url, {
+      sequence: [{ status, location: "https://private.invalid/?token=redirect-secret" }],
+    }), { relayed: 0, aborted: 1 });
+    assert.throws(() => fixture.guard.assertClean(), /public-video-redirect/);
+    const snapshot = fixture.guard.observation.snapshot();
+    assert.deepEqual(snapshot.events.find(event => event.publicProvider).publicProvider, {
+      providerClass: "ytimg.com", resourceKind: "thumbnail", operation: "redirect", httpStatus: status,
+    });
+    assert.equal(fixture.fetches.length, 1);
+    assert.doesNotMatch(JSON.stringify(snapshot), /redirect-secret|private\.invalid/);
+  }
+  const fixture = await playerSetup();
+  await fixture.request("https://googleads.g.doubleclick.net/pagead/id", { frame: fixture.frame,
+    sequence: [{ status: 302, location: "?token=redirect-secret" }, { error: new Error("fetch-secret") }] });
+  assert.throws(() => fixture.guard.assertClean());
+  const snapshot = fixture.guard.observation.snapshot();
+  assert.deepEqual(snapshot.events.find(event => event.publicProvider).publicProvider, {
+    providerClass: "doubleclick.net", resourceKind: "player", operation: "fetch", httpStatus: null,
+  });
+  assert.equal(fixture.fetches.length, 2, "only the already-admitted redirect hop is fetched; no retry");
+  assert.equal(fixture.guard.transport.readFetchRetries, 0);
+  assert.equal(fixture.guard.transport.mutationReplays, 0);
+  assert.doesNotMatch(JSON.stringify(snapshot), /redirect-secret|fetch-secret|pagead/);
+});
+
+test("actual public-video spec records its primary stage before strict close and preserves both failure paths", async () => {
+  const spec = stripTypeScriptTypes(readFileSync(new URL("../../e2e/admin/public-video-realuse.spec.ts", import.meta.url), "utf8"))
+    .replace(/^import[\s\S]*?;\r?\n/gm, "");
+  for (const closeFails of [false, true]) {
+    let callback;
+    const order = [], markers = [];
+    const primary = new Error("locator.goto: Timeout private-primary https://private.invalid/?token=secret");
+    const cleanup = new Error("Release API boundary failed: private-cleanup");
+    const testDouble = (_name, body) => { callback = body; };
+    Object.assign(testDouble, { setTimeout() {}, use() {}, skip() {}, describe: (_name, body) => body() });
+    testDouble.describe.configure = () => {};
+    const guard = { beginClose: async () => { order.push("begin-close"); }, assertClean: () => { order.push("guard-check"); } };
+    const strict = { assertZeroDefects: () => { order.push("strict-check"); } };
+    const context = { addInitScript: async () => {}, newPage: async () => ({ on() {}, goto: async () => { throw primary; } }),
+      close: async () => { order.push("close"); if (closeFails) throw cleanup; } };
+    runInNewContext(spec, {
+      test: testDouble, expect: { soft: (check) => ({ not: { toThrow: () => check() } }) },
+      assertQaStudentParentRuntime() {}, releaseBoundaryFromEnv: () => boundary, installReleaseRequestGuard() {},
+      installReleaseContextGuard: async () => guard, attachStrictBrowserGuards: () => strict,
+      emitReleaseTestFailure: (error, phase, _emit, stage) => policy.emitReleaseTestFailure(error, phase, value => {
+        order.push("primary-marker"); markers.push(value);
+      }, stage),
+      STUDENT_PARENT_REALUSE_ENABLED: true, QA_BASE: boundary.webOrigin, QA_TENANT: boundary.tenantCode,
+      process: { env: {} }, URL,
+    });
+    await assert.rejects(callback({ browser: { newContext: async () => context }, request: {} }, {}),
+      error => error === (closeFails ? cleanup : primary));
+    assert.deepEqual(markers, [{ releaseTestFailure: { schema: "release-test-failure/v1", phase: "public-video-primary",
+      kind: "locator-timeout", journeyStage: "publisher-login", expectedStatus: null, receivedStatus: null } }]);
+    assert.deepEqual(order, ["primary-marker", "begin-close", "close", ...(closeFails ? [] : ["guard-check", "strict-check"])]);
+    assert.doesNotMatch(JSON.stringify(markers), /private|secret|Timeout|goto/);
+    const observed = observePublicEvidence(markers);
+    assert.equal(observed.rejectedFailureObservationCount, 0);
+    assert.equal(observed.testFailureObservations.length, 1);
+    assert.equal(observed.testFailureObservations[0].journeyStage, "publisher-login");
+  }
 });

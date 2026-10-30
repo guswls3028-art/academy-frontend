@@ -855,6 +855,17 @@ API method+검토된 path+`returned NNN` 형식의 status만 별도로 보존하
 바꾸지 않으므로 나중의 `context-check` 오류가 원 오류를 대체해도 두 안전 관측이
 남는다. 이것은 누락된 원 오류를 사후 복구하거나 assertion을 완화하는 계약이 아니다.
 
+공개 영상 실사용도 catch에서 `public-video-primary`와 닫힌 `journeyStage`(로그인,
+영역 편집, 등록/공개, 목록/상세, `player-ready`, 편집/숨김, 삭제/재등록)를 기록하고
+원 오류를 다시 throw한다. 이 marker는 `public-video-realuse.spec.ts`에서만 허용한다.
+finally의 삭제·close·strict 검사는 그대로이며, close가 원 오류를 대체해도 앞선 단계
+관측은 남는다. 허용된 공급자 요청 실패에는 `publicProvider`의 고정 provider class,
+thumbnail/embed/player 구분, headers/fetch/redirect/fulfill 작업과 실제 HTTP status만
+추가한다(headers/fetch는 응답이 없으므로 null). 원문 URL·query·frame URL·header·본문·
+오류 메시지/stack은 게시하지 않는다. 공식 parser는 추가 필드/임의 label/잘못된 status를
+거부한다. 공급자 허용 범위, redirect 제한, 재시도/재전송과 실패·cleanup 판정은 바뀌지
+않으며, 이 진단 추가 자체는 공급자 실패의 원인 규명이나 해결을 의미하지 않는다.
+
 평가 복사 helper도 원 오류를 정리 뒤 그대로 throw하고 `assessment-copy`와
 `assessment-copy-cleanup`의 닫힌 단계/kind만 남긴다. 이 두 단계는
 `student-parent-assessment-realuse.spec.ts`에서만 허용하며 source 위치는
