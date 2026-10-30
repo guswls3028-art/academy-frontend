@@ -41,6 +41,14 @@ export function developmentPlaywrightNodeArgs(args) {
   return ["--max-http-header-size=65536", ...args];
 }
 
+export function readDiagnosticFullSuiteMode(env = process.env) {
+  const flag = env.ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE;
+  if (flag === undefined || flag === "0") return false;
+  if (flag !== "1") throw new Error("Invalid development diagnostic full-suite flag");
+  if (env.GITHUB_EVENT_NAME !== "workflow_dispatch") throw new Error("Development diagnostic full suite requires workflow_dispatch");
+  return true;
+}
+
 const FLOW_COUNTS = Object.freeze(Object.fromEntries(
   Object.entries(developmentRealUseCases).map(([file, count]) => [path.basename(file), count]),
 ));
@@ -167,9 +175,10 @@ const canonical = (value) => JSON.stringify(value, function (_key, item) {
 const PREFLIGHT_STAGES = ["process", "bundle", "governance", "iam", "document", "host", "ssm"];
 const PREFLIGHT_CHECKS = PREFLIGHT_STAGES.slice(1);
 
-function initialPreflightEvidence(frontendSha) {
+function initialPreflightEvidence(frontendSha, diagnosticOnly) {
   return {
     frontendSha: /^[a-f0-9]{40}$/.test(frontendSha || "") ? frontendSha : null,
+    diagnosticOnly,
     backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
     tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
     crossTenantCleanup: null,
@@ -184,7 +193,8 @@ function initialPreflightEvidence(frontendSha) {
     preflightStage: "process",
     preflightChecks: Object.fromEntries(PREFLIGHT_CHECKS.map((name) => [name, false])),
     terminalOutcome: "preflight_running", passed: false,
-    failures: ["development preflight unfinished; cleanup not proven"],
+    failures: ["development preflight unfinished; cleanup not proven",
+      ...(diagnosticOnly ? ["diagnostic full suite is non-promotable; normal release gate remains required"] : [])],
   };
 }
 
@@ -737,10 +747,12 @@ export function assertClinicInteractionTimings(observation) {
     ["manual-add", "manual-pass"], "Clinic interaction timing evidence missing or duplicated");
 }
 
-export async function runPreflightStages(stages, persist, frontendSha) {
-  const evidence = initialPreflightEvidence(frontendSha);
+export async function runPreflightStages(stages, persist, frontendSha, env = process.env) {
+  // Record only the exact opt-in bit before validation, never raw environment values.
+  const evidence = initialPreflightEvidence(frontendSha, env.ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE === "1");
   persist(evidence);
   try {
+    evidence.diagnosticOnly = readDiagnosticFullSuiteMode(env);
     assert.deepEqual(stages.map(([name]) => name), PREFLIGHT_STAGES, "Unexpected development preflight stages");
     for (const [name, check] of stages) {
       evidence.preflightStage = name;
@@ -1268,7 +1280,8 @@ export async function run() {
       assert.equal(online.length, 1);
       assert.equal(online[0].PingStatus, "Online");
     }],
-  ], persistEvidence, process.env.GITHUB_SHA);
+  ], persistEvidence, process.env.GITHUB_SHA, process.env);
+  const diagnosticOnly = evidence.diagnosticOnly;
   evidence.binarySafePortTransport = portTransport.manifest;
   const ownerParameters = (ownerTenant, ownerCapability, syntheticLongVideo) => ({
     TenantCode: [ownerTenant], OwnershipCapability: [ownerCapability],
@@ -1374,7 +1387,7 @@ export async function run() {
       apiTunnelProcessObservation: apiTunnelProcessObservation || null,
       videoRuntimeObservation: videoRuntimeObservation || null,
       postPlaybackInspectObservation,
-      terminalOutcome, passed, failures: errors });
+      terminalOutcome, diagnosticOnly, passed: passed && !diagnosticOnly, failures: errors });
     persistEvidence(evidence);
     return evidence;
   };
@@ -1527,7 +1540,8 @@ export async function run() {
     if (interrupted && !failures.some((failure) => failure.includes("interrupted"))) failures.push("development run interrupted; promotion forbidden");
     process.off("SIGINT", interrupt);
     process.off("SIGTERM", interrupt);
-    const passed = failures.length === 0 && Boolean(counts) && Boolean(cleanup)
+    if (diagnosticOnly) failures.push("diagnostic full suite is non-promotable; normal release gate remains required");
+    const passed = !diagnosticOnly && failures.length === 0 && Boolean(counts) && Boolean(cleanup)
       && Boolean(postCleanupInspectObservation) && Boolean(realUseObservation?.longVideo)
       && Boolean(videoRuntimeObservation) && Boolean(crossTenantCleanup)
       && Boolean(crossPostCleanupInspectObservation);

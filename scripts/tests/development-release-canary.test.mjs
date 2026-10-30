@@ -1111,6 +1111,7 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     (current) => snapshots.push(structuredClone(current)), "not-a-reviewed-sha secret-path");
   assert.deepEqual(snapshots[0], {
     frontendSha: null,
+    diagnosticOnly: false,
     backendGovernanceSha: null,
     backendReleaseId: null,
     apiDigest: null,
@@ -1145,7 +1146,7 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
   assert.doesNotMatch(JSON.stringify(snapshots), /not-a-reviewed-sha|secret-path/);
 });
 
-function runtimeEvidenceFixture(untilInitialWriteOnly) {
+function runtimeEvidenceFixture(untilInitialWriteOnly, diagnosticOnly = false) {
   const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
   const start = source.indexOf("  const ownerParameters =");
   const end = untilInitialWriteOnly ? source.indexOf('  process.on("SIGINT", interrupt);', start)
@@ -1157,6 +1158,7 @@ function runtimeEvidenceFixture(untilInitialWriteOnly) {
   let externalCalls = 0;
   const forbidden = () => { externalCalls++; assert.fail("runtime evidence test attempted external work"); };
   const deps = {
+    diagnosticOnly,
     assert, createFixedQaRunner: runner.createFixedQaRunner, evidence: { preflightStage: "complete", passed: false },
     manifest: { releaseImageTag: "unit-release", images: { "academy-api": { digest: "unit-digest" } } },
     revision: "b".repeat(40), instanceId: "unit-instance", tenant: "qa-unit-primary", crossTenant: "qa-unit-cross",
@@ -1169,11 +1171,146 @@ function runtimeEvidenceFixture(untilInitialWriteOnly) {
     assertFreePort: async (port) => { portChecks.push(port); throw new Error("private-controlled-pre-Setup-failure"); },
     aws: forbidden, ownedProcess: forbidden, serveArtifact: forbidden,
   };
-  const tail = untilInitialWriteOnly
-    ? "return { writeEvidence, setCrossObservation(value) { crossPostCleanupInspectObservation = value; } };" : "";
+  const terminalStart = source.indexOf('    process.off("SIGTERM", interrupt);', start);
+  const terminalEnd = source.indexOf('\n  }\n}', terminalStart);
+  assert.ok(terminalStart > start && terminalEnd > terminalStart);
+  const terminalBody = source.slice(source.indexOf("\n", terminalStart) + 1, terminalEnd);
+  const tail = untilInitialWriteOnly ? `return {
+    writeEvidence, setCrossObservation(value) { crossPostCleanupInspectObservation = value; },
+    finalize(values) {
+      counts = values.counts; cleanup = values.cleanup; crossTenantCleanup = values.crossTenantCleanup;
+      postCleanupInspectObservation = values.postCleanupInspectObservation;
+      crossPostCleanupInspectObservation = values.crossPostCleanupInspectObservation;
+      realUseObservation = values.realUseObservation; videoRuntimeObservation = values.videoRuntimeObservation;
+      failures.push(...(values.failures || []));
+      ${terminalBody}
+    }
+  };` : "";
   const execute = new Function(...Object.keys(deps), `"use strict"; return async () => {\n${source.slice(start, end)}\n${tail}\n};`)(...Object.values(deps));
   return { execute, snapshots, portChecks, signals, externalCalls: () => externalCalls };
 }
+
+test("diagnostic full-suite mode accepts only the exact opt-in on workflow_dispatch", () => {
+  assert.equal(typeof runner.readDiagnosticFullSuiteMode, "function");
+  for (const event of [undefined, "push", "workflow_dispatch"]) {
+    for (const flag of [undefined, "0"]) {
+      assert.equal(runner.readDiagnosticFullSuiteMode({ GITHUB_EVENT_NAME: event,
+        ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: flag }), false);
+    }
+  }
+  assert.equal(runner.readDiagnosticFullSuiteMode({ GITHUB_EVENT_NAME: "workflow_dispatch",
+    ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "1" }), true);
+  for (const flag of ["", "true", "false", "01", " 1", "1 ", "private-flag", true, 1, null]) {
+    assert.throws(() => runner.readDiagnosticFullSuiteMode({ GITHUB_EVENT_NAME: "workflow_dispatch",
+      ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: flag }), { message: "Invalid development diagnostic full-suite flag" });
+  }
+  for (const event of [undefined, "push", "pull_request", "private-event"]) {
+    assert.throws(() => runner.readDiagnosticFullSuiteMode({ GITHUB_EVENT_NAME: event,
+      ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "1" }), { message: "Development diagnostic full suite requires workflow_dispatch" });
+  }
+});
+
+test("diagnostic validation in the actual run preserves initial evidence before rejecting any external work", async () => {
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("export async function run() {") + "export async function run() {".length;
+  const end = source.indexOf("  const ownerParameters =", start);
+  assert.ok(start > 0 && end > start);
+  for (const env of [
+    { ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "private-flag", GITHUB_EVENT_NAME: "workflow_dispatch" },
+    { ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "1", GITHUB_EVENT_NAME: "private-event" },
+  ]) {
+    const snapshots = [];
+    let externalCalls = 0;
+    const forbidden = () => { externalCalls++; assert.fail("diagnostic validation attempted external work"); };
+    const deps = {
+      path: { join: () => "unit-evidence", dirname: () => "unit-artifact" }, ROOT: "unit-root", fs: { mkdirSync() {} },
+      writeQaCheckpoint: (_path, value) => snapshots.push(structuredClone(value)),
+      // Execute the real run prelude and real preflight implementation, with only effects intercepted.
+      runPreflightStages: runner.runPreflightStages, process: { env },
+      assertOfficialReleaseContext: forbidden, aws: forbidden, binarySafeSsmEnvironment: forbidden,
+    };
+    const execute = new Function(...Object.keys(deps), `return async () => {${source.slice(start, end)}};`)(...Object.values(deps));
+    await assert.rejects(execute(), /Invalid development diagnostic full-suite flag|requires workflow_dispatch/);
+    assert.equal(externalCalls, 0);
+    assert.equal(snapshots[0].terminalOutcome, "preflight_running");
+    const final = snapshots.at(-1);
+    assert.equal(final.terminalOutcome, "preflight_failed");
+    for (const snapshot of snapshots) {
+      assert.equal(snapshot.diagnosticOnly, env.ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE === "1");
+      assert.equal(snapshot.passed, false);
+      for (const key of ["frontendSha", "cases", "cleanup", "crossTenantCleanup", "realUseObservation"]) assert.equal(snapshot[key], null);
+      assert.ok(Object.values(snapshot.preflightChecks).every((passed) => passed === false));
+    }
+    assert.doesNotMatch(JSON.stringify(snapshots), /private-flag|private-event/);
+  }
+});
+
+test("diagnostic preflight retains its closed mode through every stage without executing QA", async () => {
+  const names = ["process", "bundle", "governance", "iam", "document", "host", "ssm"];
+  const snapshots = [];
+  const evidence = await runner.runPreflightStages(names.map((name) => [name, async () => {}]),
+    (value) => snapshots.push(structuredClone(value)), "a".repeat(40),
+    { ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "1", GITHUB_EVENT_NAME: "workflow_dispatch" });
+  assert.equal(evidence.terminalOutcome, "qa_running");
+  assert.ok(snapshots.every((value) => value.diagnosticOnly === true && value.passed === false));
+  assert.ok(snapshots.every((value) => value.failures.includes("diagnostic full suite is non-promotable; normal release gate remains required")));
+});
+
+test("diagnostic finalization and CLI fail closed even when all 41 cases and cleanup otherwise pass", async () => {
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  const cliCatch = source.split("\n").find((line) => line.trim().startsWith("run().catch("));
+  assert.ok(cliCatch, "execute the real CLI failure exit path");
+  const report = completeFlowReport();
+  const successful = {
+    counts: assertReleaseSummary(report), cleanup: { remaining: { tenants: 0, users: 0 } },
+    crossTenantCleanup: { remaining: { tenants: 0, users: 0 } },
+    postCleanupInspectObservation: { tenantRemainingZero: true, userRemainingZero: true },
+    crossPostCleanupInspectObservation: { tenantRemainingZero: true, userRemainingZero: true },
+    realUseObservation: { stats: report.stats, longVideo: { verified: true } },
+    videoRuntimeObservation: { verified: true },
+  };
+  for (const diagnosticOnly of [false, true]) {
+    const fixture = runtimeEvidenceFixture(true, diagnosticOnly);
+    const state = await fixture.execute();
+    const processResult = { exitCode: 0 };
+    const errors = [];
+    await new Function("run", "process", "console", `return ${cliCatch.trim()}`)(
+      async () => state.finalize(successful), processResult, { error: (value) => errors.push(value) });
+    const terminal = fixture.snapshots.at(-1);
+    assert.equal(terminal.diagnosticOnly, diagnosticOnly);
+    assert.equal(terminal.passed, !diagnosticOnly);
+    assert.equal(terminal.terminalOutcome, diagnosticOnly ? "qa_failed" : "passed");
+    assert.equal(processResult.exitCode, diagnosticOnly ? 1 : 0);
+    assert.equal(errors.length, diagnosticOnly ? 1 : 0);
+    assert.deepEqual(terminal.cases, successful.counts);
+    assert.deepEqual(terminal.realUseObservation, successful.realUseObservation);
+    assert.deepEqual(terminal.cleanup.remaining, successful.cleanup.remaining);
+    assert.deepEqual(terminal.crossTenantCleanup.remaining, successful.crossTenantCleanup.remaining);
+    assert.deepEqual(terminal.failures, diagnosticOnly
+      ? ["diagnostic full suite is non-promotable; normal release gate remains required"] : []);
+    assert.equal(fixture.externalCalls(), 0);
+  }
+});
+
+test("diagnostic evidence preserves actual failure counts and cleanup without accepting a passing write", async () => {
+  const fixture = runtimeEvidenceFixture(true, true);
+  const state = await fixture.execute();
+  state.writeEvidence(true);
+  assert.equal(fixture.snapshots.at(-1).passed, false);
+  const stats = { expected: 7, unexpected: 1, skipped: 33, flaky: 0 };
+  assert.throws(() => state.finalize({ counts: null,
+    cleanup: { remaining: { tenants: 0, users: 0 } }, crossTenantCleanup: { remaining: { tenants: 0, users: 0 } },
+    realUseObservation: { stats }, failures: ["development identity/setup/real-use failed"],
+  }), /Development release gate failed/);
+  const terminal = fixture.snapshots.at(-1);
+  assert.deepEqual(terminal.realUseObservation.stats, stats);
+  assert.equal(terminal.cases, null);
+  assert.deepEqual(terminal.failures, ["development identity/setup/real-use failed",
+    "diagnostic full suite is non-promotable; normal release gate remains required"]);
+  assert.deepEqual(terminal.cleanup.remaining, { tenants: 0, users: 0 });
+  assert.deepEqual(terminal.crossTenantCleanup.remaining, { tenants: 0, users: 0 });
+  assert.equal(fixture.externalCalls(), 0);
+});
 
 test("initial runtime evidence executes with null cross cleanup and retains later observation", async () => {
   const fixture = runtimeEvidenceFixture(true);
@@ -2173,40 +2310,46 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers every required case without executing any API test", () => {
+test("development config discovers every required case in normal and diagnostic modes without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
-  const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
-    "--config=playwright.development-release.config.ts", "--list"], {
-    cwd, encoding: "utf8", env: { ...process.env,
-      E2E_API_URL: "http://127.0.0.1:18000", E2E_BASE_URL: "http://localhost:4173",
-      E2E_TENANT_CODE: "qa-ymath-realuse-fe-123-1-abcdef123456",
-      E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
-      E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",
-      E2E_STUDENT_PASS: "development-discovery-only" },
-  });
-  const report = JSON.parse(output);
-  assert.equal(report.config.maxFailures, 1, "a failed gate stops further scenarios before exact cleanup");
-  let discovered = 0;
-  const counts = {};
-  const visit = (suite) => {
-    for (const spec of suite.specs || []) for (const test of spec.tests) {
-      assert.equal(test.expectedStatus, "passed");
-      assert.ok(!test.annotations?.some((annotation) => annotation.type === "skip"));
-      assert.deepEqual(test.results, [], "--list must not run synthetic API scenarios");
-      discovered += 1;
-      const file = String(spec.file || suite.file).split(/[\\/]/).at(-1);
-      counts[file] = (counts[file] || 0) + 1;
-    }
-    for (const child of suite.suites || []) visit(child);
-  };
-  visit(report);
-  assert.equal(discovered, 41);
-  assert.deepEqual(counts, Object.fromEntries(Object.entries(developmentRealUseCases)
-    .map(([file, count]) => [file.split("/").at(-1), count])), "collection must match the same release inventory by file");
-  // Playwright's --list reporter counts all unexecuted cases as skipped. These
-  // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
-  assert.equal(report.stats.expected, 0);
-  assert.throws(() => assertReleaseSummary(report));
+  for (const [flag, event, maxFailures] of [["0", "push", 1], ["1", "workflow_dispatch", 0]]) {
+    const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
+      "--config=playwright.development-release.config.ts", "--list"], {
+      cwd, encoding: "utf8", env: { ...process.env,
+        ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: flag, GITHUB_EVENT_NAME: event,
+        E2E_API_URL: "http://127.0.0.1:18000", E2E_BASE_URL: "http://localhost:4173",
+        E2E_TENANT_CODE: "qa-ymath-realuse-fe-123-1-abcdef123456",
+        E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
+        E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",
+        E2E_STUDENT_PASS: "development-discovery-only" },
+    });
+    const report = JSON.parse(output);
+    assert.equal(report.config.maxFailures, maxFailures, "only the opted-in diagnostic dispatch continues after failures");
+    assert.equal(report.config.workers, 1);
+    assert.equal(report.config.forbidOnly, true);
+    assert.ok(report.config.projects.every((project) => project.retries === 0));
+    let discovered = 0;
+    const counts = {};
+    const visit = (suite) => {
+      for (const spec of suite.specs || []) for (const test of spec.tests) {
+        assert.equal(test.expectedStatus, "passed");
+        assert.ok(!test.annotations?.some((annotation) => annotation.type === "skip"));
+        assert.deepEqual(test.results, [], "--list must not run synthetic API scenarios");
+        discovered += 1;
+        const file = String(spec.file || suite.file).split(/[\\/]/).at(-1);
+        counts[file] = (counts[file] || 0) + 1;
+      }
+      for (const child of suite.suites || []) visit(child);
+    };
+    visit(report);
+    assert.equal(discovered, 41);
+    assert.deepEqual(counts, Object.fromEntries(Object.entries(developmentRealUseCases)
+      .map(([file, count]) => [file.split("/").at(-1), count])), "collection must match the same release inventory by file");
+    // Playwright's --list reporter counts all unexecuted cases as skipped. These
+    // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
+    assert.equal(report.stats.expected, 0);
+    assert.throws(() => assertReleaseSummary(report));
+  }
 });
 
 test("OMR archive cleanup verifies the retained inactive exam before fixed runner cleanup", () => {
