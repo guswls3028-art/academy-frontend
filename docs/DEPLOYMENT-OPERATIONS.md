@@ -879,6 +879,19 @@ thumbnail/embed/player 구분, headers/fetch/redirect/fulfill 작업과 실제 H
 `public-video-1366.png`, `public-video-390.png`를 보존한다. 기존 41개 사례,
 공개 영상 240초 제한, retries 0 및 정리 조건을 유지한다.
 
+`public-video-primary`는 playing/paused 단계에만 optional `playback` 관측을 포함할 수
+있다. 원래 판정과 같은 evaluate에서 얻은 paused/ended, ready/network state, 크기,
+현재/시작/전체 시간, media error code, ad 상태, player state, identity 일치 여부와
+오류 표시/닫힌 오류 분류만 허용한다. 시간은 null 또는 유한한 0..604800초, 크기는
+0..16384 정수이며 모든 필드/enum을 emitter와 공식 parser가 검증한다. 추가 key나
+잘못된 값이 있으면 emitter는 전체 optional 관측을 빼고 기존 primary marker를 유지한다.
+원문 오류·영상 ID·URL·본문은 남기지 않으며 metadata getter 실패는 원 판정을 바꾸지 않는다.
+허용된 공급자의 실제 HTTP 400..599 응답은 `route-fetch` 관측으로 남기되 기존대로
+한 번 fulfill한다. 응답이 있을 때만 마지막 fetch의 실제 0..30000ms 소요시간을
+선택적으로 보존하며, 범위 밖 측정은 생략한다. 이 관측은 새 거절/재시도 조건이 아니다.
+같은 두 공개 PNG 이름에는 실패한 anonymous frame이 담길 수도 있다. `passed:false`와
+`public-video-primary` 단계로 실패 증거를 구분하며 최종 성공 Play → Pause 증명을 대체하지 않는다.
+
 평가 복사 helper도 원 오류를 정리 뒤 그대로 throw하고 `assessment-copy`와
 `assessment-copy-cleanup`의 닫힌 단계/kind만 남긴다. 이 두 단계는
 `student-parent-assessment-realuse.spec.ts`에서만 허용하며 source 위치는
