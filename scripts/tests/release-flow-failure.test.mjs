@@ -226,7 +226,7 @@ function registerLearningFaultTests() {
       return {status:'PRESENT'};
      },
      gotoAndSettle:async(_page,url)=>{
-      const matched=(stage==='teacher-classes-open'&&url.endsWith('/classes'))||(stage==='teacher-attendance-save'&&url.includes('/attendance/'))||(stage==='teacher-session-summary'&&url.includes('/classes/')&&url.includes('/sessions/'))||(stage==='teacher-video-list'&&url.endsWith('/videos'))||(stage==='attendance-submit'&&url.endsWith('/students'));
+      const matched=(stage==='teacher-classes-open'&&url.endsWith('/classes'))||(stage==='teacher-attendance-save'&&url.includes('/attendance/'))||(stage==='teacher-session-summary'&&url.includes('/classes/')&&url.includes('/sessions/'))||(stage==='teacher-video-list'&&url.endsWith('/videos'))||(stage==='attendance-submit'&&url.endsWith('/workspace/lectures/10'));
       if(matched)throw primary;
      }
    };
