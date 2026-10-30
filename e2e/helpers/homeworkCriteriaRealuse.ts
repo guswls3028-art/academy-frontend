@@ -66,7 +66,7 @@ async function verifyFinalHomeworkPreview(
   const { studentId, studentName, homeworkTitle, completionTitle, completionScore, comparisonStudent } = scenario;
   const selected = [studentId, comparisonStudent.id].sort((a, b) => a - b);
   const marker = `${width}px 기준 ${evidence.threshold} 과제별 판정 확인`;
-  const modal = page.getByRole("dialog", { name: "알림톡 발송", exact: true });
+  const modal = page.getByRole("dialog", { name: "알림톡 발송" });
   const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인", exact: true });
   const finalPreviews: Array<{ studentId: number; studentName: string; body: string }> = [];
   let preflight: SendPreflightResponse | undefined;
@@ -84,6 +84,7 @@ async function verifyFinalHomeworkPreview(
       await page.getByRole("checkbox", { name: `${name} 선택`, exact: true }).check();
     }
     await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
+    await expect(modal).toBeVisible();
     await modal.getByRole("checkbox", { name: "학부모", exact: true }).check();
     await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
     const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
