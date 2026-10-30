@@ -35,6 +35,12 @@ const REAL_USE_SUITE_TIMEOUT_MS = 85 * 60_000;
 const TUNNEL_TIMEOUT_MS = REAL_USE_SUITE_TIMEOUT_MS + 5 * 60_000;
 const WEB_ORIGIN = "http://localhost:4173";
 const API_ORIGIN = "http://127.0.0.1:18000";
+
+export function developmentPlaywrightNodeArgs(args) {
+  // Bound only this owned QA transport; Node forks preserve the explicit flag.
+  return ["--max-http-header-size=65536", ...args];
+}
+
 const FLOW_COUNTS = Object.freeze(Object.fromEntries(
   Object.entries(developmentRealUseCases).map(([file, count]) => [path.basename(file), count]),
 ));
@@ -371,7 +377,7 @@ function observeReleaseContextSnapshot(payload) {
       || (Object.hasOwn(event, "method") && !["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE", "other"].includes(event.method))
       || (Object.hasOwn(event, "pathTemplate") && event.pathTemplate !== null && !SAFE_REQUEST_TRANSPORT_TEMPLATES.has(event.pathTemplate))
       || (Object.hasOwn(event, "nativeCode") && !["ECONNRESET", "ECONNREFUSED", "EPIPE", "ETIMEDOUT", "timeout", "context-disposed", "other"].includes(event.nativeCode))
-      || (Object.hasOwn(event, "nativeKind") && !["socket-hang-up", "response-aborted", "decompression", "ECONNRESET", "ECONNREFUSED", "EPIPE", "ETIMEDOUT", "timeout", "context-disposed", "other"].includes(event.nativeKind))
+      || (Object.hasOwn(event, "nativeKind") && !["http-header-overflow", "socket-hang-up", "response-aborted", "decompression", "ECONNRESET", "ECONNREFUSED", "EPIPE", "ETIMEDOUT", "timeout", "context-disposed", "other"].includes(event.nativeKind))
       || timingKeys.some((key) => Object.hasOwn(event, key) && !count(event[key], 2 * 60 * 60_000))
       || pageKeys.some((key) => Object.hasOwn(event, key) && event[key] !== null && !count(event[key]))
       || (Object.hasOwn(event, "category") && !["cors", "chunk", "network", "resource", "runtime", "other"].includes(event.category))
@@ -591,7 +597,7 @@ export function observeReleaseTestResult(stdout) {
                     && ["video-primary", "public-video-primary", "context-check", "assessment-copy", "assessment-copy-cleanup"].includes(value.phase)
                     && (value.phase !== "video-primary" || file === "video-playback-renewal.realuse.spec.ts")
                     && (!publicVideoPrimary || (file === "public-video-realuse.spec.ts"
-                      && ["publisher-login", "showcase-edit", "video-register", "video-publish", "public-catalog", "public-detail", "player-ready", "video-edit", "video-hide", "video-delete", "video-reregister"].includes(value.journeyStage)))
+                      && ["publisher-login", "showcase-edit", "video-register", "video-publish", "public-catalog", "public-detail", "player-ready", "player-playing", "player-paused", "video-edit", "video-hide", "video-delete", "video-reregister"].includes(value.journeyStage)))
                     && (!value.phase.startsWith("assessment-copy") || file === "student-parent-assessment-realuse.spec.ts")
                     && ["boundary", "assertion", "locator-timeout", "transport", "other"].includes(value.kind)
                     && value.expectedStatus === null && value.receivedStatus === null;
@@ -1402,7 +1408,7 @@ export async function run() {
     assert.equal(secret.Parameter.Name, PASSWORD_PARAMETER);
     assert.ok(secret.Parameter.Value);
     assert.equal(interrupted, false, "Development run interrupted");
-    tests = ownedProcess(process.execPath, [path.join(ROOT, "node_modules/@playwright/test/cli.js"), "test", "--config=playwright.development-release.config.ts"], {
+    tests = ownedProcess(process.execPath, developmentPlaywrightNodeArgs([path.join(ROOT, "node_modules/@playwright/test/cli.js"), "test", "--config=playwright.development-release.config.ts"]), {
       env: { ...process.env, E2E_BASE_URL: WEB_ORIGIN, E2E_API_URL: API_ORIGIN, API_BASE_URL: API_ORIGIN,
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
         E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",

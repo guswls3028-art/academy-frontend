@@ -866,6 +866,19 @@ thumbnail/embed/player 구분, headers/fetch/redirect/fulfill 작업과 실제 H
 거부한다. 공급자 허용 범위, redirect 제한, 재시도/재전송과 실패·cleanup 판정은 바뀌지
 않으며, 이 진단 추가 자체는 공급자 실패의 원인 규명이나 해결을 의미하지 않는다.
 
+격리 development Playwright 자식에만 Node CLI `--max-http-header-size=65536`을 적용한다.
+실제 worker가 이 64 KiB 한도를 상속하며, API-only loopback 회귀는 합성 32 KiB 헤더가
+기본 16 KiB에서 거절되고 64 KiB에서 전달되며, 64 KiB를 넘으면 계속 거절됨을 확인한다.
+이는 실제 공개 공급자 요청에서 관측한 `HPE_HEADER_OVERFLOW`에 대한 한정된 QA 전송
+설정이다. provider 응답은 달라질 수 있고 packet/parsed byte 수를 전체 헤더 크기로
+해석하지 않는다. `http-header-overflow`만 닫힌 진단으로 보존하고 원 실패는 유지한다.
+전역 `NODE_OPTIONS`, 운영 환경, insecure parser, origin/redirect/UA 및 cleanup 정책은
+변경하지 않는다. 동일 artifact 실사용과 cleanup 검증은 여전히 배포 조건이다.
+공개 영상의 1366/390px 확인은 제한된 시간 안에 Play → 미디어 시간 진행 → Pause를
+검증하며 `player-playing`/`player-paused` 단계로 실패를 구분하고,
+`public-video-1366.png`, `public-video-390.png`를 보존한다. 기존 41개 사례,
+공개 영상 240초 제한, retries 0 및 정리 조건을 유지한다.
+
 평가 복사 helper도 원 오류를 정리 뒤 그대로 throw하고 `assessment-copy`와
 `assessment-copy-cleanup`의 닫힌 단계/kind만 남긴다. 이 두 단계는
 `student-parent-assessment-realuse.spec.ts`에서만 허용하며 source 위치는

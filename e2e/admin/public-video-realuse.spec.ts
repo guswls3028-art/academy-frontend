@@ -98,11 +98,33 @@ test.describe("[real-use] public video publishing", () => {
         await expect(visitor.getByRole("heading", { name: title, exact: true })).toBeVisible(); await visitor.reload(); await expect(visitor.locator("iframe")).toHaveCount(1);
         await expect(visitor.getByText(`직접 정한 분류 ${width}`, { exact: true })).toBeVisible();
         await expect(visitor.locator("iframe")).toHaveAttribute("src", /autoplay=0/); await expect(visitor.getByRole("link", { name: "YouTube에서 보기 · 좋아요" })).toBeVisible();
+        const embedUrl = new URL(await visitor.locator("iframe").getAttribute("src") ?? "");
+        expect(embedUrl.origin).toBe("https://www.youtube.com");
+        expect(embedUrl.pathname).toBe(`/embed/${row.youtube_video_id}`);
         journeyStage = "player-ready";
         const player = visitor.frameLocator("iframe");
-        await expect(player.getByRole("button", { name: /^(?:Play(?: video)?|동영상 재생|재생)(?: \(k\))?$/i }).filter({ visible: true }).first()).toBeVisible({ timeout: 30_000 });
+        const playButton = player.getByRole("button", { name: /^(?:Play(?: video)?|동영상 재생|재생)(?: \(k\))?$/i }).filter({ visible: true }).first();
+        await expect(playButton).toBeVisible({ timeout: 30_000 });
         await expect(player.locator(".ytp-error")).toBeHidden();
-        await assertNoHorizontalOverflow(visitor); await visitor.screenshot({ path: testInfo.outputPath(`public-video-${width}.png`), fullPage: true });
+        journeyStage = "player-playing";
+        await playButton.click();
+        const media = player.locator("#movie_player video.html5-main-video").first();
+        const startedAt = await media.evaluate((node) => (node as HTMLVideoElement).currentTime);
+        expect(Number.isFinite(startedAt)).toBe(true);
+        await expect.poll(() => media.evaluate((node, initialTime) => {
+          const video = node as HTMLVideoElement;
+          const moviePlayer = video.closest("#movie_player");
+          return !video.paused && !video.ended && video.readyState >= 2
+            && video.videoWidth > 0 && video.videoHeight > 0 && Number.isFinite(video.currentTime)
+            && video.currentTime > initialTime + 1 && moviePlayer !== null
+            && !moviePlayer.classList.contains("ad-showing") && !moviePlayer.classList.contains("ad-interrupting");
+        }, startedAt), { timeout: 30_000 }).toBe(true);
+        journeyStage = "player-paused";
+        await player.locator("#movie_player").hover();
+        await player.getByRole("button", { name: /^(?:Pause|일시중지|일시 중지)(?: ?\(k\))?$/i }).filter({ visible: true }).first().click();
+        await expect.poll(() => media.evaluate((node) => (node as HTMLVideoElement).paused)).toBe(true);
+        await expect(player.locator(".ytp-error")).toBeHidden();
+        await assertNoHorizontalOverflow(visitor); await visitor.screenshot({ path: testInfo.outputPath(`public-video-${width}.png`), fullPage: true, animations: "disabled" });
         journeyStage = "public-catalog";
         await visitor.getByRole("link", { name: "← 영상 목록", exact: true }).click(); await expect(visitor.locator("iframe")).toHaveCount(0);
         await expect(visitor.getByRole("textbox", { name: "영상 검색", exact: true })).toHaveValue(title);

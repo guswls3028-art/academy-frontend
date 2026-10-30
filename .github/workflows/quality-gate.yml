@@ -452,6 +452,8 @@ jobs:
             test-results/**/real-excel-*.png
             test-results/**/real-exam-*.png
             test-results/**/real-exam-*.xlsx
+            test-results/**/public-video-1366.png
+            test-results/**/public-video-390.png
             test-results/**/board-layout-*.json
             test-results/**/board-layout-*.png
             test-results/development-release-progress.json
