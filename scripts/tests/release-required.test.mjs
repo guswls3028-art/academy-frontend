@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { classifyRelease, requiresRelease } from "../release-required.mjs";
 import { assertOfficialReleaseContext } from "../run-development-release-canary.mjs";
 
@@ -58,4 +59,37 @@ test("manual release QA retains official CI, main and exact revision boundaries"
     { GITHUB_REF: "refs/heads/feature" }, { GITHUB_REF: "refs/tags/main" },
     { GITHUB_SHA: "main" },
   ]) assert.throws(() => assertOfficialReleaseContext({ ...env, ...invalid }));
+});
+
+test("full-suite diagnostics require an explicit manual boolean input and never enable production", () => {
+  const workflow = readFileSync(new URL("../../.github/workflows/quality-gate.yml", import.meta.url), "utf8").replaceAll("\r\n", "\n");
+  const input = workflow.match(/\n      diagnostic_full_suite:\n((?:        [^\n]*\n)+)/)?.[1];
+  assert.ok(input, "the diagnostic mode is an explicit workflow input");
+  assert.match(input, /^        type: boolean$/m);
+  assert.match(input, /^        required: false$/m);
+  assert.match(input, /^        default: false$/m);
+  const flag = workflow.match(/ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: \$\{\{([^\n]+)\}\}/)?.[1];
+  assert.ok(flag);
+  assert.equal(workflow.match(/ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE:/g)?.length, 1);
+  const deploy = workflow.match(/\n  deploy:\n([\s\S]*?)(?=\n  [a-z][a-z0-9-]*:\n|$)/)?.[1];
+  assert.ok(deploy);
+  const condition = deploy.match(/\n    if: >-\n([\s\S]*?)(?=\n    [a-z_-]+:)/)?.[1];
+  assert.ok(condition);
+  const expression = condition.trim().replace(/needs\.([a-z][a-z0-9-]*)/g, (_match, name) => `needs[${JSON.stringify(name)}]`);
+  const evaluate = (value, context) => runInNewContext(`(${value})`, context, { timeout: 1000 });
+  for (const event of ["push", "workflow_dispatch", "pull_request"]) {
+    for (const requested of [undefined, false, true]) {
+      for (const result of ["success", "failure", "skipped"]) {
+        const context = { github: { event_name: event, ref: "refs/heads/main" },
+          inputs: requested === undefined ? {} : { diagnostic_full_suite: requested },
+          needs: { "quality-check": { outputs: { release_required: "true" } }, "development-canary": { result } } };
+        const diagnostic = event === "workflow_dispatch" && requested === true;
+        assert.equal(evaluate(flag, context), diagnostic ? "1" : "0", `${event}/${requested}: explicit opt-in only`);
+        assert.equal(evaluate(expression, context), event !== "pull_request" && result === "success" && !diagnostic,
+          `${event}/${requested}/${result}: even a successful diagnostic job cannot promote`);
+        context.github.ref = "refs/heads/feature";
+        assert.equal(evaluate(expression, context), false, "a non-main job cannot promote");
+      }
+    }
+  }
 });

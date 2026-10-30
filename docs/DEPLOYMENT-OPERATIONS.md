@@ -46,9 +46,20 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
    현재 22개 파일·41건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
-   첫 실패 후에는 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.
+   기본 실행은 첫 실패 후 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.
    이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 41건 모두의
    통과와 cleanup0이 필요하다. 이미 실패한 실행이 장시간 영상 검증까지 계속되는 비용을 줄인다.
+   남은 흐름의 증거 수집이 별도로 승인된 경우에만 `workflow_dispatch`의
+   `diagnostic_full_suite` 입력(기본값 false)을 true로 지정할 수 있다. 이때만
+   `ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE=1`과 `maxFailures=0`으로 41건을 계속 수집한다.
+   잘못된 플래그나 수동 dispatch 외의 opt-in은 최초 null-safe evidence를 남긴 뒤
+   AWS/QA 전에 `preflight_failed`로 종료한다. 진단 실행은 `diagnosticOnly:true`를 기록하고,
+   실제 통과·실패·미실행 수와 cleanup 결과를 보존하되 모두 통과해도 최종 `passed:false`,
+   non-promotable failure와 비영 종료 코드를 강제한다. 배포 workflow도 진단 실행의 승격을 차단한다.
+   재시도 0·strict 경계·85분 suite/100분 job·cleanup 기준은 바뀌지 않는다. 이전 실행의
+   cleanup 완료를 확인한 뒤 단일 QA 소유자가 직렬 실행하며, 수집 결과는 보충 증거로만 쓴다.
+   YouTube bot challenge를 우회하거나 해소하는 모드가 아니며, 운영 승격에는 정상 모드의
+   동일 산출물 41건 통과와 cleanup0이 계속 필요하다.
    동일 산출물 서버는 가이드 JPEG·MP4·VTT를 각각 `image/jpeg`, `video/mp4`,
    `text/vtt`로 제공한다. 일반 강사의 첫 접속 안내 확인 뒤 사진·영상·자막을
    검증하는 흐름은 [프로그램 내 사용 가이드](IN-APP-GUIDE.md)를 따른다.

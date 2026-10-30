@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      diagnostic_full_suite:
+        description: "Run all development cases for diagnostics; never promote"
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: frontend-quality-${{ github.ref }}
@@ -431,6 +437,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ACADEMY_SSM_TOOLCHAIN_DIR: ${{ runner.temp }}/academy-ssm-binary-safe
+          ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_full_suite == true && '1' || '0' }}
       - name: Upload PII-free development release evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -472,6 +479,7 @@ jobs:
       && github.ref == 'refs/heads/main'
       && needs.quality-check.outputs.release_required == 'true'
       && needs.development-canary.result == 'success'
+      && (github.event_name != 'workflow_dispatch' || inputs.diagnostic_full_suite != true)
     outputs:
       baseline_deployment_id: ${{ steps.production-baseline.outputs.deployment_id }}
       baseline_version: ${{ steps.production-baseline.outputs.version }}
