@@ -124,7 +124,13 @@ function isExactDevelopmentPptDownload(
   return hasExactHostSignature(unsigned, 3600);
 }
 
-function isExactDevelopmentPayrollDownload(
+function excelDisposition(filename: string): string {
+  const safeName = filename.replace(/[\r\n"]/g, "");
+  const ascii = [...safeName].every((char) => char.charCodeAt(0) < 128);
+  return `attachment; filename="${ascii ? safeName : "download.xlsx"}"; filename*=UTF-8''${encodeRfc3986(safeName)}`;
+}
+
+function isExactDevelopmentExcelDownload(
   boundary: ReleaseBoundary, rawUrl: string, jobId: string, filename: string,
 ): boolean {
   if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
@@ -132,11 +138,11 @@ function isExactDevelopmentPayrollDownload(
   const target = new URL(rawUrl);
   if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
     || rawUrl !== target.origin + target.pathname + target.search
-    || target.pathname !== `/academy-development-artifacts/exports/${boundary.omrR2TenantId}/${jobId}_${filename}`
+    || target.pathname !== `/academy-development-artifacts/exports/${boundary.omrR2TenantId}/${jobId}_${encodeRfc3986(filename)}`
     || target.searchParams.getAll("response-content-type").length !== 1
     || target.searchParams.get("response-content-type") !== XLSX_CONTENT_TYPE
     || target.searchParams.getAll("response-content-disposition").length !== 1
-    || target.searchParams.get("response-content-disposition") !== 'attachment; filename="' + filename + '"; filename*=UTF-8\'\'' + filename) return false;
+    || target.searchParams.get("response-content-disposition") !== excelDisposition(filename)) return false;
   const unsigned = new URL(target);
   unsigned.searchParams.delete("response-content-type");
   unsigned.searchParams.delete("response-content-disposition");
@@ -1031,6 +1037,7 @@ export async function installReleaseContextGuard(
   const resourceReaderUrls = new Map<string, string>();
   const acceptedPptJobs = new Set<string>();
   const acceptedPayrollJobs = new Map<string, string>();
+  const acceptedAttendanceJobs = new Map<string, number>();
   const documentDownloadUrls = new Map<string, { url: string; filename: string; contentType: string; contentDisposition: string;
     inventoryOriginal?: InventoryOriginal }>();
   const inventoryOriginals = new Map<string, InventoryOriginal>();
@@ -1446,6 +1453,9 @@ export async function installReleaseContextGuard(
           && pptTarget.pathname === "/api/v1/tools/ppt/generate/" && !pptTarget.search;
         const payrollSubmission = request.method() === "POST"
           && pptTarget.pathname === "/api/v1/staffs/payroll-snapshots/export-excel/" && !pptTarget.search;
+        const attendanceSubmission = request.method() === "POST"
+          && pptTarget.pathname === "/api/v1/lectures/attendance/excel/" && !pptTarget.search;
+        const attendanceLectureId = (data as { lecture_id?: unknown } | undefined)?.lecture_id;
         const payrollPeriod = data as { year?: unknown; month?: unknown } | undefined;
         const payrollYear = Number(payrollPeriod?.year);
         const payrollMonth = Number(payrollPeriod?.month);
@@ -1454,7 +1464,7 @@ export async function installReleaseContextGuard(
         if (boundary.mode === "development" && response.status() >= 200 && response.status() < 300
           && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json"
           && /^Bearer \S+$/.test(headers.authorization ?? "") && headers["x-tenant-code"] === boundary.tenantCode
-          && (pptSubmission || payrollSubmission || (pptStatus && !pptTarget.search))) {
+          && (pptSubmission || payrollSubmission || attendanceSubmission || (pptStatus && !pptTarget.search))) {
           const payload = await response.json();
           if (pptSubmission && UUID.test(payload?.job_id) && acceptedPptJobs.size < 2) {
             acceptedPptJobs.add(payload.job_id);
@@ -1464,14 +1474,31 @@ export async function installReleaseContextGuard(
             && Number.isInteger(payrollMonth) && payrollMonth >= 1 && payrollMonth <= 12) {
             acceptedPayrollJobs.set(payload.job_id, `payroll_${payrollYear}_${payrollMonth}.xlsx`);
           }
+          if (attendanceSubmission && UUID.test(payload?.job_id) && acceptedAttendanceJobs.size < 2
+            && typeof attendanceLectureId === "number" && Number.isSafeInteger(attendanceLectureId) && attendanceLectureId > 0) {
+            acceptedAttendanceJobs.set(payload.job_id, attendanceLectureId);
+          }
           if (pptStatus && UUID.test(pptStatus[1]) && acceptedPayrollJobs.has(pptStatus[1])
             && payload?.job_id === pptStatus[1] && payload?.job_type === "staff_excel_export"
             && payload?.status === "DONE" && typeof payload?.result?.download_url === "string"
             && payload.result.filename === acceptedPayrollJobs.get(pptStatus[1])
-            && isExactDevelopmentPayrollDownload(boundary, payload.result.download_url, pptStatus[1], payload.result.filename)) {
+            && isExactDevelopmentExcelDownload(boundary, payload.result.download_url, pptStatus[1], payload.result.filename)) {
             documentDownloadUrls.set(pptStatus[1], {
               url: payload.result.download_url, filename: payload.result.filename, contentType: XLSX_CONTENT_TYPE,
-              contentDisposition: 'attachment; filename="' + payload.result.filename + '"; filename*=UTF-8\'\'' + payload.result.filename,
+              contentDisposition: excelDisposition(payload.result.filename),
+            });
+          }
+          if (pptStatus && UUID.test(pptStatus[1]) && acceptedAttendanceJobs.has(pptStatus[1])
+            && payload?.job_id === pptStatus[1] && payload?.job_type === "attendance_excel_export"
+            && payload?.status === "DONE" && typeof payload?.result?.download_url === "string"
+            && typeof payload.result.filename === "string" && payload.result.filename.length <= 240
+            && /^출결_[^/\\"]+_[0-9]+\.xlsx$/.test(payload.result.filename)
+            && [...payload.result.filename].every(char => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127)
+            && payload.result.filename.endsWith(`_${acceptedAttendanceJobs.get(pptStatus[1])}.xlsx`)
+            && isExactDevelopmentExcelDownload(boundary, payload.result.download_url, pptStatus[1], payload.result.filename)) {
+            documentDownloadUrls.set(pptStatus[1], {
+              url: payload.result.download_url, filename: payload.result.filename, contentType: XLSX_CONTENT_TYPE,
+              contentDisposition: excelDisposition(payload.result.filename),
             });
           }
           if (pptStatus && UUID.test(pptStatus[1]) && acceptedPptJobs.has(pptStatus[1])

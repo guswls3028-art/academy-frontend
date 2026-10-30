@@ -29,6 +29,17 @@ async function installWatchScenario(page: Page, completed = false) {
     const url = new URL(request.url());
     const path = url.pathname.replace(/^\/api\/v1/, "");
     const json = (body: unknown, status = 200) => route.fulfill({ json: body, status });
+    // The mounted student shell needs a profile id and valid empty lists to
+    // finish notification loading; a generic {} schedules a retry across reload.
+    if (request.method() === "GET") {
+      if (path === "/student/me/") return json({ id: 1772, name: "합성 학생", profile_photo_url: null });
+      if (path === "/clinic/participants/" || path === "/community/posts/") {
+        return json({ count: 0, next: null, previous: null, results: [] });
+      }
+      if (path === "/student/grades/") {
+        return json({ exams: [], session_totals: [], homeworks: [], exam_trend: [] });
+      }
+    }
     if (path === "/student/video/sessions/394/videos/") {
       return state.playlistFail ? json({ detail: "합성 목록 조회 실패" }, 503) : json({
         session: { id: 394, title: "개념과 적용", order: 1 }, items: videos,
@@ -228,6 +239,10 @@ for (const width of [1366, 390]) {
     await page.goto(`${BASE}/student/video`, { waitUntil: "domcontentloaded" });
     await page.getByRole("tab", { name: "통계", exact: true }).click();
     await expect(page.locator(".video-stats-overview__title")).toHaveText("0% 완료");
+    const notificationLink = page.getByRole("navigation", { name: "하단 메뉴" })
+      .getByRole("link", { name: "알림", exact: true });
+    // Wait for profile + notification responses, not only the independent stats query.
+    await expect(notificationLink).toBeVisible();
     const before = statsFetches;
     // Retain the same query client to exercise a still-fresh cached response.
     await page.evaluate(() => {
@@ -247,9 +262,11 @@ for (const width of [1366, 390]) {
     await page.getByRole("tab", { name: "통계", exact: true }).click();
     await expect(page.locator(".video-stats-overview__title")).toHaveText("100% 완료");
     expect(statsFetches).toBeGreaterThan(before);
+    await expect(notificationLink).toBeVisible();
     await page.reload();
     await page.getByRole("tab", { name: "통계", exact: true }).click();
     await expect(page.locator(".video-stats-overview__title")).toHaveText("100% 완료");
+    await expect(notificationLink).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`confirmed-progress-stats-${width}.png`) });
     expect(vendorRequests).toEqual([]);

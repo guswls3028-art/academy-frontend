@@ -11,6 +11,8 @@ for (const { width, scenario } of [
   ...["initial-error", "next-error", "incomplete", "empty"].map((scenario) => ({ width: 390, scenario })),
 ]) {
   test(`학생 목록 51번째 학생·선택·복구 ${width}px ${scenario}`, async ({ page }, testInfo) => {
+    // Complete scenarios measure debounce after navigation; install before app timers.
+    if (scenario === "complete") await page.clock.install();
     await page.setViewportSize({ width, height: 900 });
     await installTenantOneInitScript(page);
     const payload = Buffer.from(JSON.stringify({ exp: 2_000_000_000, user_id: 12, tenant_code: "hakwonplus" })).toString("base64url");
@@ -111,9 +113,7 @@ for (const { width, scenario } of [
     });
     await main.getByRole("button", { name: "선택 취소", exact: true }).click();
     const searchInput = main.getByPlaceholder("이름, 아이디, 전화번호, 학교");
-    const clockStart = Date.now();
-    await page.clock.install({ time: clockStart });
-    await page.clock.pauseAt(clockStart + 1_000);
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
     const requestCount = requests.length;
     await searchInput.dispatchEvent("compositionstart");
     for (const value of ["끝", "끝학", "끝학생"]) {

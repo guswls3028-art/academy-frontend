@@ -492,6 +492,9 @@ ProductUsageEvent/DailyActor 변화 0임을 검사한다. 도메인 설명은 ba
 운영 read-only runner도 PR E2E와 동일하게 Playwright를 `--with-deps chromium`으로
 설치하여 한글 표시에 필요한 시스템 글꼴을 갖춘다. PNG의 한글이 네모로 표시되면
 기능 검증 성공과 구분하여 시각 검증 실패로 취급하고, 글꼴 설치 후 새 증거로 확인한다.
+개발 실사용 Linux runner는 `fonts-noto-cjk`를 명시적으로 설치하고 `fc-list :lang=ko`가
+비어 있으면 검사 시작 전에 실패한다. 제품 번들은 그대로 사용하며, 보존된 PC/390px PNG에서
+한글 가독성을 직접 확인해야 시각 증거가 유효하다.
 
 공식 main 배포는 먼저 `backend-readiness`에서 backend의 진행 중인 main release run과
 successful manifest·active development host를 읽는다. 진행 중인 release만 최대
@@ -1032,3 +1035,19 @@ frontend 운영 `version.json`을 함께 검증한다. 검증 결과를 별도 m
 이들은 최신 재현이 필요한 역사 발견이며, 후속 우선순위·재현·완료 판정은
 [현재 안정화 실행 계획](https://github.com/guswls3028-art/academy-backend/blob/main/docs/refactor/hardening-plan.md)에서
 추적한다. 과거 증상만으로 현재 장애나 원인을 확정하지 않는다.
+
+### 출결 XLSX 실제 다운로드 검증
+
+학생·학부모 학습 real-use는 소유한 합성 학생 두 명과 강의/차시만 사용해
+1366px/390px의 출결 엑셀 다운로드 버튼을 실행한다. 생성 응답의 강의 ID와
+고유 작업 ID를 확인하고 실제 Tools/R2 XLSX의 학생명 `=1+1`, `#N/A`,
+차시명 `=1+1`, 전화번호 앞자리 0, 출결 상태가 수식/오류가 아닌 문자열로
+보존되는지 읽는다. 임시 이름은 finally에서 복원하고 API로 재조회한 후
+기존 학생·부모 화면 검증을 계속한다. 기존 41건 및 최종 cleanup 0을 유지한다.
+합성 데이터만 담은 attendance-export-1366/390.png와 attendance-1366/390.xlsx는
+development-release-evidence에 명시적으로 업로드해 화면과 실제 파일을 재검토한다.
+
+브라우저 다운로드 허용은 성공한 출결 POST로 받은 최대 두 작업과 해당
+강의 ID/개발 테넌트/정확한 XLSX 파일명에 묶는다. 서명 R2 GET의 MIME,
+RFC 5987 파일명, 만료, ZIP 바이트를 확인하며 인증 헤더·본문·리디렉션·다른
+테넌트/작업/파일은 거부한다. 기존 급여 XLSX와 같은 경계를 재사용한다.
