@@ -924,7 +924,7 @@ test("development canary seals required-student two-slot self-cancellation and m
   const config = readFileSync(new URL("../../playwright.development-release.config.ts", import.meta.url), "utf8");
   const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
 
-  assert.match(config, /testMatch: Object\.keys\(developmentRealUseCases\)/);
+  assert.match(config, /testMatch: diagnosticScope === "excel-learning-homework" \? \[\.\.\.EXCEL_LEARNING_HOMEWORK_SPECS\] : Object\.keys\(developmentRealUseCases\)/);
   assert.match(runnerSource, /Object\.entries\(developmentRealUseCases\)/);
   assert.equal(developmentRealUseCases[`student/${specName}`], 1);
   for (const required of [
@@ -1113,6 +1113,8 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
   assert.deepEqual(snapshots[0], {
     frontendSha: null,
     diagnosticOnly: false,
+    diagnosticScope: "full-suite",
+    selectedSpecs: null,
     backendGovernanceSha: null,
     backendReleaseId: null,
     apiDigest: null,
@@ -1147,7 +1149,13 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
   assert.doesNotMatch(JSON.stringify(snapshots), /not-a-reviewed-sha|secret-path/);
 });
 
-function runtimeEvidenceFixture(untilInitialWriteOnly, diagnosticOnly = false) {
+const targetedDiagnosticSpecs = [
+  "student/student-parent-assessment-realuse.spec.ts",
+  "student/student-parent-learning-realuse.spec.ts",
+  "student/student-parent-homework-realuse.spec.ts",
+];
+
+function runtimeEvidenceFixture(untilInitialWriteOnly, diagnosticOnly = false, diagnosticScope = "full-suite") {
   const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
   const start = source.indexOf("  const ownerParameters =");
   const end = untilInitialWriteOnly ? source.indexOf('  process.on("SIGINT", interrupt);', start)
@@ -1159,7 +1167,8 @@ function runtimeEvidenceFixture(untilInitialWriteOnly, diagnosticOnly = false) {
   let externalCalls = 0;
   const forbidden = () => { externalCalls++; assert.fail("runtime evidence test attempted external work"); };
   const deps = {
-    diagnosticOnly,
+    diagnosticOnly, diagnosticScope,
+    selectedSpecs: diagnosticScope === "excel-learning-homework" ? targetedDiagnosticSpecs : null,
     assert, createFixedQaRunner: runner.createFixedQaRunner, evidence: { preflightStage: "complete", passed: false },
     manifest: { releaseImageTag: "unit-release", images: { "academy-api": { digest: "unit-digest" } } },
     revision: "b".repeat(40), instanceId: "unit-instance", tenant: "qa-unit-primary", crossTenant: "qa-unit-cross",
@@ -1211,6 +1220,28 @@ test("diagnostic full-suite mode accepts only the exact opt-in on workflow_dispa
   }
 });
 
+test("diagnostic scope is closed and targeted scope requires the diagnostic dispatch opt-in", () => {
+  assert.equal(typeof runner.readDiagnosticScope, "function");
+  assert.deepEqual(runner.EXCEL_LEARNING_HOMEWORK_SPECS, targetedDiagnosticSpecs);
+  assert.equal(Object.isFrozen(runner.EXCEL_LEARNING_HOMEWORK_SPECS), true);
+  for (const scope of [undefined, "full-suite"]) {
+    assert.equal(runner.readDiagnosticScope({ ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: scope }), "full-suite");
+  }
+  const valid = { ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "1", GITHUB_EVENT_NAME: "workflow_dispatch" };
+  assert.equal(runner.readDiagnosticScope({ ...valid, ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: "excel-learning-homework" }), "excel-learning-homework");
+  for (const scope of ["", "full-suite ", "private-scope", true, 1, null, {}, []]) {
+    assert.throws(() => runner.readDiagnosticScope({ ...valid, ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: scope }),
+      { message: "Invalid development diagnostic scope" });
+  }
+  for (const flag of [undefined, "0", "private-flag"]) {
+    assert.throws(() => runner.readDiagnosticScope({ ...valid,
+      ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: flag, ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: "excel-learning-homework" }),
+    /Targeted development diagnostics require diagnostic mode|Invalid development diagnostic full-suite flag/);
+  }
+  assert.throws(() => runner.readDiagnosticScope({ ...valid, GITHUB_EVENT_NAME: "push",
+    ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: "excel-learning-homework" }), /requires workflow_dispatch/);
+});
+
 test("diagnostic validation in the actual run preserves initial evidence before rejecting any external work", async () => {
   const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
   const start = source.indexOf("export async function run() {") + "export async function run() {".length;
@@ -1219,6 +1250,12 @@ test("diagnostic validation in the actual run preserves initial evidence before 
   for (const env of [
     { ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "private-flag", GITHUB_EVENT_NAME: "workflow_dispatch" },
     { ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "1", GITHUB_EVENT_NAME: "private-event" },
+    ...["0", "1"].flatMap(flag => ["", "private-scope", null].map(scope => ({ ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: flag,
+      GITHUB_EVENT_NAME: "workflow_dispatch", ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: scope }))),
+    { ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "0", GITHUB_EVENT_NAME: "workflow_dispatch",
+      ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: "excel-learning-homework" },
+    { ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "1", GITHUB_EVENT_NAME: "push",
+      ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: "excel-learning-homework" },
   ]) {
     const snapshots = [];
     let externalCalls = 0;
@@ -1231,30 +1268,40 @@ test("diagnostic validation in the actual run preserves initial evidence before 
       assertOfficialReleaseContext: forbidden, aws: forbidden, binarySafeSsmEnvironment: forbidden,
     };
     const execute = new Function(...Object.keys(deps), `return async () => {${source.slice(start, end)}};`)(...Object.values(deps));
-    await assert.rejects(execute(), /Invalid development diagnostic full-suite flag|requires workflow_dispatch/);
+    await assert.rejects(execute(), /Invalid development diagnostic full-suite flag|requires workflow_dispatch|Invalid development diagnostic scope|Targeted development diagnostics require diagnostic mode/);
     assert.equal(externalCalls, 0);
     assert.equal(snapshots[0].terminalOutcome, "preflight_running");
     const final = snapshots.at(-1);
     assert.equal(final.terminalOutcome, "preflight_failed");
     for (const snapshot of snapshots) {
       assert.equal(snapshot.diagnosticOnly, env.ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE === "1");
+      const requestedScope = env.ACADEMY_RELEASE_DIAGNOSTIC_SCOPE;
+      assert.equal(snapshot.diagnosticScope, requestedScope === undefined ? "full-suite"
+        : requestedScope === "excel-learning-homework" ? requestedScope : null);
+      assert.deepEqual(snapshot.selectedSpecs, requestedScope === "excel-learning-homework" ? targetedDiagnosticSpecs : null);
       assert.equal(snapshot.passed, false);
       for (const key of ["frontendSha", "cases", "cleanup", "crossTenantCleanup", "realUseObservation"]) assert.equal(snapshot[key], null);
       assert.ok(Object.values(snapshot.preflightChecks).every((passed) => passed === false));
     }
-    assert.doesNotMatch(JSON.stringify(snapshots), /private-flag|private-event/);
+    assert.doesNotMatch(JSON.stringify(snapshots), /private-flag|private-event|private-scope/);
   }
 });
 
 test("diagnostic preflight retains its closed mode through every stage without executing QA", async () => {
   const names = ["process", "bundle", "governance", "iam", "document", "host", "ssm"];
-  const snapshots = [];
-  const evidence = await runner.runPreflightStages(names.map((name) => [name, async () => {}]),
-    (value) => snapshots.push(structuredClone(value)), "a".repeat(40),
-    { ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "1", GITHUB_EVENT_NAME: "workflow_dispatch" });
-  assert.equal(evidence.terminalOutcome, "qa_running");
-  assert.ok(snapshots.every((value) => value.diagnosticOnly === true && value.passed === false));
-  assert.ok(snapshots.every((value) => value.failures.includes("diagnostic full suite is non-promotable; normal release gate remains required")));
+  for (const scope of ["full-suite", "excel-learning-homework"]) {
+    const snapshots = [];
+    const evidence = await runner.runPreflightStages(names.map((name) => [name, async () => {}]),
+      (value) => snapshots.push(structuredClone(value)), "a".repeat(40),
+      { ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "1", GITHUB_EVENT_NAME: "workflow_dispatch", ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: scope });
+    assert.equal(evidence.terminalOutcome, "qa_running");
+    assert.ok(snapshots.every((value) => value.diagnosticOnly === true && value.passed === false));
+    for (const value of snapshots) {
+      assert.equal(value.diagnosticScope, scope);
+      assert.deepEqual(value.selectedSpecs, scope === "excel-learning-homework" ? targetedDiagnosticSpecs : null);
+    }
+    assert.ok(snapshots.every((value) => value.failures.includes("diagnostic full suite is non-promotable; normal release gate remains required")));
+  }
 });
 
 test("diagnostic finalization and CLI fail closed even when all 41 cases and cleanup otherwise pass", async () => {
@@ -1279,6 +1326,8 @@ test("diagnostic finalization and CLI fail closed even when all 41 cases and cle
       async () => state.finalize(successful), processResult, { error: (value) => errors.push(value) });
     const terminal = fixture.snapshots.at(-1);
     assert.equal(terminal.diagnosticOnly, diagnosticOnly);
+    assert.equal(terminal.diagnosticScope, "full-suite");
+    assert.equal(terminal.selectedSpecs, null);
     assert.equal(terminal.passed, !diagnosticOnly);
     assert.equal(terminal.terminalOutcome, diagnosticOnly ? "qa_failed" : "passed");
     assert.equal(processResult.exitCode, diagnosticOnly ? 1 : 0);
@@ -1291,6 +1340,45 @@ test("diagnostic finalization and CLI fail closed even when all 41 cases and cle
       ? ["diagnostic full suite is non-promotable; normal release gate remains required"] : []);
     assert.equal(fixture.externalCalls(), 0);
   }
+});
+
+test("diagnostic targeted all-three-pass results retain truthful stats and cleanup but the actual CLI still exits one", async () => {
+  const report = completeFlowReport();
+  const selected = targetedDiagnosticSpecs.map(file => file.split("/").at(-1));
+  report.suites = report.suites.filter(suite => selected.includes(suite.file));
+  report.stats = { expected: 3, unexpected: 0, skipped: 0, flaky: 0 };
+  assert.throws(() => assertReleaseSummary(report), "targeted success cannot satisfy the unchanged 41-case release gate");
+  const observation = runner.observeReleaseTestResult(JSON.stringify(report));
+  assert.deepEqual(observation.stats, report.stats);
+  const fixture = runtimeEvidenceFixture(true, true, "excel-learning-homework");
+  const state = await fixture.execute();
+  state.writeEvidence(true);
+  assert.equal(fixture.snapshots.at(-1).passed, false);
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  const cliCatch = source.split("\n").find(line => line.trim().startsWith("run().catch("));
+  assert.ok(cliCatch);
+  const processResult = { exitCode: 0 };
+  await new Function("run", "process", "console", `return ${cliCatch.trim()}`)(
+    async () => state.finalize({ counts: null, realUseObservation: observation,
+      cleanup: { remaining: { tenants: 0, users: 0 } }, crossTenantCleanup: { remaining: { tenants: 0, users: 0 } },
+      postCleanupInspectObservation: { tenantRemainingZero: true, userRemainingZero: true },
+      crossPostCleanupInspectObservation: { tenantRemainingZero: true, userRemainingZero: true },
+      failures: ["development identity/setup/real-use failed"],
+    }), processResult, { error() {} });
+  const terminal = fixture.snapshots.at(-1);
+  assert.equal(processResult.exitCode, 1);
+  assert.equal(terminal.diagnosticOnly, true);
+  assert.equal(terminal.diagnosticScope, "excel-learning-homework");
+  assert.deepEqual(terminal.selectedSpecs, targetedDiagnosticSpecs);
+  assert.equal(terminal.passed, false);
+  assert.equal(terminal.terminalOutcome, "qa_failed");
+  assert.equal(terminal.cases, null);
+  assert.deepEqual(terminal.realUseObservation.stats, report.stats);
+  assert.deepEqual(terminal.cleanup.remaining, { tenants: 0, users: 0 });
+  assert.deepEqual(terminal.crossTenantCleanup.remaining, { tenants: 0, users: 0 });
+  assert.deepEqual(terminal.failures, ["development identity/setup/real-use failed",
+    "diagnostic full suite is non-promotable; normal release gate remains required"]);
+  assert.equal(fixture.externalCalls(), 0);
 });
 
 test("diagnostic evidence preserves actual failure counts and cleanup without accepting a passing write", async () => {
@@ -2315,11 +2403,18 @@ test("manifest and instance identity must match uniquely before setup", () => {
 
 test("development config discovers every required case in normal and diagnostic modes without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
-  for (const [flag, event, maxFailures] of [["0", "push", 1], ["1", "workflow_dispatch", 0]]) {
+  const targetInventory = Object.fromEntries(targetedDiagnosticSpecs.map(file => [file, 1]));
+  assert.equal(Object.values(developmentRealUseCases).reduce((sum, count) => sum + count, 0), 41);
+  for (const [flag, event, scope, maxFailures, inventory] of [
+    ["0", "push", undefined, 1, developmentRealUseCases],
+    ["1", "workflow_dispatch", "full-suite", 0, developmentRealUseCases],
+    ["1", "workflow_dispatch", "excel-learning-homework", 0, targetInventory],
+  ]) {
     const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
       "--config=playwright.development-release.config.ts", "--list"], {
       cwd, encoding: "utf8", env: { ...process.env,
         ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: flag, GITHUB_EVENT_NAME: event,
+        ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: scope,
         E2E_API_URL: "http://127.0.0.1:18000", E2E_BASE_URL: "http://localhost:4173",
         E2E_TENANT_CODE: "qa-ymath-realuse-fe-123-1-abcdef123456",
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
@@ -2345,8 +2440,8 @@ test("development config discovers every required case in normal and diagnostic 
       for (const child of suite.suites || []) visit(child);
     };
     visit(report);
-    assert.equal(discovered, 41);
-    assert.deepEqual(counts, Object.fromEntries(Object.entries(developmentRealUseCases)
+    assert.equal(discovered, Object.values(inventory).reduce((sum, count) => sum + count, 0));
+    assert.deepEqual(counts, Object.fromEntries(Object.entries(inventory)
       .map(([file, count]) => [file.split("/").at(-1), count])), "collection must match the same release inventory by file");
     // Playwright's --list reporter counts all unexecuted cases as skipped. These
     // are discovery-only, never accepted by assertReleaseSummary as real-use proof.

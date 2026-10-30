@@ -8,10 +8,18 @@ on:
   workflow_dispatch:
     inputs:
       diagnostic_full_suite:
-        description: "Run all development cases for diagnostics; never promote"
+        description: "Run development diagnostics; never promote"
         type: boolean
         required: false
         default: false
+      diagnostic_scope:
+        description: "Diagnostic cases; targeted scope requires diagnostic mode"
+        type: choice
+        required: false
+        default: full-suite
+        options:
+          - full-suite
+          - excel-learning-homework
 
 concurrency:
   group: frontend-quality-${{ github.ref }}
@@ -438,6 +446,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ACADEMY_SSM_TOOLCHAIN_DIR: ${{ runner.temp }}/academy-ssm-binary-safe
           ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnostic_full_suite == true && '1' || '0' }}
+          ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: ${{ github.event_name != 'workflow_dispatch' && 'full-suite' || inputs.diagnostic_scope }}
       - name: Upload PII-free development release evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -480,6 +489,7 @@ jobs:
       && needs.quality-check.outputs.release_required == 'true'
       && needs.development-canary.result == 'success'
       && (github.event_name != 'workflow_dispatch' || inputs.diagnostic_full_suite != true)
+      && (github.event_name != 'workflow_dispatch' || inputs.diagnostic_scope == 'full-suite')
     outputs:
       baseline_deployment_id: ${{ steps.production-baseline.outputs.deployment_id }}
       baseline_version: ${{ steps.production-baseline.outputs.version }}

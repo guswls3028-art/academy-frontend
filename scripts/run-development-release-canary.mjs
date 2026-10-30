@@ -49,6 +49,27 @@ export function readDiagnosticFullSuiteMode(env = process.env) {
   return true;
 }
 
+export const EXCEL_LEARNING_HOMEWORK_SPECS = Object.freeze([
+  "student/student-parent-assessment-realuse.spec.ts",
+  "student/student-parent-learning-realuse.spec.ts",
+  "student/student-parent-homework-realuse.spec.ts",
+]);
+
+function observeDiagnosticScope(env) {
+  const scope = env.ACADEMY_RELEASE_DIAGNOSTIC_SCOPE;
+  if (scope === undefined || scope === "full-suite") return "full-suite";
+  return scope === "excel-learning-homework" ? scope : null;
+}
+
+export function readDiagnosticScope(env = process.env) {
+  const scope = observeDiagnosticScope(env);
+  if (scope === null) throw new Error("Invalid development diagnostic scope");
+  if (scope === "excel-learning-homework" && !readDiagnosticFullSuiteMode(env)) {
+    throw new Error("Targeted development diagnostics require diagnostic mode");
+  }
+  return scope;
+}
+
 const FLOW_COUNTS = Object.freeze(Object.fromEntries(
   Object.entries(developmentRealUseCases).map(([file, count]) => [path.basename(file), count]),
 ));
@@ -190,10 +211,12 @@ const canonical = (value) => JSON.stringify(value, function (_key, item) {
 const PREFLIGHT_STAGES = ["process", "bundle", "governance", "iam", "document", "host", "ssm"];
 const PREFLIGHT_CHECKS = PREFLIGHT_STAGES.slice(1);
 
-function initialPreflightEvidence(frontendSha, diagnosticOnly) {
+function initialPreflightEvidence(frontendSha, diagnosticOnly, diagnosticScope) {
   return {
     frontendSha: /^[a-f0-9]{40}$/.test(frontendSha || "") ? frontendSha : null,
     diagnosticOnly,
+    diagnosticScope,
+    selectedSpecs: diagnosticScope === "excel-learning-homework" ? [...EXCEL_LEARNING_HOMEWORK_SPECS] : null,
     backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
     tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
     crossTenantCleanup: null,
@@ -788,11 +811,13 @@ export function assertClinicInteractionTimings(observation) {
 }
 
 export async function runPreflightStages(stages, persist, frontendSha, env = process.env) {
-  // Record only the exact opt-in bit before validation, never raw environment values.
-  const evidence = initialPreflightEvidence(frontendSha, env.ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE === "1");
+  // Record only closed requested mode/scope values before validation, never raw environment values.
+  const evidence = initialPreflightEvidence(frontendSha,
+    env.ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE === "1", observeDiagnosticScope(env));
   persist(evidence);
   try {
     evidence.diagnosticOnly = readDiagnosticFullSuiteMode(env);
+    evidence.diagnosticScope = readDiagnosticScope(env);
     assert.deepEqual(stages.map(([name]) => name), PREFLIGHT_STAGES, "Unexpected development preflight stages");
     for (const [name, check] of stages) {
       evidence.preflightStage = name;
@@ -1322,6 +1347,8 @@ export async function run() {
     }],
   ], persistEvidence, process.env.GITHUB_SHA, process.env);
   const diagnosticOnly = evidence.diagnosticOnly;
+  const diagnosticScope = evidence.diagnosticScope;
+  const selectedSpecs = evidence.selectedSpecs;
   evidence.binarySafePortTransport = portTransport.manifest;
   const ownerParameters = (ownerTenant, ownerCapability, syntheticLongVideo) => ({
     TenantCode: [ownerTenant], OwnershipCapability: [ownerCapability],
@@ -1427,7 +1454,7 @@ export async function run() {
       apiTunnelProcessObservation: apiTunnelProcessObservation || null,
       videoRuntimeObservation: videoRuntimeObservation || null,
       postPlaybackInspectObservation,
-      terminalOutcome, diagnosticOnly, passed: passed && !diagnosticOnly, failures: errors });
+      terminalOutcome, diagnosticOnly, diagnosticScope, selectedSpecs, passed: passed && !diagnosticOnly, failures: errors });
     persistEvidence(evidence);
     return evidence;
   };
