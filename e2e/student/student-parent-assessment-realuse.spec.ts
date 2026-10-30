@@ -576,8 +576,9 @@ async function verifyEndedCourseTodos(
       await assertNoHorizontalOverflow(page);
     }
   }
-  // End date is inclusive: restore today's boundary and verify persisted eligibility again.
-  await expectApi(request, "PATCH", `/lectures/lectures/${created.lectureId}/`, admin.access, { end_date: todayKst }, [200]);
+  // End date is inclusive; the UI journey may have crossed KST midnight since module load.
+  const restoreTodayKst = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+  await expectApi(request, "PATCH", `/lectures/lectures/${created.lectureId}/`, admin.access, { end_date: restoreTodayKst }, [200]);
   const restored = await expectApi<MyGradesSummary>(request, "GET", "/student/grades/", studentTokens.access);
   expect(restored.exams.find((exam) => exam.exam_id === created.examId)).toMatchObject({
     lecture_active: true, learning_todo_eligible: true, total_score: original!.total_score,

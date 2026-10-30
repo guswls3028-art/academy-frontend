@@ -32,6 +32,106 @@ function assertDecoded(outputs, marker, destination, specFile) {
   assert.deepEqual(observed.stats, report.stats);
 }
 
+function endedCourseHarness({ crossMidnight = false, restoredPatch = {} } = {}) {
+  const source = read("e2e/student/student-parent-assessment-realuse.spec.ts");
+  const moduleDate = source.match(/^const todayKst = .+;$/m)?.[0];
+  const begin = source.indexOf("async function verifyEndedCourseTodos(");
+  const end = source.indexOf("\nasync function verifyManualScorePrecision(", begin);
+  assert.ok(moduleDate && begin >= 0 && end > begin);
+  let now = Date.parse("2026-10-30T14:59:02.805Z");
+  class ClockDate extends Date {
+    constructor(...args) { super(...(args.length ? args : [now])); }
+    static now() { return now; }
+  }
+  const currentDay = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date(now));
+  const patches = [], history = [], summaries = [], links = [], reloads = [], overflows = [];
+  let role = "parent", width = null, logins = 0, logouts = 0, gradeReads = 0;
+  const lecture = { is_active: true, end_date: null };
+  const state = () => ({ role, width });
+  const locator = kind => ({
+    kind,
+    filter({ hasText }) {
+      assert.equal(hasText, kind === "history" ? "종료된 강의" : "synthetic exam");
+      return this;
+    },
+    first() { return this; },
+    getByText(text, options) {
+      assert.equal(text, "정리됨"); assert.equal(options.exact, true);
+      return locator("summary");
+    },
+    async click() {
+      assert.equal(kind, "history"); history.push(state());
+      // Advance during the last UI loop, not before entering the real helper.
+      if (crossMidnight && history.length === 4) now = Date.parse("2026-10-30T15:00:01.000Z");
+    },
+  });
+  const page = {
+    async setViewportSize(value) { width = value.width; assert.equal(value.height, 900); },
+    locator: selector => locator(selector === "summary" ? "history" : "student-summary"),
+    getByRole: kind => locator(kind === "link" ? "link" : "parent-summary"),
+  };
+  const sandbox = {
+    Date: ClockDate, Intl, created: { examId: 17, lectureId: 23 }, examTitle: "synthetic exam", QA_BASE: "http://fixture.invalid",
+    expect: actual => ({
+      toBe: expected => assert.equal(actual, expected),
+      toMatchObject: expected => {
+        assert.ok(actual);
+        for (const [key, value] of Object.entries(expected)) assert.equal(actual[key], value, key);
+      },
+      async toBeVisible() {
+        assert.ok(["summary", "link"].includes(actual.kind));
+        (actual.kind === "summary" ? summaries : links).push(state());
+      },
+    }),
+    expectApi: async (_request, method, path, _token, data, accepted) => {
+      if (method === "PATCH") {
+        assert.equal(path, "/lectures/lectures/23/"); assert.equal(accepted[0], 200);
+        patches.push({ ...data }); Object.assign(lecture, data); return { ...lecture };
+      }
+      assert.equal(method, "GET");
+      const active = lecture.is_active && (lecture.end_date === null || lecture.end_date >= currentDay());
+      if (path === "/student/exams/?include_upcoming=true") return { items: active ? [{ id: 17 }] : [] };
+      assert.equal(path, "/student/grades/"); gradeReads++;
+      return { exams: [{ exam_id: 17, lecture_active: active, learning_todo_eligible: active, total_score: 60,
+        ...(patches.length === 2 ? restoredPatch : {}) }] };
+    },
+    logoutStudentApp: async () => { logouts++; },
+    loginThroughUi: async () => { role = "student"; logins++; },
+    gotoAndSettle: async (_page, url) => assert.match(url, /\/student\/(dashboard|grades)$/),
+    reloadStudentApp: async () => { reloads.push(state()); },
+    assertNoHorizontalOverflow: async () => { overflows.push(state()); },
+  };
+  const api = vm.runInNewContext(stripTypeScriptTypes(`${moduleDate}\n${source.slice(begin, end)}\n({ todayKst, verifyEndedCourseTodos });`), sandbox);
+  return {
+    run: () => api.verifyEndedCourseTodos(page, {}, { access: "synthetic-admin" }, {}, { access: "synthetic-student" }),
+    moduleDate: api.todayKst, patches, history, summaries, links, reloads, overflows,
+    counts: () => ({ logins, logouts, gradeReads }),
+  };
+}
+
+for (const crossMidnight of [false, true]) {
+  test(`actual ended-course restore uses inclusive current KST day (${crossMidnight ? "midnight crossing" : "same day"})`, async () => {
+    const h = endedCourseHarness({ crossMidnight });
+    await h.run();
+    assert.equal(h.moduleDate, "2026-10-30");
+    assert.deepEqual(h.patches, [
+      { start_date: "2026-10-29", end_date: "2026-10-29", is_active: true },
+      { end_date: crossMidnight ? "2026-10-31" : "2026-10-30" },
+    ]);
+    const journey = ["parent", "student"].flatMap(role => [390, 1366].map(width => ({ role, width })));
+    for (const observations of [h.history, h.summaries, h.links, h.reloads, h.overflows]) assert.deepEqual(observations, journey);
+    assert.deepEqual(h.counts(), { logins: 1, logouts: 1, gradeReads: 3 });
+  });
+}
+
+for (const [field, value] of [["lecture_active", false], ["learning_todo_eligible", false], ["total_score", 61]]) {
+  test(`actual ended-course restore still rejects incorrect ${field}`, async () => {
+    const h = endedCourseHarness({ crossMidnight: true, restoredPatch: { [field]: value } });
+    await assert.rejects(h.run(), error => error.code === "ERR_ASSERTION" && error.message.startsWith(field));
+    assert.equal(h.patches[1].end_date, "2026-10-31");
+  });
+}
+
 test("closed workflow helper failure locations retain only registered source names", () => {
   const helpers = ["excelEnrollmentRealuse.ts", "excelAssessmentRealuse.ts", "attendanceExcelRealuse.ts", "homeworkCriteriaRealuse.ts", "excelImport.ts"];
   const report = contextReport([], "student-parent-learning-realuse.spec.ts");
