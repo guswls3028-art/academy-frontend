@@ -490,6 +490,12 @@ export type ReleaseObservationEvent = {
   endNavigationOrdinal?: number | null;
   category?: "cors" | "chunk" | "network" | "resource" | "runtime" | "other";
   sourceKind?: "local" | "api" | "vendor" | "unknown";
+  publicProvider?: {
+    providerClass: typeof PUBLIC_VIDEO_PROVIDERS[number];
+    resourceKind: "thumbnail" | "embed" | "player";
+    operation: "headers" | "fetch" | "redirect" | "fulfill";
+    httpStatus: number | null;
+  };
   externalOrigin?: {
     providerClass: typeof PUBLIC_VIDEO_PROVIDERS[number] | "other";
     resourceType: "document" | "image" | "script" | "stylesheet" | "font" | "media" | "xhr" | "fetch" | "other";
@@ -520,8 +526,12 @@ export function safeNativeTransportKind(error: unknown): NativeTransportKind {
   return safeNativeTransportCode(new Error(firstLine));
 }
 
-export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup",
-  emit: (value: unknown) => void = (value) => console.log(JSON.stringify(value))) {
+const PUBLIC_VIDEO_JOURNEY_STAGES = ["publisher-login", "showcase-edit", "video-register", "video-publish",
+  "public-catalog", "public-detail", "player-ready", "video-edit", "video-hide", "video-delete", "video-reregister"] as const;
+export type PublicVideoJourneyStage = typeof PUBLIC_VIDEO_JOURNEY_STAGES[number];
+
+export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "public-video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup",
+  emit: (value: unknown) => void = (value) => console.log(JSON.stringify(value)), journeyStage?: PublicVideoJourneyStage) {
   const message = error instanceof Error ? error.message.split(/\r?\n/, 1)[0] : "";
   const kind = /Release API boundary failed:/.test(message) ? "boundary"
     : /expect\(|Expected values|AssertionError/.test(message) ? "assertion"
@@ -530,6 +540,7 @@ export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | 
   // A toBe(403) could compare a score or ID. HTTP status is captured only at
   // an actual response boundary, never guessed from generic matcher values.
   emit({ releaseTestFailure: { schema: "release-test-failure/v1", phase, kind,
+    ...(phase === "public-video-primary" && journeyStage && PUBLIC_VIDEO_JOURNEY_STAGES.includes(journeyStage) ? { journeyStage } : {}),
     expectedStatus: null, receivedStatus: null } });
 }
 
@@ -1079,13 +1090,14 @@ export async function installReleaseContextGuard(
   const recordRouteTransport = (request: Request, upstream: string,
     stage: ReleaseObservationEvent["stage"], error?: unknown,
     phase: "route-fetch" | "route-fulfill" | "route-handler" = "route-fetch",
-    externalOrigin?: ReleaseObservationEvent["externalOrigin"]) => {
+    externalOrigin?: ReleaseObservationEvent["externalOrigin"], publicProvider?: ReleaseObservationEvent["publicProvider"]) => {
     const method = safeTransportMethod(request.method().toUpperCase());
     const pathTemplate = safeRequestTransportPathTemplate(upstream);
     const timing = requestTimings.get(request);
     const endPage = observation.requestPageState(request);
     observation.record({ phase, stage, method, pathTemplate,
       ...(externalOrigin ? { externalOrigin } : {}),
+      ...(publicProvider ? { publicProvider: { ...publicProvider } } : {}),
       ...(timing ? { requestOrdinal: timing.requestOrdinal, requestStartedElapsedMs: timing.requestStartedElapsedMs,
         attemptDurationMs: Math.max(0, Date.now() - timing.attemptStartedAt),
         pageOrdinal: timing.startPage?.pageOrdinal ?? null,
@@ -1114,6 +1126,7 @@ export async function installReleaseContextGuard(
       try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
     };
     let externalOrigin: ReleaseObservationEvent["externalOrigin"];
+    let publicProvider: ReleaseObservationEvent["publicProvider"];
     try {
       const upstream = developmentUpstream(boundary, request.url());
       const target = new URL(upstream);
@@ -1145,6 +1158,10 @@ export async function installReleaseContextGuard(
           };
         }
         if (publicVideoKind) {
+          publicProvider = {
+            providerClass: PUBLIC_VIDEO_PROVIDERS.find(host => target.hostname === host || target.hostname.endsWith(`.${host}`))!,
+            resourceKind: publicVideoKind, operation: "headers", httpStatus: null,
+          };
           const headers = await request.allHeaders();
           const parent = playerFrame?.parentFrame();
           if (headers.authorization || headers["x-tenant-code"] || headers["x-csrftoken"]
@@ -1153,11 +1170,14 @@ export async function installReleaseContextGuard(
           }
           // Relay actual provider responses and validate any permitted read hop. Native
           // route.continue() can follow a redirect without re-entering this guard.
+          publicProvider.operation = "fetch";
           const started = Date.now();
           let response = await route.fetch({ maxRedirects: 0, timeout: 30_000 });
+          publicProvider.httpStatus = response.status();
           let current = target;
           let redirects = 0;
           while ([301, 302, 303, 307, 308].includes(response.status())) {
+            publicProvider.operation = "redirect";
             const location = response.headers().location;
             const next = location ? new URL(location, current) : null;
             const remaining = 30_000 - (Date.now() - started);
@@ -1167,15 +1187,21 @@ export async function installReleaseContextGuard(
               || redirects >= 3 || remaining <= 0 || !next
               || next.origin !== target.origin || next.pathname !== target.pathname
               || publicVideoRequestKind(boundary, next.href, request.method(), request.resourceType(), publicVideoIds, trustedPlayerFrame) !== "player") {
+              recordRouteTransport(request, upstream, "terminal", undefined, "route-handler", undefined, publicProvider);
               await reject("public-video-redirect"); return;
             }
             redirects += 1; current = next;
+            publicProvider.operation = "fetch"; publicProvider.httpStatus = null;
             response = await route.fetch({ url: next.href, maxRedirects: 0, timeout: remaining });
+            publicProvider.httpStatus = response.status();
           }
           if (response.status() >= 300 && response.status() < 400) {
+            publicProvider.operation = "redirect";
+            recordRouteTransport(request, upstream, "terminal", undefined, "route-handler", undefined, publicProvider);
             await reject("public-video-redirect"); return;
           }
           if (publicVideoKind === "embed" && playerFrame && response.status() === 200) publicVideoFrames.add(playerFrame);
+          publicProvider.operation = "fulfill";
           await route.fulfill({ response });
           return;
         }
@@ -1650,7 +1676,7 @@ export async function installReleaseContextGuard(
       }
     } catch (error) {
       // Upstream errors can contain credential-bearing URLs. Emit no raw error.
-      recordRouteTransport(request, request.url(), "terminal", error, "route-handler", externalOrigin);
+      recordRouteTransport(request, request.url(), "terminal", error, "route-handler", externalOrigin, publicProvider);
       await reject(releaseRequestFailureCode(error));
       return;
     }

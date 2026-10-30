@@ -3730,6 +3730,76 @@ test("official evidence retains closed external origin causes and rejects arbitr
   }
 });
 
+test("official evidence admits only closed public-provider failure operations and actual HTTP statuses", () => {
+  const observer = policyModule.createReleaseContextObservation(1);
+  for (const [operation, httpStatus] of [["headers", null], ["fetch", null], ["redirect", 302], ["fulfill", 503]]) {
+    observer.record({ phase: "route-handler", stage: "terminal", method: "GET", pathTemplate: null,
+      publicProvider: { providerClass: "youtube.com", resourceKind: "embed", operation, httpStatus } });
+  }
+  const snapshot = observer.snapshot();
+  const observe = payload => observeReleaseTestResult(JSON.stringify(contextReport([{ releaseContextObservation: payload }], "public-video-realuse.spec.ts")));
+  assert.deepEqual(observe(snapshot).contextObservations[0].events.map(event => event.publicProvider), snapshot.events.map(event => event.publicProvider));
+  for (const patch of [{ providerClass: "private-secret.invalid" }, { resourceKind: "private-secret" },
+    { operation: "private-secret" }, { httpStatus: "503 private-secret" }, { httpStatus: 200 },
+    { rawUrl: "https://private-secret.invalid/?token=secret" }, { headers: { authorization: "private-secret" } },
+    { body: "private-secret" }, { frameURL: "private-secret" }, { message: "private-secret" }]) {
+    const payload = structuredClone(snapshot);
+    Object.assign(payload.events[0].publicProvider, patch);
+    const observed = observe(payload);
+    assert.equal(observed.rejectedContextObservationCount, 1);
+    assert.deepEqual(observed.contextObservations, []);
+    assert.doesNotMatch(JSON.stringify(observed), /private-secret|token=secret/);
+  }
+  for (const [operation, httpStatus] of [["redirect", null], ["redirect", 200], ["redirect", 400],
+    ["fulfill", null], ["fulfill", 99], ["fulfill", 600], ["fulfill", 200.5], ["fetch", 200]]) {
+    const payload = structuredClone(snapshot);
+    Object.assign(payload.events[0].publicProvider, { operation, httpStatus });
+    assert.equal(observe(payload).rejectedContextObservationCount, 1);
+  }
+  for (const patch of [{ phase: "browser-console" }, { stage: "initial" }, { externalOrigin: {} }]) {
+    const payload = structuredClone(snapshot);
+    Object.assign(payload.events[0], patch);
+    assert.equal(observe(payload).rejectedContextObservationCount, 1);
+  }
+});
+
+test("actual public-video primary markers retain closed journey stages only for the exact public-video spec", () => {
+  const outputs = [];
+  for (const stage of ["publisher-login", "showcase-edit", "video-register", "video-publish", "public-catalog", "public-detail",
+    "player-ready", "video-edit", "video-hide", "video-delete", "video-reregister"]) {
+    policyModule.emitReleaseTestFailure(new Error("locator.waitFor: Timeout private-secret https://private.invalid/?token=secret"),
+      "public-video-primary", value => outputs.push(value), stage);
+  }
+  const observe = (values, file = "public-video-realuse.spec.ts") => observeReleaseTestResult(JSON.stringify(contextReport(values, file)));
+  const observed = observe(outputs);
+  assert.equal(observed.testFailureObservations.length, outputs.length);
+  assert.deepEqual(observed.testFailureObservations.map(({ specFile, resultOrdinal, ...value }) => {
+    assert.equal(specFile, "public-video-realuse.spec.ts"); assert.equal(resultOrdinal, 1); return value;
+  }), outputs.map(value => value.releaseTestFailure));
+  assert.doesNotMatch(JSON.stringify(observed), /private-secret|private\.invalid|token=secret/);
+  const marker = outputs[0].releaseTestFailure;
+  for (const file of ["video-playback-renewal.realuse.spec.ts", "notice-roundtrip.spec.ts", "private-secret.spec.ts"]) {
+    const rejected = observe(outputs, file);
+    assert.deepEqual(rejected.testFailureObservations, []);
+    assert.doesNotMatch(JSON.stringify(rejected), /private-secret/);
+  }
+  for (const patch of [{ phase: "video-primary" }, { phase: "private-secret" }, { journeyStage: "private-secret" },
+    { journeyStage: undefined }, { journeyStage: 42 }, { rawStack: "private-secret" }, { receivedStatus: 500 }]) {
+    const rejected = observe([{ releaseTestFailure: { ...marker, ...patch } }]);
+    assert.equal(rejected.rejectedFailureObservationCount, 1);
+    assert.deepEqual(rejected.testFailureObservations, []);
+    assert.doesNotMatch(JSON.stringify(rejected), /private-secret/);
+  }
+  const invalidStage = [];
+  policyModule.emitReleaseTestFailure(new Error("private-secret"), "public-video-primary", value => invalidStage.push(value), "private-secret");
+  assert.doesNotMatch(JSON.stringify(invalidStage), /private-secret/);
+  assert.equal(observe(invalidStage).rejectedFailureObservationCount, 1);
+  const legacy = [];
+  policyModule.emitReleaseTestFailure(new Error("private-secret"), "video-primary", value => legacy.push(value));
+  assert.equal(observe(legacy, "video-playback-renewal.realuse.spec.ts").testFailureObservations.length, 1);
+  assert.deepEqual(observe(legacy).testFailureObservations, [], "the original video-primary binding stays narrow");
+});
+
 
 test("vendor console diagnostics are closed classifications and never weaken strict failure", () => {
   const attach = loadAttachStrictBrowserGuards();
