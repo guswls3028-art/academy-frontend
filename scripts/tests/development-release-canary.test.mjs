@@ -3874,6 +3874,79 @@ test("official evidence admits only closed public-provider failure operations an
   }
 });
 
+test("public-provider response observations accept only actual HTTP errors and bounded response durations", () => {
+  const observer = policyModule.createReleaseContextObservation(1);
+  observer.record({ phase: "route-fetch", stage: "terminal", method: "GET", pathTemplate: null,
+    publicProvider: { providerClass: "googlevideo.com", resourceKind: "player", operation: "fetch", httpStatus: 403, fetchDurationMs: 30000 } });
+  const snapshot = observer.snapshot();
+  const observe = value => observeReleaseTestResult(JSON.stringify(contextReport([{ releaseContextObservation: value }], "public-video-realuse.spec.ts")));
+  assert.equal(observe(snapshot).contextObservations[0].events[0].publicProvider.fetchDurationMs, 30000);
+  const withoutDuration = structuredClone(snapshot);
+  delete withoutDuration.events[0].publicProvider.fetchDurationMs;
+  assert.equal(observe(withoutDuration).rejectedContextObservationCount, 0);
+  for (const patch of [{ httpStatus: null }, { httpStatus: 200 }, { httpStatus: 399 }, { httpStatus: 600 }, { httpStatus: 403.1 },
+    { operation: "fulfill" }, { operation: "headers" }, { fetchDurationMs: -1 }, { fetchDurationMs: 30001 },
+    { fetchDurationMs: 0.5 }, { fetchDurationMs: "private-secret" }, { rawUrl: "private-secret" }]) {
+    const value = structuredClone(snapshot); Object.assign(value.events[0].publicProvider, patch);
+    const rejected = observe(value);
+    assert.equal(rejected.rejectedContextObservationCount, 1); assert.deepEqual(rejected.contextObservations, []);
+    assert.doesNotMatch(JSON.stringify(rejected), /private-secret/);
+  }
+  const fakeResponse = structuredClone(snapshot);
+  fakeResponse.events[0].phase = "route-handler";
+  fakeResponse.events[0].publicProvider.httpStatus = null;
+  assert.equal(observe(fakeResponse).rejectedContextObservationCount, 1, "duration must not imply a response after a transport failure");
+});
+
+test("optional public-video playback is fully validated, stage-bound and backward compatible", () => {
+  const playback = { paused: false, ended: false, readyState: 4, networkState: 1, width: 1280, height: 720,
+    currentTime: 28.157, initialTime: 0, duration: 716, mediaError: null, adShowing: false, adInterrupting: false,
+    playerState: 1, identityMatches: true, errorVisible: false, errorClass: "none" };
+  const emit = (value, stage = "player-playing", phase = "public-video-primary") => {
+    const output = [];
+    policyModule.emitReleaseTestFailure(new Error("private-secret"), phase, item => output.push(item), stage, value);
+    return output;
+  };
+  const observe = (output, file = "public-video-realuse.spec.ts") => observeReleaseTestResult(JSON.stringify(contextReport(output, file)));
+  for (const stage of ["player-playing", "player-paused"]) {
+    for (const patch of [{}, { paused: true, currentTime: null, initialTime: null, duration: null, playerState: null, identityMatches: null },
+      { width: 0, height: 16384, readyState: 0, networkState: 3, currentTime: 604800, duration: 604800, mediaError: 4, playerState: -1, errorClass: "bot-check" }]) {
+      const value = { ...playback, ...patch };
+      assert.deepEqual(observe(emit(value, stage)).testFailureObservations[0].playback, value);
+    }
+  }
+  const invalid = [{ paused: 1 }, { ended: null }, { readyState: -1 }, { readyState: 5 }, { readyState: 1.5 },
+    { networkState: 4 }, { width: 16385 }, { height: -1 }, { height: 720.5 }, { width: "private-secret" },
+    { currentTime: -1 }, { currentTime: 604801 }, { initialTime: -1 }, { duration: 604801 }, { duration: "private-secret" },
+    { mediaError: 0 }, { mediaError: 5 }, { adShowing: 1 }, { adInterrupting: null }, { playerState: 4 },
+    { playerState: "private-secret" }, { identityMatches: "private-secret" }, { errorVisible: 1 }, { errorClass: "private-secret" },
+    { url: "private-secret" }, { frameURL: "private-secret" }, { videoId: "private-secret" }, { errorText: "private-secret" },
+    { headers: { authorization: "private-secret" } }, { body: "private-secret" }];
+  const marker = emit(playback)[0].releaseTestFailure;
+  for (const patch of invalid) {
+    const value = { ...playback, ...patch };
+    assert.equal(Object.hasOwn(emit(value)[0].releaseTestFailure, "playback"), false);
+    const rejected = observe([{ releaseTestFailure: { ...marker, playback: value } }]);
+    assert.equal(rejected.rejectedFailureObservationCount, 1); assert.deepEqual(rejected.testFailureObservations, []);
+    assert.doesNotMatch(JSON.stringify(rejected), /private-secret/);
+  }
+  const missing = { ...playback }; delete missing.width;
+  for (const value of [null, [], "private-secret", missing, { ...playback, currentTime: NaN }, { ...playback, duration: Infinity }]) {
+    const output = emit(value);
+    assert.equal(Object.hasOwn(output[0].releaseTestFailure, "playback"), false);
+    assert.doesNotMatch(JSON.stringify(output), /private-secret/);
+    assert.equal(observe(output).rejectedFailureObservationCount, 0, "invalid optional sample leaves the old primary marker intact");
+  }
+  assert.equal(observe(emit(undefined)).testFailureObservations.length, 1);
+  assert.equal(Object.hasOwn(emit(playback, "player-ready")[0].releaseTestFailure, "playback"), false);
+  assert.equal(Object.hasOwn(emit(playback, "player-playing", "video-primary")[0].releaseTestFailure, "playback"), false);
+  for (const [file, patch] of [["notice-roundtrip.spec.ts", {}], ["video-playback-renewal.realuse.spec.ts", { phase: "video-primary" }],
+    ["public-video-realuse.spec.ts", { journeyStage: "player-ready" }], ["public-video-realuse.spec.ts", { playback: null }]]) {
+    const rejected = observe([{ releaseTestFailure: { ...marker, ...patch } }], file);
+    assert.equal(rejected.rejectedFailureObservationCount, 1); assert.deepEqual(rejected.testFailureObservations, []);
+  }
+});
+
 test("actual public-video primary markers retain closed journey stages only for the exact public-video spec", () => {
   const outputs = [];
   for (const stage of ["publisher-login", "showcase-edit", "video-register", "video-publish", "public-catalog", "public-detail",

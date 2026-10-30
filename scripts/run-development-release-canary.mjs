@@ -348,6 +348,22 @@ function observeRequestTransportDiagnostic(payload) {
     .map((key) => [key, payload[key]]));
 }
 
+function validPublicVideoPlayback(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const keys = ["paused", "ended", "readyState", "networkState", "width", "height", "currentTime", "initialTime", "duration",
+    "mediaError", "adShowing", "adInterrupting", "playerState", "identityMatches", "errorVisible", "errorClass"];
+  const integer = (item, max) => typeof item === "number" && Number.isSafeInteger(item) && item >= 0 && item <= max;
+  const time = item => item === null || (typeof item === "number" && Number.isFinite(item) && item >= 0 && item <= 604800);
+  return Object.keys(value).sort().join(",") === keys.sort().join(",")
+    && ["paused", "ended", "adShowing", "adInterrupting", "errorVisible"].every(key => typeof value[key] === "boolean")
+    && integer(value.readyState, 4) && integer(value.networkState, 3) && integer(value.width, 16384) && integer(value.height, 16384)
+    && time(value.currentTime) && time(value.initialTime) && time(value.duration)
+    && (value.mediaError === null || (typeof value.mediaError === "number" && [1, 2, 3, 4].includes(value.mediaError)))
+    && (value.playerState === null || (typeof value.playerState === "number" && [-1, 0, 1, 2, 3, 5].includes(value.playerState)))
+    && (value.identityMatches === null || typeof value.identityMatches === "boolean")
+    && typeof value.errorClass === "string" && ["none", "bot-check", "unavailable", "embedding-disabled", "other"].includes(value.errorClass);
+}
+
 function observeReleaseContextSnapshot(payload) {
   const record = (value) => value && typeof value === "object" && !Array.isArray(value);
   const count = (value, max = 1_000_000) => Number.isSafeInteger(value) && value >= 0 && value <= max;
@@ -384,13 +400,17 @@ function observeReleaseContextSnapshot(payload) {
       || (Object.hasOwn(event, "sourceKind") && !["local", "api", "vendor", "unknown"].includes(event.sourceKind))) return null;
     if (Object.hasOwn(event, "publicProvider")) {
       const provider = event.publicProvider;
-      if (event.phase !== "route-handler" || event.stage !== "terminal" || Object.hasOwn(event, "externalOrigin")
-        || !record(provider) || Object.keys(provider).sort().join(",") !== "httpStatus,operation,providerClass,resourceKind"
+      const responseObservation = event.phase === "route-fetch";
+      const hasDuration = record(provider) && Object.hasOwn(provider, "fetchDurationMs");
+      if ((!responseObservation && event.phase !== "route-handler") || event.stage !== "terminal" || Object.hasOwn(event, "externalOrigin")
+        || !record(provider) || Object.keys(provider).sort().join(",") !== ["httpStatus", "operation", "providerClass", "resourceKind", ...(hasDuration ? ["fetchDurationMs"] : [])].sort().join(",")
         || !["youtube.com", "youtube-nocookie.com", "ytimg.com", "googlevideo.com", "gstatic.com", "google.com", "googleapis.com", "googleusercontent.com", "ggpht.com", "doubleclick.net", "googlesyndication.com", "googleadservices.com"].includes(provider.providerClass)
         || !["thumbnail", "embed", "player"].includes(provider.resourceKind)
         || !["headers", "fetch", "redirect", "fulfill"].includes(provider.operation)
-        || (["headers", "fetch"].includes(provider.operation) ? provider.httpStatus !== null
-          : !Number.isSafeInteger(provider.httpStatus) || provider.httpStatus < 100 || provider.httpStatus > 599)
+        || (responseObservation ? provider.operation !== "fetch" || !Number.isSafeInteger(provider.httpStatus) || provider.httpStatus < 400 || provider.httpStatus > 599
+          : ["headers", "fetch"].includes(provider.operation) ? provider.httpStatus !== null
+            : !Number.isSafeInteger(provider.httpStatus) || provider.httpStatus < 100 || provider.httpStatus > 599)
+        || (hasDuration && (!responseObservation || !count(provider.fetchDurationMs, 30_000)))
         || (provider.operation === "redirect" && (provider.httpStatus < 300 || provider.httpStatus >= 400))) return null;
     }
     if (Object.hasOwn(event, "externalOrigin")) {
@@ -592,12 +612,14 @@ export function observeReleaseTestResult(stdout) {
                 } else if (name === "releaseTestFailure") {
                   destination = "testFailureObservations";
                   const publicVideoPrimary = value.phase === "public-video-primary";
-                  valid &&= exactKeys(value, ["schema", "phase", "kind", "expectedStatus", "receivedStatus", ...(publicVideoPrimary ? ["journeyStage"] : [])])
+                  const hasPlayback = Object.hasOwn(value, "playback");
+                  valid &&= exactKeys(value, ["schema", "phase", "kind", "expectedStatus", "receivedStatus", ...(publicVideoPrimary ? ["journeyStage"] : []), ...(hasPlayback ? ["playback"] : [])])
                     && value.schema === "release-test-failure/v1"
                     && ["video-primary", "public-video-primary", "context-check", "assessment-copy", "assessment-copy-cleanup"].includes(value.phase)
                     && (value.phase !== "video-primary" || file === "video-playback-renewal.realuse.spec.ts")
                     && (!publicVideoPrimary || (file === "public-video-realuse.spec.ts"
                       && ["publisher-login", "showcase-edit", "video-register", "video-publish", "public-catalog", "public-detail", "player-ready", "player-playing", "player-paused", "video-edit", "video-hide", "video-delete", "video-reregister"].includes(value.journeyStage)))
+                    && (!hasPlayback || (publicVideoPrimary && ["player-playing", "player-paused"].includes(value.journeyStage) && validPublicVideoPlayback(value.playback)))
                     && (!value.phase.startsWith("assessment-copy") || file === "student-parent-assessment-realuse.spec.ts")
                     && ["boundary", "assertion", "locator-timeout", "transport", "other"].includes(value.kind)
                     && value.expectedStatus === null && value.receivedStatus === null;

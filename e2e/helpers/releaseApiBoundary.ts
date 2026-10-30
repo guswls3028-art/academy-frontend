@@ -495,6 +495,7 @@ export type ReleaseObservationEvent = {
     resourceKind: "thumbnail" | "embed" | "player";
     operation: "headers" | "fetch" | "redirect" | "fulfill";
     httpStatus: number | null;
+    fetchDurationMs?: number;
   };
   externalOrigin?: {
     providerClass: typeof PUBLIC_VIDEO_PROVIDERS[number] | "other";
@@ -532,8 +533,33 @@ const PUBLIC_VIDEO_JOURNEY_STAGES = ["publisher-login", "showcase-edit", "video-
   "public-catalog", "public-detail", "player-ready", "player-playing", "player-paused", "video-edit", "video-hide", "video-delete", "video-reregister"] as const;
 export type PublicVideoJourneyStage = typeof PUBLIC_VIDEO_JOURNEY_STAGES[number];
 
+export type PublicVideoPlaybackObservation = {
+  paused: boolean; ended: boolean; readyState: number; networkState: number;
+  width: number; height: number;
+  currentTime: number | null; initialTime: number | null; duration: number | null;
+  mediaError: number | null; adShowing: boolean; adInterrupting: boolean;
+  playerState: number | null; identityMatches: boolean | null;
+  errorVisible: boolean; errorClass: "none" | "bot-check" | "unavailable" | "embedding-disabled" | "other";
+};
+
+function validPublicVideoPlayback(value: unknown): value is PublicVideoPlaybackObservation {
+  if (!isRecord(value)) return false;
+  const keys = ["paused", "ended", "readyState", "networkState", "width", "height", "currentTime", "initialTime", "duration",
+    "mediaError", "adShowing", "adInterrupting", "playerState", "identityMatches", "errorVisible", "errorClass"];
+  const integer = (item: unknown, max: number) => typeof item === "number" && Number.isSafeInteger(item) && item >= 0 && item <= max;
+  const time = (item: unknown) => item === null || (typeof item === "number" && Number.isFinite(item) && item >= 0 && item <= 604800);
+  return Object.keys(value).sort().join(",") === keys.sort().join(",")
+    && ["paused", "ended", "adShowing", "adInterrupting", "errorVisible"].every(key => typeof value[key] === "boolean")
+    && integer(value.readyState, 4) && integer(value.networkState, 3) && integer(value.width, 16384) && integer(value.height, 16384)
+    && time(value.currentTime) && time(value.initialTime) && time(value.duration)
+    && (value.mediaError === null || (typeof value.mediaError === "number" && [1, 2, 3, 4].includes(value.mediaError)))
+    && (value.playerState === null || (typeof value.playerState === "number" && [-1, 0, 1, 2, 3, 5].includes(value.playerState)))
+    && (value.identityMatches === null || typeof value.identityMatches === "boolean")
+    && typeof value.errorClass === "string" && ["none", "bot-check", "unavailable", "embedding-disabled", "other"].includes(value.errorClass);
+}
+
 export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "public-video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup",
-  emit: (value: unknown) => void = (value) => console.log(JSON.stringify(value)), journeyStage?: PublicVideoJourneyStage) {
+  emit: (value: unknown) => void = (value) => console.log(JSON.stringify(value)), journeyStage?: PublicVideoJourneyStage, playback?: unknown) {
   const message = error instanceof Error ? error.message.split(/\r?\n/, 1)[0] : "";
   const kind = /Release API boundary failed:/.test(message) ? "boundary"
     : /expect\(|Expected values|AssertionError/.test(message) ? "assertion"
@@ -543,6 +569,8 @@ export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | 
   // an actual response boundary, never guessed from generic matcher values.
   emit({ releaseTestFailure: { schema: "release-test-failure/v1", phase, kind,
     ...(phase === "public-video-primary" && journeyStage && PUBLIC_VIDEO_JOURNEY_STAGES.includes(journeyStage) ? { journeyStage } : {}),
+    ...(phase === "public-video-primary" && (journeyStage === "player-playing" || journeyStage === "player-paused")
+      && validPublicVideoPlayback(playback) ? { playback: { ...playback } } : {}),
     expectedStatus: null, receivedStatus: null } });
 }
 
@@ -1174,7 +1202,9 @@ export async function installReleaseContextGuard(
           // route.continue() can follow a redirect without re-entering this guard.
           publicProvider.operation = "fetch";
           const started = Date.now();
+          let fetchStartedAt = started;
           let response = await route.fetch({ maxRedirects: 0, timeout: 30_000 });
+          let fetchDurationMs = Date.now() - fetchStartedAt;
           publicProvider.httpStatus = response.status();
           let current = target;
           let redirects = 0;
@@ -1194,7 +1224,9 @@ export async function installReleaseContextGuard(
             }
             redirects += 1; current = next;
             publicProvider.operation = "fetch"; publicProvider.httpStatus = null;
+            fetchStartedAt = Date.now();
             response = await route.fetch({ url: next.href, maxRedirects: 0, timeout: remaining });
+            fetchDurationMs = Date.now() - fetchStartedAt;
             publicProvider.httpStatus = response.status();
           }
           if (response.status() >= 300 && response.status() < 400) {
@@ -1203,6 +1235,12 @@ export async function installReleaseContextGuard(
             await reject("public-video-redirect"); return;
           }
           if (publicVideoKind === "embed" && playerFrame && response.status() === 200) publicVideoFrames.add(playerFrame);
+          if (response.status() >= 400 && response.status() <= 599) {
+            recordRouteTransport(request, upstream, "terminal", undefined, "route-fetch", undefined, {
+              ...publicProvider, operation: "fetch", httpStatus: response.status(),
+              ...(Number.isSafeInteger(fetchDurationMs) && fetchDurationMs >= 0 && fetchDurationMs <= 30_000 ? { fetchDurationMs } : {}),
+            });
+          }
           publicProvider.operation = "fulfill";
           await route.fulfill({ response });
           return;

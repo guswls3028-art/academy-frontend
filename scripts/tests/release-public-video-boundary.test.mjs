@@ -218,7 +218,7 @@ test("actual admitted-provider guard distinguishes headers, fetch and fulfill fa
       }), { relayed: 0, aborted: 1 });
       assert.throws(() => fixture.guard.assertClean());
       const snapshot = fixture.guard.observation.snapshot();
-      const events = snapshot.events.filter(event => event.publicProvider);
+      const events = snapshot.events.filter(event => event.publicProvider && event.phase === "route-handler");
       assert.equal(events.length, 1);
       assert.equal(events[0].phase, "route-handler");
       assert.equal(events[0].stage, "terminal");
@@ -317,4 +317,83 @@ test("provider header overflow remains terminal with closed official diagnostics
   assert.equal(fixture.fetches.length, 1);
   assert.equal(fixture.guard.transport.readFetchRetries, 0);
   assert.equal(fixture.guard.transport.mutationReplays, 0);
+});
+
+test("admitted provider HTTP errors are observed but still fulfilled once without retry or rejection", async () => {
+  for (const status of [400, 403, 429, 500, 599]) {
+    const fixture = await playerSetup();
+    assert.deepEqual(await fixture.request("https://rr1.googlevideo.com/videoplayback?sig=private-secret", {
+      frame: fixture.frame, type: "media", status,
+    }), { relayed: 1, aborted: 0 });
+    fixture.guard.assertClean();
+    assert.equal(fixture.fetches.length, 1);
+    assert.equal(fixture.guard.transport.readFetchRetries, 0);
+    assert.equal(fixture.guard.transport.mutationReplays, 0);
+    const events = fixture.guard.observation.snapshot().events;
+    assert.equal(events.length, 1);
+    const { fetchDurationMs, ...provider } = events[0].publicProvider;
+    assert.deepEqual(provider, { providerClass: "googlevideo.com", resourceKind: "player", operation: "fetch", httpStatus: status });
+    assert.ok(Number.isSafeInteger(fetchDurationMs) && fetchDurationMs >= 0 && fetchDurationMs <= 30000);
+    assert.equal(events[0].phase, "route-fetch");
+    assert.equal(events[0].stage, "terminal");
+    assert.equal(Object.hasOwn(events[0], "nativeCode"), false);
+    const observed = observePublicEvidence([{ releaseContextObservation: fixture.guard.observation.snapshot() }]);
+    assert.equal(observed.rejectedContextObservationCount, 0);
+    assert.equal(observed.contextObservations[0].events[0].publicProvider.httpStatus, status);
+    assert.doesNotMatch(JSON.stringify(observed), /private-secret|videoplayback|rr1\./);
+  }
+  for (const status of [200, 206]) {
+    const fixture = await playerSetup();
+    assert.deepEqual(await fixture.request("https://rr1.googlevideo.com/videoplayback", { frame: fixture.frame, type: "media", status }),
+      { relayed: 1, aborted: 0 });
+    fixture.guard.assertClean();
+    assert.equal(fixture.guard.observation.snapshot().events.length, 0);
+  }
+});
+
+test("actual public-video sampler preserves failed playback predicates and emits only closed state", () => {
+  const source = stripTypeScriptTypes(readFileSync(new URL("../../e2e/admin/public-video-realuse.spec.ts", import.meta.url), "utf8"))
+    .replace(/^import[\s\S]*?;\r?\n/gm, "");
+  const scope = { test: { setTimeout() {}, use() {}, describe() {} }, getComputedStyle: () => ({ visibility: "visible" }) };
+  runInNewContext(source + "\nglobalThis.readPlayback = readPublicVideoPlayback;", scope);
+  const sample = (overrides = {}, flags = [], playerOverrides = {}, initialTime = 0) => {
+    const player = { classList: { contains: name => flags.includes(name) }, getPlayerState: () => 1,
+      getVideoData: () => ({ video_id: "private-video-id" }), querySelector: () => null, ...playerOverrides };
+    const video = { paused: false, ended: false, readyState: 4, networkState: 1, videoWidth: 1280, videoHeight: 720,
+      currentTime: 28.157, duration: 716, error: null, closest: () => player, ...overrides };
+    return scope.readPlayback(video, { initialTime, expectedId: "private-video-id" });
+  };
+  const cases = [
+    [sample(), true, false], [sample({ paused: true }), false, true],
+    [sample({ readyState: 1, networkState: 2, currentTime: 0 }), false, false],
+    [sample({}, ["ad-showing"]), false, false], [sample({}, ["ad-interrupting"]), false, false],
+    [sample({ currentTime: 0.2 }, [], {}, 20), false, false], [sample({ ended: true }), false, false],
+  ];
+  for (const [result, playing, paused] of cases) {
+    assert.equal(result.playing, playing); assert.equal(result.paused, paused);
+    const output = [];
+    policy.emitReleaseTestFailure(new Error("private-secret assertion"), "public-video-primary", value => output.push(value),
+      paused ? "player-paused" : "player-playing", result.snapshot);
+    const observed = observePublicEvidence(output);
+    assert.equal(observed.rejectedFailureObservationCount, 0);
+    assert.deepEqual(observed.testFailureObservations[0].playback, { ...result.snapshot });
+    assert.doesNotMatch(JSON.stringify(observed), /private-video-id|private-secret/);
+  }
+  for (const paused of [false, true]) {
+    for (const getter of ["getPlayerState", "getVideoData", "querySelector"]) {
+      const result = sample({ paused }, [], { [getter]: () => { throw new Error("private-secret"); } });
+      assert.equal(result.playing, !paused); assert.equal(result.paused, paused);
+      assert.equal(result.snapshot, undefined, "optional provider diagnostics cannot change the original predicate");
+      const output = [];
+      policy.emitReleaseTestFailure(new Error("private-secret"), "public-video-primary", value => output.push(value), "player-playing", result.snapshot);
+      assert.equal(Object.hasOwn(output[0].releaseTestFailure, "playback"), false);
+      assert.equal(observePublicEvidence(output).rejectedFailureObservationCount, 0);
+    }
+  }
+  for (const [text, errorClass] of [["Confirm you are not a bot private-secret", "bot-check"], ["Unavailable private-secret", "unavailable"],
+    ["Embedding disabled private-secret", "embedding-disabled"], ["private-secret", "other"]]) {
+    const result = sample({}, [], { querySelector: () => ({ getBoundingClientRect: () => ({ width: 10, height: 10 }), textContent: text }) });
+    assert.equal(result.snapshot.errorVisible, true); assert.equal(result.snapshot.errorClass, errorClass);
+    assert.doesNotMatch(JSON.stringify(result.snapshot), /private-secret|private-video-id/);
+  }
 });

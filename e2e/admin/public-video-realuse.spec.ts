@@ -3,9 +3,45 @@ import { expect, test } from "../fixtures/strictTest";
 import { api, assertNoHorizontalOverflow, assertQaStudentParentRuntime,
   QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_BASE, QA_TENANT, STUDENT_PARENT_REALUSE_ENABLED } from "../helpers/qaStudentParentScenario";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
-import { emitReleaseTestFailure, installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv, type PublicVideoJourneyStage } from "../helpers/releaseApiBoundary";
+import { emitReleaseTestFailure, installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv, type PublicVideoJourneyStage, type PublicVideoPlaybackObservation } from "../helpers/releaseApiBoundary";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import type { ManagedVideo, VideoShowcase } from "../../src/landing/api/publicVideos";
+
+function readPublicVideoPlayback(node: Element, { initialTime, expectedId }: { initialTime: number; expectedId: string }) {
+  const video = node as HTMLVideoElement;
+  const moviePlayer = video.closest("#movie_player") as (Element & {
+    getPlayerState?: () => unknown; getVideoData?: () => { video_id?: unknown };
+  }) | null;
+  const playing = !video.paused && !video.ended && video.readyState >= 2
+    && video.videoWidth > 0 && video.videoHeight > 0 && Number.isFinite(video.currentTime)
+    && video.currentTime > initialTime + 1 && moviePlayer !== null
+    && !moviePlayer.classList.contains("ad-showing") && !moviePlayer.classList.contains("ad-interrupting");
+  const paused = video.paused;
+  try {
+    const finiteTime = (value: number) => Number.isFinite(value) && value >= 0 && value <= 604800 ? value : null;
+    const playerState = moviePlayer?.getPlayerState?.();
+    const playerError = moviePlayer?.querySelector(".ytp-error");
+    const errorVisible = !!playerError && playerError.getBoundingClientRect().width > 0
+      && playerError.getBoundingClientRect().height > 0 && getComputedStyle(playerError).visibility !== "hidden";
+    const errorText = errorVisible ? playerError?.textContent ?? "" : "";
+    const snapshot: PublicVideoPlaybackObservation = {
+      paused: video.paused, ended: video.ended, readyState: video.readyState, networkState: video.networkState,
+      width: video.videoWidth, height: video.videoHeight, currentTime: finiteTime(video.currentTime),
+      initialTime: finiteTime(initialTime), duration: finiteTime(video.duration), mediaError: video.error?.code ?? null,
+      adShowing: moviePlayer?.classList.contains("ad-showing") ?? false,
+      adInterrupting: moviePlayer?.classList.contains("ad-interrupting") ?? false,
+      playerState: playerState === -1 || playerState === 0 || playerState === 1 || playerState === 2 || playerState === 3 || playerState === 5 ? playerState : null,
+      identityMatches: typeof moviePlayer?.getVideoData === "function" ? moviePlayer.getVideoData()?.video_id === expectedId : null,
+      errorVisible, errorClass: /confirm.*not a bot|로봇|봇이 아님/i.test(errorText) ? "bot-check"
+        : /unavailable|사용할 수 없/i.test(errorText) ? "unavailable"
+          : /embedding|다른 웹사이트/i.test(errorText) ? "embedding-disabled" : errorText.trim() ? "other" : "none",
+    };
+    return { snapshot, playing, paused };
+  } catch {
+    // Optional provider diagnostics must not change either playback assertion.
+    return { snapshot: undefined, playing, paused };
+  }
+}
 
 test.setTimeout(240_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -20,6 +56,9 @@ test.describe("[real-use] public video publishing", () => {
     const publishers: Array<Awaited<ReturnType<typeof open>>> = [];
     const contexts: Array<{ context: Awaited<ReturnType<typeof browser.newContext>>; guard: Awaited<ReturnType<typeof installReleaseContextGuard>>; strict: ReturnType<typeof attachStrictBrowserGuards> }> = [];
     let journeyStage: PublicVideoJourneyStage = "publisher-login";
+    let playbackObservation: PublicVideoPlaybackObservation | undefined;
+    let activeVisitor: Awaited<ReturnType<typeof open>> | undefined;
+    let activeWidth: number | undefined;
     async function open(width: number) {
       const context = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block" });
       const guard = await installReleaseContextGuard(context, boundary);
@@ -29,6 +68,9 @@ test.describe("[real-use] public video publishing", () => {
     }
     try {
       for (const [index, width] of [1366, 390].entries()) {
+        playbackObservation = undefined;
+        activeVisitor = undefined;
+        activeWidth = width;
         journeyStage = "publisher-login";
         const page = await open(width); await page.goto(`${QA_BASE}/landing/videos`);
         await page.getByRole("link", { name: "로그인", exact: true }).click();
@@ -106,23 +148,23 @@ test.describe("[real-use] public video publishing", () => {
         const playButton = player.getByRole("button", { name: /^(?:Play(?: video)?|동영상 재생|재생)(?: \(k\))?$/i }).filter({ visible: true }).first();
         await expect(playButton).toBeVisible({ timeout: 30_000 });
         await expect(player.locator(".ytp-error")).toBeHidden();
+        activeVisitor = visitor;
         journeyStage = "player-playing";
         await playButton.click();
         const media = player.locator("#movie_player video.html5-main-video").first();
         const startedAt = await media.evaluate((node) => (node as HTMLVideoElement).currentTime);
         expect(Number.isFinite(startedAt)).toBe(true);
-        await expect.poll(() => media.evaluate((node, initialTime) => {
-          const video = node as HTMLVideoElement;
-          const moviePlayer = video.closest("#movie_player");
-          return !video.paused && !video.ended && video.readyState >= 2
-            && video.videoWidth > 0 && video.videoHeight > 0 && Number.isFinite(video.currentTime)
-            && video.currentTime > initialTime + 1 && moviePlayer !== null
-            && !moviePlayer.classList.contains("ad-showing") && !moviePlayer.classList.contains("ad-interrupting");
-        }, startedAt), { timeout: 30_000 }).toBe(true);
+        const readPlayback = () => media.evaluate(readPublicVideoPlayback, { initialTime: startedAt, expectedId: row.youtube_video_id });
+        await expect.poll(async () => {
+          const result = await readPlayback(); playbackObservation = result.snapshot; return result.playing;
+        }, { timeout: 30_000 }).toBe(true);
+        playbackObservation = undefined;
         journeyStage = "player-paused";
         await player.locator("#movie_player").hover();
         await player.getByRole("button", { name: /^(?:Pause|일시중지|일시 중지)(?: ?\(k\))?$/i }).filter({ visible: true }).first().click();
-        await expect.poll(() => media.evaluate((node) => (node as HTMLVideoElement).paused)).toBe(true);
+        await expect.poll(async () => {
+          const result = await readPlayback(); playbackObservation = result.snapshot; return result.paused;
+        }).toBe(true);
         await expect(player.locator(".ytp-error")).toBeHidden();
         await assertNoHorizontalOverflow(visitor); await visitor.screenshot({ path: testInfo.outputPath(`public-video-${width}.png`), fullPage: true, animations: "disabled" });
         journeyStage = "public-catalog";
@@ -178,7 +220,11 @@ test.describe("[real-use] public video publishing", () => {
         await assertNoHorizontalOverflow(page);
       }
     } catch (error) {
-      emitReleaseTestFailure(error, "public-video-primary", undefined, journeyStage);
+      emitReleaseTestFailure(error, "public-video-primary", undefined, journeyStage, playbackObservation);
+      if (activeVisitor && activeWidth && ["player-playing", "player-paused"].includes(journeyStage)) {
+        try { await activeVisitor.screenshot({ path: testInfo.outputPath(`public-video-${activeWidth}.png`), fullPage: true, animations: "disabled", timeout: 3_000 }); }
+        catch { /* Keep the original failure even if its final public frame is unavailable. */ }
+      }
       throw error;
     } finally {
       // Only IDs created in this disposable QA tenant are removed. Its tenant
