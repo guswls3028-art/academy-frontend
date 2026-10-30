@@ -87,6 +87,29 @@ Excel 조회는 동일 작업의 요청 중첩을 막고 현재 tenant, 인증 �
 
 ## 검증과 남은 게이트
 
+- 실제 저장 acceptance는 기존 `developmentRealUseCases` 41개 안에서 실행한다. 아래 fixture 추가는
+  실행 가능한 검증 경로이며, 새 후보의 same-artifact isolated development 실행과 cleanup-zero 전에는
+  실제 런타임 통과로 표시하지 않는다. 로컬 discovery·문법·안전 가드는 브라우저/워커 실행 증거가 아니다.
+  - `student-parent-account-realuse.spec.ts`: 전각 번호 + `（부）` 원본 파일을 실제 학생 비동기 API로
+    전송하고 DONE, canonical `parent_phone`, 실패 행 수정 재요청, 기존 학생 보존, 관리자 reload,
+    가져온 학생 로그인/프로필 및 학부모 연결 ID를 확인한다. backend 개발 smoke의 직접 파서 호출은
+    이 비동기 등록·저장 검증을 대신하지 않는다.
+  - `student-parent-learning-realuse.spec.ts` → `excelEnrollmentRealuse.ts`: 같은 QA 가족으로 별도 소유
+    강의/두 차시를 만들어 기존 수동 선택·학습 검증과 분리한다. 강의 기본 1차시 및 명시한 2차시에
+    정상/입력 오류/명부 없음/파일 중복을 실제 worker로 처리한다. 행 2–5의 canonical ledger,
+    등록 1/제외 3/전체 4, UI 결과·reload 복구, 수강·차시 연결 readback, 학생 수 불변을 확인한다.
+    실패 행만 수정한 재요청 후 앞서 저장된 수강/차시 ID와 다른 차시를 보존한다. 별도 그래프는 원래
+    학습 검증 전에 삭제/readback하며 실패 시에도 기존 afterAll과 runner cleanup 대상에 남는다.
+  - `student-parent-assessment-realuse.spec.ts` → `excelAssessmentRealuse.ts`: 기존 소유 차시/학생에
+    별도 시험을 등록하고 서버 양식을 내려받아 O/X를 채운다. preview 무저장 → 반영 → 관리자
+    1366/390px reload/API 점수 80 → 학생 390px reload/오답 5번을 확인한다. 같은 저장 결과의 학생별
+    오답/수업 분석 XLSX도 실제 다운로드하여 셀을 읽는다. 시험 ID는 생성 즉시 afterAll에 등록한다.
+  - 실제 화면/워크북은 `real-excel-*`, `real-exam-*` 첨부로 남긴다. 임의 sleep·테스트 재시도·mock API를
+    추가하지 않으며 기존 300초/660초 제한과 strict/tenant 경계를 유지한다. 실제 소요 시간은 런타임 확인 대상이다.
+- 내보내기 증거 범위: 기존 payroll real-use는 실제 급여 XLSX 값을 읽고, public-resource real-use는
+  Excel 첨부의 원본 바이트를 비교한다. 출결 내보내기는 다른 소유자의 main fixture 검증을 유지한다.
+  학생/교사 명부, 직원 명부, 개인 경비, 초기 비밀번호 및 차시 CSV 전체를 위 시나리오가 검증한다고
+  주장하지 않는다. 해당 변경 없는 경로와 대형 파일 실기기 성능은 별도 acceptance 공백이다.
 - `e2e/admin/excel-import-compatibility.spec.ts`: 관계표시/전각/소수·복수 거부, 실제 오류 행 번호,
   희소 행 불변, 시트 선택 표본 일치, 호환 OOXML, 위험 XML/과대 파일 거부. 로컬 기존 의존성으로 15개 통과.
 - `enrollment-excel-existing-only.mock.spec.ts`: 390/1366px 오류 수정, UNKNOWN 조회 복구,

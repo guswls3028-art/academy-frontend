@@ -29,6 +29,7 @@ import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
 import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
 import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
+import { cleanupExcelEnrollment, verifyExcelEnrollment, type ExcelEnrollmentState } from "./excelEnrollmentRealuse";
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -43,6 +44,7 @@ type CreatedState = {
   attendanceIds: number[];
   videoId?: number;
   materialId?: number;
+  excel: ExcelEnrollmentState;
 };
 
 const created: CreatedState = {
@@ -51,6 +53,7 @@ const created: CreatedState = {
   enrollmentIds: [],
   sessionEnrollmentIds: [],
   attendanceIds: [],
+  excel: { sessionIds: [] },
 };
 
 const runStamp = Date.now();
@@ -102,6 +105,8 @@ async function selectedPost<T>(
 async function cleanup(request: APIRequestContext): Promise<void> {
   if (!created.adminAccess) return;
   const failures: string[] = [];
+  try { await cleanupExcelEnrollment(request, created.adminAccess, created.excel); }
+  catch (error) { failures.push(`Excel enrollment cleanup: ${String(error)}`); }
   const remove = async (method: string, path: string, accepted = [200, 202, 204, 404]) => {
     try {
       const result = await api(request, method, path, created.adminAccess);
@@ -375,6 +380,11 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
       const enrollmentBrowser = attachStrictBrowserGuards(enrollmentPage);
       await seedBrowserAuth(enrollmentPage, admin);
       await seedLearningGraph(request, admin.access, created.family, enrollmentPage, testInfo);
+      await test.step("Excel lecture/session partial import, ledger and persisted recovery", () =>
+        verifyExcelEnrollment(enrollmentPage, request, admin.access, created.family!, created.excel, testInfo));
+      // Remove only the auxiliary Excel graph before the original learning projections.
+      await gotoAndSettle(enrollmentPage, `${QA_BASE}/workspace/lectures/${created.lectureId}`);
+      await cleanupExcelEnrollment(request, admin.access, created.excel);
       enrollmentBoundary.assertClean();
       enrollmentBrowser.assertZeroDefects();
     } finally {
