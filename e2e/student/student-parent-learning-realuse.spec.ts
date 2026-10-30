@@ -27,7 +27,7 @@ import {
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
-import { verifyAttendanceExcel } from "../helpers/attendanceExcelRealuse";
+import { emitLearningFlowFailure, verifyAttendanceExcel, type LearningFlowPhase } from "../helpers/attendanceExcelRealuse";
 import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
 import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
 import { cleanupExcelEnrollment, verifyExcelEnrollment, type ExcelEnrollmentState } from "./excelEnrollmentRealuse";
@@ -395,6 +395,8 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     // The same synthetic video must also reach the teacher list through the real
     // API. Failure/retry injection remains in public-video-preparation.mock.spec.
     const teacherContext = await page.context().browser()!.newContext({ serviceWorkers: "block" });
+    let teacherPhase: LearningFlowPhase = "teacher-thumbnail";
+    let teacherViewport: 390 | 1366 | null = null;
     try {
       const teacherPage = await teacherContext.newPage();
       const teacherBoundary = await installQaStudentParentBoundary(teacherPage, request);
@@ -433,13 +435,16 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         });
       }
       await seedBrowserAuth(teacherPage, admin);
-      for (const width of [390, 1366]) {
+      for (const width of [390, 1366] as const) {
+        teacherViewport = width;
+        teacherPhase = "teacher-classes-open";
         await teacherPage.setViewportSize({ width, height: 900 });
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/classes`, { timeout: 30_000 });
         await teacherPage.getByRole("searchbox", { name: "강의 찾기" }).fill(lectureTitle);
         const lectureEntry = teacherPage.getByRole("button").filter({ has: teacherPage.getByText(lectureTitle, { exact: true }) });
         await expect(lectureEntry).toBeVisible();
         await lectureEntry.click();
+        teacherPhase = "teacher-classes-persisted";
         await expect(teacherPage.getByRole("button", { name: "수강생 (2)", exact: true })).toBeVisible();
         await teacherPage.getByRole("button", { name: "수강생 (2)", exact: true }).click();
         await teacherPage.reload({ waitUntil: "domcontentloaded" });
@@ -448,6 +453,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         await teacherPage.getByRole("button", { name: "뒤로 가기", exact: true }).click();
         await expect(teacherPage.getByRole("searchbox", { name: "강의 찾기" })).toHaveValue(lectureTitle);
         await assertNoHorizontalOverflow(teacherPage);
+        teacherPhase = "teacher-attendance-save";
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/attendance/${created.sessionId}`, { timeout: 30_000 });
         await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
         for (const [label, status, absentCount] of [["결석", "ABSENT", 2], ["출석", "PRESENT", 1]] as const) {
@@ -467,6 +473,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
           await expect(teacherPage.getByText(`결석 ${absentCount}`, { exact: true })).toBeVisible();
         }
         // Exercise the actual undo control before leaving the successful save's window.
+        teacherPhase = "teacher-attendance-undo";
         await teacherPage.getByText(primary.name, { exact: true }).click();
         const absentSaved = teacherPage.waitForResponse((response) => (
           response.request().method() === "PATCH"
@@ -489,8 +496,10 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
         await expect(teacherPage.getByText("결석 1", { exact: true })).toBeVisible();
         await assertNoHorizontalOverflow(teacherPage);
+        teacherPhase = "teacher-session-summary";
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/classes/${created.lectureId}/sessions/${created.sessionId}`, { timeout: 30_000 });
         await expect(teacherPage.getByRole("button").filter({ has: teacherPage.getByText(primary.name, { exact: true }) })).toContainText("출석");
+        teacherPhase = "teacher-video-list";
         const responsePromise = teacherPage.waitForResponse((response) => (
           response.request().method() === "GET"
           && new URL(response.url()).pathname === "/api/v1/media/videos/"
@@ -501,6 +510,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         await expect(videoButton).toBeVisible();
         await expect(teacherPage.getByText("등록된 영상이 없습니다", { exact: true })).toHaveCount(0);
         await expect(teacherPage.getByText(/영상 목록을 (?:새로 )?불러오지 못했습니다/)).toHaveCount(0);
+        teacherPhase = "teacher-video-reload";
         await teacherPage.reload({ waitUntil: "domcontentloaded" });
         await expect(videoButton).toBeVisible();
         await assertNoHorizontalOverflow(teacherPage);
@@ -509,10 +519,15 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
           contentType: "image/png",
         });
       }
+      teacherPhase = "teacher-attendance-export";
+      teacherViewport = null; // The helper owns its two independent viewport passes.
       await verifyAttendanceExcel(teacherPage, request, admin.access, testInfo,
         created.lectureId!, lectureTitle, created.sessionId!, [primary.id, sibling.id]);
       teacherBoundary.assertClean();
       teacherBrowser.assertZeroDefects();
+    } catch (error) {
+      emitLearningFlowFailure(error, teacherPhase, teacherViewport);
+      throw error;
     } finally {
       await teacherContext.close();
     }
