@@ -61,7 +61,7 @@ test("manual release QA retains official CI, main and exact revision boundaries"
   ]) assert.throws(() => assertOfficialReleaseContext({ ...env, ...invalid }));
 });
 
-test("full-suite diagnostics require an explicit manual boolean input and never enable production", () => {
+test("closed diagnostics require explicit manual inputs and never enable production", () => {
   const workflow = readFileSync(new URL("../../.github/workflows/quality-gate.yml", import.meta.url), "utf8").replaceAll("\r\n", "\n");
   const input = workflow.match(/\n      diagnostic_full_suite:\n((?:        [^\n]*\n)+)/)?.[1];
   assert.ok(input, "the diagnostic mode is an explicit workflow input");
@@ -71,6 +71,15 @@ test("full-suite diagnostics require an explicit manual boolean input and never 
   const flag = workflow.match(/ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: \$\{\{([^\n]+)\}\}/)?.[1];
   assert.ok(flag);
   assert.equal(workflow.match(/ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE:/g)?.length, 1);
+  const scopeInput = workflow.match(/\n      diagnostic_scope:\n((?:        [^\n]*\n)+)/)?.[1];
+  assert.ok(scopeInput);
+  assert.match(scopeInput, /^        type: choice$/m);
+  assert.match(scopeInput, /^        default: full-suite$/m);
+  assert.deepEqual([...scopeInput.matchAll(/^          - (.+)$/gm)].map(match => match[1]),
+    ["full-suite", "excel-learning-homework"]);
+  const scopeFlag = workflow.match(/ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: \$\{\{([^\n]+)\}\}/)?.[1];
+  assert.ok(scopeFlag);
+  assert.equal(workflow.match(/ACADEMY_RELEASE_DIAGNOSTIC_SCOPE:/g)?.length, 1);
   const deploy = workflow.match(/\n  deploy:\n([\s\S]*?)(?=\n  [a-z][a-z0-9-]*:\n|$)/)?.[1];
   assert.ok(deploy);
   const condition = deploy.match(/\n    if: >-\n([\s\S]*?)(?=\n    [a-z_-]+:)/)?.[1];
@@ -79,16 +88,21 @@ test("full-suite diagnostics require an explicit manual boolean input and never 
   const evaluate = (value, context) => runInNewContext(`(${value})`, context, { timeout: 1000 });
   for (const event of ["push", "workflow_dispatch", "pull_request"]) {
     for (const requested of [undefined, false, true]) {
-      for (const result of ["success", "failure", "skipped"]) {
-        const context = { github: { event_name: event, ref: "refs/heads/main" },
-          inputs: requested === undefined ? {} : { diagnostic_full_suite: requested },
-          needs: { "quality-check": { outputs: { release_required: "true" } }, "development-canary": { result } } };
-        const diagnostic = event === "workflow_dispatch" && requested === true;
-        assert.equal(evaluate(flag, context), diagnostic ? "1" : "0", `${event}/${requested}: explicit opt-in only`);
-        assert.equal(evaluate(expression, context), event !== "pull_request" && result === "success" && !diagnostic,
-          `${event}/${requested}/${result}: even a successful diagnostic job cannot promote`);
-        context.github.ref = "refs/heads/feature";
-        assert.equal(evaluate(expression, context), false, "a non-main job cannot promote");
+      for (const scope of [undefined, "full-suite", "excel-learning-homework", "private-token", ""]) {
+        for (const result of ["success", "failure", "skipped"]) {
+          const context = { github: { event_name: event, ref: "refs/heads/main" },
+            inputs: { diagnostic_full_suite: requested, diagnostic_scope: scope },
+            needs: { "quality-check": { outputs: { release_required: "true" } }, "development-canary": { result } } };
+          const diagnostic = event === "workflow_dispatch" && requested === true;
+          assert.equal(evaluate(flag, context), diagnostic ? "1" : "0");
+          assert.equal(evaluate(scopeFlag, context), event === "workflow_dispatch" ? scope : "full-suite",
+            "manual empty/unknown scope must reach validation unchanged");
+          const manualRelease = event !== "workflow_dispatch" || (!diagnostic && scope === "full-suite");
+          assert.equal(evaluate(expression, context), event !== "pull_request" && result === "success" && manualRelease,
+            "targeted or invalid manual scope cannot promote even with a false flag and hypothetical QA success");
+          context.github.ref = "refs/heads/feature";
+          assert.equal(evaluate(expression, context), false, "a non-main job cannot promote");
+        }
       }
     }
   }

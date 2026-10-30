@@ -81,7 +81,12 @@ Excel 조회는 동일 작업의 요청 중첩을 막고 현재 tenant, 인증 �
 시트 후보는 앞 150행(헤더 후보 100행 + 헤더 뒤 점수용 50행)만 행 배열로 바꾸고 선택 시트만 전체 변환한다.
 워커와 동일하게 헤더 뒤 최대 50행으로 점수를 계산하고 동점은 활성 시트로 판정한다. ExcelJS의 빈 `getCell` 생성을
 피해 희소 데이터의 행/열 위치를 유지한다. OOXML은 파일별/합계 XML 크기와 위험 선언을 검사하며,
-과대 XML은 스트림을 멈춰 전체 문자열을 먼저 할당하지 않는다. 브라우저 방어 한도(512 ZIP 항목,
+과대 XML은 스트림을 멈춰 전체 문자열을 먼저 할당하지 않는다. 전체 원본 archive 검증 뒤에는
+셀 읽기용 메모리 사본에서 drawing XML/관계만 제외하고 두 ExcelJS 로드 경로에서 worksheet drawing을
+건너뛴다. 차트의 기본 namespace 때문에 유효한 통합 문서를 거부하지 않으며, 원본 파일과 worksheet
+셀 타입·날짜·수식/계산값·병합·하이퍼링크를 보존한다. 차트/그림 렌더링은 가져오기 계약이 아니다.
+제외할 drawing의 위험 선언·크기도 먼저 검사하며 drawing XML이 없는 파일은 재압축하지 않는다.
+브라우저 방어 한도(512 ZIP 항목,
 개별 XML 최대 16MiB 문자·합계 32MiB 문자)는 서버의 확대된 ZIP 한도와 같지 않다. ExcelJS 자체의
 전체 통합문서 로딩은 여전히 브라우저에서 실행되므로 대형 파일의 실기기 시간/메모리는 별도 측정 대상이다.
 
@@ -103,7 +108,10 @@ Excel 조회는 동일 작업의 요청 중첩을 막고 현재 tenant, 인증 �
   - `student-parent-assessment-realuse.spec.ts` → `excelAssessmentRealuse.ts`: 기존 소유 차시/학생에
     별도 시험을 등록하고 서버 양식을 내려받아 O/X를 채운다. preview 무저장 → 반영 → 관리자
     1366/390px reload/API 점수 80 → 학생 390px reload/오답 5번을 확인한다. 같은 저장 결과의 학생별
-    오답/수업 분석 XLSX도 실제 다운로드하여 셀을 읽는다. 시험 ID는 생성 즉시 afterAll에 등록한다.
+    오답/수업 분석 XLSX도 원본 다운로드를 보존하고 공용 검증 reader로 셀을 읽는다. 관리자 캡처는
+    점수 행을 viewport에 넣고 확인한 뒤 저장한다. 분석 리포트의 오답 5번 배점도 생성 시 지정한
+    20점인지 확인한다. 이 배점 수정과 새 캡처·학생 downstream의 통과는 통합 런타임 검증 전까지 미확인이다.
+    시험 ID는 생성 즉시 afterAll에 등록한다.
   - 실제 화면/워크북은 `real-excel-*`, `real-exam-*` 첨부로 남기고, `quality-gate.yml`의 제한된 PNG/XLSX
     업로드 목록으로 `development-release-evidence`에 보존한다(정상 완료 시 PNG 10개, XLSX 3개).
     임의 sleep·테스트 재시도·mock API를
@@ -113,7 +121,8 @@ Excel 조회는 동일 작업의 요청 중첩을 막고 현재 tenant, 인증 �
   학생/교사 명부, 직원 명부, 개인 경비, 초기 비밀번호 및 차시 CSV 전체를 위 시나리오가 검증한다고
   주장하지 않는다. 해당 변경 없는 경로와 대형 파일 실기기 성능은 별도 acceptance 공백이다.
 - `e2e/admin/excel-import-compatibility.spec.ts`: 관계표시/전각/소수·복수 거부, 실제 오류 행 번호,
-  희소 행 불변, 시트 선택 표본 일치, 호환 OOXML, 위험 XML/과대 파일 거부. 로컬 기존 의존성으로 15개 통과.
+  희소 행 불변, 시트 선택 표본 일치, 호환 OOXML, 위험 XML/과대 파일 거부와 합성 차트의 셀 보존을 검증한다.
+  drawing을 제외하기 전 위험 선언/크기 검증, 정상·복구 로드 경로, 원본 불변도 회귀 대상이다.
 - `enrollment-excel-existing-only.mock.spec.ts`: 390/1366px 오류 수정, UNKNOWN 조회 복구,
   유효/오류 혼합 명단의 단일 POST, 수강 결과와 새로고침 보존 회귀 추가.
 - `excel-result-import-recovery.mock.spec.ts`: 390/1366px 시험 전환 중 늦은 미리보기와 단일 반영 회귀 추가.

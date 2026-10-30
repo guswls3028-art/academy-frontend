@@ -15,12 +15,13 @@ export async function loadImportWorkbook(source: ArrayBuffer): Promise<ExcelJS.W
   let archive: JSZip;
   try {
     archive = await loadValidatedWorkbookArchive(source);
+    source = await projectCellArchive(archive, source);
   } catch {
     throw new Error("엑셀 파일의 내부 구조를 읽을 수 없습니다. 올바른 .xlsx 파일인지 확인해 주세요.");
   }
   const workbook = new ExcelJS.Workbook();
   try {
-    await workbook.xlsx.load(source);
+    await workbook.xlsx.load(source, { ignoreNodes: ["drawing"] });
     return workbook;
   } catch {
     const repairedSource = await repairNonstandardWorkbookContentType(archive);
@@ -29,12 +30,23 @@ export async function loadImportWorkbook(source: ArrayBuffer): Promise<ExcelJS.W
     }
     const repairedWorkbook = new ExcelJS.Workbook();
     try {
-      await repairedWorkbook.xlsx.load(repairedSource);
+      await repairedWorkbook.xlsx.load(repairedSource, { ignoreNodes: ["drawing"] });
       return repairedWorkbook;
     } catch {
       throw new Error("엑셀 파일의 내부 구조를 읽을 수 없습니다. 올바른 .xlsx 파일인지 확인해 주세요.");
     }
   }
+}
+
+async function projectCellArchive(archive: JSZip, source: ArrayBuffer): Promise<ArrayBuffer> {
+  // Import reads cells, not chart/image rendering. Validate every original XML
+  // member before removing drawing models that ExcelJS cannot reconcile.
+  const drawingNames = Object.keys(archive.files).filter(name =>
+    /^xl\/drawings\/(?:[^/]+\.xml|_rels\/[^/]+\.xml\.rels)$/i.test(name),
+  );
+  if (!drawingNames.length) return source;
+  for (const name of drawingNames) archive.remove(name);
+  return archive.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
 }
 
 async function readStructuralXml(

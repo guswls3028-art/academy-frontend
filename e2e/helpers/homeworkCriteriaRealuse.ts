@@ -5,6 +5,39 @@ import type { ScoreBlock, SessionScoresResponse } from "@/shared/api/contracts/s
 import type { SendPreflightResponse } from "@/app_admin/domains/messages/api/messages.api";
 import { assertNoHorizontalOverflow, expectApi, QA_BASE, reloadStudentApp } from "./qaStudentParentScenario";
 import { gotoAndSettle } from "./wait";
+import { safeNativeTransportKind } from "./releaseApiBoundary";
+
+export type HomeworkFlowFailurePhase =
+  | "feedback-setup" | "feedback-score-edit" | "feedback-order" | "feedback-report"
+  | "feedback-results" | "feedback-restore-order" | "feedback-criteria" | "feedback-post-criteria"
+  | "criteria-setup" | "criteria-open" | "criteria-invalid-input" | "criteria-save"
+  | "criteria-reload" | "criteria-api" | "criteria-parent" | "criteria-preview"
+  | "preview-compose" | "preview-preflight" | "preview-personalization" | "preview-final";
+
+export type HomeworkFlowCheckpoint = {
+  phase: HomeworkFlowFailurePhase;
+  viewport: 1366 | 390 | null;
+  threshold: 95 | 90 | null;
+};
+
+/** Keep the original failure observable when an unchanged cleanup also fails. */
+export function emitHomeworkFlowFailure(
+  error: unknown, checkpoint: HomeworkFlowCheckpoint,
+  emit: (value: unknown) => void = value => console.log(JSON.stringify(value)),
+): void {
+  const message = error instanceof Error ? error.message.split(/\r?\n/, 1)[0] : "";
+  const kind = /Release API boundary failed:|Release request rejected/.test(message) ? "boundary"
+    : /expect\(|Expected values|AssertionError/.test(message) ? "assertion"
+    : /locator\.[a-z]+:.*(?:Timeout|timeout)/.test(message) ? "locator-timeout"
+    : safeNativeTransportKind(error) !== "other" ? "transport" : "other";
+  // Explicit closed fields only: never emit the error, scenario, DOM, or request.
+  try {
+    emit({ releaseHomeworkFlowFailure: { schema: "homework-flow-failure/v1",
+      phase: checkpoint.phase, viewport: checkpoint.viewport, threshold: checkpoint.threshold, kind } });
+  } catch {
+    // Diagnostic output must not replace the original test or cleanup failure.
+  }
+}
 
 type CriteriaScenario = {
   lectureId: number;
@@ -39,6 +72,9 @@ async function verifyFinalHomeworkPreview(
   let preflight: SendPreflightResponse | undefined;
   let inlinePreview = "";
   let sendAttempts = 0;
+  const checkpoint: HomeworkFlowCheckpoint = {
+    phase: "preview-compose", viewport: width as 1366 | 390, threshold: evidence.threshold as 95 | 90,
+  };
   // Fail closed even if a future UI change accidentally turns the review CTA into a send.
   const sendRoute = "**/api/v1/messaging/send/";
   const rejectSend = async (route: Route) => { sendAttempts += 1; await route.abort("blockedbyclient"); };
@@ -62,6 +98,7 @@ async function verifyFinalHomeworkPreview(
       return payload.send_to === "parent" && payload.raw_body?.includes(marker)
         && (payload.raw_body.match(/#\{과제\d+결과\}/g) ?? []).length === 2;
     });
+    checkpoint.phase = "preview-preflight";
     await modal.getByRole("button", { name: `${completionTitle} 넣기`, exact: true }).click();
     const response = await checked;
     preflight = await response.json() as SendPreflightResponse;
@@ -73,6 +110,7 @@ async function verifyFinalHomeworkPreview(
       recipient: { selected: 2, resolved: 2, valid_phone: 2, skipped_no_phone: 0, duplicate_phone: 0, unique_phone: 2, invalid_or_deleted: 0 },
     });
     expect(preflight.preview_recipients.map(item => item.student_id).sort((a, b) => a - b)).toEqual(selected);
+    checkpoint.phase = "preview-personalization";
     const expectedStudents = [
       { id: studentId, name: studentName, score: 92, passed: evidence.passed, completionScore },
       { ...comparisonStudent, passed: false },
@@ -98,6 +136,7 @@ async function verifyFinalHomeworkPreview(
     }
     inlinePreview = await preview.innerText();
     await assertNoHorizontalOverflow(page);
+    checkpoint.phase = "preview-final";
     await expect(modal.locator(".send-modal__send-btn")).toBeEnabled();
     await modal.locator(".send-modal__send-btn").click();
     await expect(confirm).toBeVisible();
@@ -114,6 +153,9 @@ async function verifyFinalHomeworkPreview(
     }
     await assertNoHorizontalOverflow(page);
     expect(sendAttempts).toBe(0);
+  } catch (error) {
+    emitHomeworkFlowFailure(error, checkpoint);
+    throw error;
   } finally {
     try {
       // Persist sanitized synthetic evidence even when readiness or personalization fails.
@@ -144,91 +186,107 @@ export async function verifyHomeworkCriteria(
   page: Page, parentPage: Page, request: APIRequestContext, access: string,
   scenario: CriteriaScenario, width: number,
 ): Promise<void> {
-  const { lectureId, sessionId, enrollmentId, homeworkId, homeworkTitle,
-    completionHomeworkId, completionTitle, completionScore } = scenario;
-  const scoresUrl = `${QA_BASE}/workspace/lectures/${lectureId}/sessions/${sessionId}/scores`;
-  const homeworkPath = `/homeworks/${homeworkId}/`;
-  const completionPath = `/homeworks/${completionHomeworkId}/`;
-  const completionPolicy = await expectApi(request, "GET", completionPath, access);
-  const mode = width === 1366 ? "PERCENT" : "COUNT";
-  const modeLabel = mode === "PERCENT" ? "퍼센트 기준" : "점수 기준";
-  const inputLabel = `합격 기준 (${mode === "PERCENT" ? "%" : "점"})`;
-  const completionPassed = completionScore > 0;
-  const tenant = await expectApi<{ pass_label?: string; fail_label?: string }>(request, "GET", "/core/tenant-info/", access);
-  const passLabel = tenant.pass_label?.trim() || "합격";
-  const failLabel = tenant.fail_label?.trim() || "불합격";
+  const checkpoint: HomeworkFlowCheckpoint = {
+    phase: "criteria-setup", viewport: width as 1366 | 390, threshold: null,
+  };
+  try {
+    const { lectureId, sessionId, enrollmentId, homeworkId, homeworkTitle,
+      completionHomeworkId, completionTitle, completionScore } = scenario;
+    const scoresUrl = `${QA_BASE}/workspace/lectures/${lectureId}/sessions/${sessionId}/scores`;
+    const homeworkPath = `/homeworks/${homeworkId}/`;
+    const completionPath = `/homeworks/${completionHomeworkId}/`;
+    const completionPolicy = await expectApi(request, "GET", completionPath, access);
+    const mode = width === 1366 ? "PERCENT" : "COUNT";
+    const modeLabel = mode === "PERCENT" ? "퍼센트 기준" : "점수 기준";
+    const inputLabel = `합격 기준 (${mode === "PERCENT" ? "%" : "점"})`;
+    const completionPassed = completionScore > 0;
+    const tenant = await expectApi<{ pass_label?: string; fail_label?: string }>(request, "GET", "/core/tenant-info/", access);
+    const passLabel = tenant.pass_label?.trim() || "합격";
+    const failLabel = tenant.fail_label?.trim() || "불합격";
 
-  for (const threshold of [95, 90]) {
-    const passed = threshold <= 92;
-    await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${lectureId}/sessions/${sessionId}/assignments?homeworkId=${homeworkId}`);
-    await page.getByRole("tab", { name: "운영", exact: true }).click();
-    const policy = page.locator("#assessment-policy");
-    await expect(policy.getByRole("heading", { name: "과제 운영 설정", exact: true })).toBeVisible();
-    await policy.getByRole("group", { name: "과제 합격 기준 방식", exact: true })
-      .getByRole("button", { name: new RegExp(modeLabel) }).click();
-    const criterion = policy.getByLabel(inputLabel, { exact: true });
-    const save = policy.getByRole("button", { name: "운영 설정 저장", exact: true });
-    if (threshold === 95) {
-      // A rejected local value must preserve the saved policy and allow correction.
-      const before = await expectApi(request, "GET", homeworkPath, access);
-      await criterion.fill("101");
-      await expect(policy.getByRole("alert")).toContainText(mode === "PERCENT"
-        ? "퍼센트 합격 기준은 100% 이하" : "점수 합격 기준은 만점을 넘을 수 없습니다");
+    for (const threshold of [95, 90]) {
+      checkpoint.threshold = threshold as 95 | 90;
+      checkpoint.phase = "criteria-open";
+      const passed = threshold <= 92;
+      await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${lectureId}/sessions/${sessionId}/assignments?homeworkId=${homeworkId}`);
+      await page.getByRole("tab", { name: "운영", exact: true }).click();
+      const policy = page.locator("#assessment-policy");
+      await expect(policy.getByRole("heading", { name: "과제 운영 설정", exact: true })).toBeVisible();
+      await policy.getByRole("group", { name: "과제 합격 기준 방식", exact: true })
+        .getByRole("button", { name: new RegExp(modeLabel) }).click();
+      const criterion = policy.getByLabel(inputLabel, { exact: true });
+      const save = policy.getByRole("button", { name: "운영 설정 저장", exact: true });
+      if (threshold === 95) {
+        checkpoint.phase = "criteria-invalid-input";
+        // A rejected local value must preserve the saved policy and allow correction.
+        const before = await expectApi(request, "GET", homeworkPath, access);
+        await criterion.fill("101");
+        await expect(policy.getByRole("alert")).toContainText(mode === "PERCENT"
+          ? "퍼센트 합격 기준은 100% 이하" : "점수 합격 기준은 만점을 넘을 수 없습니다");
+        await expect(save).toBeDisabled();
+        expect(await expectApi(request, "GET", homeworkPath, access)).toEqual(before);
+      }
+      checkpoint.phase = "criteria-save";
+      await criterion.fill(String(threshold));
+      const saved = page.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1${homeworkPath}`);
+      await save.click();
+      expect((await saved).status()).toBe(200);
       await expect(save).toBeDisabled();
-      expect(await expectApi(request, "GET", homeworkPath, access)).toEqual(before);
+      checkpoint.phase = "criteria-reload";
+      await page.reload();
+      await expect(criterion).toHaveValue(String(threshold));
+      await expect(policy.getByRole("button", { name: new RegExp(modeLabel) })).toHaveAttribute("aria-pressed", "true");
+      checkpoint.phase = "criteria-api";
+      expect(await expectApi(request, "GET", homeworkPath, access)).toMatchObject({
+        grading_mode: "SCORE", max_score: 100, cutline_mode: mode, cutline_value: threshold,
+      });
+      expect(await expectApi(request, "GET", completionPath, access)).toEqual(completionPolicy);
+      const scores = await expectApi<SessionScoresResponse>(request, "GET", `/results/admin/sessions/${sessionId}/scores/`, access);
+      const row = scores.rows.find(item => item.enrollment_id === enrollmentId)!;
+      expect(row.homeworks.find(item => item.homework_id === homeworkId)!.block).toMatchObject({
+        score: 92, passed, clinic_required: !passed,
+      });
+      expect(row.homeworks.find(item => item.homework_id === completionHomeworkId)!.block).toMatchObject({
+        score: completionScore, passed: completionPassed, clinic_required: !completionPassed,
+      });
+      const comparison = scores.rows.find(item => item.enrollment_id === scenario.comparisonStudent.enrollmentId)!;
+      expect(comparison.homeworks.find(item => item.homework_id === homeworkId)!.block).toMatchObject({
+        score: 60, passed: false, clinic_required: true,
+      });
+      expect(comparison.homeworks.find(item => item.homework_id === completionHomeworkId)!.block).toMatchObject({
+        score: scenario.comparisonStudent.completionScore, passed: !completionPassed, clinic_required: completionPassed,
+      });
+      await assertNoHorizontalOverflow(page);
+      const criteriaImage = test.info().outputPath(`homework-criteria-${width}-${threshold}.png`);
+      await page.screenshot({ path: criteriaImage, animations: "disabled" });
+      await test.info().attach(`homework-criteria-${width}-${threshold}`, { path: criteriaImage, contentType: "image/png" });
+
+      checkpoint.phase = "criteria-parent";
+      await parentPage.setViewportSize({ width, height: 900 });
+      await reloadStudentApp(parentPage);
+      await parentPage.getByRole("button", { name: "과제 현황" }).click();
+      const card = parentPage.locator('.stu-panel[data-session-type]')
+        .filter({ has: parentPage.getByText(homeworkTitle, { exact: true }) });
+      await expect(card.locator("strong")).toHaveText("92/100");
+      await expect(card.getByText(passed ? "완료" : "미완료", { exact: true })).toBeVisible();
+      const completionCard = parentPage.locator('.stu-panel[data-session-type]')
+        .filter({ has: parentPage.getByText(completionTitle, { exact: true }) });
+      await expect(completionCard.locator("strong")).toHaveText(completionPassed ? "통과" : "미통과");
+
+      checkpoint.phase = "criteria-preview";
+      await gotoAndSettle(page, scoresUrl);
+      await verifyFinalHomeworkPreview(page, scenario, width, { mode, threshold, score: 92, maxScore: 100, passed,
+        numericBlock: row.homeworks.find(item => item.homework_id === homeworkId)!.block,
+        completionBlock: row.homeworks.find(item => item.homework_id === completionHomeworkId)!.block,
+        comparisonNumericBlock: comparison.homeworks.find(item => item.homework_id === homeworkId)!.block,
+        comparisonCompletionBlock: comparison.homeworks.find(item => item.homework_id === completionHomeworkId)!.block,
+      }, passLabel, failLabel);
     }
-    await criterion.fill(String(threshold));
-    const saved = page.waitForResponse(response => response.request().method() === "PATCH"
-      && new URL(response.url()).pathname === `/api/v1${homeworkPath}`);
-    await save.click();
-    expect((await saved).status()).toBe(200);
-    await expect(save).toBeDisabled();
-    await page.reload();
-    await expect(criterion).toHaveValue(String(threshold));
-    await expect(policy.getByRole("button", { name: new RegExp(modeLabel) })).toHaveAttribute("aria-pressed", "true");
-    expect(await expectApi(request, "GET", homeworkPath, access)).toMatchObject({
-      grading_mode: "SCORE", max_score: 100, cutline_mode: mode, cutline_value: threshold,
-    });
-    expect(await expectApi(request, "GET", completionPath, access)).toEqual(completionPolicy);
-    const scores = await expectApi<SessionScoresResponse>(request, "GET", `/results/admin/sessions/${sessionId}/scores/`, access);
-    const row = scores.rows.find(item => item.enrollment_id === enrollmentId)!;
-    expect(row.homeworks.find(item => item.homework_id === homeworkId)!.block).toMatchObject({
-      score: 92, passed, clinic_required: !passed,
-    });
-    expect(row.homeworks.find(item => item.homework_id === completionHomeworkId)!.block).toMatchObject({
-      score: completionScore, passed: completionPassed, clinic_required: !completionPassed,
-    });
-    const comparison = scores.rows.find(item => item.enrollment_id === scenario.comparisonStudent.enrollmentId)!;
-    expect(comparison.homeworks.find(item => item.homework_id === homeworkId)!.block).toMatchObject({
-      score: 60, passed: false, clinic_required: true,
-    });
-    expect(comparison.homeworks.find(item => item.homework_id === completionHomeworkId)!.block).toMatchObject({
-      score: scenario.comparisonStudent.completionScore, passed: !completionPassed, clinic_required: completionPassed,
-    });
-    await assertNoHorizontalOverflow(page);
-    const criteriaImage = test.info().outputPath(`homework-criteria-${width}-${threshold}.png`);
-    await page.screenshot({ path: criteriaImage, animations: "disabled" });
-    await test.info().attach(`homework-criteria-${width}-${threshold}`, { path: criteriaImage, contentType: "image/png" });
-
-    await parentPage.setViewportSize({ width, height: 900 });
-    await reloadStudentApp(parentPage);
-    await parentPage.getByRole("button", { name: "과제 현황" }).click();
-    const card = parentPage.locator('.stu-panel[data-session-type]')
-      .filter({ has: parentPage.getByText(homeworkTitle, { exact: true }) });
-    await expect(card.locator("strong")).toHaveText("92/100");
-    await expect(card.getByText(passed ? "완료" : "미완료", { exact: true })).toBeVisible();
-    const completionCard = parentPage.locator('.stu-panel[data-session-type]')
-      .filter({ has: parentPage.getByText(completionTitle, { exact: true }) });
-    await expect(completionCard.locator("strong")).toHaveText(completionPassed ? "통과" : "미통과");
-
+    // Leave the existing fixture's score and passing state intact for report/comment checks.
     await gotoAndSettle(page, scoresUrl);
-    await verifyFinalHomeworkPreview(page, scenario, width, { mode, threshold, score: 92, maxScore: 100, passed,
-      numericBlock: row.homeworks.find(item => item.homework_id === homeworkId)!.block,
-      completionBlock: row.homeworks.find(item => item.homework_id === completionHomeworkId)!.block,
-      comparisonNumericBlock: comparison.homeworks.find(item => item.homework_id === homeworkId)!.block,
-      comparisonCompletionBlock: comparison.homeworks.find(item => item.homework_id === completionHomeworkId)!.block,
-    }, passLabel, failLabel);
+  } catch (error) {
+    emitHomeworkFlowFailure(error, checkpoint);
+    throw error;
   }
-  // Leave the existing fixture's score and passing state intact for report/comment checks.
-  await gotoAndSettle(page, scoresUrl);
 }
