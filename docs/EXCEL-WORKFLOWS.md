@@ -104,7 +104,9 @@ Excel 조회는 동일 작업의 요청 중첩을 막고 현재 tenant, 인증 �
     별도 시험을 등록하고 서버 양식을 내려받아 O/X를 채운다. preview 무저장 → 반영 → 관리자
     1366/390px reload/API 점수 80 → 학생 390px reload/오답 5번을 확인한다. 같은 저장 결과의 학생별
     오답/수업 분석 XLSX도 실제 다운로드하여 셀을 읽는다. 시험 ID는 생성 즉시 afterAll에 등록한다.
-  - 실제 화면/워크북은 `real-excel-*`, `real-exam-*` 첨부로 남긴다. 임의 sleep·테스트 재시도·mock API를
+  - 실제 화면/워크북은 `real-excel-*`, `real-exam-*` 첨부로 남기고, `quality-gate.yml`의 제한된 PNG/XLSX
+    업로드 목록으로 `development-release-evidence`에 보존한다(정상 완료 시 PNG 10개, XLSX 3개).
+    임의 sleep·테스트 재시도·mock API를
     추가하지 않으며 기존 300초/660초 제한과 strict/tenant 경계를 유지한다. 실제 소요 시간은 런타임 확인 대상이다.
 - 내보내기 증거 범위: 기존 payroll real-use는 실제 급여 XLSX 값을 읽고, public-resource real-use는
   Excel 첨부의 원본 바이트를 비교한다. 출결 내보내기는 다른 소유자의 main fixture 검증을 유지한다.
