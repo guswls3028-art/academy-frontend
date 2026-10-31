@@ -10,7 +10,7 @@ import { formatYmd } from "@student/shared/utils/date";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import styles from "./AttendancePage.module.css";
-import QrScanLink from "../components/QrScanLink";
+import QrScanLink from "@student/shared/ui/attendance/QrScanLink";
 
 type AttendanceSummary = {
   summary: {

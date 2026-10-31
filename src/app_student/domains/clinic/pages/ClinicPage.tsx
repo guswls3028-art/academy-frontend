@@ -30,7 +30,7 @@ import ClinicBookingCalendar from "../components/ClinicBookingCalendar";
 import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
 import ClinicSelfCancelControl from "../components/ClinicSelfCancelControl";
 import ClinicTimePickerRevealButton from "../components/ClinicTimePickerRevealButton";
-import { ClinicEmptySchedule, ClinicSavedBookingNotice } from "../components/ClinicBookingFeedback";
+import { ClinicAttendanceHistory, ClinicEmptySchedule, ClinicRejectedBookingHistory, ClinicSavedBookingNotice } from "../components/ClinicBookingFeedback";
 import { resolveClinicSessionSelection } from "../components/clinicSessionSelection";
 import {
   displayTargetText,
@@ -44,7 +44,6 @@ import {
   targetResolutionLink,
 } from "../clinicBookingPresentation";
 import styles from "./ClinicPage.module.css";
-import QrScanLink from "@student/domains/attendance/components/QrScanLink";
 
 type ApiErrorBody = { detail?: string; message?: string };
 type ClinicTab = "book" | "schedule";
@@ -531,22 +530,7 @@ export default function ClinicPage() {
 
   return (
     <StudentPageShell title="클리닉">
-      <QrScanLink />
-      {myRequests.some((request) => request.checked_in_at || request.checked_out_at) && (
-        <section className="stu-panel" aria-label="최근 클리닉 등원·하원 기록">
-          <h2>최근 등원·하원</h2>
-          {myRequests.filter((request) => request.checked_in_at || request.checked_out_at)
-            .sort((left, right) => (right.checked_out_at || right.checked_in_at || "").localeCompare(left.checked_out_at || left.checked_in_at || ""))
-            .slice(0, 10).map((request) => (
-              <div key={request.id} className="stu-panel">
-                <strong>{request.session_title || "클리닉"} · {request.session_date}</strong>
-                <p>{request.session_location}</p>
-                <p>등원 {request.checked_in_at ? new Date(request.checked_in_at).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" }) : "기록 없음"}
-                  {" · "}하원 {request.checked_out_at ? new Date(request.checked_out_at).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" }) : "아직 하원하지 않았습니다"}</p>
-              </div>
-            ))}
-        </section>
-      )}
+      <ClinicAttendanceHistory requests={myRequests} />
       <div data-guide="clinic-list" className={styles.pageStack}>
         <div className={styles.tabBar} role="tablist" aria-label="클리닉 메뉴">
           <button
@@ -990,19 +974,7 @@ export default function ClinicPage() {
               </div>
             )}
 
-            {rejectedBookings.length > 0 && (
-              <div className={styles.bookingGroup}>
-                <h3>최근 거절</h3>
-                <div className={styles.rejectedList}>
-                  {rejectedBookings.map((request) => (
-                    <div key={request.id}>
-                      <span>{formatYmd(request.session_date)} {formatTime(request.session_start_time)}</span>
-                      <strong>거절됨</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <ClinicRejectedBookingHistory requests={rejectedBookings} />
 
             {activeBookingCount === 0 && rejectedBookings.length === 0 && (
               <ClinicEmptySchedule onBook={() => setActiveTab("book")} />

@@ -17,7 +17,7 @@ import { useState, useEffect, useMemo, useRef, memo } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 import { useAuthContext } from "@/auth/context/AuthContext";
-import QrScanLink from "@student/domains/attendance/components/QrScanLink";
+import QrScanLink from "@student/shared/ui/attendance/QrScanLink";
 import { Badge } from "@/shared/ui/ds";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";

@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
-import AttendanceQrManager from "@admin/domains/lectures/components/AttendanceQrManager";
+import AttendanceQrManager from "@/shared/ui/attendance/AttendanceQrManager";
 
 const CLINIC_TABS = [
   { key: "home", label: "오늘 요약", path: "/workspace/clinic/home" },
