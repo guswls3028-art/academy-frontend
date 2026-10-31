@@ -309,20 +309,58 @@ test("Windows cleanup terminates a child listener process and closes its port", 
   });
 
   let ownedPids = [];
+  const foreignListener = await listen();
   try {
     ownedPids = await waitFor(() => assertWindowsOwnedPort(parent.pid, port));
     assert.ok(ownedPids.length >= 2);
+    assert.throws(
+      () => assertWindowsOwnedPort(parent.pid, foreignListener.address().port),
+      /not owned by the runner's SSM process tree/,
+    );
     await terminateWindowsProcessTree(parent, ownedPids, port);
     assert.equal(await isLoopbackPortFree(port), true);
+    assert.throws(
+      () => assertWindowsOwnedPort(parent.pid, port),
+      /not owned by the runner's SSM process tree/,
+    );
     for (const pid of ownedPids) {
       assert.throws(() => process.kill(pid, 0));
     }
   } finally {
+    await close(foreignListener);
     if (parent.exitCode === null) {
       spawnSync("taskkill.exe", ["/PID", String(parent.pid), "/T", "/F"], {
         stdio: "ignore",
         windowsHide: true,
       });
     }
+  }
+});
+
+test("Windows port ownership rejects an owned client's outgoing connection", {
+  skip: process.platform !== "win32",
+}, async () => {
+  const server = await listen();
+  let accepted;
+  const connected = new Promise((resolve) => {
+    server.once("connection", (socket) => { accepted = socket; resolve(); });
+  });
+  const client = net.connect({ host: "127.0.0.1", port: server.address().port });
+  try {
+    await Promise.all([
+      connected,
+      new Promise((resolve, reject) => {
+        client.once("connect", resolve);
+        client.once("error", reject);
+      }),
+    ]);
+    assert.throws(
+      () => assertWindowsOwnedPort(process.pid, client.localPort),
+      /not owned by the runner's SSM process tree/,
+    );
+  } finally {
+    client.destroy();
+    accepted?.destroy();
+    await close(server);
   }
 });
