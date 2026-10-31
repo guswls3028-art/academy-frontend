@@ -389,16 +389,19 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       await Promise.all([
         sheetQuery.refetch(),
         queryClient.invalidateQueries({
-          queryKey: adminExamsQueryKeys.adminExamResults(examId),
+          queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId),
         }),
         queryClient.invalidateQueries({
           queryKey: adminExamsQueryKeys.adminExamSummary(examId),
         }),
         queryClient.invalidateQueries({
-          queryKey: adminExamsQueryKeys.examQuestionStats(examId),
+          queryKey: adminResultsQueryKeys.examQuestionStats(examId),
         }),
         queryClient.invalidateQueries({
-          queryKey: adminResultsQueryKeys.adminExamResults(examId),
+          queryKey: adminResultsQueryKeys.adminExamDetail(examId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: adminResultsQueryKeys.sessionScores,
         }),
       ]);
     },
@@ -414,16 +417,19 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       onApplied?.();
       void Promise.all([
         queryClient.invalidateQueries({
-          queryKey: adminExamsQueryKeys.adminExamResults(runExamId),
+          queryKey: adminExamsQueryKeys.adminExamResultsRoot(runExamId),
         }),
         queryClient.invalidateQueries({
           queryKey: adminExamsQueryKeys.adminExamSummary(runExamId),
         }),
         queryClient.invalidateQueries({
-          queryKey: adminExamsQueryKeys.examQuestionStats(runExamId),
+          queryKey: adminResultsQueryKeys.examQuestionStats(runExamId),
         }),
         queryClient.invalidateQueries({
-          queryKey: adminResultsQueryKeys.adminExamResults(runExamId),
+          queryKey: adminResultsQueryKeys.adminExamDetail(runExamId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: adminResultsQueryKeys.sessionScores,
         }),
       ]);
     };
