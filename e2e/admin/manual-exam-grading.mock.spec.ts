@@ -12,6 +12,110 @@ const NOID_SUBMISSION_ID = 1802;
 const QUESTION_IDS = [1001, 1002] as const;
 
 for (const width of [390, 1366]) {
+  test(`${width}px 학생 답안 상세에서 저장한 서술형 점수가 시험 통계에도 반영된다`, async ({ page }) => {
+    test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+    await page.setViewportSize({ width, height: 900 });
+    // Keep cached queries fresh: navigation must not conceal missing invalidation.
+    await page.clock.setFixedTime(Date.now());
+    await installApi(page, { gradingMode: "mixed", manualGradingMethod: "score" });
+    let score = 0;
+    let rejectFirstSave = width === 390;
+    let writes = 0;
+    const student = { enrollment_id: ENROLLMENT_ID, student_id: 100, student_name: "김학생" };
+    const exam = { exam_id: EXAM_ID, title: "7월 진단평가", grading_mode: "mixed", manual_grading_method: "score",
+      pass_score: 60, max_score: 100, choice_count: 1, essay_count: 1, objective_max_score: 40, subjective_max_score: 60 };
+    await page.route(`**/results/admin/sessions/${SESSION_ID}/scores/`, (route) => route.fulfill({ json: {
+      meta: { session_title: "1차시", lecture_title: "공통수학2 정규반", lecture_id: LECTURE_ID, exams: [exam], homeworks: [] },
+      rows: [{ ...student, exams: [{ ...exam, block: { score: 40 + score, max_score: 100, objective_score: 40, subjective_score: score,
+        passed: score >= 20, clinic_required: false, is_provisional: false } }], homeworks: [] }],
+    } }));
+    await page.route(`**/results/admin/sessions/${SESSION_ID}/score-draft/**`, (route) => route.fulfill({ json: {
+      changes: [], stale: false, active_editors: [],
+    } }));
+    await page.route(`**/results/admin/exams/${EXAM_ID}/results/**`, (route) => route.fulfill({ json: { results: [{
+      ...student, result_status: "DONE", ranking_score: 40 + score, final_score: 40 + score, rank: 1, cohort_size: 1,
+    }] } }));
+    await page.route(`**/results/admin/exams/${EXAM_ID}/questions/**`, (route) => route.fulfill({ json: [{
+      question_id: QUESTION_IDS[1], question_number: 2, attempts: 1, correct: score === 60 ? 1 : 0,
+      accuracy: score === 60 ? 1 : 0, avg_score: score, max_score: 60,
+    }] }));
+    await page.route(`**/results/admin/exams/${EXAM_ID}/manual-grading/`, (route) => route.fulfill({ json: {
+      exam_id: EXAM_ID, exam_title: exam.title, grading_mode: "mixed", manual_grading_method: "score",
+      has_manual_questions: true, exam_max_score: 100, question_score_total: 100, score_adjustment_total: 0,
+      questions: [
+        { question_id: QUESTION_IDS[0], number: 1, kind: "choice", max_score: 40, editable: false, entry_method: "omr" },
+        { question_id: QUESTION_IDS[1], number: 2, kind: "essay", max_score: 60, editable: true, entry_method: "score" },
+      ],
+      rows: [{ ...student, school: "", lectures: [], expected_version: `detail-${writes}`,
+        is_not_submitted: false, exam_not_submitted_count: 0, cells: {
+          [QUESTION_IDS[0]]: { editable: false, entry_method: "omr", state: "correct", score: 40, include_in_wrong_note: false },
+          [QUESTION_IDS[1]]: { editable: true, entry_method: "score", state: score === 60 ? "correct" : "incorrect", score, include_in_wrong_note: false },
+        } }],
+    } }));
+    await page.route(`**/results/admin/exams/${EXAM_ID}/enrollments/${ENROLLMENT_ID}/`, (route) => route.fulfill({ json: {
+      target_type: "exam", target_id: EXAM_ID, enrollment_id: ENROLLMENT_ID, total_score: 40 + score, max_score: 100,
+      correct_answers: { [QUESTION_IDS[0]]: "1", [QUESTION_IDS[1]]: "해설 참조" },
+      score_shape: { total_questions: 2, choice_count: 1, essay_count: 1, objective_max_score: 40, subjective_max_score: 60, total_max_score: 100 },
+      items: [
+        { question_id: QUESTION_IDS[0], question_number: 1, question_kind: "choice", answer: "1", is_correct: true, score: 40, max_score: 40 },
+        { question_id: QUESTION_IDS[1], question_number: 2, question_kind: "essay", answer: "풀이", is_correct: score === 60, score, max_score: 60 },
+      ],
+    } }));
+    await page.route(`**/results/admin/exams/${EXAM_ID}/enrollments/${ENROLLMENT_ID}/items/${QUESTION_IDS[1]}/`, async (route) => {
+      expect(route.request().method()).toBe("PATCH");
+      expect(route.request().headers()["x-score-session-id"]).toBe(String(SESSION_ID));
+      if (rejectFirstSave) {
+        rejectFirstSave = false;
+        await route.fulfill({ status: 409, json: { detail: "점수 저장 충돌" } });
+        return;
+      }
+      score = route.request().postDataJSON().score;
+      writes += 1;
+      await route.fulfill({ json: { score } });
+    });
+    await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
+    const statistics = page.locator("details").filter({ has: page.locator("summary", { hasText: "전체 문항 통계 보기" }) });
+    await expect(statistics).toContainText("0.0점");
+    await page.getByRole("tab", { name: "성적", exact: true }).click();
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await page.getByText("김학생", { exact: true }).first().click();
+    const studentDrawer = page.locator(".student-scores-drawer");
+    await studentDrawer.locator(".student-scores-drawer__exam-header").filter({ hasText: "7월 진단평가" }).click();
+    await studentDrawer.getByRole("button", { name: "답안 상세 보기" }).click();
+    const answerDialog = page.getByRole("dialog").filter({ hasText: "7월 진단평가 답안 상세" });
+    await answerDialog.getByRole("button", { name: "성적 수정", exact: true }).click();
+    const input = answerDialog.getByRole("spinbutton", { name: "2번 서술형 점수", exact: true });
+    await input.fill("60");
+    await input.press("Tab");
+    if (width === 390) {
+      await expect(page.getByText("저장에 실패했습니다.", { exact: true })).toBeVisible();
+      expect(writes).toBe(0);
+      await expect(input).toHaveValue("60");
+      await input.focus();
+      await input.press("Tab");
+    }
+    await expect.poll(() => writes).toBe(1);
+    await answerDialog.getByRole("button", { name: "완료", exact: true }).click();
+    await answerDialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await studentDrawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)", exact: true }).click();
+    await page.getByRole("tab", { name: "시험", exact: true }).click();
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
+    await expect(statistics).toContainText("60.0점");
+    await expect(page.getByRole("region", { name: "시험 학생별 결과", exact: true })).toContainText("100");
+    const grid = page.getByRole("region", { name: "혼합 채점 워크스페이스", exact: true });
+    await expect(grid.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("60");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
+    await expect(statistics).toContainText("60.0점");
+    await expect(grid.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("60");
+  });
+}
+
+for (const width of [390, 1366]) {
   for (const source of ["오프라인 답안", "OMR 보정"] as const) {
     test(`${width}px ${source} 확정 후 선택한 강의의 성적과 문항 통계가 함께 갱신된다`, async ({ page }) => {
       test.skip(!isLocalBase(BASE), "Local route-mock spec.");

@@ -226,6 +226,10 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   );
 
   const invalidateAll = useCallback(() => {
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResultsRoot(examId) });
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamSummary(examId) });
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(examId) });
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.manualGradeSheet(examId) });
     qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId, enrollmentId) });
     qc.invalidateQueries({ queryKey: adminResultsQueryKeys.attemptHistoryExam(examId, enrollmentId) });
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
@@ -909,6 +913,7 @@ function EditModeContent({ sessionId, examId, enrollmentId, choiceItems, essayIt
                         ref={(el) => { scoreRefs.current[qid] = el; }}
                         type="number"
                         className="srd-edit__score-input"
+                        aria-label={`${qNumMap.get(qid) ?? idx + 1}번 서술형 점수`}
                         value={score}
                         onChange={(e) => {
                           const v = e.target.value === "" ? 0 : parseFloat(e.target.value);
