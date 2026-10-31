@@ -421,6 +421,17 @@
   line-height: 1.5;
 }
 
+.refreshNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.refreshNotice > span {
+  flex: 1 1 240px;
+}
+
 .scoreSummary {
   display: flex;
   justify-content: space-between;
