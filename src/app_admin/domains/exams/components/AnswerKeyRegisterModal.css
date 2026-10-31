@@ -1,7 +1,7 @@
 /* 답안 등록 모달 — 좌(객관식) / 우(주관식) 2패널, 한국식 OMR 세로 버블. 모달 한눈에 보이게, 주관식 영역 내 스크롤. */
 
 /* 답안 등록 모달 본문 — 모든 탭에서 동일 크기 고정 (height, not max-height) */
-.modal-body:has(> .answer-key-panel) {
+.modal-body:has(> .answer-key-fields) {
   padding: var(--space-2) var(--space-3);
   height: min(85vh, 680px);
   min-height: 0;
@@ -9,7 +9,15 @@
   display: flex;
   flex-direction: column;
 }
-.modal-body:has(> .answer-key-panel) > .answer-key-panel {
+/* 조회 중 입력 잠금을 유지하면서 내부 목록까지 높이 제약을 전달한다. */
+.answer-key-fields {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.answer-key-fields > .answer-key-panel {
   flex: 1;
   min-height: 0;
   overflow-x: hidden;

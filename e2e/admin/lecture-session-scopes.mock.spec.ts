@@ -1276,10 +1276,50 @@ async function openGuidedAnswerDialog(page: import("@playwright/test").Page, sta
   await page.getByRole("button", { name: "시험 만들기", exact: true }).click();
   const dialog = page.getByRole("dialog").filter({ hasText: "2. 답안 등록" });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("spinbutton", { name: "전체 문항 수" }).fill("1");
+  await dialog.getByRole("spinbutton", { name: "전체 문항 수" }).fill(String(state.guidedQuestionCount ?? 1));
   await dialog.getByRole("button", { name: "유형 저장" }).click();
   await expect.poll(() => state.guidedQuestionsInitialized).toBe(true);
   return dialog;
+}
+
+for (const viewport of [{ width: 1366, height: 768 }, { width: 1100, height: 720 }, { width: 390, height: 844 }]) {
+  test(`@answer-scroll ${viewport.width}px 정답 목록을 휠로 끝까지 내려 저장하고 다시 연다`, async ({ page }, testInfo) => {
+    const count = 20;
+    const state: MockState = {
+      supplementTitle: "토요일 심화 클리닉", patchTitles: [], guidedExamFlow: true,
+      guidedQuestionCount: count, createdExamPayloads: [], examSessionEnrollmentRows: [],
+      guidedQuestionScores: Object.fromEntries(Array.from({ length: count }, (_, index) => [99711 + index, 5])),
+      answerKeySaves: [{ exam: 9971, answers: Object.fromEntries(Array.from({ length: count }, (_, index) => [99711 + index, "1"])) }],
+    };
+    await page.setViewportSize(viewport);
+    const dialog = await openGuidedAnswerDialog(page, state);
+    const first = dialog.getByRole("checkbox", { name: "1번 1번 선택지", exact: true });
+    const last = dialog.getByRole("checkbox", { name: "20번 2번 선택지", exact: true });
+    await expect(first).toBeChecked();
+    await first.hover();
+    await expect(last).not.toBeInViewport();
+    await page.mouse.wheel(0, 10000);
+    await expect(last).toBeInViewport();
+    await expect(dialog.getByRole("button", { name: "답안 저장하고 다음" })).toBeInViewport();
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await last.click();
+    await page.screenshot({ path: testInfo.outputPath("answer-scroll.png") });
+    await dialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
+    await expect(page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" })).toBeVisible();
+    expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99730": "1,2" } });
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams?examId=9971`);
+    await page.reload();
+    const settings = page.locator("#assessment-policy > details");
+    if ((await settings.getAttribute("open")) === null) await settings.locator(":scope > summary").click();
+    await page.getByRole("button", { name: "문항·답안 확인" }).click();
+    const reopened = page.getByRole("dialog").filter({ hasText: "답안 등록" });
+    await reopened.getByRole("checkbox", { name: "1번 1번 선택지", exact: true }).hover();
+    await page.mouse.wheel(0, 10000);
+    const saved = reopened.getByRole("checkbox", { name: "20번 2번 선택지", exact: true });
+    await expect(saved).toBeInViewport();
+    await expect(saved).toBeChecked();
+    await expect(reopened.getByRole("button", { name: "취소", exact: true })).toBeInViewport();
+  });
 }
 
 test("정답 저장 응답 뒤 빈 재조회는 성공 처리하지 않고 입력을 보존하며 GET 재시도만 허용한다", async ({ page }) => {
