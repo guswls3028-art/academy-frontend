@@ -60,7 +60,7 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     await expect.poll(() => state.createdHomeworkPayloads?.length).toBe(1);
     await expect(form).toHaveCount(0);
     await page.reload();
-    await recording.screen("저장 결과와 대상 확인", "차시에 과제가 만들어졌는지 확인하고 대상 학생·제출·평가로 이어갑니다.", page.getByText("연산 복습", { exact: true }).first());
+    await recording.screen("저장 결과와 대상 확인", "차시에 과제가 만들어졌는지 확인하고 대상 학생·제출·평가로 이어갑니다.", page.getByRole("heading", { name: "연산 복습", level: 2, exact: true }));
     await recording.finish();
   });
 
