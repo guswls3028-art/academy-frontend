@@ -64,6 +64,15 @@ for (const width of [1366, 1100, 390]) {
     const examHeader = drawer.locator(".student-scores-drawer__exam-header").first();
     await expect(examHeader).toHaveAttribute("aria-expanded", "false");
     await page.screenshot({ path: testInfo.outputPath(`student-drawer-${width}.png`), animations: "disabled" });
+    if (width === 390) {
+      await drawer.locator(".student-scores-drawer__body").evaluate(element => { element.scrollTop = element.scrollHeight; });
+      const sendAction = drawer.getByRole("button", { name: "성적 발송", exact: true });
+      await expect(sendAction).toBeInViewport();
+      const sendBox = await sendAction.boundingBox();
+      const bottomNav = await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox();
+      expect(sendBox!.y + sendBox!.height).toBeLessThanOrEqual(bottomNav!.y);
+      await page.screenshot({ path: testInfo.outputPath("student-drawer-footer-390.png"), animations: "disabled" });
+    }
     await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)", exact: true }).click();
     await expect(drawer).toBeHidden();
   });
@@ -644,6 +653,10 @@ for (const width of [1366, 390]) {
       Math.abs(node.getBoundingClientRect().width - node.clientWidth),
     )).toBeLessThan(1);
     const examGroup = modal.getByRole("group", { name: /시험 총점/ });
+    const examGroupBox = await examGroup.boundingBox();
+    const homeworkGroupBox = await modal.getByRole("group", { name: /과제 총점/ }).boundingBox();
+    if (width > 700) expect(examGroupBox!.x + examGroupBox!.width).toBeLessThanOrEqual(homeworkGroupBox!.x);
+    else expect(examGroupBox!.y + examGroupBox!.height).toBeLessThanOrEqual(homeworkGroupBox!.y);
     const secondExam = examGroup.getByRole("checkbox", { name: "둘째 시험 합산에 포함", exact: true });
     const beforeTop = await secondExam.evaluate(node => node.getBoundingClientRect().top);
     await secondExam.focus();

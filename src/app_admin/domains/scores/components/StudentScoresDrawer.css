@@ -1325,6 +1325,7 @@ a.student-scores-drawer__student-link:focus-visible {
 /* Read the assessment first, then choose its next action. */
 .student-scores-drawer__header-info { min-width: 0; }
 .student-scores-drawer__header-name { white-space: normal; overflow-wrap: anywhere; }
+.student-scores-drawer__student-link .student-name-chip__name { white-space: normal; overflow-wrap: anywhere; }
 .student-scores-drawer__header-meta { display: flex; flex-wrap: wrap; margin-top: 6px; line-height: 1.5; }
 .student-scores-drawer__context { margin: 0 0 5px; font-size: 11px; color: var(--color-text-muted); font-weight: 500; }
 .student-scores-drawer__section-title { font-size: 13px; color: var(--color-text-secondary); padding-bottom: 8px; }
@@ -1339,6 +1340,10 @@ a.student-scores-drawer__student-link:focus-visible {
 .student-scores-drawer__summary-value { word-break: keep-all; overflow-wrap: anywhere; }
 .student-scores-drawer__exam-header:focus-visible, .student-scores-drawer__hw-header:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: -2px; }
 .student-scores-drawer__exam-quick-actions:empty { display: none; }
+.student-scores-drawer__exam-quick-actions > .ds-badge { justify-self: start; align-self: center; }
+@media (max-width: 1023px) {
+  .student-scores-drawer-side-panel { bottom: calc(57px + env(safe-area-inset-bottom, 0px)); }
+}
 @media (max-width: 520px) {
   .student-scores-drawer-side-panel { width: 100%; }
   .student-scores-drawer__header { padding-left: 16px; }

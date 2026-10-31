@@ -144,11 +144,11 @@ function ScopedTotalsModal({ sessionId, meta: serverMeta, onClose, draftScope }:
     } catch { if (isActiveScope()) setError("최신 설정을 불러오지 못했습니다. 다시 시도해 주세요."); }
     finally { busy.current = false; if (isActiveScope()) setSaving(false); }
   };
-  return <AdminModal open closeDisabled={saving} onClose={() => void close()}>
+  return <AdminModal open width={760} closeDisabled={saving} onClose={() => void close()}>
     <ModalHeader title="합산 설정" subtitle={meta.session_title} />
     <ModalBody>
       <p className="assessment-totals-help">총점에 포함할 항목을 체크하세요. 선택한 항목의 점수와 만점을 합산합니다.</p>
-      {([
+      <div className="assessment-totals-groups">{([
         { key: "exam_ids" as const, title: "시험 총점", items: meta.exams.map((x) => ({ id: x.exam_id, title: x.title, max: x.max_score })) },
         { key: "homework_ids" as const, title: "과제 총점", items: meta.homeworks.filter((x) => x.grading_mode !== "COMPLETION").map((x) => ({ id: x.homework_id, title: x.title, max: x.max_score })) },
       ]).map(({ key, title, items }) => {
@@ -178,7 +178,7 @@ function ScopedTotalsModal({ sessionId, meta: serverMeta, onClose, draftScope }:
             </div>
           </> : <p className="assessment-totals-empty">합산할 점수형 항목이 없습니다.</p>}
         </fieldset>;
-      })}
+      })}</div>
       <p className="assessment-totals-help">표에는 선택한 항목 → 총점 → 제외한 항목 순서로 표시됩니다. 항목 순서는 성적표에서 조절할 수 있습니다.</p>
       <p className="assessment-totals-help">통과형 과제는 점수 합계에 포함하지 않습니다. 미입력·미채점 점수는 ‘집계 중’으로 표시합니다.</p>
       {error && <p role="alert" className="assessment-totals-error">{error}</p>}
