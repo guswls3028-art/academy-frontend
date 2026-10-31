@@ -21,8 +21,9 @@ import {
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
+import { verifyQrAttendanceRealuse } from "../helpers/qrAttendanceRealuse";
 
-test.setTimeout(300_000);
+test.setTimeout(420_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
 type ClinicParticipant = {
@@ -322,6 +323,8 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
           body: await teacherPage.screenshot({ fullPage: true }), contentType: "image/png",
         });
       }
+      if (!lectureId || !enrollmentId) throw new Error("QR scenario requires its owned lecture and enrollment");
+      await verifyQrAttendanceRealuse({ page, teacherPage, request, testInfo, family, adminAccess: admin.access, lectureId, enrollmentId });
       teacherBoundary.assertClean();
       teacherBrowser.assertZeroDefects();
     } finally {

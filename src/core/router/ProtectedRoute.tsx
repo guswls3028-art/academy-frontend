@@ -1,7 +1,8 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app/router/ProtectedRoute.tsx
-import { lazy, Suspense, useState } from "react";
-import { Navigate, Outlet, useLocation } from "react-router";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
+import { saveReturnPath } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import ForcePasswordChangeModal from "@/auth/components/ForcePasswordChangeModal";
@@ -26,6 +27,15 @@ const ADMIN_ROLES: Role[] = ["owner", "admin", "teacher", "staff"];
 const STUDENT_ROLES: Role[] = ["student", "parent"];
 const PASSWORD_RECOMMENDATION_ROLES: Role[] = ["owner", "student", "parent"];
 const SubscriptionNoticeGate = lazy(() => import("@/auth/components/SubscriptionNoticeGate"));
+
+function QrLoginRedirect() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    saveReturnPath();
+    navigate("/login", { replace: true });
+  }, [navigate]);
+  return <div role="status">학생앱 로그인으로 이동합니다…</div>;
+}
 
 export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; tenantOnly?: string[] }) {
   const location = useLocation();
@@ -88,7 +98,8 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
     return <AuthUnavailableState retry={refreshMe} />;
   }
 
-  const loginRedirect = <Navigate to="/login" replace />;
+  const loginRedirect = location.pathname === "/student/attendance/scan"
+    ? <QrLoginRedirect /> : <Navigate to="/login" replace />;
 
   if (!user) {
     return loginRedirect;

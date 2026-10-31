@@ -5874,6 +5874,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/lectures/attendance-qr/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["lectures_attendance_qr_list"];
+        put?: never;
+        post: operations["lectures_attendance_qr_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/lectures/attendance-qr/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["lectures_attendance_qr_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/lectures/attendance-qr/{id}/rotate/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lectures_attendance_qr_rotate_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/lectures/attendance/": {
         parameters: {
             query?: never;
@@ -9743,6 +9791,38 @@ export interface paths {
         patch: operations["staffs_work_types_partial_update"];
         trace?: never;
     };
+    "/api/v1/student/attendance/qr/record/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["student_attendance_qr_record_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/student/attendance/qr/resolve/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["student_attendance_qr_resolve_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/student/attendance/summary/": {
         parameters: {
             query?: never;
@@ -12508,6 +12588,12 @@ export interface components {
          */
         AccountStateEnum: "ACTIVE" | "INACTIVE" | "DELETED" | "UNLINKED";
         /**
+         * @description * `check_in` - check_in
+         *     * `check_out` - check_out
+         * @enum {string}
+         */
+        ActionEnum: "check_in" | "check_out";
+        /**
          * @description * `student` - student
          *     * `support` - support
          * @enum {string}
@@ -14604,6 +14690,12 @@ export interface components {
          * @enum {string}
          */
         ItemTypeEnum: "exam" | "homework";
+        /**
+         * @description * `class` - 수업
+         *     * `clinic` - 클리닉
+         * @enum {string}
+         */
+        KindEnum: "class" | "clinic";
         Lecture: {
             readonly active_enrollment_count: number;
             /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
@@ -14657,6 +14749,8 @@ export interface components {
              */
             planned_arrival_time?: string | null;
             readonly profile_photo_url: string | null;
+            /** Format: date-time */
+            readonly qr_checked_in_at: string | null;
             session: number;
             status?: components["schemas"]["SessionAttendanceStatus"];
             readonly student_id: number;
@@ -16654,6 +16748,13 @@ export interface components {
             subject?: string;
             title?: string;
         };
+        PatchedQrPointRequest: {
+            active?: boolean;
+            kind?: components["schemas"]["KindEnum"];
+            label?: string;
+            lecture_id?: number | null;
+            location?: string;
+        };
         /**
          * @description 🔧 PATCH:
          *     - ExamQuestion.region_meta(bbox)가 이미 모델/서비스에서 저장되는데
@@ -17678,6 +17779,69 @@ export interface components {
         PublicVideoStatus: "draft" | "published" | "unpublished";
         PublicViewCount: {
             readonly view_count: number;
+        };
+        QrChoice: {
+            can_check_in: boolean;
+            can_check_out: boolean;
+            /** Format: date-time */
+            checked_in_at: string | null;
+            /** Format: date-time */
+            checked_out_at: string | null;
+            /** Format: date */
+            date: string;
+            id: number;
+            label: string;
+            /** Format: time */
+            start_time: string | null;
+            status: string;
+        };
+        QrPayloadRequest: {
+            /** Format: uuid */
+            token: string;
+        };
+        QrPoint: {
+            active?: boolean;
+            readonly id: number;
+            kind: components["schemas"]["KindEnum"];
+            label: string;
+            lecture_id?: number | null;
+            location?: string;
+            /** Format: uuid */
+            readonly token: string;
+        };
+        QrPointInfo: {
+            kind: string;
+            label: string;
+        };
+        QrPointRequest: {
+            active?: boolean;
+            kind: components["schemas"]["KindEnum"];
+            label: string;
+            lecture_id?: number | null;
+            location?: string;
+        };
+        QrReceipt: {
+            already_recorded: boolean;
+            /** Format: date-time */
+            checked_in_at: string | null;
+            /** Format: date-time */
+            checked_out_at: string | null;
+            detail: string;
+            kind: string;
+            /** Format: date-time */
+            recorded_at: string | null;
+            status: string;
+            target_id: number;
+        };
+        QrRecordPayloadRequest: {
+            action: components["schemas"]["ActionEnum"];
+            target_id: number;
+            /** Format: uuid */
+            token: string;
+        };
+        QrResolution: {
+            choices: components["schemas"]["QrChoice"][];
+            point: components["schemas"]["QrPointInfo"];
         };
         /**
          * @description 🔧 PATCH:
@@ -29280,6 +29444,100 @@ export interface operations {
             };
         };
     };
+    lectures_attendance_qr_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrPoint"][];
+                };
+            };
+        };
+    };
+    lectures_attendance_qr_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QrPointRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["QrPointRequest"];
+                "multipart/form-data": components["schemas"]["QrPointRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrPoint"];
+                };
+            };
+        };
+    };
+    lectures_attendance_qr_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description attendance qr point을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedQrPointRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedQrPointRequest"];
+                "multipart/form-data": components["schemas"]["PatchedQrPointRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrPoint"];
+                };
+            };
+        };
+    };
+    lectures_attendance_qr_rotate_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description attendance qr point을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrPoint"];
+                };
+            };
+        };
+    };
     lectures_attendance_list: {
         parameters: {
             query?: {
@@ -36065,6 +36323,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffWorkTypeDefinition"];
+                };
+            };
+        };
+    };
+    student_attendance_qr_record_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QrRecordPayloadRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["QrRecordPayloadRequest"];
+                "multipart/form-data": components["schemas"]["QrRecordPayloadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrReceipt"];
+                };
+            };
+        };
+    };
+    student_attendance_qr_resolve_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QrPayloadRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["QrPayloadRequest"];
+                "multipart/form-data": components["schemas"]["QrPayloadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrResolution"];
                 };
             };
         };

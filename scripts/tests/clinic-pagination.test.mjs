@@ -97,10 +97,11 @@ for (const endpoint of endpoints) {
       return page(rows.slice((number - 1) * 200, number * 200), number < 3 ? `?page=${number + 1}` : null, 401);
     });
     const result = await invoke(h);
-    assert.equal(result.length, name === "participants" ? 1 : 401);
+    assert.equal(result.length, 401);
     assert.equal(result.at(-1).id, 401);
-    assert.equal(name === "participants" ? result[0].status : result.at(-1).date,
+    assert.equal(name === "participants" ? result.at(-1).status : result.at(-1).date,
       name === "participants" ? "booked" : "2026-10-05");
+    if (name === "participants") assert.equal(result[0].status, "attended");
     assert.deepEqual(h.requests.map((request) => request.params.page), [1, 2, 3]);
     for (const request of h.requests) {
       assert.equal(request.path, path);

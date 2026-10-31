@@ -17,6 +17,7 @@ import { useState, useEffect, useMemo, useRef, memo } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 import { useAuthContext } from "@/auth/context/AuthContext";
+import QrScanLink from "@student/shared/ui/attendance/QrScanLink";
 import { Badge } from "@/shared/ui/ds";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
@@ -422,6 +423,7 @@ export default function DashboardPage() {
 
   return (
     <div className={styles.page}>
+      <QrScanLink />
       {partialFailureBanner}
       {hasUrgentNotice && (
         <UrgentNotice notices={(dashboard?.notices ?? []).filter((n) => n.is_urgent)} />
