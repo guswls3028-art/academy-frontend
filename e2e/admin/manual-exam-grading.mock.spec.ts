@@ -112,7 +112,9 @@ test("서술형 채점 활성화 응답이 늦어도 이동한 시험의 포커�
   await expect.poll(() => apiState.examPatches.length).toBe(1);
   await page.getByRole("button", { name: /다음 서술형 시험 만점/ }).click();
   await expect(page).toHaveURL(new RegExp(`examId=${nextExamId}`));
+  await expect(page.getByRole("heading", { name: "다음 서술형 시험", exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "채점·결과", exact: true })).toHaveAttribute("aria-selected", "true");
   const currentAction = page.getByRole("button", { name: "문항별 정답률 보기", exact: true });
   await currentAction.focus();
   const response = page.waitForResponse((res) => res.url().endsWith(`/exams/${EXAM_ID}/`) && res.request().method() === "PATCH");
