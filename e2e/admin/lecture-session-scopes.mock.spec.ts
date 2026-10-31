@@ -1309,6 +1309,8 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1100, height: 720
     await expect(page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" })).toBeVisible();
     expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99730": "1,2" } });
     await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams?examId=9971`);
+    await expect(page.locator("#assessment-policy")).toBeVisible();
+    await waitForRenderSettled(page);
     await page.reload();
     const settings = page.locator("#assessment-policy > details");
     if ((await settings.getAttribute("open")) === null) await settings.locator(":scope > summary").click();
