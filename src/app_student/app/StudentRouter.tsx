@@ -37,6 +37,7 @@ const NotificationsPage = lazy(() => import("@student/domains/notifications/page
 const ClinicIDCardPage = lazy(() => import("@student/domains/clinic-idcard/pages/ClinicIDCardPage"));
 const ClinicPage = lazy(() => import("@student/domains/clinic/pages/ClinicPage"));
 const AttendancePage = lazy(() => import("@student/domains/attendance/pages/AttendancePage"));
+const QrScanPage = lazy(() => import("@student/domains/attendance/pages/QrScanPage"));
 const StudentFeesPage = lazy(() => import("@student/domains/fees/pages/StudentFeesPage"));
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useProgram } from "@/shared/program";
@@ -108,6 +109,7 @@ export default function StudentRouter() {
         <Route path="idcard" element={<ClinicIDCardPage />} />
         <Route path="clinic" element={<ClinicPage />} />
         <Route path="attendance" element={<AttendancePage />} />
+        <Route path="attendance/scan" element={<QrScanPage />} />
         <Route path="fees" element={<StudentFeesGate />} />
         <Route path="guide" element={<GuidePage />} />
       </Route>

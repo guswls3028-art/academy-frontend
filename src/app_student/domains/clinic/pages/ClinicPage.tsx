@@ -30,7 +30,7 @@ import ClinicBookingCalendar from "../components/ClinicBookingCalendar";
 import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
 import ClinicSelfCancelControl from "../components/ClinicSelfCancelControl";
 import ClinicTimePickerRevealButton from "../components/ClinicTimePickerRevealButton";
-import { ClinicEmptySchedule, ClinicSavedBookingNotice } from "../components/ClinicBookingFeedback";
+import { ClinicAttendanceHistory, ClinicEmptySchedule, ClinicRejectedBookingHistory, ClinicSavedBookingNotice } from "../components/ClinicBookingFeedback";
 import { resolveClinicSessionSelection } from "../components/clinicSessionSelection";
 import {
   displayTargetText,
@@ -530,6 +530,7 @@ export default function ClinicPage() {
 
   return (
     <StudentPageShell title="클리닉">
+      <ClinicAttendanceHistory requests={myRequests} />
       <div data-guide="clinic-list" className={styles.pageStack}>
         <div className={styles.tabBar} role="tablist" aria-label="클리닉 메뉴">
           <button
@@ -973,19 +974,7 @@ export default function ClinicPage() {
               </div>
             )}
 
-            {rejectedBookings.length > 0 && (
-              <div className={styles.bookingGroup}>
-                <h3>최근 거절</h3>
-                <div className={styles.rejectedList}>
-                  {rejectedBookings.map((request) => (
-                    <div key={request.id}>
-                      <span>{formatYmd(request.session_date)} {formatTime(request.session_start_time)}</span>
-                      <strong>거절됨</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <ClinicRejectedBookingHistory requests={rejectedBookings} />
 
             {activeBookingCount === 0 && rejectedBookings.length === 0 && (
               <ClinicEmptySchedule onBook={() => setActiveTab("book")} />

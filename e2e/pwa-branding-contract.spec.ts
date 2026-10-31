@@ -427,11 +427,14 @@ test("security headers allow the exact API host used by public Matchup PDF frame
   const csp = document.headers.get("Content-Security-Policy") || "";
   const staticHeaders = readFileSync(resolve(process.cwd(), "public/_headers"), "utf8");
 
+  expect(document.headers.get("Permissions-Policy")).toBe("camera=(self), microphone=(), geolocation=()");
+  expect(staticHeaders).toContain("Permissions-Policy: camera=(self), microphone=(), geolocation=()");
+
   expect(csp).toContain(
-    "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
+    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
   );
   expect(staticHeaders).toContain(
-    "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
+    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
   );
   const frameDirective = csp.split(";").map((part) => part.trim())
     .find((part) => part.startsWith("frame-src ")) || "";
