@@ -13,6 +13,7 @@
       "@tiptap/extension-bubble-menu": "3.31.3",
       "@tiptap/extension-floating-menu": "3.31.3",
       "@jridgewell/gen-mapping": "0.3.13",
+      "@typescript-eslint/typescript-estree>minimatch": "11.0.3",
       "archiver-utils>glob": "14.0.3",
       "baseline-browser-mapping": "2.11.0",
       "brace-expansion@1": "1.1.21",

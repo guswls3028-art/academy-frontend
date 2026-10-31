@@ -1057,6 +1057,13 @@ GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사
   보안 검사 다음의 `Excel dependency compatibility`는 재귀·한글·확장자·제외
   패턴과 XLSX 셀·날짜·수식·병합·스트리밍 ZIP 왕복을 확인한다. 실패 시 배포를
   중단하고 해당 의존성 조합을 수정하며 audit 예외로 넘기지 않는다.
+- TypeScript ESLint의 `@typescript-eslint/typescript-estree>minimatch`는
+  11.0.3으로 고정한다. 기존 10.2.6의 패턴 증폭 문제
+  ([GHSA-g3hv-75wg-m249](https://github.com/isaacs/minimatch/security/advisories/GHSA-g3hv-75wg-m249))를
+  수정하며, 소비자가 사용하는 named `minimatch` API와 Node 22 범위를 유지한다.
+  이전 major를 사용하는 ESLint·OpenAPI 소비자까지 일괄 교체하지 않는다.
+  전체 의존성 감사에 남는 이전 major 경고를 숨기거나 해결된 것으로 보고하지
+  않으며, 필수 lint·타입·build·브라우저 CI로 통합 호환성을 검증한다.
 - 2026-09-20 개발 도구 전이 의존성의 최소 수정 버전을 `js-yaml` 4.3.2
   (GHSA-2883-xcg3-v3hh), `browserslist` 4.28.7 (GHSA-73wf-gq98-2v4g),
   `baseline-browser-mapping` 2.11.0 (GHSA-w5vr-8v7q-w6rv), `nanoid` 3.3.18
