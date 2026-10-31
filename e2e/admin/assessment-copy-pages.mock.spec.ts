@@ -38,8 +38,10 @@ async function setup(page: Page, kind: "exam" | "homework", failSecond = false) 
     if (path === "/lectures/lectures/71/") return json(lecture);
     if (path === "/lectures/sessions/") return state.failSessions ? json({ detail: "QA session failure" }, 400) : json(sessions);
     if (/^\/lectures\/sessions\/(72|73)\/$/.test(path)) return json(sessions.find((session) => path.includes(`/${session.id}/`)));
-    if (/^\/results\/admin\/sessions\/\d+\/exams\/summary\/$/.test(path)) return json({ exams: kind === "exam" ? state.created : [] });
-    if (/^\/results\/admin\/sessions\/\d+\/exams\/$/.test(path)) return json(kind === "exam" ? state.created : []);
+    // Session projections use exam_id, unlike the exam detail/create response's id.
+    const sessionExams = kind === "exam" ? state.created.map((exam) => ({ ...exam, exam_id: exam.id })) : [];
+    if (/^\/results\/admin\/sessions\/\d+\/exams\/summary\/$/.test(path)) return json({ exams: sessionExams });
+    if (/^\/results\/admin\/sessions\/\d+\/exams\/$/.test(path)) return json(sessionExams);
     if (path === (kind === "exam" ? "/exams/" : "/homeworks/")) {
       if (method === "POST") {
         const payload = route.request().postDataJSON() as Record<string, unknown>;
@@ -114,9 +116,9 @@ for (const width of [390, 1366]) {
         if (kind === "exam") expect(state.created[0].source_exam_id).toBe(1500);
         expect(state.pages).toContain(2);
         await expect(dialog).toHaveCount(0);
-        await expect(page.getByText(`QA ${label} 501`, { exact: true }).first()).toBeVisible();
+        await expect(page.getByRole("heading", { name: `QA ${label} 501`, exact: true })).toBeVisible();
         await page.reload();
-        await expect(page.getByText(`QA ${label} 501`, { exact: true }).first()).toBeVisible();
+        await expect(page.getByRole("heading", { name: `QA ${label} 501`, exact: true })).toBeVisible();
         expect(state.created).toHaveLength(1);
         await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
       });
