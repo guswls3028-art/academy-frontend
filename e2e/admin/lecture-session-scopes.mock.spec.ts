@@ -1707,6 +1707,58 @@ test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여
   expect(state.homeworkAssignmentPuts?.[0]).toEqual([501, 502, 503]);
 });
 
+for (const kind of ["exam", "homework"] as const) {
+  test(`@assessment-list-recovery 390px ${kind} 캐시 목록 재조회 실패를 표시하고 선택을 유지하며 재시도한다`, async ({ page }, testInfo) => {
+    const label = kind === "exam" ? "시험" : "과제";
+    const state: MockState = {
+      supplementTitle: "보충 수업", patchTitles: [], guidedExamFlow: true,
+      createdExamPayloads: [{ title: "재조회 시험" }],
+      createdHomeworkPayloads: [{ title: "재조회 과제", max_score: 20, cutline_mode: "COUNT", cutline_value: 10 }],
+    };
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openLecture(page, state);
+    const listPath = kind === "exam" ? `/api/v1/results/admin/sessions/${REGULAR_SESSION_ID}/exams/` : "/api/v1/homeworks/";
+    let failList = false;
+    let listReads = 0;
+    await page.route(url => url.pathname === listPath, async route => {
+      expect(route.request().method()).toBe("GET");
+      listReads += 1;
+      if (failList) return route.fulfill({ status: 503, json: { detail: "목록 재조회 일시 실패" } });
+      return route.fallback();
+    });
+    const suffix = kind === "exam" ? "exams?examId=9971" : "assignments?homeworkId=9961";
+    const selectedId = kind === "exam" ? "9971" : "9961";
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/${suffix}`, { waitUntil: "domcontentloaded" });
+    const navigation = page.getByTestId("session-assessment-remote");
+    const picker = navigation.getByRole("combobox", { name: `${label} 선택`, exact: true });
+    await expect(picker).toHaveValue(selectedId);
+    await expect(picker.locator("option:checked")).toHaveText(`재조회 ${label}`);
+    const readsBeforeFailure = listReads;
+    failList = true;
+    // Age the successful cache past the normal 10s stale time, then reconnect.
+    await page.clock.setFixedTime(new Date(await page.evaluate(() => Date.now()) + 11_000));
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("offline"));
+      window.dispatchEvent(new Event("online"));
+    });
+    await expect.poll(() => listReads).toBeGreaterThan(readsBeforeFailure);
+    const error = navigation.getByRole("alert");
+    await expect(error).toContainText(`${label} 목록을 불러오지 못했습니다`);
+    await expect(error).toContainText("이전에 불러온 목록을 표시하고 있습니다.");
+    await expect(picker).toHaveValue(selectedId);
+    await error.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`${kind}-cached-error-390.png`), animations: "disabled" });
+    failList = false;
+    const payloads = kind === "exam" ? state.createdExamPayloads! : state.createdHomeworkPayloads!;
+    payloads[0].title = `최신 ${label} 목록`;
+    await error.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+    await expect(error).toBeHidden();
+    await expect(picker).toHaveValue(selectedId);
+    await expect(picker.locator("option:checked")).toHaveText(`최신 ${label} 목록`);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  });
+}
+
 test("수업 목록 조회 실패는 기존 화면을 비우지 않고 다시 불러온다", async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",

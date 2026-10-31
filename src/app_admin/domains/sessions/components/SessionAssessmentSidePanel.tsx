@@ -298,7 +298,7 @@ export default function SessionAssessmentSidePanel({
     return readAssessmentItemId(searchParams, "homework");
   }, [searchParams]);
 
-  const { data: exams = [], isLoading: examsLoading, isError: examsError } = useQuery({
+  const { data: exams = [], isLoading: examsLoading, isError: examsError, isFetching: examsFetching, refetch: refetchExams } = useQuery({
     queryKey: sessionAssessmentQueryKeys.exams(sessionId),
     queryFn: () => fetchAdminSessionExams(sessionId),
     enabled: !!sessionId,
@@ -329,7 +329,7 @@ export default function SessionAssessmentSidePanel({
     return map;
   }, [examsSummary]);
 
-  const { data: homeworks = [], isLoading: hwLoading, isError: hwError } = useQuery({
+  const { data: homeworks = [], isLoading: hwLoading, isError: hwError, isFetching: hwFetching, refetch: refetchHomeworks } = useQuery({
     queryKey: sessionAssessmentQueryKeys.homeworks(sessionId),
     queryFn: async (): Promise<HomeworkItem[]> => {
       const rows: AssessmentHomeworkListItem[] = await fetchSessionHomeworks(sessionId);
@@ -507,9 +507,13 @@ export default function SessionAssessmentSidePanel({
             {exams.map(exam => <option key={exam.exam_id} value={exam.exam_id}>{exam.title}</option>)}
           </select>
         </label>}
-        <div style={S.itemList} className={exams.length ? "session-assessment-items" : "session-assessment-items-empty"}>
+        {(examsLoading || examsError || exams.length === 0) && <div style={S.itemList}>
           {examsLoading && <EmptyState title="불러오는 중..." />}
-          {!examsLoading && examsError && <EmptyState title="시험 목록을 불러오지 못했습니다" />}
+          {!examsLoading && examsError && <div role="alert"><EmptyState
+            title="시험 목록을 불러오지 못했습니다"
+            description={exams.length ? "이전에 불러온 목록을 표시하고 있습니다." : undefined}
+            action={<Button intent="secondary" size="sm" disabled={examsFetching} onClick={() => void refetchExams()}>{examsFetching ? "다시 불러오는 중…" : "다시 불러오기"}</Button>}
+          /></div>}
           {!examsLoading && !examsError && exams.length === 0 && (
             <EmptyState
               title="시험 없음"
@@ -517,6 +521,8 @@ export default function SessionAssessmentSidePanel({
               action={<Button type="button" intent="secondary" size="sm" onClick={setOpenCreateExam}>시험 추가</Button>}
             />
           )}
+        </div>}
+        {exams.length > 0 && <div style={S.itemList} className="session-assessment-items">
           {exams.map((exam: SessionExamRow) => {
             const active = examId != null && Number(exam.exam_id) === examId;
             const maxScore = examMaxScoreById[Number(exam.exam_id)] ?? 100;
@@ -532,7 +538,7 @@ export default function SessionAssessmentSidePanel({
               />
             );
           })}
-        </div>
+        </div>}
       </section>
 
       {/* ── Homework Section ── */}
@@ -554,9 +560,13 @@ export default function SessionAssessmentSidePanel({
             {homeworks.map(homework => <option key={homework.id} value={homework.id}>{homework.title}</option>)}
           </select>
         </label>}
-        <div style={S.itemList} className={homeworks.length ? "session-assessment-items" : "session-assessment-items-empty"}>
+        {(hwLoading || hwError || homeworks.length === 0) && <div style={S.itemList}>
           {hwLoading && <EmptyState title="불러오는 중..." />}
-          {!hwLoading && hwError && <EmptyState title="과제 목록을 불러오지 못했습니다" />}
+          {!hwLoading && hwError && <div role="alert"><EmptyState
+            title="과제 목록을 불러오지 못했습니다"
+            description={homeworks.length ? "이전에 불러온 목록을 표시하고 있습니다." : undefined}
+            action={<Button intent="secondary" size="sm" disabled={hwFetching} onClick={() => void refetchHomeworks()}>{hwFetching ? "다시 불러오는 중…" : "다시 불러오기"}</Button>}
+          /></div>}
           {!hwLoading && !hwError && homeworks.length === 0 && (
             <EmptyState
               title="과제 없음"
@@ -564,6 +574,8 @@ export default function SessionAssessmentSidePanel({
               action={<Button type="button" intent="secondary" size="sm" onClick={setOpenCreateHomework}>과제 추가</Button>}
             />
           )}
+        </div>}
+        {homeworks.length > 0 && <div style={S.itemList} className="session-assessment-items">
           {homeworks.map((hw) => {
             const active = homeworkId === hw.id;
             return (
@@ -578,7 +590,7 @@ export default function SessionAssessmentSidePanel({
               />
             );
           })}
-        </div>
+        </div>}
       </section>
 
       {/* ── Modals ── */}
