@@ -36,10 +36,12 @@ import { adminExamsQueryKeys } from "../queryKeys";
 import { fetchExamLectureAssignments } from "../api/examLectureAssignments";
 import { buildExamResultsInsightModel } from "./examResultsInsights";
 import styles from "./ExamResultsViewerPanel.module.css";
+import SubjectiveGradingEntry from "./SubjectiveGradingEntry";
 
 type Props = {
   examId: number;
   wrongCompletionOnly?: boolean;
+  onOpenSetup?: () => void;
 };
 
 async function fetchResults(examId: number, lectureId: number | null): Promise<AdminExamResultRow[]> {
@@ -60,7 +62,7 @@ async function fetchQuestionStats(examId: number, lectureId: number | null): Pro
   return raw;
 }
 
-export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = false }: Props) {
+export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = false, onOpenSetup }: Props) {
   const [selectedLectureId, setSelectedLectureId] = useState<number | null>(null);
   const gradingEntryRef = useRef<HTMLDivElement>(null);
   const statisticsRef = useRef<HTMLDetailsElement>(null);
@@ -185,25 +187,21 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
 
   return (
     <div className={styles.workspace}>
+      {exam && (
+        <SubjectiveGradingEntry
+          key={examId}
+          exam={exam}
+          onEnter={() => jumpTo(gradingEntryRef.current)}
+          onStatistics={() => { setStatisticsOpen(true); jumpTo(statisticsRef.current ?? analysisRef.current); }}
+          onOpenSetup={onOpenSetup}
+        />
+      )}
       {exam?.grading_mode !== "written" && (
         <OmrReviewEntry examId={examId} examTitle={exam?.title ?? "시험"} />
       )}
-      {(exam?.grading_mode === "mixed" || exam?.grading_mode === "written") && (
-        <section className={styles.gradingEntry} aria-label="주관식·서술형 채점 안내">
-          <div>
-            <h2>주관식·서술형 점수 입력</h2>
-            <p>아래 채점표에서 문항별 점수를 입력하고 성적을 확정하세요. OMR 객관식 점수는 유지됩니다.</p>
-            <p>문항별로 입력해야 정답률과 평균 득점을 확인할 수 있습니다. 합계 점수만 입력하면 문항별 정답률은 계산되지 않습니다.</p>
-          </div>
-          <div className={styles.gradingEntryActions}>
-            <Button type="button" intent="primary" onClick={() => jumpTo(gradingEntryRef.current)}>주관식·서술형 입력하기</Button>
-            <Button type="button" intent="secondary" onClick={() => { setStatisticsOpen(true); jumpTo(statisticsRef.current ?? analysisRef.current); }}>문항별 정답률 보기</Button>
-          </div>
-        </section>
-      )}
       {exam?.grading_mode !== "choice" && (
         <div ref={gradingEntryRef} tabIndex={-1} className={styles.jumpTarget}>
-          <ManualExamGradingGrid examId={examId} />
+          <ManualExamGradingGrid examId={examId} showUnavailableState />
         </div>
       )}
       <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} />
