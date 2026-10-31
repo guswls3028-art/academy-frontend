@@ -568,7 +568,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
         if (latestSheet) {
           // React Query may retain the same object for an unchanged publish.
           // Skip only this reconciled snapshot, never the next external result.
-          locallySyncedSheetRef.current = queryClient.setQueryData(
+          locallySyncedSheetRef.current = queryClient.setQueryData<ManualGradeSheet>(
             adminResultsQueryKeys.manualGradeSheet(runExamId),
             latestSheet,
           ) ?? null;
