@@ -73,10 +73,12 @@ function ExamResultExcelImportContent({ examId, examTitle }: Props) {
         feedback.success(`${result.matched_count}명의 문항별 채점 결과를 반영했습니다.`);
       }
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResults(examId) }),
+        queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
         queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamSummary(examId) }),
-        queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestionStats(examId) }),
-        queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResults(examId) }),
+        queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(examId) }),
+        queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId) }),
+        queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.manualGradeSheet(examId) }),
+        queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.sessionScores }),
       ]);
     },
     onError: (error) => {
