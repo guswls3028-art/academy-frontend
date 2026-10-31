@@ -42,7 +42,7 @@ async function expectReadableHeadings(page: Page) {
   // WebKit applies viewport media-query changes on the next rendering frame.
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   await page.evaluate(() => document.fonts.ready);
-  const defects = await page.locator("main h1, main h2, main h3").evaluateAll((headings) => headings.flatMap((heading) => {
+  await expect.poll(() => page.locator("main h1, main h2, main h3").evaluateAll((headings) => headings.flatMap((heading) => {
     const failures: string[] = [];
     const bounds = heading.getBoundingClientRect();
     const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT);
@@ -62,8 +62,7 @@ async function expectReadableHeadings(page: Page) {
       }
     }
     return failures;
-  }));
-  expect(defects).toEqual([]);
+  }))).toEqual([]);
 }
 
 test.describe("godmin public landing", () => {
@@ -158,17 +157,25 @@ test.describe("godmin public landing", () => {
     await expect(page.locator("#system-title")).toBeVisible({ timeout: 90_000 });
     await page.evaluate(() => document.fonts.ready);
 
-    for (const width of [320, 375, 390, 430, 768, 981, 1100, 1366]) {
-      await page.setViewportSize({ width, height: 900 });
-      await page.evaluate(() => document.fonts.ready);
-      await test.step(`${width}px rendered word boundaries`, async () => {
-        await expectReadableHeadings(page);
-        for (const id of ["philosophy-title", "system-title"]) {
-          const lines = await page.locator(`#${id}`).evaluate((heading) => heading.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(heading).lineHeight));
-          expect(lines, id).toBeCloseTo(2, 0);
-        }
-        expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
-      });
+    for (const font of ["configured", "Arial, sans-serif"]) {
+      await page.locator("main h1, main h2, main h3").evaluateAll((headings, family) => {
+        for (const heading of headings) (heading as HTMLElement).style.fontFamily = family === "configured" ? "" : family;
+      }, font);
+      for (const width of [320, 375, 390, 430, 768, 980, 981, 982, 1100, 1366, 1440, 1920]) {
+        await page.setViewportSize({ width, height: 900 });
+        await test.step(`${font}, ${width}px rendered word boundaries`, async () => {
+          await expectReadableHeadings(page);
+          for (const id of ["philosophy-title", "system-title"]) {
+            const layout = await page.locator(`#${id}`).evaluate((heading) => {
+              const style = getComputedStyle(heading);
+              const bounds = heading.getBoundingClientRect();
+              return { lines: bounds.height / Number.parseFloat(style.lineHeight), width: bounds.width, fontSize: style.fontSize, fontFamily: style.fontFamily };
+            });
+            expect(layout.lines, `${id}: ${JSON.stringify(layout)}`).toBeCloseTo(2, 0);
+          }
+          expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+        });
+      }
     }
 
     await page.setViewportSize({ width: 390, height: 844 });
