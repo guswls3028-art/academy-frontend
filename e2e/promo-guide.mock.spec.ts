@@ -354,7 +354,10 @@ for (const width of [1366, 390]) {
     await expect(search).toHaveValue("");
     await search.pressSequentially("출결");
     await expect(search).toHaveValue("출결");
+    await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("출결");
     await expect(contents.getByRole("button", { name: /출결 입력과 수업 마감/ })).toBeVisible();
+    await page.reload();
+    await expect(search).toHaveValue("출결");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
     await testInfo.attach(`guide-search-recovery-${width}`, { body: await page.screenshot(), contentType: "image/png" });
   });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import type { GuideArticle } from "./types";
 import GuideMedia from "./GuideMedia";
@@ -16,6 +16,7 @@ type Props = {
 export default function GuideCatalog({ articles, title, description, scope, mode = "app" }: Props) {
   const [params, setParams] = useSearchParams();
   const query = params.get("q") ?? "";
+  const [searchInput, setSearchInput] = useState(query);
   const categories = [...new Set(articles.map((article) => article.category))];
   const requestedCategory = params.get("category") ?? "";
   const category = categories.includes(requestedCategory) ? requestedCategory : "";
@@ -42,12 +43,20 @@ export default function GuideCatalog({ articles, title, description, scope, mode
     .map(({ article }) => article);
   const firstVisualResult = visible.find((article) => findGuideMedia(scope, article.id));
 
+  useEffect(() => {
+    // BrowserRouter may still render an older address while typing continues.
+    // Restore URL state only once it matches the actual current address.
+    const currentQuery = new URLSearchParams(window.location.search).get("q") ?? "";
+    if (query === currentQuery) setSearchInput(query);
+  }, [params, query]);
+
   function updateFilters(key: "q" | "category", value: string) {
     // BrowserRouter updates the address before React commits the new filters.
     // A quick search → topic selection must preserve that latest address.
     const next = new URLSearchParams(window.location.search);
     if (value) next.set(key, value); else next.delete(key);
     next.delete("topic");
+    setSearchInput(next.get("q") ?? "");
     setParams(next, { replace: true, preventScrollReset: true });
   }
 
@@ -58,12 +67,14 @@ export default function GuideCatalog({ articles, title, description, scope, mode
       next.delete("category");
     }
     next.set("topic", id);
+    setSearchInput(next.get("q") ?? "");
     setParams(next, { preventScrollReset: true });
   }
 
   function resetFilters() {
     const next = new URLSearchParams(window.location.search);
     next.delete("q"); next.delete("category"); next.delete("topic");
+    setSearchInput("");
     setParams(next, { preventScrollReset: true });
     searchRef.current?.focus();
   }
@@ -117,7 +128,7 @@ export default function GuideCatalog({ articles, title, description, scope, mode
 
       <div className={styles.finder}>
         <label className={styles.searchLabel} htmlFor={`guide-search-${scope}`}>어떤 작업이 필요한가요?</label>
-        <input ref={searchRef} id={`guide-search-${scope}`} type="search" value={query}
+        <input ref={searchRef} id={`guide-search-${scope}`} type="search" value={searchInput}
           placeholder="기능, 화면 이름, 막힌 상황 검색"
           onChange={(event) => updateFilters("q", event.target.value)} className={styles.search} />
         <div className={styles.categories} role="group" aria-label="가이드 분류">
