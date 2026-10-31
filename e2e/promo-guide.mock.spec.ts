@@ -312,6 +312,57 @@ test("visual guide keeps written instructions and recovers failed image and vide
 });
 
 for (const width of [1366, 390]) {
+  test(`guide recommendations stay within search and recover keyboard focus at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/promo/guide?role=admin`);
+    const search = page.getByRole("searchbox", { name: "어떤 작업이 필요한가요?" });
+    const visualStart = page.getByRole("button", { name: "사진·영상으로 시작하기 →", exact: true });
+    const contents = page.getByRole("navigation", { name: "주요 기능 이용 순서" });
+    await page.getByRole("button", { name: "학습·평가", exact: true }).click();
+    await search.fill("영상 업로드");
+    await expect(contents.getByRole("button")).toHaveCount(1);
+    await visualStart.press("Enter");
+    const heading = page.getByRole("article").getByRole("heading", { level: 2 });
+    await expect(heading).toHaveText("영상 업로드와 학생 시청 확인");
+    await expect(heading).toBeFocused();
+    const params = new URL(page.url()).searchParams;
+    expect(params.get("q")).toBe("영상 업로드");
+    expect(params.get("category")).toBe("학습·평가");
+    expect(params.get("role")).toBe("admin");
+    expect(params.get("topic")).toBe("upload-video");
+    await page.getByRole("button", { name: "목차로 돌아가기" }).click();
+    await expect(contents).toBeFocused();
+    await page.getByRole("button", { name: "전체", exact: true }).click();
+    await search.fill("수납 비목·청구서·납부 확인");
+    await expect(contents.getByRole("button")).toHaveCount(1);
+    await expect(visualStart).toHaveCount(0);
+    await search.fill("없는안내-검색복구-qa");
+    await expect(page.getByText("일치하는 안내가 없습니다. 검색어를 줄이거나 다른 분류를 선택해 주세요.")).toBeVisible();
+    await expect(visualStart).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "가이드 시작 안내" })).toHaveCount(0);
+    await page.getByRole("button", { name: "검색 초기화", exact: true }).press("Enter");
+    await expect(search).toBeFocused();
+    await expect(search).toHaveValue("");
+    await search.pressSequentially("출결");
+    await expect(search).toHaveValue("출결");
+    await expect(contents.getByRole("button", { name: /출결 입력과 수업 마감/ })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+    await testInfo.attach(`guide-search-recovery-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+  });
+
+  test(`guide direct link and reload reveal the requested article at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/promo/guide?role=teacher&topic=attendance`);
+    const heading = page.getByRole("heading", { level: 2, name: "모바일 출결 입력", exact: true });
+    await expect(heading).toBeFocused();
+    await expect(heading).toBeInViewport();
+    await page.reload();
+    await expect(heading).toBeFocused();
+    await expect(heading).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+    await testInfo.attach(`guide-direct-reading-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+  });
+
   test(`guide inquiry preserves context and complete questions through retry at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const article = ADMIN_WORKFLOWS.find((item) => item.id === "fees")!;

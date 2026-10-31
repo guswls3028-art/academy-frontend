@@ -547,6 +547,8 @@ test.describe("업무별 AtoZ 가이드", () => {
         await page.reload();
         await expect(search).toHaveValue(scenario.query);
         await expect(page.getByRole("article").getByRole("heading", { level: 2 })).toHaveText(scenario.title);
+        await expect(page.getByRole("article").getByRole("heading", { level: 2 })).toBeFocused();
+        await expect(page.getByRole("article").getByRole("heading", { level: 2 })).toBeInViewport();
         const next = page.getByRole("region", { name: "다음 이용 흐름" }).getByRole("button").first();
         await next.click();
         await expect(page.getByRole("article").getByRole("heading", { level: 2 })).not.toHaveText(scenario.title);

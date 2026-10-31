@@ -20,10 +20,11 @@ export default function GuideCatalog({ articles, title, description, scope, mode
   const requestedCategory = params.get("category") ?? "";
   const category = categories.includes(requestedCategory) ? requestedCategory : "";
   const topic = params.get("topic");
+  const searchRef = useRef<HTMLInputElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const contentsRef = useRef<HTMLElement>(null);
   const returnToContents = useRef(false);
-  const previousTopic = useRef(topic);
+  const previousTopic = useRef<string | null>(null);
   const selected = articles.find((article) => article.id === topic);
   const selectedMedia = selected ? findGuideMedia(scope, selected.id) : undefined;
   const visualArticles = articles.filter((article) => findGuideMedia(scope, article.id));
@@ -39,6 +40,7 @@ export default function GuideCatalog({ articles, title, description, scope, mode
   const visible = searchIndex
     .filter(({ article, text }) => (!category || article.category === category) && terms.every((term) => text.includes(term)))
     .map(({ article }) => article);
+  const firstVisualResult = visible.find((article) => findGuideMedia(scope, article.id));
 
   function updateFilters(key: "q" | "category", value: string) {
     // BrowserRouter updates the address before React commits the new filters.
@@ -63,6 +65,7 @@ export default function GuideCatalog({ articles, title, description, scope, mode
     const next = new URLSearchParams(window.location.search);
     next.delete("q"); next.delete("category"); next.delete("topic");
     setParams(next, { preventScrollReset: true });
+    searchRef.current?.focus();
   }
 
   function closeArticle() {
@@ -79,8 +82,14 @@ export default function GuideCatalog({ articles, title, description, scope, mode
       returnToContents.current = false;
     }
     if (topic !== previousTopic.current && selected) {
-      headingRef.current?.focus({ preventScroll: true });
-      headingRef.current?.scrollIntoView({ block: "start" });
+      // Align after the route's initial scroll reset, including direct links
+      // and reloads. Cancel stale navigation before focusing another article.
+      const frame = window.requestAnimationFrame(() => {
+        headingRef.current?.focus({ preventScroll: true });
+        headingRef.current?.scrollIntoView({ block: "start" });
+        previousTopic.current = topic;
+      });
+      return () => window.cancelAnimationFrame(frame);
     }
     previousTopic.current = topic;
   }, [topic, selected]);
@@ -104,7 +113,7 @@ export default function GuideCatalog({ articles, title, description, scope, mode
 
       <div className={styles.finder}>
         <label className={styles.searchLabel} htmlFor={`guide-search-${scope}`}>어떤 작업이 필요한가요?</label>
-        <input id={`guide-search-${scope}`} type="search" value={query}
+        <input ref={searchRef} id={`guide-search-${scope}`} type="search" value={query}
           placeholder="기능, 화면 이름, 막힌 상황 검색"
           onChange={(event) => updateFilters("q", event.target.value)} className={styles.search} />
         <div className={styles.categories} role="group" aria-label="가이드 분류">
@@ -184,16 +193,16 @@ export default function GuideCatalog({ articles, title, description, scope, mode
               </Link>
             )}
           </article>
-        ) : (
+        ) : visible.length > 0 ? (
           <section className={styles.welcome} aria-label="가이드 시작 안내">
             <span className={styles.bookmark} aria-hidden="true">A → Z</span>
             <h2>처음부터, 또는 필요한 업무부터</h2>
             <p>목차에서 기능을 선택하면 준비사항부터 완료 확인까지 한 흐름으로 볼 수 있습니다. 화면을 열기 전에 안내를 먼저 읽어 주세요.</p>
             <p>검색어와 읽던 안내는 주소에 남아 새로고침하거나 뒤로 돌아와도 이어서 볼 수 있습니다.</p>
             {visible[0] && <button type="button" onClick={() => openArticle(visible[0].id)}>{query || category ? "첫 검색 결과 읽기" : "첫 단계부터 시작"} →</button>}
-            {visualArticles[0] && <button type="button" onClick={() => openArticle(visualArticles[0].id)}>사진·영상으로 시작하기 →</button>}
+            {firstVisualResult && <button type="button" onClick={() => openArticle(firstVisualResult.id)}>사진·영상으로 시작하기 →</button>}
           </section>
-        )}
+        ) : null}
       </div>
     </div>
   );
