@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -16,6 +17,15 @@ export default function SubjectiveGradingEntry({ exam, onEnter, onStatistics, on
   onOpenSetup?: () => void;
 }) {
   const queryClient = useQueryClient();
+  const mountedRef = useRef(false);
+  const focusFrameRef = useRef<number | null>(null);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (focusFrameRef.current != null) window.cancelAnimationFrame(focusFrameRef.current);
+    };
+  }, []);
   const needsSetup = exam.grading_mode === "choice";
   const usesCorrectness = !needsSetup && exam.manual_grading_method === "correctness";
   const sheet = useQuery({
@@ -37,7 +47,12 @@ export default function SubjectiveGradingEntry({ exam, onEnter, onStatistics, on
         queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.manualGradeSheet(exam.id) }),
         queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.sessionScores }),
       ]);
-      window.requestAnimationFrame(onEnter);
+      if (mountedRef.current) {
+        focusFrameRef.current = window.requestAnimationFrame(() => {
+          focusFrameRef.current = null;
+          if (mountedRef.current) onEnter();
+        });
+      }
     },
     onError: async (error) => {
       if (isStaleResourceConflict(error)) {

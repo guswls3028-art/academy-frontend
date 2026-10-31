@@ -87,6 +87,43 @@ for (const width of [390, 1366]) {
   }
 }
 
+test("서술형 채점 활성화 응답이 늦어도 이동한 시험의 포커스를 가져오지 않는다", async ({ page }) => {
+  test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+  const apiState = await installApi(page, { gradingMode: "choice", manualGradingMethod: "score" });
+  const nextExamId = EXAM_ID + 1;
+  await page.route(`**/results/admin/sessions/${SESSION_ID}/exams/`, (route) => route.fulfill({ json: [
+    { exam_id: EXAM_ID, title: "7월 진단평가", display_order: 0 },
+    { exam_id: nextExamId, title: "다음 서술형 시험", display_order: 1 },
+  ] }));
+  await page.route(`**/exams/${nextExamId}/`, (route) => route.fulfill({ json: {
+    id: nextExamId, title: "다음 서술형 시험", exam_type: "regular", subject: "MATH",
+    session_ids: [SESSION_ID], grading_mode: "written", manual_grading_method: "score",
+    max_score: 100, pass_score: 60, is_active: true, updated_at: "2026-07-30T09:00:00+09:00",
+  } }));
+  await page.route(`**/exams/${nextExamId}/questions/`, (route) => route.fulfill({ json: [] }));
+  await page.route(`**/results/admin/exams/${nextExamId}/manual-grading/`, (route) => route.fulfill({ json: {
+    exam_id: nextExamId, exam_title: "다음 서술형 시험", grading_mode: "written", manual_grading_method: "score",
+    has_manual_questions: false, exam_max_score: 100, question_score_total: 0, score_adjustment_total: 0,
+    questions: [], rows: [],
+  } }));
+  await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}&examTab=results`);
+  const release = apiState.holdNextGradingSetup();
+  await page.getByRole("button", { name: "서술형 채점 켜고 입력하기" }).click();
+  await expect.poll(() => apiState.examPatches.length).toBe(1);
+  await page.getByRole("button", { name: /다음 서술형 시험 만점/ }).click();
+  await expect(page).toHaveURL(new RegExp(`examId=${nextExamId}`));
+  await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+  const currentAction = page.getByRole("button", { name: "문항별 정답률 보기", exact: true });
+  await currentAction.focus();
+  const response = page.waitForResponse((res) => res.url().endsWith(`/exams/${EXAM_ID}/`) && res.request().method() === "PATCH");
+  release();
+  await response;
+  // Let cache invalidation and the queued animation frame finish before asserting focus.
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(currentAction).toBeFocused();
+  await expect(page).toHaveURL(new RegExp(`examId=${nextExamId}`));
+});
+
 test("서술형 문항이 없으면 채점 화면에서 실제 문항 설정으로 이동한다", async ({ page }) => {
   test.skip(!isLocalBase(BASE), "Local route-mock spec.");
   await installApi(page, { gradingMode: "choice", hasQuestions: false });
@@ -280,6 +317,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let failManualSheetGetAfterPostCount: number | null = null;
   let nextManualApplyDelayMs = 0;
   let nextManualApplyGate: Promise<void> | null = null;
+  let nextGradingSetupGate: Promise<void> | null = null;
   const manualSheetGetEvents: Array<{ applied: boolean; failureArmed: boolean }> = [];
   let gradingMode = options.gradingMode ?? "written";
   let manualGradingMethod =
@@ -479,6 +517,11 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           manual_grading_method?: "correctness" | "score";
         };
         examPatches.push(body);
+        if (body.grading_mode && nextGradingSetupGate) {
+          const gate = nextGradingSetupGate;
+          nextGradingSetupGate = null;
+          await gate;
+        }
         if (options.conflictOnGradingSetup && body.grading_mode) {
           if (conflictOnGradingSetup) {
             conflictOnGradingSetup = false;
@@ -1173,6 +1216,11 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     holdNextManualApply() {
       let release!: () => void;
       nextManualApplyGate = new Promise<void>((resolve) => { release = resolve; });
+      return release;
+    },
+    holdNextGradingSetup() {
+      let release!: () => void;
+      nextGradingSetupGate = new Promise<void>((resolve) => { release = resolve; });
       return release;
     },
     examPatches,
