@@ -95,6 +95,12 @@ for (const width of [390, 1366]) {
       await expect(page.getByRole("heading", { name: "다음 교실 QR", exact: true })).toBeVisible();
       expect(resolved).toEqual([TOKEN, nextToken]);
       expect(state.records).toEqual([]);
+      await expect(page.getByLabel("카메라 미리보기", { exact: true })).toBeHidden();
+      const cameraBounds = await page.getByRole("region", { name: "QR 카메라", exact: true }).boundingBox();
+      const hintBounds = await page.getByText("QR 전체가 화면 안에 들어오도록 맞춰 주세요.", { exact: true }).boundingBox();
+      expect(cameraBounds).not.toBeNull(); expect(hintBounds).not.toBeNull();
+      expect(hintBounds!.y).toBeGreaterThanOrEqual(cameraBounds!.y);
+      expect(hintBounds!.y + hintBounds!.height).toBeLessThanOrEqual(cameraBounds!.y + cameraBounds!.height);
       await page.screenshot({ path: test.info().outputPath(`qr-links-${width}.png`), fullPage: true });
       await page.reload();
       await expect(page.getByRole("heading", { name: "다음 교실 QR", exact: true })).toBeVisible();
