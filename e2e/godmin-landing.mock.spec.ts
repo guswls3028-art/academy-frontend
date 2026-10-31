@@ -7,6 +7,9 @@ const BASE = (
   || "http://127.0.0.1:5174"
 ).replace(/\/+$/, "");
 
+// Service-worker fetches bypass page.route; this suite owns the mocked API.
+test.use({ serviceWorkers: "block" });
+
 async function prepareGodmin(page: Page) {
   await page.route("**/api/v1/landing-public/videos/**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(route.request().url().includes("showcase") ? { hero: null } : { count: 0, results: [], next: null }) }));
   await page.addInitScript(() => {
