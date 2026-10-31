@@ -68,9 +68,9 @@ export async function verifyAssessmentCopy(
       await dialog.getByRole("button", { name: "불러오기", exact: true }).click();
       const copied = await saved;
       await expect(dialog).toHaveCount(0);
-      await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+      await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+      await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
       await assertNoHorizontalOverflow(page);
       expect(await expectApi<{ title: string }>(request, "GET", `${endpoint}${copied.id}/`, admin.access)).toMatchObject({ title });
       if (kind === "exam") {
