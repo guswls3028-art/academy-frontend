@@ -466,6 +466,10 @@ for (const width of [1366, 1100, 390]) {
     await openExam(page, state);
     const navigation = page.getByTestId("session-assessment-remote");
     const workspace = page.locator(".session-assessment-workspace");
+    // Opening settings may scroll the workspace while the list stays sticky.
+    await navigation.evaluate(element => {
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) parent.scrollTop = 0;
+    });
     const navBox = await navigation.boundingBox();
     const workspaceBox = await workspace.boundingBox();
     if (width > 1000) {

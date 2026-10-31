@@ -43,9 +43,9 @@
 
 /* ── Header ── */
 .student-scores-drawer__header {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
   gap: 10px 12px;
   padding: 20px 56px 16px 20px;
   border-bottom: 1px solid var(--color-border-divider);
@@ -85,7 +85,9 @@
 }
 
 a.student-scores-drawer__student-link {
+  display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 2px 4px 2px 0;
   border-radius: 7px;
@@ -140,8 +142,8 @@ a.student-scores-drawer__student-link:focus-visible {
 }
 
 .student-scores-drawer__header-action {
-  flex-shrink: 0;
-  margin-left: 52px;
+  grid-column: 2;
+  justify-self: start;
   min-height: 36px;
   box-shadow: none;
 }
@@ -1321,7 +1323,7 @@ a.student-scores-drawer__student-link:focus-visible {
 }
 
 /* Read the assessment first, then choose its next action. */
-.student-scores-drawer__header-info { flex: 1 1 180px; min-width: 0; }
+.student-scores-drawer__header-info { min-width: 0; }
 .student-scores-drawer__header-name { white-space: normal; overflow-wrap: anywhere; }
 .student-scores-drawer__header-meta { display: flex; flex-wrap: wrap; margin-top: 6px; line-height: 1.5; }
 .student-scores-drawer__context { margin: 0 0 5px; font-size: 11px; color: var(--color-text-muted); font-weight: 500; }

@@ -1668,6 +1668,9 @@ test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여
     { waitUntil: "domcontentloaded" },
   );
 
+  const readinessSummary = page.locator('details[aria-label="과제 운영 준비"] > summary');
+  await expect(readinessSummary).toBeVisible({ timeout: 30_000 });
+  await readinessSummary.click();
   await expect(
     page.getByRole("button", { name: /대상 학생: 2명 등록/ }),
   ).toBeVisible({ timeout: 30_000 });
