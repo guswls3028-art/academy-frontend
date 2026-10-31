@@ -12,6 +12,83 @@ const NOID_SUBMISSION_ID = 1802;
 const QUESTION_IDS = [1001, 1002] as const;
 
 for (const width of [390, 1366]) {
+  test(`${width}px 연결 복구로 채점표를 다시 받아도 확정 전 점수를 보존한다`, async ({ page }, testInfo) => {
+    test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+    await page.setViewportSize({ width, height: 900 });
+    const options: InstallApiOptions = { manualGradingMethod: "score", studentName: "김학생" };
+    const apiState = await installApi(page, options);
+    await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    const grid = page.locator("[data-manual-grading-workspace]");
+    const score = grid.getByRole("spinbutton", { name: /60점 만점 점수/ });
+    await score.fill("17");
+    const reads = apiState.manualSheetGetCount;
+    options.studentName = "김학생(정보 수정)";
+    let failRefresh = width === 390;
+    await page.route(`**/results/admin/exams/${EXAM_ID}/manual-grading/`, async (route) => {
+      if (failRefresh && route.request().method() === "GET") {
+        await route.fulfill({ status: 503, json: { detail: "연결을 다시 확인해 주세요." } });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+    await page.clock.setFixedTime(Date.now() + 20_000);
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    if (failRefresh) {
+      await expect(grid.getByRole("alert")).toContainText("입력한 내용은 유지됩니다.");
+      await expect(score).toHaveValue("17");
+      await grid.screenshot({ path: testInfo.outputPath(`reconnect-error-${width}.png`) });
+      failRefresh = false;
+      await grid.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+    }
+    await expect.poll(() => apiState.manualSheetGetCount).toBeGreaterThan(reads);
+    await expect(grid.getByRole("status").filter({ hasText: "채점표에 새 정보가 있습니다." })).toBeVisible();
+    await expect(score).toHaveValue("17");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await grid.screenshot({ path: testInfo.outputPath(`reconnect-preserved-${width}.png`) });
+    await page.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+    await page.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+    await expect.poll(() => apiState.applied).toBe(true);
+    await expect(score).toHaveValue("17");
+    await expect(grid).toContainText("김학생(정보 수정)");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await expect(score).toHaveValue("17");
+  });
+
+  test(`${width}px 연결 복구 뒤 미완성 정오를 이어서 입력하고 자동 저장한다`, async ({ page }) => {
+    test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+    await page.setViewportSize({ width, height: 900 });
+    const options: InstallApiOptions = { studentName: "김학생" };
+    const apiState = await installApi(page, options);
+    await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}&examTab=results`);
+    const grid = page.locator("[data-manual-grading-workspace]");
+    const row = grid.getByRole("row").filter({ hasText: "김학생" });
+    const cells = row.locator("[data-manual-grade-cell]");
+    await cells.first().press("o");
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("미저장 · 빈칸 입력 필요");
+    options.studentName = "김학생(정보 수정)";
+    await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+    await page.clock.setFixedTime(Date.now() + 20_000);
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await expect(grid.getByRole("status").filter({ hasText: "채점표에 새 정보가 있습니다." })).toBeVisible();
+    await expect(row.getByRole("button", { name: / O$/ })).toHaveCount(1);
+    expect(apiState.postedRows).toHaveLength(0);
+    await cells.nth(1).press("x");
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
+    expect(apiState.postedRows).toHaveLength(1);
+    expect(apiState.postedRows[0]).toEqual(expect.objectContaining({ rows: [expect.objectContaining({
+      expected_version: null, cells: { [QUESTION_IDS[0]]: { state: "correct" }, [QUESTION_IDS[1]]: { state: "incorrect" } },
+    })] }));
+    await expect(row).toContainText("김학생(정보 수정)");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(row.getByRole("button", { name: / O$/ })).toHaveCount(1);
+    await expect(row.getByRole("button", { name: / X$/ })).toHaveCount(1);
+  });
+}
+
+for (const width of [390, 1366]) {
   test(`${width}px 학생 답안 상세에서 저장한 서술형 점수가 시험 통계에도 반영된다`, async ({ page }) => {
     test.skip(!isLocalBase(BASE), "Local route-mock spec.");
     await page.setViewportSize({ width, height: 900 });
