@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery } from "@tanstack/react-query";
 import {
   BookOpenCheck,
   Download,
@@ -24,7 +24,8 @@ import { essayIndexFromBoundary, examQuestionLabel } from "@/shared/scoring/exam
 import ExamResultsPanel from "@admin/domains/results/panels/ExamResultsPanel";
 import OmrReviewEntry from "@admin/domains/results/components/omr-review/OmrReviewEntry";
 import ExamResultExcelImport from "@admin/domains/results/components/ExamResultExcelImport";
-import ManualExamGradingGrid from "@admin/domains/results/components/ManualExamGradingGrid";
+import ManualExamGradingGrid, { type ManualExamGradingGridHandle } from "@admin/domains/results/components/ManualExamGradingGrid";
+import { adminResultsQueryKeys } from "@admin/domains/results/public/manualExamGrading";
 import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -62,8 +63,36 @@ async function fetchQuestionStats(examId: number, lectureId: number | null): Pro
   return raw;
 }
 
-export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = false, onOpenSetup }: Props) {
+export default function ExamResultsViewerPanel(props: Props) {
+  return <ExamResultsViewerContent key={props.examId} {...props} />;
+}
+
+function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenSetup }: Props) {
   const [selectedLectureId, setSelectedLectureId] = useState<number | null>(null);
+  const manualGridRef = useRef<ManualExamGradingGridHandle>(null);
+  const editingRegionRef = useRef<HTMLDivElement>(null);
+  const excelApplying = useIsMutating({ mutationKey: adminResultsQueryKeys.examResultImport(examId) }) > 0;
+  const preparingExcelRef = useRef(false);
+  const prepareExcelApply = async () => {
+    const region = editingRegionRef.current;
+    if (!region || preparingExcelRef.current) throw new Error("채점 결과를 처리하고 있습니다. 잠시 후 다시 시도해 주세요.");
+    // Lock synchronously, before waiting for an in-flight correctness save.
+    region.inert = true;
+    preparingExcelRef.current = true;
+    const release = () => {
+      region.inert = false;
+      preparingExcelRef.current = false;
+    };
+    try {
+      if (manualGridRef.current && !(await manualGridRef.current.flushBeforeExternalUpdate())) {
+        throw new Error("수동 채점 입력을 보존했습니다. 빈칸·저장 실패를 해결하거나 성적 확정을 마치고 열린 편집창을 닫은 뒤 엑셀을 다시 반영해 주세요.");
+      }
+      return release;
+    } catch (error) {
+      release();
+      throw error;
+    }
+  };
   const gradingEntryRef = useRef<HTMLDivElement>(null);
   const statisticsRef = useRef<HTMLDetailsElement>(null);
   const analysisRef = useRef<HTMLElement>(null);
@@ -186,7 +215,9 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
   }
 
   return (
-    <div className={styles.workspace}>
+    <>
+      {excelApplying && <p role="status">수동 채점 저장과 엑셀 반영을 마칠 때까지 채점표 편집을 잠시 기다려 주세요.</p>}
+      <div ref={editingRegionRef} className={styles.workspace} inert={excelApplying} aria-busy={excelApplying}>
       {exam && (
         <SubjectiveGradingEntry
           key={examId}
@@ -201,10 +232,10 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
       )}
       {exam?.grading_mode !== "choice" && (
         <div ref={gradingEntryRef} tabIndex={-1} className={styles.jumpTarget}>
-          <ManualExamGradingGrid examId={examId} showUnavailableState />
+          <ManualExamGradingGrid ref={manualGridRef} examId={examId} showUnavailableState />
         </div>
       )}
-      <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} />
+      <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} beforeApply={prepareExcelApply} />
 
       <section className={styles.scopePanel} aria-labelledby="exam-result-scope-title">
         <div className={styles.scopeHeading}>
@@ -440,7 +471,8 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
           wrongCompletionOnly={wrongCompletionOnly}
         />
       </section>
-    </div>
+      </div>
+    </>
   );
 }
 

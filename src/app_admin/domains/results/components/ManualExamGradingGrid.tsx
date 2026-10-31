@@ -10,7 +10,7 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -77,6 +77,7 @@ type Props = {
 
 export type ManualExamGradingGridHandle = {
   flushPending: () => Promise<boolean>;
+  flushBeforeExternalUpdate: () => Promise<boolean>;
 };
 
 type CorrectnessAutosaveStatus = "incomplete" | "pending" | "saving" | "saved" | "failed";
@@ -190,6 +191,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   showUnavailableState = false,
 }, forwardedRef) {
   const queryClient = useQueryClient();
+  const excelApplying = useIsMutating({ mutationKey: adminResultsQueryKeys.examResultImport(examId) }) > 0;
   const workspaceRef = useRef<HTMLElement>(null);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -662,8 +664,6 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     );
   }, [data?.manual_grading_method, runAutosaveQueue]);
 
-  useImperativeHandle(forwardedRef, () => ({ flushPending }), [flushPending]);
-
   const quickStartMutation = useMutation({
     mutationFn: async () => {
       const count = Number(quickStartCount);
@@ -752,10 +752,20 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       : null;
   const preview = previewMutation.data;
   const hasErrors = Boolean(preview?.errors.length);
-  const busy =
+  const manualWriteBusy =
     previewMutation.isPending ||
     applyMutation.isPending ||
     quickStartMutation.isPending;
+  const busy = manualWriteBusy || excelApplying;
+  useImperativeHandle(forwardedRef, () => ({
+    flushPending,
+    // The caller holds the editing region inert until the external write and
+    // its refetch finish. Never discard explicit edits or an open editor.
+    flushBeforeExternalUpdate: async () => {
+      if (manualWriteBusy || answerKeyOpen || weightEditorOpen || quickStartOpen || shortcutSettingsOpen) return false;
+      return flushPending();
+    },
+  }), [flushPending, manualWriteBusy, answerKeyOpen, weightEditorOpen, quickStartOpen, shortcutSettingsOpen]);
   const autosaveStatusText = autosaveSummary.failed > 0
     ? `${autosaveSummary.failed}명 저장 실패`
     : autosaveSummary.saving > 0
@@ -1121,7 +1131,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     if (!showUnavailableState) return null;
     return (
       <>
-        <section className={`${styles.card} ${styles.emptyStart}`}>
+        <section className={`${styles.card} ${styles.emptyStart}`} inert={excelApplying}>
           <div className={styles.emptyStartHeading}>
             <span className={styles.icon} aria-hidden>
               <ClipboardCheck size={ICON.lg} />
@@ -1649,6 +1659,8 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     <section
       ref={workspaceRef}
       className={styles.card}
+      inert={excelApplying}
+      aria-busy={excelApplying}
       aria-labelledby="manual-grading-title"
       aria-keyshortcuts="Control+V Meta+V Control+Z Meta+Z Control+Shift+Z Meta+Shift+Z Control+Y Meta+Y Control+S Meta+S"
       tabIndex={-1}
