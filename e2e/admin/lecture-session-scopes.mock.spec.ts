@@ -1269,6 +1269,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
 
 async function openGuidedAnswerDialog(page: import("@playwright/test").Page, state: MockState) {
   await openLecture(page, state);
+  await waitForRenderSettled(page);
   await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/scores`, { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "시험 추가", exact: true }).first().click();
   await page.getByText("시험 설정해서 만들기", { exact: true }).click();
