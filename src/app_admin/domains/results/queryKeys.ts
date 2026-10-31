@@ -7,6 +7,7 @@ export const adminResultsQueryKeys = {
   lectures: ["admin-results-lectures"] as const,
   lectureSessionsAll: ["lecture-sessions-all"] as const,
 
+  adminExamResultsRoot: (examId: number) => ["admin-exam-results", examId] as const,
   adminExamResults: (examId: number | null | undefined, lectureId?: number | null) =>
     ["admin-exam-results", examId, lectureId ?? "all"] as const,
   adminExamDetail: (examId: number | null | undefined, enrollmentId?: number | null) =>

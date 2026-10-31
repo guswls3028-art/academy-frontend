@@ -12,6 +12,121 @@ const NOID_SUBMISSION_ID = 1802;
 const QUESTION_IDS = [1001, 1002] as const;
 
 for (const width of [390, 1366]) {
+  for (const source of ["오프라인 답안", "OMR 보정"] as const) {
+    test(`${width}px ${source} 확정 후 선택한 강의의 성적과 문항 통계가 함께 갱신된다`, async ({ page }) => {
+      test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+      await page.setViewportSize({ width, height: 900 });
+      const result = {
+        enrollment_id: ENROLLMENT_ID, student_name: "김학생", result_status: "DONE",
+        rank: 1, ranking_score: 40, final_score: 40, cohort_size: 1,
+        lecture_title: "공통수학2 정규반", lecture_chip_label: "수2",
+      };
+      const initialResults = [source === "OMR 보정" ? result : {
+        ...result, enrollment_id: ENROLLMENT_ID + 1, student_name: "이학생",
+      }];
+      const apiState = await installApi(page, {
+        gradingMode: "choice", editable: false,
+        resultRows: initialResults,
+        submissionRows: source === "OMR 보정" ? [{
+          id: DONE_SUBMISSION_ID, enrollment_id: ENROLLMENT_ID, student_name: "김학생",
+          status: "done", source: "omr_scan", score: 40, has_file: true,
+          manual_review_required: false, detail_manual_review_required: false,
+          manual_review_reasons: [], identifier_status: "matched",
+        }] : [],
+      });
+      const saved = () => source === "OMR 보정"
+        ? apiState.manualEditPostCount > 0
+        : apiState.offlineAnswerWrites.some((write) => write.apply);
+      await page.route(`**/exams/${EXAM_ID}/lecture-assignments/`, (route) => route.fulfill({ json: {
+        exam_id: EXAM_ID, total_selected_count: 1, assignments: [{
+          lecture_id: LECTURE_ID, lecture_title: "공통수학2 정규반", pass_score: 60,
+          selected_count: 1, roster_count: 1, sessions: [],
+        }],
+      } }));
+      await page.route(`**/results/admin/exams/${EXAM_ID}/results/**`, (route) => route.fulfill({ json: {
+        results: saved() ? [{ ...result, ranking_score: 100, final_score: 100 }]
+          : initialResults,
+      } }));
+      await page.route(`**/results/admin/exams/${EXAM_ID}/questions/**`, (route) => route.fulfill({ json: [{
+        question_id: QUESTION_IDS[0], question_number: 1, attempts: saved() ? 1 : 0,
+        correct: saved() ? 1 : 0, accuracy: saved() ? 1 : 0,
+        avg_score: saved() ? 40 : 0, max_score: 40,
+      }] }));
+      let rejectFirstApply = width === 390;
+      const writePath = source === "OMR 보정"
+        ? `/submissions/submissions/${DONE_SUBMISSION_ID}/manual-edit/`
+        : `/results/admin/exams/${EXAM_ID}/enrollments/${ENROLLMENT_ID}/manual-answers/`;
+      await page.route(`**${writePath}`, async (route) => {
+        const request = route.request();
+        if (rejectFirstApply && request.method() === "POST"
+          && (source === "OMR 보정" || request.postDataJSON().apply)) {
+          rejectFirstApply = false;
+          await route.fulfill({ status: 409, json: { detail: "답안 저장 충돌. 확인 후 다시 시도해 주세요." } });
+          return;
+        }
+        await route.fallback();
+      });
+      const openResults = async () => {
+        await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+        await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+      };
+      await openResults();
+      const scope = page.getByRole("group", { name: "성적 조회 강의 필터" });
+      await scope.getByRole("button", { name: /공통수학2 정규반/ }).click();
+      await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
+      const statistics = page.locator("details").filter({ has: page.locator("summary", { hasText: "전체 문항 통계 보기" }) });
+      await expect(statistics).toContainText("0.0점");
+      if (source === "오프라인 답안") {
+        await page.getByRole("button", { name: "김학생 · 답안 입력" }).click();
+        const editor = page.getByRole("region", { name: "김학생 오프라인 답안 입력" });
+        await expect(editor.getByRole("button", { name: "채점 미리보기" })).toBeEnabled();
+        await editor.getByRole("group", { name: "1번 답안" }).getByRole("button", { name: "4" }).click();
+        await editor.getByRole("textbox", { name: "2번 숫자 답안" }).fill("7");
+        await editor.getByRole("button", { name: "채점 미리보기" }).click();
+        await expect(editor).toContainText("미리보기 · 100/100점");
+        await expect(statistics).toContainText("0.0점");
+        await editor.getByRole("button", { name: "답안 확정" }).click();
+        if (width === 390) {
+          await expect(editor).toContainText("답안 저장 충돌");
+          expect(saved()).toBe(false);
+          await expect(editor.getByRole("textbox", { name: "2번 숫자 답안" })).toHaveValue("7");
+          await expect(statistics).toContainText("0.0점");
+          await editor.getByRole("button", { name: "채점 미리보기" }).click();
+          await editor.getByRole("button", { name: "답안 확정" }).click();
+        }
+        await expect(editor).not.toBeVisible();
+        await page.getByRole("dialog").getByRole("button", { name: "닫기", exact: true }).click();
+      } else {
+        await page.getByRole("button", { name: "OMR 다시 보기", exact: true }).click();
+        const dialog = page.getByRole("dialog", { name: "OMR 검토", exact: true });
+        await dialog.locator(".orw-list-row").filter({ hasText: "김학생" }).click();
+        await dialog.getByRole("button", { name: "4", exact: true }).click();
+        await dialog.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
+        if (width === 390) {
+          await expect(page.getByText("답안 저장 충돌. 확인 후 다시 시도해 주세요.", { exact: true })).toBeVisible();
+          expect(saved()).toBe(false);
+          await dialog.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
+        }
+        await expect(page.getByText("저장 + 재채점 완료: 100점", { exact: true })).toBeVisible();
+        await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      }
+      const results = page.getByRole("region", { name: "시험 학생별 결과", exact: true });
+      await expect(results).toContainText("100");
+      await expect(statistics).toContainText("40.0점");
+      await expect(statistics).toContainText("100.0%");
+      await scope.getByRole("button", { name: /전체 성적/ }).click();
+      await expect(results).toContainText("100");
+      await expect(statistics).toContainText("40.0점");
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await openResults();
+      await expect(results).toContainText("100");
+      await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
+      await expect(statistics).toContainText("40.0점");
+    });
+  }
+}
+
+for (const width of [390, 1366]) {
   for (const initialMode of ["choice", "mixed"] as const) {
   test(`${width}px ${initialMode} 주관식 바로가기에서 확정한 점수가 강의별 문항 통계에 즉시 반영된다`, async ({ page }, testInfo) => {
     test.skip(!isLocalBase(BASE), "Local route-mock spec.");
