@@ -3,8 +3,8 @@
  * 제안은 현재 대표 결과에서 계산하며 시험 컷이나 재시험 정책을 자동 변경하지 않는다.
  */
 
-import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useIsMutating, useMutation, useQuery } from "@tanstack/react-query";
 import {
   BookOpenCheck,
   Download,
@@ -24,7 +24,8 @@ import { essayIndexFromBoundary, examQuestionLabel } from "@/shared/scoring/exam
 import ExamResultsPanel from "@admin/domains/results/panels/ExamResultsPanel";
 import OmrReviewEntry from "@admin/domains/results/components/omr-review/OmrReviewEntry";
 import ExamResultExcelImport from "@admin/domains/results/components/ExamResultExcelImport";
-import ManualExamGradingGrid from "@admin/domains/results/components/ManualExamGradingGrid";
+import ManualExamGradingGrid, { type ManualExamGradingGridHandle } from "@admin/domains/results/components/ManualExamGradingGrid";
+import { adminResultsQueryKeys } from "@admin/domains/results/public/manualExamGrading";
 import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -36,10 +37,12 @@ import { adminExamsQueryKeys } from "../queryKeys";
 import { fetchExamLectureAssignments } from "../api/examLectureAssignments";
 import { buildExamResultsInsightModel } from "./examResultsInsights";
 import styles from "./ExamResultsViewerPanel.module.css";
+import SubjectiveGradingEntry from "./SubjectiveGradingEntry";
 
 type Props = {
   examId: number;
   wrongCompletionOnly?: boolean;
+  onOpenSetup?: () => void;
 };
 
 async function fetchResults(examId: number, lectureId: number | null): Promise<AdminExamResultRow[]> {
@@ -60,8 +63,45 @@ async function fetchQuestionStats(examId: number, lectureId: number | null): Pro
   return raw;
 }
 
-export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = false }: Props) {
+export default function ExamResultsViewerPanel(props: Props) {
+  return <ExamResultsViewerContent key={props.examId} {...props} />;
+}
+
+function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenSetup }: Props) {
   const [selectedLectureId, setSelectedLectureId] = useState<number | null>(null);
+  const manualGridRef = useRef<ManualExamGradingGridHandle>(null);
+  const editingRegionRef = useRef<HTMLDivElement>(null);
+  const excelApplying = useIsMutating({ mutationKey: adminResultsQueryKeys.examResultImport(examId) }) > 0;
+  const preparingExcelRef = useRef(false);
+  const prepareExcelApply = async () => {
+    const region = editingRegionRef.current;
+    if (!region || preparingExcelRef.current) throw new Error("채점 결과를 처리하고 있습니다. 잠시 후 다시 시도해 주세요.");
+    // Lock synchronously, before waiting for an in-flight correctness save.
+    region.inert = true;
+    preparingExcelRef.current = true;
+    const release = () => {
+      region.inert = false;
+      preparingExcelRef.current = false;
+    };
+    try {
+      if (manualGridRef.current && !(await manualGridRef.current.flushBeforeExternalUpdate())) {
+        throw new Error("수동 채점 입력을 보존했습니다. 빈칸·저장 실패를 해결하거나 성적 확정을 마치고 열린 편집창을 닫은 뒤 엑셀을 다시 반영해 주세요.");
+      }
+      return release;
+    } catch (error) {
+      release();
+      throw error;
+    }
+  };
+  const gradingEntryRef = useRef<HTMLDivElement>(null);
+  const statisticsRef = useRef<HTMLDetailsElement>(null);
+  const analysisRef = useRef<HTMLElement>(null);
+  const [statisticsOpen, setStatisticsOpen] = useState(false);
+  const jumpTo = (element: HTMLElement | null) => {
+    if (!element) return;
+    element.focus({ preventScroll: true });
+    element.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+  };
   const { data: exam } = useAdminExam(examId);
   const questionKindsQ = useQuery({
     queryKey: adminExamsQueryKeys.examQuestions(examId),
@@ -175,12 +215,27 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
   }
 
   return (
-    <div className={styles.workspace}>
+    <>
+      {excelApplying && <p role="status">수동 채점 저장과 엑셀 반영을 마칠 때까지 채점표 편집을 잠시 기다려 주세요.</p>}
+      <div ref={editingRegionRef} className={styles.workspace} inert={excelApplying} aria-busy={excelApplying}>
+      {exam && (
+        <SubjectiveGradingEntry
+          key={examId}
+          exam={exam}
+          onEnter={() => jumpTo(gradingEntryRef.current)}
+          onStatistics={() => { setStatisticsOpen(true); jumpTo(statisticsRef.current ?? analysisRef.current); }}
+          onOpenSetup={onOpenSetup}
+        />
+      )}
       {exam?.grading_mode !== "written" && (
         <OmrReviewEntry examId={examId} examTitle={exam?.title ?? "시험"} />
       )}
-      {exam?.grading_mode !== "choice" && <ManualExamGradingGrid examId={examId} />}
-      <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} />
+      {exam?.grading_mode !== "choice" && (
+        <div ref={gradingEntryRef} tabIndex={-1} className={styles.jumpTarget}>
+          <ManualExamGradingGrid ref={manualGridRef} examId={examId} showUnavailableState />
+        </div>
+      )}
+      <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} beforeApply={prepareExcelApply} />
 
       <section className={styles.scopePanel} aria-labelledby="exam-result-scope-title">
         <div className={styles.scopeHeading}>
@@ -216,7 +271,7 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
         </div>
       </section>
 
-      <section className={styles.analysisShell} aria-labelledby="exam-analysis-title">
+      <section ref={analysisRef} tabIndex={-1} className={`${styles.analysisShell} ${styles.jumpTarget}`} aria-labelledby="exam-analysis-title">
         <header className={styles.analysisHeader}>
           <div className={styles.headingCopy}>
             <span className={styles.eyebrow}>TEACHING BRIEF</span>
@@ -366,14 +421,16 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
             </div>
 
             {insight.priorityQuestions.length > 0 && (
-              <details className={styles.questionDetails}>
+              <details ref={statisticsRef} tabIndex={-1} className={`${styles.questionDetails} ${styles.jumpTarget}`} open={statisticsOpen} onToggle={(event) => setStatisticsOpen(event.currentTarget.open)}>
                 <summary>전체 문항 통계 보기</summary>
+                <p className={styles.statisticsNote}>주관식·서술형도 포함됩니다. 정답률은 만점을 받은 비율이며, 부분점수는 평균 득점에 반영됩니다.</p>
                 <div className={styles.tableScroller}>
                   <table>
                     <thead>
                       <tr>
                         <th>문항</th>
                         <th>정답률</th>
+                        <th>평균 득점</th>
                         <th>정답 수</th>
                         <th>응시 수</th>
                         <th>권장 행동</th>
@@ -386,6 +443,7 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
                           <tr key={question.question_id}>
                             <td>{questionLabel(question.question_number)}</td>
                             <td><span data-tone={question.tone}>{question.accuracyPercent.toFixed(1)}%</span></td>
+                            <td>{question.avg_score.toFixed(1)}점</td>
                             <td>{question.correct}</td>
                             <td>{question.attempts}</td>
                             <td>{question.action}</td>
@@ -413,7 +471,8 @@ export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = f
           wrongCompletionOnly={wrongCompletionOnly}
         />
       </section>
-    </div>
+      </div>
+    </>
   );
 }
 

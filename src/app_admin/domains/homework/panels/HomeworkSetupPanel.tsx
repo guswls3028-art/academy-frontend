@@ -73,6 +73,7 @@ export default function HomeworkSetupPanel({
         title="과제 운영 준비"
         description="제출 전 확인이 필요한 항목을 한 번에 점검합니다."
         items={readinessItems}
+        compactWhenReady
       />
       <HomeworkPolicyPanel homeworkId={homeworkId} />
       <HomeworkEnrollmentPanel homeworkId={homeworkId} />

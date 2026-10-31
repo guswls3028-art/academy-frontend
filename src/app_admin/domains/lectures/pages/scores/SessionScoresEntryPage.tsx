@@ -48,6 +48,7 @@ import { InlineHelp } from "@/shared/ui/guide";
 import type { SessionOmrUploadTarget } from "./SessionOmrUploadAction";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
+import type { ManualExamGradingGridHandle } from "@admin/domains/results/public/manualExamGrading";
 import { useTrackedTask } from "@/shared/productAnalytics";
 import useAuth from "@/auth/hooks/useAuth";
 import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
@@ -64,10 +65,6 @@ import "./SessionScoresStartPanel.css";
 type SessionScoresEntryPageProps = {
   onOpenCreateExam?: () => void;
   onOpenCreateHomework?: () => void;
-};
-
-type ManualGradingFlushHandle = {
-  flushPending: () => Promise<boolean>;
 };
 
 function getStoredSummaryColumnMode(
@@ -202,7 +199,7 @@ export default function SessionScoresEntryPage({
   const [gradingEntryError, setGradingEntryError] = useState<string | null>(null);
   const gradingEntryErrorRef = useRef<HTMLDivElement>(null);
   const openedGradingDeepLinkRef = useRef<number | null>(null);
-  const manualGradingRef = useRef<ManualGradingFlushHandle>(null);
+  const manualGradingRef = useRef<ManualExamGradingGridHandle>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const recoveryRestoreButtonRef = useRef<HTMLButtonElement>(null);
   const recoveryDialogRef = useRef<HTMLDivElement>(null);

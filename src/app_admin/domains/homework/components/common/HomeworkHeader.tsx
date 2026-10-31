@@ -80,8 +80,8 @@ export default function HomeworkHeader({ homework, primaryAction, readError = fa
               onClick={() => setTemplateModalOpen(true)}
               disabled={readError || readPending || saveAsTemplateMut.isPending}
               className="assessment-template-button"
+              leftIcon={<FiSave size={ICON_FOR_BUTTON.sm} />}
             >
-              <FiSave className="shrink-0" size={16} aria-hidden />
               템플릿으로 저장
             </Button>
           )}

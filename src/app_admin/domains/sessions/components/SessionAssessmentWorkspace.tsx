@@ -38,7 +38,7 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
   }
 
   return (
-    <Panel className="min-w-0">
+    <Panel className="session-assessment-workspace min-w-0">
       {!activeId ? (
         <div className="flex h-[240px] flex-col items-center justify-center text-center">
           <div
@@ -49,7 +49,7 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
           <div
             className="mt-1 text-xs text-[var(--color-text-muted)]"
           >
-            위 목록에서 {titleLabel}을 선택하세요
+            목록에서 {titleLabel}을 선택하세요
           </div>
         </div>
       ) : (

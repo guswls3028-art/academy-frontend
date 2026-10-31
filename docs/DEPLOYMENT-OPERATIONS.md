@@ -1047,6 +1047,16 @@ GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사
 - `quality-check`는 lockfile 설치 직후 `pnpm audit --prod`를 차단 게이트로
   실행한다. production dependency advisory가 생기면 preview와 운영 배포로
   진행하지 않으며 audit ignore나 취약 버전 override로 통과시키지 않는다.
+- ExcelJS 4.4의 공개 API와 브라우저 XLSX 경로를 유지하면서 Node ZIP 의존성은
+  `exceljs>unzipper` 0.12.5, `archiver-utils>glob` 14.0.3,
+  `readdir-glob>minimatch` 11.0.3으로 제한해 고정한다. 오래된 glob 내부의
+  minimatch만 교체하면 matcher 표현이 달라져 파일 탐색이 실패하므로 해당
+  glob 소비자의 동기 API 전체를 호환 버전으로 교체한다. 다른 glob/minimatch
+  소비자에는 이 override를 적용하지 않는다. `follow-redirects`는 1.16.2로
+  고정해 다른 JavaScript 실행 영역에서 받은 민감 헤더 목록도 유지한다.
+  보안 검사 다음의 `Excel dependency compatibility`는 재귀·한글·확장자·제외
+  패턴과 XLSX 셀·날짜·수식·병합·스트리밍 ZIP 왕복을 확인한다. 실패 시 배포를
+  중단하고 해당 의존성 조합을 수정하며 audit 예외로 넘기지 않는다.
 - 2026-09-20 개발 도구 전이 의존성의 최소 수정 버전을 `js-yaml` 4.3.2
   (GHSA-2883-xcg3-v3hh), `browserslist` 4.28.7 (GHSA-73wf-gq98-2v4g),
   `baseline-browser-mapping` 2.11.0 (GHSA-w5vr-8v7q-w6rv), `nanoid` 3.3.18

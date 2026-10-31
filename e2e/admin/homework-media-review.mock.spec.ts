@@ -263,7 +263,7 @@ async function openSubmissionReview(page: Page) {
     `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/assignments?assessment=homework%3A${HOMEWORK_ID}`,
     { waitUntil: "domcontentloaded", timeout: 90_000 },
   );
-  await expect(page.getByText("도형 풀이 인증", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "도형 풀이 인증", exact: true })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("tab", { name: "제출관리", exact: true }).click();
   await expect(page.getByRole("heading", { name: "과제 제출 검수" })).toBeVisible({ timeout: 30_000 });
 }

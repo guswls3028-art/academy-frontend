@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -27,15 +27,19 @@ import styles from "./ExamResultExcelImport.module.css";
 type Props = {
   examId: number;
   examTitle: string;
+  beforeApply?: () => Promise<() => void>;
 };
 
-export default function ExamResultExcelImport({ examId, examTitle }: Props) {
-  return <ExamResultExcelImportContent key={examId} examId={examId} examTitle={examTitle} />;
+export default function ExamResultExcelImport(props: Props) {
+  return <ExamResultExcelImportContent key={props.examId} {...props} />;
 }
 
-function ExamResultExcelImportContent({ examId, examTitle }: Props) {
+function ExamResultExcelImportContent({ examId, examTitle, beforeApply }: Props) {
   const queryClient = useQueryClient();
+  const importKey = adminResultsQueryKeys.examResultImport(examId);
+  const importPending = useIsMutating({ mutationKey: importKey }) > 0;
   const requestLock = useRef(false);
+  const releaseEditing = useRef<(() => void) | undefined>(undefined);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -63,8 +67,11 @@ function ExamResultExcelImportContent({ examId, examTitle }: Props) {
   });
 
   const applyMutation = useMutation({
-    mutationFn: () => {
+    mutationKey: importKey,
+    mutationFn: async () => {
       if (!selectedFile) throw new Error("엑셀 파일을 다시 선택해 주세요.");
+      releaseEditing.current = await beforeApply?.();
+      if (!mounted.current) throw new Error("시험 화면이 바뀌어 엑셀 반영을 취소했습니다.");
       return applyExamResultImport(examId, selectedFile);
     },
     onSuccess: async (result) => {
@@ -73,16 +80,22 @@ function ExamResultExcelImportContent({ examId, examTitle }: Props) {
         feedback.success(`${result.matched_count}명의 문항별 채점 결과를 반영했습니다.`);
       }
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResults(examId) }),
+        queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
         queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamSummary(examId) }),
-        queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestionStats(examId) }),
-        queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResults(examId) }),
+        queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(examId) }),
+        queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId) }),
+        queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.manualGradeSheet(examId) }),
+        queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.sessionScores }),
       ]);
     },
     onError: (error) => {
       if (mounted.current) feedback.error(extractApiError(error, "채점 결과를 반영하지 못했습니다."));
     },
-    onSettled: () => { requestLock.current = false; },
+    onSettled: () => {
+      releaseEditing.current?.();
+      releaseEditing.current = undefined;
+      requestLock.current = false;
+    },
   });
 
   const clear = () => {
@@ -95,7 +108,7 @@ function ExamResultExcelImportContent({ examId, examTitle }: Props) {
   };
 
   const handleFile = (file: File) => {
-    if (requestLock.current) return;
+    if (requestLock.current || queryClient.isMutating({ mutationKey: importKey })) return;
     requestLock.current = true;
     setSelectedFile(file);
     setPreview(null);
@@ -147,7 +160,7 @@ function ExamResultExcelImportContent({ examId, examTitle }: Props) {
         onFileSelect={handleFile}
         selectedFile={selectedFile}
         onClearFile={clear}
-        disabled={previewMutation.isPending || applyMutation.isPending}
+        disabled={previewMutation.isPending || importPending}
         hintText=".xlsx · 이름(또는 수강등록ID) + 1, 2, 3… 문항 열"
       />
 
@@ -198,9 +211,9 @@ function ExamResultExcelImportContent({ examId, examTitle }: Props) {
                 size="sm"
                 leftIcon={<Upload size={ICON_FOR_BUTTON.sm} />}
                 loading={applyMutation.isPending}
-                disabled={preview.matched_count === 0}
+                disabled={preview.matched_count === 0 || importPending}
                 onClick={() => {
-                  if (requestLock.current) return;
+                  if (requestLock.current || queryClient.isMutating({ mutationKey: importKey })) return;
                   requestLock.current = true;
                   applyMutation.mutate();
                 }}

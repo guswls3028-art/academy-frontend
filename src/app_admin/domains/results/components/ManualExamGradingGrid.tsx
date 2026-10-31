@@ -10,7 +10,7 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -77,6 +77,7 @@ type Props = {
 
 export type ManualExamGradingGridHandle = {
   flushPending: () => Promise<boolean>;
+  flushBeforeExternalUpdate: () => Promise<boolean>;
 };
 
 type CorrectnessAutosaveStatus = "incomplete" | "pending" | "saving" | "saved" | "failed";
@@ -190,6 +191,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   showUnavailableState = false,
 }, forwardedRef) {
   const queryClient = useQueryClient();
+  const excelApplying = useIsMutating({ mutationKey: adminResultsQueryKeys.examResultImport(examId) }) > 0;
   const workspaceRef = useRef<HTMLElement>(null);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -222,7 +224,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   const autosaveTimerRef = useRef<number | null>(null);
   const autosaveRunRef = useRef<Promise<boolean> | null>(null);
   const autosaveEpochRef = useRef(0);
-  const suppressNextSheetSyncRef = useRef(false);
+  const locallySyncedSheetRef = useRef<ManualGradeSheet | null>(null);
   const latestAutosaveSheetRef = useRef<ManualGradeSheet | null>(null);
   const [autosaveRows, setAutosaveRows] = useState<Record<number, CorrectnessAutosaveView>>({});
   const [answerKeyOpen, setAnswerKeyOpen] = useState(false);
@@ -280,10 +282,9 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
 
   useEffect(() => {
     if (!sheetQuery.data) return;
-    if (suppressNextSheetSyncRef.current) {
-      suppressNextSheetSyncRef.current = false;
-      return;
-    }
+    const alreadySynced = locallySyncedSheetRef.current === sheetQuery.data;
+    locallySyncedSheetRef.current = null;
+    if (alreadySynced) return;
     latestAutosaveSheetRef.current = null;
     const nextRows = cloneRows(sheetQuery.data.rows);
     const nextScores = Object.fromEntries(
@@ -389,16 +390,19 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       await Promise.all([
         sheetQuery.refetch(),
         queryClient.invalidateQueries({
-          queryKey: adminExamsQueryKeys.adminExamResults(examId),
+          queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId),
         }),
         queryClient.invalidateQueries({
           queryKey: adminExamsQueryKeys.adminExamSummary(examId),
         }),
         queryClient.invalidateQueries({
-          queryKey: adminExamsQueryKeys.examQuestionStats(examId),
+          queryKey: adminResultsQueryKeys.examQuestionStats(examId),
         }),
         queryClient.invalidateQueries({
-          queryKey: adminResultsQueryKeys.adminExamResults(examId),
+          queryKey: adminResultsQueryKeys.adminExamDetail(examId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: adminResultsQueryKeys.sessionScores,
         }),
       ]);
     },
@@ -414,16 +418,19 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       onApplied?.();
       void Promise.all([
         queryClient.invalidateQueries({
-          queryKey: adminExamsQueryKeys.adminExamResults(runExamId),
+          queryKey: adminExamsQueryKeys.adminExamResultsRoot(runExamId),
         }),
         queryClient.invalidateQueries({
           queryKey: adminExamsQueryKeys.adminExamSummary(runExamId),
         }),
         queryClient.invalidateQueries({
-          queryKey: adminExamsQueryKeys.examQuestionStats(runExamId),
+          queryKey: adminResultsQueryKeys.examQuestionStats(runExamId),
         }),
         queryClient.invalidateQueries({
-          queryKey: adminResultsQueryKeys.adminExamResults(runExamId),
+          queryKey: adminResultsQueryKeys.adminExamDetail(runExamId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: adminResultsQueryKeys.sessionScores,
         }),
       ]);
     };
@@ -559,11 +566,12 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
         clearHistory();
         const latestSheet = latestAutosaveSheetRef.current;
         if (latestSheet) {
-          suppressNextSheetSyncRef.current = true;
-          queryClient.setQueryData(
+          // React Query may retain the same object for an unchanged publish.
+          // Skip only this reconciled snapshot, never the next external result.
+          locallySyncedSheetRef.current = queryClient.setQueryData<ManualGradeSheet>(
             adminResultsQueryKeys.manualGradeSheet(runExamId),
             latestSheet,
-          );
+          ) ?? null;
         }
       }
       return !unresolved && !explicitDirtyRef.current;
@@ -656,8 +664,6 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     );
   }, [data?.manual_grading_method, runAutosaveQueue]);
 
-  useImperativeHandle(forwardedRef, () => ({ flushPending }), [flushPending]);
-
   const quickStartMutation = useMutation({
     mutationFn: async () => {
       const count = Number(quickStartCount);
@@ -746,10 +752,20 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       : null;
   const preview = previewMutation.data;
   const hasErrors = Boolean(preview?.errors.length);
-  const busy =
+  const manualWriteBusy =
     previewMutation.isPending ||
     applyMutation.isPending ||
     quickStartMutation.isPending;
+  const busy = manualWriteBusy || excelApplying;
+  useImperativeHandle(forwardedRef, () => ({
+    flushPending,
+    // The caller holds the editing region inert until the external write and
+    // its refetch finish. Never discard explicit edits or an open editor.
+    flushBeforeExternalUpdate: async () => {
+      if (manualWriteBusy || answerKeyOpen || weightEditorOpen || quickStartOpen || shortcutSettingsOpen) return false;
+      return flushPending();
+    },
+  }), [flushPending, manualWriteBusy, answerKeyOpen, weightEditorOpen, quickStartOpen, shortcutSettingsOpen]);
   const autosaveStatusText = autosaveSummary.failed > 0
     ? `${autosaveSummary.failed}명 저장 실패`
     : autosaveSummary.saving > 0
@@ -1115,7 +1131,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     if (!showUnavailableState) return null;
     return (
       <>
-        <section className={`${styles.card} ${styles.emptyStart}`}>
+        <section className={`${styles.card} ${styles.emptyStart}`} inert={excelApplying}>
           <div className={styles.emptyStartHeading}>
             <span className={styles.icon} aria-hidden>
               <ClipboardCheck size={ICON.lg} />
@@ -1643,6 +1659,8 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     <section
       ref={workspaceRef}
       className={styles.card}
+      inert={excelApplying}
+      aria-busy={excelApplying}
       aria-labelledby="manual-grading-title"
       aria-keyshortcuts="Control+V Meta+V Control+Z Meta+Z Control+Shift+Z Meta+Shift+Z Control+Y Meta+Y Control+S Meta+S"
       tabIndex={-1}
