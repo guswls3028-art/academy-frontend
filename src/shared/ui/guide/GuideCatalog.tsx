@@ -91,7 +91,8 @@ export default function GuideCatalog({ articles, title, description, scope, mode
       });
       return () => window.cancelAnimationFrame(frame);
     }
-    previousTopic.current = topic;
+    // Permission data can make a requested article available after mount.
+    previousTopic.current = selected?.id ?? null;
   }, [topic, selected]);
 
   const nextArticles = selected?.nextIds.flatMap((id) => {
