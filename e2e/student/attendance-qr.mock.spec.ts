@@ -70,6 +70,44 @@ async function installApi(page: Page, initialRole = "student", kind = "class") {
 }
 
 for (const width of [390, 1366]) {
+  test(`QR link changes during lookup and reload use the latest link ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await installApi(page);
+    const nextToken = "e68a44ec-a70c-4eb6-b49d-56e570dc2ef7";
+    const resolved: string[] = [];
+    let releaseFirst!: () => void;
+    const firstLookup = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    await page.route("**/api/v1/student/attendance/qr/resolve/", async (route) => {
+      const token = route.request().postDataJSON().token as string;
+      resolved.push(token);
+      if (resolved.length === 1) await firstLookup;
+      await route.fulfill({ json: {
+        point: { label: token === nextToken ? "다음 교실 QR" : "첫 교실 QR", kind: "class" },
+        choices: token === TOKEN ? [{ id: 41, label: "첫 교실 수업", date: "2026-10-31", start_time: null,
+          status: "UNSET", checked_in_at: null, checked_out_at: null, can_check_in: true, can_check_out: false }] : [],
+      } });
+    });
+    try {
+      await page.goto(QR_URL);
+      await expect.poll(() => resolved).toEqual([TOKEN]);
+      await page.evaluate((token) => { window.location.hash = `qr=${token}`; }, nextToken);
+      releaseFirst();
+      await expect(page.getByRole("heading", { name: "다음 교실 QR", exact: true })).toBeVisible();
+      expect(resolved).toEqual([TOKEN, nextToken]);
+      expect(state.records).toEqual([]);
+      await page.screenshot({ path: test.info().outputPath(`qr-links-${width}.png`), fullPage: true });
+      await page.reload();
+      await expect(page.getByRole("heading", { name: "다음 교실 QR", exact: true })).toBeVisible();
+      expect(resolved).toEqual([TOKEN, nextToken, nextToken]);
+      await page.goBack();
+      await expect(page.getByRole("heading", { name: "출석이 기록되었습니다.", exact: true })).toBeVisible();
+      await expect(page.getByText("첫 교실 수업", { exact: true })).toBeVisible();
+      expect(resolved).toEqual([TOKEN, nextToken, nextToken, TOKEN]);
+      expect(state.records).toEqual(["check_in"]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    } finally { releaseFirst(); }
+  });
+
   test(`QR class save, retry, reload and attendance consumer ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const state = await installApi(page);

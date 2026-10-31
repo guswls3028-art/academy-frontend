@@ -27,7 +27,7 @@ export default function QrScanPage() {
   const scanner = useRef<QrScanner | null>(null);
   const busyRef = useRef(false);
   const mounted = useRef(true);
-  const initialLink = useRef(false);
+  const lastLink = useRef("");
   const [camera, setCamera] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [pending, setPending] = useState("");
@@ -56,7 +56,7 @@ export default function QrScanPage() {
     });
   }, [queryClient]);
 
-  const decode = useCallback(async (raw: string) => {
+  const decode = useCallback(async (raw: string, fromLink = false) => {
     if (busyRef.current || !isStudent) return;
     busyRef.current = true;
     scanner.current?.stop();
@@ -67,7 +67,7 @@ export default function QrScanPage() {
       const qrToken = parseQrUrl(raw);
       setToken(qrToken);
       const result = await resolveAttendanceQr(qrToken);
-      if (!mounted.current) return;
+      if (!mounted.current || (fromLink && window.location.href !== raw)) return;
       setResolution(result);
       if (result.point.kind === "class" && result.choices.length === 1 && result.choices[0].can_check_in) {
         await save(qrToken, result.choices[0], "check_in");
@@ -81,10 +81,13 @@ export default function QrScanPage() {
   }, [isStudent, save]);
 
   useEffect(() => {
-    if (!isStudent || !location.hash || initialLink.current) return;
-    initialLink.current = true;
-    void decode(window.location.href);
-  }, [decode, isStudent, location.hash]);
+    if (!isStudent || !location.hash) { lastLink.current = ""; return; }
+    if (pending || busyRef.current) return;
+    const link = window.location.href;
+    if (lastLink.current === link) return;
+    lastLink.current = link;
+    void decode(link, true);
+  }, [decode, isStudent, location.pathname, location.search, location.hash, pending]);
 
   useEffect(() => {
     if (!camera || !video.current || !isStudent) return;
