@@ -1252,7 +1252,7 @@ export default function AnswerKeyRegisterModal({
           시험 정보를 확인하지 못했습니다. 입력한 답안·배점·해설은 유지됩니다. 다시 확인한 뒤 저장해 주세요.
           <Button intent="secondary" size="lg" className="h-11" disabled={examReadPending} onClick={() => void refetchExam()}>다시 시도</Button>
         </div>}
-        <fieldset disabled={readBlocked} className="m-0 min-w-0 border-0 p-0">
+        <fieldset disabled={readBlocked} className="answer-key-fields m-0 min-w-0 border-0 p-0">
         <div className="modal-scroll-body modal-scroll-body--compact answer-key-panel">
           {!structureReady && (
             <div className="answer-key-empty">
