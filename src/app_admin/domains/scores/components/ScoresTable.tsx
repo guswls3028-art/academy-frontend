@@ -934,7 +934,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   const includedExamIds = useMemo(() => examOptions.filter((item) => meta?.total_config?.exam_ids.includes(item.exam_id) ?? true).map((item) => item.exam_id), [examOptions, meta?.total_config]);
   const includedHomeworkCount = homeworkOptions.filter((item) => item.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(item.homework_id) ?? true)).length;
   const totalHeader = (kind: "exam" | "homework", count: number) => <th key={`${kind}-total`} scope="col" rowSpan={2} data-col-type={`${kind}-summary`} data-summary-start="" className="text-center font-medium">
-    <button type="button" onClick={onOpenTotals} className="assessment-total-value w-full" aria-label={`${kind === "exam" ? "시험" : "과제"} 총점 합산 설정`}><span>Σ {kind === "exam" ? "시험" : "과제"} 총점</span><small>{count}개 합산</small></button>
+    <button type="button" onClick={onOpenTotals} className="assessment-total-heading" aria-label={`${kind === "exam" ? "시험" : "과제"} 총점 합산 설정`}><strong>{kind === "exam" ? "시험" : "과제"} 총점</strong><span>{count ? `${count}개 합산` : "합산 없음"}<span className="assessment-total-heading-edit">설정</span></span></button>
   </th>;
   const totalCell = (kind: "exam" | "homework", row: SessionScoreRow) => <td key={`${kind}-total`} data-col-type={`${kind}-summary`} data-summary="" className="text-center align-middle"><AssessmentTotalValue total={kind === "exam" ? row.exam_total : row.homework_total} /></td>;
   const examOrderIds = useMemo(
@@ -1554,6 +1554,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             <Fragment key={row.enrollment_id}>
               <tr
                 onClick={() => onSelectRow(row)}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget || !["Enter", " "].includes(event.key)) return;
+                  event.preventDefault();
+                  onSelectRow(row);
+                }}
                 tabIndex={0}
                 role="button"
                 className={`cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--color-brand-primary)] ${selected ? "ds-row-selected" : ""} ${rowChecked ? "ds-scores-table-row--checked" : ""} hover:bg-[var(--color-bg-surface-hover)] ${isEvenRow ? "ds-scores-table-row--alt" : ""}`}

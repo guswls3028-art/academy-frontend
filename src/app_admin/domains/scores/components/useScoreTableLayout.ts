@@ -37,14 +37,24 @@ export function useScoreTableLayout(
       const touchHeader = availableWidth < 640 && /^(exam_\d+_|hw_\d+_)/.test(column.key);
       return touchHeader ? Math.max(column.defaultWidth, column.minWidth ?? 64) : column.minWidth ?? 64;
     });
-    const preferred = columns.map((column, i) => Math.max(minimums[i], preferredWidths[column.key]));
+    const preferred = columns.map((column, i) => Math.max(minimums[i], preferredWidths[column.key] ?? column.defaultWidth));
     const minimumTotal = minimums.reduce((sum, width) => sum + width, 0);
     const preferredTotal = preferred.reduce((sum, width) => sum + width, 0);
     const room = Math.max(0, availableWidth - minimumTotal);
     const ratio = preferredTotal > minimumTotal ? Math.min(1, room / (preferredTotal - minimumTotal)) : 1;
-    return Object.fromEntries(columns.map((column, i) => [
-      column.key, Math.floor(minimums[i] + (preferred[i] - minimums[i]) * ratio),
-    ]));
+    const fitted = minimums.map((minimum, i) => Math.floor(minimum + (preferred[i] - minimum) * ratio));
+    // Sparse score sheets should use the available workspace too. Keep utility
+    // columns compact and give spare space to student names and assessment data.
+    const flexible = columns.flatMap((column, i) => ["select", "attendance", "clinic_target"].includes(column.key) ? [] : [i]);
+    const extra = Math.max(0, availableWidth - fitted.reduce((sum, width) => sum + width, 0));
+    const weight = flexible.reduce((sum, i) => sum + preferred[i], 0);
+    let distributed = 0;
+    flexible.forEach((i, index) => {
+      const share = index === flexible.length - 1 ? extra - distributed : Math.floor(extra * preferred[i] / weight);
+      fitted[i] += share;
+      distributed += share;
+    });
+    return Object.fromEntries(columns.map((column, i) => [column.key, fitted[i]]));
   }, [autoFit, availableWidth, columns, preferredWidths]);
 
   const changeAutoFit = useCallback((value: boolean) => {

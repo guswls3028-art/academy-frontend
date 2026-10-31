@@ -798,7 +798,7 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       } else await page.getByRole("button", { name: `${examTitle} 이전 순서로 이동`, exact: true }).click();
       await verify(original.exam_order, original.exam_order);
       const restore = await openTotals();
-      for (let index = original.exam_ids.length; index < 2; index++) await restore.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+      await restore.getByRole("checkbox", { name: `${manualExamTitle} 합산에 포함`, exact: true }).uncheck();
       await save(restore);
       await verify(original.exam_order, original.exam_ids);
       // Moving the included exam past an excluded one crosses the boundary in
@@ -815,7 +815,7 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       } else await page.getByRole("button", { name: `${manualExamTitle} 다음 순서로 이동`, exact: true }).click();
       await verify(original.exam_order, []);
       const finalRestore = await openTotals();
-      await finalRestore.getByRole("button", { name: "시험 총점 아래로 이동", exact: true }).click();
+      await finalRestore.getByRole("checkbox", { name: `${examTitle} 합산에 포함`, exact: true }).check();
       await save(finalRestore);
       await page.reload();
       await verify(original.exam_order, original.exam_ids);
@@ -1233,7 +1233,7 @@ async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestCon
       await acknowledgeInitialAccountPromptsIfVisible(page);
       await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
       const totals = page.getByRole("dialog", { name: "합산 설정", exact: true });
-      await totals.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+      await totals.getByRole("checkbox", { name: `${examTitle} 합산에 포함`, exact: true }).uncheck();
       await totals.getByTitle("최소화", { exact: true }).click();
       const search = page.getByRole("searchbox", { name: "학생 이름 검색" });
       await search.fill(`검색결과없는합산학생-${runStamp}`);
@@ -1260,7 +1260,7 @@ async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestCon
       expect(excluded.exam_ids).toEqual([]);
       await page.reload();
       await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
-      await totals.getByRole("button", { name: "시험 총점 아래로 이동", exact: true }).click();
+      await totals.getByRole("checkbox", { name: `${examTitle} 합산에 포함`, exact: true }).check();
       await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
       await expect(totals).toBeHidden();
       const restored = await expectApi<{ version: number; exam_ids: number[] }>(request, "GET", configPath, admin.access);

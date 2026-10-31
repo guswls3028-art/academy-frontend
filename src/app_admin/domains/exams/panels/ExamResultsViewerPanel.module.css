@@ -4,6 +4,51 @@
   gap: 24px;
 }
 
+.gradingEntry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--border-divider);
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--bg-surface);
+}
+
+.gradingEntry > div:first-child {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.gradingEntry h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.gradingEntry p,
+.statisticsNote {
+  margin: 6px 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.gradingEntryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.jumpTarget {
+  min-width: 0;
+  scroll-margin-top: 80px;
+}
+
+.statisticsNote {
+  padding: 0 18px;
+}
+
 .statePanel,
 .studentResultsSection {
   border: 1px solid var(--border-divider);

@@ -39,6 +39,8 @@
   display: grid;
   width: min(286px, calc(100vw - 24px));
   padding: 7px;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .menuHeader {
@@ -150,6 +152,7 @@
 
 .menuActionCopy {
   display: grid;
+  grid-column: 2;
   min-width: 0;
   gap: 2px;
 }
