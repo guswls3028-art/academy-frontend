@@ -18,6 +18,9 @@ for (const width of [390, 1366]) for (const role of ["student", "parent"]) {
     const bodies: Array<{ token: string; batch?: EventBatch; batches?: EventBatch[] }> = [];
     const headers: Array<string | undefined> = [];
     let finalized = false;
+    let firstEndSeen = false;
+    let releaseFirstEnd = () => {};
+    const firstEndGate = new Promise<void>((resolve) => { releaseFirstEnd = resolve; });
     await page.route("**/api/v1/core/me/", (route) => route.fulfill({ json: {
       id: 1772, username: "synthetic-receipt-owner", name: "합성 사용자", is_staff: false, is_superuser: false,
       tenantRole: role, must_change_password: false,
@@ -52,6 +55,12 @@ for (const width of [390, 1366]) for (const role of ["student", "parent"]) {
         else { receipts.set(batch.batch_id, batch); inserted += batch.events.length; }
         return { batch_id: batch.batch_id, event_count: batch.events.length, duplicate: !!previous };
       });
+      // Hold the SPA finalization response so the test observes the old retry
+      // button being removed before a 503 creates its replacement.
+      if (body.batches && !firstEndSeen) {
+        firstEndSeen = true;
+        await firstEndGate;
+      }
       // Model a committed batch whose acknowledgement was lost at transport.
       // No successful response is fabricated until the visible retry is clicked.
       // A scheduled SPA flush can arrive before Playwright clicks the retry.
@@ -75,20 +84,38 @@ for (const width of [390, 1366]) for (const role of ["student", "parent"]) {
     const notice = page.getByRole("status", { name: "시청 기록 저장" });
     await expect(notice).toContainText("저장을 확인하지 못했어요");
     expect(finalized).toBe(false);
-    await page.getByRole("button", { name: "목록으로", exact: true }).click();
-    await expect(page).not.toHaveURL(/\/video\/play/);
+    // The notice's retry button is transient: saving removes it and a failed
+    // response mounts a new node. Observe genuine clicks on the stable document
+    // instead of attaching a listener to an ElementHandle that can be detached.
+    await page.evaluate(() => {
+      const onRetryClick = (event: MouseEvent) => {
+        if (!event.isTrusted || !(event.target instanceof Element)) return;
+        const button = event.target.closest("button");
+        if (!button?.closest('[role="status"][aria-label="시청 기록 저장"]')
+          || button.textContent?.trim() !== "저장 다시 시도") return;
+        document.documentElement.setAttribute("data-qa-playback-retry-clicked", "");
+        document.removeEventListener("click", onRetryClick, true);
+      };
+      document.addEventListener("click", onRetryClick, true);
+    });
+    try {
+      await page.getByRole("button", { name: "목록으로", exact: true }).click();
+      await expect(page).not.toHaveURL(/\/video\/play/);
+      await expect.poll(() => firstEndSeen).toBe(true);
+      await expect(notice).toContainText("시청 기록을 저장하고 있어요");
+      await expect(notice.getByRole("button", { name: "저장 다시 시도" })).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.hasAttribute("data-qa-playback-retry-clicked"))).toBe(false);
+      expect(finalized).toBe(false);
+    } finally { releaseFirstEnd(); }
     await expect(notice).toContainText("저장을 확인하지 못했어요");
     await expect(notice.getByRole("button", { name: "저장 다시 시도" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`receipt-${role}-${width}-pending.png`), fullPage: true });
     const beforeRetry = bodies.length;
     const retryButton = notice.getByRole("button", { name: "저장 다시 시도" });
-    await retryButton.evaluate((button) => {
-      button.addEventListener("click", (event) => {
-        if (event.isTrusted) document.documentElement.setAttribute("data-qa-playback-retry-clicked", "");
-      }, { capture: true, once: true });
-    });
+    expect(finalized).toBe(false);
     await retryButton.click();
+    await expect(page.locator("html")).toHaveAttribute("data-qa-playback-retry-clicked", "");
     await expect.poll(() => finalized).toBe(true);
     await expect(notice).toHaveCount(0);
     expect(bodies.length).toBeGreaterThan(beforeRetry);

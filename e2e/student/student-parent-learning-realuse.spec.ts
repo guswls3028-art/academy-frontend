@@ -211,7 +211,15 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   await gotoAndSettle(enrollmentPage, `${QA_BASE}/workspace/lectures/${created.lectureId}`, { timeout: 30_000 });
   await enrollmentPage.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
   const picker = enrollmentPage.getByRole("dialog", { name: "수강생 등록", exact: true });
-  for (const student of family.students) {
+  await picker.getByRole("textbox", { name: "학생 검색" }).fill("QA 격리고등학교");
+  await picker.getByRole("combobox", { name: "학교 구분", exact: true }).selectOption("HIGH");
+  await picker.getByRole("combobox", { name: "학년", exact: true }).selectOption("1");
+  await expect(picker.getByText("검색 결과 1명", { exact: true })).toBeVisible();
+  await expect(picker.getByRole("checkbox", { name: `${family.students[0].name} 선택`, exact: true })).toBeEnabled();
+  await expect(picker.getByRole("checkbox", { name: `${family.students[1].name} 선택`, exact: true })).toHaveCount(0);
+  await picker.getByRole("button", { name: "이 페이지 전체 선택", exact: true }).click();
+  for (const [index, student] of family.students.entries()) {
+    await picker.getByRole("combobox", { name: "학년", exact: true }).selectOption(String(index + 1));
     const search = picker.getByRole("textbox", { name: "학생 검색" });
     await search.dispatchEvent("compositionstart");
     await search.fill(student.name);

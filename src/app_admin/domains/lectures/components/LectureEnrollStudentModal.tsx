@@ -7,6 +7,7 @@ import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback";
 import { formatPhone } from "@/shared/utils/formatPhone";
+import { useSchoolLevelMode, type SchoolType } from "@/shared/hooks/useSchoolLevelMode";
 import { adminStudentsQueryKeys } from "@admin/domains/students/public/queryKeys";
 import { adminLectureQueryKeys } from "../queryKeys";
 import "./LectureEnrollStudentModal.css";
@@ -34,8 +35,11 @@ export default function LectureEnrollStudentModal(props: Props) {
 function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUpload }: Props) {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const schoolLevels = useSchoolLevelMode();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [schoolType, setSchoolType] = useState<SchoolType | "">("");
+  const [grade, setGrade] = useState(0);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Map<number, ClientStudent>>(new Map());
   const [saving, setSaving] = useState(false);
@@ -46,6 +50,15 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const normalizedSearch = normalizeSearch(searchInput);
+  const grades = schoolType
+    ? schoolLevels.gradeRange(schoolType)
+    : [...new Set(schoolLevels.schoolTypes.flatMap((type) => schoolLevels.gradeRange(type)))].sort((a, b) => a - b);
+  const filters = useMemo(() => ({
+    ...(schoolType ? { school_type: schoolType } : {}),
+    ...(grade ? { grade } : {}),
+  }), [schoolType, grade]);
+  const hasFilters = schoolType !== "" || grade !== 0;
+  const hasConditions = search !== "" || hasFilters;
 
   useEffect(() => {
     // Korean IMEs can keep the final syllable composing until blur/another click.
@@ -58,11 +71,11 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
     return () => clearTimeout(timer);
   }, [normalizedSearch, search]);
 
-  useEffect(() => { listRef.current?.scrollTo({ top: 0 }); }, [search, page]);
+  useEffect(() => { listRef.current?.scrollTo({ top: 0 }); }, [search, page, schoolType, grade]);
 
   const studentsQ = useQuery({
-    queryKey: adminLectureQueryKeys.lectureEnrollStudents(lectureId, search, page),
-    queryFn: ({ signal }) => fetchStudents(search, {}, "name", page, false, signal),
+    queryKey: adminLectureQueryKeys.lectureEnrollStudents(lectureId, search, page, filters),
+    queryFn: ({ signal }) => fetchStudents(search, filters, "name", page, false, signal),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
@@ -192,8 +205,27 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
             {searchInput && <Button intent="ghost" disabled={selectionLocked} aria-label="검색어 지우기"
               onClick={() => { setSearchInput(""); searchRef.current?.focus(); }}>지우기</Button>}
           </div>
+          <div className="lecture-enroll-picker__filters" role="group" aria-label="학생 조건">
+            <select className="ds-select" aria-label="학교 구분" value={schoolType} disabled={selectionLocked}
+              onChange={(event) => {
+                const next = event.target.value as SchoolType | "";
+                setSchoolType(next);
+                if (next && !schoolLevels.gradeRange(next).includes(grade)) setGrade(0);
+                setPage(1);
+              }}>
+              <option value="">전체 학교급</option>
+              {schoolLevels.schoolTypes.map((type) => <option key={type} value={type}>{schoolLevels.getLabel(type)}</option>)}
+            </select>
+            <select className="ds-select" aria-label="학년" value={grade} disabled={selectionLocked}
+              onChange={(event) => { setGrade(Number(event.target.value)); setPage(1); }}>
+              <option value={0}>전체 학년</option>
+              {grades.map((value) => <option key={value} value={value}>{value}학년</option>)}
+            </select>
+            <Button intent="ghost" size="sm" disabled={selectionLocked || !hasFilters}
+              onClick={() => { setSchoolType(""); setGrade(0); setPage(1); }}>조건 초기화</Button>
+          </div>
           <div className="lecture-enroll-picker__toolbar">
-            <span aria-live="polite">{loading ? "명단 확인 중…" : searching ? "검색 중…" : loadError ? "명단 확인 필요" : `${search ? "검색 결과" : "전체 학생"} ${studentsQ.data?.count ?? 0}명`}</span>
+            <span aria-live="polite">{loading ? "명단 확인 중…" : searching ? "검색 중…" : loadError ? "명단 확인 필요" : `${hasConditions ? "검색 결과" : "전체 학생"} ${studentsQ.data?.count ?? 0}명`}</span>
             <Button size="sm" disabled={busy || !eligible.length}
               onClick={selectPage}>{pageSelected ? "이 페이지 선택 해제" : "이 페이지 전체 선택"}</Button>
           </div>
@@ -203,8 +235,8 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
                 description="선택한 학생은 유지됩니다. 명단을 다시 불러와 주세요."
                 actions={<Button onClick={() => { void studentsQ.refetch(); void enrollmentsQ.refetch(); }}>다시 불러오기</Button>} />
                 : rows.length === 0 ? <EmptyState scope="panel" tone="empty"
-                  title={search ? "검색 결과가 없습니다" : "등록된 학생이 없습니다"}
-                  description={search ? "다른 이름이나 전화번호로 검색해 주세요." : "학생 관리에서 학생을 먼저 등록해 주세요."} />
+                  title={hasConditions ? "검색 결과가 없습니다" : "등록된 학생이 없습니다"}
+                  description={hasConditions ? "검색어나 학교 구분·학년 조건을 바꿔 주세요." : "학생 관리에서 학생을 먼저 등록해 주세요."} />
                   : rows.map((student) => {
                     const status = enrollmentStatus.get(student.id);
                     const enrolled = status === "ACTIVE";
@@ -248,7 +280,7 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
                   setSelected((previous) => { const next = new Map(previous); next.delete(student.id); return next; });
                   setSelectionMessage("");
                 }}>{student.name}<span aria-hidden> ×</span></button>)}
-            </div> : <p>이름을 눌러 선택하세요.<br />검색·페이지를 바꿔도 선택은 유지됩니다.</p>}
+            </div> : <p>이름을 눌러 선택하세요.<br />검색·조건·페이지를 바꿔도 선택은 유지됩니다.</p>}
           </section>
           {selectionMessage && <p role="status" className="lecture-enroll-picker__notice">{selectionMessage}</p>}
           {saveError && <p role="alert" className="lecture-enroll-picker__error">{saveError}</p>}
