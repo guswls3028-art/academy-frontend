@@ -1,4 +1,5 @@
 import type { Locator, Page, Route } from "@playwright/test";
+import type { ManualGradeSheet } from "../../src/app_admin/domains/results/api/manualExamGrading";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
@@ -8,6 +9,10 @@ const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 9970;
 const SESSION_ID = 9971;
 const EXAM_ID = 9972;
+const examQuestions = [
+  { id: 1, sheet: 1, number: 1, question_kind: "choice", score: 50 },
+  { id: 2, sheet: 1, number: 2, question_kind: "essay", score: 50 },
+] as const;
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -163,10 +168,30 @@ async function installApi(page: Page, state: MockState) {
       return state.failExamRead ? json({ detail: "시험 설정 조회 실패" }, 503) : json(state.exam);
     }
     if (path === `/exams/${EXAM_ID}/questions/` || (state.secondExam && path === `/exams/${EXAM_ID + 1}/questions/`)) {
-      return json([
-        { id: 1, sheet: 1, number: 1, question_kind: "choice", score: 50 },
-        { id: 2, sheet: 1, number: 2, question_kind: "essay", score: 50 },
-      ]);
+      return json(examQuestions);
+    }
+    const manualExam = path === `/results/admin/exams/${EXAM_ID}/manual-grading/`
+      ? state.exam
+      : path === `/results/admin/exams/${EXAM_ID + 1}/manual-grading/` ? state.secondExam : undefined;
+    if (manualExam && method === "GET") {
+      const gradingMode = manualExam.grading_mode === "written" ? "written"
+        : manualExam.grading_mode === "mixed" ? "mixed" : "choice";
+      const manualMethod = manualExam.manual_grading_method === "correctness" ? "correctness" : "score";
+      const questions: ManualGradeSheet["questions"] = examQuestions.map((question) => {
+        const editable = gradingMode === "written" || (gradingMode === "mixed" && question.question_kind === "essay");
+        return {
+          question_id: question.id, number: question.number, kind: question.question_kind,
+          max_score: question.score, editable, entry_method: editable ? manualMethod : "omr",
+        };
+      });
+      const sheet: ManualGradeSheet = {
+        exam_id: Number(manualExam.id), exam_title: String(manualExam.title),
+        grading_mode: gradingMode, manual_grading_method: manualMethod,
+        has_manual_questions: questions.some((question) => question.editable),
+        exam_max_score: Number(manualExam.max_score), question_score_total: 100,
+        score_adjustment_total: 0, questions, rows: [],
+      };
+      return json(sheet);
     }
     if (path === `/exams/${EXAM_ID}/explanations/`) return json([]);
     if (path === "/exams/answer-keys/9980/" && method === "PUT") {
@@ -305,6 +330,8 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await expect(primaryAction).toHaveText("채점·결과 보기");
   await primaryAction.click();
   await expect(page.getByRole("tab", { name: "채점·결과", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("region", { name: "주관식·서술형 채점 안내" })).toContainText("서술형 1문항");
+  await expect(page.getByRole("button", { name: "서술형 채점 켜고 입력하기", exact: true })).toBeVisible();
   await expect(primaryAction).toHaveText("운영 설정 보기");
   await primaryAction.click();
   await expect(page.getByRole("tab", { name: "운영", exact: true })).toHaveAttribute("aria-selected", "true");
@@ -718,6 +745,7 @@ test("미저장 시험 설정은 탭 이동 전에 확인하고 동시 수정은
     .getByRole("button", { name: "저장하지 않고 이동", exact: true })
     .click();
   await expect(page.getByRole("tab", { name: "채점·결과", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("region", { name: "주관식·서술형 채점 안내" })).toContainText("서술형 1문항");
 });
 
 test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시험 초안만 복구한다", async ({ page }, testInfo) => {
