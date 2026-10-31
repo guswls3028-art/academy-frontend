@@ -1553,7 +1553,16 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
     { waitUntil: "domcontentloaded" },
   );
 
-  await expect(page.getByText("과제 운영 준비", { exact: true })).toBeVisible();
+  await expect(page.locator('[aria-label="과제 운영 준비"]')).toBeVisible();
+  await page.setViewportSize({ width: 1366, height: 900 });
+  const assessmentNavigation = page.getByTestId("session-assessment-remote");
+  const assessmentWorkspace = page.locator(".session-assessment-workspace");
+  const navigationBox = await assessmentNavigation.boundingBox();
+  const workspaceBox = await assessmentWorkspace.boundingBox();
+  expect(navigationBox!.x + navigationBox!.width).toBeLessThanOrEqual(workspaceBox!.x);
+  expect(Math.abs(navigationBox!.y - workspaceBox!.y)).toBeLessThanOrEqual(1);
+  await assessmentNavigation.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("homework-workspace-1366.png"), animations: "disabled" });
   await expect(page.getByText("과제 운영 설정", { exact: true })).toBeVisible();
   await expect(page.getByLabel("합격 기준 (점)")).toHaveValue("15");
   await page.locator('#assessment-policy input[type="date"]').fill("2026-08-09");
@@ -1575,6 +1584,14 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
   await expect(page.getByRole("navigation", { name: "과제 업무 흐름" })).toBeVisible();
   await expect(primaryAction).toHaveText("제출 현황 보기");
   await page.setViewportSize({ width: 390, height: 844 });
+  const homeworkPicker = assessmentNavigation.getByRole("combobox", { name: "과제 선택", exact: true });
+  await expect(homeworkPicker).toHaveValue("9961");
+  await homeworkPicker.selectOption({ label: "심화 서술형" });
+  await expect(page.getByRole("heading", { name: "심화 서술형", exact: true })).toBeVisible();
+  await homeworkPicker.selectOption("9961");
+  await page.reload();
+  await expect(homeworkPicker).toHaveValue("9961");
+  await expect(page.getByLabel("합격 기준 (점)")).toHaveValue("17");
   await expect.poll(() => primaryAction.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
   await page.screenshot({

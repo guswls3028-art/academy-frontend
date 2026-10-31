@@ -7,6 +7,8 @@
   display: flex;
   min-width: 0;
   max-width: 100%;
+  justify-content: center;
+  width: 100%;
 }
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table[data-width-mode="fit"] th,
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table[data-width-mode="fit"] td {
@@ -22,6 +24,12 @@
 .ds-scores-table[data-width-mode="fit"] .scores-table-head-title {
   white-space: normal;
   overflow-wrap: anywhere;
-  word-break: normal;
+  word-break: keep-all;
 }
 .ds-scores-table[data-width-mode="fit"] .assessment-total-value small { white-space: normal; }
+.scores-table-layout .ds-scores-table tbody tr { height: 64px; }
+.scores-table-layout .ds-scores-table thead th[data-col-type="select"] { vertical-align: middle; }
+.scores-table-layout .ds-scores-table td[data-col-type="name"] { white-space: normal; }
+.scores-table-layout .ds-scores-table td[data-col-type="name"] > div { min-width: 0; padding-inline: 6px; }
+.scores-table-layout .ds-scores-table td[data-col-type="score"],
+.scores-table-layout .ds-scores-table td[data-summary] { font-variant-numeric: tabular-nums; }
