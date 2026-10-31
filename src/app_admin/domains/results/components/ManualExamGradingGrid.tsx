@@ -224,7 +224,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   const autosaveTimerRef = useRef<number | null>(null);
   const autosaveRunRef = useRef<Promise<boolean> | null>(null);
   const autosaveEpochRef = useRef(0);
-  const suppressNextSheetSyncRef = useRef(false);
+  const locallySyncedSheetRef = useRef<ManualGradeSheet | null>(null);
   const latestAutosaveSheetRef = useRef<ManualGradeSheet | null>(null);
   const [autosaveRows, setAutosaveRows] = useState<Record<number, CorrectnessAutosaveView>>({});
   const [answerKeyOpen, setAnswerKeyOpen] = useState(false);
@@ -282,10 +282,9 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
 
   useEffect(() => {
     if (!sheetQuery.data) return;
-    if (suppressNextSheetSyncRef.current) {
-      suppressNextSheetSyncRef.current = false;
-      return;
-    }
+    const alreadySynced = locallySyncedSheetRef.current === sheetQuery.data;
+    locallySyncedSheetRef.current = null;
+    if (alreadySynced) return;
     latestAutosaveSheetRef.current = null;
     const nextRows = cloneRows(sheetQuery.data.rows);
     const nextScores = Object.fromEntries(
@@ -567,11 +566,12 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
         clearHistory();
         const latestSheet = latestAutosaveSheetRef.current;
         if (latestSheet) {
-          suppressNextSheetSyncRef.current = true;
-          queryClient.setQueryData(
+          // React Query may retain the same object for an unchanged publish.
+          // Skip only this reconciled snapshot, never the next external result.
+          locallySyncedSheetRef.current = queryClient.setQueryData(
             adminResultsQueryKeys.manualGradeSheet(runExamId),
             latestSheet,
-          );
+          ) ?? null;
         }
       }
       return !unresolved && !explicitDirtyRef.current;
