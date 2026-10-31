@@ -2,6 +2,61 @@ import { expect, test, type Page } from "../fixtures/strictTest";
 import { openCompositionScores } from "../helpers/assessmentCompositionMock";
 
 for (const width of [1366, 1100, 390]) {
+  test(`@assessment-menu-layout ${width}px 시험·과제 코멘트 메뉴의 본문 너비와 진입을 유지한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    if (width === 390) await page.emulateMedia({ reducedMotion: "reduce" });
+    const { unexpectedMutations } = await openCompositionScores(page);
+    const commentReads: string[] = [];
+    await page.route("**/api/v1/results/admin/sessions/9002/*/*/parent-comments/", route => {
+      commentReads.push(new URL(route.request().url()).pathname);
+      return route.fulfill({ json: { items: [] } });
+    });
+
+    for (const [kind, title, id] of [["exam", "첫 시험", 9101], ["homework", "첫 과제", 9151]] as const) {
+      const trigger = page.getByRole("button", { name: `${title} 작업 선택`, exact: true });
+      await trigger.click();
+      const menu = page.getByRole("menu", { name: `${title} 작업 선택`, exact: true });
+      const comment = menu.getByRole("menuitem", { name: /학부모 코멘트/ });
+      await expect(comment).toBeVisible();
+      await expect(trigger).toHaveAttribute("aria-expanded", "true");
+      // Measure rendered text, so a missing icon cannot squeeze it into the 34px track.
+      const geometry = await comment.evaluate(element => {
+        const titleElement = element.querySelector("strong")!;
+        const description = titleElement.nextElementSibling!;
+        const titleRange = document.createRange();
+        titleRange.selectNodeContents(titleElement);
+        return {
+          width: titleElement.getBoundingClientRect().width,
+          titleLines: titleRange.getClientRects().length,
+          descriptionLines: description.getBoundingClientRect().height / parseFloat(getComputedStyle(description).lineHeight),
+          overflow: element.scrollWidth - element.clientWidth,
+        };
+      });
+      expect(geometry.width).toBeGreaterThan(150);
+      expect(geometry.titleLines).toBe(1);
+      expect(geometry.descriptionLines).toBeLessThanOrEqual(3);
+      expect(geometry.overflow).toBeLessThanOrEqual(1);
+      const menuBox = await menu.boundingBox();
+      expect(menuBox!.x).toBeGreaterThanOrEqual(0);
+      expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(width);
+      await page.screenshot({ path: testInfo.outputPath(`${kind}-menu-${width}.png`), animations: "disabled" });
+
+      await comment.focus();
+      await page.keyboard.press("Enter");
+      const modal = page.getByRole("dialog", { name: "학부모 코멘트", exact: true });
+      await expect(modal.getByText(title, { exact: true })).toBeVisible();
+      await expect(modal.getByText("이 평가에 배정된 학생이 없습니다.")).toBeVisible();
+      expect(commentReads).toContain(`/api/v1/results/admin/sessions/9002/${kind}/${id}/parent-comments/`);
+      await page.keyboard.press("Escape");
+      await expect(modal).toBeHidden();
+      await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    }
+    expect(unexpectedMutations).toEqual([]);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  });
+}
+
+for (const width of [1366, 1100, 390]) {
   test(`@score-table-fit ${width}px 성적표 자동 맞춤과 직접 조절을 복원한다`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     if (width === 1100) {
