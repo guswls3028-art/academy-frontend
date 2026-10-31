@@ -11,6 +11,68 @@ const DONE_SUBMISSION_ID = 1801;
 const NOID_SUBMISSION_ID = 1802;
 const QUESTION_IDS = [1001, 1002] as const;
 
+for (const width of [390, 1366]) {
+  test(`${width}px 주관식 바로가기에서 확정한 점수가 강의별 문항 통계에 즉시 반영된다`, async ({ page }, testInfo) => {
+    test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+    await page.setViewportSize({ width, height: 900 });
+    const result = {
+      enrollment_id: ENROLLMENT_ID, student_name: "김학생", result_status: "DONE",
+      rank: 1, ranking_score: 30, final_score: 30, cohort_size: 1,
+      lecture_title: "공통수학2 정규반", lecture_chip_label: "수2",
+    };
+    const apiState = await installApi(page, { gradingMode: "mixed", manualGradingMethod: "score", resultRows: [result] });
+    await page.route(`**/exams/${EXAM_ID}/lecture-assignments/`, (route) => route.fulfill({ json: {
+      exam_id: EXAM_ID, total_selected_count: 1, assignments: [{
+        lecture_id: LECTURE_ID, lecture_title: "공통수학2 정규반", pass_score: 60,
+        selected_count: 1, roster_count: 1, sessions: [],
+      }],
+    } }));
+    await page.route(`**/results/admin/exams/${EXAM_ID}/results/**`, (route) => route.fulfill({ json: {
+      results: [{ ...result, ranking_score: apiState.applied ? 70 : 30, final_score: apiState.applied ? 70 : 30 }],
+    } }));
+    await page.route(`**/results/admin/exams/${EXAM_ID}/questions/**`, (route) => route.fulfill({ json: [{
+      question_id: QUESTION_IDS[1], question_number: 2, attempts: 1,
+      correct: apiState.applied ? 1 : 0, accuracy: apiState.applied ? 1 : 0,
+      avg_score: apiState.applied ? 60 : 20, max_score: 60,
+    }] }));
+    const openResults = async () => {
+      await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+      await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    };
+    await openResults();
+    const entry = page.getByRole("region", { name: "주관식·서술형 채점 안내" });
+    await expect(entry).toContainText("합계 점수만 입력하면 문항별 정답률은 계산되지 않습니다.");
+    await entry.getByRole("button", { name: "주관식·서술형 입력하기" }).click();
+    const grid = page.getByRole("region", { name: "혼합 채점 워크스페이스", exact: true });
+    await expect(grid.locator("..")).toBeFocused();
+    await page.getByRole("group", { name: "성적 조회 강의 필터" }).getByRole("button", { name: /공통수학2 정규반/ }).click();
+    await entry.getByRole("button", { name: "문항별 정답률 보기" }).click();
+    const statistics = page.locator("details").filter({ has: page.locator("summary", { hasText: "전체 문항 통계 보기" }) });
+    await expect(statistics).toHaveAttribute("open", "");
+    await expect(statistics).toContainText("20.0점");
+    await entry.screenshot({ path: testInfo.outputPath(`subjective-entry-${width}.png`) });
+    const score = grid.getByRole("spinbutton", { name: /60점 만점 점수/ });
+    await score.fill("60");
+    await page.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+    await expect(statistics).toContainText("20.0점");
+    apiState.failNextManualApply();
+    await page.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+    await expect(page.getByText("manual grading version conflict", { exact: true })).toBeVisible();
+    await expect(score).toHaveValue("60");
+    await expect(statistics).toContainText("20.0점");
+    await page.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+    await expect(statistics).toContainText("60.0점");
+    await expect(statistics).toContainText("100.0%");
+    await expect(page.getByRole("region", { name: "시험 학생별 결과", exact: true })).toContainText("70");
+    await statistics.screenshot({ path: testInfo.outputPath(`subjective-statistics-${width}.png`) });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await openResults();
+    await expect(score).toHaveValue("60");
+    await entry.getByRole("button", { name: "문항별 정답률 보기" }).click();
+    await expect(statistics).toContainText("60.0점");
+  });
+}
+
 test("온라인 서술형 답안을 모바일과 데스크톱에서 열고 점수를 입력한다", async ({ page }) => {
   test.skip(!isLocalBase(BASE), "Local route-mock spec.");
   const studentName = "QA online-written-submission-20261021 자녀 1";
