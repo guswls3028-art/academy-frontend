@@ -37,6 +37,7 @@
 | [강의 기존 학생 직접 등록](LECTURE-STUDENT-ENROLLMENT.md) | 차시 없이 기존 학생 검색·다중 선택·등록과 실패 복구 계약 |
 | [LECTURE-MANAGEMENT.md](LECTURE-MANAGEMENT.md) | 강의 설정 메뉴·수정값 보존·종료/복원·날짜 해제와 반응형 목록 계약 |
 | [ATTENDANCE-ROSTER-SAFETY.md](ATTENDANCE-ROSTER-SAFETY.md) | 차시 수강생 일괄배정의 미입력 시작, 선택 검토·실행취소, 전체 현장 출석의 원자적 되돌리기 계약 |
+| [ATTENDANCE-QR.md](ATTENDANCE-QR.md) | 교실 QR 출력·학생 카메라 출석·클리닉 등원/하원·오류 복구 계약 |
 | [ARRIVAL-OPERATIONS.md](ARRIVAL-OPERATIONS.md) | 보강 예정 입력과 클리닉 예약을 합친 대시보드·우상단 알림 운영 계약 |
 | [관리자](../src/app_admin/domains/clinic/README.md) · [선생님](../src/app_teacher/domains/clinic/README.md) · [학생](../src/app_student/domains/clinic/README.md) 클리닉 | 세션별 같은 날 다중 시간대 예약 정책과 역할별 생성·신청·추가 UX 계약 |
 | [학생 이름의 현재 강의 표시](STUDENT-LECTURE-STATUS.md) | 종료·비활성 강의 딱지 제외, 이력 보존, 종료·복원 후 화면 갱신 |

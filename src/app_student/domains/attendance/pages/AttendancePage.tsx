@@ -10,6 +10,7 @@ import { formatYmd } from "@student/shared/utils/date";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import styles from "./AttendancePage.module.css";
+import QrScanLink from "../components/QrScanLink";
 
 type AttendanceSummary = {
   summary: {
@@ -26,6 +27,7 @@ type AttendanceSummary = {
     session_title: string;
     date: string | null;
     status: string;
+    qr_checked_in_at?: string | null;
     can_view_session?: boolean;
   }>;
 };
@@ -105,6 +107,7 @@ export default function AttendancePage() {
 
   return (
     <StudentPageShell title="출결 현황" description="누적 출결과 최근 차시 상태입니다. 출석은 현장·온라인·보강을 합산하며, 전체에는 미입력·자료·부재·퇴원 기록도 포함됩니다." descriptionMode="help">
+      <QrScanLink />
       {!hasAny ? (
         <EmptyState
           title="출결 기록이 없습니다"
@@ -134,6 +137,7 @@ export default function AttendancePage() {
                     </div>
                     <div className={`stu-muted ${styles.recentMeta}`}>
                       {row.session_title} · {row.date ? formatYmd(row.date) : "-"}
+                      {row.qr_checked_in_at && <span> · QR {new Date(row.qr_checked_in_at).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}</span>}
                       {row.can_view_session !== true && <span className={styles.historyHint}>출결 이력</span>}
                     </div>
                   </div>

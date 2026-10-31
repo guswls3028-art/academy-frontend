@@ -58,6 +58,7 @@ import { useBulkPresentUndo } from "./useBulkPresentUndo";
 import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
 import { DEFAULT_ATTENDANCE_SORT, getStoredAttendanceSort, type AttendanceSort, type AttendanceSortColumn } from "./attendanceSort";
 import "./attendance-ui.css";
+import AttendanceQrManager from "../../components/AttendanceQrManager";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
 const PAGE_SIZE = 50;
@@ -578,7 +579,8 @@ export default function SessionAttendancePage({
   };
 
   const primaryAction = (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      {lectureId && <AttendanceQrManager kind="class" lectureId={lectureId} />}
       <Button
         type="button"
         intent="ghost"

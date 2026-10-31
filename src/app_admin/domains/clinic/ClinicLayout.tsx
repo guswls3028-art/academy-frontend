@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
+import AttendanceQrManager from "@admin/domains/lectures/components/AttendanceQrManager";
 
 const CLINIC_TABS = [
   { key: "home", label: "오늘 요약", path: "/workspace/clinic/home" },
@@ -47,6 +48,7 @@ export default function ClinicLayout() {
       description={DESCRIPTIONS[clinicMode] ?? DESCRIPTIONS.remediation}
       tabs={CLINIC_TABS}
     >
+      <div className="flex justify-end pb-3"><AttendanceQrManager kind="clinic" /></div>
       <Outlet />
     </DomainLayout>
   );
