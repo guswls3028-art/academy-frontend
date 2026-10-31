@@ -7,11 +7,20 @@ const BASE = (
   || "http://127.0.0.1:5174"
 ).replace(/\/+$/, "");
 
+// Service-worker fetches bypass page.route; this suite owns the mocked API.
+test.use({ serviceWorkers: "block" });
+
 async function prepareGodmin(page: Page) {
   await page.route("**/api/v1/landing-public/videos/**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(route.request().url().includes("showcase") ? { hero: null } : { count: 0, results: [], next: null }) }));
   await page.addInitScript(() => {
     localStorage.setItem("tenant_code", "godmin");
     sessionStorage.setItem("tenantCode", "godmin");
+    // Keep production-build mocks same-origin, including WebKit's CORS preflight.
+    const open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, value, ...rest) {
+      const url = new URL(String(value), location.href);
+      return Reflect.apply(open, this, [method, url.pathname.startsWith("/api/v1/") ? `${location.origin}${url.pathname}${url.search}` : value, ...rest]);
+    };
   });
   await page.route("**/api/v1/core/program/**", async (route) => {
     await route.fulfill({
@@ -26,6 +35,35 @@ async function prepareGodmin(page: Page) {
       }),
     });
   });
+}
+
+// Page overflow alone misses Korean words split across otherwise valid lines.
+async function expectReadableHeadings(page: Page) {
+  // WebKit applies viewport media-query changes on the next rendering frame.
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await page.evaluate(() => document.fonts.ready);
+  const defects = await page.locator("main h1, main h2, main h3").evaluateAll((headings) => headings.flatMap((heading) => {
+    const failures: string[] = [];
+    const bounds = heading.getBoundingClientRect();
+    const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      for (const match of (node.textContent ?? "").matchAll(/[가-힣]+/g)) {
+        const range = document.createRange();
+        range.setStart(node, match.index);
+        range.setEnd(node, match.index + match[0].length);
+        const rects = [...range.getClientRects()].filter((rect) => rect.width > 0);
+        if (rects.some((rect) => Math.abs(rect.top - rects[0].top) > 1)) {
+          failures.push(`${heading.id || heading.textContent}: split ${match[0]} (${rects.map((rect) => `${Math.round(rect.left)},${Math.round(rect.top)},${Math.round(rect.width)}`).join("; ")})`);
+        }
+        if (rects.some((rect) => rect.left < Math.max(0, bounds.left) - 1 || rect.right > Math.min(innerWidth, bounds.right) + 1)) {
+          failures.push(`${heading.id || heading.textContent}: clipped ${match[0]}`);
+        }
+      }
+    }
+    return failures;
+  }));
+  expect(defects).toEqual([]);
 }
 
 test.describe("godmin public landing", () => {
@@ -112,5 +150,41 @@ test.describe("godmin public landing", () => {
     });
     expect(Number.parseFloat(portraitMotion.duration ?? "1")).toBeLessThanOrEqual(0.00001);
     expect(portraitMotion.iterations).toBe("1");
+  });
+
+  test("keeps Korean heading words together across narrow screens, desktop columns, and enlarged fallback text", async ({ page }, testInfo) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(`${BASE}/landing`, { waitUntil: "commit", timeout: 45_000 });
+    await expect(page.locator("#system-title")).toBeVisible({ timeout: 90_000 });
+    await page.evaluate(() => document.fonts.ready);
+
+    for (const width of [320, 375, 390, 430, 768, 981, 1100, 1366]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.evaluate(() => document.fonts.ready);
+      await test.step(`${width}px rendered word boundaries`, async () => {
+        await expectReadableHeadings(page);
+        for (const id of ["philosophy-title", "system-title"]) {
+          const lines = await page.locator(`#${id}`).evaluate((heading) => heading.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(heading).lineHeight));
+          expect(lines, id).toBeCloseTo(2, 0);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+      });
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expectReadableHeadings(page);
+    await page.locator("main h1, main h2, main h3").evaluateAll((headings) => {
+      for (const heading of headings) {
+        const element = heading as HTMLElement;
+        element.style.fontSize = `${Number.parseFloat(getComputedStyle(element).fontSize) * 1.25}px`;
+        element.style.fontFamily = "Arial, sans-serif";
+      }
+    });
+    // A font change can load a new fallback face after the initial page fonts settle.
+    await page.evaluate(() => document.fonts.ready);
+    await expectReadableHeadings(page);
+    const screenshot = testInfo.outputPath("godmin-enlarged-fallback-390.png");
+    await page.screenshot({ path: screenshot, fullPage: true });
+    await testInfo.attach("godmin-enlarged-fallback-390", { path: screenshot, contentType: "image/png" });
   });
 });
