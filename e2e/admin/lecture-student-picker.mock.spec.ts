@@ -8,7 +8,7 @@ const LECTURE = 9965;
 const students = Array.from({ length: 205 }, (_, index) => ({
   id: index + 1, name: `기존학생${String(index + 1).padStart(3, "0")}`,
   parent_phone: `0108000${String(index + 1).padStart(4, "0")}`,
-  phone: null, high_school: "아주긴이름의고등학교", grade: 2,
+  phone: null, high_school: "아주긴이름의고등학교", middle_school: "", elementary_school: "", school_type: "HIGH", grade: 2,
   is_managed: true, enrollments: [],
 }));
 
@@ -21,13 +21,14 @@ type State = {
   failReadback: boolean;
   saveGate: Promise<void> | null;
   searchGate: Promise<void> | null;
-  searchRequests: Array<{ search: string; page: number }>;
+  searchRequests: Array<{ search: string; page: number; schoolType?: string; grade?: number }>;
   failSearch: boolean;
   matrixGate: Promise<void> | null;
 };
 
-async function openPicker(page: Page, names: Record<number, string> = {}) {
-  const roster = students.map((student) => ({ ...student, name: names[student.id] ?? student.name }));
+async function openPicker(page: Page, names: Record<number, string> = {},
+  options: { schools?: Record<number, Partial<typeof students[number]>>; elementary?: boolean } = {}) {
+  const roster = students.map((student) => ({ ...student, name: names[student.id] ?? student.name, ...options.schools?.[student.id] }));
   const state: State = {
     statuses: new Map([[1, "ACTIVE"], [2, "INACTIVE"], [3, "PENDING"]]),
     posts: [], unexpectedWrites: [], failRoster: false, failSave: false, failReadback: false, saveGate: null,
@@ -46,7 +47,7 @@ async function openPicker(page: Page, names: Record<number, string> = {}) {
     const path = url.pathname.replace(/^\/api\/v1/, "");
     const json = (body: unknown, status = 200) => route.fulfill({ status, json: body });
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
-    if (path === "/core/program/") return json({ tenantCode: "hakwonplus", isPlatformAdmin: true, display_name: "학원플러스", feature_flags: {}, is_active: true });
+    if (path === "/core/program/") return json({ tenantCode: "hakwonplus", isPlatformAdmin: true, display_name: "학원플러스", feature_flags: options.elementary ? { school_level_mode: "elementary_middle" } : {}, is_active: true });
     if (path === "/core/me/") return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
     if (path === "/staffs/currently-working/") return json([]);
     if (path === `/lectures/lectures/${LECTURE}/`) return json({ id: LECTURE, title: "기말고사 새 강의", name: "기말고사 새 강의", is_active: true });
@@ -65,10 +66,14 @@ async function openPicker(page: Page, names: Record<number, string> = {}) {
     if (path === "/students/") {
       const search = url.searchParams.get("search") ?? "";
       const pageNumber = Number(url.searchParams.get("page") || 1);
-      state.searchRequests.push({ search, page: pageNumber });
-      if (search && state.searchGate) await state.searchGate;
-      if (search && state.failSearch) return json({ detail: "검색 실패" }, 503);
-      const found = roster.filter((student) => student.name.includes(search) || student.parent_phone.includes(search));
+      const schoolType = url.searchParams.get("school_type");
+      const grade = Number(url.searchParams.get("grade"));
+      state.searchRequests.push({ search, page: pageNumber, ...(schoolType ? { schoolType } : {}), ...(grade ? { grade } : {}) });
+      if ((search || schoolType || grade) && state.searchGate) await state.searchGate;
+      if ((search || schoolType || grade) && state.failSearch) return json({ detail: "검색 실패" }, 503);
+      const found = roster.filter((student) =>
+        (!schoolType || student.school_type === schoolType) && (!grade || student.grade === grade)
+        && [student.name, student.parent_phone, student.high_school, student.middle_school, student.elementary_school].some((value) => value.includes(search)));
       return json({ count: found.length, page_size: 50, results: found.slice((pageNumber - 1) * 50, pageNumber * 50) });
     }
     if (path === "/enrollments/") {
@@ -88,6 +93,79 @@ async function openPicker(page: Page, names: Record<number, string> = {}) {
   await expect(dialog.getByRole("checkbox", { name: `${roster[1].name} 선택`, exact: true }).first()).toBeEnabled();
   return { state, dialog };
 }
+
+for (const width of [1366, 390]) {
+  test(`${width}px 학교 검색과 학년 조건으로 학생을 구분하고 선택·저장·reload한다`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    const { state, dialog } = await openPicker(page, {}, { schools: {
+      52: { high_school: "언남고등학교", grade: 1 },
+      53: { high_school: "언남고등학교", grade: 2 },
+      54: { high_school: "", middle_school: "언남중학교", school_type: "MIDDLE", grade: 1 },
+    } });
+    await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
+    await dialog.getByRole("button", { name: "다음", exact: true }).click();
+    await expect(dialog.getByText("2 / 5 페이지", { exact: true })).toBeVisible();
+    await dialog.getByRole("textbox", { name: "학생 검색" }).fill("언남");
+    await expect(dialog.getByText("검색 결과 3명", { exact: true })).toBeVisible();
+    await dialog.getByRole("combobox", { name: "학교 구분", exact: true }).selectOption("HIGH");
+    await dialog.getByRole("combobox", { name: "학년", exact: true }).selectOption("1");
+    await expect(dialog.getByText("검색 결과 1명", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("1 / 1 페이지", { exact: true })).toBeVisible();
+    await expect(dialog.locator(".lecture-enroll-picker__identity strong")).toHaveText("기존학생052");
+    expect(state.searchRequests.at(-1)).toEqual({ search: "언남", schoolType: "HIGH", grade: 1, page: 1 });
+    await dialog.getByRole("button", { name: "이 페이지 전체 선택", exact: true }).click();
+    await expect(dialog.getByRole("status")).toHaveText("2명 선택");
+    await expect(dialog.getByRole("combobox", { name: "학년", exact: true })).toBeInViewport();
+    await expect(dialog.getByRole("button", { name: "2명 강의에 추가", exact: true })).toBeInViewport();
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await dialog.screenshot({ path: info.outputPath(`lecture-picker-conditions-${width}.png`) });
+    await dialog.getByRole("combobox", { name: "학년", exact: true }).selectOption("2");
+    await expect(dialog.locator(".lecture-enroll-picker__identity strong")).toHaveText("기존학생053");
+    await dialog.getByRole("button", { name: "이 페이지 전체 선택", exact: true }).click();
+    await dialog.getByRole("combobox", { name: "학년", exact: true }).selectOption("3");
+    await expect(dialog.getByText("검색 결과가 없습니다", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("status")).toHaveText("3명 선택");
+    await dialog.getByRole("button", { name: "조건 초기화", exact: true }).click();
+    await expect(dialog.getByRole("textbox", { name: "학생 검색" })).toHaveValue("언남");
+    await expect(dialog.getByText("검색 결과 3명", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("checkbox", { name: "기존학생054 선택", exact: true })).not.toBeChecked();
+    await dialog.getByRole("button", { name: "3명 강의에 추가", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(state.posts).toEqual([{ lecture: LECTURE, students: [2, 52, 53] }]);
+    expect(state.unexpectedWrites).toEqual([]);
+    await waitForRenderSettled(page);
+    await page.reload();
+    for (const id of [2, 52, 53]) await expect(page.getByText(students[id - 1].name, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("기존학생054", { exact: true })).toHaveCount(0);
+  });
+}
+
+test("학교급 변경 시 유효하지 않은 초등 학년을 해제하고 조건 조회 실패에서 복구한다", async ({ page }) => {
+  const { state, dialog } = await openPicker(page, {}, { elementary: true, schools: {
+    52: { high_school: "", elementary_school: "언남초등학교", school_type: "ELEMENTARY", grade: 6 },
+    53: { high_school: "", middle_school: "언남중학교", school_type: "MIDDLE", grade: 1 },
+  } });
+  await dialog.getByRole("combobox", { name: "학교 구분", exact: true }).selectOption("ELEMENTARY");
+  await dialog.getByRole("combobox", { name: "학년", exact: true }).selectOption("6");
+  await dialog.getByRole("checkbox", { name: "기존학생052 선택", exact: true }).check();
+  let finishSearch: () => void = () => {};
+  state.searchGate = new Promise<void>((resolve) => { finishSearch = resolve; });
+  state.failSearch = true;
+  try {
+    await dialog.getByRole("combobox", { name: "학교 구분", exact: true }).selectOption("MIDDLE");
+    await expect(dialog.getByRole("combobox", { name: "학년", exact: true })).toHaveValue("0");
+    await expect(dialog.getByText("검색 중…", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "이 페이지 선택 해제", exact: true })).toBeDisabled();
+  } finally { finishSearch(); state.searchGate = null; }
+  await expect(dialog.getByText("학생 명단을 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(dialog.getByRole("status")).toHaveText("1명 선택");
+  state.failSearch = false;
+  await dialog.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+  await expect(dialog.locator(".lecture-enroll-picker__identity strong")).toHaveText("기존학생053");
+  await dialog.getByRole("checkbox", { name: "기존학생053 선택", exact: true }).check();
+  await expect(dialog.getByRole("status")).toHaveText("2명 선택");
+  expect(state.searchRequests.at(-1)).toEqual({ search: "", schoolType: "MIDDLE", page: 1 });
+});
 
 for (const width of [1366, 1100, 390]) {
   test(`${width}px 차시 없이 기존 학생을 검색·다중 선택하고 저장·reload한다`, async ({ page }, info) => {
