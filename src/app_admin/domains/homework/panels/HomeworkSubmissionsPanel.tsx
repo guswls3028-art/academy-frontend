@@ -300,7 +300,12 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
                           intent="ghost"
                           size="sm"
                           disabled={!canPreview}
-                          onClick={() => { setPreviewFile(file); setPreviewFingerprint(row.media_set_fingerprint); }}
+                          onClick={(event) => {
+                            // WebKit does not focus buttons on pointer clicks; give the modal a return target.
+                            event.currentTarget.focus({ preventScroll: true });
+                            setPreviewFile(file);
+                            setPreviewFingerprint(row.media_set_fingerprint);
+                          }}
                         >
                           미리보기
                         </Button>

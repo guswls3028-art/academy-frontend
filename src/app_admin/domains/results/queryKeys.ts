@@ -16,6 +16,7 @@ export const adminResultsQueryKeys = {
   examQuestions: (examId: number | null | undefined) => ["exam-questions", examId] as const,
   manualGradeSheet: (examId: number) =>
     ["manual-grade-sheet", examId] as const,
+  examResultImport: (examId: number) => ["exam-result-import", examId] as const,
   myExamResult: (examId: number) => ["my-exam-result", examId] as const,
 
   examAttempts: (examId: number, enrollmentId: number) => ["exam-attempts", examId, enrollmentId] as const,

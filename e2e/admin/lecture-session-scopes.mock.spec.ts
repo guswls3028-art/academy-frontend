@@ -1553,7 +1553,16 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
     { waitUntil: "domcontentloaded" },
   );
 
-  await expect(page.getByText("과제 운영 준비", { exact: true })).toBeVisible();
+  await expect(page.locator('[aria-label="과제 운영 준비"]')).toBeVisible();
+  await page.setViewportSize({ width: 1366, height: 900 });
+  const assessmentNavigation = page.getByTestId("session-assessment-remote");
+  const assessmentWorkspace = page.locator(".session-assessment-workspace");
+  const navigationBox = await assessmentNavigation.boundingBox();
+  const workspaceBox = await assessmentWorkspace.boundingBox();
+  expect(navigationBox!.x + navigationBox!.width).toBeLessThanOrEqual(workspaceBox!.x);
+  expect(Math.abs(navigationBox!.y - workspaceBox!.y)).toBeLessThanOrEqual(1);
+  await assessmentNavigation.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("homework-workspace-1366.png"), animations: "disabled" });
   await expect(page.getByText("과제 운영 설정", { exact: true })).toBeVisible();
   await expect(page.getByLabel("합격 기준 (점)")).toHaveValue("15");
   await page.locator('#assessment-policy input[type="date"]').fill("2026-08-09");
@@ -1575,6 +1584,14 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
   await expect(page.getByRole("navigation", { name: "과제 업무 흐름" })).toBeVisible();
   await expect(primaryAction).toHaveText("제출 현황 보기");
   await page.setViewportSize({ width: 390, height: 844 });
+  const homeworkPicker = assessmentNavigation.getByRole("combobox", { name: "과제 선택", exact: true });
+  await expect(homeworkPicker).toHaveValue("9961");
+  await homeworkPicker.selectOption({ label: "심화 서술형" });
+  await expect(page.getByRole("heading", { name: "심화 서술형", exact: true })).toBeVisible();
+  await homeworkPicker.selectOption("9961");
+  await page.reload();
+  await expect(homeworkPicker).toHaveValue("9961");
+  await expect(page.getByLabel("합격 기준 (점)")).toHaveValue("17");
   await expect.poll(() => primaryAction.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
   await page.screenshot({
@@ -1651,6 +1668,9 @@ test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여
     { waitUntil: "domcontentloaded" },
   );
 
+  const readinessSummary = page.locator('details[aria-label="과제 운영 준비"] > summary');
+  await expect(readinessSummary).toBeVisible({ timeout: 30_000 });
+  await readinessSummary.click();
   await expect(
     page.getByRole("button", { name: /대상 학생: 2명 등록/ }),
   ).toBeVisible({ timeout: 30_000 });
@@ -1686,6 +1706,58 @@ test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여
   await expect.poll(() => state.homeworkAssignmentPuts?.length).toBe(1);
   expect(state.homeworkAssignmentPuts?.[0]).toEqual([501, 502, 503]);
 });
+
+for (const kind of ["exam", "homework"] as const) {
+  test(`@assessment-list-recovery 390px ${kind} 캐시 목록 재조회 실패를 표시하고 선택을 유지하며 재시도한다`, async ({ page }, testInfo) => {
+    const label = kind === "exam" ? "시험" : "과제";
+    const state: MockState = {
+      supplementTitle: "보충 수업", patchTitles: [], guidedExamFlow: true,
+      createdExamPayloads: [{ title: "재조회 시험" }],
+      createdHomeworkPayloads: [{ title: "재조회 과제", max_score: 20, cutline_mode: "COUNT", cutline_value: 10 }],
+    };
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openLecture(page, state);
+    const listPath = kind === "exam" ? `/api/v1/results/admin/sessions/${REGULAR_SESSION_ID}/exams/` : "/api/v1/homeworks/";
+    let failList = false;
+    let listReads = 0;
+    await page.route(url => url.pathname === listPath, async route => {
+      expect(route.request().method()).toBe("GET");
+      listReads += 1;
+      if (failList) return route.fulfill({ status: 503, json: { detail: "목록 재조회 일시 실패" } });
+      return route.fallback();
+    });
+    const suffix = kind === "exam" ? "exams?examId=9971" : "assignments?homeworkId=9961";
+    const selectedId = kind === "exam" ? "9971" : "9961";
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/${suffix}`, { waitUntil: "domcontentloaded" });
+    const navigation = page.getByTestId("session-assessment-remote");
+    const picker = navigation.getByRole("combobox", { name: `${label} 선택`, exact: true });
+    await expect(picker).toHaveValue(selectedId);
+    await expect(picker.locator("option:checked")).toHaveText(`재조회 ${label}`);
+    const readsBeforeFailure = listReads;
+    failList = true;
+    // Age the successful cache past the normal 10s stale time, then reconnect.
+    await page.clock.setFixedTime(new Date(await page.evaluate(() => Date.now()) + 11_000));
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("offline"));
+      window.dispatchEvent(new Event("online"));
+    });
+    await expect.poll(() => listReads).toBeGreaterThan(readsBeforeFailure);
+    const error = navigation.getByRole("alert");
+    await expect(error).toContainText(`${label} 목록을 불러오지 못했습니다`);
+    await expect(error).toContainText("이전에 불러온 목록을 표시하고 있습니다.");
+    await expect(picker).toHaveValue(selectedId);
+    await error.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`${kind}-cached-error-390.png`), animations: "disabled" });
+    failList = false;
+    const payloads = kind === "exam" ? state.createdExamPayloads! : state.createdHomeworkPayloads!;
+    payloads[0].title = `최신 ${label} 목록`;
+    await error.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+    await expect(error).toBeHidden();
+    await expect(picker).toHaveValue(selectedId);
+    await expect(picker.locator("option:checked")).toHaveText(`최신 ${label} 목록`);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  });
+}
 
 test("수업 목록 조회 실패는 기존 화면을 비우지 않고 다시 불러온다", async ({ page }) => {
   const state: MockState = {

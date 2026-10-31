@@ -11,6 +11,252 @@ const DONE_SUBMISSION_ID = 1801;
 const NOID_SUBMISSION_ID = 1802;
 const QUESTION_IDS = [1001, 1002] as const;
 
+for (const width of [390, 1366]) {
+  for (const initialMode of ["choice", "mixed"] as const) {
+  test(`${width}px ${initialMode} 주관식 바로가기에서 확정한 점수가 강의별 문항 통계에 즉시 반영된다`, async ({ page }, testInfo) => {
+    test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+    await page.setViewportSize({ width, height: 900 });
+    const result = {
+      enrollment_id: ENROLLMENT_ID, student_name: "김학생", result_status: "DONE",
+      rank: 1, ranking_score: 30, final_score: 30, cohort_size: 1,
+      lecture_title: "공통수학2 정규반", lecture_chip_label: "수2",
+    };
+    const conflictOnSetup = initialMode === "choice" && width === 390;
+    const apiState = await installApi(page, { gradingMode: initialMode, manualGradingMethod: "score", resultRows: [result], conflictOnGradingSetup: conflictOnSetup });
+    await page.route(`**/exams/${EXAM_ID}/lecture-assignments/`, (route) => route.fulfill({ json: {
+      exam_id: EXAM_ID, total_selected_count: 1, assignments: [{
+        lecture_id: LECTURE_ID, lecture_title: "공통수학2 정규반", pass_score: 60,
+        selected_count: 1, roster_count: 1, sessions: [],
+      }],
+    } }));
+    await page.route(`**/results/admin/exams/${EXAM_ID}/results/**`, (route) => route.fulfill({ json: {
+      results: [{ ...result, ranking_score: apiState.applied ? 70 : 30, final_score: apiState.applied ? 70 : 30 }],
+    } }));
+    await page.route(`**/results/admin/exams/${EXAM_ID}/questions/**`, (route) => route.fulfill({ json: [{
+      question_id: QUESTION_IDS[1], question_number: 2, attempts: 1,
+      correct: apiState.applied ? 1 : 0, accuracy: apiState.applied ? 1 : 0,
+      avg_score: apiState.applied ? 60 : 20, max_score: 60,
+    }] }));
+    const openResults = async () => {
+      await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+      await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    };
+    await openResults();
+    const entry = page.getByRole("region", { name: "주관식·서술형 채점 안내" });
+    await expect(entry).toContainText("합계 점수만 입력하면 문항별 정답률은 계산되지 않습니다.");
+    if (initialMode === "choice") {
+      await expect(entry).toContainText("서술형 1문항이 있지만 현재 OMR 자동 채점만 켜져 있습니다.");
+      await entry.getByRole("button", { name: "서술형 채점 켜고 입력하기" }).click();
+      if (conflictOnSetup) {
+        await expect(entry.getByRole("alert")).toContainText("다른 화면에서 설정이 바뀌었습니다.");
+        await entry.getByRole("button", { name: "서술형 채점 켜고 입력하기" }).click();
+      }
+      await expect.poll(() => apiState.examPatches).toContainEqual({
+        grading_mode: "mixed", manual_grading_method: "score", choice_question_count: 1,
+      });
+    }
+    await entry.getByRole("button", { name: "주관식·서술형 입력하기" }).click();
+    const grid = page.getByRole("region", { name: "혼합 채점 워크스페이스", exact: true });
+    await expect(grid.locator("..")).toBeFocused();
+    await page.getByRole("group", { name: "성적 조회 강의 필터" }).getByRole("button", { name: /공통수학2 정규반/ }).click();
+    await entry.getByRole("button", { name: "문항별 정답률 보기" }).click();
+    const statistics = page.locator("details").filter({ has: page.locator("summary", { hasText: "전체 문항 통계 보기" }) });
+    await expect(statistics).toHaveAttribute("open", "");
+    await expect(statistics).toContainText("20.0점");
+    await entry.screenshot({ path: testInfo.outputPath(`subjective-entry-${width}.png`) });
+    const score = grid.getByRole("spinbutton", { name: /60점 만점 점수/ });
+    await score.fill("60");
+    await page.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+    await expect(statistics).toContainText("20.0점");
+    apiState.failNextManualApply();
+    await page.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+    await expect(page.getByText("manual grading version conflict", { exact: true })).toBeVisible();
+    await expect(score).toHaveValue("60");
+    await expect(statistics).toContainText("20.0점");
+    await page.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+    await expect(statistics).toContainText("60.0점");
+    await expect(statistics).toContainText("100.0%");
+    await expect(page.getByRole("region", { name: "시험 학생별 결과", exact: true })).toContainText("70");
+    await statistics.screenshot({ path: testInfo.outputPath(`subjective-statistics-${width}.png`) });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await openResults();
+    await expect(score).toHaveValue("60");
+    await entry.getByRole("button", { name: "문항별 정답률 보기" }).click();
+    await expect(statistics).toContainText("60.0점");
+  });
+  }
+}
+
+test("서술형 채점 활성화 응답이 늦어도 이동한 시험의 포커스를 가져오지 않는다", async ({ page }) => {
+  test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+  const apiState = await installApi(page, { gradingMode: "choice", manualGradingMethod: "score" });
+  const nextExamId = EXAM_ID + 1;
+  await page.route(`**/results/admin/sessions/${SESSION_ID}/exams/`, (route) => route.fulfill({ json: [
+    { exam_id: EXAM_ID, title: "7월 진단평가", display_order: 0 },
+    { exam_id: nextExamId, title: "다음 서술형 시험", display_order: 1 },
+  ] }));
+  await page.route(`**/exams/${nextExamId}/`, (route) => route.fulfill({ json: {
+    id: nextExamId, title: "다음 서술형 시험", exam_type: "regular", subject: "MATH",
+    session_ids: [SESSION_ID], grading_mode: "written", manual_grading_method: "score",
+    max_score: 100, pass_score: 60, is_active: true, updated_at: "2026-07-30T09:00:00+09:00",
+  } }));
+  await page.route(`**/exams/${nextExamId}/questions/`, (route) => route.fulfill({ json: [] }));
+  await page.route(`**/results/admin/exams/${nextExamId}/manual-grading/`, (route) => route.fulfill({ json: {
+    exam_id: nextExamId, exam_title: "다음 서술형 시험", grading_mode: "written", manual_grading_method: "score",
+    has_manual_questions: false, exam_max_score: 100, question_score_total: 0, score_adjustment_total: 0,
+    questions: [], rows: [],
+  } }));
+  await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}&examTab=results`);
+  const release = apiState.holdNextGradingSetup();
+  await page.getByRole("button", { name: "서술형 채점 켜고 입력하기" }).click();
+  await expect.poll(() => apiState.examPatches.length).toBe(1);
+  await page.getByRole("button", { name: /다음 서술형 시험 만점/ }).click();
+  await expect(page).toHaveURL(new RegExp(`examId=${nextExamId}`));
+  await expect(page.getByRole("heading", { name: "다음 서술형 시험", exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "채점·결과", exact: true })).toHaveAttribute("aria-selected", "true");
+  const currentAction = page.getByRole("button", { name: "문항별 정답률 보기", exact: true });
+  await currentAction.focus();
+  const response = page.waitForResponse((res) => res.url().endsWith(`/exams/${EXAM_ID}/`) && res.request().method() === "PATCH");
+  release();
+  await response;
+  // Let cache invalidation and the queued animation frame finish before asserting focus.
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(currentAction).toBeFocused();
+  await expect(page).toHaveURL(new RegExp(`examId=${nextExamId}`));
+});
+
+test("서술형 문항이 없으면 채점 화면에서 실제 문항 설정으로 이동한다", async ({ page }) => {
+  test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+  await installApi(page, { gradingMode: "choice", hasQuestions: false });
+  await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+  await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+  const entry = page.getByRole("region", { name: "주관식·서술형 채점 안내" });
+  await expect(entry).toContainText("등록된 주관식·서술형 문항이 없습니다.");
+  await entry.getByRole("button", { name: "문항·답안 설정하기" }).click();
+  await expect(page.getByRole("tab", { name: "운영", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: "문항·답안 준비", exact: true })).toBeVisible();
+});
+
+async function openGradingWithExcel(page: Page, method: "score" | "correctness") {
+  const apiState = await installApi(page, { manualGradingMethod: method, initialStates: ["incorrect", "incorrect"] });
+  await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}&examTab=results`);
+  const grid = page.locator("[data-manual-grading-workspace]");
+  const row = grid.locator("tbody tr").filter({ hasText: "김학생" });
+  const excel = page.getByRole("region", { name: "엑셀로 채점 결과 넣기", exact: true });
+  await excel.locator('input[type="file"]').setInputFiles({
+    name: "문항별채점.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: Buffer.from("synthetic backend-owned result import fixture"),
+  });
+  const apply = excel.getByRole("button", { name: "1명 결과 반영", exact: true });
+  await expect(apply).toBeVisible();
+  return { apiState, grid, row, excel, apply };
+}
+
+for (const width of [390, 1366]) {
+  test(`@excel-draft-consumer ${width}px 미확정 점수는 엑셀 반영을 막고 확정 후에만 갱신한다`, async ({ page }) => {
+    test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+    await page.setViewportSize({ width, height: 900 });
+    const { apiState, grid, row, excel, apply } = await openGradingWithExcel(page, "score");
+    const firstScore = row.getByRole("spinbutton", { name: /40점 만점 점수/ });
+    await firstScore.fill("35");
+    await apply.click();
+    await expect(excel.getByRole("alert")).toContainText(/직접 채점|확정|저장/);
+    expect(apiState.excelApplyStates).toHaveLength(0);
+    await expect(firstScore).toHaveValue("35");
+    await grid.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+    await grid.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+    await expect.poll(() => apiState.manualSheetGetEvents.some((event) => event.applied)).toBe(true);
+    const releaseExcel = apiState.holdNextExcelApply();
+    await apply.click();
+    await expect.poll(() => apiState.excelApplyStates.length).toBe(1);
+    expect(apiState.excelApplyStates[0]).toEqual([35, 20]);
+    await expect.poll(() => grid.evaluate((element) => Boolean(element.closest("[inert]")))).toBe(true);
+    await row.locator('input[type="number"]').first().evaluate((element) => (element as HTMLInputElement).focus());
+    await expect(row.locator('input[type="number"]').first()).not.toBeFocused();
+    releaseExcel();
+    await expect(excel).toContainText("채점 결과를 반영했습니다");
+    await expect.poll(() => grid.evaluate((element) => Boolean(element.closest("[inert]")))).toBe(false);
+    await expect(firstScore).toHaveValue("0");
+    await expect(row.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("60");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(firstScore).toHaveValue("0");
+    await expect(row.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("60");
+    expect(apiState.excelApplyStates).toHaveLength(1);
+  });
+
+  test(`@excel-draft-consumer ${width}px 정오 저장이 끝난 다음 엑셀을 반영하고 편집 잠금을 해제한다`, async ({ page }) => {
+    test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+    await page.setViewportSize({ width, height: 900 });
+    const { apiState, grid, row, excel, apply } = await openGradingWithExcel(page, "correctness");
+    const releaseManual = apiState.holdNextManualApply();
+    await row.locator("[data-manual-grade-cell]").first().press("o");
+    await expect.poll(() => apiState.postedRows.length).toBe(1);
+    const releaseExcel = apiState.holdNextExcelApply();
+    await apply.click();
+    await expect.poll(() => grid.evaluate((element) => Boolean(element.closest("[inert]")))).toBe(true);
+    expect(apiState.excelApplyStates).toHaveLength(0);
+    releaseManual();
+    await expect.poll(() => apiState.excelApplyStates.length).toBe(1);
+    expect(apiState.excelApplyStates[0]).toEqual([40, 0]);
+    await expect.poll(() => grid.evaluate((element) => Boolean(element.closest("[inert]")))).toBe(true);
+    releaseExcel();
+    await expect(excel).toContainText("채점 결과를 반영했습니다");
+    await expect.poll(() => grid.evaluate((element) => Boolean(element.closest("[inert]")))).toBe(false);
+    await expect(row.locator("[data-manual-grade-cell]").nth(0)).toHaveText("X");
+    await expect(row.locator("[data-manual-grade-cell]").nth(1)).toHaveText("O");
+    expect(apiState.postedRows).toHaveLength(1);
+  });
+
+  test(`@excel-draft-consumer ${width}px 실패한 정오 초안은 엑셀로 덮지 않고 재시도 뒤 반영한다`, async ({ page }) => {
+    test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+    await page.setViewportSize({ width, height: 900 });
+    const { apiState, grid, row, excel, apply } = await openGradingWithExcel(page, "correctness");
+    apiState.failNextManualApply();
+    await row.locator("[data-manual-grade-cell]").first().press("o");
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장 실패");
+    await apply.click();
+    await expect(excel.getByRole("alert")).toContainText(/직접 채점|재시도|저장/);
+    expect(apiState.excelApplyStates).toHaveLength(0);
+    expect(apiState.postedRows).toHaveLength(1);
+    await expect.poll(() => grid.evaluate((element) => Boolean(element.closest("[inert]")))).toBe(false);
+    await expect(row.locator("[data-manual-grade-cell]").first()).toHaveText("O");
+    await row.getByRole("button", { name: "김학생 자동 저장 재시도" }).click();
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
+    await apply.click();
+    await expect(excel).toContainText("채점 결과를 반영했습니다");
+    expect(apiState.excelApplyStates).toEqual([[40, 0]]);
+    expect(apiState.postedRows).toHaveLength(2);
+    await expect(row.locator("[data-manual-grade-cell]").nth(0)).toHaveText("X");
+    await expect(row.locator("[data-manual-grade-cell]").nth(1)).toHaveText("O");
+  });
+
+  test(`@excel-draft-consumer ${width}px 엑셀 반영 중 같은 시험에 재진입해도 잠금을 유지한다`, async ({ page }) => {
+    test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+    await page.setViewportSize({ width, height: 900 });
+    const { apiState, grid, row, apply } = await openGradingWithExcel(page, "score");
+    const releaseExcel = apiState.holdNextExcelApply();
+    await apply.click();
+    await expect.poll(() => apiState.excelApplyStates.length).toBe(1);
+    await page.getByRole("tab", { name: "운영", exact: true }).click();
+    await expect(grid).toHaveCount(0);
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await expect.poll(() => grid.evaluate((element) => Boolean(element.closest("[inert]")))).toBe(true);
+    await expect(page.getByRole("status").filter({ hasText: "수동 채점 저장과 엑셀 반영" })).toBeVisible();
+    const firstInput = row.locator('input[type="number"]').first();
+    await firstInput.evaluate((element) => (element as HTMLInputElement).focus());
+    await expect(firstInput).not.toBeFocused();
+    releaseExcel();
+    await expect.poll(() => grid.evaluate((element) => Boolean(element.closest("[inert]")))).toBe(false);
+    const firstScore = row.getByRole("spinbutton", { name: /40점 만점 점수/ });
+    await expect(firstScore).toHaveValue("0");
+    await expect(row.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("60");
+    await firstScore.fill("25");
+    await expect(firstScore).toHaveValue("25");
+    expect(apiState.excelApplyStates).toHaveLength(1);
+  });
+}
+
 test("온라인 서술형 답안을 모바일과 데스크톱에서 열고 점수를 입력한다", async ({ page }) => {
   test.skip(!isLocalBase(BASE), "Local route-mock spec.");
   const studentName = "QA online-written-submission-20261021 자녀 1";
@@ -168,6 +414,7 @@ type InstallApiOptions = {
   failFirstRotateRescan?: boolean;
   onlineWrittenAnswer?: string;
   studentName?: string;
+  conflictOnGradingSetup?: boolean;
 };
 
 async function installApi(page: Page, options: InstallApiOptions = {}) {
@@ -191,6 +438,9 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let failManualSheetGetAfterPostCount: number | null = null;
   let nextManualApplyDelayMs = 0;
   let nextManualApplyGate: Promise<void> | null = null;
+  let nextGradingSetupGate: Promise<void> | null = null;
+  let nextExcelApplyGate: Promise<void> | null = null;
+  const excelApplyStates: number[][] = [];
   const manualSheetGetEvents: Array<{ applied: boolean; failureArmed: boolean }> = [];
   let gradingMode = options.gradingMode ?? "written";
   let manualGradingMethod =
@@ -217,6 +467,8 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     cells: Record<string, PersistedCell>;
   };
   const persistedRows = new Map<number, PersistedRow>();
+  let conflictOnGradingSetup = options.conflictOnGradingSetup ?? false;
+  let examUpdatedAt = "2026-07-30T09:00:00+09:00";
   const ensurePersistedRow = (
     enrollmentId: number,
     studentIndex = 0,
@@ -388,9 +640,32 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           manual_grading_method?: "correctness" | "score";
         };
         examPatches.push(body);
+        if (body.grading_mode && nextGradingSetupGate) {
+          const gate = nextGradingSetupGate;
+          nextGradingSetupGate = null;
+          await gate;
+        }
+        if (options.conflictOnGradingSetup && body.grading_mode) {
+          if (conflictOnGradingSetup) {
+            conflictOnGradingSetup = false;
+            examUpdatedAt = "2026-07-30T09:01:00+09:00";
+            await json({ code: "stale_resource" }, 409);
+            return;
+          }
+          if (request.headers()["x-expected-updated-at"] !== examUpdatedAt) {
+            await json({ code: "stale_resource" }, 409);
+            return;
+          }
+        }
         gradingMode = body.grading_mode ?? gradingMode;
         manualGradingMethod =
           body.manual_grading_method ?? manualGradingMethod;
+        for (const row of persistedRows.values()) {
+          Object.entries(row.cells).forEach(([questionId, cell]) => {
+            cell.editable = questionEditable()[Number(questionId) - QUESTION_IDS[0]] ?? false;
+            cell.entry_method = cell.editable ? manualGradingMethod : "omr";
+          });
+        }
       }
       await json({
         id: EXAM_ID,
@@ -417,7 +692,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         can_edit_structure: true,
         answer_visibility: "hidden",
         created_at: "2026-07-30T09:00:00+09:00",
-        updated_at: "2026-07-30T09:00:00+09:00",
+        updated_at: examUpdatedAt,
       });
       return;
     }
@@ -724,6 +999,36 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           { question_id: QUESTION_IDS[0], number: 1, answer: body.answers[String(QUESTION_IDS[0])], is_correct: firstCorrect, score: firstCorrect ? 40 : 0, max_score: 40 },
           { question_id: QUESTION_IDS[1], number: 2, answer: body.answers[String(QUESTION_IDS[1])], is_correct: secondCorrect, score: secondCorrect ? 60 : 0, max_score: 60 },
         ] });
+      return;
+    }
+    if (path === `/results/admin/exams/${EXAM_ID}/result-import/` && method === "POST") {
+      const apply = /name="apply"/.test(request.postData() ?? "");
+      if (apply) {
+        const persisted = ensurePersistedRow(ENROLLMENT_ID);
+        excelApplyStates.push(QUESTION_IDS.map((id) => persisted.cells[String(id)].score ?? 0));
+        if (nextExcelApplyGate) {
+          const gate = nextExcelApplyGate;
+          nextExcelApplyGate = null;
+          await gate;
+        }
+        QUESTION_IDS.forEach((id, index) => {
+          const cell = persisted.cells[String(id)];
+          cell.state = index === 0 ? "incorrect" : "correct";
+          cell.score = index === 0 ? 0 : 60;
+          cell.include_in_wrong_note = index === 0;
+        });
+        persisted.expectedVersion = `excel-${excelApplyStates.length}`;
+        applied = true;
+      }
+      await json({
+        ok: true, applied: apply, exam_id: EXAM_ID, exam_title: "7월 진단평가", filename: "문항별채점.xlsx",
+        worksheet_names: ["성적"], matched_count: 1, question_count: 2, overwrite_count: 1, not_submitted_count: 0,
+        errors: [], warnings: [], rows: [{
+          sheet: "성적", row: 2, enrollment_id: ENROLLMENT_ID, student_name: "김학생", lectures: [],
+          correct_count: 1, wrong_count: 1, wrong_questions: [1], review_count: 0, review_questions: [],
+          total_score: 60, max_score: 100, will_overwrite: true, is_not_submitted: false, exam_not_submitted_count: 0,
+        }],
+      });
       return;
     }
     if (path === `/results/admin/exams/${EXAM_ID}/manual-grading/`) {
@@ -1066,6 +1371,17 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       nextManualApplyGate = new Promise<void>((resolve) => { release = resolve; });
       return release;
     },
+    holdNextGradingSetup() {
+      let release!: () => void;
+      nextGradingSetupGate = new Promise<void>((resolve) => { release = resolve; });
+      return release;
+    },
+    holdNextExcelApply() {
+      let release!: () => void;
+      nextExcelApplyGate = new Promise<void>((resolve) => { release = resolve; });
+      return release;
+    },
+    excelApplyStates,
     examPatches,
     postedRows,
   };

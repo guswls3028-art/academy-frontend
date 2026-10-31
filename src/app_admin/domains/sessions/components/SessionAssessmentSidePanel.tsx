@@ -84,7 +84,7 @@ const S = {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: 6,
-    width: 224,
+    width: "100%",
     maxWidth: "100%",
   } satisfies CSSProperties,
 
@@ -122,7 +122,8 @@ const S = {
     gap: "var(--space-2)",
     minHeight: 38,
     borderRadius: "var(--radius-md, 8px)",
-    border: "1px dashed var(--color-border-divider)",
+    border: "1px solid var(--color-border-divider)",
+    padding: "8px 10px",
     background: "var(--color-bg-surface)",
     color: "var(--color-text-secondary)",
     fontSize: 12,
@@ -173,17 +174,16 @@ const S = {
   } satisfies CSSProperties,
 
   itemList: {
-    display: "flex",
     gap: 6,
-    padding: "0 12px 10px",
-    overflowX: "auto",
+    padding: "0 10px 10px",
   } satisfies CSSProperties,
 
   /* Card base — shared between exam & homework rows */
   card: (active: boolean): CSSProperties => ({
     position: "relative",
     display: "flex",
-    width: 220,
+    width: "100%",
+    minWidth: 0,
     flexShrink: 0,
     flexDirection: "column",
     gap: 4,
@@ -216,14 +216,16 @@ const S = {
     color: "var(--color-text-primary)",
     overflow: "hidden",
     textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
+    whiteSpace: "normal",
+    wordBreak: "keep-all",
+    overflowWrap: "anywhere",
   } satisfies CSSProperties,
 
   cardMeta: {
     fontSize: "11px",
     fontWeight: 500,
     color: "var(--color-text-muted)",
-    lineHeight: 1,
+    lineHeight: 1.5,
     paddingLeft: 2,
   } satisfies CSSProperties,
 
@@ -296,7 +298,7 @@ export default function SessionAssessmentSidePanel({
     return readAssessmentItemId(searchParams, "homework");
   }, [searchParams]);
 
-  const { data: exams = [], isLoading: examsLoading, isError: examsError } = useQuery({
+  const { data: exams = [], isLoading: examsLoading, isError: examsError, isFetching: examsFetching, refetch: refetchExams } = useQuery({
     queryKey: sessionAssessmentQueryKeys.exams(sessionId),
     queryFn: () => fetchAdminSessionExams(sessionId),
     enabled: !!sessionId,
@@ -327,7 +329,7 @@ export default function SessionAssessmentSidePanel({
     return map;
   }, [examsSummary]);
 
-  const { data: homeworks = [], isLoading: hwLoading, isError: hwError } = useQuery({
+  const { data: homeworks = [], isLoading: hwLoading, isError: hwError, isFetching: hwFetching, refetch: refetchHomeworks } = useQuery({
     queryKey: sessionAssessmentQueryKeys.homeworks(sessionId),
     queryFn: async (): Promise<HomeworkItem[]> => {
       const rows: AssessmentHomeworkListItem[] = await fetchSessionHomeworks(sessionId);
@@ -450,6 +452,7 @@ export default function SessionAssessmentSidePanel({
     <aside
       data-testid="session-assessment-remote"
       aria-label="차시 시험·과제 선택"
+      className="session-assessment-selector"
       style={S.aside}
     >
       <div style={S.asideHeader}>
@@ -498,9 +501,19 @@ export default function SessionAssessmentSidePanel({
           </Button>
         </div>
 
-        <div style={S.itemList}>
+        {exams.length > 0 && <label className="session-assessment-mobile-picker">시험 선택
+          <select value={examId ?? ""} onChange={event => { if (event.target.value) void onSelectExam(Number(event.target.value)); }}>
+            <option value="" disabled>시험을 선택하세요</option>
+            {exams.map(exam => <option key={exam.exam_id} value={exam.exam_id}>{exam.title}</option>)}
+          </select>
+        </label>}
+        {(examsLoading || examsError || exams.length === 0) && <div style={S.itemList}>
           {examsLoading && <EmptyState title="불러오는 중..." />}
-          {!examsLoading && examsError && <EmptyState title="시험 목록을 불러오지 못했습니다" />}
+          {!examsLoading && examsError && <div role="alert"><EmptyState
+            title="시험 목록을 불러오지 못했습니다"
+            description={exams.length ? "이전에 불러온 목록을 표시하고 있습니다." : undefined}
+            action={<Button intent="secondary" size="sm" disabled={examsFetching} onClick={() => void refetchExams()}>{examsFetching ? "다시 불러오는 중…" : "다시 불러오기"}</Button>}
+          /></div>}
           {!examsLoading && !examsError && exams.length === 0 && (
             <EmptyState
               title="시험 없음"
@@ -508,6 +521,8 @@ export default function SessionAssessmentSidePanel({
               action={<Button type="button" intent="secondary" size="sm" onClick={setOpenCreateExam}>시험 추가</Button>}
             />
           )}
+        </div>}
+        {exams.length > 0 && <div style={S.itemList} className="session-assessment-items">
           {exams.map((exam: SessionExamRow) => {
             const active = examId != null && Number(exam.exam_id) === examId;
             const maxScore = examMaxScoreById[Number(exam.exam_id)] ?? 100;
@@ -523,7 +538,7 @@ export default function SessionAssessmentSidePanel({
               />
             );
           })}
-        </div>
+        </div>}
       </section>
 
       {/* ── Homework Section ── */}
@@ -539,9 +554,19 @@ export default function SessionAssessmentSidePanel({
           </Button>
         </div>
 
-        <div style={S.itemList}>
+        {homeworks.length > 0 && <label className="session-assessment-mobile-picker">과제 선택
+          <select value={homeworkId ?? ""} onChange={event => { if (event.target.value) void onSelectHomework(Number(event.target.value)); }}>
+            <option value="" disabled>과제를 선택하세요</option>
+            {homeworks.map(homework => <option key={homework.id} value={homework.id}>{homework.title}</option>)}
+          </select>
+        </label>}
+        {(hwLoading || hwError || homeworks.length === 0) && <div style={S.itemList}>
           {hwLoading && <EmptyState title="불러오는 중..." />}
-          {!hwLoading && hwError && <EmptyState title="과제 목록을 불러오지 못했습니다" />}
+          {!hwLoading && hwError && <div role="alert"><EmptyState
+            title="과제 목록을 불러오지 못했습니다"
+            description={homeworks.length ? "이전에 불러온 목록을 표시하고 있습니다." : undefined}
+            action={<Button intent="secondary" size="sm" disabled={hwFetching} onClick={() => void refetchHomeworks()}>{hwFetching ? "다시 불러오는 중…" : "다시 불러오기"}</Button>}
+          /></div>}
           {!hwLoading && !hwError && homeworks.length === 0 && (
             <EmptyState
               title="과제 없음"
@@ -549,6 +574,8 @@ export default function SessionAssessmentSidePanel({
               action={<Button type="button" intent="secondary" size="sm" onClick={setOpenCreateHomework}>과제 추가</Button>}
             />
           )}
+        </div>}
+        {homeworks.length > 0 && <div style={S.itemList} className="session-assessment-items">
           {homeworks.map((hw) => {
             const active = homeworkId === hw.id;
             return (
@@ -563,7 +590,7 @@ export default function SessionAssessmentSidePanel({
               />
             );
           })}
-        </div>
+        </div>}
       </section>
 
       {/* ── Modals ── */}

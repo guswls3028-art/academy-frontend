@@ -154,9 +154,9 @@ export default function SessionDetailPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-4">
+      <div className={assessmentRemoteKind != null ? "session-assessment-layout" : "flex flex-col gap-4"}>
         {assessmentRemoteKind != null && (
-          <div className="w-full min-w-0">
+          <div className="session-assessment-navigation">
             <SessionAssessmentSidePanel
               lectureId={lecId}
               sessionId={sId}

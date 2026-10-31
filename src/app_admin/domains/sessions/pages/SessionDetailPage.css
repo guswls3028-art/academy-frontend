@@ -2,6 +2,36 @@
   margin-bottom: var(--space-3);
 }
 
+.session-assessment-layout { display: grid; grid-template-columns: 208px minmax(0, 1fr); align-items: start; gap: 16px; min-width: 0; }
+.session-assessment-navigation { min-width: 0; position: sticky; top: calc(var(--panel-header, 56px) + var(--notice-banner-height, 0px) + 12px); }
+.session-assessment-items { display: grid; max-height: min(58vh, 640px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.session-assessment-items button { min-height: 64px; align-items: stretch; }
+.session-assessment-selector button:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: -2px; }
+.session-assessment-mobile-picker { display: none; }
+.session-assessment-workspace .assessment-detail-header { padding: 14px 16px; border: 0; border-bottom: 1px solid var(--color-border-divider); border-radius: 0; background: var(--color-bg-surface); box-shadow: none; overflow: visible; }
+.session-assessment-workspace .assessment-detail-header::before { display: none; }
+.session-assessment-workspace .assessment-detail-header__copy { flex: 1 1 220px; }
+.session-assessment-workspace.ds-panel > div { padding: 16px; }
+.session-assessment-workspace .assessment-detail-header__title { font-size: 18px; word-break: keep-all; overflow-wrap: anywhere; }
+.session-assessment-workspace .assessment-detail-header__desc { margin-top: 4px; word-break: keep-all; overflow-wrap: anywhere; }
+.session-assessment-workspace .assessment-detail-header__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.session-assessment-workspace .assessment-template-button { white-space: nowrap; }
+.session-assessment-workspace .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-block-start: 16px; }
+.session-assessment-workspace .assessment-workflow-tabs { gap: 8px; flex-wrap: wrap; }
+@media (max-width: 1000px) {
+  .session-assessment-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .session-assessment-navigation { position: static; }
+  .session-assessment-selector > div:first-child { flex-wrap: nowrap !important; }
+  .session-assessment-selector > div:first-child > div { width: auto !important; flex: 1; }
+  .session-assessment-selector > div:first-child > button { flex: 0 0 auto; }
+  .session-assessment-items { display: none; }
+  .session-assessment-mobile-picker { display: grid; gap: 5px; padding: 0 12px 12px; font-size: 12px; color: var(--color-text-muted); }
+  .session-assessment-mobile-picker select { display: block; width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--color-border-divider); border-radius: 6px; color: var(--color-text-primary); background: var(--color-bg-surface); font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .session-assessment-selector button { transition: none !important; }
+}
+
 .session-assessment-empty {
   display: grid;
   min-height: 360px;
