@@ -24,7 +24,7 @@ export default function GuideCatalog({ articles, title, description, scope, mode
   const headingRef = useRef<HTMLHeadingElement>(null);
   const contentsRef = useRef<HTMLElement>(null);
   const returnToContents = useRef(false);
-  const previousTopic = useRef<string | null>(null);
+  const focusedHeading = useRef<HTMLHeadingElement | null>(null);
   const selected = articles.find((article) => article.id === topic);
   const selectedMedia = selected ? findGuideMedia(scope, selected.id) : undefined;
   const visualArticles = articles.filter((article) => findGuideMedia(scope, article.id));
@@ -81,18 +81,21 @@ export default function GuideCatalog({ articles, title, description, scope, mode
       contentsRef.current?.scrollIntoView({ block: "start" });
       returnToContents.current = false;
     }
-    if (topic !== previousTopic.current && selected) {
+    const heading = headingRef.current;
+    if (heading && heading !== focusedHeading.current) {
       // Align after the route's initial scroll reset, including direct links
       // and reloads. Cancel stale navigation before focusing another article.
       const frame = window.requestAnimationFrame(() => {
-        headingRef.current?.focus({ preventScroll: true });
-        headingRef.current?.scrollIntoView({ block: "start" });
-        previousTopic.current = topic;
+        if (!heading.isConnected) return;
+        heading.focus({ preventScroll: true });
+        heading.scrollIntoView({ block: "start" });
+        focusedHeading.current = heading;
       });
       return () => window.cancelAnimationFrame(frame);
     }
-    // Permission data can make a requested article available after mount.
-    previousTopic.current = selected?.id ?? null;
+    // A keyed article may remount with the same topic after a cancelled frame.
+    // Track the heading that actually received focus, not only its topic ID.
+    if (!heading) focusedHeading.current = null;
   }, [topic, selected]);
 
   const nextArticles = selected?.nextIds.flatMap((id) => {

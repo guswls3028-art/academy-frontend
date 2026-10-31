@@ -12,6 +12,15 @@ const featureBooks = JSON.parse(readFileSync(new URL("../src/shared/ui/guide/con
 const mediaCatalog = JSON.parse(readFileSync(new URL("../src/shared/ui/guide/content/guide-media.json", import.meta.url), "utf8")) as Record<string, GuideMediaSource>;
 const findGuideMedia = (scope: string, topic: string) => mediaCatalog[`${scope}/${topic}`];
 
+type GuideFrameWindow = Window & {
+  guideFocusFrames: {
+    hold: () => void;
+    pending: () => number;
+    cancelled: () => number;
+    release: () => number;
+  };
+};
+
 test("Cloudflare public guide supports direct reading URLs and canonical metadata without widening promo routes", async () => {
   const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const originalFetch = globalThis.fetch;
@@ -361,6 +370,73 @@ for (const width of [1366, 390]) {
     await expect(heading).toBeInViewport();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
     await testInfo.attach(`guide-direct-reading-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+  });
+
+  test(`guide back navigation restores a remounted article and cancels stale focus at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.addInitScript(() => {
+      const requestFrame = window.requestAnimationFrame.bind(window);
+      const cancelFrame = window.cancelAnimationFrame.bind(window);
+      const held = new Map<number, FrameRequestCallback>();
+      let holding = false;
+      let cancelled = 0;
+      // Hold only guide focus so browser navigation and other UI keep running.
+      window.requestAnimationFrame = (callback) => {
+        if (holding && new Error().stack?.includes("/src/shared/ui/guide/GuideCatalog.tsx")) {
+          const id = requestFrame(() => {});
+          held.set(id, callback);
+          return id;
+        }
+        return requestFrame(callback);
+      };
+      window.cancelAnimationFrame = (id) => {
+        if (held.delete(id)) cancelled += 1;
+        cancelFrame(id);
+      };
+      Object.assign(window, {
+        guideFocusFrames: {
+          hold: () => { holding = true; },
+          pending: () => held.size,
+          cancelled: () => cancelled,
+          release: () => {
+            const callbacks = [...held.values()];
+            held.clear();
+            callbacks.forEach((callback) => callback(performance.now()));
+            return callbacks.length;
+          },
+        },
+      });
+    });
+    await page.goto(`${BASE}/promo/guide?role=teacher&topic=today`);
+    const original = page.getByRole("heading", { level: 2, name: "오늘 수업과 처리할 일", exact: true });
+    const openNext = page.getByRole("region", { name: "다음 이용 흐름" })
+      .getByRole("button", { name: "모바일 출결 입력 →", exact: true });
+    const pending = () => page.evaluate(() => (window as GuideFrameWindow).guideFocusFrames.pending());
+    await expect(original).toBeFocused();
+    await page.evaluate(() => (window as GuideFrameWindow).guideFocusFrames.hold());
+    await openNext.click();
+    await expect(page.getByRole("heading", { level: 2, name: "모바일 출결 입력", exact: true })).toBeVisible();
+    await expect.poll(pending).toBe(1);
+    await page.goBack();
+    await expect(original).toBeVisible();
+    await expect.poll(pending).toBe(1);
+    expect(await page.evaluate(() => (window as GuideFrameWindow).guideFocusFrames.cancelled())).toBe(1);
+    expect(await page.evaluate(() => (window as GuideFrameWindow).guideFocusFrames.release())).toBe(1);
+    await expect(original).toBeFocused();
+    await expect(original).toBeInViewport();
+
+    await openNext.click();
+    await expect.poll(pending).toBe(1);
+    await page.getByRole("link", { name: "도입 전 자주 묻는 질문 →", exact: true }).click();
+    await expect(page).toHaveURL(/\/promo\/faq$/);
+    await expect.poll(pending).toBe(0);
+    const faqLink = page.getByRole("navigation", { name: "질문 분류" })
+      .getByRole("link", { name: "요금과 포함 범위", exact: true });
+    await faqLink.focus();
+    expect(await page.evaluate(() => (window as GuideFrameWindow).guideFocusFrames.release())).toBe(0);
+    expect(await page.evaluate(() => (window as GuideFrameWindow).guideFocusFrames.cancelled())).toBe(2);
+    await expect(faqLink).toBeFocused();
+    await expect(page.getByRole("article")).toHaveCount(0);
   });
 
   test(`guide inquiry preserves context and complete questions through retry at ${width}px`, async ({ page }, testInfo) => {
