@@ -36,6 +36,7 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     expect(response.status()).toBe(201);
     const point = await response.json() as Point;
     points.push(point);
+    await expect(dialog.getByRole("heading", { name: `${label} ${kind}`, exact: true })).toBeVisible();
     const qr = dialog.getByLabel("출결 QR 인쇄 미리보기").locator(".ant-qrcode");
     await expect(qr.locator("svg")).toBeVisible();
     const photo = await qr.screenshot();
