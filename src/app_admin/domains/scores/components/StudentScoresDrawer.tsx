@@ -329,6 +329,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
             )}
           </div>
           <div className="student-scores-drawer__header-info">
+            <p className="student-scores-drawer__context">{meta?.session_title ?? "현재 차시"} · 학생 성적</p>
             <h2 id="student-scores-drawer-title" className="student-scores-drawer__header-name">
               <StudentDetailLink
                 studentId={row.student_id}
@@ -573,7 +574,7 @@ function ExamResultCard({
   return (
     <li className="student-scores-drawer__exam-card" data-passed={exam.block.teacher_resolved === true || exam.block.final_pass === true || exam.block.passed === true ? "true" : exam.block.passed === false ? "false" : undefined}>
       <div className="student-scores-drawer__exam-topline">
-        <div className="student-scores-drawer__exam-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
+        <div className="student-scores-drawer__exam-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0} aria-expanded={expanded}>
           <div className="student-scores-drawer__exam-title-row">
             <span className="student-scores-drawer__exam-title">{exam.title}</span>
             <span className="student-scores-drawer__status-badges">
@@ -826,7 +827,7 @@ function HomeworkResultCard({
 
   return (
     <li className="student-scores-drawer__hw-card" data-passed={(hw.block.teacher_resolved ?? hw.block.passed) === true ? "true" : hw.block.passed === false ? "false" : undefined}>
-      <div className="student-scores-drawer__hw-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
+      <div className="student-scores-drawer__hw-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0} aria-expanded={expanded}>
         <div className="student-scores-drawer__hw-title-row">
           <span className="student-scores-drawer__hw-title">{hw.title}</span>
           <span className="student-scores-drawer__status-badges">

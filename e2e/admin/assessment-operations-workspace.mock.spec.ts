@@ -457,6 +457,49 @@ function recoveryExamState(): MockState {
   };
 }
 
+for (const width of [1366, 1100, 390]) {
+  test(`@assessment-workspace-layout ${width}px 시험 목록과 작업 영역을 배치하고 선택을 복원한다`, async ({ page }, testInfo) => {
+    const state = recoveryExamState();
+    state.exam.title = "수학 기초 개념과 서술형 풀이 과정을 함께 확인하는 평가";
+    state.secondExam = { ...state.exam, id: EXAM_ID + 1, title: "다음 평가", pass_score: 65 };
+    await page.setViewportSize({ width, height: 900 });
+    await openExam(page, state);
+    const navigation = page.getByTestId("session-assessment-remote");
+    const workspace = page.locator(".session-assessment-workspace");
+    // Opening settings may scroll the workspace while the list stays sticky.
+    await navigation.evaluate(element => {
+      for (let parent = element.parentElement; parent; parent = parent.parentElement) parent.scrollTop = 0;
+    });
+    const navBox = await navigation.boundingBox();
+    const workspaceBox = await workspace.boundingBox();
+    if (width > 1000) {
+      expect(navBox!.x + navBox!.width).toBeLessThanOrEqual(workspaceBox!.x);
+      expect(Math.abs(navBox!.y - workspaceBox!.y)).toBeLessThanOrEqual(1);
+    } else {
+      await expect(navigation.getByRole("combobox", { name: "시험 선택", exact: true })).toBeVisible();
+      expect(navBox!.y + navBox!.height).toBeLessThanOrEqual(workspaceBox!.y);
+    }
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await navigation.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`exam-workspace-${width}.png`), animations: "disabled" });
+    const selectNext = async () => {
+      if (width > 1000) await navigation.getByRole("button").filter({ hasText: "다음 평가" }).click();
+      else await navigation.getByRole("combobox", { name: "시험 선택", exact: true }).selectOption(String(EXAM_ID + 1));
+    };
+    await page.getByLabel("합격 기준").fill("77");
+    await selectNext();
+    await page.getByRole("alertdialog").getByRole("button", { name: "계속 편집", exact: true }).click();
+    await expect(page.getByLabel("합격 기준")).toHaveValue("77");
+    if (width === 390) await expect(navigation.getByRole("combobox", { name: "시험 선택", exact: true })).toHaveValue(String(EXAM_ID));
+    await selectNext();
+    await page.getByRole("alertdialog").getByRole("button", { name: "저장하지 않고 이동", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "다음 평가", exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "다음 평가", exact: true })).toBeVisible();
+    expect(state.examPatchPayloads).toEqual([]);
+  });
+}
+
 async function expectWrittenAnswerFits(answer: Locator) {
   await expect.poll(() => answer.evaluate((element) => ({
     vertical: element.scrollHeight <= element.clientHeight + 1,

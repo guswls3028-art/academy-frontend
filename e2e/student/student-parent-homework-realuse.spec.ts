@@ -116,13 +116,13 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
     const configPath = `/results/admin/sessions/${created.sessionId}/total-config/`;
     await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
     const totals = staffPage.getByRole("dialog", { name: "합산 설정", exact: true });
-    await totals.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
+    await totals.getByRole("checkbox", { name: `${homeworkTitle} 합산에 포함`, exact: true }).uncheck();
     await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(totals).toBeHidden();
     expect((await expectApi<{ homework_ids: number[] }>(request, "GET", configPath, admin.access)).homework_ids).toEqual([]);
     await staffPage.reload();
     await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
-    await totals.getByRole("button", { name: "과제 총점 아래로 이동", exact: true }).click();
+    await totals.getByRole("checkbox", { name: `${homeworkTitle} 합산에 포함`, exact: true }).check();
     await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(totals).toBeHidden();
     expect((await expectApi<{ homework_ids: number[] }>(request, "GET", configPath, admin.access)).homework_ids).toEqual([created.homeworkId]);
@@ -238,7 +238,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       checkpoint.phase = "feedback-order";
       // Put both items after the total, reorder there, and prove completion never enters the sum.
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
-      await totals.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
+      await totals.getByRole("checkbox", { name: `${homeworkTitle} 합산에 포함`, exact: true }).uncheck();
       await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
       await expect(totals).toBeHidden();
       const moved = staffPage.waitForResponse(response => response.request().method() === "PUT"
@@ -251,7 +251,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await verifyMixed([completion.id, created.homeworkId!], [], width === 1366 ? 1 : 0);
       // Restore scoring while preserving the completion item's stored position.
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
-      await totals.getByRole("button", { name: "과제 총점 아래로 이동", exact: true }).click();
+      await totals.getByRole("checkbox", { name: `${homeworkTitle} 합산에 포함`, exact: true }).check();
       await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
       await expect(totals).toBeHidden();
       await staffPage.reload();
@@ -306,7 +306,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
       // Restore exact order via the same excluded-area UI before existing comment checks.
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
-      await totals.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
+      await totals.getByRole("checkbox", { name: `${homeworkTitle} 합산에 포함`, exact: true }).uncheck();
       await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
       await expect(totals).toBeHidden();
       const restored = staffPage.waitForResponse(response => response.request().method() === "PUT"
@@ -317,7 +317,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       expect((await restored).status()).toBe(200);
       await staffPage.reload();
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
-      await totals.getByRole("button", { name: "과제 총점 아래로 이동", exact: true }).click();
+      await totals.getByRole("checkbox", { name: `${homeworkTitle} 합산에 포함`, exact: true }).check();
       await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
       await expect(totals).toBeHidden();
       await verifyMixed(originalOrder, [created.homeworkId!], width === 1366 ? 1 : 0);

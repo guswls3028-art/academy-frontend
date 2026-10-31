@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type ReactNode } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Popover } from "antd";
 import {
@@ -15,6 +15,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { deleteSessionExam } from "@admin/domains/exams/public/sessionExamActions";
 import { invalidateSessionExamQueries } from "@admin/domains/sessions/public/assessmentQueries";
 import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
+import MenuAction from "./AssessmentHeaderMenuAction";
 import styles from "./ExamHeaderActionMenu.module.css";
 
 const ParentAssessmentCommentsPanel = lazy(() => import("./ParentAssessmentCommentsPanel"));
@@ -33,47 +34,11 @@ type Props = {
   deleteLocked?: boolean;
 };
 
-type MenuActionProps = {
-  title: string;
-  description: string;
-  icon: ReactNode;
-  accent?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-};
-
 const GRADING_MODE_LABEL = {
   choice: "OMR 자동채점",
   written: "직접 채점",
   mixed: "OMR + 직접 채점",
 } as const;
-
-function MenuAction({
-  title,
-  description,
-  icon,
-  accent = false,
-  disabled = false,
-  onClick,
-}: MenuActionProps) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      className={`${styles.menuAction} ${accent ? styles.menuActionAccent : ""}`}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      <span className={styles.menuActionIcon} aria-hidden>
-        {icon}
-      </span>
-      <span className={styles.menuActionCopy}>
-        <strong>{title}</strong>
-        <span>{description}</span>
-      </span>
-    </button>
-  );
-}
 
 export default function ExamHeaderActionMenu({
   examId,

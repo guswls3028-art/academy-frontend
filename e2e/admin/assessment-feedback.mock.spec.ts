@@ -2,6 +2,83 @@ import { expect, test, type Page } from "../fixtures/strictTest";
 import { openCompositionScores } from "../helpers/assessmentCompositionMock";
 
 for (const width of [1366, 1100, 390]) {
+  test(`@assessment-menu-layout ${width}px 시험·과제 코멘트 메뉴의 본문 너비와 진입을 유지한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    if (width === 390) await page.emulateMedia({ reducedMotion: "reduce" });
+    const { unexpectedMutations } = await openCompositionScores(page);
+    const commentReads: string[] = [];
+    await page.route("**/api/v1/results/admin/sessions/9002/*/*/parent-comments/", route => {
+      commentReads.push(new URL(route.request().url()).pathname);
+      return route.fulfill({ json: { items: [] } });
+    });
+
+    for (const [kind, title, id] of [["exam", "첫 시험", 9101], ["homework", "첫 과제", 9151]] as const) {
+      const trigger = page.getByRole("button", { name: `${title} 작업 선택`, exact: true });
+      await trigger.click();
+      const menu = page.getByRole("menu", { name: `${title} 작업 선택`, exact: true });
+      const comment = menu.getByRole("menuitem", { name: /학부모 코멘트/ });
+      await expect(comment).toBeVisible();
+      await expect(trigger).toHaveAttribute("aria-expanded", "true");
+      // Measure rendered text, so a missing icon cannot squeeze it into the 34px track.
+      const geometry = await comment.evaluate(element => {
+        const titleElement = element.querySelector("strong")!;
+        const description = titleElement.nextElementSibling!;
+        const titleRange = document.createRange();
+        titleRange.selectNodeContents(titleElement);
+        return {
+          width: titleElement.getBoundingClientRect().width,
+          titleLines: titleRange.getClientRects().length,
+          descriptionLines: description.getBoundingClientRect().height / parseFloat(getComputedStyle(description).lineHeight),
+          overflow: element.scrollWidth - element.clientWidth,
+        };
+      });
+      expect(geometry.width).toBeGreaterThan(150);
+      expect(geometry.titleLines).toBe(1);
+      expect(geometry.descriptionLines).toBeLessThanOrEqual(3);
+      expect(geometry.overflow).toBeLessThanOrEqual(1);
+      const menuBox = await menu.boundingBox();
+      expect(menuBox!.x).toBeGreaterThanOrEqual(0);
+      expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(width);
+      await page.screenshot({ path: testInfo.outputPath(`${kind}-menu-${width}.png`), animations: "disabled" });
+
+      await comment.focus();
+      await page.keyboard.press("Enter");
+      const modal = page.getByRole("dialog", { name: "학부모 코멘트", exact: true });
+      await expect(modal.getByText(title, { exact: true })).toBeVisible();
+      await expect(modal.getByText("이 평가에 배정된 학생이 없습니다.")).toBeVisible();
+      expect(commentReads).toContain(`/api/v1/results/admin/sessions/9002/${kind}/${id}/parent-comments/`);
+      await page.keyboard.press("Escape");
+      await expect(modal).toBeHidden();
+      await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    }
+    expect(unexpectedMutations).toEqual([]);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await page.locator(".ds-scores-table tbody tr").first().press("Enter");
+    const drawer = page.locator(".student-scores-drawer");
+    await expect(drawer).toBeVisible();
+    await expect.poll(() => drawer.evaluate(element => element.getBoundingClientRect().right)).toBeLessThanOrEqual(width + 1);
+    await expect.poll(() => drawer.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    const drawerBox = await drawer.boundingBox();
+    expect(drawerBox!.x).toBeGreaterThanOrEqual(0);
+    expect(drawerBox!.x + drawerBox!.width).toBeLessThanOrEqual(width + 1);
+    const examHeader = drawer.locator(".student-scores-drawer__exam-header").first();
+    await expect(examHeader).toHaveAttribute("aria-expanded", "false");
+    await page.screenshot({ path: testInfo.outputPath(`student-drawer-${width}.png`), animations: "disabled" });
+    if (width === 390) {
+      await drawer.locator(".student-scores-drawer__body").evaluate(element => { element.scrollTop = element.scrollHeight; });
+      const sendAction = drawer.getByRole("button", { name: "성적 발송", exact: true });
+      await expect(sendAction).toBeInViewport();
+      const sendBox = await sendAction.boundingBox();
+      const bottomNav = await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox();
+      expect(sendBox!.y + sendBox!.height).toBeLessThanOrEqual(bottomNav!.y);
+      await page.screenshot({ path: testInfo.outputPath("student-drawer-footer-390.png"), animations: "disabled" });
+    }
+    await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)", exact: true }).click();
+    await expect(drawer).toBeHidden();
+  });
+}
+
+for (const width of [1920, 1366, 1100, 390]) {
   test(`@score-table-fit ${width}px 성적표 자동 맞춤과 직접 조절을 복원한다`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     if (width === 1100) {
@@ -11,7 +88,7 @@ for (const width of [1366, 1100, 390]) {
       { id: 9002, lecture: 9001, order: 1, session_type: "REGULAR", title: "표 너비 검증", date: "2026-08-25" },
     ] }));
     await openCompositionScores(page);
-    const count = width === 1100 ? 2 : 4;
+    const count = width === 1920 ? 1 : width === 1100 ? 2 : 4;
     const exams = Array.from({ length: count }, (_, i) => ({ exam_id: 9101 + i,
       title: ["어휘", "본문암기", "어법", "서술형 긴 평가명 확인"][i],
       max_score: 100, pass_score: 60, objective_max_score: 100, subjective_max_score: 0, display_order: i }));
@@ -40,6 +117,7 @@ for (const width of [1366, 1100, 390]) {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
     if (width !== 390) {
       await expect.poll(() => viewport.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+      await expect.poll(async () => Math.abs(await table.evaluate(el => el.getBoundingClientRect().width) - await viewport.evaluate(el => el.clientWidth))).toBeLessThanOrEqual(1);
       const finalCell = table.locator("tbody td").last();
       await expect(finalCell).toBeInViewport();
       if (width === 1100) {
@@ -253,7 +331,7 @@ for (const width of [1366, 390]) {
     const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
     const group = modal.getByRole("group", { name: /시험 총점/ });
     await open();
-    await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+    await modal.getByRole("checkbox", { name: "둘째 시험 합산에 포함", exact: true }).uncheck();
     await expect(group).toHaveAccessibleName("시험 총점 · 1개 합산");
     await modal.getByTitle("최소화", { exact: true }).click();
     await switchCompositionSession(page, 9003);
@@ -294,7 +372,7 @@ test("@total-config-delayed-scope 1366px 이전 차시 저장 응답은 현재 �
   const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
   const group = modal.getByRole("group", { name: /시험 총점/ });
   await open();
-  await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+  await modal.getByRole("checkbox", { name: "둘째 시험 합산에 포함", exact: true }).uncheck();
   let releaseSave!: () => void;
   harness.holdSave(new Promise<void>(resolve => { releaseSave = resolve; }));
   try {
@@ -309,7 +387,7 @@ test("@total-config-delayed-scope 1366px 이전 차시 저장 응답은 현재 �
     await expect(modal).toBeHidden();
     await open();
     await expect(group.locator(".assessment-totals-option").first()).toContainText("둘째 시험");
-    await modal.getByRole("button", { name: "시험 총점 아래로 이동", exact: true }).click();
+    await modal.getByRole("checkbox", { name: "첫 시험 합산에 포함", exact: true }).check();
     await expect(group).toHaveAccessibleName("시험 총점 · 2개 합산");
     const response = page.waitForResponse(item => item.url().includes("/sessions/9002/total-config/") && item.request().method() === "PUT");
     releaseSave();
@@ -338,7 +416,7 @@ test("@total-config-close-draft 1366px 복원 초안의 닫기를 취소하거�
   const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
   const group = modal.getByRole("group", { name: /시험 총점/ });
   await open();
-  await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+  await modal.getByRole("checkbox", { name: "둘째 시험 합산에 포함", exact: true }).uncheck();
   await modal.getByTitle("최소화", { exact: true }).click();
   await switchCompositionSession(page, 9003);
   await switchCompositionSession(page, 9002);
@@ -357,7 +435,7 @@ test("@total-config-close-draft 1366px 복원 초안의 닫기를 취소하거�
   await expect(modal).toBeHidden();
   await open();
   await expect(group).toHaveAccessibleName("시험 총점 · 2개 합산");
-  await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+  await modal.getByRole("checkbox", { name: "둘째 시험 합산에 포함", exact: true }).uncheck();
   await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
   await expect(modal).toBeHidden();
   await open();
@@ -387,7 +465,7 @@ test("@total-config-background-error 390px 배경 성적 재조회 실패에도 
   await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
   const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
   const group = modal.getByRole("group", { name: /시험 총점/ });
-  await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+  await modal.getByRole("checkbox", { name: "둘째 시험 합산에 포함", exact: true }).uncheck();
   const failedRead = page.waitForResponse(response => response.url().includes("/sessions/9002/scores/") && response.status() === 503);
   failRead = true;
   await failedRead; // Normal edit-mode polling, not a synthetic query-client invocation.
@@ -418,7 +496,7 @@ for (const width of [1366, 390]) test(`@total-config-filter ${width}px 검색과
   await page.reload();
   await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
   const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
-  await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+  await modal.getByRole("checkbox", { name: "둘째 시험 합산에 포함", exact: true }).uncheck();
   await modal.getByTitle("최소화", { exact: true }).click();
   const search = page.getByRole("searchbox", { name: "학생 이름 검색" });
   await search.fill("검색결과없는학생");
@@ -521,7 +599,7 @@ for (const recovery of ["removed", "lost-response"] as const) {
     await page.reload();
     await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
     const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
-    await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).click();
+    await modal.getByRole("checkbox", { name: "둘째 시험 합산에 포함", exact: true }).uncheck();
     await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산", exact: true })).toBeVisible();
     await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     if (recovery === "lost-response") {
@@ -540,7 +618,7 @@ for (const recovery of ["removed", "lost-response"] as const) {
     await modal.getByRole("button", { name: "최신 설정으로 다시 시작", exact: true }).click();
     await expect(modal.getByRole("button", { name: "합산 설정 저장", exact: true })).toBeEnabled();
     await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산", exact: true })).toBeVisible();
-    await expect(modal.getByRole("button", { name: "둘째 시험 위로 이동", exact: true })).toHaveCount(recovery === "removed" ? 0 : 1);
+    await expect(modal.getByRole("checkbox", { name: "둘째 시험 합산에 포함", exact: true })).toHaveCount(recovery === "removed" ? 0 : 1);
     await page.screenshot({ path: testInfo.outputPath(`total-config-${recovery}-${width}.png`), animations: "disabled" });
     await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(modal).toBeHidden();
@@ -574,15 +652,26 @@ for (const width of [1366, 390]) {
     await expect.poll(() => modal.evaluate(node =>
       Math.abs(node.getBoundingClientRect().width - node.clientWidth),
     )).toBeLessThan(1);
-    if (width === 1366) {
-      // Drag the visible grip, not the row center where text/actions can intercept the pointer.
-      await modal.locator(".assessment-totals-divider").first().dragTo(
-        modal.locator(".assessment-totals-option").filter({ has: page.getByRole("button", { name: "둘째 시험 위로 이동", exact: true }) }),
-        { sourcePosition: { x: 14, y: 22 }, targetPosition: { x: 14, y: 22 } },
-      );
-    } else { await modal.getByRole("button", { name: "시험 총점 위로 이동", exact: true }).press("Enter"); }
+    const examGroup = modal.getByRole("group", { name: /시험 총점/ });
+    const examGroupBox = await examGroup.boundingBox();
+    const homeworkGroupBox = await modal.getByRole("group", { name: /과제 총점/ }).boundingBox();
+    if (width > 700) expect(examGroupBox!.x + examGroupBox!.width).toBeLessThanOrEqual(homeworkGroupBox!.x);
+    else expect(examGroupBox!.y + examGroupBox!.height).toBeLessThanOrEqual(homeworkGroupBox!.y);
+    const secondExam = examGroup.getByRole("checkbox", { name: "둘째 시험 합산에 포함", exact: true });
+    const beforeTop = await secondExam.evaluate(node => node.getBoundingClientRect().top);
+    await secondExam.focus();
+    await page.keyboard.press("Space");
+    await expect(secondExam).not.toBeChecked();
+    expect(await secondExam.evaluate(node => node.getBoundingClientRect().top)).toBeCloseTo(beforeTop, 0);
+    await expect(examGroup.getByRole("status")).toHaveText("합산 만점 100점");
+    await examGroup.getByRole("button", { name: "선택 해제", exact: true }).click();
+    await expect(examGroup.getByRole("checkbox", { checked: true })).toHaveCount(0);
+    await expect(examGroup.getByRole("status")).toHaveText("합산할 항목을 선택하지 않았습니다");
+    await examGroup.getByRole("button", { name: "전체 선택", exact: true }).click();
+    await expect(examGroup.getByRole("checkbox", { checked: true })).toHaveCount(2);
+    await secondExam.uncheck();
     await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산" })).toBeVisible();
-    await modal.getByRole("button", { name: "과제 총점 위로 이동", exact: true }).click();
+    await modal.getByRole("checkbox", { name: "둘째 과제 합산에 포함", exact: true }).uncheck();
     await page.screenshot({ path: testInfo.outputPath(`assessment-totals-modal-${width}.png`), animations: "disabled" });
     await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(modal.getByRole("alert")).toContainText("합산 저장 일시 실패");
