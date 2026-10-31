@@ -21,6 +21,7 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
   let classSessionId: number | undefined;
   let clinicSessionId: number | undefined;
   const points: Point[] = [];
+  const errors: unknown[] = [];
   const createSign = async (route: string, kind: "class" | "clinic") => {
     await gotoAndSettle(teacherPage, `${QA_BASE}${route}`);
     await teacherPage.getByRole("button", { name: "출결 QR 출력", exact: true }).click();
@@ -97,6 +98,8 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     expect(repeated.checked_out_at).toBe(departure.checked_out_at);
     await assertNoHorizontalOverflow(page);
     await testInfo.attach("qr-clinic-saved-390", { body: await page.screenshot(), contentType: "image/png" });
+  } catch (error) {
+    errors.push(error);
   } finally {
     const failures: string[] = [];
     for (const point of points) {
@@ -115,6 +118,7 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
         expect((await api(request, "GET", path, adminAccess)).status).toBe(404);
       } catch { failures.push("QR synthetic session cleanup failed"); }
     }
-    if (failures.length) throw new Error(failures.join("; "));
+    if (failures.length) errors.push(new Error(failures.join("; ")));
   }
+  if (errors.length) throw new AggregateError(errors, "QR real-use verification or fixture cleanup failed");
 }
