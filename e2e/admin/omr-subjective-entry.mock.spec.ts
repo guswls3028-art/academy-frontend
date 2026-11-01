@@ -802,11 +802,12 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     expect(unexpectedMutations).toEqual([]);
   });
 
-  for (const mode of ["delay-close", "delay-done", "delay-attempt", "500", "409", "quota", "readback", "auth-switch"] as const) {
+  for (const mode of ["delay-close", "delay-done", "delay-attempt", "500", "409", "quota", "readback", "auth-switch", "tenant-switch"] as const) {
     test(`기존 답안 수정은 저장 완료 전 닫기·잠금을 보류하고 실패를 복구한다 (${mode})`, async ({ page }) => {
       await page.setViewportSize({ width: mode === "409" || mode === "delay-done" ? 390 : 1366, height: 900 });
       const unexpectedMutations = await openScores(page);
       const storageFailure = mode === "quota" || mode === "readback";
+      const authSwitch = mode === "auth-switch" || mode === "tenant-switch";
       if (storageFailure) {
         await page.getByRole("tab", { name: "출결", exact: true }).click();
         await page.getByRole("tab", { name: "성적", exact: true }).click();
@@ -825,6 +826,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       }
       let answer = "1";
       const patchActors: number[] = [];
+      const patchTenants: string[] = [];
       let failPatch = mode === "500" || mode === "409" || storageFailure;
       const events: string[] = [];
       let finishPatch!: () => void;
@@ -844,7 +846,8 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
           events.push("patch-start");
           const token = request.headers().authorization?.replace(/^Bearer /, "") ?? "";
           patchActors.push(JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()).user_id);
-          if (mode.startsWith("delay") || mode === "auth-switch") await delay;
+          patchTenants.push(request.headers()["x-tenant-code"] ?? "");
+          if (mode.startsWith("delay") || authSwitch) await delay;
           if (failPatch) {
             return route.fulfill({ status: mode === "409" ? 409 : 500, json: { detail: "synthetic save failure", code: "SCORE_EDIT_LOCKED" } });
           }
@@ -888,36 +891,41 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       await dialog.getByRole("button", { name: "성적 수정", exact: true }).click();
       await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "4", exact: true }).click();
       await expect.poll(() => events.filter((event) => event === "patch-start").length).toBe(1);
-      if (mode === "auth-switch") {
+      if (authSwitch) {
         await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "5", exact: true }).click();
-        const switchLogin = async (userId: number, generation: string) => {
-          await page.evaluate(async ({ userId, generation, sessionId }) => {
+        const switchLogin = async (userId: number, generation: string, tenant = "hakwonplus") => {
+          await page.evaluate(async ({ userId, generation, sessionId, tenant }) => {
             const encode = (value: unknown) => btoa(JSON.stringify(value)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-            const access = `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, user_id: userId, tenant_code: "hakwonplus" })}.sig`;
+            const access = `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, user_id: userId, tenant_code: tenant })}.sig`;
             const refresh = `${access}-refresh`;
             localStorage.setItem(`academy:auth-tokens:v1:${generation}`, JSON.stringify({ access, refresh, generation }));
             localStorage.setItem("academy:auth-active-generation:v1", generation);
             localStorage.setItem("access", access);
             localStorage.setItem("refresh", refresh);
+            sessionStorage.setItem("tenantCode", tenant);
             await fetch(`/api/v1/results/admin/sessions/${sessionId}/score-draft/`, {
               method: "PUT", headers: { "content-type": "application/json", authorization: `Bearer ${access}` },
               body: JSON.stringify({ changes: [] }),
             });
-          }, { userId, generation, sessionId: SESSION_ID });
+          }, { userId, generation, sessionId: SESSION_ID, tenant });
         };
-        await switchLogin(99, "qa-other-account");
+        if (mode === "tenant-switch") await switchLogin(12, "qa-other-tenant", "qa-other-academy");
+        else await switchLogin(99, "qa-other-account");
         finishPatch();
         await expect(dialog.getByRole("button", { name: "다시 저장", exact: true })).toBeVisible();
         await expect(dialog.getByRole("status")).toHaveCount(0);
         expect(patchActors).toEqual([12]);
+        expect(patchTenants).toEqual(["hakwonplus"]);
         expect(answer).toBe("1,4");
         await dialog.getByRole("button", { name: "다시 저장", exact: true }).click();
         await expect(dialog.getByRole("status")).toHaveCount(0);
         expect(patchActors).toEqual([12]);
+        expect(patchTenants).toEqual(["hakwonplus"]);
         await switchLogin(12, "qa-original-account-returned");
         await dialog.getByRole("button", { name: "다시 저장", exact: true }).click();
         await expect.poll(() => answer).toBe("1,4,5");
         expect(patchActors).toEqual([12, 12]);
+        expect(patchTenants).toEqual(["hakwonplus", "hakwonplus"]);
         await dialog.getByRole("button", { name: "닫기", exact: true }).click();
         await expect(dialog).toHaveCount(0);
       } else if (mode.startsWith("delay")) {
@@ -979,8 +987,8 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       })).toBe(false);
       await page.reload({ waitUntil: "domcontentloaded" });
       const readback = await openAnswer();
-      await expect(readback.locator(".srd-read__choice-ans")).toHaveText(mode === "auth-switch" ? "1,4,5" : "1,4");
-      await expect(readback.locator(".srd-read__score-val")).toHaveText(mode === "auth-switch" ? "0" : "100");
+      await expect(readback.locator(".srd-read__choice-ans")).toHaveText(authSwitch ? "1,4,5" : "1,4");
+      await expect(readback.locator(".srd-read__score-val")).toHaveText(authSwitch ? "0" : "100");
       expect(unexpectedMutations).toEqual([]);
     });
   }
