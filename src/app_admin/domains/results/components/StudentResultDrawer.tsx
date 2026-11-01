@@ -538,6 +538,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                       correctAnswers={correctAnswersMap}
                       isItemCorrect={isItemCorrect}
                       onEdit={readOnly && !onRequestEdit ? undefined : enterEdit}
+                      isStartingEdit={isStartingEdit}
                     />
                   ) : hasQuestions ? (
                     /* ── 상태 B: 데이터 없음 + 문항 있음 → 입력 유도 ── */
@@ -592,7 +593,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 /* 읽기 모드 — 2단 (선택형 | 서술형) + 총점 상단         */
 /* ═══════════════════════════════════════════════════ */
 
-function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjectivePending, qNumMap, correctAnswers, isItemCorrect, onEdit }: {
+function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjectivePending, qNumMap, correctAnswers, isItemCorrect, onEdit, isStartingEdit }: {
   choiceItems: ExamResultItem[];
   essayItems: ExamResultItem[];
   totalScore: number;
@@ -602,6 +603,7 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjec
   correctAnswers: Record<string, string>;
   isItemCorrect: (it: ExamResultItem) => boolean;
   onEdit?: () => void;
+  isStartingEdit: boolean;
 }) {
   const pct = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
   const choiceCorrect = choiceItems.filter((it) => it.answer && isItemCorrect(it)).length;
@@ -688,11 +690,11 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjec
       {/* 하단 수정 CTA */}
       {onEdit && (
         <div className="srd-read__footer">
-          <button type="button" className="srd-read__edit-btn" onClick={onEdit}>
+          <button type="button" className="srd-read__edit-btn" disabled={isStartingEdit} onClick={onEdit}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
             </svg>
-            성적 수정
+            {isStartingEdit ? "입력 준비 중…" : "성적 수정"}
           </button>
         </div>
       )}

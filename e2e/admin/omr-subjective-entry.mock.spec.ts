@@ -348,18 +348,29 @@ async function openScores(page: Page, options: { choicePending?: boolean; gradin
 }
 
 test.describe("OMR와 서술형 점수 입력 진입", () => {
-  for (const width of [1366, 390]) {
-    test(`잠긴 성적표의 빈 답안을 직접 입력하고 다시 조회한다 (${width}px)`, async ({ page }) => {
+  for (const { width, failure } of [
+    { width: 1366, failure: null }, { width: 390, failure: null },
+    { width: 1366, failure: "conflict" }, { width: 390, failure: "network" },
+  ]) {
+    test(`잠긴 성적표에서 답안 입력·보존·재시도 후 다시 조회한다 (${width}px, ${failure ?? "empty"})`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       const unexpectedMutations = await openScores(page);
-      let savedAnswer = "";
+      let savedAnswer = failure ? "2" : "";
       let leaseAcquired = false;
+      let rejectLease = Boolean(failure);
+      let rejectedLeases = 0;
       const writes: string[] = [];
       await page.route("**/api/v1/**", async (route) => {
         const request = route.request();
         const path = new URL(request.url()).pathname;
         const method = request.method();
         if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/`) && method === "PUT") {
+          if (rejectLease) {
+            rejectLease = false;
+            rejectedLeases += 1;
+            if (failure === "network") return route.abort("aborted");
+            return route.fulfill({ status: 409, json: { code: "SCORE_EDIT_LOCKED" } });
+          }
           leaseAcquired = true;
           return route.fulfill({ json: { changes: [], active_editors: [] } });
         }
@@ -376,9 +387,9 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
         if (path.endsWith(`/results/admin/exams/${CHOICE_EXAM_ID}/enrollments/9911/`) && method === "GET") {
           return route.fulfill({ json: {
             target_type: "exam", target_id: CHOICE_EXAM_ID, enrollment_id: 9911,
-            attempt_id: null, total_score: savedAnswer ? 100 : 0, max_score: 100,
+            attempt_id: null, total_score: savedAnswer === "4" ? 100 : 0, max_score: 100,
             items: savedAnswer ? [{ question_id: 10031, question_number: 1, question_kind: "choice",
-              answer: savedAnswer, score: 100, max_score: 100, is_correct: true, is_editable: true }] : [],
+              answer: savedAnswer, score: savedAnswer === "4" ? 100 : 0, max_score: 100, is_correct: savedAnswer === "4", is_editable: true }] : [],
             questions: [{ question_id: 10031, number: 1, max_score: 100, kind: "choice" }],
             correct_answers: { "10031": "4" },
             score_shape: { total_questions: 1, choice_count: 1, essay_count: 0,
@@ -398,7 +409,20 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
         return page.getByRole("dialog").filter({ hasText: "중대부고 2회차 객관식 답안 상세" });
       };
       const dialog = await openAnswer();
-      await dialog.getByRole("button", { name: "답안 입력 시작", exact: true }).click();
+      const start = dialog.getByRole("button", { name: failure ? "성적 수정" : "답안 입력 시작", exact: true });
+      if (failure) {
+        await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("2");
+        await start.click();
+        await expect.poll(() => rejectedLeases).toBe(1);
+        await expect(page.getByText("답안 수정 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.", { exact: true })).toBeVisible();
+        await expect(start).toBeEnabled();
+        await expect(dialog.locator(".srd-edit__choice-row")).toHaveCount(0);
+        await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("2");
+        expect(leaseAcquired).toBe(false);
+        expect(writes).toEqual([]);
+        expect(savedAnswer).toBe("2");
+      }
+      await start.click();
       await expect(dialog.locator(".srd-edit__choice-row")).toBeVisible();
       await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "4", exact: true }).click();
       await expect.poll(() => writes).toEqual(["4"]);
