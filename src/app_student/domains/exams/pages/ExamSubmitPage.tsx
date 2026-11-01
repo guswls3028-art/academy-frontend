@@ -270,10 +270,12 @@ export default function ExamSubmitPage() {
     return <StudentPageShell title="제출 확인" description="이전에 보낸 답안의 처리 결과를 확인합니다.">
       {error && <p role="alert">{error}</p>}
       <p>시험 시간이 끝났거나 연결이 끊겨도 이전 제출을 확인할 수 있습니다. 새 응시를 만들지 않습니다.</p>
-      <button type="button" className="stu-btn stu-btn--primary" disabled={submitting} onClick={handleSubmit}>
-        {submitting ? "제출 확인 중…" : "같은 제출 다시 확인"}
-      </button>
-      <Link to={`/student/exams/${safeId}/result`} className="stu-cta-link">결과 보기</Link>
+      <div className={styles.recoveryActions}>
+        <button type="button" className="stu-btn stu-btn--primary" disabled={submitting} onClick={handleSubmit}>
+          {submitting ? "제출 확인 중…" : "같은 제출 다시 확인"}
+        </button>
+        <Link to={`/student/exams/${safeId}/result`} className="stu-cta-link">결과 보기</Link>
+      </div>
     </StudentPageShell>;
   }
 

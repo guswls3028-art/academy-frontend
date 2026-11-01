@@ -1191,7 +1191,7 @@ test("desktop에서 정상 파일은 유지하고 빈 파일·비지원 형식�
 });
 
 for (const width of [390, 1366]) {
-  test(`확장자 없는 휴대폰 사진을 MIME으로 제출하고 reload한다 ${width}px`, async ({ page }) => {
+  test(`확장자 없는 HEIC 휴대폰 사진을 MIME으로 제출하고 reload한다 ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const state = await installApi(page, 0);
     await page.goto(`${BASE}/student/submit/assignment`);
