@@ -520,6 +520,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
       let drawer = await openHomeworkInspection(page);
       const complete = drawer.getByRole("button", { name: "완료 확정", exact: true });
       await expect(complete).toBeEnabled();
+      await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("제출 원기록을 보존하고 교사 통과 인정");
       await complete.click();
       await expect(complete).toHaveAttribute("aria-pressed", "true");
       await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)" }).click();
@@ -537,6 +538,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
       await cell.scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath(`homework-accepted-cell-${width}.png`), animations: "disabled" });
       drawer = await openHomeworkInspection(page);
+      await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("재확인이 필요해 통과 인정 취소");
       await drawer.getByRole("button", { name: "미완료", exact: true }).click();
       await expect(drawer.getByRole("button", { name: "미완료", exact: true })).toHaveAttribute("aria-pressed", "true");
       await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)" }).click();
@@ -556,6 +558,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
     const cell = page.locator('[data-score-cell="homework:9101:4101"]');
     const drawer = await openHomeworkInspection(page);
     const complete = drawer.getByRole("button", { name: "완료 확정", exact: true });
+    await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("검사 완료 후 교사 통과 인정");
     await complete.click();
     await expect(page.getByText("점수가 입력된 항목만 상태를 바꿀 수 있습니다.", { exact: true })).toBeVisible();
     await expect(cell).toHaveAttribute("data-achievement", "NOT_SUBMITTED");
