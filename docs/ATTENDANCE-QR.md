@@ -57,7 +57,11 @@ API·상태·한국 날짜·예약 시간·잠금과 보존 정책은
 타입/린트/빌드와 QR route mock에서 390/1366px 발급·학생 저장·중복·조회·복구를 검사한다.
 실제 데이터 저장·양 역할 소비·정리는 같은 artifact의 격리 development에서 확인한다.
 기존 `student-parent-clinic-realuse.spec.ts`는 전용 qa-* 학생으로 선생님 QR 발급,
-실제 이미지 해독, 수업 출석·클리닉 등원·하원, 조회·재시도와 정확한 fixture 정리를 검사한다.
+실제 발급 QR 프레임을 `getUserMedia` 입력으로 공급해 앱 디코더의 수업 출석·클리닉
+등원·하원과 실제 격리 API 저장·재조회를 검사한다. 카메라 입력만 합성하며 API와
+저장 결과는 대체하지 않는다. 디코딩 후 앱이 모든 영상 track을 종료하는지 fixture
+정리 전에 확인한다. 권한 거절 뒤 사진 해독 복구와 중복 출석 시각 보존, 사진을 통한
+하원 재조회도 검사한다. 390/1366px route mock은 카메라 미지원의 사진 복구도 확인한다.
 이때 발급한 QR은 중지하고 수업·클리닉 fixture를 삭제하며, 격리 tenant 최종 정리는
 기존 development runner의 cleanup-zero 게이트가 확인한다.
 실물 인쇄물과 iOS/Android 카메라 검증은 mock 결과와 분리해 기록한다.
