@@ -977,7 +977,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
         await expect(dialog).toHaveCount(0);
       }
       await page.locator(".student-scores-drawer").getByRole("button", { name: "학생 성적 상세 닫기 (Esc)", exact: true }).click();
-      await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
       await expect.poll(() => events.includes("release")).toBe(true);
       expect(events.indexOf("release")).toBeGreaterThan(events.indexOf("patch-ok"));
       expect(await page.evaluate(() => {

@@ -75,6 +75,7 @@ type Props = {
   sessionId?: number;
   isEditMode?: boolean;
   hasUnsavedChanges?: boolean;
+  hasPendingScoreChanges?: boolean;
   onClose: () => void;
   /** 답안 상세 드로어 열기 — 기존 StudentResultDrawer 연계 */
   onOpenAnswerDetail?: (examId: number, enrollmentId: number, examTitle: string) => void;
@@ -104,7 +105,7 @@ function pctNum(score: number | null | undefined, max: number | null | undefined
   return Math.round((score / max) * 100);
 }
 
-export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode = false, hasUnsavedChanges = false, onClose, onOpenAnswerDetail }: Props) {
+export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode = false, hasUnsavedChanges = false, hasPendingScoreChanges = hasUnsavedChanges, onClose, onOpenAnswerDetail }: Props) {
   const [expandedExamId, setExpandedExamId] = useState<number | null>(null);
   const [expandedHwId, setExpandedHwId] = useState<number | null>(null);
   const { openSendMessageModal } = useSendMessageModal();
@@ -139,7 +140,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     + attentionSummary.failedTitles.length;
   const scoreSendDisabled = hasUnsavedChanges || row.student_id == null;
   const scoreSendTitle = hasUnsavedChanges
-    ? "점수를 저장하고 잠근 뒤 알림톡을 발송할 수 있습니다."
+    ? "점수 입력을 마친 뒤 알림톡을 발송할 수 있습니다."
     : row.student_id == null
       ? "학생 정보가 없어 발송할 수 없습니다."
       : "이 학생에게만 알림톡을 발송합니다.";
@@ -204,7 +205,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
 
   const handleSendScoreReport = useCallback(async () => {
     if (hasUnsavedChanges) {
-      feedback.info("점수를 저장하고 잠근 뒤 알림톡을 발송해 주세요.");
+      feedback.info("점수 입력을 마친 뒤 알림톡을 발송해 주세요.");
       return;
     }
     if (row.student_id == null) {
@@ -473,6 +474,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                     sessionId={sessionId}
                     isEditMode={isEditMode}
                     hasUnsavedChanges={hasUnsavedChanges}
+                    hasPendingScoreChanges={hasPendingScoreChanges}
                     expanded={expandedExamId === exam.exam_id}
                     onToggle={() => toggleExpand(exam.exam_id)}
                     onOpenDetail={
@@ -506,7 +508,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                     enrollmentId={row.enrollment_id}
                     sessionId={sessionId}
                     isEditMode={isEditMode}
-                    hasUnsavedChanges={hasUnsavedChanges}
+                    hasPendingScoreChanges={hasPendingScoreChanges}
                     expanded={expandedHwId === hw.homework_id}
                     onToggle={() => setExpandedHwId((prev) => (prev === hw.homework_id ? null : hw.homework_id))}
                   />
@@ -546,6 +548,7 @@ function ExamResultCard({
   sessionId,
   isEditMode,
   hasUnsavedChanges,
+  hasPendingScoreChanges,
   expanded,
   onToggle,
   onOpenDetail,
@@ -556,6 +559,7 @@ function ExamResultCard({
   sessionId?: number;
   isEditMode: boolean;
   hasUnsavedChanges: boolean;
+  hasPendingScoreChanges: boolean;
   expanded: boolean;
   onToggle: () => void;
   onOpenDetail?: () => void;
@@ -612,7 +616,7 @@ function ExamResultCard({
             sourceType="exam"
             sourceId={exam.exam_id}
             sessionId={sessionId}
-            disabled={hasUnsavedChanges}
+            disabled={hasPendingScoreChanges}
             compact
           />
           {canStartRetake && (
@@ -644,7 +648,7 @@ function ExamResultCard({
             sourceType="exam"
             sourceId={exam.exam_id}
             sessionId={sessionId}
-            disabled={hasUnsavedChanges}
+            disabled={hasPendingScoreChanges}
           />
           <ExamScanPreview
             exam={exam}
@@ -807,7 +811,7 @@ function HomeworkResultCard({
   enrollmentId,
   sessionId,
   isEditMode,
-  hasUnsavedChanges,
+  hasPendingScoreChanges,
   expanded,
   onToggle,
 }: {
@@ -816,7 +820,7 @@ function HomeworkResultCard({
   enrollmentId: number;
   sessionId?: number;
   isEditMode: boolean;
-  hasUnsavedChanges: boolean;
+  hasPendingScoreChanges: boolean;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -863,7 +867,7 @@ function HomeworkResultCard({
             sourceType="homework"
             sourceId={hw.homework_id}
             sessionId={sessionId}
-            disabled={hasUnsavedChanges}
+            disabled={hasPendingScoreChanges}
           />
           <AttemptTimeline
             enrollmentId={enrollmentId}
@@ -1684,6 +1688,8 @@ function CorrectionStatusControl({
           <CorrectionStatusBadge block={block} sourceType={sourceType} />
         </div>
         <span>{description}</span>
+        <span>판정과 비고는 점수 입력과 별도로 저장됩니다.</span>
+        {disabled && <span role="status">{disabledReason}</span>}
       </div>
       <div
         className="ssd-correction-control__actions"

@@ -151,7 +151,7 @@ test.describe("성적 탭 UX 개선 검증", () => {
     await expect(drawer.getByRole("button", { name: /성적 발송/ })).toBeEnabled();
 
     await editButton.click();
-    await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
     await expect(page.locator(".ds-scores-cell-editable").first()).toBeVisible({ timeout: 5000 });
 
     const draftDialog = page.getByRole("dialog", { name: /임시저장된 변경/ });
@@ -190,7 +190,7 @@ test.describe("성적 탭 UX 개선 검증", () => {
     console.log("[편집 컨트롤] 시험/과제 입력 방식 확인됨");
 
     await expect(page.getByText("Ctrl+S 저장 · Ctrl+Z 실행 취소")).toBeVisible();
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(editButton).toBeVisible({ timeout: 5000 });
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
     await expect(scoreSendButton).toBeEnabled();

@@ -610,7 +610,7 @@ async function verifyStaffSubjectiveRecovery(page: Page, request: APIRequestCont
     const options = target.getByRole("button", { name: /표시 옵션/ });
     if (await options.getAttribute("aria-expanded") === "false") await options.click();
     await target.getByRole("button", { name: "수정", exact: true }).click();
-    await expect(target.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await expect(target.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
     const subjective = target.getByRole("group", { name: "시험 점수 입력 방식" })
       .getByRole("button", { name: "주관식", exact: true });
     if (await subjective.getAttribute("aria-pressed") !== "true") {
@@ -622,7 +622,7 @@ async function verifyStaffSubjectiveRecovery(page: Page, request: APIRequestCont
     await target.locator(cellSelector).getByRole("textbox").fill(String(score));
     const saved = target.waitForResponse((response) => matchesApiResponse(response, "PATCH",
       `/results/admin/exams/${created.examId}/enrollments/${created.enrollmentId}/subjective/`));
-    await target.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await target.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     expect((await saved).status()).toBe(200);
     await expect(target.getByRole("button", { name: "수정", exact: true })).toBeVisible();
   };

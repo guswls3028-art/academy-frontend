@@ -33,6 +33,7 @@ import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 import { applyHomeworkPreviewCsp, homeworkHeic } from "../helpers/homeworkHeicFixture";
 import { emitHomeworkFlowFailure, verifyHomeworkCriteria, type HomeworkFlowCheckpoint } from "../helpers/homeworkCriteriaRealuse";
+import { verifyScoreCorrectionWhileEditing } from "../helpers/verifyScoreCorrectionWhileEditing";
 
 test.setTimeout(600_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -194,7 +195,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await numeric.fill("97");
       await numeric.press("Escape");
       await expect(numeric).toHaveText("92");
-      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await staffPage.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
       await expect(edit).toBeVisible();
       expect(await readNumericScore()).toBe(92);
       await edit.click();
@@ -203,7 +204,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       const fractionalSave = staffPage.waitForResponse(response => response.request().method() === "PATCH"
         && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
         && response.request().postDataJSON()?.homework_id === created.homeworkId);
-      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await staffPage.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
       expect((await fractionalSave).status()).toBe(200);
       await expect(edit).toBeVisible();
       expect(await readNumericScore()).toBe(92.5);
@@ -228,7 +229,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       } else await state.getByRole("button", { name: "미통과", exact: true }).click();
       await expect(state.getByRole("button", { name: width === 1366 ? "통과" : "미통과", exact: true }))
         .toHaveAttribute("aria-pressed", "true");
-      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await staffPage.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
       const scoreResponse = await scored;
       expect(scoreResponse.status()).toBe(200);
       expect(await scoreResponse.json()).toMatchObject({ score: width === 1366 ? 1 : 0 });
@@ -236,6 +237,10 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await staffPage.reload();
       await verifyMixed(originalOrder, [created.homeworkId!], width === 1366 ? 1 : 0);
       checkpoint.phase = "feedback-order";
+      await verifyScoreCorrectionWhileEditing(staffPage, request, admin.access, {
+        sessionId: created.sessionId!, enrollmentId: created.enrollmentId!,
+        homeworkId: created.homeworkId!, homeworkTitle, studentName,
+      });
       // Put both items after the total, reorder there, and prove completion never enters the sum.
       await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
       await totals.getByRole("checkbox", { name: `${homeworkTitle} 합산에 포함`, exact: true }).uncheck();
@@ -582,7 +587,7 @@ async function emitHomeworkGradingState(page: Page, phase: HomeworkGradingPhase,
       scoreHelpVisible: hasDialog("성적표 보기 안내") || hasDialog("빠른 성적 입력 안내"),
       recoveryDialogVisible: dialogs.some((dialog) => /복구|이전 입력/.test(dialog.textContent ?? "")),
       editButtonVisible: buttons.some((button) => button.textContent?.trim() === "수정" && visible(button)),
-      saveAndLockVisible: buttons.some((button) => button.textContent?.trim() === "저장하고 잠금" && visible(button)),
+      saveAndLockVisible: buttons.some((button) => button.textContent?.trim() === "점수 입력 마침" && visible(button)),
       targetCellVisible: visible(cell), targetInputVisible: visible(cell?.querySelector("input") ?? null),
     };
   }, { selector: cellSelector, initialDocument: documentTimeOrigin }).catch(() => ({ stateUnavailable: true }));
@@ -642,7 +647,7 @@ async function gradeHomework(
         response.request().method() === "PATCH"
         && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
       ));
-      await staffPage.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await staffPage.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
       const response = await saved;
       expect(response.status()).toBe(200);
       expect(await response.json()).toMatchObject({ score: value, passed: true });

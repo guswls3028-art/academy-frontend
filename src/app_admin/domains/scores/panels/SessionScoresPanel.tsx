@@ -42,6 +42,8 @@ type Props = {
   onRequestAnswerEdit?: () => Promise<boolean>;
   /** 수정 중 알림톡 등 저장된 점수 소비 액션을 잠시 막는 상태 */
   hasUnsavedChanges?: boolean;
+  /** 판정·비고는 점수 수정 모드가 아니라 실제 저장/복구 대기 중에만 차단한다. */
+  hasPendingScoreChanges?: boolean;
   assessmentDeleteLocked?: boolean;
   examEditTotal?: boolean;
   examEditObjective?: boolean;
@@ -108,6 +110,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   isEditMode = false,
   onRequestAnswerEdit,
   hasUnsavedChanges = false,
+  hasPendingScoreChanges = hasUnsavedChanges,
   assessmentDeleteLocked = false,
   examEditTotal = false,
   examEditObjective = false,
@@ -608,6 +611,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
             sessionId={sessionId}
             isEditMode={isEditMode}
             hasUnsavedChanges={hasUnsavedChanges}
+            hasPendingScoreChanges={hasPendingScoreChanges}
             onClose={() => {
               void (answerEditRef.current?.flush() ?? Promise.resolve()).then(() => {
                 setDrawerEnrollmentId(null);
