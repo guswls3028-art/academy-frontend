@@ -113,6 +113,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isStartingEdit, setIsStartingEdit] = useState(false);
+  const initialAutoEdit = useRef(false);
   const localAnswerEditRef = useRef<AnswerEditController | null>(null);
   const editorRef = answerEditRef ?? localAnswerEditRef;
   const [isFinishingEdit, setIsFinishingEdit] = useState(false);
@@ -131,7 +132,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     queryFn: () => fetchAdminExamResultDetail(examId, enrollmentId),
     enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
   });
-  const { data: detail, isLoading: detailLoading, error: detailError } = detailQ;
+  const { data: detail, isLoading: detailLoading, error: detailError, refetch: refetchDetail } = detailQ;
 
   const attemptQ = useQuery({
     queryKey: adminResultsQueryKeys.attemptHistoryExam(examId, enrollmentId),
@@ -242,26 +243,32 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 
   const selectedAttemptEntry = attempts.find((a) => a.attempt_index === selectedAttempt);
 
-  const enterEdit = async () => {
+  const enterEdit = useCallback(async () => {
     if (isStartingEdit) return;
-    if (readOnly) {
-      if (!onRequestEdit) {
-        feedback.info("성적표에서 수정을 누른 뒤 답안을 보정해 주세요.");
-        return;
-      }
-      setIsStartingEdit(true);
-      try {
+    initialAutoEdit.current = true;
+    setIsStartingEdit(true);
+    try {
+      if (readOnly) {
+        if (!onRequestEdit) {
+          feedback.info("성적표에서 수정을 누른 뒤 답안을 보정해 주세요.");
+          return;
+        }
         if (!await onRequestEdit()) return;
-      } catch {
-        feedback.error("답안 입력을 시작하지 못했습니다. 다시 시도해 주세요.");
-        return;
-      } finally {
-        setIsStartingEdit(false);
       }
+      // A different editor may have saved while this view waited for its lease.
+      const refreshed = await refetchDetail();
+      if (refreshed.isError || !refreshed.data) {
+        feedback.error("최신 답안을 불러오지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
+      setMainTab("answer");
+      setIsEditMode(true);
+    } catch {
+      feedback.error("답안 입력을 시작하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setIsStartingEdit(false);
     }
-    setMainTab("answer");
-    setIsEditMode(true);
-  };
+  }, [isStartingEdit, onRequestEdit, readOnly, refetchDetail]);
   const finishEditing = async (close: boolean, nextAttempt?: number) => {
     if (isFinishingEdit) return;
     setIsFinishingEdit(true);
@@ -286,13 +293,11 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   }, [readOnly, editorRef]);
 
   // 상태 B: 최초 로드 시 데이터 없으면 바로 편집 모드 진입
-  const initialAutoEdit = useRef(false);
   useEffect(() => {
-    if (!readOnly && !answerLoading && !answerError && hasQuestions && !hasData && !initialAutoEdit.current) {
-      initialAutoEdit.current = true;
-      setIsEditMode(true);
+    if (!readOnly && !isStartingEdit && !isEditMode && !answerLoading && !answerError && hasQuestions && !hasData && !initialAutoEdit.current) {
+      void enterEdit();
     }
-  }, [readOnly, answerLoading, answerError, hasQuestions, hasData]);
+  }, [readOnly, isStartingEdit, isEditMode, answerLoading, answerError, hasQuestions, hasData, enterEdit]);
 
   // 정오답 로컬 판정
   const isItemCorrect = useCallback((it: ExamResultItem) => {

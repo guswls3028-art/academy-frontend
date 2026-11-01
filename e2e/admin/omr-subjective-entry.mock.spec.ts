@@ -351,13 +351,15 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
   for (const { width, failure } of [
     { width: 1366, failure: null }, { width: 390, failure: null },
     { width: 1366, failure: "conflict" }, { width: 390, failure: "network" },
+    { width: 390, failure: "refresh" },
   ]) {
     test(`잠긴 성적표에서 답안 입력·보존·재시도 후 다시 조회한다 (${width}px, ${failure ?? "empty"})`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       const unexpectedMutations = await openScores(page);
       let savedAnswer = failure ? "2" : "";
       let leaseAcquired = false;
-      let rejectLease = Boolean(failure);
+      let rejectLease = Boolean(failure && failure !== "refresh");
+      let rejectDetail = failure === "refresh";
       let rejectedLeases = 0;
       const writes: string[] = [];
       await page.route("**/api/v1/**", async (route) => {
@@ -373,6 +375,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
             savedAnswer = "3";
             return route.fulfill({ status: 409, json: { code: "SCORE_EDIT_LOCKED" } });
           }
+          if (!leaseAcquired && failure === "refresh") savedAnswer = "3";
           leaseAcquired = true;
           return route.fulfill({ json: { changes: [], active_editors: [] } });
         }
@@ -387,6 +390,9 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
           return route.fulfill({ json: { saved: true, ok: true, score: 100, total_score: 100 } });
         }
         if (path.endsWith(`/results/admin/exams/${CHOICE_EXAM_ID}/enrollments/9911/`) && method === "GET") {
+          if (leaseAcquired && rejectDetail) {
+            return route.fulfill({ status: 500, json: { detail: "synthetic detail read failure" } });
+          }
           return route.fulfill({ json: {
             target_type: "exam", target_id: CHOICE_EXAM_ID, enrollment_id: 9911,
             attempt_id: null, total_score: savedAnswer === "4" ? 100 : 0, max_score: 100,
@@ -415,23 +421,39 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       if (failure) {
         await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("2");
         await start.click();
-        await expect.poll(() => rejectedLeases).toBe(1);
-        await expect(page.getByText("답안 수정 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.", { exact: true })).toBeVisible();
-        await expect(start).toBeEnabled();
-        await expect(dialog.locator(".srd-edit__choice-row")).toHaveCount(0);
-        await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("2");
-        expect(leaseAcquired).toBe(false);
-        expect(writes).toEqual([]);
-        expect(savedAnswer).toBe(failure === "conflict" ? "3" : "2");
+        if (failure === "refresh") {
+          await expect(dialog.getByRole("alert")).toContainText("답안과 문항 정보를 불러오지 못했습니다.");
+          await expect(dialog.locator(".srd-edit__choice-row")).toHaveCount(0);
+          expect(leaseAcquired).toBe(true);
+          expect(writes).toEqual([]);
+          expect(savedAnswer).toBe("3");
+          rejectDetail = false;
+          await dialog.getByRole("button", { name: "다시 시도", exact: true }).click();
+          await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("3");
+          await expect(dialog.locator(".srd-edit__choice-row")).toHaveCount(0);
+        } else {
+          await expect.poll(() => rejectedLeases).toBe(1);
+          await expect(page.getByText("답안 수정 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.", { exact: true })).toBeVisible();
+          await expect(start).toBeEnabled();
+          await expect(dialog.locator(".srd-edit__choice-row")).toHaveCount(0);
+          await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("2");
+          expect(leaseAcquired).toBe(false);
+          expect(writes).toEqual([]);
+          expect(savedAnswer).toBe(failure === "conflict" ? "3" : "2");
+        }
       }
       await start.click();
       await expect(dialog.locator(".srd-edit__choice-row")).toBeVisible();
+      if (failure === "conflict" || failure === "refresh") {
+        await expect(dialog.locator(".srd-edit__bubble--wrong")).toHaveText("3");
+        expect(writes).toEqual([]);
+      }
       if (failure === "network") {
         await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "2", exact: true }).click();
         await expect.poll(() => writes).toEqual([""]);
       }
       await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "4", exact: true }).click();
-      if (failure === "conflict") {
+      if (failure === "conflict" || failure === "refresh") {
         await expect.poll(() => writes).toEqual(["3,4"]);
         expect(savedAnswer).toBe("3,4");
         await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "3", exact: true }).click();
