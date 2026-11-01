@@ -2258,6 +2258,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   const collaborator = collaboratorByCell.get(scoreCellKey) ?? null;
                   const cellConflict = homeworkConflicts[scoreCellKey] ?? null;
                   const canEditScore = isEditMode && homeworkEdit && !notEnrolledForHw && !collaborator;
+                  const teacherAccepted = block?.teacher_resolved === true;
                   const isNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
                   const isEmptyScore = block?.score == null && !isNotSubmitted;
                   const hwParity = hwBodyIdx % 2 === 0 ? "even" : "odd";
@@ -2309,10 +2310,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         data-group-parity={hwParity}
                         {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
                         {...(canEditScore ? { "data-editable": "true" } : {})}
-                        {...(isEmptyScore ? { "data-score-empty": "true" } : {})}
+                        {...(isEmptyScore && !teacherAccepted ? { "data-score-empty": "true" } : {})}
                         {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
-                        {...(isNotSubmitted
-                          ? { "data-achievement": "NOT_SUBMITTED" }
+                        {...(teacherAccepted
+                          ? { "data-achievement": "REMEDIATED" }
+                          : isNotSubmitted ? { "data-achievement": "NOT_SUBMITTED" }
                           : block?.score != null && block.passed != null
                             ? { "data-pass-status": block.passed ? "pass" : "fail" }
                             : {})}
@@ -2677,6 +2679,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           ) : (
                             <span className="text-[var(--color-text-muted)]">-</span>
                           )}
+                          {teacherAccepted && <Badge variant="soft" tone="warning" size="xs" shape="square" ariaLabel="교사 통과 인정" title="교사가 통과로 인정했습니다. 원점수와 제출 기록은 유지됩니다.">통과 인정</Badge>}
                           {cellConflict && (
                             <span className="ds-scores-cell-conflict" role="alert">
                               <span>
