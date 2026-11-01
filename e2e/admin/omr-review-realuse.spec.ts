@@ -1275,13 +1275,37 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
 
     await loginBrowserAsRealUser(
       page,
-      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
+      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS },
     );
-    await chooseExamHeaderAction(page, "문항별 점수 입력");
-    const gradingDialog = page.getByRole("dialog").filter({
-      hasText: `${EXAM_TITLE} 혼합 채점`,
-    });
+    await page.setViewportSize({ width: 1366, height: 900 });
+    // Keep both preloaded scopes fresh: ordinary cache expiry must not hide a
+    // missed invalidation. Only Date is fixed; real API requests/timers continue.
+    await page.clock.setFixedTime(Date.now());
+    const scope = page.getByRole("group", { name: "성적 조회 강의 필터" });
+    const loadScope = async (lectureId: number | null, select: () => Promise<void>) => {
+      await Promise.all([
+        ...["questions", "results"].map(async (endpoint) => {
+          const response = await page.waitForResponse((candidate) => {
+            const url = new URL(candidate.url());
+            return candidate.request().method() === "GET"
+              && url.pathname === `/api/v1/results/admin/exams/${created.examId}/${endpoint}/`
+              && url.searchParams.get("lecture_id") === (lectureId === null ? null : String(lectureId));
+          });
+          expect(response.status()).toBe(200);
+        }),
+        select(),
+      ]);
+    };
+    await loadScope(null, () => page.getByRole("tab", { name: "채점·결과", exact: true }).click());
+    await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
+    await expect(page.getByText("아직 분석할 확정 채점 결과가 없습니다", { exact: true })).toBeVisible();
+    await loadScope(created.lectureId!, () => scope.getByRole("button").filter({ hasText: LECTURE_TITLE }).click());
+    await expect(page.getByText("아직 분석할 확정 채점 결과가 없습니다", { exact: true })).toBeVisible();
+    const adminResults = page.getByRole("region", { name: "시험 학생별 결과", exact: true });
+    await expect(adminResults).toContainText("서술형 입력 필요");
+    await page.getByRole("button", { name: "주관식·서술형 입력하기", exact: true }).click();
+    const gradingDialog = page.getByRole("region", { name: "혼합 채점 워크스페이스", exact: true });
     const firstWrittenCell = gradingDialog.getByRole("spinbutton", {
       name: `${STUDENT_NAME} 31번 10점 만점 점수`,
     });
@@ -1297,6 +1321,56 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       .toBeVisible({ timeout: 30_000 });
     await gradingDialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
     await expect(page.getByText("1명의 성적을 확정했습니다.")).toBeVisible({ timeout: 30_000 });
+
+    const statistics = page.locator("details").filter({
+      has: page.locator("summary", { hasText: "전체 문항 통계 보기" }),
+    });
+    const assertWrittenStatistics = async () => {
+      await expect(statistics).toBeVisible();
+      await expect(statistics).toHaveAttribute("open", "");
+      for (const [index, score] of EXPECTED_WRITTEN_SCORES.entries()) {
+        const row = statistics.getByRole("row").filter({
+          has: page.getByRole("cell", { name: `${31 + index}번`, exact: true }),
+        });
+        await expect(row).toBeVisible();
+        await expect(row.getByRole("cell").nth(1)).toHaveText("0.0%");
+        await expect(row.getByRole("cell").nth(2)).toHaveText(`${score.toFixed(1)}점`);
+        await expect(row.getByRole("cell").nth(3)).toHaveText("0");
+        await expect(row.getByRole("cell").nth(4)).toHaveText("1");
+      }
+      await expect(adminResults).toContainText(STUDENT_NAME);
+      await expect(adminResults).not.toContainText("서술형 입력 필요");
+      if (page.viewportSize()!.width < 640) {
+        await expect(adminResults.getByText(`1차 ${EXPECTED_SCORE}점`, { exact: true })).toBeVisible();
+      } else {
+        await expect(adminResults.locator('[title="등수 산정 점수"]')).toHaveText(String(EXPECTED_SCORE));
+      }
+    };
+    // No navigation, reload or explicit refetch before these assertions: the
+    // mounted lecture scope and the previously cached all scope must update.
+    await assertWrittenStatistics();
+    await scope.getByRole("button", { name: /전체 성적/ }).click();
+    await assertWrittenStatistics();
+    await page.clock.setSystemTime(Date.now());
+    for (const lectureId of [null, created.lectureId]) {
+      const suffix = lectureId == null ? "" : `?lecture_id=${lectureId}`;
+      const rows = await expectApi<Array<{
+        question_number: number; attempts: number; correct: number; accuracy: number; avg_score: number;
+      }>>(request, "GET", `/results/admin/exams/${created.examId}/questions/${suffix}`, adminTokens.access);
+      for (const [index, score] of EXPECTED_WRITTEN_SCORES.entries()) {
+        expect(rows.find((row) => row.question_number === 31 + index)).toMatchObject({
+          attempts: 1, correct: 0, accuracy: 0, avg_score: score,
+        });
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
+    await assertWrittenStatistics();
+    await scope.getByRole("button").filter({ hasText: LECTURE_TITLE }).click();
+    await assertWrittenStatistics();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,
