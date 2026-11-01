@@ -267,9 +267,10 @@ export default function ExamSubmitPage() {
       }
       const response = (e as { response?: { status?: number; data?: { detail?: string; code?: string } } } | null)?.response;
       const code = response?.data?.code;
-      // Only a new request's first rejection proves non-admission. A prior
-      // ambiguous/failed request retains its UUID even if readiness now rejects it.
-      if (attempt && !retryingPending && response?.status && response.status < 500
+      // Attempt-count rejection proves this UUID was never admitted, even on
+      // retry. Other ambiguous requests retain their UUID through readiness errors.
+      // Release only the matching request identity; keep the user's answer draft.
+      if (attempt && (!retryingPending || code === "online_attempt_changed") && response?.status && response.status < 500
         && code !== "online_request_conflict" && code !== "online_submission_processing") {
         clearPendingExamSubmission(draftKey, attempt.client_request_id);
         setPendingSubmission(null);
