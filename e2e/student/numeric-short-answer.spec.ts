@@ -18,7 +18,8 @@ function fakeJwt(): string {
 
 type Viewer = "student" | "parent";
 
-async function installApi(page: Page, viewer: Viewer = "student", essay = false): Promise<{
+async function installApi(page: Page, viewer: Viewer = "student", essay = false,
+  recovery: { loseResponse?: boolean; closeAfterSubmit?: boolean; failQuestionsAfterSubmit?: boolean } = {}): Promise<{
   submissions: Array<Record<string, unknown>>;
   studentScopedHeaders: Array<string | undefined>;
 }> {
@@ -62,6 +63,10 @@ async function installApi(page: Page, viewer: Viewer = "student", essay = false)
       return;
     }
     if (path.endsWith("/student/exams/901/questions/")) {
+      if (recovery.failQuestionsAfterSubmit && submissions.length > 0) {
+        await route.fulfill({ status: 503, json: { detail: "문항 조회 실패" } });
+        return;
+      }
       studentScopedHeaders.push(request.headers()["x-student-id"]);
       await route.fulfill({
         json: [
@@ -74,6 +79,10 @@ async function installApi(page: Page, viewer: Viewer = "student", essay = false)
     if (path.endsWith("/student/exams/901/submit/") && request.method() === "POST") {
       studentScopedHeaders.push(request.headers()["x-student-id"]);
       submissions.push(request.postDataJSON() as Record<string, unknown>);
+      if (recovery.loseResponse && submissions.length === 1) {
+        await route.fulfill({ status: 504, json: { detail: "제출 결과를 확인하지 못했습니다. 같은 제출을 다시 확인해 주세요." } });
+        return;
+      }
       if (essay && submissions.length === 1) {
         await route.fulfill({ status: 409, json: { detail: "시험의 문항·정답 준비가 완료되지 않았습니다. 선생님 확인 후 다시 제출해 주세요." } });
         return;
@@ -82,6 +91,10 @@ async function installApi(page: Page, viewer: Viewer = "student", essay = false)
       return;
     }
     if (path.endsWith("/student/exams/901/")) {
+      if (recovery.closeAfterSubmit && submissions.length > 0) {
+        await route.fulfill({ status: 404, json: { detail: "시험이 마감되었습니다." } });
+        return;
+      }
       studentScopedHeaders.push(request.headers()["x-student-id"]);
       await route.fulfill({
         json: {
@@ -94,8 +107,8 @@ async function installApi(page: Page, viewer: Viewer = "student", essay = false)
           pass_score: 60,
           max_score: 100,
           status: "open",
-          has_result: essay,
-          attempt_count: essay ? 1 : 0,
+          has_result: essay || (recovery.loseResponse && submissions.length > 0),
+          attempt_count: essay || (recovery.loseResponse && submissions.length > 0) ? 1 : 0,
         },
       });
       return;
@@ -133,7 +146,7 @@ test.describe("학생 수학 숫자 단답", () => {
       await expect(page).toHaveURL(/\/result$/);
       await expect(page.getByText("서술형 채점 중입니다.")).toBeVisible();
       expect(submissions).toHaveLength(2);
-      expect(submissions[1]).toEqual(submissions[0]);
+      expect(submissions[1].answers).toEqual(submissions[0].answers);
       expect(JSON.stringify(submissions[1])).toContain(JSON.stringify(answer).slice(1, -1));
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: `test-results/online-submit-pending-${width}.png`, fullPage: true });
@@ -165,6 +178,8 @@ test.describe("학생 수학 숫자 단답", () => {
 
     await expect.poll(() => submissions.length).toBe(1);
     expect(submissions[0]).toEqual({
+      client_request_id: expect.any(String),
+      expected_attempt_count: 0,
       answers: [
         { exam_question_id: 1001, answer: "2" },
         { exam_question_id: 1021, answer: "7" },
@@ -192,6 +207,8 @@ test.describe("학생 수학 숫자 단답", () => {
 
     await expect.poll(() => state.submissions.length).toBe(1);
     expect(state.submissions[0]).toEqual({
+      client_request_id: expect.any(String),
+      expected_attempt_count: 0,
       answers: [
         { exam_question_id: 1001, answer: "3" },
         { exam_question_id: 1021, answer: "8" },
@@ -204,3 +221,48 @@ test.describe("학생 수학 숫자 단답", () => {
     ))).toBeNull();
   });
 });
+
+test("늦은 제출 확인이 다른 탭의 새 답안과 제출 식별자를 지우지 않는다", async ({ page }) => {
+  const { submissions } = await installApi(page, "student", false, { loseResponse: true });
+  await page.goto(`${BASE}/student/exams/901/submit`);
+  await page.getByLabel("1번 답", { exact: true }).fill("3");
+  await page.getByRole("button", { name: "제출하기", exact: true }).click();
+  await page.getByRole("button", { name: "제출", exact: true }).click();
+  await expect(page.getByRole("button", { name: "같은 제출 다시 확인" })).toBeVisible();
+  const next = { ...submissions[0], client_request_id: "20000000-0000-4000-8000-000000000002",
+    answers: [{ exam_question_id: 1001, answer: "5" }] };
+  await page.evaluate((payload) => {
+    localStorage.setItem("exam-draft:901:hakwonplus:user:11:submission", JSON.stringify(payload));
+    localStorage.setItem("exam-draft:901:hakwonplus:user:11", JSON.stringify({ 1001: "5" }));
+  }, next);
+  await page.getByRole("button", { name: "같은 제출 다시 확인" }).click();
+  await expect(page).toHaveURL(/\/student\/exams\/901\/result$/);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("exam-draft:901:hakwonplus:user:11:submission")!))).toEqual(next);
+  expect(await page.evaluate(() => localStorage.getItem("exam-draft:901:hakwonplus:user:11"))).toBe('{"1001":"5"}');
+});
+
+for (const width of [390, 1366]) {
+  test(`응답 유실 뒤 reload와 같은 요청 재확인 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { submissions } = await installApi(page, "student", false,
+      { loseResponse: true, closeAfterSubmit: width === 1366, failQuestionsAfterSubmit: width === 390 });
+    await page.goto(`${BASE}/student/exams/901/submit`);
+    await page.getByLabel("1번 답", { exact: true }).fill("3");
+    await page.getByLabel("21번 답").fill("9");
+    await page.getByRole("button", { name: "제출하기", exact: true }).click();
+    await page.getByRole("button", { name: "제출", exact: true }).click();
+    await expect(page.getByRole("button", { name: "같은 제출 다시 확인" })).toBeVisible();
+    await expect(page.getByLabel("1번 답", { exact: true })).toBeDisabled();
+    expect(submissions).toHaveLength(1);
+    expect(submissions[0].client_request_id).toMatch(/^[a-f0-9-]{36}$/i);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("button", { name: "같은 제출 다시 확인" })).toBeEnabled();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/exam-response-recovery-${width}.png`, fullPage: true });
+    await page.getByRole("button", { name: "같은 제출 다시 확인" }).click();
+    await expect.poll(() => submissions.length).toBe(2);
+    expect(submissions[1]).toEqual(submissions[0]);
+    await expect(page).toHaveURL(/\/student\/exams\/901\/result$/);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("exam-draft:901:hakwonplus:user:11:submission"))).toBeNull();
+  });
+}

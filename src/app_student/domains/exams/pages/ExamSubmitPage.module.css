@@ -34,6 +34,25 @@
   gap: 16px;
 }
 
+.recoveryNotice {
+  padding: 14px;
+  border-radius: var(--stu-radius);
+  background: var(--stu-surface-soft);
+  color: var(--stu-text);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  animation: recoveryAppear 160ms ease-out;
+}
+
+@keyframes recoveryAppear {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recoveryNotice { animation: none; }
+}
+
 .alert {
   padding: 12px;
   color: var(--stu-danger-text);

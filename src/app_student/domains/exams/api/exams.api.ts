@@ -72,12 +72,18 @@ export async function fetchStudentExamQuestions(
 
 export type SubmitAnswersPayload = {
   answers: Array<{ exam_question_id: number; answer: string }>;
+  client_request_id?: string;
+  expected_attempt_count?: number;
 };
 
 export async function submitStudentExamAnswers(
   examId: number,
-  payload: SubmitAnswersPayload
+  payload: SubmitAnswersPayload,
+  options?: { signal?: AbortSignal; studentId?: number | null },
 ): Promise<{ submission_id: number; status: string }> {
-  const res = await api.post(`/student/exams/${examId}/submit/`, payload);
+  const res = await api.post(`/student/exams/${examId}/submit/`, payload, {
+    signal: options?.signal,
+    headers: options?.studentId ? { "X-Student-Id": String(options.studentId) } : undefined,
+  });
   return res.data as { submission_id: number; status: string };
 }

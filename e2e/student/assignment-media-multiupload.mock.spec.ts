@@ -1190,6 +1190,26 @@ test("desktop에서 정상 파일은 유지하고 빈 파일·비지원 형식�
   await expect(restored.locator('[data-status="uploaded"]')).toHaveCount(2);
 });
 
+for (const width of [390, 1366]) {
+  test(`확장자 없는 휴대폰 사진을 MIME으로 제출하고 reload한다 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await installApi(page, 0);
+    await page.goto(`${BASE}/student/submit/assignment`);
+    await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+    await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
+    await page.locator('input[type="file"]').setInputFiles({ name: "camera-capture", mimeType: "image/heic", buffer: homeworkHeic });
+    await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toContainText("camera-capture");
+    await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+    await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+    expect(state.getUploadAttempts()).toBe(1);
+    await page.reload();
+    await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+    await expect(page.getByRole("region", { name: "이미 제출한 파일" })).toContainText("camera-capture");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/homework-camera-recovery-${width}.png`, fullPage: true });
+  });
+}
+
 test("390px에서 20초 넘는 사진 업로드도 다건 제출과 새로고침까지 완료한다", async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 390, height: 844 });
