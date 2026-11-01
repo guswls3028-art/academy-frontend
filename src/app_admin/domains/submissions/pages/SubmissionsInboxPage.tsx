@@ -28,7 +28,7 @@ import { Button, EmptyState, Tabs, Badge, ICON_FOR_BUTTON } from "@/shared/ui/ds
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
-import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
+import { invalidateSubmissionResultCaches } from "@admin/domains/results/public/omrReview";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentPickerModal from "@admin/domains/results/components/omr-review/StudentPickerModal";
 import {
@@ -62,7 +62,7 @@ import SubmissionPreviewModal, {
 import type { SubmissionStatus } from "../types";
 
 const OmrReviewWorkspace = lazy(
-  () => import("@admin/domains/results/components/omr-review/OmrReviewWorkspace"),
+  () => import("@admin/domains/results/public/OmrReviewWorkspace"),
 );
 
 /* ─── Filter tabs ─── */
@@ -264,17 +264,10 @@ export default function SubmissionsInboxPage() {
   function refreshAssignmentResults(row: PendingSubmissionRow) {
     refetchAll();
     qc.invalidateQueries({ queryKey: submissionsQueryKeys.adminSubmissions });
-    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.sessionScores });
-    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.clinicTargets });
-    if (row.target_type === "exam") {
-      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResults(row.target_id).slice(0, 2) });
-      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(row.target_id) });
-      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamSummary(row.target_id) });
-      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(row.target_id) });
-      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(row.target_id) });
-      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewIssues(row.target_id) });
-      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(row.id) });
-    }
+    invalidateSubmissionResultCaches(qc, {
+      submissionId: row.id,
+      examId: row.target_type === "exam" ? row.target_id : undefined,
+    });
   }
 
   /* ── Mutations ── */
