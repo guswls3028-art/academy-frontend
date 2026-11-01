@@ -292,6 +292,7 @@ test("대시보드와 우상단 알림이 보강·클리닉 준비를 같은 현
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(board).toBeVisible();
+  await expect(board.getByText("확인 필요", { exact: true })).toBeVisible();
   const rect = await board.boundingBox();
   expect(rect?.x ?? -1).toBeGreaterThanOrEqual(0);
   expect((rect?.x ?? 0) + (rect?.width ?? 999)).toBeLessThanOrEqual(390);

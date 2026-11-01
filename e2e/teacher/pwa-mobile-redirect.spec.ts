@@ -1,6 +1,6 @@
 /**
- * E2E: 모바일 업무 PWA + 모바일 자동 리다이렉트 검증
- * - 모바일 뷰포트에서 /workspace/mobile 자동 진입
+ * E2E: 업무 PWA + 기기 공통 기본 진입 검증
+ * - 모바일 뷰포트에서도 PC와 같은 /workspace 진입
  * - PWA manifest 로딩
  * - SW 등록
  * - 5탭 렌더링

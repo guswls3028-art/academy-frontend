@@ -238,8 +238,10 @@ export function ArrivalOperationsBoard({
                         {[item.lecture_title, item.location, item.memo].filter(Boolean).join(" · ") || "세부 메모 없음"}
                       </small>
                     </span>
-                    {item.is_overdue ? <span className={styles.stateBadge}>확인 필요</span> : null}
-                    {item.is_resolved ? <CheckCircle2 className={styles.doneIcon} size={16} aria-label="처리됨" /> : null}
+                    <span className={styles.stateIndicators}>
+                      {item.is_overdue ? <span className={styles.stateBadge}>확인 필요</span> : null}
+                      {item.is_resolved ? <CheckCircle2 className={styles.doneIcon} size={16} aria-label="처리됨" /> : null}
+                    </span>
                     <ArrowRight size={15} aria-hidden />
                   </button>
                 ))}
