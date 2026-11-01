@@ -151,6 +151,7 @@ async function installSubmissionApi(page: Page, options: {
       "/students/registration_requests/": { count: 0, results: [] },
     };
     if (request.method() === "GET" && Object.hasOwn(shellReads, path)) return json(route, shellReads[path]);
+    if (path === "/core/og-meta/" && request.method() === "GET") return route.fallback();
     if (["/core/program/", "/core/me/", "/token/refresh/", "/results/admin/clinic-targets/"].includes(path)) {
       return route.fallback(); // Explicit local authentication stubs installed above.
     }
