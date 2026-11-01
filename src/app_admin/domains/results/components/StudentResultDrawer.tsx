@@ -581,6 +581,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 
                 {!answerLoading && !answerError && isEditMode && (
                     <EditModeContent
+                      key={`${scoreSessionId}:${examId}:${enrollmentId}`}
                       sessionId={scoreSessionId}
                       examId={examId}
                     enrollmentId={enrollmentId}
