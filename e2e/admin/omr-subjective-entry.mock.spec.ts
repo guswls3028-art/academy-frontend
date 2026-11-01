@@ -801,4 +801,101 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await expect(answerDialog.getByText("PASS", { exact: true })).toHaveCount(0);
     expect(unexpectedMutations).toEqual([]);
   });
+
+  for (const mode of ["delay-close", "delay-done", "500", "409"] as const) {
+    test(`기존 답안 수정은 저장 완료 전 닫기·잠금을 보류하고 실패를 복구한다 (${mode})`, async ({ page }) => {
+      await page.setViewportSize({ width: mode === "409" || mode === "delay-done" ? 390 : 1366, height: 900 });
+      const unexpectedMutations = await openScores(page);
+      let answer = "1";
+      let failPatch = mode === "500" || mode === "409";
+      const events: string[] = [];
+      let finishPatch!: () => void;
+      const delay = new Promise<void>((resolve) => { finishPatch = resolve; });
+      await page.route("**/api/v1/**", async (route) => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        const method = request.method();
+        if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/`) && method === "PUT") {
+          return route.fulfill({ json: { changes: [], active_editors: [] } });
+        }
+        if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/commit/`) && method === "POST") {
+          if (request.postDataJSON().release_lease) events.push("release");
+          return route.fulfill({ json: { ok: true } });
+        }
+        if (path.endsWith(`/results/admin/exams/${MIXED_EXAM_ID}/enrollments/9911/items/10001/`) && method === "PATCH") {
+          events.push("patch-start");
+          if (mode.startsWith("delay")) await delay;
+          if (failPatch) {
+            return route.fulfill({ status: Number(mode), json: { detail: "synthetic save failure", code: "SCORE_EDIT_LOCKED" } });
+          }
+          answer = request.postDataJSON().answer;
+          events.push("patch-ok");
+          return route.fulfill({ json: { saved: true, score: 100, total_score: 100 } });
+        }
+        if (path.endsWith(`/exams/${MIXED_EXAM_ID}/questions/`) && method === "GET") {
+          return route.fulfill({ json: [{ id: 10001, number: 1, score: 100, kind: "choice" }] });
+        }
+        if (path.endsWith(`/results/admin/exams/${MIXED_EXAM_ID}/enrollments/9911/`) && method === "GET") {
+          return route.fulfill({ json: {
+            target_type: "exam", target_id: MIXED_EXAM_ID, enrollment_id: 9911,
+            attempt_id: 10011, total_score: answer === "1,4" ? 100 : 0, max_score: 100,
+            items: [{ question_id: 10001, question_number: 1, question_kind: "choice", answer,
+              score: answer === "1,4" ? 100 : 0, max_score: 100, is_correct: answer === "1,4", is_editable: true }],
+            questions: [{ question_id: 10001, number: 1, max_score: 100, kind: "choice" }],
+            correct_answers: { "10001": "1,4" }, edit_state: { can_edit: true },
+            is_provisional: false, grading_status: "graded",
+            score_shape: { total_questions: 1, choice_count: 1, essay_count: 0,
+              objective_max_score: 100, subjective_max_score: 0, total_max_score: 100 },
+          } });
+        }
+        return route.fallback();
+      });
+      await page.getByRole("button", { name: "수정", exact: true }).click();
+      const openAnswer = async () => {
+        await page.getByText("테스트 학생", { exact: true }).first().click();
+        const drawer = page.locator(".student-scores-drawer");
+        await drawer.locator(".student-scores-drawer__exam-header").filter({ hasText: "중대부고 2회차 혼합형" }).click();
+        await drawer.getByRole("button", { name: "답안 상세 보기", exact: true }).click();
+        return page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 답안 상세" });
+      };
+      const dialog = await openAnswer();
+      await dialog.getByRole("button", { name: "성적 수정", exact: true }).click();
+      await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "4", exact: true }).click();
+      await expect.poll(() => events.filter((event) => event === "patch-start").length).toBe(1);
+      if (mode.startsWith("delay")) {
+        await dialog.getByRole("button", { name: mode === "delay-close" ? "닫기" : "수정 완료", exact: true }).click();
+        await expect(dialog).toBeVisible();
+        await expect(dialog.locator(".srd-edit__choice-row")).toBeVisible();
+        expect(answer).toBe("1");
+        expect(events).not.toContain("release");
+        finishPatch();
+        if (mode === "delay-close") await expect(dialog).toHaveCount(0);
+        else {
+          await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("1,4");
+          await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+        }
+      } else {
+        await expect(dialog.getByRole("button", { name: "다시 저장", exact: true })).toBeVisible();
+        await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+        await expect(dialog).toBeVisible();
+        await expect(dialog.locator(".srd-edit__bubble--correct")).toHaveText(["1", "4"]);
+        expect(answer).toBe("1");
+        expect(events).not.toContain("release");
+        failPatch = false;
+        await dialog.getByRole("button", { name: "다시 저장", exact: true }).click();
+        await expect.poll(() => answer).toBe("1,4");
+        await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+        await expect(dialog).toHaveCount(0);
+      }
+      await page.locator(".student-scores-drawer").getByRole("button", { name: "학생 성적 상세 닫기 (Esc)", exact: true }).click();
+      await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await expect.poll(() => events.includes("release")).toBe(true);
+      expect(events.indexOf("release")).toBeGreaterThan(events.indexOf("patch-ok"));
+      await page.reload({ waitUntil: "domcontentloaded" });
+      const readback = await openAnswer();
+      await expect(readback.locator(".srd-read__choice-ans")).toHaveText("1,4");
+      await expect(readback.locator(".srd-read__score-val")).toHaveText("100");
+      expect(unexpectedMutations).toEqual([]);
+    });
+  }
 });

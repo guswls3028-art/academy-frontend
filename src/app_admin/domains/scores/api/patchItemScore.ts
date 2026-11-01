@@ -6,6 +6,7 @@
 
 import api from "@/shared/api/axios";
 import { scoreEditorRequestHeaders } from "./scoreDraft";
+import { trackScoreDraftWrite } from "@/shared/scoring/scoreEditLease";
 
 export async function patchExamItemScore(params: {
   sessionId: number;
@@ -20,7 +21,7 @@ export async function patchExamItemScore(params: {
   const payload: Record<string, unknown> = { score };
   if (answer !== undefined) payload.answer = answer;
 
-  const res = await api.patch(
+  const res = await trackScoreDraftWrite(sessionId, async () => api.patch(
     `/results/admin/exams/${examId}/enrollments/${enrollmentId}/items/${questionId}/`,
     payload,
     {
@@ -29,7 +30,7 @@ export async function patchExamItemScore(params: {
         "X-Score-Session-Id": String(sessionId),
       },
     },
-  );
+  ));
 
   return res.data;
 }
