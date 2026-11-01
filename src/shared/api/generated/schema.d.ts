@@ -19938,7 +19938,10 @@ export interface components {
             target_type: components["schemas"]["TargetTypeEnum"];
         };
         SubmissionCreateRequest: {
+            /** Format: uuid */
+            client_request_id?: string | null;
             enrollment_id?: number | null;
+            expected_attempt_count?: number;
             /** Format: binary */
             file?: string;
             payload?: unknown;

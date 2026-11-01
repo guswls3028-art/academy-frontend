@@ -45,7 +45,8 @@ function acceptsHomeworkFiles(homework: MyHomeworkGradeSummary): boolean {
 }
 
 function isSupportedSubmissionFile(file: File): boolean {
-  return /\.(?:avif|gif|heic|heif|jpe?g|png|webp|m4v|mov|mp4|webm)$/i.test(file.name);
+  return /\.(?:avif|gif|heic|heif|jpe?g|png|webp|m4v|mov|mp4|webm)$/i.test(file.name)
+    || /^(?:image\/(?:jpe?g|png|gif|webp|heic|heif|heic-sequence|heif-sequence|avif)|video\/(?:mp4|x-m4v|quicktime|webm))$/.test(file.type.split(";", 1)[0].toLowerCase());
 }
 
 function apiErrorMessage(error: unknown, fallback = "제출에 실패했습니다."): string {
@@ -182,6 +183,7 @@ export default function SubmitAssignmentPage() {
 
   const uploadMut = useMutation({
     mutationFn: async () => {
+      if (uploadController.current) throw new Error("이미 제출 중입니다. 현재 제출 결과를 기다려 주세요.");
       if (gradesQ.isError) throw new Error("제출 대상을 다시 불러온 뒤 제출해 주세요.");
       if (!selected) throw new Error("제출 대상을 선택해 주세요.");
       if (!navigator.onLine) throw new Error("인터넷 연결이 돌아오면 이어서 제출해 주세요.");
@@ -373,7 +375,9 @@ export default function SubmitAssignmentPage() {
         if (persistedRetry?.client_file_id) {
           localSignatures.add(signature);
           accepted.push({
-            clientFileId: persistedRetry.client_file_id,
+            // Name/size only suggests a retry slot; it does not prove identity.
+            // The server compares content before reusing a failed row/object.
+            clientFileId: uuid(),
             uploadBatchId: batchId,
             file,
             position: persistedRetry.position,

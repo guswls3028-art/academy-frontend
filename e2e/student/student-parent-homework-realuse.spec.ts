@@ -77,7 +77,8 @@ const lectureTitle = `QA 과제 projection ${runStamp}`;
 const sessionTitle = `QA 과제 1차시 ${runStamp}`;
 const homeworkTitle = `QA 과제 제출 채점 ${runStamp}`;
 const completionTitle = `QA 준비물 통과형 ${runStamp}`;
-const uploadName = `qa-homework-${runStamp}.heic`;
+// Camera/share-sheet files may carry a valid MIME type without an extension.
+const uploadName = `qa-homework-${runStamp}`;
 const parentUploadName = `qa-parent-homework-${runStamp}.png`;
 const videoUploadName = `qa-homework-video-${runStamp}.mp4`;
 const parentHomeworkComment = "QA 과제 피드백: 풀이 과정을 꼼꼼히 기록했습니다.\n가정에서는 틀린 문제의 계산 순서를 소리 내어 설명하고, 스스로 채점한 뒤 다시 확인하는 연습을 도와주세요.";
