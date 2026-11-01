@@ -61,11 +61,14 @@ type IdcardMockControl = {
   fail?: boolean;
   result?: "SUCCESS" | "FAIL";
   responseReady?: Promise<void>;
+  noEnrollment?: "forbidden" | "legacy";
+  studentHeaders?: Array<string | undefined>;
 };
 
 type ProgramMockOptions = {
   tenantCode?: string;
   assessmentStatusDisplay?: "wrong_completion";
+  role?: "student" | "parent";
 };
 
 const bookingStatusLabels: Record<string, string> = {
@@ -307,7 +310,8 @@ async function installApi(
         name: "김학생",
         is_staff: false,
         is_superuser: false,
-        tenantRole: "student",
+        tenantRole: programOptions.role ?? "student",
+        linkedStudents: programOptions.role === "parent" ? [{ id: 72, name: "김학생" }] : [],
         must_change_password: false,
       });
     }
@@ -381,12 +385,24 @@ async function installApi(
       });
     }
     if (path === "/clinic/idcard/" && method === "GET") {
+      idcardControl?.studentHeaders?.push(request.headers()["x-student-id"]);
       const result = idcardControl?.result ?? idcardResult;
       await idcardControl?.responseReady;
       if (idcardControl?.delayMs) {
         await new Promise((resolve) => setTimeout(resolve, idcardControl.delayMs));
       }
       if (idcardControl?.fail) return json({ detail: "temporary unavailable" }, 503);
+      if (idcardControl?.noEnrollment === "forbidden") {
+        return json({ code: "clinic_no_active_enrollment", detail: "활성 수강이 없습니다." }, 403);
+      }
+      if (idcardControl?.noEnrollment === "legacy") {
+        return json({
+          student_name: "김학생", current_result: "SUCCESS", passcard_state: "PASSED",
+          can_leave: true, histories: [], current_targets: [], lectures: [], valid_bookings: [],
+          background_colors: ["#ef4444", "#3b82f6", "#22c55e"],
+          server_date: dateAfter(0), server_datetime: `${dateAfter(0)}T09:30:00+09:00`,
+        });
+      }
       const validBookings = validIdcardBookings(state);
       const confirmedBooking = validBookings.find((booking) => (
         ["booked", "attended"].includes(booking.status)
@@ -640,6 +656,42 @@ test.describe("학생 클리닉 예약 UX", () => {
     await error.getByRole("button", { name: "다시 시도" }).click();
     await expect(page.getByTestId("clinic-passcard")).toBeVisible();
   });
+
+  for (const role of ["student", "parent"] as const) {
+    for (const width of [390, 1366]) {
+      for (const contract of ["forbidden", "legacy"] as const) {
+        test(`패스카드 수강 없음은 합격이 아니며 정상 수강 재조회로 복구한다 ${role} ${width}px ${contract}`, async ({ page }) => {
+          await page.setViewportSize({ width, height: 844 });
+          const control: IdcardMockControl = { noEnrollment: contract, studentHeaders: [] };
+          await seed(page);
+          await installApi(page, createState(), "SUCCESS", control, { role });
+          await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+          const empty = page.getByRole("status").filter({ hasText: "조회할 수강 정보가 없습니다." });
+          await expect(empty).toBeVisible();
+          await expect(page.getByTestId("clinic-passcard")).toHaveCount(0);
+          await expect(page.getByText("LIVE", { exact: true })).toHaveCount(0);
+          await page.reload({ waitUntil: "domcontentloaded" });
+          await expect(empty).toBeVisible();
+          expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+          await page.screenshot({ path: `e2e/screenshots/clinic-no-enrollment-${role}-${width}-${contract}.png`, fullPage: true });
+          control.fail = true;
+          await empty.getByRole("button", { name: "다시 확인" }).click();
+          await expect(page.getByRole("alert")).toContainText("패스카드를 불러오지 못했습니다.");
+          control.fail = false;
+          control.noEnrollment = undefined;
+          await page.getByRole("button", { name: "다시 시도" }).click();
+          await expect(page.getByRole("heading", { name: "합격자", exact: true })).toBeVisible();
+          await page.reload({ waitUntil: "domcontentloaded" });
+          await expect(page.getByRole("heading", { name: "합격자", exact: true })).toBeVisible();
+          control.result = "FAIL";
+          await page.reload({ waitUntil: "domcontentloaded" });
+          await expect(page.getByRole("heading", { name: "대상자", exact: true })).toBeVisible();
+          expect(control.studentHeaders!.length).toBeGreaterThan(0);
+          expect(control.studentHeaders!.every((value) => role === "parent" ? value === "72" : value == null)).toBe(true);
+        });
+      }
+    }
+  }
 
   test("인증 없는 패스카드 직접 URL은 로그인으로 되돌린다", async ({ page }) => {
     const state = createState();

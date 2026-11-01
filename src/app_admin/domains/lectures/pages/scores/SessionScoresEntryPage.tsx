@@ -1734,6 +1734,19 @@ export default function SessionScoresEntryPage({
           lectureId={numericLectureId}
           search={searchInput}
           isEditMode={isEditMode}
+          onRequestAnswerEdit={async () => {
+            if (isSaving || draft.isStartingEdit || draft.isRecoveryCheckPending || draft.recoveryCheckFailed || draft.hasDraftToRestore) {
+              feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
+              return false;
+            }
+            if (isEditMode) return true;
+            if (!await beginScoreEditing()) {
+              feedback.error("답안 수정 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+              return false;
+            }
+            setIsEditMode(true);
+            return true;
+          }}
           hasUnsavedChanges={isEditMode || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
           assessmentDeleteLocked={recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error" || activeScoreCell !== null}
           onPendingChange={draft.requestAutosave}

@@ -302,11 +302,10 @@ for (const width of [390, 1366]) {
     await input.fill("60");
     await input.press("Tab");
     if (width === 390) {
-      await expect(page.getByText("저장에 실패했습니다.", { exact: true })).toBeVisible();
+      await expect(answerDialog.getByRole("alert")).toContainText("저장하지 못한 답안이 있습니다. 입력값을 유지했습니다.");
       expect(writes).toBe(0);
       await expect(input).toHaveValue("60");
-      await input.focus();
-      await input.press("Tab");
+      await answerDialog.getByRole("button", { name: "다시 저장", exact: true }).click();
     }
     await expect.poll(() => writes).toBe(1);
     await answerDialog.getByRole("button", { name: "완료", exact: true }).click();

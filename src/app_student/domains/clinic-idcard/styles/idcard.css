@@ -396,16 +396,19 @@
   animation: clinic-passcard-state-in 160ms ease-out;
 }
 
-.clinic-idcard-state--error {
+.clinic-idcard-state--error,
+.clinic-idcard-state--empty {
   align-content: center;
   gap: 8px;
 }
 
-.clinic-idcard-state--error strong {
+.clinic-idcard-state--error strong,
+.clinic-idcard-state--empty strong {
   color: var(--stu-text);
 }
 
-.clinic-idcard-state--error button {
+.clinic-idcard-state--error button,
+.clinic-idcard-state--empty button {
   min-height: 44px;
   margin-top: 8px;
   padding: 0 18px;

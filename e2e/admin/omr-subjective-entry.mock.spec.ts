@@ -348,6 +348,100 @@ async function openScores(page: Page, options: { choicePending?: boolean; gradin
 }
 
 test.describe("OMR와 서술형 점수 입력 진입", () => {
+  for (const { width, failure } of [
+    { width: 1366, failure: null }, { width: 390, failure: null },
+    { width: 1366, failure: "conflict" }, { width: 390, failure: "network" },
+  ]) {
+    test(`잠긴 성적표에서 답안 입력·보존·재시도 후 다시 조회한다 (${width}px, ${failure ?? "empty"})`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const unexpectedMutations = await openScores(page);
+      let savedAnswer = failure ? "2" : "";
+      let leaseAcquired = false;
+      let rejectLease = Boolean(failure);
+      let rejectedLeases = 0;
+      const writes: string[] = [];
+      await page.route("**/api/v1/**", async (route) => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        const method = request.method();
+        if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/`) && method === "PUT") {
+          if (rejectLease) {
+            rejectLease = false;
+            rejectedLeases += 1;
+            if (failure === "network") return route.abort("aborted");
+            return route.fulfill({ status: 409, json: { code: "SCORE_EDIT_LOCKED" } });
+          }
+          leaseAcquired = true;
+          return route.fulfill({ json: { changes: [], active_editors: [] } });
+        }
+        if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/commit/`) && method === "POST") {
+          return route.fulfill({ json: { ok: true } });
+        }
+        if (path.endsWith(`/results/admin/exams/${CHOICE_EXAM_ID}/enrollments/9911/items/10031/`) && method === "PATCH") {
+          expect(leaseAcquired).toBe(true);
+          expect(request.headers()["x-score-session-id"]).toBe(String(SESSION_ID));
+          savedAnswer = (request.postDataJSON() as { answer: string }).answer;
+          writes.push(savedAnswer);
+          return route.fulfill({ json: { saved: true, ok: true, score: 100, total_score: 100 } });
+        }
+        if (path.endsWith(`/results/admin/exams/${CHOICE_EXAM_ID}/enrollments/9911/`) && method === "GET") {
+          return route.fulfill({ json: {
+            target_type: "exam", target_id: CHOICE_EXAM_ID, enrollment_id: 9911,
+            attempt_id: null, total_score: savedAnswer === "4" ? 100 : 0, max_score: 100,
+            items: savedAnswer ? [{ question_id: 10031, question_number: 1, question_kind: "choice",
+              answer: savedAnswer, score: savedAnswer === "4" ? 100 : 0, max_score: 100, is_correct: savedAnswer === "4", is_editable: true }] : [],
+            questions: [{ question_id: 10031, number: 1, max_score: 100, kind: "choice" }],
+            correct_answers: { "10031": "4" },
+            score_shape: { total_questions: 1, choice_count: 1, essay_count: 0,
+              objective_max_score: 100, subjective_max_score: 0, total_max_score: 100 },
+            edit_state: { can_edit: true }, is_provisional: false,
+            achievement: savedAnswer ? "PASS" : "NOT_SUBMITTED",
+          } });
+        }
+        return route.fallback();
+      });
+      const openAnswer = async () => {
+        await page.getByText("테스트 학생", { exact: true }).first().click();
+        const drawer = page.locator(".student-scores-drawer");
+        await drawer.locator(".student-scores-drawer__exam-header")
+          .filter({ hasText: "중대부고 2회차 객관식" }).click();
+        await drawer.getByRole("button", { name: "답안 보기·입력" }).click();
+        return page.getByRole("dialog").filter({ hasText: "중대부고 2회차 객관식 답안 상세" });
+      };
+      const dialog = await openAnswer();
+      const start = dialog.getByRole("button", { name: failure ? "성적 수정" : "답안 입력 시작", exact: true });
+      if (failure) {
+        await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("2");
+        await start.click();
+        await expect.poll(() => rejectedLeases).toBe(1);
+        await expect(page.getByText("답안 수정 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.", { exact: true })).toBeVisible();
+        await expect(start).toBeEnabled();
+        await expect(dialog.locator(".srd-edit__choice-row")).toHaveCount(0);
+        await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("2");
+        expect(leaseAcquired).toBe(false);
+        expect(writes).toEqual([]);
+        expect(savedAnswer).toBe("2");
+      }
+      await start.click();
+      await expect(dialog.locator(".srd-edit__choice-row")).toBeVisible();
+      if (failure) {
+        await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "2", exact: true }).click();
+        await expect.poll(() => writes).toEqual([""]);
+      }
+      await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "4", exact: true }).click();
+      await expect.poll(() => writes).toEqual(failure ? ["", "4"] : ["4"]);
+      await expect(dialog.locator(".srd-edit__bubble--correct")).toHaveText("4");
+      const bounds = await dialog.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      const reloaded = await openAnswer();
+      await expect(reloaded.locator(".srd-stateB")).toHaveCount(0);
+      await expect(reloaded.locator(".srd-read")).toContainText("100");
+      expect(unexpectedMutations).toEqual([]);
+    });
+  }
   test.setTimeout(90_000);
 
   test("작업박스 링크로 해당 시험의 서술형 입력을 바로 연다", async ({ page }) => {
@@ -707,4 +801,195 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await expect(answerDialog.getByText("PASS", { exact: true })).toHaveCount(0);
     expect(unexpectedMutations).toEqual([]);
   });
+
+  for (const mode of ["delay-close", "delay-done", "delay-attempt", "500", "409", "quota", "readback", "auth-switch", "tenant-switch"] as const) {
+    test(`기존 답안 수정은 저장 완료 전 닫기·잠금을 보류하고 실패를 복구한다 (${mode})`, async ({ page }) => {
+      await page.setViewportSize({ width: mode === "409" || mode === "delay-done" ? 390 : 1366, height: 900 });
+      const unexpectedMutations = await openScores(page);
+      const storageFailure = mode === "quota" || mode === "readback";
+      const authSwitch = mode === "auth-switch" || mode === "tenant-switch";
+      if (storageFailure) {
+        await page.getByRole("tab", { name: "출결", exact: true }).click();
+        await page.getByRole("tab", { name: "성적", exact: true }).click();
+        await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeVisible();
+        await page.evaluate((failure) => {
+          const original = Storage.prototype.setItem;
+          Storage.prototype.setItem = function (key: string, value: string) {
+            if (this === window.sessionStorage && key.startsWith("answer-draft:")
+                && !window.sessionStorage.getItem("qa-answer-storage-restored")) {
+              if (failure === "quota") throw new DOMException("synthetic quota", "QuotaExceededError");
+              return;
+            }
+            original.call(this, key, value);
+          };
+        }, mode);
+      }
+      let answer = "1";
+      const patchActors: number[] = [];
+      const patchTenants: string[] = [];
+      let failPatch = mode === "500" || mode === "409" || storageFailure;
+      const events: string[] = [];
+      let finishPatch!: () => void;
+      const delay = new Promise<void>((resolve) => { finishPatch = resolve; });
+      await page.route("**/api/v1/**", async (route) => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        const method = request.method();
+        if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/`) && method === "PUT") {
+          return route.fulfill({ json: { changes: [], active_editors: [] } });
+        }
+        if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/commit/`) && method === "POST") {
+          if (request.postDataJSON().release_lease) events.push("release");
+          return route.fulfill({ json: { ok: true } });
+        }
+        if (path.endsWith(`/results/admin/exams/${MIXED_EXAM_ID}/enrollments/9911/items/10001/`) && method === "PATCH") {
+          events.push("patch-start");
+          const token = request.headers().authorization?.replace(/^Bearer /, "") ?? "";
+          patchActors.push(JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString()).user_id);
+          patchTenants.push(request.headers()["x-tenant-code"] ?? "");
+          if (mode.startsWith("delay") || authSwitch) await delay;
+          if (failPatch) {
+            return route.fulfill({ status: mode === "409" ? 409 : 500, json: { detail: "synthetic save failure", code: "SCORE_EDIT_LOCKED" } });
+          }
+          answer = request.postDataJSON().answer;
+          events.push("patch-ok");
+          return route.fulfill({ json: { saved: true, score: 100, total_score: 100 } });
+        }
+        if (path.endsWith(`/exams/${MIXED_EXAM_ID}/questions/`) && method === "GET") {
+          return route.fulfill({ json: [{ id: 10001, number: 1, score: 100, kind: "choice" }] });
+        }
+        if (path.endsWith("/results/admin/attempt-history/") && method === "GET") {
+          return route.fulfill({ json: {
+            source_type: "exam", source_id: MIXED_EXAM_ID, max_score: 100,
+            attempts: [1, 2].map((attempt_index) => ({ attempt_index, score: 0, max_score: 100, passed: false })),
+          } });
+        }
+        if (path.endsWith(`/results/admin/exams/${MIXED_EXAM_ID}/enrollments/9911/`) && method === "GET") {
+          return route.fulfill({ json: {
+            target_type: "exam", target_id: MIXED_EXAM_ID, enrollment_id: 9911,
+            attempt_id: 10011, total_score: answer === "1,4" ? 100 : 0, max_score: 100,
+            items: [{ question_id: 10001, question_number: 1, question_kind: "choice", answer,
+              score: answer === "1,4" ? 100 : 0, max_score: 100, is_correct: answer === "1,4", is_editable: true }],
+            questions: [{ question_id: 10001, number: 1, max_score: 100, kind: "choice" }],
+            correct_answers: { "10001": "1,4" }, edit_state: { can_edit: true },
+            is_provisional: false, grading_status: "graded",
+            score_shape: { total_questions: 1, choice_count: 1, essay_count: 0,
+              objective_max_score: 100, subjective_max_score: 0, total_max_score: 100 },
+          } });
+        }
+        return route.fallback();
+      });
+      await page.getByRole("button", { name: "수정", exact: true }).click();
+      const openAnswer = async () => {
+        await page.getByText("테스트 학생", { exact: true }).first().click();
+        const drawer = page.locator(".student-scores-drawer");
+        await drawer.locator(".student-scores-drawer__exam-header").filter({ hasText: "중대부고 2회차 혼합형" }).click();
+        await drawer.getByRole("button", { name: "답안 상세 보기", exact: true }).click();
+        return page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 답안 상세" });
+      };
+      const dialog = await openAnswer();
+      await dialog.getByRole("button", { name: "성적 수정", exact: true }).click();
+      await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "4", exact: true }).click();
+      await expect.poll(() => events.filter((event) => event === "patch-start").length).toBe(1);
+      if (authSwitch) {
+        await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "5", exact: true }).click();
+        const switchLogin = async (userId: number, generation: string, tenant = "hakwonplus") => {
+          await page.evaluate(async ({ userId, generation, sessionId, tenant }) => {
+            const encode = (value: unknown) => btoa(JSON.stringify(value)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+            const access = `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, user_id: userId, tenant_code: tenant })}.sig`;
+            const refresh = `${access}-refresh`;
+            localStorage.setItem(`academy:auth-tokens:v1:${generation}`, JSON.stringify({ access, refresh, generation }));
+            localStorage.setItem("academy:auth-active-generation:v1", generation);
+            localStorage.setItem("access", access);
+            localStorage.setItem("refresh", refresh);
+            sessionStorage.setItem("tenantCode", tenant);
+            await fetch(`/api/v1/results/admin/sessions/${sessionId}/score-draft/`, {
+              method: "PUT", headers: { "content-type": "application/json", authorization: `Bearer ${access}` },
+              body: JSON.stringify({ changes: [] }),
+            });
+          }, { userId, generation, sessionId: SESSION_ID, tenant });
+        };
+        if (mode === "tenant-switch") await switchLogin(12, "qa-other-tenant", "qa-other-academy");
+        else await switchLogin(99, "qa-other-account");
+        finishPatch();
+        await expect(dialog.getByRole("button", { name: "다시 저장", exact: true })).toBeVisible();
+        await expect(dialog.getByRole("status")).toHaveCount(0);
+        expect(patchActors).toEqual([12]);
+        expect(patchTenants).toEqual(["hakwonplus"]);
+        expect(answer).toBe("1,4");
+        await dialog.getByRole("button", { name: "다시 저장", exact: true }).click();
+        await expect(dialog.getByRole("status")).toHaveCount(0);
+        expect(patchActors).toEqual([12]);
+        expect(patchTenants).toEqual(["hakwonplus"]);
+        await switchLogin(12, "qa-original-account-returned");
+        await dialog.getByRole("button", { name: "다시 저장", exact: true }).click();
+        await expect.poll(() => answer).toBe("1,4,5");
+        expect(patchActors).toEqual([12, 12]);
+        expect(patchTenants).toEqual(["hakwonplus", "hakwonplus"]);
+        await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+        await expect(dialog).toHaveCount(0);
+      } else if (mode.startsWith("delay")) {
+        if (mode === "delay-attempt") await dialog.getByRole("button", { name: /2차 재시험/ }).click();
+        else await dialog.getByRole("button", { name: mode === "delay-close" ? "닫기" : "수정 완료", exact: true }).click();
+        await expect(dialog).toBeVisible();
+        await expect(dialog.locator(".srd-edit__choice-row")).toBeVisible();
+        expect(answer).toBe("1");
+        expect(events).not.toContain("release");
+        finishPatch();
+        if (mode === "delay-close") await expect(dialog).toHaveCount(0);
+        else {
+          if (mode === "delay-attempt") {
+            await expect(dialog.locator(".srd-edit__choice-row")).toHaveCount(0);
+            await dialog.getByRole("button", { name: /1차 응시/ }).click();
+          }
+          await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("1,4");
+          await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+        }
+      } else {
+        await expect(dialog.getByRole("button", { name: "다시 저장", exact: true })).toBeVisible();
+        await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+        await expect(dialog).toBeVisible();
+        await expect(dialog.locator(".srd-edit__bubble--correct")).toHaveText(["1", "4"]);
+        expect(answer).toBe("1");
+        expect(events).not.toContain("release");
+        if (storageFailure) {
+          await expect(dialog.getByRole("alert").filter({ hasText: "브라우저에 복구 답안을 보관하지 못했습니다" })).toBeVisible();
+          await page.goBack();
+          await expect(page).not.toHaveURL(/\/scores/);
+          expect(await page.evaluate(() => {
+            const event = new Event("beforeunload", { cancelable: true });
+            window.dispatchEvent(event);
+            return event.defaultPrevented;
+          })).toBe(true);
+          await page.goForward();
+          await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeVisible();
+          await page.getByRole("button", { name: "수정", exact: true }).click();
+          const restored = await openAnswer();
+          await restored.getByRole("button", { name: "성적 수정", exact: true }).click();
+          await expect(restored.locator(".srd-edit__bubble--correct")).toHaveText(["1", "4"]);
+          await expect(restored.getByRole("alert").filter({ hasText: "복원했습니다" })).toBeVisible();
+          await page.evaluate(() => window.sessionStorage.setItem("qa-answer-storage-restored", "1"));
+        }
+        failPatch = false;
+        await dialog.getByRole("button", { name: "다시 저장", exact: true }).click();
+        await expect.poll(() => answer).toBe("1,4");
+        await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+        await expect(dialog).toHaveCount(0);
+      }
+      await page.locator(".student-scores-drawer").getByRole("button", { name: "학생 성적 상세 닫기 (Esc)", exact: true }).click();
+      await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await expect.poll(() => events.includes("release")).toBe(true);
+      expect(events.indexOf("release")).toBeGreaterThan(events.indexOf("patch-ok"));
+      expect(await page.evaluate(() => {
+        const event = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+      })).toBe(false);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      const readback = await openAnswer();
+      await expect(readback.locator(".srd-read__choice-ans")).toHaveText(authSwitch ? "1,4,5" : "1,4");
+      await expect(readback.locator(".srd-read__score-val")).toHaveText(authSwitch ? "0" : "100");
+      expect(unexpectedMutations).toEqual([]);
+    });
+  }
 });

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
+import { isApiError } from "@/shared/api/axios";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
@@ -90,6 +91,20 @@ export default function ClinicIDCardPage() {
 
   if (query.isLoading) {
     return <div className="clinic-idcard-state" role="status">{cardLabel} 불러오는 중…</div>;
+  }
+
+  const enrollmentUnavailable = isApiError(query.error)
+    && query.error.response?.status === 403
+    && (query.error.response.data as { code?: string } | undefined)?.code === "clinic_no_active_enrollment";
+  // Cover older API instances that returned an empty passing payload as well.
+  if (enrollmentUnavailable || (!query.isError && query.data?.lectures.length === 0)) {
+    return (
+      <div className="clinic-idcard-state clinic-idcard-state--empty" role="status">
+        <strong>조회할 수강 정보가 없습니다.</strong>
+        <span>로그인한 계정이나 선택한 자녀를 확인해 주세요.</span>
+        <button type="button" onClick={() => query.refetch()}>다시 확인</button>
+      </div>
+    );
   }
 
   if (query.isError || !query.data) {
