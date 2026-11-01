@@ -31,6 +31,9 @@ async function installSubmissionApi(page: Page, options: {
   breakImageOnReopen?: boolean;
   brokenImage?: boolean;
   externalFile?: "pdf" | "unsupported";
+  recovery?: boolean;
+  failAssignmentOnce?: boolean;
+  projectionPending?: boolean;
 } = {}) {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
@@ -42,6 +45,10 @@ async function installSubmissionApi(page: Page, options: {
   const assignmentBodies: Array<Record<string, unknown>> = [];
   let imageCalls = 0;
   let presignCalls = 0;
+  let assigned = false;
+  let answer = "빛";
+  let reviewed = false;
+  let reviewReads = 0;
 
   const fileKey = options.externalFile === "pdf"
     ? "tenants/11/submissions/501/answer-sheet.pdf"
@@ -91,8 +98,8 @@ async function installSubmissionApi(page: Page, options: {
       await json(route, [
         {
           id: 501,
-          enrollment_id: 0,
-          student_name: "",
+          enrollment_id: assigned ? 901 : 0,
+          student_name: assigned ? "김학생" : "",
           target_type: "exam",
           target_id: 77,
           target_title: "중2 과학 진단평가",
@@ -102,7 +109,7 @@ async function installSubmissionApi(page: Page, options: {
           target_resolved: true,
           target_resolved_reason: null,
           source: "scan",
-          status: "needs_identification",
+          status: reviewed ? "done" : assigned ? "answers_ready" : "needs_identification",
           has_file: true,
           file_name: fileKey.split("/").pop(),
           file_type: options.externalFile === "pdf"
@@ -135,11 +142,36 @@ async function installSubmissionApi(page: Page, options: {
       return;
     }
     if (path === "/submissions/submissions/501/manual-edit/" && request.method() === "POST") {
-      assignmentBodies.push(request.postDataJSON() as Record<string, unknown>);
+      const body = request.postDataJSON() as Record<string, unknown>;
+      assignmentBodies.push(body);
+      if (options.failAssignmentOnce && assignmentBodies.length === 1) return json(route, { detail: "학생 지정에 실패했습니다. 다시 시도해 주세요." }, 400);
+      if (options.recovery) {
+        assigned = true;
+        const answers = body.answers as Array<{ answer: string }>;
+        if (answers.length) {
+          answer = answers[0].answer;
+          reviewed = true;
+        }
+        return json(route, {
+          submission_id: 501, enrollment_id: 901,
+          status: reviewed ? "done" : "answers_ready",
+          graded: reviewed || options.projectionPending === true,
+          projection_ready: reviewed ? true : options.projectionPending ? false : undefined,
+        });
+      }
       await json(route, { submission_id: 501, status: "grading" });
       return;
     }
+    if (options.recovery && path === "/submissions/submissions/exams/77/" && request.method() === "GET") {
+      const row = { id: 501, enrollment_id: assigned ? 901 : 0, student_name: "김학생", status: reviewed ? "done" : "answers_ready", source: "omr_scan", score: reviewed ? 100 : null, created_at: "2026-08-23T08:30:00+09:00", file_key: fileKey, has_file: true, manual_review_required: !reviewed, manual_review_reasons: reviewed ? [] : ["ambiguous_answer"], identifier_status: "matched" };
+      return json(route, new URL(request.url()).searchParams.has("review_issues") ? { items: [row], total: 1, next_cursor: null } : [row]);
+    }
+    if (options.recovery && path === "/submissions/submissions/501/manual-edit/" && request.method() === "GET") {
+      reviewReads += 1;
+      return json(route, { submission_id: 501, submission_status: reviewed ? "done" : "answers_ready", enrollment_id: 901, target_type: "exam", target_id: 77, identifier: { enrollment_id: 901 }, scan_image_url: fileUrl, answers: [{ question_id: 1001, question_no: 1, answer, omr: null }], meta: { manual_review: { required: !reviewed, reasons: reviewed ? [] : ["ambiguous_answer"] }, identifier_status: "matched" }, duplicate_siblings: [] });
+    }
     const shellReads: Record<string, unknown> = {
+      "/core/og-meta/": {},
       "/clinic/participants/": [],
       "/community/admin/reports/pending-count/": { count: 0 },
       "/community/notifications/unread-count/": { count: 0 },
@@ -159,6 +191,8 @@ async function installSubmissionApi(page: Page, options: {
 
   return {
     assignmentBodies,
+    get reviewed() { return reviewed; },
+    get reviewReads() { return reviewReads; },
     get imageCalls() {
       return imageCalls;
     },
@@ -167,6 +201,51 @@ async function installSubmissionApi(page: Page, options: {
     },
   };
 }
+
+for (const width of [1366, 390]) {
+  test(`@assignment-recovery ${width}px 학생 지정 뒤 미완료 채점을 직접 복구하고 새로고침한다`, async ({ page }) => {
+    const calls = await installSubmissionApi(page, { recovery: true });
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 60_000 });
+    await page.getByTestId("submission-preview-501").click();
+    await page.getByRole("button", { name: "확인하고 학생 지정" }).click();
+    await page.getByRole("dialog", { name: "학생 선택" }).getByText("김학생", { exact: true }).click();
+    await expect(page.getByTestId("submission-identification-result")).toContainText("채점 전 확인이 필요합니다");
+    expect(calls.assignmentBodies[0].answers).toEqual([]);
+    await page.reload();
+    await expect(page.getByTestId("submission-inbox-501")).toContainText("김학생");
+    await page.getByTestId("submission-review-501").click();
+    const review = page.getByRole("dialog", { name: "OMR 검토", exact: true });
+    await expect(review).toBeVisible();
+    await expect.poll(() => calls.reviewReads).toBeGreaterThan(0);
+    if (width === 390) await review.getByRole("tab", { name: "확인", exact: true }).click();
+    await review.getByPlaceholder("답안 입력").fill("굴절");
+    await review.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
+    await expect.poll(() => calls.reviewed).toBe(true);
+    await review.getByRole("button", { name: "닫기", exact: true }).click();
+    await page.goto(`${BASE}/workspace/results/submissions?filter=done`);
+    await expect(page.getByTestId("submission-inbox-501")).toContainText("완료");
+    expect(calls.assignmentBodies.at(-1)?.answers).toEqual([{ exam_question_id: 1001, answer: "굴절" }]);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  });
+}
+
+test("@assignment-recovery 배정 실패 후 같은 학생으로 재시도하고 성적 반영 대기를 구분한다", async ({ page }) => {
+  const calls = await installSubmissionApi(page, { recovery: true, failAssignmentOnce: true, projectionPending: true });
+  await page.setViewportSize({ width: 390, height: 900 });
+  await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 60_000 });
+  await page.getByTestId("submission-preview-501").click();
+  await page.getByRole("button", { name: "확인하고 학생 지정" }).click();
+  const picker = page.getByRole("dialog", { name: "학생 선택" });
+  await picker.getByText("김학생", { exact: true }).click();
+  await expect(page.getByText("학생 지정에 실패했습니다. 다시 시도해 주세요.", { exact: true })).toBeVisible();
+  await expect(picker).toBeVisible();
+  await expect(page.getByTestId("submission-identification-result")).toHaveCount(0);
+  await picker.getByText("김학생", { exact: true }).click();
+  await expect(page.getByTestId("submission-identification-result")).toContainText("아직 성적 반영이 끝나지 않았습니다");
+  expect(calls.assignmentBodies).toHaveLength(2);
+  expect(calls.assignmentBodies[0]).toEqual(calls.assignmentBodies[1]);
+});
 
 test("제출 파일을 확인한 뒤에만 학생을 지정한다", async ({ page }) => {
   const calls = await installSubmissionApi(page);

@@ -20,7 +20,7 @@
  * 직접 navigate 시 lecture/session 결손 가드 → SessionLayout "잘못된 세션 접근" 회피.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileSearch } from "lucide-react";
@@ -28,6 +28,7 @@ import { Button, EmptyState, Tabs, Badge, ICON_FOR_BUTTON } from "@/shared/ui/ds
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
+import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentPickerModal from "@admin/domains/results/components/omr-review/StudentPickerModal";
 import {
@@ -59,6 +60,10 @@ import SubmissionPreviewModal, {
   submissionFileSize,
 } from "../components/SubmissionPreviewModal";
 import type { SubmissionStatus } from "../types";
+
+const OmrReviewWorkspace = lazy(
+  () => import("@admin/domains/results/components/omr-review/OmrReviewWorkspace"),
+);
 
 /* ─── Filter tabs ─── */
 
@@ -156,7 +161,11 @@ export default function SubmissionsInboxPage() {
 
   const [pickerRow, setPickerRow] = useState<PendingSubmissionRow | null>(null);
   const [previewRow, setPreviewRow] = useState<PendingSubmissionRow | null>(null);
-  const lastPickedEnrollmentRef = useRef<number | null>(null);
+  const [reviewRow, setReviewRow] = useState<PendingSubmissionRow | null>(null);
+  const [identificationNotice, setIdentificationNotice] = useState<{
+    row: PendingSubmissionRow;
+    message: string;
+  } | null>(null);
 
   // 일괄 선택 — id Set
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -171,7 +180,7 @@ export default function SubmissionsInboxPage() {
   const q = useQuery({
     queryKey: submissionsQueryKeys.adminPendingList(filter, failedSub, page),
     queryFn: () => fetchPendingSubmissionPage(filter, page, failedSub),
-    refetchInterval: pickerRow || previewRow || discardModal ? false : 5_000,
+    refetchInterval: pickerRow || previewRow || reviewRow || discardModal ? false : 5_000,
   });
 
   useEffect(() => {
@@ -240,6 +249,22 @@ export default function SubmissionsInboxPage() {
     qc.invalidateQueries({ queryKey: submissionsQueryKeys.adminPending });
   }
 
+  function refreshAssignmentResults(row: PendingSubmissionRow) {
+    refetchAll();
+    qc.invalidateQueries({ queryKey: submissionsQueryKeys.adminSubmissions });
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.sessionScores });
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.clinicTargets });
+    if (row.target_type === "exam") {
+      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResults(row.target_id).slice(0, 2) });
+      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(row.target_id) });
+      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamSummary(row.target_id) });
+      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(row.target_id) });
+      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(row.target_id) });
+      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewIssues(row.target_id) });
+      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(row.id) });
+    }
+  }
+
   /* ── Mutations ── */
 
   const retryMut = useMutation({
@@ -290,21 +315,29 @@ export default function SubmissionsInboxPage() {
   });
 
   const identifyMut = useMutation({
-    mutationFn: async (input: { sid: number; enrollmentId: number; allowDuplicate?: boolean }) => {
+    mutationFn: async (input: { row: PendingSubmissionRow; enrollmentId: number; allowDuplicate?: boolean }) => {
       return manualEditSubmissionApi({
-        submissionId: input.sid,
+        submissionId: input.row.id,
         identifier: { enrollment_id: input.enrollmentId },
         answers: [],
         note: "inbox_quick_identify",
         allowDuplicate: input.allowDuplicate,
       });
     },
-    onSuccess: () => {
-      feedback.success("학생을 지정했습니다. 자동 채점이 진행됩니다.");
-      setPickerRow(null);
-      refetchAll();
+    onSuccess: (result, input) => {
+      const message = result.graded === true && result.projection_ready !== false
+        ? "학생 지정과 채점이 완료됐습니다. 결과를 확인해 주세요."
+        : result.projection_ready === false
+          ? "학생 지정은 저장됐습니다. 아직 성적 반영이 끝나지 않았습니다. 답안을 검토해 주세요."
+          : result.graded !== false && ["submitted", "dispatched", "extracting", "grading", "processing"].includes(result.status ?? "")
+            ? "학생 지정은 저장됐습니다. 답안 처리 중이며 완료 후 결과를 확인할 수 있습니다."
+            : "학생 지정은 저장됐습니다. 채점 전 확인이 필요합니다. 답안을 검토해 주세요.";
+      setIdentificationNotice({ row: input.row, message });
+      feedback.info(message);
+      setPickerRow((current) => current?.id === input.row.id ? null : current);
+      refreshAssignmentResults(input.row);
     },
-    onError: (e: unknown) => {
+    onError: (e: unknown, input) => {
       const err = e as {
         response?: {
           status?: number;
@@ -314,12 +347,9 @@ export default function SubmissionsInboxPage() {
       };
       if (
         err?.response?.status === 409 &&
-        err?.response?.data?.code === "DUPLICATE_ENROLLMENT" &&
-        pickerRow
+        err?.response?.data?.code === "DUPLICATE_ENROLLMENT"
       ) {
         const conflictId = err.response.data.conflict_submission_id;
-        const sid = pickerRow.id;
-        const eid = lastPickedEnrollmentRef.current;
         confirm({
           title: "이미 매칭된 답안지가 있습니다",
           message:
@@ -329,8 +359,8 @@ export default function SubmissionsInboxPage() {
           cancelText: "취소",
           danger: true,
         }).then((ok) => {
-          if (!ok || !eid) return;
-          identifyMut.mutate({ sid, enrollmentId: eid, allowDuplicate: true });
+          if (!ok) return;
+          identifyMut.mutate({ ...input, allowDuplicate: true });
         });
         return;
       }
@@ -383,14 +413,14 @@ export default function SubmissionsInboxPage() {
       feedback.error("원본 시험/과제 정보가 없어 학생을 지정할 수 없습니다.");
       return;
     }
-    lastPickedEnrollmentRef.current = null;
+    setIdentificationNotice(null);
     setPickerRow(row);
   }
 
   function handlePickStudent(c: CandidateRow) {
     if (!pickerRow) return;
-    lastPickedEnrollmentRef.current = c.enrollment_id;
-    identifyMut.mutate({ sid: pickerRow.id, enrollmentId: c.enrollment_id });
+    if (identifyMut.isPending) return;
+    identifyMut.mutate({ row: pickerRow, enrollmentId: c.enrollment_id });
   }
 
   function toggleSelect(rowId: number) {
@@ -446,6 +476,15 @@ export default function SubmissionsInboxPage() {
       <p className="text-sm leading-relaxed text-[var(--color-text-muted)]">
         대기 중인 제출은 모두 표시합니다. 완료·실패·폐기는 최근 24시간에 접수된 제출만 표시합니다.
       </p>
+      {identificationNotice && (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4" data-testid="submission-identification-result">
+          <p className="min-w-0 flex-1 text-sm">{identificationNotice.message}</p>
+          {identificationNotice.row.target_type === "exam" && (
+            <Button type="button" intent="secondary" size="sm" onClick={() => setReviewRow(identificationNotice.row)}>답안 검토·복구</Button>
+          )}
+          <Button type="button" intent="ghost" size="sm" onClick={() => setIdentificationNotice(null)}>안내 닫기</Button>
+        </div>
+      )}
       {/* 식별 필요 안내 배너 */}
       {needsIdentificationCount > 0 && (
         <div
@@ -462,7 +501,7 @@ export default function SubmissionsInboxPage() {
               이 페이지의 학생 미식별 제출 {needsIdentificationCount}건
             </span>
             <span className="text-xs text-[var(--color-text-muted)]">
-              스캔/AI 업로드 후 학생 매칭이 안 된 제출입니다. 행의 <b>학생 지정</b> 버튼을 눌러 매칭하면 자동 채점 큐에 들어갑니다.
+              제출물을 확인한 뒤 학생을 지정하세요. 지정 후에도 확인이 필요한 시험 답안은 <b>답안 검토·복구</b>에서 검토하고 저장할 수 있습니다.
               {orphanCount > 0 && (
                 <>
                   {" "}원본 시험/과제를 찾을 수 없는 {orphanCount}건은 <b>일괄 폐기</b>로 정리하세요.
@@ -585,12 +624,13 @@ export default function SubmissionsInboxPage() {
                 busy={
                   (retryMut.isPending && retryMut.variables === r.id) ||
                   (discardMut.isPending && discardMut.variables?.sid === r.id) ||
-                  (identifyMut.isPending && pickerRow?.id === r.id)
+                  (identifyMut.isPending && identifyMut.variables?.row.id === r.id)
                 }
                 onToggleSelect={() => toggleSelect(r.id)}
                 onPreview={() => setPreviewRow(r)}
                 onNavigate={() => handleNavigate(r)}
                 onIdentify={() => handleStartIdentify(r)}
+                onReview={() => setReviewRow(r)}
                 onRetry={() => retryMut.mutate(r.id)}
                 onDiscard={() => handleAskDiscard(r)}
               />
@@ -623,6 +663,21 @@ export default function SubmissionsInboxPage() {
       )}
 
       {/* 폐기 사유 모달 */}
+      {reviewRow && (
+        <Suspense fallback={<div role="status">답안 검토 화면을 불러오는 중입니다.</div>}>
+          <OmrReviewWorkspace
+            open
+            examId={reviewRow.target_id}
+            examTitle={reviewRow.target_title}
+            initialSubmissionId={reviewRow.id}
+            onClose={() => {
+              refreshAssignmentResults(reviewRow);
+              setReviewRow(null);
+              setIdentificationNotice(null);
+            }}
+          />
+        </Suspense>
+      )}
       <DiscardReasonModal
         open={!!discardModal}
         count={discardCount}
@@ -645,6 +700,7 @@ function SubmissionRow({
   onPreview,
   onNavigate,
   onIdentify,
+  onReview,
   onRetry,
   onDiscard,
 }: {
@@ -656,6 +712,7 @@ function SubmissionRow({
   onPreview: () => void;
   onNavigate: () => void;
   onIdentify: () => void;
+  onReview: () => void;
   onRetry: () => void;
   onDiscard: () => void;
 }) {
@@ -761,6 +818,9 @@ function SubmissionRow({
       </span>
 
       <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 flex-shrink-0">
+        {isExam && resolved && !isProcessing && !isSuperseded && !isDiscardedRow && (row.source === "omr_scan" || row.source === "omr_manual" || row.source === "scan") && (
+          <Button type="button" intent="secondary" size="sm" disabled={busy} onClick={onReview} data-testid={`submission-review-${row.id}`}>답안 검토·복구</Button>
+        )}
         {hasFile && (
           <Button
             type="button"
