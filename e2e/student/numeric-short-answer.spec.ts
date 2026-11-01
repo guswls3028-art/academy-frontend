@@ -19,7 +19,7 @@ function fakeJwt(): string {
 type Viewer = "student" | "parent";
 
 async function installApi(page: Page, viewer: Viewer = "student", essay = false,
-  recovery: { loseResponse?: boolean; closeAfterSubmit?: boolean; failQuestionsAfterSubmit?: boolean } = {}): Promise<{
+  recovery: { loseResponse?: boolean; closeAfterSubmit?: boolean; failQuestionsAfterSubmit?: boolean; failureThenReadiness?: boolean } = {}): Promise<{
   submissions: Array<Record<string, unknown>>;
   studentScopedHeaders: Array<string | undefined>;
 }> {
@@ -79,6 +79,12 @@ async function installApi(page: Page, viewer: Viewer = "student", essay = false,
     if (path.endsWith("/student/exams/901/submit/") && request.method() === "POST") {
       studentScopedHeaders.push(request.headers()["x-student-id"]);
       submissions.push(request.postDataJSON() as Record<string, unknown>);
+      if (recovery.failureThenReadiness && submissions.length <= 2) {
+        await route.fulfill(submissions.length === 1
+          ? { status: 500, json: { detail: "채점 실패. 같은 제출을 다시 확인해 주세요.", code: "online_submission_retry" } }
+          : { status: 409, json: { detail: "시험의 문항·정답 준비가 완료되지 않았습니다. 선생님 확인 후 다시 제출해 주세요." } });
+        return;
+      }
       if (recovery.loseResponse && submissions.length === 1) {
         await route.fulfill({ status: 504, json: { detail: "제출 결과를 확인하지 못했습니다. 같은 제출을 다시 확인해 주세요." } });
         return;
@@ -265,4 +271,104 @@ for (const width of [390, 1366]) {
     await expect(page).toHaveURL(/\/student\/exams\/901\/result$/);
     await expect.poll(() => page.evaluate(() => localStorage.getItem("exam-draft:901:hakwonplus:user:11:submission"))).toBeNull();
   });
+}
+
+for (const failure of ["quota", "security", "readback"] as const) {
+  test(`제출 식별자 ${failure} 저장 실패는 전송하지 않고 같은 화면에서 복구한다`, async ({ page }) => {
+    await page.setViewportSize({ width: failure === "quota" ? 390 : 1366, height: 900 });
+    const { submissions } = await installApi(page);
+    await page.goto(`${BASE}/student/exams/901/submit`);
+    await page.getByLabel("1번 답", { exact: true }).fill("3");
+    await page.evaluate((mode) => {
+      const originalSet = Storage.prototype.setItem;
+      const originalGet = Storage.prototype.getItem;
+      Object.assign(window, { restoreExamStorage: () => {
+        Storage.prototype.setItem = originalSet;
+        Storage.prototype.getItem = originalGet;
+      } });
+      Storage.prototype.setItem = function (key, value) {
+        if (key.endsWith(":submission")) {
+          if (mode === "quota") throw new DOMException("qa full", "QuotaExceededError");
+          if (mode === "readback") return;
+        }
+        return originalSet.call(this, key, value);
+      };
+      Storage.prototype.getItem = function (key) {
+        if (mode === "security" && key.endsWith(":submission")) throw new DOMException("qa blocked", "SecurityError");
+        return originalGet.call(this, key);
+      };
+    }, failure);
+    await page.getByRole("button", { name: "제출하기", exact: true }).click();
+    await page.getByRole("button", { name: "제출", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("안전하게 저장하지 못했습니다");
+    expect(submissions).toHaveLength(0);
+    await expect(page.getByRole("button", { name: "제출하기", exact: true })).toBeEnabled();
+    await expect(page.getByLabel("1번 답", { exact: true })).toHaveValue("3");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/exam-storage-${failure}.png`, fullPage: true });
+    await page.evaluate(() => (window as unknown as { restoreExamStorage: () => void }).restoreExamStorage());
+    await page.getByRole("button", { name: "제출하기", exact: true }).click();
+    await page.getByRole("button", { name: "제출", exact: true }).click();
+    await expect(page).toHaveURL(/\/student\/exams\/901\/result$/);
+    expect(submissions).toHaveLength(1);
+  });
+}
+
+test("접수 후 500과 준비 오류 409를 거쳐도 마감 뒤 같은 UUID로 복구한다", async ({ page }) => {
+  const { submissions } = await installApi(page, "student", false,
+    { failureThenReadiness: true, closeAfterSubmit: true });
+  await page.goto(`${BASE}/student/exams/901/submit`);
+  await page.getByLabel("1번 답", { exact: true }).fill("3");
+  await page.getByRole("button", { name: "제출하기", exact: true }).click();
+  await page.getByRole("button", { name: "제출", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("채점 실패");
+  await page.reload();
+  await page.getByRole("button", { name: "같은 제출 다시 확인", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("준비가 완료되지 않았습니다");
+  await page.reload();
+  await page.getByRole("button", { name: "같은 제출 다시 확인", exact: true }).click();
+  await expect(page).toHaveURL(/\/student\/exams\/901\/result$/);
+  expect(submissions).toHaveLength(3);
+  expect(submissions[1]).toEqual(submissions[0]);
+  expect(submissions[2]).toEqual(submissions[0]);
+});
+
+for (const width of [390, 1366]) {
+test(`B의 확인 중 A가 먼저 제출하면 B 초안을 보존한다 ${width}px`, async ({ page, context }) => {
+  await page.setViewportSize({ width, height: 900 });
+  const a = await installApi(page, "student", false, { loseResponse: true });
+  const other = await context.newPage();
+  try {
+    await other.setViewportSize({ width, height: 900 });
+    const b = await installApi(other);
+    await page.goto(`${BASE}/student/exams/901/submit`);
+    await other.goto(`${BASE}/student/exams/901/submit`);
+    await other.bringToFront();
+    await other.getByLabel("1번 답", { exact: true }).fill("5");
+    await other.getByRole("button", { name: "제출하기", exact: true }).click();
+    await expect(other.getByRole("button", { name: "제출", exact: true })).toBeVisible();
+    await page.bringToFront();
+    await page.getByLabel("1번 답", { exact: true }).fill("3");
+    await page.getByRole("button", { name: "제출하기", exact: true }).click();
+    await page.getByRole("button", { name: "제출", exact: true }).click();
+    await expect(page.getByRole("button", { name: "같은 제출 다시 확인", exact: true })).toBeVisible();
+    await other.bringToFront();
+    await other.getByRole("button", { name: "제출", exact: true }).click();
+    await expect(other.getByRole("alert")).toContainText("다른 화면에서 먼저 제출한 답안");
+    expect(b.submissions).toHaveLength(0);
+    await expect(other.getByLabel("1번 답", { exact: true })).toHaveValue("5");
+    await other.reload();
+    await expect(other.getByLabel("1번 답", { exact: true })).toHaveValue("5");
+    await expect.poll(() => other.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await other.screenshot({ path: `test-results/exam-cross-tab-${width}.png`, fullPage: true });
+    await other.getByRole("button", { name: "먼저 제출한 답안 확인", exact: true }).click();
+    await expect(other).toHaveURL(/\/student\/exams\/901\/result$/);
+    expect(b.submissions).toEqual([a.submissions[0]]);
+    expect(await other.evaluate(() => JSON.parse(localStorage.getItem("exam-draft:901:hakwonplus:user:11")!)[1001])).toBe("5");
+    await page.bringToFront();
+    await page.getByRole("button", { name: "같은 제출 다시 확인", exact: true }).click();
+    await expect(page).toHaveURL(/\/student\/exams\/901\/result$/);
+    expect(await other.evaluate(() => JSON.parse(localStorage.getItem("exam-draft:901:hakwonplus:user:11")!)[1001])).toBe("5");
+  } finally { await other.close(); }
+});
 }

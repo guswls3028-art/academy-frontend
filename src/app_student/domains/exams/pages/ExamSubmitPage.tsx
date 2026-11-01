@@ -26,7 +26,11 @@ import {
   setLocalItem,
 } from "@/shared/utils/safeLocalStorage";
 import styles from "./ExamSubmitPage.module.css";
-import { clearPendingExamSubmission, prepareExamSubmission, readPendingExamSubmission } from "../api/pendingExamSubmission";
+import {
+  clearPendingExamSubmission, ExamSubmissionStorageError, PendingExamSubmissionConflict,
+  prepareExamSubmission, preserveExamAnswerDraft, readPendingExamSubmission, sameExamAnswers,
+  type PendingExamSubmission,
+} from "../api/pendingExamSubmission";
 
 function readAnswerDraft(
   draftKey: string | null,
@@ -34,7 +38,6 @@ function readAnswerDraft(
 ): Record<number, string> {
   if (!draftKey) return {};
   const pending = readPendingExamSubmission(draftKey);
-  if (pending) return Object.fromEntries(pending.answers.map((answer) => [answer.exam_question_id, answer.answer]));
   try {
     let stored = getLocalItem(draftKey);
     if (!stored && previousDraftKey) {
@@ -47,7 +50,7 @@ function readAnswerDraft(
     const parsed: unknown = JSON.parse(stored ?? "null");
     return parsed && typeof parsed === "object" && !Array.isArray(parsed)
       ? parsed as Record<number, string>
-      : {};
+      : pending ? Object.fromEntries(pending.answers.map((answer) => [answer.exam_question_id, answer.answer])) : {};
   } catch {
     return {};
   }
@@ -121,6 +124,29 @@ export default function ExamSubmitPage() {
     ? clampPercent(Math.round((answeredCount / totalQuestions) * 100))
     : 0;
   const isComplete = totalQuestions > 0 && answeredCount === totalQuestions;
+  const normalizedDraft = (draft: Record<number, string>) => Object.entries(draft)
+    .filter(([, answer]) => String(answer).trim() !== "")
+    .map(([id, value]) => {
+      const question = questions.find((row) => row.id === Number(id));
+      const answer = String(value).trim();
+      return { exam_question_id: Number(id), answer: question?.answer_format === "integer_0_999"
+        ? normalizeNumericShortAnswer(answer) ?? answer : answer };
+    });
+  const differentPendingAnswers = !!pendingSubmission
+    && !sameExamAnswers(normalizedDraft(answers), pendingSubmission.answers);
+  const recoveryLabel = differentPendingAnswers ? "먼저 제출한 답안 확인" : "같은 제출 다시 확인";
+  const recoveryNotice = differentPendingAnswers
+    ? "다른 화면에서 먼저 제출한 답안이 있습니다. 아래 답안은 이 화면에 보관한 내용이며 아직 제출하지 않았습니다. 먼저 제출한 답안의 결과를 확인해 주세요."
+    : "이전에 보낸 답안의 처리 결과를 확인하고 있습니다. 아래 버튼으로 같은 제출을 다시 확인해 주세요. 답안이 접수됐다면 기존 결과로 이동합니다.";
+
+  const clearMatchingAnswerDraft = (key: string | null, attempt: PendingExamSubmission) => {
+    if (!key) return;
+    try {
+      const stored: unknown = JSON.parse(getLocalItem(key) ?? "null");
+      if (stored && typeof stored === "object" && !Array.isArray(stored)
+        && sameExamAnswers(normalizedDraft(stored as Record<number, string>), attempt.answers)) removeLocalItem(key);
+    } catch { /* Preserve any draft whose identity cannot be established. */ }
+  };
 
   // Save draft to localStorage on answer change
   const updateAnswers = useCallback(
@@ -195,33 +221,55 @@ export default function ExamSubmitPage() {
     if (!ok || !scope.active) return;
     setError(null);
     setSubmitting(true);
-    const attempt = pendingSubmission ?? prepareExamSubmission(draftKey, payload);
-    setPendingSubmission(attempt);
-    setAnswers(Object.fromEntries(attempt.answers.map((answer) => [answer.exam_question_id, answer.answer])));
+    let attempt: PendingExamSubmission | null = null;
+    let retryingPending = !!pendingSubmission;
     const controller = new AbortController();
     submissionController.current = controller;
     try {
+      if (differentPendingAnswers) preserveExamAnswerDraft(draftKey, answers);
+      const prepared = pendingSubmission ? { attempt: pendingSubmission, existing: true }
+        : prepareExamSubmission(draftKey, payload);
+      attempt = prepared.attempt;
+      retryingPending = prepared.existing;
+      setPendingSubmission(attempt);
+      const submittedAttempt = attempt;
       await runTrackedTask(
         "exams.submit",
-        () => submitStudentExamAnswers(safeId, attempt, { signal: controller.signal, studentId: selectedStudentId }),
+        () => submitStudentExamAnswers(safeId, submittedAttempt, { signal: controller.signal, studentId: selectedStudentId }),
       );
       if (!scope.active) return;
       const cleared = clearPendingExamSubmission(draftKey, attempt.client_request_id);
       setPendingSubmission(null);
       // A delayed response from this tab must not erase a newer attempt draft.
-      if (cleared && draftKey) removeLocalItem(draftKey);
-      if (cleared && previousDraftKey) removeLocalItem(previousDraftKey);
+      if (cleared) {
+        clearMatchingAnswerDraft(draftKey, attempt);
+        clearMatchingAnswerDraft(previousDraftKey, attempt);
+      }
       qc.invalidateQueries({ queryKey: studentExamQueryKeys.root });
       qc.invalidateQueries({ queryKey: studentExamQueryKeys.gradesRoot });
       qc.invalidateQueries({ queryKey: studentExamQueryKeys.dashboard });
       navigate(`/student/exams/${safeId}/result`, { replace: true });
     } catch (e: unknown) {
       if (!scope.active) return;
+      if (e instanceof PendingExamSubmissionConflict) {
+        setPendingSubmission(e.pending);
+        try {
+          preserveExamAnswerDraft(draftKey, answers);
+          setError(e.message);
+        } catch (storageError) {
+          setError((storageError as Error).message);
+        }
+        return;
+      }
+      if (e instanceof ExamSubmissionStorageError) {
+        setError(e.message);
+        return;
+      }
       const response = (e as { response?: { status?: number; data?: { detail?: string; code?: string } } } | null)?.response;
       const code = response?.data?.code;
-      // Validation/policy rejection is known not to have accepted this request.
-      // An unknown network/5xx outcome retains the exact request across reloads.
-      if (response?.status && response.status < 500
+      // Only a new request's first rejection proves non-admission. A prior
+      // ambiguous/failed request retains its UUID even if readiness now rejects it.
+      if (attempt && !retryingPending && response?.status && response.status < 500
         && code !== "online_request_conflict" && code !== "online_submission_processing") {
         clearPendingExamSubmission(draftKey, attempt.client_request_id);
         setPendingSubmission(null);
@@ -269,10 +317,11 @@ export default function ExamSubmitPage() {
   if (pendingSubmission && (examQ.isError || !examQ.data || questionsQ.isError || (!loadingQuestions && questions.length === 0))) {
     return <StudentPageShell title="제출 확인" description="이전에 보낸 답안의 처리 결과를 확인합니다.">
       {error && <p role="alert">{error}</p>}
+      {differentPendingAnswers && <p role="status">{recoveryNotice}</p>}
       <p>시험 시간이 끝났거나 연결이 끊겨도 이전 제출을 확인할 수 있습니다. 새 응시를 만들지 않습니다.</p>
       <div className={styles.recoveryActions}>
         <button type="button" className="stu-btn stu-btn--primary" disabled={submitting} onClick={handleSubmit}>
-          {submitting ? "제출 확인 중…" : "같은 제출 다시 확인"}
+          {submitting ? "제출 확인 중…" : recoveryLabel}
         </button>
         <Link to={`/student/exams/${safeId}/result`} className="stu-cta-link">결과 보기</Link>
       </div>
@@ -349,8 +398,12 @@ export default function ExamSubmitPage() {
     >
       <div className={styles.pageStack}>
         {pendingSubmission && <div className={styles.recoveryNotice} role="status">
-          이전에 보낸 답안의 처리 결과를 확인하고 있습니다. 아래 버튼으로 같은 제출을 다시 확인해 주세요.
-          답안이 접수됐다면 기존 결과로 이동합니다.
+          {recoveryNotice}
+          {differentPendingAnswers && <details><summary>먼저 제출한 답안 보기</summary>
+            <ul>{pendingSubmission.answers.map((row) => <li key={row.exam_question_id}>
+              {questions.find((question) => question.id === row.exam_question_id)?.number ?? row.exam_question_id}번: {row.answer}
+            </li>)}</ul>
+          </details>}
         </div>}
         {loadingQuestions && (
           <div className={styles.loadingStack}>
@@ -460,7 +513,7 @@ export default function ExamSubmitPage() {
                 onClick={handleSubmit}
                 disabled={submitting}
               >
-                {submitting ? "제출 확인 중…" : pendingSubmission ? "같은 제출 다시 확인" : "제출하기"}
+                {submitting ? "제출 확인 중…" : pendingSubmission ? recoveryLabel : "제출하기"}
               </button>
             </div>
           </>
