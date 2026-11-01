@@ -319,24 +319,37 @@ test("actual homework flow retains primary failures through cleanup and closed d
     cases.push(error.message.startsWith('Release request rejected') ? 'closed-kind-boundary-request-rejected' : `closed-kind-${kind}`);
   }
 
-  // Execute the real feedback function. Its original primary failure must be
-  // emitted before the existing finally block throws a distinct cleanup failure.
+  // Execute the real feedback and lease-cleanup functions. The primary failure
+  // must be emitted before cleanup, then retained alongside any cleanup failure.
   {
     const { logs, emit } = logsFor();
     const order = [];
     let cleanupFails = true, loggingFails = false;
     const staffPage = { on() {} };
-    const context = { newPage: async () => staffPage, close: async () => { order.push('cleanup'); if (cleanupFails) throw teardown; } };
+    const context = { request: {}, on() {}, off() {}, newPage: async () => staffPage,
+      close: async () => { order.push('cleanup'); if (cleanupFails) throw teardown; } };
     const parent = { context: () => ({ browser: () => ({ newContext: async () => context }) }), setViewportSize: async () => {} };
-    const fn = new Function('created', 'QA_BASE', 'installQaStudentParentBoundary', 'attachStrictBrowserGuards', 'seedBrowserAuth', 'gotoAndSettle', 'emitHomeworkFlowFailure',
+    const leaseCleanup = new Function('assertQaStudentParentRuntime', 'QA_API', 'QA_BASE', 'QA_TENANT',
+      'releaseBoundaryFromEnv', 'installReleaseRequestGuard', 'installReleaseContextGuard',
+      `${extract(read('e2e/helpers/scoreLeaseCleanup.ts'), 'function tokenActor(')}; return withOwnedScoreLeaseCleanup;`)(
+      () => {}, 'http://127.0.0.1:18000', 'http://127.0.0.1:4173', 'qa-feedback-contract',
+      () => ({ mode: 'development' }), () => {}, async () => ({ beginClose: async () => {}, assertClean() {} }));
+    const actorAccess = `e30.${Buffer.from(JSON.stringify({ user_id: 12 })).toString('base64url')}.signature`;
+    const fn = new Function('created', 'QA_BASE', 'installQaStudentParentBoundary', 'attachStrictBrowserGuards', 'seedBrowserAuth', 'gotoAndSettle', 'emitHomeworkFlowFailure', 'withOwnedScoreLeaseCleanup',
       `${extract(spec, 'async function verifyHomeworkFeedback(', '\nasync function waitForHomeworkSummary(')}; return verifyHomeworkFeedback;`)(
       { lectureId: 987654, sessionId: 987654 }, 'https://private.invalid', async () => ({}), () => ({}), async () => {},
       async () => { throw primary; }, (error, checkpoint) => {
         order.push('primary');
         if (loggingFails) emitter(error, checkpoint, () => { throw new Error('logger-secret'); });
         else emit(error, checkpoint);
-      });
-    await assert.rejects(fn(parent, {}, { access: 'secret-token' }, 'private-user'), error => error === teardown);
+      }, leaseCleanup);
+    await assert.rejects(fn(parent, {}, { access: actorAccess }, 'private-user'), error => {
+      assert.ok(error instanceof AggregateError);
+      assert.equal(error.errors.length, 2);
+      assert.equal(error.errors[0], primary);
+      assert.match(error.errors[1].message, /score-lease-context-close failed/);
+      return true;
+    });
     assert.deepEqual(order, ['primary', 'cleanup']);
     assert.deepEqual(logs[0].releaseHomeworkFlowFailure, { schema: 'homework-flow-failure/v1', phase: 'feedback-setup', viewport: null, threshold: null, kind: 'assertion' });
     assertPrivate(logs);
@@ -345,7 +358,7 @@ test("actual homework flow retains primary failures through cleanup and closed d
     loggingFails = true;
     order.length = 0;
     logs.length = 0;
-    await assert.rejects(fn(parent, {}, { access: 'secret-token' }, 'private-user'), error => error === primary);
+    await assert.rejects(fn(parent, {}, { access: actorAccess }, 'private-user'), error => error === primary);
     assert.deepEqual(order, ['primary', 'cleanup']);
     assert.deepEqual(logs, []);
     cases.push('actual-feedback-logger-fault-preserves-primary');

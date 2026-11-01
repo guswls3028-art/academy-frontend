@@ -60,6 +60,9 @@ async function setup(page: Page, kind: "exam" | "homework", failSecond = false, 
         const payload = route.request().postDataJSON() as Record<string, unknown>;
         const created = { ...payload, id: 9001 + state.created.length, exam_type: "regular" };
         state.created.push(created);
+        // Drive TanStack's real online manager before invalidation: the cached
+        // target list remains successful while its refetch is paused offline.
+        if (holdTargetRefresh) await page.evaluate(() => window.dispatchEvent(new Event("offline")));
         return json(created, 201);
       }
       if (url.searchParams.get("session_id") === "74") return json({ count: 1, next: null, results: [{ ...rows[0], id: 1700, title: `다음 차시 ${label}`, session_id: 74 }] });
@@ -113,6 +116,11 @@ for (const width of [390, 1366]) {
       try {
         await dialog.getByRole("button", { name: "불러오기", exact: true }).click();
         await expect(dialog).toHaveCount(0);
+        // Let React commit the paused query state before checking selection.
+        await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        expect(state.targetRefreshRequests).toBe(0);
+        await expect(page).toHaveURL(`${target}?${queryKey}=9001`);
+        await page.evaluate(() => window.dispatchEvent(new Event("online")));
         await expect.poll(() => state.targetRefreshRequests).toBeGreaterThan(0);
         await expect(page).toHaveURL(`${target}?${queryKey}=9001`);
         const heading = page.getByRole("heading", { name: `다음 차시 ${label}`, exact: true });
@@ -141,6 +149,7 @@ for (const width of [390, 1366]) {
         await expect(page).toHaveURL(target);
         await expect(heading).toHaveCount(0);
       } finally {
+        await page.evaluate(() => window.dispatchEvent(new Event("online")));
         state.releaseTargetRefresh();
       }
     });
