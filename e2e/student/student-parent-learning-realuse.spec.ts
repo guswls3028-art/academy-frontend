@@ -456,7 +456,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         teacherPhase = "teacher-attendance-save";
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/attendance/${created.sessionId}`, { timeout: 30_000 });
         await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
-        for (const [label, status, absentCount] of [["결석", "ABSENT", 2], ["출석", "PRESENT", 1]] as const) {
+        for (const [label, status, absentCount] of [["결석", "ABSENT", 2], ["영상", "ONLINE", 1], ["현장", "PRESENT", 1]] as const) {
           await teacherPage.getByText(primary.name, { exact: true }).click();
           const saved = teacherPage.waitForResponse((response) => (
             response.request().method() === "PATCH"
@@ -471,6 +471,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
           await teacherPage.reload();
           await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
           await expect(teacherPage.getByText(`결석 ${absentCount}`, { exact: true })).toBeVisible();
+          await expect(teacherPage.getByRole("button", { name: `${primary.name} 출석 상태 변경`, exact: true })).toContainText(label);
         }
         // Exercise the actual undo control before leaving the successful save's window.
         teacherPhase = "teacher-attendance-undo";
@@ -498,7 +499,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         await assertNoHorizontalOverflow(teacherPage);
         teacherPhase = "teacher-session-summary";
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/classes/${created.lectureId}/sessions/${created.sessionId}`, { timeout: 30_000 });
-        await expect(teacherPage.getByRole("button").filter({ has: teacherPage.getByText(primary.name, { exact: true }) })).toContainText("출석");
+        await expect(teacherPage.getByRole("button").filter({ has: teacherPage.getByText(primary.name, { exact: true }) })).toContainText("현장");
         teacherPhase = "teacher-video-list";
         const responsePromise = teacherPage.waitForResponse((response) => (
           response.request().method() === "GET"
@@ -553,7 +554,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
     const attendanceLink = page.getByRole("link").filter({ hasText: lectureTitle }).first();
     await expect(attendanceLink).toBeVisible();
-    await expect(attendanceLink).toContainText("출석");
+    await expect(attendanceLink).toContainText("현장");
     await attendanceLink.click();
     await expect(page.getByText(sessionTitle, { exact: true }).first()).toBeVisible();
 
@@ -628,7 +629,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     expect(parentPrimaryVideos.items.find((video) => video.id === created.videoId)?.progress).toBeGreaterThanOrEqual(55);
 
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
-    await expect(page.getByRole("link").filter({ hasText: lectureTitle }).first()).toContainText("출석");
+    await expect(page.getByRole("link").filter({ hasText: lectureTitle }).first()).toContainText("현장");
     await gotoAndSettle(
       page,
       `${QA_BASE}/student/video/sessions/${created.sessionId}?enrollment=${created.enrollmentIds[0]}`,
