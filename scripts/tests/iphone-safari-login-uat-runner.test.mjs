@@ -273,9 +273,9 @@ test("persistent UAT clears the staff clock-in prerequisite without recording wo
   assert.match(source, /if \(account\.role === "staff"\) \{\s*await continueStaffWithoutClockIn\(page\)/);
 });
 
-test("teacher PWA registration tolerates an unavailable blocked registration", () => {
+test("shared workspace PWA registration tolerates an unavailable blocked registration", () => {
   const source = fs.readFileSync(
-    path.join(root, "src/app_teacher/shared/hooks/useTeacherSW.ts"),
+    path.join(root, "src/shared/pwa/useWorkspacePwa.ts"),
     "utf8",
   );
   assert.match(source, /const serviceWorker = navigator\.serviceWorker/);
