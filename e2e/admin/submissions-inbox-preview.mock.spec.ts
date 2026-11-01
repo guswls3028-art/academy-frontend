@@ -34,6 +34,9 @@ async function installSubmissionApi(page: Page, options: {
   recovery?: boolean;
   failAssignmentOnce?: boolean;
   projectionPending?: boolean;
+  targetOutsideRecent?: boolean;
+  failReview?: boolean;
+  wrongReviewExam?: boolean;
 } = {}) {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
@@ -45,10 +48,12 @@ async function installSubmissionApi(page: Page, options: {
   const assignmentBodies: Array<Record<string, unknown>> = [];
   let imageCalls = 0;
   let presignCalls = 0;
-  let assigned = false;
+  let assigned = options.targetOutsideRecent ?? false;
   let answer = "빛";
-  let reviewed = false;
+  let reviewed = options.targetOutsideRecent ?? false;
   let reviewReads = 0;
+  let failReview = options.failReview ?? false;
+  const detailRequests: string[] = [];
 
   const fileKey = options.externalFile === "pdf"
     ? "tenants/11/submissions/501/answer-sheet.pdf"
@@ -60,6 +65,7 @@ async function installSubmissionApi(page: Page, options: {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    if (/\/submissions\/submissions\/\d+\/manual-edit\/$/.test(path)) detailRequests.push(`${request.method()} ${path}`);
     if (request.method() === "OPTIONS") {
       await route.fulfill({ status: 204 });
       return;
@@ -164,11 +170,18 @@ async function installSubmissionApi(page: Page, options: {
     }
     if (options.recovery && path === "/submissions/submissions/exams/77/" && request.method() === "GET") {
       const row = { id: 501, enrollment_id: assigned ? 901 : 0, student_name: "김학생", status: reviewed ? "done" : "answers_ready", source: "omr_scan", score: reviewed ? 100 : null, created_at: "2026-08-23T08:30:00+09:00", file_key: fileKey, has_file: true, manual_review_required: !reviewed, manual_review_reasons: reviewed ? [] : ["ambiguous_answer"], identifier_status: "matched" };
+      if (options.targetOutsideRecent) {
+        const otherRows = [502, 503].map(id => ({ ...row, id, enrollment_id: id + 500, student_name: "다른 학생", status: "answers_ready", manual_review_required: true }));
+        const url = new URL(request.url());
+        const items = url.searchParams.has("focus_id") ? [] : otherRows;
+        return json(route, url.searchParams.has("review_issues") ? { items, total: items.length, next_cursor: null } : otherRows);
+      }
       return json(route, new URL(request.url()).searchParams.has("review_issues") ? { items: [row], total: 1, next_cursor: null } : [row]);
     }
     if (options.recovery && path === "/submissions/submissions/501/manual-edit/" && request.method() === "GET") {
       reviewReads += 1;
-      return json(route, { submission_id: 501, submission_status: reviewed ? "done" : "answers_ready", enrollment_id: 901, target_type: "exam", target_id: 77, identifier: { enrollment_id: 901 }, scan_image_url: fileUrl, answers: [{ question_id: 1001, question_no: 1, answer, omr: null }], meta: { manual_review: { required: !reviewed, reasons: reviewed ? [] : ["ambiguous_answer"] }, identifier_status: "matched" }, duplicate_siblings: [] });
+      if (failReview) return json(route, { detail: "답안 상세 조회 실패" }, 503);
+      return json(route, { submission_id: 501, submission_status: reviewed ? "done" : "answers_ready", enrollment_id: 901, target_type: "exam", target_id: options.wrongReviewExam ? 78 : 77, identifier: { enrollment_id: 901 }, scan_image_url: fileUrl, answers: [{ question_id: 1001, question_no: 1, answer, omr: null }], meta: { manual_review: { required: !reviewed, reasons: reviewed ? [] : ["ambiguous_answer"] }, identifier_status: "matched" }, duplicate_siblings: [] });
     }
     const shellReads: Record<string, unknown> = {
       "/core/og-meta/": {},
@@ -191,6 +204,8 @@ async function installSubmissionApi(page: Page, options: {
 
   return {
     assignmentBodies,
+    detailRequests,
+    allowReviewRead: () => { failReview = false; },
     get reviewed() { return reviewed; },
     get reviewReads() { return reviewReads; },
     get imageCalls() {
@@ -201,6 +216,48 @@ async function installSubmissionApi(page: Page, options: {
     },
   };
 }
+
+for (const width of [1366, 390]) {
+  test(`@assignment-recovery ${width}px 최신 목록 밖 완료 답안도 다른 학생으로 바뀌지 않는다`, async ({ page }) => {
+    const calls = await installSubmissionApi(page, { recovery: true, targetOutsideRecent: true });
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/results/submissions?filter=done`, { timeout: 60_000 });
+    await page.getByTestId("submission-review-501").click();
+    const review = page.getByRole("dialog", { name: "OMR 검토", exact: true });
+    if (width === 390) await review.getByRole("tab", { name: "확인", exact: true }).click();
+    await expect(review.getByPlaceholder("답안 입력")).toHaveValue("빛");
+    await review.getByPlaceholder("답안 입력").fill("굴절");
+    await review.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
+    await expect.poll(() => calls.assignmentBodies.length).toBe(1);
+    expect(calls.detailRequests.every(request => request.endsWith("/501/manual-edit/"))).toBe(true);
+    expect(calls.assignmentBodies[0].answers).toEqual([{ exam_question_id: 1001, answer: "굴절" }]);
+  });
+}
+
+test("@assignment-recovery 정확한 답안 상세 실패는 다른 학생을 열지 않고 재시도로 복구한다", async ({ page }) => {
+  const calls = await installSubmissionApi(page, { recovery: true, targetOutsideRecent: true, failReview: true });
+  await gotoAndSettle(page, `${BASE}/workspace/results/submissions?filter=done`, { timeout: 60_000 });
+  await page.getByTestId("submission-review-501").click();
+  const review = page.getByRole("dialog", { name: "OMR 검토", exact: true });
+  await expect(review.getByText("답안 상세를 불러오지 못했습니다.")).toBeVisible();
+  expect(calls.assignmentBodies).toEqual([]);
+  expect(calls.detailRequests.every(request => request.endsWith("/501/manual-edit/"))).toBe(true);
+  calls.allowReviewRead();
+  await review.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(review.getByPlaceholder("답안 입력")).toHaveValue("빛");
+  expect(calls.detailRequests.every(request => request.endsWith("/501/manual-edit/"))).toBe(true);
+});
+
+test("@assignment-recovery 다른 시험의 상세 응답은 편집하거나 저장하지 않는다", async ({ page }) => {
+  const calls = await installSubmissionApi(page, { recovery: true, targetOutsideRecent: true, wrongReviewExam: true });
+  await gotoAndSettle(page, `${BASE}/workspace/results/submissions?filter=done`, { timeout: 60_000 });
+  await page.getByTestId("submission-review-501").click();
+  const review = page.getByRole("dialog", { name: "OMR 검토", exact: true });
+  await expect(review.getByText("답안 상세를 불러오지 못했습니다.")).toBeVisible();
+  await expect(review.getByPlaceholder("답안 입력")).toHaveCount(0);
+  expect(calls.assignmentBodies).toEqual([]);
+  expect(calls.detailRequests.every(request => request.endsWith("/501/manual-edit/"))).toBe(true);
+});
 
 for (const width of [1366, 390]) {
   test(`@assignment-recovery ${width}px 학생 지정 뒤 미완료 채점을 직접 복구하고 새로고침한다`, async ({ page }) => {
