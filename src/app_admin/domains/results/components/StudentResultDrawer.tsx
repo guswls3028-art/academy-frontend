@@ -818,21 +818,22 @@ function EditModeContent({ sessionId, examId, enrollmentId, choiceItems, essayIt
 }) {
   const queue = useAnswerEditQueue({ sessionId, examId, enrollmentId,
     questionIds: allItems.map((item) => item.question_id), onSaveSuccess });
+  const { flush, hasPending } = queue;
   useEffect(() => {
-    const controller = { flush: queue.flush, hasPending: queue.hasPending };
+    const controller = { flush, hasPending };
     controllerRef.current = controller;
     return () => {
       // Preserve the last handle while an SPA transition drains queued saves.
       if (!controller.hasPending() && controllerRef.current === controller) controllerRef.current = null;
     };
-  }, [controllerRef, queue.flush, queue.hasPending]);
+  }, [controllerRef, flush, hasPending]);
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (queue.hasPending()) event.preventDefault();
+      if (hasPending()) event.preventDefault();
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [queue.hasPending]);
+  }, [hasPending]);
   const [answers, setAnswers] = useState<Record<number, string>>(() => {
     const init: Record<number, string> = {};
     for (const it of allItems) init[it.question_id] = it.answer ?? "";
