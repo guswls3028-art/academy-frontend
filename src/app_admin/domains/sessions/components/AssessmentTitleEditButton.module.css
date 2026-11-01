@@ -1,0 +1,11 @@
+.trigger:global(.ds-button[data-size]) {
+  min-height: 44px;
+  max-width: 100%;
+  flex-shrink: 0;
+  padding-inline: 12px;
+}
+
+.compact:global(.ds-button[data-size]) {
+  padding-inline: 6px;
+  white-space: normal;
+}

@@ -1,13 +1,14 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
-import { fetchAdminExam, updateAdminExam } from "@admin/domains/exams/api/adminExam";
-import { fetchAdminHomework, updateAdminHomework } from "@admin/domains/homework/api/adminHomework";
+import { fetchAdminExam, updateAdminExam } from "@admin/domains/exams/public/sessionExamActions";
+import { fetchAdminHomework, updateAdminHomework } from "@admin/domains/homework/public/scoreHeaderActions";
 import { isStaleResourceConflict } from "@/shared/api/optimisticConcurrency";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import styles from "./AssessmentTitleEditButton.module.css";
 
 type Props = { kind: "exam" | "homework"; id: number; title: string; disabled?: boolean; compact?: boolean };
 
@@ -81,8 +82,7 @@ export default function AssessmentTitleEditButton({ kind, id, title, disabled, c
   }
 
   return <>
-    <Button type="button" intent="secondary" size="sm" className="shrink-0 max-w-full"
-      style={{ minHeight: 44, paddingInline: compact ? 6 : 12, whiteSpace: compact ? "normal" : "nowrap" }}
+    <Button type="button" intent="secondary" size="sm" className={`${styles.trigger} ${compact ? styles.compact : ""}`}
       disabled={disabled} aria-label={`${title} 제목 수정`}
       leftIcon={compact ? undefined : <Pencil size={ICON_FOR_BUTTON.sm} aria-hidden />}
       onMouseDown={(event) => event.stopPropagation()}
