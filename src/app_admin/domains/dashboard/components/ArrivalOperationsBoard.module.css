@@ -242,6 +242,13 @@
   color: #b63d30;
 }
 
+.stateIndicators {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
 .arrivalCopy {
   display: flex;
   min-width: 0;
@@ -555,8 +562,18 @@
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
-  .stateBadge {
+  .stateIndicators {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .stateIndicators:empty {
     display: none;
+  }
+
+  .arrivalItem > svg:last-child {
+    grid-column: 3;
+    grid-row: 1;
   }
 }
 

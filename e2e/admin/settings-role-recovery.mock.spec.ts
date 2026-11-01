@@ -89,6 +89,11 @@ for (const width of [1366, 390]) {
       await page.goto(`${BASE}/workspace/settings/organization`);
       const nav = page.getByRole("navigation", { name: "설정 메뉴" });
       await expect(nav).toBeVisible();
+      for (const name of ["이용약관", "개인정보처리방침"]) {
+        const link = nav.getByRole("link", { name, exact: true });
+        await link.scrollIntoViewIfNeeded();
+        await expect(link).toBeVisible();
+      }
       await expect(nav.getByRole("link", { name: "결제 / 구독", exact: true })).toHaveCount(role === "owner" ? 1 : 0);
       await expect(nav.getByRole("link", { name: "홈페이지", exact: true })).toHaveCount(role === "owner" || role === "admin" ? 1 : 0);
       await expect(page.getByRole("button", { name: "학원 추가", exact: true })).toHaveCount(role === "owner" ? 1 : 0);

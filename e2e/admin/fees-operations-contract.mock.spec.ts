@@ -35,6 +35,27 @@ async function installApi(page: Page) {
 }
 
 for (const mobile of [false, true]) {
+  test(`비목은 PC 기준으로 교재비·판서/프린트·재료비를 표시한다 ${mobile ? 390 : 1366}px`, async ({ page }) => {
+    await page.setViewportSize({ width: mobile ? 390 : 1366, height: 900 });
+    await installApi(page);
+    await page.route("**/api/v1/fees/dashboard/**", (route) => {
+      const path = new URL(route.request().url()).pathname;
+      return route.fulfill({ json: path.endsWith("/overdue/") ? { count: 0, next: null, results: [] } : {
+        billing_year: 2026, billing_month: 11, total_billed: 3000, total_paid: 0, total_outstanding: 3000,
+        overdue_count: 0, pending_count: 3, paid_count: 0, invoice_count: 3,
+        by_fee_type: ["TEXTBOOK", "HANDOUT", "MATERIAL"].map((fee_type) => ({ fee_type, total: 1000 })),
+      } });
+    });
+    await gotoAndSettle(page, `${BASE}${mobile ? "/workspace/mobile/fees" : "/workspace/fees"}`);
+    for (const label of ["교재비", "판서/프린트", "재료비"]) await expect(page.getByText(label, { exact: true })).toBeVisible();
+    await expect(page.getByText("부교재", { exact: true })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByText("재료비", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  });
+}
+
+for (const mobile of [false, true]) {
 for (const conflict of [false, true]) {
 test(`${mobile ? "모바일 업무 390px" : "관리자 1366px"} 부분 수납 ${conflict ? "동시 잔액 변경" : "응답 유실 60초 후 재시도"}와 새 분할 납부`, async ({ page }) => {
   await page.setViewportSize({ width: mobile ? 390 : 1366, height: 900 });
@@ -99,6 +120,7 @@ test(`${mobile ? "모바일 업무 390px" : "관리자 1366px"} 부분 수납 ${
     expect(requests[1]).toEqual(requests[0]);
   }
   expect(entries).toHaveLength(1);
+  expect(requests[0].payment_method).toBe("CASH");
   expect(requests[0].idempotency_key).toBeTruthy();
   await page.reload();
   if (!mobile) await page.getByText("QA-701", { exact: true }).click();

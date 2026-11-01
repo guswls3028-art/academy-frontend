@@ -80,7 +80,7 @@ async function settleAfterClick(page: Page) {
   await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 }
 
-test("PC 버전과 모바일 버전의 표시 명칭 계약", () => {
+test("전체 업무과 간편 업무의 표시 명칭 계약", () => {
   const teacherDrawer = fs.readFileSync("src/app_teacher/layout/TeacherDrawer.tsx", "utf8");
   const adminDrawer = fs.readFileSync("src/app_admin/layout/AdminNavDrawer.tsx", "utf8");
   const teacherNavigation = fs.readFileSync("src/app_teacher/layout/useTeacherNavigation.tsx", "utf8");
@@ -88,15 +88,15 @@ test("PC 버전과 모바일 버전의 표시 명칭 계약", () => {
   const pcOnlyHint = fs.readFileSync("src/app_teacher/shared/ui/PcOnlyHint.tsx", "utf8");
   const navigationDoc = fs.readFileSync("docs/WORKSPACE-NAVIGATION.md", "utf8");
 
-  expect(teacherDrawer).toMatch(/<Monitor[^>]*\/>\s*PC 버전/);
-  expect(adminDrawer).toMatch(/<Smartphone[^>]*\/>\s*모바일 버전/);
-  expect(teacherNavigation).toContain('label: "PC 버전"');
-  expect(desktopOnlyPage).toMatch(/<h1[^>]*>\s*PC 버전\s*<\/h1>/);
-  expect(desktopOnlyPage).toMatch(/<Monitor[^>]*\/>\s*PC 버전/);
-  expect(pcOnlyHint).toContain("PC 버전에서 사용해 주세요");
-  expect(pcOnlyHint).toMatch(/<Monitor[^>]*\/>\s*PC 버전/);
-  expect(navigationDoc).toContain("PC 버전");
-  expect(navigationDoc).toContain("모바일 버전");
+  expect(teacherDrawer).toMatch(/<Monitor[^>]*\/>\s*전체 업무/);
+  expect(adminDrawer).toMatch(/<Smartphone[^>]*\/>\s*간편 업무/);
+  expect(teacherNavigation).toContain('label: "기능 찾기"');
+  expect(desktopOnlyPage).toMatch(/<h1[^>]*>\s*기능 찾기\s*<\/h1>/);
+  expect(desktopOnlyPage).toMatch(/<Monitor[^>]*\/>\s*전체 업무/);
+  expect(pcOnlyHint).toContain("전체 업무에서 사용해 주세요");
+  expect(pcOnlyHint).toMatch(/<Monitor[^>]*\/>\s*전체 업무/);
+  expect(navigationDoc).toContain("전체 업무");
+  expect(navigationDoc).toContain("간편 업무");
 });
 
 test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
@@ -341,12 +341,12 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
     expect(cap.errors).toEqual([]);
   });
 
-  test("PC 버전 안내 (DesktopOnly)", async ({ page }) => {
+  test("전체 업무 안내 (DesktopOnly)", async ({ page }) => {
     const cap = attachNetCapture(page);
     await visit(page, "/workspace/mobile/desktop-only");
 
-    await expect(page.getByRole("heading", { name: "PC 버전", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "PC 버전", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "기능 찾기", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "전체 업무 홈", exact: true })).toBeVisible();
 
     await page.screenshot({ path: `${SCREEN_DIR}/desktop-only.png`, fullPage: true });
     logNet("desktop-only", cap);

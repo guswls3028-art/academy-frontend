@@ -136,8 +136,8 @@ test("known tenant teacher and student manifests use only that tenant's icons", 
 
   expect(teacherManifest.name).toBe("박철 과학 모바일 업무");
   expect(teacherManifest.id).toBe("/teacher");
-  expect(teacherManifest.start_url).toBe("/workspace/mobile");
-  expect(teacherManifest.scope).toBe("/workspace/mobile");
+  expect(teacherManifest.start_url).toBe("/workspace");
+  expect(teacherManifest.scope).toBe("/workspace");
   expect(teacherManifest.icons).toEqual([
     expect.objectContaining({ src: "/tenants/tchul/pwa-192.png", sizes: "192x192" }),
     expect.objectContaining({ src: "/tenants/tchul/pwa-512.png", sizes: "512x512" }),

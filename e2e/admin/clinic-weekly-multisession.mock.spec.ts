@@ -1813,7 +1813,7 @@ test("운영 화면은 빈 세션 선택을 유지해 첫 학생을 desktop과 3
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(new RegExp(`session=702`));
-  const mobileAddButton = page.getByRole("button", { name: "학생 추가하기", exact: true });
+  const mobileAddButton = page.getByRole("button", { name: "학생 추가", exact: true });
   await expect(mobileAddButton).toBeVisible();
   await mobileAddButton.click();
   await expect(page.getByRole("dialog", { name: "대상자 선택" })).toBeVisible();

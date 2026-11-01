@@ -426,7 +426,7 @@ export default function StudentsHomePage() {
           searchSlot={
             <input
               data-guide="students-search"
-              placeholder={isMobile ? "검색" : "이름 / 아이디 / 전화번호 / 학교 검색"}
+              placeholder="이름 / 아이디 / 전화번호 / 학교 검색"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className={isMobile ? `ds-input ${styles.searchInput} ${styles.searchInputMobile}` : `ds-input ${styles.searchInput}`}

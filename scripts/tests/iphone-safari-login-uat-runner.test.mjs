@@ -251,15 +251,15 @@ test("persistent UAT logout verifies active generation envelope and landing", ()
   assert.match(source, /toHaveURL\(logoutUrl/);
 });
 
-test("persistent UAT uses the mobile teacher drawer for staff logout", () => {
+test("persistent UAT requires the shared staff landing and profile logout", () => {
   const source = fs.readFileSync(
     path.join(root, "e2e/auth/iphone-safari-login.persistent-development.spec.ts"),
     "utf8",
   );
-  assert.match(source, /getByRole\("button", \{ name: "메뉴", exact: true \}\)/);
-  assert.match(source, /getByRole\("navigation", \{ name: "선생님 메뉴" \}\)/);
-  assert.match(source, /drawer\.getByRole\("button", \{ name: "로그아웃", exact: true \}\)/);
-  assert.doesNotMatch(source, /name: "프로필 메뉴"/);
+  assert.match(source, /account\.role === "staff" \? "\/workspace\/dashboard" : "\/student"/);
+  assert.match(source, /getByRole\("button", \{ name: "프로필 메뉴", exact: true \}\)/);
+  assert.match(source, /getByRole\("menuitem", \{ name: "로그아웃", exact: true \}\)/);
+  assert.doesNotMatch(source, /name: "선생님 메뉴"/);
 });
 
 test("persistent UAT clears the staff clock-in prerequisite without recording work", () => {
@@ -273,9 +273,9 @@ test("persistent UAT clears the staff clock-in prerequisite without recording wo
   assert.match(source, /if \(account\.role === "staff"\) \{\s*await continueStaffWithoutClockIn\(page\)/);
 });
 
-test("teacher PWA registration tolerates an unavailable blocked registration", () => {
+test("shared workspace PWA registration tolerates an unavailable blocked registration", () => {
   const source = fs.readFileSync(
-    path.join(root, "src/app_teacher/shared/hooks/useTeacherSW.ts"),
+    path.join(root, "src/shared/pwa/useWorkspacePwa.ts"),
     "utf8",
   );
   assert.match(source, /const serviceWorker = navigator\.serviceWorker/);

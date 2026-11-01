@@ -47,28 +47,19 @@ for (const width of [1366, 390]) {
         return json({ count: 0, results: [] });
       });
       await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
-      const questions = page.getByRole("button", { name: width < 768 ? /답변 대기 질문 .*처리하기/ : /미답변 질문/ });
-      const submissions = page.getByRole("button", { name: width < 768 ? /처리 대기 제출 .*처리하기/ : /제출 채점 대기/ });
+      const questions = page.getByRole("button", { name: /미답변 질문/ });
+      const submissions = page.getByRole("button", { name: /제출 채점 대기/ });
       if (mode !== "complete") {
-        if (width < 768) {
-          await expect(page.getByRole("button", { name: "답변 대기 확인 필요", exact: true })).toBeVisible();
-          await expect(page.getByText("일부 업무를 불러오지 못했습니다", { exact: true })).toBeVisible();
-          await expect(questions).toHaveCount(0);
-          if (mode === "unavailable") await expect(submissions).toHaveCount(0);
-          else await expect(submissions).toContainText("205건");
-        } else {
-          await expect(questions).toContainText("확인 필요");
-          if (mode === "invalid") await expect(page.getByRole("button", { name: /운영 중 시험/ })).toContainText("확인 필요");
-          if (mode === "unavailable") await expect(submissions).toContainText("확인 필요");
-          else await expect(submissions).toContainText("205건");
-        }
+        await expect(questions).toContainText("확인 필요");
+        if (mode === "invalid") await expect(page.getByRole("button", { name: /운영 중 시험/ })).toContainText("확인 필요");
+        if (mode === "unavailable") await expect(submissions).toContainText("확인 필요");
+        else await expect(submissions).toContainText("205건");
         state = "complete";
-        if (width < 768) await page.getByRole("button", { name: "다시 시도", exact: true }).click();
-        else await page.reload({ waitUntil: "domcontentloaded" });
+        await page.reload({ waitUntil: "domcontentloaded" });
       }
       await expect(questions).toContainText("105건");
       await expect(submissions).toContainText("205건");
-      if (width >= 768) await expect(page.getByRole("button", { name: /운영 중 시험/ })).toContainText("205건");
+      await expect(page.getByRole("button", { name: /운영 중 시험/ })).toContainText("205건");
       await page.screenshot({ path: testInfo.outputPath(`dashboard-counts-${width}.png`), fullPage: true });
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(questions).toContainText("105건");

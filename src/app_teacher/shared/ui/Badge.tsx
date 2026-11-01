@@ -10,17 +10,12 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Badge as DsBadge, type BadgeTone as DsTone, type BadgeSize as DsSize } from "@/shared/ui/ds";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
+import { ATTENDANCE_META, type AttendanceStatus } from "@/shared/ui/badges/attendanceStatus";
+import { VIDEO_STATUS_LABEL, VIDEO_STATUS_TONE, type VideoStatus } from "@/shared/api/contracts/videos";
 
 /* ===== Tone 뱃지 ===== */
 
-export type BadgeTone =
-  | "success"
-  | "danger"
-  | "warning"
-  | "primary"
-  | "info"
-  | "neutral"
-  | "teal";
+export type BadgeTone = DsTone;
 
 export function Badge({
   children,
@@ -52,35 +47,7 @@ export function Badge({
 
 /* ===== 출석 상태 뱃지 ===== */
 
-export type AttendanceStatus =
-  | "UNSET"
-  | "PRESENT"
-  | "LATE"
-  | "ONLINE"
-  | "SUPPLEMENT"
-  | "EARLY_LEAVE"
-  | "ABSENT"
-  | "RUNAWAY"
-  | "MATERIAL"
-  | "INACTIVE"
-  | "SECESSION";
-
-const ATTENDANCE_CONFIG: Record<
-  AttendanceStatus,
-  { label: string; short: string; tone: BadgeTone }
-> = {
-  UNSET: { label: "미입력", short: "－", tone: "neutral" },
-  PRESENT: { label: "출석", short: "출", tone: "success" },
-  ONLINE: { label: "영상", short: "영", tone: "primary" },
-  SUPPLEMENT: { label: "보강", short: "보", tone: "teal" },
-  LATE: { label: "지각", short: "지", tone: "warning" },
-  EARLY_LEAVE: { label: "조퇴", short: "조", tone: "warning" },
-  ABSENT: { label: "결석", short: "결", tone: "danger" },
-  RUNAWAY: { label: "출튀", short: "튀", tone: "danger" },
-  MATERIAL: { label: "자료", short: "자", tone: "neutral" },
-  INACTIVE: { label: "부재", short: "부", tone: "neutral" },
-  SECESSION: { label: "퇴원", short: "퇴", tone: "neutral" },
-};
+export type { AttendanceStatus };
 
 const TONE_DOT_COLOR: Record<BadgeTone, string> = {
   success: "var(--color-success, #22c55e)",
@@ -89,6 +56,8 @@ const TONE_DOT_COLOR: Record<BadgeTone, string> = {
   primary: "var(--color-brand-primary, #3b82f6)",
   info: "var(--color-info, #06b6d4)",
   neutral: "var(--color-text-muted, #6b7280)",
+  muted: "var(--color-text-muted, #6b7280)",
+  complement: "var(--color-brand-complement)",
   teal: "#14b8a6",
 };
 
@@ -99,7 +68,7 @@ export function AttendanceBadge({
   status: string;
   variant?: "label" | "short" | "dot";
 }) {
-  const cfg = ATTENDANCE_CONFIG[status as AttendanceStatus] ?? {
+  const cfg = ATTENDANCE_META[status as AttendanceStatus] ?? {
     label: status,
     short: status?.[0] ?? "?",
     tone: "neutral" as BadgeTone,
@@ -153,14 +122,8 @@ export function AchievementBadge({
 /* ===== 인코딩 상태 뱃지 ===== */
 
 export function VideoStatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; tone: BadgeTone }> = {
-    completed: { label: "완료", tone: "success" },
-    processing: { label: "인코딩 중", tone: "warning" },
-    pending: { label: "대기", tone: "neutral" },
-    failed: { label: "실패", tone: "danger" },
-  };
-  const cfg = map[status] ?? map.pending;
-  return <Badge tone={cfg.tone}>{cfg.label}</Badge>;
+  const key = (status.toLowerCase() === "completed" ? "READY" : status.toUpperCase()) as VideoStatus;
+  return <Badge tone={VIDEO_STATUS_TONE[key] ?? "neutral"}>{VIDEO_STATUS_LABEL[key] ?? status}</Badge>;
 }
 
 /* ===== 클리닉 상태 뱃지 ===== */

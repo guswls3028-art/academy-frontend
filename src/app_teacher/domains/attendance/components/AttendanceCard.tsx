@@ -60,7 +60,7 @@ export default function AttendanceCard({
   const hint =
     state.isSwiping && Math.abs(state.offsetX) > 30
       ? state.direction === "right"
-        ? "출석"
+        ? STATUS_CONFIG.PRESENT.label
         : "결석"
       : null;
 

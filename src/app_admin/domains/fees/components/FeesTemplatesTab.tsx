@@ -24,14 +24,7 @@ import {
 } from "../api/fees.api";
 import { adminFeesQueryKeys } from "../queryKeys";
 
-const FEE_TYPE_OPTIONS: { value: FeeType; label: string }[] = [
-  { value: "TUITION", label: "수강료" },
-  { value: "TEXTBOOK", label: "교재비" },
-  { value: "HANDOUT", label: "판서/프린트" },
-  { value: "REGISTRATION", label: "등록비" },
-  { value: "MATERIAL", label: "재료비" },
-  { value: "OTHER", label: "기타" },
-];
+import { FEE_TYPE_OPTIONS } from "@/shared/product/fees/feesStatus";
 
 const CYCLE_OPTIONS: { value: BillingCycle; label: string }[] = [
   { value: "MONTHLY", label: "월납" },

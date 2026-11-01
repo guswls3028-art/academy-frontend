@@ -1089,8 +1089,9 @@
     display: inline-flex;
   }
 
-  .reviewRow { grid-template-columns: minmax(100px, 0.5fr) minmax(190px, 1fr) auto; }
-  .reviewIndicators { display: none; }
+  .reviewRow { grid-template-columns: minmax(100px, 0.5fr) minmax(190px, 1fr); }
+  .reviewIndicators,
+  .reviewActions { grid-column: 1 / -1; }
 }
 
 @media (max-width: 720px) {

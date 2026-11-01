@@ -127,6 +127,7 @@ for (const { width, scenario } of [
     }
     failing = scenario === "undo-error";
     await page.getByRole("button", { name: "되돌리기", exact: true }).click();
+    await page.getByRole("button", { name: "이 차시만 퇴원", exact: true }).click();
     if (scenario === "undo-error") {
       await expect(page.getByText("출결 저장을 잠시 사용할 수 없습니다.", { exact: true })).toBeVisible();
       expect(currentStatus).toBe("ABSENT");
@@ -136,9 +137,10 @@ for (const { width, scenario } of [
       await page.screenshot({ path: test.info().outputPath("undo-retry-390.png"), animations: "disabled" });
       failing = false;
       await page.getByRole("button", { name: "되돌리기", exact: true }).click();
+      await page.getByRole("button", { name: "이 차시만 퇴원", exact: true }).click();
     }
     await expect.poll(() => currentStatus).toBe("SECESSION");
-    expect(changes.at(-1)).toEqual({ status: "SECESSION", confirm_secession: true });
+    expect(changes.at(-1)).toEqual({ status: "SECESSION", confirm_secession: true, secession_scope: "session" });
     await expect(page.getByText("기타 1", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "되돌리기", exact: true })).toHaveCount(0);
     await page.reload();

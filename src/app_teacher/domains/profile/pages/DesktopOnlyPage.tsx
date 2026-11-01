@@ -73,7 +73,7 @@ export default function DesktopOnlyPage() {
         <div className={styles.leadBody}>
           <p className={styles.leadTitle}>하고 싶은 업무로 바로 이동하세요</p>
           <p className={styles.leadText}>
-            학생 복원, 급여, PPT처럼 필요한 업무를 찾아보세요. 선택한 기능의 상세 화면으로 이동하며 모바일 버전 버튼으로 돌아올 수 있어요.
+            학생 복원, 급여, PPT처럼 필요한 업무를 찾아보세요. 선택한 기능의 상세 화면으로 이동하며 간편 업무 버튼으로 돌아올 수 있어요.
           </p>
         </div>
         <button
@@ -81,7 +81,7 @@ export default function DesktopOnlyPage() {
           onClick={() => openFullWorkspace()}
           className={styles.primaryButton}
         >
-          <Monitor size={ICON.sm} /> PC 버전 홈
+          <Monitor size={ICON.sm} /> 전체 업무 홈
         </button>
       </Card>
 

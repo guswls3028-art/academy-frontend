@@ -25,7 +25,7 @@ const STUDENT_USER = process.env.E2E_ATTENDANCE_STUDENT || "ymath-qa-student-01"
 const ADMIN_USER = process.env.E2E_ATTENDANCE_ADMIN || "ymath-qa-teacher";
 const EXPECTED_LECTURE = process.env.E2E_ATTENDANCE_LECTURE || "공통수학2 정규반";
 const EXPECTED_STATUS = process.env.E2E_ATTENDANCE_STATUS || "PRESENT";
-const EXPECTED_STATUS_LABEL = process.env.E2E_ATTENDANCE_STATUS_LABEL || "출석";
+const EXPECTED_STATUS_LABEL = process.env.E2E_ATTENDANCE_STATUS_LABEL || "현장";
 
 type Tokens = { access: string; refresh: string };
 type AttendanceSummary = {

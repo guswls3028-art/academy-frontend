@@ -180,11 +180,14 @@
     align-items: baseline;
   }
 
-  .clinic-ops__header-actions,
-  .clinic-ops__action-btn--notice,
-  .clinic-ops__kpi-progress,
+  .clinic-ops__header-actions .clinic-ops__action-btn {
+    min-height: 44px;
+    white-space: normal;
+  }
+
   .clinic-ops__trigger-status {
-    display: none;
+    flex-wrap: wrap;
+    min-width: 0;
   }
 
   .clinic-ops__filters {

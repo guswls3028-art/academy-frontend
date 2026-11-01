@@ -8,6 +8,8 @@ import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { downloadAttendanceExcel, fetchAttendanceMatrix } from "../api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { AttendanceBadge } from "@teacher/shared/ui/Badge";
+import { getAttendanceLabel, ORDERED_ATTENDANCE_STATUS } from "@/shared/ui/badges/attendanceStatus";
 import type {
   AttendanceMatrixSession,
   AttendanceMatrixStudent,
@@ -20,9 +22,9 @@ export default function AttendanceMatrixPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const navigate = useNavigate();
   const lid = Number(lectureId);
-  const isValidLectureId = Number.isFinite(lid);
+  const isValidLectureId = Number.isSafeInteger(lid) && lid > 0;
 
-  const { data: matrix, isLoading } = useQuery({
+  const { data: matrix, isLoading, isError, error, refetch } = useQuery({
     queryKey: teacherLectureQueryKeys.attendanceMatrix(lid),
     queryFn: () => fetchAttendanceMatrix(lid),
     enabled: isValidLectureId,
@@ -35,6 +37,12 @@ export default function AttendanceMatrixPage() {
   });
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
+  if (!isValidLectureId || isError) return <EmptyState scope="panel" tone="error"
+    title="출석 현황을 불러오지 못했습니다"
+    description={isValidLectureId ? extractApiError(error, "다시 시도해 주세요.") : "올바른 강의에서 다시 열어 주세요."}
+    actions={<EmptyActionButton variant="secondary" onClick={() => isValidLectureId ? void refetch() : navigate(-1)}>
+      {isValidLectureId ? "다시 시도" : "강의로 돌아가기"}
+    </EmptyActionButton>} />;
 
   const sessions: AttendanceMatrixSession[] = matrix?.sessions ?? [];
   const students: AttendanceMatrixStudent[] = matrix?.students ?? [];
@@ -63,10 +71,7 @@ export default function AttendanceMatrixPage() {
 
       {/* Legend */}
       <div className={`${styles.legend} flex gap-2 flex-wrap text-[10px]`}>
-        <span className={styles.legendSuccess}>● 출석</span>
-        <span className={styles.legendDanger}>● 결석</span>
-        <span className={styles.legendWarn}>● 지각</span>
-        <span>○ 미기록</span>
+        {ORDERED_ATTENDANCE_STATUS.map((status) => <AttendanceBadge key={status} status={status} />)}
       </div>
 
       {/* Session headers — fixed reference */}
@@ -97,9 +102,11 @@ export default function AttendanceMatrixPage() {
                   return (
                     <div
                       key={session.id ?? si}
-                      className={`${styles.statusCell} ${statusClass(status)} w-10 h-7 shrink-0 flex items-center justify-center rounded text-[10px] font-bold`}
+                      title={getAttendanceLabel(status)}
+                      aria-label={`${student.name} ${formatSessionLabel(session)} ${getAttendanceLabel(status)}`}
+                      className={`${styles.statusCell} w-10 h-7 shrink-0 flex items-center justify-center rounded text-[10px] font-bold`}
                     >
-                      {statusLabel(status)}
+                      <AttendanceBadge status={status || "UNSET"} variant="short" />
                     </div>
                   );
                 })}
@@ -131,30 +138,4 @@ export default function AttendanceMatrixPage() {
       )}
     </div>
   );
-}
-
-function statusClass(status: string | undefined): string {
-  switch (status) {
-    case "PRESENT":
-    case "ONLINE":
-      return styles.statusPresent;
-    case "ABSENT":
-      return styles.statusAbsent;
-    case "LATE":
-      return styles.statusLate;
-    default:
-      return styles.statusEmpty;
-  }
-}
-
-function statusLabel(status: string | undefined): string {
-  switch (status) {
-    case "PRESENT": return "출";
-    case "ONLINE": return "온";
-    case "ABSENT": return "결";
-    case "LATE": return "지";
-    case "EARLY_LEAVE": return "조";
-    case "SUPPLEMENT": return "보";
-    default: return "·";
-  }
 }

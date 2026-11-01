@@ -239,7 +239,7 @@ export default function TeacherDrawer({
             className={`${styles.actionButton} ${styles.primaryAction}`}
           >
             <Monitor size={ICON.md} />
-            PC 버전
+            전체 업무
           </button>
 
           {/* Bug report */}

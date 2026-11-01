@@ -27,7 +27,7 @@ import {
   getFeesApiErrorMessage,
   isFeesPermissionError,
 } from "../feesError";
-import { FEES_STATUS_LABEL, FEES_STATUS_TONE } from "@/shared/product/fees/feesStatus";
+import { FEES_STATUS_LABEL, FEES_STATUS_TONE, DEFAULT_PAYMENT_METHOD, PAYMENT_METHOD_OPTIONS } from "@/shared/product/fees/feesStatus";
 import { teacherFeesQueryKeys } from "../queryKeys";
 import styles from "./FeesInvoicesPage.module.css";
 
@@ -158,7 +158,7 @@ export default function FeesInvoicesPage() {
                     {inv.student_name}
                   </span>
                   <Badge tone={STATUS_TONE[inv.status]} size="xs">
-                    {inv.status_display}
+                    {FEES_STATUS_LABEL[inv.status] ?? inv.status_display}
                   </Badge>
                 </div>
                 <div className={`${styles.mutedText} text-[11px] mt-0.5`}>
@@ -204,7 +204,7 @@ function InvoiceDetailSheet({
   const qc = useQueryClient();
   const [payMode, setPayMode] = useState(false);
   const [payAmount, setPayAmount] = useState("");
-  const [payMethod, setPayMethod] = useState<PaymentMethod>("CARD");
+  const [payMethod, setPayMethod] = useState<PaymentMethod>(DEFAULT_PAYMENT_METHOD);
   const [payNote, setPayNote] = useState("");
   const [payBaseAmount, setPayBaseAmount] = useState(0);
   const [payRequest, setPayRequest] = useState<Parameters<typeof recordPayment>[0] | null>(null);
@@ -215,7 +215,7 @@ function InvoiceDetailSheet({
   useEffect(() => {
     setPayMode(false);
     setPayAmount("");
-    setPayMethod("CARD");
+    setPayMethod(DEFAULT_PAYMENT_METHOD);
     setPayNote("");
     setPayRequest(null);
   }, [invoiceId, open]);
@@ -272,7 +272,7 @@ function InvoiceDetailSheet({
                   {invoice.due_date}
                 </div>
               </div>
-              <Badge tone={STATUS_TONE[invoice.status]}>{invoice.status_display}</Badge>
+              <Badge tone={STATUS_TONE[invoice.status]}>{FEES_STATUS_LABEL[invoice.status] ?? invoice.status_display}</Badge>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-3">
               <StatBox label="청구" value={formatKRW(invoice.total_amount)} />
@@ -376,7 +376,7 @@ function InvoiceDetailSheet({
                     </Field>
                     <Field label="수단">
                       <div className="flex gap-1.5">
-                        {(["CARD", "BANK_TRANSFER", "CASH", "OTHER"] as PaymentMethod[]).map((m) => (
+                        {PAYMENT_METHOD_OPTIONS.map(({ value: m, label }) => (
                           <button
                             key={m}
                             type="button"
@@ -384,7 +384,7 @@ function InvoiceDetailSheet({
                             onClick={() => setPayMethod(m)}
                             className={`${styles.methodButton} ${payMethod === m ? styles.methodButtonActive : ""} text-[12px] font-semibold cursor-pointer`}
                           >
-                            {PM_LABEL[m]}
+                            {label}
                           </button>
                         ))}
                       </div>
@@ -472,11 +472,4 @@ const STAT_TONE_CLASS: Record<StatTone, string> = {
   success: styles.statSuccess,
   danger: styles.statDanger,
   muted: styles.mutedText,
-};
-
-const PM_LABEL: Record<PaymentMethod, string> = {
-  CARD: "카드",
-  BANK_TRANSFER: "계좌",
-  CASH: "현금",
-  OTHER: "기타",
 };

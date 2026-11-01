@@ -66,6 +66,7 @@
 | [PRODUCT-UPDATES.md](PRODUCT-UPDATES.md) | 공개 업데이트 페이지의 콘텐츠 범위, CTA, 접근성·라우팅 계약 |
 | [PROMO-EXPERIENCE.md](PROMO-EXPERIENCE.md) | 프로모션 브랜드 언어, 메뉴 구조, 실제 제품 화면 증거와 PC·390px 계약 |
 | [WORKSPACE-NAVIGATION.md](WORKSPACE-NAVIGATION.md) | 관리자·선생님 권한 메뉴의 빠른 검색, 최근 사용, 키보드·390px 이동 계약 |
+| [WORKSPACE-DEVICE-PARITY.md](WORKSPACE-DEVICE-PARITY.md) | PC·모바일 공통 기본 화면·설치 진입, 상태·선택지 정본과 호환·반응형 검증 |
 | [COMMUNITY-BOARD-ATTACHMENTS.md](COMMUNITY-BOARD-ATTACHMENTS.md) | 공지·게시판 이미지의 정식 첨부 저장, 첨부 실패 후 중복 글 없는 재시도와 권한·반응형 계약 |
 | [COMMUNITY-QNA-WORKBENCH.md](COMMUNITY-QNA-WORKBENCH.md) | 관리자 QnA 문제 사진 확대 작업 영역, 답변 보존·등록과 반응형 계약 |
 | [TEACHER-WORKSPACE-OPERATIONS.md](TEACHER-WORKSPACE-OPERATIONS.md) | 선생님 오늘 업무 합계, 역할별 결제·알림 경계, 카드 실패 상태와 44px·데스크톱 화면 계약 |

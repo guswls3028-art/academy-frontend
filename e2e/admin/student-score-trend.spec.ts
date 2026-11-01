@@ -1058,9 +1058,12 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     const reviewQueue = page.getByTestId("reported-score-review-queue");
     await expect(reviewQueue).toContainText("2026년 9월 평가원 모의평가");
     await reviewQueue.screenshot({ path: "test-results/student-score-trend/reported-score-review-queue.png" });
+    await page.setViewportSize({ width: 800, height: 900 });
+    await expect(reviewQueue.getByLabel("원본에서 등급 체계까지 확인함")).toBeVisible();
     await reviewQueue.getByLabel("원본에서 등급 체계까지 확인함").check();
     await reviewQueue.getByRole("button", { name: "전체 확인·반영" }).click();
     await expect(reviewQueue).toContainText("확인할 성적표가 없습니다.");
+    await page.setViewportSize({ width: 1366, height: 900 });
 
     await console.getByRole("button", { name: /학원 시험/ }).first().click();
     await expect(console.getByRole("tablist", { name: "학원 시험 결과 범위" })).toBeVisible();

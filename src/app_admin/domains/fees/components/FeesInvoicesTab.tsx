@@ -14,6 +14,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { createRandomUuid } from "@/shared/utils/randomUuid";
 import { formatKRW } from "@/shared/product/fees/feesFormat";
+import { FEE_TYPE_OPTIONS, DEFAULT_PAYMENT_METHOD, PAYMENT_METHOD_OPTIONS } from "@/shared/product/fees/feesStatus";
 import { StatusBadge } from "./FeesDashboardTab";
 import styles from "./FeesInvoicesTab.module.css";
 import {
@@ -51,7 +52,7 @@ export default function FeesInvoicesTab() {
 
   // Payment form
   const [payAmount, setPayAmount] = useState("");
-  const [payMethod, setPayMethod] = useState<PaymentMethod>("CASH");
+  const [payMethod, setPayMethod] = useState<PaymentMethod>(DEFAULT_PAYMENT_METHOD);
   const [payNote, setPayNote] = useState("");
   const [payRequest, setPayRequest] = useState<Parameters<typeof recordPayment>[0] | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
@@ -242,12 +243,7 @@ export default function FeesInvoicesTab() {
           onChange={(e) => setFeeTypeFilter(e.target.value)}
         >
           <option value="">전체 비목</option>
-          <option value="TUITION">수강료</option>
-          <option value="TEXTBOOK">교재비</option>
-          <option value="HANDOUT">판서/프린트</option>
-          <option value="REGISTRATION">등록비</option>
-          <option value="MATERIAL">재료비</option>
-          <option value="OTHER">기타</option>
+          {FEE_TYPE_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
         </select>
 
         <select
@@ -529,10 +525,7 @@ export default function FeesInvoicesTab() {
             <div className="modal-form-group">
               <label className="modal-section-label">결제 수단</label>
               <select className="ds-select" value={payMethod} disabled={payRequest != null} onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}>
-                <option value="CASH">현금</option>
-                <option value="BANK_TRANSFER">계좌이체</option>
-                <option value="CARD">카드</option>
-                <option value="OTHER">기타</option>
+                {PAYMENT_METHOD_OPTIONS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
               </select>
             </div>
             <div className="modal-form-group">

@@ -134,6 +134,7 @@ test.describe("teacher attendance secession undo", () => {
     expect(patchBodies[0]).toEqual({ status: "ABSENT" });
 
     await page.getByRole("button", { name: "되돌리기" }).click();
+    await page.getByRole("button", { name: "이 차시만 퇴원", exact: true }).click();
 
     await expect.poll(() => patchBodies.length, {
       message: `퇴원 undo PATCH가 발생해야 합니다.\nAPI calls:\n${apiCalls.join("\n")}`,
@@ -141,6 +142,7 @@ test.describe("teacher attendance secession undo", () => {
     expect(patchBodies[1]).toEqual({
       status: "SECESSION",
       confirm_secession: true,
+      secession_scope: "session",
     });
   });
 });
