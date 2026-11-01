@@ -369,6 +369,8 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
             rejectLease = false;
             rejectedLeases += 1;
             if (failure === "network") return route.abort("aborted");
+            // Another teacher saves while this editor waits for the lease.
+            savedAnswer = "3";
             return route.fulfill({ status: 409, json: { code: "SCORE_EDIT_LOCKED" } });
           }
           leaseAcquired = true;
@@ -420,16 +422,23 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
         await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("2");
         expect(leaseAcquired).toBe(false);
         expect(writes).toEqual([]);
-        expect(savedAnswer).toBe("2");
+        expect(savedAnswer).toBe(failure === "conflict" ? "3" : "2");
       }
       await start.click();
       await expect(dialog.locator(".srd-edit__choice-row")).toBeVisible();
-      if (failure) {
+      if (failure === "network") {
         await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "2", exact: true }).click();
         await expect.poll(() => writes).toEqual([""]);
       }
       await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "4", exact: true }).click();
-      await expect.poll(() => writes).toEqual(failure ? ["", "4"] : ["4"]);
+      if (failure === "conflict") {
+        await expect.poll(() => writes).toEqual(["3,4"]);
+        expect(savedAnswer).toBe("3,4");
+        await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "3", exact: true }).click();
+        await expect.poll(() => writes).toEqual(["3,4", "4"]);
+      } else {
+        await expect.poll(() => writes).toEqual(failure === "network" ? ["", "4"] : ["4"]);
+      }
       await expect(dialog.locator(".srd-edit__bubble--correct")).toHaveText("4");
       const bounds = await dialog.boundingBox();
       expect(bounds).not.toBeNull();
