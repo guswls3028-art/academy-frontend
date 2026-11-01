@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
+import { withQrCameraInput } from "../helpers/qrCameraInput";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5194";
 const TOKEN = "70635f34-fef2-4536-b9a5-41bebcdf371a";
@@ -174,26 +175,21 @@ for (const width of [390, 1366]) {
     expect(state.records).toEqual([]);
     await page.getByRole("button", { name: "등원하기", exact: true }).click();
     await expect(page.getByText("등원이 기록되었습니다.", { exact: true })).toBeVisible();
-    await page.addInitScript((png) => {
-      Object.defineProperty(navigator.mediaDevices, "getUserMedia", { configurable: true, value: async () => {
-        const image = new Image(); image.src = `data:image/png;base64,${png}`;
-        await image.decode();
-        const canvas = document.createElement("canvas"); canvas.width = 640; canvas.height = 640;
-        const context = canvas.getContext("2d")!;
-        const paint = () => { context.fillStyle = "white"; context.fillRect(0, 0, 640, 640); context.drawImage(image, 120, 120, 400, 400); };
-        paint();
-        const stream = canvas.captureStream(8);
-        const timer = window.setInterval(paint, 125);
-        for (const track of stream.getTracks()) {
-          const stop = track.stop.bind(track);
-          track.stop = () => { window.clearInterval(timer); stop(); };
-        }
-        return stream;
-      } });
-    }, photo.toString("base64"));
+    for (const mode of ["denied", "unavailable"] as const) {
+      await page.goto(`${BASE}/student/attendance/scan`);
+      await withQrCameraInput(page, photo, async () => {
+        await page.getByRole("button", { name: "카메라로 QR 스캔", exact: true }).click();
+        await expect(page.getByRole("alert")).toContainText(mode === "denied" ? "카메라를 열지 못했습니다" : "실시간 카메라를 사용할 수 없습니다");
+        await page.locator('input[type="file"]').setInputFiles({ name: "qr-recovery.png", mimeType: "image/png", buffer: photo });
+        await expect(page.getByRole("button", { name: "하원하기", exact: true })).toBeVisible();
+      }, mode);
+      expect(state.records).toEqual(["check_in"]);
+    }
     await page.goto(`${BASE}/student/attendance/scan`);
-    await page.getByRole("button", { name: "카메라로 QR 스캔", exact: true }).click();
-    await expect(page.getByRole("button", { name: "하원하기", exact: true })).toBeVisible();
+    await withQrCameraInput(page, photo, async () => {
+      await page.getByRole("button", { name: "카메라로 QR 스캔", exact: true }).click();
+      await expect(page.getByRole("button", { name: "하원하기", exact: true })).toBeVisible();
+    });
     expect(state.records).toEqual(["check_in"]);
     await page.getByRole("button", { name: "하원하기", exact: true }).click();
     await expect(page.getByText("하원이 기록되었습니다.", { exact: true })).toBeVisible();

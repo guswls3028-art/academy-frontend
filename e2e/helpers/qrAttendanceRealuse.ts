@@ -3,6 +3,7 @@ import { expect } from "../fixtures/strictTest";
 import { api, assertNoHorizontalOverflow, assertQaStudentParentRuntime, expectApi,
   loginThroughUi, logoutStudentApp, QA_BASE, reloadStudentApp, type QaFamily } from "./qaStudentParentScenario";
 import { gotoAndSettle } from "./wait";
+import { withQrCameraInput } from "./qrCameraInput";
 
 type Point = { id: number; token: string; active: boolean };
 type Participant = { id: number; status: string; checked_in_at: string | null; checked_out_at: string | null; completed_at: string | null };
@@ -45,9 +46,16 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
     return { point, photo };
   };
-  const scan = async (photo: Buffer) => {
+  const scanPhoto = async (photo: Buffer) => {
     await gotoAndSettle(page, `${QA_BASE}/student/attendance/scan`);
     await page.locator('input[type="file"]').setInputFiles({ name: "qr-sign.png", mimeType: "image/png", buffer: photo });
+  };
+  const scanCamera = async (photo: Buffer, ready: () => Promise<void>) => {
+    await gotoAndSettle(page, `${QA_BASE}/student/attendance/scan`);
+    await withQrCameraInput(page, photo, async () => {
+      await page.getByRole("button", { name: "카메라로 QR 스캔", exact: true }).click();
+      await ready();
+    });
   };
   try {
     await expectApi(request, "PATCH", `/lectures/lectures/${lectureId}/`, adminAccess, { start_date: today });
@@ -59,15 +67,26 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     await logoutStudentApp(page);
     await loginThroughUi(page, student.ps_number, student.password);
     await page.setViewportSize({ width: 390, height: 844 });
-    await scan(classSign.photo);
-    await expect(page.getByText("출석이 기록되었습니다.", { exact: true })).toBeVisible();
+    await scanCamera(classSign.photo, () => expect(page.getByText("출석이 기록되었습니다.", { exact: true })).toBeVisible());
     await page.getByRole("link", { name: "내 출결 기록 보기" }).click();
     await reloadStudentApp(page);
     await expect(page.getByText(label, { exact: false })).toBeVisible();
-    const summary = await expectApi<{ count: number; results: Array<{ status: string; qr_checked_in_at: string }> }>(request, "GET", `/lectures/attendance/?session=${classSessionId}`, adminAccess);
+    const summary = await expectApi<{ count: number; results: Array<{ id: number; status: string; qr_checked_in_at: string }> }>(request, "GET", `/lectures/attendance/?session=${classSessionId}`, adminAccess);
     expect(summary.results).toEqual(expect.arrayContaining([expect.objectContaining({ status: "PRESENT", qr_checked_in_at: expect.any(String) })]));
     await teacherPage.reload({ waitUntil: "domcontentloaded" });
     await expect(teacherPage.getByText(student.name, { exact: true }).first()).toBeVisible();
+
+    // Permission failure must remain recoverable through the real photo decoder.
+    await gotoAndSettle(page, `${QA_BASE}/student/attendance/scan`);
+    await withQrCameraInput(page, classSign.photo, async () => {
+      await page.getByRole("button", { name: "카메라로 QR 스캔", exact: true }).click();
+      await expect(page.getByRole("alert")).toContainText("카메라를 열지 못했습니다");
+      await page.locator('input[type="file"]').setInputFiles({ name: "qr-recovery.png", mimeType: "image/png", buffer: classSign.photo });
+      await expect(page.getByText("이미 출석 기록이 있습니다.", { exact: true })).toBeVisible();
+    }, "denied");
+    const repeatedClass = await expectApi<typeof summary>(request, "GET", `/lectures/attendance/?session=${classSessionId}`, adminAccess);
+    const attendanceState = (rows: typeof summary.results) => rows.map(({ id, status, qr_checked_in_at }) => ({ id, status, qr_checked_in_at }));
+    expect(attendanceState(repeatedClass.results)).toEqual(attendanceState(summary.results));
 
     const clinic = await expectApi<{ id: number }>(request, "POST", "/clinic/sessions/", adminAccess, {
       title: label, date: today, start_time: `${time}:00`, duration_minutes: 60, location: label,
@@ -77,13 +96,13 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     const participant = await expectApi<Participant>(request, "POST", "/clinic/participants/", adminAccess, { session: clinic.id, student: student.id });
     expect(participant.status).toBe("booked");
     const clinicSign = await createSign("/workspace/clinic/home", "clinic");
-    await scan(clinicSign.photo);
+    await scanCamera(clinicSign.photo, () => expect(page.getByRole("button", { name: "등원하기", exact: true })).toBeVisible());
     await page.getByRole("button", { name: "등원하기", exact: true }).click();
     await expect(page.getByText("등원이 기록되었습니다.", { exact: true })).toBeVisible();
     const arrival = await expectApi<Participant>(request, "GET", `/clinic/participants/${participant.id}/`, adminAccess);
     expect(arrival.status).toBe("attended"); expect(arrival.checked_in_at).toBeTruthy();
     expect(arrival.checked_out_at).toBeNull(); expect(arrival.completed_at).toBeNull();
-    await scan(clinicSign.photo);
+    await scanCamera(clinicSign.photo, () => expect(page.getByRole("button", { name: "하원하기", exact: true })).toBeVisible());
     await page.getByRole("button", { name: "하원하기", exact: true }).click();
     await expect(page.getByText("하원이 기록되었습니다.", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "내 클리닉 기록 보기" }).click();
@@ -92,11 +111,24 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     const departure = await expectApi<Participant>(request, "GET", `/clinic/participants/${participant.id}/`, adminAccess);
     expect(departure.checked_in_at).toBe(arrival.checked_in_at);
     expect(departure.checked_out_at).toBeTruthy(); expect(departure.completed_at).toBeNull();
-    await scan(clinicSign.photo);
+    await scanPhoto(clinicSign.photo);
     await page.getByRole("button", { name: "하원 기록 확인", exact: true }).click();
     await expect(page.getByText("이미 하원 기록이 있습니다.", { exact: true })).toBeVisible();
     const repeated = await expectApi<Participant>(request, "GET", `/clinic/participants/${participant.id}/`, adminAccess);
     expect(repeated.checked_out_at).toBe(departure.checked_out_at);
+    await testInfo.attach("qr-camera-db-readback", {
+      contentType: "application/json",
+      body: Buffer.from(JSON.stringify({
+        cameraInput: "generated QR frames; physical camera not exercised",
+        dataSource: "isolated development APIs",
+        classCameraSaved: attendanceState(summary.results),
+        classPhotoRecovery: attendanceState(repeatedClass.results),
+        clinicCameraSaved: { id: departure.id, status: departure.status,
+          checked_in_at: departure.checked_in_at, checked_out_at: departure.checked_out_at, completed_at: departure.completed_at },
+        clinicPhotoRepeatedAt: repeated.checked_out_at,
+        cameraTracksEndedBeforeFixtureCleanup: true,
+      }, null, 2)),
+    });
     await assertNoHorizontalOverflow(page);
     await testInfo.attach("qr-clinic-saved-390", { body: await page.screenshot(), contentType: "image/png" });
   } catch (error) {
