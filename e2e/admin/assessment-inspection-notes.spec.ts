@@ -545,7 +545,8 @@ test.describe("시험·과제 수동 검사 상태", () => {
     const drawer = await openHomeworkInspection(page);
     const complete = drawer.getByRole("button", { name: "완료 확정", exact: true });
     await expect(complete).toBeDisabled();
-    await expect(drawer.locator('.ssd-correction-control[data-source-type="homework"]').getByRole("status")).toContainText("점수를 먼저 저장");
+    await expect(drawer.locator('.ssd-correction-control[data-source-type="homework"]').getByRole("status")
+      .filter({ hasText: "점수를 먼저 저장" })).toBeVisible();
     const retry = page.getByRole("button", { name: "다시 시도", exact: true });
     await expect(retry).toBeVisible();
     expect(api.correctionRequests).toEqual([]);
