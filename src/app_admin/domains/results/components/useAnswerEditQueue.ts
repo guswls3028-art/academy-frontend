@@ -3,6 +3,8 @@ import useAuth from "@/auth/hooks/useAuth";
 import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
 import { patchExamItemScore } from "@admin/domains/scores/api/patchItemScore";
 import { appendSerialTask } from "../utils/serialSaveQueue";
+import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
 export type AnswerEditChange = { questionId: number; score: number; answer?: string };
 export type AnswerEditController = { flush: () => Promise<void>; hasPending: () => boolean };
@@ -35,7 +37,9 @@ export function useAnswerEditQueue({ sessionId, examId, enrollmentId, questionId
   questionIds: number[]; onSaveSuccess: () => void;
 }) {
   const { user } = useAuth();
-  const storageKey = getTenantUserLocalKey(`answer-draft:${sessionId}:${examId}:${enrollmentId}`, user?.id);
+  const activeStorageKey = getTenantUserLocalKey(`answer-draft:${sessionId}:${examId}:${enrollmentId}`, user?.id);
+  const [storageKey] = useState(activeStorageKey);
+  const [initialGeneration] = useState(() => readAuthTokenEnvelopeSafely()?.generation);
   const [storageError, setStorageError] = useState("");
   const [restored] = useState<AnswerEditChange[]>(() => {
     try {
@@ -91,13 +95,24 @@ export function useAnswerEditQueue({ sessionId, examId, enrollmentId, questionId
   }, [pending, persist]);
   const enqueue = useCallback((change: AnswerEditChange) => {
     if (queued.current.has(change)) return;
+    const session = readAuthTokenEnvelopeSafely();
+    const tenant = getTenantCodeForApiRequest();
+    let sameUser = activeStorageKey != null && activeStorageKey === storageKey;
+    if (sameUser && session?.generation !== initialGeneration) {
+      try {
+        const claims = JSON.parse(atob(session!.access.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+        sameUser = String(claims.user_id ?? "") === String(user?.id ?? "");
+      } catch { sameUser = false; }
+    }
+    const authScope = sameUser && session && tenant ? { generation: session.generation, tenant } : null;
     stage(change);
     queued.current.add(change);
     failed.current.delete(change);
     notify();
     tail.current = appendSerialTask(tail.current, async () => {
       if (sessionId == null) throw new Error("차시 성적 화면에서 수정해 주세요.");
-      return patchExamItemScore({ sessionId, examId, enrollmentId, ...change });
+      if (!authScope) throw new Error("입력을 시작한 계정으로 로그인한 뒤 다시 저장해 주세요.");
+      return patchExamItemScore({ sessionId, examId, enrollmentId, ...change, authScope });
     }, () => {
       if (pending.current.get(change.questionId) === change) pending.current.delete(change.questionId);
       failed.current.delete(change);
@@ -112,7 +127,7 @@ export function useAnswerEditQueue({ sessionId, examId, enrollmentId, questionId
       notify();
       if (!pending.current.size) setError("");
     });
-  }, [enrollmentId, examId, failed, notify, onSaveSuccess, pending, persist, queued, sessionId, shared, stage, storageKey, tail]);
+  }, [activeStorageKey, enrollmentId, examId, failed, initialGeneration, notify, onSaveSuccess, pending, persist, queued, sessionId, shared, stage, storageKey, tail, user?.id]);
   const flush = useCallback(async () => {
     for (const change of pending.current.values()) {
       if (!failed.current.has(change)) enqueue(change);
