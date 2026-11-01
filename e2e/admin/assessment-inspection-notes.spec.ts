@@ -523,6 +523,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
       const quickPass = drawer.getByRole("button", { name: "보완 필요에서 교사 PASS로 변경" });
       await expect(quickPass).toBeEnabled();
       await quickPass.click();
+      await expect(quickPass).toHaveCount(0);
       expect(api.correctionRequests.at(-1)).toMatchObject({ source_type: "exam", completed: true });
       expect(api.homeworkScoreRequests).toEqual([]);
       await expect.poll(() => drawer.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
