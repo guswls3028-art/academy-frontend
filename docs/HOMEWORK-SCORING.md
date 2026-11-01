@@ -308,7 +308,9 @@
   사용하며 앱 인증 헤더를 전달하지 않는다. HEIC의 저장소 읽기는 exact 개발 테넌트의
   등록된 서명 URL·MIME·실제 바이트·CORS만 허용하며 인증 헤더를 전달하지 않는다.
   이어서 실제 조교 로그인으로 차시 성적표를 열고390px에서91점, PC에서92점을 입력·저장한 뒤
-  reload와 학생·학부모 성적 반영을 확인한다. 이 추가 경로는 공식 격리 실행과 cleanup0을
+  reload와 학생·학부모 성적 반영을 확인한다. 같은 합성 점수 행에서 교사 통과 인정의
+  API 판정과 셀의 `REMEDIATED`·통과 인정 표시, reload 유지, 인정 취소 후 원래 판정 복원을
+  확인하며 기존 점수는 보존한다. 이 추가 경로는 공식 격리 실행과 cleanup0을
   통과한 release에서만 실사용 완료 증거가 된다. 소스 추가만으로 운영 검증을 대체하지 않는다.
   직원 삭제 뒤 남는 합성 User/token/audit는 exact `qa-*` tenant teardown의 cleanup0이 소유한다.
 - 같은 격리 시나리오의 `e2e/helpers/homeworkCriteriaRealuse.ts`는 PC 퍼센트 기준과
