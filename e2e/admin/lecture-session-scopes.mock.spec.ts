@@ -1646,6 +1646,35 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
   await expect(primaryAction).toHaveText("결과 보기");
 });
 
+for (const width of [1366, 390]) {
+test(`@title-edit ${width}px 과제 제목 직접 수정은 기준을 보존하고 새로고침에도 유지된다`, async ({ page }, testInfo) => {
+  const state: MockState = {
+    supplementTitle: '토요일 심화 클리닉', patchTitles: [], enforceHomeworkVersion: true,
+    createdHomeworkPayloads: [{ title: '연산 복습 오타', max_score: 100, cutline_mode: null, cutline_value: null,
+      effective_cutline_mode: 'PERCENT', effective_cutline_value: 80, uses_session_cutline_default: true, meta: {} }],
+    homeworkPatchPayloads: [],
+  };
+  await page.setViewportSize({ width, height: 844 });
+  await openLecture(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/assignments?assessment=homework%3A9961`);
+  const header = page.locator('.assessment-detail-header');
+  await header.getByRole('button', { name: /제목 수정/ }).click();
+  const dialog = page.getByRole('dialog', { name: '과제 제목 수정', exact: true });
+  const input = dialog.getByRole('textbox', { name: '과제 제목', exact: true });
+  await expect(input).toBeEnabled();
+  await input.fill('연산 복습 수정된 과제 제목');
+  await page.screenshot({ path: testInfo.outputPath(`title-edit-homework-${width}.png`), animations: 'disabled' });
+  await dialog.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(state.homeworkPatchPayloads).toEqual([{ id: 9961, title: '연산 복습 수정된 과제 제목' }]);
+  expect(state.createdHomeworkPayloads![0].uses_session_cutline_default).toBe(true);
+  await expect(header.getByRole('heading')).toHaveText('연산 복습 수정된 과제 제목');
+  await page.reload();
+  await expect(header.getByRole('heading')).toHaveText('연산 복습 수정된 과제 제목');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+}
+
 test("차시 기본 기준 과제는 제목만 저장해도 상속을 유지하고 기한 없음은 준비 완료로 본다", async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",

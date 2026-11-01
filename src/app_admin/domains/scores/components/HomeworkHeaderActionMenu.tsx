@@ -13,6 +13,7 @@ import { deleteHomework, HomeworkPolicyPanel } from "@admin/domains/homework/pub
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/public/assessmentQueries";
 import { scoresQueryKeys } from "../api/queryKeys";
 import MenuAction from "./AssessmentHeaderMenuAction";
+import { AssessmentTitleEditButton } from "@admin/domains/sessions/public/titleEditing";
 import styles from "./ExamHeaderActionMenu.module.css";
 
 const ParentAssessmentCommentsPanel = lazy(() => import("./ParentAssessmentCommentsPanel"));
@@ -99,12 +100,15 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
           <ParentAssessmentCommentsPanel sessionId={sessionId} assessmentKind="homework" assessmentId={homeworkId} title={homeworkTitle} onClose={() => setCommentsOpen(false)} />
         </Suspense>
       )}
+      <span className="inline-flex min-w-0 max-w-full flex-col items-center gap-1">
       <Popover content={menu} trigger="click" placement="bottom" open={menuOpen} onOpenChange={setMenuOpen} arrow={false} overlayClassName={styles.popover} motion={{ motionName: "academy-exam-menu-fade" }}>
         <button type="button" className="scores-table-exam-link" draggable={false} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`${homeworkTitle} 작업 선택`} title={`${homeworkTitle} — 작업 선택`} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}>
           <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{homeworkTitle}</span>
           <ChevronDown className="scores-table-exam-link__icon" size={ICON_FOR_BUTTON.sm} aria-hidden />
         </button>
       </Popover>
+      <AssessmentTitleEditButton key={homeworkId} kind="homework" id={homeworkId} title={homeworkTitle} compact />
+      </span>
       <AdminModal open={editOpen} onClose={() => { void closeEdit(); }} closeDisabled={saving} type="action" width={MODAL_WIDTH.wide}>
         <ModalHeader type="action" title="과제 수정" subtitle={homeworkTitle} />
         <ModalBody>

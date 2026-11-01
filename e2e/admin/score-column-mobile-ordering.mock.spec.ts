@@ -10,12 +10,12 @@ const SESSION_ID = 9002;
 const EXAM_IDS = [9101, 9102] as const;
 const HOMEWORK_IDS = [9151, 9152] as const;
 
-const examTitles: Record<number, string> = {
+const initialExamTitles: Record<number, string> = {
   9101: "첫 시험",
   9102: "둘째 시험",
 };
 
-const homeworkTitles: Record<number, string> = {
+const initialHomeworkTitles: Record<number, string> = {
   9151: "첫 과제",
   9152: "둘째 과제",
 };
@@ -31,12 +31,16 @@ function createLocalJwt() {
 }
 
 type OrderingHarness = {
+  titlePatches: Array<{ kind: string; payload: unknown }>;
   reorderPayloads: Array<{ exams?: number[]; homeworks?: number[] }>;
   unexpectedMutations: string[];
   deletedAssessments: string[];
 };
 
 async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
+  const examTitles = { ...initialExamTitles };
+  const homeworkTitles = { ...initialHomeworkTitles };
+  const titlePatches: OrderingHarness["titlePatches"] = [];
   let examOrder: number[] = [...EXAM_IDS];
   let homeworkOrder: number[] = [...HOMEWORK_IDS];
   let failNextReorder = true;
@@ -52,6 +56,14 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
     const method = request.method();
 
     if (path.endsWith(`/exams/${EXAM_IDS[0]}/`)) {
+      if (method === "PATCH") {
+        expect(request.headers()["x-expected-updated-at"]).toBe("2026-08-25T12:00:00+09:00");
+        const payload = request.postDataJSON();
+        titlePatches.push({ kind: "exam", payload });
+        examTitles[EXAM_IDS[0]] = payload.title;
+        await route.fulfill({ json: { id: EXAM_IDS[0], title: payload.title, exam_type: "regular", updated_at: "2026-08-25T12:00:00+09:00" } });
+        return;
+      }
       if (method === "DELETE") {
         if (url.searchParams.get("session_id") !== String(SESSION_ID)) {
           await route.fulfill({ status: 400, json: { detail: "차시가 일치하지 않습니다." } });
@@ -73,6 +85,14 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
     }
 
     if (path.endsWith(`/homeworks/${HOMEWORK_IDS[0]}/`)) {
+      if (method === "PATCH") {
+        expect(request.headers()["x-expected-updated-at"]).toBe("2026-08-25T12:00:00+09:00");
+        const payload = request.postDataJSON();
+        titlePatches.push({ kind: "homework", payload });
+        homeworkTitles[HOMEWORK_IDS[0]] = payload.title;
+        await route.fulfill({ json: { id: HOMEWORK_IDS[0], title: payload.title, updated_at: "2026-08-25T12:00:00+09:00" } });
+        return;
+      }
       if (method === "DELETE") {
         homeworkOrder = homeworkOrder.filter((id) => id !== HOMEWORK_IDS[0]);
         deletedAssessments.push(`homework:${HOMEWORK_IDS[0]}`);
@@ -238,7 +258,7 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
     await route.fallback();
   });
 
-  return { reorderPayloads, unexpectedMutations, deletedAssessments };
+  return { reorderPayloads, unexpectedMutations, deletedAssessments, titlePatches };
 }
 
 async function openScores(page: Page): Promise<OrderingHarness> {
@@ -285,6 +305,33 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
     isMobile: true,
     serviceWorkers: "block",
   });
+
+  for (const width of [1366, 390]) {
+    test(`@title-edit ${width}px 성적표에서 시험·과제 제목을 바로 수정하고 재조회한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 844 });
+      const harness = await openScores(page);
+      for (const [kind, label, previous, next] of [
+        ['exam', '시험', '첫 시험', '수정된 시험 제목'],
+        ['homework', '과제', '첫 과제', '수정된 과제 제목'],
+      ]) {
+        await page.getByRole('button', { name: `${previous} 제목 수정`, exact: true }).click();
+        const dialog = page.getByRole('dialog', { name: `${label} 제목 수정`, exact: true });
+        const input = dialog.getByRole('textbox', { name: `${label} 제목`, exact: true });
+        await expect(input).toBeEnabled();
+        await input.fill(next);
+        await dialog.getByRole('button', { name: '저장', exact: true }).click();
+        await expect(dialog).not.toBeVisible();
+        expect(harness.titlePatches.at(-1)).toEqual({ kind, payload: { title: next } });
+        await expect(page.getByRole('button', { name: `${next} 작업 선택`, exact: true })).toBeVisible();
+      }
+      await page.reload();
+      await expect(page.getByRole('button', { name: '수정된 시험 제목 제목 수정', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: '수정된 과제 제목 제목 수정', exact: true })).toBeVisible();
+      await expectDocumentOverflowZero(page);
+      expect(harness.unexpectedMutations).toEqual([]);
+      await page.screenshot({ path: testInfo.outputPath(`title-edit-scores-${width}.png`), animations: 'disabled' });
+    });
+  }
 
   test("390px에서 키보드·터치 순서 변경, 실패 유지와 retry를 보장한다", async ({ page }) => {
     const { reorderPayloads, unexpectedMutations } = await openScores(page);

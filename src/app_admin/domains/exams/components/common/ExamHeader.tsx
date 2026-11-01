@@ -7,6 +7,7 @@ import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { FiArrowRight, FiSave, FiChevronDown } from "react-icons/fi";
 import { adminExamsQueryKeys } from "../../queryKeys";
+import { AssessmentTitleEditButton } from "@admin/domains/sessions/public/titleEditing";
 import "@/shared/ui/assessment/AssessmentDetailHeader.css";
 
 /**
@@ -79,6 +80,7 @@ export default function ExamHeader({ exam, primaryAction, readError = false, rea
         </div>
 
         <div className="assessment-detail-header__actions">
+          <AssessmentTitleEditButton key={exam.id} kind="exam" id={exam.id} title={exam.title} disabled={readError || readPending} />
           {canSaveAsTemplate && (
             <Button
               type="button"
