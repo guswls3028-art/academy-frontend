@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { assertNoHorizontalOverflow, expectApi, installQaStudentParentBoundary, QA_BASE, reloadStudentApp, seedBrowserAuth, type QaTokens } from "../helpers/qaStudentParentScenario";
+import { withOwnedScoreLeaseCleanup } from "../helpers/scoreLeaseCleanup";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
@@ -62,7 +63,7 @@ export async function verifyExcelAssessment(
   };
   const before = await readResults();
   const context = await parentPage.context().browser()!.newContext({ serviceWorkers: "block", viewport: { width: 1366, height: 900 } });
-  try {
+  await withOwnedScoreLeaseCleanup(context, request, { sessionId: scope.sessionId, actorAccess: admin.access }, async () => {
     const page = await context.newPage();
     const boundary = await installQaStudentParentBoundary(page, request);
     const guards = attachStrictBrowserGuards(page);
@@ -141,7 +142,7 @@ export async function verifyExcelAssessment(
     expect(questionFiveRows[0].getCell(7).value).toBe(20);
     boundary.assertClean();
     guards.assertZeroDefects();
-  } finally { await context.close(); }
+  });
 
   const studentContext = await parentPage.context().browser()!.newContext({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
   try {

@@ -39,6 +39,7 @@ import { verifyAssessmentTitle } from "../helpers/assessmentTitleRealuse";
 import { verifySubmissionInbox } from "../helpers/verifySubmissionInbox";
 import { verifyOnlineWrittenSubmission } from "../helpers/verifyOnlineWrittenSubmission";
 import { verifyExcelAssessment } from "./excelAssessmentRealuse";
+import { withOwnedScoreLeaseCleanup } from "../helpers/scoreLeaseCleanup";
 
 // This scenario now spans submission, feedback, templates, grading, copy and
 // attendance and online written-answer journeys. Budget the combined flow without relaxing any individual
@@ -495,7 +496,7 @@ async function verifyAttendancePriorityAndAbsentScores(
     await expectApi(request, "PATCH", `/lectures/attendance/${rows[0].id}/`, admin.access, { status });
   }
   const context = await parentPage.context().browser()!.newContext({ serviceWorkers: "block" });
-  try {
+  await withOwnedScoreLeaseCleanup(context, request, { sessionId: created.sessionId!, actorAccess: admin.access }, async () => {
     const page = await context.newPage();
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
@@ -543,9 +544,7 @@ async function verifyAttendancePriorityAndAbsentScores(
     }
     boundary.assertClean();
     browser.assertZeroDefects();
-  } finally {
-    await context.close();
-  }
+  });
 }
 
 async function verifyEndedCourseTodos(
@@ -646,7 +645,7 @@ async function verifyManualScorePrecision(
     await dialog.getByRole("combobox", { name: "채점표 배율 선택" }).selectOption(width === 390 ? "50" : "100");
     return dialog;
   };
-  try {
+  await withOwnedScoreLeaseCleanup(context, request, { sessionId: created.sessionId!, actorAccess: staffTokens.access }, async () => {
     await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`, { timeout: 45_000 });
     await page.getByTestId("login-username").fill(username);
     await page.getByTestId("login-password").fill(student.password);
@@ -717,9 +716,7 @@ async function verifyManualScorePrecision(
     await expect(parentCard).toContainText(/83\.3/);
     boundary.assertClean();
     guards.assertZeroDefects();
-  } finally {
-    await context.close();
-  }
+  });
 }
 
 /** Real server order persistence; restore the existing selection before later copy/attendance checks. */
@@ -768,7 +765,7 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       await expect(section).toHaveCount(0);
     }
   };
-  try {
+  await withOwnedScoreLeaseCleanup(context, request, { sessionId: created.sessionId!, actorAccess: admin.access }, async () => {
     await seedBrowserAuth(page, admin);
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
@@ -828,7 +825,7 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       await assertNoHorizontalOverflow(page);
     }
     boundary.assertClean(); guards.assertZeroDefects();
-  } finally { await context.close(); }
+  });
 }
 
 async function verifyScoreMessageTemplate(
@@ -844,7 +841,7 @@ async function verifyScoreMessageTemplate(
   const guards = attachStrictBrowserGuards(page);
   const templateName = `qa-message-editor-${runStamp}`;
   let previousDefaultId: number | undefined;
-  try {
+  await withOwnedScoreLeaseCleanup(context, request, { sessionId: created.sessionId!, actorAccess: admin.access }, async () => {
     const currentLesson = await expectApi<{ title: string; date: string; section: number | null }>(
       request, "GET", `/lectures/sessions/${created.sessionId}/`, admin.access,
     );
@@ -1180,8 +1177,7 @@ async function verifyScoreMessageTemplate(
     await expect(restoredDraft).toContainText("과제도 함께 확인해 주세요.");
     boundary.assertClean();
     guards.assertZeroDefects();
-  } finally {
-    await context.close();
+  }, async () => {
     if (previousDefaultId) {
       const previousState = await expectApi<{ is_user_default: boolean }>(request, "GET", `/messaging/templates/${previousDefaultId}/`, admin.access);
       if (!previousState.is_user_default) await expectApi(request, "POST", `/messaging/templates/${previousDefaultId}/set-default/`, admin.access, {});
@@ -1198,7 +1194,7 @@ async function verifyScoreMessageTemplate(
       expect((await api(request, "GET", `/messaging/templates/${id}/`, admin.access)).status).toBe(404);
     }
     created.messageTemplateRetryIds = [];
-  }
+  });
 }
 
 
@@ -1211,7 +1207,7 @@ async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestCon
   const guards = attachStrictBrowserGuards(page);
   const commentsPath = `/results/admin/sessions/${created.sessionId}/exam/${created.examId}/parent-comments/`;
   const configPath = `/results/admin/sessions/${created.sessionId}/total-config/`;
-  try {
+  await withOwnedScoreLeaseCleanup(context, request, { sessionId: created.sessionId!, actorAccess: admin.access }, async () => {
     created.otherFamily = await createQaFamily(request, admin.access, "assessment-other-family", 1);
     const otherParent = await loginApi(request, created.otherFamily.parentPhone, created.otherFamily.parentPassword);
     const privateMemos = {
@@ -1347,5 +1343,5 @@ async function verifyAssessmentFeedback(parentPage: Page, request: APIRequestCon
       studentBoundary.assertClean(); studentGuards.assertZeroDefects();
     } finally { await studentContext.close(); }
     boundary.assertClean(); guards.assertZeroDefects();
-  } finally { await context.close(); }
+  });
 }

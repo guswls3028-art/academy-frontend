@@ -7,6 +7,7 @@ import {
 } from "./qaStudentParentScenario";
 import { gotoAndSettle } from "./wait";
 import { verifyWrittenAnswerKeyEditor } from "./verifyWrittenAnswerKeyEditor";
+import { withOwnedScoreLeaseCleanup } from "./scoreLeaseCleanup";
 
 /** Part of the mandatory same-artifact assessment case; outer cleanup owns each id. */
 export async function verifyOnlineWrittenSubmission(
@@ -52,7 +53,7 @@ export async function verifyOnlineWrittenSubmission(
   const browser = parentPage.context().browser()!;
   const studentContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const teacherContext = await browser.newContext({ viewport: { width: 1366, height: 900 } });
-  try {
+  await withOwnedScoreLeaseCleanup(teacherContext, request, { sessionId: scope.sessionId, actorAccess: admin.access }, async () => {
     const studentPage = await studentContext.newPage();
     const teacherPage = await teacherContext.newPage();
     const studentBoundary = await installQaStudentParentBoundary(studentPage, request);
@@ -150,8 +151,7 @@ export async function verifyOnlineWrittenSubmission(
     }
     studentBoundary.assertClean();
     teacherBoundary.assertClean();
-  } finally {
-    await studentContext.close();
-    await teacherContext.close();
-  }
+  }, async () => {
+    try { await studentContext.close(); } catch { throw new Error("Online written student context close failed"); }
+  });
 }

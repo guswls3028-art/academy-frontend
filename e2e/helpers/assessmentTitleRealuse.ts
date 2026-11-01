@@ -3,6 +3,7 @@ import { expect } from "../fixtures/strictTest";
 import { attachStrictBrowserGuards } from "./strictBrowser";
 import { gotoAndSettle } from "./wait";
 import { acknowledgeInitialAccountPromptsIfVisible } from "./firstLoginGuide";
+import { withOwnedScoreLeaseCleanup } from "./scoreLeaseCleanup";
 import {
   assertNoHorizontalOverflow, assertQaStudentParentRuntime, expectApi,
   installQaStudentParentBoundary, QA_BASE, seedBrowserAuth, type QaTokens,
@@ -21,7 +22,7 @@ export async function verifyAssessmentTitle(
   const endpoint = `/${target.kind === "exam" ? "exams" : "homeworks"}/${target.id}/`;
   const label = target.kind === "exam" ? "시험" : "과제";
   const policyKeys = ["max_score", "pass_score", "grading_mode", "manual_grading_method", "cutline_mode", "cutline_value", "round_unit_percent", "meta", "template_exam_id", "template_homework_id"];
-  try {
+  await withOwnedScoreLeaseCleanup(context, request, { sessionId: target.sessionId, actorAccess: admin.access }, async () => {
     const original = await expectApi<Record<string, unknown>>(request, "GET", endpoint, admin.access);
     await seedBrowserAuth(page, admin);
     let previous = target.title;
@@ -55,7 +56,5 @@ export async function verifyAssessmentTitle(
     }
     boundary.assertClean();
     guards.assertZeroDefects();
-  } finally {
-    await context.close();
-  }
+  });
 }
