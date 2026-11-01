@@ -228,6 +228,9 @@ PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency
 chain으로 직렬 실행한다. 별도 세 job은 API proxy를 `http://127.0.0.1:9`로 닫고
 route-mock 전체 목록을 Playwright의 `--shard=1/3`, `2/3`, `3/3`으로 나눈다.
+세 shard의 OS는 `ubuntu-24.04`로 고정해 `ubuntu-latest` 전환으로 native WebKit의
+다운로드 동작이 검토 없이 바뀌지 않게 한다. OS 변경 시 원문 파일명과 원본 바이트,
+필수 WebKit 시나리오를 새 환경에서 검증한 뒤 명시적으로 올린다.
 `pr-route-mocks`와 `pr-iphone-webkit`은 `serviceWorkers: "block"`으로 앱의 SW가
 등록·응답을 가로채지 않게 한다. [Playwright routing 정본](https://playwright.dev/docs/api/class-browsercontext#browser-context-route)에 따라
 모의 API의 요청 interception을 보장하며, 브라우저 offline/online 전환·재생 유지 검사는

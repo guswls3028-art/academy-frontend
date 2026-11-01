@@ -166,7 +166,9 @@ jobs:
   pr-route-mock-shards:
     name: E2E route mocks (shard ${{ matrix.shard }}/3)
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    # Keep native WebKit download behavior on the validated platform;
+    # ubuntu-latest image rollouts can change filenames without a source change.
+    runs-on: ubuntu-24.04
     # Shard 3 also runs WebKit, a production build, runtime smoke and theme checks.
     # Their combined duration exceeded 60 minutes after the browser tests passed.
     timeout-minutes: ${{ matrix.shard == 3 && 90 || 60 }}
