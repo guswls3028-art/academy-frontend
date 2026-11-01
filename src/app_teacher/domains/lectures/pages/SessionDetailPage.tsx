@@ -38,7 +38,7 @@ import type { VideoStatus } from "@/shared/api/contracts/videos";
 
 type Tab = "students" | "attendance" | "scores" | "exams" | "homeworks" | "videos" | "clinic";
 
-import { STATUS_CONFIG as STATUS_LABELS } from "@teacher/domains/attendance/api";
+import { ATTENDANCE_STATUS_CONFIG as STATUS_LABELS } from "@/shared/ui/badges/attendanceStatus";
 
 export default function SessionDetailPage() {
   const { sessionId, lectureId } = useParams<{ sessionId: string; lectureId: string }>();

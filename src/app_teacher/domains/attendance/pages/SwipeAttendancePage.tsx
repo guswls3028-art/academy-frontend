@@ -20,7 +20,7 @@ import { teacherAttendanceQueryKeys } from "../queryKeys";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm";
 import type { SecessionScope } from "@/shared/api/contracts/attendance";
-import { teacherLectureQueryKeys } from "@teacher/domains/lectures/queryKeys";
+import { attendanceQueryKeys } from "@/shared/api/queryKeys/attendance";
 import styles from "./SwipeAttendancePage.module.css";
 
 const EMPTY_RECORDS: AttendanceListItem[] = [];
@@ -74,7 +74,7 @@ export default function SwipeAttendancePage() {
         qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.matrices }),
         qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionEnrollments }),
         qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.enrolledIds }),
-        qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectureEnrollments }),
+        qc.invalidateQueries({ queryKey: attendanceQueryKeys.lectureEnrollmentsRoot }),
         qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot }),
       ]);
     },
