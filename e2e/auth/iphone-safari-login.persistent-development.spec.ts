@@ -53,7 +53,13 @@ function validateManifest(manifest: LoginManifest): void {
   }
   for (const account of manifest.accounts) {
     expect(Object.keys(account).sort()).toEqual(["landing_path", "role", "username"]);
-    expect(account.landing_path).toBe(account.role === "staff" ? "/workspace/mobile" : "/student");
+    // Existing schema-v1 QA manifests retain the former staff landing hint.
+    // The actual login assertion below always requires the shared workspace.
+    if (account.role === "staff") {
+      expect(["/workspace/mobile", "/workspace", "/workspace/dashboard"]).toContain(account.landing_path);
+    } else {
+      expect(account.landing_path).toBe("/student");
+    }
   }
 }
 
@@ -78,10 +84,8 @@ async function continueStaffWithoutClockIn(page: Page): Promise<void> {
 
 async function logoutAndVerify(page: Page, role: LoginRole): Promise<void> {
   if (role === "staff") {
-    await page.getByRole("button", { name: "메뉴", exact: true }).click();
-    const drawer = page.getByRole("navigation", { name: "선생님 메뉴" });
-    await expect(drawer).toBeVisible();
-    await drawer.getByRole("button", { name: "로그아웃", exact: true }).click();
+    await page.getByRole("button", { name: "프로필 메뉴", exact: true }).click();
+    await page.getByRole("menuitem", { name: "로그아웃", exact: true }).click();
   } else {
     await page.getByRole("button", { name: "메뉴 열기" }).click();
     const drawer = page.getByRole("dialog", { name: "메뉴" });
@@ -142,7 +146,8 @@ test.describe("persistent-development iPhone Safari login UAT", () => {
       await page.getByTestId("login-password").fill(PASSWORD);
       await page.getByTestId("login-submit").click();
 
-      await expect(page).toHaveURL(new RegExp(`${account.landing_path}(?:/|$)`), { timeout: 45_000 });
+      const landingPath = account.role === "staff" ? "/workspace/dashboard" : "/student";
+      await expect(page).toHaveURL(new RegExp(`${landingPath}(?:/|$)`), { timeout: 45_000 });
       await dismissFirstLoginGuide(page);
       if (account.role === "staff") {
         await continueStaffWithoutClockIn(page);
