@@ -16,6 +16,38 @@
 
 ## 1. 배포 순서
 
+공개 공급자 전송 문제의 별도 진단은
+`.github/workflows/public-video-provider-diagnostic.yml`가 소유한다. 동일 저장소 PR에
+`public-video-provider-diagnostic` 라벨을 명시적으로 추가하거나 해당 workflow를 수동 실행할 때만
+정확한 source SHA로 실행한다. 일반 PR/배포 workflow와 필수 check는 변경하지 않는다.
+진단은 같은 GitHub runner에서 기존 relay와 별도 검증된 native response controller를 각각
+새 익명 context로 한 번만 비교한다. 기존 공개 영상 ID와 localhost origin, iframe 권한,
+실사용 spec의 Play → 시간 증가 → Pause 판정을 사용한다. 컨트롤러의 초기/OOPIF arming,
+frame 신뢰·이탈, 모든 redirect의 원래 제한, deadline, close/drain을 닫힌 fixture로 먼저
+검증해야 하며, 준비되지 않은 native 경로 또는 기존 relay만의 단순 재시도는 실행하지 않는다.
+`scripts/tests/public-video-native-diagnostic.test.mjs`는 실제 Chromium으로 닫힌 응답·프레임
+20건, 종료·설정 실패 6건, 변경하지 않은 release guard와 정확한 메모리 adapter의 합성
+6건, 승인된 열린 body와 아직 응답 헤더를 기다리는 종료 3건, 명시적 요청 취소와
+모호하거나 이미 허용된 요청의 실패 경계 4건을 확인한다.
+합성 검사는 임시 자체 서명 TLS와 loopback만 연결하는 닫힌 proxy에서
+실제 HTTPS 분류를 유지하며 외부 공급자에 연결하지 않는다. 두 비교 context의 작업 제한은
+각 30초이며 각 정리 단계에는 별도의 최대 5초 제한이 있다. guard/native drain과
+독립 close를 단계별로 병행하고, 한쪽 정리가 멈추거나 실패해도 나머지를 수행한다.
+승인된 응답의 열린 body만 실제 context 종료로 취소하며 미결 응답 헤더와 redirect 검증은
+끝까지 기다린다. 종료 실패나 지연 중 위반은
+정리 재시도 후에도 실패로 남고, 실제 context 종료와 모든 대기 작업의 소멸을 확인한다.
+종료 중 예상된 취소는 실제 `route.abort` 성공·유일한 요청 신원·검증된 frame이 모두
+일치할 때만 구분한다. Network 이벤트의 도착 순서만으로 실패를 면제하지 않는다.
+
+진단 fixture의 영상 등록은 메모리에만 고정하며 실제 QA API 등록을 증명하지 않는다.
+운영/QA API·DB·SSM·계정·supplied cookies·UA/IP 변경·공급자 재시도를 사용하지 않는다.
+일반 release guard 파일과 실제 공급자 응답은 수정하지 않고, native 실험의 전송 부분만
+해당 진단 모듈의 메모리에서 바꾼다. evidence는 source/술어/경계 hash, 단계, 제한된 재생
+상태와 controller/cleanup 결과만 담고 원문 header·cookie·오류·응답 본문은 남기지 않는다.
+결과는 항상 `diagnosticOnly:true`, `promotable:false`이며 원인 구분을 위한 보충 증거다.
+정상 재생이 관측돼도 아래 동일 산출물 41건 전체 성공과 cleanup0, production 승인 및
+운영 확인을 대신하지 않는다. 실패 결과를 성공으로 바꾸거나 bot challenge를 자동 해제하지 않는다.
+
 필수 WebKit 게이트에는 `pr-modal-webkit`의 `@dialog-journey` 20건도 포함한다.
 학생 취소·이미지 확대, 교사 등록·편집, 관리자 달력의 키보드·포커스·짧은 화면
 회귀를 검사한다. 기존 iPhone·숙제 WebKit 프로젝트와 동일한 폐쇄 proxy 및
