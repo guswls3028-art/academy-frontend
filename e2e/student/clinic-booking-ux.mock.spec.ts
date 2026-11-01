@@ -59,6 +59,8 @@ type MockState = {
 type IdcardMockControl = {
   delayMs?: number;
   fail?: boolean;
+  result?: "SUCCESS" | "FAIL";
+  responseReady?: Promise<void>;
 };
 
 type ProgramMockOptions = {
@@ -379,6 +381,8 @@ async function installApi(
       });
     }
     if (path === "/clinic/idcard/" && method === "GET") {
+      await idcardControl?.responseReady;
+      const result = idcardControl?.result ?? idcardResult;
       if (idcardControl?.delayMs) {
         await new Promise((resolve) => setTimeout(resolve, idcardControl.delayMs));
       }
@@ -387,27 +391,27 @@ async function installApi(
       const confirmedBooking = validBookings.find((booking) => (
         ["booked", "attended"].includes(booking.status)
       ));
-      const currentBooking = idcardResult === "FAIL" && confirmedBooking
+      const currentBooking = result === "FAIL" && confirmedBooking
         ? confirmedBooking
         : validBookings[0] ?? null;
-      const passcardState = idcardResult === "SUCCESS"
+      const passcardState = result === "SUCCESS"
         ? "PASSED"
         : confirmedBooking ? "BOOKING_CONFIRMED" : "CLINIC_REQUIRED";
-      const bookingStatus = currentBooking?.status ?? (idcardResult === "FAIL" ? "required" : "none");
+      const bookingStatus = currentBooking?.status ?? (result === "FAIL" ? "required" : "none");
       return json({
         student_name: "김학생",
         profile_photo_url: null,
         background_colors: ["#ef4444", "#3b82f6", "#22c55e"],
         server_date: dateAfter(0),
         server_datetime: `${dateAfter(0)}T09:30:00+09:00`,
-        current_result: idcardResult,
+        current_result: result,
         passcard_state: passcardState,
         can_leave: passcardState !== "CLINIC_REQUIRED",
         booking_status: bookingStatus,
         booking_status_label: currentBooking?.status_label ?? (bookingStatus === "required" ? "예약 필요" : "예약 없음"),
         current_booking: currentBooking,
         valid_bookings: validBookings,
-        current_targets: idcardResult === "FAIL" ? [
+        current_targets: result === "FAIL" ? [
           {
             clinic_link_id: 81,
             enrollment_id: 31,
@@ -482,8 +486,8 @@ async function installApi(
           session_id: 61,
           session_order: 7,
           session_title: "함수의 그래프",
-          passed: idcardResult === "SUCCESS",
-          clinic_required: idcardResult === "FAIL",
+          passed: result === "SUCCESS",
+          clinic_required: result === "FAIL",
         }],
         lectures: [{
           id: 41,
@@ -1517,6 +1521,69 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("승인 대기");
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("승인 대기");
+  });
+
+  test("패스카드는 오프라인에서 이전 합격을 숨기고 재연결 후 최신 대상을 표시한다 @passcard-freshness", async ({ page }) => {
+    const state = createState();
+    state.bookings = [];
+    const control: IdcardMockControl = { result: "SUCCESS" };
+    await seed(page);
+    await installApi(page, state, "SUCCESS", control);
+    await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "합격자" })).toBeVisible();
+
+    // Model connectivity events without interrupting unrelated Vite module prefetch.
+    await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+    const notice = page.getByRole("alert");
+    await expect(notice).toContainText("현재 상태를 확인할 수 없습니다.");
+    await expect(page.getByTestId("clinic-passcard")).toHaveCount(0);
+    await expect(page.getByText("LIVE", { exact: true })).toHaveCount(0);
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-clinic-passcard-offline-390.png", fullPage: true });
+
+    let releaseResponse!: () => void;
+    control.result = "FAIL";
+    control.responseReady = new Promise<void>((resolve) => { releaseResponse = resolve; });
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    // Connectivity alone must not revalidate the previously cached pass.
+    await expect(notice).toBeVisible();
+    await expect(page.getByRole("heading", { name: "합격자" })).toHaveCount(0);
+    releaseResponse();
+    await expect(page.getByRole("heading", { name: "대상자", exact: true })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "대상자", exact: true })).toBeVisible();
+  });
+
+  test("패스카드는 응답이 멈추면 이전 예약완료를 숨기고 재시도로 복구한다 @passcard-freshness", async ({ page }) => {
+    const state = createState();
+    state.bookings[0].status = "booked";
+    const control: IdcardMockControl = {};
+    await seed(page);
+    await installApi(page, state, "FAIL", control);
+    await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "예약완료" })).toBeVisible();
+
+    let releaseResponse!: () => void;
+    control.responseReady = new Promise<void>((resolve) => { releaseResponse = resolve; });
+    // Keep the request unresolved while advancing the wall clock beyond freshness.
+    const pending = page.waitForRequest((request) => new URL(request.url()).pathname.endsWith("/clinic/idcard/"));
+    await pending;
+    await expect(page.getByRole("heading", { name: "예약완료" })).toBeVisible();
+    await page.clock.setSystemTime(new Date(fixtureNow.getTime() + 16_000));
+    const notice = page.getByRole("alert");
+    await expect(notice).toContainText("현재 상태를 확인할 수 없습니다.");
+    await expect(page.getByTestId("clinic-passcard")).toHaveCount(0);
+    await page.setViewportSize({ width: 1100, height: 800 });
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-clinic-passcard-stale-1100.png", fullPage: true });
+
+    state.bookings = [];
+    control.responseReady = undefined;
+    await notice.getByRole("button", { name: "다시 확인" }).click();
+    releaseResponse();
+    await expect(page.getByRole("heading", { name: "대상자", exact: true })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "대상자", exact: true })).toBeVisible();
   });
 
   test("합격 패스카드는 학원에서 지정한 3색과 합격 판정을 보여준다", async ({ page }) => {
