@@ -329,7 +329,13 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
       await expect(page.getByRole('button', { name: '수정된 과제 제목 제목 수정', exact: true })).toBeVisible();
       await expectDocumentOverflowZero(page);
       expect(harness.unexpectedMutations).toEqual([]);
-      await page.screenshot({ path: testInfo.outputPath(`title-edit-scores-${width}.png`), animations: 'disabled' });
+      for (const [kind, label] of [["exam", "시험"], ["homework", "과제"]]) {
+        const target = page.getByRole("button", { name: `수정된 ${label} 제목 제목 수정`, exact: true });
+        await target.scrollIntoViewIfNeeded();
+        await expect(target).toBeInViewport();
+        expect((await target.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+        await page.screenshot({ path: testInfo.outputPath(`title-edit-scores-${width}-${kind}.png`), animations: "disabled" });
+      }
     });
   }
 
