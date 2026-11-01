@@ -167,6 +167,7 @@ export default function SubmissionsInboxPage() {
     message: string;
     canReview: boolean;
     resultPath?: string;
+    actionLabel?: string;
   } | null>(null);
 
   // 일괄 선택 — id Set
@@ -327,6 +328,24 @@ export default function SubmissionsInboxPage() {
       });
     },
     onSuccess: (result, input) => {
+      if (
+        result.code === "OMR_GRADING_CONFIGURATION_REQUIRED"
+        && result.recovery?.action === "configure_exam"
+        && result.recovery.exam_id === input.row.target_id
+        && input.row.target_type === "exam" && isTargetResolved(input.row)
+        && input.row.lecture_id && input.row.session_id
+      ) {
+        setIdentificationNotice({
+          row: input.row,
+          message: "학생 지정은 저장됐습니다. 시험 정답표가 없어 채점은 대기 중입니다. 정답을 등록하면 보관된 답안이 다시 채점됩니다.",
+          canReview: false,
+          resultPath: `/workspace/lectures/${input.row.lecture_id}/sessions/${input.row.session_id}/exams?exam_id=${input.row.target_id}&examTab=setup`,
+          actionLabel: "시험 정답 등록",
+        });
+        setPickerRow((current) => current?.id === input.row.id ? null : current);
+        refreshAssignmentResults(input.row);
+        return;
+      }
       const message = result.graded === true && result.projection_ready !== false
         ? "학생 지정과 채점이 완료됐습니다. 결과를 확인해 주세요."
         : result.projection_ready === false
@@ -504,7 +523,7 @@ export default function SubmissionsInboxPage() {
       {identificationNotice && (
         <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4" data-testid="submission-identification-result">
           <p className="min-w-0 flex-1 text-sm">{identificationNotice.message}</p>
-          {identificationNotice.resultPath && <Link to={identificationNotice.resultPath} className="text-sm font-semibold text-[var(--color-primary)] underline underline-offset-4">기존 성적 확인·정정</Link>}
+          {identificationNotice.resultPath && <Link to={identificationNotice.resultPath} className="text-sm font-semibold text-[var(--color-primary)] underline underline-offset-4">{identificationNotice.actionLabel ?? "기존 성적 확인·정정"}</Link>}
           {identificationNotice.canReview && identificationNotice.row.target_type === "exam" && (
             <Button type="button" intent="secondary" size="sm" onClick={() => setReviewRow(identificationNotice.row)}>답안 검토·복구</Button>
           )}
