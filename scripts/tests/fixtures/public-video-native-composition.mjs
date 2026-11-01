@@ -94,6 +94,20 @@ try {
       const frame=page.frameLocator('iframe');await frame.locator('#start').waitFor({timeout:5000});
       if(name==='immediate-child') {
         await frame.locator('body[data-done=yes]').waitFor({timeout:5000});assert.equal(local.hits['/asset'],1);
+        const requestSemantics = await frame.locator('#start').evaluate(async button => {
+          const realm = button.ownerDocument.defaultView;
+          const request = new realm.Request('https://www.youtube.com/asset', {
+            method: 'POST', body: 'clone-body=한글', keepalive: true,
+            credentials: 'include', headers: { 'x-fixture': 'original' },
+          });
+          const clone = request.clone();
+          return { originalBrand: request instanceof realm.Request, cloneBrand: clone instanceof realm.Request,
+            body: await clone.text(), originalBody: await request.text(), method: clone.method,
+            keepalive: clone.keepalive, credentials: clone.credentials, header: clone.headers.get('x-fixture') };
+        });
+        assert.deepEqual(requestSemantics, { originalBrand: true, cloneBrand: true,
+          body: 'clone-body=한글', originalBody: 'clone-body=한글', method: 'POST',
+          keepalive: true, credentials: 'include', header: 'original' });
         guard.assertClean();controller.assertClean();
       } else if(name==='sibling') {
         await page.evaluate(()=>{const f=document.createElement('iframe');f.src='https://www.youtube.com/forbidden';document.body.append(f);});

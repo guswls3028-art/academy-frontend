@@ -895,18 +895,21 @@ async function installNativeKeepaliveGuard(
     const bodies = new WeakMap<InstanceType<typeof NativeRequest>, BodyInit | null | undefined>();
     // A Request exposes only a stream, which cannot be used to reconstruct a
     // keepalive request. Retain its original body synchronously when Axios builds
-    // it; never await request.text() in a departing document.
-    window.Request = class extends NativeRequest {
-      constructor(input: RequestInfo | URL, init?: RequestInit) {
-        super(input, init);
-        bodies.set(this, init?.body ?? (input instanceof NativeRequest ? bodies.get(input) : null));
-      }
-      clone(): InstanceType<typeof NativeRequest> {
-        const copy = super.clone();
-        bodies.set(copy, bodies.get(this));
-        return copy;
-      }
-    };
+    // it; never await request.text() in a departing document. Only the app's
+    // terminal writes use this capture. Preserve provider Request/clone identity.
+    if (location.origin === boundary.webOrigin) {
+      window.Request = class extends NativeRequest {
+        constructor(input: RequestInfo | URL, init?: RequestInit) {
+          super(input, init);
+          bodies.set(this, init?.body ?? (input instanceof NativeRequest ? bodies.get(input) : null));
+        }
+        clone(): InstanceType<typeof NativeRequest> {
+          const copy = super.clone();
+          bodies.set(copy, bodies.get(this));
+          return copy;
+        }
+      };
+    }
     const violationKey = "academy:release-native-keepalive-defects";
     const binding = (window as unknown as {
       __academyReleaseKeepaliveViolation: (code: string) => Promise<void>;

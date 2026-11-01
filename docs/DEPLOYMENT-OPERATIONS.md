@@ -26,9 +26,13 @@
 frame 신뢰·이탈, 모든 redirect의 원래 제한, deadline, close/drain을 닫힌 fixture로 먼저
 검증해야 하며, 준비되지 않은 native 경로 또는 기존 relay만의 단순 재시도는 실행하지 않는다.
 `scripts/tests/public-video-native-diagnostic.test.mjs`는 실제 Chromium으로 닫힌 응답·프레임
-20건, 종료·설정 실패 6건, 변경하지 않은 release guard와 정확한 메모리 adapter의 합성
+20건, 종료·설정 실패 6건, 실제 release guard와 정확한 메모리 adapter의 합성
 6건, 승인된 열린 body와 아직 응답 헤더를 기다리는 종료 3건, 명시적 요청 취소와
 모호하거나 이미 허용된 요청의 실패 경계 4건을 확인한다.
+release guard의 `Request` 원본 body 캡처는 앱 origin에만 적용한다. 공급자 iframe의
+`Request.clone()`은 원래 생성자 판정과 body·header·credentials·keepalive 의미를 유지하며,
+실제 Chromium의 폐쇄 합성 검사로 확인한다. 앱의 pagehide body 보존과 기존 요청 admission,
+인증 정보·redirect 제한은 그대로 요구한다. 이 호환성 보강만으로 bot-check 해소를 주장하지 않는다.
 합성 검사는 임시 자체 서명 TLS와 loopback만 연결하는 닫힌 proxy에서
 실제 HTTPS 분류를 유지하며 외부 공급자에 연결하지 않는다. 두 비교 context의 작업 제한은
 각 30초이며 각 정리 단계에는 별도의 최대 5초 제한이 있다. guard/native drain과
