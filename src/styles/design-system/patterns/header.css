@@ -201,14 +201,16 @@
 }
 
 @media (max-width: 480px) {
-  [data-app="admin"] .app-header__profileDropdownOverlay--workbox {
+  [data-app="admin"] .app-header__profileDropdownOverlay {
     position: fixed;
     top: calc(var(--panel-header) + 4px);
     right: 12px;
     left: 12px;
+    display: flex;
+    justify-content: flex-end;
   }
 
-  .app-header__profileDropdownOverlay--workbox .app-header__alarmDropdown {
+  [data-app="admin"] .app-header__profileDropdownOverlay .app-header__alarmDropdown {
     width: 100%;
     min-width: 0;
     max-width: none;
