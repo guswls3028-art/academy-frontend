@@ -15,6 +15,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { deleteSessionExam } from "@admin/domains/exams/public/sessionExamActions";
 import { invalidateSessionExamQueries } from "@admin/domains/sessions/public/assessmentQueries";
 import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
+import { AssessmentTitleEditButton } from "@admin/domains/sessions/public/titleEditing";
 import MenuAction from "./AssessmentHeaderMenuAction";
 import styles from "./ExamHeaderActionMenu.module.css";
 
@@ -153,6 +154,7 @@ export default function ExamHeaderActionMenu({
           <ParentAssessmentCommentsPanel sessionId={sessionId} assessmentKind="exam" assessmentId={examId} title={examTitle} onClose={() => setCommentsOpen(false)} />
         </Suspense>
       )}
+      <span className="inline-flex min-w-0 max-w-full flex-col items-center gap-1">
       <Popover
         content={menu}
         trigger="click"
@@ -188,6 +190,8 @@ export default function ExamHeaderActionMenu({
           />
         </button>
       </Popover>
+      <AssessmentTitleEditButton key={examId} kind="exam" id={examId} title={examTitle} compact />
+      </span>
 
       <ExamHeaderQuickEdit
         examId={examId}

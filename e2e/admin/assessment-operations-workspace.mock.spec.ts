@@ -633,6 +633,38 @@ test("@essay-answer 수학 단답은 한 줄 숫자 입력과 저장을 유지�
 });
 
 for (const width of [1366, 390]) {
+test(`@title-edit ${width}px 시험 제목을 직접 수정하고 실패·충돌 복구와 재조회를 확인한다`, async ({ page }, testInfo) => {
+  const state = recoveryExamState();
+  await page.setViewportSize({ width, height: 844 });
+  await openExam(page, state);
+  const header = page.locator('.assessment-detail-header');
+  await header.getByRole('button', { name: /제목 수정/ }).click();
+  const dialog = page.getByRole('dialog', { name: '시험 제목 수정', exact: true });
+  const input = dialog.getByRole('textbox', { name: '시험 제목', exact: true });
+  await expect(input).toBeEnabled();
+  await input.fill('');
+  await expect(dialog.getByRole('button', { name: '저장', exact: true })).toBeDisabled();
+  await input.fill('지구온난화 + 엘니뇨 사회학 시험 제목 수정');
+  state.examPatchFailure = { status: 400, body: { title: ['제목을 확인해 주세요.'] } };
+  await dialog.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('제목을 확인');
+  await expect(input).toHaveValue('지구온난화 + 엘니뇨 사회학 시험 제목 수정');
+  state.examPatchFailure = undefined;
+  state.exam = { ...state.exam, title: '다른 화면의 제목', updated_at: '2026-08-03T00:00:00Z' };
+  await dialog.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('다른 화면에서 변경');
+  await dialog.getByRole('button', { name: '최신 제목 확인', exact: true }).click();
+  await expect(dialog.getByText('현재 제목: 다른 화면의 제목')).toBeVisible();
+  await expect(input).toHaveValue('지구온난화 + 엘니뇨 사회학 시험 제목 수정');
+  await page.screenshot({ path: testInfo.outputPath(`title-edit-exam-${width}.png`), animations: 'disabled' });
+  await dialog.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(state.examPatchPayloads.at(-1)).toEqual({ title: '지구온난화 + 엘니뇨 사회학 시험 제목 수정' });
+  await expect(header.getByRole('heading')).toHaveText('지구온난화 + 엘니뇨 사회학 시험 제목 수정');
+  await page.reload();
+  await expect(header.getByRole('heading')).toHaveText('지구온난화 + 엘니뇨 사회학 시험 제목 수정');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
 test(`@policy-recovery ${width}px 최신 시험 설정 조회 실패는 작성 중인 값을 유지하고 복구 후 다시 저장한다`, async ({ page }, testInfo) => {
   const state = recoveryExamState();
   await page.setViewportSize({ width, height: 844 });
