@@ -608,7 +608,7 @@ async function verifyDirectAnswerEntry(
     await student.click();
     const drawer = page.locator(".student-scores-drawer");
     await drawer.locator(".student-scores-drawer__exam-header").filter({ hasText: EXAM_TITLE }).click();
-    await drawer.getByRole("button", { name: "답안 상세 보기", exact: true }).click();
+    await drawer.getByRole("button", { name: "답안 보기·입력", exact: true }).click();
     return page.getByRole("dialog").filter({ hasText: `${EXAM_TITLE} 답안 상세` });
   };
   const closeAnswer = async () => {
