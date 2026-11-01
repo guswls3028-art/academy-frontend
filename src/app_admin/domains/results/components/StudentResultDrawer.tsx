@@ -261,13 +261,14 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     setMainTab("answer");
     setIsEditMode(true);
   };
-  const finishEditing = async (close: boolean) => {
+  const finishEditing = async (close: boolean, nextAttempt?: number) => {
     if (isFinishingEdit) return;
     setIsFinishingEdit(true);
     try {
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
       await editorRef.current?.flush();
       setIsEditMode(false);
+      if (nextAttempt != null) setSelectedAttempt(nextAttempt);
       invalidateAll();
       if (close) onClose();
     } catch {
@@ -451,7 +452,8 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                     key={n}
                     type="button"
                     className={`srd-attempt-tab ${selectedAttempt === n ? "srd-attempt-tab--active" : ""} ${entry?.passed === true ? "srd-attempt-tab--pass" : ""}`}
-                    onClick={() => { setSelectedAttempt(n); setIsEditMode(false); }}
+                    disabled={isFinishingEdit}
+                    onClick={() => { void finishEditing(false, n); }}
                   >
                     {n}차{n === 1 ? " 응시" : wrongCompletionOnly ? " 추가 기록" : " 재시험"}
                     {entry && (
@@ -882,6 +884,7 @@ function EditModeContent({ sessionId, examId, enrollmentId, choiceItems, essayIt
 
   return (
     <div className="srd-edit">
+      {queue.storageError && <div className="srd-modal__error" role="alert">{queue.storageError}</div>}
       {queue.error && <div className="srd-modal__error" role="alert">
         <span>{queue.error}</span>{" "}
         <Button intent="secondary" size="sm" disabled={queue.isSaving} onClick={() => {

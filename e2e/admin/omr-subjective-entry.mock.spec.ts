@@ -802,12 +802,29 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     expect(unexpectedMutations).toEqual([]);
   });
 
-  for (const mode of ["delay-close", "delay-done", "500", "409"] as const) {
+  for (const mode of ["delay-close", "delay-done", "delay-attempt", "500", "409", "quota", "readback"] as const) {
     test(`기존 답안 수정은 저장 완료 전 닫기·잠금을 보류하고 실패를 복구한다 (${mode})`, async ({ page }) => {
       await page.setViewportSize({ width: mode === "409" || mode === "delay-done" ? 390 : 1366, height: 900 });
       const unexpectedMutations = await openScores(page);
+      const storageFailure = mode === "quota" || mode === "readback";
+      if (storageFailure) {
+        await page.getByRole("tab", { name: "출결", exact: true }).click();
+        await page.getByRole("tab", { name: "성적", exact: true }).click();
+        await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeVisible();
+        await page.evaluate((failure) => {
+          const original = Storage.prototype.setItem;
+          Storage.prototype.setItem = function (key: string, value: string) {
+            if (this === window.sessionStorage && key.startsWith("answer-draft:")
+                && !window.sessionStorage.getItem("qa-answer-storage-restored")) {
+              if (failure === "quota") throw new DOMException("synthetic quota", "QuotaExceededError");
+              return;
+            }
+            original.call(this, key, value);
+          };
+        }, mode);
+      }
       let answer = "1";
-      let failPatch = mode === "500" || mode === "409";
+      let failPatch = mode === "500" || mode === "409" || storageFailure;
       const events: string[] = [];
       let finishPatch!: () => void;
       const delay = new Promise<void>((resolve) => { finishPatch = resolve; });
@@ -826,7 +843,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
           events.push("patch-start");
           if (mode.startsWith("delay")) await delay;
           if (failPatch) {
-            return route.fulfill({ status: Number(mode), json: { detail: "synthetic save failure", code: "SCORE_EDIT_LOCKED" } });
+            return route.fulfill({ status: mode === "409" ? 409 : 500, json: { detail: "synthetic save failure", code: "SCORE_EDIT_LOCKED" } });
           }
           answer = request.postDataJSON().answer;
           events.push("patch-ok");
@@ -834,6 +851,12 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
         }
         if (path.endsWith(`/exams/${MIXED_EXAM_ID}/questions/`) && method === "GET") {
           return route.fulfill({ json: [{ id: 10001, number: 1, score: 100, kind: "choice" }] });
+        }
+        if (path.endsWith("/results/admin/attempt-history/") && method === "GET") {
+          return route.fulfill({ json: {
+            source_type: "exam", source_id: MIXED_EXAM_ID, max_score: 100,
+            attempts: [1, 2].map((attempt_index) => ({ attempt_index, score: 0, max_score: 100, passed: false })),
+          } });
         }
         if (path.endsWith(`/results/admin/exams/${MIXED_EXAM_ID}/enrollments/9911/`) && method === "GET") {
           return route.fulfill({ json: {
@@ -863,7 +886,8 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "4", exact: true }).click();
       await expect.poll(() => events.filter((event) => event === "patch-start").length).toBe(1);
       if (mode.startsWith("delay")) {
-        await dialog.getByRole("button", { name: mode === "delay-close" ? "닫기" : "수정 완료", exact: true }).click();
+        if (mode === "delay-attempt") await dialog.getByRole("button", { name: /2차 재시험/ }).click();
+        else await dialog.getByRole("button", { name: mode === "delay-close" ? "닫기" : "수정 완료", exact: true }).click();
         await expect(dialog).toBeVisible();
         await expect(dialog.locator(".srd-edit__choice-row")).toBeVisible();
         expect(answer).toBe("1");
@@ -871,6 +895,10 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
         finishPatch();
         if (mode === "delay-close") await expect(dialog).toHaveCount(0);
         else {
+          if (mode === "delay-attempt") {
+            await expect(dialog.locator(".srd-edit__choice-row")).toHaveCount(0);
+            await dialog.getByRole("button", { name: /1차 응시/ }).click();
+          }
           await expect(dialog.locator(".srd-read__choice-ans")).toHaveText("1,4");
           await dialog.getByRole("button", { name: "닫기", exact: true }).click();
         }
@@ -881,6 +909,24 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
         await expect(dialog.locator(".srd-edit__bubble--correct")).toHaveText(["1", "4"]);
         expect(answer).toBe("1");
         expect(events).not.toContain("release");
+        if (storageFailure) {
+          await expect(dialog.getByRole("alert").filter({ hasText: "브라우저에 복구 답안을 보관하지 못했습니다" })).toBeVisible();
+          await page.goBack();
+          await expect(page).not.toHaveURL(/\/scores/);
+          expect(await page.evaluate(() => {
+            const event = new Event("beforeunload", { cancelable: true });
+            window.dispatchEvent(event);
+            return event.defaultPrevented;
+          })).toBe(true);
+          await page.goForward();
+          await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeVisible();
+          await page.getByRole("button", { name: "수정", exact: true }).click();
+          const restored = await openAnswer();
+          await restored.getByRole("button", { name: "성적 수정", exact: true }).click();
+          await expect(restored.locator(".srd-edit__bubble--correct")).toHaveText(["1", "4"]);
+          await expect(restored.getByRole("alert").filter({ hasText: "복원했습니다" })).toBeVisible();
+          await page.evaluate(() => window.sessionStorage.setItem("qa-answer-storage-restored", "1"));
+        }
         failPatch = false;
         await dialog.getByRole("button", { name: "다시 저장", exact: true }).click();
         await expect.poll(() => answer).toBe("1,4");
@@ -891,6 +937,11 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
       await expect.poll(() => events.includes("release")).toBe(true);
       expect(events.indexOf("release")).toBeGreaterThan(events.indexOf("patch-ok"));
+      expect(await page.evaluate(() => {
+        const event = new Event("beforeunload", { cancelable: true });
+        window.dispatchEvent(event);
+        return event.defaultPrevented;
+      })).toBe(false);
       await page.reload({ waitUntil: "domcontentloaded" });
       const readback = await openAnswer();
       await expect(readback.locator(".srd-read__choice-ans")).toHaveText("1,4");
