@@ -150,9 +150,11 @@ export function useScoreEditDraft({
   const saveNow = useCallback(async function savePendingScores(
     preservedPanel?: SessionScoresPanelHandle | null,
   ): Promise<ScoreFlushResult> {
+    const panel = preservedPanel ?? panelRef.current;
+    await panel?.flushAnswerChanges?.();
     if (savePromiseRef.current) {
       const inFlight = savePromiseRef.current;
-      const queuedPanel = preservedPanel ?? panelRef.current;
+      const queuedPanel = panel;
       const savedCount = await inFlight;
       if (savePromiseRef.current === inFlight) savePromiseRef.current = null;
       const queuedPending = queuedPanel?.getPendingSnapshot?.() ?? [];
@@ -175,8 +177,6 @@ export function useScoreEditDraft({
 
     // SPA 탭 전환은 panel ref를 즉시 해제할 수 있으므로 presence queue를
     // 기다리기 전에 현재 handle을 보존한다.
-    const panel = preservedPanel ?? panelRef.current;
-    await panel?.flushAnswerChanges?.();
     await drainPresenceQueue();
     if (savePromiseRef.current) return savePendingScores(panel);
 
@@ -589,7 +589,10 @@ export function useScoreEditDraft({
     const handler = (e: BeforeUnloadEvent) => {
       panelRef.current?.commitActiveCell?.();
       const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
-      if (snapshot.length === 0 && !panelRef.current?.hasPendingAnswerChanges?.()) return;
+      if (snapshot.length === 0) {
+        if (panelRef.current?.hasPendingAnswerChanges?.()) e.preventDefault();
+        return;
+      }
       writeLocalDraft(localDraftKey, snapshot);
       // 미저장 데이터가 있으면 항상 경고 (셀 수/경과 시간 무관)
       e.preventDefault();
