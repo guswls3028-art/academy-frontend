@@ -117,6 +117,15 @@ function isTargetResolved(row: PendingSubmissionRow): boolean {
   return row.target_resolved === true;
 }
 
+const CONFIGURATION_MISSING = new Set(["answer_key", "sheet", "grading_configuration"]);
+const CONFIGURATION_REASON = "문항·정답 설정을 확인해야 하므로 채점이 대기 중입니다.";
+
+function examSetupPath(row: PendingSubmissionRow, recovery: { action?: string; exam_id?: number } | null | undefined): string | undefined {
+  if (row.target_type !== "exam" || !isTargetResolved(row) || !row.lecture_id || !row.session_id
+    || recovery?.action !== "configure_exam" || recovery.exam_id !== row.target_id) return undefined;
+  return `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}&examTab=setup`;
+}
+
 const DISCARD_REASON_LABEL: Record<string, string> = {
   scan_quality: "스캔 품질",
   wrong_upload: "오업로드",
@@ -337,10 +346,10 @@ export default function SubmissionsInboxPage() {
       ) {
         setIdentificationNotice({
           row: input.row,
-          message: "학생 지정은 저장됐습니다. 시험 정답표가 없어 채점은 대기 중입니다. 정답을 등록하면 보관된 답안이 다시 채점됩니다.",
+          message: `학생 지정은 저장됐습니다. ${CONFIGURATION_REASON} 설정을 완료하면 보관된 답안을 다시 채점할 수 있습니다.`,
           canReview: false,
           resultPath: `/workspace/lectures/${input.row.lecture_id}/sessions/${input.row.session_id}/exams?exam_id=${input.row.target_id}&examTab=setup`,
-          actionLabel: "시험 정답 등록",
+          actionLabel: "문항·정답 설정",
         });
         setPickerRow((current) => current?.id === input.row.id ? null : current);
         refreshAssignmentResults(input.row);
@@ -373,6 +382,19 @@ export default function SubmissionsInboxPage() {
         message?: string;
       };
       const recovery = err.response?.data?.recovery;
+      const setupPath = examSetupPath(input.row, recovery);
+      if (err.response?.status === 409 && err.response.data?.code === "OMR_GRADING_CONFIGURATION_CONFLICT" && setupPath) {
+        setIdentificationNotice({
+          row: input.row,
+          message: "문항·정답 설정을 먼저 확인해 주세요. 이번 변경은 저장되지 않았으며 기존 답안과 성적은 유지됩니다.",
+          canReview: false,
+          resultPath: setupPath,
+          actionLabel: "문항·정답 설정",
+        });
+        setPickerRow((current) => current?.id === input.row.id ? null : current);
+        refreshAssignmentResults(input.row);
+        return;
+      }
       if (
         err.response?.status === 409 && err.response.data?.code === "OMR_ATTEMPT_CONFLICT"
         && recovery?.action === "review_existing_result"
@@ -779,6 +801,10 @@ function SubmissionRow({
   const isDone = row.status === "done";
   const isAnswersReady = row.status === "answers_ready";
   const isSuperseded = row.status === "superseded";
+  const setupPath = !isDiscardedRow && !isSuperseded && !isProcessing
+    && row.omr_readiness?.can_grade === false
+    && row.omr_readiness.missing.some((reason) => CONFIGURATION_MISSING.has(reason))
+    ? examSetupPath(row, row.recovery) : undefined;
   const hasFile = row.has_file === true;
   const fileName = submissionFileName(row.file_name);
   const fileMeta = hasFile
@@ -842,6 +868,11 @@ function SubmissionRow({
         >
           {targetTitleDisplay}
         </p>
+        {setupPath && (
+          <p className="mt-1 text-xs text-[var(--color-text-secondary)]" data-testid={`submission-readiness-${row.id}`}>
+            {CONFIGURATION_REASON}
+          </p>
+        )}
         <p
           className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-[var(--color-text-muted)]"
           data-testid={`submission-file-meta-${row.id}`}
@@ -856,7 +887,7 @@ function SubmissionRow({
       <span className="hidden flex-1 sm:block" />
 
       <Badge variant="solid" tone={tone} className="flex-shrink-0">
-        {statusLabel}
+        {setupPath ? "설정 확인 필요" : statusLabel}
       </Badge>
 
       <span className="text-xs text-[var(--color-text-muted)] flex-shrink-0 tabular-nums">
@@ -864,6 +895,11 @@ function SubmissionRow({
       </span>
 
       <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 flex-shrink-0">
+        {setupPath && (
+          <Link to={setupPath} className="rounded px-2 py-1.5 text-sm font-medium text-[var(--color-primary)] underline underline-offset-2" data-testid={`submission-setup-${row.id}`}>
+            문항·정답 설정
+          </Link>
+        )}
         {isExam && resolved && !isProcessing && !isSuperseded && !isDiscardedRow && (row.source === "omr_scan" || row.source === "omr_manual" || row.source === "scan") && (
           <Button type="button" intent="secondary" size="sm" disabled={busy} onClick={onReview} data-testid={`submission-review-${row.id}`}>답안 검토·복구</Button>
         )}
@@ -916,7 +952,7 @@ function SubmissionRow({
             대체됨
           </span>
         )}
-        {(isDone || isAnswersReady) && resolved && (
+        {(isDone || isAnswersReady) && resolved && !setupPath && (
           <Button type="button" intent="primary" size="sm" onClick={onNavigate} className="shrink-0">
             결과 보기
           </Button>
