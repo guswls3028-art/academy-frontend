@@ -38,6 +38,7 @@ async function installSubmissionApi(page: Page, options: {
   failReview?: boolean;
   wrongReviewExam?: boolean;
   assignmentConflict?: "matching" | "mismatch";
+  missingAnswerKey?: boolean;
 } = {}) {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
@@ -151,6 +152,15 @@ async function installSubmissionApi(page: Page, options: {
     if (path === "/submissions/submissions/501/manual-edit/" && request.method() === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
       assignmentBodies.push(body);
+      if (options.missingAnswerKey) {
+        assigned = true;
+        return json(route, {
+          submission_id: 501, enrollment_id: 901, status: "answers_ready", graded: false,
+          code: "OMR_GRADING_CONFIGURATION_REQUIRED",
+          readiness: { can_grade: false, missing: ["answer_key"] },
+          recovery: { action: "configure_exam", exam_id: 77 },
+        });
+      }
       if (options.assignmentConflict) return json(route, {
         code: "OMR_ATTEMPT_CONFLICT", detail: "기존 성적과 충돌합니다.",
         recovery: { action: "review_existing_result", exam_id: options.assignmentConflict === "matching" ? 77 : 78, enrollment_id: 901 },
@@ -333,6 +343,23 @@ for (const assignmentConflict of ["matching", "mismatch"] as const) {
     expect(calls.assignmentBodies[0].answers).toEqual([]);
   });
 }
+
+test("@assignment-recovery 정답키 누락은 배정을 보존하고 해당 시험 정답 등록으로 연결한다", async ({ page }) => {
+  const calls = await installSubmissionApi(page, { missingAnswerKey: true });
+  await page.setViewportSize({ width: 390, height: 900 });
+  await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 60_000 });
+  await page.getByTestId("submission-preview-501").click();
+  await page.getByRole("button", { name: "확인하고 학생 지정" }).click();
+  await page.getByRole("dialog", { name: "학생 선택" }).getByText("김학생", { exact: true }).click();
+  const notice = page.getByTestId("submission-identification-result");
+  await expect(notice).toContainText("학생 지정은 저장됐습니다");
+  await expect(notice).toContainText("시험 정답표가 없어 채점은 대기 중");
+  await expect(notice.getByRole("link", { name: "시험 정답 등록" })).toHaveAttribute("href", "/workspace/lectures/31/sessions/44/exams?exam_id=77&examTab=setup");
+  expect(calls.assignmentBodies[0].answers).toEqual([]);
+  await page.reload();
+  await expect(page.getByTestId("submission-inbox-501")).toContainText("김학생");
+  expect(calls.assignmentBodies).toHaveLength(1);
+});
 
 test("제출 파일을 확인한 뒤에만 학생을 지정한다", async ({ page }) => {
   const calls = await installSubmissionApi(page);

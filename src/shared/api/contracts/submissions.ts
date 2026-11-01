@@ -169,6 +169,9 @@ export type SubmissionManualEditInput = {
 };
 
 export type SubmissionManualEditResult = {
+  code?: string;
+  readiness?: { can_grade: boolean; missing: string[] };
+  recovery?: { action: string; exam_id: number };
   submission_id?: number;
   status?: ExamSubmissionStatus;
   updated?: number;
