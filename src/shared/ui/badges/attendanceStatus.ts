@@ -46,6 +46,12 @@ export const ATTENDANCE_META: Record<
   SECESSION: { label: "퇴원", short: "퇴", tone: "danger" },
 };
 
+/** 화면 크기·역할과 관계없이 출결 상태 이름은 이 정의를 사용한다. */
+export function getAttendanceLabel(status: string | null | undefined): string {
+  if (!status) return ATTENDANCE_META.UNSET.label;
+  return ATTENDANCE_META[status as AttendanceStatus]?.label ?? status;
+}
+
 /** 한글자 출결 뱃지용 — 매트릭스 테이블 셀 등 */
 export function getAttendanceShortLabel(status: string | null | undefined): string {
   if (!status) return "－";

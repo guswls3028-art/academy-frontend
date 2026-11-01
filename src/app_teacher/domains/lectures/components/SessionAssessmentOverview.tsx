@@ -84,7 +84,7 @@ export default function SessionAssessmentOverview({ scores, creationPath }: { sc
   if (!assessments.length) return (
     <EmptyState scope="panel" tone="empty" title="이 차시에 등록된 시험과 과제가 없습니다"
       description="시험이나 과제를 추가하면 학생별 성적을 함께 확인할 수 있습니다."
-      actions={<EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate(creationPath); }}>PC 화면에서 시험·과제 추가</EmptyActionButton>} />
+      actions={<EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate(creationPath); }}>시험·과제 추가</EmptyActionButton>} />
   );
   if (!scores.rows.length) return <EmptyState scope="panel" tone="empty" title="조회할 학생이 없습니다" description="차시의 수강생 배정을 확인해 주세요." />;
   return (

@@ -9,6 +9,7 @@ import api from "@student/shared/api/student.api";
 import { formatYmd } from "@student/shared/utils/date";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
+import { getAttendanceLabel } from "@/shared/ui/badges/attendanceStatus";
 import styles from "./AttendancePage.module.css";
 
 type AttendanceSummary = {
@@ -28,20 +29,6 @@ type AttendanceSummary = {
     status: string;
     can_view_session?: boolean;
   }>;
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  UNSET: "미입력",
-  PRESENT: "출석",
-  ONLINE: "온라인",
-  SUPPLEMENT: "보강",
-  LATE: "지각",
-  EARLY_LEAVE: "조퇴",
-  ABSENT: "결석",
-  RUNAWAY: "이탈",
-  MATERIAL: "자료",
-  INACTIVE: "부재",
-  SECESSION: "퇴원",
 };
 
 type AttendanceTone = "success" | "warn" | "danger" | "neutral";
@@ -104,7 +91,7 @@ export default function AttendancePage() {
   const hasAny = summary.total > 0;
 
   return (
-    <StudentPageShell title="출결 현황" description="누적 출결과 최근 차시 상태입니다. 출석은 현장·온라인·보강을 합산하며, 전체에는 미입력·자료·부재·퇴원 기록도 포함됩니다." descriptionMode="help">
+    <StudentPageShell title="출결 현황" description="누적 출결과 최근 차시 상태입니다. 출석은 현장·영상·보강을 합산하며, 전체에는 미입력·자료·부재·퇴원 기록도 포함됩니다." descriptionMode="help">
       {!hasAny ? (
         <EmptyState
           title="출결 기록이 없습니다"
@@ -141,7 +128,7 @@ export default function AttendancePage() {
                     className={styles.statusPill}
                     data-tone={STATUS_TONE[row.status] ?? "neutral"}
                   >
-                    {STATUS_LABEL[row.status] || row.status}
+                    {getAttendanceLabel(row.status)}
                   </span>
                 </>;
                 return row.can_view_session === true ? (

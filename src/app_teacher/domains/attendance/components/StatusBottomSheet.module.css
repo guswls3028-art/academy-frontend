@@ -38,3 +38,8 @@
   font-size: 14px;
   font-weight: 700;
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .option { transition: background-color 140ms ease, border-color 140ms ease; }
+  .option:active { transform: scale(0.98); }
+}

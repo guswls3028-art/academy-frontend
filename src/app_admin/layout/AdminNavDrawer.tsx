@@ -10,6 +10,7 @@ import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
 import useAuth from "@/auth/hooks/useAuth";
 import { consumeMobileWorkspaceReturnPath, setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import styles from "./AdminNavDrawer.module.css";
+import { HeaderCenterStaffClock } from "@admin/domains/staff/components/HeaderCenterStaffClock";
 
 export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
   const layout = useAdminLayout();
@@ -31,8 +32,12 @@ export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickN
       open={open}
       onClose={onClose}
       size={280}
+      getContainer={false}
       rootClassName={styles.drawer}
     >
+      <section className={styles.staffOverview} aria-label="근무 현황">
+        <HeaderCenterStaffClock />
+      </section>
       <div className={styles.quickNavigationWrap}>
         <button
           type="button"
@@ -77,7 +82,7 @@ export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickN
         ))}
       </div>
 
-      {/* 모바일에서만 표시: 모바일 버전으로 돌아가기 */}
+      {/* 모바일에서만 표시: 간편 업무으로 돌아가기 */}
       {isMobile && (
         <div className={styles.teacherReturn}>
           <button
@@ -90,7 +95,7 @@ export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickN
             className={styles.teacherReturnButton}
           >
             <Smartphone size={18} aria-hidden />
-            모바일 버전
+            간편 업무
           </button>
         </div>
       )}

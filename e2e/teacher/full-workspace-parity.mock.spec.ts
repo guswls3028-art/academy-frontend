@@ -88,7 +88,45 @@ async function expectNoHorizontalOverflow(page: Page) {
 test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
-test("모바일 PC 버전 허브의 모든 정적 목적지는 executable canonical route다", () => {
+for (const role of ["owner", "admin", "teacher", "staff"] as const) {
+  test(`기기와 관계없이 같은 업무 홈·메뉴·경로를 제공한다 ${role}`, async ({ page }) => {
+    await installWorkspaceMocks(page, { role });
+    await page.route("**/api/v1/staffs/currently-working/**", (route) => route.fulfill({ json: [
+      { staff_id: 99, staff_name: "근무 검증 강사", role: "TEACHER", date: "2026-11-01", started_at: "09:00:00", work_type_name: "강의" },
+    ] }));
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await gotoAndSettle(page, `${BASE}/`);
+    await expect(page).toHaveURL(/\/workspace(?:\/dashboard)?$/);
+    await expect(page.locator('[data-app="admin"]')).toBeVisible();
+    await expect(page.getByLabel("근무 중인 직원").getByText("근무 검증 강사", { exact: true })).toBeVisible();
+    const desktopLinks = await page.locator("aside.sidebar a[href^='/workspace']").evaluateAll((links) =>
+      links.map((link) => ({ href: link.getAttribute("href"), text: link.textContent?.trim() })).sort((a, b) => (a.href ?? "").localeCompare(b.href ?? "")));
+    expect(desktopLinks.length).toBeGreaterThan(5);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await expect(page).toHaveURL(/\/workspace(?:\/dashboard)?$/);
+    await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
+    const drawer = page.getByRole("dialog", { name: "메뉴", exact: true });
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByLabel("근무 중인 직원").getByText("근무 검증 강사", { exact: true })).toBeVisible();
+    const mobileLinks = await drawer.locator("a[href^='/workspace']").evaluateAll((links) =>
+      links.map((link) => ({ href: link.getAttribute("href"), text: link.textContent?.trim() })).sort((a, b) => (a.href ?? "").localeCompare(b.href ?? "")));
+    expect(mobileLinks).toEqual(desktopLinks);
+    await drawer.getByText("근무 검증 강사", { exact: true }).click();
+    await expect(page.getByText("근무시간", { exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({ path: test.info().outputPath(`shared-menu-${role}-390.png`), fullPage: true });
+    await drawer.getByRole("link", { name: "학생", exact: true }).click();
+    await expect(page).toHaveURL(/\/workspace\/students(?:\/home)?$/);
+    await page.reload();
+    await expect(page.locator('[data-app="admin"]')).toBeVisible();
+    await expect(page.getByPlaceholder("이름 / 아이디 / 전화번호 / 학교 검색", { exact: true })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.screenshot({ path: test.info().outputPath(`shared-workspace-${role}-390.png`), fullPage: true });
+  });
+}
+
+test("모바일 전체 업무 허브의 모든 정적 목적지는 executable canonical route다", () => {
   const source = [
     "src/app_teacher/domains/profile/pages/DesktopOnlyPage.tsx",
     "src/shared/ui/navigation/useWorkspaceFeatures.tsx",
@@ -173,7 +211,7 @@ test("390px 원장은 검색과 전체 기능 링크를 쓰고 권한 밖 mutati
   await expectNoHorizontalOverflow(page);
 
   await page.getByRole("button", { name: "메뉴", exact: true }).click();
-  await page.getByRole("button", { name: "모바일 버전", exact: true }).click();
+  await page.getByRole("button", { name: "간편 업무", exact: true }).click();
   await expect(page).toHaveURL(/\/workspace\/mobile\/desktop-only$/);
 
   expect(apiRequests.filter(({ method }) => method !== "GET")).toEqual([]);
@@ -207,7 +245,7 @@ test("390px 선생님 가이드에서 시험 생성 PC 화면으로 이어지고
   await page.getByRole("link", { name: "기능 찾기와 PC 업무 이어가기 화면 열기" }).click();
   await expect(page).toHaveURL(/\/workspace\/mobile\/desktop-only$/);
   await expect(page.getByRole("heading", { name: "기능 찾기", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "PC 버전 홈", exact: true }).click();
+  await page.getByRole("button", { name: "전체 업무 홈", exact: true }).click();
   await expect(page).toHaveURL(/\/workspace\/dashboard$/);
 
   await gotoAndSettle(page, `${BASE}/workspace/guide`, { timeout: 20_000 });
@@ -243,7 +281,7 @@ test("Mac 데스크톱은 구형 모바일 강제값에 갇히지 않는다", as
   await expect(page.locator('aside[data-analytics-placement="admin.sidebar"]')).toBeVisible();
 });
 
-test("좁은 Mac 창의 선생님도 눈에 띄는 PC 버전 버튼으로 전환한다", async ({ page }) => {
+test("좁은 Mac 창의 선생님도 눈에 띄는 전체 업무 버튼으로 전환한다", async ({ page }) => {
   await installWorkspaceMocks(page, { role: "teacher" });
   await page.setViewportSize({ width: 980, height: 844 });
   await page.addInitScript(() => {
@@ -256,7 +294,7 @@ test("좁은 Mac 창의 선생님도 눈에 띄는 PC 버전 버튼으로 전환
   await gotoAndSettle(page, `${BASE}/workspace/mobile`, { timeout: 20_000 });
   await page.getByRole("button", { name: "메뉴", exact: true }).click();
 
-  const pcVersion = page.getByRole("button", { name: "PC 버전", exact: true });
+  const pcVersion = page.getByRole("button", { name: "전체 업무", exact: true });
   await expect(pcVersion).toBeVisible();
   await pcVersion.click();
   await expect(page).toHaveURL(/\/workspace(?:\/dashboard)?$/);

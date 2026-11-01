@@ -172,12 +172,12 @@ async function openContextualPcVersion(page: Page) {
   await page.getByRole("button", { name: "메뉴", exact: true }).click();
   const support = page.getByRole("button", { name: /지원/ });
   if (await support.isVisible()) await support.click();
-  await page.getByRole("button", { name: "PC 버전", exact: true }).last().click();
+  await page.getByRole("button", { name: "전체 업무", exact: true }).last().click();
 }
 
 async function returnToMobileVersion(page: Page) {
   await page.getByRole("button", { name: "메뉴", exact: true }).click();
-  await page.getByRole("button", { name: "모바일 버전", exact: true }).click();
+  await page.getByRole("button", { name: "간편 업무", exact: true }).click();
 }
 
 async function expectNoHorizontalOverflow(page: Page) {

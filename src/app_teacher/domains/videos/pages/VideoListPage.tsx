@@ -30,9 +30,7 @@ const STATUS_COLOR: Record<VideoStatus, { color: string; bg: string }> = {
 
 const STATUS_FILTER_OPTIONS: Array<{ key: StatusFilter; label: string }> = [
   { key: "all", label: "전체" },
-  { key: "PROCESSING", label: "처리 중" },
-  { key: "READY", label: "시청 가능" },
-  { key: "FAILED", label: "실패" },
+  ...Object.entries(VIDEO_STATUS_LABEL).map(([key, label]) => ({ key: key as VideoStatus, label })),
 ];
 
 const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [

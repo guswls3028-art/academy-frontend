@@ -269,7 +269,7 @@ test.describe("업무 화면 기능 검색", () => {
     await finder.getByRole("button", { name: /삭제 학생 복원/ }).click();
     await expect(page).toHaveURL(/\/workspace\/students\/deleted$/);
     await page.getByRole("button", { name: "메뉴", exact: true }).click();
-    await page.getByRole("button", { name: "모바일 버전", exact: true }).click();
+    await page.getByRole("button", { name: "간편 업무", exact: true }).click();
     await expect(page).toHaveURL(/\/workspace\/mobile\/desktop-only$/);
   });
 
@@ -282,7 +282,7 @@ test.describe("업무 화면 기능 검색", () => {
     await finder.getByRole("button", { name: /삭제 학생 복원/ }).click();
     await expect(page).toHaveURL(/\/workspace\/students\/deleted$/);
     await page.getByRole("button", { name: "메뉴", exact: true }).click();
-    await page.getByRole("button", { name: "모바일 버전", exact: true }).click();
+    await page.getByRole("button", { name: "간편 업무", exact: true }).click();
     await expect(page).toHaveURL(/\/workspace\/mobile\/guide$/);
   });
 

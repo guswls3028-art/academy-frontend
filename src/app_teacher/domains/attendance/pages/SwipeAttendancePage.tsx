@@ -18,6 +18,9 @@ import AttendanceCard from "../components/AttendanceCard";
 import StatusBottomSheet from "../components/StatusBottomSheet";
 import { teacherAttendanceQueryKeys } from "../queryKeys";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm";
+import type { SecessionScope } from "@/shared/api/contracts/attendance";
+import { teacherLectureQueryKeys } from "@teacher/domains/lectures/queryKeys";
 import styles from "./SwipeAttendancePage.module.css";
 
 const EMPTY_RECORDS: AttendanceListItem[] = [];
@@ -36,6 +39,7 @@ export default function SwipeAttendancePage() {
   const sid = Number(sessionId);
   const validSession = Number.isSafeInteger(sid) && sid > 0;
   const runTrackedTask = useTrackedTask();
+  const { confirmSecession, secessionDialog } = useSecessionConfirm();
 
   const { data: result, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: teacherAttendanceQueryKeys.completeAttendance(sid),
@@ -54,19 +58,24 @@ export default function SwipeAttendancePage() {
   } | null>(null);
 
   const updateMut = useMutation({
-    mutationFn: ({ id, status, confirm_secession }: {
+    mutationFn: ({ id, status, confirm_secession, secession_scope }: {
       id: number;
       status: string;
       confirm_secession?: boolean;
+      secession_scope?: SecessionScope;
     }) => runTrackedTask(
       "attendance.update",
-      () => updateAttendance(id, { status, confirm_secession }),
+      () => updateAttendance(id, { status, confirm_secession, secession_scope }),
     ),
     onSuccess: async () => {
       await Promise.all([
-        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) }),
-        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) }),
-        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sid) }),
+        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.all }),
+        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.allSessionAttendance }),
+        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.matrices }),
+        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionEnrollments }),
+        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.enrolledIds }),
+        qc.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectureEnrollments }),
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot }),
       ]);
     },
     onError: (e) => feedback.error(extractApiError(e, "상태 변경 실패")),
@@ -83,6 +92,7 @@ export default function SwipeAttendancePage() {
         qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.attendance(sid) }),
         qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.sessionAttendance(sid) }),
         qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sid) }),
+        qc.invalidateQueries({ queryKey: teacherAttendanceQueryKeys.matrices }),
       ]);
       feedback.success(`${data.updated}명 출석 처리`);
     },
@@ -90,39 +100,53 @@ export default function SwipeAttendancePage() {
   });
 
   useEffect(() => {
-    if (!undoItem || undoItem.failed || updateMut.isPending || bulkMut.isPending) return;
+    if (!undoItem || undoItem.failed || updateMut.isPending || bulkMut.isPending || secessionDialog) return;
     const timer = setTimeout(() => setUndoItem(null), 3000);
     return () => clearTimeout(timer);
-  }, [undoItem, updateMut.isPending, bulkMut.isPending]);
+  }, [undoItem, updateMut.isPending, bulkMut.isPending, secessionDialog]);
 
   const handleStatusChange = useCallback(
-    (attendanceId: number, status: string) => {
+    async (attendanceId: number, status: string) => {
       if (updateMut.isPending || bulkMut.isPending) return;
       const prev = records.find((r) => r.id === attendanceId);
-      if (!prev || prev.status === status) return;
+      if (!prev || (prev.status === status && status !== "SECESSION")) return;
+      const scope = status === "SECESSION"
+        ? await confirmSecession(prev.name || prev.student_name || "학생") : null;
+      if (status === "SECESSION" && !scope) return;
       updateMut.mutate({
         id: attendanceId,
         status,
         confirm_secession: status === "SECESSION" ? true : undefined,
+        secession_scope: scope ?? undefined,
       }, {
-        onSuccess: () => setUndoItem({ id: attendanceId, prev: prev.status }),
+        onSuccess: () => {
+          if (status === "SECESSION") {
+            setUndoItem(null);
+            feedback.success("퇴원 처리되었습니다. 기존 성적·출결·시청 기록은 보관됩니다.");
+          } else setUndoItem({ id: attendanceId, prev: prev.status });
+        },
       });
     },
-    [records, updateMut, bulkMut.isPending],
+    [records, updateMut, bulkMut.isPending, confirmSecession],
   );
 
-  const handleUndo = useCallback(() => {
+  const handleUndo = useCallback(async () => {
     if (undoItem && !updateMut.isPending && !bulkMut.isPending) {
+      const record = records.find((row) => row.id === undoItem.id);
+      const scope = undoItem.prev === "SECESSION"
+        ? await confirmSecession(record?.name || record?.student_name || "학생") : null;
+      if (undoItem.prev === "SECESSION" && !scope) return;
       updateMut.mutate({
         id: undoItem.id,
         status: undoItem.prev,
         confirm_secession: undoItem.prev === "SECESSION" ? true : undefined,
+        secession_scope: scope ?? undefined,
       }, {
         onSuccess: () => setUndoItem(null),
         onError: () => setUndoItem({ ...undoItem, failed: true }),
       });
     }
-  }, [undoItem, updateMut, bulkMut.isPending]);
+  }, [undoItem, updateMut, bulkMut.isPending, confirmSecession, records]);
 
   // Summary
   const summary = records.reduce(
@@ -181,7 +205,7 @@ export default function SwipeAttendancePage() {
       <div className={styles.hint} role="status">
         {updateMut.isPending || bulkMut.isPending
           ? "출결 저장 중…"
-          : "우측 스와이프 = 출석 · 좌측 = 결석 · 탭 = 상태 선택"}
+          : "우측 스와이프 = 현장 · 좌측 = 결석 · 탭 = 상태 선택"}
       </div>
 
       {/* Cards */}
@@ -241,6 +265,7 @@ export default function SwipeAttendancePage() {
         onSelect={handleStatusChange}
         onClose={() => setSheetRecord(null)}
       />
+      {secessionDialog}
 
       {/* Undo snackbar */}
       {undoItem && (

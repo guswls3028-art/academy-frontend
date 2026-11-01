@@ -401,7 +401,7 @@ async function buildAppManifest(
   const icon512Type = iconContentType(icon512);
   const isTeacher = audience === "teacher";
   const audienceLabel = isTeacher ? "모바일 업무" : "학생";
-  const startUrl = isTeacher ? WORKSPACE_PATHS.mobile : "/student";
+  const startUrl = isTeacher ? WORKSPACE_PATHS.full : "/student";
 
   return {
     name: `${meta.title} ${audienceLabel}`,

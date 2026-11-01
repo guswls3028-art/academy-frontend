@@ -23,6 +23,7 @@ import { NavIcon } from "./adminNavConfig";
 import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
 import StopwatchSessionProvider from "@admin/domains/tools/stopwatch/StopwatchSessionProvider";
 import PptSessionProvider from "@admin/domains/tools/ppt/PptSessionProvider";
+import { useWorkspacePwa } from "@/shared/pwa/useWorkspacePwa";
 
 // 새 배포 안내는 AppInner의 전역 VersionUpdateNotice가 맡는다.
 
@@ -37,6 +38,7 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
   const openQuickNavigation = useCallback(() => setQuickNavigationOpen(true), []);
   useQuickNavigationHotkey(openQuickNavigation);
   useFavicon();
+  useWorkspacePwa();
 
   const quickNavigationItems = useMemo<QuickNavigationItem[]>(
     () => [...navigationGroups.flatMap((group) => group.items.map((item) => ({

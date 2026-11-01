@@ -42,14 +42,14 @@ test.describe("모바일 업무 PWA + 모바일 리다이렉트", () => {
       "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
   });
 
-  test("모바일에서 / 접근 → /workspace/mobile 리다이렉트", async ({ page }) => {
+  test("모바일에서 / 접근 → PC와 동일한 통합 업무", async ({ page }) => {
     await loginMobile(page);
     await page.goto(`${TCHUL}/`, { waitUntil: "load", timeout: 20_000 });
-    await page.waitForURL(/\/workspace\/mobile/, { timeout: 10_000 }).catch(() => {});
+    await expect(page).toHaveURL(/\/workspace(?:\/dashboard)?$/);
 
-    // canonical 모바일 업무 화면으로 리다이렉트되었는지 확인
+    // 화면 폭만으로 별도 축약 화면으로 전환하지 않는다.
     const url = page.url();
-    expect(url).toContain("/workspace/mobile");
+    expect(url).not.toContain("/workspace/mobile");
 
     await page.screenshot({ path: "e2e/screenshots/teacher-pwa-01-mobile-redirect.png", fullPage: false });
   });
@@ -114,8 +114,8 @@ test.describe("모바일 업무 PWA + 모바일 리다이렉트", () => {
     expect(manifest.name).toBe("박철 과학 모바일 업무");
     expect(manifest.short_name).toBe("박철 과학");
     expect(manifest.id).toBe("/teacher");
-    expect(manifest.start_url).toBe("/workspace/mobile");
-    expect(manifest.scope).toBe("/workspace/mobile");
+    expect(manifest.start_url).toBe("/workspace");
+    expect(manifest.scope).toBe("/workspace");
     expect(manifest.display).toBe("standalone");
     expect(manifest.icons?.[0]?.src).toBe("/tenants/tchul/pwa-192.png");
     expect(manifest.icons?.[1]?.src).toBe("/tenants/tchul/pwa-512.png");

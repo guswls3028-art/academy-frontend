@@ -1,5 +1,5 @@
 // PATH: src/app_teacher/domains/attendance/components/StatusBottomSheet.tsx
-// 출석 상태 선택 바텀시트 — 6개 주요 상태
+// 출석 상태 선택 바텀시트 — PC와 동일한 전체 상태
 import type { CSSProperties } from "react";
 import {
   STATUS_CONFIG,
@@ -66,8 +66,8 @@ export default function StatusBottomSheet({
               type="button"
               aria-pressed={active}
               onClick={() => {
-                onSelect(record.id, status);
                 onClose();
+                onSelect(record.id, status);
               }}
               className={`${styles.option} ${active ? styles.optionActive : ""}`}
               style={optionVars}
