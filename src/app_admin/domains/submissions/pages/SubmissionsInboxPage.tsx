@@ -21,7 +21,7 @@
  */
 
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileSearch } from "lucide-react";
 import { Button, EmptyState, Tabs, Badge, ICON_FOR_BUTTON } from "@/shared/ui/ds";
@@ -166,6 +166,7 @@ export default function SubmissionsInboxPage() {
     row: PendingSubmissionRow;
     message: string;
     canReview: boolean;
+    resultPath?: string;
   } | null>(null);
 
   // 일괄 선택 — id Set
@@ -343,10 +344,32 @@ export default function SubmissionsInboxPage() {
       const err = e as {
         response?: {
           status?: number;
-          data?: { detail?: string; code?: string; conflict_submission_id?: number };
+          data?: {
+            detail?: string;
+            code?: string;
+            conflict_submission_id?: number;
+            recovery?: { action?: string; exam_id?: number; enrollment_id?: number };
+          };
         };
         message?: string;
       };
+      const recovery = err.response?.data?.recovery;
+      if (
+        err.response?.status === 409 && err.response.data?.code === "OMR_ATTEMPT_CONFLICT"
+        && recovery?.action === "review_existing_result"
+        && input.row.target_type === "exam" && isTargetResolved(input.row)
+        && recovery.exam_id === input.row.target_id && recovery.enrollment_id === input.enrollmentId
+        && input.row.lecture_id && input.row.session_id
+      ) {
+        setIdentificationNotice({
+          row: input.row,
+          message: "기존 성적·미응시 판정과 충돌해 배정하지 않았습니다. 기존 성적에서 답안을 확인하고 미리보기 후 확정한 다음, 제출함에서 다시 배정해 주세요.",
+          canReview: false,
+          resultPath: `/workspace/lectures/${input.row.lecture_id}/sessions/${input.row.session_id}/exams?exam_id=${input.row.target_id}&examTab=results&enrollmentId=${input.enrollmentId}`,
+        });
+        setPickerRow((current) => current?.id === input.row.id ? null : current);
+        return;
+      }
       if (
         err?.response?.status === 409 &&
         err?.response?.data?.code === "DUPLICATE_ENROLLMENT"
@@ -481,6 +504,7 @@ export default function SubmissionsInboxPage() {
       {identificationNotice && (
         <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4" data-testid="submission-identification-result">
           <p className="min-w-0 flex-1 text-sm">{identificationNotice.message}</p>
+          {identificationNotice.resultPath && <Link to={identificationNotice.resultPath} className="text-sm font-semibold text-[var(--color-primary)] underline underline-offset-4">기존 성적 확인·정정</Link>}
           {identificationNotice.canReview && identificationNotice.row.target_type === "exam" && (
             <Button type="button" intent="secondary" size="sm" onClick={() => setReviewRow(identificationNotice.row)}>답안 검토·복구</Button>
           )}

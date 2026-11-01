@@ -37,6 +37,7 @@ async function installSubmissionApi(page: Page, options: {
   targetOutsideRecent?: boolean;
   failReview?: boolean;
   wrongReviewExam?: boolean;
+  assignmentConflict?: "matching" | "mismatch";
 } = {}) {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
@@ -150,6 +151,10 @@ async function installSubmissionApi(page: Page, options: {
     if (path === "/submissions/submissions/501/manual-edit/" && request.method() === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
       assignmentBodies.push(body);
+      if (options.assignmentConflict) return json(route, {
+        code: "OMR_ATTEMPT_CONFLICT", detail: "기존 성적과 충돌합니다.",
+        recovery: { action: "review_existing_result", exam_id: options.assignmentConflict === "matching" ? 77 : 78, enrollment_id: 901 },
+      }, 409);
       if (options.failAssignmentOnce && assignmentBodies.length === 1) return json(route, { detail: "학생 지정에 실패했습니다. 다시 시도해 주세요." }, 400);
       if (options.recovery) {
         assigned = true;
@@ -227,8 +232,12 @@ for (const width of [1366, 390]) {
     if (width === 390) await review.getByRole("tab", { name: "확인", exact: true }).click();
     await expect(review.getByPlaceholder("답안 입력")).toHaveValue("빛");
     await review.getByPlaceholder("답안 입력").fill("굴절");
+    await page.clock.install();
     await review.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
     await expect.poll(() => calls.assignmentBodies.length).toBe(1);
+    await expect(review.getByRole("button", { name: "변경 사항 없음", exact: true })).toBeDisabled();
+    await page.clock.runFor(350);
+    await expect(review.getByPlaceholder("답안 입력")).toHaveValue("굴절");
     expect(calls.detailRequests.every(request => request.endsWith("/501/manual-edit/"))).toBe(true);
     expect(calls.assignmentBodies[0].answers).toEqual([{ exam_question_id: 1001, answer: "굴절" }]);
   });
@@ -303,6 +312,27 @@ test("@assignment-recovery 배정 실패 후 같은 학생으로 재시도하고
   expect(calls.assignmentBodies).toHaveLength(2);
   expect(calls.assignmentBodies[0]).toEqual(calls.assignmentBodies[1]);
 });
+
+for (const assignmentConflict of ["matching", "mismatch"] as const) {
+  test(`@assignment-recovery 정책 충돌 ${assignmentConflict} 대상의 성적 검토만 연결한다`, async ({ page }) => {
+    const calls = await installSubmissionApi(page, { assignmentConflict });
+    await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 60_000 });
+    await page.getByTestId("submission-preview-501").click();
+    await page.getByRole("button", { name: "확인하고 학생 지정" }).click();
+    await page.getByRole("dialog", { name: "학생 선택" }).getByText("김학생", { exact: true }).click();
+    await expect.poll(() => calls.assignmentBodies.length).toBe(1);
+    const recoveryLink = page.getByRole("link", { name: "기존 성적 확인·정정", exact: true });
+    if (assignmentConflict === "matching") {
+      await expect(recoveryLink).toHaveAttribute("href", "/workspace/lectures/31/sessions/44/exams?exam_id=77&examTab=results&enrollmentId=901");
+      await expect(page.getByTestId("submission-identification-result")).toContainText("배정하지 않았습니다");
+    } else {
+      await expect(page.getByText("기존 성적과 충돌합니다.", { exact: true })).toBeVisible();
+      await expect(recoveryLink).toHaveCount(0);
+      await expect(page.getByRole("dialog", { name: "학생 선택" })).toBeVisible();
+    }
+    expect(calls.assignmentBodies[0].answers).toEqual([]);
+  });
+}
 
 test("제출 파일을 확인한 뒤에만 학생을 지정한다", async ({ page }) => {
   const calls = await installSubmissionApi(page);

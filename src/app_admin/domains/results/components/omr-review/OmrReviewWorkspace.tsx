@@ -603,7 +603,7 @@ export default function OmrReviewWorkspace({
                 );
               }
               // 자동 다음 학생 이동 (운영자 가속)
-              window.setTimeout(() => navigate(1), 250);
+              if (!exactInitialSelection) window.setTimeout(() => navigate(1), 250);
             }}
             onNavigate={navigate}
           />
