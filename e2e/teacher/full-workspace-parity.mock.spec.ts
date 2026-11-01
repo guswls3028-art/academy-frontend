@@ -247,6 +247,7 @@ test("390px 선생님 가이드에서 시험 생성 PC 화면으로 이어지고
   await expect(page.getByRole("heading", { name: "기능 찾기", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "전체 업무 홈", exact: true }).click();
   await expect(page).toHaveURL(/\/workspace\/dashboard$/);
+  await expect(page.locator(".domain-layout__title")).toHaveText("대시보드");
 
   await gotoAndSettle(page, `${BASE}/workspace/guide`, { timeout: 20_000 });
   await expect(page.getByRole("heading", { name: "학원 운영, 처음부터 끝까지" })).toBeVisible();
