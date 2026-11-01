@@ -461,7 +461,7 @@ test("@total-config-background-error 390px 배경 성적 재조회 실패에도 
   });
   await page.reload();
   await page.getByRole("button", { name: "수정", exact: true }).click();
-  await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
   const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
   const group = modal.getByRole("group", { name: /시험 총점/ });

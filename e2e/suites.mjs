@@ -89,6 +89,7 @@ export const routeMockSpecs = [
   "e2e/admin/message-template-concurrency.mock.spec.ts",
   "e2e/admin/score-column-mobile-ordering.mock.spec.ts",
   "e2e/admin/assessment-feedback.mock.spec.ts",
+  "e2e/admin/assessment-inspection-notes.spec.ts",
   "e2e/admin/individual-score-report.spec.ts",
   "e2e/admin/ppt-mobile-slide-ordering.mock.spec.ts",
   "e2e/admin/ppt-manual-pdf-crop.mock.spec.ts",
