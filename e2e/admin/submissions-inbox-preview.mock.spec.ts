@@ -38,7 +38,10 @@ async function installSubmissionApi(page: Page, options: {
   failReview?: boolean;
   wrongReviewExam?: boolean;
   assignmentConflict?: "matching" | "mismatch";
-  missingAnswerKey?: boolean;
+  missingConfiguration?: "answer_key" | "sheet" | "grading_configuration";
+  configurationConflict?: boolean;
+  recoveryExamId?: number;
+  unresolvedTarget?: boolean;
 } = {}) {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
@@ -55,6 +58,7 @@ async function installSubmissionApi(page: Page, options: {
   let reviewed = options.targetOutsideRecent ?? false;
   let reviewReads = 0;
   let failReview = options.failReview ?? false;
+  let missingConfiguration = options.missingConfiguration;
   const detailRequests: string[] = [];
 
   const fileKey = options.externalFile === "pdf"
@@ -114,10 +118,12 @@ async function installSubmissionApi(page: Page, options: {
           lecture_id: 31,
           lecture_title: "중2 과학 정규반",
           session_id: 44,
-          target_resolved: true,
+          target_resolved: !options.unresolvedTarget,
           target_resolved_reason: null,
           source: "scan",
           status: reviewed ? "done" : assigned ? "answers_ready" : "needs_identification",
+          omr_readiness: missingConfiguration ? { can_grade: false, missing: [missingConfiguration] } : null,
+          recovery: missingConfiguration ? { action: "configure_exam", exam_id: options.recoveryExamId ?? 77 } : null,
           has_file: true,
           file_name: fileKey.split("/").pop(),
           file_type: options.externalFile === "pdf"
@@ -152,13 +158,17 @@ async function installSubmissionApi(page: Page, options: {
     if (path === "/submissions/submissions/501/manual-edit/" && request.method() === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
       assignmentBodies.push(body);
-      if (options.missingAnswerKey) {
+      if (options.configurationConflict) return json(route, {
+        code: "OMR_GRADING_CONFIGURATION_CONFLICT", detail: "기존 답안과 성적은 변경되지 않았습니다.",
+        recovery: { action: "configure_exam", exam_id: options.recoveryExamId ?? 77 },
+      }, 409);
+      if (missingConfiguration) {
         assigned = true;
         return json(route, {
           submission_id: 501, enrollment_id: 901, status: "answers_ready", graded: false,
           code: "OMR_GRADING_CONFIGURATION_REQUIRED",
-          readiness: { can_grade: false, missing: ["answer_key"] },
-          recovery: { action: "configure_exam", exam_id: 77 },
+          readiness: { can_grade: false, missing: [missingConfiguration] },
+          recovery: { action: "configure_exam", exam_id: options.recoveryExamId ?? 77 },
         });
       }
       if (options.assignmentConflict) return json(route, {
@@ -221,6 +231,7 @@ async function installSubmissionApi(page: Page, options: {
     assignmentBodies,
     detailRequests,
     allowReviewRead: () => { failReview = false; },
+    configurationResolved: () => { missingConfiguration = undefined; },
     get reviewed() { return reviewed; },
     get reviewReads() { return reviewReads; },
     get imageCalls() {
@@ -344,22 +355,72 @@ for (const assignmentConflict of ["matching", "mismatch"] as const) {
   });
 }
 
-test("@assignment-recovery 정답키 누락은 배정을 보존하고 해당 시험 정답 등록으로 연결한다", async ({ page }) => {
-  const calls = await installSubmissionApi(page, { missingAnswerKey: true });
-  await page.setViewportSize({ width: 390, height: 900 });
+for (const missingConfiguration of ["answer_key", "sheet", "grading_configuration"] as const) {
+test(`@assignment-recovery ${missingConfiguration} 설정 대기는 reload 후에도 같은 시험에서 복구한다`, async ({ page }) => {
+  const calls = await installSubmissionApi(page, { missingConfiguration });
+  await page.setViewportSize({ width: missingConfiguration === "sheet" ? 1366 : 390, height: 900 });
   await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 60_000 });
   await page.getByTestId("submission-preview-501").click();
   await page.getByRole("button", { name: "확인하고 학생 지정" }).click();
   await page.getByRole("dialog", { name: "학생 선택" }).getByText("김학생", { exact: true }).click();
   const notice = page.getByTestId("submission-identification-result");
   await expect(notice).toContainText("학생 지정은 저장됐습니다");
-  await expect(notice).toContainText("시험 정답표가 없어 채점은 대기 중");
-  await expect(notice.getByRole("link", { name: "시험 정답 등록" })).toHaveAttribute("href", "/workspace/lectures/31/sessions/44/exams?exam_id=77&examTab=setup");
+  await expect(notice).toContainText("문항·정답 설정을 확인해야 하므로 채점이 대기 중");
+  await expect(notice.getByRole("link", { name: "문항·정답 설정" })).toHaveAttribute("href", "/workspace/lectures/31/sessions/44/exams?exam_id=77&examTab=setup");
   expect(calls.assignmentBodies[0].answers).toEqual([]);
   await page.reload();
-  await expect(page.getByTestId("submission-inbox-501")).toContainText("김학생");
+  const row = page.getByTestId("submission-inbox-501");
+  await expect(row).toContainText("김학생");
+  await expect(row.getByTestId("submission-readiness-501")).toContainText("문항·정답 설정을 확인해야 하므로 채점이 대기 중");
+  await expect(row.getByTestId("submission-setup-501")).toHaveAttribute("href", "/workspace/lectures/31/sessions/44/exams?exam_id=77&examTab=setup");
+  await expect(row.getByRole("button", { name: "결과 보기" })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(calls.assignmentBodies).toHaveLength(1);
+  // Fresh server readiness removes the warning; no locally persisted stale notice.
+  calls.configurationResolved();
+  await page.reload();
+  await expect(row.getByTestId("submission-readiness-501")).toHaveCount(0);
+  await expect(row.getByTestId("submission-setup-501")).toHaveCount(0);
+  await expect(row.getByRole("button", { name: "결과 보기" })).toBeVisible();
   expect(calls.assignmentBodies).toHaveLength(1);
 });
+}
+
+for (const recoveryContext of ["foreign", "unresolved"] as const) {
+  test(`@assignment-recovery ${recoveryContext} 시험 설정 복구 링크를 만들지 않는다`, async ({ page }) => {
+    const calls = await installSubmissionApi(page, {
+      missingConfiguration: "answer_key", recoveryExamId: recoveryContext === "foreign" ? 78 : 77,
+      unresolvedTarget: recoveryContext === "unresolved",
+    });
+    await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 60_000 });
+    await expect(page.getByTestId("submission-inbox-501")).toBeVisible();
+    await expect(page.getByRole("link", { name: "문항·정답 설정" })).toHaveCount(0);
+    expect(calls.assignmentBodies).toHaveLength(0);
+  });
+}
+
+for (const matching of [true, false]) {
+  test(`@assignment-recovery 기존 성적 설정 충돌은 변경을 저장하지 않고 일치=${matching} 시험만 연결한다`, async ({ page }) => {
+    const calls = await installSubmissionApi(page, { configurationConflict: true, recoveryExamId: matching ? 77 : 78 });
+    await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 60_000 });
+    await page.getByTestId("submission-preview-501").click();
+    await page.getByRole("button", { name: "확인하고 학생 지정" }).click();
+    await page.getByRole("dialog", { name: "학생 선택" }).getByText("김학생", { exact: true }).click();
+    await expect.poll(() => calls.assignmentBodies.length).toBe(1);
+    if (matching) {
+      const notice = page.getByTestId("submission-identification-result");
+      await expect(notice).toContainText("이번 변경은 저장되지 않았으며 기존 답안과 성적은 유지됩니다");
+      await expect(notice.getByRole("link", { name: "문항·정답 설정" })).toHaveAttribute("href", "/workspace/lectures/31/sessions/44/exams?exam_id=77&examTab=setup");
+      await page.reload();
+      await expect(page.getByTestId("submission-inbox-501")).toContainText("미식별 학생");
+    } else {
+      await expect(page.getByRole("dialog", { name: "학생 선택" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "문항·정답 설정" })).toHaveCount(0);
+    }
+    expect(calls.assignmentBodies).toHaveLength(1);
+    expect(calls.assignmentBodies[0].answers).toEqual([]);
+  });
+}
 
 test("제출 파일을 확인한 뒤에만 학생을 지정한다", async ({ page }) => {
   const calls = await installSubmissionApi(page);
