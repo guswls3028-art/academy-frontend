@@ -381,8 +381,8 @@ async function installApi(
       });
     }
     if (path === "/clinic/idcard/" && method === "GET") {
-      await idcardControl?.responseReady;
       const result = idcardControl?.result ?? idcardResult;
+      await idcardControl?.responseReady;
       if (idcardControl?.delayMs) {
         await new Promise((resolve) => setTimeout(resolve, idcardControl.delayMs));
       }
@@ -1532,8 +1532,12 @@ test.describe("학생 클리닉 예약 UX", () => {
     await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "합격자" })).toBeVisible();
 
+    let releaseOldResponse!: () => void;
+    control.responseReady = new Promise<void>((resolve) => { releaseOldResponse = resolve; });
+    await page.waitForRequest((request) => new URL(request.url()).pathname.endsWith("/clinic/idcard/"));
     // Model connectivity events without interrupting unrelated Vite module prefetch.
     await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+    releaseOldResponse();
     const notice = page.getByRole("alert");
     await expect(notice).toContainText("현재 상태를 확인할 수 없습니다.");
     await expect(page.getByTestId("clinic-passcard")).toHaveCount(0);
@@ -1544,7 +1548,9 @@ test.describe("학생 클리닉 예약 UX", () => {
     let releaseResponse!: () => void;
     control.result = "FAIL";
     control.responseReady = new Promise<void>((resolve) => { releaseResponse = resolve; });
+    const freshRequest = page.waitForRequest((request) => new URL(request.url()).pathname.endsWith("/clinic/idcard/"));
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await freshRequest;
     // Connectivity alone must not revalidate the previously cached pass.
     await expect(notice).toBeVisible();
     await expect(page.getByRole("heading", { name: "합격자" })).toHaveCount(0);

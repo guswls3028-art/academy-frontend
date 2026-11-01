@@ -51,7 +51,7 @@ export default function ClinicIDCardPage() {
   const cardLabel = wrongCompletionOnly ? "오답 상태 카드를" : "패스카드를";
   const query = useQuery({
     queryKey: studentQueryKeys.clinicIdcard,
-    queryFn: fetchClinicIdcard,
+    queryFn: ({ signal }) => fetchClinicIdcard(signal),
     // Five missed polling intervals must not leave a live-looking credential.
     staleTime: 10_000,
     refetchInterval: 2_000,
@@ -62,11 +62,11 @@ export default function ClinicIDCardPage() {
   useEffect(() => {
     const onOffline = () => {
       setOnline(false);
-      // Reconnecting alone cannot restore a verdict cached before disconnection.
-      void queryClient.invalidateQueries({
+      // Neither reconnecting nor a late pre-disconnection response can restore it.
+      void queryClient.cancelQueries({ queryKey: studentQueryKeys.clinicIdcard }).then(() => queryClient.invalidateQueries({
         queryKey: studentQueryKeys.clinicIdcard,
         refetchType: "none",
-      });
+      }));
     };
     const onOnline = () => setOnline(true);
     window.addEventListener("offline", onOffline);
