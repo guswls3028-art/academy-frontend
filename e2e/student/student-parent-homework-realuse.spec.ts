@@ -33,6 +33,7 @@ import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 import { applyHomeworkPreviewCsp, homeworkHeic } from "../helpers/homeworkHeicFixture";
 import { emitHomeworkFlowFailure, verifyHomeworkCriteria, type HomeworkFlowCheckpoint } from "../helpers/homeworkCriteriaRealuse";
+import { verifyAssessmentTitle } from "../helpers/assessmentTitleRealuse";
 
 test.setTimeout(600_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -702,6 +703,10 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     created.family = await createQaFamily(request, admin.access, "homework", 1);
     const student = created.family.students[0];
     await seedHomework(request, admin.access, created.family);
+    await verifyAssessmentTitle(page, request, admin, {
+      kind: "homework", id: created.homeworkId!, title: homeworkTitle,
+      lectureId: created.lectureId!, sessionId: created.sessionId!,
+    });
 
     const studentTokens = await loginApi(request, student.ps_number, student.password);
     await waitForHomeworkSummary(

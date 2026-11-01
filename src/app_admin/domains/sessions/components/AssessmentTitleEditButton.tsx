@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
 import { fetchAdminExam, updateAdminExam } from "@admin/domains/exams/public/sessionExamActions";
@@ -25,6 +25,11 @@ export default function AssessmentTitleEditButton({ kind, id, title, disabled, c
   const [error, setError] = useState("");
   const requestId = useRef(0);
   const saveInFlight = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open && !loading) inputRef.current?.focus();
+  }, [open, loading]);
 
   async function loadLatest(resetDraft: boolean) {
     const request = ++requestId.current;
@@ -86,6 +91,8 @@ export default function AssessmentTitleEditButton({ kind, id, title, disabled, c
       disabled={disabled} aria-label={`${title} 제목 수정`}
       leftIcon={compact ? undefined : <Pencil size={ICON_FOR_BUTTON.sm} aria-hidden />}
       onMouseDown={(event) => event.stopPropagation()}
+      draggable={false}
+      onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}
       onClick={(event) => { event.stopPropagation(); setDraft(title); setCurrentTitle(""); setOpen(true); void loadLatest(true); }}>
       제목 수정
     </Button>
@@ -95,8 +102,8 @@ export default function AssessmentTitleEditButton({ kind, id, title, disabled, c
         <form id={`assessment-title-${kind}-${id}`} onSubmit={(event) => { event.preventDefault(); void save(); }} className="space-y-3">
           <label className="block">
             <span className="mb-2 block text-sm font-semibold">{label} 제목</span>
-            <input className="ds-input w-full" value={draft} maxLength={255} disabled={loading || saving}
-              onChange={(event) => setDraft(event.target.value)} autoFocus />
+            <input ref={inputRef} className="ds-input w-full" value={draft} maxLength={255} disabled={loading || saving}
+              onChange={(event) => setDraft(event.target.value)} />
           </label>
           {loading && <p role="status" className="text-sm">최신 제목을 확인하는 중…</p>}
           {currentTitle && <p className="break-words text-sm text-[var(--color-text-muted)]">현재 제목: {currentTitle}</p>}
