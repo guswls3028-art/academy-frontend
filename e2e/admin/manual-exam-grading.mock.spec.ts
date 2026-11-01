@@ -12,6 +12,141 @@ const NOID_SUBMISSION_ID = 1802;
 const QUESTION_IDS = [1001, 1002] as const;
 
 for (const width of [390, 1366]) {
+  for (const discard of ["초기화", "모두 실행 취소"] as const) {
+    test(`${width}px 보류된 채점표를 ${discard} 뒤 받아 새 버전으로 저장한다`, async ({ page }, testInfo) => {
+      test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+      await page.setViewportSize({ width, height: 900 });
+      await installApi(page, { manualGradingMethod: "score" });
+      let version = 1;
+      let reads = 0;
+      let scores = [10, 20];
+      let weights = [40, 60];
+      let failRead = false;
+      let nextReadGate: Promise<void> | null = null;
+      const writes: Array<{ apply: boolean; expectedVersion: string }> = [];
+      await page.route(`**/results/admin/exams/${EXAM_ID}/manual-grading/`, async (route) => {
+        if (route.request().method() === "GET") {
+          reads += 1;
+          if (nextReadGate) {
+            const gate = nextReadGate;
+            nextReadGate = null;
+            await gate;
+          }
+          if (failRead) {
+            await route.fulfill({ status: 503, json: { detail: "채점표 연결 확인이 필요합니다." } });
+            return;
+          }
+          await route.fulfill({ json: {
+            exam_id: EXAM_ID, exam_title: "7월 진단평가", grading_mode: "written", manual_grading_method: "score",
+            has_manual_questions: true, exam_max_score: 100, question_score_total: 100, score_adjustment_total: 0,
+            questions: QUESTION_IDS.map((id, index) => ({ question_id: id, number: index + 1, kind: "essay",
+              max_score: weights[index], editable: true, entry_method: "score" })),
+            rows: [{ enrollment_id: ENROLLMENT_ID, student_id: 100, student_name: "김학생", school: "", lectures: [],
+              expected_version: `version-${version}`, is_not_submitted: false, exam_not_submitted_count: 0,
+              cells: Object.fromEntries(QUESTION_IDS.map((id, index) => [id, {
+                editable: true, entry_method: "score", state: "incorrect", score: scores[index], include_in_wrong_note: false,
+              }])) }],
+          } });
+          return;
+        }
+        const body = route.request().postDataJSON() as { apply: boolean; question_scores?: Record<string, number>;
+          rows: Array<{ expected_version: string; cells: Record<string, { score: number }> }> };
+        writes.push({ apply: body.apply, expectedVersion: body.rows[0].expected_version });
+        if (body.rows[0].expected_version !== `version-${version}`) {
+          await route.fulfill({ status: 409, json: { detail: "성적 버전이 변경되었습니다." } });
+          return;
+        }
+        expect(body.question_scores).toBeUndefined();
+        const incomingScores = QUESTION_IDS.map((id) => body.rows[0].cells[id].score);
+        if (body.apply) {
+          scores = incomingScores;
+          version += 1;
+        }
+        await route.fulfill({ json: { ok: true, applied: body.apply, exam_id: EXAM_ID, matched_count: 1,
+          question_count: 2, overwrite_count: 1, not_submitted_count: 0, errors: [],
+          rows: [{ enrollment_id: ENROLLMENT_ID, student_name: "김학생", total_score: incomingScores[0] + incomingScores[1],
+            max_score: 100, will_overwrite: true, is_not_submitted: false, correct_count: 0, wrong_count: 2,
+            review_count: 0, wrong_questions: [1, 2], review_questions: [] }],
+        } });
+      });
+      await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}&examTab=results`);
+      const grid = page.locator("[data-manual-grading-workspace]");
+      const score = grid.getByRole("spinbutton", { name: /김학생 2번 .*점 만점 점수/ });
+      const firstWeight = grid.getByRole("spinbutton", { name: "1번 배점", exact: true });
+      const secondWeight = grid.getByRole("spinbutton", { name: "2번 배점", exact: true });
+      await firstWeight.fill("35");
+      await secondWeight.fill("65");
+      await score.fill("17");
+      version = 2;
+      scores = [12, 22];
+      weights = [30, 70];
+      await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+      await page.clock.setFixedTime(Date.now() + 20_000);
+      await page.evaluate(() => window.dispatchEvent(new Event("online")));
+      const pending = grid.getByRole("status").filter({ hasText: "채점표에 새 정보가 있습니다." });
+      await expect(pending).toBeVisible();
+      await expect(score).toHaveValue("17");
+      await expect(firstWeight).toHaveValue("35");
+      const beforeDiscard = reads;
+      failRead = width === 390;
+      let releaseRead: (() => void) | undefined;
+      if (width === 1366) {
+        nextReadGate = new Promise<void>((resolve) => { releaseRead = resolve; });
+        await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+      }
+      if (discard === "초기화") {
+        await grid.getByRole("button", { name: "전체 초기화", exact: true }).click();
+      } else {
+        const undo = grid.getByRole("button", { name: "마지막 변경 실행 취소", exact: true });
+        await undo.click();
+        await expect(pending).toBeVisible();
+        await undo.click();
+        await expect(pending).toBeVisible();
+        await undo.click();
+      }
+      if (failRead) {
+        await expect(grid.getByRole("alert")).toContainText("입력한 내용은 유지됩니다.");
+        await expect(firstWeight).toHaveValue("40");
+        await expect(score).toHaveValue("20");
+        await grid.screenshot({ path: testInfo.outputPath(`discard-error-${width}.png`) });
+        failRead = false;
+        await grid.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+      } else {
+        await expect(grid.getByRole("status").filter({ hasText: "최신 채점표를 확인하고 있습니다." })).toBeVisible();
+        await expect(score).toBeDisabled();
+        await expect(firstWeight).toBeDisabled();
+        expect(reads).toBe(beforeDiscard);
+        await page.evaluate(() => window.dispatchEvent(new Event("online")));
+        await expect.poll(() => reads).toBeGreaterThan(beforeDiscard);
+        await expect(score).toBeDisabled();
+        await grid.screenshot({ path: testInfo.outputPath(`discard-loading-${width}.png`) });
+        releaseRead?.();
+      }
+      await expect(firstWeight).toHaveValue("30");
+      // Return the identical B snapshot again; its object can be structurally shared.
+      await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+      await page.clock.setFixedTime(Date.now() + 40_000);
+      await page.evaluate(() => window.dispatchEvent(new Event("online")));
+      await expect.poll(() => reads).toBeGreaterThan(beforeDiscard);
+      await expect(firstWeight).toHaveValue("30");
+      await expect(secondWeight).toHaveValue("70");
+      await expect(score).toHaveValue("22");
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await expect(grid.getByRole("button", { name: "마지막 변경 다시 실행", exact: true })).toBeDisabled();
+      await score.fill("50");
+      await grid.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+      await grid.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+      await expect.poll(() => version).toBe(3);
+      expect(writes).toEqual([{ apply: false, expectedVersion: "version-2" }, { apply: true, expectedVersion: "version-2" }]);
+      await expect(score).toHaveValue("50");
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(score).toHaveValue("50");
+      await expect(firstWeight).toHaveValue("30");
+    });
+  }
+}
+
+for (const width of [390, 1366]) {
   test(`${width}px 연결 복구로 채점표를 다시 받아도 확정 전 점수를 보존한다`, async ({ page }, testInfo) => {
     test.skip(!isLocalBase(BASE), "Local route-mock spec.");
     await page.setViewportSize({ width, height: 900 });
