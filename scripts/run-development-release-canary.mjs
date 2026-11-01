@@ -412,6 +412,32 @@ function validPublicVideoPlayback(value) {
     && typeof value.errorClass === "string" && ["none", "bot-check", "unavailable", "embedding-disabled", "other"].includes(value.errorClass);
 }
 
+function validPublicVideoAvailability(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || Object.keys(value).sort().join(",") !== "outcome,playback,schema,viewport"
+    || value.schema !== "public-video-availability/v1" || ![1366, 390].includes(value.viewport)
+    || !validPublicVideoPlayback(value.playback)) return false;
+  const p = value.playback;
+  if (p.identityMatches !== true || p.mediaError !== null || p.adShowing || p.adInterrupting || !p.paused || p.ended) return false;
+  if (value.outcome === "bot-confirmation") return p.errorVisible && p.errorClass === "bot-check"
+    && p.playerState === -1 && p.readyState === 0 && p.currentTime === 0 && p.initialTime === 0;
+  return value.outcome === "played-paused" && !p.errorVisible && p.errorClass === "none"
+    && p.playerState === 2 && p.readyState >= 2 && p.width > 0 && p.height > 0
+    && p.currentTime !== null && p.initialTime !== null && p.currentTime > p.initialTime + 1;
+}
+
+export function assertPublicVideoAvailability(observation) {
+  assert.equal(observation.rejectedPublicVideoAvailabilityCount, 0, "Invalid public video availability evidence");
+  const values = observation.publicVideoAvailability;
+  assert.ok(Array.isArray(values) && values.length === 2, "Both public video viewports require provider evidence");
+  assert.deepEqual(values.map(value => value.viewport).sort((a, b) => a - b), [390, 1366]);
+  for (const { specFile, resultOrdinal, ...value } of values) {
+    assert.equal(specFile, "public-video-realuse.spec.ts");
+    assert.ok(Number.isSafeInteger(resultOrdinal) && resultOrdinal > 0);
+    assert.ok(validPublicVideoAvailability(value), "Provider outcome cannot imply unobserved playback");
+  }
+}
+
 function observeReleaseContextSnapshot(payload) {
   const record = (value) => value && typeof value === "object" && !Array.isArray(value);
   const count = (value, max = 1_000_000) => Number.isSafeInteger(value) && value >= 0 && value <= max;
@@ -509,6 +535,7 @@ export function observeReleaseTestResult(stdout) {
     reportedTestErrors: [], testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
     learningFlowFailures: [], homeworkFlowFailures: [],
     strictBrowserDefects: [], strictBrowserSuppressions: [], clinicInteractionTimings: [],
+    publicVideoAvailability: [], rejectedPublicVideoAvailabilityCount: 0,
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
     longVideo: null, longVideoFailure: null, longVideoErrorCodes: [], longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
@@ -636,6 +663,14 @@ export function observeReleaseTestResult(stdout) {
             for (const line of typeof text === "string" ? text.split(/\r?\n/) : []) {
               let payload;
               try { payload = JSON.parse(line); } catch { continue; }
+              if (Object.hasOwn(payload ?? {}, "publicVideoAvailability")) {
+                const value = payload.publicVideoAvailability;
+                if (file !== "public-video-realuse.spec.ts" || !validPublicVideoAvailability(value)
+                  || observation.publicVideoAvailability.length >= 2
+                  || observation.publicVideoAvailability.some(previous => previous.viewport === value.viewport)) {
+                  observation.rejectedPublicVideoAvailabilityCount++;
+                } else observation.publicVideoAvailability.push({ specFile: file, resultOrdinal, ...value });
+              }
               for (const name of ["releaseTestFailure", "omrCleanupStatus", "crossTenantDenialProbe",
                 "releaseStrictBrowserDefect", "releaseStrictBrowserSuppression", "clinicInteractionTiming",
                 "releaseLearningFlowFailure", "releaseHomeworkFlowFailure"]) {
@@ -1548,6 +1583,7 @@ export async function run() {
     realUseObservation = observeReleaseTestResult(result.stdout);
     assert.equal(result.code, 0, "Required development real-use failed (raw credential-bearing report is not published)");
     counts = assertReleaseSummary(JSON.parse(result.stdout));
+    assertPublicVideoAvailability(realUseObservation);
     assertClinicInteractionTimings(realUseObservation);
     assert.ok(realUseObservation.longVideo, "Long-video browser evidence missing or invalid");
     await server.closePlaybackProxy();

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
-import { observeReleaseTestResult } from "../run-development-release-canary.mjs";
+import { assertPublicVideoAvailability, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 const source = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policy = await import("data:text/javascript;base64," + Buffer.from(stripTypeScriptTypes(source
   + "\nexport { registerPublicVideoSources, publicVideoRequestKind };\n")).toString("base64"));
@@ -14,12 +14,67 @@ const video = { youtube_video_id: id, canonical_url: `https://www.youtube.com/wa
 const embed = `https://www.youtube.com/embed/${id}?autoplay=0&playsinline=1&origin=${encodeURIComponent(boundary.webOrigin)}`;
 const ids = new Set([id]);
 
+const botPlayback = { paused: true, ended: false, readyState: 0, networkState: 3, width: 0, height: 0,
+  currentTime: 0, initialTime: 0, duration: null, mediaError: null, adShowing: false, adInterrupting: false,
+  playerState: -1, identityMatches: true, errorVisible: true, errorClass: "bot-check" };
+const pausedPlayback = { ...botPlayback, readyState: 4, networkState: 1, width: 1280, height: 720,
+  currentTime: 3, duration: 716, playerState: 2, errorVisible: false, errorClass: "none" };
+
 function observePublicEvidence(outputs) {
   return observeReleaseTestResult(JSON.stringify({ stats: { expected: 0, unexpected: 1, skipped: 0, flaky: 0 },
     suites: [{ specs: [{ file: "public-video-realuse.spec.ts", tests: [{ status: "unexpected", results: [{
       status: "failed", workerIndex: 0, stdout: outputs.map(value => ({ text: JSON.stringify(value) })),
     }] }] }] }] }));
 }
+
+test("confirmed provider bot availability stays distinct from genuine play-pause evidence", () => {
+  const output = [];
+  policy.emitPublicVideoAvailability(1366, "bot-confirmation", botPlayback, value => output.push(value));
+  policy.emitPublicVideoAvailability(390, "played-paused", pausedPlayback, value => output.push(value));
+  const observation = observePublicEvidence(output);
+  assertPublicVideoAvailability(observation);
+  assert.deepEqual(observation.publicVideoAvailability.map(value => value.outcome), ["bot-confirmation", "played-paused"]);
+  assert.equal(observation.stats.unexpected, 1, "provider evidence never rewrites an application's failing result");
+  assert.throws(() => policy.emitPublicVideoAvailability(1366, "played-paused", botPlayback));
+  assert.throws(() => policy.emitPublicVideoAvailability(1366, "bot-confirmation", pausedPlayback));
+});
+
+test("bot classification cannot absorb identity, media, unknown errors or malformed evidence", () => {
+  assert.equal(policy.isPublicVideoBotConfirmation(botPlayback), true);
+  const patches = [{ identityMatches: false }, { identityMatches: null }, { errorVisible: false },
+    { errorClass: "unavailable" }, { errorClass: "embedding-disabled" }, { errorClass: "other" },
+    { mediaError: 2 }, { adShowing: true }, { adInterrupting: true }, { playerState: 1 },
+    { paused: false }, { ended: true }, { readyState: 4 }, { currentTime: 2 }, { initialTime: null },
+    { secret: "private-token" }, { networkState: 4 }];
+  for (const patch of patches) {
+    const playback = { ...botPlayback, ...patch };
+    assert.equal(policy.isPublicVideoBotConfirmation(playback), false);
+    assert.throws(() => policy.emitPublicVideoAvailability(1366, "bot-confirmation", playback));
+    const observation = observePublicEvidence([{ publicVideoAvailability: {
+      schema: "public-video-availability/v1", viewport: 1366, outcome: "bot-confirmation", playback,
+    } }]);
+    assert.equal(observation.rejectedPublicVideoAvailabilityCount, 1);
+    assert.deepEqual(observation.publicVideoAvailability, []);
+    assert.doesNotMatch(JSON.stringify(observation), /private-token/);
+  }
+});
+
+test("provider evidence requires both viewports, exact source and unique closed outcomes", () => {
+  const output = [];
+  for (const viewport of [1366, 390]) policy.emitPublicVideoAvailability(viewport, "bot-confirmation", botPlayback, value => output.push(value));
+  assertPublicVideoAvailability(observePublicEvidence(output));
+  for (const values of [[], output.slice(0, 1), [output[0], output[0]], [...output, output[0]]]) {
+    assert.throws(() => assertPublicVideoAvailability(observePublicEvidence(values)));
+  }
+  for (const patch of [{ schema: "unknown" }, { viewport: 500 }, { outcome: "passed" }, { url: "https://private.invalid" }]) {
+    const value = { ...output[0].publicVideoAvailability, ...patch };
+    const observation = observePublicEvidence([{ publicVideoAvailability: value }, output[1]]);
+    assert.throws(() => assertPublicVideoAvailability(observation));
+  }
+  const foreign = JSON.stringify({ suites: [{ specs: [{ file: "omr-review-realuse.spec.ts", tests: [{ results: [{ stdout: output.map(value => ({ text: JSON.stringify(value) })) }] }] }] }] });
+  assert.equal(observeReleaseTestResult(foreign).rejectedPublicVideoAvailabilityCount, 2);
+  assert.throws(() => assertPublicVideoAvailability(observeReleaseTestResult(foreign)));
+});
 
 test("only API-shaped sources with fixed canonical and thumbnail addresses are registered", () => {
   const known = new Set(); register({ results: [video] }, known); assert.deepEqual([...known], [id]);

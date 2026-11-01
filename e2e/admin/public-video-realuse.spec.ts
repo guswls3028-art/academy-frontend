@@ -3,7 +3,7 @@ import { expect, test } from "../fixtures/strictTest";
 import { api, assertNoHorizontalOverflow, assertQaStudentParentRuntime,
   QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_BASE, QA_TENANT, STUDENT_PARENT_REALUSE_ENABLED } from "../helpers/qaStudentParentScenario";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
-import { emitReleaseTestFailure, installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv, type PublicVideoJourneyStage, type PublicVideoPlaybackObservation } from "../helpers/releaseApiBoundary";
+import { emitPublicVideoAvailability, emitReleaseTestFailure, isPublicVideoBotConfirmation, installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv, type PublicVideoJourneyStage, type PublicVideoPlaybackObservation } from "../helpers/releaseApiBoundary";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import type { ManagedVideo, VideoShowcase } from "../../src/landing/api/publicVideos";
 
@@ -146,27 +146,45 @@ test.describe("[real-use] public video publishing", () => {
         journeyStage = "player-ready";
         const player = visitor.frameLocator("iframe");
         const playButton = player.getByRole("button", { name: /^(?:Play(?: video)?|동영상 재생|재생)(?: \(k\))?$/i }).filter({ visible: true }).first();
-        await expect(playButton).toBeVisible({ timeout: 30_000 });
-        await expect(player.locator(".ytp-error")).toBeHidden();
         activeVisitor = visitor;
-        journeyStage = "player-playing";
-        await playButton.click();
         const media = player.locator("#movie_player video.html5-main-video").first();
-        const startedAt = await media.evaluate((node) => (node as HTMLVideoElement).currentTime);
-        expect(Number.isFinite(startedAt)).toBe(true);
-        const readPlayback = () => media.evaluate(readPublicVideoPlayback, { initialTime: startedAt, expectedId: row.youtube_video_id });
+        let startedAt = 0;
+        const readPlayback = async () => {
+          if (!await media.count()) return undefined;
+          const result = await media.evaluate(readPublicVideoPlayback, { initialTime: startedAt, expectedId: row.youtube_video_id });
+          playbackObservation = result.snapshot;
+          return result;
+        };
+        // An identified provider bot prompt is an availability result, never proof
+        // of playback. All application assertions and strict boundaries still run.
         await expect.poll(async () => {
-          const result = await readPlayback(); playbackObservation = result.snapshot; return result.playing;
+          await readPlayback();
+          return isPublicVideoBotConfirmation(playbackObservation) || await playButton.isVisible();
         }, { timeout: 30_000 }).toBe(true);
-        playbackObservation = undefined;
-        journeyStage = "player-paused";
-        await player.locator("#movie_player").hover();
-        await player.getByRole("button", { name: /^(?:Pause|일시중지|일시 중지)(?: ?\(k\))?$/i }).filter({ visible: true }).first().click();
-        await expect.poll(async () => {
-          const result = await readPlayback(); playbackObservation = result.snapshot; return result.paused;
-        }).toBe(true);
-        await expect(player.locator(".ytp-error")).toBeHidden();
+        if (!isPublicVideoBotConfirmation(playbackObservation)) {
+          await expect(player.locator(".ytp-error")).toBeHidden();
+          journeyStage = "player-playing";
+          startedAt = await media.evaluate(node => (node as HTMLVideoElement).currentTime);
+          expect(Number.isFinite(startedAt)).toBe(true);
+          await playButton.click();
+          await expect.poll(async () => {
+            const result = await readPlayback();
+            return isPublicVideoBotConfirmation(playbackObservation) || result?.playing === true;
+          }, { timeout: 30_000 }).toBe(true);
+          if (!isPublicVideoBotConfirmation(playbackObservation)) {
+            journeyStage = "player-paused";
+            await player.locator("#movie_player").hover();
+            await player.getByRole("button", { name: /^(?:Pause|일시중지|일시 중지)(?: ?\(k\))?$/i }).filter({ visible: true }).first().click();
+            await expect.poll(async () => {
+              const result = await readPlayback();
+              return result?.paused === true && result.snapshot?.playerState === 2;
+            }).toBe(true);
+            await expect(player.locator(".ytp-error")).toBeHidden();
+          }
+        }
+        emitPublicVideoAvailability(width, isPublicVideoBotConfirmation(playbackObservation) ? "bot-confirmation" : "played-paused", playbackObservation);
         await assertNoHorizontalOverflow(visitor); await visitor.screenshot({ path: testInfo.outputPath(`public-video-${width}.png`), fullPage: true, animations: "disabled" });
+        playbackObservation = undefined;
         journeyStage = "public-catalog";
         await visitor.getByRole("link", { name: "← 영상 목록", exact: true }).click(); await expect(visitor.locator("iframe")).toHaveCount(0);
         await expect(visitor.getByRole("textbox", { name: "영상 검색", exact: true })).toHaveValue(title);

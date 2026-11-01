@@ -81,7 +81,9 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
-   현재 22개 파일·41건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
+   현재 22개 파일·41건이며 앱 업무 흐름, 재시도 금지와 수업 영상 재생 시간은 유지한다.
+   공개 YouTube의 정확한 봇 확인 응답은 아래 `publicVideoAvailability` 계약에 따라
+   외부 가용성 결과로 따로 기록한다. 해당 관측만으로 다른 기능의 배포를 막지 않는다.
    기본 실행은 첫 실패 후 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.
    이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 41건 모두의
    통과와 cleanup0이 필요하다. 이미 실패한 실행이 장시간 영상 검증까지 계속되는 비용을 줄인다.
@@ -949,10 +951,24 @@ context별 첫 두 요청만 기록하며 기존 이벤트 128개 상한·drop �
 해석하지 않는다. `http-header-overflow`만 닫힌 진단으로 보존하고 원 실패는 유지한다.
 전역 `NODE_OPTIONS`, 운영 환경, insecure parser, origin/redirect/UA 및 cleanup 정책은
 변경하지 않는다. 동일 artifact 실사용과 cleanup 검증은 여전히 배포 조건이다.
-공개 영상의 1366/390px 확인은 제한된 시간 안에 Play → 미디어 시간 진행 → Pause를
-검증하며 `player-playing`/`player-paused` 단계로 실패를 구분하고,
-`public-video-1366.png`, `public-video-390.png`를 보존한다. 기존 41개 사례,
-공개 영상 240초 제한, retries 0 및 정리 조건을 유지한다.
+공개 영상은 홈페이지 내장 iframe을 유지한다. 1366/390px에서 Play → 미디어 시간 진행
+→ Pause를 관측하되, 호스티드 익명 브라우저에 대한 YouTube의 봇 확인 응답 때문에
+다른 앱 변경의 배포까지 막지 않도록 외부 가용성과 앱 성공을 구분한다. 앱의 두 게시자
+등록·저장·reload·게시·검색·상세·수정·숨김·삭제·재등록, 정확 embed/영상 식별,
+권한·tenant·strict 보안 경계와 cleanup은 모두 계속 필수다. 41개 사례를 건너뛰거나
+Playwright 실패 결과를 성공으로 다시 쓰지 않으며 수업 영상 검증은 변경하지 않는다.
+
+각 폭은 `public-video-availability/v1`의 `publicVideoAvailability`를 하나씩 남긴다.
+`played-paused`는 정확 영상의 시간 진행과 실제 일시정지까지 확인한 결과다.
+`bot-confirmation`은 정확 영상 식별, 표시된 `bot-check` 오류, playerState -1,
+paused=true·ended=false·readyState=0·시작/현재시간 0, media error 없음과 광고 아님이
+모두 확인된 경우에만 별도로 기록한다. 이는 재생 성공이나 봇 문제 해결을 뜻하지 않는다.
+다른 오류·미확인 식별·transport·controller·보안 경계 실패를 이 결과로 대체하지 않는다.
+parser는 원 spec에 귀속된 닫힌 schema/enum/수치만 보존하며 추가 키·중복 폭·누락·
+다른 spec·잘못된 관측은 거부한다. 정상 승격은 두 폭의 유효한 관측 및 앱 41건 통과,
+exact artifact identity와 cleanup0을 요구한다. 지원 답변이나 외부 시청 전환은 조건이 아니다.
+`public-video-1366.png`, `public-video-390.png`와 실제 관측을 보존한다.
+공개 영상 240초 제한, retries 0과 provider 요청/redirect/인증 제한은 유지한다.
 
 `public-video-primary`는 playing/paused 단계에만 optional `playback` 관측을 포함할 수
 있다. 원래 판정과 같은 evaluate에서 얻은 paused/ended, ready/network state, 크기,
@@ -964,8 +980,9 @@ context별 첫 두 요청만 기록하며 기존 이벤트 128개 상한·drop �
 허용된 공급자의 실제 HTTP 400..599 응답은 `route-fetch` 관측으로 남기되 기존대로
 한 번 fulfill한다. 응답이 있을 때만 마지막 fetch의 실제 0..30000ms 소요시간을
 선택적으로 보존하며, 범위 밖 측정은 생략한다. 이 관측은 새 거절/재시도 조건이 아니다.
-같은 두 공개 PNG 이름에는 실패한 anonymous frame이 담길 수도 있다. `passed:false`와
-`public-video-primary` 단계로 실패 증거를 구분하며 최종 성공 Play → Pause 증명을 대체하지 않는다.
+같은 두 공개 PNG 이름에는 봇 확인 frame이 담길 수도 있다. 이때 별도 provider 결과는
+`bot-confirmation`이고 앱 검증 결과와 구분한다. 실제 앱 오류는 기존 `passed:false` 및
+`public-video-primary` 단계로 남기며, 봇 확인 관측을 Play → Pause 성공 증명으로 쓰지 않는다.
 
 평가 복사 helper도 원 오류를 정리 뒤 그대로 throw하고 `assessment-copy`와
 `assessment-copy-cleanup`의 닫힌 단계/kind만 남긴다. 이 두 단계는
