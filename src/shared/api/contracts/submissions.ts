@@ -144,6 +144,9 @@ export type PendingSubmissionRow = {
   target_resolved_reason?: "target_missing" | "session_missing" | null;
   is_discarded?: boolean;
   discard_reason?: string | null;
+  /** 현재 서버 설정에서 계산한 채점 준비 상태. 브라우저에 복제하지 않는다. */
+  omr_readiness?: { can_grade: boolean; missing: string[] } | null;
+  recovery?: { action: string; exam_id: number } | null;
 };
 
 /** 백엔드가 구형 pending/processing 반환 시 대비 */
@@ -169,6 +172,9 @@ export type SubmissionManualEditInput = {
 };
 
 export type SubmissionManualEditResult = {
+  code?: string;
+  readiness?: { can_grade: boolean; missing: string[] };
+  recovery?: { action: string; exam_id: number };
   submission_id?: number;
   status?: ExamSubmissionStatus;
   updated?: number;

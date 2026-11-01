@@ -375,10 +375,10 @@ async function downloadOmrPdf(
 async function markThirtyQuestionOmrPdf(
   pdfBuffer: Buffer,
   answers: string[],
-  identifier: string,
+  identifier: string | null,
 ): Promise<Buffer> {
   expect(answers).toHaveLength(30);
-  expect(identifier).toMatch(/^\d{8}$/);
+  if (identifier !== null) expect(identifier).toMatch(/^\d{8}$/);
 
   const pdf = await PDFDocument.load(pdfBuffer);
   const page = pdf.getPages()[0];
@@ -408,7 +408,7 @@ async function markThirtyQuestionOmrPdf(
     const row = index % 15;
     fillBubble(choiceXs[column][Number(answer) - 1], 20.75 + row * 12.5);
   });
-  [...identifier].forEach((digit, index) => {
+  [...(identifier ?? "")].forEach((digit, index) => {
     fillBubble(identifierXs[index], 109.6 + Number(digit) * 6.4);
   });
 
@@ -440,6 +440,143 @@ async function waitForOmrAnswers(
     `OMR worker did not persist ${expectedCount} answers for submission ${submissionId}. ` +
     `latest=${JSON.stringify(latest?.body ?? null).slice(0, 1200)}`,
   );
+}
+
+async function recoverMissingOmrConfiguration(
+  page: Page,
+  request: APIRequestContext,
+  token: string,
+  submissionId: number,
+  objectiveQuestionIds: number[],
+  writtenQuestionIds: number[],
+): Promise<void> {
+  requireIsolatedScenario();
+  const detailPath = `/submissions/submissions/${submissionId}/manual-edit/`;
+  const original = await expectApi<{ id: number; file_key: string }>(
+    request, "GET", `/submissions/submissions/${submissionId}/`, token,
+  );
+  expect(original.id).toBe(submissionId);
+  expect(original.file_key.length).toBeGreaterThan(0);
+  const readAnswers = async () => {
+    const detail = await expectApi<{
+      submission_id: number; target_id: number; target_type: string; enrollment_id: number | null;
+      submission_status: string; answers: Array<{ question_id: number; answer: string }>;
+    }>(request, "GET", detailPath, token);
+    expect(detail).toMatchObject({ submission_id: submissionId, target_type: "exam", target_id: created.examId });
+    return detail;
+  };
+  const originalDetail = await readAnswers();
+  expect(originalDetail.enrollment_id).toBeNull();
+  const normalizedAnswers = (answers: typeof originalDetail.answers) => answers
+    .map(({ question_id, answer }) => ({ question_id, answer })).sort((a, b) => a.question_id - b.question_id);
+  const originalAnswers = normalizedAnswers(originalDetail.answers);
+  const readPendingRow = async () => {
+    const pending = await expectApi<{ results: Array<{
+      id: number; target_id: number; enrollment_id: number;
+      omr_readiness: { can_grade: boolean; missing: string[] } | null;
+      recovery: { action: string; exam_id: number } | null;
+    }> }>(request, "GET", "/submissions/submissions/pending/?filter=all&page=1&page_size=50", token);
+    const row = pending.results.find((item) => item.id === submissionId);
+    expect(row?.target_id).toBe(created.examId);
+    return row!;
+  };
+  const blocked = await readPendingRow();
+  expect(blocked.omr_readiness?.missing).toContain("answer_key");
+  expect(blocked.recovery).toEqual({ action: "configure_exam", exam_id: created.examId });
+
+  await page.setViewportSize({ width: 390, height: 900 });
+  await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 45_000 });
+  await page.getByTestId(`submission-preview-${submissionId}`).click();
+  const preview = page.getByRole("dialog", { name: "제출물 확인" });
+  const popupPromise = page.waitForEvent("popup");
+  await preview.getByRole("link", { name: "새 창에서 원본 열기" }).click();
+  const popup = await popupPromise;
+  await popup.waitForLoadState("domcontentloaded");
+  await popup.close();
+  await preview.getByRole("checkbox").check();
+  await preview.getByRole("button", { name: "확인하고 학생 지정" }).click();
+  const assignedResponse = page.waitForResponse((response) => matchesApiResponse(response, "POST", detailPath));
+  await page.getByRole("dialog", { name: "학생 선택" }).getByText(STUDENT_NAME, { exact: true }).click();
+  const assigned = await assignedResponse;
+  expect(assigned.status()).toBe(200);
+  expect(await assigned.json()).toMatchObject({
+    submission_id: submissionId, enrollment_id: created.enrollmentId, status: "answers_ready",
+    graded: false, code: "OMR_GRADING_CONFIGURATION_REQUIRED",
+  });
+  await expect(page.getByTestId("submission-identification-result")).toContainText("학생 지정은 저장됐습니다");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const row = page.getByTestId(`submission-inbox-${submissionId}`);
+  await expect(row).toContainText(STUDENT_NAME);
+  await expect(row.getByTestId(`submission-readiness-${submissionId}`)).toContainText("문항·정답 설정");
+  const assignedDetail = await readAnswers();
+  expect(assignedDetail.enrollment_id).toBe(created.enrollmentId);
+  expect(normalizedAnswers(assignedDetail.answers)).toEqual(originalAnswers);
+  await row.getByTestId(`submission-setup-${submissionId}`).click();
+  await expect(page).toHaveURL(`${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?exam_id=${created.examId}&examTab=setup`);
+  await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+  const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+  const choiceRows = answerDialog.locator(".answer-key-row--choice");
+  await expect(choiceRows).toHaveCount(EXPECTED_ANSWERS.length);
+  for (const [index, answer] of EXPECTED_ANSWERS.entries()) {
+    const choice = choiceRows.nth(index).getByRole("checkbox", { name: `${index + 1}번 ${answer}번 선택지`, exact: true });
+    await expect(choice).not.toBeChecked();
+    await choiceRows.nth(index).locator(".answer-key-omr-label").nth(Number(answer) - 1).click();
+    await expect(choice).toBeChecked();
+  }
+  const writtenRows = answerDialog.locator(".answer-key-row--essay");
+  await expect(writtenRows).toHaveCount(writtenQuestionIds.length);
+  for (let index = 0; index < writtenQuestionIds.length; index += 1) {
+    // Preserve the original math fixture's two synthetic short-answer keys.
+    const input = writtenRows.nth(index).getByRole("textbox", { name: /숫자 정답$/ });
+    await input.fill("0");
+    await expect(input).toHaveValue("0");
+  }
+  const expectedKey = Object.fromEntries([
+    ...objectiveQuestionIds.map((id, index) => [String(id), EXPECTED_ANSWERS[index]]),
+    ...writtenQuestionIds.map((id) => [String(id), "0"]),
+  ]);
+  // Structure initialization can issue its own POST. Only the final write
+  // containing every intended answer proves that the teacher saved the key.
+  const savedResponse = page.waitForResponse((response) => {
+    if (!["POST", "PUT", "PATCH"].includes(response.request().method())
+      || !/^\/api\/v1\/exams\/answer-keys\/(?:\d+\/)?$/.test(new URL(response.url()).pathname)) return false;
+    const payload = response.request().postDataJSON() as { exam?: number; answers?: Record<string, string> };
+    return payload.exam === created.examId && Object.entries(expectedKey).every(([id, answer]) => payload.answers?.[id] === answer);
+  });
+  const saveButton = answerDialog.getByRole("button", { name: "저장 (총 50점)", exact: true });
+  await saveButton.click();
+  const saved = await savedResponse;
+  expect([200, 201]).toContain(saved.status());
+  const savedKey = await saved.json() as { id: number; regrade?: Array<{ exam_id: number; graded: number; failed: unknown[] }> };
+  expect(savedKey.regrade).toEqual([expect.objectContaining({ exam_id: created.examId, graded: 1, failed: [] })]);
+  const persistedKey = await expectApi<{ exam: number; answers: Record<string, string> }>(
+    request, "GET", `/exams/answer-keys/${savedKey.id}/`, token,
+  );
+  expect(persistedKey.exam).toBe(created.examId);
+  for (const [id, answer] of Object.entries(expectedKey)) expect(persistedKey.answers[id]).toBe(answer);
+  await expect(saveButton).toBeEnabled();
+  await answerDialog.getByRole("button", { name: "취소", exact: true }).click();
+
+  const graded = await readAnswers();
+  expect(graded).toMatchObject({ enrollment_id: created.enrollmentId, submission_status: "done" });
+  expect(normalizedAnswers(graded.answers)).toEqual(originalAnswers);
+  const persisted = await expectApi<{ id: number; file_key: string }>(request, "GET", `/submissions/submissions/${submissionId}/`, token);
+  expect(persisted).toMatchObject({ id: submissionId, file_key: original.file_key });
+  const result = await expectApi<{
+    submission_id: number; is_provisional: boolean; grading_status: string;
+    items: Array<{ question_id: number; score: number | null }>;
+  }>(request, "GET", `/results/admin/exams/${created.examId}/enrollments/${created.enrollmentId}/`, token);
+  expect(result).toMatchObject({ submission_id: submissionId, is_provisional: true, grading_status: "subjective_pending" });
+  const objectiveItems = result.items.filter((item) => objectiveQuestionIds.includes(item.question_id));
+  expect(objectiveItems).toHaveLength(EXPECTED_ANSWERS.length);
+  expect(objectiveItems.reduce((sum, item) => sum + Number(item.score), 0)).toBe(EXPECTED_OBJECTIVE_SCORE);
+  expect((await readPendingRow()).omr_readiness).toBeNull();
+  await gotoAndSettle(page, `${BASE}/workspace/results/submissions?filter=all`, { timeout: 45_000 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(row).toContainText(STUDENT_NAME);
+  await expect(row.getByTestId(`submission-readiness-${submissionId}`)).toHaveCount(0);
+  await expect(row.getByTestId(`submission-setup-${submissionId}`)).toHaveCount(0);
+  await page.setViewportSize({ width: 1366, height: 900 });
 }
 
 async function waitForStudentResult(
@@ -1079,15 +1216,8 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(objectiveQuestionIds).toHaveLength(30);
     expect(writtenQuestionIds).toHaveLength(2);
 
-    await expectApi(request, "POST", "/exams/answer-keys/", adminTokens.access, {
-      exam: created.examId,
-      answers: Object.fromEntries(
-        questionIdsByNumber.map((id, idx) => [
-          String(id),
-          idx < EXPECTED_ANSWERS.length ? EXPECTED_ANSWERS[idx] : "0",
-        ]),
-      ),
-    });
+    // The first upload deliberately precedes key registration and student
+    // identification. Recovery below uses this same original submission.
 
     await expectApi(
       request,
@@ -1102,7 +1232,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const markedPdfBuffer = await markThirtyQuestionOmrPdf(
       pdfBuffer,
       EXPECTED_ANSWERS,
-      CONTROLLED_PHONE.slice(-8),
+      null,
     );
 
     await loginBrowserAsRealUser(
@@ -1182,12 +1312,14 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     );
     expect(reviewDetail.answers.map((row: any) => Number(row.question_id)).sort((a: number, b: number) => a - b))
       .toEqual([...objectiveQuestionIds].sort((a, b) => a - b));
-    expect(Number(reviewDetail.enrollment_id)).toBe(created.enrollmentId);
+    expect(reviewDetail.enrollment_id).toBeNull();
     expect(
       [...reviewDetail.answers]
         .sort((a: any, b: any) => Number(a.question_no) - Number(b.question_no))
         .map((row: any) => String(row.answer)),
     ).toEqual(EXPECTED_ANSWERS);
+
+    await recoverMissingOmrConfiguration(page, request, adminTokens.access, submissionId, objectiveQuestionIds, writtenQuestionIds);
 
     await gotoAndSettle(
       page,

@@ -30,6 +30,7 @@ async function installApi(
     passedPendingOnly?: boolean;
     explicitTargetOnly?: boolean;
     failHomeworkScore?: boolean;
+    homeworkNotSubmitted?: boolean;
   } = {},
 ) {
   const baseUrl = getBaseUrl("admin");
@@ -45,6 +46,7 @@ async function installApi(
   let homeworkScore: number | null = null;
   let homeworkUpdatedAt: string | null = null;
   let failHomeworkScore = options.failHomeworkScore ?? false;
+  let failCorrection = options.failCorrection ?? false;
   let draftChanges: unknown[] = [];
   const homeworkScoreRequests: number[] = [];
   const correctionRequests: Array<{
@@ -340,7 +342,8 @@ async function installApi(
                 ? "2026-07-29T16:40:00+09:00"
                 : null,
               correction_note: homeworkNote,
-              meta: null,
+              teacher_resolved: homeworkStatus === "COMPLETED",
+              meta: options.homeworkNotSubmitted ? { status: "NOT_SUBMITTED" } : null,
             },
             attempt_count: 0,
           }],
@@ -364,7 +367,7 @@ async function installApi(
         note?: string;
       };
       correctionRequests.push(payload);
-      if (options.failCorrection) {
+      if (failCorrection) {
         await fulfill({
           source_id: ["점수가 입력된 항목만 상태를 바꿀 수 있습니다."],
         }, 400);
@@ -487,6 +490,7 @@ async function installApi(
     getScoreRefreshFailures: () => scoreRefreshFailures,
     homeworkScoreRequests,
     allowHomeworkScoreSave: () => { failHomeworkScore = false; },
+    allowCorrectionSave: () => { failCorrection = false; },
     getHomeworkScore: () => homeworkScore,
   };
 }
@@ -503,6 +507,74 @@ async function openHomeworkInspection(page: Page) {
 }
 
 test.describe("시험·과제 수동 검사 상태", () => {
+  for (const width of [1366, 390]) {
+    test(`@homework-accepted-cell ${width}px 미제출 과제의 교사 통과 인정과 취소를 원기록과 구분해 유지한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const api = await installApi(page, { homeworkNotSubmitted: true });
+      await page.goto(`${getBaseUrl("admin")}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      const cell = page.locator('[data-score-cell="homework:9101:4101"]');
+      await expect(cell).toHaveAttribute("data-achievement", "NOT_SUBMITTED");
+      await expect(cell.getByText("미제출", { exact: true })).toBeVisible();
+      const missingBackground = await cell.evaluate(element => getComputedStyle(element).backgroundColor);
+      await page.getByRole("button", { name: "수정", exact: true }).click();
+      let drawer = await openHomeworkInspection(page);
+      const complete = drawer.getByRole("button", { name: "완료 확정", exact: true });
+      await expect(complete).toBeEnabled();
+      await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("제출 원기록을 보존하고 교사 통과 인정");
+      await complete.click();
+      await expect(complete).toHaveAttribute("aria-pressed", "true");
+      await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)" }).click();
+      await expect(cell).toHaveAttribute("data-achievement", "REMEDIATED");
+      await expect(cell.getByText("통과 인정", { exact: true })).toBeVisible();
+      await expect(cell.getByText("미제출", { exact: true })).toBeVisible();
+      await expect.poll(() => cell.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(missingBackground);
+      expect(api.homeworkScoreRequests).toEqual([]);
+      expect(api.getHomeworkScore()).toBeNull();
+      await page.reload();
+      await expect(cell).toHaveAttribute("data-achievement", "REMEDIATED");
+      await expect(cell.getByText("통과 인정", { exact: true })).toBeVisible();
+      await expect(cell.getByText("미제출", { exact: true })).toBeVisible();
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+      await cell.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`homework-accepted-cell-${width}.png`), animations: "disabled" });
+      drawer = await openHomeworkInspection(page);
+      await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("재확인이 필요해 통과 인정 취소");
+      await drawer.getByRole("button", { name: "미완료", exact: true }).click();
+      await expect(drawer.getByRole("button", { name: "미완료", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)" }).click();
+      await expect(cell).toHaveAttribute("data-achievement", "NOT_SUBMITTED");
+      await expect(cell.getByText("통과 인정", { exact: true })).toHaveCount(0);
+      await page.reload();
+      await expect(cell).toHaveAttribute("data-achievement", "NOT_SUBMITTED");
+      expect(api.correctionRequests.map(request => request.completed)).toEqual([true, false]);
+      expect(api.homeworkScoreRequests).toEqual([]);
+    });
+  }
+
+  test("@homework-accepted-cell 인정 저장 실패는 미제출 표시를 유지하고 재시도로 복구한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    const api = await installApi(page, { homeworkNotSubmitted: true, failCorrection: true });
+    await page.goto(`${getBaseUrl("admin")}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+    const cell = page.locator('[data-score-cell="homework:9101:4101"]');
+    const drawer = await openHomeworkInspection(page);
+    const complete = drawer.getByRole("button", { name: "완료 확정", exact: true });
+    await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("검사 완료 후 교사 통과 인정");
+    await complete.click();
+    await expect(page.getByText("점수가 입력된 항목만 상태를 바꿀 수 있습니다.", { exact: true })).toBeVisible();
+    await expect(cell).toHaveAttribute("data-achievement", "NOT_SUBMITTED");
+    await expect(cell.getByText("통과 인정", { exact: true })).toHaveCount(0);
+    api.allowCorrectionSave();
+    await complete.click();
+    await expect(complete).toHaveAttribute("aria-pressed", "true");
+    await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)" }).click();
+    await expect(cell).toHaveAttribute("data-achievement", "REMEDIATED");
+    await expect(cell.getByText("통과 인정", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(cell.getByText("통과 인정", { exact: true })).toBeVisible();
+    expect(api.homeworkScoreRequests).toEqual([]);
+    expect(api.getHomeworkScore()).toBeNull();
+  });
+
   for (const width of [1366, 390]) {
     test(`@score-correction-edit-state ${width}px 저장된 점수의 판정과 비고는 수정 모드를 마치지 않고 저장한다`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });

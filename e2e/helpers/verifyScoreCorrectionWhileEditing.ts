@@ -9,7 +9,7 @@ export async function verifyScoreCorrectionWhileEditing(
 ) {
   const scoresPath = `/results/admin/sessions/${target.sessionId}/scores/`;
   type Scores = { rows: Array<{ enrollment_id: number; homeworks: Array<{
-    homework_id: number; block: { score: number | null; correction_status: string | null; correction_note: string };
+    homework_id: number; block: { score: number | null; correction_status: string | null; correction_note: string; teacher_resolved: boolean };
   }> }> };
   const readBlock = async () => {
     const scores = await expectApi<Scores>(request, "GET", scoresPath, access);
@@ -17,6 +17,10 @@ export async function verifyScoreCorrectionWhileEditing(
       .homeworks.find(homework => homework.homework_id === target.homeworkId)!.block;
   };
   const before = await readBlock();
+  expect(before.teacher_resolved).toBe(false);
+  const scoreCell = page.locator(`[data-score-cell="homework:${target.enrollmentId}:${target.homeworkId}"]`);
+  const beforeAchievement = await scoreCell.getAttribute("data-achievement");
+  expect(beforeAchievement).not.toBeNull();
   const open = async () => {
     await page.locator('tbody tr[role="button"] [data-col-type="name"]')
       .filter({ hasText: target.studentName }).click();
@@ -38,7 +42,9 @@ export async function verifyScoreCorrectionWhileEditing(
   expect((await saved).status()).toBe(200);
   await expect(complete).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
-  expect(await readBlock()).toMatchObject({ score: before.score, correction_status: "COMPLETED", correction_note: note });
+  expect(await readBlock()).toMatchObject({ score: before.score, correction_status: "COMPLETED", correction_note: note, teacher_resolved: true });
+  await expect(scoreCell).toHaveAttribute("data-achievement", "REMEDIATED");
+  await expect(scoreCell.getByText("통과 인정", { exact: true })).toBeVisible();
   await reloadStudentApp(parentPage);
   await parentPage.getByRole("button", { name: "과제 현황" }).click();
   const parentCard = parentPage.locator('.stu-panel[data-session-type]')
@@ -48,6 +54,8 @@ export async function verifyScoreCorrectionWhileEditing(
   await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
   await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
   await page.reload();
+  await expect(scoreCell).toHaveAttribute("data-achievement", "REMEDIATED");
+  await expect(scoreCell.getByText("통과 인정", { exact: true })).toBeVisible();
   const reopened = await open();
   await expect(reopened.getByRole("button", { name: "완료 확정", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(reopened.getByRole("textbox", { name: "교사 완료 판정 비고" })).toHaveValue(note);
@@ -55,6 +63,8 @@ export async function verifyScoreCorrectionWhileEditing(
   await reopened.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("");
   await reopened.getByRole("button", { name: "미완료", exact: true }).click();
   await expect(reopened.getByRole("button", { name: "미완료", exact: true })).toHaveAttribute("aria-pressed", "true");
-  expect(await readBlock()).toMatchObject({ score: before.score, correction_status: "PENDING", correction_note: "" });
+  expect(await readBlock()).toMatchObject({ score: before.score, correction_status: "PENDING", correction_note: "", teacher_resolved: false });
   await page.reload();
+  await expect(scoreCell).toHaveAttribute("data-achievement", beforeAchievement!);
+  await expect(scoreCell.getByText("통과 인정", { exact: true })).toHaveCount(0);
 }
