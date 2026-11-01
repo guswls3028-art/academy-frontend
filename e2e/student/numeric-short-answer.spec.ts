@@ -80,7 +80,7 @@ async function installApi(page: Page, viewer: Viewer = "student", essay = false,
       studentScopedHeaders.push(request.headers()["x-student-id"]);
       submissions.push(request.postDataJSON() as Record<string, unknown>);
       if (recovery.otherDeviceAttempt && submissions.length <= 2) {
-        if (submissions.length === 1) await route.abort("connectionfailed");
+        if (submissions.length === 1) await route.fulfill({ status: 504, json: { detail: "연결 지연으로 제출 결과를 확인하지 못했습니다." } });
         else await route.fulfill({ status: 409, json: { code: "online_attempt_changed", detail: "다른 화면에서 응시가 완료되었습니다. 결과를 확인해 주세요." } });
         return;
       }
@@ -268,7 +268,7 @@ test("다른 기기 응시로 거절된 요청은 답안을 보존하고 새 재
   expect(await page.evaluate((key) => localStorage.getItem(`${key}:submission`), draftKey)).toBeNull();
   expect(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!)[1001], draftKey)).toBe("3");
   await page.goto(`${BASE}/student/exams/901`);
-  await page.getByRole("link", { name: "답안 입력하기", exact: true }).click();
+  await page.getByRole("link", { name: /^답안 입력하기/ }).click();
   await expect(page.getByLabel("1번 답", { exact: true })).toBeEnabled();
   await expect(page.getByLabel("1번 답", { exact: true })).toHaveValue("3");
   await page.getByLabel("1번 답", { exact: true }).fill("5");
