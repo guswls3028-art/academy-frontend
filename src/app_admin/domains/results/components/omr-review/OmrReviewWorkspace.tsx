@@ -568,7 +568,7 @@ export default function OmrReviewWorkspace({
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewIssues(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(selectedId) });
-              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResults(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResultsRoot(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamSummary(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(examId) });
