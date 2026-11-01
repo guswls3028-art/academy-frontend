@@ -1,6 +1,7 @@
 import type { APIRequestContext, BrowserContext, Request } from "@playwright/test";
 import { assertQaStudentParentRuntime, QA_API, QA_BASE, QA_TENANT } from "./qaStudentParentScenario";
-import { installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv } from "./releaseApiBoundary";
+import { developmentUpstream, installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv,
+  type ReleaseBoundary } from "./releaseApiBoundary";
 
 function tokenActor(token: string): string | null {
   try {
@@ -26,6 +27,7 @@ export async function withOwnedScoreLeaseCleanup(
   let drained = false;
   let closed = false;
   let actor: string | null = null;
+  let boundary: ReleaseBoundary | null = null;
   const observe = (outgoing: Request) => {
     const capture = (async () => {
       try {
@@ -41,7 +43,11 @@ export async function withOwnedScoreLeaseCleanup(
         const bearer = /^Bearer (.+)$/i.exec(headers.authorization ?? "");
         // Compare actor identity, not token bytes: UI login/refresh may mint another
         // access token for the same editor. This is a scope check, not JWT auth.
-        if (![new URL(QA_BASE).origin, new URL(QA_API).origin].includes(url.origin)
+        // The immutable production bundle names the production API. Its browser
+        // request is routed to the isolated API by the installed release guard;
+        // validate that same effective origin instead of rejecting the raw URL.
+        const upstream = boundary ? new URL(developmentUpstream(boundary, url.toString())) : null;
+        if (!upstream || ![new URL(QA_BASE).origin, new URL(QA_API).origin].includes(upstream.origin)
           || match[1] !== String(scope.sessionId) || headers["x-tenant-code"] !== QA_TENANT
           || !bearer || !actor || tokenActor(bearer[1]) !== actor
           || client.length > 128 || /[\r\n]/.test(client)) {
@@ -57,7 +63,7 @@ export async function withOwnedScoreLeaseCleanup(
 
   try {
     assertQaStudentParentRuntime();
-    const boundary = releaseBoundaryFromEnv(process.env);
+    boundary = releaseBoundaryFromEnv(process.env);
     actor = tokenActor(scope.actorAccess);
     if (!boundary || boundary.mode !== "development" || !actor
       || !Number.isSafeInteger(scope.sessionId) || scope.sessionId <= 0

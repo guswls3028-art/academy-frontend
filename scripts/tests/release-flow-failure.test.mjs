@@ -330,10 +330,10 @@ test("actual homework flow retains primary failures through cleanup and closed d
       close: async () => { order.push('cleanup'); if (cleanupFails) throw teardown; } };
     const parent = { context: () => ({ browser: () => ({ newContext: async () => context }) }), setViewportSize: async () => {} };
     const leaseCleanup = new Function('assertQaStudentParentRuntime', 'QA_API', 'QA_BASE', 'QA_TENANT',
-      'releaseBoundaryFromEnv', 'installReleaseRequestGuard', 'installReleaseContextGuard',
+      'releaseBoundaryFromEnv', 'installReleaseRequestGuard', 'installReleaseContextGuard', 'developmentUpstream',
       `${extract(read('e2e/helpers/scoreLeaseCleanup.ts'), 'function tokenActor(')}; return withOwnedScoreLeaseCleanup;`)(
       () => {}, 'http://127.0.0.1:18000', 'http://127.0.0.1:4173', 'qa-feedback-contract',
-      () => ({ mode: 'development' }), () => {}, async () => ({ beginClose: async () => {}, assertClean() {} }));
+      () => ({ mode: 'development' }), () => {}, async () => ({ beginClose: async () => {}, assertClean() {} }), policyModule.developmentUpstream);
     const actorAccess = `e30.${Buffer.from(JSON.stringify({ user_id: 12 })).toString('base64url')}.signature`;
     const fn = new Function('created', 'QA_BASE', 'installQaStudentParentBoundary', 'attachStrictBrowserGuards', 'seedBrowserAuth', 'gotoAndSettle', 'emitHomeworkFlowFailure', 'withOwnedScoreLeaseCleanup',
       `${extract(spec, 'async function verifyHomeworkFeedback(', '\nasync function waitForHomeworkSummary(')}; return verifyHomeworkFeedback;`)(

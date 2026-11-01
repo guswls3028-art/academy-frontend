@@ -5,6 +5,9 @@ import test from "node:test";
 import { createContext, SourceTextModule, SyntheticModule } from "node:vm";
 
 const source = stripTypeScriptTypes(readFileSync(new URL("../../e2e/helpers/scoreLeaseCleanup.ts", import.meta.url), "utf8"));
+const { developmentUpstream } = await import("data:text/javascript;base64," + Buffer.from(stripTypeScriptTypes(
+  readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8"),
+)).toString("base64"));
 const token = (id, suffix = "signature") => `e30.${Buffer.from(JSON.stringify({ user_id: id })).toString("base64url")}.${suffix}`;
 const actorAccess = token(12);
 const api = "http://127.0.0.1:18000";
@@ -38,7 +41,8 @@ async function fixture(options = {}) {
   const definitions = {
     "./qaStudentParentScenario": { assertQaStudentParentRuntime() {}, QA_API: api, QA_BASE: web, QA_TENANT: tenant },
     "./releaseApiBoundary": {
-      releaseBoundaryFromEnv: () => ({ mode: options.mode ?? "development" }),
+      releaseBoundaryFromEnv: () => ({ mode: options.mode ?? "development", apiOrigin: api, webOrigin: web, tenantCode: tenant }),
+      developmentUpstream,
       installReleaseRequestGuard() {},
       installReleaseContextGuard: async () => guard,
     },
@@ -76,11 +80,21 @@ test("owned leases drain and close before release with the same actor; refreshed
   assert.equal(f.listeners.size, 0);
 });
 
+test("the production-shaped bundle URL is observed through the real development mapper and released only to the isolated API", async () => {
+  const f = await fixture();
+  await f.run(async () => f.observe({ origin: "https://api.hakwonplus.com" }));
+  const releases = f.calls.filter(({ action }) => action === "release");
+  assert.equal(releases.length, 1);
+  assert.equal(releases[0].url, `${api}/api/v1/results/admin/sessions/73/score-draft/commit/`);
+  assert.equal(releases[0].config.headers.Authorization, `Bearer ${actorAccess}`);
+});
+
 for (const [name, change] of [
   ["different actor", { headers: { authorization: `Bearer ${token(13)}` } }],
   ["different session", { session: 74 }],
   ["different tenant", { headers: { "x-tenant-code": "qa-other" } }],
   ["different origin", { origin: "https://unowned.invalid" }],
+  ["lookalike API origin", { origin: "https://api.hakwonplus.com.unowned.invalid" }],
 ]) {
   test(`never releases a lease observed for a ${name}`, async () => {
     const f = await fixture();
