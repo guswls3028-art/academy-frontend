@@ -1,11 +1,11 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
-import { expectApi } from "./qaStudentParentScenario";
+import { expectApi, reloadStudentApp } from "./qaStudentParentScenario";
 
 /** Called only with the existing isolated, disposable homework scenario. */
 export async function verifyScoreCorrectionWhileEditing(
-  page: Page, request: APIRequestContext, access: string,
-  target: { sessionId: number; enrollmentId: number; homeworkId: number; homeworkTitle: string; studentName: string },
+  page: Page, parentPage: Page, request: APIRequestContext, access: string,
+  target: { sessionId: number; enrollmentId: number; homeworkId: number; homeworkTitle: string; studentName: string; maxScore: number },
 ) {
   const scoresPath = `/results/admin/sessions/${target.sessionId}/scores/`;
   type Scores = { rows: Array<{ enrollment_id: number; homeworks: Array<{
@@ -39,6 +39,12 @@ export async function verifyScoreCorrectionWhileEditing(
   await expect(complete).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
   expect(await readBlock()).toMatchObject({ score: before.score, correction_status: "COMPLETED", correction_note: note });
+  await reloadStudentApp(parentPage);
+  await parentPage.getByRole("button", { name: "과제 현황" }).click();
+  const parentCard = parentPage.locator('.stu-panel[data-session-type]')
+    .filter({ has: parentPage.getByText(target.homeworkTitle, { exact: true }) });
+  await expect(parentCard.locator('strong[class*="homeworkScore"]')).toHaveText(`${before.score}/${target.maxScore}`);
+  await expect(parentCard.getByText("완료", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
   await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
   await page.reload();
