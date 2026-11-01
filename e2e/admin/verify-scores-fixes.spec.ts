@@ -116,7 +116,7 @@ test.describe("Verify Scores Fixes & UX", () => {
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
 
     await editButton.click();
-    await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
     await expect(page.locator(".ds-scores-cell-editable").first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("Ctrl+S 저장 · Ctrl+Z 실행 취소")).toBeVisible({ timeout: 5_000 });
     await snap(page, "02-score-editing");
@@ -126,7 +126,7 @@ test.describe("Verify Scores Fixes & UX", () => {
     expect(pageText).toContain("Ctrl+S");
 
     await snap(page, "02-keyboard-hints");
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(editButton).toBeVisible({ timeout: 5_000 });
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
   });

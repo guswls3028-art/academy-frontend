@@ -99,7 +99,7 @@ async function openScores(
 
 async function ensureScoreEditing(page: Page, loadingTimeoutMs = 30_000): Promise<void> {
   const cells = page.locator(".ds-scores-cell-editable");
-  const saveAndLockButton = page.getByRole("button", { name: "저장하고 잠금", exact: true });
+  const saveAndLockButton = page.getByRole("button", { name: "점수 입력 마침", exact: true });
   const isStableEditingState = await saveAndLockButton.isVisible().catch(() => false)
     && await cells.first().isVisible().catch(() => false);
   if (isStableEditingState) return;
@@ -859,7 +859,7 @@ test(`reload의 기존 셀 잠금을 자동 점유하지 않고 준비 후 OMR �
   } finally {
     finishAcquisition();
   }
-  await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
   await expect(openUpload).toBeEnabled();
   await expect.poll(() => clientIds.size).toBe(2);
   await expect(page.locator('[data-score-cell="exam:9201:9101:total:"]'))
@@ -932,7 +932,7 @@ test("빈 성적표는 잠긴 첫 셀을 건너뛰어 다음 학생만 자동 �
   ))).toBe(false);
   const available = page.locator('[data-score-cell="exam:9202:9101:total:"]').getByRole("textbox");
   await available.fill("73");
-  await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+  await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
   await expect.poll(() => currentScores[1]).toBe(73);
   expect(currentScores[0]).toBeNull();
 });
@@ -1024,7 +1024,7 @@ for (const width of [1366, 390]) {
       await expect(input).toBeVisible();
       await expect(input).toBeFocused();
       await input.fill("7");
-      await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
       await expect.poll(() => currentSubjectiveScores[0]).toBe(7);
       expect(currentSubjectiveScores[1]).toBe(9);
       await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
@@ -1109,7 +1109,7 @@ for (const width of [1366, 390]) {
       expect(exits()).toHaveLength(0);
       await expect(input).toHaveText("21");
       await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: false })));
-      await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
       await expect.poll(() => currentHomeworkScores[1]).toBe(21);
       await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
       await ensureScoreEditing(page);
@@ -1145,7 +1145,7 @@ for (const width of [1366, 390]) {
       if (await resume.isVisible()) await resume.click();
       await expect(restoredCell.getByRole("textbox")).toBeVisible();
       await restoredCell.getByRole("textbox").fill("22");
-      await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+      await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
       await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(restoredCell).toContainText("22");
@@ -1203,7 +1203,7 @@ test("다른 화면이 선택한 서술형 셀만 막고 같은 시험의 다른
   ).toBe(true);
 
   await subjectiveInput.fill("7");
-  await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+  await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
   await expect.poll(() => scorePatches.at(-1)?.score).toBe(7);
   expect(scorePatchHeaders.at(-1)?.["x-score-session-id"]).toBe("9002");
   await expect.poll(() => draftCommits.some((commit) => commit.release_lease === true)).toBe(true);
@@ -1223,7 +1223,7 @@ test("일시적인 셀 점유 충돌 뒤 정상 presence가 오면 편집 잠금
   });
   await ensureScoreEditing(page);
 
-  const saveAndLock = page.getByRole("button", { name: "저장하고 잠금", exact: true });
+  const saveAndLock = page.getByRole("button", { name: "점수 입력 마침", exact: true });
   const firstStudent = page.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
   const secondStudent = page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" });
 
@@ -1326,7 +1326,7 @@ test("저장하고 잠근 뒤 도착한 이전 presence 조회는 협업 표시�
 
   activeEditors = [];
   await input.fill("21");
-  await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+  await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
   await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
   expect(currentDraft).toEqual([]);
   expect(currentServerActiveCell).toBeNull();
@@ -1654,7 +1654,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     test(`@score-boundary ${key} ${rowCount}명 경계 셀은 이동 키만으로 저장하고 재입력·실행 취소를 유지한다 (${width}px)`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
       await openScores(page, { initialScores: Array(rowCount).fill(null) });
-      await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible({ timeout: 30_000 });
       const cell = page.locator(`[data-score-cell="exam:${9200 + rowCount}:9101:total:"]`).getByRole("textbox");
       await cell.click();
       await cell.fill("65");
@@ -1687,7 +1687,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   test("입력 이력이 전혀 없으면 바로 수정 상태로 열리고 저장 후 잠금은 유지된다", async ({ page }, testInfo) => {
     await openScores(page, { initialScores: [null, null] });
 
-    const saveAndLockButton = page.getByRole("button", { name: "저장하고 잠금", exact: true });
+    const saveAndLockButton = page.getByRole("button", { name: "점수 입력 마침", exact: true });
     await expect(saveAndLockButton).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("status")).toContainText("수정 중 · 자동 저장 준비");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(2);
@@ -2413,7 +2413,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     });
 
     await page.getByRole("button", { name: "수정", exact: true }).click();
-    await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
     await page.getByText("자동저장학생1", { exact: true }).first().click();
     const drawer = page.getByRole("complementary", { name: /자동저장학생1 학생 상세/ });
     await drawer.getByRole("button", { name: /^주간 확인/ }).click();
@@ -2547,7 +2547,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect.poll(() => currentHomeworkScores[1]).toBe(1);
     await completionSelect.getByRole("button", { name: "미입력으로 초기화" }).click();
     await expect.poll(() => currentHomeworkScores[1]).toBeNull();
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-score-cell="homework:9202:9151"]')).toContainText("미입력");
   });
@@ -2589,18 +2589,18 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await page.setViewportSize({ width: 1366, height: 900 });
 
     await editButton.click();
-    await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
     await expect(page.getByText("Ctrl+S 저장 · Ctrl+Z 실행 취소")).toBeVisible();
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
     const cells = page.locator(".ds-scores-cell-editable");
     await expect(cells.first()).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("score-entry-editing-1366.png"), fullPage: true });
     await page.setViewportSize({ width: 1100, height: 900 });
-    await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("score-entry-editing-1100.png"), fullPage: true });
     await page.setViewportSize({ width: 390, height: 844 });
     await ensureScoreEditing(page);
-    await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("score-entry-editing-390.png"), fullPage: true });
     await page.setViewportSize({ width: 1366, height: 900 });
     await ensureScoreEditing(page);
@@ -2608,8 +2608,8 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(cells.nth(0)).toHaveAttribute("role", "textbox", { timeout: 30_000 });
     await expect(cells.nth(0)).toHaveAttribute("aria-label", /자동저장학생1.*주간 확인/);
     await cells.nth(0).fill("");
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
-    await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
+    await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
     await expect(cells.nth(0)).toHaveText("65");
     expect(scorePatches).toHaveLength(0);
 
@@ -2625,7 +2625,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(1);
     expect(scorePatches[0]).toMatchObject({ score: 74, max_score: 100 });
     await expect(page.getByRole("status")).toContainText("자동 저장 실패");
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(editButton).toBeVisible();
     expect(scorePatches).toHaveLength(1);
     await editButton.click();
@@ -2666,7 +2666,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       .poll(() => scorePatches.length)
       .toBe(patchCountBeforeNativeUndo);
 
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(editButton).toBeVisible();
     await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
@@ -2676,7 +2676,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await cells.nth(0).fill("77.5");
     await page.keyboard.press("Control+s");
     await expect.poll(() => scorePatches.at(-1)?.score, { timeout: 10_000 }).toBe(77.5);
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(editButton).toBeVisible();
     await expect(page.getByRole("cell", { name: /77\.5\/100/ }).first()).toBeVisible();
 
@@ -2730,12 +2730,12 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(recoveryDialog).toBeVisible();
     await expect(recoveryDialog.getByRole("alert")).toContainText(/실패|failed|500/i);
     await recoveryDialog.getByRole("button", { name: "복원 후 수정" }).click();
-    await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
     await expect.poll(
       () => draftPuts.some((put) => put.take_over_same_user === true),
     ).toBe(true);
     await expect.poll(() => scorePatches.at(-1)?.score, { timeout: 10_000 }).toBe(83);
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(editButton).toBeVisible({ timeout: 10_000 });
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
     await expect(page.getByRole("cell", { name: /83\/100/ }).first()).toBeVisible();
@@ -2743,10 +2743,10 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     await editButton.click();
     failNextLeaseRelease = true;
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
-    await expect(page.getByRole("button", { name: "잠금 다시 시도", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
+    await expect(page.getByRole("button", { name: "입력 종료 다시 시도", exact: true })).toBeVisible();
     await expect(page.locator(".ds-scores-cell-editable").first()).toBeVisible();
-    await page.getByRole("button", { name: "잠금 다시 시도", exact: true }).click();
+    await page.getByRole("button", { name: "입력 종료 다시 시도", exact: true }).click();
     await expect(editButton).toBeVisible();
     await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
 
@@ -2932,7 +2932,7 @@ for (const width of [1366, 390]) {
     await expect(page.getByText("이 화면에서 되돌릴 변경이 없습니다.", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "성적 변경 다시 실행", exact: true }).click();
     await expect(page.getByText("다시 실행할 변경이 없습니다.", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
     expect(scorePatches).toHaveLength(0);
     expect(homeworkPatches).toHaveLength(0);
@@ -2964,7 +2964,7 @@ for (const width of [1366, 390]) {
       await page.keyboard.press("Control+s");
       await expect.poll(() => homeworkPatches.at(-1)?.score).toBe(score);
     }
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
     await page.reload();
     await ensureScoreEditing(page);
@@ -2981,7 +2981,7 @@ test("@score-input-percent 정수 만점도 백분율 계산 결과의 소수 �
   await exam.fill("50%");
   await page.keyboard.press("Control+s");
   await expect.poll(() => scorePatches.at(-1)?.score).toBe(1.5);
-  await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+  await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
   await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
   await page.reload();
   await ensureScoreEditing(page);
@@ -2999,7 +2999,7 @@ test("@score-input-bare-percent 숫자 없는 퍼센트는 0점으로 저장하�
   await exam.fill("50%");
   await page.keyboard.press("Control+s");
   await expect.poll(() => scorePatches.at(-1)?.score).toBe(50);
-  await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+  await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
   await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
   await page.reload();
   await ensureScoreEditing(page);
@@ -3029,7 +3029,7 @@ for (const width of [1366, 390]) {
             await cell.press("Escape");
             await expect(cell).toHaveText("65");
           }
-          await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+          await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
           await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
           expect(scorePatches).toHaveLength(0);
           expect(homeworkPatches).toHaveLength(0);
@@ -3058,7 +3058,7 @@ test("@score-input-cancel 주관식 입력도 Escape로 취소하면 저장되�
   await expect(cell).toHaveText("12");
   await page.getByRole("button", { name: "성적 변경 실행 취소", exact: true }).click();
   await expect(page.getByText("이 화면에서 되돌릴 변경이 없습니다.", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+  await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
   await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
   expect(scorePatches).toHaveLength(0);
   await page.reload();
@@ -3117,7 +3117,7 @@ test(`@score-input-cancel 이전 과제 저장 응답이 ${responseTiming} 도�
     await page.getByRole("button", { name: "성적 변경 다시 실행", exact: true }).click();
     await expect.poll(() => homeworkPatches.at(-1)?.score).toBe(68);
     expect(homeworkPatches.some(patch => patch.score === 79)).toBe(false);
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
     await page.reload();
     await ensureScoreEditing(page);
@@ -3128,7 +3128,7 @@ test(`@score-input-cancel 이전 과제 저장 응답이 ${responseTiming} 도�
 });
 }
 
-for (const saveMode of ["자동 저장", "저장하고 잠금"] as const) {
+for (const saveMode of ["자동 저장", "점수 입력 마침"] as const) {
 test(`@score-input-cancel ${saveMode} 대기 중 새 입력은 PATCH·반복 요청·조기 잠금 없이 취소 후 정상 저장한다`, async ({ page }) => {
   await openScores(page, {
     includeHomework: true, homeworkMaxScore: 100,
@@ -3149,7 +3149,7 @@ test(`@score-input-cancel ${saveMode} 대기 중 새 입력은 PATCH·반복 요
   try {
     await homework.fill("68");
     if (saveMode === "자동 저장") await homework.press("Enter");
-    else await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    else await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect.poll(() => pendingPuts).toBe(1);
     await homework.fill("79");
     const savedDraft = page.waitForResponse(response => response.request().method() === "PUT"
@@ -3161,13 +3161,13 @@ test(`@score-input-cancel ${saveMode} 대기 중 새 입력은 PATCH·반복 요
     expect(pendingPuts).toBe(1);
     expect(homeworkPatches).toHaveLength(0);
     await expect(homework).toHaveText("79");
-    await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
-    if (saveMode === "저장하고 잠금") {
+    await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
+    if (saveMode === "점수 입력 마침") {
       await expect(page.getByText("현재 입력을 마친 뒤 다시 저장해 주세요.", { exact: true })).toBeVisible();
     }
     await homework.press("Escape");
     await expect(homework).toHaveText("68");
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
     expect(homeworkPatches.map(patch => patch.score)).toEqual([68]);
     await page.reload();
@@ -3299,7 +3299,7 @@ for (const width of [1366, 1100, 390]) {
     await expect.poll(() => page.evaluate(() => document.activeElement?.closest(".ds-scores-table") == null)).toBe(true);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`score-controls-${width}.png`), fullPage: true, animations: "disabled" });
-    await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-score-cell="homework:9201:9151"]')).toContainText("미통과", { timeout: 45_000 });
   });
