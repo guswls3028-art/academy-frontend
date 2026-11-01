@@ -1,4 +1,4 @@
-.trigger:global(.ds-button[data-size]) {
+button.trigger:global(.ds-button[data-size]) {
   /* Keep this touch target above the global mobile small-button density rule. */
   min-height: 44px !important;
   max-width: 100%;
