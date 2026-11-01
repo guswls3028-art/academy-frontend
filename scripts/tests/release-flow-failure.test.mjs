@@ -202,9 +202,9 @@ function registerLearningFaultTests() {
   const compiled=stripTypeScriptTypes(`${emitter}\n${attendance}\nasync function runTeacher(){${teacher}}\n({runTeacher,verifyAttendanceExcel,emit:typeof emitLearningFlowFailure==='function'?emitLearningFlowFailure:undefined});`.replace(/^export /gm,''));
   function harness(stage,{restoreFailure=false,closeFailure=false}={}){
    const primary=new Error('expect(PRIVATE_STUDENT_TOKEN) failed\nhttps://private.invalid/?credential=PRIVATE');
-   const cleanup=new Error('cleanup PRIVATE'); const events=[]; const mutations=[]; let reloads=0; let fileSaved=false;
+   const cleanup=new Error('cleanup PRIVATE'); const events=[]; const mutations=[]; let currentPath=''; let fileSaved=false;
    const locator=(name)=>({filter(){return this;},async fill(){},async click(){if(stage==='teacher-attendance-undo'&&name==='되돌리기')throw primary;}});
-   const teacherPage={async route(){},async addInitScript(){},async setViewportSize(){},getByRole:(_,{name}={})=>locator(name),getByText:(name)=>locator(name),async waitForResponse(){return{status:()=>202,request:()=>({postDataJSON:()=>({lecture_id:10})}),json:async()=>({job_id:'00000000-0000-0000-0000-000000000001'})};},async waitForEvent(){return {failure:async()=>{if(stage==='attendance-download')throw primary;return null;},suggestedFilename:()=> 'export.xlsx',saveAs:async()=>{fileSaved=true;}};},async reload(){reloads++;if(stage==='teacher-video-reload'&&reloads===5)throw primary;},async screenshot(){return Buffer.alloc(0);}};
+   const teacherPage={async route(){},async addInitScript(){},async setViewportSize(){},getByRole:(_,{name}={})=>locator(name),getByText:(name)=>locator(name),async waitForResponse(){return{status:()=>202,request:()=>({postDataJSON:()=>({lecture_id:10})}),json:async()=>({job_id:'00000000-0000-0000-0000-000000000001'})};},async waitForEvent(){return {failure:async()=>{if(stage==='attendance-download')throw primary;return null;},suggestedFilename:()=> 'export.xlsx',saveAs:async()=>{fileSaved=true;}};},async reload(){if(stage==='teacher-video-reload'&&currentPath.endsWith('/videos'))throw primary;},async screenshot(){return Buffer.alloc(0);}};
    const context={async newPage(){return teacherPage;},async close(){events.push({close:true});if(closeFailure)throw cleanup;}};
    const students=[{id:1,name:'student1',phone:'01000000001',parent_phone:'01000000002'},{id:2,name:'student2',phone:'01000000003',parent_phone:'01000000004'}];
    const matcher=new Proxy({}, {get:(_,name)=>async()=>{if(stage==='teacher-classes-persisted'&&name==='toHaveAttribute')throw primary;}});
@@ -226,6 +226,7 @@ function registerLearningFaultTests() {
       return {status:'PRESENT'};
      },
      gotoAndSettle:async(_page,url)=>{
+      currentPath=new URL(url).pathname;
       const matched=(stage==='teacher-classes-open'&&url.endsWith('/classes'))||(stage==='teacher-attendance-save'&&url.includes('/attendance/'))||(stage==='teacher-session-summary'&&url.includes('/classes/')&&url.includes('/sessions/'))||(stage==='teacher-video-list'&&url.endsWith('/videos'))||(stage==='attendance-submit'&&url.endsWith('/workspace/lectures/10'));
       if(matched)throw primary;
      }

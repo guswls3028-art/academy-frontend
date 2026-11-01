@@ -74,8 +74,8 @@ export type ClinicIdcardData = {
 
 const DEFAULT_COLORS: [string, string, string] = ["#ef4444", "#3b82f6", "#22c55e"];
 
-export async function fetchClinicIdcard(): Promise<ClinicIdcardData> {
-  const res = await api.get("/clinic/idcard/");
+export async function fetchClinicIdcard(signal?: AbortSignal): Promise<ClinicIdcardData> {
+  const res = await api.get("/clinic/idcard/", { signal });
   const raw = res.data as Partial<ClinicIdcardData>;
   if (raw.current_result !== "SUCCESS" && raw.current_result !== "FAIL") {
     throw new Error("Invalid clinic passcard result");

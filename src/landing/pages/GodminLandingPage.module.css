@@ -12,6 +12,8 @@
   font-family: "Pretendard Variable", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
   min-width: 0;
   overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .page *,
@@ -178,7 +180,7 @@
 .systemHeading h2,
 .labStatement h2,
 .teacherCopy h2,
-.finalCopy h2 { font-size: clamp(42px, 4.7vw, 66px); font-weight: 790; letter-spacing: -0.075em; line-height: 1.08; margin: 20px 0 0; }
+.finalCopy h2 { font-size: clamp(38px, 4vw, 56px); font-weight: 790; letter-spacing: -0.075em; line-height: 1.16; margin: 20px 0 0; }
 .sectionLead p { color: var(--gm-muted); font-size: 16px; letter-spacing: -0.025em; line-height: 1.85; margin: 28px 0 0; max-width: 410px; }
 
 .disciplineMap { display: grid; gap: 1px; grid-template-columns: repeat(2, minmax(0, 1fr)); position: relative; }
@@ -244,6 +246,11 @@
 
 .page a:focus-visible { border-radius: 5px; outline: 3px solid rgba(239, 117, 88, 0.72); outline-offset: 4px; }
 
+@media (min-width: 981px) {
+  /* The two-column heading starts at 315px; allow full-width Korean fallback glyphs. */
+  .systemHeading h2 { font-size: clamp(34px, 3.5vw, 48px); }
+}
+
 @media (max-width: 980px) {
   .header { grid-template-columns: 1fr auto; }
   .nav { display: none; }
@@ -303,8 +310,7 @@
   .systemHeading h2,
   .labStatement h2,
   .teacherCopy h2,
-  .finalCopy h2 { font-size: 40px; }
-  .finalCopy h2 { word-break: keep-all; }
+  .finalCopy h2 { font-size: clamp(30px, 8.8vw, 38px); }
   .disciplineCard { min-height: 190px; padding: 22px 18px; }
   .disciplineCard h3 { font-size: 24px; margin: 44px 0 8px; }
   .disciplineCard p { font-size: 12px; }

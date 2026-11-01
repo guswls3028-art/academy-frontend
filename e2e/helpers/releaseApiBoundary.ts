@@ -563,6 +563,27 @@ function validPublicVideoPlayback(value: unknown): value is PublicVideoPlaybackO
     && typeof value.errorClass === "string" && ["none", "bot-check", "unavailable", "embedding-disabled", "other"].includes(value.errorClass);
 }
 
+export function isPublicVideoBotConfirmation(value: unknown): boolean {
+  return validPublicVideoPlayback(value) && value.identityMatches === true
+    && value.errorVisible && value.errorClass === "bot-check" && value.mediaError === null
+    && !value.adShowing && !value.adInterrupting && value.playerState === -1
+    && value.paused && !value.ended && value.readyState === 0
+    && value.currentTime === 0 && value.initialTime !== null;
+}
+
+export function emitPublicVideoAvailability(viewport: number, outcome: "played-paused" | "bot-confirmation",
+  playback: unknown, emit: (value: unknown) => void = value => console.log(JSON.stringify(value))) {
+  const confirmed = validPublicVideoPlayback(playback) && playback.identityMatches === true
+    && playback.paused && !playback.ended && playback.playerState === 2
+    && playback.readyState >= 2 && playback.width > 0 && playback.height > 0
+    && playback.currentTime !== null && playback.initialTime !== null && playback.currentTime > playback.initialTime + 1
+    && playback.mediaError === null && !playback.adShowing && !playback.adInterrupting
+    && !playback.errorVisible && playback.errorClass === "none";
+  if (![1366, 390].includes(viewport) || (outcome === "bot-confirmation" ? !isPublicVideoBotConfirmation(playback)
+    : outcome !== "played-paused" || !confirmed)) throw new Error("Invalid public video availability evidence");
+  emit({ publicVideoAvailability: { schema: "public-video-availability/v1", viewport, outcome, playback } });
+}
+
 export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "public-video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup",
   emit: (value: unknown) => void = (value) => console.log(JSON.stringify(value)), journeyStage?: PublicVideoJourneyStage, playback?: unknown) {
   const message = error instanceof Error ? error.message.split(/\r?\n/, 1)[0] : "";
@@ -895,18 +916,21 @@ async function installNativeKeepaliveGuard(
     const bodies = new WeakMap<InstanceType<typeof NativeRequest>, BodyInit | null | undefined>();
     // A Request exposes only a stream, which cannot be used to reconstruct a
     // keepalive request. Retain its original body synchronously when Axios builds
-    // it; never await request.text() in a departing document.
-    window.Request = class extends NativeRequest {
-      constructor(input: RequestInfo | URL, init?: RequestInit) {
-        super(input, init);
-        bodies.set(this, init?.body ?? (input instanceof NativeRequest ? bodies.get(input) : null));
-      }
-      clone(): InstanceType<typeof NativeRequest> {
-        const copy = super.clone();
-        bodies.set(copy, bodies.get(this));
-        return copy;
-      }
-    };
+    // it; never await request.text() in a departing document. Only the app's
+    // terminal writes use this capture. Preserve provider Request/clone identity.
+    if (location.origin === boundary.webOrigin) {
+      window.Request = class extends NativeRequest {
+        constructor(input: RequestInfo | URL, init?: RequestInit) {
+          super(input, init);
+          bodies.set(this, init?.body ?? (input instanceof NativeRequest ? bodies.get(input) : null));
+        }
+        clone(): InstanceType<typeof NativeRequest> {
+          const copy = super.clone();
+          bodies.set(copy, bodies.get(this));
+          return copy;
+        }
+      };
+    }
     const violationKey = "academy:release-native-keepalive-defects";
     const binding = (window as unknown as {
       __academyReleaseKeepaliveViolation: (code: string) => Promise<void>;

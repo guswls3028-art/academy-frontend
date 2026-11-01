@@ -37,9 +37,6 @@ export function resolveRootDestination({
   tenantCode,
   role,
   isAuthenticated,
-  isMobile = false,
-  isStandalone = false,
-  prefersFullWorkspace = false,
 }: RootDestinationInput): string {
   if (!isAuthenticated) {
     if (tenantCode === "hakwonplus" || tenantCode === "9999") return "/promo";
@@ -48,9 +45,7 @@ export function resolveRootDestination({
   }
 
   if (role && WORKSPACE_ROLES.includes(role)) {
-    return isMobile && !isStandalone && !prefersFullWorkspace
-      ? WORKSPACE_PATHS.mobile
-      : WORKSPACE_PATHS.full;
+    return WORKSPACE_PATHS.full;
   }
 
   if (role === "student" || role === "parent") {

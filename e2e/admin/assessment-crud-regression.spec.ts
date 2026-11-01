@@ -152,7 +152,7 @@ test.describe("운영 회귀: 차시 시험 삭제", () => {
       );
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 
-      await expect(page.getByText(examTitle).first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: examTitle, level: 2, exact: true })).toBeVisible({ timeout: 15_000 });
       await expect(page.getByRole("button", { name: "시험 삭제하기" })).toBeVisible();
 
       await page.getByRole("button", { name: "시험 삭제하기" }).click();

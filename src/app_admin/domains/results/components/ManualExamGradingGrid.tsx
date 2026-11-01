@@ -209,7 +209,17 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     queryFn: () => fetchManualGradeSheet(examId),
   });
   const { data: exam } = useAdminExam(examId);
-  const data = sheetQuery.data;
+  const [acceptedSheet, setAcceptedSheet] = useState<ManualGradeSheet>();
+  const [sheetReadbackGeneration, setSheetReadbackGeneration] = useState(0);
+  const { refetch: refetchSheet } = sheetQuery;
+  const refreshSheet = useCallback(async () => {
+    const result = await refetchSheet();
+    // An identical response can retain its cached object. Only a completed
+    // readback, never clearing dirty state alone, may accept that snapshot.
+    if (result.isSuccess && result.fetchStatus === "idle") setSheetReadbackGeneration((generation) => generation + 1);
+    return result;
+  }, [refetchSheet]);
+  const data = acceptedSheet?.exam_id === examId ? acceptedSheet : sheetQuery.data;
   const [draftRows, setDraftRows] = useState<ManualGradeRow[]>([]);
   const [questionScoreDraft, setQuestionScoreDraft] = useState<Record<string, string>>({});
   const draftRowsRef = useRef<ManualGradeRow[]>([]);
@@ -281,9 +291,19 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   }, []);
 
   useEffect(() => {
-    if (!sheetQuery.data) return;
+    if (!sheetQuery.data || sheetQuery.data === acceptedSheet) return;
     const alreadySynced = locallySyncedSheetRef.current === sheetQuery.data;
+    if (
+      !alreadySynced && acceptedSheet?.exam_id === examId &&
+      (explicitDirtyRef.current || [...autosaveRecordsRef.current.values()].some((record) => record.status !== "saved"))
+    ) {
+      // A background refresh must not replace unsaved cells, their question
+      // configuration, or their concurrency versions. Accept the save's next
+      // readback instead; merely clearing dirty state is not a fresh readback.
+      return;
+    }
     locallySyncedSheetRef.current = null;
+    setAcceptedSheet(sheetQuery.data);
     if (alreadySynced) return;
     latestAutosaveSheetRef.current = null;
     const nextRows = cloneRows(sheetQuery.data.rows);
@@ -307,7 +327,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     setQuestionScoreDraft(nextScores);
     clearHistory();
     markExplicitDirty(false);
-  }, [clearHistory, markExplicitDirty, sheetQuery.data]);
+  }, [acceptedSheet, clearHistory, examId, markExplicitDirty, sheetQuery.data, sheetReadbackGeneration]);
 
   const requestRows = useMemo(
     () => buildRequestRows(draftRows),
@@ -388,7 +408,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       markExplicitDirty(false);
       onApplied?.();
       await Promise.all([
-        sheetQuery.refetch(),
+        refreshSheet(),
         queryClient.invalidateQueries({
           queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId),
         }),
@@ -682,7 +702,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       setQuickStartOpen(false);
       setQuickStartCount("");
       await Promise.all([
-        sheetQuery.refetch(),
+        refreshSheet(),
         queryClient.invalidateQueries({
           queryKey: adminExamsQueryKeys.examQuestions(examId),
         }),
@@ -756,16 +776,17 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     previewMutation.isPending ||
     applyMutation.isPending ||
     quickStartMutation.isPending;
-  const busy = manualWriteBusy || excelApplying;
+  const awaitingDiscardedSheet = sheetQuery.fetchStatus !== "idle" && !dirty && sheetQuery.data !== data;
+  const busy = manualWriteBusy || excelApplying || awaitingDiscardedSheet;
   useImperativeHandle(forwardedRef, () => ({
     flushPending,
     // The caller holds the editing region inert until the external write and
     // its refetch finish. Never discard explicit edits or an open editor.
     flushBeforeExternalUpdate: async () => {
-      if (manualWriteBusy || answerKeyOpen || weightEditorOpen || quickStartOpen || shortcutSettingsOpen) return false;
+      if (manualWriteBusy || awaitingDiscardedSheet || answerKeyOpen || weightEditorOpen || quickStartOpen || shortcutSettingsOpen) return false;
       return flushPending();
     },
-  }), [flushPending, manualWriteBusy, answerKeyOpen, weightEditorOpen, quickStartOpen, shortcutSettingsOpen]);
+  }), [flushPending, manualWriteBusy, awaitingDiscardedSheet, answerKeyOpen, weightEditorOpen, quickStartOpen, shortcutSettingsOpen]);
   const autosaveStatusText = autosaveSummary.failed > 0
     ? `${autosaveSummary.failed}명 저장 실패`
     : autosaveSummary.saving > 0
@@ -881,7 +902,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   const closeAnswerKeyModal = () => {
     setAnswerKeyOpen(false);
     void Promise.all([
-      sheetQuery.refetch(),
+      refreshSheet(),
       queryClient.invalidateQueries({
         queryKey: adminExamsQueryKeys.examQuestions(examId),
       }),
@@ -956,8 +977,13 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     } else {
       markRowsForSave(entry.changes.map((change) => change.enrollmentId));
     }
+    if (
+      !explicitDirtyRef.current && !autosaveRunRef.current &&
+      [...autosaveRecordsRef.current.values()].every((record) => record.status === "saved") &&
+      sheetQuery.data !== acceptedSheet
+    ) void refreshSheet();
     return true;
-  }, [applyHistoryEntry, data, markExplicitDirty, markRowsForSave, syncHistoryState]);
+  }, [acceptedSheet, applyHistoryEntry, data, markExplicitDirty, markRowsForSave, refreshSheet, sheetQuery.data, syncHistoryState]);
 
   const redoLastChange = useCallback(() => {
     const entry = redoStackRef.current.pop();
@@ -1102,7 +1128,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       </section>
     );
   }
-  if (sheetQuery.isError) {
+  if (sheetQuery.isError && !data) {
     return (
       <section className={styles.card}>
         <EmptyState
@@ -1117,7 +1143,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
             <Button
               intent="secondary"
               size="sm"
-              onClick={() => void sheetQuery.refetch()}
+              onClick={() => void refreshSheet()}
             >
               다시 불러오기
             </Button>
@@ -1612,6 +1638,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     clearHistory();
     markExplicitDirty(false);
     previewMutation.reset();
+    if (sheetQuery.data !== acceptedSheet) void refreshSheet();
   };
 
   const handleWorkspaceKeyDown = (
@@ -1621,6 +1648,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     const key = event.key.toLowerCase();
     if (commandKey && !event.altKey && (key === "z" || key === "y")) {
       event.preventDefault();
+      if (awaitingDiscardedSheet) return;
       const redo = key === "y" || (key === "z" && event.shiftKey);
       if (redo) redoLastChange();
       else undoLastChange();
@@ -1660,7 +1688,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       ref={workspaceRef}
       className={styles.card}
       inert={excelApplying}
-      aria-busy={excelApplying}
+      aria-busy={excelApplying || awaitingDiscardedSheet}
       aria-labelledby="manual-grading-title"
       aria-keyshortcuts="Control+V Meta+V Control+Z Meta+Z Control+Shift+Z Meta+Shift+Z Control+Y Meta+Y Control+S Meta+S"
       tabIndex={-1}
@@ -1803,6 +1831,21 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
           )}
         </div>
       </header>
+
+      {awaitingDiscardedSheet ? (
+        <div className={styles.readOnlyNotice} role="status">최신 채점표를 확인하고 있습니다.</div>
+      ) : sheetQuery.isError ? (
+        <div className={`${styles.readOnlyNotice} ${styles.refreshNotice}`} role="alert">
+          <span>채점표를 다시 불러오지 못했습니다. 입력한 내용은 유지됩니다.</span>
+          <Button intent="secondary" size="sm" disabled={sheetQuery.isFetching} onClick={() => void refreshSheet()}>
+            다시 불러오기
+          </Button>
+        </div>
+      ) : dirty && acceptedSheet && sheetQuery.data !== acceptedSheet ? (
+        <div className={styles.readOnlyNotice} role="status">
+          채점표에 새 정보가 있습니다. 입력 중인 내용은 유지하며, 저장할 때 최신 성적과 충돌하는지 확인합니다.
+        </div>
+      ) : null}
 
       {!hasEditableQuestions ? (
         <div className={styles.readOnlyNotice}>

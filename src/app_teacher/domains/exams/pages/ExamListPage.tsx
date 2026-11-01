@@ -85,7 +85,7 @@ function ExamTab() {
         description="시험은 강의의 차시에 추가하면 목록과 성적 화면으로 연결됩니다."
         actions={
           <EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate("/workspace/lectures"); }}>
-            PC 화면에서 시험 추가
+            시험 추가
           </EmptyActionButton>
         }
       />
@@ -149,7 +149,7 @@ function HomeworkTab() {
         description="과제는 강의의 차시에 추가하면 제출 현황과 미제출 안내로 이어집니다."
         actions={
           <EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate("/workspace/lectures"); }}>
-            PC 화면에서 과제 추가
+            과제 추가
           </EmptyActionButton>
         }
       />

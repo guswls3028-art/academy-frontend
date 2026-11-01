@@ -136,8 +136,8 @@ test("known tenant teacher and student manifests use only that tenant's icons", 
 
   expect(teacherManifest.name).toBe("박철 과학 모바일 업무");
   expect(teacherManifest.id).toBe("/teacher");
-  expect(teacherManifest.start_url).toBe("/workspace/mobile");
-  expect(teacherManifest.scope).toBe("/workspace/mobile");
+  expect(teacherManifest.start_url).toBe("/workspace");
+  expect(teacherManifest.scope).toBe("/workspace");
   expect(teacherManifest.icons).toEqual([
     expect.objectContaining({ src: "/tenants/tchul/pwa-192.png", sizes: "192x192" }),
     expect.objectContaining({ src: "/tenants/tchul/pwa-512.png", sizes: "512x512" }),
@@ -427,11 +427,14 @@ test("security headers allow the exact API host used by public Matchup PDF frame
   const csp = document.headers.get("Content-Security-Policy") || "";
   const staticHeaders = readFileSync(resolve(process.cwd(), "public/_headers"), "utf8");
 
+  expect(document.headers.get("Permissions-Policy")).toBe("camera=(self), microphone=(), geolocation=()");
+  expect(staticHeaders).toContain("Permissions-Policy: camera=(self), microphone=(), geolocation=()");
+
   expect(csp).toContain(
-    "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
+    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
   );
   expect(staticHeaders).toContain(
-    "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
+    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
   );
   const frameDirective = csp.split(";").map((part) => part.trim())
     .find((part) => part.startsWith("frame-src ")) || "";

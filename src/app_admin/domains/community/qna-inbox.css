@@ -1788,7 +1788,8 @@
   }
 
   .qna-inbox__student-panel {
-    display: none;
+    flex-wrap: wrap;
+    padding: 10px 12px;
   }
 
   .qna-inbox__mobile-workbench-tabs {

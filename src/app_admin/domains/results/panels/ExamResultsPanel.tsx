@@ -165,7 +165,9 @@ export default function ExamResultsPanel({ examId, lectureId = null, wrongComple
           onClose={() => setSelectedOffline(null)}
           onSaved={async () => {
             await Promise.all([
-              queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResults(examId, lectureId) }),
+              queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResultsRoot(examId) }),
+              queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamSummary(examId) }),
+              queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(examId) }),
               queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.manualGradeSheet(examId) }),
               queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId, selectedOffline.enrollment_id) }),
               queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.sessionScores }),

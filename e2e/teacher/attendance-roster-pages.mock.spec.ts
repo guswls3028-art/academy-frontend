@@ -42,8 +42,8 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     const student = page.getByText("예시학생 가", { exact: true });
     await recording.screen("해당 차시의 학생 확인", "강의·차시를 확인하고 학생 카드를 누릅니다.", student);
     await student.click();
-    const present = page.getByRole("button", { name: "출석", exact: true });
-    await recording.screen("실제 출결 상태 선택", "출석·지각·결석 등 학생의 실제 상태를 선택합니다.", present);
+    const present = page.getByRole("button", { name: "현장", exact: true });
+    await recording.screen("실제 출결 상태 선택", "현장·영상·지각·결석 등 학생의 실제 상태를 선택합니다.", present);
     await present.click();
     await expect.poll(() => rows[0].status).toBe("PRESENT");
     await recording.screen("저장과 요약 확인", "저장 완료 뒤 출석 요약이 바뀌었는지 확인합니다.", page.getByText("출석 1", { exact: true }));

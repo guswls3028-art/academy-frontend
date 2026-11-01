@@ -547,6 +547,8 @@ test.describe("업무별 AtoZ 가이드", () => {
         await page.reload();
         await expect(search).toHaveValue(scenario.query);
         await expect(page.getByRole("article").getByRole("heading", { level: 2 })).toHaveText(scenario.title);
+        await expect(page.getByRole("article").getByRole("heading", { level: 2 })).toBeFocused();
+        await expect(page.getByRole("article").getByRole("heading", { level: 2 })).toBeInViewport();
         const next = page.getByRole("region", { name: "다음 이용 흐름" }).getByRole("button").first();
         await next.click();
         await expect(page.getByRole("article").getByRole("heading", { level: 2 })).not.toHaveText(scenario.title);
@@ -592,6 +594,29 @@ test.describe("업무별 AtoZ 가이드", () => {
     await page.getByRole("button", { name: "전체 가이드 보기" }).click();
     await expect(page).not.toHaveURL(/topic=/);
     await expect(page.getByRole("button", { name: "첫 단계부터 시작" })).toBeVisible();
+  });
+
+  test("직원 관리 권한 조회가 끝나면 직접 연결한 안내를 보여준다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await stubAuthenticatedApp(page, { role: "admin", required: false });
+    let releaseStaff!: () => void;
+    const staffReady = new Promise<void>((resolve) => { releaseStaff = resolve; });
+    await page.route("**/api/v1/staffs/me/", async (route) => {
+      await staffReady;
+      await route.fulfill({ json: { is_payroll_manager: true } });
+    });
+    await page.goto(BASE + "/workspace/guide?topic=staff");
+    try {
+      await expect(page.getByText("이 안내를 찾을 수 없거나 현재 계정에서 이용할 수 없습니다.")).toBeVisible();
+      await expect(page.getByRole("article")).toHaveCount(0);
+    } finally {
+      releaseStaff();
+    }
+    const heading = page.getByRole("article").getByRole("heading", { level: 2 });
+    await expect(heading).toHaveText("직원 계정·근태·비용·월마감");
+    await expect(heading).toBeFocused();
+    await expect(heading).toBeInViewport();
+    await expect(page.getByRole("article").getByRole("link", { name: /화면 열기/ })).toHaveAttribute("href", "/workspace/staff");
   });
 
   test("일반 교직원에게 권한 밖 수납·직원 바로가기를 제공하지 않는다", async ({ page }) => {

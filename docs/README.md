@@ -37,6 +37,7 @@
 | [강의 기존 학생 직접 등록](LECTURE-STUDENT-ENROLLMENT.md) | 차시 없이 기존 학생 검색·다중 선택·등록과 실패 복구 계약 |
 | [LECTURE-MANAGEMENT.md](LECTURE-MANAGEMENT.md) | 강의 설정 메뉴·수정값 보존·종료/복원·날짜 해제와 반응형 목록 계약 |
 | [ATTENDANCE-ROSTER-SAFETY.md](ATTENDANCE-ROSTER-SAFETY.md) | 차시 수강생 일괄배정의 미입력 시작, 선택 검토·실행취소, 전체 현장 출석의 원자적 되돌리기 계약 |
+| [ATTENDANCE-QR.md](ATTENDANCE-QR.md) | 교실 QR 출력·학생 카메라 출석·클리닉 등원/하원·오류 복구 계약 |
 | [ARRIVAL-OPERATIONS.md](ARRIVAL-OPERATIONS.md) | 보강 예정 입력과 클리닉 예약을 합친 대시보드·우상단 알림 운영 계약 |
 | [관리자](../src/app_admin/domains/clinic/README.md) · [선생님](../src/app_teacher/domains/clinic/README.md) · [학생](../src/app_student/domains/clinic/README.md) 클리닉 | 세션별 같은 날 다중 시간대 예약 정책과 역할별 생성·신청·추가 UX 계약 |
 | [학생 이름의 현재 강의 표시](STUDENT-LECTURE-STATUS.md) | 종료·비활성 강의 딱지 제외, 이력 보존, 종료·복원 후 화면 갱신 |
@@ -65,6 +66,7 @@
 | [PRODUCT-UPDATES.md](PRODUCT-UPDATES.md) | 공개 업데이트 페이지의 콘텐츠 범위, CTA, 접근성·라우팅 계약 |
 | [PROMO-EXPERIENCE.md](PROMO-EXPERIENCE.md) | 프로모션 브랜드 언어, 메뉴 구조, 실제 제품 화면 증거와 PC·390px 계약 |
 | [WORKSPACE-NAVIGATION.md](WORKSPACE-NAVIGATION.md) | 관리자·선생님 권한 메뉴의 빠른 검색, 최근 사용, 키보드·390px 이동 계약 |
+| [WORKSPACE-DEVICE-PARITY.md](WORKSPACE-DEVICE-PARITY.md) | PC·모바일 공통 기본 화면·설치 진입, 상태·선택지 정본과 호환·반응형 검증 |
 | [COMMUNITY-BOARD-ATTACHMENTS.md](COMMUNITY-BOARD-ATTACHMENTS.md) | 공지·게시판 이미지의 정식 첨부 저장, 첨부 실패 후 중복 글 없는 재시도와 권한·반응형 계약 |
 | [COMMUNITY-QNA-WORKBENCH.md](COMMUNITY-QNA-WORKBENCH.md) | 관리자 QnA 문제 사진 확대 작업 영역, 답변 보존·등록과 반응형 계약 |
 | [TEACHER-WORKSPACE-OPERATIONS.md](TEACHER-WORKSPACE-OPERATIONS.md) | 선생님 오늘 업무 합계, 역할별 결제·알림 경계, 카드 실패 상태와 44px·데스크톱 화면 계약 |

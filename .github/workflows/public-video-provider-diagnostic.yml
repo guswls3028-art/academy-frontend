@@ -1,0 +1,52 @@
+name: Public video provider diagnostic
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-video-provider-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  provider-diagnostic:
+    name: Public video transport comparison (diagnostic only)
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event.label.name == 'public-video-provider-diagnostic'
+        && github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install locked diagnostic dependencies
+        run: pnpm install --frozen-lockfile --shamefully-hoist
+      - name: Install Chromium
+        run: pnpm exec playwright install chromium --with-deps
+      - name: Verify closed transport contracts
+        run: node --test scripts/tests/public-video-provider-diagnostic.test.mjs scripts/tests/public-video-native-diagnostic.test.mjs
+      - name: One bounded anonymous transport comparison
+        env:
+          PROVIDER_DIAGNOSTIC_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node --max-http-header-size=65536 scripts/public-video-provider-diagnostic.mjs
+      - name: Preserve diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: public-video-provider-diagnostic
+          path: test-results/public-video-provider-diagnostic/diagnostic.json
+          if-no-files-found: warn
+          retention-days: 7

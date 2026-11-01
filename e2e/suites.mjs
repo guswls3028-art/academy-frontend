@@ -6,6 +6,7 @@ export const productionReadOnlySpecs = [
 ];
 
 export const routeMockSpecs = [
+  "e2e/student/attendance-qr.mock.spec.ts",
   "e2e/student/design-system-isolation.mock.spec.ts",
   "e2e/student/video-event-receipts.mock.spec.ts",
   "e2e/promo-guide.mock.spec.ts",
@@ -88,6 +89,7 @@ export const routeMockSpecs = [
   "e2e/admin/message-template-concurrency.mock.spec.ts",
   "e2e/admin/score-column-mobile-ordering.mock.spec.ts",
   "e2e/admin/assessment-feedback.mock.spec.ts",
+  "e2e/admin/assessment-inspection-notes.spec.ts",
   "e2e/admin/individual-score-report.spec.ts",
   "e2e/admin/ppt-mobile-slide-ordering.mock.spec.ts",
   "e2e/admin/ppt-manual-pdf-crop.mock.spec.ts",
@@ -112,6 +114,7 @@ export const routeMockSpecs = [
   "e2e/teacher/lecture-roster-pages.mock.spec.ts",
   "e2e/teacher/lecture-navigation-recovery.mock.spec.ts",
   "e2e/teacher/attendance-save-undo.mock.spec.ts",
+    "e2e/teacher/attendance-device-parity.mock.spec.ts",
   "e2e/teacher/student-question-history.mock.spec.ts",
   "e2e/teacher/student-clinic-history.mock.spec.ts",
   "e2e/teacher/student-detail-ux.mock.spec.ts",

@@ -454,6 +454,8 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
 
+    await expect(page.locator(".qna-inbox__student-panel")).toBeVisible();
+
     await expect(page.getByRole("tab", { name: /질문 자료/ })).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: "문제 사진 크게 보며 답변하기" }).click();
     await expect(page.locator(".qna-inbox--expanded")).toBeVisible();
@@ -463,6 +465,7 @@ test.describe("커뮤니티 QnA 작업대", () => {
     const editor = page.locator(".qna-inbox__answer-pane .ProseMirror");
     await editor.fill("작성 중인 답변은 보존됩니다.");
     await page.getByRole("button", { name: "화면 줄이기", exact: true }).click();
+    await expect(page.locator(".qna-inbox__student-panel")).toBeVisible();
     await expect(editor).toContainText("작성 중인 답변은 보존됩니다.");
     await page.getByRole("tab", { name: /질문 자료/ }).click();
     await page.getByRole("tab", { name: "답변 작성" }).click();

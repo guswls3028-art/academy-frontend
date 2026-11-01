@@ -620,7 +620,7 @@ test("평가가 없는 차시는 빈 상태를 설명하고 기존 시험·과�
   await expect(page.getByText("시험을 선택하세요", { exact: true })).toHaveCount(0);
   expect(api.scoreRequests()).toBeGreaterThan(0);
   expect(api.resultRequests).toEqual([]);
-  await mainButton(page, "PC 화면에서 시험·과제 추가").click();
+  await mainButton(page, "시험·과제 추가").click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores$`));
 });
 
@@ -631,7 +631,7 @@ test("차시 수강생이 없으면 모바일에서 정확한 PC 출결 등록 �
   await expect(page.getByText("강의 명부 등록 후에도 이 차시의 수강생은 출결 화면에서 별도로 등록해야 합니다.")).toBeVisible();
   await mainButton(page, "출석").click();
   await expect(page.getByText("먼저 이 차시의 수강생을 등록해야 출석을 확인할 수 있습니다.")).toBeVisible();
-  await mainButton(page, "PC 화면에서 차시 수강생 등록").click();
+  await mainButton(page, "차시 수강생 등록").click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/attendance$`));
 });
 

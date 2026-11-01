@@ -15,6 +15,7 @@ import {
   useRef,
   useCallback,
   useEffect,
+  type RefObject,
   type KeyboardEvent,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,7 +23,6 @@ import { useNavigate, useParams } from "react-router";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import { fetchAdminExamResultDetail, type ExamResultItem } from "../api/adminExamResultDetail";
 import { fetchAttemptHistory, type AttemptEntry } from "@admin/domains/scores/api/attemptHistory";
-import { patchExamItemScore } from "@admin/domains/scores/api/patchItemScore";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import WrongNotePanel from "./WrongNotePanel";
@@ -37,15 +37,13 @@ import {
 } from "@/shared/scoring/achievement";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import {
-  CHOICE_LABELS,
   choiceAnswerMatches,
-  choiceTokens,
-  formatChoiceAnswer,
   describeCorrectChoiceForDisplay,
   isChoiceAnswer,
-  requiredChoiceTokens,
 } from "../utils/choiceAnswerMatching";
-import { appendSerialTask } from "../utils/serialSaveQueue";
+import type { AnswerEditController } from "./useAnswerEditQueue";
+import StudentResultAnswerEditor from "./StudentResultAnswerEditor";
+export type { AnswerEditController } from "./useAnswerEditQueue";
 
 function toBadgeTone(t: ReturnType<typeof achievementTone>): BadgeTone {
   return t === "warn" ? "warning" : t;
@@ -75,6 +73,8 @@ type Props = {
   examTitle: string;
   scoreSessionId?: number;
   readOnly?: boolean;
+  onRequestEdit?: () => Promise<boolean>;
+  answerEditRef?: RefObject<AnswerEditController | null>;
   onReviewOmr?: (submissionId: number) => void;
   onEditManualAnswers?: () => void;
   onClose: () => void;
@@ -105,13 +105,18 @@ function questionKindFromNumber(
   return null;
 }
 
-export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, scoreSessionId, readOnly = false, onReviewOmr, onEditManualAnswers, onClose }: Props) {
+export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, scoreSessionId, readOnly = false, onRequestEdit, answerEditRef, onReviewOmr, onEditManualAnswers, onClose }: Props) {
   const qc = useQueryClient();
   const tenantLabels = useTenantLabels();
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const [mainTab, setMainTab] = useState<"answer" | "wrong">("answer");
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isStartingEdit, setIsStartingEdit] = useState(false);
+  const initialAutoEdit = useRef(false);
+  const localAnswerEditRef = useRef<AnswerEditController | null>(null);
+  const editorRef = answerEditRef ?? localAnswerEditRef;
+  const [isFinishingEdit, setIsFinishingEdit] = useState(false);
   const [scanExpanded, setScanExpanded] = useState(false);
   const handleMainTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -127,7 +132,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     queryFn: () => fetchAdminExamResultDetail(examId, enrollmentId),
     enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
   });
-  const { data: detail, isLoading: detailLoading, error: detailError } = detailQ;
+  const { data: detail, isLoading: detailLoading, error: detailError, refetch: refetchDetail } = detailQ;
 
   const attemptQ = useQuery({
     queryKey: adminResultsQueryKeys.attemptHistoryExam(examId, enrollmentId),
@@ -226,6 +231,10 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   );
 
   const invalidateAll = useCallback(() => {
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResultsRoot(examId) });
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamSummary(examId) });
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(examId) });
+    qc.invalidateQueries({ queryKey: adminResultsQueryKeys.manualGradeSheet(examId) });
     qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId, enrollmentId) });
     qc.invalidateQueries({ queryKey: adminResultsQueryKeys.attemptHistoryExam(examId, enrollmentId) });
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
@@ -234,28 +243,61 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 
   const selectedAttemptEntry = attempts.find((a) => a.attempt_index === selectedAttempt);
 
-  const enterEdit = () => {
-    if (readOnly) {
-      feedback.info("성적표에서 수정을 누른 뒤 답안을 보정해 주세요.");
-      return;
+  const enterEdit = useCallback(async () => {
+    if (isStartingEdit) return;
+    initialAutoEdit.current = true;
+    setIsStartingEdit(true);
+    try {
+      if (readOnly) {
+        if (!onRequestEdit) {
+          feedback.info("성적표에서 수정을 누른 뒤 답안을 보정해 주세요.");
+          return;
+        }
+        if (!await onRequestEdit()) return;
+      }
+      // A different editor may have saved while this view waited for its lease.
+      const refreshed = await refetchDetail();
+      if (refreshed.isError || !refreshed.data) {
+        feedback.error("최신 답안을 불러오지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
+      setMainTab("answer");
+      setIsEditMode(true);
+    } catch {
+      feedback.error("답안 입력을 시작하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setIsStartingEdit(false);
     }
-    setMainTab("answer");
-    setIsEditMode(true);
+  }, [isStartingEdit, onRequestEdit, readOnly, refetchDetail]);
+  const finishEditing = async (close: boolean, nextAttempt?: number) => {
+    if (isFinishingEdit) return;
+    setIsFinishingEdit(true);
+    try {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      await editorRef.current?.flush();
+      setIsEditMode(false);
+      if (nextAttempt != null) setSelectedAttempt(nextAttempt);
+      invalidateAll();
+      if (close) onClose();
+    } catch {
+      feedback.error("답안을 저장하지 못했습니다. 입력값을 확인하고 다시 저장해 주세요.");
+    } finally {
+      setIsFinishingEdit(false);
+    }
   };
-  const exitEdit = () => { setIsEditMode(false); invalidateAll(); };
+  const exitEdit = () => { void finishEditing(false); };
+  const closeDrawer = () => { void finishEditing(true); };
 
   useEffect(() => {
-    if (readOnly) setIsEditMode(false);
-  }, [readOnly]);
+    if (readOnly && !editorRef.current?.hasPending()) setIsEditMode(false);
+  }, [readOnly, editorRef]);
 
   // 상태 B: 최초 로드 시 데이터 없으면 바로 편집 모드 진입
-  const initialAutoEdit = useRef(false);
   useEffect(() => {
-    if (!readOnly && !answerLoading && !answerError && hasQuestions && !hasData && !initialAutoEdit.current) {
-      initialAutoEdit.current = true;
-      setIsEditMode(true);
+    if (!readOnly && !isStartingEdit && !isEditMode && !answerLoading && !answerError && hasQuestions && !hasData && !initialAutoEdit.current) {
+      void enterEdit();
     }
-  }, [readOnly, answerLoading, answerError, hasQuestions, hasData]);
+  }, [readOnly, isStartingEdit, isEditMode, answerLoading, answerError, hasQuestions, hasData, enterEdit]);
 
   // 정오답 로컬 판정
   const isItemCorrect = useCallback((it: ExamResultItem) => {
@@ -293,10 +335,10 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 
   return (
     <>
-      <div className="srd-modal-backdrop" onClick={onClose} aria-hidden />
+      <div className="srd-modal-backdrop" onClick={closeDrawer} aria-hidden />
       <div className="srd-modal-wrap">
         <div className="srd-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-          <CloseButton className="srd-modal__close" onClick={onClose} />
+          <CloseButton className="srd-modal__close" onClick={closeDrawer} />
 
           {/* ── 헤더 ── */}
           <header className="srd-modal__header">
@@ -359,7 +401,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
             )}
             {/* 편집 모드에서 완료 */}
             {isEditMode && (
-              <button type="button" className="srd-modal__done-btn" onClick={exitEdit}>완료</button>
+              <button type="button" className="srd-modal__done-btn" disabled={isFinishingEdit} onClick={exitEdit}>{isFinishingEdit ? "저장 확인 중…" : "완료"}</button>
             )}
           </header>
 
@@ -416,7 +458,8 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                     key={n}
                     type="button"
                     className={`srd-attempt-tab ${selectedAttempt === n ? "srd-attempt-tab--active" : ""} ${entry?.passed === true ? "srd-attempt-tab--pass" : ""}`}
-                    onClick={() => { setSelectedAttempt(n); setIsEditMode(false); }}
+                    disabled={isFinishingEdit}
+                    onClick={() => { void finishEditing(false, n); }}
                   >
                     {n}차{n === 1 ? " 응시" : wrongCompletionOnly ? " 추가 기록" : " 재시험"}
                     {entry && (
@@ -523,16 +566,19 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                       qNumMap={qNumMap}
                       correctAnswers={correctAnswersMap}
                       isItemCorrect={isItemCorrect}
-                      onEdit={readOnly ? undefined : enterEdit}
+                      onEdit={readOnly && !onRequestEdit ? undefined : enterEdit}
+                      isStartingEdit={isStartingEdit}
                     />
                   ) : hasQuestions ? (
                     /* ── 상태 B: 데이터 없음 + 문항 있음 → 입력 유도 ── */
                     <div className="srd-stateB">
                       <p className="srd-stateB__desc">아직 입력된 답안이 없습니다.</p>
-                      {readOnly ? (
+                      {readOnly && !onRequestEdit ? (
                         <p className="srd-stateB__desc">답안을 입력하려면 성적표에서 수정을 눌러 주세요.</p>
                       ) : (
-                        <button type="button" className="srd-stateB__btn" onClick={enterEdit}>답안 입력 시작</button>
+                        <button type="button" className="srd-stateB__btn" disabled={isStartingEdit} onClick={enterEdit}>
+                          {isStartingEdit ? "입력 준비 중…" : "답안 입력 시작"}
+                        </button>
                       )}
                     </div>
                   ) : (
@@ -542,7 +588,8 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                 )}
 
                 {!answerLoading && !answerError && isEditMode && (
-                    <EditModeContent
+                    <StudentResultAnswerEditor
+                      key={`${scoreSessionId}:${examId}:${enrollmentId}`}
                       sessionId={scoreSessionId}
                       examId={examId}
                     enrollmentId={enrollmentId}
@@ -553,6 +600,8 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                     qNumMap={qNumMap}
                     onDone={exitEdit}
                     onSaveSuccess={invalidateAll}
+                    controllerRef={editorRef}
+                    isFinishing={isFinishingEdit}
                   />
                 )}
               </>
@@ -576,7 +625,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 /* 읽기 모드 — 2단 (선택형 | 서술형) + 총점 상단         */
 /* ═══════════════════════════════════════════════════ */
 
-function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjectivePending, qNumMap, correctAnswers, isItemCorrect, onEdit }: {
+function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjectivePending, qNumMap, correctAnswers, isItemCorrect, onEdit, isStartingEdit }: {
   choiceItems: ExamResultItem[];
   essayItems: ExamResultItem[];
   totalScore: number;
@@ -586,6 +635,7 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjec
   correctAnswers: Record<string, string>;
   isItemCorrect: (it: ExamResultItem) => boolean;
   onEdit?: () => void;
+  isStartingEdit: boolean;
 }) {
   const pct = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
   const choiceCorrect = choiceItems.filter((it) => it.answer && isItemCorrect(it)).length;
@@ -672,11 +722,11 @@ function ReadModeContent({ choiceItems, essayItems, totalScore, maxScore, subjec
       {/* 하단 수정 CTA */}
       {onEdit && (
         <div className="srd-read__footer">
-          <button type="button" className="srd-read__edit-btn" onClick={onEdit}>
+          <button type="button" className="srd-read__edit-btn" disabled={isStartingEdit} onClick={onEdit}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
             </svg>
-            성적 수정
+            {isStartingEdit ? "입력 준비 중…" : "성적 수정"}
           </button>
         </div>
       )}
@@ -749,193 +799,6 @@ function RetakeAttemptView({ attempt, maxScore, passScore }: { attempt: AttemptE
         </div>
         {!wrongCompletionOnly && passScore != null && <div className="srd-retake-view__cutline">합격 기준: {passScore}점</div>}
         <div className="srd-retake-view__note">{wrongCompletionOnly ? "추가 기록은" : "재시험은"} 총점만 기록됩니다. 문항별 상세는 1차 응시에서 확인하세요.</div>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════ */
-/* 편집 모드 — 2단 (선택형 | 서술형) + sticky 총점       */
-/* ═══════════════════════════════════════════════════ */
-
-function EditModeContent({ sessionId, examId, enrollmentId, choiceItems, essayItems, allItems, correctAnswers, qNumMap, onDone, onSaveSuccess }: {
-  sessionId?: number;
-  examId: number;
-  enrollmentId: number;
-  choiceItems: ExamResultItem[];
-  essayItems: ExamResultItem[];
-  allItems: ExamResultItem[];
-  correctAnswers: Record<string, string>;
-  qNumMap: Map<number, number>;
-  onDone: () => void;
-  onSaveSuccess: () => void;
-}) {
-  const [answers, setAnswers] = useState<Record<number, string>>(() => {
-    const init: Record<number, string> = {};
-    for (const it of allItems) init[it.question_id] = it.answer ?? "";
-    return init;
-  });
-  const [scores, setScores] = useState<Record<number, number>>(() => {
-    const init: Record<number, number> = {};
-    for (const it of allItems) init[it.question_id] = it.score ?? 0;
-    return init;
-  });
-
-  const scoreRefs = useRef<Record<number, HTMLInputElement | null>>({});
-  const saveTailRef = useRef<Promise<void>>(Promise.resolve());
-  const enqueueSave = useCallback(
-    (params: { questionId: number; score: number; answer?: string }) => {
-      saveTailRef.current = appendSerialTask(
-        saveTailRef.current,
-        () =>
-      sessionId == null
-        ? Promise.reject(new Error("차시 성적 화면에서 수정해 주세요."))
-        : patchExamItemScore({ sessionId, examId, enrollmentId, questionId: params.questionId, score: params.score, answer: params.answer }),
-        onSaveSuccess,
-        () => feedback.error("저장에 실패했습니다."),
-      );
-    },
-    [enrollmentId, examId, onSaveSuccess, sessionId],
-  );
-
-  const getCorrectAnswer = (qid: number) => correctAnswers[String(qid)] ?? "";
-
-  const handleBubbleClick = useCallback((qid: number, choice: string) => {
-    const currentAnswer = answers[qid] ?? "";
-    const nextChoices = new Set(requiredChoiceTokens(currentAnswer));
-    if (nextChoices.has(choice)) nextChoices.delete(choice);
-    else nextChoices.add(choice);
-    const newAnswer = formatChoiceAnswer([...nextChoices]);
-    setAnswers((prev) => ({ ...prev, [qid]: newAnswer }));
-
-    const correct = correctAnswers[String(qid)] ?? "";
-    const item = allItems.find((it) => it.question_id === qid);
-    const maxScore = item?.max_score ?? 0;
-    let newScore: number;
-    if (newAnswer === "") newScore = 0;
-    else if (!correct) newScore = scores[qid] ?? 0;
-    else if (choiceAnswerMatches(newAnswer, correct)) newScore = maxScore;
-    else newScore = 0;
-    setScores((prev) => ({ ...prev, [qid]: newScore }));
-    enqueueSave({ questionId: qid, score: newScore, answer: newAnswer });
-  }, [answers, correctAnswers, allItems, scores, enqueueSave]);
-
-  const handleEssayBlur = useCallback((qid: number) => {
-    enqueueSave({ questionId: qid, score: scores[qid] ?? 0, answer: answers[qid] ?? "" });
-  }, [answers, scores, enqueueSave]);
-
-  const handleScoreBlur = useCallback((qid: number) => {
-    enqueueSave({ questionId: qid, score: scores[qid] ?? 0, answer: answers[qid] ?? "" });
-  }, [answers, scores, enqueueSave]);
-
-  const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
-  const totalMax = allItems.reduce((a, it) => a + it.max_score, 0);
-
-  return (
-    <div className="srd-edit">
-      {/* sticky 총점 */}
-      <div className="srd-edit__total-bar">
-        <span className="srd-edit__total-label">총점</span>
-        <span className="srd-edit__total-score">{totalScore}</span>
-        <span className="srd-edit__total-max">/ {totalMax}점</span>
-        {totalMax > 0 && <span className="srd-edit__total-pct">({Math.round((totalScore / totalMax) * 100)}%)</span>}
-      </div>
-
-      {/* 2단 레이아웃 */}
-      <div className="srd-edit__columns">
-        {/* 선택형 패널 */}
-        {choiceItems.length > 0 && (
-          <section className="srd-edit__panel">
-            <h3 className="srd-edit__panel-title">선택형 <span className="srd-edit__panel-badge">{choiceItems.length}문항</span></h3>
-            <div className="srd-edit__choice-list">
-              {choiceItems.map((it, idx) => {
-                const qid = it.question_id;
-                const answer = answers[qid] ?? "";
-                const correct = getCorrectAnswer(qid);
-                const isDivider = (idx + 1) % 5 === 0 && idx < choiceItems.length - 1;
-                return (
-                  <div key={qid} className={`srd-edit__choice-row ${isDivider ? "srd-edit__choice-row--divider" : ""}`}>
-                    <span className="srd-edit__q-num">{qNumMap.get(qid) ?? (idx + 1)}</span>
-                    <div className="srd-edit__bubbles">
-                      {CHOICE_LABELS.map((c) => {
-                        const sel = requiredChoiceTokens(answer).includes(c);
-                        const isCorrectChoice = choiceAnswerMatches(answer, correct);
-                        const correctChoices = choiceTokens(correct);
-                        const isWrong = answer !== "" && correct !== "" && !isCorrectChoice;
-                        let cls = "";
-                        if (!correct && sel) cls = "srd-edit__bubble--neutral";
-                        else if (sel && isCorrectChoice) cls = "srd-edit__bubble--correct";
-                        else if (sel && isWrong) cls = "srd-edit__bubble--wrong";
-                        else if (correctChoices.includes(c) && isWrong) cls = "srd-edit__bubble--answer";
-                        return (
-                          <button key={c} type="button" className={`srd-edit__bubble ${cls}`} onClick={() => handleBubbleClick(qid, c)}>{c}</button>
-                        );
-                      })}
-                    </div>
-                    <span className="srd-edit__choice-result">
-                      {answer ? (correct ? (choiceAnswerMatches(answer, correct) ? <span className="srd-edit__mark--ok">○</span> : <span className="srd-edit__mark--x">✕</span>) : <span className="srd-edit__mark--score">{scores[qid] ?? 0}/{it.max_score}</span>) : <span className="srd-edit__mark--empty">—</span>}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* 서술형 패널 */}
-        {essayItems.length > 0 && (
-          <section className="srd-edit__panel">
-            <h3 className="srd-edit__panel-title">서술형 <span className="srd-edit__panel-badge">{essayItems.length}문항</span></h3>
-            <div className="srd-edit__essay-list">
-              {essayItems.map((it, idx) => {
-                const qid = it.question_id;
-                const answer = answers[qid] ?? "";
-                const score = scores[qid] ?? 0;
-                const correct = getCorrectAnswer(qid);
-                return (
-                  <div key={qid} className="srd-edit__essay-row">
-                    <span className="srd-edit__q-num">{qNumMap.get(qid) ?? (idx + 1)}</span>
-                    <input
-                      type="text"
-                      className="srd-edit__essay-input"
-                      value={answer}
-                      onChange={(e) => setAnswers((prev) => ({ ...prev, [qid]: e.target.value }))}
-                      onBlur={() => handleEssayBlur(qid)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); scoreRefs.current[qid]?.focus(); } }}
-                      placeholder="답안"
-                    />
-                    <div className="srd-edit__essay-score-wrap">
-                      <input
-                        ref={(el) => { scoreRefs.current[qid] = el; }}
-                        type="number"
-                        className="srd-edit__score-input"
-                        value={score}
-                        onChange={(e) => {
-                          const v = e.target.value === "" ? 0 : parseFloat(e.target.value);
-                          if (!isNaN(v)) setScores((prev) => ({ ...prev, [qid]: Math.max(0, Math.min(v, it.max_score)) }));
-                        }}
-                        onBlur={() => handleScoreBlur(qid)}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleScoreBlur(qid); } }}
-                        min={0} max={it.max_score} step="any"
-                      />
-                      <span className="srd-edit__score-max">/{it.max_score}</span>
-                    </div>
-                    {correct && (
-                      <div className="srd-edit__essay-hint">정답: {correct}</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-      </div>
-
-      {/* 하단 완료 버튼 */}
-      <div className="srd-edit__footer">
-        <button type="button" className="srd-edit__done-btn" onClick={onDone}>
-          수정 완료
-        </button>
       </div>
     </div>
   );

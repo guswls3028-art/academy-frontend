@@ -21,6 +21,16 @@ export async function installLocalAuthApiStubs(page: Page, options: LocalAuthApi
     "access-control-allow-methods": "GET,POST,OPTIONS",
   };
 
+  await page.route("**/api/v1/core/og-meta/**", async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await route.fulfill({
+      status: 200,
+      headers: corsHeaders,
+      contentType: "application/json",
+      json: { title: "학원플러스", apple_touch_icon: "/teacher-icons/icon-192.svg" },
+    });
+  });
+
   await page.route("**/api/v1/token/refresh/", async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({ status: 204, headers: corsHeaders });

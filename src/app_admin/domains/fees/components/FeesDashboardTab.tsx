@@ -12,6 +12,8 @@ import { fetchDashboard, fetchOverdueInvoices, type DashboardStats, type Student
 import { adminFeesQueryKeys } from "../queryKeys";
 import { FEES_STATUS_LABEL, type InvoiceStatus } from "../utils/feesStatus";
 import styles from "./FeesDashboardTab.module.css";
+import { FEE_TYPE_LABEL } from "@/shared/product/fees/feesStatus";
+import type { FeeType } from "@/shared/api/contracts/fees";
 
 const STATUS_CLASS: Record<InvoiceStatus, string> = {
   PENDING: styles.statusPending,
@@ -104,14 +106,10 @@ export default function FeesDashboardTab() {
           </h3>
           <div className={styles.feeTypeList}>
             {s.by_fee_type.map((ft: { fee_type: string; total: number }) => {
-              const labels: Record<string, string> = {
-                TUITION: "수강료", TEXTBOOK: "교재비", HANDOUT: "판서/프린트",
-                REGISTRATION: "등록비", MATERIAL: "재료비", OTHER: "기타",
-              };
               return (
                 <div key={ft.fee_type} className={styles.feeTypeCard}>
                   <div className={styles.feeTypeLabel}>
-                    {labels[ft.fee_type] ?? ft.fee_type}
+                    {FEE_TYPE_LABEL[ft.fee_type as FeeType] ?? ft.fee_type}
                   </div>
                   <div className={styles.feeTypeValue}>
                     {formatKRW(ft.total)}

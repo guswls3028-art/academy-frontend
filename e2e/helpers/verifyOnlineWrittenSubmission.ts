@@ -73,10 +73,19 @@ export async function verifyOnlineWrittenSubmission(
       const id = Number((await response.json() as { submission_id: number }).submission_id);
       expect(id).toBeGreaterThan(0);
       registerSubmission(id);
+      return { id, payload: response.request().postDataJSON() as Record<string, unknown> };
     });
     await studentPage.getByRole("button", { name: "제출하기" }).click();
     await studentPage.locator("[data-confirm-dialog]").getByRole("button", { name: "제출", exact: true }).click();
-    await submitted;
+    const original = await submitted;
+    expect(original.payload.client_request_id).toMatch(/^[a-f0-9-]{36}$/i);
+    expect(original.payload.expected_attempt_count).toBe(0);
+    const replay = await expectApi<{ submission_id: number }>(request, "POST",
+      `/student/exams/${exam.id}/submit/`, student.access, original.payload, [201]);
+    expect(replay.submission_id).toBe(original.id);
+    const admission = await expectApi<{ attempt_count: number }>(request, "GET",
+      `/student/exams/${exam.id}/`, student.access);
+    expect(admission.attempt_count).toBe(1);
     await expect(studentPage.getByText("서술형 채점 중입니다.")).toBeVisible();
     await studentPage.reload({ waitUntil: "domcontentloaded" });
     await expect(studentPage.getByText("서술형 채점 중입니다.")).toBeVisible();

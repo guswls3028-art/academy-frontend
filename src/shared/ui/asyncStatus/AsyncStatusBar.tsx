@@ -108,7 +108,7 @@ function getProgressFillStyle(progress: number): AsyncStatusProgressStyle {
   return { "--async-status-progress": `${safeProgress}%` };
 }
 
-/** 남은 예상시간: API(워커)에서 오면 우선 사용, 없으면 진행률 기반 선형 추정. */
+/** API의 남은 시간을 우선 사용한다. 사람의 확인을 기다리는 OMR은 비율로 시간을 추정하지 않는다. */
 function getRemainingLabel(task: AsyncTask, nowMs: number): string | null {
   if (task.status !== "pending" || task.progress == null || task.progress <= 0 || task.progress >= 100)
     return null;
@@ -117,6 +117,9 @@ function getRemainingLabel(task: AsyncTask, nowMs: number): string | null {
     if (sec < 60) return `약 ${Math.max(1, Math.round(sec))}초 남음`;
     return `약 ${Math.round(sec / 60)}분 남음`;
   }
+  // OMR progress counts outcomes, including identification/setting waits; it
+  // is not elapsed processing progress. Restored batches can be hours old.
+  if (["omr", "omr_scan", "omr_batch"].includes(task.meta?.jobType ?? "")) return null;
   const created = Number(task.createdAt);
   if (!Number.isFinite(created) || !Number.isFinite(nowMs)) return null;
   const elapsedSec = (nowMs - created) / 1000;

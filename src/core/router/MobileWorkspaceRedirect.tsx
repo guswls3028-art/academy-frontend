@@ -1,22 +1,16 @@
 /* eslint-disable react-refresh/only-export-components */
 /**
- * MobileWorkspaceRedirect — 모바일 브라우저의 통합 업무 홈을 모바일 업무 홈으로 전환
+ * 통합 업무는 기기 폭과 관계없이 같은 화면·권한·기능을 사용한다.
  *
- * - 모바일(≤1023px) + 교직원 역할의 통합 업무 홈 진입 → 모바일 업무 홈
- * - 성적/시험/차시/메시지 등 명시적인 통합 업무 딥링크는 모바일에서도 유지
- * - 사용자가 통합 업무 화면을 선택하면 테넌트별로 선호를 기억
- * - PWA standalone 모드에서는 이미 선택한 화면을 유지
+ * 기존 간편 업무 링크와 명시적인 전환의 복귀 정보는 호환 유지한다.
+ * 화면 폭만으로 현재 경로나 편집 중인 화면을 교체하지 않는다.
  */
-import { Navigate, Outlet, useLocation } from "react-router";
-import useAuth from "@/auth/hooks/useAuth";
+import { Outlet } from "react-router";
 import { resolveTenantCode, resolveTenantCodeString } from "@/shared/tenant";
 import { WORKSPACE_PATHS, parseMobileWorkspaceReturnPath } from "./workspaceRoutes";
 import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 import { getSessionItem, removeSessionItem, setSessionItem } from "@/shared/utils/safeSessionStorage";
 
-const MOBILE_QUERY = "(max-width: 1023px)";
-
-const WORKSPACE_ROLES = ["owner", "admin", "teacher", "staff"];
 const MOBILE_RETURN_KEY_PREFIX = "workspace:mobileReturn:v1";
 const MOBILE_RETURN_MAX_AGE_MS = 8 * 60 * 60 * 1000;
 
@@ -71,34 +65,12 @@ export function consumeMobileWorkspaceReturnPath(accountId: number | null | unde
   }
 }
 
-function shouldRedirectFullWorkspaceHome(pathname: string): boolean {
-  const normalized = pathname.replace(/\/+$/, "") || "/";
-  return (
-    normalized === WORKSPACE_PATHS.full
-    || normalized === `${WORKSPACE_PATHS.full}/dashboard`
-  );
-}
-
 function getPreferenceKey(): string {
   return `workspace:preferFull:${resolveTenantCodeString()}`;
 }
 
 function getLegacyPreferenceKey(): string {
   return `teacher:preferAdmin:${resolveTenantCodeString()}`;
-}
-
-function isMobileViewport(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia(MOBILE_QUERY).matches;
-}
-
-function isStandaloneMode(): boolean {
-  if (typeof window === "undefined") return false;
-  const navigatorWithStandalone = window.navigator as Navigator & { standalone?: boolean };
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    navigatorWithStandalone.standalone === true
-  );
 }
 
 export function prefersFullWorkspace(): boolean {
@@ -115,20 +87,6 @@ export function prefersFullWorkspace(): boolean {
 }
 
 export default function MobileWorkspaceRedirect() {
-  const { user } = useAuth();
-  const location = useLocation();
-
-  if (
-    isMobileViewport() &&
-    !isStandaloneMode() &&
-    !prefersFullWorkspace() &&
-    user?.tenantRole &&
-    shouldRedirectFullWorkspaceHome(location.pathname) &&
-    WORKSPACE_ROLES.includes(user.tenantRole)
-  ) {
-    return <Navigate to={WORKSPACE_PATHS.mobile} replace />;
-  }
-
   return <Outlet />;
 }
 

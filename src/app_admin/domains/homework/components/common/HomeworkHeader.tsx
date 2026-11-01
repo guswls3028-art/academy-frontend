@@ -12,6 +12,7 @@ import { saveHomeworkAsTemplate } from "../../api/adminHomework";
 import { FiArrowRight, FiSave, FiChevronDown } from "react-icons/fi";
 import type { HomeworkSummary } from "../../types";
 import { QUERY_KEYS } from "../../queryKeys";
+import { AssessmentTitleEditButton } from "@admin/domains/sessions/public/titleEditing";
 import "@/shared/ui/assessment/AssessmentDetailHeader.css";
 
 type Props = {
@@ -72,6 +73,7 @@ export default function HomeworkHeader({ homework, primaryAction, readError = fa
         </div>
 
         <div className="assessment-detail-header__actions">
+          <AssessmentTitleEditButton key={homework.id} kind="homework" id={homework.id} title={homework.title} disabled={readError || readPending} />
           {canSaveAsTemplate && (
             <Button
               type="button"

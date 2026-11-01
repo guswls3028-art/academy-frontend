@@ -41,6 +41,9 @@
 - PC `HeaderCenterStaffClock`, 모바일 `CompactStaffClockButton`, 로그인 선택창은
   모두 같은 `useStaffClock`을 사용한다. 화면별 타이머나 mutation을 복제하지
   않으며 진행 중 유형·시급은 현재 근무 API 응답만 표시한다.
+- 공통 업무의 모바일 메뉴에서도 `HeaderCenterStaffClock`으로 PC와 같은 현재 근무자·
+  근무시간·본인 출퇴근을 제공한다. 직원 아바타는 터치로 상세 시간을 열고 작은 화면에서
+  줄바꿈한다. 기본 진입과 동일 메뉴 검증은 [기기 공통 계약](WORKSPACE-DEVICE-PARITY.md)을 따른다.
 - 공용 `src/shared/staff/queryKeys.ts`가 직원 identity, 현재 근무, 현재 근무자,
   근무기록·합계 캐시 루트를 소유한다. 관리자 정산과 본인 화면의 갱신은 문자열이
   우연히 같은 별도 키가 아니라 이 정본 키를 공유한다.

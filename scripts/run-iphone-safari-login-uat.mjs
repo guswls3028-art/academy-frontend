@@ -342,10 +342,13 @@ export function windowsProcessTree(rootPid) {
   return asNumberArray(powershellJson(script, { ACADEMY_UAT_ROOT_PID: String(rootPid) }));
 }
 
-function windowsLoopbackListenerOwners(port) {
+function windowsLoopbackBindingOwners(port) {
+  // Some Windows builds report an active listener's TCP State as 0/unknown.
+  // Check the unconnected binding's exact endpoint and owner instead; the caller
+  // separately requires successful HTTP responses from both health endpoints.
   const script = [
     "$port = [int]$env:ACADEMY_UAT_PORT",
-    "$owners = @(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue | Where-Object { $_.LocalAddress -eq '127.0.0.1' } | Select-Object -ExpandProperty OwningProcess -Unique)",
+    "$owners = @(Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Where-Object { $_.LocalAddress -eq '127.0.0.1' -and $_.RemoteAddress -eq '0.0.0.0' -and $_.RemotePort -eq 0 } | Select-Object -ExpandProperty OwningProcess -Unique)",
     "$owners | ConvertTo-Json -Compress",
   ].join("\n");
   return asNumberArray(powershellJson(script, { ACADEMY_UAT_PORT: String(port) }));
@@ -353,7 +356,7 @@ function windowsLoopbackListenerOwners(port) {
 
 export function assertWindowsOwnedPort(rootPid, port) {
   const processTree = windowsProcessTree(rootPid);
-  const owners = windowsLoopbackListenerOwners(port);
+  const owners = windowsLoopbackBindingOwners(port);
   if (owners.length !== 1 || !processTree.includes(owners[0])) {
     fail(`Loopback port ${port} is not owned by the runner's SSM process tree.`);
   }

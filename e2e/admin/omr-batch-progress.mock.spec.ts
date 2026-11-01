@@ -141,6 +141,7 @@ async function installDashboardApi(
   page: Page,
   options: {
     empty?: boolean;
+    batch?: ReturnType<typeof batchSummary>;
     failListCalls?: number;
     holdListFailure?: boolean;
     holdListResponse?: boolean;
@@ -292,7 +293,7 @@ async function installDashboardApi(
       }
       const batch = options.uploadFlow && initializedUploads
         ? partialUpload ? partialAdmissionSummary() : admissionSummary(uploadPosts > 0 ? "received" : "pending")
-        : batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
+        : options.batch ?? batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
       const response = options.empty || hideBatches ? [] : [batch];
       if (options.holdListResponse && listGets === 1) await listResponseGate;
       await safeJson(route, response);
@@ -319,7 +320,7 @@ async function installDashboardApi(
           ? partialUpload
             ? partialAdmissionSummary()
             : admissionSummary(uploadPosts > 0 ? "received" : "pending")
-          : batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
+          : options.batch ?? batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
       await safeJson(route, batch);
       return;
     }
@@ -475,9 +476,9 @@ async function openWorkboxPanel(page: Page) {
   return headerPanel;
 }
 
-async function openWorkbox(page: Page) {
+async function openWorkbox(page: Page, totalCount = 22) {
   const panel = await openWorkboxPanel(page);
-  const task = panel.locator(".async-status-bar__item").filter({ hasText: "OMR 22장" });
+  const task = panel.locator(".async-status-bar__item").filter({ hasText: `OMR ${totalCount}장` });
   await expect(task).toBeVisible();
   return task;
 }
@@ -551,6 +552,45 @@ test.describe("OMR durable batch progress", () => {
   test.beforeEach(async ({ page }) => {
     page.setDefaultNavigationTimeout(30_000);
   });
+
+  for (const width of [1366, 390]) {
+    test(`${width}px 오래된 OMR 식별 대기를 남은 처리 시간으로 추정하지 않는다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const initial = batchSummary();
+      const api = await installDashboardApi(page, {
+        batch: {
+          ...initial,
+          total_count: 20,
+          counts: {
+            ...initial.counts,
+            pending_admission: 0,
+            received: 0,
+            processing: 17,
+            needs_identification: 3,
+          },
+          pending_admission_ordinals: [],
+          overall_status: "processing",
+          created_at: new Date(Date.now() - 75 * 60_000).toISOString(),
+        },
+      });
+      await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+
+      for (const reload of [false, true]) {
+        if (reload) await page.reload({ waitUntil: "domcontentloaded" });
+        const task = await openWorkbox(page, 20);
+        await expect(task).toContainText("처리 중 17");
+        await expect(task).toContainText("식별 필요 3");
+        await expect(task).toContainText("15%");
+        await expect(task.locator(".async-status-bar__item-remaining")).toHaveCount(0);
+        await expect(task.getByRole("button", { name: "OMR 검토" })).toBeEnabled();
+      }
+      expect(api.counts().completionClaims).toBe(0);
+      expect(api.retryBodies()).toEqual([]);
+      const task = page.locator(".async-status-bar__item").filter({ hasText: "OMR 20장" });
+      await task.getByRole("button", { name: "OMR 검토" }).click();
+      await expect(page).toHaveURL(new RegExp(`/workspace/mobile/exams/${EXAM_ID}/omr`));
+    });
+  }
 
   test("GET 복구는 읽기 전용이고 terminal 최초 관찰만 1회 claim한다", async ({ page }) => {
     const api = await installDashboardApi(page);

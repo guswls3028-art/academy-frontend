@@ -293,8 +293,14 @@ persistent-development instance id·backend SHA·candidate digest와
 `academy_api_development_app`, `academy-development-artifacts`,
 `/academy/api/development/env`, `/academy/r2/development/credentials`를 정확 일치로
 검증한다. prefix 일치는 허용하지 않으며 SSM parameter의 비밀값은 출력하지 않는다.
-`127.0.0.1:18000`이 이미 점유돼 있으면 시작 전에 실패하고, health 응답의
-listener PID가 새로 띄운 AWS SSM process tree에 속할 때만 tunnel 소유가 증명된다.
+`127.0.0.1:18000`이 이미 점유돼 있으면 시작 전에 실패한다. `/healthz`와 `/health`의
+HTTP 200 응답과 Windows TCP 바인딩 소유권이 모두 확인될 때만 tunnel을 사용한다.
+소유권은 정확한 loopback 주소·포트, 원격 주소 `0.0.0.0`·원격 포트 `0`인 바인딩의
+유일한 PID가 새로 띄운 AWS SSM process tree에 속하는지 검사한다. 일부 Windows에서
+활성 listener 상태를 `0`/unknown으로 보고하므로 `Listen` 상태명만으로 판정하지 않는다.
+일반 클라이언트 연결, 다른 프로세스의 바인딩, 누락·복수 소유자는 통과할 수 없다.
+Windows 회귀는 실제 자식 listener의 소유권·종료 후 포트 해제와 다른 프로세스 및
+종료된 포트의 거부를 검증한다.
 종료 시 Windows process tree 전체를 강제 종료하고 부모 exit를 기다린 뒤 18000 포트가
 다시 bind 가능한지 읽어야 한다. API URL과 Vite
 proxy를 동일하게 고정하며 `reuseExistingServer=false`인 전용 5174 서버를 소유한다. trace·video·screenshot은

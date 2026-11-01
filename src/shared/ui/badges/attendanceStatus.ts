@@ -46,6 +46,30 @@ export const ATTENDANCE_META: Record<
   SECESSION: { label: "퇴원", short: "퇴", tone: "danger" },
 };
 
+const TONE_COLOR: Record<string, string> = {
+  neutral: "var(--color-text-secondary)",
+  success: "var(--color-success-solid)",
+  primary: "var(--color-brand-primary)",
+  teal: "var(--color-teal)",
+  warning: "var(--color-warning)",
+  danger: "var(--color-danger-solid)",
+  complement: "var(--color-brand-complement)",
+};
+
+/** 상태 선택과 요약도 뱃지의 같은 이름·의미 색상을 사용한다. */
+export const ATTENDANCE_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> =
+  Object.fromEntries(ORDERED_ATTENDANCE_STATUS.map((status) => {
+    const meta = ATTENDANCE_META[status];
+    const color = TONE_COLOR[meta.tone];
+    return [status, { label: meta.label, color, bg: `color-mix(in srgb, ${color} 12%, transparent)` }];
+  }));
+
+/** 화면 크기·역할과 관계없이 출결 상태 이름은 이 정의를 사용한다. */
+export function getAttendanceLabel(status: string | null | undefined): string {
+  if (!status) return ATTENDANCE_META.UNSET.label;
+  return ATTENDANCE_META[status as AttendanceStatus]?.label ?? status;
+}
+
 /** 한글자 출결 뱃지용 — 매트릭스 테이블 셀 등 */
 export function getAttendanceShortLabel(status: string | null | undefined): string {
   if (!status) return "－";

@@ -9,7 +9,8 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { formatKRWNumber as formatKRW } from "@/shared/product/fees/feesFormat";
-import { fetchDashboard, fetchOverdueInvoices, type FeeType, type StudentInvoice } from "../api";
+import { FEE_TYPE_LABEL } from "@/shared/product/fees/feesStatus";
+import { fetchDashboard, fetchOverdueInvoices, type StudentInvoice } from "../api";
 import {
   FEES_PERMISSION_ERROR_DESCRIPTION,
   FEES_PERMISSION_ERROR_TITLE,
@@ -211,13 +212,4 @@ const STAT_TONE_CLASS: Record<StatTone, string> = {
   warn: styles.statWarn,
   success: styles.statSuccess,
   danger: styles.statDanger,
-};
-
-const FEE_TYPE_LABEL: Record<FeeType, string> = {
-  TUITION: "수강료",
-  TEXTBOOK: "교재",
-  HANDOUT: "프린트",
-  REGISTRATION: "등록비",
-  MATERIAL: "부교재",
-  OTHER: "기타",
 };

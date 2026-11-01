@@ -77,7 +77,7 @@ test("primary app root keeps every automatic destination out of the developer co
   expect(destinations.every((destination) => !destination.startsWith("/dev"))).toBe(true);
 });
 
-test("mobile workspace routing preserves standalone and explicit full-workspace preferences", () => {
+test("workspace entry is identical across viewport, standalone and legacy preferences", () => {
   const destination = (isStandalone: boolean, prefersFullWorkspace: boolean) =>
     resolveRootDestination({
       tenantCode: "hakwonplus",
@@ -88,7 +88,7 @@ test("mobile workspace routing preserves standalone and explicit full-workspace 
       prefersFullWorkspace,
     });
 
-  expect(destination(false, false)).toBe("/workspace/mobile");
+  expect(destination(false, false)).toBe("/workspace");
   expect(destination(true, false)).toBe("/workspace");
   expect(destination(false, true)).toBe("/workspace");
 });

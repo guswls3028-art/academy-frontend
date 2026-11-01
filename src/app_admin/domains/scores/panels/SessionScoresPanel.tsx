@@ -20,7 +20,7 @@ import ScoresTable, {
   type ScoreFlushResult,
   type ScoresTableHandle,
 } from "../components/ScoresTable";
-import StudentResultDrawer from "@admin/domains/results/components/StudentResultDrawer";
+import StudentResultDrawer, { type AnswerEditController } from "@admin/domains/results/components/StudentResultDrawer";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm";
@@ -39,8 +39,11 @@ type Props = {
   lectureId?: number;
   search?: string;
   isEditMode?: boolean;
+  onRequestAnswerEdit?: () => Promise<boolean>;
   /** 수정 중 알림톡 등 저장된 점수 소비 액션을 잠시 막는 상태 */
   hasUnsavedChanges?: boolean;
+  /** 판정·비고는 점수 수정 모드가 아니라 실제 저장/복구 대기 중에만 차단한다. */
+  hasPendingScoreChanges?: boolean;
   assessmentDeleteLocked?: boolean;
   examEditTotal?: boolean;
   examEditObjective?: boolean;
@@ -72,6 +75,8 @@ type Props = {
 };
 
 export type SessionScoresPanelHandle = {
+  flushAnswerChanges?: () => Promise<void>;
+  hasPendingAnswerChanges?: () => boolean;
   /** 대기 중인 점수 변경을 실제 성적 API에 반영 */
   flushPendingChanges: () => Promise<ScoreFlushResult>;
   /** 자동 저장용: 현재 pending 스냅샷 */
@@ -103,7 +108,9 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   lectureId,
   search = "",
   isEditMode = false,
+  onRequestAnswerEdit,
   hasUnsavedChanges = false,
+  hasPendingScoreChanges = hasUnsavedChanges,
   assessmentDeleteLocked = false,
   examEditTotal = false,
   examEditObjective = false,
@@ -129,6 +136,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
    * 끝낼 수 있어야 한다.
    */
   const tableRef = useRef<ScoresTableHandle>(null);
+  const answerEditRef = useRef<AnswerEditController | null>(null);
   const setTableHandle = useCallback((handle: ScoresTableHandle | null) => {
     if (handle != null) tableRef.current = handle;
   }, []);
@@ -205,6 +213,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   }, [meta, sessionId, qc]);
 
   useImperativeHandle(ref, () => ({
+    flushAnswerChanges: async () => { await answerEditRef.current?.flush(); },
+    hasPendingAnswerChanges: () => answerEditRef.current?.hasPending() ?? false,
     flushPendingChanges: () => tableRef.current?.flushPendingChanges?.()
       ?? Promise.resolve({ savedCount: 0, projectionPendingCount: 0 }),
     getPendingSnapshot: () => tableRef.current?.getPendingSnapshot?.() ?? [],
@@ -601,7 +611,13 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
             sessionId={sessionId}
             isEditMode={isEditMode}
             hasUnsavedChanges={hasUnsavedChanges}
-            onClose={() => { setDrawerEnrollmentId(null); setAnswerDetail(null); }}
+            hasPendingScoreChanges={hasPendingScoreChanges}
+            onClose={() => {
+              void (answerEditRef.current?.flush() ?? Promise.resolve()).then(() => {
+                setDrawerEnrollmentId(null);
+                setAnswerDetail(null);
+              }).catch(() => feedback.error("답안을 저장하지 못했습니다. 답안 창에서 다시 저장해 주세요."));
+            }}
             onOpenAnswerDetail={(examId, enrollmentId, examTitle) => {
               setAnswerDetail({ examId, enrollmentId, examTitle });
             }}
@@ -618,6 +634,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           examTitle={answerDetail.examTitle}
           scoreSessionId={sessionId}
           readOnly={!isEditMode}
+          onRequestEdit={onRequestAnswerEdit}
+          answerEditRef={answerEditRef}
           onClose={() => setAnswerDetail(null)}
         />
       )}

@@ -13,10 +13,12 @@ import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 /** DRF Paginated wrapper — list endpoint 가 page_size param 으로 응답할 때. */
 type Paginated<T> = { results?: T[]; count?: number; next?: string | null; previous?: string | null };
 
-export type ClinicBookingStatus = "pending" | "rejected" | "cancelled" | "booked";
+export type ClinicBookingStatus = "pending" | "rejected" | "cancelled" | "booked" | "attended";
 
 /** 학생앱이 실제로 사용하는 ClinicParticipant 응답 필드 (어드민 ClinicParticipant 보다 좁음). */
 type ClinicParticipantRaw = {
+  checked_in_at?: string | null;
+  checked_out_at?: string | null;
   id: number;
   session: number | null;
   session_title?: string;
@@ -76,6 +78,8 @@ export type ClinicSession = {
  * 학생의 클리닉 예약 신청 정보
  */
 export type ClinicBookingRequest = {
+  checked_in_at?: string | null;
+  checked_out_at?: string | null;
   id: number;
   session: number | null; // ✅ 세션이 없을 수 있음
   session_title?: string;
@@ -101,7 +105,7 @@ export type ClinicBookingRequest = {
 
 function normalizeBookingStatus(status: ClinicParticipantRaw["status"]): ClinicBookingStatus | null {
   if (status === "approved") return "booked";
-  if (status === "pending" || status === "booked" || status === "rejected" || status === "cancelled") {
+  if (status === "pending" || status === "booked" || status === "rejected" || status === "cancelled" || status === "attended") {
     return status;
   }
   return null;
@@ -279,12 +283,14 @@ export async function fetchMyClinicBookingRequests(options?: { signal?: AbortSig
     options?.signal,
   );
 
-  // 예약 신청 상태인 것만 필터링 (pending, booked 등)
+  // 등원 이후에도 저장된 입·퇴실 이력을 학생 화면에서 유지한다.
   return participants
     .map((p) => ({ raw: p, status: normalizeBookingStatus(p.status) }))
     .filter((p): p is { raw: ClinicParticipantRaw; status: ClinicBookingStatus } => p.status !== null)
     .map(({ raw, status }) => normalizeClinicBookingRequest({
       id: raw.id,
+      checked_in_at: raw.checked_in_at,
+      checked_out_at: raw.checked_out_at,
       session: raw.session ?? null, // ✅ 세션이 없을 수 있음
       session_title: raw.session_title,
       session_date: raw.session_date,

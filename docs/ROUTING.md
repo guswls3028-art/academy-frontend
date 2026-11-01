@@ -27,7 +27,7 @@
   확인한 뒤 정적 페이지의 canonical target과 script 안전성을 검사한다.
 
 기존 설치형 모바일 앱의 identity를 유지하기 위해 teacher manifest의 `id`는
-`/teacher`로 보존한다. 실제 `start_url`과 `scope`는 `/workspace/mobile`이다.
+`/teacher`로 보존한다. 실제 `start_url`과 `scope`는 PC·모바일 공통 `/workspace`다.
 `/teacher-manifest.json`, `/teacher-sw.js`, `/teacher-app/*` 같은 자산·백엔드
 계약 이름은 브라우저 라우트가 아니므로 이 규칙의 변경 대상이 아니다.
 브라우저가 Service Worker를 지원하지 않거나 자동화·보안 정책으로 등록 결과를
@@ -48,8 +48,9 @@
 - `app_admin`과 `app_teacher` 디렉터리명은 기존 구현 경계를 나타내는 내부
   이름이다. 공개 URL이나 사용자 역할 계약으로 사용하지 않는다.
 - 하위 페이지 링크는 canonical 경로만 생성한다.
-- 모바일 자동 전환은 통합 업무 홈에만 적용한다. 명시적인 상세 딥링크는
-  모바일에서도 해당 통합 업무 경로를 유지한다.
+- 교직원의 기본 진입은 PC·모바일·standalone 모두 `/workspace`다. 폭이나 과거 선호값으로
+  별도 앱에 자동 전환하지 않는다. `/workspace/mobile/*` 명시 링크는 간편 업무 호환
+  경로로 유지한다. 표시·설치·상태 정본은 [기기 공통 계약](WORKSPACE-DEVICE-PARITY.md)을 따른다.
 
 ## 검증
 

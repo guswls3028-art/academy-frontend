@@ -29,6 +29,8 @@ async function installApi(
     failScoreRefreshAfterCorrection?: boolean;
     passedPendingOnly?: boolean;
     explicitTargetOnly?: boolean;
+    failHomeworkScore?: boolean;
+    homeworkNotSubmitted?: boolean;
   } = {},
 ) {
   const baseUrl = getBaseUrl("admin");
@@ -41,6 +43,12 @@ async function installApi(
   };
   let homeworkStatus: "PENDING" | "COMPLETED" | null = null;
   let homeworkNote = "";
+  let homeworkScore: number | null = null;
+  let homeworkUpdatedAt: string | null = null;
+  let failHomeworkScore = options.failHomeworkScore ?? false;
+  let failCorrection = options.failCorrection ?? false;
+  let draftChanges: unknown[] = [];
+  const homeworkScoreRequests: number[] = [];
   const correctionRequests: Array<{
     source_type: "exam" | "homework";
     completed: boolean;
@@ -324,8 +332,9 @@ async function installApi(
             homework_id: 4101,
             title: "서술형 워크북 12~15번",
             block: {
-              score: null,
+              score: homeworkScore,
               max_score: null,
+              updated_at: homeworkUpdatedAt,
               passed: null,
               clinic_required: false,
               correction_status: homeworkStatus,
@@ -333,7 +342,8 @@ async function installApi(
                 ? "2026-07-29T16:40:00+09:00"
                 : null,
               correction_note: homeworkNote,
-              meta: null,
+              teacher_resolved: homeworkStatus === "COMPLETED",
+              meta: options.homeworkNotSubmitted ? { status: "NOT_SUBMITTED" } : null,
             },
             attempt_count: 0,
           }],
@@ -357,7 +367,7 @@ async function installApi(
         note?: string;
       };
       correctionRequests.push(payload);
-      if (options.failCorrection) {
+      if (failCorrection) {
         await fulfill({
           source_id: ["점수가 입력된 항목만 상태를 바꿀 수 있습니다."],
         }, 400);
@@ -437,7 +447,26 @@ async function installApi(
       return;
     }
     if (pathname.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/`)) {
-      await fulfill({ changes: [] });
+      if (request.method() === "PUT") draftChanges = request.postDataJSON().changes ?? [];
+      await fulfill({ changes: draftChanges, active_editors: [], stale: false });
+      return;
+    }
+    if (pathname.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/commit/`)) {
+      draftChanges = [];
+      await fulfill({ changes: [], active_editors: [], stale: false });
+      return;
+    }
+    if (pathname.endsWith("/homework/scores/quick/") && request.method() === "PATCH") {
+      const payload = request.postDataJSON() as { homework_id: number; enrollment_id: number; score: number };
+      expect(payload).toMatchObject({ homework_id: 4101, enrollment_id: 9101 });
+      homeworkScoreRequests.push(payload.score);
+      if (failHomeworkScore) {
+        await fulfill({ detail: "점수 저장 실패" }, 503);
+        return;
+      }
+      homeworkScore = payload.score;
+      homeworkUpdatedAt = "2026-07-29T16:45:00+09:00";
+      await fulfill({ score: homeworkScore, max_score: 100, meta: { status: null }, updated_at: homeworkUpdatedAt });
       return;
     }
     if (pathname.endsWith("/results/admin/clinic-targets/")) {
@@ -459,6 +488,10 @@ async function installApi(
     correctionRequests,
     retakeRequests,
     getScoreRefreshFailures: () => scoreRefreshFailures,
+    homeworkScoreRequests,
+    allowHomeworkScoreSave: () => { failHomeworkScore = false; },
+    allowCorrectionSave: () => { failCorrection = false; },
+    getHomeworkScore: () => homeworkScore,
   };
 }
 
@@ -474,6 +507,139 @@ async function openHomeworkInspection(page: Page) {
 }
 
 test.describe("시험·과제 수동 검사 상태", () => {
+  for (const width of [1366, 390]) {
+    test(`@homework-accepted-cell ${width}px 미제출 과제의 교사 통과 인정과 취소를 원기록과 구분해 유지한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const api = await installApi(page, { homeworkNotSubmitted: true });
+      await page.goto(`${getBaseUrl("admin")}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      const cell = page.locator('[data-score-cell="homework:9101:4101"]');
+      await expect(cell).toHaveAttribute("data-achievement", "NOT_SUBMITTED");
+      await expect(cell.getByText("미제출", { exact: true })).toBeVisible();
+      const missingBackground = await cell.evaluate(element => getComputedStyle(element).backgroundColor);
+      await page.getByRole("button", { name: "수정", exact: true }).click();
+      let drawer = await openHomeworkInspection(page);
+      const complete = drawer.getByRole("button", { name: "완료 확정", exact: true });
+      await expect(complete).toBeEnabled();
+      await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("제출 원기록을 보존하고 교사 통과 인정");
+      await complete.click();
+      await expect(complete).toHaveAttribute("aria-pressed", "true");
+      await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)" }).click();
+      await expect(cell).toHaveAttribute("data-achievement", "REMEDIATED");
+      await expect(cell.getByText("통과 인정", { exact: true })).toBeVisible();
+      await expect(cell.getByText("미제출", { exact: true })).toBeVisible();
+      await expect.poll(() => cell.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(missingBackground);
+      expect(api.homeworkScoreRequests).toEqual([]);
+      expect(api.getHomeworkScore()).toBeNull();
+      await page.reload();
+      await expect(cell).toHaveAttribute("data-achievement", "REMEDIATED");
+      await expect(cell.getByText("통과 인정", { exact: true })).toBeVisible();
+      await expect(cell.getByText("미제출", { exact: true })).toBeVisible();
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+      await cell.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`homework-accepted-cell-${width}.png`), animations: "disabled" });
+      drawer = await openHomeworkInspection(page);
+      await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("재확인이 필요해 통과 인정 취소");
+      await drawer.getByRole("button", { name: "미완료", exact: true }).click();
+      await expect(drawer.getByRole("button", { name: "미완료", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)" }).click();
+      await expect(cell).toHaveAttribute("data-achievement", "NOT_SUBMITTED");
+      await expect(cell.getByText("통과 인정", { exact: true })).toHaveCount(0);
+      await page.reload();
+      await expect(cell).toHaveAttribute("data-achievement", "NOT_SUBMITTED");
+      expect(api.correctionRequests.map(request => request.completed)).toEqual([true, false]);
+      expect(api.homeworkScoreRequests).toEqual([]);
+    });
+  }
+
+  test("@homework-accepted-cell 인정 저장 실패는 미제출 표시를 유지하고 재시도로 복구한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    const api = await installApi(page, { homeworkNotSubmitted: true, failCorrection: true });
+    await page.goto(`${getBaseUrl("admin")}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+    const cell = page.locator('[data-score-cell="homework:9101:4101"]');
+    const drawer = await openHomeworkInspection(page);
+    const complete = drawer.getByRole("button", { name: "완료 확정", exact: true });
+    await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("검사 완료 후 교사 통과 인정");
+    await complete.click();
+    await expect(page.getByText("점수가 입력된 항목만 상태를 바꿀 수 있습니다.", { exact: true })).toBeVisible();
+    await expect(cell).toHaveAttribute("data-achievement", "NOT_SUBMITTED");
+    await expect(cell.getByText("통과 인정", { exact: true })).toHaveCount(0);
+    api.allowCorrectionSave();
+    await complete.click();
+    await expect(complete).toHaveAttribute("aria-pressed", "true");
+    await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)" }).click();
+    await expect(cell).toHaveAttribute("data-achievement", "REMEDIATED");
+    await expect(cell.getByText("통과 인정", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(cell.getByText("통과 인정", { exact: true })).toBeVisible();
+    expect(api.homeworkScoreRequests).toEqual([]);
+    expect(api.getHomeworkScore()).toBeNull();
+  });
+
+  for (const width of [1366, 390]) {
+    test(`@score-correction-edit-state ${width}px 저장된 점수의 판정과 비고는 수정 모드를 마치지 않고 저장한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const api = await installApi(page);
+      await page.goto(`${getBaseUrl("admin")}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await page.getByRole("button", { name: "수정", exact: true }).click();
+      const finish = page.getByRole("button", { name: "점수 입력 마침", exact: true });
+      await expect(finish).toBeVisible();
+      const drawer = await openHomeworkInspection(page);
+      const complete = drawer.getByRole("button", { name: "완료 확정", exact: true });
+      await expect(complete).toBeEnabled();
+      await expect(drawer.getByRole("button", { name: "성적 발송", exact: true })).toBeDisabled();
+      await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("보완 검사 완료");
+      await complete.click();
+      await expect(complete).toHaveAttribute("aria-pressed", "true");
+      expect(api.correctionRequests.at(-1)).toMatchObject({ source_type: "homework", completed: true, note: "보완 검사 완료" });
+      await expect(finish).toBeVisible();
+      const quickPass = drawer.getByRole("button", { name: "보완 필요에서 교사 PASS로 변경" });
+      await expect(quickPass).toBeEnabled();
+      await quickPass.click();
+      await expect(quickPass).toHaveCount(0);
+      expect(api.correctionRequests.at(-1)).toMatchObject({ source_type: "exam", completed: true });
+      expect(api.homeworkScoreRequests).toEqual([]);
+      await expect.poll(() => drawer.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+      await complete.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`correction-during-score-edit-${width}.png`), animations: "disabled" });
+      await page.reload();
+      const reopened = await openHomeworkInspection(page);
+      await expect(reopened.getByRole("button", { name: "완료 확정", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await expect(reopened.getByRole("textbox", { name: "교사 완료 판정 비고" })).toHaveValue("보완 검사 완료");
+    });
+  }
+
+  test("@score-correction-edit-state 점수 저장 실패 중 판정은 차단하고 재시도 뒤 수정 모드에서 복구한다", async ({ page }) => {
+    const api = await installApi(page, { failHomeworkScore: true });
+    await page.goto(`${getBaseUrl("admin")}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    const score = page.getByRole("textbox", { name: "윤지용 학생 · 서술형 워크북 12~15번 점수 입력", exact: true });
+    await score.click();
+    await score.fill("64");
+    await score.press("Tab");
+    const drawer = await openHomeworkInspection(page);
+    const complete = drawer.getByRole("button", { name: "완료 확정", exact: true });
+    await expect(complete).toBeDisabled();
+    await expect(drawer.locator('.ssd-correction-control[data-source-type="homework"]').getByRole("status")
+      .filter({ hasText: "점수를 먼저 저장" })).toBeVisible();
+    const retry = page.getByRole("button", { name: "다시 시도", exact: true });
+    await expect(retry).toBeVisible();
+    expect(api.correctionRequests).toEqual([]);
+    expect(api.getHomeworkScore()).toBeNull();
+    await expect(score).toHaveText("64");
+    api.allowHomeworkScoreSave();
+    await retry.click();
+    await expect(complete).toBeEnabled();
+    expect(api.getHomeworkScore()).toBe(64);
+    await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
+    await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("저장 후 검사 완료");
+    await complete.click();
+    await expect(complete).toHaveAttribute("aria-pressed", "true");
+    await page.reload();
+    const reopened = await openHomeworkInspection(page);
+    await expect(reopened.getByRole("button", { name: "완료 확정", exact: true })).toHaveAttribute("aria-pressed", "true");
+    expect(api.getHomeworkScore()).toBe(64);
+  });
+
   test("시험 카드를 펼치지 않고 오른쪽 위에서 원점수 유지 PASS를 확정한다", async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 390, height: 844 });

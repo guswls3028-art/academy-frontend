@@ -52,27 +52,7 @@ const PENDING_STATUSES = new Set([
   "grading",
 ]);
 
-const STATUS_LABEL: Record<string, string> = {
-  submitted: "업로드됨",
-  dispatched: "작업 큐",
-  extracting: "인식 중",
-  needs_identification: "식별 필요",
-  answers_ready: "답안 생성",
-  grading: "채점 중",
-  done: "완료",
-  failed: "실패",
-};
-
-const STATUS_TONE: Record<string, "success" | "danger" | "warning" | "info" | "neutral"> = {
-  submitted: "neutral",
-  dispatched: "info",
-  extracting: "info",
-  needs_identification: "warning",
-  answers_ready: "warning",
-  grading: "warning",
-  done: "success",
-  failed: "danger",
-};
+import { SUBMISSION_STATUS_LABEL as STATUS_LABEL, SUBMISSION_STATUS_TONE as STATUS_TONE } from "@/shared/product/submissions/status";
 
 const DISCARD_REASON_LABEL: Record<string, string> = {
   scan_quality: "스캔 품질",
@@ -349,10 +329,10 @@ export default function SubmissionsInboxPage() {
             const resolved = isTargetResolved(r);
             const isDiscardedRow = r.status === "failed" && r.is_discarded === true;
 
-            const tone = isDiscardedRow ? "neutral" : (STATUS_TONE[r.status] ?? "neutral");
+            const tone = isDiscardedRow ? "neutral" : (STATUS_TONE[r.status as keyof typeof STATUS_TONE] ?? "neutral");
             const label = isDiscardedRow
               ? (DISCARD_REASON_LABEL[r.discard_reason || ""] ?? "폐기됨")
-              : (STATUS_LABEL[r.status] ?? r.status);
+              : (STATUS_LABEL[r.status as keyof typeof STATUS_LABEL] ?? r.status);
 
             const isProcessing = ["submitted", "dispatched", "extracting", "grading"].includes(r.status);
             const isFailedReal = r.status === "failed" && !isDiscardedRow;

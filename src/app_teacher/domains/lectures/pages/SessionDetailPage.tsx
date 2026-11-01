@@ -33,22 +33,12 @@ import { fetchSessionScores } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import SessionAssessmentOverview from "../components/SessionAssessmentOverview";
 import assessmentStyles from "../components/SessionAssessmentOverview.module.css";
+import VideoStatusBadge from "@/shared/media/video/VideoStatusBadge";
+import type { VideoStatus } from "@/shared/api/contracts/videos";
 
 type Tab = "students" | "attendance" | "scores" | "exams" | "homeworks" | "videos" | "clinic";
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  PRESENT: { label: "출석", color: "var(--tc-success)" },
-  ONLINE: { label: "영상", color: "var(--tc-primary)" },
-  SUPPLEMENT: { label: "보강", color: "var(--tc-info)" },
-  LATE: { label: "지각", color: "var(--tc-warn)" },
-  EARLY_LEAVE: { label: "조퇴", color: "var(--tc-warn)" },
-  ABSENT: { label: "결석", color: "var(--tc-danger)" },
-  UNSET: { label: "미입력", color: "var(--tc-text-muted)" },
-  RUNAWAY: { label: "출튀", color: "var(--tc-danger)" },
-  MATERIAL: { label: "자료", color: "var(--tc-text-muted)" },
-  INACTIVE: { label: "부재", color: "var(--tc-text-muted)" },
-  SECESSION: { label: "퇴원", color: "var(--tc-text-muted)" },
-};
+import { ATTENDANCE_STATUS_CONFIG as STATUS_LABELS } from "@/shared/ui/badges/attendanceStatus";
 
 export default function SessionDetailPage() {
   const { sessionId, lectureId } = useParams<{ sessionId: string; lectureId: string }>();
@@ -316,7 +306,7 @@ function ExamsTab({ exams, navigate, creationPath }: { exams: any[]; navigate: a
       description="강의 차시에 시험을 추가하면 성적 입력과 결과 조회가 연결됩니다."
       actions={
         <EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate(creationPath); }}>
-          PC 화면에서 시험 추가
+          시험 추가
         </EmptyActionButton>
       }
     />
@@ -361,7 +351,7 @@ function HomeworksTab({ homeworks, navigate, creationPath }: { homeworks: any[];
       description="과제를 추가하면 제출 현황과 미제출 안내를 바로 확인할 수 있습니다."
       actions={
         <EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate(creationPath); }}>
-          PC 화면에서 과제 추가
+          과제 추가
         </EmptyActionButton>
       }
     />
@@ -565,7 +555,7 @@ function StudentsTab({
         description="강의 명부 등록 후에도 이 차시의 수강생은 출결 화면에서 별도로 등록해야 합니다."
         actions={
           <EmptyActionButton onClick={() => { setPreferFullWorkspace(true); navigate(enrollmentPath); }}>
-            PC 화면에서 차시 수강생 등록
+            차시 수강생 등록
           </EmptyActionButton>
         }
       />
@@ -640,7 +630,7 @@ function AttendanceTab({ attendances, hasEnrollments, lectureInfo, navigate, ses
             if (!hasEnrollments) setPreferFullWorkspace(true);
             navigate(hasEnrollments ? `/workspace/mobile/attendance/${sessionId}` : enrollmentPath);
           }}>
-            {hasEnrollments ? "출석 체크" : "PC 화면에서 차시 수강생 등록"}
+            {hasEnrollments ? "출석 체크" : "차시 수강생 등록"}
           </EmptyActionButton>
         }
       />
@@ -727,7 +717,7 @@ function ScoresTab({
         description="강의 차시에 시험을 추가하면 성적 입력 버튼이 활성화됩니다."
         actions={
           <EmptyActionButton variant="secondary" onClick={() => { setPreferFullWorkspace(true); navigate(creationPath); }}>
-            PC 화면에서 시험 추가
+            시험 추가
           </EmptyActionButton>
         }
       />
@@ -857,19 +847,9 @@ function VideosTab({ videos, navigate }: { videos: TeacherVideo[]; navigate: any
     );
   }
 
-  // backend Video.Status SSOT (uppercase). 과거 소문자 enum 으로 lookup 실패하던 버그 fix.
-  const STATUS_MAP: Record<string, { label: string; color: string }> = {
-    READY: { label: "시청 가능", color: "var(--tc-success)" },
-    PROCESSING: { label: "인코딩 중", color: "var(--tc-warn)" },
-    PENDING: { label: "대기", color: "var(--tc-text-muted)" },
-    UPLOADED: { label: "업로드 완료", color: "var(--tc-text-muted)" },
-    FAILED: { label: "실패", color: "var(--tc-danger)" },
-  };
-
   return (
     <div className="flex flex-col gap-1.5">
       {videos.map((v) => {
-        const st = STATUS_MAP[v.status ?? "PENDING"] ?? STATUS_MAP.PENDING;
         return (
           <button
             key={v.id}
@@ -888,7 +868,7 @@ function VideosTab({ videos, navigate }: { videos: TeacherVideo[]; navigate: any
               </div>
               <div className="flex gap-2 text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
                 {v.duration_display && <span>{v.duration_display}</span>}
-                <StatusBadge label={st.label} color={st.color} />
+                <VideoStatusBadge status={(v.status ?? "PENDING") as VideoStatus} />
               </div>
             </div>
           </button>

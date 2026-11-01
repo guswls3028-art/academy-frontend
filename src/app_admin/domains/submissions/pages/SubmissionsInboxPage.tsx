@@ -20,14 +20,15 @@
  * 직접 navigate 시 lecture/session 결손 가드 → SessionLayout "잘못된 세션 접근" 회피.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileSearch } from "lucide-react";
 import { Button, EmptyState, Tabs, Badge, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
+import { invalidateSubmissionResultCaches } from "@admin/domains/results/public/omrReview";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentPickerModal from "@admin/domains/results/components/omr-review/StudentPickerModal";
 import {
@@ -59,6 +60,10 @@ import SubmissionPreviewModal, {
   submissionFileSize,
 } from "../components/SubmissionPreviewModal";
 import type { SubmissionStatus } from "../types";
+
+const OmrReviewWorkspace = lazy(
+  () => import("@admin/domains/results/public/OmrReviewWorkspace"),
+);
 
 /* ─── Filter tabs ─── */
 
@@ -112,6 +117,15 @@ function isTargetResolved(row: PendingSubmissionRow): boolean {
   return row.target_resolved === true;
 }
 
+const CONFIGURATION_MISSING = new Set(["answer_key", "sheet", "grading_configuration"]);
+const CONFIGURATION_REASON = "문항·정답 설정을 확인해야 하므로 채점이 대기 중입니다.";
+
+function examSetupPath(row: PendingSubmissionRow, recovery: { action?: string; exam_id?: number } | null | undefined): string | undefined {
+  if (row.target_type !== "exam" || !isTargetResolved(row) || !row.lecture_id || !row.session_id
+    || recovery?.action !== "configure_exam" || recovery.exam_id !== row.target_id) return undefined;
+  return `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}&examTab=setup`;
+}
+
 const DISCARD_REASON_LABEL: Record<string, string> = {
   scan_quality: "스캔 품질",
   wrong_upload: "오업로드",
@@ -156,7 +170,14 @@ export default function SubmissionsInboxPage() {
 
   const [pickerRow, setPickerRow] = useState<PendingSubmissionRow | null>(null);
   const [previewRow, setPreviewRow] = useState<PendingSubmissionRow | null>(null);
-  const lastPickedEnrollmentRef = useRef<number | null>(null);
+  const [reviewRow, setReviewRow] = useState<PendingSubmissionRow | null>(null);
+  const [identificationNotice, setIdentificationNotice] = useState<{
+    row: PendingSubmissionRow;
+    message: string;
+    canReview: boolean;
+    resultPath?: string;
+    actionLabel?: string;
+  } | null>(null);
 
   // 일괄 선택 — id Set
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -171,7 +192,7 @@ export default function SubmissionsInboxPage() {
   const q = useQuery({
     queryKey: submissionsQueryKeys.adminPendingList(filter, failedSub, page),
     queryFn: () => fetchPendingSubmissionPage(filter, page, failedSub),
-    refetchInterval: pickerRow || previewRow || discardModal ? false : 5_000,
+    refetchInterval: pickerRow || previewRow || reviewRow || discardModal ? false : 5_000,
   });
 
   useEffect(() => {
@@ -240,6 +261,15 @@ export default function SubmissionsInboxPage() {
     qc.invalidateQueries({ queryKey: submissionsQueryKeys.adminPending });
   }
 
+  function refreshAssignmentResults(row: PendingSubmissionRow) {
+    refetchAll();
+    qc.invalidateQueries({ queryKey: submissionsQueryKeys.adminSubmissions });
+    invalidateSubmissionResultCaches(qc, {
+      submissionId: row.id,
+      examId: row.target_type === "exam" ? row.target_id : undefined,
+    });
+  }
+
   /* ── Mutations ── */
 
   const retryMut = useMutation({
@@ -290,36 +320,95 @@ export default function SubmissionsInboxPage() {
   });
 
   const identifyMut = useMutation({
-    mutationFn: async (input: { sid: number; enrollmentId: number; allowDuplicate?: boolean }) => {
+    mutationFn: async (input: { row: PendingSubmissionRow; enrollmentId: number; allowDuplicate?: boolean }) => {
       return manualEditSubmissionApi({
-        submissionId: input.sid,
+        submissionId: input.row.id,
         identifier: { enrollment_id: input.enrollmentId },
         answers: [],
         note: "inbox_quick_identify",
         allowDuplicate: input.allowDuplicate,
       });
     },
-    onSuccess: () => {
-      feedback.success("학생을 지정했습니다. 자동 채점이 진행됩니다.");
-      setPickerRow(null);
-      refetchAll();
+    onSuccess: (result, input) => {
+      if (
+        result.code === "OMR_GRADING_CONFIGURATION_REQUIRED"
+        && result.recovery?.action === "configure_exam"
+        && result.recovery.exam_id === input.row.target_id
+        && input.row.target_type === "exam" && isTargetResolved(input.row)
+        && input.row.lecture_id && input.row.session_id
+      ) {
+        setIdentificationNotice({
+          row: input.row,
+          message: `학생 지정은 저장됐습니다. ${CONFIGURATION_REASON} 설정을 완료하면 보관된 답안을 다시 채점할 수 있습니다.`,
+          canReview: false,
+          resultPath: `/workspace/lectures/${input.row.lecture_id}/sessions/${input.row.session_id}/exams?exam_id=${input.row.target_id}&examTab=setup`,
+          actionLabel: "문항·정답 설정",
+        });
+        setPickerRow((current) => current?.id === input.row.id ? null : current);
+        refreshAssignmentResults(input.row);
+        return;
+      }
+      const message = result.graded === true && result.projection_ready !== false
+        ? "학생 지정과 채점이 완료됐습니다. 결과를 확인해 주세요."
+        : result.projection_ready === false
+          ? "학생 지정은 저장됐습니다. 아직 성적 반영이 끝나지 않았습니다. 답안을 검토해 주세요."
+          : result.graded !== false && ["submitted", "dispatched", "extracting", "grading", "processing"].includes(result.status ?? "")
+            ? "학생 지정은 저장됐습니다. 답안 처리 중이며 완료 후 결과를 확인할 수 있습니다."
+            : "학생 지정은 저장됐습니다. 채점 전 확인이 필요합니다. 답안을 검토해 주세요.";
+      const canReview = !["submitted", "dispatched", "extracting", "grading", "processing"].includes(result.status ?? "");
+      setIdentificationNotice({ row: input.row, message, canReview });
+      feedback.info(message);
+      setPickerRow((current) => current?.id === input.row.id ? null : current);
+      refreshAssignmentResults(input.row);
     },
-    onError: (e: unknown) => {
+    onError: (e: unknown, input) => {
       const err = e as {
         response?: {
           status?: number;
-          data?: { detail?: string; code?: string; conflict_submission_id?: number };
+          data?: {
+            detail?: string;
+            code?: string;
+            conflict_submission_id?: number;
+            recovery?: { action?: string; exam_id?: number; enrollment_id?: number };
+          };
         };
         message?: string;
       };
+      const recovery = err.response?.data?.recovery;
+      const setupPath = examSetupPath(input.row, recovery);
+      if (err.response?.status === 409 && err.response.data?.code === "OMR_GRADING_CONFIGURATION_CONFLICT" && setupPath) {
+        setIdentificationNotice({
+          row: input.row,
+          message: "문항·정답 설정을 먼저 확인해 주세요. 이번 변경은 저장되지 않았으며 기존 답안과 성적은 유지됩니다.",
+          canReview: false,
+          resultPath: setupPath,
+          actionLabel: "문항·정답 설정",
+        });
+        setPickerRow((current) => current?.id === input.row.id ? null : current);
+        refreshAssignmentResults(input.row);
+        return;
+      }
+      if (
+        err.response?.status === 409 && err.response.data?.code === "OMR_ATTEMPT_CONFLICT"
+        && recovery?.action === "review_existing_result"
+        && input.row.target_type === "exam" && isTargetResolved(input.row)
+        && recovery.exam_id === input.row.target_id && recovery.enrollment_id === input.enrollmentId
+        && input.row.lecture_id && input.row.session_id
+      ) {
+        setIdentificationNotice({
+          row: input.row,
+          message: "기존 성적·미응시 판정과 충돌해 배정하지 않았습니다. 기존 성적에서 답안을 확인하고 미리보기 후 확정한 다음, 제출함에서 다시 배정해 주세요.",
+          canReview: false,
+          resultPath: `/workspace/lectures/${input.row.lecture_id}/sessions/${input.row.session_id}/exams?exam_id=${input.row.target_id}&examTab=results&enrollmentId=${input.enrollmentId}`,
+        });
+        setPickerRow((current) => current?.id === input.row.id ? null : current);
+        return;
+      }
       if (
         err?.response?.status === 409 &&
-        err?.response?.data?.code === "DUPLICATE_ENROLLMENT" &&
-        pickerRow
+        err?.response?.data?.code === "DUPLICATE_ENROLLMENT"
       ) {
         const conflictId = err.response.data.conflict_submission_id;
-        const sid = pickerRow.id;
-        const eid = lastPickedEnrollmentRef.current;
         confirm({
           title: "이미 매칭된 답안지가 있습니다",
           message:
@@ -329,8 +418,8 @@ export default function SubmissionsInboxPage() {
           cancelText: "취소",
           danger: true,
         }).then((ok) => {
-          if (!ok || !eid) return;
-          identifyMut.mutate({ sid, enrollmentId: eid, allowDuplicate: true });
+          if (!ok) return;
+          identifyMut.mutate({ ...input, allowDuplicate: true });
         });
         return;
       }
@@ -383,14 +472,14 @@ export default function SubmissionsInboxPage() {
       feedback.error("원본 시험/과제 정보가 없어 학생을 지정할 수 없습니다.");
       return;
     }
-    lastPickedEnrollmentRef.current = null;
+    setIdentificationNotice(null);
     setPickerRow(row);
   }
 
   function handlePickStudent(c: CandidateRow) {
     if (!pickerRow) return;
-    lastPickedEnrollmentRef.current = c.enrollment_id;
-    identifyMut.mutate({ sid: pickerRow.id, enrollmentId: c.enrollment_id });
+    if (identifyMut.isPending) return;
+    identifyMut.mutate({ row: pickerRow, enrollmentId: c.enrollment_id });
   }
 
   function toggleSelect(rowId: number) {
@@ -446,6 +535,16 @@ export default function SubmissionsInboxPage() {
       <p className="text-sm leading-relaxed text-[var(--color-text-muted)]">
         대기 중인 제출은 모두 표시합니다. 완료·실패·폐기는 최근 24시간에 접수된 제출만 표시합니다.
       </p>
+      {identificationNotice && (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4" data-testid="submission-identification-result">
+          <p className="min-w-0 flex-1 text-sm">{identificationNotice.message}</p>
+          {identificationNotice.resultPath && <Link to={identificationNotice.resultPath} className="text-sm font-semibold text-[var(--color-primary)] underline underline-offset-4">{identificationNotice.actionLabel ?? "기존 성적 확인·정정"}</Link>}
+          {identificationNotice.canReview && identificationNotice.row.target_type === "exam" && (
+            <Button type="button" intent="secondary" size="sm" onClick={() => setReviewRow(identificationNotice.row)}>답안 검토·복구</Button>
+          )}
+          <Button type="button" intent="ghost" size="sm" onClick={() => setIdentificationNotice(null)}>안내 닫기</Button>
+        </div>
+      )}
       {/* 식별 필요 안내 배너 */}
       {needsIdentificationCount > 0 && (
         <div
@@ -462,7 +561,7 @@ export default function SubmissionsInboxPage() {
               이 페이지의 학생 미식별 제출 {needsIdentificationCount}건
             </span>
             <span className="text-xs text-[var(--color-text-muted)]">
-              스캔/AI 업로드 후 학생 매칭이 안 된 제출입니다. 행의 <b>학생 지정</b> 버튼을 눌러 매칭하면 자동 채점 큐에 들어갑니다.
+              제출물을 확인한 뒤 학생을 지정하세요. 지정 후에도 확인이 필요한 시험 답안은 <b>답안 검토·복구</b>에서 검토하고 저장할 수 있습니다.
               {orphanCount > 0 && (
                 <>
                   {" "}원본 시험/과제를 찾을 수 없는 {orphanCount}건은 <b>일괄 폐기</b>로 정리하세요.
@@ -585,12 +684,13 @@ export default function SubmissionsInboxPage() {
                 busy={
                   (retryMut.isPending && retryMut.variables === r.id) ||
                   (discardMut.isPending && discardMut.variables?.sid === r.id) ||
-                  (identifyMut.isPending && pickerRow?.id === r.id)
+                  (identifyMut.isPending && identifyMut.variables?.row.id === r.id)
                 }
                 onToggleSelect={() => toggleSelect(r.id)}
                 onPreview={() => setPreviewRow(r)}
                 onNavigate={() => handleNavigate(r)}
                 onIdentify={() => handleStartIdentify(r)}
+                onReview={() => setReviewRow(r)}
                 onRetry={() => retryMut.mutate(r.id)}
                 onDiscard={() => handleAskDiscard(r)}
               />
@@ -623,6 +723,22 @@ export default function SubmissionsInboxPage() {
       )}
 
       {/* 폐기 사유 모달 */}
+      {reviewRow && (
+        <Suspense fallback={<div role="status">답안 검토 화면을 불러오는 중입니다.</div>}>
+          <OmrReviewWorkspace
+            open
+            examId={reviewRow.target_id}
+            examTitle={reviewRow.target_title}
+            initialSubmissionId={reviewRow.id}
+            exactInitialSelection
+            onClose={() => {
+              refreshAssignmentResults(reviewRow);
+              setReviewRow(null);
+              setIdentificationNotice(null);
+            }}
+          />
+        </Suspense>
+      )}
       <DiscardReasonModal
         open={!!discardModal}
         count={discardCount}
@@ -645,6 +761,7 @@ function SubmissionRow({
   onPreview,
   onNavigate,
   onIdentify,
+  onReview,
   onRetry,
   onDiscard,
 }: {
@@ -656,6 +773,7 @@ function SubmissionRow({
   onPreview: () => void;
   onNavigate: () => void;
   onIdentify: () => void;
+  onReview: () => void;
   onRetry: () => void;
   onDiscard: () => void;
 }) {
@@ -676,6 +794,10 @@ function SubmissionRow({
   const isDone = row.status === "done";
   const isAnswersReady = row.status === "answers_ready";
   const isSuperseded = row.status === "superseded";
+  const setupPath = !isDiscardedRow && !isSuperseded && !isProcessing
+    && row.omr_readiness?.can_grade === false
+    && row.omr_readiness.missing.some((reason) => CONFIGURATION_MISSING.has(reason))
+    ? examSetupPath(row, row.recovery) : undefined;
   const hasFile = row.has_file === true;
   const fileName = submissionFileName(row.file_name);
   const fileMeta = hasFile
@@ -739,6 +861,11 @@ function SubmissionRow({
         >
           {targetTitleDisplay}
         </p>
+        {setupPath && (
+          <p className="mt-1 text-xs text-[var(--color-text-secondary)]" data-testid={`submission-readiness-${row.id}`}>
+            {CONFIGURATION_REASON}
+          </p>
+        )}
         <p
           className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-[var(--color-text-muted)]"
           data-testid={`submission-file-meta-${row.id}`}
@@ -753,7 +880,7 @@ function SubmissionRow({
       <span className="hidden flex-1 sm:block" />
 
       <Badge variant="solid" tone={tone} className="flex-shrink-0">
-        {statusLabel}
+        {setupPath ? "설정 확인 필요" : statusLabel}
       </Badge>
 
       <span className="text-xs text-[var(--color-text-muted)] flex-shrink-0 tabular-nums">
@@ -761,6 +888,14 @@ function SubmissionRow({
       </span>
 
       <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 flex-shrink-0">
+        {setupPath && (
+          <Link to={setupPath} className="rounded px-2 py-1.5 text-sm font-medium text-[var(--color-primary)] underline underline-offset-2" data-testid={`submission-setup-${row.id}`}>
+            문항·정답 설정
+          </Link>
+        )}
+        {isExam && resolved && !isProcessing && !isSuperseded && !isDiscardedRow && (row.source === "omr_scan" || row.source === "omr_manual" || row.source === "scan") && (
+          <Button type="button" intent="secondary" size="sm" disabled={busy} onClick={onReview} data-testid={`submission-review-${row.id}`}>답안 검토·복구</Button>
+        )}
         {hasFile && (
           <Button
             type="button"
@@ -810,7 +945,7 @@ function SubmissionRow({
             대체됨
           </span>
         )}
-        {(isDone || isAnswersReady) && resolved && (
+        {(isDone || isAnswersReady) && resolved && !setupPath && (
           <Button type="button" intent="primary" size="sm" onClick={onNavigate} className="shrink-0">
             결과 보기
           </Button>

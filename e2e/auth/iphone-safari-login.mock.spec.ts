@@ -189,7 +189,7 @@ for (const role of ["student", "parent", "staff"] as const) {
       access: state.access,
       refresh: state.refresh,
     });
-    await expect(page).toHaveURL(role === "staff" ? /\/workspace\/mobile(?:\/|$)/ : /\/student(?:\/|$)/);
+    await expect(page).toHaveURL(role === "staff" ? /\/workspace\/dashboard(?:\/|$)/ : /\/student(?:\/|$)/);
   });
 }
 
@@ -360,7 +360,7 @@ async function loginAsAccountB(page: Page) {
   await page.getByTestId("login-username").fill("staff.account-b");
   await page.getByTestId("login-password").fill("Account-B-Pw");
   await page.getByTestId("login-submit").click({ timeout: 30_000 });
-  await expect(page).toHaveURL(/\/workspace\/mobile(?:\/|$)/);
+  await expect(page).toHaveURL(/\/workspace\/dashboard(?:\/|$)/);
   return state;
 }
 
@@ -1037,7 +1037,7 @@ test("no-lock check/write와 check/remove 교차에서도 B generation만 활성
     clearAuthTokenEnvelope(generation);
   }, accountA.generation);
   await expect.poll(() => readAuthSession(accountBPage)).toEqual(activeB);
-  await expect(accountBPage).toHaveURL(/\/workspace\/mobile(?:\/|$)/);
+  await expect(accountBPage).toHaveURL(/\/workspace\/dashboard(?:\/|$)/);
 });
 
 for (const staleError of ["403", "404", "network"] as const) {
@@ -1119,7 +1119,7 @@ for (const staleError of ["403", "404", "network"] as const) {
 
     await expect(requestResult).resolves.toMatchObject({ result: "canceled", name: "CanceledError" });
     await expect.poll(() => readAuthSession(accountBPage)).toEqual(activeB);
-    await expect(accountBPage).toHaveURL(/\/workspace\/mobile(?:\/|$)/);
+    await expect(accountBPage).toHaveURL(/\/workspace\/dashboard(?:\/|$)/);
     expect(activeB).toMatchObject({ access: accountB.access, refresh: accountB.refresh });
   });
 }

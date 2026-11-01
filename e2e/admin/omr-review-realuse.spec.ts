@@ -375,10 +375,10 @@ async function downloadOmrPdf(
 async function markThirtyQuestionOmrPdf(
   pdfBuffer: Buffer,
   answers: string[],
-  identifier: string,
+  identifier: string | null,
 ): Promise<Buffer> {
   expect(answers).toHaveLength(30);
-  expect(identifier).toMatch(/^\d{8}$/);
+  if (identifier !== null) expect(identifier).toMatch(/^\d{8}$/);
 
   const pdf = await PDFDocument.load(pdfBuffer);
   const page = pdf.getPages()[0];
@@ -408,7 +408,7 @@ async function markThirtyQuestionOmrPdf(
     const row = index % 15;
     fillBubble(choiceXs[column][Number(answer) - 1], 20.75 + row * 12.5);
   });
-  [...identifier].forEach((digit, index) => {
+  [...(identifier ?? "")].forEach((digit, index) => {
     fillBubble(identifierXs[index], 109.6 + Number(digit) * 6.4);
   });
 
@@ -440,6 +440,143 @@ async function waitForOmrAnswers(
     `OMR worker did not persist ${expectedCount} answers for submission ${submissionId}. ` +
     `latest=${JSON.stringify(latest?.body ?? null).slice(0, 1200)}`,
   );
+}
+
+async function recoverMissingOmrConfiguration(
+  page: Page,
+  request: APIRequestContext,
+  token: string,
+  submissionId: number,
+  objectiveQuestionIds: number[],
+  writtenQuestionIds: number[],
+): Promise<void> {
+  requireIsolatedScenario();
+  const detailPath = `/submissions/submissions/${submissionId}/manual-edit/`;
+  const original = await expectApi<{ id: number; file_key: string }>(
+    request, "GET", `/submissions/submissions/${submissionId}/`, token,
+  );
+  expect(original.id).toBe(submissionId);
+  expect(original.file_key.length).toBeGreaterThan(0);
+  const readAnswers = async () => {
+    const detail = await expectApi<{
+      submission_id: number; target_id: number; target_type: string; enrollment_id: number | null;
+      submission_status: string; answers: Array<{ question_id: number; answer: string }>;
+    }>(request, "GET", detailPath, token);
+    expect(detail).toMatchObject({ submission_id: submissionId, target_type: "exam", target_id: created.examId });
+    return detail;
+  };
+  const originalDetail = await readAnswers();
+  expect(originalDetail.enrollment_id).toBeNull();
+  const normalizedAnswers = (answers: typeof originalDetail.answers) => answers
+    .map(({ question_id, answer }) => ({ question_id, answer })).sort((a, b) => a.question_id - b.question_id);
+  const originalAnswers = normalizedAnswers(originalDetail.answers);
+  const readPendingRow = async () => {
+    const pending = await expectApi<{ results: Array<{
+      id: number; target_id: number; enrollment_id: number;
+      omr_readiness: { can_grade: boolean; missing: string[] } | null;
+      recovery: { action: string; exam_id: number } | null;
+    }> }>(request, "GET", "/submissions/submissions/pending/?filter=all&page=1&page_size=50", token);
+    const row = pending.results.find((item) => item.id === submissionId);
+    expect(row?.target_id).toBe(created.examId);
+    return row!;
+  };
+  const blocked = await readPendingRow();
+  expect(blocked.omr_readiness?.missing).toContain("answer_key");
+  expect(blocked.recovery).toEqual({ action: "configure_exam", exam_id: created.examId });
+
+  await page.setViewportSize({ width: 390, height: 900 });
+  await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 45_000 });
+  await page.getByTestId(`submission-preview-${submissionId}`).click();
+  const preview = page.getByRole("dialog", { name: "제출물 확인" });
+  const popupPromise = page.waitForEvent("popup");
+  await preview.getByRole("link", { name: "새 창에서 원본 열기" }).click();
+  const popup = await popupPromise;
+  await popup.waitForLoadState("domcontentloaded");
+  await popup.close();
+  await preview.getByRole("checkbox").check();
+  await preview.getByRole("button", { name: "확인하고 학생 지정" }).click();
+  const assignedResponse = page.waitForResponse((response) => matchesApiResponse(response, "POST", detailPath));
+  await page.getByRole("dialog", { name: "학생 선택" }).getByText(STUDENT_NAME, { exact: true }).click();
+  const assigned = await assignedResponse;
+  expect(assigned.status()).toBe(200);
+  expect(await assigned.json()).toMatchObject({
+    submission_id: submissionId, enrollment_id: created.enrollmentId, status: "answers_ready",
+    graded: false, code: "OMR_GRADING_CONFIGURATION_REQUIRED",
+  });
+  await expect(page.getByTestId("submission-identification-result")).toContainText("학생 지정은 저장됐습니다");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const row = page.getByTestId(`submission-inbox-${submissionId}`);
+  await expect(row).toContainText(STUDENT_NAME);
+  await expect(row.getByTestId(`submission-readiness-${submissionId}`)).toContainText("문항·정답 설정");
+  const assignedDetail = await readAnswers();
+  expect(assignedDetail.enrollment_id).toBe(created.enrollmentId);
+  expect(normalizedAnswers(assignedDetail.answers)).toEqual(originalAnswers);
+  await row.getByTestId(`submission-setup-${submissionId}`).click();
+  await expect(page).toHaveURL(`${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?exam_id=${created.examId}&examTab=setup`);
+  await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+  const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+  const choiceRows = answerDialog.locator(".answer-key-row--choice");
+  await expect(choiceRows).toHaveCount(EXPECTED_ANSWERS.length);
+  for (const [index, answer] of EXPECTED_ANSWERS.entries()) {
+    const choice = choiceRows.nth(index).getByRole("checkbox", { name: `${index + 1}번 ${answer}번 선택지`, exact: true });
+    await expect(choice).not.toBeChecked();
+    await choiceRows.nth(index).locator(".answer-key-omr-label").nth(Number(answer) - 1).click();
+    await expect(choice).toBeChecked();
+  }
+  const writtenRows = answerDialog.locator(".answer-key-row--essay");
+  await expect(writtenRows).toHaveCount(writtenQuestionIds.length);
+  for (let index = 0; index < writtenQuestionIds.length; index += 1) {
+    // Preserve the original math fixture's two synthetic short-answer keys.
+    const input = writtenRows.nth(index).getByRole("textbox", { name: /숫자 정답$/ });
+    await input.fill("0");
+    await expect(input).toHaveValue("0");
+  }
+  const expectedKey = Object.fromEntries([
+    ...objectiveQuestionIds.map((id, index) => [String(id), EXPECTED_ANSWERS[index]]),
+    ...writtenQuestionIds.map((id) => [String(id), "0"]),
+  ]);
+  // Structure initialization can issue its own POST. Only the final write
+  // containing every intended answer proves that the teacher saved the key.
+  const savedResponse = page.waitForResponse((response) => {
+    if (!["POST", "PUT", "PATCH"].includes(response.request().method())
+      || !/^\/api\/v1\/exams\/answer-keys\/(?:\d+\/)?$/.test(new URL(response.url()).pathname)) return false;
+    const payload = response.request().postDataJSON() as { exam?: number; answers?: Record<string, string> };
+    return payload.exam === created.examId && Object.entries(expectedKey).every(([id, answer]) => payload.answers?.[id] === answer);
+  });
+  const saveButton = answerDialog.getByRole("button", { name: "저장 (총 50점)", exact: true });
+  await saveButton.click();
+  const saved = await savedResponse;
+  expect([200, 201]).toContain(saved.status());
+  const savedKey = await saved.json() as { id: number; regrade?: Array<{ exam_id: number; graded: number; failed: unknown[] }> };
+  expect(savedKey.regrade).toEqual([expect.objectContaining({ exam_id: created.examId, graded: 1, failed: [] })]);
+  const persistedKey = await expectApi<{ exam: number; answers: Record<string, string> }>(
+    request, "GET", `/exams/answer-keys/${savedKey.id}/`, token,
+  );
+  expect(persistedKey.exam).toBe(created.examId);
+  for (const [id, answer] of Object.entries(expectedKey)) expect(persistedKey.answers[id]).toBe(answer);
+  await expect(saveButton).toBeEnabled();
+  await answerDialog.getByRole("button", { name: "취소", exact: true }).click();
+
+  const graded = await readAnswers();
+  expect(graded).toMatchObject({ enrollment_id: created.enrollmentId, submission_status: "done" });
+  expect(normalizedAnswers(graded.answers)).toEqual(originalAnswers);
+  const persisted = await expectApi<{ id: number; file_key: string }>(request, "GET", `/submissions/submissions/${submissionId}/`, token);
+  expect(persisted).toMatchObject({ id: submissionId, file_key: original.file_key });
+  const result = await expectApi<{
+    submission_id: number; is_provisional: boolean; grading_status: string;
+    items: Array<{ question_id: number; score: number | null }>;
+  }>(request, "GET", `/results/admin/exams/${created.examId}/enrollments/${created.enrollmentId}/`, token);
+  expect(result).toMatchObject({ submission_id: submissionId, is_provisional: true, grading_status: "subjective_pending" });
+  const objectiveItems = result.items.filter((item) => objectiveQuestionIds.includes(item.question_id));
+  expect(objectiveItems).toHaveLength(EXPECTED_ANSWERS.length);
+  expect(objectiveItems.reduce((sum, item) => sum + Number(item.score), 0)).toBe(EXPECTED_OBJECTIVE_SCORE);
+  expect((await readPendingRow()).omr_readiness).toBeNull();
+  await gotoAndSettle(page, `${BASE}/workspace/results/submissions?filter=all`, { timeout: 45_000 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(row).toContainText(STUDENT_NAME);
+  await expect(row.getByTestId(`submission-readiness-${submissionId}`)).toHaveCount(0);
+  await expect(row.getByTestId(`submission-setup-${submissionId}`)).toHaveCount(0);
+  await page.setViewportSize({ width: 1366, height: 900 });
 }
 
 async function waitForStudentResult(
@@ -590,6 +727,90 @@ async function verifyChangedAnswerAndMaximum(
   }
 }
 
+async function verifyDirectAnswerEntry(
+  page: Page,
+  request: APIRequestContext,
+  adminToken: string,
+  studentToken: string,
+  questionId: number,
+): Promise<void> {
+  requireIsolatedScenario();
+  expect(questionId).toBeGreaterThan(0);
+  const scorePath = `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`;
+  const draftPath = `/results/admin/sessions/${created.sessionId}/score-draft/`;
+  const detailPath = `/results/admin/exams/${created.examId}/enrollments/${created.enrollmentId}/`;
+  const openAnswer = async () => {
+    const student = page.getByText(STUDENT_NAME, { exact: true }).first();
+    await expect(student).toBeVisible({ timeout: 30_000 });
+    await student.click();
+    const drawer = page.locator(".student-scores-drawer");
+    await drawer.locator(".student-scores-drawer__exam-header").filter({ hasText: EXAM_TITLE }).click();
+    await drawer.getByRole("button", { name: "답안 보기·입력", exact: true }).click();
+    return page.getByRole("dialog").filter({ hasText: `${EXAM_TITLE} 답안 상세` });
+  };
+  const closeAnswer = async () => {
+    const dialog = page.getByRole("dialog").filter({ hasText: `${EXAM_TITLE} 답안 상세` });
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await page.locator(".student-scores-drawer")
+      .getByRole("button", { name: "학생 성적 상세 닫기 (Esc)", exact: true }).click();
+  };
+
+  let previousScore: number = EXPECTED_WRITTEN_SCORES[0];
+  // Both writes use the existing isolated student/exam. Restore 47 before the
+  // original regrade, role projections and cleanup assertions continue.
+  for (const { width, score } of [{ width: 1366, score: 7 }, { width: 390, score: 8 }]) {
+    const total = EXPECTED_SCORE - EXPECTED_WRITTEN_SCORES[0] + score;
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, scorePath, { timeout: 30_000 });
+    await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+    const dialog = await openAnswer();
+    await expect(dialog.locator(".srd-edit")).toHaveCount(0);
+    const lease = page.waitForResponse((response) => matchesApiResponse(response, "PUT", draftPath));
+    await dialog.getByRole("button", { name: "성적 수정", exact: true }).click();
+    const acquired = await lease;
+    expect(acquired.status()).toBe(200);
+    expect(acquired.request().headers()["x-score-editor-client"]).toBeTruthy();
+    const input = dialog.getByRole("spinbutton", { name: "31번 서술형 점수", exact: true });
+    await expect(input).toHaveValue(String(previousScore));
+    const saved = page.waitForResponse((response) => matchesApiResponse(response, "PATCH",
+      `${detailPath}items/${questionId}/`));
+    await input.fill(String(score));
+    await input.press("Tab");
+    const savedResponse = await saved;
+    expect(savedResponse.status()).toBe(200);
+    expect(savedResponse.request().postDataJSON().score).toBe(score);
+    expect(savedResponse.request().headers()["x-score-session-id"]).toBe(String(created.sessionId));
+    await dialog.getByRole("button", { name: "수정 완료", exact: true }).click();
+    await expect(dialog.locator(".srd-read__score-val")).toHaveText(String(total));
+    await closeAnswer();
+    const release = page.waitForResponse((response) => matchesApiResponse(response, "POST", `${draftPath}commit/`)
+      && response.request().postDataJSON()?.release_lease === true);
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
+    expect((await release).status()).toBe(200);
+    await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const readback = await openAnswer();
+    await expect(readback.locator(".srd-read__score-val")).toHaveText(String(total));
+    const persisted = await expectApi<{ total_score: number; items: Array<{ question_id: number; score: number }> }>(
+      request, "GET", detailPath, adminToken);
+    expect(persisted.total_score).toBe(total);
+    expect(persisted.items.find((item) => Number(item.question_id) === questionId)?.score).toBe(score);
+    await expect.poll(async () => (await expectApi<{ total_score: number }>(request, "GET",
+      `/student/results/me/exams/${created.examId}/`, studentToken)).total_score,
+    { timeout: 30_000 }).toBe(total);
+    const bounds = await readback.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
+    await test.info().attach(`direct-answer-entry-${width}-${total}`, {
+      body: await page.screenshot({ fullPage: true }), contentType: "image/png",
+    });
+    await closeAnswer();
+    previousScore = score;
+  }
+}
+
 async function verifyStaffSubjectiveRecovery(page: Page, request: APIRequestContext): Promise<void> {
   const username = `qa-omr-assistant-${TS}`;
   const staff = await expectApi<{ id: number }>(request, "POST", "/staffs/", created.adminAccess!, {
@@ -610,7 +831,7 @@ async function verifyStaffSubjectiveRecovery(page: Page, request: APIRequestCont
     const options = target.getByRole("button", { name: /표시 옵션/ });
     if (await options.getAttribute("aria-expanded") === "false") await options.click();
     await target.getByRole("button", { name: "수정", exact: true }).click();
-    await expect(target.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await expect(target.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
     const subjective = target.getByRole("group", { name: "시험 점수 입력 방식" })
       .getByRole("button", { name: "주관식", exact: true });
     if (await subjective.getAttribute("aria-pressed") !== "true") {
@@ -622,7 +843,7 @@ async function verifyStaffSubjectiveRecovery(page: Page, request: APIRequestCont
     await target.locator(cellSelector).getByRole("textbox").fill(String(score));
     const saved = target.waitForResponse((response) => matchesApiResponse(response, "PATCH",
       `/results/admin/exams/${created.examId}/enrollments/${created.enrollmentId}/subjective/`));
-    await target.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+    await target.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     expect((await saved).status()).toBe(200);
     await expect(target.getByRole("button", { name: "수정", exact: true })).toBeVisible();
   };
@@ -995,15 +1216,8 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(objectiveQuestionIds).toHaveLength(30);
     expect(writtenQuestionIds).toHaveLength(2);
 
-    await expectApi(request, "POST", "/exams/answer-keys/", adminTokens.access, {
-      exam: created.examId,
-      answers: Object.fromEntries(
-        questionIdsByNumber.map((id, idx) => [
-          String(id),
-          idx < EXPECTED_ANSWERS.length ? EXPECTED_ANSWERS[idx] : "0",
-        ]),
-      ),
-    });
+    // The first upload deliberately precedes key registration and student
+    // identification. Recovery below uses this same original submission.
 
     await expectApi(
       request,
@@ -1018,7 +1232,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const markedPdfBuffer = await markThirtyQuestionOmrPdf(
       pdfBuffer,
       EXPECTED_ANSWERS,
-      CONTROLLED_PHONE.slice(-8),
+      null,
     );
 
     await loginBrowserAsRealUser(
@@ -1098,12 +1312,14 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     );
     expect(reviewDetail.answers.map((row: any) => Number(row.question_id)).sort((a: number, b: number) => a - b))
       .toEqual([...objectiveQuestionIds].sort((a, b) => a - b));
-    expect(Number(reviewDetail.enrollment_id)).toBe(created.enrollmentId);
+    expect(reviewDetail.enrollment_id).toBeNull();
     expect(
       [...reviewDetail.answers]
         .sort((a: any, b: any) => Number(a.question_no) - Number(b.question_no))
         .map((row: any) => String(row.answer)),
     ).toEqual(EXPECTED_ANSWERS);
+
+    await recoverMissingOmrConfiguration(page, request, adminTokens.access, submissionId, objectiveQuestionIds, writtenQuestionIds);
 
     await gotoAndSettle(
       page,
@@ -1275,13 +1491,37 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
 
     await loginBrowserAsRealUser(
       page,
-      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
+      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS },
     );
-    await chooseExamHeaderAction(page, "문항별 점수 입력");
-    const gradingDialog = page.getByRole("dialog").filter({
-      hasText: `${EXAM_TITLE} 혼합 채점`,
-    });
+    await page.setViewportSize({ width: 1366, height: 900 });
+    // Keep both preloaded scopes fresh: ordinary cache expiry must not hide a
+    // missed invalidation. Only Date is fixed; real API requests/timers continue.
+    await page.clock.setFixedTime(Date.now());
+    const scope = page.getByRole("group", { name: "성적 조회 강의 필터" });
+    const loadScope = async (lectureId: number | null, select: () => Promise<void>) => {
+      await Promise.all([
+        ...["questions", "results"].map(async (endpoint) => {
+          const response = await page.waitForResponse((candidate) => {
+            const url = new URL(candidate.url());
+            return candidate.request().method() === "GET"
+              && url.pathname === `/api/v1/results/admin/exams/${created.examId}/${endpoint}/`
+              && url.searchParams.get("lecture_id") === (lectureId === null ? null : String(lectureId));
+          });
+          expect(response.status()).toBe(200);
+        }),
+        select(),
+      ]);
+    };
+    await loadScope(null, () => page.getByRole("tab", { name: "채점·결과", exact: true }).click());
+    await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
+    await expect(page.getByText("아직 분석할 확정 채점 결과가 없습니다", { exact: true })).toBeVisible();
+    await loadScope(created.lectureId!, () => scope.getByRole("button").filter({ hasText: LECTURE_TITLE }).click());
+    await expect(page.getByText("아직 분석할 확정 채점 결과가 없습니다", { exact: true })).toBeVisible();
+    const adminResults = page.getByRole("region", { name: "시험 학생별 결과", exact: true });
+    await expect(adminResults).toContainText("서술형 입력 필요");
+    await page.getByRole("button", { name: "주관식·서술형 입력하기", exact: true }).click();
+    const gradingDialog = page.getByRole("region", { name: "혼합 채점 워크스페이스", exact: true });
     const firstWrittenCell = gradingDialog.getByRole("spinbutton", {
       name: `${STUDENT_NAME} 31번 10점 만점 점수`,
     });
@@ -1297,6 +1537,58 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       .toBeVisible({ timeout: 30_000 });
     await gradingDialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
     await expect(page.getByText("1명의 성적을 확정했습니다.")).toBeVisible({ timeout: 30_000 });
+
+    const statistics = page.locator("details").filter({
+      has: page.locator("summary", { hasText: "전체 문항 통계 보기" }),
+    });
+    const assertWrittenStatistics = async () => {
+      await expect(statistics).toBeVisible();
+      await expect(statistics).toHaveAttribute("open", "");
+      for (const [index, score] of EXPECTED_WRITTEN_SCORES.entries()) {
+        const row = statistics.getByRole("row").filter({
+          has: page.getByRole("cell", { name: `${31 + index}번`, exact: true }),
+        });
+        await expect(row).toBeVisible();
+        await expect(row.getByRole("cell").nth(1)).toHaveText("0.0%");
+        await expect(row.getByRole("cell").nth(2)).toHaveText(`${score.toFixed(1)}점`);
+        await expect(row.getByRole("cell").nth(3)).toHaveText("0");
+        await expect(row.getByRole("cell").nth(4)).toHaveText("1");
+      }
+      await expect(adminResults).toContainText(STUDENT_NAME);
+      await expect(adminResults).not.toContainText("서술형 입력 필요");
+      if (page.viewportSize()!.width < 640) {
+        await expect(adminResults.getByText(`1차 ${EXPECTED_SCORE}점`, { exact: true })).toBeVisible();
+      } else {
+        await expect(adminResults.locator('[title="등수 산정 점수"]')).toHaveText(String(EXPECTED_SCORE));
+      }
+    };
+    // No navigation, reload or explicit refetch before these assertions: the
+    // mounted lecture scope and the previously cached all scope must update.
+    await assertWrittenStatistics();
+    await scope.getByRole("button", { name: /전체 성적/ }).click();
+    await assertWrittenStatistics();
+    await page.clock.setSystemTime(Date.now());
+    for (const lectureId of [null, created.lectureId]) {
+      const suffix = lectureId == null ? "" : `?lecture_id=${lectureId}`;
+      const rows = await expectApi<Array<{
+        question_number: number; attempts: number; correct: number; accuracy: number; avg_score: number;
+      }>>(request, "GET", `/results/admin/exams/${created.examId}/questions/${suffix}`, adminTokens.access);
+      for (const [index, score] of EXPECTED_WRITTEN_SCORES.entries()) {
+        expect(rows.find((row) => row.question_number === 31 + index)).toMatchObject({
+          attempts: 1, correct: 0, accuracy: 0, avg_score: score,
+        });
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
+    await assertWrittenStatistics();
+    await scope.getByRole("button").filter({ hasText: LECTURE_TITLE }).click();
+    await assertWrittenStatistics();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+
+    await verifyDirectAnswerEntry(page, request, adminTokens.access, studentTokens.access, questionIdsByNumber[30]);
 
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,

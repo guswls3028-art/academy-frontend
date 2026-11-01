@@ -1,1 +1,1 @@
-export { deleteSessionExam } from "../api/adminExam";
+export { deleteSessionExam, fetchAdminExam, updateAdminExam } from "../api/adminExam";

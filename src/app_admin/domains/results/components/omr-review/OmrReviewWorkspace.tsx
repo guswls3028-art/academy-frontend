@@ -15,7 +15,8 @@
  *
  * 상태 카테고리:
  * - all: 전체
- * - ok:  정상 (manual_review 불필요 + enrollment 매칭됨)
+ * - ok: OMR 처리 완료 (DONE + manual_review 불필요 + enrollment 매칭됨)
+ * - processing: 인식·채점 진행 중
  * - noid: 식별 실패 (needs_identification / no_match / missing)
  * - flag: 중복·빈칸·저신뢰도 (manual_review.required=true)
  * - failed: 처리 실패 (FAILED)
@@ -107,7 +108,9 @@ function toneForCategory(c: FilterKey): "success" | "danger" | "warning" | "prim
 function labelForCategory(c: FilterKey): string {
   switch (c) {
     case "ok":
-      return "정상";
+      return "OMR 처리 완료";
+    case "processing":
+      return "처리 중";
     case "noid":
       return "식별실패";
     case "flag":
@@ -142,6 +145,7 @@ type Props = {
   examId: number;
   examTitle: string;
   initialSubmissionId?: number;
+  exactInitialSelection?: boolean;
   open: boolean;
   onClose: () => void;
   onOpenUpload?: () => void;
@@ -151,6 +155,7 @@ export default function OmrReviewWorkspace({
   examId,
   examTitle,
   initialSubmissionId,
+  exactInitialSelection = false,
   open,
   onClose,
   onOpenUpload,
@@ -222,15 +227,22 @@ export default function OmrReviewWorkspace({
 
   // 상세
   const {
-    data: detail,
+    data: loadedDetail,
     isLoading: detailLoading,
-    isError: detailError,
+    isError: detailQueryError,
     refetch: refetchDetail,
   } = useQuery({
     queryKey: adminResultsQueryKeys.omrReviewDetail(selectedId),
     queryFn: () => fetchOmrReviewDetail(selectedId!),
     enabled: open && selectedId != null,
   });
+  const detailMatchesSelection = !exactInitialSelection || loadedDetail == null || (
+    loadedDetail.submission_id === selectedId
+    && loadedDetail.target_type === "exam"
+    && loadedDetail.target_id === examId
+  );
+  const detail = detailMatchesSelection ? loadedDetail : undefined;
+  const detailError = detailQueryError || !detailMatchesSelection;
   const selectedRow = rows.find((row) => row.id === selectedId);
   const selectedArchived = Boolean(
     (selectedRow && isArchivedOmrReviewRow(selectedRow))
@@ -259,7 +271,13 @@ export default function OmrReviewWorkspace({
   // 자동 선택: 첫 아이템 또는 현재 선택이 filter 밖으로 나가면 재지정.
   // selectedId를 dep에서 제거하고 functional setter로 비교 → setState 무한 루프 방지.
   useEffect(() => {
+    if (open && exactInitialSelection && initialSubmissionId != null) setSelectedId(initialSubmissionId);
+  }, [exactInitialSelection, initialSubmissionId, open]);
+  useEffect(() => {
     if (!open) return;
+    // A caller opening one exact answer must never fall back to another student,
+    // even when a completed answer is outside the latest 200 or the issues list.
+    if (exactInitialSelection && initialSubmissionId != null) return;
     if (initialSubmissionId != null && focusedIssue.isPending) return;
     setSelectedId((prev) => {
       if (visibleRows.length === 0) return prev === null ? prev : null;
@@ -273,7 +291,7 @@ export default function OmrReviewWorkspace({
       }
       return visibleRows[0].id;
     });
-  }, [focusedIssue.isPending, initialSubmissionId, open, visibleRows]);
+  }, [exactInitialSelection, focusedIssue.isPending, initialSubmissionId, open, visibleRows]);
 
   // open이 false로 닫히면 selection 초기화
   useEffect(() => {
@@ -389,7 +407,7 @@ export default function OmrReviewWorkspace({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          {(["all", "noid", "flag", "ok", "failed", "archived"] as FilterKey[]).map((k) => {
+          {(["all", "processing", "noid", "flag", "ok", "failed", "archived"] as FilterKey[]).map((k) => {
             const isZero = counts[k] === 0;
             return (
               <button
@@ -568,7 +586,7 @@ export default function OmrReviewWorkspace({
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewIssues(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(selectedId) });
-              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResults(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResultsRoot(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamSummary(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(examId) });
@@ -588,7 +606,7 @@ export default function OmrReviewWorkspace({
                 );
               }
               // 자동 다음 학생 이동 (운영자 가속)
-              window.setTimeout(() => navigate(1), 250);
+              if (!exactInitialSelection) window.setTimeout(() => navigate(1), 250);
             }}
             onNavigate={navigate}
           />

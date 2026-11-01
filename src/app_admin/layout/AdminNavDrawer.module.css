@@ -1,3 +1,5 @@
+.drawer { position: fixed; }
+
 .drawer :global(.ant-drawer-body) {
   padding: 8px 0;
 }
@@ -6,6 +8,26 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.staffOverview {
+  min-width: 0;
+  padding: 0 12px 10px;
+}
+
+.staffOverview:empty { display: none; }
+
+.staffOverview :global(.app-header__centerClock),
+.staffOverview :global(.app-header__centerClockAvatars),
+.staffOverview :global(.app-header__centerClockActions) {
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.staffOverview :global(.app-header__centerClockAvatarCard),
+.staffOverview :global(.app-header__clockBtn) {
+  min-height: 44px;
 }
 
 .quickNavigationWrap {

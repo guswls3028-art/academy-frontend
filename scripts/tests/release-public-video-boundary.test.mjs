@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
-import { observeReleaseTestResult } from "../run-development-release-canary.mjs";
+import { assertPublicVideoAvailability, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 const source = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policy = await import("data:text/javascript;base64," + Buffer.from(stripTypeScriptTypes(source
   + "\nexport { registerPublicVideoSources, publicVideoRequestKind };\n")).toString("base64"));
@@ -14,12 +14,128 @@ const video = { youtube_video_id: id, canonical_url: `https://www.youtube.com/wa
 const embed = `https://www.youtube.com/embed/${id}?autoplay=0&playsinline=1&origin=${encodeURIComponent(boundary.webOrigin)}`;
 const ids = new Set([id]);
 
+const botPlayback = { paused: true, ended: false, readyState: 0, networkState: 3, width: 0, height: 0,
+  currentTime: 0, initialTime: 0, duration: null, mediaError: null, adShowing: false, adInterrupting: false,
+  playerState: -1, identityMatches: true, errorVisible: true, errorClass: "bot-check" };
+const pausedPlayback = { ...botPlayback, readyState: 4, networkState: 1, width: 1280, height: 720,
+  currentTime: 3, duration: 716, playerState: 2, errorVisible: false, errorClass: "none" };
+
 function observePublicEvidence(outputs) {
   return observeReleaseTestResult(JSON.stringify({ stats: { expected: 0, unexpected: 1, skipped: 0, flaky: 0 },
     suites: [{ specs: [{ file: "public-video-realuse.spec.ts", tests: [{ status: "unexpected", results: [{
       status: "failed", workerIndex: 0, stdout: outputs.map(value => ({ text: JSON.stringify(value) })),
     }] }] }] }] }));
 }
+
+test("confirmed provider bot availability stays distinct from genuine play-pause evidence", () => {
+  const output = [];
+  policy.emitPublicVideoAvailability(1366, "bot-confirmation", botPlayback, value => output.push(value));
+  policy.emitPublicVideoAvailability(390, "played-paused", pausedPlayback, value => output.push(value));
+  const observation = observePublicEvidence(output);
+  assertPublicVideoAvailability(observation);
+  assert.deepEqual(observation.publicVideoAvailability.map(value => value.outcome), ["bot-confirmation", "played-paused"]);
+  assert.equal(observation.stats.unexpected, 1, "provider evidence never rewrites an application's failing result");
+  assert.throws(() => policy.emitPublicVideoAvailability(1366, "played-paused", botPlayback));
+  assert.throws(() => policy.emitPublicVideoAvailability(1366, "bot-confirmation", pausedPlayback));
+});
+
+test("bot classification cannot absorb identity, media, unknown errors or malformed evidence", () => {
+  assert.equal(policy.isPublicVideoBotConfirmation(botPlayback), true);
+  const patches = [{ identityMatches: false }, { identityMatches: null }, { errorVisible: false },
+    { errorClass: "unavailable" }, { errorClass: "embedding-disabled" }, { errorClass: "other" },
+    { mediaError: 2 }, { adShowing: true }, { adInterrupting: true }, { playerState: 1 },
+    { paused: false }, { ended: true }, { readyState: 4 }, { currentTime: 2 }, { initialTime: null },
+    { secret: "private-token" }, { networkState: 4 }];
+  for (const patch of patches) {
+    const playback = { ...botPlayback, ...patch };
+    assert.equal(policy.isPublicVideoBotConfirmation(playback), false);
+    assert.throws(() => policy.emitPublicVideoAvailability(1366, "bot-confirmation", playback));
+    const observation = observePublicEvidence([{ publicVideoAvailability: {
+      schema: "public-video-availability/v1", viewport: 1366, outcome: "bot-confirmation", playback,
+    } }]);
+    assert.equal(observation.rejectedPublicVideoAvailabilityCount, 1);
+    assert.deepEqual(observation.publicVideoAvailability, []);
+    assert.doesNotMatch(JSON.stringify(observation), /private-token/);
+  }
+});
+
+test("provider evidence requires both viewports, exact source and unique closed outcomes", () => {
+  const output = [];
+  for (const viewport of [1366, 390]) policy.emitPublicVideoAvailability(viewport, "bot-confirmation", botPlayback, value => output.push(value));
+  assertPublicVideoAvailability(observePublicEvidence(output));
+  for (const values of [[], output.slice(0, 1), [output[0], output[0]], [...output, output[0]]]) {
+    assert.throws(() => assertPublicVideoAvailability(observePublicEvidence(values)));
+  }
+  for (const patch of [{ schema: "unknown" }, { viewport: 500 }, { outcome: "passed" }, { url: "https://private.invalid" }]) {
+    const value = { ...output[0].publicVideoAvailability, ...patch };
+    const observation = observePublicEvidence([{ publicVideoAvailability: value }, output[1]]);
+    assert.throws(() => assertPublicVideoAvailability(observation));
+  }
+  const foreign = JSON.stringify({ suites: [{ specs: [{ file: "omr-review-realuse.spec.ts", tests: [{ results: [{ stdout: output.map(value => ({ text: JSON.stringify(value) })) }] }] }] }] });
+  assert.equal(observeReleaseTestResult(foreign).rejectedPublicVideoAvailabilityCount, 2);
+  assert.throws(() => assertPublicVideoAvailability(observeReleaseTestResult(foreign)));
+});
+
+test("actual playback control flow continues after confirmed bot only and still proves Play before Pause", async () => {
+  const spec = stripTypeScriptTypes(readFileSync(new URL("../../e2e/admin/public-video-realuse.spec.ts", import.meta.url), "utf8"));
+  const start = spec.indexOf('journeyStage = "player-ready";');
+  const end = spec.indexOf('await assertNoHorizontalOverflow(visitor); await visitor.screenshot', start);
+  assert.ok(start > 0 && end > start);
+  const control = spec.slice(start, end);
+  for (const mode of ["bot-before", "bot-after", "normal", "lazy-media", "bot-before-play-click", "bot-before-pause",
+    "bot-during-pause-click", "unknown-error", "wrong-identity", "transport", "click-timeout", "click-transport"]) {
+    let state = ["bot-before", "unknown-error", "wrong-identity"].includes(mode) ? "blocked" : "ready";
+    const calls = [], outputs = [];
+    const transport = new Error("controlled transport failure");
+    const playback = () => state === "blocked" ? { ...botPlayback,
+      ...(mode === "unknown-error" ? { errorClass: "other" } : {}),
+      ...(mode === "wrong-identity" ? { identityMatches: false } : {}) }
+      : state === "paused" ? pausedPlayback : state === "playing" ? { ...pausedPlayback, paused: false, playerState: 1 }
+        : { ...pausedPlayback, currentTime: 0, playerState: -1 };
+    const media = { first() { return this; }, count: async () => mode === "lazy-media" && !calls.includes("play") ? 0 : 1, evaluate: async (_fn, args) => {
+      if (mode === "transport") throw transport;
+      if (mode === "lazy-media" && !calls.includes("play")) throw new Error("video is not attached until Play");
+      if (!args) return mode === "bot-before-pause" ? 0.5 : 0;
+      const snapshot = { ...playback(), initialTime: args.initialTime };
+      return { snapshot, playing: state === "playing", paused: snapshot.paused };
+    } };
+    const button = kind => ({ filter() { return this; }, first() { return this; }, isVisible: async () => true,
+      click: async () => {
+        calls.push(kind);
+        if (mode === "click-transport") throw transport;
+        if (mode === "click-timeout" || (mode === "bot-before-play-click" && kind === "play")
+          || (mode === "bot-during-pause-click" && kind === "pause")) {
+          if (mode !== "click-timeout") state = "blocked";
+          const error = new Error("controlled action timeout"); error.name = "TimeoutError"; throw error;
+        }
+        state = kind === "play" ? mode === "bot-after" ? "blocked" : "playing" : "paused";
+      } });
+    const frame = { getByRole: (_role, options) => button(options.name.test("Play") ? "play" : "pause"),
+      locator: selector => selector.includes("video.html5") ? media : selector === ".ytp-error"
+        ? { error: true, isVisible: async () => state === "blocked" }
+        : { hover: async () => { if (mode === "bot-before-pause") state = "blocked"; } } };
+    const expected = value => ({ toBe: other => assert.equal(value, other),
+      toBeHidden: async () => assert.notEqual(state, "blocked", "unclassified provider error remains terminal") });
+    expected.poll = callback => ({ toBe: async value => {
+      let actual;
+      for (let attempt = 0; attempt < 3; attempt++) { actual = await callback(); if (actual === value) return; }
+      assert.equal(actual, value);
+    } });
+    const run = runInNewContext(`(async () => { let journeyStage, activeVisitor, playbackObservation; ${control}; return "continue-application-journey"; })`, {
+      visitor: { frameLocator: () => frame }, width: 1366, row: { youtube_video_id: id }, expect: expected, Error,
+      readPublicVideoPlayback() {}, isPublicVideoBotConfirmation: policy.isPublicVideoBotConfirmation,
+      emitPublicVideoAvailability: (width, outcome, snapshot) => policy.emitPublicVideoAvailability(width, outcome, snapshot, value => outputs.push(value)),
+    });
+    if (["unknown-error", "wrong-identity", "transport", "click-timeout", "click-transport"].includes(mode)) {
+      await assert.rejects(run(), ["transport", "click-transport"].includes(mode) ? error => error === transport : undefined);
+      assert.deepEqual(outputs, []);
+    } else {
+      assert.equal(await run(), "continue-application-journey");
+      assert.deepEqual(calls, ["normal", "lazy-media", "bot-during-pause-click"].includes(mode) ? ["play", "pause"] : mode === "bot-before" ? [] : ["play"]);
+      assert.equal(outputs[0].publicVideoAvailability.outcome, ["normal", "lazy-media"].includes(mode) ? "played-paused" : "bot-confirmation");
+    }
+  }
+});
 
 test("only API-shaped sources with fixed canonical and thumbnail addresses are registered", () => {
   const known = new Set(); register({ results: [video] }, known); assert.deepEqual([...known], [id]);
@@ -451,7 +567,8 @@ test("admitted provider HTTP errors are observed but still fulfilled once withou
 test("actual public-video sampler preserves failed playback predicates and emits only closed state", () => {
   const source = stripTypeScriptTypes(readFileSync(new URL("../../e2e/admin/public-video-realuse.spec.ts", import.meta.url), "utf8"))
     .replace(/^import[\s\S]*?;\r?\n/gm, "");
-  const scope = { test: { setTimeout() {}, use() {}, describe() {} }, getComputedStyle: () => ({ visibility: "visible" }) };
+  const scope = { test: { setTimeout() {}, use() {}, describe() {} },
+    getComputedStyle: node => ({ visibility: "visible", display: "block", opacity: "1", contentVisibility: "visible", ...node.style }) };
   runInNewContext(source + "\nglobalThis.readPlayback = readPublicVideoPlayback;", scope);
   const sample = (overrides = {}, flags = [], playerOverrides = {}, initialTime = 0) => {
     const player = { classList: { contains: name => flags.includes(name) }, getPlayerState: () => 1,
@@ -487,10 +604,32 @@ test("actual public-video sampler preserves failed playback predicates and emits
       assert.equal(observePublicEvidence(output).rejectedFailureObservationCount, 0);
     }
   }
-  for (const [text, errorClass] of [["Confirm you are not a bot private-secret", "bot-check"], ["Unavailable private-secret", "unavailable"],
-    ["Embedding disabled private-secret", "embedding-disabled"], ["private-secret", "other"]]) {
+  for (const [text, errorClass] of [["Sign in to confirm you're not a bot", "bot-check"],
+    ["Sign in to confirm you’re not a botThis helps protect our communitySign inLearn more", "bot-check"],
+    [" Sign  in to confirm you're not a bot\nThis helps protect our community.\nSign in\nLearn more ", "bot-check"],
+    ["Confirm you are not a bot private-secret", "other"], ["로봇 동영상을 사용할 수 없습니다", "unavailable"],
+    ["Sign in to confirm you're not a bot Unavailable", "unavailable"],
+    ["Unavailable private-secret", "unavailable"], ["Embedding disabled private-secret", "embedding-disabled"], ["private-secret", "other"]]) {
     const result = sample({}, [], { querySelector: () => ({ getBoundingClientRect: () => ({ width: 10, height: 10 }), textContent: text }) });
     assert.equal(result.snapshot.errorVisible, true); assert.equal(result.snapshot.errorClass, errorClass);
     assert.doesNotMatch(JSON.stringify(result.snapshot), /private-secret|private-video-id/);
+  }
+  const hiddenPrompt = sample({}, [], { querySelector: () => ({ getBoundingClientRect: () => ({ width: 0, height: 0 }),
+    textContent: "Sign in to confirm you're not a bot" }) });
+  assert.equal(hiddenPrompt.snapshot.errorVisible, false);
+  assert.equal(hiddenPrompt.snapshot.errorClass, "none");
+  for (const hiddenStyle of [{ opacity: "0" }, { opacity: "0.0" }, { visibility: "hidden" },
+    { visibility: "collapse" }, { display: "none" }, { contentVisibility: "hidden" }]) {
+    for (const inherited of [false, true]) {
+      const errorNode = { getBoundingClientRect: () => ({ width: 200, height: 100 }),
+        textContent: "Sign in to confirm you're not a bot", style: inherited ? {} : hiddenStyle,
+        parentElement: inherited ? { style: hiddenStyle, parentElement: null } : null };
+      const result = sample({ paused: true, readyState: 0, currentTime: 0, videoWidth: 0, videoHeight: 0 }, [],
+        { getPlayerState: () => -1, querySelector: () => errorNode });
+      assert.equal(result.snapshot.errorVisible, false);
+      assert.equal(result.snapshot.errorClass, "none");
+      assert.equal(policy.isPublicVideoBotConfirmation(result.snapshot), false,
+        "hidden retained bot text must not exempt a failed player");
+    }
   }
 });

@@ -16,6 +16,42 @@
 
 ## 1. 배포 순서
 
+공개 공급자 전송 문제의 별도 진단은
+`.github/workflows/public-video-provider-diagnostic.yml`가 소유한다. 동일 저장소 PR에
+`public-video-provider-diagnostic` 라벨을 명시적으로 추가하거나 해당 workflow를 수동 실행할 때만
+정확한 source SHA로 실행한다. 일반 PR/배포 workflow와 필수 check는 변경하지 않는다.
+진단은 같은 GitHub runner에서 기존 relay와 별도 검증된 native response controller를 각각
+새 익명 context로 한 번만 비교한다. 기존 공개 영상 ID와 localhost origin, iframe 권한,
+실사용 spec의 Play → 시간 증가 → Pause 판정을 사용한다. 컨트롤러의 초기/OOPIF arming,
+frame 신뢰·이탈, 모든 redirect의 원래 제한, deadline, close/drain을 닫힌 fixture로 먼저
+검증해야 하며, 준비되지 않은 native 경로 또는 기존 relay만의 단순 재시도는 실행하지 않는다.
+`scripts/tests/public-video-native-diagnostic.test.mjs`는 실제 Chromium으로 닫힌 응답·프레임
+20건, 종료·설정 실패 6건, 실제 release guard와 정확한 메모리 adapter의 합성
+6건, 승인된 열린 body와 아직 응답 헤더를 기다리는 종료 3건, 명시적 요청 취소와
+모호하거나 이미 허용된 요청의 실패 경계 4건을 확인한다.
+release guard의 `Request` 원본 body 캡처는 앱 origin에만 적용한다. 공급자 iframe의
+`Request.clone()`은 원래 생성자 판정과 body·header·credentials·keepalive 의미를 유지하며,
+실제 Chromium의 폐쇄 합성 검사로 확인한다. 앱의 pagehide body 보존과 기존 요청 admission,
+인증 정보·redirect 제한은 그대로 요구한다. 이 호환성 보강만으로 bot-check 해소를 주장하지 않는다.
+합성 검사는 임시 자체 서명 TLS와 loopback만 연결하는 닫힌 proxy에서
+실제 HTTPS 분류를 유지하며 외부 공급자에 연결하지 않는다. 두 비교 context의 작업 제한은
+각 30초이며 각 정리 단계에는 별도의 최대 5초 제한이 있다. guard/native drain과
+독립 close를 단계별로 병행하고, 한쪽 정리가 멈추거나 실패해도 나머지를 수행한다.
+승인된 응답의 열린 body만 실제 context 종료로 취소하며 미결 응답 헤더와 redirect 검증은
+끝까지 기다린다. 종료 실패나 지연 중 위반은
+정리 재시도 후에도 실패로 남고, 실제 context 종료와 모든 대기 작업의 소멸을 확인한다.
+종료 중 예상된 취소는 실제 `route.abort` 성공·유일한 요청 신원·검증된 frame이 모두
+일치할 때만 구분한다. Network 이벤트의 도착 순서만으로 실패를 면제하지 않는다.
+
+진단 fixture의 영상 등록은 메모리에만 고정하며 실제 QA API 등록을 증명하지 않는다.
+운영/QA API·DB·SSM·계정·supplied cookies·UA/IP 변경·공급자 재시도를 사용하지 않는다.
+일반 release guard 파일과 실제 공급자 응답은 수정하지 않고, native 실험의 전송 부분만
+해당 진단 모듈의 메모리에서 바꾼다. evidence는 source/술어/경계 hash, 단계, 제한된 재생
+상태와 controller/cleanup 결과만 담고 원문 header·cookie·오류·응답 본문은 남기지 않는다.
+결과는 항상 `diagnosticOnly:true`, `promotable:false`이며 원인 구분을 위한 보충 증거다.
+정상 재생이 관측돼도 아래 동일 산출물 41건 전체 성공과 cleanup0, production 승인 및
+운영 확인을 대신하지 않는다. 실패 결과를 성공으로 바꾸거나 bot challenge를 자동 해제하지 않는다.
+
 필수 WebKit 게이트에는 `pr-modal-webkit`의 `@dialog-journey` 20건도 포함한다.
 학생 취소·이미지 확대, 교사 등록·편집, 관리자 달력의 키보드·포커스·짧은 화면
 회귀를 검사한다. 기존 iPhone·숙제 WebKit 프로젝트와 동일한 폐쇄 proxy 및
@@ -45,7 +81,9 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
-   현재 22개 파일·41건이며 성공 기준, 재시도 금지와 영상 재생 시간은 유지한다.
+   현재 22개 파일·41건이며 앱 업무 흐름, 재시도 금지와 수업 영상 재생 시간은 유지한다.
+   공개 YouTube의 정확한 봇 확인 응답은 아래 `publicVideoAvailability` 계약에 따라
+   외부 가용성 결과로 따로 기록한다. 해당 관측만으로 다른 기능의 배포를 막지 않는다.
    기본 실행은 첫 실패 후 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.
    이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 41건 모두의
    통과와 cleanup0이 필요하다. 이미 실패한 실행이 장시간 영상 검증까지 계속되는 비용을 줄인다.
@@ -228,6 +266,9 @@ PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency
 chain으로 직렬 실행한다. 별도 세 job은 API proxy를 `http://127.0.0.1:9`로 닫고
 route-mock 전체 목록을 Playwright의 `--shard=1/3`, `2/3`, `3/3`으로 나눈다.
+세 shard의 OS는 `ubuntu-24.04`로 고정해 `ubuntu-latest` 전환으로 native WebKit의
+다운로드 동작이 검토 없이 바뀌지 않게 한다. OS 변경 시 원문 파일명과 원본 바이트,
+필수 WebKit 시나리오를 새 환경에서 검증한 뒤 명시적으로 올린다.
 `pr-route-mocks`와 `pr-iphone-webkit`은 `serviceWorkers: "block"`으로 앱의 SW가
 등록·응답을 가로채지 않게 한다. [Playwright routing 정본](https://playwright.dev/docs/api/class-browsercontext#browser-context-route)에 따라
 모의 API의 요청 interception을 보장하며, 브라우저 offline/online 전환·재생 유지 검사는
@@ -910,10 +951,27 @@ context별 첫 두 요청만 기록하며 기존 이벤트 128개 상한·drop �
 해석하지 않는다. `http-header-overflow`만 닫힌 진단으로 보존하고 원 실패는 유지한다.
 전역 `NODE_OPTIONS`, 운영 환경, insecure parser, origin/redirect/UA 및 cleanup 정책은
 변경하지 않는다. 동일 artifact 실사용과 cleanup 검증은 여전히 배포 조건이다.
-공개 영상의 1366/390px 확인은 제한된 시간 안에 Play → 미디어 시간 진행 → Pause를
-검증하며 `player-playing`/`player-paused` 단계로 실패를 구분하고,
-`public-video-1366.png`, `public-video-390.png`를 보존한다. 기존 41개 사례,
-공개 영상 240초 제한, retries 0 및 정리 조건을 유지한다.
+공개 영상은 홈페이지 내장 iframe을 유지한다. 1366/390px에서 Play → 미디어 시간 진행
+→ Pause를 관측하되, 호스티드 익명 브라우저에 대한 YouTube의 봇 확인 응답 때문에
+다른 앱 변경의 배포까지 막지 않도록 외부 가용성과 앱 성공을 구분한다. 앱의 두 게시자
+등록·저장·reload·게시·검색·상세·수정·숨김·삭제·재등록, 정확 embed/영상 식별,
+권한·tenant·strict 보안 경계와 cleanup은 모두 계속 필수다. 41개 사례를 건너뛰거나
+Playwright 실패 결과를 성공으로 다시 쓰지 않으며 수업 영상 검증은 변경하지 않는다.
+
+각 폭은 `public-video-availability/v1`의 `publicVideoAvailability`를 하나씩 남긴다.
+`played-paused`는 정확 영상의 시간 진행과 실제 일시정지까지 확인한 결과다.
+`bot-confirmation`은 정확 영상 식별, 표시된 `bot-check` 오류, playerState -1,
+paused=true·ended=false·readyState=0·현재시간 0, 유한한 시작시간, media error 없음과 광고 아님이
+모두 확인된 경우에만 별도로 기록한다. 이는 재생 성공이나 봇 문제 해결을 뜻하지 않는다.
+오류 문구는 보존된 실제 화면의 `Sign in to confirm you're not a bot` 및 그 고정 안내·버튼
+문구만 공백/아포스트로피를 정규화해 식별한다. 일반적인 로봇 언급·숨겨진 오류·다른 오류가
+섞인 문구는 이 조건이 아니다. 재생 전과 재생 후 버튼 전환 중에도 같은 엄격한 조건을 쓴다.
+다른 오류·미확인 식별·transport·controller·보안 경계 실패를 이 결과로 대체하지 않는다.
+parser는 원 spec에 귀속된 닫힌 schema/enum/수치만 보존하며 추가 키·중복 폭·누락·
+다른 spec·잘못된 관측은 거부한다. 정상 승격은 두 폭의 유효한 관측 및 앱 41건 통과,
+exact artifact identity와 cleanup0을 요구한다. 지원 답변이나 외부 시청 전환은 조건이 아니다.
+`public-video-1366.png`, `public-video-390.png`와 실제 관측을 보존한다.
+공개 영상 240초 제한, retries 0과 provider 요청/redirect/인증 제한은 유지한다.
 
 `public-video-primary`는 playing/paused 단계에만 optional `playback` 관측을 포함할 수
 있다. 원래 판정과 같은 evaluate에서 얻은 paused/ended, ready/network state, 크기,
@@ -925,8 +983,9 @@ context별 첫 두 요청만 기록하며 기존 이벤트 128개 상한·drop �
 허용된 공급자의 실제 HTTP 400..599 응답은 `route-fetch` 관측으로 남기되 기존대로
 한 번 fulfill한다. 응답이 있을 때만 마지막 fetch의 실제 0..30000ms 소요시간을
 선택적으로 보존하며, 범위 밖 측정은 생략한다. 이 관측은 새 거절/재시도 조건이 아니다.
-같은 두 공개 PNG 이름에는 실패한 anonymous frame이 담길 수도 있다. `passed:false`와
-`public-video-primary` 단계로 실패 증거를 구분하며 최종 성공 Play → Pause 증명을 대체하지 않는다.
+같은 두 공개 PNG 이름에는 봇 확인 frame이 담길 수도 있다. 이때 별도 provider 결과는
+`bot-confirmation`이고 앱 검증 결과와 구분한다. 실제 앱 오류는 기존 `passed:false` 및
+`public-video-primary` 단계로 남기며, 봇 확인 관측을 Play → Pause 성공 증명으로 쓰지 않는다.
 
 평가 복사 helper도 원 오류를 정리 뒤 그대로 throw하고 `assessment-copy`와
 `assessment-copy-cleanup`의 닫힌 단계/kind만 남긴다. 이 두 단계는
@@ -1057,6 +1116,13 @@ GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사
   보안 검사 다음의 `Excel dependency compatibility`는 재귀·한글·확장자·제외
   패턴과 XLSX 셀·날짜·수식·병합·스트리밍 ZIP 왕복을 확인한다. 실패 시 배포를
   중단하고 해당 의존성 조합을 수정하며 audit 예외로 넘기지 않는다.
+- TypeScript ESLint의 `@typescript-eslint/typescript-estree>minimatch`는
+  11.0.3으로 고정한다. 기존 10.2.6의 패턴 증폭 문제
+  ([GHSA-g3hv-75wg-m249](https://github.com/isaacs/minimatch/security/advisories/GHSA-g3hv-75wg-m249))를
+  수정하며, 소비자가 사용하는 named `minimatch` API와 Node 22 범위를 유지한다.
+  이전 major를 사용하는 ESLint·OpenAPI 소비자까지 일괄 교체하지 않는다.
+  전체 의존성 감사에 남는 이전 major 경고를 숨기거나 해결된 것으로 보고하지
+  않으며, 필수 lint·타입·build·브라우저 CI로 통합 호환성을 검증한다.
 - 2026-09-20 개발 도구 전이 의존성의 최소 수정 버전을 `js-yaml` 4.3.2
   (GHSA-2883-xcg3-v3hh), `browserslist` 4.28.7 (GHSA-73wf-gq98-2v4g),
   `baseline-browser-mapping` 2.11.0 (GHSA-w5vr-8v7q-w6rv), `nanoid` 3.3.18

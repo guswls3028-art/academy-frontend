@@ -698,7 +698,7 @@ export default function SessionScoresEntryPage({
     : recoveryBlocked
       ? "이전 입력 복구 여부를 먼저 확인해 주세요."
     : isEditMode
-      ? "점수를 저장하고 잠근 뒤 알림톡을 발송할 수 있습니다."
+      ? "점수 입력을 마친 뒤 알림톡을 발송할 수 있습니다."
       : "선택한 학생에게 저장된 성적 기준으로 알림톡을 발송합니다.";
   /* 2026-05-13 회귀 fix: hasExamsOrHomeworks 가 selectionBar 안에서 참조되는데
      이전엔 line 581 (selectionBar 아래) 에서 선언 → TDZ ReferenceError 발생, 페이지 crash.
@@ -874,7 +874,7 @@ export default function SessionScoresEntryPage({
                 return;
               }
               if (isEditMode) {
-                feedback.info("점수를 저장하고 잠근 뒤 알림톡을 발송해 주세요.");
+                feedback.info("점수 입력을 마친 뒤 알림톡을 발송해 주세요.");
                 return;
               }
               const initialRefresh = await refetch();
@@ -1234,7 +1234,7 @@ export default function SessionScoresEntryPage({
                   feedback.success(`현재 결과의 평가 대상 ${examReviewOverview.selectableEnrollmentIds.length}명을 선택했습니다.`);
                 }}
                 disabled={isEditMode || examReviewOverview.selectableEnrollmentIds.length === 0}
-                title={isEditMode ? "점수를 저장하고 잠근 뒤 선택할 수 있습니다." : "현재 결과에서 평가 대상 학생만 선택합니다. 결석 학생은 제외됩니다."}
+                title={isEditMode ? "점수 입력을 마친 뒤 선택할 수 있습니다." : "현재 결과에서 평가 대상 학생만 선택합니다. 결석 학생은 제외됩니다."}
               >
                 현재 결과 선택
               </Button>
@@ -1293,7 +1293,7 @@ export default function SessionScoresEntryPage({
           if (!isEditMode) return true;
           const released = await draft.releaseEditLease();
           if (!released) {
-            feedback.error("점수 입력 잠금을 마무리한 뒤 다시 시도해 주세요.");
+            feedback.error("점수 입력 종료를 마친 뒤 다시 시도해 주세요.");
             return false;
           }
           setIsEditMode(false);
@@ -1320,7 +1320,7 @@ export default function SessionScoresEntryPage({
         className="scores-edit-action"
         disabled={isSaving || draft.isStartingEdit || isLoading || isError || recoveryBlocked}
         leftIcon={isEditMode
-          ? <LockKeyhole size={ICON_FOR_BUTTON.sm} />
+          ? <ClipboardCheck size={ICON_FOR_BUTTON.sm} />
           : <Pencil size={ICON_FOR_BUTTON.sm} />}
         onClick={async () => {
           if (!isEditMode) {
@@ -1337,13 +1337,13 @@ export default function SessionScoresEntryPage({
           setIsSaving(false);
           if (!released) return;
           setIsEditMode(false);
-          feedback.success("점수를 저장하고 입력을 잠갔습니다.");
+          feedback.success("점수를 저장하고 점수 입력을 마쳤습니다.");
         }}
         title={isEditMode
-          ? "입력 중인 점수를 저장하고 실수 방지를 위해 잠급니다"
+          ? "입력 중인 점수를 저장하고 점수 입력을 마칩니다. 판정과 비고는 계속 변경할 수 있습니다"
           : "점수 입력을 시작합니다"}
       >
-        {isSaving || draft.isStartingEdit ? "저장 중…" : isEditMode ? "저장하고 잠금" : "수정"}
+        {isSaving || draft.isStartingEdit ? "저장 중…" : isEditMode ? "점수 입력 마침" : "수정"}
       </Button>
 
   );
@@ -1546,7 +1546,7 @@ export default function SessionScoresEntryPage({
                           })();
                         }}
                       >
-                        {draft.leaseReleaseFailed ? "잠금 다시 시도" : "다시 시도"}
+                        {draft.leaseReleaseFailed ? "입력 종료 다시 시도" : "다시 시도"}
                       </button>
                     </>
                   )}
@@ -1734,7 +1734,21 @@ export default function SessionScoresEntryPage({
           lectureId={numericLectureId}
           search={searchInput}
           isEditMode={isEditMode}
+          onRequestAnswerEdit={async () => {
+            if (isSaving || draft.isStartingEdit || draft.isRecoveryCheckPending || draft.recoveryCheckFailed || draft.hasDraftToRestore) {
+              feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
+              return false;
+            }
+            if (isEditMode) return true;
+            if (!await beginScoreEditing()) {
+              feedback.error("답안 수정 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+              return false;
+            }
+            setIsEditMode(true);
+            return true;
+          }}
           hasUnsavedChanges={isEditMode || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
+          hasPendingScoreChanges={isSaving || draft.isStartingEdit || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
           assessmentDeleteLocked={recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error" || activeScoreCell !== null}
           onPendingChange={draft.requestAutosave}
           activeEditors={draft.activeEditors}

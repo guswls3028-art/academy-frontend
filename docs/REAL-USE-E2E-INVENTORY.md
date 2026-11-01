@@ -38,6 +38,10 @@ PDF/HWP/HWPX/XLSX/ZIP과 DOCX/PPTX/TXT/PNG를 검증한다. 별도 QA 원본의 
 홈페이지 영상 실사용은 두 지정 게시자의 YouTube 링크 등록·임시저장·reload·공개,
 대표 변경·익명 상세·다른 게시자 수정 시 공개 스냅샷 보존·비공개를 PC/390px에서 확인한다.
 생성한 QA 영상은 비공개로 회수한 뒤 소유 scenario의 tenant cascade로 정리한다.
+내장 iframe과 앱 전체 여정은 유지하며, 실제 Play/Pause와 정확한 공급자 봇 확인은
+`publicVideoAvailability`의 서로 다른 결과로 기록한다. 봇 확인만으로 앱 배포를 막지
+않지만 다른 오류·식별 실패·격리/권한/cleanup 실패는 계속 차단한다. 두 폭의 관측과
+41개 업무 사례의 실행·통과는 모두 필요하다. 상세 계약은 `DEPLOYMENT-OPERATIONS.md`가 소유한다.
 
 학생 Excel 형식 호환 spec은 폐쇄 proxy PR 작업의 첫 shard에서 UI 묶음과 별도
 단계로 실행한다. 실제 XLSX의 OOXML 안전 경계와 내보내기 학년·성별 재입력,

@@ -587,8 +587,11 @@
   }
 
   .serviceControlRole {
-    display: none;
+    grid-column: 2;
+    grid-row: 2;
   }
+
+  .serviceControl > :global(.ant-switch) { grid-column: 3; grid-row: 1; }
 
   .triggerTitle {
     white-space: normal;

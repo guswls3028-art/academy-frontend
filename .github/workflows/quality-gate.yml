@@ -320,10 +320,10 @@ jobs:
 
           MANIFEST=$(fetch_body_matching \
             "${PREVIEW_URL}/teacher-manifest.json" \
-            '"start_url": "/workspace/mobile"')
+            '"start_url": "/workspace"')
           if [ "$(jq -r '.id' <<<"${MANIFEST}")" != "/teacher" ] \
-            || [ "$(jq -r '.start_url' <<<"${MANIFEST}")" != "/workspace/mobile" ] \
-            || [ "$(jq -r '.scope' <<<"${MANIFEST}")" != "/workspace/mobile" ]; then
+            || [ "$(jq -r '.start_url' <<<"${MANIFEST}")" != "/workspace" ] \
+            || [ "$(jq -r '.scope' <<<"${MANIFEST}")" != "/workspace" ]; then
             echo "::error::Preview mobile workspace manifest contract failed"
             exit 1
           fi

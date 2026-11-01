@@ -211,7 +211,15 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   await gotoAndSettle(enrollmentPage, `${QA_BASE}/workspace/lectures/${created.lectureId}`, { timeout: 30_000 });
   await enrollmentPage.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
   const picker = enrollmentPage.getByRole("dialog", { name: "수강생 등록", exact: true });
-  for (const student of family.students) {
+  await picker.getByRole("textbox", { name: "학생 검색" }).fill("QA 격리고등학교");
+  await picker.getByRole("combobox", { name: "학교 구분", exact: true }).selectOption("HIGH");
+  await picker.getByRole("combobox", { name: "학년", exact: true }).selectOption("1");
+  await expect(picker.getByText("검색 결과 1명", { exact: true })).toBeVisible();
+  await expect(picker.getByRole("checkbox", { name: `${family.students[0].name} 선택`, exact: true })).toBeEnabled();
+  await expect(picker.getByRole("checkbox", { name: `${family.students[1].name} 선택`, exact: true })).toHaveCount(0);
+  await picker.getByRole("button", { name: "이 페이지 전체 선택", exact: true }).click();
+  for (const [index, student] of family.students.entries()) {
+    await picker.getByRole("combobox", { name: "학년", exact: true }).selectOption(String(index + 1));
     const search = picker.getByRole("textbox", { name: "학생 검색" });
     await search.dispatchEvent("compositionstart");
     await search.fill(student.name);
@@ -456,7 +464,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         teacherPhase = "teacher-attendance-save";
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/attendance/${created.sessionId}`, { timeout: 30_000 });
         await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
-        for (const [label, status, absentCount] of [["결석", "ABSENT", 2], ["출석", "PRESENT", 1]] as const) {
+        for (const [label, status, absentCount] of [["결석", "ABSENT", 2], ["영상", "ONLINE", 1], ["현장", "PRESENT", 1]] as const) {
           await teacherPage.getByText(primary.name, { exact: true }).click();
           const saved = teacherPage.waitForResponse((response) => (
             response.request().method() === "PATCH"
@@ -471,6 +479,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
           await teacherPage.reload();
           await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
           await expect(teacherPage.getByText(`결석 ${absentCount}`, { exact: true })).toBeVisible();
+          await expect(teacherPage.getByRole("button", { name: `${primary.name} 출석 상태 변경`, exact: true })).toContainText(label);
         }
         // Exercise the actual undo control before leaving the successful save's window.
         teacherPhase = "teacher-attendance-undo";
@@ -498,7 +507,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         await assertNoHorizontalOverflow(teacherPage);
         teacherPhase = "teacher-session-summary";
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/classes/${created.lectureId}/sessions/${created.sessionId}`, { timeout: 30_000 });
-        await expect(teacherPage.getByRole("button").filter({ has: teacherPage.getByText(primary.name, { exact: true }) })).toContainText("출석");
+        await expect(teacherPage.getByRole("button").filter({ has: teacherPage.getByText(primary.name, { exact: true }) })).toContainText("현장");
         teacherPhase = "teacher-video-list";
         const responsePromise = teacherPage.waitForResponse((response) => (
           response.request().method() === "GET"
@@ -553,7 +562,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
     const attendanceLink = page.getByRole("link").filter({ hasText: lectureTitle }).first();
     await expect(attendanceLink).toBeVisible();
-    await expect(attendanceLink).toContainText("출석");
+    await expect(attendanceLink).toContainText("현장");
     await attendanceLink.click();
     await expect(page.getByText(sessionTitle, { exact: true }).first()).toBeVisible();
 
@@ -628,7 +637,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     expect(parentPrimaryVideos.items.find((video) => video.id === created.videoId)?.progress).toBeGreaterThanOrEqual(55);
 
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
-    await expect(page.getByRole("link").filter({ hasText: lectureTitle }).first()).toContainText("출석");
+    await expect(page.getByRole("link").filter({ hasText: lectureTitle }).first()).toContainText("현장");
     await gotoAndSettle(
       page,
       `${QA_BASE}/student/video/sessions/${created.sessionId}?enrollment=${created.enrollmentIds[0]}`,

@@ -651,7 +651,9 @@
   }
 
   .histogramColumn small {
-    display: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
   }
 }
 

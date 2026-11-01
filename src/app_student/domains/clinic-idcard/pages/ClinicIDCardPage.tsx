@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
+import { isApiError } from "@/shared/api/axios";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
@@ -45,18 +46,65 @@ function useServerClock(serverDatetime?: string) {
 }
 
 export default function ClinicIDCardPage() {
+  const queryClient = useQueryClient();
+  const [online, setOnline] = useState(() => navigator.onLine);
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const cardLabel = wrongCompletionOnly ? "오답 상태 카드를" : "패스카드를";
   const query = useQuery({
     queryKey: studentQueryKeys.clinicIdcard,
-    queryFn: fetchClinicIdcard,
+    queryFn: ({ signal }) => fetchClinicIdcard(signal),
+    // Five missed polling intervals must not leave a live-looking credential.
+    staleTime: 10_000,
     refetchInterval: 2_000,
     refetchIntervalInBackground: false,
   });
   const now = useServerClock(query.data?.server_datetime);
 
+  useEffect(() => {
+    const onOffline = () => {
+      setOnline(false);
+      // Neither reconnecting nor a late pre-disconnection response can restore it.
+      void queryClient.cancelQueries({ queryKey: studentQueryKeys.clinicIdcard }).then(() => queryClient.invalidateQueries({
+        queryKey: studentQueryKeys.clinicIdcard,
+        refetchType: "none",
+      }));
+    };
+    const onOnline = () => setOnline(true);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
+    if (!navigator.onLine) onOffline();
+    return () => {
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [queryClient]);
+
+  if (!online || query.fetchStatus === "paused" || (query.data && query.isStale && !query.isError)) {
+    return (
+      <div className="clinic-idcard-state clinic-idcard-state--error" role="alert">
+        <strong>현재 상태를 확인할 수 없습니다.</strong>
+        <span>인터넷 연결을 확인해 주세요. 최신 상태를 받으면 카드가 다시 표시됩니다.</span>
+        <button type="button" onClick={() => query.refetch()}>다시 확인</button>
+      </div>
+    );
+  }
+
   if (query.isLoading) {
     return <div className="clinic-idcard-state" role="status">{cardLabel} 불러오는 중…</div>;
+  }
+
+  const enrollmentUnavailable = isApiError(query.error)
+    && query.error.response?.status === 403
+    && (query.error.response.data as { code?: string } | undefined)?.code === "clinic_no_active_enrollment";
+  // Cover older API instances that returned an empty passing payload as well.
+  if (enrollmentUnavailable || (!query.isError && query.data?.lectures.length === 0)) {
+    return (
+      <div className="clinic-idcard-state clinic-idcard-state--empty" role="status">
+        <strong>조회할 수강 정보가 없습니다.</strong>
+        <span>로그인한 계정이나 선택한 자녀를 확인해 주세요.</span>
+        <button type="button" onClick={() => query.refetch()}>다시 확인</button>
+      </div>
+    );
   }
 
   if (query.isError || !query.data) {

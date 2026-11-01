@@ -34,7 +34,7 @@ function contentSecurityPolicy(nonce: string): string {
     "font-src 'self' data:",
     "connect-src 'self' https: wss:",
     "media-src 'self' data: blob: https:",
-    "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
+    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "upgrade-insecure-requests",
@@ -48,7 +48,7 @@ async function withSecurityHeaders(response: Response): Promise<Response> {
   headers.set("X-Frame-Options", "DENY");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
   headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
 
   const contentType = headers.get("Content-Type") ?? "";
@@ -401,7 +401,7 @@ async function buildAppManifest(
   const icon512Type = iconContentType(icon512);
   const isTeacher = audience === "teacher";
   const audienceLabel = isTeacher ? "모바일 업무" : "학생";
-  const startUrl = isTeacher ? WORKSPACE_PATHS.mobile : "/student";
+  const startUrl = isTeacher ? WORKSPACE_PATHS.full : "/student";
 
   return {
     name: `${meta.title} ${audienceLabel}`,

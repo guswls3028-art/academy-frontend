@@ -35,6 +35,7 @@ import {
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 import { verifyAssessmentCopy } from "../helpers/verifyAssessmentCopy";
+import { verifyAssessmentTitle } from "../helpers/assessmentTitleRealuse";
 import { verifySubmissionInbox } from "../helpers/verifySubmissionInbox";
 import { verifyOnlineWrittenSubmission } from "../helpers/verifyOnlineWrittenSubmission";
 import { verifyExcelAssessment } from "./excelAssessmentRealuse";
@@ -368,6 +369,10 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     created.family = await createQaFamily(request, admin.access, "assessment", 2);
     const [primary, peer] = created.family.students;
     await seedAssessment(request, admin.access, created.family);
+    await verifyAssessmentTitle(page, request, admin, {
+      kind: "exam", id: created.examId!, title: examTitle,
+      lectureId: created.lectureId!, sessionId: created.sessionId!,
+    });
 
     await test.step("student submission and persisted result", () => submitFirstStudentThroughUi(page, primary, created.examId!));
     const primaryTokens = await loginApi(request, primary.ps_number, primary.password);
