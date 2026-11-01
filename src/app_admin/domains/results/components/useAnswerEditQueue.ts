@@ -40,6 +40,7 @@ export function useAnswerEditQueue({ sessionId, examId, enrollmentId, questionId
   const activeStorageKey = getTenantUserLocalKey(`answer-draft:${sessionId}:${examId}:${enrollmentId}`, user?.id);
   const [storageKey] = useState(activeStorageKey);
   const [initialGeneration] = useState(() => readAuthTokenEnvelopeSafely()?.generation);
+  const [initialTenant] = useState(getTenantCodeForApiRequest);
   const [storageError, setStorageError] = useState("");
   const [restored] = useState<AnswerEditChange[]>(() => {
     try {
@@ -97,7 +98,7 @@ export function useAnswerEditQueue({ sessionId, examId, enrollmentId, questionId
     if (queued.current.has(change)) return;
     const session = readAuthTokenEnvelopeSafely();
     const tenant = getTenantCodeForApiRequest();
-    let sameUser = activeStorageKey != null && activeStorageKey === storageKey;
+    let sameUser = activeStorageKey != null && activeStorageKey === storageKey && tenant === initialTenant;
     if (sameUser && session?.generation !== initialGeneration) {
       try {
         const claims = JSON.parse(atob(session!.access.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
@@ -127,7 +128,7 @@ export function useAnswerEditQueue({ sessionId, examId, enrollmentId, questionId
       notify();
       if (!pending.current.size) setError("");
     });
-  }, [activeStorageKey, enrollmentId, examId, failed, initialGeneration, notify, onSaveSuccess, pending, persist, queued, sessionId, shared, stage, storageKey, tail, user?.id]);
+  }, [activeStorageKey, enrollmentId, examId, failed, initialGeneration, initialTenant, notify, onSaveSuccess, pending, persist, queued, sessionId, shared, stage, storageKey, tail, user?.id]);
   const flush = useCallback(async () => {
     for (const change of pending.current.values()) {
       if (!failed.current.has(change)) enqueue(change);
