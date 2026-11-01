@@ -767,7 +767,7 @@ function ExamScanPreview({
             disabled={!onOpenDetail}
             leftIcon={<PencilLine size={ICON_FOR_BUTTON.sm} />}
           >
-            {isEditMode ? "답안 보정" : "답안 확인"}
+            {isEditMode ? "답안 보정" : "답안 보기·입력"}
           </Button>
           {scanUrl && (
             <a

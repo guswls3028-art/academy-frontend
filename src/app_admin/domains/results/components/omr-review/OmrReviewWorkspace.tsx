@@ -15,7 +15,8 @@
  *
  * 상태 카테고리:
  * - all: 전체
- * - ok:  정상 (manual_review 불필요 + enrollment 매칭됨)
+ * - ok: OMR 처리 완료 (DONE + manual_review 불필요 + enrollment 매칭됨)
+ * - processing: 인식·채점 진행 중
  * - noid: 식별 실패 (needs_identification / no_match / missing)
  * - flag: 중복·빈칸·저신뢰도 (manual_review.required=true)
  * - failed: 처리 실패 (FAILED)
@@ -107,7 +108,9 @@ function toneForCategory(c: FilterKey): "success" | "danger" | "warning" | "prim
 function labelForCategory(c: FilterKey): string {
   switch (c) {
     case "ok":
-      return "정상";
+      return "OMR 처리 완료";
+    case "processing":
+      return "처리 중";
     case "noid":
       return "식별실패";
     case "flag":
@@ -389,7 +392,7 @@ export default function OmrReviewWorkspace({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          {(["all", "noid", "flag", "ok", "failed", "archived"] as FilterKey[]).map((k) => {
+          {(["all", "processing", "noid", "flag", "ok", "failed", "archived"] as FilterKey[]).map((k) => {
             const isZero = counts[k] === 0;
             return (
               <button

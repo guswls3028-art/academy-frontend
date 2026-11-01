@@ -1,6 +1,6 @@
 import type { OmrReviewRow } from "./omrReviewApi";
 
-export type OmrReviewCategory = "ok" | "noid" | "flag" | "failed" | "archived";
+export type OmrReviewCategory = "ok" | "processing" | "noid" | "flag" | "failed" | "archived";
 export type OmrReviewFilterKey = "all" | OmrReviewCategory;
 
 export function isArchivedOmrReviewRow(row: Pick<OmrReviewRow, "status" | "archived">): boolean {
@@ -16,12 +16,13 @@ export function categorizeOmrReviewRow(row: OmrReviewRow): OmrReviewCategory {
     return "noid";
   }
   if (row.manual_review_required) return "flag";
+  if (status !== "done") return "processing";
   return "ok";
 }
 
 export function summarizeOmrReviewRows(rows: OmrReviewRow[]) {
   const counts: Record<OmrReviewFilterKey, number> = {
-    all: 0, ok: 0, noid: 0, flag: 0, failed: 0, archived: 0,
+    all: 0, ok: 0, processing: 0, noid: 0, flag: 0, failed: 0, archived: 0,
   };
   let activeTotal = 0;
   let done = 0;

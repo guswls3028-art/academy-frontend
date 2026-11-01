@@ -348,6 +348,72 @@ async function openScores(page: Page, options: { choicePending?: boolean; gradin
 }
 
 test.describe("OMR와 서술형 점수 입력 진입", () => {
+  for (const width of [1366, 390]) {
+    test(`잠긴 성적표의 빈 답안을 직접 입력하고 다시 조회한다 (${width}px)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const unexpectedMutations = await openScores(page);
+      let savedAnswer = "";
+      let leaseAcquired = false;
+      const writes: string[] = [];
+      await page.route("**/api/v1/**", async (route) => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        const method = request.method();
+        if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/`) && method === "PUT") {
+          leaseAcquired = true;
+          return route.fulfill({ json: { changes: [], active_editors: [] } });
+        }
+        if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/commit/`) && method === "POST") {
+          return route.fulfill({ json: { ok: true } });
+        }
+        if (path.endsWith(`/results/admin/exams/${CHOICE_EXAM_ID}/enrollments/9911/items/10031/`) && method === "PATCH") {
+          expect(leaseAcquired).toBe(true);
+          expect(request.headers()["x-score-session-id"]).toBe(String(SESSION_ID));
+          savedAnswer = (request.postDataJSON() as { answer: string }).answer;
+          writes.push(savedAnswer);
+          return route.fulfill({ json: { saved: true, ok: true, score: 100, total_score: 100 } });
+        }
+        if (path.endsWith(`/results/admin/exams/${CHOICE_EXAM_ID}/enrollments/9911/`) && method === "GET") {
+          return route.fulfill({ json: {
+            target_type: "exam", target_id: CHOICE_EXAM_ID, enrollment_id: 9911,
+            attempt_id: null, total_score: savedAnswer ? 100 : 0, max_score: 100,
+            items: savedAnswer ? [{ question_id: 10031, question_number: 1, question_kind: "choice",
+              answer: savedAnswer, score: 100, max_score: 100, is_correct: true, is_editable: true }] : [],
+            questions: [{ question_id: 10031, number: 1, max_score: 100, kind: "choice" }],
+            correct_answers: { "10031": "4" },
+            score_shape: { total_questions: 1, choice_count: 1, essay_count: 0,
+              objective_max_score: 100, subjective_max_score: 0, total_max_score: 100 },
+            edit_state: { can_edit: true }, is_provisional: false,
+            achievement: savedAnswer ? "PASS" : "NOT_SUBMITTED",
+          } });
+        }
+        return route.fallback();
+      });
+      const openAnswer = async () => {
+        await page.getByText("테스트 학생", { exact: true }).first().click();
+        const drawer = page.locator(".student-scores-drawer");
+        await drawer.locator(".student-scores-drawer__exam-header")
+          .filter({ hasText: "중대부고 2회차 객관식" }).click();
+        await drawer.getByRole("button", { name: "답안 보기·입력" }).click();
+        return page.getByRole("dialog").filter({ hasText: "중대부고 2회차 객관식 답안 상세" });
+      };
+      const dialog = await openAnswer();
+      await dialog.getByRole("button", { name: "답안 입력 시작", exact: true }).click();
+      await expect(dialog.locator(".srd-edit__choice-row")).toBeVisible();
+      await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "4", exact: true }).click();
+      await expect.poll(() => writes).toEqual(["4"]);
+      await expect(dialog.locator(".srd-edit__bubble--correct")).toHaveText("4");
+      const bounds = await dialog.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width + 1);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      const reloaded = await openAnswer();
+      await expect(reloaded.locator(".srd-stateB")).toHaveCount(0);
+      await expect(reloaded.locator(".srd-read")).toContainText("100");
+      expect(unexpectedMutations).toEqual([]);
+    });
+  }
   test.setTimeout(90_000);
 
   test("작업박스 링크로 해당 시험의 서술형 입력을 바로 연다", async ({ page }) => {

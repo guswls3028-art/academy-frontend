@@ -75,6 +75,7 @@ type Props = {
   examTitle: string;
   scoreSessionId?: number;
   readOnly?: boolean;
+  onRequestEdit?: () => Promise<boolean>;
   onReviewOmr?: (submissionId: number) => void;
   onEditManualAnswers?: () => void;
   onClose: () => void;
@@ -105,13 +106,14 @@ function questionKindFromNumber(
   return null;
 }
 
-export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, scoreSessionId, readOnly = false, onReviewOmr, onEditManualAnswers, onClose }: Props) {
+export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, scoreSessionId, readOnly = false, onRequestEdit, onReviewOmr, onEditManualAnswers, onClose }: Props) {
   const qc = useQueryClient();
   const tenantLabels = useTenantLabels();
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const [mainTab, setMainTab] = useState<"answer" | "wrong">("answer");
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isStartingEdit, setIsStartingEdit] = useState(false);
   const [scanExpanded, setScanExpanded] = useState(false);
   const handleMainTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -234,10 +236,22 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
 
   const selectedAttemptEntry = attempts.find((a) => a.attempt_index === selectedAttempt);
 
-  const enterEdit = () => {
+  const enterEdit = async () => {
+    if (isStartingEdit) return;
     if (readOnly) {
-      feedback.info("성적표에서 수정을 누른 뒤 답안을 보정해 주세요.");
-      return;
+      if (!onRequestEdit) {
+        feedback.info("성적표에서 수정을 누른 뒤 답안을 보정해 주세요.");
+        return;
+      }
+      setIsStartingEdit(true);
+      try {
+        if (!await onRequestEdit()) return;
+      } catch {
+        feedback.error("답안 입력을 시작하지 못했습니다. 다시 시도해 주세요.");
+        return;
+      } finally {
+        setIsStartingEdit(false);
+      }
     }
     setMainTab("answer");
     setIsEditMode(true);
@@ -523,16 +537,18 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                       qNumMap={qNumMap}
                       correctAnswers={correctAnswersMap}
                       isItemCorrect={isItemCorrect}
-                      onEdit={readOnly ? undefined : enterEdit}
+                      onEdit={readOnly && !onRequestEdit ? undefined : enterEdit}
                     />
                   ) : hasQuestions ? (
                     /* ── 상태 B: 데이터 없음 + 문항 있음 → 입력 유도 ── */
                     <div className="srd-stateB">
                       <p className="srd-stateB__desc">아직 입력된 답안이 없습니다.</p>
-                      {readOnly ? (
+                      {readOnly && !onRequestEdit ? (
                         <p className="srd-stateB__desc">답안을 입력하려면 성적표에서 수정을 눌러 주세요.</p>
                       ) : (
-                        <button type="button" className="srd-stateB__btn" onClick={enterEdit}>답안 입력 시작</button>
+                        <button type="button" className="srd-stateB__btn" disabled={isStartingEdit} onClick={enterEdit}>
+                          {isStartingEdit ? "입력 준비 중…" : "답안 입력 시작"}
+                        </button>
                       )}
                     </div>
                   ) : (

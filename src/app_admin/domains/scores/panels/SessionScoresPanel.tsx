@@ -39,6 +39,7 @@ type Props = {
   lectureId?: number;
   search?: string;
   isEditMode?: boolean;
+  onRequestAnswerEdit?: () => Promise<boolean>;
   /** 수정 중 알림톡 등 저장된 점수 소비 액션을 잠시 막는 상태 */
   hasUnsavedChanges?: boolean;
   assessmentDeleteLocked?: boolean;
@@ -103,6 +104,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   lectureId,
   search = "",
   isEditMode = false,
+  onRequestAnswerEdit,
   hasUnsavedChanges = false,
   assessmentDeleteLocked = false,
   examEditTotal = false,
@@ -618,6 +620,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           examTitle={answerDetail.examTitle}
           scoreSessionId={sessionId}
           readOnly={!isEditMode}
+          onRequestEdit={onRequestAnswerEdit}
           onClose={() => setAnswerDetail(null)}
         />
       )}
