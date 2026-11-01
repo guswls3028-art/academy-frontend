@@ -21,8 +21,13 @@ function readPublicVideoPlayback(node: Element, { initialTime, expectedId }: { i
     const finiteTime = (value: number) => Number.isFinite(value) && value >= 0 && value <= 604800 ? value : null;
     const playerState = moviePlayer?.getPlayerState?.();
     const playerError = moviePlayer?.querySelector(".ytp-error");
-    const errorVisible = !!playerError && playerError.getBoundingClientRect().width > 0
-      && playerError.getBoundingClientRect().height > 0 && getComputedStyle(playerError).visibility !== "hidden";
+    let errorVisible = !!playerError && playerError.getBoundingClientRect().width > 0
+      && playerError.getBoundingClientRect().height > 0;
+    for (let ancestor: Element | null = playerError; ancestor && errorVisible; ancestor = ancestor.parentElement) {
+      const style = getComputedStyle(ancestor);
+      errorVisible = !["hidden", "collapse"].includes(style.visibility) && style.display !== "none"
+        && style.contentVisibility !== "hidden" && Number.parseFloat(style.opacity) !== 0;
+    }
     const errorText = errorVisible ? playerError?.textContent ?? "" : "";
     const normalizedError = errorText.replace(/\s+/g, " ").replace(/[’‘]/g, "'").trim();
     // Exact prompt observed in the retained hosted-browser screenshot. Generic
@@ -142,6 +147,7 @@ test.describe("[real-use] public video publishing", () => {
         journeyStage = "public-detail";
         await visitor.getByRole("link").filter({ has: visitor.getByRole("heading", { name: title, level: 3, exact: true }) }).click();
         await expect(visitor.getByRole("heading", { name: title, exact: true })).toBeVisible(); await visitor.reload(); await expect(visitor.locator("iframe")).toHaveCount(1);
+        await expect(visitor.locator("iframe")).toBeVisible();
         await expect(visitor.getByText(`직접 정한 분류 ${width}`, { exact: true })).toBeVisible();
         await expect(visitor.locator("iframe")).toHaveAttribute("src", /autoplay=0/); await expect(visitor.getByRole("link", { name: "YouTube에서 보기 · 좋아요" })).toBeVisible();
         const embedUrl = new URL(await visitor.locator("iframe").getAttribute("src") ?? "");

@@ -567,7 +567,8 @@ test("admitted provider HTTP errors are observed but still fulfilled once withou
 test("actual public-video sampler preserves failed playback predicates and emits only closed state", () => {
   const source = stripTypeScriptTypes(readFileSync(new URL("../../e2e/admin/public-video-realuse.spec.ts", import.meta.url), "utf8"))
     .replace(/^import[\s\S]*?;\r?\n/gm, "");
-  const scope = { test: { setTimeout() {}, use() {}, describe() {} }, getComputedStyle: () => ({ visibility: "visible" }) };
+  const scope = { test: { setTimeout() {}, use() {}, describe() {} },
+    getComputedStyle: node => ({ visibility: "visible", display: "block", opacity: "1", contentVisibility: "visible", ...node.style }) };
   runInNewContext(source + "\nglobalThis.readPlayback = readPublicVideoPlayback;", scope);
   const sample = (overrides = {}, flags = [], playerOverrides = {}, initialTime = 0) => {
     const player = { classList: { contains: name => flags.includes(name) }, getPlayerState: () => 1,
@@ -617,4 +618,18 @@ test("actual public-video sampler preserves failed playback predicates and emits
     textContent: "Sign in to confirm you're not a bot" }) });
   assert.equal(hiddenPrompt.snapshot.errorVisible, false);
   assert.equal(hiddenPrompt.snapshot.errorClass, "none");
+  for (const hiddenStyle of [{ opacity: "0" }, { opacity: "0.0" }, { visibility: "hidden" },
+    { visibility: "collapse" }, { display: "none" }, { contentVisibility: "hidden" }]) {
+    for (const inherited of [false, true]) {
+      const errorNode = { getBoundingClientRect: () => ({ width: 200, height: 100 }),
+        textContent: "Sign in to confirm you're not a bot", style: inherited ? {} : hiddenStyle,
+        parentElement: inherited ? { style: hiddenStyle, parentElement: null } : null };
+      const result = sample({ paused: true, readyState: 0, currentTime: 0, videoWidth: 0, videoHeight: 0 }, [],
+        { getPlayerState: () => -1, querySelector: () => errorNode });
+      assert.equal(result.snapshot.errorVisible, false);
+      assert.equal(result.snapshot.errorClass, "none");
+      assert.equal(policy.isPublicVideoBotConfirmation(result.snapshot), false,
+        "hidden retained bot text must not exempt a failed player");
+    }
+  }
 });
