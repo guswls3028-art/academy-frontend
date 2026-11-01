@@ -526,6 +526,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
       expect(api.correctionRequests.at(-1)).toMatchObject({ source_type: "exam", completed: true });
       expect(api.homeworkScoreRequests).toEqual([]);
       await expect.poll(() => drawer.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+      await complete.scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath(`correction-during-score-edit-${width}.png`), animations: "disabled" });
       await page.reload();
       const reopened = await openHomeworkInspection(page);
