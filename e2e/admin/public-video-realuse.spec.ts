@@ -24,6 +24,10 @@ function readPublicVideoPlayback(node: Element, { initialTime, expectedId }: { i
     const errorVisible = !!playerError && playerError.getBoundingClientRect().width > 0
       && playerError.getBoundingClientRect().height > 0 && getComputedStyle(playerError).visibility !== "hidden";
     const errorText = errorVisible ? playerError?.textContent ?? "" : "";
+    const normalizedError = errorText.replace(/\s+/g, " ").replace(/[’‘]/g, "'").trim();
+    // Exact prompt observed in the retained hosted-browser screenshot. Generic
+    // mentions of bots/robots or a second error must never become non-blocking.
+    const botConfirmation = /^Sign in to confirm you're not a bot(?:[.!]?\s*This helps protect our community\.?)?(?:\s*Sign in)?(?:\s*Learn more)?$/i.test(normalizedError);
     const snapshot: PublicVideoPlaybackObservation = {
       paused: video.paused, ended: video.ended, readyState: video.readyState, networkState: video.networkState,
       width: video.videoWidth, height: video.videoHeight, currentTime: finiteTime(video.currentTime),
@@ -32,7 +36,7 @@ function readPublicVideoPlayback(node: Element, { initialTime, expectedId }: { i
       adInterrupting: moviePlayer?.classList.contains("ad-interrupting") ?? false,
       playerState: playerState === -1 || playerState === 0 || playerState === 1 || playerState === 2 || playerState === 3 || playerState === 5 ? playerState : null,
       identityMatches: typeof moviePlayer?.getVideoData === "function" ? moviePlayer.getVideoData()?.video_id === expectedId : null,
-      errorVisible, errorClass: /confirm.*not a bot|로봇|봇이 아님/i.test(errorText) ? "bot-check"
+      errorVisible, errorClass: botConfirmation ? "bot-check"
         : /unavailable|사용할 수 없/i.test(errorText) ? "unavailable"
           : /embedding|다른 웹사이트/i.test(errorText) ? "embedding-disabled" : errorText.trim() ? "other" : "none",
     };
@@ -155,31 +159,51 @@ test.describe("[real-use] public video publishing", () => {
           playbackObservation = result.snapshot;
           return result;
         };
+        const clickControl = async (control: typeof playButton) => {
+          try { await control.click({ timeout: 30_000 }); return true; }
+          catch (error) {
+            // Only a vanished player control with a freshly identified bot
+            // prompt is provider unavailability. Transport/evaluation errors escape.
+            if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
+            await readPlayback();
+            if (!isPublicVideoBotConfirmation(playbackObservation)) throw error;
+            return false;
+          }
+        };
         // An identified provider bot prompt is an availability result, never proof
         // of playback. All application assertions and strict boundaries still run.
         await expect.poll(async () => {
           await readPlayback();
-          return isPublicVideoBotConfirmation(playbackObservation) || await playButton.isVisible();
+          return isPublicVideoBotConfirmation(playbackObservation)
+            || (await playButton.isVisible() && !await player.locator(".ytp-error").isVisible());
         }, { timeout: 30_000 }).toBe(true);
         if (!isPublicVideoBotConfirmation(playbackObservation)) {
-          await expect(player.locator(".ytp-error")).toBeHidden();
           journeyStage = "player-playing";
-          startedAt = await media.evaluate(node => (node as HTMLVideoElement).currentTime);
-          expect(Number.isFinite(startedAt)).toBe(true);
-          await playButton.click();
-          await expect.poll(async () => {
-            const result = await readPlayback();
-            return isPublicVideoBotConfirmation(playbackObservation) || result?.playing === true;
-          }, { timeout: 30_000 }).toBe(true);
+          if (await clickControl(playButton)) {
+            // Some legitimate players attach their video element only on Play.
+            startedAt = await media.evaluate(node => (node as HTMLVideoElement).currentTime);
+            expect(Number.isFinite(startedAt)).toBe(true);
+            await expect.poll(async () => {
+              const result = await readPlayback();
+              return isPublicVideoBotConfirmation(playbackObservation) || result?.playing === true;
+            }, { timeout: 30_000 }).toBe(true);
+          }
           if (!isPublicVideoBotConfirmation(playbackObservation)) {
             journeyStage = "player-paused";
             await player.locator("#movie_player").hover();
-            await player.getByRole("button", { name: /^(?:Pause|일시중지|일시 중지)(?: ?\(k\))?$/i }).filter({ visible: true }).first().click();
+            const pauseButton = player.getByRole("button", { name: /^(?:Pause|일시중지|일시 중지)(?: ?\(k\))?$/i }).filter({ visible: true }).first();
             await expect.poll(async () => {
-              const result = await readPlayback();
-              return result?.paused === true && result.snapshot?.playerState === 2;
+              await readPlayback();
+              return isPublicVideoBotConfirmation(playbackObservation) || await pauseButton.isVisible();
             }).toBe(true);
-            await expect(player.locator(".ytp-error")).toBeHidden();
+            if (!isPublicVideoBotConfirmation(playbackObservation) && await clickControl(pauseButton)) {
+              await expect.poll(async () => {
+                const result = await readPlayback();
+                return isPublicVideoBotConfirmation(playbackObservation)
+                  || (result?.paused === true && result.snapshot?.playerState === 2);
+              }).toBe(true);
+            }
+            if (!isPublicVideoBotConfirmation(playbackObservation)) await expect(player.locator(".ytp-error")).toBeHidden();
           }
         }
         emitPublicVideoAvailability(width, isPublicVideoBotConfirmation(playbackObservation) ? "bot-confirmation" : "played-paused", playbackObservation);

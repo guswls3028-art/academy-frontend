@@ -76,6 +76,67 @@ test("provider evidence requires both viewports, exact source and unique closed 
   assert.throws(() => assertPublicVideoAvailability(observeReleaseTestResult(foreign)));
 });
 
+test("actual playback control flow continues after confirmed bot only and still proves Play before Pause", async () => {
+  const spec = stripTypeScriptTypes(readFileSync(new URL("../../e2e/admin/public-video-realuse.spec.ts", import.meta.url), "utf8"));
+  const start = spec.indexOf('journeyStage = "player-ready";');
+  const end = spec.indexOf('await assertNoHorizontalOverflow(visitor); await visitor.screenshot', start);
+  assert.ok(start > 0 && end > start);
+  const control = spec.slice(start, end);
+  for (const mode of ["bot-before", "bot-after", "normal", "lazy-media", "bot-before-play-click", "bot-before-pause",
+    "bot-during-pause-click", "unknown-error", "wrong-identity", "transport", "click-timeout", "click-transport"]) {
+    let state = ["bot-before", "unknown-error", "wrong-identity"].includes(mode) ? "blocked" : "ready";
+    const calls = [], outputs = [];
+    const transport = new Error("controlled transport failure");
+    const playback = () => state === "blocked" ? { ...botPlayback,
+      ...(mode === "unknown-error" ? { errorClass: "other" } : {}),
+      ...(mode === "wrong-identity" ? { identityMatches: false } : {}) }
+      : state === "paused" ? pausedPlayback : state === "playing" ? { ...pausedPlayback, paused: false, playerState: 1 }
+        : { ...pausedPlayback, currentTime: 0, playerState: -1 };
+    const media = { first() { return this; }, count: async () => mode === "lazy-media" && !calls.includes("play") ? 0 : 1, evaluate: async (_fn, args) => {
+      if (mode === "transport") throw transport;
+      if (mode === "lazy-media" && !calls.includes("play")) throw new Error("video is not attached until Play");
+      if (!args) return mode === "bot-before-pause" ? 0.5 : 0;
+      const snapshot = { ...playback(), initialTime: args.initialTime };
+      return { snapshot, playing: state === "playing", paused: snapshot.paused };
+    } };
+    const button = kind => ({ filter() { return this; }, first() { return this; }, isVisible: async () => true,
+      click: async () => {
+        calls.push(kind);
+        if (mode === "click-transport") throw transport;
+        if (mode === "click-timeout" || (mode === "bot-before-play-click" && kind === "play")
+          || (mode === "bot-during-pause-click" && kind === "pause")) {
+          if (mode !== "click-timeout") state = "blocked";
+          const error = new Error("controlled action timeout"); error.name = "TimeoutError"; throw error;
+        }
+        state = kind === "play" ? mode === "bot-after" ? "blocked" : "playing" : "paused";
+      } });
+    const frame = { getByRole: (_role, options) => button(options.name.test("Play") ? "play" : "pause"),
+      locator: selector => selector.includes("video.html5") ? media : selector === ".ytp-error"
+        ? { error: true, isVisible: async () => state === "blocked" }
+        : { hover: async () => { if (mode === "bot-before-pause") state = "blocked"; } } };
+    const expected = value => ({ toBe: other => assert.equal(value, other),
+      toBeHidden: async () => assert.notEqual(state, "blocked", "unclassified provider error remains terminal") });
+    expected.poll = callback => ({ toBe: async value => {
+      let actual;
+      for (let attempt = 0; attempt < 3; attempt++) { actual = await callback(); if (actual === value) return; }
+      assert.equal(actual, value);
+    } });
+    const run = runInNewContext(`(async () => { let journeyStage, activeVisitor, playbackObservation; ${control}; return "continue-application-journey"; })`, {
+      visitor: { frameLocator: () => frame }, width: 1366, row: { youtube_video_id: id }, expect: expected, Error,
+      readPublicVideoPlayback() {}, isPublicVideoBotConfirmation: policy.isPublicVideoBotConfirmation,
+      emitPublicVideoAvailability: (width, outcome, snapshot) => policy.emitPublicVideoAvailability(width, outcome, snapshot, value => outputs.push(value)),
+    });
+    if (["unknown-error", "wrong-identity", "transport", "click-timeout", "click-transport"].includes(mode)) {
+      await assert.rejects(run(), ["transport", "click-transport"].includes(mode) ? error => error === transport : undefined);
+      assert.deepEqual(outputs, []);
+    } else {
+      assert.equal(await run(), "continue-application-journey");
+      assert.deepEqual(calls, ["normal", "lazy-media", "bot-during-pause-click"].includes(mode) ? ["play", "pause"] : mode === "bot-before" ? [] : ["play"]);
+      assert.equal(outputs[0].publicVideoAvailability.outcome, ["normal", "lazy-media"].includes(mode) ? "played-paused" : "bot-confirmation");
+    }
+  }
+});
+
 test("only API-shaped sources with fixed canonical and thumbnail addresses are registered", () => {
   const known = new Set(); register({ results: [video] }, known); assert.deepEqual([...known], [id]);
   for (const malformed of [{ ...video, youtube_video_id: "../secret" }, { ...video, canonical_url: "https://foreign.invalid" }, { ...video, thumbnail_url: "https://foreign.invalid" }]) {
@@ -542,10 +603,18 @@ test("actual public-video sampler preserves failed playback predicates and emits
       assert.equal(observePublicEvidence(output).rejectedFailureObservationCount, 0);
     }
   }
-  for (const [text, errorClass] of [["Confirm you are not a bot private-secret", "bot-check"], ["Unavailable private-secret", "unavailable"],
-    ["Embedding disabled private-secret", "embedding-disabled"], ["private-secret", "other"]]) {
+  for (const [text, errorClass] of [["Sign in to confirm you're not a bot", "bot-check"],
+    ["Sign in to confirm you’re not a botThis helps protect our communitySign inLearn more", "bot-check"],
+    [" Sign  in to confirm you're not a bot\nThis helps protect our community.\nSign in\nLearn more ", "bot-check"],
+    ["Confirm you are not a bot private-secret", "other"], ["로봇 동영상을 사용할 수 없습니다", "unavailable"],
+    ["Sign in to confirm you're not a bot Unavailable", "unavailable"],
+    ["Unavailable private-secret", "unavailable"], ["Embedding disabled private-secret", "embedding-disabled"], ["private-secret", "other"]]) {
     const result = sample({}, [], { querySelector: () => ({ getBoundingClientRect: () => ({ width: 10, height: 10 }), textContent: text }) });
     assert.equal(result.snapshot.errorVisible, true); assert.equal(result.snapshot.errorClass, errorClass);
     assert.doesNotMatch(JSON.stringify(result.snapshot), /private-secret|private-video-id/);
   }
+  const hiddenPrompt = sample({}, [], { querySelector: () => ({ getBoundingClientRect: () => ({ width: 0, height: 0 }),
+    textContent: "Sign in to confirm you're not a bot" }) });
+  assert.equal(hiddenPrompt.snapshot.errorVisible, false);
+  assert.equal(hiddenPrompt.snapshot.errorClass, "none");
 });

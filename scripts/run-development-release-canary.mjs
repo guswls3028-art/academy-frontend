@@ -420,7 +420,7 @@ function validPublicVideoAvailability(value) {
   const p = value.playback;
   if (p.identityMatches !== true || p.mediaError !== null || p.adShowing || p.adInterrupting || !p.paused || p.ended) return false;
   if (value.outcome === "bot-confirmation") return p.errorVisible && p.errorClass === "bot-check"
-    && p.playerState === -1 && p.readyState === 0 && p.currentTime === 0 && p.initialTime === 0;
+    && p.playerState === -1 && p.readyState === 0 && p.currentTime === 0 && p.initialTime !== null;
   return value.outcome === "played-paused" && !p.errorVisible && p.errorClass === "none"
     && p.playerState === 2 && p.readyState >= 2 && p.width > 0 && p.height > 0
     && p.currentTime !== null && p.initialTime !== null && p.currentTime > p.initialTime + 1;

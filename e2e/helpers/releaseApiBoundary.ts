@@ -568,7 +568,7 @@ export function isPublicVideoBotConfirmation(value: unknown): boolean {
     && value.errorVisible && value.errorClass === "bot-check" && value.mediaError === null
     && !value.adShowing && !value.adInterrupting && value.playerState === -1
     && value.paused && !value.ended && value.readyState === 0
-    && value.currentTime === 0 && value.initialTime === 0;
+    && value.currentTime === 0 && value.initialTime !== null;
 }
 
 export function emitPublicVideoAvailability(viewport: number, outcome: "played-paused" | "bot-confirmation",

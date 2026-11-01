@@ -961,8 +961,11 @@ Playwright 실패 결과를 성공으로 다시 쓰지 않으며 수업 영상 �
 각 폭은 `public-video-availability/v1`의 `publicVideoAvailability`를 하나씩 남긴다.
 `played-paused`는 정확 영상의 시간 진행과 실제 일시정지까지 확인한 결과다.
 `bot-confirmation`은 정확 영상 식별, 표시된 `bot-check` 오류, playerState -1,
-paused=true·ended=false·readyState=0·시작/현재시간 0, media error 없음과 광고 아님이
+paused=true·ended=false·readyState=0·현재시간 0, 유한한 시작시간, media error 없음과 광고 아님이
 모두 확인된 경우에만 별도로 기록한다. 이는 재생 성공이나 봇 문제 해결을 뜻하지 않는다.
+오류 문구는 보존된 실제 화면의 `Sign in to confirm you're not a bot` 및 그 고정 안내·버튼
+문구만 공백/아포스트로피를 정규화해 식별한다. 일반적인 로봇 언급·숨겨진 오류·다른 오류가
+섞인 문구는 이 조건이 아니다. 재생 전과 재생 후 버튼 전환 중에도 같은 엄격한 조건을 쓴다.
 다른 오류·미확인 식별·transport·controller·보안 경계 실패를 이 결과로 대체하지 않는다.
 parser는 원 spec에 귀속된 닫힌 schema/enum/수치만 보존하며 추가 키·중복 폭·누락·
 다른 spec·잘못된 관측은 거부한다. 정상 승격은 두 폭의 유효한 관측 및 앱 41건 통과,
