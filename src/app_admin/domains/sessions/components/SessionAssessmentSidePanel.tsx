@@ -356,7 +356,8 @@ export default function SessionAssessmentSidePanel({
     display: kind === resolvedActiveKind ? "block" : "none",
   });
 
-  // Auto-select or repair deleted/stale exam/homework query params on assessment tabs.
+  // Only a successful settled list can repair selection. Cached rows may not
+  // include an assessment just created while its invalidated list is refetching.
   useEffect(() => {
     if (!sessionId || !lectureId) return;
     if (
@@ -366,7 +367,7 @@ export default function SessionAssessmentSidePanel({
     const path = location.pathname;
     const basePath = `/workspace/lectures/${lectureId}/sessions/${sessionId}`;
     if (path.startsWith(`${basePath}/exams`)) {
-      if (examsLoading) return;
+      if (examsLoading || examsFetching || examsError) return;
       const examIds = exams
         .map((exam) => Number((exam as SessionExamRow).exam_id))
         .filter((id) => Number.isFinite(id));
@@ -394,7 +395,7 @@ export default function SessionAssessmentSidePanel({
         );
       }
     } else if (path.startsWith(`${basePath}/assignments`)) {
-      if (hwLoading) return;
+      if (hwLoading || hwFetching || hwError) return;
       const homeworkIds = homeworks
         .map((homework) => Number(homework.id))
         .filter((id) => Number.isFinite(id));
@@ -422,7 +423,7 @@ export default function SessionAssessmentSidePanel({
         );
       }
     }
-  }, [location.pathname, location.search, location.state, skipAutoSelect, sessionId, lectureId, examId, homeworkId, exams, homeworks, examsLoading, hwLoading, navigate]);
+  }, [location.pathname, location.search, location.state, skipAutoSelect, sessionId, lectureId, examId, homeworkId, exams, homeworks, examsLoading, examsFetching, examsError, hwLoading, hwFetching, hwError, navigate]);
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(sessionId) });
   const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.examsSummary(sessionId) });
