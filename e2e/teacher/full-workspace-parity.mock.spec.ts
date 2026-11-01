@@ -97,7 +97,7 @@ for (const role of ["owner", "admin", "teacher", "staff"] as const) {
     await page.setViewportSize({ width: 1366, height: 900 });
     await gotoAndSettle(page, `${BASE}/`);
     await expect(page).toHaveURL(/\/workspace(?:\/dashboard)?$/);
-    await expect(page.locator('[data-app="admin"]')).toBeVisible();
+    await expect(page.locator('[data-app="admin"]').first()).toBeVisible();
     await expect(page.getByLabel("근무 중인 직원").getByText("근무 검증 강사", { exact: true })).toBeVisible();
     const desktopLinks = await page.locator("aside.sidebar a[href^='/workspace']").evaluateAll((links) =>
       links.map((link) => ({ href: link.getAttribute("href"), text: link.textContent?.trim() })).sort((a, b) => (a.href ?? "").localeCompare(b.href ?? "")));
@@ -119,7 +119,7 @@ for (const role of ["owner", "admin", "teacher", "staff"] as const) {
     await drawer.getByRole("link", { name: "학생", exact: true }).click();
     await expect(page).toHaveURL(/\/workspace\/students(?:\/home)?$/);
     await page.reload();
-    await expect(page.locator('[data-app="admin"]')).toBeVisible();
+    await expect(page.locator('[data-app="admin"]').first()).toBeVisible();
     await expect(page.getByPlaceholder("이름 / 아이디 / 전화번호 / 학교 검색", { exact: true })).toBeVisible();
     await expectNoHorizontalOverflow(page);
     await page.screenshot({ path: test.info().outputPath(`shared-workspace-${role}-390.png`), fullPage: true });
