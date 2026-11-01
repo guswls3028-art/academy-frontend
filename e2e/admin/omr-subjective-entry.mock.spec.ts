@@ -424,8 +424,12 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       }
       await start.click();
       await expect(dialog.locator(".srd-edit__choice-row")).toBeVisible();
+      if (failure) {
+        await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "2", exact: true }).click();
+        await expect.poll(() => writes).toEqual([""]);
+      }
       await dialog.locator(".srd-edit__choice-row").getByRole("button", { name: "4", exact: true }).click();
-      await expect.poll(() => writes).toEqual(["4"]);
+      await expect.poll(() => writes).toEqual(failure ? ["", "4"] : ["4"]);
       await expect(dialog.locator(".srd-edit__bubble--correct")).toHaveText("4");
       const bounds = await dialog.boundingBox();
       expect(bounds).not.toBeNull();
