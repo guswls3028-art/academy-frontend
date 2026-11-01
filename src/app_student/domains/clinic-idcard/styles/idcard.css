@@ -393,6 +393,7 @@
   background: var(--stu-surface);
   color: var(--stu-text-muted);
   text-align: center;
+  animation: clinic-passcard-state-in 160ms ease-out;
 }
 
 .clinic-idcard-state--error {
@@ -445,12 +446,18 @@
 
 @media (prefers-reduced-motion: reduce) {
   .clinic-idcard,
+  .clinic-idcard-state,
   .clinic-idcard__aurora,
   .clinic-idcard__live i,
   .clinic-idcard__booking-link {
     animation: none !important;
     transition: none !important;
   }
+}
+
+@keyframes clinic-passcard-state-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes clinic-passcard-flow {
