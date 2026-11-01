@@ -165,6 +165,7 @@ export default function SubmissionsInboxPage() {
   const [identificationNotice, setIdentificationNotice] = useState<{
     row: PendingSubmissionRow;
     message: string;
+    canReview: boolean;
   } | null>(null);
 
   // 일괄 선택 — id Set
@@ -332,7 +333,8 @@ export default function SubmissionsInboxPage() {
           : result.graded !== false && ["submitted", "dispatched", "extracting", "grading", "processing"].includes(result.status ?? "")
             ? "학생 지정은 저장됐습니다. 답안 처리 중이며 완료 후 결과를 확인할 수 있습니다."
             : "학생 지정은 저장됐습니다. 채점 전 확인이 필요합니다. 답안을 검토해 주세요.";
-      setIdentificationNotice({ row: input.row, message });
+      const canReview = !["submitted", "dispatched", "extracting", "grading", "processing"].includes(result.status ?? "");
+      setIdentificationNotice({ row: input.row, message, canReview });
       feedback.info(message);
       setPickerRow((current) => current?.id === input.row.id ? null : current);
       refreshAssignmentResults(input.row);
@@ -479,7 +481,7 @@ export default function SubmissionsInboxPage() {
       {identificationNotice && (
         <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4" data-testid="submission-identification-result">
           <p className="min-w-0 flex-1 text-sm">{identificationNotice.message}</p>
-          {identificationNotice.row.target_type === "exam" && (
+          {identificationNotice.canReview && identificationNotice.row.target_type === "exam" && (
             <Button type="button" intent="secondary" size="sm" onClick={() => setReviewRow(identificationNotice.row)}>답안 검토·복구</Button>
           )}
           <Button type="button" intent="ghost" size="sm" onClick={() => setIdentificationNotice(null)}>안내 닫기</Button>
@@ -670,6 +672,7 @@ export default function SubmissionsInboxPage() {
             examId={reviewRow.target_id}
             examTitle={reviewRow.target_title}
             initialSubmissionId={reviewRow.id}
+            exactInitialSelection
             onClose={() => {
               refreshAssignmentResults(reviewRow);
               setReviewRow(null);
