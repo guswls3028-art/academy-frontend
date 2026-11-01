@@ -75,13 +75,14 @@ export function useAnswerEditQueue({ sessionId, examId, enrollmentId, questionId
     const changes = [...pending.current.values()];
     remember(storageKey, shared);
     try {
+      const storage = window.sessionStorage;
       if (changes.length) {
         const serialized = JSON.stringify(changes);
-        window.sessionStorage.setItem(storageKey, serialized);
-        if (window.sessionStorage.getItem(storageKey) !== serialized) throw new Error("Answer draft readback failed");
+        storage.setItem(storageKey, serialized);
+        if (storage.getItem(storageKey) !== serialized) throw new Error("Answer draft readback failed");
       } else {
-        window.sessionStorage.removeItem(storageKey);
-        if (window.sessionStorage.getItem(storageKey) != null) throw new Error("Answer draft cleanup failed");
+        storage.removeItem(storageKey);
+        if (storage.getItem(storageKey) != null) throw new Error("Answer draft cleanup failed");
       }
       setStorageError("");
     } catch {
