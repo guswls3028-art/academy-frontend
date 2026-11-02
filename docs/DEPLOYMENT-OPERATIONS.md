@@ -429,7 +429,9 @@ suite가 실행하며, 실제 이미지 decode와 OMR 흐름·cleanup zero는 �
 900초·host 단독 SigV4를 모두 확인한 주소만 그 browser context에서 document GET으로
 중계한다. GET은 PDF Accept만 전달하고 redirect를 따르지 않는다. 200 PDF MIME과
 10 MiB 이하 `%PDF-` 원본 bytes를 확인한 뒤 안전한 응답 헤더만 반환한다. 미리보기와
-새 창에서 각각 같은 원본의 응답을 확인하고 나서 학생을 지정한다. 서명 주소는 기록하지 않는다.
+새 창의 두 document 응답에 대해 중계한 실제 바이트의 길이와 SHA-256을 각각 업로드한
+PDF와 비교한 뒤 학생을 지정한다. headless Chromium에서 PDF가 다운로드돼도 이 검증을
+수행한다. 서명 주소는 기록하지 않는다.
 
 과제 실사용은 일반 숫자 셀의 통과 표시와 원점수를 확인한 뒤 교사 완료 확정·비고·학부모
 표시와 reload, 미완료 복원 후의 원점수·통과 상태를 검사한다. 이 단계의 오류는

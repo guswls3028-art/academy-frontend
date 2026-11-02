@@ -8,6 +8,7 @@ import {
   installReleaseContextGuard,
   installReleaseRequestGuard,
   releaseBoundaryFromEnv,
+  type ReleaseContextGuard,
 } from "./releaseApiBoundary";
 import { gotoAndSettle, waitForRenderSettled } from "./wait";
 
@@ -85,7 +86,7 @@ export function assertQaStudentParentRuntime(): void {
 export async function installQaStudentParentBoundary(
   page: Page,
   request: APIRequestContext,
-): Promise<{ assertClean: () => void }> {
+): Promise<ReleaseContextGuard> {
   assertQaStudentParentRuntime();
   const boundary = releaseBoundaryFromEnv(process.env);
   if (!boundary || boundary.mode !== "development") {

@@ -8,6 +8,7 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page, Response } from "@playwright/test";
+import { createHash } from "node:crypto";
 import { PDFDocument, rgb } from "pdf-lib";
 import { setTimeout as delay } from "node:timers/promises";
 import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
@@ -449,6 +450,7 @@ async function recoverMissingOmrConfiguration(
   submissionId: number,
   objectiveQuestionIds: number[],
   writtenQuestionIds: number[],
+  uploadedPdf: Buffer,
 ): Promise<void> {
   requireIsolatedScenario();
   const detailPath = `/submissions/submissions/${submissionId}/manual-edit/`;
@@ -486,6 +488,8 @@ async function recoverMissingOmrConfiguration(
 
   await page.setViewportSize({ width: 390, height: 900 });
   await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 45_000 });
+  const guard = await installQaStudentParentBoundary(page, request);
+  const expectedPdf = { sizeBytes: uploadedPdf.length, sha256: createHash("sha256").update(uploadedPdf).digest("hex") };
   const previewPath = `/submissions/submissions/${submissionId}/preview/`;
   const originalDocument = (response: Response) => response.request().method() === "GET"
     && response.request().resourceType() === "document"
@@ -504,6 +508,7 @@ async function recoverMissingOmrConfiguration(
     expect(response.headers()["content-type"]).toBe("application/pdf");
   };
   assertOriginal(embedded);
+  await expect.poll(() => guard.omrPreviewReads(submissionId)).toEqual([expectedPdf]);
   const preview = page.getByRole("dialog", { name: "제출물 확인" });
   await expect(preview.locator("iframe")).toBeVisible();
   const [popup, opened] = await Promise.all([
@@ -513,8 +518,9 @@ async function recoverMissingOmrConfiguration(
   try {
     assertOriginal(opened);
     expect(opened.request() !== embedded.request()).toBe(true);
-    await popup.waitForLoadState("domcontentloaded");
-    expect(popup.url() === payload.url, "Expected the original PDF in the popup").toBe(true);
+    // Headless Chromium downloads a PDF navigation. Its popup may never emit
+    // DOMContentLoaded. Both delivered document bodies must equal the upload.
+    await expect.poll(() => guard.omrPreviewReads(submissionId)).toEqual([expectedPdf, expectedPdf]);
   }
   finally { await popup.close(); }
   await preview.getByRole("checkbox").check();
@@ -1343,7 +1349,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
         .map((row: any) => String(row.answer)),
     ).toEqual(EXPECTED_ANSWERS);
 
-    await recoverMissingOmrConfiguration(page, request, adminTokens.access, submissionId, objectiveQuestionIds, writtenQuestionIds);
+    await recoverMissingOmrConfiguration(page, request, adminTokens.access, submissionId, objectiveQuestionIds, writtenQuestionIds, markedPdfBuffer);
 
     await gotoAndSettle(
       page,

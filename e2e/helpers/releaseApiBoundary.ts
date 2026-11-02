@@ -1,4 +1,5 @@
 import type { APIRequestContext, BrowserContext, Frame, Request } from "@playwright/test";
+import { createHash } from "node:crypto";
 
 export type ReleaseBoundary = {
   mode: "readonly" | "development";
@@ -720,6 +721,7 @@ function safeTransportMethod(method: string): RequestTransportDiagnostic["method
 }
 
 export type ReleaseContextGuard = {
+  omrPreviewReads: (submissionId: number) => Array<{ sizeBytes: number; sha256: string }>;
   observations: ObservationCounts;
   authentication: ObservationCounts;
   transport: RequestTransportCounts & {
@@ -1133,7 +1135,7 @@ export async function installReleaseContextGuard(
   const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
   const communityFileUrls = new Map<string, { contentType: string; sizeBytes: number; disposition: string }>();
   const resourceDownloadUrls = new Set<string>();
-  const omrPreviewPdfs = new Map<string, string>();
+  const omrPreviewPdfs = new Map<string, { url: string; reads: Array<{ sizeBytes: number; sha256: string }> }>();
   const resourceReaderUrls = new Map<string, string>();
   const acceptedPptJobs = new Set<string>();
   const acceptedPayrollJobs = new Map<string, string>();
@@ -1399,8 +1401,9 @@ export async function installReleaseContextGuard(
         await route.fulfill({ response, body });
         return;
       }
-      if (request.method() === "GET" && request.resourceType() === "document"
-        && [...omrPreviewPdfs.values()].includes(upstream)) {
+      const issuedPdf = omrPreviewPdfs.size ? [...omrPreviewPdfs.values()].find(item => item.url === upstream) : undefined;
+      if (issuedPdf
+        && request.method() === "GET" && request.resourceType() === "document") {
         const headers = await request.allHeaders();
         if (bodyBytes || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
           .some(key => headers[key])) { await reject("credentials"); return; }
@@ -1414,6 +1417,7 @@ export async function installReleaseContextGuard(
           await reject("transport"); return;
         }
         await route.fulfill({ status: 200, headers: { "content-type": "application/pdf", "cache-control": "no-store" }, body });
+        if (issuedPdf.reads.length < 3) issuedPdf.reads.push({ sizeBytes: body.length, sha256: createHash("sha256").update(body).digest("hex") });
         return;
       }
       const documentDownload = request.method() === "GET"
@@ -1588,7 +1592,7 @@ export async function installReleaseContextGuard(
             && headers["x-tenant-code"] === boundary.tenantCode && !headers["x-student-id"] && omrPreviewPdfs.size < 4) {
             const payload: unknown = await response.json();
             if (isRecord(payload) && Object.keys(payload).length === 1 && typeof payload.url === "string"
-              && isExactOmrPreviewPdf(boundary, payload.url, submissionId)) omrPreviewPdfs.set(submissionId, payload.url);
+              && isExactOmrPreviewPdf(boundary, payload.url, submissionId)) omrPreviewPdfs.set(submissionId, { url: payload.url, reads: [] });
           }
         }
         if (boundary.mode === "development" && request.method() === "POST" && !pptTarget.search
@@ -1827,6 +1831,7 @@ export async function installReleaseContextGuard(
     await route.continue();
   };
   const guard: ReleaseContextGuard = {
+    omrPreviewReads: submissionId => omrPreviewPdfs.get(String(submissionId))?.reads.map(read => ({ ...read })) ?? [],
     observations,
     authentication,
     transport,

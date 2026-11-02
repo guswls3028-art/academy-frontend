@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
@@ -212,6 +213,9 @@ async function previewPdf(options = {}) {
 
 test("staff-issued development OMR PDF is relayed twice for embed and popup with only PDF bytes and safe headers", async () => {
   const result = await previewPdf({ reads: 2 }); result.guard.assertClean();
+  const expected = { sizeBytes: pdfBytes.length, sha256: createHash("sha256").update(pdfBytes).digest("hex") };
+  assert.deepEqual(result.guard.omrPreviewReads(123), [expected, expected]);
+  assert.deepEqual(result.guard.omrPreviewReads(124), []);
   assert.equal(result.aborted, 0);
   assert.deepEqual(result.fetched, Array(2).fill({ url: pdfUrl, method: "GET", headers: { accept: "application/pdf" }, maxRedirects: 0 }));
   assert.deepEqual(result.fulfilled, Array(2).fill({ status: 200, headers: { "content-type": "application/pdf", "cache-control": "no-store" }, body: pdfBytes }));
