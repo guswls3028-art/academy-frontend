@@ -33,7 +33,7 @@ import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 import { applyHomeworkPreviewCsp, homeworkHeic } from "../helpers/homeworkHeicFixture";
 import { emitHomeworkFlowFailure, verifyHomeworkCriteria, type HomeworkFlowCheckpoint } from "../helpers/homeworkCriteriaRealuse";
-import { verifyScoreCorrectionWhileEditing } from "../helpers/verifyScoreCorrectionWhileEditing";
+import { type CorrectionScores, verifyScoreCorrectionWhileEditing } from "../helpers/verifyScoreCorrectionWhileEditing";
 import { verifyAssessmentTitle } from "../helpers/assessmentTitleRealuse";
 import { withOwnedScoreLeaseCleanup } from "../helpers/scoreLeaseCleanup";
 
@@ -236,7 +236,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
         await staffPage.reload();
         await verifyMixed(originalOrder, [created.homeworkId!], width === 1366 ? 1 : 0);
         checkpoint.phase = "feedback-correction";
-        await verifyScoreCorrectionWhileEditing(staffPage, parentPage, request, admin.access, {
+        await verifyScoreCorrectionWhileEditing(staffPage, parentPage, () => expectApi<CorrectionScores>(request, "GET", scoresPath, admin.access), {
           sessionId: created.sessionId!, enrollmentId: created.enrollmentId!,
           homeworkId: created.homeworkId!, homeworkTitle, studentName, maxScore: 100,
         });

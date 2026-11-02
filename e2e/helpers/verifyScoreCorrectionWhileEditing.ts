@@ -1,18 +1,18 @@
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
-import { expectApi, reloadStudentApp } from "./qaStudentParentScenario";
+import { reloadStudentApp } from "./qaStudentParentScenario";
 
-/** Called only with the existing isolated, disposable homework scenario. */
+export type CorrectionScores = { rows: Array<{ enrollment_id: number; homeworks: Array<{
+  homework_id: number; block: { score: number | null; passed: boolean | null; correction_status: string | null; correction_note: string; teacher_resolved: boolean };
+}> }> };
+
+/** Shared by the disposable release scenario and its closed browser regression. */
 export async function verifyScoreCorrectionWhileEditing(
-  page: Page, parentPage: Page, request: APIRequestContext, access: string,
+  page: Page, parentPage: Page, readScores: () => Promise<CorrectionScores>,
   target: { sessionId: number; enrollmentId: number; homeworkId: number; homeworkTitle: string; studentName: string; maxScore: number },
 ) {
-  const scoresPath = `/results/admin/sessions/${target.sessionId}/scores/`;
-  type Scores = { rows: Array<{ enrollment_id: number; homeworks: Array<{
-    homework_id: number; block: { score: number | null; passed: boolean | null; correction_status: string | null; correction_note: string; teacher_resolved: boolean };
-  }> }> };
   const readBlock = async () => {
-    const scores = await expectApi<Scores>(request, "GET", scoresPath, access);
+    const scores = await readScores();
     return scores.rows.find(row => row.enrollment_id === target.enrollmentId)!
       .homeworks.find(homework => homework.homework_id === target.homeworkId)!.block;
   };
@@ -55,7 +55,18 @@ export async function verifyScoreCorrectionWhileEditing(
     .filter({ has: parentPage.getByText(target.homeworkTitle, { exact: true }) });
   await expect(parentCard.locator('strong[class*="homeworkScore"]')).toHaveText(`${before.score}/${target.maxScore}`);
   await expect(parentCard.getByText("완료", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
+  // A 390px drawer covers the toolbar until its ordinary Close action completes.
+  await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)", exact: true }).click();
+  await expect(drawer).toBeHidden();
+  const finish = page.getByRole("button", { name: "점수 입력 마침", exact: true });
+  await expect(finish).toBeEnabled();
+  const [released] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === "POST"
+      && new URL(response.url()).pathname === `/api/v1/results/admin/sessions/${target.sessionId}/score-draft/commit/`
+      && response.request().postDataJSON()?.release_lease === true),
+    finish.click(),
+  ]);
+  expect(released.status()).toBe(204);
   await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
   await page.reload();
   await expect(scoreCell).toHaveAttribute("data-achievement", "REMEDIATED");
