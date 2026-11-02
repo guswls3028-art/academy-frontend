@@ -571,17 +571,34 @@ export function isPublicVideoBotConfirmation(value: unknown): boolean {
     && value.currentTime === 0 && value.initialTime !== null;
 }
 
-export function emitPublicVideoAvailability(viewport: number, outcome: "played-paused" | "bot-confirmation",
-  playback: unknown, emit: (value: unknown) => void = value => console.log(JSON.stringify(value))) {
-  const confirmed = validPublicVideoPlayback(playback) && playback.identityMatches === true
+export function isPublicVideoPlayedPaused(playback: unknown): boolean {
+  return validPublicVideoPlayback(playback) && playback.identityMatches === true
     && playback.paused && !playback.ended && playback.playerState === 2
     && playback.readyState >= 2 && playback.width > 0 && playback.height > 0
     && playback.currentTime !== null && playback.initialTime !== null && playback.currentTime > playback.initialTime + 1
     && playback.mediaError === null && !playback.adShowing && !playback.adInterrupting
     && !playback.errorVisible && playback.errorClass === "none";
+}
+
+export function emitPublicVideoAvailability(viewport: number, outcome: "played-paused" | "bot-confirmation",
+  playback: unknown, emit: (value: unknown) => void = value => console.log(JSON.stringify(value))) {
   if (![1366, 390].includes(viewport) || (outcome === "bot-confirmation" ? !isPublicVideoBotConfirmation(playback)
-    : outcome !== "played-paused" || !confirmed)) throw new Error("Invalid public video availability evidence");
+    : outcome !== "played-paused" || !isPublicVideoPlayedPaused(playback))) throw new Error("Invalid public video availability evidence");
   emit({ publicVideoAvailability: { schema: "public-video-availability/v1", viewport, outcome, playback } });
+}
+
+export type PublicVideoObservationPhase = "ready" | "play" | "pause";
+export type PublicVideoObservationReason = "provider-state" | "observation-timeout" | "control-timeout";
+export function emitPublicVideoNotDemonstrated(viewport: number, phase: PublicVideoObservationPhase,
+  reason: PublicVideoObservationReason, playback: unknown,
+  emit: (value: unknown) => void = value => console.log(JSON.stringify(value))) {
+  if (![1366, 390].includes(viewport) || !["ready", "play", "pause"].includes(phase)
+    || !["provider-state", "observation-timeout", "control-timeout"].includes(reason)
+    || (playback !== null && (!validPublicVideoPlayback(playback) || playback.identityMatches === false))) {
+    throw new Error("Invalid public video availability evidence");
+  }
+  emit({ publicVideoAvailability: { schema: "public-video-availability/v1", viewport,
+    outcome: "not-demonstrated", phase, reason, playback } });
 }
 
 export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "public-video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup",

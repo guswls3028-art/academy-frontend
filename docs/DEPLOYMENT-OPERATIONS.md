@@ -952,26 +952,35 @@ context별 첫 두 요청만 기록하며 기존 이벤트 128개 상한·drop �
 전역 `NODE_OPTIONS`, 운영 환경, insecure parser, origin/redirect/UA 및 cleanup 정책은
 변경하지 않는다. 동일 artifact 실사용과 cleanup 검증은 여전히 배포 조건이다.
 공개 영상은 홈페이지 내장 iframe을 유지한다. 1366/390px에서 Play → 미디어 시간 진행
-→ Pause를 관측하되, 호스티드 익명 브라우저에 대한 YouTube의 봇 확인 응답 때문에
-다른 앱 변경의 배포까지 막지 않도록 외부 가용성과 앱 성공을 구분한다. 앱의 두 게시자
-등록·저장·reload·게시·검색·상세·수정·숨김·삭제·재등록, 정확 embed/영상 식별,
-권한·tenant·strict 보안 경계와 cleanup은 모두 계속 필수다. 41개 사례를 건너뛰거나
-Playwright 실패 결과를 성공으로 다시 쓰지 않으며 수업 영상 검증은 변경하지 않는다.
+→ Pause를 관측하되, 외부 YouTube 재생 가용성을 앱 배포의 선결조건으로 삼지 않는다.
+앱의 두 게시자 등록·저장·reload·게시·검색·상세·수정·숨김·삭제·재등록, 정확
+embed origin/path/영상 ID/autoplay·origin 파라미터, 권한·tenant·strict 보안 경계와
+cleanup은 모두 계속 필수다. 외부 관측 뒤에도 후반 앱 여정을 반드시 실행한다.
+41개 사례를 건너뛰거나 Playwright 실패 결과를 성공으로 다시 쓰지 않으며 수업 영상
+검증은 변경하지 않는다. 지원 답변이나 외부 시청 전환은 배포 조건이 아니다.
 
 각 폭은 `public-video-availability/v1`의 `publicVideoAvailability`를 하나씩 남긴다.
-`played-paused`는 정확 영상의 시간 진행과 실제 일시정지까지 확인한 결과다.
-`bot-confirmation`은 정확 영상 식별, 표시된 `bot-check` 오류, playerState -1,
-paused=true·ended=false·readyState=0·현재시간 0, 유한한 시작시간, media error 없음과 광고 아님이
-모두 확인된 경우에만 별도로 기록한다. 이는 재생 성공이나 봇 문제 해결을 뜻하지 않는다.
-오류 문구는 보존된 실제 화면의 `Sign in to confirm you're not a bot` 및 그 고정 안내·버튼
-문구만 공백/아포스트로피를 정규화해 식별한다. 일반적인 로봇 언급·숨겨진 오류·다른 오류가
-섞인 문구는 이 조건이 아니다. 재생 전과 재생 후 버튼 전환 중에도 같은 엄격한 조건을 쓴다.
-다른 오류·미확인 식별·transport·controller·보안 경계 실패를 이 결과로 대체하지 않는다.
-parser는 원 spec에 귀속된 닫힌 schema/enum/수치만 보존하며 추가 키·중복 폭·누락·
-다른 spec·잘못된 관측은 거부한다. 정상 승격은 두 폭의 유효한 관측 및 앱 41건 통과,
-exact artifact identity와 cleanup0을 요구한다. 지원 답변이나 외부 시청 전환은 조건이 아니다.
-`public-video-1366.png`, `public-video-390.png`와 실제 관측을 보존한다.
-공개 영상 240초 제한, retries 0과 provider 요청/redirect/인증 제한은 유지한다.
+- `played-paused`: 정확 영상의 실제 시간 진행을 본 다음 실제 Pause와 미디어 정지를
+  확인한 경우만 허용한다. 광고·미디어 오류·표시된 오류는 이 성공을 증명하지 못한다.
+- `bot-confirmation`: 정확 영상 식별, 표시된 정확한 `bot-check` 안내, playerState -1,
+  paused=true·ended=false·readyState=0·현재시간 0, 유한한 시작시간, media error 없음과
+  광고 아님이 모두 확인된 별도 결과다. 재생 성공이나 봇 문제 해결을 뜻하지 않는다.
+- `not-demonstrated`: 외부 iframe 안의 재생 준비·Play·Pause 관측에서 재생을 입증하지
+  못했다. `phase`는 ready/play/pause, `reason`은 provider-state/observation-timeout/
+  control-timeout의 닫힌 값이다. buffering, 광고, 공급자 오류와 미확인 상태를 다른
+  결과로 위장하지 않고 snapshot에 보존한다. 미디어가 없으면 playback=null이며,
+  있으면 검증된 닫힌 snapshot만 허용한다. 이 결과는 실패 원인이 공급자라고 단정하거나
+  사용자의 브라우저에서 재생이 불가능하다는 뜻도 아니다.
+
+관측은 폭마다 총 60초, 각 wait/control 최대 30초로 제한한다. provider control의
+Playwright TimeoutError만 해당 control 경계에서 기록한다. evaluate/transport/
+context crash와 그 밖의 예외는 전파한다. 관측된 identityMatches=false는 즉시 실패하며,
+식별을 아직 관측하지 못한 null은 재생 성공으로 인정하지 않는다. 외부 요청·redirect·
+인증·tenant·strict browser 결함은 기존대로 실패한다. 전체 test의 catch로 앱 오류를
+삼키지 않는다. parser는 원 spec의 닫힌 schema/enum/수치만 보존하며 추가 키·중복 폭·
+누락·다른 spec·잘못된 관측을 거부한다. 정상 승격은 두 폭의 유효한 관측, 앱 41건 통과,
+exact artifact identity와 cleanup0을 요구한다. `public-video-1366.png`,
+`public-video-390.png`와 실제 관측을 보존한다. 공개 영상 240초 제한과 retries 0은 유지한다.
 
 `public-video-primary`는 playing/paused 단계에만 optional `playback` 관측을 포함할 수
 있다. 원래 판정과 같은 evaluate에서 얻은 paused/ended, ready/network state, 크기,
@@ -979,12 +988,13 @@ exact artifact identity와 cleanup0을 요구한다. 지원 답변이나 외부 
 오류 표시/닫힌 오류 분류만 허용한다. 시간은 null 또는 유한한 0..604800초, 크기는
 0..16384 정수이며 모든 필드/enum을 emitter와 공식 parser가 검증한다. 추가 key나
 잘못된 값이 있으면 emitter는 전체 optional 관측을 빼고 기존 primary marker를 유지한다.
-원문 오류·영상 ID·URL·본문은 남기지 않으며 metadata getter 실패는 원 판정을 바꾸지 않는다.
+원문 오류·영상 ID·URL·본문은 남기지 않는다. metadata getter/evaluate 예외는 전파하며
+외부 가용성 결과로 바꾸지 않는다.
 허용된 공급자의 실제 HTTP 400..599 응답은 `route-fetch` 관측으로 남기되 기존대로
 한 번 fulfill한다. 응답이 있을 때만 마지막 fetch의 실제 0..30000ms 소요시간을
 선택적으로 보존하며, 범위 밖 측정은 생략한다. 이 관측은 새 거절/재시도 조건이 아니다.
-같은 두 공개 PNG 이름에는 봇 확인 frame이 담길 수도 있다. 이때 별도 provider 결과는
-`bot-confirmation`이고 앱 검증 결과와 구분한다. 실제 앱 오류는 기존 `passed:false` 및
+같은 두 공개 PNG 이름에는 봇 확인이나 재생 미확인 frame이 담길 수도 있다. 별도 provider
+결과는 앱 검증 결과와 구분한다. 실제 앱 오류는 기존 `passed:false` 및
 `public-video-primary` 단계로 남기며, 봇 확인 관측을 Play → Pause 성공 증명으로 쓰지 않는다.
 
 평가 복사 helper도 원 오류를 정리 뒤 그대로 throw하고 `assessment-copy`와

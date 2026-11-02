@@ -76,65 +76,99 @@ test("provider evidence requires both viewports, exact source and unique closed 
   assert.throws(() => assertPublicVideoAvailability(observeReleaseTestResult(foreign)));
 });
 
-test("actual playback control flow continues after confirmed bot only and still proves Play before Pause", async () => {
-  const spec = stripTypeScriptTypes(readFileSync(new URL("../../e2e/admin/public-video-realuse.spec.ts", import.meta.url), "utf8"));
-  const start = spec.indexOf('journeyStage = "player-ready";');
-  const end = spec.indexOf('await assertNoHorizontalOverflow(visitor); await visitor.screenshot', start);
-  assert.ok(start > 0 && end > start);
-  const control = spec.slice(start, end);
-  for (const mode of ["bot-before", "bot-after", "normal", "lazy-media", "bot-before-play-click", "bot-before-pause",
-    "bot-during-pause-click", "unknown-error", "wrong-identity", "transport", "click-timeout", "click-transport"]) {
-    let state = ["bot-before", "unknown-error", "wrong-identity"].includes(mode) ? "blocked" : "ready";
-    const calls = [], outputs = [];
-    const transport = new Error("controlled transport failure");
+test("bounded provider observations keep every external state separate from application success", async () => {
+  const spec = stripTypeScriptTypes(readFileSync(new URL("../../e2e/admin/public-video-realuse.spec.ts", import.meta.url), "utf8"))
+    .replace(/^import[\s\S]*?;\r?\n/gm, "");
+  for (const mode of ["normal", "lazy-media", "bot-before", "bot-after", "buffering", "unavailable", "media-error", "ad",
+    "missing-media", "ready-timeout", "pause-timeout", "control-timeout", "unknown-identity", "wrong-identity", "transport", "context-closed"]) {
+    let state = ["bot-before", "unavailable", "media-error", "ad", "wrong-identity"].includes(mode) ? "blocked" : "ready";
+    let now = 0;
+    const calls = [], stages = [], snapshots = [];
+    const failure = new Error(mode === "context-closed" ? "Target page, context or browser has been closed" : "controlled transport failure");
     const playback = () => state === "blocked" ? { ...botPlayback,
-      ...(mode === "unknown-error" ? { errorClass: "other" } : {}),
+      ...(mode === "unavailable" ? { errorClass: "unavailable" } : {}),
+      ...(mode === "media-error" ? { errorClass: "none", errorVisible: false, mediaError: 2 } : {}),
+      ...(mode === "ad" ? { errorClass: "none", errorVisible: false, adShowing: true } : {}),
       ...(mode === "wrong-identity" ? { identityMatches: false } : {}) }
-      : state === "paused" ? pausedPlayback : state === "playing" ? { ...pausedPlayback, paused: false, playerState: 1 }
-        : { ...pausedPlayback, currentTime: 0, playerState: -1 };
-    const media = { first() { return this; }, count: async () => mode === "lazy-media" && !calls.includes("play") ? 0 : 1, evaluate: async (_fn, args) => {
-      if (mode === "transport") throw transport;
-      if (mode === "lazy-media" && !calls.includes("play")) throw new Error("video is not attached until Play");
-      if (!args) return mode === "bot-before-pause" ? 0.5 : 0;
-      const snapshot = { ...playback(), initialTime: args.initialTime };
-      return { snapshot, playing: state === "playing", paused: snapshot.paused };
-    } };
-    const button = kind => ({ filter() { return this; }, first() { return this; }, isVisible: async () => true,
+      : state === "paused" ? pausedPlayback
+        : state === "playing" ? { ...pausedPlayback, paused: false, playerState: 1, identityMatches: mode === "unknown-identity" ? null : true }
+          : { ...botPlayback, playerState: mode === "buffering" ? 3 : -1, errorVisible: false, errorClass: "none" };
+    const media = { first() { return this; }, count: async () => mode === "missing-media" || (mode === "lazy-media" && !calls.includes("play")) ? 0 : 1,
+      evaluate: async (_fn, args) => {
+        if (mode === "transport" || mode === "context-closed") throw failure;
+        const snapshot = { ...playback(), initialTime: args.initialTime };
+        return { snapshot, playing: state === "playing", paused: snapshot.paused };
+      } };
+    const button = kind => ({ filter() { return this; }, first() { return this; },
+      isVisible: async () => mode !== "ready-timeout" && !(mode === "pause-timeout" && kind === "pause"),
       click: async () => {
         calls.push(kind);
-        if (mode === "click-transport") throw transport;
-        if (mode === "click-timeout" || (mode === "bot-before-play-click" && kind === "play")
-          || (mode === "bot-during-pause-click" && kind === "pause")) {
-          if (mode !== "click-timeout") state = "blocked";
-          const error = new Error("controlled action timeout"); error.name = "TimeoutError"; throw error;
-        }
-        state = kind === "play" ? mode === "bot-after" ? "blocked" : "playing" : "paused";
+        if (mode === "control-timeout") { const error = new Error("bounded provider action timeout"); error.name = "TimeoutError"; throw error; }
+        state = kind === "play" ? mode === "bot-after" ? "blocked" : ["buffering", "missing-media"].includes(mode) ? "ready" : "playing" : "paused";
       } });
     const frame = { getByRole: (_role, options) => button(options.name.test("Play") ? "play" : "pause"),
-      locator: selector => selector.includes("video.html5") ? media : selector === ".ytp-error"
-        ? { error: true, isVisible: async () => state === "blocked" }
-        : { hover: async () => { if (mode === "bot-before-pause") state = "blocked"; } } };
-    const expected = value => ({ toBe: other => assert.equal(value, other),
-      toBeHidden: async () => assert.notEqual(state, "blocked", "unclassified provider error remains terminal") });
-    expected.poll = callback => ({ toBe: async value => {
-      let actual;
-      for (let attempt = 0; attempt < 3; attempt++) { actual = await callback(); if (actual === value) return; }
-      assert.equal(actual, value);
-    } });
-    const run = runInNewContext(`(async () => { let journeyStage, activeVisitor, playbackObservation; ${control}; return "continue-application-journey"; })`, {
-      visitor: { frameLocator: () => frame }, width: 1366, row: { youtube_video_id: id }, expect: expected, Error,
-      readPublicVideoPlayback() {}, isPublicVideoBotConfirmation: policy.isPublicVideoBotConfirmation,
-      emitPublicVideoAvailability: (width, outcome, snapshot) => policy.emitPublicVideoAvailability(width, outcome, snapshot, value => outputs.push(value)),
-    });
-    if (["unknown-error", "wrong-identity", "transport", "click-timeout", "click-transport"].includes(mode)) {
-      await assert.rejects(run(), ["transport", "click-transport"].includes(mode) ? error => error === transport : undefined);
-      assert.deepEqual(outputs, []);
-    } else {
-      assert.equal(await run(), "continue-application-journey");
-      assert.deepEqual(calls, ["normal", "lazy-media", "bot-during-pause-click"].includes(mode) ? ["play", "pause"] : mode === "bot-before" ? [] : ["play"]);
-      assert.equal(outputs[0].publicVideoAvailability.outcome, ["normal", "lazy-media"].includes(mode) ? "played-paused" : "bot-confirmation");
+      locator: selector => selector.includes("video.html5") ? media : { hover: async () => {} } };
+    const visitor = { frameLocator: () => frame, waitForTimeout: async delay => { now += delay; } };
+    const scope = { test: { setTimeout() {}, use() {}, describe() {} }, Error, Date: { now: () => now },
+      isPublicVideoBotConfirmation: policy.isPublicVideoBotConfirmation, isPublicVideoPlayedPaused: policy.isPublicVideoPlayedPaused };
+    runInNewContext(spec + "\nglobalThis.observe = observePublicVideoPlayback;", scope);
+    const run = () => scope.observe(visitor, id, stage => stages.push(stage), value => snapshots.push(value));
+    if (["wrong-identity", "transport", "context-closed"].includes(mode)) {
+      await assert.rejects(run(), mode === "wrong-identity" ? /identity mismatch/ : error => error === failure);
+      continue;
+    }
+    const result = await run();
+    assert.ok(now <= 60_000);
+    const positive = ["normal", "lazy-media"].includes(mode);
+    assert.equal(result.outcome, positive ? "played-paused" : mode.startsWith("bot-") ? "bot-confirmation" : "not-demonstrated", mode);
+    if (positive) assert.deepEqual(calls, ["play", "pause"]);
+    if (mode === "buffering") { assert.equal(result.phase, "play"); assert.equal(result.reason, "observation-timeout"); assert.equal(result.playback.playerState, 3); }
+    if (mode === "missing-media") assert.equal(result.playback, null);
+    if (mode === "pause-timeout") assert.equal(result.phase, "pause");
+    const output = [];
+    for (const viewport of [1366, 390]) {
+      if (result.outcome === "not-demonstrated") policy.emitPublicVideoNotDemonstrated(viewport, result.phase, result.reason, result.playback, value => output.push(value));
+      else policy.emitPublicVideoAvailability(viewport, result.outcome, result.playback, value => output.push(value));
+    }
+    const evidence = observePublicEvidence(output);
+    assertPublicVideoAvailability(evidence);
+    assert.equal(evidence.stats.unexpected, 1, "provider observations never rewrite a failing application result");
+  }
+});
+
+test("not-demonstrated rejects identity mismatches, invalid phase/reason, extra data and invented playback success", () => {
+  for (const playback of [null, { ...botPlayback, identityMatches: null }, { ...botPlayback, playerState: 3, errorVisible: false, errorClass: "none" }]) {
+    const output = [];
+    policy.emitPublicVideoNotDemonstrated(1366, "play", "observation-timeout", playback, value => output.push(value));
+    policy.emitPublicVideoNotDemonstrated(390, "ready", "provider-state", playback, value => output.push(value));
+    assertPublicVideoAvailability(observePublicEvidence(output));
+    for (const patch of [{ phase: "app-save" }, { reason: "private-secret" }, { playback: { ...botPlayback, identityMatches: false } },
+      { playback: undefined }, { playback: { ...botPlayback, secret: "private-secret" } }, { outcome: "played-paused" }]) {
+      const observation = observePublicEvidence([{ publicVideoAvailability: { ...output[0].publicVideoAvailability, ...patch } }, output[1]]);
+      assert.throws(() => assertPublicVideoAvailability(observation));
+      assert.doesNotMatch(JSON.stringify(observation), /private-secret/);
     }
   }
+  assert.throws(() => policy.emitPublicVideoNotDemonstrated(1366, "play", "observation-timeout", { ...botPlayback, identityMatches: false }));
+  assert.throws(() => policy.emitPublicVideoNotDemonstrated(1366, "app-save", "provider-state", null));
+});
+
+test("actual application continuation stays outside provider observation and preserves its failure", async () => {
+  const spec = stripTypeScriptTypes(readFileSync(new URL("../../e2e/admin/public-video-realuse.spec.ts", import.meta.url), "utf8"));
+  const start = spec.indexOf("        activeVisitor = visitor;");
+  const end = spec.indexOf("        playbackObservation = undefined;", start);
+  assert.ok(start > 0 && end > start);
+  const applicationError = new Error("application overflow failure");
+  const output = [];
+  const run = runInNewContext(`(async () => { let activeVisitor, journeyStage, playbackObservation; ${spec.slice(start, end)} })`, {
+    visitor: {}, row: { youtube_video_id: id }, width: 390,
+    observePublicVideoPlayback: async () => ({ outcome: "not-demonstrated", phase: "play", reason: "observation-timeout", playback: null }),
+    emitPublicVideoNotDemonstrated: (...args) => policy.emitPublicVideoNotDemonstrated(...args, value => output.push(value)),
+    assertNoHorizontalOverflow: async () => { throw applicationError; },
+  });
+  await assert.rejects(run(), error => error === applicationError);
+  assert.equal(output.length, 1);
+  assert.equal(output[0].publicVideoAvailability.outcome, "not-demonstrated");
 });
 
 test("only API-shaped sources with fixed canonical and thumbnail addresses are registered", () => {
@@ -595,13 +629,9 @@ test("actual public-video sampler preserves failed playback predicates and emits
   }
   for (const paused of [false, true]) {
     for (const getter of ["getPlayerState", "getVideoData", "querySelector"]) {
-      const result = sample({ paused }, [], { [getter]: () => { throw new Error("private-secret"); } });
-      assert.equal(result.playing, !paused); assert.equal(result.paused, paused);
-      assert.equal(result.snapshot, undefined, "optional provider diagnostics cannot change the original predicate");
-      const output = [];
-      policy.emitReleaseTestFailure(new Error("private-secret"), "public-video-primary", value => output.push(value), "player-playing", result.snapshot);
-      assert.equal(Object.hasOwn(output[0].releaseTestFailure, "playback"), false);
-      assert.equal(observePublicEvidence(output).rejectedFailureObservationCount, 0);
+      const error = new Error("private-secret");
+      assert.throws(() => sample({ paused }, [], { [getter]: () => { throw error; } }), value => value === error,
+        "evaluation failures must escape the external availability observer");
     }
   }
   for (const [text, errorClass] of [["Sign in to confirm you're not a bot", "bot-check"],

@@ -415,8 +415,12 @@ function validPublicVideoPlayback(value) {
 
 function validPublicVideoAvailability(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)
-    || Object.keys(value).sort().join(",") !== "outcome,playback,schema,viewport"
-    || value.schema !== "public-video-availability/v1" || ![1366, 390].includes(value.viewport)
+    || value.schema !== "public-video-availability/v1" || ![1366, 390].includes(value.viewport)) return false;
+  if (value.outcome === "not-demonstrated") return Object.keys(value).sort().join(",") === "outcome,phase,playback,reason,schema,viewport"
+    && ["ready", "play", "pause"].includes(value.phase)
+    && ["provider-state", "observation-timeout", "control-timeout"].includes(value.reason)
+    && (value.playback === null || (validPublicVideoPlayback(value.playback) && value.playback.identityMatches !== false));
+  if (Object.keys(value).sort().join(",") !== "outcome,playback,schema,viewport"
     || !validPublicVideoPlayback(value.playback)) return false;
   const p = value.playback;
   if (p.identityMatches !== true || p.mediaError !== null || p.adShowing || p.adInterrupting || !p.paused || p.ended) return false;
