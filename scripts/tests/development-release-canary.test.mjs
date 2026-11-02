@@ -905,8 +905,8 @@ test("student-parent real-use selects the intended child and uses supported clin
     assert.match(source, /selectParentStudentThroughUi\(page,/);
   }
   assert.match(clinicSource, /createQaFamily\([^;]+\{ withStudentPhones: true \}\)/s);
-  assert.match(clinicSource, /remove\("DELETE", `\/clinic\/sessions\/\$\{sessionId\}\/`\)/);
-  assert.doesNotMatch(clinicSource, /remove\("DELETE", `\/clinic\/participants\//);
+  assert.match(clinicSource, /remove\(`\/clinic\/sessions\/\$\{sessionId\}\/`\)/);
+  assert.doesNotMatch(clinicSource, /remove\(`\/clinic\/participants\//);
   assert.match(clinicSource, /verify clinic participant \$\{participantId\} absent/);
 });
 
